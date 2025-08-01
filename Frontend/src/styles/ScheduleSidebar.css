@@ -1,0 +1,21 @@
+.schedule-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-content table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.schedule-content th, .schedule-content td {
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+.schedule-content th {
+    background: #007bff;
+    color: white;
+}

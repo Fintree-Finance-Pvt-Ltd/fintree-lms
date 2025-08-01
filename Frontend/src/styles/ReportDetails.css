@@ -1,0 +1,57 @@
+/* styles/Reports.css */
+
+/* Container and Header */
+.container {
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+  }
+  
+  .container h3 {
+    font-weight: 600;
+    margin-bottom: 25px;
+    color: #2d3748;
+  }
+  
+  /* Form Elements */
+  form label {
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: #4a5568;
+  }
+  
+  form input[type="date"],
+  form select,
+  form textarea {
+    padding: 10px;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  form input[type="date"]:focus,
+  form select:focus,
+  form textarea:focus {
+    border-color: #3182ce;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.3);
+  }
+  
+  /* Button */
+  .btn.btn-danger {
+    background-color: #e53e3e;
+    border-color: #e53e3e;
+    padding: 10px 20px;
+    font-weight: 500;
+    font-size: 16px;
+    border-radius: 5px;
+    margin-top: 10px;
+    transition: background-color 0.2s ease-in-out;
+  }
+  
+  .btn.btn-danger:hover {
+    background-color: #c53030;
+    border-color: #c53030;
+  }
+  

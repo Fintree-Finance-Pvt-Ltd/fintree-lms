@@ -1,0 +1,43 @@
+/* ✅ Wrapper to align sidebar properly */
+.sidebar-wrapper {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 350px;
+    height: 100%;
+    background: #f8f9fa;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    overflow-y: auto;
+    z-index: 1000;
+    transition: left 0.3s ease-in-out;
+}
+
+/* ✅ Table Styles */
+.disbursed-loans-container {
+    padding: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #007bff;
+    color: white;
+}
+
+/* ✅ Clickable Items */
+.clickable {
+    color: blue;
+    cursor: pointer;
+    text-decoration: underline;
+}

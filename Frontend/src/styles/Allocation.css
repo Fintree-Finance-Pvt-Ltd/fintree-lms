@@ -1,0 +1,134 @@
+/* .allocation-container {
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    margin-left: 250px;
+}
+
+.allocation-container h2 {
+    margin-bottom: 15px;
+}
+
+.allocation-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.allocation-table th, .allocation-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+.allocation-table th {
+    background: #007bff;
+    color: white;
+}
+
+.allocation-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+} */
+
+/* ///////////////////////////// */
+.allocation-container {
+    padding: 24px;
+    background: #f9f9f9;
+    border-radius: 10px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .allocation-container h2 {
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    
+    color: #000c57;
+  }
+  
+  /* 🧱 Table wrapper border */
+  .allocation-table {
+    width: 100%;
+    border-collapse: collapse;
+   
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  /* 🧱 Header */
+  .allocation-table thead {
+    background-color: #1f2b3f;
+  
+  }
+  
+  .allocation-table th {
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    padding: 10px 12px;
+    border: 1px solid #000000; /* border all around */
+    text-align: left;
+  
+  }
+  
+  .allocation-table th:last-child {
+    border-right: none;
+  }
+  
+  /* 📦 Data rows */
+  .allocation-table td {
+    font-size: 14px;
+    padding: 10px 12px;
+    color: #222;
+    background-color: #ffffff;
+    border-top: 1px solid #020202;
+    border: 1px solid #000000; /* border all around */
+  }
+  
+  .allocation-table td:last-child {
+    border-right:  1px solid #000000;
+  }
+  
+  /* 🪄 Row styling */
+  .allocation-table tbody tr:nth-child(even) {
+    background-color: #f5f5f5;
+  }
+  
+  .allocation-table tbody tr:hover {
+    background-color: #eef3f8;
+  }
+  
+  /* 💰 Bold amounts */
+  .allocation-table td:last-child,
+  .allocation-table td:nth-last-child(1),
+  .allocation-table td:nth-last-child(2) {
+    font-weight: 600;
+    color: #0f172a;
+  }
+  
+  /* 🔘 Collect Button */
+  .collect-btn {
+    background-color: #e3342f;
+    color: white;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  
+  .collect-btn:hover {
+    background-color: #c62828;
+  }
+  
+  .collect-btn i {
+    font-size: 16px;
+  }
+  

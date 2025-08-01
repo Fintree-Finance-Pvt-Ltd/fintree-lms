@@ -1,0 +1,14 @@
+.fin-logo{
+    color: white !important;
+}
+
+.action-buttons{
+    background-color: #E74C3C;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-right: 10px;
+}

@@ -1,0 +1,67 @@
+/* 🔹 Page Container */
+.all-loans-container {
+    background: #f4f6f9;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+    width: 95%;
+    max-width: 1000px;
+    margin: 20px auto;
+    text-align: left;
+}
+
+/* 🔹 Page Title */
+.all-loans-container h2 {
+    font-size: 22px;
+    color: #2C3E50;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+/* 🔹 Table Styling */
+.all-loans-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* 🔹 Table Header */
+.all-loans-table thead {
+    background: #2C3E50;
+    color: white;
+}
+
+.all-loans-table th {
+    padding: 12px;
+    text-align: left;
+    font-size: 16px;
+}
+
+/* 🔹 Table Rows */
+.all-loans-table td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    font-size: 16px;
+    color: #555;
+}
+
+/* 🔹 Hover Effect */
+.all-loans-table tbody tr:hover {
+    background: #f1f1f1;
+}
+
+/* 🔹 Responsive Design */
+@media (max-width: 768px) {
+    .all-loans-container {
+        padding: 15px;
+    }
+
+    .all-loans-table th,
+    .all-loans-table td {
+        font-size: 14px;
+        padding: 8px;
+    }
+}

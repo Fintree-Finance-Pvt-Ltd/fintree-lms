@@ -1,0 +1,60 @@
+/* ✅ Main Container */
+.repayments-upload {
+    width: 100%;
+    max-width: 450px;
+    margin: 40px auto;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* ✅ Heading */
+.repayments-upload h2 {
+    font-size: 22px;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+/* ✅ File Input */
+.repayments-upload input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    margin: 15px 0;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+/* ✅ Upload Button */
+.repayments-upload button {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: 0.3s ease-in-out;
+}
+
+.repayments-upload button:hover {
+    background: #007bff;
+}
+
+/* ✅ Success/Error Message */
+.repayments-upload p {
+    margin-top: 15px;
+    font-weight: bold;
+}
+
+/* ✅ Success Message */
+.success-message {
+    color: green;
+}
+
+/* ✅ Error Message */
+.error-message {
+    color: red;
+}

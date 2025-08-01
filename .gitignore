@@ -1,0 +1,17 @@
+# Node.js
+node_modules/
+npm-debug.log
+
+# React/Vite Build
+frontend/dist/
+frontend/build/
+
+# Logs
+*.log
+
+# OS/System
+.DS_Store
+Thumbs.db
+
+# Env files
+*.env

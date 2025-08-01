@@ -1,0 +1,110 @@
+/* Main container */
+.trigger-report-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 30px;
+    font-family: 'Inter', sans-serif;
+    background-color: #ffffff;
+  }
+  
+  /* Back arrow */
+  .back-arrow {
+    font-size: 20px;
+    cursor: pointer;
+    color: #374151;
+    margin-bottom: 24px;
+    display: inline-block;
+  }
+  
+  /* Title */
+  .trigger-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 30px;
+  }
+  
+  .trigger-title .report-id {
+    color: #6b7280;
+    font-weight: 500;
+  }
+  
+  /* Form structure */
+  .trigger-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  /* Label styling */
+  .form-label {
+    font-weight: 500;
+    color: #374151;
+    font-size: 14px;
+    margin-bottom: 6px;
+    display: block;
+  }
+  
+  /* Row for two columns (Start + End Date) */
+  .form-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  
+  /* Group each field */
+  .form-group {
+    flex: 1;
+    min-width: 250px;
+  }
+  
+  /* Input and dropdown styling */
+  .form-control,
+  .css-13cymwt-control {
+    width: 100%;
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    box-shadow: none !important;
+    background-color: #fff !important;
+  }
+  
+  textarea.form-control {
+    resize: vertical;
+    min-height: 90px;
+  }
+  
+  /* Centered submit button */
+  .submit-button-wrapper {
+    text-align: center;
+    margin-top: 10px;
+  }
+  
+  .btn-danger {
+    background-color: #ef4444;
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 30px;
+    border-radius: 8px;
+    border: none;
+    transition: background-color 0.2s ease;
+    display: inline-block;
+  }
+  
+  .btn-danger:hover {
+    background-color: #dc2626;
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .form-row {
+      flex-direction: column;
+    }
+  
+    .btn-danger {
+      width: 100%;
+    }
+  }
+  

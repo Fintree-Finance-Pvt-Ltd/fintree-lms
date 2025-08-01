@@ -1,0 +1,47 @@
+table th {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.downloaded-reports-title{
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+  text-align: center;
+  
+}
+
+table td {
+  vertical-align: middle;
+}
+
+.btn-link {
+  color: #0033cc;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+
+.status-badge {
+  padding: 7px 10px;
+  border-radius: 13px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.status-badge.running {
+  background-color: orange;
+  color: white;
+  padding: 6px 8px;
+  /* border-radius: 4px; */
+}
+
+.status-badge.completed {
+  background-color: green;
+  color: white;
+}
+
+.status-badge.failed {
+  background-color: red;
+  color: white;
+}

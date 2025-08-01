@@ -1,0 +1,91 @@
+/* Background */
+.login-page {
+  min-height: 100vh;
+  background: url('../assets/background_login.jpg') no-repeat center center;
+background-size: cover;
+background-position: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.logo {
+    width: 190px;
+    height: 100px;
+    margin-bottom: 15px;
+}
+
+/* Card */
+.login-card {
+  /* background: rgba(255, 255, 255, 0.95); */
+  background: transparent;
+  padding: 40px 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(32, 32, 32, 0.5);
+  width: 100%;
+  max-width: 350px;
+  text-align: center;
+}
+
+/* Heading */
+.login-card h2 {
+  margin-bottom: 25px;
+  font-size: 28px;
+  color: #333;
+}
+
+/* Inputs */
+.login-card input {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 15px;
+  border: none;
+  border-radius: 30px;
+  background: #f5f5f5;
+  font-size: 14px;
+  transition: box-shadow 0.3s;
+}
+
+.login-card input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #e74c3c;
+}
+
+/* Error Message */
+.login-card p {
+  color: #e74c3c;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+/* Button */
+.login-card button {
+  width: 100%;
+  padding: 12px 0;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.login-card button:hover {
+  opacity: 0.85;
+}
+
+/* Links */
+.login-card .small-link {
+  display: block;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #555;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.login-card .small-link:hover {
+  color: #e74c3c;
+}

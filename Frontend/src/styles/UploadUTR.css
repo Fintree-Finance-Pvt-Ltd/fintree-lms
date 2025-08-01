@@ -1,0 +1,80 @@
+/* 🔹 Main Container */
+.utr-upload-container {
+    max-width: 500px;
+    margin: 50px auto;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* 🔹 Heading */
+.utr-upload-container h2 {
+    font-size: 22px;
+    font-weight: bold;
+    color: #2C3E50;
+    margin-bottom: 20px;
+}
+
+/* 🔹 File Input Styling */
+.utr-upload-container input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    background: #f8f8f8;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.utr-upload-container input[type="file"]:hover {
+    border-color: #3498DB;
+}
+
+/* 🔹 Upload Button */
+.utr-upload-container button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    background: #3498DB;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 15px;
+    transition: 0.3s;
+}
+
+.utr-upload-container button:hover {
+    background: #2980B9;
+}
+
+/* 🔹 Upload Message */
+.upload-message {
+    margin-top: 15px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #27AE60;
+}
+
+/* 🔹 Error Message */
+.upload-message.error {
+    color: #E74C3C;
+}
+
+/* 🔹 Responsive Design */
+@media (max-width: 600px) {
+    .utr-upload-container {
+        width: 90%;
+    }
+
+    .utr-upload-container input[type="file"] {
+        font-size: 14px;
+    }
+
+    .utr-upload-container button {
+        font-size: 14px;
+    }
+}

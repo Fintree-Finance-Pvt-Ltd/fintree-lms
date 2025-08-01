@@ -1,0 +1,139 @@
+/* 🔹 Container */
+.schedule-page-container {
+    width: 100%;
+    padding: 20px;
+    background: #f4f6f9;
+    border-radius: 8px;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* 🔹 Table Styling */
+.schedule-table-container {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.schedule-table-container table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+    min-width: 900px; /* Prevent table from shrinking */
+    border: 1px solid #ddd; /* ✅ Add table borders */
+}
+
+/* 🔹 Table Header */
+.schedule-table-container thead {
+    background: #2C3E50;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.schedule-table-container th {
+    padding: 12px;
+    text-align: left;
+    font-size: 16px;
+    border: 1px solid black; /* ✅ Add column borders */
+}
+
+/* 🔹 Table Body */
+.schedule-table-container td {
+    padding: 10px;
+    border: 1px solid black; /* ✅ Add row borders */
+    font-size: 16px;
+    color: #555;
+    white-space: nowrap;
+}
+
+/* 🔹 Hover Effect */
+.schedule-table-container tbody tr:hover {
+    background: #f1f1f1;
+}
+
+/* 🔹 Status Styling */
+.due-status {
+    color: red;
+    font-weight: bold;
+}
+
+.paid-status {
+    color: green;
+    font-weight: bold;
+}
+
+/* 🔹 Responsive Design */
+@media (max-width: 768px) {
+    .schedule-table-container {
+        overflow-x: auto;
+        width: 100%;
+    }
+
+    .schedule-table-container th,
+    .schedule-table-container td {
+        font-size: 14px;
+        padding: 8px;
+    }
+}
+
+.status-label {
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 20px;
+}
+
+.due-status {
+    background-color: #FFC107; /* Yellow */
+    color: #000;
+}
+
+.paid-status {
+    background-color: #28A745; /* Green */
+    color: #fff;
+}
+
+.part-paid-status {
+    background-color: #FF9800; /* Orange */
+    color: #fff;
+}
+
+.late-status {
+    background-color: #DC3545; /* Red */
+    color: #fff;
+}
+
+.not-set-status {
+    background-color: #6C757D; /* Gray */
+    color: #fff;
+}
+
+
+
+.dpd-label {
+    padding:0;
+    margin: 10px; 
+    font-weight: bold;
+    border-radius: 5px;
+}
+
+.dpd-red {
+    
+    color: #DC3545 !important;
+}
+
+.dpd-orange {
+    
+    color: #FF9800;
+}
+
+.dpd-yellow {
+  
+    color: #FFC107;
+}

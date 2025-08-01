@@ -1,0 +1,100 @@
+/* Wrapper */
+.admin-panel {
+  padding: 30px;
+  max-width: 900px;
+  margin: 20px auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+}
+
+/* Headings */
+.admin-panel h2 {
+  font-size: 32px;
+  font-weight: 600;
+  margin-bottom: 25px;
+}
+
+.admin-panel h3 {
+  font-size: 24px;
+  margin-bottom: 15px;
+}
+
+/* Card Containers */
+.admin-panel section {
+  background: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 30px;
+}
+
+/* Form Inputs */
+.admin-panel input,
+.admin-panel select {
+  display: block;
+  width: 100%;
+  max-width: 350px;
+  margin-bottom: 15px;
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border 0.3s;
+}
+
+.admin-panel input:focus,
+.admin-panel select:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+/* Buttons */
+.admin-panel button {
+  padding: 10px 24px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+.admin-panel button:hover {
+  background-color: #0056b3;
+}
+
+/* Pages List */
+.pages-list {
+  margin-top: 15px;
+}
+
+.pages-list label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+/* Permissions Button */
+.update-permissions-btn {
+  margin-top: 15px;
+  padding: 10px 24px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.update-permissions-btn:hover {
+  background-color: #218838;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .admin-panel input,
+  .admin-panel select {
+    max-width: 100%;
+  }
+}
