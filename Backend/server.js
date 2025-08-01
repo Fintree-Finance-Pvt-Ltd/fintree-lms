@@ -9,7 +9,7 @@ const loanRoutes = require("./routes/loanRoutes");
 const repaymentRoutes = require("./routes/repaymentsRoutes");
 const loanChargesRoutes = require("./routes/loanChargesRoutes");
 const manualRPSRoutes = require("./routes/manualRPSRoutes");
-const DisbursalRoutes = require("./routes/disbursalRoutes");
+const DisbursalRoutes = require("./routes/DisbursalRoutes");
 const applicationFormRoutes = require("./routes/applicationFormRoutes");
 const chargesRoutes = require("./routes/chargesRoutes");
 const deleteCashflowRoutes = require("./routes/deleteCashflowRoutes");
@@ -39,15 +39,15 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/loan-booking', excelUploadRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 // app.use("/api/courses", courseRoutes);
-app.use("/api", loanRoutes);
+app.use("/api/loan", loanRoutes); //  routes chanegd
 app.use("/api/repayments", repaymentRoutes);
 app.use("/api/loan-charges", loanChargesRoutes);
 app.use("/api/manual-rps", manualRPSRoutes);
 app.use("/api/disbursal", DisbursalRoutes);
 app.use("/api/application-form", applicationFormRoutes);
-app.use("/api", chargesRoutes);
+app.use("/api/charges", chargesRoutes);//  routes chanegd
 app.use("/api/delete-cashflow", deleteCashflowRoutes);
-app.use("/api", allocationRoutes);
+app.use("/api/allocate", allocationRoutes);//  routes chanegd
 app.use("/api/forecloser-collection", forecloserRoutes); // NOT foreclose-collection
 app.use("/api/forecloser", forecloserUploadRoutes); // ✅ Register Route for Forecloser Upload FC Upload
  app.use("/reports", express.static(path.join(__dirname, "/reports")));

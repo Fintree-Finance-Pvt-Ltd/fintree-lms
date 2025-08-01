@@ -16,7 +16,7 @@ const AllocationPage = () => {
     const fetchAllocations = async () => {
       try {
         console.log("📡 Fetching allocation data...");
-        const response = await api.get(`/allocations/${lan}`);
+        const response = await api.get(`/allocate/allocations/${lan}`);
         setAllocations(response.data.allocations || []);
         console.log("Received Data:", response.data);
       } catch (err) {

@@ -12,7 +12,7 @@ const ChargesCashflow = () => {
     useEffect(() => {
         const fetchCashflowData = async () => {
             try {
-                const response = await api.get(`/charges-cashflow/${lan}`);
+                const response = await api.get(`/charges/charges-cashflow/${lan}`);
                 setCashflowData(response.data);
             } catch (err) {
                 console.error("❌ Failed to fetch charges cashflow:", err);
