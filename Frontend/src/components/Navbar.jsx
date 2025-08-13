@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import logo from "../assets/logo-image.png"; // Adjust the path as necessary
+import logo from "../assets/fintree_logo.png"; // Adjust the path as necessary
 
 const Navbar = () => {
     const navigate = useNavigate();
