@@ -32,7 +32,7 @@ const Navbar = () => {
                 {user ? (
                     <span>Welcome Fintree LMS By sajag, <strong>{user.name}</strong>!</span>
                 ) : (
-                    <span>Welcome!</span>
+                    <span>Welcome Fintree LMS By sajag!</span>
                 )}
             </div>
 
