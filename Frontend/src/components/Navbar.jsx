@@ -19,7 +19,7 @@ const Navbar = () => {
              <div style={{ display: "flex", alignItems: "center" }}>
                 <img 
                     src={logo} 
-                    alt="NobleFin Logo" 
+                    alt="fintree_logo" 
                     style={{
                         width: "160px",
                         height: "auto",
