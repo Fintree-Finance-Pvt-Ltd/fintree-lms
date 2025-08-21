@@ -19,7 +19,7 @@ const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 // server.js
-import { v4 as uuidv4 } from 'uuid';
+// import { v4 as uuidv4 } from 'uuid';
 
 
 
@@ -36,20 +36,19 @@ app.use(cors({
 }));
 
 
-// Auto-generate API key once when server starts
-const API_KEY = process.env.API_KEY || uuidv4();
-console.log("✅ Generated API Key:", API_KEY); // Copy this and use in Postman
+// // Auto-generate API key once when server starts
+// const API_KEY = process.env.API_KEY || uuidv4();
+// console.log("✅ Generated API Key:", API_KEY); // Copy this and use in Postman
 
-// Middleware
-function apiKeyAuth(req, res, next) {
-  const apiKey = req.headers['x-api-key'];
+// function apiKeyAuth(req, res, next) {
+//   const apiKey = req.headers['x-api-key'];
 
-  if (!apiKey || apiKey !== API_KEY) {
-    return res.status(403).json({ message: 'Forbidden: Invalid API Key' });
-  }
+//   if (!apiKey || apiKey !== API_KEY) {
+//     return res.status(403).json({ message: 'Forbidden: Invalid API Key' });
+//   }
 
-  next();
-}
+//   next();
+// }
 
 app.use(express.json());
 
