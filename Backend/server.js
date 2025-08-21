@@ -91,4 +91,4 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
   });
 
-app.listen(5003, () => console.log('✅ Backend server running on port 5003'));
+app.listen(process.env.PORT || 5000, () => console.log('✅ Backend server running on port 5000'));

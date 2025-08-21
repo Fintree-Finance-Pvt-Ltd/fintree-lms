@@ -297,7 +297,7 @@ const path = require("path");
 const ExcelJS = require("exceljs");
 const authenticateUser = require("../middleware/verifyToken");
 
-const reportsDir = path.join(__dirname, "../../frontend/public/reports");
+const reportsDir = path.join(__dirname, "../../Frontend/public/reports");
 if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
 
 router.post("/trigger", authenticateUser,  async (req, res) => {

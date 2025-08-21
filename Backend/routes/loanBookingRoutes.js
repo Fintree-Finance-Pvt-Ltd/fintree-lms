@@ -3,7 +3,7 @@ const multer = require("multer");
 const xlsx = require("xlsx");
 const db = require("../config/db");
 const partnerApiLimiter = require("../middleware/rateLimiter");
-const { verifyApiKey } = require("../middleware/authMiddleware");
+// const { verifyApiKey } = require("../middleware/authMiddleware");
 const {
   generateRepaymentSchedule,
 } = require("../utils/repaymentScheduleGenerator");
