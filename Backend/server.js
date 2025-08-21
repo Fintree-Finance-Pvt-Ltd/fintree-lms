@@ -52,7 +52,7 @@ app.use(cors({
 
 app.use(express.json());
 
-app.use(express.static(path.join(__dirname, '../Frontend/dist')));
+// app.use(express.static(path.join(__dirname, '../Frontend/dist')));
 
 
 app.use('/api/auth', authRoutes);
@@ -87,8 +87,8 @@ app.use("/reports", express.static(reportsPath));
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
-  });
+// app.get('*', (req, res) => {
+//     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
+//   });
 
 app.listen(process.env.PORT || 5000, () => console.log('✅ Backend server running on port 5000'));
