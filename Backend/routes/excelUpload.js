@@ -3,6 +3,7 @@ const multer = require("multer");
 const xlsx = require("xlsx");
 const db = require("../config/db");
 // const verifyApiKey = require("../middleware/authMiddleware");
+const verifyApiKey = require("../middleware/apiKeyAuth");
 
 
 const router = express.Router();
@@ -955,6 +956,98 @@ router.get("/gq-fsf-disbursed", (req, res) => {
 
 
 
+
+// âœ… JSON Upload Route
+router.post("/adikosh-json", verifyApiKey, async (req, res) => {
+  try {
+    const data = req.body; // Direct JSON
+console.log("Incoming lenderType:", req.body.lenderType);
+    console.log("Received JSON:", data);
+
+    if (!data.lenderType) {
+      return res.status(400).json({ message: "Lender type is required." });
+    }
+
+    const lenderType = data.lenderType.trim();
+
+    // í´¹ Check duplicates
+    const [existingRecords] = await db
+      .promise()
+      .query(
+        `SELECT lan FROM loan_booking_adikosh WHERE pan_card = ? OR aadhar_number = ?`,
+        [data.panCard, data.aadharNumber]
+      );
+
+    if (existingRecords.length > 0) {
+      return res.json({
+        message: `Customer already exists for Pan: ${data.panCard} or Aadhar: ${data.aadharNumber}`,
+      });
+    }
+
+    // í´¹ Generate Loan IDs
+    const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+    // í´¹ Insert into DB
+    await db.promise().query(
+      `INSERT INTO loan_booking_adikosh (
+        partner_loan_id, lan, customer_name, borrower_dob, father_name,
+        address_line_1, address_line_2, village, district, state, pincode,
+        mobile_number, email, occupation, relationship_with_borrower, cibil_score,
+        guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
+        guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
+        account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant,
+        guarantor_co_applicant_dob, product, lender, agreement_date, status, salary_day
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        partnerLoanId,
+        lan,
+        data.customerName,
+        data.borrowerDob,
+        data.fatherName,
+        data.addressLine1,
+        data.addressLine2,
+        data.village,
+        data.district,
+        data.state,
+        data.pincode,
+        data.mobileNumber,
+        data.email,
+        data.occupation,
+        data.relationshipWithBorrower,
+        data.cibilScore,
+        data.guarantorCoCibilScore,
+        data.loanAmount,
+        data.tenure,
+        data.interestRate,
+        data.emiAmount,
+        data.guarantorAadhar,
+        data.guarantorPan,
+        data.dealerName,
+        data.nameInBank,
+        data.bankName,
+        data.accountNumber,
+        data.ifsc,
+        data.aadharNumber,
+        data.panCard,
+        data.guarantorCoApplicant,
+        data.guarantorCoApplicantDob,
+        data.product,
+        lenderType,
+        data.agreementDate,
+        "Approved",
+        data.salaryDay,
+      ]
+    );
+
+    res.json({ message: "JSON data saved successfully." });
+  } catch (error) {
+    console.error("âŒ Error in JSON Upload:", error);
+    res.status(500).json({
+      message: "Upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
 
 ///////////// GQ NON FSF  //////////////////////////
 router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {

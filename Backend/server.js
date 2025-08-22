@@ -26,12 +26,11 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const fs = require("fs");
 const path = require("path");
 const app = express();
-app.use(cors());
 app.use(express.json());
 app.use(cors({
   origin: '*', // <-- Your frontend GitHub Pages URL
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization','X-API-Key'],
   credentials: true
 }));
 
@@ -49,9 +48,6 @@ app.use(cors({
 
 //   next();
 // }
-
-app.use(express.json());
-
 // app.use(express.static(path.join(__dirname, '../Frontend/dist')));
 
 
@@ -86,6 +82,9 @@ app.use("/reports", express.static(reportsPath));
 
 app.use("/api/documents", require("./routes/documents"));// âœ… Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
+app.get("/api/test", (req, res) => {
+  res.json({ success: true, message: "Backend API is working íº€" });
+});
 
 // app.get('*', (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));

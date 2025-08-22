@@ -10,14 +10,7 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0,
-  charset: "utf8mb4" // ✅ Ensure UTF-8 at connection level
-});
-
-// Run collation setup for every new connection
-pool.on("connection", (connection) => {
-  connection.query("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
-  connection.query("SET collation_connection = utf8mb4_unicode_ci");
+  queueLimit: 0
 });
 
 pool.getConnection((err, connection) => {
@@ -29,4 +22,4 @@ pool.getConnection((err, connection) => {
   }
 });
 
-module.exports = pool.promise(); // ✅ Use promise-based queries
+module.exports = pool; 
