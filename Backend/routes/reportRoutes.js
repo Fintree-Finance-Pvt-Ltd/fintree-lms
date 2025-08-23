@@ -353,6 +353,8 @@ router.post("/trigger", authenticateUser,  async (req, res) => {
 
         "rps-generate-report": "sp_generate_rps_report",
 
+      // ✅ New IRR Report
+      "gq-non-fsf-irr-report": "sp_generate_gq_non_fsf_irr_report",
     };
 
     return map[reportId?.toLowerCase()] || null;

@@ -238,17 +238,38 @@ router.post("/generate-soa", async (req, res) => {
 
     doc.font('Helvetica').fontSize(9);
 
-    finalRows.forEach(row => {
-      x = startX;
-      const values = [
-        row.due_date,
-        row.description,
-        row.charge_type,
-        row.debit,
-        row.credit,
-        row.opening,
-        row.closing,
-      ];
+    // Sort final rows by date before rendering
+finalRows.sort((a, b) => {
+  const dateA = new Date(a.due_date);
+  const dateB = new Date(b.due_date);
+
+  if (dateA.getTime() !== dateB.getTime()) {
+    return dateA - dateB;
+  }
+
+  // Assign priorities: EMI Due (1), Penalty Charge (2), Repayment Received (3)
+  const getPriority = (desc) => {
+    if (desc === 'EMI Due') return 1;
+    if (desc === 'Penalty Charge') return 2;
+    if (desc === 'Repayment Received') return 3;
+    return 4;
+  };
+
+  return getPriority(a.description) - getPriority(b.description);
+});
+
+
+finalRows.forEach(row => {
+  x = startX;
+  const values = [
+    row.due_date,
+    row.description,
+    row.charge_type,
+    row.debit,
+    row.credit,
+    row.opening,
+    row.closing,
+  ];
 
       values.forEach((val, i) => {
         doc.rect(x, y, colWidths[i], rowHeight).stroke();
@@ -268,15 +289,16 @@ router.post("/generate-soa", async (req, res) => {
       .fontSize(10)
       .text("***This is a system generated letter and does not require a signature***", 50, doc.y);
 
-    doc.end();
+    
 
     writeStream.on("finish", async () => {
       await db.promise().query(
         `INSERT INTO loan_documents (lan, file_name, original_name) VALUES (?, ?, ?);`,
-        [lan, filePath, filename]
+        [lan, filename, `SOA - ${lan}`]
       );
-      res.json({ fileUrl: `http://localhost:5003/generated/${filename}` });
+      res.json({ fileUrl: `http://192.168.0.200:5000/uploads/${filename}` });
     });
+    doc.end();
 
   } catch (err) {
     console.error(err);

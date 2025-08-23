@@ -1227,7 +1227,8 @@ const generateRepaymentScheduleGQFSF = async (
 //       let remainingPrincipal = baseAmount;
 //       let dueDate = new Date(firstDueDate);
 
-//       const emi = Math.round(
+  
+//       const emi = Math.ceil(
 //         (baseAmount * (tableAnnualRate / 12) * Math.pow(1 + tableAnnualRate / 12, tenure)) /
 //         (Math.pow(1 + tableAnnualRate / 12, tenure) - 1)
 //       );
@@ -1363,14 +1364,24 @@ const generateRepaymentScheduleAdikosh = async (
       let remainingPrincipal = baseAmount;
       let dueDate = new Date(firstDueDate);
 
-      const emi = Math.ceil(
+      const baseEmi = Math.ceil(
         (baseAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
         (Math.pow(1 + monthlyRate, tenure) - 1)
       );
 
       for (let i = 1; i <= tenure; i++) {
-        const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-        let principal = emi - interest;
+        let interest = Math.round((remainingPrincipal * annualRate * 30) / 360);
+        let principal, emi;
+
+        if (i === tenure) {
+          // 🔧 Adjust last EMI
+          principal = Math.round(remainingPrincipal);
+          emi = baseEmi;
+          interest = emi - principal;
+        } else {
+          emi = baseEmi;
+          principal = emi - interest;
+        }
 
         rpsData.push([
           lan,
@@ -1406,18 +1417,21 @@ const generateRepaymentScheduleAdikosh = async (
 
     const fintreeRoiData = [];
     for (const row of adikoshRows) {
-      const basePrincipal = row.principal * 0.8; // 80% principal
-      const baseInterest = row.interest * 0.8 * (21.5 / 33); // as per your formula
+      const basePrincipal = row.principal * 0.8;
+      const rawInterest = row.interest * 0.8 * (21.5 / 33);
+      const roundedInterest = Math.round(rawInterest);
+      const roundedPrincipal = Math.round(basePrincipal);
+      const roiEmi = roundedInterest + roundedPrincipal;
 
       fintreeRoiData.push([
         lan,
         row.due_date,
-        basePrincipal + baseInterest,
-        Math.round(baseInterest),
-        Math.round(basePrincipal),
+        roiEmi,
+        roundedInterest,
+        roundedPrincipal,
         Math.max(row.remaining_principal * 0.8, 0),
-        Math.round(baseInterest),
-        basePrincipal + baseInterest,
+        roundedInterest,
+        roiEmi,
         "Pending"
       ]);
     }
