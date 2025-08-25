@@ -1,9 +1,11 @@
 import React from 'react'
+import AllLoans from './AllLoansScreen'
 
-const BLAllLoan = () => {
+
+const HCAllLoans = () => {
   return (
-    <div>AllLoan</div>
+    <AllLoans apiEndpoint={`/loan-booking/all-loans?table=loan_bookings&prefix=HC`} title="HC All Loans" />
   )
 }
 
-export default BLAllLoan
+export default HCAllLoans

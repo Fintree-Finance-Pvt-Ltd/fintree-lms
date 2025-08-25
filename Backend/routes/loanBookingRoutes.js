@@ -253,9 +253,6 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
         const borrowerDOB = excelDateToJSDate(row["BORROWER DOB"]);
         const agreementDate = excelDateToJSDate(row["Agreement Date"]);
 
-        console.log("Raw DOB:", row["BORROWER DOB"]);
-        console.log("Parsed DOB:", borrowerDOB);
-
         await db.promise().query(
           `INSERT INTO loan_bookings (
             partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
@@ -911,7 +908,6 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
 
       try {
         if (!insertedLANs.has(lan)) {
-          console.log(`⚙️ Generating RPS for ${lan}`);
           await generateRepaymentSchedule(
             lan,
             loan_amount,

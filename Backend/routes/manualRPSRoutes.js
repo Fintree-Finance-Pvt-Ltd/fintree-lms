@@ -126,7 +126,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
         // ➡️ Insert into WCTL table
         if (dataToInsertWCTL.length > 0) {
-            console.log(`Inserting ${dataToInsertWCTL.length} rows into manual_rps_wctl`);
             const insertQueryWCTL = `
                 INSERT INTO manual_rps_wctl
                 (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi, remaining_interest, remaining_principal) 

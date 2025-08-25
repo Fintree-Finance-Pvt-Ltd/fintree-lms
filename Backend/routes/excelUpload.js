@@ -107,8 +107,6 @@ const excelDateToJSDate = (value) => {
 
 /// ✅ File Upload API (Insert Loan Data Based on Lender)
 router.post("/upload", upload.single("file"), async (req, res) => {
-  console.log("Request received:", req.body); // ✅ Log request data
-  console.log("Uploaded file:", req.file); // ✅ Log file info
   if (!req.file)
     return res
       .status(400)
@@ -144,7 +142,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
           `SELECT lan FROM loan_bookings WHERE pan_card = ? OR aadhar_number = ?`,
           [panCard, aadharNumber]
         );
-      console.log("Existing Records:", existingRecords);
 
       if (existingRecords.length > 0) {
 
@@ -306,6 +303,61 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 //     res.status(500).json({ message: "Error creating loan", error: err.message });
 //   }
 // });
+router.get("/login-loans", (req, res) => {
+  const { table = "loan_bookings", prefix = "EV" } = req.query;
+
+  const allowedTables = {
+    "loan_bookings": true,
+    "loan_booking_adikosh": true,
+    "loan_booking_gq_non_fsf": true,
+    "loan_booking_gq_fsf": true,
+    "loan_bookings_wctl": true,
+
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({ message: "Invalid table name" });
+  }
+
+  const query = `SELECT * FROM ?? WHERE status = 'Login' AND LAN LIKE ?`;
+  const values = [table, `${prefix}%`];
+
+  db.query(query, values, (err, results) => {
+    if (err) {
+      console.error("Error fetching login stage loans:", err);
+      return res.status(500).json({ message: "Database error" });
+    }
+    res.json(results);
+  });
+});
+
+router.get("/all-loans", (req, res) => {
+  const { table = "loan_bookings", prefix = "BL" } = req.query;
+
+  const allowedTables = {
+    "loan_bookings": true,
+    "loan_booking_adikosh": true,
+    "loan_booking_gq_non_fsf": true,
+    "loan_booking_gq_fsf": true,
+    "loan_bookings_wctl": true,
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({ message: "Invalid table name" });
+  }
+
+  const query = `SELECT * FROM ?? WHERE  LAN LIKE ?`;
+  const values = [table, `${prefix}%`];
+
+  db.query(query, values, (err, results) => {
+    if (err) {
+      console.error("Error fetching approved loans:", err);
+      return res.status(500).json({ message: "Database error" });
+    }
+    res.json(results);
+  });
+});
+
 
 router.get("/approved-loans", (req, res) => {
   const { table = "loan_bookings", prefix = "EV" } = req.query;
@@ -315,6 +367,8 @@ router.get("/approved-loans", (req, res) => {
     "loan_booking_adikosh": true,
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
+    "loan_bookings_wctl": true,
+
   };
 
   if (!allowedTables[table]) {
@@ -342,6 +396,7 @@ router.get("/disbursed-loans", (req, res) => {
     "loan_booking_adikosh": true,
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
+    "loan_bookings_wctl": true,
 
   };
 
@@ -354,27 +409,58 @@ router.get("/disbursed-loans", (req, res) => {
 
   db.query(query, values, (err, results) => {
     if (err) {
-      console.error("Error fetching approved loans:", err);
+      console.error("Error fetching disbursed loans:", err);
       return res.status(500).json({ message: "Database error" });
     }
     res.json(results);
   });
 });
 
+router.put("/login-loans/:lan", (req, res) => {
+  const lan = req.params.lan;
+  const { status, table } = req.body;
+
+  const allowedTables = {
+    "loan_bookings": true,
+    "loan_booking_adikosh": true,
+    "loan_booking_gq_non_fsf": true,
+    "loan_booking_gq_fsf": true,
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({ message: "Invalid table name" });
+  }
+
+  if (!["approved", "rejected"].includes(status)) {
+    return res.status(400).json({ message: "Invalid status value" });
+  }
+
+  const query = `UPDATE ?? SET status = ? WHERE lan = ?`;
+  const values = [table, status, lan];
+
+  db.query(query, values, (err, result) => {
+  if (err) {
+    console.error("Error updating loan status:", err);
+    return res.status(500).json({ message: "Database error", error: err });
+  }
+  if (result.affectedRows === 0) {
+    return res.status(404).json({ message: "Loan not found with LAN " + lan });
+  }
+  res.json({ message: `Loan with LAN ${lan} updated to ${status} in ${table}` });
+});
+
+});
 
 
 
 /////////////////////////////////////////////////////////////////////////////////////
 router.post("/hc-upload", upload.single("file"), async (req, res) => {
-  console.log("Request received:", req.body); // ✅ Log request data
-  console.log("Uploaded file:", req.file); // ✅ Log file info
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
   if (!req.body.lenderType)
     return res.status(400).json({ message: "Lender type is required." });
 
   try {
     const lenderType = req.body.lenderType; // ✅ Ensure this is received
-    console.log("Lender Type:", lenderType);
 
     // ✅ Read Excel File Correctly
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
@@ -460,15 +546,12 @@ router.post("/hc-upload", upload.single("file"), async (req, res) => {
 });
 ////////////////// BL Loan........./////////////////////////////////
 router.post("/bl-upload", upload.single("file"), async (req, res) => {
-  console.log("Request received:", req.body); // ✅ Log request data
-  console.log("Uploaded file:", req.file); // ✅ Log file info
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
   if (!req.body.lenderType)
     return res.status(400).json({ message: "Lender type is required." });
 
   try {
     const lenderType = req.body.lenderType; // ✅ Ensure this is received
-    console.log("Lender Type:", lenderType);
 
     // ✅ Read Excel File Correctly
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
@@ -489,13 +572,10 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
       // ✅ Generate new loan identifiers
       const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
        // ✅ Log specific fields
-       console.log("BORROWER DOB Raw:", row["BORROWER DOB"]);
 
        const borrowerDOB = row["BORROWER DOB"]
          ? excelDateToJSDate(row["BORROWER DOB"])
          : null;
-     
-       console.log("Parsed DOB:", borrowerDOB);
 
 
 
@@ -595,8 +675,6 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         continue;
       }
 
-      console.log(`🔍 Checking loan for LAN: ${lan}`);
-
       // ✅ Separate query for each table
       let loanRes = [];
       if (lan.startsWith("GQN")) {
@@ -625,8 +703,6 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         );
       }
 
-      console.log(`🔍 Loan result for LAN ${lan}: ${JSON.stringify(loanRes)}`);
-
       if (loanRes.length === 0) {
         console.warn(`🚫 LAN not found: ${lan}`);
         missingLANs.push(lan);
@@ -644,9 +720,6 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         product,
         lender,
       } = loanRes[0];
-      console.log(
-        `🔍 Loan details for LAN ${lan}: ${JSON.stringify(loanRes[0])}`
-      );
 
       const [utrExists] = await db
         .promise()
@@ -660,11 +733,8 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         continue;
       }
 
-      console.log("lender testing", lender);
-
       try {
         if (!insertedLANs.has(lan)) {
-          console.log(`⚙️ Generating RPS for LAN: ${lan}`);
 
           await generateRepaymentSchedule(
             lan,
@@ -690,7 +760,6 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             "INSERT INTO EV_Disbursement_UTR (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)",
             [disbursementUTR, disbursementDate, lan]
           );
-        console.log(`✅ UTR inserted for LAN: ${lan}`);
         // ✅ Update loan status if it's a GQ loan
         if (lan.startsWith("GQN")) {
           await db
@@ -699,7 +768,6 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               "UPDATE loan_booking_gq_non_fsf SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
-          console.log(`✅ Status updated to 'Disbursed' for LAN: ${lan}`);
         } else if (lan.startsWith("GQF")) {
           await db
             .promise()
@@ -707,7 +775,6 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               "UPDATE loan_bookings_gq_fsf SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
-          console.log(`✅ Status updated to 'Disbursed' for LAN: ${lan}`);
         } else {
           await db
             .promise()
@@ -715,7 +782,6 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
-          console.log(`✅ Status updated to 'Disbursed' for LAN: ${lan}`);
         }
         processedCount++;
       } catch (rpsErr) {
@@ -798,7 +864,6 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
         });
       }
 
-      console.log("lender is", lenderType)
       const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
 
       // try {
@@ -970,7 +1035,7 @@ console.log("Incoming lenderType:", req.body.lenderType);
 
     const lenderType = data.lenderType.trim();
 
-    // ��� Check duplicates
+    // ��� Check duplicates
     const [existingRecords] = await db
       .promise()
       .query(
@@ -984,10 +1049,10 @@ console.log("Incoming lenderType:", req.body.lenderType);
       });
     }
 
-    // ��� Generate Loan IDs
+    // ��� Generate Loan IDs
     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
 
-    // ��� Insert into DB
+    // ��� Insert into DB
     await db.promise().query(
       `INSERT INTO loan_booking_adikosh (
         partner_loan_id, lan, customer_name, borrower_dob, father_name,
@@ -1068,9 +1133,6 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
     if (!sheetData || sheetData.length === 0) {
       return res.status(400).json({ message: "Excel file is empty." });
     }
-
-    console.log("inside upload");
-
     for (const row of sheetData) {
       const pan = row["PAN Number"];
       const aadhaar = row["Aadhaar Number"];
@@ -1089,13 +1151,9 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         });
       }
 
-      console.log("lenderType from request:", lenderType);
-
     // ✅ Generate new loan identifiers
     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
-    console.log("Identifiers generated:", partnerLoanId, lan);
 
-    console.log("Row being inserted:", row);
 
       const insertQuery = `
         INSERT INTO loan_booking_gq_non_fsf (
@@ -1452,8 +1510,6 @@ router.patch("/aldun-loans/:loan_account_number/inactive", async (req, res) => {
 ///////////////Adikosh//////////////////////////
 
 router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
-  console.log("Request received:", req.body); // ✅ Log request data
-  console.log("Uploaded file:", req.file); // ✅ Log file info
   if (!req.file)
     return res
       .status(400)
@@ -1489,12 +1545,8 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
           `SELECT lan FROM loan_bookings WHERE pan_card = ? OR aadhar_number = ?`,
           [panCard, aadharNumber]
         );
-      console.log("Existing Records:", existingRecords);
 
       if (existingRecords.length > 0) {
-        console.log(
-          `Customer already exists. Duplicate found for Pan Card: ${panCard} or Aadhar Number: ${aadharNumber}`
-        );
 
         return res.json({
           message: `Customer already exists. Duplicate found for Pan Card: ${panCard} or Aadhar Number: ${aadharNumber}`,

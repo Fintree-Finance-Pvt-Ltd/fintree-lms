@@ -13,7 +13,7 @@
 
 //     // Only filter loan_bookings (EV/BL live there)
 //     if (product && product !== "ALL" && product !== "Adikosh" && product !== "GQ Non-FSF") {
-//       conditions.push("lender COLLATE utf8mb4_0900_ai_ci = ?");
+//       conditions.push("lender COLLATE utf8mb4_unicode_ci = ?");
 //       params.push(product); // 'EV_loan' or 'BL_loan'
 //     }
 
@@ -99,8 +99,8 @@
 //     if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
 //       const { currentConditions, currentParams } = getRepaymentConditionsAndParams();
 //       const lenderFilter = (!product || product === "ALL")
-//         ? "l.lender COLLATE utf8mb4_0900_ai_ci IN (?, ?)"
-//         : "l.lender COLLATE utf8mb4_0900_ai_ci = ?";
+//         ? "l.lender COLLATE utf8mb4_unicode_ci IN (?, ?)"
+//         : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
 //       queries.push(`
 //         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
@@ -108,7 +108,7 @@
 //                SUM(r.transfer_amount) AS total_collected
 //         FROM repayments_upload r
 //         JOIN loan_bookings l
-//           ON l.lan COLLATE utf8mb4_0900_ai_ci = r.lan COLLATE utf8mb4_0900_ai_ci
+//           ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
 //         WHERE ${lenderFilter} AND ${currentConditions.join(" AND ")}
 //         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
 //       `);
@@ -140,8 +140,8 @@
 //                'GQ Non-FSF' AS product,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload
-//         WHERE lan COLLATE utf8mb4_0900_ai_ci IN (
-//                 SELECT lan COLLATE utf8mb4_0900_ai_ci FROM loan_booking_gq_non_fsf
+//         WHERE lan COLLATE utf8mb4_unicode_ci IN (
+//                 SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
 //               )
 //           AND ${currentConditions.join(" AND ")}
 //         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
@@ -229,8 +229,8 @@
 //     if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
 //       const { conditions, params } = getPayConditions();
 //       const lenderFilter = (!product || product === "ALL")
-//         ? "l.lender COLLATE utf8mb4_0900_ai_ci IN (?, ?)"
-//         : "l.lender COLLATE utf8mb4_0900_ai_ci = ?";
+//         ? "l.lender COLLATE utf8mb4_unicode_ci IN (?, ?)"
+//         : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
 //       queries.push(`
 //         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
@@ -239,7 +239,7 @@
 //                SUM(r.transfer_amount) AS total_collected
 //         FROM repayments_upload r
 //         JOIN loan_bookings l
-//           ON l.lan COLLATE utf8mb4_0900_ai_ci = r.lan COLLATE utf8mb4_0900_ai_ci
+//           ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
 //         WHERE ${lenderFilter} AND ${conditions.join(" AND ")}
 //         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
 //       `);
@@ -271,8 +271,8 @@
 //                0 AS total_due,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload
-//         WHERE lan COLLATE utf8mb4_0900_ai_ci IN (
-//                 SELECT lan COLLATE utf8mb4_0900_ai_ci FROM loan_booking_gq_non_fsf
+//         WHERE lan COLLATE utf8mb4_unicode_ci IN (
+//                 SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
 //               )
 //           AND ${conditions.join(" AND ")}
 //         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
@@ -349,10 +349,10 @@
 //   if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
 //     let lenderFilter;
 //     if (!product || product === "ALL") {
-//       lenderFilter = "lender COLLATE utf8mb4_0900_ai_ci IN (?, ?)";
+//       lenderFilter = "lender COLLATE utf8mb4_unicode_ci IN (?, ?)";
 //       disburseParams.push("EV_loan", "BL_loan");
 //     } else {
-//       lenderFilter = "lender COLLATE utf8mb4_0900_ai_ci = ?";
+//       lenderFilter = "lender COLLATE utf8mb4_unicode_ci = ?";
 //       disburseParams.push(product); // 'EV_loan' OR 'BL_loan'
 //     }
 
@@ -383,10 +383,10 @@
 //   if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
 //     let lenderFilter;
 //     if (!product || product === "ALL") {
-//       lenderFilter = "l.lender COLLATE utf8mb4_0900_ai_ci IN (?, ?)";
+//       lenderFilter = "l.lender COLLATE utf8mb4_unicode_ci IN (?, ?)";
 //       collectParams.push("EV_loan", "BL_loan");
 //     } else {
-//       lenderFilter = "l.lender COLLATE utf8mb4_0900_ai_ci = ?";
+//       lenderFilter = "l.lender COLLATE utf8mb4_unicode_ci = ?";
 //       collectParams.push(product);
 //     }
 
@@ -412,8 +412,8 @@
 //       SELECT IFNULL(SUM(transfer_amount), 0) AS amount
 //       FROM repayments_upload
 //       WHERE payment_date IS NOT NULL
-//         AND lan COLLATE utf8mb4_0900_ai_ci IN (
-//           SELECT lan COLLATE utf8mb4_0900_ai_ci FROM loan_booking_gq_non_fsf
+//         AND lan COLLATE utf8mb4_unicode_ci IN (
+//           SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
 //         )
 //         ${getDateFilter("payment_date", collectParams)}
 //     `);
@@ -458,7 +458,7 @@ router.post("/disbursal-trend", async (req, res) => {
 
     // Only filter loan_bookings (EV/BL live there)
     if (product && product !== "ALL" && product !== "Adikosh" && product !== "GQ Non-FSF") {
-      conditions.push("lender COLLATE utf8mb4_0900_ai_ci = ?");
+      conditions.push("lender COLLATE utf8mb4_unicode_ci = ?");
       params.push(product); // 'EV_loan' or 'BL_loan'
     }
 
@@ -544,16 +544,16 @@ router.post("/repayment-trend", async (req, res) => {
     if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
       const { currentConditions, currentParams } = getRepaymentConditionsAndParams();
       const lenderFilter = (!product || product === "ALL")
-        ? "l.lender COLLATE utf8mb4_0900_ai_ci IN (?, ?)"
-        : "l.lender COLLATE utf8mb4_0900_ai_ci = ?";
+        ? "l.lender COLLATE utf8mb4_unicode_ci IN (?, ?)"
+        : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
       queries.push(`
         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
-               l.lender COLLATE utf8mb4_0900_ai_ci AS product,
+               l.lender COLLATE utf8mb4_unicode_ci AS product,
                SUM(r.transfer_amount) AS total_collected
         FROM repayments_upload r
         JOIN loan_bookings l
-          ON l.lan COLLATE utf8mb4_0900_ai_ci = r.lan COLLATE utf8mb4_0900_ai_ci
+          ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
         WHERE ${lenderFilter} AND ${currentConditions.join(" AND ")}
         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
       `);
@@ -585,8 +585,8 @@ router.post("/repayment-trend", async (req, res) => {
                'GQ Non-FSF' AS product,
                SUM(transfer_amount) AS total_collected
         FROM repayments_upload
-        WHERE lan COLLATE utf8mb4_0900_ai_ci IN (
-                SELECT lan COLLATE utf8mb4_0900_ai_ci FROM loan_booking_gq_non_fsf
+        WHERE lan COLLATE utf8mb4_unicode_ci IN (
+                SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
               )
           AND ${currentConditions.join(" AND ")}
         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
@@ -674,17 +674,17 @@ router.post("/collection-vs-due", async (req, res) => {
     if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
       const { conditions, params } = getPayConditions();
       const lenderFilter = (!product || product === "ALL")
-        ? "l.lender COLLATE utf8mb4_0900_ai_ci IN (?, ?)"
-        : "l.lender COLLATE utf8mb4_0900_ai_ci = ?";
+        ? "l.lender COLLATE utf8mb4_unicode_ci IN (?, ?)"
+        : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
       queries.push(`
         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
-               l.lender COLLATE utf8mb4_0900_ai_ci AS product,
+               l.lender COLLATE utf8mb4_unicode_ci AS product,
                0 AS total_due,
                SUM(r.transfer_amount) AS total_collected
         FROM repayments_upload r
         JOIN loan_bookings l
-          ON l.lan COLLATE utf8mb4_0900_ai_ci = r.lan COLLATE utf8mb4_0900_ai_ci
+          ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
         WHERE ${lenderFilter} AND ${conditions.join(" AND ")}
         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
       `);
@@ -716,8 +716,8 @@ router.post("/collection-vs-due", async (req, res) => {
                0 AS total_due,
                SUM(transfer_amount) AS total_collected
         FROM repayments_upload
-        WHERE lan COLLATE utf8mb4_0900_ai_ci IN (
-                SELECT lan COLLATE utf8mb4_0900_ai_ci FROM loan_booking_gq_non_fsf
+        WHERE lan COLLATE utf8mb4_unicode_ci IN (
+                SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
               )
           AND ${conditions.join(" AND ")}
         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
@@ -748,7 +748,7 @@ router.post("/product-distribution", async (req, res) => {
     const whereClause = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
 
     const query = `
-      SELECT lender COLLATE utf8mb4_0900_ai_ci AS product, COUNT(*) AS value
+      SELECT lender COLLATE utf8mb4_unicode_ci AS product, COUNT(*) AS value
       FROM loan_bookings ${whereClause}
       GROUP BY lender
       UNION ALL
@@ -794,10 +794,10 @@ router.post("/metric-cards", async (req, res) => {
   if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
     let lenderFilter;
     if (!product || product === "ALL") {
-      lenderFilter = "lender COLLATE utf8mb4_0900_ai_ci IN (?, ?)";
+      lenderFilter = "lender COLLATE utf8mb4_unicode_ci IN (?, ?)";
       disburseParams.push("EV_loan", "BL_loan");
     } else {
-      lenderFilter = "lender COLLATE utf8mb4_0900_ai_ci = ?";
+      lenderFilter = "lender COLLATE utf8mb4_unicode_ci = ?";
       disburseParams.push(product); // 'EV_loan' OR 'BL_loan'
     }
 
@@ -828,17 +828,17 @@ router.post("/metric-cards", async (req, res) => {
   if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
     let lenderFilter;
     if (!product || product === "ALL") {
-      lenderFilter = "l.lender COLLATE utf8mb4_0900_ai_ci IN (?, ?)";
+      lenderFilter = "l.lender COLLATE utf8mb4_unicode_ci IN (?, ?)";
       collectParams.push("EV_loan", "BL_loan");
     } else {
-      lenderFilter = "l.lender COLLATE utf8mb4_0900_ai_ci = ?";
+      lenderFilter = "l.lender COLLATE utf8mb4_unicode_ci = ?";
       collectParams.push(product);
     }
 
     collectQueries.push(`
       SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
       FROM repayments_upload r
-      JOIN loan_bookings l ON l.lan COLLATE utf8mb4_0900_ai_ci = r.lan COLLATE utf8mb4_0900_ai_ci
+      JOIN loan_bookings l ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
       WHERE ${lenderFilter} AND r.payment_date IS NOT NULL ${getDateFilter("r.payment_date", collectParams)}
     `);
   }
@@ -856,8 +856,8 @@ router.post("/metric-cards", async (req, res) => {
       SELECT IFNULL(SUM(transfer_amount), 0) AS amount
       FROM repayments_upload
       WHERE payment_date IS NOT NULL
-        AND lan COLLATE utf8mb4_0900_ai_ci IN (
-          SELECT lan COLLATE utf8mb4_0900_ai_ci FROM loan_booking_gq_non_fsf
+        AND lan COLLATE utf8mb4_unicode_ci IN (
+          SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
         )
         ${getDateFilter("payment_date", collectParams)}
     `);

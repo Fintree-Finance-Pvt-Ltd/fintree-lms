@@ -6,7 +6,6 @@ import logo from "../assets/fintree_logo.png"; // Adjust the path as necessary
 const Navbar = () => {
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
-    console.log("user", user);
 
     const handleLogout = () => {
         localStorage.removeItem("token");
@@ -21,18 +20,18 @@ const Navbar = () => {
                     src={logo} 
                     alt="fintree_logo" 
                     style={{
-                        width: "160px",
-                        height: "auto",
-                        marginRight: "10px"
+                        width: "140px",
+                        height: "60px",
+                        marginLeft: "10px"
                     }}
                 />
             </div>
 
             <div className="welcome">
                 {user ? (
-                    <span>Welcome Fintree LMS By sajag, <strong>{user.name}</strong>!</span>
+                    <span>Welcome to Fintree LMS, <strong>{user.name}</strong>!</span>
                 ) : (
-                    <span>Welcome Fintree LMS By sajag!</span>
+                    <span>Welcome to Fintree LMS!</span>
                 )}
             </div>
 

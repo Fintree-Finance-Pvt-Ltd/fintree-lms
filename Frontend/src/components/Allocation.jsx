@@ -15,10 +15,8 @@ const AllocationPage = () => {
   useEffect(() => {
     const fetchAllocations = async () => {
       try {
-        console.log("📡 Fetching allocation data...");
         const response = await api.get(`/allocate/allocations/${lan}`);
         setAllocations(response.data.allocations || []);
-        console.log("Received Data:", response.data);
       } catch (err) {
         setError("❌ Failed to fetch allocation data.");
         console.error("Error fetching allocation data:", err);

@@ -13,7 +13,6 @@ const AuthProvider = ({ children }) => {
     // Save token
     localStorage.setItem('token', token);
 
-    console.log('👉 Login success, verifying session with /me');
 
     const meRes = await api.get('/auth/me', {
       headers: {
@@ -44,10 +43,8 @@ const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem('user');
 
     if (token && storedUser) {
-      console.log('✅ Restoring user from localStorage');
       setUser(JSON.parse(storedUser));
     } else if (token) {
-      console.log('👉 Found token, verifying session with /me');
       api
         .get('/auth/me', {
           headers: {

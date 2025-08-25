@@ -21,7 +21,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const sheet = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
     const sheetData = sheet.map((row, i) => ({ ...row, __row: i + 2 }));
 
-    console.log(`📥 Total Rows in Excel: ${sheetData.length}`);
     if (sheetData.length === 0) {
       return res.status(400).json({ message: "Empty or invalid file" });
     }
@@ -70,27 +69,21 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       }
 
       // ✅ 1️⃣ Call Penal Charge SP
-      console.log(`🔄 Row ${rowNumber}: Generating Penal Charge before insert...`);
       await queryDB(`CALL sp_generate_penal_charge(?,?)`, [lan,payment_date]);
-      console.log(`✅ Row ${rowNumber}: Penal Charge SP done.`);
-
       // ✅ 2️⃣ Insert repayment
       await queryDB(
         `INSERT INTO ${table} (lan, bank_date, utr, payment_date, payment_id, payment_mode, transfer_amount)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [lan, bank_date, utr, payment_date, payment_id, payment_mode, transfer_amount]
       );
-      console.log(`✅ Row ${rowNumber}: Inserted into ${table}`);
 
       await allocateRepaymentByLAN(lan, {
         lan, bank_date, utr, payment_date, payment_id, payment_mode, transfer_amount
       });
 
-      console.log(`✅ Row ${rowNumber}: Allocation done`);
       successRows.push(rowNumber);
     }
 
-    console.log(`📊 Summary: Inserted ${successRows.length} | Failed ${failedRows.length}`);
 
     res.json({
       message: "✅ Upload successful",

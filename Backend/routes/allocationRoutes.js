@@ -12,7 +12,6 @@ router.get("/allocations/:lan", async (req, res) => {
   }
 
   try {
-    console.log(`🔍 Fetching allocation records for LAN: ${lan}...`);
 
     // ✅ Infer allocation table based on prefix
     let allocationTable = "";
@@ -53,7 +52,6 @@ router.get("/allocations/:lan", async (req, res) => {
       return res.json({ message: "No allocation records found", allocations: [] });
     }
 
-    console.log(`✅ ${allocationTable} data fetched successfully.`);
     res.json({ allocations: rows });
 
   } catch (error) {

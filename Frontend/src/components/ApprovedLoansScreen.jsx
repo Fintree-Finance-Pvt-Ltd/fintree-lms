@@ -63,6 +63,14 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lenderName = "EM
                             <td><span className="status-approved">Approved</span></td>
                             <td>{loan.disbursement_date || "-"}</td>
                             <td><button className="audit-trail-btn">≡</button></td>
+                            <td>
+  <button 
+    className="audit-trail-btn"
+    onClick={() => navigate(`/documents/${loan.lan}`)}
+  >
+    📂 Docs
+  </button>
+</td>
                         </tr>
                     ))}
                 </tbody>

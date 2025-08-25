@@ -45,6 +45,8 @@ import MISReportTrigger from "./components/Reports/TriggerReportForm";
 import MISReportDownloads from "./components/Reports/DownloadedReports";
 import LoanDetailsPage from "./components/LoanDetailsPage";
 import ApprovedCaseDetails from "./components/ApprovedCaseDetails";
+import DocumentsPage from "./components/DocumentsPage";
+import AdikoshLoginLoans from "./components/AdikoshLoginLoans";
 
 function App() {
   return (
@@ -239,6 +241,7 @@ function App() {
               </PermissionRoute>
             }
           />
+          <Route path="/documents/:lan" element={<DocumentsPage />} />
 
           <Route
             path="/gq-non-fsf-loans/approved"
@@ -261,6 +264,15 @@ function App() {
             element={
               <PermissionRoute pageName="GQ Non-FSF All Loans">
                 <GQNonFSFAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+            <Route
+            path="/adikosh-loans/login"
+            element={
+              <PermissionRoute pageName="Adikosh Login Loans">
+                <AdikoshLoginLoans />
               </PermissionRoute>
             }
           />

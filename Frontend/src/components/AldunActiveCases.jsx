@@ -27,7 +27,7 @@ const ActiveLoans = () => {
   alert("✅ Loan marked as Inactive");
 
   // Refresh the loan list without reloading the entire page
-  const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/loan-booking/aldun-active-loans`);
+  const response = await api.get(`/loan-booking/aldun-active-loans`);
   setLoans(response.data);
 } catch (error) {
   alert(error.response?.data?.message || "❌ Failed to mark as inactive.");

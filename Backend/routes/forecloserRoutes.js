@@ -11,7 +11,6 @@ router.get("/fc/:lan", async (req, res) => {
   }
 
   try {
-    console.log("🧮 Running foreclosure procedure for LAN:", lan);
 
     // Step 1: Call SP to populate temp_forecloser
     await db.promise().query("CALL sp_calculate_forecloser_collection(?)", [lan]);
@@ -22,8 +21,6 @@ router.get("/fc/:lan", async (req, res) => {
     if (!rows.length) {
       return res.status(404).json({ message: "No foreclosure data found for this LAN" });
     }
-
-    console.log("📦 Foreclosure result fetched:", rows.length, "records");
     res.json(rows);
   } catch (err) {
     console.error("❌ FC Procedure Error:", err);
@@ -64,8 +61,6 @@ router.post("/fc/collect", async (req, res) => {
     `;
 
     await db.promise().query(insertQuery, [values]);
-
-    console.log(`✅ ${values.length} foreclosure charges inserted successfully.`);
     res.status(200).json({ message: `${values.length} charges inserted successfully.` });
 
   } catch (error) {

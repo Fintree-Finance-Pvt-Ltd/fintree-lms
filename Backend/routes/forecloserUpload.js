@@ -67,7 +67,6 @@ router.post("/upload", upload.single("excel"), async (req, res) => {
 
       // ✅ Call stored procedures if foreclosure is Yes
       if (foreclosure?.toLowerCase() === "yes") {
-        console.log(`🔁 Foreclosure processing for LAN: ${lan}`);
         await db.promise().query("CALL sp_calculate_forecloser_collection(?)", [lan]);
         await db.promise().query("CALL sp_process_forecloser_charges(?, ?, ?, ?, ?, ?, ?)", [
           lan, paymentId, utr, paymentMode, transferAmount, paymentDate, bankDate

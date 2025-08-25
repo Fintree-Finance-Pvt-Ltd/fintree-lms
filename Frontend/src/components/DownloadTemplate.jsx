@@ -15,7 +15,6 @@ const products = [
 const DownloadTemplatePage = () => {
   const handleDownload = async (key) => {
     try {
-      console.log(`Downloading template for: ${key}`);
       const response = await api.get(`/reports/download-template/${key}`, {
         responseType: "blob",
       });

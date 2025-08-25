@@ -95,13 +95,14 @@ const DocumentsPage = () => {
               <td>{new Date(doc.uploaded_at).toLocaleString()}</td>
               <td>
                 <a
-                  href={`${import.meta.env.VITE_API_BASE_URL}/uploads/${doc.file_name}`}
-                  download={doc.original_name}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Download
-                </a>
+  href={`${import.meta.env.VITE_API_BASE_URL.replace("/api", "")}/uploads/${doc.file_name}`}
+  download={doc.original_name}
+  target="_blank"
+  rel="noreferrer"
+>
+  Download
+</a>
+
               </td>
             </tr>
           ))}

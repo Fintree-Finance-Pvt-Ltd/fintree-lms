@@ -15,7 +15,6 @@ const LoanApplicationForm = () => {
       const response = await api.get(
         `/application-form/${lan}`
       );
-      console.log("API Response:", response);
       setLoanData(response.data.loan);
       setDocuments(response.data.documents || []);
     } catch (err) {

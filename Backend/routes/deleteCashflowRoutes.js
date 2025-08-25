@@ -69,8 +69,6 @@ router.post("/upload-delete-cashflow", upload.single("file"), async (req, res) =
         continue;
       }
 
-      console.log(`🔍 Searching for LAN ${lan}, PID: ${paymentId}, Amt: ₹${transferAmount}`);
-
       const existingRecords = await queryDB(
         `SELECT id, lan, LOWER(TRIM(payment_id)) AS payment_id, DATE(payment_date) AS payment_date, ROUND(transfer_amount, 2) AS transfer_amount
          FROM repayments_upload WHERE lan = ? ORDER BY payment_date DESC`,
@@ -100,14 +98,12 @@ router.post("/upload-delete-cashflow", upload.single("file"), async (req, res) =
       // ✅ Delete record
       await queryDB("DELETE FROM repayments_upload WHERE id = ?", [matched.id]);
 
-      console.log(`🗑️ Deleted: ${lan}, PID: ${paymentId}`);
 
       // ✅ Reverse RPS
       try {
         await queryDB("CALL sp_reverse_repayment_schedule(?, ?, ?)", [
           lan, transferAmount, paymentDate
         ]);
-        console.log(`✅ RPS Reversed for: ${lan}`);
       } catch (rpsErr) {
         console.error(`❌ RPS Reversal failed for ${lan}`, rpsErr);
       }

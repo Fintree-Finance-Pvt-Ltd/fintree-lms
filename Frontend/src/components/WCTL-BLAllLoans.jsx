@@ -1,9 +1,11 @@
 import React from 'react'
+import AllLoans from './AllLoansScreen'
 
-const WCTLBLAllLoan = () => {
+
+const WCTLAllLoans = () => {
   return (
-    <div>WCTL-BLAllLoan</div>
+    <AllLoans apiEndpoint={`/loan-booking/all-loans?table=loan_bookings_wctl&prefix=WCTL`} title="WCTL-BL All Loans" />
   )
 }
 
-export default WCTLBLAllLoan
+export default WCTLAllLoans

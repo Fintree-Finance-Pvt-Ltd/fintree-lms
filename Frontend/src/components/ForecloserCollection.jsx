@@ -21,7 +21,6 @@ const ForecloserCollection = () => {
   const fetchData = async () => {
     try {
       const response = await api.get(`/forecloser-collection/fc/${lan}`);
-      console.log("✅ Response:", response.data);
       setData(response.data);
     } catch (err) {
       console.error("❌ Failed to fetch foreclosure data", err);
