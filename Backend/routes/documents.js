@@ -62,7 +62,7 @@ router.post("/upload-files", upload.array("documents", 10), (req, res) => {
 
   db.query(
     `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at) VALUES ?`,
-  [values.map(v => [...v, new Date()])],
+  [values],
     (err) => {
       if (err) {
         console.error("❌ DB Insert Error:", err);
