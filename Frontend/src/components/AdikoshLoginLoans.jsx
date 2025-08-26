@@ -7,6 +7,7 @@ const AdikoshLoginLoans = () => {
     <LoginCaseScreen
       apiUrl={`/loan-booking/login-loans?table=loan_booking_adikosh&prefix=ADK`}
       title="Adikosh Login Stage Loans"
+      tableName="loan_booking_adikosh"
     />
   );
 };

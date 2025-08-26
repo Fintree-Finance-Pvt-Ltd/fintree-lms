@@ -204,7 +204,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   row["Product"],
   lenderType,
   row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-  "Approved"
+  "Login"
     ]);
     
             

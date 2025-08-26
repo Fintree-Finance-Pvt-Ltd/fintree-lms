@@ -15,7 +15,7 @@ const ApprovedCaseDetails = () => {
     useEffect(() => {
         const fetchLoanDetails = async () => {
             try {
-                const response = await api.get(`/loan-booking/${lan}`);
+                const response = await api.get(`/loan/loan-booking/${lan}`);
                 setData(response.data);
             } catch (err) {
                 console.error("Failed to fetch loan details.");

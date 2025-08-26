@@ -3,7 +3,7 @@ import api from "../api/api";
 import { useNavigate } from "react-router-dom";
 import "../styles/ApprovedLoans.css";
 
-const LoginCaseScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EMI" }) => {
+const LoginCaseScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EMI", tableName }) => {
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,7 +25,7 @@ const LoginCaseScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EM
 
   const handleStatusChange = async (lan, newStatus, table) => {
   try {
-    await api.put(`loan-booking/login-loans/${lan}`, { status: newStatus, table });
+    await api.put(`/loan-booking/login-loans/${lan}`, { status: newStatus, table });
     setLoans((prevLoans) =>
       prevLoans.map((loan) =>
         loan.lan === lan ? { ...loan, status: newStatus } : loan
@@ -110,13 +110,13 @@ const LoginCaseScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EM
               <td>
   <button
     className="approve-btn"
-    onClick={() => handleStatusChange(loan.lan, "approved", "loan_booking_adikosh")}
+    onClick={() => handleStatusChange(loan.lan, "approved", tableName)}
   >
     ✅ Approve
   </button>
   <button
     className="reject-btn"
-    onClick={() => handleStatusChange(loan.lan, "rejected", "loan_booking_adikosh")}
+    onClick={() => handleStatusChange(loan.lan, "rejected", tableName)}
   >
     ❌ Reject
   </button>

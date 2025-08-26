@@ -47,6 +47,7 @@ import LoanDetailsPage from "./components/LoanDetailsPage";
 import ApprovedCaseDetails from "./components/ApprovedCaseDetails";
 import DocumentsPage from "./components/DocumentsPage";
 import AdikoshLoginLoans from "./components/AdikoshLoginLoans";
+import EVLoginLoans from "./components/EVLoginLoans";
 
 function App() {
   return (
@@ -188,6 +189,14 @@ function App() {
             element={
               <PermissionRoute pageName="EV All Loans">
                 <EVAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ev-loans/login-cases"
+            element={
+              <PermissionRoute pageName="EV Login Loans">
+                <EVLoginLoans />
               </PermissionRoute>
             }
           />
