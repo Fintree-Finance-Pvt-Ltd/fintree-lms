@@ -116,9 +116,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
   try {
     const lenderType = req.body.lenderType;
-    if (!["EV Loan", "Health Care"].includes(lenderType)) {
-      return res.status(400).json({ message: "Invalid upload lender type." });
-    }
+    if (req.body.lenderType !== "EV Loan") {
+  return res.status(400).json({ message: "Invalid upload lender type. Only EV Loan is supported." });
+}
 
     // ✅ Read Excel File
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
@@ -1017,94 +1017,110 @@ router.get("/gq-fsf-disbursed", (req, res) => {
   });
 });
 
-
-
-
-
-
 // ✅ JSON Upload Route
-router.post("/adikosh-json", verifyApiKey, async (req, res) => {
+router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
   try {
     const data = req.body; // Direct JSON
 console.log("Incoming lenderType:", req.body.lenderType);
     console.log("Received JSON:", data);
-
+ 
     if (!data.lenderType) {
       return res.status(400).json({ message: "Lender type is required." });
     }
-
+ 
     const lenderType = data.lenderType.trim();
-
+ 
+       // ✅ Restrict lender
+    if (lenderType.toLowerCase() !== "adikosh") {
+      return res.status(400).json({
+        message: `Invalid lenderType: ${lenderType}. Only 'Adikosh' loans can be inserted.`,
+      });
+    }
+ 
     // ��� Check duplicates
     const [existingRecords] = await db
       .promise()
       .query(
-        `SELECT lan FROM loan_booking_adikosh WHERE pan_card = ? OR aadhar_number = ?`,
+        `SELECT lan FROM loan_booking_adikosh WHERE pan_number = ? OR aadhar_number = ?`,
         [data.panCard, data.aadharNumber]
       );
-
+ 
     if (existingRecords.length > 0) {
       return res.json({
-        message: `Customer already exists for Pan: ${data.panCard} or Aadhar: ${data.aadharNumber}`,
+        message: `Customer already exists for Pan: ${data.panNumber} or Aadhar: ${data.aadharNumber}`,
       });
     }
-
+ 
     // ��� Generate Loan IDs
     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
-
+    const customerName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
     // ��� Insert into DB
-    await db.promise().query(
-      `INSERT INTO loan_booking_adikosh (
-        partner_loan_id, lan, customer_name, borrower_dob, father_name,
-        address_line_1, address_line_2, village, district, state, pincode,
-        mobile_number, email, occupation, relationship_with_borrower, cibil_score,
-        guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
-        guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
-        account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant,
-        guarantor_co_applicant_dob, product, lender, agreement_date, status, salary_day
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        partnerLoanId,
-        lan,
-        data.customerName,
-        data.borrowerDob,
-        data.fatherName,
-        data.addressLine1,
-        data.addressLine2,
-        data.village,
-        data.district,
-        data.state,
-        data.pincode,
-        data.mobileNumber,
-        data.email,
-        data.occupation,
-        data.relationshipWithBorrower,
-        data.cibilScore,
-        data.guarantorCoCibilScore,
-        data.loanAmount,
-        data.tenure,
-        data.interestRate,
-        data.emiAmount,
-        data.guarantorAadhar,
-        data.guarantorPan,
-        data.dealerName,
-        data.nameInBank,
-        data.bankName,
-        data.accountNumber,
-        data.ifsc,
-        data.aadharNumber,
-        data.panCard,
-        data.guarantorCoApplicant,
-        data.guarantorCoApplicantDob,
-        data.product,
-        lenderType,
-        data.agreementDate,
-        "Approved",
-        data.salaryDay,
-      ]
-    );
-
-    res.json({ message: "JSON data saved successfully." });
+await db.promise().query(
+  `INSERT INTO loan_booking_adikosh (
+    lan, partner_loan_id, login_date, batch_id,
+    first_name, middle_name, last_name, gender, dob,
+    father_name, mother_name, mobile_number, email_id,
+    pan_number, aadhar_number,
+    current_address, current_village_city, current_district, current_state, current_pincode,
+    permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
+    loan_amount, interest_rate, tenure, emi_amount, salary_day,
+    cibil_score, product, lender,
+    bank_name, name_in_bank, account_number, ifsc,
+    sanction_date, pre_emi, processing_fee, net_disbursement, status, customer_name
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  [
+    lan,                         // 1
+    partnerLoanId,               // 2
+    data.loginDate,              // 3  'YYYY-MM-DD' or null
+    data.batchId,                // 4  REQUIRED (NOT NULL)
+    data.firstName,              // 5
+    data.middleName,             // 6
+    data.lastName,               // 7
+    data.gender,                 // 8  'Male'|'Female'
+    data.dob,                    // 9  'YYYY-MM-DD'
+    data.fatherName,             // 10
+    data.motherName,             // 11
+    data.mobileNumber,           // 12
+    data.emailId,                // 13
+    data.panNumber,              // 14
+    data.aadharNumber,           // 15
+    data.currentAddress,         // 16
+    data.currentVillageCity,     // 17
+    data.currentDistrict,        // 18
+    data.currentState,           // 19
+    data.currentPincode,         // 20
+    data.permanentAddress,       // 21
+    data.permanentVillageCity,   // 22
+    data.permanentDistrict,      // 23
+    data.permanentState,         // 24
+    data.permanentPincode,       // 25
+    data.loanAmount,             // 26
+    data.interestRate,           // 27
+    data.tenure,                 // 28
+    data.emiAmount,              // 29
+    data.salaryDay,              // 30
+    data.cibilScore,             // 31
+    data.product,                // 32
+    data.lenderType,                 // 33
+    data.bankName,               // 34
+    data.nameInBank,             // 35
+    data.accountNumber,          // 36
+    data.ifsc,                   // 37
+    data.sanctionDate,           // 38
+    data.preEmi,                 // 39
+    data.processingFee,          // 40
+    data.netDisbursement,        // 41
+    data.status || "Login",
+    customerName       // 42  <-- previously missing
+  ]
+);
+ 
+ 
+ 
+    res.json({ message: "Adikosh loan saved successfully." ,
+      partnerLoanId,
+      lan
+    });
   } catch (error) {
     console.error("❌ Error in JSON Upload:", error);
     res.status(500).json({

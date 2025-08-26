@@ -3,7 +3,7 @@ import api from "../api/api";
 import { useNavigate } from "react-router-dom";
 import "../styles/ApprovedLoans.css";
 
-const LoginCaseScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EMI", tableName }) => {
+const LoginActionScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EMI", tableName }) => {
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,6 +57,7 @@ const LoginCaseScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EM
             <th>Disbursement Date</th>
             <th>Audit Trails</th>
             <th>Documents</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -106,6 +107,20 @@ const LoginCaseScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EM
                   📂 Docs
                 </button>
               </td>
+              <td>
+  <button
+    className="approve-btn"
+    onClick={() => handleStatusChange(loan.lan, "approved", tableName)}
+  >
+    ✅ Approve
+  </button>
+  <button
+    className="reject-btn"
+    onClick={() => handleStatusChange(loan.lan, "rejected", tableName)}
+  >
+    ❌ Reject
+  </button>
+</td>
 
             </tr>
           ))}
@@ -115,4 +130,4 @@ const LoginCaseScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EM
   );
 };
 
-export default LoginCaseScreen;
+export default LoginActionScreen;

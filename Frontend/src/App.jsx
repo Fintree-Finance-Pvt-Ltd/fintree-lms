@@ -15,7 +15,7 @@ import LoanApplicationForm from "./components/LoanApplicationForm";
 import DownloadExcelTemplates from "./components/DownloadTemplate";
 import EVApprovedLoans from "./components/ApprovedLoans";
 import EVDisbursedLoans from "./components/DisbursedLoans";
-import EVAllLoans from "./components/AllLoans";
+import EVAllLoans from "./components/EVAllLoans";
 import BLApprovedLoans from "./components/BLApprovedLoans";
 import BLDisbursedLoans from "./components/BLDisbursedLoans";
 import BLAllLoans from "./components/BLAllLoans";
@@ -48,6 +48,8 @@ import ApprovedCaseDetails from "./components/ApprovedCaseDetails";
 import DocumentsPage from "./components/DocumentsPage";
 import AdikoshLoginLoans from "./components/AdikoshLoginLoans";
 import EVLoginLoans from "./components/EVLoginLoans";
+import EVActionScreen from "./components/EVActionScreen";
+import AdikoshActionScreen from "./components/AdikoshActionScreen";
 
 function App() {
   return (
@@ -201,6 +203,15 @@ function App() {
             }
           />
 
+            <Route
+            path="/ev-loans/login-actions"
+            element={
+              <PermissionRoute pageName="EV Login Actions">
+                <EVActionScreen />
+              </PermissionRoute>
+            }
+          />
+
           <Route
             path="/business-loans/approved"
             element={
@@ -307,6 +318,15 @@ function App() {
             element={
               <PermissionRoute pageName="Adikosh All Loans">
                 <AdikoshAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/adikosh-loans/login-actions"
+            element={
+              <PermissionRoute pageName="Adikosh Login Actions">
+                <AdikoshActionScreen />
               </PermissionRoute>
             }
           />
