@@ -4,6 +4,8 @@ const path = require("path");
 const fs = require("fs");
 const db = require("../config/db");
 const PDFDocument = require("pdfkit");
+const verifyApiKey = require("../middleware/apiKeyAuth");
+
 
 const router = express.Router();
 
@@ -45,7 +47,7 @@ router.post("/upload", upload.single("document"), (req, res) => {
   );
 });
 
-router.post("/upload-files", upload.array("documents", 10), (req, res) => {
+router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, res) => {
   const { lan } = req.body;
 
   if (!req.files || req.files.length === 0 || !lan) {
