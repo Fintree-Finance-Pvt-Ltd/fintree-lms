@@ -68,7 +68,10 @@ router.post("/upload-files", upload.array("documents", 10), (req, res) => {
         console.error("❌ DB Insert Error:", err);
         return res.status(500).json({ error: "Database insert failed" });
       }
-      res.status(200).json({ message: "✅ Documents uploaded successfully" });
+      res.status(200).json({ message: "✅ Documents uploaded successfully",
+        lan,
+        files: req.files.map(f => f.originalname)
+      });
     }
   );
 });
