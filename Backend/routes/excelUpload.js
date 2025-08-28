@@ -1036,6 +1036,27 @@ console.log("Incoming lenderType:", req.body.lenderType);
         message: `Invalid lenderType: ${lenderType}. Only 'Adikosh' loans can be inserted.`,
       });
     }
+
+        // ✅ Required fields (all except middleName)
+    const requiredFields = [
+      "loginDate", "batchId",
+      "firstName", "lastName", "gender", "dob",
+      "fatherName", "motherName", "mobileNumber", "emailId",
+      "panNumber", "aadharNumber",
+      "currentAddress", "currentVillageCity", "currentDistrict", "currentState", "currentPincode",
+      "permanentAddress", "permanentVillageCity", "permanentDistrict", "permanentState", "permanentPincode",
+      "loanAmount", "interestRate", "tenure", "emiAmount", "salaryDay",
+      "cibilScore", "product", "lenderType",
+      "bankName", "nameInBank", "accountNumber", "ifsc",
+      "sanctionDate", "preEmi", "processingFee", "netDisbursement"
+    ];
+
+    for (const field of requiredFields) {
+      if (!data[field] && data[field] !== 0) {
+        console.error(`❌ Missing field: ${field}`);
+        return res.status(400).json({ message: `${field} is required.` });
+      }
+    }
  
     // ��� Check duplicates
     const [existingRecords] = await db
