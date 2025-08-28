@@ -1075,6 +1075,7 @@ console.log("Incoming lenderType:", req.body.lenderType);
     // ��� Generate Loan IDs
     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
     const customerName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+    const agreement_date = excelDateToJSDate(data.sanctionDate);
     // ��� Insert into DB
 await db.promise().query(
   `INSERT INTO loan_booking_adikosh (
@@ -1087,8 +1088,8 @@ await db.promise().query(
     loan_amount, interest_rate, tenure, emi_amount, salary_day,
     cibil_score, product, lender,
     bank_name, name_in_bank, account_number, ifsc,
-    sanction_date, pre_emi, processing_fee, net_disbursement, status, customer_name
-  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    sanction_date, pre_emi, processing_fee, net_disbursement, status, customer_name,agreement_date
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   [
     lan,                         // 1
     partnerLoanId,               // 2
@@ -1132,7 +1133,8 @@ await db.promise().query(
     data.processingFee,          // 40
     data.netDisbursement,        // 41
     data.status || "Login",
-    customerName       // 42  <-- previously missing
+    customerName ,      // 42  <-- previously missing
+    agreement_date            // 43  <-- previously missing
   ]
 );
  
