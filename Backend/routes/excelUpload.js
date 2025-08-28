@@ -1134,7 +1134,7 @@ await db.promise().query(
     data.netDisbursement,        // 41
     data.status || "Login",
     customerName ,      // 42  <-- previously missing
-    agreement_date            // 43  <-- previously missing
+    data.sanctionDate            // 43  <-- previously missing
   ]
 );
  
