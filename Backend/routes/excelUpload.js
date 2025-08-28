@@ -222,6 +222,87 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 });
 ///////////////////////////////////////////////////////////////////////////////////
 
+// POST /api/loan-booking/create
+// router.post("/create",verifyApiKey, async (req, res) => {
+//   const row = req.body;
+//   const lenderType = row.lender || "EV Loan";
+
+//   try {
+//     if (!row["Pan Card"] || !row["Aadhar Number"]) {
+//       return res.status(400).json({ message: "PAN and Aadhar are required" });
+//     }
+
+//     const [existingRecords] = await db
+//       .promise()
+//       .query(`SELECT lan FROM loan_bookings WHERE pan_card = ? OR aadhar_number = ?`, [
+//         row["Pan Card"],
+//         row["Aadhar Number"],
+//       ]);
+
+//     if (existingRecords.length > 0) {
+//       return res.json({
+//         message: `Customer already exists for PAN: ${row["Pan Card"]} or Aadhar: ${row["Aadhar Number"]}`,
+//       });
+//     }
+
+//     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+//     const query = `
+//       INSERT INTO loan_bookings (
+//         partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+//         address_line_1, address_line_2, village, district, state, pincode,
+//         mobile_number, email, occupation, relationship_with_borrower, cibil_score,
+//         guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
+//         guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
+//         account_number, ifsc, aadhar_number, pan_card, product, lender,
+//         agreement_date, status
+//       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//     `;
+
+//     await db.promise().query(query, [
+//       partnerLoanId,
+//       lan,
+//       row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+//       row["Customer Name"],
+//       row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
+//       row["Father Name"],
+//       row["Address Line 1"],
+//       row["Address Line 2"],
+//       row["Village"],
+//       row["District"],
+//       row["State"],
+//       row["Pincode"],
+//       row["Mobile Number"],
+//       row["Email"],
+//       row["Occupation"],
+//       row["Relationship with Borrower"],
+//       row["CIBIL Score"],
+//       row["GURANTOR/Co-Applicant CIBIL Score"],
+//       row["Loan Amount"],
+//       row["Tenure"],
+//       row["Interest Rate"],
+//       row["EMI Amount"],
+//       row["GURANTOR/Co-Applicant ADHAR"],
+//       row["GURANTOR/Co-Applicant PAN"],
+//       row["DEALER NAME"],
+//       row["Name in Bank"],
+//       row["Bank name"],
+//       row["Account Number"],
+//       row["IFSC"],
+//       row["Aadhar Number"],
+//       row["Pan Card"],
+//       row["Product"],
+//       lenderType,
+//       row["Agreement Date"] ? excelDateToJSDate(row["Agreement Date"]) : null,
+//       "Approved"
+//     ]);
+
+//     res.json({ message: "Loan created successfully", lan });
+//   } catch (err) {
+//     console.error("❌ Loan create error:", err);
+//     res.status(500).json({ message: "Error creating loan", error: err.message });
+//   }
+// });
 router.get("/login-loans", (req, res) => {
   const { table = "loan_bookings", prefix = "EV" } = req.query;
 
