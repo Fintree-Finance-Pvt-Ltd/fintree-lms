@@ -23,6 +23,10 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 
 
 
+// ✅ Import jobs
+require("./jobs/dailyJobs");
+
+
 const fs = require("fs");
 const path = require("path");
 const app = express();

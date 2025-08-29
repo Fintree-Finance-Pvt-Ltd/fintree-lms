@@ -366,6 +366,7 @@ router.post("/trigger", authenticateUser,  async (req, res) => {
   }
 
   try {
+    console.log("inside try");
     const [insertResult] = await db.promise().query(
       `INSERT INTO reports_download 
       (report_id, file_name, file_path, description, product, created_by, time_taken, generated_at, status)
@@ -381,6 +382,10 @@ router.post("/trigger", authenticateUser,  async (req, res) => {
         "Running",
       ]
     );
+
+    console.log("🆕 Inserted report row with ID:", insertResult.insertId);
+    console.log("🗂️ File will be saved to:", filePath);
+    console.log("fileName:", fileName);
 
     const reportRowId = insertResult.insertId;
     res.status(202).json({ message: "Report triggered", fileName });
