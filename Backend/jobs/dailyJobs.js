@@ -7,7 +7,7 @@ cron.schedule("*/2 * * * *", async () => {
 
   try {
     // Call the same procedures your MySQL event was calling
-    await db.promise().query("CALL increment_aldun_dpd_daily()");
+    //await db.promise().query("CALL increment_aldun_dpd_daily()");
     await db.promise().query("CALL update_loan_status_dpd_event()");
 
     console.log("✅ Daily DPD update completed successfully");
