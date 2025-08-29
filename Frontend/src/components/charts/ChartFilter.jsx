@@ -26,11 +26,11 @@ const ChartFilter = ({ onFilterChange }) => {
       </div>
       <div className="filter-group">
         <label>From</label>
-        <input type="month" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
       </div>
       <div className="filter-group">
         <label>To</label>
-        <input type="month" value={to} onChange={(e) => setTo(e.target.value)} />
+        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
       </div>
       <button className="filter-apply" type="submit">Apply</button>
     </form>

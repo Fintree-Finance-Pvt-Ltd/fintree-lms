@@ -17,8 +17,8 @@
 //       params.push(product); // 'EV_loan' or 'BL_loan'
 //     }
 
-//     if (from) { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m') >= ?"); params.push(from); }
-//     if (to)   { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m') <= ?"); params.push(to); }
+//     if (from) { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?"); params.push(from); }
+//     if (to)   { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?"); params.push(to); }
 
 //     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 //     const queries = [];
@@ -26,12 +26,12 @@
 //     // EV / BL
 //     if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
 //       queries.push(`
-//         SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
 //                lender AS product,
 //                SUM(loan_amount) AS total_disbursed
 //         FROM loan_bookings
 //         ${where}
-//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m'), lender
+//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d'), lender
 //       `);
 //     }
 
@@ -39,16 +39,16 @@
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const adikoshConds = [];
 //       const adikoshParams = [];
-//       if (from) { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m') >= ?"); adikoshParams.push(from); }
-//       if (to)   { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m') <= ?"); adikoshParams.push(to); }
+//       if (from) { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?"); adikoshParams.push(from); }
+//       if (to)   { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?"); adikoshParams.push(to); }
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                SUM(loan_amount) AS total_disbursed
 //         FROM loan_booking_adikosh
 //         ${adikoshConds.length ? `WHERE ${adikoshConds.join(" AND ")}` : ""}
-//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d')
 //       `);
 //       params.push(...adikoshParams);
 //     }
@@ -57,16 +57,16 @@
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const gqConds = [];
 //       const gqParams = [];
-//       if (from) { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m') >= ?"); gqParams.push(from); }
-//       if (to)   { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m') <= ?"); gqParams.push(to); }
+//       if (from) { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?"); gqParams.push(from); }
+//       if (to)   { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?"); gqParams.push(to); }
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                SUM(loan_amount) AS total_disbursed
 //         FROM loan_booking_gq_non_fsf
 //         ${gqConds.length ? `WHERE ${gqConds.join(" AND ")}` : ""}
-//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d')
 //       `);
 //       params.push(...gqParams);
 //     }
@@ -90,8 +90,8 @@
 //     const getRepaymentConditionsAndParams = () => {
 //       const currentConditions = ["payment_date IS NOT NULL"];
 //       const currentParams = [];
-//       if (from) { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m') >= ?"); currentParams.push(from); }
-//       if (to)   { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m') <= ?"); currentParams.push(to); }
+//       if (from) { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') >= ?"); currentParams.push(from); }
+//       if (to)   { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') <= ?"); currentParams.push(to); }
 //       return { currentConditions, currentParams };
 //     };
 
@@ -103,14 +103,14 @@
 //         : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
 //                l.lender AS product,
 //                SUM(r.transfer_amount) AS total_collected
 //         FROM repayments_upload r
 //         JOIN loan_bookings l
 //           ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
 //         WHERE ${lenderFilter} AND ${currentConditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
+//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m-%d'), l.lender
 //       `);
 
 //       if (!product || product === "ALL") { allParams.push("EV_loan", "BL_loan"); }
@@ -122,12 +122,12 @@
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const { currentConditions, currentParams } = getRepaymentConditionsAndParams();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload_adikosh
 //         WHERE ${currentConditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...currentParams);
 //     }
@@ -136,7 +136,7 @@
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const { currentConditions, currentParams } = getRepaymentConditionsAndParams();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload
@@ -144,7 +144,7 @@
 //                 SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
 //               )
 //           AND ${currentConditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...currentParams);
 //     }
@@ -169,8 +169,8 @@
 //     const getDueConditions = () => {
 //       const conditions = ["due_date < CURDATE()"];
 //       const params = [];
-//       if (from) { conditions.push("DATE_FORMAT(due_date, '%Y-%m') >= ?"); params.push(from); }
-//       if (to)   { conditions.push("DATE_FORMAT(due_date, '%Y-%m') <= ?"); params.push(to); }
+//       if (from) { conditions.push("DATE_FORMAT(due_date, '%Y-%m-%d') >= ?"); params.push(from); }
+//       if (to)   { conditions.push("DATE_FORMAT(due_date, '%Y-%m-%d') <= ?"); params.push(to); }
 //       return { conditions, params };
 //     };
 
@@ -178,13 +178,13 @@
 //     if (!product || product === "ALL" || product === "EV_loan") {
 //       const { conditions, params } = getDueConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
 //                'EV_loan' AS product,
 //                SUM(emi) AS total_due,
 //                0 AS total_collected
 //         FROM manual_rps_ev_loan
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -192,13 +192,13 @@
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const { conditions, params } = getDueConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                SUM(emi) AS total_due,
 //                0 AS total_collected
 //         FROM manual_rps_adikosh
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -206,13 +206,13 @@
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const { conditions, params } = getDueConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                SUM(emi) AS total_due,
 //                0 AS total_collected
 //         FROM manual_rps_gq_non_fsf
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -221,8 +221,8 @@
 //     const getPayConditions = () => {
 //       const conditions = ["payment_date IS NOT NULL", "payment_date < CURDATE()"];
 //       const params = [];
-//       if (from) { conditions.push("DATE_FORMAT(payment_date, '%Y-%m') >= ?"); params.push(from); }
-//       if (to)   { conditions.push("DATE_FORMAT(payment_date, '%Y-%m') <= ?"); params.push(to); }
+//       if (from) { conditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') >= ?"); params.push(from); }
+//       if (to)   { conditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') <= ?"); params.push(to); }
 //       return { conditions, params };
 //     };
 
@@ -233,7 +233,7 @@
 //         : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
 //                l.lender AS product,
 //                0 AS total_due,
 //                SUM(r.transfer_amount) AS total_collected
@@ -241,7 +241,7 @@
 //         JOIN loan_bookings l
 //           ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
 //         WHERE ${lenderFilter} AND ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
+//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m-%d'), l.lender
 //       `);
 
 //       if (!product || product === "ALL") { allParams.push("EV_loan", "BL_loan"); }
@@ -252,13 +252,13 @@
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const { conditions, params } = getPayConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                0 AS total_due,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload_adikosh
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -266,7 +266,7 @@
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const { conditions, params } = getPayConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                0 AS total_due,
 //                SUM(transfer_amount) AS total_collected
@@ -275,7 +275,7 @@
 //                 SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
 //               )
 //           AND ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -297,8 +297,8 @@
 //     const conditions = [];
 //     const params = [];
 
-//     if (from) { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m') >= ?`); params.push(from); }
-//     if (to)   { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m') <= ?`); params.push(to); }
+//     if (from) { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?`); params.push(from); }
+//     if (to)   { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?`); params.push(to); }
 
 //     const whereClause = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
 
@@ -335,8 +335,8 @@
 
 //   const getDateFilter = (field, paramArray) => {
 //     let clause = "";
-//     if (from && from.trim()) { clause += ` AND DATE_FORMAT(${field}, '%Y-%m') >= ?`; paramArray.push(from); }
-//     if (to && to.trim())     { clause += ` AND DATE_FORMAT(${field}, '%Y-%m') <= ?`; paramArray.push(to); }
+//     if (from && from.trim()) { clause += ` AND DATE_FORMAT(${field}, '%Y-%m-%d') >= ?`; paramArray.push(from); }
+//     if (to && to.trim())     { clause += ` AND DATE_FORMAT(${field}, '%Y-%m-%d') <= ?`; paramArray.push(to); }
 //     return clause;
 //   };
 
@@ -466,8 +466,8 @@
 //       params.push(product); // 'EV_loan' or 'BL_loan'
 //     }
 
-//     if (from) { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m') >= ?"); params.push(from); }
-//     if (to)   { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m') <= ?"); params.push(to); }
+//     if (from) { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?"); params.push(from); }
+//     if (to)   { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?"); params.push(to); }
 
 //     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 //     const queries = [];
@@ -475,12 +475,12 @@
 //     // EV / BL
 //     if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
 //       queries.push(`
-//         SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
 //                lender AS product,
 //                SUM(loan_amount) AS total_disbursed
 //         FROM loan_bookings
 //         ${where}
-//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m'), lender
+//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d'), lender
 //       `);
 //     }
 
@@ -488,16 +488,16 @@
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const adikoshConds = [];
 //       const adikoshParams = [];
-//       if (from) { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m') >= ?"); adikoshParams.push(from); }
-//       if (to)   { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m') <= ?"); adikoshParams.push(to); }
+//       if (from) { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?"); adikoshParams.push(from); }
+//       if (to)   { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?"); adikoshParams.push(to); }
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                SUM(loan_amount) AS total_disbursed
 //         FROM loan_booking_adikosh
 //         ${adikoshConds.length ? `WHERE ${adikoshConds.join(" AND ")}` : ""}
-//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d')
 //       `);
 //       params.push(...adikoshParams);
 //     }
@@ -506,16 +506,16 @@
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const gqConds = [];
 //       const gqParams = [];
-//       if (from) { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m') >= ?"); gqParams.push(from); }
-//       if (to)   { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m') <= ?"); gqParams.push(to); }
+//       if (from) { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?"); gqParams.push(from); }
+//       if (to)   { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?"); gqParams.push(to); }
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                SUM(loan_amount) AS total_disbursed
 //         FROM loan_booking_gq_non_fsf
 //         ${gqConds.length ? `WHERE ${gqConds.join(" AND ")}` : ""}
-//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d')
 //       `);
 //       params.push(...gqParams);
 //     }
@@ -539,8 +539,8 @@
 //     const getRepaymentConditionsAndParams = () => {
 //       const currentConditions = ["payment_date IS NOT NULL"];
 //       const currentParams = [];
-//       if (from) { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m') >= ?"); currentParams.push(from); }
-//       if (to)   { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m') <= ?"); currentParams.push(to); }
+//       if (from) { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') >= ?"); currentParams.push(from); }
+//       if (to)   { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') <= ?"); currentParams.push(to); }
 //       return { currentConditions, currentParams };
 //     };
 
@@ -552,14 +552,14 @@
 //         : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
 //                l.lender COLLATE utf8mb4_unicode_ci AS product,
 //                SUM(r.transfer_amount) AS total_collected
 //         FROM repayments_upload r
 //         JOIN loan_bookings l
 //           ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
 //         WHERE ${lenderFilter} AND ${currentConditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
+//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m-%d'), l.lender
 //       `);
 
 //       if (!product || product === "ALL") { allParams.push("EV_loan", "BL_loan"); }
@@ -571,12 +571,12 @@
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const { currentConditions, currentParams } = getRepaymentConditionsAndParams();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload_adikosh
 //         WHERE ${currentConditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...currentParams);
 //     }
@@ -585,7 +585,7 @@
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const { currentConditions, currentParams } = getRepaymentConditionsAndParams();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload
@@ -593,7 +593,7 @@
 //                 SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
 //               )
 //           AND ${currentConditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...currentParams);
 //     }
@@ -618,8 +618,8 @@
 //     const getDueConditions = () => {
 //       const conditions = ["due_date < CURDATE()"];
 //       const params = [];
-//       if (from) { conditions.push("DATE_FORMAT(due_date, '%Y-%m') >= ?"); params.push(from); }
-//       if (to)   { conditions.push("DATE_FORMAT(due_date, '%Y-%m') <= ?"); params.push(to); }
+//       if (from) { conditions.push("DATE_FORMAT(due_date, '%Y-%m-%d') >= ?"); params.push(from); }
+//       if (to)   { conditions.push("DATE_FORMAT(due_date, '%Y-%m-%d') <= ?"); params.push(to); }
 //       return { conditions, params };
 //     };
 
@@ -627,13 +627,13 @@
 //     if (!product || product === "ALL" || product === "EV_loan") {
 //       const { conditions, params } = getDueConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
 //                'EV_loan' AS product,
 //                SUM(emi) AS total_due,
 //                0 AS total_collected
 //         FROM manual_rps_ev_loan
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -641,13 +641,13 @@
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const { conditions, params } = getDueConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                SUM(emi) AS total_due,
 //                0 AS total_collected
 //         FROM manual_rps_adikosh
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -655,13 +655,13 @@
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const { conditions, params } = getDueConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                SUM(emi) AS total_due,
 //                0 AS total_collected
 //         FROM manual_rps_gq_non_fsf
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -670,8 +670,8 @@
 //     const getPayConditions = () => {
 //       const conditions = ["payment_date IS NOT NULL", "payment_date < CURDATE()"];
 //       const params = [];
-//       if (from) { conditions.push("DATE_FORMAT(payment_date, '%Y-%m') >= ?"); params.push(from); }
-//       if (to)   { conditions.push("DATE_FORMAT(payment_date, '%Y-%m') <= ?"); params.push(to); }
+//       if (from) { conditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') >= ?"); params.push(from); }
+//       if (to)   { conditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') <= ?"); params.push(to); }
 //       return { conditions, params };
 //     };
 
@@ -682,7 +682,7 @@
 //         : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
 //                l.lender COLLATE utf8mb4_unicode_ci AS product,
 //                0 AS total_due,
 //                SUM(r.transfer_amount) AS total_collected
@@ -690,7 +690,7 @@
 //         JOIN loan_bookings l
 //           ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
 //         WHERE ${lenderFilter} AND ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
+//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m-%d'), l.lender
 //       `);
 
 //       if (!product || product === "ALL") { allParams.push("EV_loan", "BL_loan"); }
@@ -701,13 +701,13 @@
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const { conditions, params } = getPayConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                0 AS total_due,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload_adikosh
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -715,7 +715,7 @@
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const { conditions, params } = getPayConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                0 AS total_due,
 //                SUM(transfer_amount) AS total_collected
@@ -724,7 +724,7 @@
 //                 SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
 //               )
 //           AND ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -746,8 +746,8 @@
 //     const conditions = [];
 //     const params = [];
 
-//     if (from) { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m') >= ?`); params.push(from); }
-//     if (to)   { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m') <= ?`); params.push(to); }
+//     if (from) { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?`); params.push(from); }
+//     if (to)   { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?`); params.push(to); }
 
 //     const whereClause = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
 
@@ -784,8 +784,8 @@
 
 //   const getDateFilter = (field, paramArray) => {
 //     let clause = "";
-//     if (from && from.trim()) { clause += ` AND DATE_FORMAT(${field}, '%Y-%m') >= ?`; paramArray.push(from); }
-//     if (to && to.trim())     { clause += ` AND DATE_FORMAT(${field}, '%Y-%m') <= ?`; paramArray.push(to); }
+//     if (from && from.trim()) { clause += ` AND DATE_FORMAT(${field}, '%Y-%m-%d') >= ?`; paramArray.push(from); }
+//     if (to && to.trim())     { clause += ` AND DATE_FORMAT(${field}, '%Y-%m-%d') <= ?`; paramArray.push(to); }
 //     return clause;
 //   };
 
@@ -900,18 +900,19 @@ const router = express.Router();
 
 /* -------------------- Helpers -------------------- */
 
-// Accepts 'YYYY-MM' and returns ['YYYY-MM-01', 'YYYY-(MM+1)-01'] (end exclusive)
-function monthRange(from, to) {
-  const nextMonth = (ym) => {
-    const [y, m] = ym.split("-").map(Number);
-    const ny = m === 12 ? y + 1 : y;
-    const nm = m === 12 ? 1 : m + 1;
-    return `${ny}-${String(nm).padStart(2, "0")}-01`;
-  };
-  const start = from && from.trim() ? `${from.trim()}-01` : null;
-  const end = to && to.trim() ? nextMonth(to.trim()) : null;
+// Accepts 'YYYY-MM-DD' and returns { start, end }
+function dayRange(from, to) {
+  const start = from && from.trim() ? from.trim() : null;
+  // Add 1 day to "to" since end is exclusive
+  let end = null;
+  if (to && to.trim()) {
+    const dt = new Date(to.trim());
+    dt.setDate(dt.getDate() + 1);
+    end = dt.toISOString().slice(0, 10); // back to YYYY-MM-DD
+  }
   return { start, end };
 }
+
 
 // Builds "AND field >= ? AND field < ?" with params, using start/end if present
 function buildDateRangeClause(field, start, end) {
@@ -951,7 +952,7 @@ router.post("/disbursal-trend", async (req, res) => {
   try {
     const { product, from, to } = req.body || {};
     const prod = normalizeProduct(product);
-    const { start, end } = monthRange(from, to);
+    const { start, end } = dayRange(from, to);
 
     const queries = [];
     const params = [];
@@ -967,12 +968,12 @@ router.post("/disbursal-trend", async (req, res) => {
         end
       );
       queries.push(`
-        SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
                lender AS product,
                SUM(loan_amount) AS total_disbursed
         FROM loan_bookings
         WHERE lender IN (${placeholders}) ${clause}
-        GROUP BY DATE_FORMAT(agreement_date, '%Y-%m'), lender
+        GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d'), lender
       `);
       params.push(...lenders, ...dps);
     }
@@ -985,12 +986,12 @@ router.post("/disbursal-trend", async (req, res) => {
         end
       );
       queries.push(`
-        SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
                'Adikosh' AS product,
                SUM(loan_amount) AS total_disbursed
         FROM loan_booking_adikosh
         WHERE 1=1 ${clause}
-        GROUP BY DATE_FORMAT(agreement_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d')
       `);
       params.push(...dps);
     }
@@ -1003,12 +1004,12 @@ router.post("/disbursal-trend", async (req, res) => {
         end
       );
       queries.push(`
-        SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
                'GQ Non-FSF' AS product,
                SUM(loan_amount) AS total_disbursed
         FROM loan_booking_gq_non_fsf
         WHERE 1=1 ${clause}
-        GROUP BY DATE_FORMAT(agreement_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d')
       `);
       params.push(...dps);
     }
@@ -1027,7 +1028,7 @@ router.post("/repayment-trend", async (req, res) => {
   try {
     const { product, from, to } = req.body || {};
     const prod = normalizeProduct(product);
-    const { start, end } = monthRange(from, to);
+    const { start, end } = dayRange(from, to);
 
     const queries = [];
     const params = [];
@@ -1041,7 +1042,7 @@ router.post("/repayment-trend", async (req, res) => {
         prod === "EV" ? EV_LABELS : prod === "BL" ? BL_LABELS : ALL_LENDERS;
       const placeholders = lenders.map(() => "?").join(",");
       queries.push(`
-        SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
                l.lender AS product,
                SUM(r.transfer_amount) AS total_collected
         FROM repayments_upload r
@@ -1049,7 +1050,7 @@ router.post("/repayment-trend", async (req, res) => {
         WHERE r.payment_date IS NOT NULL
           AND l.lender IN (${placeholders})
           ${dateR.clause}
-        GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
+        GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m-%d'), l.lender
       `);
       params.push(...lenders, ...dateR.params);
     }
@@ -1057,13 +1058,13 @@ router.post("/repayment-trend", async (req, res) => {
     // Adikosh
     if (prod === "ALL" || prod === "Adikosh") {
       queries.push(`
-        SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
                'Adikosh' AS product,
                SUM(transfer_amount) AS total_collected
         FROM repayments_upload_adikosh
         WHERE payment_date IS NOT NULL
           ${dateA.clause}
-        GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
       `);
       params.push(...dateA.params);
     }
@@ -1071,14 +1072,14 @@ router.post("/repayment-trend", async (req, res) => {
     // GQ Non-FSF
     if (prod === "ALL" || prod === "GQ Non-FSF") {
       queries.push(`
-        SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
                'GQ Non-FSF' AS product,
                SUM(transfer_amount) AS total_collected
         FROM repayments_upload
         WHERE payment_date IS NOT NULL
           AND lan IN (SELECT lan FROM loan_booking_gq_non_fsf)
           ${dateA.clause}
-        GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
       `);
       params.push(...dateA.params);
     }
@@ -1097,7 +1098,7 @@ router.post("/collection-vs-due", async (req, res) => {
   try {
     const { product, from, to } = req.body || {};
     const prod = normalizeProduct(product);
-    const { start, end } = monthRange(from, to);
+    const { start, end } = dayRange(from, to);
 
     const queries = [];
     const params = [];
@@ -1108,13 +1109,13 @@ router.post("/collection-vs-due", async (req, res) => {
     // DUE: EV (add BL dues table here if you have one)
     if (prod === "ALL" || prod === "EV") {
       queries.push(`
-        SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
                'EV Loan' AS product,
                SUM(emi) AS total_due,
                0 AS total_collected
         FROM manual_rps_ev_loan
         WHERE due_date < CURDATE() ${dueR.clause}
-        GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
       `);
       params.push(...dueR.params);
     }
@@ -1122,13 +1123,13 @@ router.post("/collection-vs-due", async (req, res) => {
     // DUE: Adikosh
     if (prod === "ALL" || prod === "Adikosh") {
       queries.push(`
-        SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
                'Adikosh' AS product,
                SUM(emi) AS total_due,
                0 AS total_collected
         FROM manual_rps_adikosh
         WHERE due_date < CURDATE() ${dueR.clause}
-        GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
       `);
       params.push(...dueR.params);
     }
@@ -1136,13 +1137,13 @@ router.post("/collection-vs-due", async (req, res) => {
     // DUE: GQ Non-FSF
     if (prod === "ALL" || prod === "GQ Non-FSF") {
       queries.push(`
-        SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
                'GQ Non-FSF' AS product,
                SUM(emi) AS total_due,
                0 AS total_collected
         FROM manual_rps_gq_non_fsf
         WHERE due_date < CURDATE() ${dueR.clause}
-        GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
       `);
       params.push(...dueR.params);
     }
@@ -1153,7 +1154,7 @@ router.post("/collection-vs-due", async (req, res) => {
         prod === "EV" ? EV_LABELS : prod === "BL" ? BL_LABELS : ALL_LENDERS;
       const placeholders = lenders.map(() => "?").join(",");
       queries.push(`
-        SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
                l.lender AS product,
                0 AS total_due,
                SUM(r.transfer_amount) AS total_collected
@@ -1163,7 +1164,7 @@ router.post("/collection-vs-due", async (req, res) => {
           AND r.payment_date < CURDATE()
           AND l.lender IN (${placeholders})
           ${buildDateRangeClause("r.payment_date", start, end).clause}
-        GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
+        GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m-%d'), l.lender
       `);
       params.push(
         ...lenders,
@@ -1174,14 +1175,14 @@ router.post("/collection-vs-due", async (req, res) => {
     // COLLECTED: Adikosh
     if (prod === "ALL" || prod === "Adikosh") {
       queries.push(`
-        SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
                'Adikosh' AS product,
                0 AS total_due,
                SUM(transfer_amount) AS total_collected
         FROM repayments_upload_adikosh
         WHERE payment_date IS NOT NULL
           AND payment_date < CURDATE() ${payR.clause}
-        GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
       `);
       params.push(...payR.params);
     }
@@ -1189,7 +1190,7 @@ router.post("/collection-vs-due", async (req, res) => {
     // COLLECTED: GQ Non-FSF
     if (prod === "ALL" || prod === "GQ Non-FSF") {
       queries.push(`
-        SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+        SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
                'GQ Non-FSF' AS product,
                0 AS total_due,
                SUM(transfer_amount) AS total_collected
@@ -1198,7 +1199,7 @@ router.post("/collection-vs-due", async (req, res) => {
           AND payment_date < CURDATE()
           AND lan IN (SELECT lan FROM loan_booking_gq_non_fsf)
           ${payR.clause}
-        GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
       `);
       params.push(...payR.params);
     }
@@ -1216,7 +1217,7 @@ router.post("/collection-vs-due", async (req, res) => {
 router.post("/product-distribution", async (req, res) => {
   const { from, to } = req.body || {};
   try {
-    const { start, end } = monthRange(from, to);
+    const { start, end } = dayRange(from, to);
 
     const wcLB = buildDateRangeClause("agreement_date", start, end);
     const wcAK = buildDateRangeClause("agreement_date", start, end);
@@ -1263,21 +1264,22 @@ router.post("/metric-cards", async (req, res) => {
   try {
     const { product, from, to } = req.body || {};
     const prod = normalizeProduct(product);
-    const { start, end } = monthRange(from, to);
+    const { start, end } = dayRange(from, to);
 
     const disburseQueries = [];
     const disburseParams = [];
     const collectQueries = [];
     const collectParams = [];
+    const pniQueries = [];  // for principal & interest collected
+    const pniParams = [];
 
     const dcl = buildDateRangeClause("agreement_date", start, end);
     const pclR = buildDateRangeClause("r.payment_date", start, end);
     const pclA = buildDateRangeClause("payment_date", start, end);
 
-    // Disbursed: EV/BL from loan_bookings
+    /** ---------------- DISBURSED ---------------- */
     if (prod === "ALL" || prod === "EV" || prod === "BL") {
-      const lenders =
-        prod === "EV" ? EV_LABELS : prod === "BL" ? BL_LABELS : ALL_LENDERS;
+      const lenders = prod === "EV" ? EV_LABELS : prod === "BL" ? BL_LABELS : ALL_LENDERS;
       const placeholders = lenders.map(() => "?").join(",");
       disburseQueries.push(`
         SELECT IFNULL(SUM(loan_amount), 0) AS amount
@@ -1285,33 +1287,7 @@ router.post("/metric-cards", async (req, res) => {
         WHERE lender IN (${placeholders}) ${dcl.clause}
       `);
       disburseParams.push(...lenders, ...dcl.params);
-    }
 
-    // Disbursed: Adikosh
-    if (prod === "ALL" || prod === "Adikosh") {
-      disburseQueries.push(`
-        SELECT IFNULL(SUM(loan_amount), 0) AS amount
-        FROM loan_booking_adikosh
-        WHERE 1=1 ${dcl.clause}
-      `);
-      disburseParams.push(...dcl.params);
-    }
-
-    // Disbursed: GQ Non-FSF
-    if (prod === "ALL" || prod === "GQ Non-FSF") {
-      disburseQueries.push(`
-        SELECT IFNULL(SUM(loan_amount), 0) AS amount
-        FROM loan_booking_gq_non_fsf
-        WHERE 1=1 ${dcl.clause}
-      `);
-      disburseParams.push(...dcl.params);
-    }
-
-    // Collected: EV/BL
-    if (prod === "ALL" || prod === "EV" || prod === "BL") {
-      const lenders =
-        prod === "EV" ? EV_LABELS : prod === "BL" ? BL_LABELS : ALL_LENDERS;
-      const placeholders = lenders.map(() => "?").join(",");
       collectQueries.push(`
         SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
         FROM repayments_upload r
@@ -1321,20 +1297,52 @@ router.post("/metric-cards", async (req, res) => {
           ${pclR.clause}
       `);
       collectParams.push(...lenders, ...pclR.params);
+
+      // Principal + Interest Collected for EV/BL from manual_rps_ev_loan
+      pniQueries.push(`
+        SELECT IFNULL(SUM(rps.principal),0) AS principal,
+               IFNULL(SUM(rps.interest),0)  AS interest
+        FROM manual_rps_ev_loan rps
+        JOIN loan_bookings l ON l.lan = rps.lan
+        WHERE rps.payment_date IS NOT NULL
+          AND l.lender IN (${placeholders})
+          ${buildDateRangeClause("rps.payment_date", start, end).clause}
+      `);
+      pniParams.push(...lenders, ...buildDateRangeClause("rps.payment_date", start, end).params);
     }
 
-    // Collected: Adikosh
     if (prod === "ALL" || prod === "Adikosh") {
+      disburseQueries.push(`
+        SELECT IFNULL(SUM(loan_amount), 0) AS amount
+        FROM loan_booking_adikosh
+        WHERE 1=1 ${dcl.clause}
+      `);
+      disburseParams.push(...dcl.params);
+
       collectQueries.push(`
         SELECT IFNULL(SUM(transfer_amount), 0) AS amount
         FROM repayments_upload_adikosh
         WHERE payment_date IS NOT NULL ${pclA.clause}
       `);
       collectParams.push(...pclA.params);
+
+      pniQueries.push(`
+        SELECT IFNULL(SUM(principal),0) AS principal,
+               IFNULL(SUM(interest),0)  AS interest
+        FROM manual_rps_adikosh
+        WHERE payment_date IS NOT NULL ${pclA.clause}
+      `);
+      pniParams.push(...pclA.params);
     }
 
-    // Collected: GQ Non-FSF
     if (prod === "ALL" || prod === "GQ Non-FSF") {
+      disburseQueries.push(`
+        SELECT IFNULL(SUM(loan_amount), 0) AS amount
+        FROM loan_booking_gq_non_fsf
+        WHERE 1=1 ${dcl.clause}
+      `);
+      disburseParams.push(...dcl.params);
+
       collectQueries.push(`
         SELECT IFNULL(SUM(transfer_amount), 0) AS amount
         FROM repayments_upload
@@ -1343,23 +1351,356 @@ router.post("/metric-cards", async (req, res) => {
           ${pclA.clause}
       `);
       collectParams.push(...pclA.params);
+
+      pniQueries.push(`
+        SELECT IFNULL(SUM(principal),0) AS principal,
+               IFNULL(SUM(interest),0)  AS interest
+        FROM manual_rps_gq_non_fsf
+        WHERE payment_date IS NOT NULL ${pclA.clause}
+      `);
+      pniParams.push(...pclA.params);
     }
 
-    const [[disbRows], [collRows]] = await Promise.all([
+    /** ---------------- POS (Outstanding) ---------------- */
+    const jsToday = new Date().toISOString().slice(0, 10);
+    const cutoff = end || jsToday;
+
+    const posQueries = [];
+    const posParams = [];
+
+    // EV/BL
+    if (prod === "ALL" || prod === "EV" || prod === "BL") {
+      const lenders = prod === "EV" ? EV_LABELS : prod === "BL" ? BL_LABELS : ALL_LENDERS;
+      const placeholders = lenders.map(() => "?").join(",");
+      const bookRange = buildDateRangeClause("l.agreement_date", start, end);
+
+      posQueries.push(`
+        SELECT 
+          IFNULL(SUM(
+            CASE
+              WHEN rps.payment_date IS NULL THEN rps.principal
+              WHEN rps.payment_date >= ?     THEN rps.principal
+              ELSE 0
+            END
+          ), 0) AS principal_outstanding,
+          IFNULL(SUM(
+            CASE
+              WHEN rps.payment_date IS NULL THEN rps.interest
+              WHEN rps.payment_date >= ?     THEN rps.interest
+              ELSE 0
+            END
+          ), 0) AS interest_outstanding
+        FROM manual_rps_ev_loan rps
+        JOIN loan_bookings l ON l.lan = rps.lan
+        WHERE l.lender IN (${placeholders})
+          ${bookRange.clause}
+      `);
+      posParams.push(cutoff, cutoff, ...lenders, ...bookRange.params);
+    }
+
+    // Adikosh
+    if (prod === "ALL" || prod === "Adikosh") {
+      const bookRange = buildDateRangeClause("b.agreement_date", start, end);
+      posQueries.push(`
+        SELECT 
+          IFNULL(SUM(
+            CASE
+              WHEN rps.payment_date IS NULL THEN rps.principal
+              WHEN rps.payment_date >= ?     THEN rps.principal
+              ELSE 0
+            END
+          ), 0) AS principal_outstanding,
+          IFNULL(SUM(
+            CASE
+              WHEN rps.payment_date IS NULL THEN rps.interest
+              WHEN rps.payment_date >= ?     THEN rps.interest
+              ELSE 0
+            END
+          ), 0) AS interest_outstanding
+        FROM manual_rps_adikosh rps
+        JOIN loan_booking_adikosh b ON b.lan = rps.lan
+        WHERE 1=1 ${bookRange.clause}
+      `);
+      posParams.push(cutoff, cutoff, ...bookRange.params);
+    }
+
+    // GQ Non-FSF
+    if (prod === "ALL" || prod === "GQ Non-FSF") {
+      const bookRange = buildDateRangeClause("b.agreement_date", start, end);
+      posQueries.push(`
+        SELECT 
+          IFNULL(SUM(
+            CASE
+              WHEN rps.payment_date IS NULL THEN rps.principal
+              WHEN rps.payment_date >= ?     THEN rps.principal
+              ELSE 0
+            END
+          ), 0) AS principal_outstanding,
+          IFNULL(SUM(
+            CASE
+              WHEN rps.payment_date IS NULL THEN rps.interest
+              WHEN rps.payment_date >= ?     THEN rps.interest
+              ELSE 0
+            END
+          ), 0) AS interest_outstanding
+        FROM manual_rps_gq_non_fsf rps
+        JOIN loan_booking_gq_non_fsf b ON b.lan = rps.lan
+        WHERE 1=1 ${bookRange.clause}
+      `);
+      posParams.push(cutoff, cutoff, ...bookRange.params);
+    }
+
+    /** ---------------- Run all queries ---------------- */
+    const [[disbRows], [collRows], [posRows], [pniRows]] = await Promise.all([
       db.promise().query(disburseQueries.join(" UNION ALL "), disburseParams),
       db.promise().query(collectQueries.join(" UNION ALL "), collectParams),
+      db.promise().query(posQueries.join(" UNION ALL "), posParams),
+      db.promise().query(pniQueries.join(" UNION ALL "), pniParams),
     ]);
 
     const totalDisbursed = disbRows.reduce((s, r) => s + Number(r.amount || 0), 0);
     const totalCollected = collRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+
+    const totalPrincipal = pniRows.reduce((s, r) => s + Number(r.principal || 0), 0);
+    const totalInterest  = pniRows.reduce((s, r) => s + Number(r.interest  || 0), 0);
+
     const collectionRate = totalDisbursed ? (totalCollected / totalDisbursed) * 100 : 0;
 
-    res.json({ totalDisbursed, totalCollected, collectionRate });
+    let principalOutstanding = posRows.reduce((s, r) => s + Number(r.principal_outstanding || 0), 0);
+    let interestOutstanding  = posRows.reduce((s, r) => s + Number(r.interest_outstanding  || 0), 0);
+
+    if (principalOutstanding < 0) principalOutstanding = 0;
+    if (interestOutstanding < 0) interestOutstanding = 0;
+
+    res.json({
+      totalDisbursed,
+      totalCollected,
+      collectionRate,
+      totalPrincipal,
+      totalInterest,
+      principalOutstanding,
+      interestOutstanding,
+      posOutstanding: principalOutstanding + interestOutstanding
+    });
   } catch (err) {
     console.error("❌ Metric Card Fetch Error:", err);
     res.status(500).json({ error: "Failed to fetch metrics" });
   }
 });
+
+
+/** -------------------- DPD Buckets (summary) -------------------- */
+/** body: { product }  -> uses normalizeProduct(product) */
+router.post("/dpd-buckets", async (req, res) => {
+  try {
+    const { product } = req.body || {};
+    const prod = normalizeProduct(product);
+
+    const unions = [];
+    const params = [];
+    const OUTSTANDING = `rps.status <> 'Paid' AND rps.due_date < CURDATE()`;
+
+    // EV/BL share the same RPS table -> manual_rps_ev_loan
+    if (prod === "ALL" || prod === "EV" || prod === "BL") {
+      const lenders =
+        prod === "EV" ? EV_LABELS : prod === "BL" ? BL_LABELS : ALL_LENDERS;
+      const placeholders = lenders.map(() => "?").join(",");
+      unions.push(`
+        SELECT
+          CASE
+            WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
+            WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
+            WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+          END AS bucket,
+          COUNT(*) AS loans,
+          SUM(t.overdue_emi) AS overdue_emi
+        FROM (
+          SELECT rps.lan,
+                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+          FROM manual_rps_ev_loan rps
+          JOIN loan_bookings l ON l.lan = rps.lan
+          WHERE l.lender IN (${placeholders})
+          GROUP BY rps.lan
+        ) t
+        WHERE t.max_dpd BETWEEN 1 AND 90
+        GROUP BY bucket
+      `);
+      params.push(...lenders);
+    }
+
+    // Adikosh
+    if (prod === "ALL" || prod === "Adikosh") {
+      unions.push(`
+        SELECT
+          CASE
+            WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
+            WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
+            WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+          END AS bucket,
+          COUNT(*) AS loans,
+          SUM(t.overdue_emi) AS overdue_emi
+        FROM (
+          SELECT rps.lan,
+                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+          FROM manual_rps_adikosh rps
+          JOIN loan_booking_adikosh b ON b.lan = rps.lan
+          GROUP BY rps.lan
+        ) t
+        WHERE t.max_dpd BETWEEN 1 AND 90
+        GROUP BY bucket
+      `);
+    }
+
+    // GQ Non-FSF
+    if (prod === "ALL" || prod === "GQ Non-FSF") {
+      unions.push(`
+        SELECT
+          CASE
+            WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
+            WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
+            WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+          END AS bucket,
+          COUNT(*) AS loans,
+          SUM(t.overdue_emi) AS overdue_emi
+        FROM (
+          SELECT rps.lan,
+                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+          FROM manual_rps_gq_non_fsf rps
+          JOIN loan_booking_gq_non_fsf b ON b.lan = rps.lan
+          GROUP BY rps.lan
+        ) t
+        WHERE t.max_dpd BETWEEN 1 AND 90
+        GROUP BY bucket
+      `);
+    }
+
+    if (!unions.length) return res.json({ buckets: [], asOf: new Date().toISOString().slice(0,10) });
+
+    const sql = `
+      SELECT bucket, SUM(loans) AS loans, SUM(overdue_emi) AS overdue_emi
+      FROM (
+        ${unions.join(" UNION ALL ")}
+      ) x
+      GROUP BY bucket
+      ORDER BY FIELD(bucket, '0-30','30-60','60-90')
+    `;
+    const [rows] = await db.promise().query(sql, params);
+
+    // Normalize to always return 3 buckets
+    const map = { "0-30": { bucket:"0-30", loans:0, overdue_emi:0 },
+                  "30-60": { bucket:"30-60", loans:0, overdue_emi:0 },
+                  "60-90": { bucket:"60-90", loans:0, overdue_emi:0 } };
+    rows.forEach(r => map[r.bucket] = r);
+    res.json({ buckets: Object.values(map), asOf: new Date().toISOString().slice(0,10) });
+  } catch (err) {
+    console.error("❌ DPD Buckets Error:", err);
+    res.status(500).json({ error: "Failed to fetch DPD buckets" });
+  }
+});
+
+
+/** -------------------- DPD Loan List (by bucket) -------------------- */
+/** body: { product, bucket }  // bucket: '0-30' | '30-60' | '60-90' */
+router.post("/dpd-list", async (req, res) => {
+  try {
+    const { product, bucket } = req.body || {};
+    const prod = normalizeProduct(product);
+
+    const ranges = {
+      "0-30": [1, 30],
+      "30-60": [31, 60],
+      "60-90": [61, 90],
+    };
+    const range = ranges[bucket];
+    if (!range) return res.status(400).json({ error: "Invalid bucket" });
+    const [minDPD, maxDPD] = range;
+
+    const unions = [];
+    const params = [];
+    const OUTSTANDING = `rps.status <> 'Paid' AND rps.due_date < CURDATE()`;
+
+    // EV/BL
+    if (prod === "ALL" || prod === "EV" || prod === "BL") {
+      const lenders =
+        prod === "EV" ? EV_LABELS : prod === "BL" ? BL_LABELS : ALL_LENDERS;
+      const placeholders = lenders.map(() => "?").join(",");
+      unions.push(`
+        SELECT l.lender AS product, t.*
+        FROM (
+          SELECT rps.lan,
+                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
+                 MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+          FROM manual_rps_ev_loan rps
+          JOIN loan_bookings l ON l.lan = rps.lan
+          WHERE l.lender IN (${placeholders})
+          GROUP BY rps.lan
+          HAVING max_dpd BETWEEN ? AND ?
+        ) t
+        JOIN loan_bookings l ON l.lan = t.lan
+      `);
+      params.push(...lenders, minDPD, maxDPD);
+    }
+
+    // Adikosh
+    if (prod === "ALL" || prod === "Adikosh") {
+      unions.push(`
+        SELECT 'Adikosh' AS product, t.*
+        FROM (
+          SELECT rps.lan,
+                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
+                 MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+          FROM manual_rps_adikosh rps
+          JOIN loan_booking_adikosh b ON b.lan = rps.lan
+          GROUP BY rps.lan
+          HAVING max_dpd BETWEEN ? AND ?
+        ) t
+      `);
+      params.push(minDPD, maxDPD);
+    }
+
+    // GQ Non-FSF
+    if (prod === "ALL" || prod === "GQ Non-FSF") {
+      unions.push(`
+        SELECT 'GQ Non-FSF' AS product, t.*
+        FROM (
+          SELECT rps.lan,
+                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
+                 MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+          FROM manual_rps_gq_non_fsf rps
+          JOIN loan_booking_gq_non_fsf b ON b.lan = rps.lan
+          GROUP BY rps.lan
+          HAVING max_dpd BETWEEN ? AND ?
+        ) t
+      `);
+      params.push(minDPD, maxDPD);
+    }
+
+    if (!unions.length) return res.json([]);
+
+    const sql = `
+      ${unions.join(" UNION ALL ")}
+      ORDER BY max_dpd DESC, last_due_date DESC
+    `;
+    const [rows] = await db.promise().query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ DPD List Error:", err);
+    res.status(500).json({ error: "Failed to fetch DPD list" });
+  }
+});
+
 
 module.exports = router;
 
@@ -1384,8 +1725,8 @@ module.exports = router;
 //       params.push(product); // 'EV_loan' or 'BL_loan'
 //     }
 
-//     if (from) { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m') >= ?"); params.push(from); }
-//     if (to)   { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m') <= ?"); params.push(to); }
+//     if (from) { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?"); params.push(from); }
+//     if (to)   { conditions.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?"); params.push(to); }
 
 //     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 //     const queries = [];
@@ -1393,12 +1734,12 @@ module.exports = router;
 //     // EV / BL
 //     if (!product || product === "ALL" || product === "EV_loan" || product === "BL_loan") {
 //       queries.push(`
-//         SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
 //                lender COLLATE utf8mb4_unicode_ci AS product,
 //                SUM(loan_amount) AS total_disbursed
 //         FROM loan_bookings
 //         ${where}
-//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m'), lender
+//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d'), lender
 //       `);
 //     }
 
@@ -1406,16 +1747,16 @@ module.exports = router;
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const adikoshConds = [];
 //       const adikoshParams = [];
-//       if (from) { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m') >= ?"); adikoshParams.push(from); }
-//       if (to)   { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m') <= ?"); adikoshParams.push(to); }
+//       if (from) { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?"); adikoshParams.push(from); }
+//       if (to)   { adikoshConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?"); adikoshParams.push(to); }
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                SUM(loan_amount) AS total_disbursed
 //         FROM loan_booking_adikosh
 //         ${adikoshConds.length ? `WHERE ${adikoshConds.join(" AND ")}` : ""}
-//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d')
 //       `);
 //       params.push(...adikoshParams);
 //     }
@@ -1424,16 +1765,16 @@ module.exports = router;
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const gqConds = [];
 //       const gqParams = [];
-//       if (from) { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m') >= ?"); gqParams.push(from); }
-//       if (to)   { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m') <= ?"); gqParams.push(to); }
+//       if (from) { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?"); gqParams.push(from); }
+//       if (to)   { gqConds.push("DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?"); gqParams.push(to); }
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(agreement_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(agreement_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                SUM(loan_amount) AS total_disbursed
 //         FROM loan_booking_gq_non_fsf
 //         ${gqConds.length ? `WHERE ${gqConds.join(" AND ")}` : ""}
-//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(agreement_date, '%Y-%m-%d')
 //       `);
 //       params.push(...gqParams);
 //     }
@@ -1457,8 +1798,8 @@ module.exports = router;
 //     const getRepaymentConditionsAndParams = () => {
 //       const currentConditions = ["payment_date IS NOT NULL"];
 //       const currentParams = [];
-//       if (from) { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m') >= ?"); currentParams.push(from); }
-//       if (to)   { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m') <= ?"); currentParams.push(to); }
+//       if (from) { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') >= ?"); currentParams.push(from); }
+//       if (to)   { currentConditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') <= ?"); currentParams.push(to); }
 //       return { currentConditions, currentParams };
 //     };
 
@@ -1470,14 +1811,14 @@ module.exports = router;
 //         : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
 //                l.lender COLLATE utf8mb4_unicode_ci AS product,
 //                SUM(r.transfer_amount) AS total_collected
 //         FROM repayments_upload r
 //         JOIN loan_bookings l
 //           ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
 //         WHERE ${lenderFilter} AND ${currentConditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
+//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m-%d'), l.lender
 //       `);
 
 //       if (!product || product === "ALL") { allParams.push("EV_loan", "BL_loan"); }
@@ -1489,12 +1830,12 @@ module.exports = router;
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const { currentConditions, currentParams } = getRepaymentConditionsAndParams();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload_adikosh
 //         WHERE ${currentConditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...currentParams);
 //     }
@@ -1503,7 +1844,7 @@ module.exports = router;
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const { currentConditions, currentParams } = getRepaymentConditionsAndParams();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload
@@ -1511,7 +1852,7 @@ module.exports = router;
 //                 SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
 //               )
 //           AND ${currentConditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...currentParams);
 //     }
@@ -1536,8 +1877,8 @@ module.exports = router;
 //     const getDueConditions = () => {
 //       const conditions = ["due_date < CURDATE()"];
 //       const params = [];
-//       if (from) { conditions.push("DATE_FORMAT(due_date, '%Y-%m') >= ?"); params.push(from); }
-//       if (to)   { conditions.push("DATE_FORMAT(due_date, '%Y-%m') <= ?"); params.push(to); }
+//       if (from) { conditions.push("DATE_FORMAT(due_date, '%Y-%m-%d') >= ?"); params.push(from); }
+//       if (to)   { conditions.push("DATE_FORMAT(due_date, '%Y-%m-%d') <= ?"); params.push(to); }
 //       return { conditions, params };
 //     };
 
@@ -1545,13 +1886,13 @@ module.exports = router;
 //     if (!product || product === "ALL" || product === "EV_loan") {
 //       const { conditions, params } = getDueConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
 //                'EV_loan' AS product,
 //                SUM(emi) AS total_due,
 //                0 AS total_collected
 //         FROM manual_rps_ev_loan
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -1559,13 +1900,13 @@ module.exports = router;
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const { conditions, params } = getDueConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                SUM(emi) AS total_due,
 //                0 AS total_collected
 //         FROM manual_rps_adikosh
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -1573,13 +1914,13 @@ module.exports = router;
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const { conditions, params } = getDueConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(due_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                SUM(emi) AS total_due,
 //                0 AS total_collected
 //         FROM manual_rps_gq_non_fsf
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(due_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -1588,8 +1929,8 @@ module.exports = router;
 //     const getPayConditions = () => {
 //       const conditions = ["payment_date IS NOT NULL", "payment_date < CURDATE()"];
 //       const params = [];
-//       if (from) { conditions.push("DATE_FORMAT(payment_date, '%Y-%m') >= ?"); params.push(from); }
-//       if (to)   { conditions.push("DATE_FORMAT(payment_date, '%Y-%m') <= ?"); params.push(to); }
+//       if (from) { conditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') >= ?"); params.push(from); }
+//       if (to)   { conditions.push("DATE_FORMAT(payment_date, '%Y-%m-%d') <= ?"); params.push(to); }
 //       return { conditions, params };
 //     };
 
@@ -1600,7 +1941,7 @@ module.exports = router;
 //         : "l.lender COLLATE utf8mb4_unicode_ci = ?";
 
 //       queries.push(`
-//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
 //                l.lender COLLATE utf8mb4_unicode_ci AS product,
 //                0 AS total_due,
 //                SUM(r.transfer_amount) AS total_collected
@@ -1608,7 +1949,7 @@ module.exports = router;
 //         JOIN loan_bookings l
 //           ON l.lan COLLATE utf8mb4_unicode_ci = r.lan COLLATE utf8mb4_unicode_ci
 //         WHERE ${lenderFilter} AND ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m'), l.lender
+//         GROUP BY DATE_FORMAT(r.payment_date, '%Y-%m-%d'), l.lender
 //       `);
 
 //       if (!product || product === "ALL") { allParams.push("EV_loan", "BL_loan"); }
@@ -1619,13 +1960,13 @@ module.exports = router;
 //     if (!product || product === "ALL" || product === "Adikosh") {
 //       const { conditions, params } = getPayConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'Adikosh' AS product,
 //                0 AS total_due,
 //                SUM(transfer_amount) AS total_collected
 //         FROM repayments_upload_adikosh
 //         WHERE ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -1633,7 +1974,7 @@ module.exports = router;
 //     if (!product || product === "ALL" || product === "GQ Non-FSF") {
 //       const { conditions, params } = getPayConditions();
 //       queries.push(`
-//         SELECT DATE_FORMAT(payment_date, '%Y-%m') AS month,
+//         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
 //                'GQ Non-FSF' AS product,
 //                0 AS total_due,
 //                SUM(transfer_amount) AS total_collected
@@ -1642,7 +1983,7 @@ module.exports = router;
 //                 SELECT lan COLLATE utf8mb4_unicode_ci FROM loan_booking_gq_non_fsf
 //               )
 //           AND ${conditions.join(" AND ")}
-//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m')
+//         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
 //       `);
 //       allParams.push(...params);
 //     }
@@ -1664,8 +2005,8 @@ module.exports = router;
 //     const conditions = [];
 //     const params = [];
 
-//     if (from) { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m') >= ?`); params.push(from); }
-//     if (to)   { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m') <= ?`); params.push(to); }
+//     if (from) { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m-%d') >= ?`); params.push(from); }
+//     if (to)   { conditions.push(`DATE_FORMAT(agreement_date, '%Y-%m-%d') <= ?`); params.push(to); }
 
 //     const whereClause = conditions.length ? "WHERE " + conditions.join(" AND ") : "";
 

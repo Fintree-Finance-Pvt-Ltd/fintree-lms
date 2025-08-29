@@ -297,7 +297,7 @@ const path = require("path");
 const ExcelJS = require("exceljs");
 const authenticateUser = require("../middleware/verifyToken");
 
-const reportsDir = path.join(__dirname, "../../Frontend/public/reports");
+const reportsDir = path.join(__dirname, "../reports");
 if (!fs.existsSync(reportsDir)) fs.mkdirSync(reportsDir, { recursive: true });
 
 router.post("/trigger", authenticateUser,  async (req, res) => {
@@ -538,9 +538,18 @@ router.get("/downloads", (req, res) => {
       console.error("❌ Error fetching downloads:", err);
       return res.status(500).json({ message: "Database error" });
     }
-    res.json(results);
+
+    // build absolute URL
+    const apiBase = process.env.API_BASE_URL || "http://localhost:5000";
+    const withUrls = results.map(r => ({
+      ...r,
+      downloadUrl: `${apiBase}/reports/${r.file_name}`,
+    }));
+
+    res.json(withUrls);
   });
 });
+
 
 // for templates of excel files of each product
 

@@ -52,7 +52,7 @@ const DownloadedReports = ({ reportIdFromParent }) => {
                 <td>
                   {report.status === "Completed" ? (
                     <a
-                      href={`/reports/${report.file_name}`}
+                      href={report.downloadUrl}
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -62,9 +62,12 @@ const DownloadedReports = ({ reportIdFromParent }) => {
                     report.file_name || "-"
                   )}
                 </td>
+
                 <td>{report.report_id}</td>
                 <td>
-                  <span className={`status-badge ${report.status?.toLowerCase()}`}>
+                  <span
+                    className={`status-badge ${report.status?.toLowerCase()}`}
+                  >
                     {report.status || "Unknown"}
                   </span>
                 </td>

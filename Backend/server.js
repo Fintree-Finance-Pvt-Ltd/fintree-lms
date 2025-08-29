@@ -49,7 +49,11 @@ app.use(cors({
 //   next();
 // }
 // app.use(express.static(path.join(__dirname, '../Frontend/dist')));
-
+const reportsPath = path.join(__dirname, "reports");
+if (!fs.existsSync(reportsPath)) {
+  fs.mkdirSync(reportsPath, { recursive: true });
+}
+app.use("/reports", express.static(reportsPath));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -71,20 +75,9 @@ app.use("/api/forecloser", forecloserUploadRoutes); // âœ… Register Route for Fo
 app.use("/api/reports", reportsRoutes);// âœ… Register Route for Reports
 
 
- const reportsPath = path.join(__dirname, "../frontend/public/reports");
-
-if (!fs.existsSync(reportsPath)) {
-Â  fs.mkdirSync(reportsPath, { recursive: true });
-}
-
-app.use("/reports", express.static(reportsPath));
-
-
 app.use("/api/documents", require("./routes/documents"));// âœ… Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
-app.get("/api/test", (req, res) => {
-  res.json({ success: true, message: "Backend API is working íº€" });
-});
+
 
 // app.get('*', (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));

@@ -4,6 +4,7 @@ import RepaymentTrendChart from "../components/charts/RepaymentTrendChart";
 import CollectionVsDueChart from "../components/charts/CollectionVsDueChart";
 import ChartFilter from "../components/charts/ChartFilter";
 import ProductDistributionChart from "../components/charts/ProductDistributionChart";
+import DpdBuckets from "../components/charts/DpdBuckets";
 import "../styles/Dashboard.css";
 import api from "../api/api";
 
@@ -14,11 +15,14 @@ const Dashboard = () => {
     from: "",
     to: "",
   });
-  const [metrics, setMetrics] = useState({
-    totalDisbursed: 0,
-    totalCollected: 0,
-    collectionRate: 0,
-  });
+const [metrics, setMetrics] = useState({
+  totalDisbursed: 0,
+  totalCollected: 0,
+  collectionRate: 0,
+  posOutstanding: 0,
+  totalPrincipal: 0,
+  totalInterest: 0,
+});
 
   useEffect(() => {
     fetchMetrics();
@@ -59,6 +63,28 @@ const Dashboard = () => {
             {metrics.collectionRate.toFixed(2)}%
           </div>
         </div>
+        <div className="metric-card">
+  <div className="metric-title">Principal Collected</div>
+  <div className="metric-value">
+    ₹{Math.round(metrics.totalPrincipal).toLocaleString("en-IN")}
+  </div>
+</div>
+
+<div className="metric-card">
+  <div className="metric-title">Interest Collected</div>
+  <div className="metric-value">
+    ₹{Math.round(metrics.totalInterest).toLocaleString("en-IN")}
+  </div>
+</div>
+
+
+        <div className="metric-card">
+  <div className="metric-title">POS (Principal Outstanding)</div>
+  <div className="metric-value">
+    ₹{Math.round(metrics.posOutstanding).toLocaleString("en-IN")}
+  </div>
+</div>
+
       </div>
 
       <ProductDistributionChart filters={filters} />
@@ -82,6 +108,8 @@ const Dashboard = () => {
           >
             Collection vs Due
           </button>
+           <button className={activeTab === "dpd" ? "active" : ""} onClick={() => setActiveTab("dpd")}>DPD Buckets</button>
+
         </div>
 
         <div className="tab-content">
@@ -94,6 +122,7 @@ const Dashboard = () => {
           {activeTab === "collection" && (
             <CollectionVsDueChart filters={filters} />
           )}
+          {activeTab === "dpd" && <DpdBuckets filters={filters} />}
         </div>
       </div>
     </div>
