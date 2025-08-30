@@ -1262,12 +1262,12 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
       return res.status(400).json({ message: "Excel file is empty." });
     }
     for (const row of sheetData) {
-      const pan = row["PAN Number"];
-      const aadhaar = row["Aadhaar Number"];
+      const app_id = row["App ID"];
+      // const aadhaar = row["Aadhaar Number"];
 
       const [existing] = await db
         .promise()
-        .query(`SELECT * FROM loan_booking_gq_non_fsf WHERE pan_number = ? OR aadhaar_number = ?`, [pan, aadhaar]);
+        .query(`SELECT * FROM loan_booking_gq_non_fsf WHERE app_id = ? `, [app_id]);
 
       // const [existing] = await db
       //   .promise()
