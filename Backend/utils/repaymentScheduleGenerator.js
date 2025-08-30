@@ -640,7 +640,7 @@ const generateRepaymentScheduleEV = async (
 
     // ➕ Update emi_amount in loan_bookings
     await db.promise().query(
-      `UPDATE loan_bookings
+      `UPDATE loan_booking_ev
    SET emi_amount = ?
    WHERE lan = ?`,
       [emi, lan]

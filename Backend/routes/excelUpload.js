@@ -789,7 +789,16 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
            FROM loan_booking_adikosh WHERE lan = ?`,
           [lan]
         );
-      } else {
+        
+      } 
+      else if (lan.startsWith("EV")) {
+        [loanRes] = await db.promise().query(
+          `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+           FROM loan_booking_ev WHERE lan = ?`,
+          [lan]
+        );
+        
+      }else {
         [loanRes] = await db.promise().query(
           `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
            FROM loan_bookings WHERE lan = ?`,
