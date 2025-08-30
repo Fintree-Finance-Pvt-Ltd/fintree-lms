@@ -69,7 +69,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       }
 
       // ✅ 1️⃣ Call Penal Charge SP
-      await queryDB(`CALL sp_generate_penal_charge(?,?)`, [lan,payment_date]);
+      await queryDB(`CALL sp_generate_penal_charge(?)`, [lan]);
       // ✅ 2️⃣ Insert repayment
       await queryDB(
         `INSERT INTO ${table} (lan, bank_date, utr, payment_date, payment_id, payment_mode, transfer_amount)
