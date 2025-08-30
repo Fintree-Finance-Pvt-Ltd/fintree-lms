@@ -89,7 +89,7 @@
 // utils/emiDateCalculator.js
 const db = require("../config/db");
 
-function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset = 0, salaryDay = null) {
+function getFirstEmiDate(disbursementDate, lender, product, monthOffset = 0, salaryDay ) {
     const disbDate = new Date(disbursementDate);
     const disbDay = disbDate.getDate();
 
@@ -109,17 +109,46 @@ function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset
     }
     
     // ✅ Adikosh Logic: EMI day based on salaryDay + 2
-    if (lender === "Adikosh" && typeof salaryDay === "number") {
-        const emiStartDay = salaryDay + 2;
-        const emiMonthOffset = disbDay <= salaryDay ? 1 + monthOffset : 2 + monthOffset;
+    // if (lender === "Adikosh" && typeof salaryDay === "number") {
+    //     console.log(`[Adikosh] Salary Day: ${salaryDay}`);
+    //     const emiStartDay = salaryDay + 2;
+    //     const emiMonthOffset = disbDay <= salaryDay ? 1 + monthOffset : 2 + monthOffset;
 
-        const emiDate = new Date(disbDate); // clone original date
-        emiDate.setMonth(disbDate.getMonth() + emiMonthOffset);
-        emiDate.setDate(emiStartDay); // always set to salaryDay + 2
+    //     const emiDate = new Date(disbDate); // clone original date
+    //     emiDate.setMonth(disbDate.getMonth() + emiMonthOffset);
+    //     emiDate.setDate(emiStartDay); // always set to salaryDay + 2
 
-        console.log(`[Adikosh] EMI due: ${emiDate.toISOString().split("T")[0]} (Salary Day: ${salaryDay})`);
-        return emiDate;
-    }
+    //     console.log(`[Adikosh] EMI due: ${emiDate.toISOString().split("T")[0]} (Salary Day: ${salaryDay})`);
+    //     return emiDate;
+    // }
+
+   // Wrap a day on a 31-day cycle: e.g., 31+2=33 → 2
+const wrapOn31 = (d) => ((d - 1) % 31) + 1;
+
+if (lender === "Adikosh" && Number.isFinite(Number(salaryDay))) {
+  const sDay = Number(salaryDay);
+  const disb = new Date(disbursementDate);
+  const disbDay = disb.getDate();
+
+  // target month: next if disbDay <= salaryDay, else month after next
+  const monthOffsetEff = (disbDay <= sDay ? 1 : 2) + (monthOffset || 0);
+
+  // desired EMI day using 31-wrap rule (salaryDay + 2, wrap at 31)
+  const desiredDay = wrapOn31(sDay + 2); // if sDay=31 -> 2
+
+  // build date safely (avoid overflow)
+  const emiDate = new Date(disb);
+  emiDate.setHours(12,0,0,0);
+  emiDate.setDate(1);                               // prevent carryover issues
+  emiDate.setMonth(emiDate.getMonth() + monthOffsetEff);
+  emiDate.setDate(desiredDay);                      // e.g., 2
+
+  // e.g., for disb=2025-08-30, sDay=31 => 2025-09-02 ✅
+
+
+    console.log(`[Adikosh] EMI due: ${emiDate.toISOString().split("T")[0]} (Salary Day: ${salaryDay})`);
+    return emiDate;
+}
 
 
     // ✅ BL Loan: Monthly Loan EMI due follows same 5th cut-off logic
@@ -179,12 +208,12 @@ else if (lender === "GQ FSF") {
         return dailyDue;
     }
 
-    // ❌ Fallback
-    const fallbackDue = new Date(disbDate);
-    fallbackDue.setMonth(fallbackDue.getMonth() + 1);
-    fallbackDue.setDate(5);
-    console.log(`[Fallback] EMI due: ${fallbackDue.toISOString().split("T")[0]}`);
-    return fallbackDue;
+    // // ❌ Fallback
+    // const fallbackDue = new Date(disbDate);
+    // fallbackDue.setMonth(fallbackDue.getMonth() + 1);
+    // fallbackDue.setDate(5);
+    // console.log(`[Fallback] EMI due: ${fallbackDue.toISOString().split("T")[0]}`);
+    // return fallbackDue;
 }
 
 module.exports = {

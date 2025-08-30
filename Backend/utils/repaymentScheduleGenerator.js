@@ -1347,6 +1347,8 @@ const generateRepaymentScheduleAdikosh = async (
 ) => {
   try {
     const firstDueDate = getFirstEmiDate(disbursementDate, "Adikosh", "Adikosh", 0, salaryDay);
+   
+    console.log({ loanAmount, interestRate, tenure,salaryDay });
 
     // 1️⃣ Normal 3 tables first
     const tables = [
