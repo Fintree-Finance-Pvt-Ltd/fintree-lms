@@ -34,15 +34,19 @@ cron.schedule("*/2 * * * *", async () => {
     // CASE 2: Due
     await db.promise().query(`
       UPDATE manual_rps_gq_non_fsf
-      SET status = 'Due', dpd = 0
-      WHERE due_date = CURDATE() AND remaining_principal > 0
+      SET status = 'Due', dpd = DATEDIFF(CURDATE(), due_date)
+      WHERE due_date <= CURDATE()
+        AND remaining_principal > 0
+        AND remaining_principal = principal
+        AND payment_date IS NULL
     `);
 
     // CASE 3: Paid
     await db.promise().query(`
       UPDATE manual_rps_gq_non_fsf
       SET status = 'Paid', dpd = 0
-      WHERE due_date <= CURDATE() AND remaining_principal = 0
+      WHERE due_date <= CURDATE()
+        AND remaining_principal = 0
     `);
 
     // CASE 4: Part Paid
@@ -51,16 +55,20 @@ cron.schedule("*/2 * * * *", async () => {
       SET status = 'Part Paid',
           dpd = CASE WHEN DATEDIFF(CURDATE(), due_date) < 0 THEN 0 ELSE DATEDIFF(CURDATE(), due_date) END
       WHERE remaining_principal > 0
-        AND ( remaining_principal < principal)
+        AND remaining_principal < principal
+        AND payment_date IS NOT NULL
     `);
 
     // CASE 5: Late
     await db.promise().query(`
       UPDATE manual_rps_gq_non_fsf
-      SET status = 'Late', dpd = DATEDIFF(CURDATE(), due_date)
+      SET status = 'Late',
+          dpd = DATEDIFF(CURDATE(), due_date)
       WHERE due_date < CURDATE()
         AND remaining_principal > 0
-        AND remaining_interest > 0
+        AND remaining_principal = principal
+        AND payment_date IS NULL
+        AND DATEDIFF(CURDATE(), due_date) > 7
     `);
 
     console.log("✅ Daily DPD update for manual_rps_gq_non_fsf completed successfully");
