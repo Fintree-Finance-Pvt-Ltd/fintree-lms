@@ -59,7 +59,7 @@ cron.schedule("*/2 * * * *", async () => {
           END
       `);
 
-      console.log(`✅ DPD update for ${table} completed successfully`);
+      //console.log(`✅ DPD update for ${table} completed successfully`);
     }
 
     console.log("✅ All tables updated successfully");
