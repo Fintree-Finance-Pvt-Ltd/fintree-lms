@@ -7,6 +7,7 @@ import DisbursementDetails from "./DisburstmentDetails"; // ✅ Disbursement Com
 import Schedule from "./Schedule"; // ✅ Schedule Component
 import FintreeSchedule from "./FintreeSchedule"; // ✅ Fintree Schedule Component
 import PartnerSchedule from "./PartnerSchedule"; // ✅ Partner Schedule Component
+import FintreeROI from "./FintreeROI"; // ✅ Fintree ROI Component
 import ChargesCashflow from "./ChargesCashflow"; // ✅ Charges & Cashflow Component
 import ExtraCharges from "./ExtraCharges"; // ✅ Extra Charges Component
 import Allocation from "./Allocation"; // ✅ Allocation Component
@@ -60,6 +61,7 @@ const LoanDetailsPage = () => {
                     {selectedSection === "schedule" && <Schedule lan={lan} />}
                     {isAdikosh && selectedSection === "fintree-schedule" && <FintreeSchedule lan={lan} />}
                     {isAdikosh && selectedSection === "partner-schedule" && <PartnerSchedule lan={lan} />}
+                    {isAdikosh && selectedSection === "fintree-roi-schedule" && <FintreeROI lan={lan} isRoi={true} />}
                     {/* {selectedSection === "fintree-schedule" && <FintreeSchedule lan={lan} />}
                     {selectedSection === "partner-schedule" && <PartnerSchedule lan={lan} />} */}
                     {selectedSection === "charges-cashflow" && <ChargesCashflow data={loanData} />}
