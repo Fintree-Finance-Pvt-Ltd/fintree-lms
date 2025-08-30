@@ -429,6 +429,7 @@ router.get("/all-loans", (req, res) => {
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
     "loan_bookings_wctl": true,
+    "loan_booking_ev": true,
   };
 
   if (!allowedTables[table]) {
@@ -457,6 +458,7 @@ router.get("/approved-loans", (req, res) => {
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
     "loan_bookings_wctl": true,
+    "loan_booking_ev": true
 
   };
 
@@ -486,6 +488,7 @@ router.get("/disbursed-loans", (req, res) => {
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
     "loan_bookings_wctl": true,
+    "loan_booking_ev": true
 
   };
 
@@ -514,6 +517,8 @@ router.put("/login-loans/:lan", (req, res) => {
     "loan_booking_adikosh": true,
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
+    "loan_bookings_wctl": true,
+    "loan_booking_ev": true
   };
 
   if (!allowedTables[table]) {
@@ -1275,7 +1280,7 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
 
       if (existing.length > 0) {
         return res.status(409).json({
-          message: `Duplicate found for PAN: ${pan}`,
+          message: `Duplicate found for app ID: ${app_id}. Record already exists.`,
         });
       }
 

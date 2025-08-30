@@ -5,7 +5,7 @@ import LoginCaseScreen from './LoginCaseScreen';
 const EVLoginLoans = () => {
   return (
     <LoginCaseScreen
-      apiUrl={`/loan-booking/login-loans?table=loan_bookings&prefix=EV`}
+      apiUrl={`/loan-booking/login-loans?table=loan_booking_ev&prefix=EV`}
       title="EV Login Stage Loans"
       tableName="loan_bookings"
     />

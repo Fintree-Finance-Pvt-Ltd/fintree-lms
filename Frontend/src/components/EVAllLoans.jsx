@@ -5,7 +5,7 @@ import AllLoansScreen from './AllLoansScreen'
 
 const EVAllLoans = () => {
   return (
-    <AllLoansScreen apiEndpoint={`/loan-booking/all-loans?table=loan_bookings&prefix=EV`} title="EV All Loans" />
+    <AllLoansScreen apiEndpoint={`/loan-booking/all-loans?table=loan_booking_ev&prefix=EV`} title="EV All Loans" />
   )
 }
 
