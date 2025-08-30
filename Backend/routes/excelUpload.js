@@ -878,7 +878,15 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               "UPDATE loan_bookings_gq_fsf SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
-        } else {
+        } 
+         else if (lan.startsWith("EV")) {
+          await db
+            .promise()
+            .query(
+              "UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?",
+              [lan]
+            );
+        }else {
           await db
             .promise()
             .query(
