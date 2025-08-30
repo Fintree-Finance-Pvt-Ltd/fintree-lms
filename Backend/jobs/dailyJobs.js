@@ -51,7 +51,7 @@ cron.schedule("*/2 * * * *", async () => {
       SET status = 'Part Paid',
           dpd = CASE WHEN DATEDIFF(CURDATE(), due_date) < 0 THEN 0 ELSE DATEDIFF(CURDATE(), due_date) END
       WHERE remaining_principal > 0
-        AND (remaining_interest < remaining_interest  OR remaining_principal < principal)
+        AND (remaining_interest < interest  OR remaining_principal < principal)
     `);
 
     // CASE 5: Late
