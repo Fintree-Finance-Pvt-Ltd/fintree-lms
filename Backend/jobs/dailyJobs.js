@@ -37,7 +37,7 @@ cron.schedule("*/2 * * * *", async () => {
 
   try {
     for (const table of tables) {
-      console.log(`🔄 Updating table: ${table}`);
+      //console.log(`🔄 Updating table: ${table}`);
 
       // Single UPDATE query with CASE statements, matching the stored procedure
       await db.promise().query(`
