@@ -25,7 +25,7 @@ router.get("/:lan", async (req, res) => {
     loanAmountExpr = "lb.loan_amount_sanctioned";
     interestRateCol = "lb.interest_percent AS interest_rate";
     tenureCol = "lb.loan_tenure_months AS loan_tenure";
-    processingFeeCol = "NULL AS processing_fee";
+    processingFeeCol = "lb.processing_fee";
     subventionCol = "COALESCE(lb.subvention_amount, 0)";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
 }
@@ -36,7 +36,7 @@ router.get("/:lan", async (req, res) => {
     loanAmountExpr = "lb.loan_amount";
     interestRateCol = "lb.interest_rate";
     tenureCol = "lb.loan_tenure";
-    processingFeeCol = "NULL AS processing_fee";
+    processingFeeCol = "lb.processing_fee";
     subventionCol = "0";
     netDisbursementExpr = `(${loanAmountExpr})`;
   } else if (lan.startsWith("ADK")) {
@@ -45,7 +45,7 @@ router.get("/:lan", async (req, res) => {
     loanAmountExpr = "lb.loan_amount";
     interestRateCol = "lb.interest_rate";
     tenureCol = "lb.loan_tenure";
-    processingFeeCol = "NULL AS processing_fee";
+    processingFeeCol = "lb.processing_fee";
     subventionCol = "0";
     netDisbursementExpr = `(${loanAmountExpr})`;
   } else if (lan.startsWith("GQF")) {
@@ -54,7 +54,7 @@ router.get("/:lan", async (req, res) => {
     loanAmountExpr = "lb.loan_amount_sanctioned";
     interestRateCol = "lb.interest_percent AS interest_rate";
     tenureCol = "lb.loan_tenure_months AS loan_tenure";
-    processingFeeCol = "NULL AS processing_fee";
+    processingFeeCol = "lb.processing_fee";
     subventionCol = "COALESCE(lb.subvention_amount, 0)";
     retentionCol = "COALESCE(lb.retention_amount, 0)";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol} - ${retentionCol})`;
