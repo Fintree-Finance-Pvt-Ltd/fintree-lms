@@ -20,8 +20,8 @@ const cron = require("node-cron");
 const db = require("../config/db");
 
 // Run every day at 12:05 AM server time
-cron.schedule("5 0 * * *", async () => {
-  console.log("⏰ Running DPD update for manual_rps_gq_non_fsf...");
+cron.schedule("*/2 * * * *", async () => {
+  console.log("⏰ Running DPD update (every 2 min)...");
 
   try {
     // CASE 1: Not Set
