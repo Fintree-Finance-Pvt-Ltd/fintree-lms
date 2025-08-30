@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import api from "../api"; // ✅ Ensure correct API import
+import api from "../api/api"; // ✅ Ensure correct API import
 import "../styles/Schedule.css"; // ✅ Import CSS file
+
+
 
 const FintreeROI = () => {
     const { lan } = useParams();
