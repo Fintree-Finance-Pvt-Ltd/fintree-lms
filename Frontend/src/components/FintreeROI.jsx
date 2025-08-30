@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import axios from "axios";
+import api from "../api"; // ✅ Ensure correct API import
 import "../styles/Schedule.css"; // ✅ Import CSS file
 
 const FintreeROI = () => {
@@ -43,7 +43,7 @@ const FintreeROI = () => {
     useEffect(() => {
         const fetchSchedule = async () => {
             try {
-                const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/loan-booking/schedule/adikosh/fintree-roi/${lan}`);
+                const response = await api.get(`/loan-booking/schedule/adikosh/fintree-roi/${lan}`);
                 setSchedule(response.data);
             } catch (err) {
                 setError("Failed to fetch schedule.");
