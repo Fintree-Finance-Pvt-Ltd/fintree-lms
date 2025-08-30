@@ -5,7 +5,7 @@ const db = require("../config/db");
 // const verifyApiKey = require("../middleware/authMiddleware");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 
-const generateRepaymentSchedule = require("../utils/repaymentSchedule");
+const {generateRepaymentSchedule} = require("../utils/repaymentSchedule");
 
 
 const router = express.Router();
