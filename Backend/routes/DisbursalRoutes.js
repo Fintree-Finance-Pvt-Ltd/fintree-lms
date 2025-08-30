@@ -64,7 +64,7 @@ router.get("/:lan", async (req, res) => {
     loanAmountExpr = "lb.loan_amount";
     interestRateCol = "lb.interest_rate";
     tenureCol = "lb.loan_tenure";
-    processingFeeCol = "NULL AS processing_fee";
+    processingFeeCol = " lb.processing_fee";
     netDisbursementExpr = loanAmountExpr;
   }
 
