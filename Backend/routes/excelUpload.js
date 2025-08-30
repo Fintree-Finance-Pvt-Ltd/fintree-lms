@@ -810,7 +810,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
 
       const [utrExists] = await db
         .promise()
-        .query("SELECT * FROM EV_Disbursement_UTR WHERE Disbursement_UTR = ?", [
+        .query("SELECT * FROM ev_disbursement_utr WHERE Disbursement_UTR = ?", [
           disbursementUTR,
         ]);
 
@@ -844,7 +844,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         await db
           .promise()
           .query(
-            "INSERT INTO EV_Disbursement_UTR (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)",
+            "INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)",
             [disbursementUTR, disbursementDate, lan]
           );
         // ✅ Update loan status if it's a GQ loan
@@ -1757,7 +1757,7 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
 //   const query = `
 //         SELECT lb.*, ev.Disbursement_UTR, ev.Disbursement_Date
 //         FROM loan_bookings lb
-//         LEFT JOIN EV_Disbursement_UTR ev ON lb.lan = ev.LAN
+//         LEFT JOIN ev_disbursement_utr ev ON lb.lan = ev.LAN
 //         WHERE lb.lan = ? AND lb.status = 'Disbursed'
 //     `;
 
@@ -1866,7 +1866,7 @@ router.get("/disbursed/:lan", async (req, res) => {
     // ✅ Fetch Disbursal Details
     const disbursalQuery = `
             SELECT disbursement_amount, processing_fee, disbursement_date, disbursement_utr
-            FROM EV_Disbursement_UTR WHERE lan = ?`;
+            FROM ev_disbursement_utr WHERE lan = ?`;
 
     // ✅ Fetch Schedule (Manual RPS Data, Excluding Opening & Closing)
     const scheduleQuery = `
