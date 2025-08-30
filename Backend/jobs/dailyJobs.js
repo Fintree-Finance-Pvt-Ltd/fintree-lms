@@ -23,55 +23,46 @@ const db = require("../config/db");
 cron.schedule("*/2 * * * *", async () => {
   console.log("⏰ Running DPD update (every 2 min)...");
 
+  // List of tables to update, matching the stored procedure
+  const tables = [
+    "manual_rps_ev_loan",
+    "manual_rps_wctl",
+    "manual_rps_gq_non_fsf",
+    "manual_rps_gq_fsf",
+    "manual_rps_adikosh",
+    "manual_rps_adikosh_fintree",
+    "manual_rps_adikosh_partner",
+    "manual_rps_adikosh_fintree_roi"
+  ];
+
   try {
-    // CASE 1: Not Set
-    await db.promise().query(`
-      UPDATE manual_rps_gq_non_fsf
-      SET status = 'Not Set', dpd = 0
-      WHERE due_date > CURDATE()
-    `);
+    for (const table of tables) {
+      console.log(`🔄 Updating table: ${table}`);
 
-    // CASE 2: Due
-    await db.promise().query(`
-      UPDATE manual_rps_gq_non_fsf
-      SET status = 'Due', dpd = DATEDIFF(CURDATE(), due_date)
-      WHERE due_date <= CURDATE()
-        AND remaining_principal > 0
-        AND remaining_principal = principal
-        AND payment_date IS NULL
-    `);
+      // Single UPDATE query with CASE statements, matching the stored procedure
+      await db.promise().query(`
+        UPDATE ${table}
+        SET
+          status = CASE
+            WHEN remaining_principal = 0 AND remaining_interest = 0 THEN 'Paid'
+            WHEN remaining_principal > 0 AND remaining_principal < principal THEN 'Part Paid'
+            WHEN due_date < CURDATE() AND remaining_principal > 0 THEN 'Late'
+            WHEN due_date = CURDATE() AND remaining_principal > 0 THEN 'Due'
+            WHEN due_date > CURDATE() THEN 'Not Set'
+            ELSE status
+          END,
+          dpd = CASE
+            WHEN remaining_principal = 0 AND remaining_interest = 0 THEN 0
+            WHEN due_date > CURDATE() THEN 0
+            WHEN due_date <= CURDATE() THEN GREATEST(DATEDIFF(CURDATE(), due_date), 0)
+            ELSE dpd
+          END
+      `);
 
-    // CASE 3: Paid
-    await db.promise().query(`
-      UPDATE manual_rps_gq_non_fsf
-      SET status = 'Paid', dpd = 0
-      WHERE due_date <= CURDATE()
-        AND remaining_principal = 0
-    `);
+      console.log(`✅ DPD update for ${table} completed successfully`);
+    }
 
-    // CASE 4: Part Paid
-    await db.promise().query(`
-      UPDATE manual_rps_gq_non_fsf
-      SET status = 'Part Paid',
-          dpd = CASE WHEN DATEDIFF(CURDATE(), due_date) < 0 THEN 0 ELSE DATEDIFF(CURDATE(), due_date) END
-      WHERE remaining_principal > 0
-        AND remaining_principal < principal
-        AND payment_date IS NOT NULL
-    `);
-
-    // CASE 5: Late
-    await db.promise().query(`
-      UPDATE manual_rps_gq_non_fsf
-      SET status = 'Late',
-          dpd = DATEDIFF(CURDATE(), due_date)
-      WHERE due_date < CURDATE()
-        AND remaining_principal > 0
-        AND remaining_principal = principal
-        AND payment_date IS NULL
-        AND DATEDIFF(CURDATE(), due_date) > 7
-    `);
-
-    console.log("✅ Daily DPD update for manual_rps_gq_non_fsf completed successfully");
+    console.log("✅ All tables updated successfully");
   } catch (err) {
     console.error("❌ Cron job failed:", err.sqlMessage || err.message);
   }
