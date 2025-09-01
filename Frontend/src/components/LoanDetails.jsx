@@ -4,6 +4,7 @@ import "../styles/LoanDetails.css"; // ✅ Import the CSS
 const LoanDetails = ({ data }) => {
     const showRetentionFields = data.lan?.startsWith("GQF");
     const showSubventionFields = data.lan?.startsWith("GQN");
+    const showSalaryDays = data.lan?.startsWith("ADK");
 
     return (
         <div className="loan-details-content">
@@ -87,6 +88,14 @@ const LoanDetails = ({ data }) => {
                         <div className="loan-details-field">
                             <label>Subvention Amount</label>
                             <input type="text" value={data.subvention_amount || "0.00"} readOnly />
+                        </div>
+                    </>
+                )}
+                {showSalaryDays && (
+                    <>
+                        <div className="loan-details-field">
+                            <label>Salary Day </label>
+                            <input type="text" value={data.salary_day} readOnly />
                         </div>
                     </>
                 )}
