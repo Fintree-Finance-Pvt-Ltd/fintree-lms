@@ -35,9 +35,9 @@ router.post("/trigger", authenticateUser,  async (req, res) => {
       "cashflow-report": lender === "adikosh"
         ? "sp_cashflow_report_adikosh"
         : lender === "gq non-fsf"
-        ? "sp_cashflow_report_gq_non_fsf"
-       // : "sp_cashflow_report",
-         : "sp_cashflow_report_bank_date",
+        ? "sp_cashflow_report_bank_date"
+        : "sp_cashflow_report",
+        // : "sp_cashflow_report_bank_date",
 
       "due-demand-vs-collection-report(all-products)": lender === "adikosh"
       ? "sp_due_collection_all_report_adikosh"
