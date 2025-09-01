@@ -47,7 +47,7 @@ router.get("/:lan", async (req, res) => {
     tenureCol = "lb.loan_tenure";
     processingFeeCol = "lb.processing_fee";
     subventionCol = "0";
-    netDisbursementExpr = `(${loanAmountExpr})`;
+    netDisbursementExpr = "lb.net_disbursement";
   } else if (lan.startsWith("GQF")) {
     tableName = "loan_booking_gq_fsf";
     loanAmountCol = "lb.loan_amount_sanctioned AS loan_amount";
@@ -58,14 +58,9 @@ router.get("/:lan", async (req, res) => {
     subventionCol = "COALESCE(lb.subvention_amount, 0)";
     retentionCol = "COALESCE(lb.retention_amount, 0)";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol} - ${retentionCol})`;
-  } else if (lan.startsWith("ADK")) {
-    tableName = "loan_booking_adikosh";
-    loanAmountCol = "lb.loan_amount";
-    loanAmountExpr = "lb.loan_amount";
-    interestRateCol = "lb.interest_rate";
-    tenureCol = "lb.loan_tenure";
-    processingFeeCol = " lb.processing_fee";
-    netDisbursementExpr = loanAmountExpr;
+  }
+  else {
+    return res.status(400).json({ error: "Invalid LAN prefix. Supported prefixes: GQN, WCTL, ADK, GQF" });
   }
 
   const query = `
