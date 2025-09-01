@@ -7,7 +7,9 @@ const dummyReports = [
   { id: 1, name: "Consolidated MIS" },
   { id: 2, name: "Due Demand vs Collection Report(All products)" },
   { id: 3, name: "CashFlow Report" },
-  { id: 4, name: "RPS Generate Report" }
+  { id: 4, name: "RPS Generate Report" },
+  { id: 5, name: "Delayed Interest Report" },
+  { id: 6, name: "GQ Non-FSF IRR Report" }, // ✅ New report added here
 ];
 
 const ReportsListing = () => {
