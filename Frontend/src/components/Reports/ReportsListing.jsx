@@ -10,6 +10,7 @@ const dummyReports = [
   { id: 4, name: "RPS Generate Report" },
   { id: 5, name: "Delayed Interest Report" },
   { id: 6, name: "GQ Non-FSF IRR Report" }, // ✅ New report added here
+  { id: 7, name: "Adikosh CAM Report" }, // ✅ New report added here  
 ];
 
 const ReportsListing = () => {

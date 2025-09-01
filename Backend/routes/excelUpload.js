@@ -105,7 +105,33 @@ const excelDateToJSDate = (value) => {
 
   return null;
 };
+//////////////////// ADIKOSH HELPER FUNCTIONS ///////////////////////
+// ---------- helpers ----------
+const str = (v) =>
+  v === undefined || v === null || v === "" ? null : String(v).trim();
 
+const int = (v) => {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? parseInt(n, 10) : null;
+};
+
+const dec = (v) => {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(String(v).replace(/[, ]/g, ""));
+  return Number.isFinite(n) ? n : null;
+};
+
+// date in 'YYYY-MM-DD' or JS Date; store as 'YYYY-MM-DD'
+const dmy = (v) => {
+  if (!v) return null;
+  const d = v instanceof Date ? v : new Date(v);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+};
+
+const pickIncome = (arr, idx) => (Array.isArray(arr) ? dec(arr[idx]) : null);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// ✅ File Upload API (Insert Loan Data Based on Lender)
 router.post("/upload", upload.single("file"), async (req, res) => {
@@ -1260,6 +1286,187 @@ await db.promise().query(
     res.status(500).json({
       message: "Upload failed. Please try again.",
       error: error.sqlMessage || error.message,
+    });
+  }
+});
+////////////////////// ADIKOSH CAM DATA UPLOAD Start     /////////////////////
+/**
+ * Flatten up to 5 co-applicants/guarantors into the numbered columns.
+ * Undefined values become null (INSERT-friendly).
+ */
+function buildCoColumns(coApplicants = []) {
+  const out = {};
+  const max = Math.min(coApplicants.length, 5);
+  for (let i = 1; i <= 5; i++) {
+    const ca = i <= max ? coApplicants[i - 1] : {};
+    out[`coapplicant_name_${i}`]           = str(ca?.name);
+    out[`coapplicant_dob_${i}`]            = dmy(ca?.dob);
+    out[`coapplicant_aadhar_${i}`]         = str(ca?.aadhar);
+    out[`coapplicant_pan_${i}`]            = str(ca?.pan);
+    out[`coapplicant_cibil_${i}`]          = int(ca?.cibil);
+    out[`coapplicant_mobile_${i}`]         = str(ca?.mobile);
+    out[`coapplicant_loan_amount_${i}`]    = dec(ca?.loanAmount);
+    out[`coapplicant_tenure_${i}`]         = int(ca?.tenure);
+    out[`coapplicant_interest_rate_${i}`]  = dec(ca?.interestRate);
+    out[`coapplicant_emi_amount_${i}`]     = dec(ca?.emiAmount);
+    out[`company_name_${i}`]               = str(ca?.companyName);
+    out[`employment_stability_${i}`]       = int(ca?.employmentStabilityYears);
+    out[`total_monthly_income_1_${i}`]     = pickIncome(ca?.totalMonthlyIncome, 0);
+    out[`total_monthly_income_2_${i}`]     = pickIncome(ca?.totalMonthlyIncome, 1);
+    out[`total_monthly_income_3_${i}`]     = pickIncome(ca?.totalMonthlyIncome, 2);
+    out[`no_of_loans_${i}`]                = int(ca?.noOfLoans);
+    out[`emi_excl_fintree_${i}`]           = dec(ca?.emiExcludingFintree);
+    out[`emi_incl_fintree_${i}`]           = dec(ca?.emiIncludingFintree);
+    out[`current_address_${i}`]            = str(ca?.currentAddress);
+    out[`permanent_address_${i}`]          = str(ca?.permanentAddress);
+    out[`relation_with_guarantor_${i}`]    = str(ca?.relationWithGuarantor);
+  }
+  return out;
+}
+
+// ---------- route ----------
+// ---------- base + per-block columns ----------
+const COLS_BASE = [
+  "lan",
+  "partner_loan_id",
+  "company_name",
+  "employment_stability_years",
+  "total_monthly_income_1",
+  "total_monthly_income_2",
+  "total_monthly_income_3",
+  "no_of_loans",
+  "emi_excl_fintree",
+  "emi_incl_fintree",
+];
+
+// 21 columns per co-app/guarantor block
+function colsForBlock(i) {
+  return [
+    `coapplicant_name_${i}`,
+    `coapplicant_dob_${i}`,
+    `coapplicant_aadhar_${i}`,
+    `coapplicant_pan_${i}`,
+    `coapplicant_cibil_${i}`,
+    `coapplicant_mobile_${i}`,
+    `coapplicant_loan_amount_${i}`,
+    `coapplicant_tenure_${i}`,
+    `coapplicant_interest_rate_${i}`,
+    `coapplicant_emi_amount_${i}`,
+    `company_name_${i}`,
+    `employment_stability_${i}`,
+    `total_monthly_income_1_${i}`,
+    `total_monthly_income_2_${i}`,
+    `total_monthly_income_3_${i}`,
+    `no_of_loans_${i}`,
+    `emi_excl_fintree_${i}`,
+    `emi_incl_fintree_${i}`,
+    `current_address_${i}`,
+    `permanent_address_${i}`,
+    `relation_with_guarantor_${i}`,
+  ];
+}
+
+// values array for a single co-app block (keeps order in colsForBlock)
+function valsForBlock(ca = {}) {
+  return [
+    str(ca.name),
+    dmy(ca.dob),
+    str(ca.aadhar),
+    str(ca.pan),
+    int(ca.cibil),
+    str(ca.mobile),
+    dec(ca.loanAmount),
+    int(ca.tenure),
+    dec(ca.interestRate),
+    dec(ca.emiAmount),
+    str(ca.companyName),
+    int(ca.employmentStabilityYears),
+    pickIncome(ca.totalMonthlyIncome, 0),
+    pickIncome(ca.totalMonthlyIncome, 1),
+    pickIncome(ca.totalMonthlyIncome, 2),
+    int(ca.noOfLoans),
+    dec(ca.emiExcludingFintree),
+    dec(ca.emiIncludingFintree),
+    str(ca.currentAddress),
+    str(ca.permanentAddress),
+    str(ca.relationWithGuarantor),
+  ];
+}
+
+// ---------- route ----------
+router.post("/v1/adikosh-cam", verifyApiKey, async (req, res) => {
+  try {
+    const b = req.body;
+
+    // Minimal requireds (CAM is auxiliary)
+    if (!b.lan && !b.partnerLoanId) {
+      return res
+        .status(400)
+        .json({ message: "Either 'lan' or 'partnerLoanId' is required." });
+    }
+    if (!b.companyName) {
+      return res.status(400).json({ message: "companyName is required." });
+    }
+
+    // Normalize co-applicants to exactly 5 blocks
+    const coApps = Array.isArray(b.coApplicants)
+      ? b.coApplicants.slice(0, 5)
+      : [];
+    while (coApps.length < 5) coApps.push({});
+
+    // Build columns programmatically
+    const columns = [...COLS_BASE];
+    for (let i = 1; i <= 5; i++) columns.push(...colsForBlock(i));
+
+    // Build params in exactly the same order
+    const params = [
+      str(b.lan),
+      str(b.partnerLoanId),
+      str(b.companyName),
+      int(b.employmentStabilityYears),
+      pickIncome(b.totalMonthlyIncome, 0),
+      pickIncome(b.totalMonthlyIncome, 1),
+      pickIncome(b.totalMonthlyIncome, 2),
+      int(b.noOfLoans),
+      dec(b.emiExcludingFintree),
+      dec(b.emiIncludingFintree),
+    ];
+    for (let i = 0; i < 5; i++) params.push(...valsForBlock(coApps[i]));
+
+    // ��� Check duplicates
+    const [existingRecords] = await db
+      .promise()
+      .query(
+        `SELECT lan FROM adikosh_cam_data WHERE lan = ?`,
+        [b.lan]
+      );
+ 
+    if (existingRecords.length > 0) {
+      return res.json({
+        message: `CAM Data already exists for Lan: ${b.lan}`,
+      });
+    }
+
+    // Assemble SQL safely (column count == value count)
+    const placeholders = columns.map(() => "?").join(", ");
+    const sql = `INSERT INTO adikosh_cam_data (${columns.join(
+      ", "
+    )}) VALUES (${placeholders})`;
+
+    // Execute
+    await db.promise().query(sql, params);
+
+    return res.json({
+      message: "Adikosh CAM Data Saved Successfully.",
+      lan: b.lan ?? null,
+
+            
+    });
+  } catch (err) {
+    console.error("❌ CAM upload error:", err);
+    return res.status(500).json({
+      message: "Upload failed.",
+      error: err.sqlMessage || err.message,
     });
   }
 });
