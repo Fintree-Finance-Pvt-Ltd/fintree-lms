@@ -1539,7 +1539,7 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
 
       const parseNumber = (val) => (val ? parseFloat(val) : 0);
       const loanAmount = row["Loan Amount Sanctioned"];// ✅ New field for same data insert into 2nd column also
-      const interestrate = row["Insterest %"];//
+      const interestrate = row["Interest %"];//
       const loantenure = row["Loan Tenure (Months)"];//
 
       await db.promise().query(insertQuery, [
