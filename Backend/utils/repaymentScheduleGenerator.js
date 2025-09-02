@@ -1033,7 +1033,7 @@ const generateRepaymentScheduleGQNonFSF = async (
   lan,
   approvedAmount,
   emiDate,
-  interestRate =0,
+  interestRate ,
   tenure,
   disbursementDate,
   subventionAmount,
@@ -1045,7 +1045,7 @@ const generateRepaymentScheduleGQNonFSF = async (
     console.log(`\n🚀 Generating GQ NON-FSF RPS for LAN: ${lan}`);
     console.log(`📝 Inputs → ApprovedAmount: ₹${approvedAmount}, InterestRate: ${interestRate}%, Tenure: ${tenure}, DisbursementDate: ${disbursementDate}, EMI Date: ${emiDate}, SubventionAmount: ₹${subventionAmount}, Product: ${product}, Lender: ${lender}, AdvanceEMIs: ${no_of_advance_emis}`);
 
-    const annualRate = interestRate / 100;
+    const annualRate = Number(interestRate ?? 0) / 100; ;
     let remainingPrincipal = approvedAmount;
 
     const isZeroInterest = annualRate === 0;
@@ -1070,7 +1070,7 @@ const generateRepaymentScheduleGQNonFSF = async (
         dueDate = new Date(disbursementDate); // first EMI date
       } else {
         const offset = no_of_advance_emis > 0 ? i - 2 : i - 1;
-        dueDate = getFirsEmiDate(disbursementDate, emiDate, lender, product, offset);
+        dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, offset);
       }
 
       rpsData.push([
