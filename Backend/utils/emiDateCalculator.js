@@ -89,7 +89,7 @@
 // utils/emiDateCalculator.js
 const db = require("../config/db");
 
-function getFirstEmiDate(disbursementDate, lender, product, monthOffset = 0, salaryDay ) {
+function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset = 0, salaryDay ) {
     const disbDate = new Date(disbursementDate);
     const disbDay = disbDate.getDate();
 
