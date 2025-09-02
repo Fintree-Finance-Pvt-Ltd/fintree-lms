@@ -63,33 +63,42 @@ router.get("/:lan", async (req, res) => {
     return res.status(400).json({ error: "Invalid LAN prefix. Supported prefixes: GQN, WCTL, ADK, GQF" });
   }
 
-  const query = `
+ const query = `
     SELECT 
       ${loanAmountCol},
       lb.partner_loan_id,
       ${processingFeeCol},
-      ${interestRateCol},
+      ${interestRateCol} ,
       ${tenureCol},
       COALESCE(lb.agreement_date, '0000-00-00') AS agreement_date,
       COALESCE(NULLIF(ed.Disbursement_UTR, ''), 'Missing UTR') AS disbursement_utr,
-      COALESCE(ed.Disbursement_Date, '0000-00-00') AS disbursement_date,
-      ${netDisbursementExpr} AS net_disbursement,
+      COALESCE(ed.disbursement_date, '0000-00-00') AS disbursement_date,
+      ${netDisbursementExpr} AS net_disbursement
     FROM ${tableName} lb
     LEFT JOIN ev_disbursement_utr ed 
-      ON lb.lan COLLATE utf8mb4_unicode_ci = ed.lan COLLATE utf8mb4_unicode_ci
+      ON lb.lan COLLATE utf8mb4_general_ci = ed.lan COLLATE utf8mb4_general_ci
     WHERE lb.lan = ?;
   `;
 
-  try {
-    const [result] = await db.promise().query(query, [lan]);
-    if (!result.length) {
+  console.log("📄 SQL Query Prepared.");
+
+  // Step 4: Execute Query
+  db.query(query, [lan], (err, result) => {
+    if (err) {
+      console.error("❌ Database query error:", err);
+      return res.status(500).json({ error: "Database query failed" });
+    }
+
+    console.log("✅ Query executed successfully.");
+
+    if (result.length === 0) {
+      console.warn(`⚠️ No disbursal details found for LAN: ${lan}`);
       return res.status(404).json({ error: `No disbursal details found for LAN: ${lan}` });
     }
+
+    console.log("📦 Disbursal details fetched:", result[0]);
     res.json(result[0]);
-  } catch (err) {
-    console.error("❌ DB Query Error:", err);
-    res.status(500).json({ error: "Internal server error while fetching disbursal details." });
-  }
+  });
 });
 
 module.exports = router;
