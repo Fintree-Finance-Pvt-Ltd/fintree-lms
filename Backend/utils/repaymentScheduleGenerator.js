@@ -1033,7 +1033,7 @@ const generateRepaymentScheduleGQNonFSF = async (
   lan,
   approvedAmount,
   emiDate,
-  interestRate || 0,
+  interestRate =0,
   tenure,
   disbursementDate,
   subventionAmount,
