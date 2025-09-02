@@ -806,7 +806,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       } else if (lan.startsWith("GQF")) {
         [loanRes] = await db.promise().query(
           `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
-           FROM loan_bookings_gq_fsf WHERE lan = ?`,
+           FROM loan_booking_gq_fsf WHERE lan = ?`,
           [lan]
         );
       } else if (lan.startsWith("ADK")) {
@@ -901,7 +901,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
           await db
             .promise()
             .query(
-              "UPDATE loan_bookings_gq_fsf SET status = 'Disbursed' WHERE lan = ?",
+              "UPDATE loan_booking_gq_fsf SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
         } 
@@ -1138,7 +1138,7 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
 
 router.get("/gq-fsf-disbursed", (req, res) => {
   const query =
-    "SELECT * FROM loan_bookings_gq_fsf WHERE status = 'Disbursed' and LAN Like 'GQF%'";
+    "SELECT * FROM loan_booking_gq_fsf WHERE status = 'Disbursed' and LAN Like 'GQF%'";
 
   db.query(query, (err, results) => {
     if (err) {
