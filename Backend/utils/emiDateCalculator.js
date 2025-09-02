@@ -171,7 +171,6 @@ else if (lender === "GQ Non-FSF" && product === "Bureau Score Based") {
     const disbDate = new Date(disbursementDate); // use original disbursementDate param
     const disbDay = disbDate.getDate();
     const dueDate = new Date(disbDate);
-
     if (disbDay <= 20) {
         dueDate.setMonth(dueDate.getMonth() + 1 + monthOffset);
       } else {
@@ -179,6 +178,7 @@ else if (lender === "GQ Non-FSF" && product === "Bureau Score Based") {
       }
     dueDate.setDate(5); // Always due on the 5th
     console.log(`[GQ Non-FSF] EMI due (cutoff logic): ${dueDate.toISOString().split("T")[0]}`);
+
     return dueDate;
 }
 

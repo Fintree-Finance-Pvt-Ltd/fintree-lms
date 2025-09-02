@@ -1033,7 +1033,7 @@ const generateRepaymentScheduleGQNonFSF = async (
   lan,
   approvedAmount,
   emiDate,
-  interestRate,
+  interestRate || 0,
   tenure,
   disbursementDate,
   subventionAmount,
@@ -1070,7 +1070,7 @@ const generateRepaymentScheduleGQNonFSF = async (
         dueDate = new Date(disbursementDate); // first EMI date
       } else {
         const offset = no_of_advance_emis > 0 ? i - 2 : i - 1;
-        dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, offset);
+        dueDate = getFirsEmiDate(disbursementDate, emiDate, lender, product, offset);
       }
 
       rpsData.push([
