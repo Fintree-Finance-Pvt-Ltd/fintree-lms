@@ -68,7 +68,7 @@ router.post("/trigger", authenticateUser,  async (req, res) => {
       "gq-non-fsf-irr-report": "sp_generate_gq_non_fsf_irr_report",
 
       // More procedures can be added here...
-      "adikosh-cam-report": "sp_cam_data_report_adikosh_pivot",
+      "adikosh-cam-report": "sp_cam_data_report_adikosh",
     };
 
     return map[reportId?.toLowerCase()] || null;
