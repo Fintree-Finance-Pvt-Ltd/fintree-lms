@@ -1015,21 +1015,21 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
         typeof v === "number" ? v : parseFloat((v ?? "").toString().replace(/[^0-9.]/g, "")) || 0;
 
       await db.promise().query(
-        `INSERT INTO loan_bookings_gq_fsf (
+        `INSERT INTO loan_booking_gq_fsf (
           partner_loan_id, lan, app_id, product, customer_type, residence_type, loan_type, disbursal_type,
     institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
     agreement_signature_type, loan_application_date, emi_day, company_name, fathers_name,
-    ckyc_no, customer_name, student_name, date_of_birth, gender, current_address_line_1,
-    current_address_line_2, current_address_line_3, current_address_landmark, current_address_pincode,
-    current_address_city, current_address_state, proof_of_current_address, permanent_address_line_1,
-    permanent_address_line_2, permanent_address_line_3, permanent_address_landmark, permanent_address_pincode,
-    permanent_address_city, permanent_address_state, office_address_line_1, office_address_line_2,
-    office_address_line_3, office_address_landmark, office_address_pincode, office_address_city,
+    ckyc_no, customer_name, student_name, date_of_birth, gender, current_address_line1,
+    current_address_line2, current_address_line3, current_address_landmark, current_address_pincode,
+    current_address_city, current_address_state, proof_of_current_address, permanent_address_line1,
+    permanent_address_line2, permanent_address_line3, permanent_address_landmark, permanent_address_pincode,
+    permanent_address_city, permanent_address_state, office_address_line1, office_address_line2,
+    office_address_line3, office_address_landmark, office_address_pincode, office_address_city,
     office_address_state, pan_number, employment_status, annual_income, credit_score, mobile_number,
     email_id, institute, loan_amount_sanctioned, loan_tenure_months, monthly_emi,
     interest_percent, monthly_interest_amount, no_of_advance_emis, processing_fee, processing_fee_tax,
     advance_emi_total, subvention_amount, disbursal_amount, retention_percentage, retention_amount, actual_disbursement, to_be_recovered,
-    agreement_date, interest_rate_irr, flat_rate_percent, nach_umrn, income_source,
+    agreement_date, interest_rate_irr, flat_rate, nach_umrn, income_source,
     status, monthly_income, age, lender, loan_amount, interest_rate, loan_tenure
         ) VALUES (${new Array(79).fill("?").join(",")})`,
         [
