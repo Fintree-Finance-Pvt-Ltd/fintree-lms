@@ -72,8 +72,8 @@ router.get("/:lan", async (req, res) => {
       ${tenureCol},
       COALESCE(lb.agreement_date, '0000-00-00') AS agreement_date,
       COALESCE(NULLIF(ed.Disbursement_UTR, ''), 'Missing UTR') AS disbursement_utr,
-      COALESCE(ed.disbursement_date, '0000-00-00') AS disbursement_date,
-      ${netDisbursementExpr} AS net_disbursement
+      COALESCE(ed.Disbursement_Date, '0000-00-00') AS disbursement_date,
+      ${netDisbursementExpr} AS net_disbursement,
     FROM ${tableName} lb
     LEFT JOIN ev_disbursement_utr ed 
       ON lb.lan COLLATE utf8mb4_general_ci = ed.lan COLLATE utf8mb4_general_ci

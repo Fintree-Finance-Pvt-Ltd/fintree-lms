@@ -48,7 +48,7 @@ const DisbursedLoansTable = ({ apiEndpoint, title = "Disbursed Loans", amountFie
                                     {loan.lan}
                                 </span>
                             </td>
-                            <td>{loan[amountField]}</td>
+                            <td>{loan.loan_amount}</td>
                             <td>{loan.disbursement_date}</td>
                             <td>{loan.status}</td>
                         </tr>
