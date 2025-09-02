@@ -1222,7 +1222,7 @@ await db.promise().query(
     pan_number, aadhar_number,
     current_address, current_village_city, current_district, current_state, current_pincode,
     permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
-    loan_amount, interest_rate, tenure, emi_amount, salary_day,
+    loan_amount, interest_rate, loan_tenure, emi_amount, salary_day,
     cibil_score, product, lender,
     bank_name, name_in_bank, account_number, ifsc,
     sanction_date, pre_emi, processing_fee, net_disbursement, status, customer_name,agreement_date
