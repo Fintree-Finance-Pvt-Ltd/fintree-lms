@@ -76,7 +76,7 @@ router.get("/:lan", async (req, res) => {
       ${netDisbursementExpr} AS net_disbursement,
     FROM ${tableName} lb
     LEFT JOIN ev_disbursement_utr ed 
-      ON lb.lan COLLATE utf8mb4_general_ci = ed.lan COLLATE utf8mb4_general_ci
+      ON lb.lan COLLATE utf8mb4_unicode_ci = ed.lan COLLATE utf8mb4_unicode_ci
     WHERE lb.lan = ?;
   `;
 
