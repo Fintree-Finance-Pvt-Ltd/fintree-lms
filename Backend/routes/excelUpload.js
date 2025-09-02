@@ -1181,7 +1181,7 @@ console.log("Incoming lenderType:", req.body.lenderType);
       "fatherName",  "mobileNumber", "emailId",
       "panNumber", "aadharNumber",
       "currentAddress", "currentVillageCity", "currentDistrict", "currentState", "currentPincode",
-      "permanentAddress", "permanentVillageCity", "permanentDistrict", "permanentState", "permanentPincode",
+      "permanentAddress", "permanentState", "permanentPincode",
       "loanAmount", "interestRate", "tenure", "emiAmount", "salaryDay",
       "cibilScore", "product", "lenderType",
       "bankName", "nameInBank", "accountNumber", "ifsc",
