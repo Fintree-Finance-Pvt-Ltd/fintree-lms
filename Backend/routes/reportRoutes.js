@@ -370,6 +370,10 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_cashflow_report_adikosh"
         : lender === "gq non-fsf"
         ? "sp_cashflow_report_gq_non_fsf"
+          : lender === "wctl-bl loan"
+        ? "sp_cashflow_report_wctl"
+        : lender === "ev loan"
+        ? "sp_cashflow_report_ev"
         : "sp_cashflow_report",
 
   "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date", // ✅ now handled
