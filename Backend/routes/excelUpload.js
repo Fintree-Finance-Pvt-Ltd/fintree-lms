@@ -1393,7 +1393,7 @@ function valsForBlock(ca = {}) {
   ];
 }
 
-// ---------- route ----------
+// ---------- route for cam ----------
 router.post("/v1/adikosh-cam", verifyApiKey, async (req, res) => {
   try {
     const b = req.body;
@@ -1470,6 +1470,7 @@ router.post("/v1/adikosh-cam", verifyApiKey, async (req, res) => {
     });
   }
 });
+////////////////////// ADIKOSH CAM DATA UPLOAD END     /////////////////////
 
 ///////////// GQ NON FSF  //////////////////////////
 router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {

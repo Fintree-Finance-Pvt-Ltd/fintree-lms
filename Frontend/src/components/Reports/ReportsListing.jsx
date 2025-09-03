@@ -11,6 +11,7 @@ const dummyReports = [
   { id: 5, name: "Delayed Interest Report" },
   { id: 6, name: "GQ Non-FSF IRR Report" }, // ✅ New report added here
   { id: 7, name: "Adikosh CAM Report" }, // ✅ New report added here  
+  { id: 8, name: "Adikosh CAM Report Print" } // ✅ New report added here
 ];
 
 const ReportsListing = () => {
