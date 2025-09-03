@@ -342,6 +342,8 @@ function resolveProcedure(rawReportId, rawLender) {
   // id aliases (add more if needed)
   const aliases = {
     "cashflow-report": "cashflow-report",
+     "cashflow-report-bank-date": "cashflow-report-bank-date", // ✅ add this
+      "cashflow report bank date": "cashflow-report-bank-date", // alias
 
     "due-demand-vs-collection-report(all-products)":
       "due-demand-vs-collection-report(all-products)",
@@ -369,6 +371,8 @@ function resolveProcedure(rawReportId, rawLender) {
         : lender === "gq non-fsf"
         ? "sp_cashflow_report_gq_non_fsf"
         : "sp_cashflow_report",
+
+  "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date", // ✅ now handled
 
     "due-demand-vs-collection-report(all-products)": () =>
       lender === "adikosh"
@@ -402,6 +406,7 @@ function resolveProcedure(rawReportId, rawLender) {
     "adikosh-cam-report-pivot": () => "sp_cam_data_report_adikosh_pivot",
     // CAM printable (single LAN)
     "adikosh-cam-report-print": () => "sp_cam_data_report_adikosh_print",
+  
   };
 
   return procMap[key] ? procMap[key]() : null;
