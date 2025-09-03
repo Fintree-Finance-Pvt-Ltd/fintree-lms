@@ -9,6 +9,7 @@ router.get("/:lan", async (req, res) => {
     return res.status(400).json({ error: "LAN is required and cannot be empty" });
   }
 
+  // Step 2: Determine table and columns
   let tableName = "loan_bookings";
   let loanAmountCol = "lb.loan_amount";
   let loanAmountExpr = "lb.loan_amount";
@@ -59,9 +60,8 @@ router.get("/:lan", async (req, res) => {
     retentionCol = "COALESCE(lb.retention_amount, 0)";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol} - ${retentionCol})`;
   }
-  else {
-    return res.status(400).json({ error: "Invalid LAN prefix. Supported prefixes: GQN, WCTL, ADK, GQF" });
-  }
+
+  console.log(`📦 Using table: ${tableName} for LAN: ${lan}`);
 
  const query = `
     SELECT 
