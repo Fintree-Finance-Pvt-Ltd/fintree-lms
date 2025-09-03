@@ -1373,7 +1373,7 @@ const generateRepaymentScheduleAdikosh = async (
   salaryDay
 ) => {
   try {
-    const firstDueDate = getFirstEmiDate(disbursementDate, "Adikosh", "Adikosh", 0, salaryDay);
+    const firstDueDate = getFirstEmiDate(disbursementDate,null, "Adikosh", "Adikosh", 0, salaryDay);
    
     console.log({ loanAmount, interestRate, tenure,salaryDay });
 
