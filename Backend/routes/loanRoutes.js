@@ -31,7 +31,7 @@ router.get("/loan-booking/:lan", (req, res) => {
 
   // Determine which table to use
   let table = "loan_bookings"; // Default
-  let posTable = "manual_rps_ev_loan"; // Default
+  let posTable = "manual_rps_bl_loan"; // Default
 
   if (lan.startsWith("GQN")) {
     table = "loan_booking_gq_non_fsf";

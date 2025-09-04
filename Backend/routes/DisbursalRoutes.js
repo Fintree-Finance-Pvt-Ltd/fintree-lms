@@ -6,7 +6,9 @@ const router = express.Router();
 router.get("/:lan", async (req, res) => {
   const lan = req.params.lan?.trim().toUpperCase();
   if (!lan) {
-    return res.status(400).json({ error: "LAN is required and cannot be empty" });
+    return res
+      .status(400)
+      .json({ error: "LAN is required and cannot be empty" });
   }
 
   // Step 2: Determine table and columns
@@ -20,6 +22,18 @@ router.get("/:lan", async (req, res) => {
   let retentionCol = "0";
   let netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
 
+  if (lan.startsWith("EV")) {
+    tableName = "loan_booking_ev";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.loan_tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
+    subventionCol = "0";
+    retentionCol = "0";
+    netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+  }
+
   if (lan.startsWith("GQN")) {
     tableName = "loan_booking_gq_non_fsf";
     loanAmountCol = "lb.loan_amount_sanctioned AS loan_amount";
@@ -29,8 +43,7 @@ router.get("/:lan", async (req, res) => {
     processingFeeCol = "lb.processing_fee";
     subventionCol = "COALESCE(lb.subvention_amount, 0)";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
-}
-  else if (lan.startsWith("WCTL")) {
+  } else if (lan.startsWith("WCTL")) {
     tableName = "loan_bookings_wctl";
     posTable = "manual_rps_wctl";
     loanAmountCol = "lb.loan_amount";
@@ -63,7 +76,7 @@ router.get("/:lan", async (req, res) => {
 
   console.log(`📦 Using table: ${tableName} for LAN: ${lan}`);
 
- const query = `
+  const query = `
     SELECT 
       ${loanAmountCol},
       lb.partner_loan_id,
@@ -93,7 +106,9 @@ router.get("/:lan", async (req, res) => {
 
     if (result.length === 0) {
       console.warn(`⚠️ No disbursal details found for LAN: ${lan}`);
-      return res.status(404).json({ error: `No disbursal details found for LAN: ${lan}` });
+      return res
+        .status(404)
+        .json({ error: `No disbursal details found for LAN: ${lan}` });
     }
 
     console.log("📦 Disbursal details fetched:", result[0]);
@@ -102,4 +117,3 @@ router.get("/:lan", async (req, res) => {
 });
 
 module.exports = router;
- 

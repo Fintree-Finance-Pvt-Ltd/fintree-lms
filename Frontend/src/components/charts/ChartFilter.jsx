@@ -22,6 +22,7 @@ const ChartFilter = ({ onFilterChange }) => {
           <option value="BL_loan">BL_loan</option>
           <option value="Adikosh">Adikosh</option>
           <option value="GQ Non-FSF">GQ Non-FSF</option>
+          <option value="GQ FSF">GQ FSF</option>
         </select>
       </div>
       <div className="filter-group">

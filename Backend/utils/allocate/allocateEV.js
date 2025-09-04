@@ -288,7 +288,7 @@ const allocateEV = async (lan, payment) => {
   // Determine table names based on LAN prefix
   const isWCTL = lan.startsWith("WCTL");
   const emiTable = isWCTL ? "manual_rps_wctl" : "manual_rps_ev_loan";
-  const loanTable = isWCTL ? "loan_bookings_wctl" : "loan_bookings";
+  const loanTable = isWCTL ? "loan_bookings_wctl" : "loan_booking_ev";
 
   // 1️⃣ Knock off EMIs: interest first then principal
   while (remaining > 0) {

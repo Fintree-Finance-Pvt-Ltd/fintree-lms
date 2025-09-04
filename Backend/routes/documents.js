@@ -130,9 +130,14 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_adikosh";
     paymentsTable = "repayments_upload_adikosh";
     chargesTable = "loan_charges";
+  } else if (lan.startsWith("EV")) {
+    loanTable = "loan_booking_ev";
+    rpsTable = "manual_rps_ev_loan";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
   } else {
     loanTable = "loan_bookings";
-    rpsTable = "manual_rps_ev_loan";
+    rpsTable = "manual_rps_bl_loan";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
   }
@@ -353,6 +358,8 @@ router.post("/generate-noc", async (req, res) => {
     loanTable = "loan_booking_gq_fsf";
   } else if (lan.startsWith("ADK")) {
     loanTable = "loan_booking_adikosh";
+  } else if (lan.startsWith("EV")) {
+    loanTable = "loan_booking_ev";
   } else {
     loanTable = "loan_bookings";
   }

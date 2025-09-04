@@ -419,10 +419,11 @@ console.log(`✅ Inserted loan for Interst Rate: ${interestRate }, Aadhar: ${aad
 //   }
 // });
 router.get("/login-loans", (req, res) => {
-  const { table = "loan_bookings", prefix = "EV" } = req.query;
+  const { table = "loan_booking_ev", prefix = "EV" } = req.query;
 
   const allowedTables = {
     "loan_bookings": true,
+    "loan_booking_ev": true,
     "loan_booking_adikosh": true,
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
@@ -451,6 +452,7 @@ router.get("/all-loans", (req, res) => {
 
   const allowedTables = {
     "loan_bookings": true,
+    "loan_booking_ev": true,
     "loan_booking_adikosh": true,
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
@@ -476,15 +478,15 @@ router.get("/all-loans", (req, res) => {
 
 
 router.get("/approved-loans", (req, res) => {
-  const { table = "loan_bookings", prefix = "EV" } = req.query;
+  const { table = "loan_booking_ev", prefix = "EV" } = req.query;
 
   const allowedTables = {
     "loan_bookings": true,
+    "loan_booking_ev": true,
     "loan_booking_adikosh": true,
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
-    "loan_bookings_wctl": true,
-    "loan_booking_ev": true
+    "loan_bookings_wctl": true
 
   };
 
@@ -506,7 +508,7 @@ router.get("/approved-loans", (req, res) => {
 
 
 router.get("/disbursed-loans", (req, res) => {
-  const { table = "loan_bookings", prefix = "EV" } = req.query;
+  const { table = "loan_booking_ev", prefix = "EV" } = req.query;
 
   const allowedTables = {
     "loan_bookings": true,
@@ -991,7 +993,7 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
       const [existingRecords] = await db
         .promise()
         .query(
-          `SELECT lan FROM loan_bookings WHERE pan_card = ? OR aadhar_number = ?`,
+          `SELECT lan FROM loan_booking_gq_fsf WHERE pan_card = ? OR aadhar_number = ?`,
           [panCard, aadharNumber]
         );
 
@@ -1900,7 +1902,7 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
       const [existingRecords] = await db
         .promise()
         .query(
-          `SELECT lan FROM loan_bookings WHERE pan_card = ? OR aadhar_number = ?`,
+          `SELECT lan FROM loan_booking_adikosh WHERE pan_card = ? OR aadhar_number = ?`,
           [panCard, aadharNumber]
         );
 
