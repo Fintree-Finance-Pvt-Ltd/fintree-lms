@@ -418,6 +418,55 @@ console.log(`✅ Inserted loan for Interst Rate: ${interestRate }, Aadhar: ${aad
 //     res.status(500).json({ message: "Error creating loan", error: err.message });
 //   }
 // });
+
+function toIsoDateSafe(input) {
+  if (input === null || input === undefined) return null;
+
+  // If xlsx returned a real JS Date (when using cellDates: true)
+  if (input instanceof Date && !Number.isNaN(input.getTime())) {
+    return input.toISOString().split("T")[0];
+  }
+
+  // Excel serial number (days since 1899-12-30; adjust for 1900-02-29 bug)
+  if (typeof input === 'number' && Number.isFinite(input)) {
+    const excelEpoch = Date.UTC(1899, 11, 30);
+    const days = Math.trunc(input);
+    const msWholeDays = (days - (days >= 60 ? 1 : 0)) * 86400000;
+    const msFracDay   = Math.round((input - days) * 86400000);
+    return new Date(excelEpoch + msWholeDays + msFracDay).toISOString().split("T")[0];
+  }
+
+  // Normalize strings
+  const s = String(input).trim();
+  if (!s) return null;
+
+  // YYYY-MM-DD
+  let m;
+  if ((m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s))) {
+    return new Date(Date.UTC(+m[1], +m[2]-1, +m[3])).toISOString().split("T")[0];
+  }
+
+  // DD/MM/YYYY or DD-MM-YYYY
+  if ((m = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/.exec(s))) {
+    return new Date(Date.UTC(+m[3], +m[2]-1, +m[1])).toISOString().split("T")[0];
+  }
+
+  // DD-MMM-YY (e.g., 20-Aug-25)
+  if ((m = /^(\d{1,2})-([A-Za-z]{3})-(\d{2})$/.exec(s))) {
+    const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+    const day = +m[1]; const mon = months[m[2]];
+    const year = 2000 + +m[3]; // assume 20xx
+    if (mon !== undefined) {
+      return new Date(Date.UTC(year, mon, day)).toISOString().split("T")[0];
+    }
+  }
+
+  // Last resort
+  const dt = new Date(s);
+  return Number.isNaN(dt.getTime()) ? null : dt.toISOString().split("T")[0];
+}
+
+
 router.get("/login-loans", (req, res) => {
   const { table = "loan_booking_ev", prefix = "EV" } = req.query;
 
@@ -783,11 +832,12 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
 
     for (const row of sheetData) {
       const disbursementUTR = row["Disbursement UTR"];
-      const disbursementDate = row["Disbursement Date"]
-        ? new Date((row["Disbursement Date"] - 25569) * 86400000)
-            .toISOString()
-            .split("T")[0]
-        : null;
+      const disbursementDate = toIsoDateSafe(row["Disbursement Date"]);
+      // const disbursementDate = row["Disbursement Date"]
+      //   ? new Date((row["Disbursement Date"] - 25569) * 86400000)
+      //       .toISOString()
+      //       .split("T")[0]
+      //   : null;
       const lan = row["LAN"];
 
       if (!disbursementUTR || !disbursementDate || !lan) {

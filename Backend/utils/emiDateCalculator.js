@@ -119,6 +119,9 @@ const excelSerialDateToJS = (value) => {
 
 function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset = 0, salaryDay ) {
     const disbDate = new Date(disbursementDate);
+    if (Number.isNaN(disbDate.getTime())) {
+    throw new Error(`Invalid disbursementDate: ${disbursementDate}`);
+  }
     const disbDay = disbDate.getDate();
 
     // ✅ EV Loan: Monthly Loan EMI due based on 5th cut-off logic
