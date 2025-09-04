@@ -11,6 +11,7 @@ const ApprovedCaseDetails = () => {
     const navigate = useNavigate();
     const showRetentionFields = lan.startsWith("GQF");
     const showSubventionFields = lan.startsWith("GQN");
+    const showBatchId = lan.startsWith("ADK");
 
     useEffect(() => {
         const fetchLoanDetails = async () => {
@@ -50,6 +51,13 @@ const ApprovedCaseDetails = () => {
                     <label>LAN</label>
                     <input type="text" value={data.lan} readOnly />
                 </div>
+
+                {showBatchId && (
+                    <div className="loan-details-field">
+                        <label>Batch ID</label>
+                        <input type="text" value={data.batch_id || "N/A"} readOnly />
+                    </div>
+                )}
 
                 <div className="loan-details-field">
                     <label>Created At</label>
