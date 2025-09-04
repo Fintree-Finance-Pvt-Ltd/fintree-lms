@@ -15,10 +15,12 @@ const colors = {
   EV_loan: "#8884d8",
   BL_loan: "#82ca9d",
   Adikosh: "#ffc658",
-  "GQ Non-FSF": "#ff7300"
+  GQ_Non_FSF: "#ff7300",
+  GQ_FSF: "#0088FE"
+
 };
 
-const products = ["EV_loan", "BL_loan", "Adikosh", "GQ Non-FSF"];
+const products = ["EV_loan", "BL_loan", "Adikosh", "GQ_Non_FSF", "GQ_FSF"];
 
 const RepaymentTrendChart = ({ filters }) => {
   const [chartData, setChartData] = useState([]);
