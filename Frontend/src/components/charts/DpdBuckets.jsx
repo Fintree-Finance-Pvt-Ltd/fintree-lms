@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api/api";
+import * as XLSX from "xlsx"; // ✅ NEW: for Excel export
 
 const bucketMeta = [
   { key: "0", label: "On Time" },
@@ -70,6 +71,84 @@ const DpdBuckets = ({ filters }) => {
   const startIdx = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const endIdx = Math.min(total, page * pageSize);
 
+  // ✅ NEW: Export exactly the visible rows to Excel
+  const handleDownloadCurrentView = () => {
+    if (!rows.length) return;
+
+    // 1) Define columns in the order you want in Excel
+    const columns = [
+      { key: "lan", header: "LAN" },
+      { key: "product", header: "Product" },
+      { key: "customer_name", header: "Customer Name" },
+      { key: "max_dpd", header: "Max DPD" },
+      { key: "overdue_emi", header: "Overdue EMI" },
+      { key: "overdue_principal", header: "Overdue Principal" },
+      { key: "overdue_interest", header: "Overdue Interest" },
+      { key: "pos_principal", header: "POS (Principal)" },
+      { key: "last_due_date", header: "Last Due Date" },
+    ];
+
+    // 2) Build an array-of-arrays: first row = headers, rest = data
+    const headerRow = columns.map(c => c.header);
+    const dataRows = rows.map(r => {
+      // Parse date to a Date object for correct Excel date cells
+      const dateObj = r.last_due_date ? new Date(r.last_due_date) : "";
+      return [
+        r.lan,
+        r.product,
+        Number(r.max_dpd ?? 0),
+        Number(r.overdue_emi ?? 0),
+        Number(r.overdue_principal ?? 0),
+        Number(r.overdue_interest ?? 0),
+        Number(r.pos_principal ?? 0),
+        dateObj
+      ];
+    });
+
+    const aoa = [headerRow, ...dataRows];
+
+    // 3) Make a worksheet
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+    // 4) Set number formats (keep them as numbers in Excel)
+    // Currency-like numeric columns: indices 3..6 (0-based)
+    for (let r = 1; r < aoa.length; r++) {
+      // Overdue EMI, Overdue Principal, Overdue Interest, POS (Principal)
+      for (const c of [3, 4, 5, 6]) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        if (ws[addr]) {
+          ws[addr].t = "n";
+          // Simple thousands format (users can change to ₹ in Excel if they want)
+          ws[addr].z = "#,##0";
+        }
+      }
+      // Last Due Date
+      const dateAddr = XLSX.utils.encode_cell({ r, c: 7 });
+      if (ws[dateAddr] && aoa[r][7] instanceof Date) {
+        ws[dateAddr].t = "d";
+        ws[dateAddr].z = "yyyy-mm-dd";
+      }
+    }
+
+    // 5) Autosize columns
+    const colWidths = headerRow.map((h, idx) => {
+      const maxLen = Math.max(
+        String(h).length,
+        ...dataRows.map(row => (row[idx] == null ? 0 : String(row[idx]).length))
+      );
+      return { wch: Math.min(40, Math.max(10, maxLen + 2)) };
+    });
+    ws["!cols"] = colWidths;
+
+    // 6) Build workbook and download
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Visible Rows");
+    const safeProduct = String(filters.product || "ALL").replace(/[^\w-]+/g, "_");
+    const safeBucket = String(selected).replace(/[^\w-]+/g, "_");
+    const filename = `DPD_${safeProduct}_${safeBucket}_page_${page}.xlsx`;
+    XLSX.writeFile(wb, filename);
+  };
+
   return (
     <div style={{ background: "#fff", padding: "1rem", borderRadius: 8, marginTop: "2rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -101,10 +180,29 @@ const DpdBuckets = ({ filters }) => {
         ))}
       </div>
 
-      {/* Pagination controls */}
+      {/* Toolbar: showing range, export, and pagination */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-        <div style={{ fontSize: 13, color: "#666" }}>
-          {loading ? "Loading…" : `Showing ${startIdx}-${endIdx} of ${total}`}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ fontSize: 13, color: "#666" }}>
+            {loading ? "Loading…" : `Showing ${startIdx}-${endIdx} of ${total}`}
+          </div>
+
+          {/* ✅ NEW: Download current page/view */}
+          <button
+            onClick={handleDownloadCurrentView}
+            disabled={loading || rows.length === 0}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 6,
+              border: "1px solid #ddd",
+              background: rows.length ? "#f4f4f4" : "#eee",
+              cursor: loading || rows.length === 0 ? "not-allowed" : "pointer",
+              fontSize: 13
+            }}
+            title="Download the currently visible rows as Excel"
+          >
+            ⬇️ Download current view (Excel)
+          </button>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -112,7 +210,8 @@ const DpdBuckets = ({ filters }) => {
           <select
             value={pageSize}
             onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
-            style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid #ddd" }}
+            style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + (loading ? "#eee" : "#ddd") }}
+            disabled={loading}
           >
             {[10, 25, 50, 100, 200].map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -147,7 +246,7 @@ const DpdBuckets = ({ filters }) => {
               <th style={th}>Overdue EMI</th>
               <th style={th}>Overdue Principal</th>
               <th style={th}>Overdue Interest</th>
-               <th style={th}>POS (Principal)</th>
+              <th style={th}>POS (Principal)</th>
               <th style={th}>Last Due Date</th>
             </tr>
           </thead>
@@ -165,7 +264,8 @@ const DpdBuckets = ({ filters }) => {
               </tr>
             ))}
             {!rows.length && !loading && (
-              <tr><td style={td} colSpan={7}>No loans in this bucket.</td></tr>
+              // 🔧 Minor fix: colSpan should be 8 (you had 7 earlier)
+              <tr><td style={td} colSpan={8}>No loans in this bucket.</td></tr>
             )}
           </tbody>
         </table>
@@ -174,7 +274,7 @@ const DpdBuckets = ({ filters }) => {
   );
 };
 
-const th = { textAlign: "left", padding: "8px 10px", borderBottom: "1px solid #eee", fontSize: 12, color: "#666" };
+const th = { textAlign: "left", padding: "8px 10px", border: "1px solid #292424ff", fontSize: 12, color: "#1b1919ff", fontWeight: 900 };
 const td = { padding: "10px", borderBottom: "1px solid #f2f2f2", fontSize: 14 };
 
 export default DpdBuckets;
