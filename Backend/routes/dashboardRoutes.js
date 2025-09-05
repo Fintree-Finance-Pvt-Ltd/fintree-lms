@@ -3416,7 +3416,6 @@ router.post("/dpd-export-email", async (req, res) => {
       { key: "overdue_principal", header: "Overdue Principal" },
       { key: "overdue_interest", header: "Overdue Interest" },
       { key: "pos_principal", header: "POS (Principal)" },
-      { key: "last_due_date", header: "Last Due Date" },
     ];
 
     const header = columns.map(c => c.header);
@@ -3428,8 +3427,7 @@ router.post("/dpd-export-email", async (req, res) => {
       Number(r.overdue_emi ?? 0),
       Number(r.overdue_principal ?? 0),
       Number(r.overdue_interest ?? 0),
-      Number(r.pos_principal ?? 0),
-      r.last_due_date ? new Date(String(r.last_due_date)) : ""
+      Number(r.pos_principal ?? 0)
     ]));
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...dataRows]);

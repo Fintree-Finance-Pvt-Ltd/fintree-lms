@@ -96,7 +96,6 @@ const DpdBuckets = ({ filters }) => {
       { key: "overdue_principal", header: "Overdue Principal" },
       { key: "overdue_interest", header: "Overdue Interest" },
       { key: "pos_principal", header: "POS (Principal)" },
-      { key: "last_due_date", header: "Last Due Date" },
     ];
 
     // 2) Build an array-of-arrays: first row = headers, rest = data
@@ -111,8 +110,7 @@ const DpdBuckets = ({ filters }) => {
         Number(r.overdue_emi ?? 0),
         Number(r.overdue_principal ?? 0),
         Number(r.overdue_interest ?? 0),
-        Number(r.pos_principal ?? 0),
-        dateObj
+        Number(r.pos_principal ?? 0)
       ];
     });
 
@@ -189,7 +187,7 @@ const DpdBuckets = ({ filters }) => {
         overdue_principal: r.overdue_principal,
         overdue_interest: r.overdue_interest,
         pos_principal: r.pos_principal,
-        last_due_date: r.last_due_date,
+        // last_due_date: r.last_due_date,
       })),
     });
 
