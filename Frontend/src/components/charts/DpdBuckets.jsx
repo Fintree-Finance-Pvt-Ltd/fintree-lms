@@ -256,12 +256,21 @@ const DpdBuckets = ({ filters }) => {
           </button>
           <button
   onClick={handleDownloadAndEmailMe}
-  disabled={loading || rows.length === 0}
-  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ddd", background: rows.length ? "#f4f4f4" : "#eee", cursor: rows.length ? "pointer" : "not-allowed", fontSize: 13 }}
-  title="Download the current page and email it to your registered email"
+  disabled={loading || rows.length === 0 || isEmailing}
+  style={{
+    padding: "6px 12px",
+    borderRadius: 6,
+    border: "1px solid #ddd",
+    background: (loading || rows.length === 0) ? "#eee" : "#f4f4f4",
+    cursor: (loading || rows.length === 0 || isEmailing) ? "not-allowed" : "pointer",
+    opacity: isEmailing ? 0.6 : 1,
+    fontSize: 13
+  }}
+  title={isEmailing ? "Sending…" : "Download the current page and email it to your registered email"}
 >
-  ⬇️ Download & ✉️ Email me
+  {isEmailing ? "⏳ Sending…" : "⬇️ Download & ✉️ Email me"}
 </button>
+
 
         </div>
 
