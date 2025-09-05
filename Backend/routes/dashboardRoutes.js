@@ -2720,7 +2720,7 @@ router.post("/metric-cards", async (req, res) => {
     /** ---------------- DISBURSED (cohort by agreement_date) ---------------- */
     if (prod === "ALL" || prod === "BL") {
       disburseQueries.push(`
-        SELECT IFNULL(SUM(loan_amount), 0) AS amount
+        SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
         FROM loan_bookings
         WHERE 1=1 ${dclBL.clause}
       `);
@@ -2728,7 +2728,7 @@ router.post("/metric-cards", async (req, res) => {
     }
     if (prod === "ALL" || prod === "EV") {
       disburseQueries.push(`
-        SELECT IFNULL(SUM(loan_amount), 0) AS amount
+        SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
         FROM loan_booking_ev
         WHERE 1=1 ${dclEV.clause}
       `);
@@ -2737,7 +2737,7 @@ router.post("/metric-cards", async (req, res) => {
     if (prod === "ALL" || prod === "Adikosh") {
       const d = buildDateRangeClause("agreement_date", start, end);
       disburseQueries.push(`
-        SELECT IFNULL(SUM(loan_amount), 0) AS amount
+        SELECT IFNULL(SUM(net_disbursement), 0) AS amount
         FROM loan_booking_adikosh
         WHERE 1=1 ${d.clause}
       `);
@@ -2746,7 +2746,7 @@ router.post("/metric-cards", async (req, res) => {
     if (prod === "ALL" || prod === "GQ Non-FSF") {
       const d = buildDateRangeClause("agreement_date", start, end);
       disburseQueries.push(`
-        SELECT IFNULL(SUM(loan_amount), 0) AS amount
+        SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
         FROM loan_booking_gq_non_fsf
         WHERE 1=1 ${d.clause}
       `);
@@ -2755,7 +2755,7 @@ router.post("/metric-cards", async (req, res) => {
     if (prod === "ALL" || prod === "GQ FSF") {
       const d = buildDateRangeClause("agreement_date", start, end);
       disburseQueries.push(`
-        SELECT IFNULL(SUM(loan_amount), 0) AS amount
+        SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
         FROM loan_booking_gq_fsf
         WHERE 1=1 ${d.clause}
       `);
@@ -2983,6 +2983,309 @@ router.post("/metric-cards", async (req, res) => {
 
 /** -------------------- DPD Buckets (summary) -------------------- */
 /** body: { product }  -> uses normalizeProduct(product) */
+// router.post("/dpd-buckets", async (req, res) => {
+//   try {
+//     const { product } = req.body || {};
+//     const prod = normalizeProduct(product);
+
+//     const unions = [];
+//     const params = [];
+//     const OUTSTANDING = `rps.status <> 'Paid' AND rps.due_date < CURDATE()`;
+
+//     // BL (manual_rps_bl_loan)
+//     if (prod === "ALL" || prod === "BL") {
+//       unions.push(`
+//         SELECT
+//           CASE
+//             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
+//             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
+//             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+//           END AS bucket,
+//           COUNT(*) AS loans,
+//           SUM(t.overdue_emi) AS overdue_emi
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+//           FROM manual_rps_bl_loan rps
+//           JOIN loan_bookings b 
+//             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//         ) t
+//         WHERE t.max_dpd BETWEEN 1 AND 90
+//         GROUP BY bucket
+//       `);
+//     }
+
+//     // EV (manual_rps_ev_loan)
+//     if (prod === "ALL" || prod === "EV") {
+//       unions.push(`
+//         SELECT
+//           CASE
+//             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
+//             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
+//             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+//           END AS bucket,
+//           COUNT(*) AS loans,
+//           SUM(t.overdue_emi) AS overdue_emi
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+//           FROM manual_rps_ev_loan rps
+//           JOIN loan_booking_ev e 
+//             ON e.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//         ) t
+//         WHERE t.max_dpd BETWEEN 1 AND 90
+//         GROUP BY bucket
+//       `);
+//     }
+
+//     // Adikosh
+//     if (prod === "ALL" || prod === "Adikosh") {
+//       unions.push(`
+//         SELECT
+//           CASE
+//             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
+//             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
+//             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+//           END AS bucket,
+//           COUNT(*) AS loans,
+//           SUM(t.overdue_emi) AS overdue_emi
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+//           FROM manual_rps_adikosh rps
+//           JOIN loan_booking_adikosh b 
+//             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//         ) t
+//         WHERE t.max_dpd BETWEEN 1 AND 90
+//         GROUP BY bucket
+//       `);
+//     }
+
+//     // GQ Non-FSF
+//     if (prod === "ALL" || prod === "GQ Non-FSF") {
+//       unions.push(`
+//         SELECT
+//           CASE
+//             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
+//             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
+//             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+//           END AS bucket,
+//           COUNT(*) AS loans,
+//           SUM(t.overdue_emi) AS overdue_emi
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+//           FROM manual_rps_gq_non_fsf rps
+//           JOIN loan_booking_gq_non_fsf b 
+//             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//         ) t
+//         WHERE t.max_dpd BETWEEN 1 AND 90
+//         GROUP BY bucket
+//       `);
+//     }
+
+//     // GQ FSF
+//     if (prod === "ALL" || prod === "GQ FSF") {
+//       unions.push(`
+//         SELECT
+//           CASE
+//             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
+//             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
+//             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+//           END AS bucket,
+//           COUNT(*) AS loans,
+//           SUM(t.overdue_emi) AS overdue_emi
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+//           FROM manual_rps_gq_fsf rps
+//           JOIN loan_booking_gq_fsf b 
+//             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//         ) t
+//         WHERE t.max_dpd BETWEEN 1 AND 90
+//         GROUP BY bucket
+//       `);
+//     }
+
+//     if (!unions.length)
+//       return res.json({ buckets: [], asOf: new Date().toISOString().slice(0, 10) });
+
+//     const sql = `
+//       SELECT bucket, SUM(loans) AS loans, SUM(overdue_emi) AS overdue_emi
+//       FROM (
+//         ${unions.join(" UNION ALL ")}
+//       ) x
+//       GROUP BY bucket
+//       ORDER BY FIELD(bucket, '0-30','30-60','60-90')
+//     `;
+//     const [rows] = await db.promise().query(sql, params);
+
+//     // Normalize to always return 3 buckets
+//     const map = {
+//       "0-30": { bucket: "0-30", loans: 0, overdue_emi: 0 },
+//       "30-60": { bucket: "30-60", loans: 0, overdue_emi: 0 },
+//       "60-90": { bucket: "60-90", loans: 0, overdue_emi: 0 },
+//     };
+//     rows.forEach((r) => (map[r.bucket] = r));
+//     res.json({ buckets: Object.values(map), asOf: new Date().toISOString().slice(0, 10) });
+//   } catch (err) {
+//     console.error("❌ DPD Buckets Error:", err);
+//     res.status(500).json({ error: "Failed to fetch DPD buckets" });
+//   }
+// });
+
+// /** -------------------- DPD Loan List (by bucket) -------------------- */
+// /** body: { product, bucket }  // bucket: '0-30' | '30-60' | '60-90' */
+// router.post("/dpd-list", async (req, res) => {
+//   try {
+//     const { product, bucket } = req.body || {};
+//     const prod = normalizeProduct(product);
+
+//     const ranges = {
+//       "0-30": [1, 30],
+//       "30-60": [31, 60],
+//       "60-90": [61, 90],
+//     };
+//     const range = ranges[bucket];
+//     if (!range) return res.status(400).json({ error: "Invalid bucket" });
+//     const [minDPD, maxDPD] = range;
+
+//     const unions = [];
+//     const params = [];
+//     const OUTSTANDING = `rps.status <> 'Paid' AND rps.due_date < CURDATE()`;
+
+//     // BL
+//     if (prod === "ALL" || prod === "BL") {
+//       unions.push(`
+//         SELECT 'BL Loan' AS product, t.*
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+//           FROM manual_rps_bl_loan rps
+//           JOIN loan_bookings b 
+//             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//           HAVING max_dpd BETWEEN ? AND ?
+//         ) t
+//       `);
+//       params.push(minDPD, maxDPD);
+//     }
+
+//     // EV
+//     if (prod === "ALL" || prod === "EV") {
+//       unions.push(`
+//         SELECT 'EV Loan' AS product, t.*
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+//           FROM manual_rps_ev_loan rps
+//           JOIN loan_booking_ev e 
+//             ON e.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//           HAVING max_dpd BETWEEN ? AND ?
+//         ) t
+//       `);
+//       params.push(minDPD, maxDPD);
+//     }
+
+//     // Adikosh
+//     if (prod === "ALL" || prod === "Adikosh") {
+//       unions.push(`
+//         SELECT 'Adikosh' AS product, t.*
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+//           FROM manual_rps_adikosh rps
+//           JOIN loan_booking_adikosh b 
+//             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//           HAVING max_dpd BETWEEN ? AND ?
+//         ) t
+//       `);
+//       params.push(minDPD, maxDPD);
+//     }
+
+//     // GQ Non-FSF
+//     if (prod === "ALL" || prod === "GQ Non-FSF") {
+//       unions.push(`
+//         SELECT 'GQ Non-FSF' AS product, t.*
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+//           FROM manual_rps_gq_non_fsf rps
+//           JOIN loan_booking_gq_non_fsf b 
+//             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//           HAVING max_dpd BETWEEN ? AND ?
+//         ) t
+//       `);
+//       params.push(minDPD, maxDPD);
+//     }
+
+//     // GQ FSF
+//     if (prod === "ALL" || prod === "GQ FSF") {
+//       unions.push(`
+//         SELECT 'GQ FSF' AS product, t.*
+//         FROM (
+//           SELECT rps.lan,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+//                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
+//                  MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+//           FROM manual_rps_gq_fsf rps
+//           JOIN loan_booking_gq_fsf b 
+//             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//           GROUP BY rps.lan
+//           HAVING max_dpd BETWEEN ? AND ?
+//         ) t
+//       `);
+//       params.push(minDPD, maxDPD);
+//     }
+
+//     if (!unions.length) return res.json([]);
+
+//     const sql = `
+//       ${unions.join(" UNION ALL ")}
+//       ORDER BY max_dpd DESC, last_due_date DESC
+//     `;
+//     const [rows] = await db.promise().query(sql, params);
+//     res.json(rows);
+//   } catch (err) {
+//     console.error("❌ DPD List Error:", err);
+//     res.status(500).json({ error: "Failed to fetch DPD list" });
+//   }
+// });
+
+
+/** -------------------- DPD Buckets (summary) -------------------- */
+/** body: { product }  -> uses normalizeProduct(product) */
 router.post("/dpd-buckets", async (req, res) => {
   try {
     const { product } = req.body || {};
@@ -2991,53 +3294,61 @@ router.post("/dpd-buckets", async (req, res) => {
     const unions = [];
     const params = [];
     const OUTSTANDING = `rps.status <> 'Paid' AND rps.due_date < CURDATE()`;
+    const BUCKET_ORDER = `'0','0-30','30-60','60-90','90+'`;
 
-    // BL (manual_rps_bl_loan)
+    // BL
     if (prod === "ALL" || prod === "BL") {
       unions.push(`
         SELECT
           CASE
+            WHEN t.max_dpd = 0 THEN '0'
             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+            ELSE '90+'
           END AS bucket,
           COUNT(*) AS loans,
-          SUM(t.overdue_emi) AS overdue_emi
+          -- for on-time loans overdue is 0 by definition
+          SUM(CASE WHEN t.max_dpd = 0 THEN 0 ELSE t.overdue_emi END) AS overdue_emi
         FROM (
           SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 MAX(CASE WHEN ${OUTSTANDING}
+                          THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                          ELSE 0 END) AS max_dpd,
                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
           FROM manual_rps_bl_loan rps
-          JOIN loan_bookings b 
+          JOIN loan_bookings b
             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
         ) t
-        WHERE t.max_dpd BETWEEN 1 AND 90
         GROUP BY bucket
       `);
     }
 
-    // EV (manual_rps_ev_loan)
+    // EV
     if (prod === "ALL" || prod === "EV") {
       unions.push(`
         SELECT
           CASE
+            WHEN t.max_dpd = 0 THEN '0'
             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+            ELSE '90+'
           END AS bucket,
           COUNT(*) AS loans,
-          SUM(t.overdue_emi) AS overdue_emi
+          SUM(CASE WHEN t.max_dpd = 0 THEN 0 ELSE t.overdue_emi END) AS overdue_emi
         FROM (
           SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 MAX(CASE WHEN ${OUTSTANDING}
+                          THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                          ELSE 0 END) AS max_dpd,
                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
           FROM manual_rps_ev_loan rps
-          JOIN loan_booking_ev e 
+          JOIN loan_booking_ev e
             ON e.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
         ) t
-        WHERE t.max_dpd BETWEEN 1 AND 90
         GROUP BY bucket
       `);
     }
@@ -3047,22 +3358,25 @@ router.post("/dpd-buckets", async (req, res) => {
       unions.push(`
         SELECT
           CASE
+            WHEN t.max_dpd = 0 THEN '0'
             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+            ELSE '90+'
           END AS bucket,
           COUNT(*) AS loans,
-          SUM(t.overdue_emi) AS overdue_emi
+          SUM(CASE WHEN t.max_dpd = 0 THEN 0 ELSE t.overdue_emi END) AS overdue_emi
         FROM (
           SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 MAX(CASE WHEN ${OUTSTANDING}
+                          THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                          ELSE 0 END) AS max_dpd,
                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
           FROM manual_rps_adikosh rps
-          JOIN loan_booking_adikosh b 
+          JOIN loan_booking_adikosh b
             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
         ) t
-        WHERE t.max_dpd BETWEEN 1 AND 90
         GROUP BY bucket
       `);
     }
@@ -3072,22 +3386,25 @@ router.post("/dpd-buckets", async (req, res) => {
       unions.push(`
         SELECT
           CASE
+            WHEN t.max_dpd = 0 THEN '0'
             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+            ELSE '90+'
           END AS bucket,
           COUNT(*) AS loans,
-          SUM(t.overdue_emi) AS overdue_emi
+          SUM(CASE WHEN t.max_dpd = 0 THEN 0 ELSE t.overdue_emi END) AS overdue_emi
         FROM (
           SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 MAX(CASE WHEN ${OUTSTANDING}
+                          THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                          ELSE 0 END) AS max_dpd,
                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
           FROM manual_rps_gq_non_fsf rps
-          JOIN loan_booking_gq_non_fsf b 
+          JOIN loan_booking_gq_non_fsf b
             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
         ) t
-        WHERE t.max_dpd BETWEEN 1 AND 90
         GROUP BY bucket
       `);
     }
@@ -3097,22 +3414,25 @@ router.post("/dpd-buckets", async (req, res) => {
       unions.push(`
         SELECT
           CASE
+            WHEN t.max_dpd = 0 THEN '0'
             WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
             WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
             WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+            ELSE '90+'
           END AS bucket,
           COUNT(*) AS loans,
-          SUM(t.overdue_emi) AS overdue_emi
+          SUM(CASE WHEN t.max_dpd = 0 THEN 0 ELSE t.overdue_emi END) AS overdue_emi
         FROM (
           SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+                 MAX(CASE WHEN ${OUTSTANDING}
+                          THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                          ELSE 0 END) AS max_dpd,
                  SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
           FROM manual_rps_gq_fsf rps
-          JOIN loan_booking_gq_fsf b 
+          JOIN loan_booking_gq_fsf b
             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
         ) t
-        WHERE t.max_dpd BETWEEN 1 AND 90
         GROUP BY bucket
       `);
     }
@@ -3126,18 +3446,24 @@ router.post("/dpd-buckets", async (req, res) => {
         ${unions.join(" UNION ALL ")}
       ) x
       GROUP BY bucket
-      ORDER BY FIELD(bucket, '0-30','30-60','60-90')
+      ORDER BY FIELD(bucket, ${BUCKET_ORDER})
     `;
     const [rows] = await db.promise().query(sql, params);
 
-    // Normalize to always return 3 buckets
+    // Always return all 5 buckets
     const map = {
-      "0-30": { bucket: "0-30", loans: 0, overdue_emi: 0 },
+      "0":     { bucket: "0",     loans: 0, overdue_emi: 0 },
+      "0-30":  { bucket: "0-30",  loans: 0, overdue_emi: 0 },
       "30-60": { bucket: "30-60", loans: 0, overdue_emi: 0 },
       "60-90": { bucket: "60-90", loans: 0, overdue_emi: 0 },
+      "90+":   { bucket: "90+",   loans: 0, overdue_emi: 0 },
     };
     rows.forEach((r) => (map[r.bucket] = r));
-    res.json({ buckets: Object.values(map), asOf: new Date().toISOString().slice(0, 10) });
+
+    res.json({
+      buckets: [map["0"], map["0-30"], map["30-60"], map["60-90"], map["90+"]],
+      asOf: new Date().toISOString().slice(0, 10),
+    });
   } catch (err) {
     console.error("❌ DPD Buckets Error:", err);
     res.status(500).json({ error: "Failed to fetch DPD buckets" });
@@ -3145,44 +3471,78 @@ router.post("/dpd-buckets", async (req, res) => {
 });
 
 /** -------------------- DPD Loan List (by bucket) -------------------- */
-/** body: { product, bucket }  // bucket: '0-30' | '30-60' | '60-90' */
+/** body: { product, bucket }  // bucket: '0' | '0-30' | '30-60' | '60-90' | '90+' */
+/** -------------------- DPD Loan List (by bucket) -------------------- */
+/** body: { product, bucket, page?: number, pageSize?: number }
+ *  bucket ∈ {'0','0-30','30-60','60-90','90+'}
+ */
 router.post("/dpd-list", async (req, res) => {
   try {
-    const { product, bucket } = req.body || {};
+    const { product, bucket, page: pageRaw, pageSize: pageSizeRaw } = req.body || {};
     const prod = normalizeProduct(product);
 
-    const ranges = {
-      "0-30": [1, 30],
-      "30-60": [31, 60],
-      "60-90": [61, 90],
-    };
-    const range = ranges[bucket];
-    if (!range) return res.status(400).json({ error: "Invalid bucket" });
-    const [minDPD, maxDPD] = range;
+    // pagination
+    const page = Math.max(1, parseInt(pageRaw || 1, 10));
+    const pageSize = Math.min(200, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
+    const offset = (page - 1) * pageSize;
+
+    // bucket -> HAVING
+    const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
+    let havingClause = "";
+    let havingParams = [];
+    if (bucket === "0") {
+      havingClause = "HAVING max_dpd = 0";
+    } else if (bucket === "90+") {
+      havingClause = "HAVING max_dpd >= ?";
+      havingParams = [91];
+    } else if (ranges[bucket]) {
+      const [minDPD, maxDPD] = ranges[bucket];
+      havingClause = "HAVING max_dpd BETWEEN ? AND ?";
+      havingParams = [minDPD, maxDPD];
+    } else {
+      return res.status(400).json({ error: "Invalid bucket" });
+    }
+
+    // overdue rows = due_date in past and not paid
+    const OUTSTANDING = `rps.status <> 'Paid' AND rps.due_date < CURDATE()`;
+
+    // POS (Principal Outstanding) = sum of principal for installments not yet paid as of today
+    const POS_EXPR = `
+      SUM(
+        CASE
+          WHEN rps.payment_date IS NULL OR rps.payment_date >= CURDATE()
+          THEN IFNULL(rps.principal, 0)
+          ELSE 0
+        END
+      ) AS pos_principal
+    `;
 
     const unions = [];
-    const params = [];
-    const OUTSTANDING = `rps.status <> 'Paid' AND rps.due_date < CURDATE()`;
+    const baseParams = [];
 
     // BL
     if (prod === "ALL" || prod === "BL") {
       unions.push(`
         SELECT 'BL Loan' AS product, t.*
         FROM (
-          SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+          SELECT
+            rps.lan,
+            MAX(CASE WHEN ${OUTSTANDING}
+                     THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                     ELSE 0 END) AS max_dpd,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0)       ELSE 0 END) AS overdue_emi,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0)  ELSE 0 END) AS overdue_interest,
+            MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date,
+            ${POS_EXPR}
           FROM manual_rps_bl_loan rps
-          JOIN loan_bookings b 
+          JOIN loan_bookings b
             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
-          HAVING max_dpd BETWEEN ? AND ?
+          ${havingClause}
         ) t
       `);
-      params.push(minDPD, maxDPD);
+      baseParams.push(...havingParams);
     }
 
     // EV
@@ -3190,20 +3550,24 @@ router.post("/dpd-list", async (req, res) => {
       unions.push(`
         SELECT 'EV Loan' AS product, t.*
         FROM (
-          SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+          SELECT
+            rps.lan,
+            MAX(CASE WHEN ${OUTSTANDING}
+                     THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                     ELSE 0 END) AS max_dpd,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0)       ELSE 0 END) AS overdue_emi,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0)  ELSE 0 END) AS overdue_interest,
+            MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date,
+            ${POS_EXPR}
           FROM manual_rps_ev_loan rps
-          JOIN loan_booking_ev e 
+          JOIN loan_booking_ev e
             ON e.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
-          HAVING max_dpd BETWEEN ? AND ?
+          ${havingClause}
         ) t
       `);
-      params.push(minDPD, maxDPD);
+      baseParams.push(...havingParams);
     }
 
     // Adikosh
@@ -3211,20 +3575,24 @@ router.post("/dpd-list", async (req, res) => {
       unions.push(`
         SELECT 'Adikosh' AS product, t.*
         FROM (
-          SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+          SELECT
+            rps.lan,
+            MAX(CASE WHEN ${OUTSTANDING}
+                     THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                     ELSE 0 END) AS max_dpd,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0)       ELSE 0 END) AS overdue_emi,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0)  ELSE 0 END) AS overdue_interest,
+            MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date,
+            ${POS_EXPR}
           FROM manual_rps_adikosh rps
-          JOIN loan_booking_adikosh b 
+          JOIN loan_booking_adikosh b
             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
-          HAVING max_dpd BETWEEN ? AND ?
+          ${havingClause}
         ) t
       `);
-      params.push(minDPD, maxDPD);
+      baseParams.push(...havingParams);
     }
 
     // GQ Non-FSF
@@ -3232,20 +3600,24 @@ router.post("/dpd-list", async (req, res) => {
       unions.push(`
         SELECT 'GQ Non-FSF' AS product, t.*
         FROM (
-          SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+          SELECT
+            rps.lan,
+            MAX(CASE WHEN ${OUTSTANDING}
+                     THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                     ELSE 0 END) AS max_dpd,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0)       ELSE 0 END) AS overdue_emi,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0)  ELSE 0 END) AS overdue_interest,
+            MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date,
+            ${POS_EXPR}
           FROM manual_rps_gq_non_fsf rps
-          JOIN loan_booking_gq_non_fsf b 
+          JOIN loan_booking_gq_non_fsf b
             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
-          HAVING max_dpd BETWEEN ? AND ?
+          ${havingClause}
         ) t
       `);
-      params.push(minDPD, maxDPD);
+      baseParams.push(...havingParams);
     }
 
     // GQ FSF
@@ -3253,34 +3625,49 @@ router.post("/dpd-list", async (req, res) => {
       unions.push(`
         SELECT 'GQ FSF' AS product, t.*
         FROM (
-          SELECT rps.lan,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
-                 SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0) ELSE 0 END) AS overdue_interest,
-                 MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date
+          SELECT
+            rps.lan,
+            MAX(CASE WHEN ${OUTSTANDING}
+                     THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                     ELSE 0 END) AS max_dpd,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0)       ELSE 0 END) AS overdue_emi,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.principal,0) ELSE 0 END) AS overdue_principal,
+            SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.interest,0)  ELSE 0 END) AS overdue_interest,
+            MAX(CASE WHEN ${OUTSTANDING} THEN rps.due_date ELSE NULL END) AS last_due_date,
+            ${POS_EXPR}
           FROM manual_rps_gq_fsf rps
-          JOIN loan_booking_gq_fsf b 
+          JOIN loan_booking_gq_fsf b
             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
           GROUP BY rps.lan
-          HAVING max_dpd BETWEEN ? AND ?
+          ${havingClause}
         ) t
       `);
-      params.push(minDPD, maxDPD);
+      baseParams.push(...havingParams);
     }
 
-    if (!unions.length) return res.json([]);
+    if (!unions.length)
+      return res.json({ rows: [], pagination: { page, pageSize, total: 0 } });
 
-    const sql = `
-      ${unions.join(" UNION ALL ")}
-      ORDER BY max_dpd DESC, last_due_date DESC
-    `;
-    const [rows] = await db.promise().query(sql, params);
-    res.json(rows);
+    const baseUnionSql = unions.join(" UNION ALL ");
+    const orderClause = " ORDER BY max_dpd DESC, last_due_date DESC ";
+
+    // total count
+    const countSql = `SELECT COUNT(*) AS total FROM (${baseUnionSql}) q`;
+    const [[countRow]] = await db.promise().query(countSql, baseParams);
+    const total = Number(countRow?.total || 0);
+
+    // page rows
+    const dataSql = `SELECT * FROM (${baseUnionSql}) q ${orderClause} LIMIT ? OFFSET ?`;
+    const dataParams = [...baseParams, pageSize, offset];
+    const [rows] = await db.promise().query(dataSql, dataParams);
+
+    res.json({ rows, pagination: { page, pageSize, total } });
   } catch (err) {
     console.error("❌ DPD List Error:", err);
     res.status(500).json({ error: "Failed to fetch DPD list" });
   }
 });
+
+
 
 module.exports = router;
