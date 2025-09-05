@@ -1907,6 +1907,8 @@
 const express = require("express");
 const db = require("../config/db");
 const router = express.Router();
+const nodemailer = require("nodemailer");
+const XLSX = require("xlsx");
 
 /* -------------------- Settings -------------------- */
 
@@ -2409,288 +2411,6 @@ router.post("/product-distribution", async (req, res) => {
   }
 });
 
-/** Metric Cards */
-// router.post("/metric-cards", async (req, res) => {
-//   try {
-//     const { product, from, to } = req.body || {};
-//     const prod = normalizeProduct(product);
-//     const { start, end } = dayRange(from, to);
-
-//     const disburseQueries = [];
-//     const disburseParams = [];
-//     const collectQueries = [];
-//     const collectParams = [];
-//     const pniQueries = [];  // for principal & interest collected
-//     const pniParams = [];
-
-//     const dclBL = buildDateRangeClause("agreement_date", start, end);
-//     const dclEV = buildDateRangeClause("agreement_date", start, end);
-//     const pclR = buildDateRangeClause("r.payment_date", start, end);
-//     const pclA = buildDateRangeClause("payment_date", start, end);
-
-//     /** ---------------- DISBURSED ---------------- */
-//     if (prod === "ALL" || prod === "BL") {
-//       disburseQueries.push(`
-//         SELECT IFNULL(SUM(loan_amount), 0) AS amount
-//         FROM loan_bookings
-//         WHERE 1=1 ${dclBL.clause}
-//       `);
-//       disburseParams.push(...dclBL.params);
-//     }
-//     if (prod === "ALL" || prod === "EV") {
-//       disburseQueries.push(`
-//         SELECT IFNULL(SUM(loan_amount), 0) AS amount
-//         FROM loan_booking_ev
-//         WHERE 1=1 ${dclEV.clause}
-//       `);
-//       disburseParams.push(...dclEV.params);
-//     }
-//     if (prod === "ALL" || prod === "Adikosh") {
-//       const dcl = buildDateRangeClause("agreement_date", start, end);
-//       disburseQueries.push(`
-//         SELECT IFNULL(SUM(loan_amount), 0) AS amount
-//         FROM loan_booking_adikosh
-//         WHERE 1=1 ${dcl.clause}
-//       `);
-//       disburseParams.push(...dcl.params);
-//     }
-//     if (prod === "ALL" || prod === "GQ Non-FSF") {
-//       const dcl = buildDateRangeClause("agreement_date", start, end);
-//       disburseQueries.push(`
-//         SELECT IFNULL(SUM(loan_amount), 0) AS amount
-//         FROM loan_booking_gq_non_fsf
-//         WHERE 1=1 ${dcl.clause}
-//       `);
-//       disburseParams.push(...dcl.params);
-//     }
-//     if (prod === "ALL" || prod === "GQ FSF") {
-//       const dcl = buildDateRangeClause("agreement_date", start, end);
-//       disburseQueries.push(`
-//         SELECT IFNULL(SUM(loan_amount), 0) AS amount
-//         FROM loan_booking_gq_fsf
-//         WHERE 1=1 ${dcl.clause}
-//       `);
-//       disburseParams.push(...dcl.params);
-//     }
-
-//     /** ---------------- COLLECTED ---------------- */
-//     if (prod === "ALL" || prod === "BL") {
-//       collectQueries.push(`
-//         SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
-//         FROM repayments_upload r
-//         JOIN loan_bookings b 
-//           ON b.lan COLLATE ${JOIN_COLLATE} = r.lan COLLATE ${JOIN_COLLATE}
-//         WHERE r.payment_date IS NOT NULL
-//           ${pclR.clause}
-//       `);
-//       collectParams.push(...pclR.params);
-//     }
-//     if (prod === "ALL" || prod === "EV") {
-//       collectQueries.push(`
-//         SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
-//         FROM repayments_upload r
-//         JOIN loan_booking_ev e 
-//           ON e.lan COLLATE ${JOIN_COLLATE} = r.lan COLLATE ${JOIN_COLLATE}
-//         WHERE r.payment_date IS NOT NULL
-//           ${pclR.clause}
-//       `);
-//       collectParams.push(...pclR.params);
-//     }
-//     if (prod === "ALL" || prod === "Adikosh") {
-//       collectQueries.push(`
-//         SELECT IFNULL(SUM(transfer_amount), 0) AS amount
-//         FROM repayments_upload_adikosh
-//         WHERE payment_date IS NOT NULL ${pclA.clause}
-//       `);
-//       collectParams.push(...pclA.params);
-//     }
-//     if (prod === "ALL" || prod === "GQ Non-FSF") {
-//       collectQueries.push(`
-//         SELECT IFNULL(SUM(transfer_amount), 0) AS amount
-//         FROM repayments_upload
-//         WHERE payment_date IS NOT NULL
-//           AND lan COLLATE ${JOIN_COLLATE} IN (
-//             SELECT lan COLLATE ${JOIN_COLLATE} FROM loan_booking_gq_non_fsf
-//           )
-//           ${pclA.clause}
-//       `);
-//       collectParams.push(...pclA.params);
-//     }
-//     if (prod === "ALL" || prod === "GQ FSF") {
-//       collectQueries.push(`
-//         SELECT IFNULL(SUM(transfer_amount), 0) AS amount
-//         FROM repayments_upload
-//         WHERE payment_date IS NOT NULL
-//           AND lan COLLATE ${JOIN_COLLATE} IN (
-//             SELECT lan COLLATE ${JOIN_COLLATE} FROM loan_booking_gq_fsf
-//           )
-//           ${pclA.clause}
-//       `);
-//       collectParams.push(...pclA.params);
-//     }
-
-//     /** ---------------- P&I (collected) ---------------- */
-//     if (prod === "ALL" || prod === "BL") {
-//       const r = buildDateRangeClause("payment_date", start, end);
-//       pniQueries.push(`
-//         SELECT IFNULL(SUM(principal),0) AS principal,
-//                IFNULL(SUM(interest),0)  AS interest
-//         FROM manual_rps_bl_loan
-//         WHERE payment_date IS NOT NULL
-//           ${r.clause}
-//       `);
-//       pniParams.push(...r.params);
-//     }
-//     if (prod === "ALL" || prod === "EV") {
-//       const r = buildDateRangeClause("payment_date", start, end);
-//       pniQueries.push(`
-//         SELECT IFNULL(SUM(principal),0) AS principal,
-//                IFNULL(SUM(interest),0)  AS interest
-//         FROM manual_rps_ev_loan
-//         WHERE payment_date IS NOT NULL
-//           ${r.clause}
-//       `);
-//       pniParams.push(...r.params);
-//     }
-//     if (prod === "ALL" || prod === "Adikosh") {
-//       pniQueries.push(`
-//         SELECT IFNULL(SUM(principal),0) AS principal,
-//                IFNULL(SUM(interest),0)  AS interest
-//         FROM manual_rps_adikosh
-//         WHERE payment_date IS NOT NULL ${pclA.clause}
-//       `);
-//       pniParams.push(...pclA.params);
-//     }
-//     if (prod === "ALL" || prod === "GQ Non-FSF") {
-//       pniQueries.push(`
-//         SELECT IFNULL(SUM(principal),0) AS principal,
-//                IFNULL(SUM(interest),0)  AS interest
-//         FROM manual_rps_gq_non_fsf
-//         WHERE payment_date IS NOT NULL ${pclA.clause}
-//       `);
-//       pniParams.push(...pclA.params);
-//     }
-//     if (prod === "ALL" || prod === "GQ FSF") {
-//       pniQueries.push(`
-//         SELECT IFNULL(SUM(principal),0) AS principal,
-//                IFNULL(SUM(interest),0)  AS interest
-//         FROM manual_rps_gq_fsf
-//         WHERE payment_date IS NOT NULL ${pclA.clause}
-//       `);
-//       pniParams.push(...pclA.params);
-//     }
-
-//     /** ---------------- POS (Outstanding) ---------------- */
-//     const jsToday = new Date().toISOString().slice(0, 10);
-//     const cutoff = end || jsToday;
-
-//     const posQueries = [];
-//     const posParams = [];
-
-//     // BL
-// if (prod === "ALL" || prod === "BL") {
-//   const bookRange = buildDateRangeClause("b.agreement_date", start, end);
-//   posQueries.push(`
-//     SELECT ${POS_PRINCIPAL_EXPR} AS principal_outstanding
-//     FROM manual_rps_bl_loan rps
-//     JOIN loan_bookings b 
-//       ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//     WHERE 1=1 ${bookRange.clause}
-//   `);
-//   posParams.push(cutoff, ...bookRange.params);
-// }
-
-// // EV
-// if (prod === "ALL" || prod === "EV") {
-//   const bookRange = buildDateRangeClause("e.agreement_date", start, end);
-//   posQueries.push(`
-//     SELECT ${POS_PRINCIPAL_EXPR} AS principal_outstanding
-//     FROM manual_rps_ev_loan rps
-//     JOIN loan_booking_ev e
-//       ON e.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//     WHERE 1=1 ${bookRange.clause}
-//   `);
-//   posParams.push(cutoff, ...bookRange.params);
-// }
-
-// // Adikosh
-// if (prod === "ALL" || prod === "Adikosh") {
-//   const bookRange = buildDateRangeClause("b.agreement_date", start, end);
-//   posQueries.push(`
-//     SELECT ${POS_PRINCIPAL_EXPR} AS principal_outstanding
-//     FROM manual_rps_adikosh rps
-//     JOIN loan_booking_adikosh b
-//       ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//     WHERE 1=1 ${bookRange.clause}
-//   `);
-//   posParams.push(cutoff, ...bookRange.params);
-// }
-
-// // GQ Non-FSF
-// if (prod === "ALL" || prod === "GQ Non-FSF") {
-//   const bookRange = buildDateRangeClause("b.agreement_date", start, end);
-//   posQueries.push(`
-//     SELECT ${POS_PRINCIPAL_EXPR} AS principal_outstanding
-//     FROM manual_rps_gq_non_fsf rps
-//     JOIN loan_booking_gq_non_fsf b
-//       ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//     WHERE 1=1 ${bookRange.clause}
-//   `);
-//   posParams.push(cutoff, ...bookRange.params);
-// }
-
-// // GQ FSF
-// if (prod === "ALL" || prod === "GQ FSF") {
-//   const bookRange = buildDateRangeClause("b.agreement_date", start, end);
-//   posQueries.push(`
-//     SELECT ${POS_PRINCIPAL_EXPR} AS principal_outstanding
-//     FROM manual_rps_gq_fsf rps
-//     JOIN loan_booking_gq_fsf b
-//       ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//     WHERE 1=1 ${bookRange.clause}
-//   `);
-//   posParams.push(cutoff, ...bookRange.params);
-// }
-
-//     /** ---------------- Run all queries ---------------- */
-//     const [[disbRows], [collRows], [posRows], [pniRows]] = await Promise.all([
-//       db.promise().query(disburseQueries.join(" UNION ALL "), disburseParams),
-//       db.promise().query(collectQueries.join(" UNION ALL "), collectParams),
-//       db.promise().query(posQueries.join(" UNION ALL "), posParams),
-//       db.promise().query(pniQueries.join(" UNION ALL "), pniParams),
-//     ]);
-
-//     const totalDisbursed = disbRows.reduce((s, r) => s + Number(r.amount || 0), 0);
-//     const totalCollected = collRows.reduce((s, r) => s + Number(r.amount || 0), 0);
-
-//     const totalPrincipal = pniRows.reduce((s, r) => s + Number(r.principal || 0), 0);
-//     const totalInterest  = pniRows.reduce((s, r) => s + Number(r.interest  || 0), 0);
-
-//     const collectionRate = totalDisbursed ? (totalCollected / totalDisbursed) * 100 : 0;
-
-//     let principalOutstanding = posRows.reduce((s, r) => s + Number(r.principal_outstanding || 0), 0);
-//     let interestOutstanding  = posRows.reduce((s, r) => s + Number(r.interest_outstanding  || 0), 0);
-
-//     if (principalOutstanding < 0) principalOutstanding = 0;
-//     if (interestOutstanding < 0) interestOutstanding = 0;
-
-//     res.json({
-//       totalDisbursed,
-//       totalCollected,
-//       collectionRate,
-//       totalPrincipal,
-//       totalInterest,
-//       principalOutstanding,
-//       interestOutstanding,
-//       posOutstanding: principalOutstanding
-//     });
-//   } catch (err) {
-//     console.error("❌ Metric Card Fetch Error:", err);
-//     res.status(500).json({ error: "Failed to fetch metrics" });
-//   }
-// });
-
-
 /** Metric Cards — principal-only POS = Disbursed (cohort) - PrincipalCollectedToDate */
 router.post("/metric-cards", async (req, res) => {
   try {
@@ -2720,7 +2440,7 @@ router.post("/metric-cards", async (req, res) => {
     /** ---------------- DISBURSED (cohort by agreement_date) ---------------- */
     if (prod === "ALL" || prod === "BL") {
       disburseQueries.push(`
-        SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
+        SELECT IFNULL(SUM(loan_amount), 0) AS amount
         FROM loan_bookings
         WHERE 1=1 ${dclBL.clause}
       `);
@@ -2728,7 +2448,7 @@ router.post("/metric-cards", async (req, res) => {
     }
     if (prod === "ALL" || prod === "EV") {
       disburseQueries.push(`
-        SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
+        SELECT IFNULL(SUM(loan_amount), 0) AS amount
         FROM loan_booking_ev
         WHERE 1=1 ${dclEV.clause}
       `);
@@ -3668,6 +3388,96 @@ router.post("/dpd-list", async (req, res) => {
   }
 });
 
+router.post("/dpd-export-email", async (req, res) => {
+  try {
+    const { userId: userIdFromBody, product, bucket, page, rows } = req.body || {};
+    // Prefer id from auth; fallback to body
+    const userId = req.user?.id || userIdFromBody;
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ error: "No rows to export" });
+    }
+
+    // 1) fetch recipient email from users table
+    const [[u]] = await db.promise().query(
+      "SELECT email, name FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    if (!u?.email) return res.status(404).json({ error: "User email not found" });
+
+    // 2) build workbook (same columns as table)
+    const columns = [
+      { key: "lan", header: "LAN" },
+      { key: "customer_name", header: "Customer Name" },
+      { key: "product", header: "Product" },
+      { key: "max_dpd", header: "Max DPD" },
+      { key: "overdue_emi", header: "Overdue EMI" },
+      { key: "overdue_principal", header: "Overdue Principal" },
+      { key: "overdue_interest", header: "Overdue Interest" },
+      { key: "pos_principal", header: "POS (Principal)" },
+      { key: "last_due_date", header: "Last Due Date" },
+    ];
+
+    const header = columns.map(c => c.header);
+    const dataRows = rows.map(r => ([
+      r.lan ?? "",
+      r.customer_name ?? "",
+      r.product ?? "",
+      Number(r.max_dpd ?? 0),
+      Number(r.overdue_emi ?? 0),
+      Number(r.overdue_principal ?? 0),
+      Number(r.overdue_interest ?? 0),
+      Number(r.pos_principal ?? 0),
+      r.last_due_date ? new Date(String(r.last_due_date)) : ""
+    ]));
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...dataRows]);
+    // number + date formats
+    for (let r = 1; r <= dataRows.length; r++) {
+      for (const c of [3,4,5,6]) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        if (ws[addr]) { ws[addr].t = "n"; ws[addr].z = "#,##0"; }
+      }
+      const daddr = XLSX.utils.encode_cell({ r, c: 8 });
+      if (ws[daddr] && dataRows[r-1][8] instanceof Date) { ws[daddr].t = "d"; ws[daddr].z = "yyyy-mm-dd"; }
+    }
+    ws["!cols"] = header.map((h, i) => ({
+      wch: Math.min(40, Math.max(12, String(h).length + 2, ...dataRows.map(row => (row[i] ? String(row[i]).length + 2 : 0))))
+    }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Visible Rows");
+
+    const safeProduct = String(product || "ALL").replace(/[^\w-]+/g, "_");
+    const safeBucket = String(bucket || "").replace(/[^\w-]+/g, "_");
+    const filename = `DPD_${safeProduct}_${safeBucket}_page_${page || 1}.xlsx`;
+
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
+
+    // 3) send email
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: String(process.env.SMTP_SECURE) === "true",
+      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+    });
+
+    await transporter.sendMail({
+      from: process.env.FROM_EMAIL || "no-reply@yourdomain.com",
+      to: u.email,
+      subject: `DPD report — ${product} ${bucket} (page ${page || 1})`,
+      text: `Hi ${u.name || ""},\n\nAttached is your DPD report (${filename}).`,
+      html: `<p>Hi ${u.name || ""},</p><p>Attached is your DPD report:</p><p><b>${filename}</b></p>`,
+      attachments: [{ filename, content: buf, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }]
+    });
+
+    res.json({ ok: true, sentTo: u.email });
+  } catch (err) {
+    console.error("❌ dpd-export-email error:", err);
+    res.status(500).json({ error: "Failed to email report" });
+  }
+});
 
 
 module.exports = router;

@@ -21,15 +21,26 @@ const DpdBuckets = ({ filters }) => {
 
   const [summary, setSummary] = useState(emptySummary);
   const [selected, setSelected] = useState("0-30");
+  const [emailTo, setEmailTo] = useState("");
 
   const [rows, setRows] = useState([]);
   const [asOf, setAsOf] = useState("");
+  const [isEmailing, setIsEmailing] = useState(false);
+
+  const getLoggedInUserId = () => {
+  try {
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw)?.userId : null;
+  } catch { return null; }
+};
+
 
   // pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+
 
   // fetch summary when product changes
   useEffect(() => {
@@ -149,6 +160,48 @@ const DpdBuckets = ({ filters }) => {
     XLSX.writeFile(wb, filename);
   };
 
+  const handleDownloadAndEmailMe = async () => {
+  if (!rows.length || isEmailing) return; 
+  const userId = getLoggedInUserId();
+  if (!userId) {
+    alert("No logged-in user found.");
+    return;
+  }
+
+  setIsEmailing(true);
+
+  try {
+    // download locally
+    // handleDownloadCurrentView();
+
+    // send to backend for emailing (exact rows currently visible)
+    await api.post("/dashboard/dpd-export-email", {
+      userId,                   // server will look up email from users table
+      product: filters.product,
+      bucket: selected,
+      page,
+      rows: rows.map(r => ({
+        lan: r.lan,
+        customer_name: r.customer_name,
+        product: r.product,
+        max_dpd: r.max_dpd,
+        overdue_emi: r.overdue_emi,
+        overdue_principal: r.overdue_principal,
+        overdue_interest: r.overdue_interest,
+        pos_principal: r.pos_principal,
+        last_due_date: r.last_due_date,
+      })),
+    });
+
+    alert("Report is emailed to your email address.");
+  } catch (e) {
+    console.error("Email report error:", e);
+    alert("Failed to email report. Please try again.");
+  }finally {
+    setIsEmailing(false);
+  }
+};
+
   return (
     <div style={{ background: "#fff", padding: "1rem", borderRadius: 8, marginTop: "2rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -203,6 +256,15 @@ const DpdBuckets = ({ filters }) => {
           >
             ⬇️ Download current view (Excel)
           </button>
+          <button
+  onClick={handleDownloadAndEmailMe}
+  disabled={loading || rows.length === 0}
+  style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #ddd", background: rows.length ? "#f4f4f4" : "#eee", cursor: rows.length ? "pointer" : "not-allowed", fontSize: 13 }}
+  title="Download the current page and email it to your registered email"
+>
+  ⬇️ Download & ✉️ Email me
+</button>
+
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
