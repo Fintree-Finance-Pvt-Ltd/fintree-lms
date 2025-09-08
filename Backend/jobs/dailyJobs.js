@@ -66,8 +66,7 @@ cron.schedule("*/2 * * * *", async () => {
     // 2️⃣ Call your OOD ledger procedure for all LANs (yesterday’s date)
     const sql = `CALL sp_cc_ood_generate_all(
       DATE_SUB(CURDATE(), INTERVAL 1 DAY),
-      DATE_SUB(CURDATE(), INTERVAL 1 DAY),
-      0.015
+      DATE_SUB(CURDATE(), INTERVAL 1 DAY)
     )`;
     await db.promise().query(sql);
 
