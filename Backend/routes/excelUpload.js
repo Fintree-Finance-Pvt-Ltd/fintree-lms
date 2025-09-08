@@ -507,6 +507,7 @@ router.get("/all-loans", (req, res) => {
     "loan_booking_gq_fsf": true,
     "loan_bookings_wctl": true,
     "loan_booking_ev": true,
+    "loan_booking_embifi": true
   };
 
   if (!allowedTables[table]) {
@@ -535,7 +536,8 @@ router.get("/approved-loans", (req, res) => {
     "loan_booking_adikosh": true,
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
-    "loan_bookings_wctl": true
+    "loan_bookings_wctl": true,
+    "loan_booking_embifi": true
 
   };
 
@@ -565,7 +567,8 @@ router.get("/disbursed-loans", (req, res) => {
     "loan_booking_gq_non_fsf": true,
     "loan_booking_gq_fsf": true,
     "loan_bookings_wctl": true,
-    "loan_booking_ev": true
+    "loan_booking_ev": true,
+    "loan_booking_embifi": true
 
   };
 
@@ -2077,6 +2080,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_gq_fsf";
   }else if (lan.startsWith("BL")) {
     tableName = "manual_rps_bl_loan";
+  }else if (lan.startsWith("E10")) {
+    tableName = "manual_rps_embifi_loan";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
     // ✅ Only fetch Main Adikosh RPS - Specify columns for ADK
