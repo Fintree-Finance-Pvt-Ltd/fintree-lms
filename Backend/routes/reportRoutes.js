@@ -416,7 +416,7 @@ function resolveProcedure(rawReportId, rawLender) {
     "adikosh-cam-report-print": () => "sp_cam_data_report_adikosh_print",
 
     // CCOD LOAN DATA REPORT
-    "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
+    "ccod-loan-data-report": () => "sp_cc_ood_mis_report_3",
 
   
   };
