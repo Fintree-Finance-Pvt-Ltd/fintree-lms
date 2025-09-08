@@ -360,6 +360,8 @@ function resolveProcedure(rawReportId, rawLender) {
     "adikosh-cam-report-pivot": "adikosh-cam-report-pivot",
     "adikosh-cam-report-print": "adikosh-cam-report-print",
     "adikosh-cam-print": "adikosh-cam-report-print",
+
+    "ccod-loan-data-report": "ccod-loan-data-report",
   };
 
   const key = aliases[id] || id;
@@ -412,6 +414,10 @@ function resolveProcedure(rawReportId, rawLender) {
     "adikosh-cam-report-pivot": () => "sp_cam_data_report_adikosh_pivot",
     // CAM printable (single LAN)
     "adikosh-cam-report-print": () => "sp_cam_data_report_adikosh_print",
+
+    // CCOD LOAN DATA REPORT
+    "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
+
   
   };
 
