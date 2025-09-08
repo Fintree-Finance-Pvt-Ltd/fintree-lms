@@ -2075,6 +2075,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_wctl ";
   } else if (lan.startsWith("GQF")) {
     tableName = "manual_rps_gq_fsf";
+  }else if (lan.startsWith("BL")) {
+    tableName = "manual_rps_bl_loan";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
     // ✅ Only fetch Main Adikosh RPS - Specify columns for ADK
