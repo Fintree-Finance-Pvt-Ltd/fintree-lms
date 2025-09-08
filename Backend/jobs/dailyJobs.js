@@ -63,6 +63,16 @@ cron.schedule("*/2 * * * *", async () => {
     }
 
     console.log("✅ All tables updated successfully");
+    // 2️⃣ Call your OOD ledger procedure for all LANs (yesterday’s date)
+    const sql = `CALL sp_cc_ood_generate_all(
+      DATE_SUB(CURDATE(), INTERVAL 1 DAY),
+      DATE_SUB(CURDATE(), INTERVAL 1 DAY),
+      0.015
+    )`;
+    await db.promise().query(sql);
+
+    console.log("✅ OOD ledger generated successfully for all LANs");
+
   } catch (err) {
     console.error("❌ Cron job failed:", err.sqlMessage || err.message);
   }
