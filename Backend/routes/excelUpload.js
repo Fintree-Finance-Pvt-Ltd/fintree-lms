@@ -1018,7 +1018,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
 
     for (const row of sheetData) {
       const disbursementUTR = row["Disbursement UTR"];
-      const disbursementDate = toIsoDateSafe(row["Disbursement Date"]);
+      const disbursementDate = excelDateToJSDate(row["Disbursement Date"]);
       // const disbursementDate = row["Disbursement Date"]
       //   ? new Date((row["Disbursement Date"] - 25569) * 86400000)
       //       .toISOString()
