@@ -819,6 +819,8 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       const gps_device_cost        = num(row["GPS Device Cost"]);
       const gst_on_gps_device      = num(row["GST on GPS device"]);
       const total_gps_device_cost  = num(row["Total GPS Device Cost"]);
+      const new_interesrt          = num(row["New Interest"]);
+
 
       // basic validation
       if (!lan || !applicant_name || !approved_loan_amount || !loan_tenure_months || !interest_rate_percent) {
@@ -862,8 +864,8 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
           applicant_address, applicant_state, applicant_city, applicant_pin_code,
           coapplicant_address, coapplicant_state, coapplicant_pin_code,
           bureau_score, monthly_income, account_no, ifsc_code,
-          gps_device_cost, gst_on_gps_device, total_gps_device_cost
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          gps_device_cost, gst_on_gps_device, total_gps_device_cost,new_interest
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `;
 
       await db.promise().query(sql, [
@@ -878,7 +880,7 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
         applicant_address, applicant_state, applicant_city, applicant_pin_code,
         coapplicant_address, coapplicant_state, coapplicant_pin_code,
         bureau_score, monthly_income, account_no, ifsc_code,
-        gps_device_cost, gst_on_gps_device, total_gps_device_cost
+        gps_device_cost, gst_on_gps_device, total_gps_device_cost, new_interesrt
       ]);
 
       success.push(R);
