@@ -1164,6 +1164,14 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               [lan]
             );
         } 
+        else if (lan.startsWith("E10")) {
+          await db
+            .promise()
+            .query(
+              "UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?",
+              [lan]
+            );
+        } 
          else if (lan.startsWith("EV")) {
           await db
             .promise()
