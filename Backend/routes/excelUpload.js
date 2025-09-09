@@ -1058,6 +1058,13 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
            FROM loan_booking_gq_fsf WHERE lan = ?`,
           [lan]
         );
+      }
+         else if (lan.startsWith("E10")) {
+        [loanRes] = await db.promise().query(
+          `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender 
+           FROM loan_booking_embifi WHERE lan = ?`,
+          [lan]
+        );
       } else if (lan.startsWith("ADK")) {
         [loanRes] = await db.promise().query(
           `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
