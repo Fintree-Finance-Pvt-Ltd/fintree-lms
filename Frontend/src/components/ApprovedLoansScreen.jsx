@@ -51,7 +51,7 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lenderName = "EM
                                     {loan.customer_name}
                                 </span>
                             </td>
-                            <td>{lenderName}</td>
+                            <td>{loan.lender}</td>
                             <td>{loan.partner_loan_id}</td>
                             <td>{loan.lan}</td>
                             <td>{loan.customer_id}</td>
