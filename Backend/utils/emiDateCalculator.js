@@ -229,6 +229,20 @@ else if (lender === "GQ FSF") {
     return dueDate;
 }
 
+/////////////////// 
+  // ✅ Embifi: Monthly Loan
+    else if (lender === "Embifi" && product === "Monthly Loan") {
+        const dueDate = new Date(disbDate);
+        dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
+
+        const targetDay = disbDay <= 15 ? 15 : 30;
+        const y = dueDate.getFullYear();
+        const m = dueDate.getMonth();
+        dueDate.setDate(clampDay(y, m, targetDay));
+
+        console.log(`[Embifi Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
+        return dueDate;
+    }
 
 
     // ✅ BL Loan: Daily Loan starts from next day

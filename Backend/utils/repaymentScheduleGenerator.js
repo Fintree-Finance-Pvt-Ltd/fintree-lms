@@ -680,9 +680,6 @@ const generateRepaymentScheduleEV = async (
 };
 
 
-
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // const generateRepaymentScheduleBL = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
@@ -1363,7 +1360,75 @@ const generateRepaymentScheduleGQFSF = async (
 //     console.error(`❌ Adikosh RPS Error for ${lan}:`, err);
 //   }
 // };
+/////////////////////////EMBIFI START///////////////////////////////////////
+const generateRepaymentScheduleEmbifi = async (
+  lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
+) => {
+  try {
+    const annualRate = interestRate / 100;
+    let remainingPrincipal = loanAmount;
 
+    const emi = Math.round(
+      (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+      (Math.pow(1 + annualRate / 12, tenure) - 1)
+    );
+
+    const disbDate = new Date(disbursementDate);
+    const firstDueDate = new Date(disbDate);
+    firstDueDate.setMonth(disbDate.getMonth() + 1);
+
+    const rpsData = [];
+    let dueDate = new Date(firstDueDate);
+
+    for (let i = 1; i <= tenure; i++) {
+      const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+      let principal = emi - interest;
+
+      if (i === tenure) principal = remainingPrincipal;
+
+      rpsData.push([
+        lan,
+        dueDate.toISOString().split("T")[0],
+        emi,
+        interest,
+        principal,
+        remainingPrincipal - principal,
+        Math.max(interest * (tenure - i), 0),
+        tenure - i,
+        "Pending",
+        product,
+        lender
+      ]);
+
+      remainingPrincipal -= principal;
+      dueDate.setMonth(dueDate.getMonth() + 1);
+    }
+
+    await db.promise().query(
+      `INSERT INTO manual_rps_embifi_loan
+        (lan, due_date, emi, interest, principal,
+         remaining_principal, remaining_interest, remaining_emi, status,
+         product, lender)
+       VALUES ?`,
+      [rpsData]
+    );
+
+    await db.promise().query(
+      `UPDATE loan_booking_embifi
+         SET emi_amount = ?
+       WHERE lan = ?`,
+      [emi, lan]
+    );
+
+    console.log(`✅ Embifi RPS generated from next month for ${lan}`);
+  } catch (err) {
+    console.error(`❌ Embifi RPS Error for ${lan}:`, err);
+  }
+};
+
+
+
+////////////////////////ADIKOSH START //////////////////////////////////
 const generateRepaymentScheduleAdikosh = async (
   lan,
   loanAmount,
