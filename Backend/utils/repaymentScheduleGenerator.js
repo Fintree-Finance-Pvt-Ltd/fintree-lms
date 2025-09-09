@@ -1495,7 +1495,7 @@ const generateRepaymentScheduleAdikosh = async (
           emi,                          // emi (this month)
           interest,                     // interest (this month)
           principal,                    // principal (this month)
-          remainingPrincipalField,      // remaining_principal => ONLY this month's principal
+          principal,      // remaining_principal => ONLY this month's principal
           remainingInterestField,       // remaining_interest  => ONLY this month's interest
           tenure - i,                   // remaining_emi (count left)
           "Pending"                     // status
