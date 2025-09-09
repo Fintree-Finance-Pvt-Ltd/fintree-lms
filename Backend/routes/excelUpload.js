@@ -1013,6 +1013,9 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
   }
 });
 
+
+
+////////////////// UPLOAD UTR........./////////////////////////////////
 router.post("/upload-utr", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 

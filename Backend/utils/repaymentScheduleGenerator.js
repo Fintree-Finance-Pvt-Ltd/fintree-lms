@@ -1396,8 +1396,6 @@ const generateRepaymentScheduleEmbifi = async (
         Math.max(interest * (tenure - i), 0),
         tenure - i,
         "Pending",
-        product,
-        lender
       ]);
 
       remainingPrincipal -= principal;
@@ -1407,8 +1405,7 @@ const generateRepaymentScheduleEmbifi = async (
     await db.promise().query(
       `INSERT INTO manual_rps_embifi_loan
         (lan, due_date, emi, interest, principal,
-         remaining_principal, remaining_interest, remaining_emi, status,
-         product, lender)
+         remaining_principal, remaining_interest, remaining_emi, status)
        VALUES ?`,
       [rpsData]
     );
