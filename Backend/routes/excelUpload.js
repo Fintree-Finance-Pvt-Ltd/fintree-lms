@@ -830,7 +830,7 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       const gps_device_cost        = num(row["GPS Device Cost"]);
       const gst_on_gps_device      = num(row["GST on GPS device"]);
       const total_gps_device_cost  = num(row["Total GPS Device Cost"]);
-      const new_interesrt          = num(row["New Interest"]);
+      const new_interest          = num(row["New Interest"]);
 
 
       // basic validation
@@ -891,14 +891,14 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
         applicant_address, applicant_state, applicant_city, applicant_pin_code,
         coapplicant_address, coapplicant_state, coapplicant_pin_code,
         bureau_score, monthly_income, account_no, ifsc_code,
-        gps_device_cost, gst_on_gps_device, total_gps_device_cost, new_interesrt
+        gps_device_cost, gst_on_gps_device, total_gps_device_cost, new_interest
       ]);
 
       success.push(R);
     }
 
     return res.json({
-      message: "✅ Embifi file processed",
+      message: "✅ Embifi file Save Successfully",
       total_rows: rows.length,
       inserted_rows: success.length,
       failed_rows: failed.length,
