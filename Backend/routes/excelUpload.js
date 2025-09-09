@@ -1258,7 +1258,7 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
       const [existingRecords] = await db
         .promise()
         .query(
-          `SELECT lan FROM loan_booking_gq_fsf WHERE pan_card = ? OR aadhar_number = ?`,
+          `SELECT lan FROM loan_booking_gq_fsf WHERE pan_number = ? OR aadhaar_number = ?`,
           [panCard, aadharNumber]
         );
 
