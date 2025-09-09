@@ -1732,6 +1732,17 @@ const generateRepaymentSchedule = async (
       disbursementDate,
       salary_day
     );
+  }
+    else if (lender === "Embifi") {
+    await generateRepaymentScheduleEmbifi(
+       lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender
+    );
 
   } else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
@@ -1745,5 +1756,6 @@ module.exports = {
   generateRepaymentScheduleGQFSF,
   generateRepaymentScheduleAdikosh,
   generateRepaymentSchedule,
+  generateRepaymentScheduleEmbifi,
   excelSerialDateToJS
 };
