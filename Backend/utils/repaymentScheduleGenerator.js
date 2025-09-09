@@ -1494,7 +1494,7 @@ const generateRepaymentScheduleAdikosh = async (
         const remainingAmountField    = fmt2(emi);        // show EMI as "Remaining Amount" for the period
         const remainingPrincipalField = fmt2(principal);  // period principal ONLY
         const remainingInterestField  = fmt2(interest);   // period interest  ONLY
-        const remainingEmiCount       = tenure - i;
+        const remainingEmiAmount       = remainingPrincipalField + remainingInterestField;
 
         if (table.hasOC) {
           // MAIN TABLE: has opening/closing and remaining_amount
@@ -1506,7 +1506,7 @@ const generateRepaymentScheduleAdikosh = async (
             fmt2(principal),              // principal (period)
             opening,                      // opening
             closing,                      // closing
-            remainingEmiCount,            // remaining_emi (count left)
+            remainingEmiAmount,            // remaining_emi (count left)
             remainingAmountField,         // remaining_amount (period EMI)
             remainingPrincipalField,      // remaining_principal (period principal)
             remainingInterestField,       // remaining_interest  (period interest)
@@ -1522,7 +1522,7 @@ const generateRepaymentScheduleAdikosh = async (
             fmt2(principal),              // principal (period)
             remainingPrincipalField,      // remaining_principal (period principal)
             remainingInterestField,       // remaining_interest  (period interest)
-            remainingEmiCount,            // remaining_emi (count left)
+            remainingEmiAmount,            // remaining_emi (count left)
             "Pending"                     // status
           ]);
         }
