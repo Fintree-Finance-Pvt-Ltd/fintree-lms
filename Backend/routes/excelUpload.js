@@ -720,6 +720,17 @@ router.post("/hc-upload", upload.single("file"), async (req, res) => {
 });
 //////////////////////////// EMBIFI START //////////////////////////////////////////////////////
 // parse date robustly: Excel serial, 'YYYY-MM-DD', 'DD-MMM-YYYY'
+const num = (v) => {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return v;
+  if (typeof v === "string") {
+    const cleaned = v.replace(/,/g, "").trim();
+    const parsed = parseFloat(cleaned);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
 const parseDate = v => {
   if (!v) return null;
   // 1) use your helper if it can parse
