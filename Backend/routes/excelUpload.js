@@ -718,6 +718,183 @@ router.post("/hc-upload", upload.single("file"), async (req, res) => {
     res.status(500).json({ message: "Error processing file" });
   }
 });
+//////////////////////////// EMBIFI START //////////////////////////////////////////////////////
+// parse date robustly: Excel serial, 'YYYY-MM-DD', 'DD-MMM-YYYY'
+const parseDate = v => {
+  if (!v) return null;
+  // 1) use your helper if it can parse
+  try {
+    const d = excelDateToJSDate(v);
+    if (d) return d; // already YYYY-MM-DD string
+  } catch (_) {}
+
+  // 2) ISO or date-like strings
+  if (typeof v === "string") {
+    // 'YYYY-MM-DD'
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+
+    // 'DD-MMM-YYYY' e.g., '12-Aug-1984'
+    const m = v.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+    if (m) {
+      const [ , dd, mmm, yyyy ] = m;
+      const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+      const mm = months[mmm];
+      if (mm !== undefined) {
+        const dt = new Date(Date.UTC(Number(yyyy), mm, Number(dd)));
+        return dt.toISOString().split("T")[0];
+      }
+    }
+  }
+  //////date above //////
+router.post("/upload-embifi", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded." });
+
+  try {
+    const wb = xlsx.read(req.file.buffer, { type: "buffer" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = xlsx.utils.sheet_to_json(ws).map((r, i) => ({ __row: i + 2, ...r }));
+
+    if (!rows.length) return res.status(400).json({ message: "Empty or invalid Excel." });
+
+    const success = [], failed = [];
+
+    for (const row of rows) {
+      const R = row.__row;
+
+      // === map your exact headers ===
+      const lan                    = (row["LAN"] || "").toString().trim();
+      const applicant_name         = row["Applicant Name"] || null;
+      const applicant_dob          = parseDate(row["Applicant DOB"]);
+      const applicant_age_years    = num(row["Applicant Age"]);
+      const applicant_father_name  = row["Applicant Father Name"] || null;
+      const pan_number             = (row["PAN Number"] || "").toString().trim() || null;
+      const applicant_aadhaar_no   = (row["Applicant Aadhaar Number"] || "").toString().trim() || null;
+      const mobile_number          = (row["Mobile Number"] || "").toString().trim() || null;
+
+      const coapplicant_name       = row["CO-Applicant Name"] || null;
+      const coapplicant_pan_no     = (row["CO-Applicant Pan No"] || "").toString().trim() || null;
+      const coapplicant_aadhaar_no = (row["CO-Applicant Aadhar No"] || "").toString().trim() || null;
+      const coapplicant_dob        = parseDate(row["CO-Applicant DOB"]);
+      const coapplicant_mobile_no  = (row["CO-Applicant Mobile No"] || "").toString().trim() || null;
+
+      const approved_loan_amount   = num(row["Approved Loan Amount"]);
+      const processing_fees_with_tax = num(row["Processing Fees With Tax"]);
+      const processing_fees        = num(row["Processing Fess"]);              // note: “Fess” in sheet
+      const processing_fees_tax    = num(row["Processing Fees Tax"]);
+      const subvention             = num(row["Subvention"]);
+      const disbursal_amount       = num(row["Disbursal Amount"]);
+
+      const loan_tenure_months     = num(row["Loan Tenure"]);
+      const emi_amount             = num(row["EMI Amount"]);
+      const interest_rate_percent  = num(row["Intrest Rate"]);                // note: “Intrest” in sheet
+
+      const status                 = row["Loan Status"] || null;
+      const product                = row["Product"] || "Monthly Loan";
+      const lender                 = row["Lender"] || "Embifi";
+      const loan_admin_status      = row["Loan Admin Status"] || null;
+
+      const first_emi_date         = parseDate(row["First EMI Date"]);
+      const last_emi_date          = parseDate(row["Last EMI Date"]);
+      const disbursement_date      = parseDate(row["Disbursement Date"]);
+      const disbursement_utr       = row["Disbursement UTR"] || null;
+
+      const applicant_address      = row["Applicant Address"] || null;
+      const applicant_state        = row["Applicant State"] || null;
+      const applicant_city         = row["Applicant City"] || null;
+      const applicant_pin_code     = (row["Applicant Pin Code"] || "").toString().trim() || null;
+
+      const coapplicant_address    = row["CO-Applicant Address"] || null;
+      const coapplicant_state      = row["CO-Applicant state"] || row["CO-Applicant State"] || null;
+      const coapplicant_pin_code   = (row["CO-Applicant Pin Code"] || "").toString().trim() || null;
+
+      const bureau_score           = num(row["Bureau Score"]);
+      const monthly_income         = num(row["Monthly Income"]);
+      const account_no             = (row["Account No."] || "").toString().trim() || null;
+      const ifsc_code              = (row["IFSC Code"] || "").toString().trim() || null;
+
+      const gps_device_cost        = num(row["GPS Device Cost"]);
+      const gst_on_gps_device      = num(row["GST on GPS device"]);
+      const total_gps_device_cost  = num(row["Total GPS Device Cost"]);
+
+      // basic validation
+      if (!lan || !applicant_name || !approved_loan_amount || !loan_tenure_months || !interest_rate_percent) {
+        failed.push({ row: R, reason: "Missing LAN/name/amount/tenure/rate" });
+        continue;
+      }
+
+      // Check duplicate PAN/Aadhaar in Embifi table
+      const [dups] = await db
+        .promise()
+        .query(
+          `SELECT id FROM loan_booking_embifi WHERE pan_number = ? OR applicant_aadhaar_no = ?`,
+          [pan_number, applicant_aadhaar_no]
+        );
+      if (dups.length) {
+        failed.push({ row: R, reason: "Duplicate PAN/Aadhaar" });
+        continue;
+      }
+
+      // get or generate partner_loan_id (your sheet has no column for it)
+      // let partner_loan_id = null;
+      // try {
+      //   const ids = await generateLoanIdentifiers("Embifi");
+      //   partner_loan_id = ids.partnerLoanId;
+      // } catch {
+      //   // minimal fallback if you don’t have the helper yet
+      //   partner_loan_id = `EMB-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+      // }
+
+      // Insert into loan_booking_embifi
+      const sql = `
+        INSERT INTO loan_booking_embifi (
+           lan,
+          applicant_name, applicant_dob, applicant_age_years, applicant_father_name,
+          pan_number, applicant_aadhaar_no, mobile_number,
+          coapplicant_name, coapplicant_pan_no, coapplicant_aadhaar_no, coapplicant_dob, coapplicant_mobile_no,
+          approved_loan_amount, processing_fees_with_tax, processing_fees, processing_fees_tax, subvention, disbursal_amount,
+          loan_tenure_months, emi_amount, interest_rate_percent,
+          status, product, lender, loan_admin_status,
+          first_emi_date, last_emi_date, disbursement_date, disbursement_utr,
+          applicant_address, applicant_state, applicant_city, applicant_pin_code,
+          coapplicant_address, coapplicant_state, coapplicant_pin_code,
+          bureau_score, monthly_income, account_no, ifsc_code,
+          gps_device_cost, gst_on_gps_device, total_gps_device_cost
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      `;
+
+      await db.promise().query(sql, [
+        lan,
+        applicant_name, applicant_dob, applicant_age_years, applicant_father_name,
+        pan_number, applicant_aadhaar_no, mobile_number,
+        coapplicant_name, coapplicant_pan_no, coapplicant_aadhaar_no, coapplicant_dob, coapplicant_mobile_no,
+        approved_loan_amount, processing_fees_with_tax, processing_fees, processing_fees_tax, subvention, disbursal_amount,
+        loan_tenure_months, emi_amount, interest_rate_percent,
+        status, product, lender, loan_admin_status,
+        first_emi_date, last_emi_date, disbursement_date, disbursement_utr,
+        applicant_address, applicant_state, applicant_city, applicant_pin_code,
+        coapplicant_address, coapplicant_state, coapplicant_pin_code,
+        bureau_score, monthly_income, account_no, ifsc_code,
+        gps_device_cost, gst_on_gps_device, total_gps_device_cost
+      ]);
+
+      success.push(R);
+    }
+
+    return res.json({
+      message: "✅ Embifi file processed",
+      total_rows: rows.length,
+      inserted_rows: success.length,
+      failed_rows: failed.length,
+      success_rows: success,
+      failed_details: failed
+    });
+
+  } catch (err) {
+    console.error("❌ Embifi Upload Error:", err);
+    return res.status(500).json({ message: "Upload failed.", error: err.sqlMessage || err.message });
+  }
+});
+
 ////////////////// BL Loan........./////////////////////////////////
 router.post("/bl-upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
