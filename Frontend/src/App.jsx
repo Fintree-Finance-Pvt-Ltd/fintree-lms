@@ -50,6 +50,9 @@ import AdikoshLoginLoans from "./components/AdikoshLoginLoans";
 import EVLoginLoans from "./components/EVLoginLoans";
 import EVActionScreen from "./components/EVActionScreen";
 import AdikoshActionScreen from "./components/AdikoshActionScreen";
+import EmbifiApprovedLoans from "./components/EmbifiApprovedLoans";
+import EmbifiDisbursedLoans from "./components/EmbifiDisbursedLoans";
+import EmbifiAllLoans from "./components/EmbifiAllLoans";
 
 function App() {
   return (
@@ -208,6 +211,31 @@ function App() {
             element={
               <PermissionRoute pageName="EV Login Actions">
                 <EVActionScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/embifi-loans/approved"
+            element={
+              <PermissionRoute pageName="Embifi Approved Loans">
+                <EmbifiApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/embifi-loans/disbursed"
+            element={
+              <PermissionRoute pageName="Embifi Disbursed Loans">
+                <EmbifiDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/embifi-loans/all"
+            element={
+              <PermissionRoute pageName="Embifi All Loans">
+                <EmbifiAllLoans />
               </PermissionRoute>
             }
           />
