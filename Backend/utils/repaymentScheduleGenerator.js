@@ -1426,12 +1426,9 @@ const generateRepaymentScheduleEmbifi = async (
 
 
 ////////////////////////ADIKOSH START //////////////////////////////////
-// Assumes you have: const db = require('./path/to/mysql2-connection');
-// And a working getFirstEmiDate(disbursementDate, _, lender, product, _, salaryDay)
-
-// Assumes mysql2 connection as `db` and a valid getFirstEmiDate()
-// remaining_principal = period principal (this month's principal)
-// remaining_interest  = period interest  (this month's interest)
+// Assumes:
+//  - mysql2 connection exported as `db`
+//  - a working getFirstEmiDate(disbursementDate, _, lender, product, _, salaryDay)
 
 const fmt2 = (n) => Number((n ?? 0).toFixed(2));
 
@@ -1441,7 +1438,7 @@ const generateRepaymentScheduleAdikosh = async (
   interestRate,      // annual % (e.g., 24 => 24% p.a.)
   tenure,            // months
   disbursementDate,  // "YYYY-MM-DD"
-  salaryDay          // integer (first-EMI alignment)
+  salaryDay          // integer day-of-month for first EMI alignment
 ) => {
   try {
     const firstDueDate = getFirstEmiDate(
@@ -1455,7 +1452,7 @@ const generateRepaymentScheduleAdikosh = async (
 
     console.log({ lan, loanAmount, interestRate, tenure, salaryDay, firstDueDate });
 
-    // 1) Generate: main + split
+    // Base schedules to create
     const tables = [
       { name: "manual_rps_adikosh",         factor: 1.0, customRate: null, hasOC: true  }, // has opening/closing
       { name: "manual_rps_adikosh_fintree", factor: 0.8, customRate: null, hasOC: false },
@@ -1465,13 +1462,13 @@ const generateRepaymentScheduleAdikosh = async (
     for (const table of tables) {
       const rpsData = [];
       const baseAmount  = loanAmount * table.factor;
-      const annualRate  = (table.customRate ?? interestRate) / 100;
+      const annualRate  = (table.customRate ?? interestRate) / 100; // e.g., 24 => 0.24
       const monthlyRate = annualRate / 12;
 
       let openingPrincipal = fmt2(baseAmount);
       let dueDate = new Date(firstDueDate);
 
-      // Standard amortization EMI
+      // EMI (rounded up)
       const baseEmi = Math.ceil(
         (baseAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
         (Math.pow(1 + monthlyRate, tenure) - 1)
@@ -1485,62 +1482,71 @@ const generateRepaymentScheduleAdikosh = async (
         let emi       = baseEmi;
         let principal = emi - interest;
 
+        // last EMI: clear any residue
         if (i === tenure) {
-          // clear residue
           principal = Math.round(opening);
           emi       = principal + interest;
         }
 
         const closing = fmt2(Math.max(opening - principal, 0));
 
-        // As requested: remaining_principal holds ONLY this month's principal
-        const remainingPrincipalField = fmt2(principal);
-        const remainingInterestField  = fmt2(interest);
+        // Required field meanings:
+        const remainingAmountField    = fmt2(emi);        // show EMI as "Remaining Amount" for the period
+        const remainingPrincipalField = fmt2(principal);  // period principal ONLY
+        const remainingInterestField  = fmt2(interest);   // period interest  ONLY
+        const remainingEmiCount       = tenure - i;
 
-        const row = table.hasOC
-          ? [
-              lan,
-              dueDate.toISOString().split("T")[0],
-              fmt2(emi),
-              fmt2(interest),
-              fmt2(principal),
-              opening,          // opening
-              closing,          // closing
-              remainingPrincipalField, // remaining_principal = period principal
-              remainingInterestField,  // remaining_interest  = period interest
-              tenure - i,       // remaining_emi (count)
-              "Pending"
-            ]
-          : [
-              lan,
-              dueDate.toISOString().split("T")[0],
-              fmt2(emi),
-              fmt2(interest),
-              fmt2(principal),
-              remainingPrincipalField, // remaining_principal = period principal
-              remainingInterestField,  // remaining_interest  = period interest
-              tenure - i,              // remaining_emi (count)
-              "Pending"
-            ];
+        if (table.hasOC) {
+          // MAIN TABLE: has opening/closing and remaining_amount
+          rpsData.push([
+            lan,
+            dueDate.toISOString().split("T")[0],
+            fmt2(emi),                    // emi
+            fmt2(interest),               // interest (period)
+            fmt2(principal),              // principal (period)
+            opening,                      // opening
+            closing,                      // closing
+            remainingEmiCount,            // remaining_emi (count left)
+            remainingAmountField,         // remaining_amount (period EMI)
+            remainingPrincipalField,      // remaining_principal (period principal)
+            remainingInterestField,       // remaining_interest  (period interest)
+            "Pending"                     // status
+          ]);
+        } else {
+          // SPLIT TABLES: no opening/closing, and (assumed) no remaining_amount column
+          rpsData.push([
+            lan,
+            dueDate.toISOString().split("T")[0],
+            fmt2(emi),                    // emi
+            fmt2(interest),               // interest (period)
+            fmt2(principal),              // principal (period)
+            remainingPrincipalField,      // remaining_principal (period principal)
+            remainingInterestField,       // remaining_interest  (period interest)
+            remainingEmiCount,            // remaining_emi (count left)
+            "Pending"                     // status
+          ]);
+        }
 
-        rpsData.push(row);
-
-        // next period
+        // advance
         openingPrincipal = closing;
         dueDate.setMonth(dueDate.getMonth() + 1);
       }
 
       if (table.hasOC) {
+        // MAIN TABLE insert
         await db.promise().query(
           `INSERT INTO ${table.name}
-           (lan, due_date, emi, interest, principal, opening, closing, remaining_principal, remaining_interest, remaining_emi, status)
+           (lan, due_date, emi, interest, principal, opening, closing,
+            remaining_emi, remaining_amount, remaining_principal, remaining_interest, status)
            VALUES ?`,
           [rpsData]
         );
       } else {
+        // SPLIT TABLES insert
         await db.promise().query(
           `INSERT INTO ${table.name}
-           (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+           (lan, due_date, emi, interest, principal,
+            remaining_principal, remaining_interest, remaining_emi, status)
            VALUES ?`,
           [rpsData]
         );
@@ -1549,7 +1555,7 @@ const generateRepaymentScheduleAdikosh = async (
       console.log(`✅ ${table.name} RPS generated for ${lan}`);
     }
 
-    // 2) Build manual_rps_adikosh_fintree_roi from MAIN table rows
+    // Build manual_rps_adikosh_fintree_roi from MAIN table rows
     const [mainRows] = await db.promise().query(
       `SELECT lan, due_date, emi, interest, principal
          FROM manual_rps_adikosh
@@ -1560,21 +1566,21 @@ const generateRepaymentScheduleAdikosh = async (
 
     const fintreeRoiData = [];
     for (const row of mainRows) {
-      const p80 = Math.round(row.principal * 0.8);
-      const i80 = Math.round(row.interest  * 0.8 * (21.5 / 33));
-      const roiEmi = p80 + i80;
+      const scaledPrincipal = Math.round(row.principal * 0.8);
+      const scaledInterest  = Math.round(row.interest  * 0.8 * (21.5 / 33));
+      const roiEmi          = scaledPrincipal + scaledInterest;
 
-      // remaining_principal / remaining_interest => period values (scaled)
+      // period values (scaled)
       fintreeRoiData.push([
         lan,
         row.due_date,
         fmt2(roiEmi),
-        fmt2(i80),
-        fmt2(p80),
-        fmt2(p80),  // remaining_principal = period principal (scaled)
-        fmt2(i80),  // remaining_interest  = period interest (scaled)
-        0,          // remaining_emi (set if needed)
-        "Pending"
+        fmt2(scaledInterest),
+        fmt2(scaledPrincipal),
+        fmt2(scaledPrincipal), // remaining_principal => period principal (scaled)
+        fmt2(scaledInterest),  // remaining_interest  => period interest  (scaled)
+        0,                     // remaining_emi (set if needed)
+        "Pending",
       ]);
     }
 
@@ -1591,6 +1597,8 @@ const generateRepaymentScheduleAdikosh = async (
     throw err;
   }
 };
+
+module.exports = { generateRepaymentScheduleAdikosh };
 
 
 
