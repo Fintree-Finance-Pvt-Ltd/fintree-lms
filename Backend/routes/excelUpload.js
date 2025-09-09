@@ -742,9 +742,13 @@ const parseDate = v => {
       if (mm !== undefined) {
         const dt = new Date(Date.UTC(Number(yyyy), mm, Number(dd)));
         return dt.toISOString().split("T")[0];
+      
       }
+    
     }
+    
   }
+}
   //////date above //////
 router.post("/upload-embifi", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded." });
@@ -1877,14 +1881,14 @@ const parseRate = (v) => {
   return value;
 };
 
-const parseDate = (value) => {
-  if (typeof value === "number") {
-    const epoch = new Date(1899, 11, 30);
-    return new Date(epoch.getTime() + value * 86400000);
-  }
-  const date = new Date(value);
-  return isNaN(date.getTime()) ? null : date;
-};
+// const parseDate = (value) => {
+//   if (typeof value === "number") {
+//     const epoch = new Date(1899, 11, 30);
+//     return new Date(epoch.getTime() + value * 86400000);
+//   }
+//   const date = new Date(value);
+//   return isNaN(date.getTime()) ? null : date;
+// };
 
 
 
