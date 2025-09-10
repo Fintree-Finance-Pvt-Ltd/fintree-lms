@@ -65,9 +65,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       let table = "repayments_upload";
       if (lan.startsWith("ADK")) {
         table = "repayments_upload_adikosh";
-      } else if (lan.startsWith("E")) {
-        // Example: your Embifi LANs seem like E100002
-        table = "repayments_upload_embifi"; // 👈 NEW table for Embifi repayments
+      } else{
+        table = "repayments_upload"; // 👈 NEW
       }
 
       // ✅ Duplicate UTR check
