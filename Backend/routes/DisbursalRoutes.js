@@ -20,6 +20,7 @@ router.get("/:lan", async (req, res) => {
   let processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
   let subventionCol = "0";
   let retentionCol = "0";
+  let partnerLoanIdCol = "lb.partner_loan_id";
   let netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
 
   if (lan.startsWith("EV")) {
@@ -31,9 +32,22 @@ router.get("/:lan", async (req, res) => {
     processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
     subventionCol = "0";
     retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
 
+  if (lan.startsWith("E10")) {
+    tableName = "loan_booking_embifi";
+    loanAmountCol = "lb.approved_loan_amount";
+    loanAmountExpr = "lb.approved_loan_amount";
+    interestRateCol = "lb.new_interest";
+    tenureCol = "lb.loan_tenure_months";
+    processingFeeCol = "null AS processing_fee";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "null AS partner_loan_id";
+    netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+  } 
   if (lan.startsWith("GQN")) {
     tableName = "loan_booking_gq_non_fsf";
     loanAmountCol = "lb.loan_amount_sanctioned AS loan_amount";
@@ -42,6 +56,7 @@ router.get("/:lan", async (req, res) => {
     tenureCol = "lb.loan_tenure_months AS loan_tenure";
     processingFeeCol = "lb.processing_fee";
     subventionCol = "COALESCE(lb.subvention_amount, 0)";
+    partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   } else if (lan.startsWith("WCTL")) {
     tableName = "loan_bookings_wctl";
@@ -51,6 +66,7 @@ router.get("/:lan", async (req, res) => {
     interestRateCol = "lb.interest_rate";
     tenureCol = "lb.loan_tenure";
     processingFeeCol = "lb.processing_fee";
+    partnerLoanIdCol = "lb.partner_loan_id";
     subventionCol = "0";
     netDisbursementExpr = `(${loanAmountExpr})`;
   } else if (lan.startsWith("ADK")) {
@@ -61,6 +77,7 @@ router.get("/:lan", async (req, res) => {
     tenureCol = "lb.loan_tenure";
     processingFeeCol = "lb.processing_fee";
     subventionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = "lb.net_disbursement";
   } else if (lan.startsWith("GQF")) {
     tableName = "loan_booking_gq_fsf";
@@ -71,6 +88,7 @@ router.get("/:lan", async (req, res) => {
     processingFeeCol = "lb.processing_fee";
     subventionCol = "COALESCE(lb.subvention_amount, 0)";
     retentionCol = "COALESCE(lb.retention_amount, 0)";
+    partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol} - ${retentionCol})`;
   }
 
@@ -79,7 +97,7 @@ router.get("/:lan", async (req, res) => {
   const query = `
     SELECT 
       ${loanAmountCol},
-      lb.partner_loan_id,
+      ${partnerLoanIdCol},
       ${processingFeeCol},
       ${interestRateCol} ,
       ${tenureCol},

@@ -36,11 +36,10 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lenderName = "EM
                         <th>Lender</th>
                         <th>Partner Loan ID</th>
                         <th>LAN</th>
-                        <th>Customer ID</th>
                         <th>Mobile Number</th>
                         <th>Status</th>
                         <th>Disbursement Date</th>
-                        <th>Audit Trails</th>
+                        <th>Docs</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -54,15 +53,9 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lenderName = "EM
                             <td>{loan.lender}</td>
                             <td>{loan.partner_loan_id}</td>
                             <td>{loan.lan}</td>
-                            <td>{loan.customer_id}</td>
-                            <td>
-                                <a href={`tel:${loan.mobile_number}`} className="phone-number">
-                                    {loan.mobile_number}
-                                </a>
-                            </td>
+                            <td>{loan.mobile_number}</td>
                             <td><span className="status-approved">Approved</span></td>
                             <td>{loan.disbursement_date || "-"}</td>
-                            <td><button className="audit-trail-btn">≡</button></td>
                             <td>
   <button 
     className="audit-trail-btn"
