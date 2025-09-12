@@ -95,7 +95,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
     console.log(`✅ Repayment Uploaded Successfully: ${successRows.length} rows processed`);
      await queryDB("CALL sp_set_allocation_bankdate_by_utr(1)"); // 👈 NEW: Update bank_date in allocation table  based on UTR
-
+console.log("✅ Allocation bank_date updated based on UTR");
     res.json({
       message: "✅ Upload successful",
       total_rows: sheetData.length,
