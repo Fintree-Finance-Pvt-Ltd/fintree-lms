@@ -399,10 +399,7 @@ const allocateEV = async (lan, payment) => {
   if (lanKey.startsWith("WCTL")) {
     emiTable = "manual_rps_wctl";
     loanTable = "loan_bookings_wctl";
-  } else if (lanKey.startsWith("BL")) {
-    // 🔹 New: BL loans
-    emiTable = "manual_rps_bl_loan";
-    loanTable = "loan_bookings";
+  
   } else {
     // default EV loans
     emiTable = "manual_rps_ev_loan";

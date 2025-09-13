@@ -1053,6 +1053,8 @@ const generateRepaymentScheduleBL = async (
 // };
 
 
+////////////////// GQ NON-FSF LOAN CALCULATION /////////////////////////////////////////
+
 const generateRepaymentScheduleGQNonFSF = async (
   lan,
   approvedAmount,
@@ -1125,10 +1127,132 @@ const generateRepaymentScheduleGQNonFSF = async (
   }
 };
 
+// const generateRepaymentScheduleGQNonFSF = async (
+//   lan,
+//   approvedAmount,         // P
+//   emiDate,
+//   interestRate,           // % per annum
+//   tenure,                 // n
+//   disbursementDate,
+//   subventionAmount,
+//   product,
+//   lender,
+//   no_of_advance_emis = 0  // k
+// ) => {
+//   try {
+//     console.log(`\n🚀 Generating GQ NON-FSF RPS for LAN: ${lan}`);
+
+//     const P = Number(approvedAmount || 0);
+//     const k = Number(no_of_advance_emis || 0);
+//     const n = Number(tenure || 0);
+//     const annual = Number(interestRate || 0) / 100;
+//     const r = annual / 12;                       // monthly
+//     const m = n - k;                             // months after advance EMIs
+//     if (n <= 0 || P <= 0) throw new Error("Invalid principal/tenure");
+
+//     // --- EMI with advance formula ---
+//     let emi;
+//     if (r === 0) {
+//       emi = Math.round(P / n);
+//     } else {
+//       const pow = Math.pow(1 + r, m);
+//       const a = (r * pow) / (pow - 1);          // standard annuity factor
+//       emi = Math.round((a * P) / (1 + a * k));  // handles advance EMIs
+//     }
+
+//     // Build rows
+//     const rows = [];
+//     let opening = P;
+
+//     // 1) Advance EMI rows (pure principal)
+//     for (let i = 1; i <= k; i++) {
+//       const interest = 0;
+//       const principal = emi;
+//       const closing = +(opening - principal).toFixed(2);
+
+//       // due date: on disbursement day for the advance EMI
+//       const dueDate = new Date(disbursementDate);
+
+//       rows.push({
+//         seq: `ADV-${i}`,
+//         dueDate: dueDate.toISOString().split("T")[0],
+//         emi,
+//         interest,
+//         principal,
+//         closing,
+//       });
+
+//       opening = closing;
+//     }
+
+//     // 2) Regular schedule for remaining months
+//     for (let i = 1; i <= m; i++) {
+//       let interest = r === 0 ? 0 : Math.round(opening * r);
+//       let principal = emi - interest;
+
+//       // last row: force close to zero (handles rounding)
+//       if (i === m) {
+//         principal = Math.round(opening * 100) / 100;
+//         interest = emi - principal;
+//       }
+
+//       const closing = +(opening - principal).toFixed(2);
+
+//       // due date: month offsets after disbursement/first EMI date
+//       const offset = i - 1; // 0 for first post-advance EMI, 1 for next, etc.
+//       const dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, offset);
+
+//       rows.push({
+//         seq: i,
+//         dueDate: dueDate.toISOString().split("T")[0],
+//         emi,
+//         interest,
+//         principal: Math.round(principal),  // store as ₹ rounded if you prefer
+//         closing,
+//       });
+
+//       opening = closing;
+//     }
+
+//     // Optional: compute running "remaining_*" totals from the bottom up
+//     let remEmi = 0, remInterest = 0;
+//     for (let i = rows.length - 1; i >= 0; i--) {
+//       remEmi += rows[i].emi;
+//       remInterest += rows[i].interest;
+//       rows[i].remaining_emi = remEmi;
+//       rows[i].remaining_interest = remInterest;
+//       rows[i].remaining_principal = rows[i].closing;
+//     }
+
+//     // Prepare bulk insert payload
+//     const rpsData = rows.map(r => ([
+//       lan,
+//       r.dueDate,
+//       r.emi,
+//       r.interest,
+//       r.principal,
+//       r.remaining_principal,
+//       r.remaining_interest,
+//       r.remaining_emi,
+//       "Pending"
+//     ]));
+
+//     await db.promise().query(
+//       `INSERT INTO manual_rps_gq_non_fsf
+//        (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+//        VALUES ?`,
+//       [rpsData]
+//     );
+
+//     console.log(`✅ GQ NON-FSF RPS generated successfully for ${lan}\n`);
+//   } catch (err) {
+//     console.error(`❌ GQ NON-FSF RPS Error for ${lan}:`, err);
+//   }
+// };
 
 
 
-
+//////////GQ FSF LOAN CALCULATION /////////////////////////////////////////
 const generateRepaymentScheduleGQFSF = async (
   lan,
   approvedAmount,
