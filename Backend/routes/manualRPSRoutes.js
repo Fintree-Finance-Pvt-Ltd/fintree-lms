@@ -59,7 +59,7 @@ const getValidLAN = (lan) => {
 // ✅ Check if RPS already exists for LAN & Due Date
 const checkExistingRPS = (lan, due_date) => {
     return new Promise((resolve, reject) => {
-        db.query("SELECT lan FROM manual_rps_ev_loan WHERE lan = ? AND due_date = ?", [lan, due_date], (err, results) => {
+        db.query("SELECT lan FROM manual_rps_bl_loan WHERE lan = ? AND due_date = ?", [lan, due_date], (err, results) => {
             if (err) return reject(err);
             resolve(results.length > 0);
         });
@@ -141,7 +141,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         // ➡️ Insert into EV Loan table
         if (dataToInsertEV.length > 0) {
             const insertQueryEV = `
-                INSERT INTO manual_rps_ev_loan
+                INSERT INTO manual_rps_bl_loan
                 (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi, remaining_interest, remaining_principal) 
                 VALUES ?`;
             await new Promise((resolve, reject) => {

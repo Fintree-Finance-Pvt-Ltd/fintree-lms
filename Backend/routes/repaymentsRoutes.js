@@ -65,9 +65,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       let table = "repayments_upload";
       if (lan.startsWith("ADK")) {
         table = "repayments_upload_adikosh";
-      } else if (lan.startsWith("E")) {
-        // Example: your Embifi LANs seem like E100002
-        table = "repayments_upload_embifi"; // 👈 NEW table for Embifi repayments
+      } else{
+        table = "repayments_upload"; // 👈 NEW
       }
 
       // ✅ Duplicate UTR check
@@ -95,7 +94,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     }
 
     console.log(`✅ Repayment Uploaded Successfully: ${successRows.length} rows processed`);
-
+     await queryDB("CALL sp_set_allocation_bankdate_by_utr(1)"); // 👈 NEW: Update bank_date in allocation table  based on UTR
+console.log("✅ Allocation bank_date updated based on UTR");
     res.json({
       message: "✅ Upload successful",
       total_rows: sheetData.length,
