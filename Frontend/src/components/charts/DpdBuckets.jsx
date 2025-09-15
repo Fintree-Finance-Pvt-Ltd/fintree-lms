@@ -1,6 +1,6 @@
 // import React, { useEffect, useState } from "react";
 // import api from "../../api/api";
-// import * as XLSX from "xlsx"; // ✅ NEW: for Excel export
+// import * as XLSX from "xlsx"; // Excel export
 
 // const bucketMeta = [
 //   { key: "0", label: "On Time" },
@@ -21,26 +21,115 @@
 
 //   const [summary, setSummary] = useState(emptySummary);
 //   const [selected, setSelected] = useState("0-30");
-//   const [emailTo, setEmailTo] = useState("");
-
-//   const [rows, setRows] = useState([]);
 //   const [asOf, setAsOf] = useState("");
 //   const [isEmailing, setIsEmailing] = useState(false);
 
-//   const getLoggedInUserId = () => {
-//   try {
-//     const raw = localStorage.getItem("user");
-//     return raw ? JSON.parse(raw)?.userId : null;
-//   } catch { return null; }
-// };
-
+//   const [rows, setRows] = useState([]);
+//   const [loading, setLoading] = useState(false);
 
 //   // pagination
 //   const [page, setPage] = useState(1);
 //   const [pageSize, setPageSize] = useState(25);
 //   const [total, setTotal] = useState(0);
-//   const [loading, setLoading] = useState(false);
 
+//   // NEW: sorting (server-side)
+//   // You can default to 'pos' if you want POS sorting by default; keeping 'dpd' for now.
+//   const [sortBy, setSortBy] = useState("dpd");   // 'pos' | 'emi' | 'dpd' | 'due'
+//   const [sortDir, setSortDir] = useState("desc"); // 'asc' | 'desc'
+//   const [summaryLoading, setSummaryLoading] = useState(false);
+
+//   // Full-screen overlay loader
+// const LoaderOverlay = ({ show, label = "Loading…" }) => {
+//   React.useEffect(() => {
+//     // inject keyframes once
+//     const STYLE_ID = "global-loader-overlay-styles";
+//     if (!document.getElementById(STYLE_ID)) {
+//       const style = document.createElement("style");
+//       style.id = STYLE_ID;
+//       style.textContent = `
+//         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+//       `;
+//       document.head.appendChild(style);
+//     }
+//   }, []);
+
+//   if (!show) return null;
+
+//   return (
+//     <div
+//       style={{
+//         position: "fixed",
+//         inset: 0,
+//         background: "rgba(0,0,0,0.35)",
+//         backdropFilter: "blur(1px)",
+//         zIndex: 9999,
+//         display: "flex",
+//         alignItems: "center",
+//         justifyContent: "center",
+//       }}
+//       aria-busy="true"
+//       aria-live="polite"
+//       aria-label={label}
+//     >
+//       <div
+//         style={{
+//           background: "#ffffff",
+//           borderRadius: 12,
+//           padding: "24px 28px",
+//           boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+//           display: "flex",
+//           alignItems: "center",
+//           gap: 16,
+//           minWidth: 260,
+//           justifyContent: "center"
+//         }}
+//       >
+//         <div
+//           style={{
+//             width: 28,
+//             height: 28,
+//             borderRadius: "50%",
+//             border: "3px solid #e6e6e6",
+//             borderTopColor: "#e53935",
+//             animation: "spin 0.9s linear infinite",
+//           }}
+//         />
+//         <div style={{ fontWeight: 600, color: "#333", letterSpacing: 0.2 }}>
+//           {label}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// useEffect(() => {
+//   const payload = { product: filters.product };
+//   setSummaryLoading(true);
+//   api.post("/dashboard/dpd-buckets", payload)
+//     .then(res => {
+//       const map = { ...emptySummary };
+//       (res.data?.buckets || []).forEach(b => {
+//         map[b.bucket] = {
+//           loans: Number(b.loans || 0),
+//           overdue_emi: Number(b.overdue_emi || 0)
+//         };
+//       });
+//       setAsOf(res.data?.asOf || "");
+//       setSummary(map);
+//     })
+//     .catch(e => console.error("DPD summary error:", e))
+//     .finally(() => setSummaryLoading(false));
+// }, [filters.product]);
+
+
+//   const getLoggedInUserId = () => {
+//     try {
+//       const raw = localStorage.getItem("user");
+//       return raw ? JSON.parse(raw)?.userId : null;
+//     } catch {
+//       return null;
+//     }
+//   };
 
 //   // fetch summary when product changes
 //   useEffect(() => {
@@ -49,7 +138,10 @@
 //       .then(res => {
 //         const map = { ...emptySummary };
 //         (res.data?.buckets || []).forEach(b => {
-//           map[b.bucket] = { loans: Number(b.loans || 0), overdue_emi: Number(b.overdue_emi || 0) };
+//           map[b.bucket] = {
+//             loans: Number(b.loans || 0),
+//             overdue_emi: Number(b.overdue_emi || 0)
+//           };
 //         });
 //         setAsOf(res.data?.asOf || "");
 //         setSummary(map);
@@ -57,14 +149,21 @@
 //       .catch(e => console.error("DPD summary error:", e));
 //   }, [filters.product]);
 
-//   // reset page when bucket changes
+//   // reset page when bucket or sort changes
 //   useEffect(() => {
 //     setPage(1);
-//   }, [selected]);
+//   }, [selected, sortBy, sortDir]);
 
-//   // fetch list when product / selected / page / pageSize change
+//   // fetch list when product / selected / page / pageSize / sort change
 //   useEffect(() => {
-//     const payload = { product: filters.product, bucket: selected, page, pageSize };
+//     const payload = {
+//       product: filters.product,
+//       bucket: selected,
+//       page,
+//       pageSize,
+//       sortBy,
+//       sortDir
+//     };
 //     setLoading(true);
 //     api.post("/dashboard/dpd-list", payload)
 //       .then(res => {
@@ -74,7 +173,7 @@
 //       })
 //       .catch(e => console.error("DPD list error:", e))
 //       .finally(() => setLoading(false));
-//   }, [filters.product, selected, page, pageSize]);
+//   }, [filters.product, selected, page, pageSize, sortBy, sortDir]);
 
 //   const formatINR = n => `₹${Math.round(Number(n || 0)).toLocaleString("en-IN")}`;
 
@@ -82,11 +181,22 @@
 //   const startIdx = total === 0 ? 0 : (page - 1) * pageSize + 1;
 //   const endIdx = Math.min(total, page * pageSize);
 
-//   // ✅ NEW: Export exactly the visible rows to Excel
+//   // Sorting helpers
+//   const toggleDir = () => setSortDir(d => (d === "asc" ? "desc" : "asc"));
+//   const setSort = (key) => {
+//     if (sortBy !== key) {
+//       setSortBy(key);
+//       setSortDir("desc"); // default direction when switching field
+//     } else {
+//       toggleDir();
+//     }
+//   };
+
+//   // Export exactly the visible rows to Excel
 //   const handleDownloadCurrentView = () => {
 //     if (!rows.length) return;
 
-//     // 1) Define columns in the order you want in Excel
+//     // Define columns & order in the Excel file
 //     const columns = [
 //       { key: "lan", header: "LAN" },
 //       { key: "product", header: "Product" },
@@ -96,50 +206,50 @@
 //       { key: "overdue_principal", header: "Overdue Principal" },
 //       { key: "overdue_interest", header: "Overdue Interest" },
 //       { key: "pos_principal", header: "POS (Principal)" },
+//       { key: "disbursement_date", header: "Disbursement Date" },   // NEW
+//   { key: "ageing_days", header: "Ageing (days)" }, 
+//       { key: "last_due_date", header: "Last Due Date" } // NEW: include date
 //     ];
 
-//     // 2) Build an array-of-arrays: first row = headers, rest = data
 //     const headerRow = columns.map(c => c.header);
 //     const dataRows = rows.map(r => {
-//       // Parse date to a Date object for correct Excel date cells
-//       const dateObj = r.last_due_date ? new Date(r.last_due_date) : "";
+//       const lastDue = r.last_due_date ? new Date(r.last_due_date) : "";
 //       return [
-//         r.lan,
-//         r.product,
+//         r.lan ?? "",
+//         r.product ?? "",
+//         r.customer_name ?? "",
 //         Number(r.max_dpd ?? 0),
 //         Number(r.overdue_emi ?? 0),
 //         Number(r.overdue_principal ?? 0),
 //         Number(r.overdue_interest ?? 0),
-//         Number(r.pos_principal ?? 0)
+//         Number(r.pos_principal ?? 0),
+//         r.disbursement_date ? new Date(r.disbursement_date) : "",  // NEW
+//   Number(r.ageing_days ?? 0),  
+//         r.last_due_date ? new Date(r.last_due_date) : ""
 //       ];
 //     });
 
 //     const aoa = [headerRow, ...dataRows];
 
-//     // 3) Make a worksheet
 //     const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-//     // 4) Set number formats (keep them as numbers in Excel)
-//     // Currency-like numeric columns: indices 3..6 (0-based)
-//     for (let r = 1; r < aoa.length; r++) {
-//       // Overdue EMI, Overdue Principal, Overdue Interest, POS (Principal)
-//       for (const c of [3, 4, 5, 6]) {
-//         const addr = XLSX.utils.encode_cell({ r, c });
-//         if (ws[addr]) {
-//           ws[addr].t = "n";
-//           // Simple thousands format (users can change to ₹ in Excel if they want)
-//           ws[addr].z = "#,##0";
-//         }
-//       }
-//       // Last Due Date
-//       const dateAddr = XLSX.utils.encode_cell({ r, c: 7 });
-//       if (ws[dateAddr] && aoa[r][7] instanceof Date) {
-//         ws[dateAddr].t = "d";
-//         ws[dateAddr].z = "yyyy-mm-dd";
-//       }
+//    // number formatting
+// for (let r = 1; r < aoa.length; r++) {
+//   // numeric columns: max_dpd(3), emi(4), princ(5), int(6), pos(7), ageing(9)
+//   for (const c of [3,4,5,6,7,9]) {
+//     const addr = XLSX.utils.encode_cell({ r, c });
+//     if (ws[addr]) { ws[addr].t = "n"; ws[addr].z = "#,##0"; }
+//   }
+//   // date columns: disbursement_date(8), last_due_date(10)
+//   for (const c of [8,10]) {
+//     const addr = XLSX.utils.encode_cell({ r, c });
+//     if (ws[addr] && aoa[r][c] instanceof Date) {
+//       ws[addr].t = "d"; ws[addr].z = "yyyy-mm-dd";
 //     }
+//   }
+// }
 
-//     // 5) Autosize columns
+//     // Autosize columns
 //     const colWidths = headerRow.map((h, idx) => {
 //       const maxLen = Math.max(
 //         String(h).length,
@@ -149,56 +259,56 @@
 //     });
 //     ws["!cols"] = colWidths;
 
-//     // 6) Build workbook and download
 //     const wb = XLSX.utils.book_new();
 //     XLSX.utils.book_append_sheet(wb, ws, "Visible Rows");
+
 //     const safeProduct = String(filters.product || "ALL").replace(/[^\w-]+/g, "_");
 //     const safeBucket = String(selected).replace(/[^\w-]+/g, "_");
-//     const filename = `DPD_${safeProduct}_${safeBucket}_page_${page}.xlsx`;
+//     const filename = `DPD_${safeProduct}_${safeBucket}_page_${page}_${sortBy}_${sortDir}.xlsx`;
 //     XLSX.writeFile(wb, filename);
 //   };
 
 //   const handleDownloadAndEmailMe = async () => {
-//   if (!rows.length || isEmailing) return; 
-//   const userId = getLoggedInUserId();
-//   if (!userId) {
-//     alert("No logged-in user found.");
-//     return;
-//   }
+//     if (!rows.length || isEmailing) return;
+//     const userId = getLoggedInUserId();
+//     if (!userId) {
+//       alert("No logged-in user found.");
+//       return;
+//     }
 
-//   setIsEmailing(true);
+//     setIsEmailing(true);
+//     try {
+//       await api.post("/dashboard/dpd-export-email", {
+//         userId,                   // server will look up email from users table
+//         product: filters.product,
+//         bucket: selected,
+//         page,
+//         sortBy,
+//         sortDir,
+//         rows: rows.map(r => ({
+//           lan: r.lan,
+//           customer_name: r.customer_name,
+//           product: r.product,
+//           max_dpd: r.max_dpd,
+//           overdue_emi: r.overdue_emi,
+//           overdue_principal: r.overdue_principal,
+//           overdue_interest: r.overdue_interest,
+//           pos_principal: r.pos_principal,
+//           // last_due_date: r.last_due_date, // include if your email template needs it
+//         })),
+//       });
 
-//   try {
-//     // download locally
-//     // handleDownloadCurrentView();
+//       alert("Report is emailed to your email address.");
+//     } catch (e) {
+//       console.error("Email report error:", e);
+//       alert("Failed to email report. Please try again.");
+//     } finally {
+//       setIsEmailing(false);
+//     }
+//   };
 
-//     // send to backend for emailing (exact rows currently visible)
-//     await api.post("/dashboard/dpd-export-email", {
-//       userId,                   // server will look up email from users table
-//       product: filters.product,
-//       bucket: selected,
-//       page,
-//       rows: rows.map(r => ({
-//         lan: r.lan,
-//         customer_name: r.customer_name,
-//         product: r.product,
-//         max_dpd: r.max_dpd,
-//         overdue_emi: r.overdue_emi,
-//         overdue_principal: r.overdue_principal,
-//         overdue_interest: r.overdue_interest,
-//         pos_principal: r.pos_principal,
-//         // last_due_date: r.last_due_date,
-//       })),
-//     });
-
-//     alert("Report is emailed to your email address.");
-//   } catch (e) {
-//     console.error("Email report error:", e);
-//     alert("Failed to email report. Please try again.");
-//   }finally {
-//     setIsEmailing(false);
-//   }
-// };
+//   const SortIcon = ({ active, dir }) =>
+//     active ? <span>&nbsp;{dir === "asc" ? "▲" : "▼"}</span> : null;
 
 //   return (
 //     <div style={{ background: "#fff", padding: "1rem", borderRadius: 8, marginTop: "2rem" }}>
@@ -231,14 +341,14 @@
 //         ))}
 //       </div>
 
-//       {/* Toolbar: showing range, export, and pagination */}
-//       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-//         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+//       {/* Toolbar: showing range, export, sort, and pagination */}
+//       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 12, flexWrap: "wrap" }}>
+//         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
 //           <div style={{ fontSize: 13, color: "#666" }}>
 //             {loading ? "Loading…" : `Showing ${startIdx}-${endIdx} of ${total}`}
 //           </div>
 
-//           {/* ✅ NEW: Download current page/view */}
+//           {/* Download current page/view */}
 //           <button
 //             onClick={handleDownloadCurrentView}
 //             disabled={loading || rows.length === 0}
@@ -254,28 +364,51 @@
 //           >
 //             ⬇️ Download current view (Excel)
 //           </button>
+
 //           <button
-//   onClick={handleDownloadAndEmailMe}
-//   disabled={loading || rows.length === 0 || isEmailing}
-//   style={{
-//     padding: "6px 12px",
-//     borderRadius: 6,
-//     border: "1px solid #ddd",
-//     background: (loading || rows.length === 0) ? "#eee" : "#f4f4f4",
-//     cursor: (loading || rows.length === 0 || isEmailing) ? "not-allowed" : "pointer",
-//     opacity: isEmailing ? 0.6 : 1,
-//     fontSize: 13
-//   }}
-//   title={isEmailing ? "Sending…" : "Download the current page and email it to your registered email"}
-// >
-//   {isEmailing ? "⏳ Sending…" : "⬇️ Download & ✉️ Email me"}
-// </button>
-
-
+//             onClick={handleDownloadAndEmailMe}
+//             disabled={loading || rows.length === 0 || isEmailing}
+//             style={{
+//               padding: "6px 12px",
+//               borderRadius: 6,
+//               border: "1px solid #ddd",
+//               background: (loading || rows.length === 0) ? "#eee" : "#f4f4f4",
+//               cursor: (loading || rows.length === 0 || isEmailing) ? "not-allowed" : "pointer",
+//               opacity: isEmailing ? 0.6 : 1,
+//               fontSize: 13
+//             }}
+//             title={isEmailing ? "Sending…" : "Download the current page and email it to your registered email"}
+//           >
+//             {isEmailing ? "⏳ Sending…" : "⬇️ Download & ✉️ Email me"}
+//           </button>
 //         </div>
 
-//         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-//           <label style={{ fontSize: 13, color: "#666" }}>Rows per page:</label>
+//         {/* Sort controls */}
+//         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+//           <label style={{ fontSize: 13, color: "#666" }}>Sort by:</label>
+//           <select
+//             value={sortBy}
+//             onChange={(e) => setSortBy(e.target.value)}
+//             disabled={loading}
+//             style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid " + (loading ? "#eee" : "#ddd") }}
+//           >
+//             <option value="pos">POS (Principal)</option>
+//             <option value="emi">Overdue EMI</option>
+//             <option value="dpd">Max DPD</option>
+//             <option value="due">Last Due Date</option>
+//           </select>
+
+//           <button
+//             onClick={toggleDir}
+//             disabled={loading}
+//             style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #ddd", background: "#fafafa", cursor: loading ? "not-allowed" : "pointer" }}
+//             title={`Direction: ${sortDir.toUpperCase()}`}
+//           >
+//             {sortDir === "asc" ? "▲ Asc" : "▼ Desc"}
+//           </button>
+
+//           {/* Rows per page & pager */}
+//           <label style={{ fontSize: 13, color: "#666", marginLeft: 12 }}>Rows per page:</label>
 //           <select
 //             value={pageSize}
 //             onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
@@ -312,10 +445,31 @@
 //               <th style={th}>LAN</th>
 //               <th style={th}>Product</th>
 //               <th style={th}>Max DPD</th>
-//               <th style={th}>Overdue EMI</th>
+
+//               {/* Clickable sort headers for EMI and POS */}
+//               <th
+//                 style={{ ...th, cursor: "pointer" }}
+//                 onClick={() => setSort("emi")}
+//                 title="Sort by Overdue EMI"
+//               >
+//                 Overdue EMI
+//                 <SortIcon active={sortBy === "emi"} dir={sortDir} />
+//               </th>
 //               <th style={th}>Overdue Principal</th>
 //               <th style={th}>Overdue Interest</th>
-//               <th style={th}>POS (Principal)</th>
+
+//               <th
+//                 style={{ ...th, cursor: "pointer" }}
+//                 onClick={() => setSort("pos")}
+//                 title="Sort by POS (Principal)"
+//               >
+//                 POS (Principal)
+//                 <SortIcon active={sortBy === "pos"} dir={sortDir} />
+//               </th>
+
+//               <th style={th}>Disbursement Date</th>
+//     <th style={th}>Ageing (days)</th>
+
 //               <th style={th}>Last Due Date</th>
 //             </tr>
 //           </thead>
@@ -329,16 +483,18 @@
 //                 <td style={td}>{formatINR(r.overdue_principal)}</td>
 //                 <td style={td}>{formatINR(r.overdue_interest)}</td>
 //                 <td style={td}>{formatINR(r.pos_principal)}</td>
+//                 <td style={td}>{r.disbursement_date ? String(r.disbursement_date).slice(0,10) : "-"}</td>
+//       <td style={td}>{(r.ageing_days ?? "") === "" ? "-" : r.ageing_days}</td>
 //                 <td style={td}>{r.last_due_date ? String(r.last_due_date).slice(0, 10) : "-"}</td>
 //               </tr>
 //             ))}
 //             {!rows.length && !loading && (
-//               // 🔧 Minor fix: colSpan should be 8 (you had 7 earlier)
-//               <tr><td style={td} colSpan={8}>No loans in this bucket.</td></tr>
+//               <tr><td style={td} colSpan={10}>No loans in this bucket.</td></tr>
 //             )}
 //           </tbody>
 //         </table>
 //       </div>
+//       <LoaderOverlay show={loading || summaryLoading} label="Fetching data…" />
 //     </div>
 //   );
 // };
@@ -389,23 +545,86 @@ const DpdBuckets = ({ filters }) => {
   const [pageSize, setPageSize] = useState(25);
   const [total, setTotal] = useState(0);
 
-  // NEW: sorting (server-side)
-  // You can default to 'pos' if you want POS sorting by default; keeping 'dpd' for now.
-  const [sortBy, setSortBy] = useState("dpd");   // 'pos' | 'emi' | 'dpd' | 'due'
+  // sorting (server-side)
+  const [sortBy, setSortBy] = useState("dpd");   // 'pos' | 'emi' | 'dpd' | 'due' | 'ageing'
   const [sortDir, setSortDir] = useState("desc"); // 'asc' | 'desc'
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
-  const getLoggedInUserId = () => {
-    try {
-      const raw = localStorage.getItem("user");
-      return raw ? JSON.parse(raw)?.userId : null;
-    } catch {
-      return null;
-    }
+  // Full-screen overlay loader
+  const LoaderOverlay = ({ show, label = "Loading…" }) => {
+    // inject keyframes once
+    React.useEffect(() => {
+      const STYLE_ID = "global-loader-overlay-styles";
+      if (!document.getElementById(STYLE_ID)) {
+        const style = document.createElement("style");
+        style.id = STYLE_ID;
+        style.textContent = `
+          @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        `;
+        document.head.appendChild(style);
+      }
+    }, []);
+    // lock scroll while visible
+    React.useEffect(() => {
+      if (!show) return;
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }, [show]);
+
+    if (!show) return null;
+
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.35)",
+          backdropFilter: "blur(1px)",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        aria-busy="true"
+        aria-live="polite"
+        aria-label={label}
+      >
+        <div
+          style={{
+            background: "#ffffff",
+            borderRadius: 12,
+            padding: "24px 28px",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            minWidth: 260,
+            justifyContent: "center"
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              border: "3px solid #e6e6e6",
+              borderTopColor: "#e53935",
+              animation: "spin 0.9s linear infinite",
+            }}
+          />
+          <div style={{ fontWeight: 600, color: "#333", letterSpacing: 0.2 }}>
+            {label}
+          </div>
+        </div>
+      </div>
+    );
   };
 
-  // fetch summary when product changes
+  // fetch summary when product changes (single effect — no duplicate)
   useEffect(() => {
     const payload = { product: filters.product };
+    setSummaryLoading(true);
     api.post("/dashboard/dpd-buckets", payload)
       .then(res => {
         const map = { ...emptySummary };
@@ -418,7 +637,8 @@ const DpdBuckets = ({ filters }) => {
         setAsOf(res.data?.asOf || "");
         setSummary(map);
       })
-      .catch(e => console.error("DPD summary error:", e));
+      .catch(e => console.error("DPD summary error:", e))
+      .finally(() => setSummaryLoading(false));
   }, [filters.product]);
 
   // reset page when bucket or sort changes
@@ -468,7 +688,6 @@ const DpdBuckets = ({ filters }) => {
   const handleDownloadCurrentView = () => {
     if (!rows.length) return;
 
-    // Define columns & order in the Excel file
     const columns = [
       { key: "lan", header: "LAN" },
       { key: "product", header: "Product" },
@@ -478,48 +697,44 @@ const DpdBuckets = ({ filters }) => {
       { key: "overdue_principal", header: "Overdue Principal" },
       { key: "overdue_interest", header: "Overdue Interest" },
       { key: "pos_principal", header: "POS (Principal)" },
-      { key: "disbursement_date", header: "Disbursement Date" },   // NEW
-  { key: "ageing_days", header: "Ageing (days)" }, 
-      { key: "last_due_date", header: "Last Due Date" } // NEW: include date
+      { key: "disbursement_date", header: "Disbursement Date" },
+      { key: "ageing_days", header: "Ageing (days)" },
+      { key: "last_due_date", header: "Last Due Date" }
     ];
 
     const headerRow = columns.map(c => c.header);
-    const dataRows = rows.map(r => {
-      const lastDue = r.last_due_date ? new Date(r.last_due_date) : "";
-      return [
-        r.lan ?? "",
-        r.product ?? "",
-        r.customer_name ?? "",
-        Number(r.max_dpd ?? 0),
-        Number(r.overdue_emi ?? 0),
-        Number(r.overdue_principal ?? 0),
-        Number(r.overdue_interest ?? 0),
-        Number(r.pos_principal ?? 0),
-        r.disbursement_date ? new Date(r.disbursement_date) : "",  // NEW
-  Number(r.ageing_days ?? 0),  
-        r.last_due_date ? new Date(r.last_due_date) : ""
-      ];
-    });
+    const dataRows = rows.map(r => ([
+      r.lan ?? "",
+      r.product ?? "",
+      r.customer_name ?? "",
+      Number(r.max_dpd ?? 0),
+      Number(r.overdue_emi ?? 0),
+      Number(r.overdue_principal ?? 0),
+      Number(r.overdue_interest ?? 0),
+      Number(r.pos_principal ?? 0),
+      r.disbursement_date ? new Date(r.disbursement_date) : "",
+      Number(r.ageing_days ?? 0),
+      r.last_due_date ? new Date(r.last_due_date) : ""
+    ]));
 
     const aoa = [headerRow, ...dataRows];
-
     const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-   // number formatting
-for (let r = 1; r < aoa.length; r++) {
-  // numeric columns: max_dpd(3), emi(4), princ(5), int(6), pos(7), ageing(9)
-  for (const c of [3,4,5,6,7,9]) {
-    const addr = XLSX.utils.encode_cell({ r, c });
-    if (ws[addr]) { ws[addr].t = "n"; ws[addr].z = "#,##0"; }
-  }
-  // date columns: disbursement_date(8), last_due_date(10)
-  for (const c of [8,10]) {
-    const addr = XLSX.utils.encode_cell({ r, c });
-    if (ws[addr] && aoa[r][c] instanceof Date) {
-      ws[addr].t = "d"; ws[addr].z = "yyyy-mm-dd";
+    // number & date formats
+    for (let r = 1; r < aoa.length; r++) {
+      // numeric columns: max_dpd(3), emi(4), princ(5), int(6), pos(7), ageing(9)
+      for (const c of [3,4,5,6,7,9]) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        if (ws[addr]) { ws[addr].t = "n"; ws[addr].z = "#,##0"; }
+      }
+      // date columns: disbursement_date(8), last_due_date(10)
+      for (const c of [8,10]) {
+        const addr = XLSX.utils.encode_cell({ r, c });
+        if (ws[addr] && aoa[r][c] instanceof Date) {
+          ws[addr].t = "d"; ws[addr].z = "yyyy-mm-dd";
+        }
+      }
     }
-  }
-}
 
     // Autosize columns
     const colWidths = headerRow.map((h, idx) => {
@@ -540,6 +755,15 @@ for (let r = 1; r < aoa.length; r++) {
     XLSX.writeFile(wb, filename);
   };
 
+  const getLoggedInUserId = () => {
+    try {
+      const raw = localStorage.getItem("user");
+      return raw ? JSON.parse(raw)?.userId : null;
+    } catch {
+      return null;
+    }
+  };
+
   const handleDownloadAndEmailMe = async () => {
     if (!rows.length || isEmailing) return;
     const userId = getLoggedInUserId();
@@ -551,7 +775,7 @@ for (let r = 1; r < aoa.length; r++) {
     setIsEmailing(true);
     try {
       await api.post("/dashboard/dpd-export-email", {
-        userId,                   // server will look up email from users table
+        userId,
         product: filters.product,
         bucket: selected,
         page,
@@ -566,10 +790,8 @@ for (let r = 1; r < aoa.length; r++) {
           overdue_principal: r.overdue_principal,
           overdue_interest: r.overdue_interest,
           pos_principal: r.pos_principal,
-          // last_due_date: r.last_due_date, // include if your email template needs it
         })),
       });
-
       alert("Report is emailed to your email address.");
     } catch (e) {
       console.error("Email report error:", e);
@@ -581,6 +803,10 @@ for (let r = 1; r < aoa.length; r++) {
 
   const SortIcon = ({ active, dir }) =>
     active ? <span>&nbsp;{dir === "asc" ? "▲" : "▼"}</span> : null;
+
+  const overlayLabel = isEmailing
+    ? "Sending report…"
+    : "Fetching data…";
 
   return (
     <div style={{ background: "#fff", padding: "1rem", borderRadius: 8, marginTop: "2rem" }}>
@@ -613,14 +839,13 @@ for (let r = 1; r < aoa.length; r++) {
         ))}
       </div>
 
-      {/* Toolbar: showing range, export, sort, and pagination */}
+      {/* Toolbar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, gap: 12, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div style={{ fontSize: 13, color: "#666" }}>
             {loading ? "Loading…" : `Showing ${startIdx}-${endIdx} of ${total}`}
           </div>
 
-          {/* Download current page/view */}
           <button
             onClick={handleDownloadCurrentView}
             disabled={loading || rows.length === 0}
@@ -668,6 +893,7 @@ for (let r = 1; r < aoa.length; r++) {
             <option value="emi">Overdue EMI</option>
             <option value="dpd">Max DPD</option>
             <option value="due">Last Due Date</option>
+            <option value="ageing">Ageing (days)</option> {/* NEW */}
           </select>
 
           <button
@@ -716,9 +942,8 @@ for (let r = 1; r < aoa.length; r++) {
             <tr style={{ background: "#f9f9f9", color: "#201d1dff", fontWeight: "900", fontSize: 16 }}>
               <th style={th}>LAN</th>
               <th style={th}>Product</th>
-              <th style={th}>Max DPD</th>
+              <th style={th}>DPD</th>
 
-              {/* Clickable sort headers for EMI and POS */}
               <th
                 style={{ ...th, cursor: "pointer" }}
                 onClick={() => setSort("emi")}
@@ -740,7 +965,15 @@ for (let r = 1; r < aoa.length; r++) {
               </th>
 
               <th style={th}>Disbursement Date</th>
-    <th style={th}>Ageing (days)</th>
+
+              <th
+                style={{ ...th, cursor: "pointer" }}
+                onClick={() => setSort("ageing")}
+                title="Sort by Ageing (days)"
+              >
+                Ageing Since Disbursement
+                <SortIcon active={sortBy === "ageing"} dir={sortDir} />
+              </th>
 
               <th style={th}>Last Due Date</th>
             </tr>
@@ -756,7 +989,7 @@ for (let r = 1; r < aoa.length; r++) {
                 <td style={td}>{formatINR(r.overdue_interest)}</td>
                 <td style={td}>{formatINR(r.pos_principal)}</td>
                 <td style={td}>{r.disbursement_date ? String(r.disbursement_date).slice(0,10) : "-"}</td>
-      <td style={td}>{(r.ageing_days ?? "") === "" ? "-" : r.ageing_days}</td>
+                <td style={td}>{(r.ageing_days ?? "") === "" ? "-" : r.ageing_days}</td>
                 <td style={td}>{r.last_due_date ? String(r.last_due_date).slice(0, 10) : "-"}</td>
               </tr>
             ))}
@@ -766,6 +999,9 @@ for (let r = 1; r < aoa.length; r++) {
           </tbody>
         </table>
       </div>
+
+      {/* Full-screen overlay on any loading/emailing */}
+      <LoaderOverlay show={loading || summaryLoading || isEmailing} label={overlayLabel} />
     </div>
   );
 };

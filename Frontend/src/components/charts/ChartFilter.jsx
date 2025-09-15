@@ -20,7 +20,7 @@ const ChartFilter = ({ onFilterChange }) => {
           <option value="ALL">All</option>
           <option value="EV_loan">Malhotra EV loan</option>
           <option value="BL_loan">UBL loan</option>
-          <option value="Adikosh">Adikosh</option>
+          <option value="Adikosh">Adhikosh</option>
           <option value="GQ Non-FSF">GQ Non-FSF</option>
           <option value="GQ FSF">GQ FSF</option>
         </select>
