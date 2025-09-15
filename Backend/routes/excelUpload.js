@@ -4,6 +4,7 @@ const xlsx = require("xlsx");
 const db = require("../config/db");
 // const verifyApiKey = require("../middleware/authMiddleware");
 const verifyApiKey = require("../middleware/apiKeyAuth");
+const { sendLoanStatusMail } = require("../jobs/mailer");
 
 const {generateRepaymentSchedule} = require("../utils/repaymentScheduleGenerator");
 
@@ -297,7 +298,7 @@ await db.promise().query(query, [
   row["Product"],
   row["lender"] || 'EV_loan', // Default value as per table definition
   row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-  row["status"] || 'Approved', // Default value as per table definition
+  row["status"] || 'Login', // Default value as per table definition
   row["Disbursal Amount"] || null, // Optional if not provided
   row["Processing Fee"] || 0.00, // Default value as per table definition
   row["CIBIL Score"],
@@ -588,17 +589,58 @@ router.get("/disbursed-loans", (req, res) => {
   });
 });
 
+// router.put("/login-loans/:lan", (req, res) => {
+//   const lan = req.params.lan;
+//   const { status, table } = req.body;
+
+//   const allowedTables = {
+//     "loan_bookings": true,
+//     "loan_booking_adikosh": true,
+//     "loan_booking_gq_non_fsf": true,
+//     "loan_booking_gq_fsf": true,
+//     "loan_bookings_wctl": true,
+//     "loan_booking_ev": true
+//   };
+
+//   if (!allowedTables[table]) {
+//     return res.status(400).json({ message: "Invalid table name" });
+//   }
+
+//   if (!["approved", "rejected"].includes(status)) {
+//     return res.status(400).json({ message: "Invalid status value" });
+//   }
+
+//   const query = `UPDATE ?? SET status = ? WHERE lan = ?`;
+//   const values = [table, status, lan];
+
+//   db.query(query, values, (err, result) => {
+//   if (err) {
+//     console.error("Error updating loan status:", err);
+//     return res.status(500).json({ message: "Database error", error: err });
+//   }
+//   if (result.affectedRows === 0) {
+//     return res.status(404).json({ message: "Loan not found with LAN " + lan });
+//   }
+//   res.json({ message: `Loan with LAN ${lan} updated to ${status} in ${table}` });
+// });
+
+// });
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+
 router.put("/login-loans/:lan", (req, res) => {
   const lan = req.params.lan;
   const { status, table } = req.body;
 
   const allowedTables = {
-    "loan_bookings": true,
-    "loan_booking_adikosh": true,
-    "loan_booking_gq_non_fsf": true,
-    "loan_booking_gq_fsf": true,
-    "loan_bookings_wctl": true,
-    "loan_booking_ev": true
+    loan_bookings: true,
+    loan_booking_adikosh: true,
+    loan_booking_gq_non_fsf: true,
+    loan_booking_gq_fsf: true,
+    loan_bookings_wctl: true,
+    loan_booking_ev: true,
   };
 
   if (!allowedTables[table]) {
@@ -612,22 +654,49 @@ router.put("/login-loans/:lan", (req, res) => {
   const query = `UPDATE ?? SET status = ? WHERE lan = ?`;
   const values = [table, status, lan];
 
-  db.query(query, values, (err, result) => {
-  if (err) {
-    console.error("Error updating loan status:", err);
-    return res.status(500).json({ message: "Database error", error: err });
-  }
-  if (result.affectedRows === 0) {
-    return res.status(404).json({ message: "Loan not found with LAN " + lan });
-  }
-  res.json({ message: `Loan with LAN ${lan} updated to ${status} in ${table}` });
+  db.query(query, values, async (err, result) => {
+    if (err) {
+      console.error("Error updating loan status:", err);
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Loan not found with LAN " + lan });
+    }
+
+    // ✅ Fetch loan amount for email
+    db.query(
+      `SELECT customer_name, loan_amount, batch_id FROM ?? WHERE lan = ?`,
+      [table, lan],
+      async (fetchErr, rows) => {
+        if (fetchErr) {
+          console.error("Error fetching loan details:", fetchErr);
+        } else if (rows.length > 0) {
+          const { loan_amount: loanAmount, customer_name: customerName, batch_id: batchId } = rows[0];
+
+          // ✅ Only trigger email if LAN starts with "ADK"
+          if (lan.startsWith("ADK")) {
+            try {
+              await sendLoanStatusMail({
+                to: ["abhishek@getkosh.com", "ravikumar@nfcpl.in", "vineet.ranjan@getkosh.com", "rajeev@nfcpl.in", "rohit.joshi@fintreefinance.com"],
+                customerName,
+                batchId,
+                loanAmount,
+                status,
+              });
+              console.log(`Email sent for ${lan} (${status})`);
+            } catch (mailErr) {
+              console.error("Error sending email:", mailErr);
+            }
+          }
+        }
+      }
+    );
+
+    res.json({ message: `Loan with LAN ${lan} updated to ${status} in ${table}` });
+  });
 });
 
-});
 
-
-
-/////////////////////////////////////////////////////////////////////////////////////
 router.post("/hc-upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
   if (!req.body.lenderType)

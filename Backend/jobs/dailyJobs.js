@@ -30,6 +30,7 @@ cron.schedule("*/2 * * * *", async () => {
     "manual_rps_gq_non_fsf",
     "manual_rps_gq_fsf",
     "manual_rps_adikosh",
+    "manual_rps_dummy",
     "manual_rps_adikosh_fintree",
     "manual_rps_adikosh_partner",
     "manual_rps_adikosh_fintree_roi"

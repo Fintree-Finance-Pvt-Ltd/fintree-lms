@@ -184,10 +184,10 @@ const Sidebar = () => {
           '/mis-reports',
         ].some(prefix => p.path.includes(prefix))
     ),
-    'EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
+    'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     //'Health Care Loans': allowedPages.filter(p => p.path.includes('/health-care-loans')),
-    'Business Loans': allowedPages.filter(p => p.path.includes('/business-loans')),
-    'WCTL BL Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
+    'Unsecured Business Loans': allowedPages.filter(p => p.path.includes('/business-loans')),
+    'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
     'GQ FSF Loans': allowedPages.filter(p => p.path.includes('/gq-fsf-loans')),
     'GQ Non-FSF Loans': allowedPages.filter(p => p.path.includes('/gq-non-fsf-loans')),
     'Embifi Loans': allowedPages.filter(p => p.path.includes('/embifi-loans')),

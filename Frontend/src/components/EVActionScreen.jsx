@@ -7,7 +7,7 @@ const EVActionScreen = () => {
     <LoginActionScreen
       apiUrl={`/loan-booking/login-loans?table=loan_booking_ev&prefix=EV`}
       title="EV Action Pending Loans"
-      tableName="loan_bookings"
+      tableName="loan_booking_ev"
     />
   );
 }

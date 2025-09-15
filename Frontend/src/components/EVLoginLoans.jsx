@@ -7,7 +7,7 @@ const EVLoginLoans = () => {
     <LoginCaseScreen
       apiUrl={`/loan-booking/login-loans?table=loan_booking_ev&prefix=EV`}
       title="EV Login Stage Loans"
-      tableName="loan_bookings"
+      tableName="loan_booking_ev"
     />
   );
 };

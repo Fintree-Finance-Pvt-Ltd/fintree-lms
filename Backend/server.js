@@ -18,10 +18,12 @@ const forecloserRoutes = require("./routes/forecloserRoutes");
 const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+// const { initScheduler } = require('./jobs/smsSchedulerRaw');
+const { initScheduler, runOnce } = require('./jobs/smsSchedulerRaw');
+
+
 // server.js
 // import { v4 as uuidv4 } from 'uuid';
-
-
 
 // ✅ Import jobs
 require("./jobs/dailyJobs");
@@ -38,6 +40,7 @@ app.use(cors({
   credentials: true
 }));
 
+initScheduler();
 
 // // Auto-generate API key once when server starts
 // const API_KEY = process.env.API_KEY || uuidv4();
@@ -82,7 +85,15 @@ app.use("/api/reports", reportsRoutes);// ✅ Register Route for Reports
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 
-
+app.get("/api/test-sms", async (req, res) => {
+  try {
+    await runOnce(); // queues due/overdue and sends immediately
+    res.json({ message: "✅ SMS job executed. Check sms_outbox for results." });
+  } catch (err) {
+    console.error("Test SMS error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 // app.get('*', (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
 //   });

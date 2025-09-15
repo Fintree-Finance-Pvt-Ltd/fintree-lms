@@ -18,8 +18,8 @@ const ChartFilter = ({ onFilterChange }) => {
         <label>Product</label>
         <select value={product} onChange={(e) => setProduct(e.target.value)}>
           <option value="ALL">All</option>
-          <option value="EV_loan">EV_loan</option>
-          <option value="BL_loan">BL_loan</option>
+          <option value="EV_loan">Malhotra EV loan</option>
+          <option value="BL_loan">UBL loan</option>
           <option value="Adikosh">Adikosh</option>
           <option value="GQ Non-FSF">GQ Non-FSF</option>
           <option value="GQ FSF">GQ FSF</option>
