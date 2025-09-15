@@ -186,7 +186,7 @@ const Sidebar = () => {
     ),
     'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     //'Health Care Loans': allowedPages.filter(p => p.path.includes('/health-care-loans')),
-    'Unsecured Business Loans': allowedPages.filter(p => p.path.includes('/business-loans')),
+    'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
     'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
     'GQ FSF Loans': allowedPages.filter(p => p.path.includes('/gq-fsf-loans')),
     'GQ Non-FSF Loans': allowedPages.filter(p => p.path.includes('/gq-non-fsf-loans')),
