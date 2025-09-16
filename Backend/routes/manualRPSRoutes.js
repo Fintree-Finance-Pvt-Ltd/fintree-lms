@@ -177,7 +177,7 @@ const excelSerialToDate = (value) => {
 // --- Config: map lender → booking & RPS tables ---
 const RPS_TABLES = {
   WCTL:   'manual_rps_wctl',
-  EMBIFI: 'manual_rps_embifi',  // <-- change here if your table name differs
+  EMBIFI: 'manual_rps_embifi_loan',  // <-- change here if your table name differs
   EVBL:   'manual_rps_bl_loan',
 };
 
