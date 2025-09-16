@@ -115,3 +115,4 @@ const allocateEmbifi = async (lan, payment) => {
   }
 };
 
+module.exports = allocateEmbifi;
