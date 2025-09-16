@@ -402,6 +402,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_consolidated_mis_report_gq_non_fsf"
         : lender === "gq fsf"
         ? "sp_consolidated_mis_report_gq_fsf"
+        : lender === "embifi"
+        ? "sp_consolidated_mis_report_embifi"
         : lender === "wctl"
         ? "sp_consolidated_mis_report_wctl"
         : "sp_consolidated_mis_report",
