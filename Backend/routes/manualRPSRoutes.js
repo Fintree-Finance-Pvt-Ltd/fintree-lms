@@ -45,132 +45,301 @@ const excelSerialToDate = (value) => {
     return null;
 };
 
-// ✅ Check if LAN Exists in `loan_bookings`
-const getValidLAN = (lan) => {
-    const tablename = lan.startsWith("WCTL") ? "loan_bookings_wctl" : "loan_bookings";
-    return new Promise((resolve, reject) => {
-        db.query(`SELECT lan FROM ${tablename} WHERE lan = ?`, [lan], (err, results) => {
-            if (err) return reject(err);
-            resolve(results.length > 0 ? results[0].lan : null);
-        });
-    });
+// // ✅ Check if LAN Exists in `loan_bookings`
+// const getValidLAN = (lan) => {
+//     const tablename = lan.startsWith("WCTL") ? "loan_bookings_wctl" : "loan_bookings";
+//     return new Promise((resolve, reject) => {
+//         db.query(`SELECT lan FROM ${tablename} WHERE lan = ?`, [lan], (err, results) => {
+//             if (err) return reject(err);
+//             resolve(results.length > 0 ? results[0].lan : null);
+//         });
+//     });
+// };
+
+// // ✅ Check if RPS already exists for LAN & Due Date
+// const checkExistingRPS = (lan, due_date) => {
+//     return new Promise((resolve, reject) => {
+//         db.query("SELECT lan FROM manual_rps_bl_loan WHERE lan = ? AND due_date = ?", [lan, due_date], (err, results) => {
+//             if (err) return reject(err);
+//             resolve(results.length > 0);
+//         });
+//     });
+// };
+// router.post("/upload", upload.single("file"), async (req, res) => {
+//     if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+//     try {
+//         const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+//         const sheetName = workbook.SheetNames[0];
+//         const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+//         if (sheetData.length === 0) {
+//             return res.status(400).json({ message: "No data found in the uploaded file" });
+//         }
+
+//         let dataToInsertWCTL = [];
+//         let dataToInsertEV = [];
+//         let skippedEntries = [];
+
+//         for (const row of sheetData) {
+//             const lan = row["LAN"];
+//             const due_date = excelSerialToDate(row["Due Date"]);
+
+//             if (!lan || !due_date) {
+//                 skippedEntries.push({ lan, due_date, reason: "Missing LAN or due date" });
+//                 continue;
+//             }
+
+//             const validLAN = await getValidLAN(lan);
+//             if (!validLAN) {
+//                 skippedEntries.push({ lan, due_date, reason: "LAN not found in loan_bookings" });
+//                 continue;
+//             }
+
+//             const exists = await checkExistingRPS(validLAN, due_date);
+//             if (exists) {
+//                 skippedEntries.push({ lan, due_date, reason: "Duplicate RPS entry" });
+//                 continue;
+//             }
+
+//             const dataRow = [
+//                 validLAN,
+//                 due_date,
+//                 row["Status"] || null,
+//                 row["EMI"] || null,
+//                 row["Interest"] || null,
+//                 row["Principal"] || null,
+//                 row["Opening"] ? parseFloat(row["Opening"]) : null,
+//                 row["Closing"] ? parseFloat(row["Closing"]) : null,
+//                 row["Remaining EMI"] || null,
+//                 row["Remaining Interest"] || null,
+//                 row["Remaining Principal"] || null
+//             ];
+
+//             // ➡️ Choose table based on LAN prefix
+//             if (validLAN.startsWith("WCTL")) {
+//                 dataToInsertWCTL.push(dataRow);
+//             } else {
+//                 dataToInsertEV.push(dataRow);
+//             }
+//         }
+
+//         // ➡️ Insert into WCTL table
+//         if (dataToInsertWCTL.length > 0) {
+//             const insertQueryWCTL = `
+//                 INSERT INTO manual_rps_wctl
+//                 (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi, remaining_interest, remaining_principal) 
+//                 VALUES ?`;
+//             await new Promise((resolve, reject) => {
+//                 db.query(insertQueryWCTL, [dataToInsertWCTL], (err, result) => {
+//                     if (err) return reject(err);
+//                     resolve(result);
+//                 });
+//             });
+//         }
+
+//         // ➡️ Insert into EV Loan table
+//         if (dataToInsertEV.length > 0) {
+//             const insertQueryEV = `
+//                 INSERT INTO manual_rps_bl_loan
+//                 (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi, remaining_interest, remaining_principal) 
+//                 VALUES ?`;
+//             await new Promise((resolve, reject) => {
+//                 db.query(insertQueryEV, [dataToInsertEV], (err, result) => {
+//                     if (err) return reject(err);
+//                     resolve(result);
+//                 });
+//             });
+//         }
+
+//         const totalInserted = dataToInsertWCTL.length + dataToInsertEV.length;
+
+//         // ✅ Return response
+//         if (skippedEntries.length > 0) {
+//             return res.status(207).json({
+//                 message: `Upload partially completed. ${totalInserted} rows inserted, ${skippedEntries.length} skipped.`,
+//                 skipped: skippedEntries
+//             });
+//         } else {
+//             return res.json({ message: "All rows uploaded successfully." });
+//         }
+
+//     } catch (error) {
+//         console.error("Error processing RPS file:", error);
+//         return res.status(500).json({ message: "Error processing file." });
+//     }
+// });
+
+
+
+// module.exports = router;
+
+// --- Config: map lender → booking & RPS tables ---
+const RPS_TABLES = {
+  WCTL:   'manual_rps_wctl',
+  EMBIFI: 'manual_rps_embifi',  // <-- change here if your table name differs
+  EVBL:   'manual_rps_bl_loan',
 };
 
-// ✅ Check if RPS already exists for LAN & Due Date
-const checkExistingRPS = (lan, due_date) => {
-    return new Promise((resolve, reject) => {
-        db.query("SELECT lan FROM manual_rps_bl_loan WHERE lan = ? AND due_date = ?", [lan, due_date], (err, results) => {
-            if (err) return reject(err);
-            resolve(results.length > 0);
-        });
-    });
+const BOOKING_TABLES = {
+  WCTL:   'loan_bookings_wctl',
+  EMBIFI: 'loan_booking_embifi',
+  EVBL:   'loan_bookings',
 };
-router.post("/upload", upload.single("file"), async (req, res) => {
-    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    try {
-        const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-        const sheetName = workbook.SheetNames[0];
-        const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+// --- Helpers ---
+const lanExistsIn = (table, lan) =>
+  new Promise((resolve, reject) => {
+    db.query(`SELECT lan FROM ${table} WHERE lan = ? LIMIT 1`, [lan], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows.length > 0 ? rows[0].lan : null);
+    });
+  });
 
-        if (sheetData.length === 0) {
-            return res.status(400).json({ message: "No data found in the uploaded file" });
-        }
+/**
+ * Find which lender-route this LAN belongs to and return booking & RPS tables.
+ * Priority:
+ *   1) If LAN starts with WCTL and exists in WCTL booking → WCTL
+ *   2) If exists in Embifi booking → EMBIFI
+ *   3) Else if exists in default loan_bookings → EVBL
+ *   4) Else null
+ */
+const resolveLanRoute = async (lan) => {
+  if (lan.startsWith('WCTL')) {
+    const ok = await lanExistsIn(BOOKING_TABLES.WCTL, lan);
+    if (ok) return { lan: ok, lenderKey: 'WCTL', rpsTable: RPS_TABLES.WCTL };
+  }
+  const emb = await lanExistsIn(BOOKING_TABLES.EMBIFI, lan);
+  if (emb) return { lan: emb, lenderKey: 'EMBIFI', rpsTable: RPS_TABLES.EMBIFI };
 
-        let dataToInsertWCTL = [];
-        let dataToInsertEV = [];
-        let skippedEntries = [];
+  const def = await lanExistsIn(BOOKING_TABLES.EVBL, lan);
+  if (def) return { lan: def, lenderKey: 'EVBL', rpsTable: RPS_TABLES.EVBL };
 
-        for (const row of sheetData) {
-            const lan = row["LAN"];
-            const due_date = excelSerialToDate(row["Due Date"]);
+  return null;
+};
 
-            if (!lan || !due_date) {
-                skippedEntries.push({ lan, due_date, reason: "Missing LAN or due date" });
-                continue;
-            }
+const checkExistingRPS = (table, lan, due_date) =>
+  new Promise((resolve, reject) => {
+    const sql = `SELECT 1 FROM ${table} WHERE lan = ? AND due_date = ? LIMIT 1`;
+    db.query(sql, [lan, due_date], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows.length > 0);
+    });
+  });
 
-            const validLAN = await getValidLAN(lan);
-            if (!validLAN) {
-                skippedEntries.push({ lan, due_date, reason: "LAN not found in loan_bookings" });
-                continue;
-            }
+// Keep your excelSerialToDate(...) helper as-is
 
-            const exists = await checkExistingRPS(validLAN, due_date);
-            if (exists) {
-                skippedEntries.push({ lan, due_date, reason: "Duplicate RPS entry" });
-                continue;
-            }
+router.post('/upload', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
-            const dataRow = [
-                validLAN,
-                due_date,
-                row["Status"] || null,
-                row["EMI"] || null,
-                row["Interest"] || null,
-                row["Principal"] || null,
-                row["Opening"] ? parseFloat(row["Opening"]) : null,
-                row["Closing"] ? parseFloat(row["Closing"]) : null,
-                row["Remaining EMI"] || null,
-                row["Remaining Interest"] || null,
-                row["Remaining Principal"] || null
-            ];
+  try {
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-            // ➡️ Choose table based on LAN prefix
-            if (validLAN.startsWith("WCTL")) {
-                dataToInsertWCTL.push(dataRow);
-            } else {
-                dataToInsertEV.push(dataRow);
-            }
-        }
-
-        // ➡️ Insert into WCTL table
-        if (dataToInsertWCTL.length > 0) {
-            const insertQueryWCTL = `
-                INSERT INTO manual_rps_wctl
-                (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi, remaining_interest, remaining_principal) 
-                VALUES ?`;
-            await new Promise((resolve, reject) => {
-                db.query(insertQueryWCTL, [dataToInsertWCTL], (err, result) => {
-                    if (err) return reject(err);
-                    resolve(result);
-                });
-            });
-        }
-
-        // ➡️ Insert into EV Loan table
-        if (dataToInsertEV.length > 0) {
-            const insertQueryEV = `
-                INSERT INTO manual_rps_bl_loan
-                (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi, remaining_interest, remaining_principal) 
-                VALUES ?`;
-            await new Promise((resolve, reject) => {
-                db.query(insertQueryEV, [dataToInsertEV], (err, result) => {
-                    if (err) return reject(err);
-                    resolve(result);
-                });
-            });
-        }
-
-        const totalInserted = dataToInsertWCTL.length + dataToInsertEV.length;
-
-        // ✅ Return response
-        if (skippedEntries.length > 0) {
-            return res.status(207).json({
-                message: `Upload partially completed. ${totalInserted} rows inserted, ${skippedEntries.length} skipped.`,
-                skipped: skippedEntries
-            });
-        } else {
-            return res.json({ message: "All rows uploaded successfully." });
-        }
-
-    } catch (error) {
-        console.error("Error processing RPS file:", error);
-        return res.status(500).json({ message: "Error processing file." });
+    if (sheetData.length === 0) {
+      return res.status(400).json({ message: 'No data found in the uploaded file' });
     }
+
+    // Collect rows keyed by RPS table
+    const buckets = {
+      [RPS_TABLES.WCTL]:   [],
+      [RPS_TABLES.EVBL]:   [],
+      [RPS_TABLES.EMBIFI]: [],
+    };
+    const skipped = [];
+
+    for (const row of sheetData) {
+      const lanRaw = row['LAN'];
+      const due_date = excelSerialToDate(row['Due Date']);
+
+      if (!lanRaw || !due_date) {
+        skipped.push({ lan: lanRaw || null, due_date, reason: 'Missing LAN or due date' });
+        continue;
+      }
+
+      // Figure out which lender this LAN belongs to
+      const route = await resolveLanRoute(lanRaw);
+      if (!route) {
+        skipped.push({ lan: lanRaw, due_date, reason: 'LAN not found in any booking table' });
+        continue;
+      }
+
+      // Dupe check against the correct RPS table
+      const isDup = await checkExistingRPS(route.rpsTable, route.lan, due_date);
+      if (isDup) {
+        skipped.push({ lan: route.lan, due_date, reason: 'Duplicate RPS entry' });
+        continue;
+      }
+
+      // Build payload row (align columns across all RPS tables)
+      const num = (v) => (v === '' || v == null ? null : parseFloat(String(v).toString().replace(/,/g, '')));
+      const dataRow = [
+        route.lan,
+        due_date,
+        row['Status'] ?? null,
+        num(row['EMI']),
+        num(row['Interest']),
+        num(row['Principal']),
+        num(row['Opening']),
+        num(row['Closing']),
+        num(row['Remaining EMI']),
+        num(row['Remaining Interest']),
+        num(row['Remaining Principal']),
+      ];
+
+      buckets[route.rpsTable].push(dataRow);
+    }
+
+    // Bulk insert per table (if any rows present)
+    const doBulkInsert = (table, rows) =>
+      new Promise((resolve, reject) => {
+        if (!rows || rows.length === 0) return resolve(null);
+        const sql = `
+          INSERT INTO ${table}
+            (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi, remaining_interest, remaining_principal)
+          VALUES ?
+        `;
+        db.query(sql, [rows], (err, result) => (err ? reject(err) : resolve(result)));
+      });
+
+    const results = await Promise.all([
+      doBulkInsert(RPS_TABLES.WCTL, buckets[RPS_TABLES.WCTL]),
+      doBulkInsert(RPS_TABLES.EVBL, buckets[RPS_TABLES.EVBL]),
+      doBulkInsert(RPS_TABLES.EMBIFI, buckets[RPS_TABLES.EMBIFI]),
+    ]);
+
+    const inserted =
+      (buckets[RPS_TABLES.WCTL]?.length || 0) +
+      (buckets[RPS_TABLES.EVBL]?.length || 0) +
+      (buckets[RPS_TABLES.EMBIFI]?.length || 0);
+
+    if (skipped.length > 0) {
+      return res.status(207).json({
+        message: `Upload partially completed. ${inserted} rows inserted, ${skipped.length} skipped.`,
+        insertedByTable: {
+          [RPS_TABLES.WCTL]:   buckets[RPS_TABLES.WCTL]?.length || 0,
+          [RPS_TABLES.EVBL]:   buckets[RPS_TABLES.EVBL]?.length || 0,
+          [RPS_TABLES.EMBIFI]: buckets[RPS_TABLES.EMBIFI]?.length || 0,
+        },
+        skipped,
+      });
+    }
+
+    return res.json({
+      message: 'All rows uploaded successfully.',
+      insertedByTable: {
+        [RPS_TABLES.WCTL]:   buckets[RPS_TABLES.WCTL]?.length || 0,
+        [RPS_TABLES.EVBL]:   buckets[RPS_TABLES.EVBL]?.length || 0,
+        [RPS_TABLES.EMBIFI]: buckets[RPS_TABLES.EMBIFI]?.length || 0,
+      },
+    });
+  } catch (err) {
+    console.error('Error processing RPS file:', err);
+    return res.status(500).json({ message: 'Error processing file.' });
+  }
 });
 
-
-
 module.exports = router;
+
 
