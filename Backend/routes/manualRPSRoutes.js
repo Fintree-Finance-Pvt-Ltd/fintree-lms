@@ -177,7 +177,7 @@ const excelSerialToDate = (value) => {
 // --- Config: map lender → booking & RPS tables ---
 const RPS_TABLES = {
   WCTL:   'manual_rps_wctl',
-  EMBIFI: 'manual_rps_embifi_loan',  // <-- change here if your table name differs
+  EMBIFI: 'manual_rps_embifi_loan', // ensure this exists in DB
   EVBL:   'manual_rps_bl_loan',
 };
 
@@ -232,11 +232,31 @@ const checkExistingRPS = (table, lan, due_date) =>
 router.post('/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
+  // ---- request-scoped logging setup ----
+  const LOG_LEVEL = (process.env.RPS_LOG_LEVEL || 'info').toLowerCase();
+  const shouldDebug = LOG_LEVEL === 'debug';
+  const reqId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const tag = `[RPS][${new Date().toISOString()}][${reqId}]`;
+  const fmt = () => `[RPS][${new Date().toISOString()}][${reqId}]`;
+  const info  = (...a) => console.log(fmt(), ...a);
+  const debug = (...a) => { if (shouldDebug) console.log(fmt(), ...a); };
+  const warn  = (...a) => console.warn(fmt(), ...a);
+  const error = (...a) => console.error(fmt(), ...a);
+
   try {
+    info('File received', {
+      name: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    });
+
+    const tStart = Date.now();
+
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
+    info('Workbook parsed', { sheetName, rows: sheetData.length });
     if (sheetData.length === 0) {
       return res.status(400).json({ message: 'No data found in the uploaded file' });
     }
@@ -249,49 +269,84 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     };
     const skipped = [];
 
-    for (const row of sheetData) {
+    // numeric parser with logging on NaN
+    const numFactory = (field) => (v) => {
+      if (v === '' || v == null) return null;
+      const s = String(v).replace(/,/g, '');
+      const n = parseFloat(s);
+      if (Number.isNaN(n)) {
+        warn('Non-numeric value, coercing to NULL', { field, value: v });
+        return null;
+      }
+      return n;
+    };
+    const numEMI = numFactory('EMI');
+    const numInt = numFactory('Interest');
+    const numPrin = numFactory('Principal');
+    const numOpen = numFactory('Opening');
+    const numClose = numFactory('Closing');
+    const numRemEMI = numFactory('Remaining EMI');
+    const numRemInt = numFactory('Remaining Interest');
+    const numRemPrin = numFactory('Remaining Principal');
+
+    for (let i = 0; i < sheetData.length; i++) {
+      const row = sheetData[i];
       const lanRaw = row['LAN'];
       const due_date = excelSerialToDate(row['Due Date']);
 
-      if (!lanRaw || !due_date) {
-        skipped.push({ lan: lanRaw || null, due_date, reason: 'Missing LAN or due date' });
+      // basic validations
+      if (!lanRaw || !due_date || isNaN(new Date(due_date).getTime())) {
+        skipped.push({ idx: i + 1, lan: lanRaw || null, due_date, reason: 'Missing/invalid LAN or due date' });
+        warn('Skip row - missing/invalid LAN or due date', { idx: i + 1, lan: lanRaw, due_date });
         continue;
       }
 
-      // Figure out which lender this LAN belongs to
+      // Which route?
       const route = await resolveLanRoute(lanRaw);
       if (!route) {
-        skipped.push({ lan: lanRaw, due_date, reason: 'LAN not found in any booking table' });
+        skipped.push({ idx: i + 1, lan: lanRaw, due_date, reason: 'LAN not found in any booking table' });
+        warn('Skip row - LAN not found in any booking table', { idx: i + 1, lan: lanRaw });
         continue;
       }
+      debug('Resolved route', { idx: i + 1, lan: route.lan, lenderKey: route.lenderKey, rpsTable: route.rpsTable });
 
-      // Dupe check against the correct RPS table
+      // Duplicate check
       const isDup = await checkExistingRPS(route.rpsTable, route.lan, due_date);
       if (isDup) {
-        skipped.push({ lan: route.lan, due_date, reason: 'Duplicate RPS entry' });
+        skipped.push({ idx: i + 1, lan: route.lan, due_date, reason: 'Duplicate RPS entry' });
+        debug('Duplicate detected; skipping', { idx: i + 1, lan: route.lan, due_date, table: route.rpsTable });
         continue;
       }
 
       // Build payload row (align columns across all RPS tables)
-      const num = (v) => (v === '' || v == null ? null : parseFloat(String(v).toString().replace(/,/g, '')));
       const dataRow = [
         route.lan,
         due_date,
         row['Status'] ?? null,
-        num(row['EMI']),
-        num(row['Interest']),
-        num(row['Principal']),
-        num(row['Opening']),
-        num(row['Closing']),
-        num(row['Remaining EMI']),
-        num(row['Remaining Interest']),
-        num(row['Remaining Principal']),
+        numEMI(row['EMI']),
+        numInt(row['Interest']),
+        numPrin(row['Principal']),
+        numOpen(row['Opening']),
+        numClose(row['Closing']),
+        numRemEMI(row['Remaining EMI']),
+        numRemInt(row['Remaining Interest']),
+        numRemPrin(row['Remaining Principal']),
       ];
 
       buckets[route.rpsTable].push(dataRow);
     }
 
-    // Bulk insert per table (if any rows present)
+    info('Bucket sizes', {
+      [RPS_TABLES.WCTL]:   buckets[RPS_TABLES.WCTL].length,
+      [RPS_TABLES.EVBL]:   buckets[RPS_TABLES.EVBL].length,
+      [RPS_TABLES.EMBIFI]: buckets[RPS_TABLES.EMBIFI].length,
+      skipped: skipped.length,
+    });
+    if (shouldDebug && skipped.length) {
+      debug('Skipped sample (up to 10)', skipped.slice(0, 10));
+    }
+
+    // Bulk insert per table (if any rows present) with timing and result logs
     const doBulkInsert = (table, rows) =>
       new Promise((resolve, reject) => {
         if (!rows || rows.length === 0) return resolve(null);
@@ -300,10 +355,25 @@ router.post('/upload', upload.single('file'), async (req, res) => {
             (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi, remaining_interest, remaining_principal)
           VALUES ?
         `;
-        db.query(sql, [rows], (err, result) => (err ? reject(err) : resolve(result)));
+        const label = `${tag} INSERT ${table}`;
+        console.time(label);
+        db.query(sql, [rows], (err, result) => {
+          console.timeEnd(label);
+          if (err) {
+            error('Bulk insert failed', { table, rows: rows.length, code: err.code, sqlMessage: err.sqlMessage || err.message });
+            return reject(err);
+          }
+          info('Bulk insert ok', {
+            table,
+            rows: rows.length,
+            affectedRows: result?.affectedRows,
+            warningStatus: result?.warningStatus,
+          });
+          resolve(result);
+        });
       });
 
-    const results = await Promise.all([
+    await Promise.all([
       doBulkInsert(RPS_TABLES.WCTL, buckets[RPS_TABLES.WCTL]),
       doBulkInsert(RPS_TABLES.EVBL, buckets[RPS_TABLES.EVBL]),
       doBulkInsert(RPS_TABLES.EMBIFI, buckets[RPS_TABLES.EMBIFI]),
@@ -313,6 +383,9 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       (buckets[RPS_TABLES.WCTL]?.length || 0) +
       (buckets[RPS_TABLES.EVBL]?.length || 0) +
       (buckets[RPS_TABLES.EMBIFI]?.length || 0);
+
+    const ms = Date.now() - tStart;
+    info('Upload completed', { inserted, skipped: skipped.length, duration_ms: ms });
 
     if (skipped.length > 0) {
       return res.status(207).json({
@@ -335,11 +408,16 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Error processing RPS file:', err);
+    error('Unhandled error processing RPS file', {
+      code: err.code,
+      message: err.message,
+      stack: err.stack?.split('\n').slice(0, 3).join(' | '),
+    });
     return res.status(500).json({ message: 'Error processing file.' });
   }
 });
 
 module.exports = router;
+
 
 
