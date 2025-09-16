@@ -934,7 +934,7 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       const sql = `
         INSERT INTO loan_booking_embifi (
            lan,
-          applicant_name, applicant_dob, applicant_age_years, applicant_father_name,
+          customer_name, applicant_dob, applicant_age_years, applicant_father_name,
           pan_number, applicant_aadhaar_no, mobile_number,
           coapplicant_name, coapplicant_pan_no, coapplicant_aadhaar_no, coapplicant_dob, coapplicant_mobile_no,
           approved_loan_amount, processing_fees_with_tax, processing_fees, processing_fees_tax, subvention, disbursal_amount,
