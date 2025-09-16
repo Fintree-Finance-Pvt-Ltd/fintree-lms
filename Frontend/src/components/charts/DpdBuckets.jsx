@@ -782,14 +782,17 @@ const DpdBuckets = ({ filters }) => {
         sortBy,
         sortDir,
         rows: rows.map(r => ({
-          lan: r.lan,
-          customer_name: r.customer_name,
-          product: r.product,
-          max_dpd: r.max_dpd,
-          overdue_emi: r.overdue_emi,
-          overdue_principal: r.overdue_principal,
-          overdue_interest: r.overdue_interest,
-          pos_principal: r.pos_principal,
+         lan: r.lan,
+        customer_name: r.customer_name ?? "",
+        product: r.product ?? "",
+        max_dpd: Number(r.max_dpd ?? 0),
+        overdue_emi: Number(r.overdue_emi ?? 0),
+        overdue_principal: Number(r.overdue_principal ?? 0),
+        overdue_interest: Number(r.overdue_interest ?? 0),
+        pos_principal: Number(r.pos_principal ?? 0),
+        disbursement_date: r.disbursement_date ? String(r.disbursement_date).slice(0,10) : "",
+        ageing_days: Number(r.ageing_days ?? 0),
+        last_due_date: r.last_due_date ? String(r.last_due_date).slice(0,10) : ""
         })),
       });
       alert("Report is emailed to your email address.");
@@ -891,7 +894,7 @@ const DpdBuckets = ({ filters }) => {
           >
             <option value="pos">POS (Principal)</option>
             <option value="emi">Overdue EMI</option>
-            <option value="dpd">Max DPD</option>
+            <option value="dpd">DPD</option>
             <option value="due">Last Due Date</option>
             <option value="ageing">Ageing (days)</option> {/* NEW */}
           </select>
@@ -942,6 +945,7 @@ const DpdBuckets = ({ filters }) => {
             <tr style={{ background: "#f9f9f9", color: "#201d1dff", fontWeight: "900", fontSize: 16 }}>
               <th style={th}>LAN</th>
               <th style={th}>Product</th>
+              <th style={th}>Customer Name</th>
               <th style={th}>DPD</th>
 
               <th
@@ -971,7 +975,7 @@ const DpdBuckets = ({ filters }) => {
                 onClick={() => setSort("ageing")}
                 title="Sort by Ageing (days)"
               >
-                Ageing Since Disbursement
+                Ageing (Disb.)
                 <SortIcon active={sortBy === "ageing"} dir={sortDir} />
               </th>
 
@@ -983,6 +987,7 @@ const DpdBuckets = ({ filters }) => {
               <tr key={r.lan + "_" + idx}>
                 <td style={td}>{r.lan}</td>
                 <td style={td}>{r.product}</td>
+                <td style={td}>{r.customer_name}</td>
                 <td style={td}>{r.max_dpd}</td>
                 <td style={td}>{formatINR(r.overdue_emi)}</td>
                 <td style={td}>{formatINR(r.overdue_principal)}</td>
@@ -994,7 +999,7 @@ const DpdBuckets = ({ filters }) => {
               </tr>
             ))}
             {!rows.length && !loading && (
-              <tr><td style={td} colSpan={10}>No loans in this bucket.</td></tr>
+              <tr><td style={td} colSpan={11}>No loans in this bucket.</td></tr>
             )}
           </tbody>
         </table>

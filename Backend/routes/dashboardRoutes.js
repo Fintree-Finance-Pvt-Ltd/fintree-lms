@@ -3995,14 +3995,31 @@ router.post("/dpd-list", async (req, res) => {
       sortBy: sortByRaw,
       sortDir: sortDirRaw
     } = req.body || {};
+
+    // --- config ---
+    const JOIN_COLLATE = "utf8mb4_unicode_ci";
+    const OUT_COLLATE  = "utf8mb4_unicode_ci";
+
+    // normalize product
+    const normalizeProduct = (p) => {
+      if (!p || p === "ALL") return "ALL";
+      const s = String(p).toLowerCase().replace(/\s+/g, "").replace(/-/g, "");
+      if (s === "evloan" || s === "ev_loan") return "EV";
+      if (s === "blloan" || s === "bl_loan") return "BL";
+      if (s === "adikosh") return "Adikosh";
+      if (s === "gqnonfsf" || s === "gqnon-fsf") return "GQ Non-FSF";
+      if (s === "gqfsf" || s === "gq-fsf") return "GQ FSF";
+      return p;
+    };
+
     const prod = normalizeProduct(product);
 
     // pagination
-    const page = Math.max(1, parseInt(pageRaw || 1, 10));
+    const page     = Math.max(1, parseInt(pageRaw || 1, 10));
     const pageSize = Math.min(200, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
-    const offset = (page - 1) * pageSize;
+    const offset   = (page - 1) * pageSize;
 
-    // --- Bucket -> inline HAVING (no placeholders) ---
+    // --- Bucket -> inline HAVING (no placeholders to avoid param bleeding in UNION) ---
     const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
     let havingStr = "";
     if (bucket === "0") {
@@ -4015,15 +4032,31 @@ router.post("/dpd-list", async (req, res) => {
     } else {
       return res.status(400).json({ error: "Invalid bucket" });
     }
-
     const isZero = bucket === "0";
 
-    // Build one product branch
-    const branch = ({ prodName, rpsTable, bookTable }) => `
-      SELECT '${prodName}' AS product, q.*
+    // helper: fixed “out” (SELECT) collations
+    const outProduct = (label) =>
+      `CAST('${label}' AS CHAR CHARACTER SET utf8mb4) COLLATE ${OUT_COLLATE}`;
+
+    const outLan = (expr) =>
+      // if any source columns are not utf8mb4, use CONVERT(... USING utf8mb4) first:
+      `CAST(${expr} AS CHAR) COLLATE ${OUT_COLLATE}`;
+
+    const outName = (expr) =>
+      `CAST(${expr} AS CHAR) COLLATE ${OUT_COLLATE}`;
+
+    // Build one product branch. We:
+    // - GROUP BY rps.lan
+    // - output lan as MAX(rps.lan) collated (value is identical per group)
+    // - output customer_name as MAX(b.customer_name) collated
+    const branch = ({ label, rpsTable, bookTable }) => `
+      SELECT ${outProduct(label)} AS product, q.*
       FROM (
         SELECT
-          rps.lan,
+          /* normalized outputs */
+          ${outLan("MAX(rps.lan)")}            AS lan,
+          ${outName("MAX(b.customer_name)")}   AS customer_name,
+
           ${isZero
             ? `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
                         THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
@@ -4032,7 +4065,7 @@ router.post("/dpd-list", async (req, res) => {
           } AS max_dpd,
 
           ${isZero
-            ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END)`
+            ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0)       ELSE 0 END)`
             : `SUM(IFNULL(rps.emi,0))`
           } AS overdue_emi,
 
@@ -4042,7 +4075,7 @@ router.post("/dpd-list", async (req, res) => {
           } AS overdue_principal,
 
           ${isZero
-            ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest,0) ELSE 0 END)`
+            ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest,0)  ELSE 0 END)`
             : `SUM(IFNULL(rps.interest,0))`
           } AS overdue_interest,
 
@@ -4051,9 +4084,10 @@ router.post("/dpd-list", async (req, res) => {
             : `MAX(rps.due_date)`
           } AS last_due_date,
 
+          /* POS via fast correlated subquery (index: (payment_date, lan)) */
           (SELECT SUM(IFNULL(p.principal,0))
              FROM ${rpsTable} p
-            WHERE p.lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} = rps.lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""}
+            WHERE p.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
               AND (p.payment_date IS NULL OR p.payment_date >= CURDATE())
           ) AS pos_principal,
 
@@ -4061,8 +4095,10 @@ router.post("/dpd-list", async (req, res) => {
           DATEDIFF(CURDATE(), d.disb_date) AS ageing_days
 
         FROM ${rpsTable} rps
-        JOIN ${bookTable} b ON ${eqLan("b.lan", "rps.lan")}
-        LEFT JOIN d           ON ${eqLan("d.lan", "rps.lan")}
+        JOIN ${bookTable} b
+          ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+        LEFT JOIN d
+          ON d.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
         ${isZero ? "" : `WHERE rps.status <> 'Paid' AND rps.due_date < CURDATE()`}
         GROUP BY rps.lan
         ${havingStr}
@@ -4071,18 +4107,19 @@ router.post("/dpd-list", async (req, res) => {
 
     const branches = [];
     if (prod === "ALL" || prod === "EV")
-      branches.push(branch({ prodName: "Malhotra EV", rpsTable: "manual_rps_ev_loan", bookTable: "loan_booking_ev" }));
+      branches.push(branch({ label: "Malhotra EV", rpsTable: "manual_rps_ev_loan",      bookTable: "loan_booking_ev" }));
     if (prod === "ALL" || prod === "BL")
-      branches.push(branch({ prodName: "UB Loan", rpsTable: "manual_rps_bl_loan", bookTable: "loan_bookings" }));
+      branches.push(branch({ label: "UB Loan",      rpsTable: "manual_rps_bl_loan",      bookTable: "loan_bookings" }));
     if (prod === "ALL" || prod === "Adikosh")
-      branches.push(branch({ prodName: "Adikosh", rpsTable: "manual_rps_adikosh", bookTable: "loan_booking_adikosh" }));
+      branches.push(branch({ label: "Adikosh",      rpsTable: "manual_rps_adikosh",      bookTable: "loan_booking_adikosh" }));
     if (prod === "ALL" || prod === "GQ Non-FSF")
-      branches.push(branch({ prodName: "GQ Non-FSF", rpsTable: "manual_rps_gq_non_fsf", bookTable: "loan_booking_gq_non_fsf" }));
+      branches.push(branch({ label: "GQ Non-FSF",   rpsTable: "manual_rps_gq_non_fsf",   bookTable: "loan_booking_gq_non_fsf" }));
     if (prod === "ALL" || prod === "GQ FSF")
-      branches.push(branch({ prodName: "GQ FSF", rpsTable: "manual_rps_gq_fsf", bookTable: "loan_booking_gq_fsf" }));
+      branches.push(branch({ label: "GQ FSF",       rpsTable: "manual_rps_gq_fsf",       bookTable: "loan_booking_gq_fsf" }));
 
-    if (!branches.length)
+    if (!branches.length) {
       return res.json({ rows: [], pagination: { page, pageSize, total: 0 } });
+    }
 
     // Sorting (whitelist)
     const SORT_MAP = {
@@ -4091,19 +4128,20 @@ router.post("/dpd-list", async (req, res) => {
       dpd: "max_dpd",
       due: "last_due_date",
       ageing: "ageing_days",
+      // you can also expose 'name'/'lan' if required later
     };
     const sortKey = (typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd");
     const sortCol = SORT_MAP[sortKey] || SORT_MAP.dpd;
     const sortDir = (String(sortDirRaw || "desc").toLowerCase() === "asc") ? "ASC" : "DESC";
 
-    // Tie-breakers
+    // stable tie-breakers
     const ties = [];
     if (sortCol !== "max_dpd")       ties.push("max_dpd DESC");
     if (sortCol !== "last_due_date") ties.push("last_due_date DESC");
     ties.push("lan ASC");
     const orderClause = `ORDER BY ${sortCol} ${sortDir}${ties.length ? ", " + ties.join(", ") : ""}`;
 
-    // ONE pass with shared disbursement min-date CTE + window count
+    // One pass with CTE for disbursement min-date (visible to all branches)
     const sql = `
       WITH d AS (
         SELECT lan, MIN(Disbursement_Date) AS disb_date
@@ -4123,7 +4161,7 @@ router.post("/dpd-list", async (req, res) => {
 
     const [pageRows] = await db.promise().query(sql, [pageSize, offset]);
     const total = pageRows.length ? Number(pageRows[0].total_rows) : 0;
-    const rows = pageRows.map(({ total_rows, ...r }) => r);
+    const rows  = pageRows.map(({ total_rows, ...r }) => r);
 
     res.json({ rows, pagination: { page, pageSize, total } });
   } catch (err) {
@@ -4131,6 +4169,7 @@ router.post("/dpd-list", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch DPD list" });
   }
 });
+
 
 /** -------------------- Export current DPD page via email -------------------- */
 router.post("/dpd-export-email", async (req, res) => {
