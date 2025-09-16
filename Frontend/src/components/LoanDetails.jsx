@@ -41,12 +41,12 @@ const LoanDetails = ({ data }) => {
             <div className="loan-details-grid">
                 <div className="loan-details-field">
                     <label>Approved Loan Amount</label>
-                    <input type="text" value={data.loan_amount} readOnly />
+                    <input type="text" value={data.loan_amount || data.approved_loan_amount} readOnly />
                 </div>
 
                 <div className="loan-details-field">
                     <label>Interest Rate</label>
-                    <input type="text" value={data.interest_rate} readOnly />
+                    <input type="text" value={data.interest_rate } readOnly />
                 </div>
 
                 <div className="loan-details-field">
@@ -56,7 +56,7 @@ const LoanDetails = ({ data }) => {
 
                 <div className="loan-details-field">
                     <label>Number of Installments</label>
-                    <input type="text" value={data.loan_tenure} readOnly />
+                    <input type="text" value={data.loan_tenure || data.loan_tenure_months} readOnly />
                 </div>
 
                 <div className="loan-details-field">

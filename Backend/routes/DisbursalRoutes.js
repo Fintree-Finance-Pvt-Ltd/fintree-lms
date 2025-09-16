@@ -38,15 +38,15 @@ router.get("/:lan", async (req, res) => {
 
   if (lan.startsWith("E10")) {
     tableName = "loan_booking_embifi";
-    loanAmountCol = "lb.approved_loan_amount";
-    loanAmountExpr = "lb.approved_loan_amount";
+    loanAmountCol = "lb.disbursal_amount as loan_amount";
+    loanAmountExpr = "lb.disbursal_amount as loan_amount";
     interestRateCol = "lb.new_interest";
     tenureCol = "lb.loan_tenure_months";
-    processingFeeCol = "null AS processing_fee";
+    processingFeeCol = "lb.processing_fees";
     subventionCol = "0";
     retentionCol = "0";
     partnerLoanIdCol = "null AS partner_loan_id";
-    netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+    netDisbursementExpr = "lb.disbursal_amount";
   } 
   if (lan.startsWith("GQN")) {
     tableName = "loan_booking_gq_non_fsf";

@@ -84,7 +84,7 @@ const DisbursementDetails = () => {
           <input
             type="text"
             value={
-              disbursalData.lan?.startsWith("GQ")
+              disbursalData.lan?.startsWith("GQ" || "E1")
                 ? disbursalData.loan_tenure_months
                 : disbursalData.loan_tenure
             }
