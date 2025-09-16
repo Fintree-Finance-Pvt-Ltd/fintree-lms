@@ -912,11 +912,11 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       const [dups] = await db
         .promise()
         .query(
-          `SELECT id FROM loan_booking_embifi WHERE pan_number = ? OR applicant_aadhaar_no = ?`,
-          [pan_number, applicant_aadhaar_no]
+          `SELECT id FROM loan_booking_embifi WHERE pan_number = ? `,
+          [pan_number]
         );
       if (dups.length) {
-        failed.push({ row: R, reason: "Duplicate PAN/Aadhaar" });
+        failed.push({ row: R, reason: "Duplicate PAN" });
         continue;
       }
 
