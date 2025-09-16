@@ -938,7 +938,7 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
           pan_number, applicant_aadhaar_no, mobile_number,
           coapplicant_name, coapplicant_pan_no, coapplicant_aadhaar_no, coapplicant_dob, coapplicant_mobile_no,
           approved_loan_amount, processing_fees_with_tax, processing_fees, processing_fees_tax, subvention, disbursal_amount,
-          loan_tenure_months, emi_amount, interest_rate_percent,
+          loan_tenure_months, emi_amount, interest_rate,
           status, product, lender, loan_admin_status,
           first_emi_date, last_emi_date, disbursement_date, disbursement_utr,
           applicant_address, applicant_state, applicant_city, applicant_pin_code,
