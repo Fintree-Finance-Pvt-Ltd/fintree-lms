@@ -84,9 +84,10 @@ const DisbursementDetails = () => {
           <input
             type="text"
             value={
-              disbursalData.lan?.startsWith("GQ" || "E1")
-                ? disbursalData.loan_tenure_months
-                : disbursalData.loan_tenure
+              disbursalData.lan?.startsWith("GQ") ||
+              disbursalData.lan?.startsWith("E1")
+                ? disbursalData.loan_tenure_months ?? ""
+                : disbursalData.loan_tenure ?? ""
             }
             readOnly
           />
@@ -104,8 +105,12 @@ const DisbursementDetails = () => {
         {showEVfields && (
           <>
             <div className="details-field">
-          <label>Vehicle Number</label>
-              <input type="text" value={disbursalData.vehicle_number} readOnly />
+              <label>Vehicle Number</label>
+              <input
+                type="text"
+                value={disbursalData.vehicle_number}
+                readOnly
+              />
             </div>
             <div className="details-field">
               <label>Dealer Number</label>
@@ -113,11 +118,19 @@ const DisbursementDetails = () => {
             </div>
             <div className="details-field">
               <label>Battery Serial Number</label>
-              <input type="text" value={disbursalData.battery_serial_no_1} readOnly />
+              <input
+                type="text"
+                value={disbursalData.battery_serial_no_1}
+                readOnly
+              />
             </div>
             <div className="details-field">
-          <label>Battery charger Number</label>
-              <input type="text" value={disbursalData.battery_charger_number} readOnly />
+              <label>Battery charger Number</label>
+              <input
+                type="text"
+                value={disbursalData.battery_charger_number}
+                readOnly
+              />
             </div>
             <div className="details-field">
               <label>Chassis Number</label>
