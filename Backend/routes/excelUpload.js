@@ -677,7 +677,7 @@ router.put("/login-loans/:lan", (req, res) => {
           if (lan.startsWith("ADK")) {
             try {
               await sendLoanStatusMail({
-                to: ["abhishek@getkosh.com", "ravikumar@nfcpl.in", "vineet.ranjan@getkosh.com", "rajeev@nfcpl.in", "rohit.joshi@fintreefinance.com"],
+                to: ["abhishek@getkosh.com", "ravikumar@nfcpl.in", "vineet.ranjan@getkosh.com", "rajeev@nfcpl.in"],
                 customerName,
                 batchId,
                 loanAmount,
