@@ -226,7 +226,7 @@ function App() {
           <Route
             path="/ev-loans/approve-initiate-actions"
             element={
-              <PermissionRoute pageName="EV Approve Initiated">
+              <PermissionRoute pageName="EV Disburse Initiated">
                 <EVApproveInitiateScreen />
               </PermissionRoute>
             }
@@ -327,7 +327,7 @@ function App() {
           <Route
             path="/gq-fsf-loans/approve-initiate-actions"
             element={
-              <PermissionRoute pageName="GQ FSF Approve Initiated">
+              <PermissionRoute pageName="GQ FSF Disburse Initiated">
                 <GQFsfApproveInitiateScreen />
               </PermissionRoute>
             }
@@ -380,7 +380,7 @@ function App() {
           <Route
             path="/gq-non-fsf-loans/approve-initiate-actions"
             element={
-              <PermissionRoute pageName="GQ Non-FSF Approve Initiated">
+              <PermissionRoute pageName="GQ Non-FSF Disburse Initiated">
                 <GQNonFsfApproveInitiateScreen />
               </PermissionRoute>
             }
@@ -430,7 +430,7 @@ function App() {
           <Route
             path="/adikosh-loans/approve-initiate-actions"
             element={
-              <PermissionRoute pageName="Adikosh Approve Initiated">
+              <PermissionRoute pageName="Adikosh Disburse Initiated">
                 <AdikoshApproveInitiateScreen />
               </PermissionRoute>
             }
