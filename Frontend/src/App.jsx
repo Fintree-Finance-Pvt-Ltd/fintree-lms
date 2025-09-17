@@ -53,6 +53,10 @@ import AdikoshActionScreen from "./components/AdikoshActionScreen";
 import EmbifiApprovedLoans from "./components/EmbifiApprovedLoans";
 import EmbifiDisbursedLoans from "./components/EmbifiDisbursedLoans";
 import EmbifiAllLoans from "./components/EmbifiAllLoans";
+import GQFsfLoginLoans from "./components/GQFsfLoginLoans";
+import GQFsfActionScreen from "./components/GQFsfActionScreen";
+import GQNonFsfLoginLoans from "./components/GQNonFsfLoginLoans";
+import GQNonFsfActionScreen from "./components/GQNonFsfActionScreen";
 
 function App() {
   return (
@@ -289,6 +293,24 @@ function App() {
               </PermissionRoute>
             }
           />
+          <Route
+            path="/gq-fsf-loans/login-cases"
+            element={
+              <PermissionRoute pageName="GQ FSF Login Loans">
+                <GQFsfLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+            <Route
+            path="/gq-fsf-loans/login-actions"
+            element={
+              <PermissionRoute pageName="GQ FSF Login Actions">
+                <GQFsfActionScreen />
+              </PermissionRoute>
+            }
+          />
+          
           <Route path="/documents/:lan" element={<DocumentsPage />} />
 
           <Route
@@ -315,6 +337,23 @@ function App() {
               </PermissionRoute>
             }
           />
+          <Route
+            path="/gq-non-fsf-loans/login-cases"
+            element={
+              <PermissionRoute pageName="GQ Non-FSF Login Loans">
+                <GQNonFsfLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+            <Route
+            path="/gq-non-fsf-loans/login-actions"
+            element={
+              <PermissionRoute pageName="GQ Non-FSF Login Actions">
+                <GQNonFsfActionScreen />
+              </PermissionRoute>
+            }
+          />
 
             <Route
             path="/adikosh-loans/login"
@@ -324,7 +363,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/adikosh-loans/approved"
             element={

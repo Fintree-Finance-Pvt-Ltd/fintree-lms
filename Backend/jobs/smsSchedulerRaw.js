@@ -56,16 +56,42 @@ async function sendSms({ mobile, message, dltTemplateId }) {
 }
 
 // -------------------- table discovery --------------------
+// async function discoverTables() {
+//   const [rpsRows] = await pool.query(
+//     `SELECT table_name FROM information_schema.tables
+//      WHERE table_schema = DATABASE()
+//        AND table_name LIKE 'manual_rps\\_%' ESCAPE '\\'`
+//   );
+//   const [bookRows] = await pool.query(
+//     `SELECT table_name FROM information_schema.tables
+//      WHERE table_schema = DATABASE()
+//        AND (table_name LIKE 'loan_booking\\_%' ESCAPE '\\' OR table_name='loan_bookings')`
+//   );
+
+//   return {
+//     rpsTables: rpsRows.map((r) => r.table_name),
+//     bookingTables: bookRows.map((r) => r.table_name),
+//   };
+// }
+
+// -------------------- table discovery (fixed) --------------------
 async function discoverTables() {
+  // These JS strings contain a single backslash before '_' (i.e., pattern: manual_rps\_%)
+  const likeRps   = 'manual_rps\\_%';
+  const likeBooks = 'loan_booking\\_%';
+
   const [rpsRows] = await pool.query(
     `SELECT table_name FROM information_schema.tables
-     WHERE table_schema = DATABASE()
-       AND table_name LIKE 'manual_rps\\_%' ESCAPE '\\'`
+       WHERE table_schema = DATABASE()
+         AND table_name LIKE ?`,
+    [likeRps]
   );
+
   const [bookRows] = await pool.query(
     `SELECT table_name FROM information_schema.tables
-     WHERE table_schema = DATABASE()
-       AND (table_name LIKE 'loan_booking\\_%' ESCAPE '\\' OR table_name='loan_bookings')`
+       WHERE table_schema = DATABASE()
+         AND (table_name LIKE ? OR table_name = 'loan_bookings')`,
+    [likeBooks]
   );
 
   return {
@@ -186,7 +212,7 @@ async function runOnce() {
 
 function initScheduler() {
   // Run every day at 10:05 AM IST (change if needed)
-  cron.schedule("5 12 * * *", () => runOnce(), { timezone: tz });
+  cron.schedule("30 12 * * *", () => runOnce(), { timezone: tz });
 
   // Send every 10 minutes
   cron.schedule(

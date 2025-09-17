@@ -53,7 +53,7 @@ const AuthProvider = ({ children }) => {
         })
         .then((res) => {
           const userObj = {
-            userId: res.data.userId,
+            userId: res.data.userId,    
             role: res.data.role,
             name: res.data.name,
             pages: res.data.pages,

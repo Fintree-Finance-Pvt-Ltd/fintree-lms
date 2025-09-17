@@ -80,7 +80,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         for (const row of sheetData) {
             const query = `
                 INSERT INTO loan_charges (lan, due_date, amount, charge_type, created_at) 
-                VALUES (?, ?, ?, ?, NOW())`; // ✅ Auto insert current timestamp
+                VALUES (?, ?, ?, ?, NOW())`; 
 
             db.query(query, [
                 row["LAN"],
