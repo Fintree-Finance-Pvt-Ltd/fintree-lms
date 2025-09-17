@@ -756,6 +756,7 @@ router.put("/login-loans/:lan", (req, res) => {
                   "ravikumar@nfcpl.in",
                   "vineet.ranjan@getkosh.com",
                   "rajeev@nfcpl.in",
+                  "sanika.gurav@fintreefinance.com",
                 ],
                 customerName,
                 batchId,
