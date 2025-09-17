@@ -74,53 +74,102 @@ async function sendSms({ mobile, message, dltTemplateId }) {
 //   };
 // }
 
-// -------------------- table discovery (fixed) --------------------
+// === put this near the top (config) ===
+const EXCLUDE = {
+  rps: [
+    'manual_rps_adikosh', 
+    'manual_rps_adikosh_fintree',
+    'manual_rps_adikosh_partner',
+    'manual_rps_adikosh_fintree_roi',      
+  ],
+  booking: [
+    'loan_booking_adikosh', 
+  ],
+};
+
+const notIn = (arr) => arr.length ? ` AND table_name NOT IN (${arr.map(()=>'?').join(',')})` : '';
+
 async function discoverTables() {
-  // These JS strings contain a single backslash before '_' (i.e., pattern: manual_rps\_%)
+  const SCHEMA = process.env.DB_NAME;               // or your schema string
   const likeRps   = 'manual_rps\\_%';
   const likeBooks = 'loan_booking\\_%';
 
-  const [rpsRows] = await pool.query(
-    `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = DATABASE()
-         AND table_name LIKE ?`,
-    [likeRps]
-  );
+  // RPS tables (exclude any exact names in EXCLUDE.rps)
+  const rpsSql = `
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema = ?
+      AND table_name LIKE ?${notIn(EXCLUDE.rps)}
+  `;
+  const rpsParams = [SCHEMA, likeRps, ...EXCLUDE.rps];
 
-  const [bookRows] = await pool.query(
-    `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = DATABASE()
-         AND (table_name LIKE ? OR table_name = 'loan_bookings')`,
-    [likeBooks]
-  );
+  // Booking tables (exclude exact names in EXCLUDE.booking, but keep loan_bookings)
+  const bookSql = `
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema = ?
+      AND (
+            (table_name LIKE ?${notIn(EXCLUDE.booking)})
+            OR table_name = 'loan_bookings'
+          )
+  `;
+  const bookParams = [SCHEMA, likeBooks, ...EXCLUDE.booking];
+
+  const [rpsRows]  = await pool.query(rpsSql,  rpsParams);
+  const [bookRows] = await pool.query(bookSql, bookParams);
 
   return {
-    rpsTables: rpsRows.map((r) => r.table_name),
-    bookingTables: bookRows.map((r) => r.table_name),
+    rpsTables: rpsRows.map(r => r.table_name),
+    bookingTables: bookRows.map(r => r.table_name),
   };
 }
 
-function buildUnions(rpsTables, bookingTables) {
-  const rpsUnion = rpsTables
-    .map(
-      (t) =>
-        `SELECT '${t}' src_table, LAN lan, due_date, status, emi, payment_date FROM \`${t}\``
-    )
-    .join(" UNION ALL ");
 
-  const bookUnion = bookingTables
-    .map(
-      (t) =>
-        `SELECT '${t}' src_table, lan, customer_name, mobile_number FROM \`${t}\``
-    )
-    .join(" UNION ALL ");
+function buildUnions(rpsTables, bookingTables) {
+  const CHARSET = 'utf8mb4';
+  const COLLATE = 'utf8mb4_unicode_ci';
+  const col = (expr) => `CONVERT(${expr} USING ${CHARSET}) COLLATE ${COLLATE}`;
+  const lit = (s)   => `CAST('${s}' AS CHAR CHARACTER SET ${CHARSET}) COLLATE ${COLLATE}`;
+
+  const rpsUnion = rpsTables.map(t => `
+    SELECT ${lit(t)} AS src_table, ${col('LAN')} AS lan, due_date, ${col('status')} AS status, emi, payment_date
+    FROM \`${t}\`
+  `.trim()).join(' UNION ALL ');
+
+  const bookUnion = bookingTables.map(t => `
+    SELECT ${lit(t)} AS src_table, ${col('lan')} AS lan, ${col('customer_name')} AS customer_name, ${col('mobile_number')} AS mobile_number
+    FROM \`${t}\`
+  `.trim()).join(' UNION ALL ');
 
   return { rpsUnion, bookUnion };
 }
 
+
+
+// function buildUnions(rpsTables, bookingTables) {
+//   const rpsUnion = rpsTables
+//     .map(
+//       (t) =>
+//         `SELECT '${t}' src_table, LAN lan, due_date, status, emi, payment_date FROM \`${t}\``
+//     )
+//     .join(" UNION ALL ");
+
+//   const bookUnion = bookingTables
+//     .map(
+//       (t) =>
+//         `SELECT '${t}' src_table, lan, customer_name, mobile_number FROM \`${t}\``
+//     )
+//     .join(" UNION ALL ");
+
+//   return { rpsUnion, bookUnion };
+// }
+
+
 // -------------------- queue DUE + OVERDUE --------------------
 async function queueToday() {
   const { rpsTables, bookingTables } = await discoverTables();
+  if (!rpsTables.length || !bookingTables.length) {
+    console.warn('No RPS/booking tables found after exclusions; skipping queue.');
+    return { due: 0, overdue: 0 };
+  }
   const { rpsUnion, bookUnion } = buildUnions(rpsTables, bookingTables);
 
   // DUE: from T-4 to T
