@@ -1,146 +1,11 @@
-// import React, { useState, useEffect } from "react";
-// import api from "../api/api";
-// import { useNavigate } from "react-router-dom";
-// import "../styles/ApprovedLoans.css";
-
-// const LoginActionScreen = ({ apiUrl, title = "Login Stage Loans", lenderName = "EMI", tableName }) => {
-//   const [loans, setLoans] = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState("");
-//   const navigate = useNavigate();
-
-//   useEffect(() => {
-//     api
-//       .get(apiUrl)
-//       .then((response) => {
-//         setLoans(response.data);
-//         setLoading(false);
-//       })
-//       .catch((error) => {
-//         console.error("Error fetching loans:", error);
-//         setError("Failed to fetch data.");
-//         setLoading(false);
-//       });
-//   }, [apiUrl]);
-
-//   const handleStatusChange = async (lan, newStatus, table) => {
-//   try {
-//     await api.put(`/loan-booking/login-loans/${lan}`, { status: newStatus, table });
-//     setLoans((prevLoans) =>
-//       prevLoans.map((loan) =>
-//         loan.lan === lan ? { ...loan, status: newStatus } : loan
-//       )
-//     );
-//   } catch (err) {
-//     console.error("Error updating status:", err);
-//     alert("Failed to update status. Try again.");
-//   }
-// };
-
-
-//   if (loading) return <p>Loading...</p>;
-//   if (error) return <p>{error}</p>;
-
-//   return (
-//     <div className="approved-loans-container">
-//       <h2>{title}</h2>
-//       <table>
-//         <thead>
-//           <tr>
-//             <th>Loan Details</th>
-//             <th>Lender</th>
-//             <th>Partner Loan ID</th>
-//             <th>LAN</th>
-//             <th>Customer ID</th>
-//             <th>Mobile Number</th>
-//             <th>Status</th>
-//             <th>Disbursement Date</th>
-//             <th>Audit Trails</th>
-//             <th>Documents</th>
-//             <th>Actions</th>
-//           </tr>
-//         </thead>
-//         <tbody>
-//           {loans.map((loan) => (
-//             <tr key={loan.id}>
-//               <td>
-//                 <span
-//                   className="clickable"
-//                   onClick={() =>
-//                     navigate(`/approved-loan-details/${loan.lan}`)
-//                   }
-//                 >
-//                   {loan.customer_name}
-//                 </span>
-//               </td>
-//               <td>{lenderName}</td>
-//               <td>{loan.partner_loan_id}</td>
-//               <td>{loan.lan}</td>
-//               <td>{loan.customer_id}</td>
-//               <td>
-//                 <a href={`tel:${loan.mobile_number}`} className="phone-number">
-//                   {loan.mobile_number}
-//                 </a>
-//               </td>
-//               <td>
-//                 <span
-//                   className={
-//                     loan.status === "approved"
-//                       ? "status-approved"
-//                       : loan.status === "rejected"
-//                       ? "status-rejected"
-//                       : "status-pending"
-//                   }
-//                 >
-//                   {loan.status || "Pending"}
-//                 </span>
-//               </td>
-//               <td>{loan.disbursement_date || "-"}</td>
-//               <td>
-//                 <button className="audit-trail-btn">≡</button>
-//               </td>
-//               <td>
-//                 <button
-//                   className="audit-trail-btn"
-//                   onClick={() => navigate(`/documents/${loan.lan}`)}
-//                 >
-//                   📂 Docs
-//                 </button>
-//               </td>
-//               <td>
-//   <button
-//     className="approve-btn"
-//     onClick={() => handleStatusChange(loan.lan, "approved", tableName)}
-//   >
-//     ✅ Approve
-//   </button>
-//   <button
-//     className="reject-btn"
-//     onClick={() => handleStatusChange(loan.lan, "rejected", tableName)}
-//   >
-//     ❌ Reject
-//   </button>
-// </td>
-
-//             </tr>
-//           ))}
-//         </tbody>
-//       </table>
-//     </div>
-//   );
-// };
-
-// export default LoginActionScreen;
-
-
 import React, { useEffect, useState } from "react";
 import api from "../api/api";
 import { useNavigate } from "react-router-dom";
 import DataTable from "./ui/DataTable";
 
-const LoginActionScreen = ({
+const ApproveInitiatedScreen = ({
   apiUrl,
-  title = "Login Stage Loans",
+  title = "Approval Initiated Stage Loans",
   lenderName = "EMI",
   tableName,
 }) => {
@@ -165,7 +30,7 @@ const LoginActionScreen = ({
   // keep EXACT behavior/signature
   const handleStatusChange = async (lan, newStatus, table) => {
     try {
-      await api.put(`/loan-booking/login-loans/${lan}`, { status: newStatus, table });
+      await api.put(`/loan-booking/approve-initiated-loans/${lan}`, { status: newStatus, table });
       setRows((prev) => prev.map((r) => (r.lan === lan ? { ...r, status: newStatus } : r)));
     } catch (err) {
       console.error("Error updating status:", err);
@@ -324,9 +189,9 @@ const LoginActionScreen = ({
         <div style={{ display: "flex", gap: 8 }}>
           <button
             style={actionBtn("approve")}
-            onClick={() => handleStatusChange(r.lan, "approve initiate", tableName)}
+            onClick={() => handleStatusChange(r.lan, "approved", tableName)}
           >
-            ✅ Approve Initiate
+            ✅ Approve
           </button>
           <button
             style={actionBtn("reject")}
@@ -362,4 +227,4 @@ const LoginActionScreen = ({
   );
 };
 
-export default LoginActionScreen;
+export default ApproveInitiatedScreen;

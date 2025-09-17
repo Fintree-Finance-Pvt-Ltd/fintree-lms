@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
 async function sendLoanStatusMail({ to, customerName, batchId, loanAmount, status }) {
   let subject, text;
 
-  if (status === "approved") {
+  if (status === "approve initiate") {
     subject = `Loan Approved - Batch ID ${batchId}`;
     text = `Dear Team,\n\nThe case for ${customerName} with Batch ID ${batchId} has been approved.\nLoan Amount: ₹${loanAmount}\n\nRegards,\nFintree Finance`;
   } else {

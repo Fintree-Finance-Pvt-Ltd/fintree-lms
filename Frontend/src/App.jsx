@@ -57,6 +57,10 @@ import GQFsfLoginLoans from "./components/GQFsfLoginLoans";
 import GQFsfActionScreen from "./components/GQFsfActionScreen";
 import GQNonFsfLoginLoans from "./components/GQNonFsfLoginLoans";
 import GQNonFsfActionScreen from "./components/GQNonFsfActionScreen";
+import GQNonFsfApproveInitiateScreen from "./components/GQNonFsfApproveInitiateScreen";
+import GQFsfApproveInitiateScreen from "./components/GQFsfApproveInitiateScreen";
+import AdikoshApproveInitiateScreen from "./components/AdikoshApproveInitiateScreen";
+import EVApproveInitiateScreen from "./components/EVApproveInitiateScreen";
 
 function App() {
   return (
@@ -220,6 +224,15 @@ function App() {
           />
 
           <Route
+            path="/ev-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="EV Approve Initiated">
+                <EVApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
             path="/embifi-loans/approved"
             element={
               <PermissionRoute pageName="Embifi Approved Loans">
@@ -310,6 +323,15 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          <Route
+            path="/gq-fsf-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="GQ FSF Approve Initiated">
+                <GQFsfApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
           
           <Route path="/documents/:lan" element={<DocumentsPage />} />
 
@@ -355,6 +377,14 @@ function App() {
             }
           />
 
+          <Route
+            path="/gq-non-fsf-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="GQ Non-FSF Approve Initiated">
+                <GQNonFsfApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
             <Route
             path="/adikosh-loans/login"
             element={
@@ -393,6 +423,15 @@ function App() {
             element={
               <PermissionRoute pageName="Adikosh Login Actions">
                 <AdikoshActionScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/adikosh-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="Adikosh Approve Initiated">
+                <AdikoshApproveInitiateScreen />
               </PermissionRoute>
             }
           />
