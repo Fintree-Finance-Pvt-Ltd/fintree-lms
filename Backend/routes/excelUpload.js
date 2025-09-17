@@ -552,7 +552,7 @@ router.get("/approve-initiate-loans", (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  const query = `SELECT * FROM ?? WHERE status = 'Approve initiate' AND LAN LIKE ?`;
+  const query = `SELECT * FROM ?? WHERE status = 'Disburse initiate' AND LAN LIKE ?`;
   const values = [table, `${prefix}%`];
 
   db.query(query, values, (err, results) => {
@@ -715,7 +715,7 @@ router.put("/login-loans/:lan", (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  if (!["approve initiate", "rejected"].includes(status)) {
+  if (!["Disburse initiate", "rejected"].includes(status)) {
     return res.status(400).json({ message: "Invalid status value" });
   }
 

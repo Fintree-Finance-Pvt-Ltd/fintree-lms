@@ -324,9 +324,9 @@ const LoginActionScreen = ({
         <div style={{ display: "flex", gap: 8 }}>
           <button
             style={actionBtn("approve")}
-            onClick={() => handleStatusChange(r.lan, "approve initiate", tableName)}
+            onClick={() => handleStatusChange(r.lan, "Disburse initiate", tableName)}
           >
-            ✅ Approve Initiate
+            ✅ Disburse initiate
           </button>
           <button
             style={actionBtn("reject")}
