@@ -1324,18 +1324,18 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
         continue;
       }
 
-      const [existingRecords] = await db
-        .promise()
-        .query(
-          `SELECT lan FROM loan_booking_gq_fsf WHERE pan_number = ? OR aadhaar_number = ?`,
-          [panCard, aadharNumber]
-        );
+      // const [existingRecords] = await db
+      //   .promise()
+      //   .query(
+      //     `SELECT lan FROM loan_booking_gq_fsf WHERE pan_number = ? OR aadhaar_number = ?`,
+      //     [panCard, aadharNumber]
+      //   );
 
-      if (existingRecords.length > 0) {
-        return res.json({
-          message: `Customer already exists. Duplicate found for PAN: ${panCard} or Aadhaar: ${aadharNumber}`,
-        });
-      }
+      // if (existingRecords.length > 0) {
+      //   return res.json({
+      //     message: `Customer already exists. Duplicate found for PAN: ${panCard} or Aadhaar: ${aadharNumber}`,
+      //   });
+      // }
 
       const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
 
