@@ -795,7 +795,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  if (!["disburse initiate", "rejected"].includes(status)) {
+  if (!["approved", "rejected"].includes(status)) {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
