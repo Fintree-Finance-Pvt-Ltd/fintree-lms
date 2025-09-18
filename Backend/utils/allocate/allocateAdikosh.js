@@ -21,7 +21,7 @@ module.exports = async function allocateEV(lan, payment) {
       remaining -= alloc;
       interest -= alloc;
       await queryDB(
-        `INSERT INTO allocation (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+        `INSERT INTO allocation_adikosh (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
          VALUES (?, ?, ?, ?, 'Interest', ?)`,
         [lan, emi.due_date, payment_date, alloc, payment_id]
       );
