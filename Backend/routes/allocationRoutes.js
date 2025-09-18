@@ -15,11 +15,7 @@ router.get("/allocations/:lan", async (req, res) => {
 
     // ✅ Infer allocation table based on prefix
     let allocationTable = "";
-    if (lan.startsWith("ADKF")) {
-      allocationTable = "allocation_adikosh_fintree";
-    } else if (lan.startsWith("ADKP")) {
-      allocationTable = "allocation_adikosh_partner";
-    } else if (lan.startsWith("ADK")) {
+    if (lan.startsWith("ADK")) {
       allocationTable = "allocation_adikosh";
     } else {
       allocationTable = "allocation";
