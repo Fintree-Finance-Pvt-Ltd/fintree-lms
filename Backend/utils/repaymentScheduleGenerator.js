@@ -1253,124 +1253,84 @@ const generateRepaymentScheduleBL = async (
 
 
 // helper: round to 2 decimals
-const r2 = x => Math.round((x + Number.EPSILON) * 100) / 100;
-
-// solve for the *implied* monthly rate that amortizes `prem` with fixed `emi` in `m` months
-// (keeps all EMIs = the flat/₹20,127 value you want)
-function solveMonthlyRate(prem, emi, m) {
-  // Bisection: find r where PV(emi, r, m) - prem = 0
-  let lo = 0, hi = 0.05; // 0%..5% per month is a safe bracket
-  for (let t = 0; t < 80; t++) {
-    const r = (lo + hi) / 2;
-    const pow = Math.pow(1 + r, -m);
-    const pv = (emi * (1 - pow)) / (r || 1e-9);
-    if (pv > prem) lo = r; else hi = r;
-  }
-  return (lo + hi) / 2;
-}
+// round to 2 decimals for money
+const r2 = x => Math.round((Number(x) + Number.EPSILON) * 100) / 100;
 
 const generateRepaymentScheduleGQNonFSF = async (
   lan,
-  approvedAmount,         // P
+  approvedAmount,
   emiDate,
-  interestRate,           // (kept for record; not used to size EMI after advance)
-  tenure,                 // n
+  interestRate,
+  tenure,
   disbursementDate,
   subventionAmount,
   product,
   lender,
-  no_of_advance_emis = 1  // we’ll support k >= 1, but your case is k=1
+  no_of_advance_emis = 0
 ) => {
   try {
-    console.log(`\n🚀 Generating GQ NON-FSF RPS (flat-advance EMI, reducing thereafter) for LAN: ${lan}`);
+    console.log(`\n🚀 Generating GQ NON-FSF RPS for LAN: ${lan}`);
+    console.log(
+      `📝 Inputs → ApprovedAmount: ₹${approvedAmount}, InterestRate: ${interestRate}%, Tenure: ${tenure}, DisbursementDate: ${disbursementDate}, EMI Date: ${emiDate}, SubventionAmount: ₹${subventionAmount}, Product: ${product}, Lender: ${lender}, AdvanceEMIs: ${no_of_advance_emis}`
+    );
 
-    // --- inputs ---
-    const P = Number(approvedAmount || 0);
-    const n = Number(tenure || 0);
-    const k = Number(no_of_advance_emis || 0);
-    if (n <= 0 || P <= 0) throw new Error("Invalid principal/tenure");
-    // if (k <= 0 || k > n) throw new Error("Invalid no_of_advance_emis");
+    const annualRate = Number(interestRate) / 100;
+    let remainingPrincipal = Number(approvedAmount);
 
-    // --- 1) Advance EMI = flat rule you requested ---
-    // EMI_flat = (P/n) + (annual% * P / n). We ROUND TO RUPEES for the EMI value,
-    // but we book the *advance principal* to 2 decimals like in your sheet.
-    const annual = Number(interestRate || 0) / 100;         // kept only for record
-    const emiFlatExact = (P / n) + (annual * P / n);        // e.g. 20,126.6931…
-    const EMI = Math.round(emiFlatExact);                   // e.g. 20,127 (used for *all* 24 EMIs)
-    const advPrincipalOne = r2(emiFlatExact);               // e.g. 20,126.69
-    const m = n - k;                                        // remaining months after advance
+    const isZeroInterest = annualRate === 0;
+    const emiPrincipal = Math.round(remainingPrincipal / Number(tenure));
+    let emiInterest = isZeroInterest ? 0 : Math.ceil((remainingPrincipal * annualRate) / Number(tenure));
+    let emiTotal = emiPrincipal + emiInterest;
 
-    const rows = [];
-    let opening = P;
-  if(k>0){
+    const rpsData = [];
 
+    for (let i = 1; i <= tenure; i++) {
+      let principal = emiPrincipal;
+      let interest = emiInterest;
 
-    // --- 1a) Record k advance EMIs (interest = 0, principal = advPrincipalOne each) ---
-    for (let i = 1; i <= k; i++) {
-      const interest = 0;
-      const principal = advPrincipalOne;
-      const closing = r2(opening - principal);
+      if (i === tenure) {
+        // last row takes whatever principal is left
+        principal = remainingPrincipal;
+        emiTotal = principal + interest;
+      }
 
-      const dueDate = new Date(disbursementDate); // on disbursement day
-      rows.push({
-        seq: `ADV-${i}`,
-        dueDate: dueDate.toISOString().split("T")[0],
-        emi: EMI,
-        interest: r2(interest),
-        principal: r2(principal),
-        closing: r2(closing),
-      });
+      // --- due date ---
+      let dueDate;
+      if (no_of_advance_emis > 0 && i === 1) {
+        dueDate = new Date(disbursementDate); // first EMI on disbursement
+      } else {
+        const offset = no_of_advance_emis > 0 ? i - 2 : i - 1;
+        dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, offset);
+      }
+      const dueDateStr = dueDate.toISOString().split("T")[0];
 
-      opening = closing;
+      // --- round money fields to 2 decimals ---
+      const principalR = r2(principal);
+      const interestR  = r2(interest);
+      const emiR       = r2(emiTotal);
+
+      // --- YOUR REQUIRED MAPPINGS ---
+      // Remaining Principal = Principal
+      // Remaining Interest  = Interest
+      // Remaining Amount    = Remaining Principal + Remaining Interest
+      const remainingPrincipalR = principalR;
+      const remainingInterestR  = interestR;
+      const remainingAmountR    = r2(remainingPrincipalR + remainingInterestR); // equals emiR if consistent
+
+      rpsData.push([
+        lan,
+        dueDateStr,
+        emiR,                      // emi
+        interestR,                // interest
+        principalR,               // principal
+        remainingPrincipalR,      // remaining_principal (== principal)
+        remainingInterestR,       // remaining_interest  (== interest)
+        remainingAmountR,         // remaining_emi / amount (== principal + interest)
+        "Pending"
+      ]);
+
+      remainingPrincipal = r2(remainingPrincipal - principalR);
     }
-  }
-    // --- 2) Regular schedule with *fixed* EMI (= EMI from step 1) on reducing balance ---
-    // To keep EMI fixed at ₹20,127 *and* amortize in m months, we use the *implied monthly rate*.
-    // (This reproduces the pattern in your screenshot and typically leaves a tiny residual.)
-    const r = solveMonthlyRate(opening, EMI, m); // ~0.00805945 for your case (≈9.67% p.a. effective)
-
-    for (let i = 1; i <= m; i++) {
-      const interest = r2(opening * r);          // interest rounded to paise as shown
-      const principal = r2(EMI - interest);      // principal is the rest
-      const closing = r2(opening - principal);   // do NOT force last row to zero
-
-      const offset = i - 1;
-      const dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, offset);
-
-      rows.push({
-        seq: i,
-        dueDate: dueDate.toISOString().split("T")[0],
-        emi: EMI,
-        interest,
-        principal,
-        closing,
-      });
-
-      opening = closing;
-    }
-
-    // (optional) remaining_* totals bottom-up, if you need them for UI
-    let remEmi = 0, remInterest = 0;
-    for (let i = rows.length - 1; i >= 0; i--) {
-      remEmi = r2(remEmi + rows[i].emi);
-      remInterest = r2(remInterest + rows[i].interest);
-      rows[i].remaining_emi = remEmi;
-      rows[i].remaining_interest = remInterest;
-      rows[i].remaining_principal = rows[i].closing;
-    }
-
-    // --- 3) Bulk insert into DB as before ---
-    const rpsData = rows.map(rw => ([
-      lan,
-      rw.dueDate,
-      rw.emi,
-      rw.interest,
-      rw.principal,
-      rw.remaining_principal,
-      rw.remaining_interest,
-      rw.remaining_emi,
-      "Pending"
-    ]));
 
     await db.promise().query(
       `INSERT INTO manual_rps_gq_non_fsf
@@ -1379,9 +1339,9 @@ const generateRepaymentScheduleGQNonFSF = async (
       [rpsData]
     );
 
-    console.log(`✅ RPS generated successfully for ${lan}\n`);
+    console.log(`✅ GQ NON-FSF RPS generated successfully for ${lan}\n`);
   } catch (err) {
-    console.error(`❌ RPS Error for ${lan}:`, err);
+    console.error(`❌ GQ NON-FSF RPS Error for ${lan}:`, err);
   }
 };
 
