@@ -22,6 +22,7 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const { initScheduler, runOnce } = require('./jobs/smsSchedulerRaw');
 
 
+const PORT = process.env.PORT;
 // server.js
 // import { v4 as uuidv4 } from 'uuid';
 
@@ -98,4 +99,4 @@ app.get("/api/test-sms", async (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
 //   });
 
-app.listen(process.env.PORT || 5000, () => console.log('✅ Backend server running on port 5000'));
+app.listen( PORT || 5000, () => console.log(`✅ Backend server running on ${PORT}`));
