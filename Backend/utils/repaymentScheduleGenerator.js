@@ -1368,7 +1368,7 @@ const generateRepaymentScheduleGQNonFSF = async (
       rw.principal,
       rw.principal,
       rw.interest,
-      rw.remaining_emi,
+      rw.emi,
       "Pending"
     ]));
 
