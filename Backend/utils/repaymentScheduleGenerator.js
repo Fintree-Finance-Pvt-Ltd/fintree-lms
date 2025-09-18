@@ -1289,7 +1289,7 @@ const generateRepaymentScheduleGQNonFSF = async (
     const n = Number(tenure || 0);
     const k = Number(no_of_advance_emis || 0);
     if (n <= 0 || P <= 0) throw new Error("Invalid principal/tenure");
-    if (k <= 0 || k > n) throw new Error("Invalid no_of_advance_emis");
+    // if (k <= 0 || k > n) throw new Error("Invalid no_of_advance_emis");
 
     // --- 1) Advance EMI = flat rule you requested ---
     // EMI_flat = (P/n) + (annual% * P / n). We ROUND TO RUPEES for the EMI value,
@@ -1302,6 +1302,8 @@ const generateRepaymentScheduleGQNonFSF = async (
 
     const rows = [];
     let opening = P;
+  if(k>0){
+
 
     // --- 1a) Record k advance EMIs (interest = 0, principal = advPrincipalOne each) ---
     for (let i = 1; i <= k; i++) {
@@ -1321,7 +1323,7 @@ const generateRepaymentScheduleGQNonFSF = async (
 
       opening = closing;
     }
-
+  }
     // --- 2) Regular schedule with *fixed* EMI (= EMI from step 1) on reducing balance ---
     // To keep EMI fixed at ₹20,127 *and* amortize in m months, we use the *implied monthly rate*.
     // (This reproduces the pattern in your screenshot and typically leaves a tiny residual.)
