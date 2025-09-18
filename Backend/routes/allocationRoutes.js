@@ -19,7 +19,7 @@ router.get("/allocations/:lan", async (req, res) => {
       allocationTable = "allocation_adikosh_fintree";
     } else if (lan.startsWith("ADKP")) {
       allocationTable = "allocation_adikosh_partner";
-    } else if (lan.startsWith("ADK-")) {
+    } else if (lan.startsWith("ADK")) {
       allocationTable = "allocation_adikosh";
     } else {
       allocationTable = "allocation";
