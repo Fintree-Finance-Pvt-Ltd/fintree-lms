@@ -1259,7 +1259,7 @@ const r2 = x => Math.round((x + Number.EPSILON) * 100) / 100;
 // (keeps all EMIs = the flat/₹20,127 value you want)
 function solveMonthlyRate(prem, emi, m) {
   // Bisection: find r where PV(emi, r, m) - prem = 0
-  let lo = 0, hi = 0.05; // 0%..5% per month is a safe bracket
+  let lo = 0, hi = 0.0; // 0%..5% per month is a safe bracket
   for (let t = 0; t < 80; t++) {
     const r = (lo + hi) / 2;
     const pow = Math.pow(1 + r, -m);
@@ -1316,7 +1316,7 @@ const generateRepaymentScheduleGQNonFSF = async (
         seq: `ADV-${i}`,
         dueDate: dueDate.toISOString().split("T")[0],
         emi: EMI,
-        interest: r2(interest),
+        interest: (interest),
         principal: r2(principal),
         closing: r2(closing),
       });
