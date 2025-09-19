@@ -5,7 +5,7 @@ import ApproveInitiatedScreen from './ApproveInitiatedScreen';
 const GQNonFsfApproveInitiateScreen = () => {
   return (
     <ApproveInitiatedScreen
-      apiUrl={`/loan-booking/approve-initiate-loans?table=loan_booking_gq_non_fsfh&prefix=GQN`}
+      apiUrl={`/loan-booking/approve-initiate-loans?table=loan_booking_gq_non_fsf&prefix=GQN`}
       title="GQ Non Fsf Approval Action Pending Loans"
       tableName="loan_booking_gq_non_fsf"
     />

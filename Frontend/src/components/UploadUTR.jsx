@@ -101,8 +101,8 @@ const UploadUTR = () => {
   const [uploadPercentage, setUploadPercentage] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // NEW: hold server details
-  const [summary, setSummary] = useState(null); // { processed_count, duplicate_utr, missing_lans, row_errors, details? }
+  // server payload: { processed_count, duplicate_utr, missing_lans, row_errors, details? }
+  const [summary, setSummary] = useState(null);
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
@@ -137,7 +137,6 @@ const UploadUTR = () => {
       setMessage(`✅ ${response.data.message}`);
       setIsError(false);
       setSummary(response.data);
-
     } catch (err) {
       const serverMsg = err?.response?.data?.message || "Error uploading file.";
       const details = err?.response?.data?.details;
@@ -152,34 +151,46 @@ const UploadUTR = () => {
 
   return (
     <div className="utr-upload-container">
-      <h2 className="upload-heading">Upload Disbursement UTRs</h2>
+      {/* CARD */}
+      <div className="upload-card">
+        <h2 className="upload-card__title">Upload Disbursement UTRs</h2>
 
-      <input
-        type="file"
-        accept=".xlsx,.xls,.csv"
-        onChange={handleFileChange}
-        disabled={isSubmitting}
-        className="file-input"
-      />
+        <div className="upload-card__body">
+          <input
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileChange}
+            disabled={isSubmitting}
+            className="file-input file-input--full"
+          />
 
-      <button className="upload-button" onClick={handleUpload} disabled={isSubmitting}>
-        {isSubmitting ? "Uploading..." : "Upload"}
-      </button>
-
-      {uploadPercentage > 0 && (
-        <div className="progress-bar">
-          <div className="progress-fill" style={{ width: `${uploadPercentage}%` }} />
-          <span className="progress-text">{uploadPercentage}%</span>
+          <button
+            className="upload-button upload-button--primary"
+            onClick={handleUpload}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Uploading…" : "Upload"}
+          </button>
         </div>
-      )}
 
+        {uploadPercentage > 0 && (
+          <div className="progress-bar progress-bar--blue">
+            <div
+              className="progress-fill"
+              style={{ width: `${uploadPercentage}%` }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* STATUS MESSAGE */}
       {message && (
         <p className={`upload-message ${isError ? "error" : "success"}`}>
           {message}
         </p>
       )}
 
-      {/* NEW: summary / errors */}
+      {/* SUMMARY / ERRORS */}
       {summary && (
         <div className="upload-summary">
           {"processed_count" in summary && (
@@ -192,7 +203,11 @@ const UploadUTR = () => {
                 <div className="summary-list">
                   <strong>Duplicate UTRs:</strong>
                   <ul>
-                    {summary.duplicate_utr.map((u) => <li key={u}>{u}</li>)}
+                    {summary.duplicate_utr.map((u) => (
+                      <li key={u} className="mono">
+                        {u}
+                      </li>
+                    ))}
                   </ul>
                 </div>
               )}
@@ -201,7 +216,11 @@ const UploadUTR = () => {
                 <div className="summary-list">
                   <strong>Missing LANs:</strong>
                   <ul>
-                    {summary.missing_lans.map((l) => <li key={l}>{l}</li>)}
+                    {summary.missing_lans.map((l) => (
+                      <li key={l} className="mono">
+                        {l}
+                      </li>
+                    ))}
                   </ul>
                 </div>
               )}
@@ -224,9 +243,13 @@ const UploadUTR = () => {
                         {summary.row_errors.map((e, idx) => (
                           <tr key={`${e.lan}-${e.utr}-${idx}`}>
                             <td>{idx + 1}</td>
-                            <td>{e.lan || "-"}</td>
-                            <td>{e.utr || "-"}</td>
-                            <td>{e.stage || "-"}</td>
+                            <td className="mono">{e.lan || "-"}</td>
+                            <td className="mono">{e.utr || "-"}</td>
+                            <td>
+                              <span className="stage-pill">
+                                {e.stage || "-"}
+                              </span>
+                            </td>
                             <td>{e.reason || "-"}</td>
                           </tr>
                         ))}
@@ -238,15 +261,28 @@ const UploadUTR = () => {
             </>
           )}
 
-          {/* Top-level crash details (e.g., invalid Excel) */}
           {"details" in summary && summary.details && (
             <div className="summary-list">
               <strong>Error Details:</strong>
               <ul>
-                <li><b>Message:</b> {summary.details.message}</li>
-                {summary.details.code && <li><b>Code:</b> {summary.details.code}</li>}
-                {summary.details.errno && <li><b>Errno:</b> {summary.details.errno}</li>}
-                {summary.details.sqlState && <li><b>SQL State:</b> {summary.details.sqlState}</li>}
+                <li>
+                  <b>Message:</b> {summary.details.message}
+                </li>
+                {summary.details.code && (
+                  <li>
+                    <b>Code:</b> {summary.details.code}
+                  </li>
+                )}
+                {summary.details.errno && (
+                  <li>
+                    <b>Errno:</b> {summary.details.errno}
+                  </li>
+                )}
+                {summary.details.sqlState && (
+                  <li>
+                    <b>SQL State:</b> {summary.details.sqlState}
+                  </li>
+                )}
               </ul>
             </div>
           )}
@@ -257,3 +293,4 @@ const UploadUTR = () => {
 };
 
 export default UploadUTR;
+
