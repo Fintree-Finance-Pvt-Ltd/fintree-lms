@@ -151,3 +151,45 @@
     color: red;
     background-color: #f8d7da;
 }
+
+
+/* progress */
+.progress-bar.pretty { position: relative; height: 12px; background:#eef2f7; border-radius:999px; overflow:hidden; border:1px solid #e5e7eb; margin:12px 0; }
+.progress-bar.pretty .progress { height: 100%; background: linear-gradient(90deg,#22c55e,#16a34a); transition: width .25s; }
+.progress-bar.pretty span { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:12px; color:#065f46; font-weight:700; }
+
+/* messages */
+.upload-message { margin:12px 0 16px; padding:10px 12px; border-radius:8px; font-weight:600; }
+.upload-message.success { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+.upload-message.error   { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+
+/* summary card */
+.summary-card { background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:14px 16px 18px; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+.summary-line { margin:6px 0; font-size:14px; }
+
+/* chips */
+.chip-list { margin:8px 0; }
+.chip-list > strong { display:block; margin:0 0 6px; }
+.chip-list ul { display:flex; flex-wrap:wrap; gap:6px; list-style:none; margin:0; padding:0; }
+.chip-list li { font-size:12px; border:1px dashed #e5e7eb; background:#f9fafb; border-radius:999px; padding:4px 8px; white-space:nowrap; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+/* errors table */
+.table-title { margin:16px 0 8px; font-size:16px; font-weight:700; }
+.table-wrap { border:1px solid #e5e7eb; border-radius:10px; overflow:hidden; }
+.errors-table { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+.errors-table thead th { position:sticky; top:0; background:#f8fafc; border-bottom:1px solid #e5e7eb; padding:8px 10px; text-align:left; font-weight:700; }
+.errors-table tbody { display:block; max-height:320px; overflow:auto; }
+.errors-table thead, .errors-table tbody tr { display:table; width:100%; table-layout:fixed; }
+.errors-table th:nth-child(1), .errors-table td:nth-child(1) { width:44px; text-align:center; }
+.errors-table th:nth-child(2), .errors-table td:nth-child(2) { width:80px; }
+.errors-table th:nth-child(3), .errors-table td:nth-child(3) { width:110px; }
+.errors-table th:nth-child(4), .errors-table td:nth-child(4) { width:auto; }
+.errors-table td { padding:9px 10px; border-bottom:1px solid #f1f5f9; vertical-align:top; word-break:break-word; }
+.errors-table tbody tr:nth-child(even) td { background:#fcfcfd; }
+.stage-pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; line-height:1.6; background:#eef2ff; color:#3730a3; border:1px solid #e0e7ff; }
+
+/* skipped table (GQ FSF) */
+.skipped-section { margin-top:16px; }
+.skipped-table { width:100%; border-collapse:collapse; font-size:13px; }
+.skipped-table th, .skipped-table td { border:1px solid #eee; padding:8px 10px; text-align:left; }

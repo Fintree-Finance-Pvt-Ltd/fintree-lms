@@ -151,212 +151,373 @@ const pickIncome = (arr, idx) => (Array.isArray(arr) ? dec(arr[idx]) : null);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// ✅ File Upload API (Insert Loan Data Based on Lender)
+// router.post("/upload", upload.single("file"), async (req, res) => {
+//   if (!req.file)
+//     return res
+//       .status(400)
+//       .json({ message: "No file uploaded. Please select a valid file." });
+//   if (!req.body.lenderType)
+//     return res.status(400).json({ message: "Lender type is required." });
+
+//   try {
+//     const lenderType = req.body.lenderType;
+//     if (req.body.lenderType !== "EV Loan") {
+//       return res
+//         .status(400)
+//         .json({
+//           message: "Invalid upload lender type. Only EV Loan is supported.",
+//         });
+//     }
+
+//     // ✅ Read Excel File
+//     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+//     const sheetName = workbook.SheetNames[0];
+//     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+//     if (!sheetData || sheetData.length === 0) {
+//       return res
+//         .status(400)
+//         .json({ message: "Uploaded Excel file is empty or invalid." });
+//     }
+//     const lender = lenderType.trim(); // normalize input
+
+//     for (const row of sheetData) {
+//       const lender = row["lender"];
+//       const panCard = row["Pan Card"];
+//       const aadharNumber = row["Aadhar Number"];
+//       const interestRate = row["InterestRate"];
+
+//       if (lender !== "EV Loan") {
+//         return res
+//           .status(400)
+//           .json({
+//             message: "Invalid lender type in row. Only EV Loan is supported.",
+//           });
+//       }
+
+//       // ✅ Check for existing customer using PAN & Aadhar
+//       const [existingRecords] = await db
+//         .promise()
+//         .query(
+//           `SELECT lan FROM loan_booking_ev WHERE pan_card = ? OR aadhar_number = ?`,
+//           [panCard, aadharNumber]
+//         );
+
+//       if (existingRecords.length > 0) {
+//         return res.json({
+//           message: `Customer already exists. Duplicate found for Pan Card: ${panCard} or Aadhar Number: ${aadharNumber}`,
+//         });
+//       }
+
+//       // ✅ Generate new loan identifiers
+//       const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+//       // ✅ Insert Data into `loan_bookings`
+//       //      const query = `
+//       //   INSERT INTO loan_bookings (
+//       //     partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+//       //     address_line_1, address_line_2, village, district, state, pincode,
+//       //     mobile_number, email, occupation, relationship_with_borrower, cibil_score,
+//       //     guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
+//       //     guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
+//       //     account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant, guarantor_co_applicant_dob, product, lender,
+//       //     agreement_date, status
+//       //   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?, ?)
+//       // `;
+
+//       //     await db.promise().query(query, [
+//       //       partnerLoanId,
+//       //   lan,
+//       //   row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+//       //   row["Customer Name"],
+//       //   row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
+//       //   row["Father Name"],
+//       //   row["Address Line 1"],
+//       //   row["Address Line 2"],
+//       //   row["Village"],
+//       //   row["District"],
+//       //   row["State"],
+//       //   row["Pincode"],
+//       //   row["Mobile Number"],
+//       //   row["Email"],
+//       //   row["Occupation"],
+//       //   row["Relationship with Borrower"],
+//       //   row["CIBIL Score"],
+//       //   row["GURANTOR/Co-Applicant CIBIL Score"], // ✅ New field
+//       //   row["Loan Amount"],
+//       //   row["Tenure"],
+//       //   row["Interest Rate"],
+//       //   row["EMI Amount"],
+//       //   row["GURANTOR/Co-Applicant ADHAR"],
+//       //   row["GURANTOR/Co-Applicant PAN"],
+//       //   row["DEALER NAME"],
+//       //   row["Name in Bank"],
+//       //   row["Bank name"],
+//       //   row["Account Number"],
+//       //   row["IFSC"],
+//       //   row["Aadhar Number"],
+//       //   row["Pan Card"],
+//       //   row["GURANTOR/Co-Applicant"], // ✅ New field
+//       //   row["GURANTOR/Co-Applicant DOB"] ? excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"]) : null, // ✅ New field
+//       //   row["Product"],
+//       //   lenderType,
+//       //   row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+//       //   "Login"
+//       //     ]);
+
+//       // ✅ Insert Data into `loan_booking_ev`
+
+//       const query = `
+//   INSERT INTO loan_booking_ev (
+//     partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+//     address_line_1, address_line_2, village, district, state, pincode,
+//     mobile_number, email, loan_amount, interest_rate, loan_tenure, emi_amount,
+//     guarantor_name, guarantor_dob, guarantor_aadhar, guarantor_pan, dealer_name,
+//     name_in_bank, bank_name, account_number, ifsc, aadhar_number, pan_card,
+//     product, lender, agreement_date, status, disbursal_amount, processing_fee,
+//     cibil_score, guarantor_cibil_score, relationship_with_borrower, co_applicant,
+//     co_applicant_dob, co_applicant_aadhar, co_applicant_pan, co_applicant_cibil_score,
+//     apr, battery_name, battery_type, battery_serial_no_1, battery_serial_no_2,
+//     e_rikshaw_model, chassis_no, customer_name_as_per_bank, customer_bank_name,
+//     customer_account_number, bank_ifsc_code
+//   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+// `;
+
+//       await db.promise().query(query, [
+//         partnerLoanId,
+//         lan,
+//         row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+//         row["Customer Name"],
+//         row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
+//         row["Father Name"],
+//         row["Address Line 1"],
+//         row["Address Line 2"],
+//         row["Village"],
+//         row["District"],
+//         row["State"],
+//         row["Pincode"],
+//         row["Mobile Number"],
+//         row["Email"] || null, // Assuming email might be optional
+//         row["Loan Amount"],
+//         row[" Interest Rate "],
+//         row["Tenure"],
+//         row["EMI Amount"] || null, // Optional if not provided
+//         row["GURANTOR"],
+//         row["GURANTOR DOB"] ? excelDateToJSDate(row["GURANTOR DOB"]) : null,
+//         row["GURANTOR ADHAR"],
+//         row["GURANTOR PAN"],
+//         row["DEALER NAME"],
+//         row["Name in Bank"],
+//         row["Bank name"],
+//         row["Account Number"],
+//         row["IFSC"],
+//         row["Aadhar Number"],
+//         row["Pan Card"],
+//         row["Product"],
+//         row["lender"] || "EV_loan", // Default value as per table definition
+//         row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+//         row["status"] || "Login", // Default value as per table definition
+//         row["Disbursal Amount"] || null, // Optional if not provided
+//         row["Processing Fee"] || 0.0, // Default value as per table definition
+//         row["CIBIL Score"],
+//         row["GURANTOR CIBIL Score"],
+//         row["Relationship with Borrower"],
+//         row["Co-Applicant"],
+//         row["Co-Applicant DOB"]
+//           ? excelDateToJSDate(row["Co-Applicant DOB"])
+//           : null,
+//         row["Co-Applicant AADHAR"],
+//         row["Co-Applicant PAN"],
+//         row["Co-Applicant CIBIL Score"],
+//         row["APR"],
+//         row["Battery Name"],
+//         row["Battery Type"],
+//         row["Battery Serial no 1"],
+//         row["Battery Serial no 2"],
+//         row["E-Rikshaw model"],
+//         row["Chassis no"],
+//         row["Customer Name as per bank"] || null, // New field
+//         row["Customer Bank name"] || null, // New field
+//         row["Customer Account Number"] || null, // New field
+//         row["Bank IFSC Code"] || null, // New field
+//       ]);
+
+//       console.log(
+//         `✅ Inserted loan for Interst Rate: ${interestRate}, Aadhar: ${aadharNumber}, LAN: ${lan}`
+//       );
+//     }
+
+//     res.json({ message: "File uploaded and data saved successfully." });
+//   } catch (error) {
+//     console.error("❌ Error in Upload Process:", error);
+
+//     res.status(500).json({
+//       message: "Upload failed. Please try again.",
+//       error: error.sqlMessage || error.message,
+//     });
+//   }
+// });
+
 router.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file)
-    return res
-      .status(400)
-      .json({ message: "No file uploaded. Please select a valid file." });
+  if (!req.file) return res.status(400).json({ message: "No file uploaded." });
   if (!req.body.lenderType)
     return res.status(400).json({ message: "Lender type is required." });
 
-  try {
-    const lenderType = req.body.lenderType;
-    if (req.body.lenderType !== "EV Loan") {
-      return res
-        .status(400)
-        .json({
-          message: "Invalid upload lender type. Only EV Loan is supported.",
-        });
-    }
+  // only EV supported as you have now
+  if (req.body.lenderType !== "EV Loan") {
+    return res.status(400).json({ message: "Invalid upload lender type. Only EV Loan is supported." });
+  }
 
-    // ✅ Read Excel File
+  const success_rows = [];
+  const row_errors = []; // {row, stage, reason, pan?, aadhaar?, lan?}
+
+  try {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
-    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]).map((r, i) => ({ __row: i + 2, ...r }));
 
-    if (!sheetData || sheetData.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Uploaded Excel file is empty or invalid." });
-    }
-    const lender = lenderType.trim(); // normalize input
+    if (!rows.length) return res.status(400).json({ message: "Uploaded Excel file is empty or invalid." });
 
-    for (const row of sheetData) {
-      const lender = row["lender"];
+    for (const row of rows) {
+      const R = row.__row;
+      const lender = (row["lender"] || "").trim();
       const panCard = row["Pan Card"];
       const aadharNumber = row["Aadhar Number"];
       const interestRate = row["InterestRate"];
 
+      // validate
       if (lender !== "EV Loan") {
-        return res
-          .status(400)
-          .json({
-            message: "Invalid lender type in row. Only EV Loan is supported.",
-          });
+        row_errors.push({ row: R, stage: "validation", reason: "Invalid lender (only EV Loan allowed)" });
+        continue;
       }
 
-      // ✅ Check for existing customer using PAN & Aadhar
-      const [existingRecords] = await db
-        .promise()
-        .query(
+      // dup customer?
+      try {
+        const [dups] = await db.promise().query(
           `SELECT lan FROM loan_booking_ev WHERE pan_card = ? OR aadhar_number = ?`,
           [panCard, aadharNumber]
         );
-
-      if (existingRecords.length > 0) {
-        return res.json({
-          message: `Customer already exists. Duplicate found for Pan Card: ${panCard} or Aadhar Number: ${aadharNumber}`,
-        });
+        if (dups.length > 0) {
+          row_errors.push({ row: R, stage: "validation", reason: `Duplicate PAN/Aadhaar (${panCard || ""} / ${aadharNumber || ""})` });
+          continue;
+        }
+      } catch (err) {
+        row_errors.push({ row: R, stage: "dup-check", reason: toClientError(err).message });
+        continue;
       }
 
-      // ✅ Generate new loan identifiers
-      const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+      // identifiers
+      let partnerLoanId, lan;
+      try {
+        const ids = await generateLoanIdentifiers("EV Loan");
+        partnerLoanId = ids.partnerLoanId; lan = ids.lan;
+      } catch (err) {
+        row_errors.push({ row: R, stage: "id-gen", reason: toClientError(err).message });
+        continue;
+      }
 
-      // ✅ Insert Data into `loan_bookings`
-      //      const query = `
-      //   INSERT INTO loan_bookings (
-      //     partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
-      //     address_line_1, address_line_2, village, district, state, pincode,
-      //     mobile_number, email, occupation, relationship_with_borrower, cibil_score,
-      //     guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
-      //     guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
-      //     account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant, guarantor_co_applicant_dob, product, lender,
-      //     agreement_date, status
-      //   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?, ?)
-      // `;
-
-      //     await db.promise().query(query, [
-      //       partnerLoanId,
-      //   lan,
-      //   row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-      //   row["Customer Name"],
-      //   row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
-      //   row["Father Name"],
-      //   row["Address Line 1"],
-      //   row["Address Line 2"],
-      //   row["Village"],
-      //   row["District"],
-      //   row["State"],
-      //   row["Pincode"],
-      //   row["Mobile Number"],
-      //   row["Email"],
-      //   row["Occupation"],
-      //   row["Relationship with Borrower"],
-      //   row["CIBIL Score"],
-      //   row["GURANTOR/Co-Applicant CIBIL Score"], // ✅ New field
-      //   row["Loan Amount"],
-      //   row["Tenure"],
-      //   row["Interest Rate"],
-      //   row["EMI Amount"],
-      //   row["GURANTOR/Co-Applicant ADHAR"],
-      //   row["GURANTOR/Co-Applicant PAN"],
-      //   row["DEALER NAME"],
-      //   row["Name in Bank"],
-      //   row["Bank name"],
-      //   row["Account Number"],
-      //   row["IFSC"],
-      //   row["Aadhar Number"],
-      //   row["Pan Card"],
-      //   row["GURANTOR/Co-Applicant"], // ✅ New field
-      //   row["GURANTOR/Co-Applicant DOB"] ? excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"]) : null, // ✅ New field
-      //   row["Product"],
-      //   lenderType,
-      //   row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-      //   "Login"
-      //     ]);
-
-      // ✅ Insert Data into `loan_booking_ev`
-
-      const query = `
-  INSERT INTO loan_booking_ev (
-    partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
-    address_line_1, address_line_2, village, district, state, pincode,
-    mobile_number, email, loan_amount, interest_rate, loan_tenure, emi_amount,
-    guarantor_name, guarantor_dob, guarantor_aadhar, guarantor_pan, dealer_name,
-    name_in_bank, bank_name, account_number, ifsc, aadhar_number, pan_card,
-    product, lender, agreement_date, status, disbursal_amount, processing_fee,
-    cibil_score, guarantor_cibil_score, relationship_with_borrower, co_applicant,
-    co_applicant_dob, co_applicant_aadhar, co_applicant_pan, co_applicant_cibil_score,
-    apr, battery_name, battery_type, battery_serial_no_1, battery_serial_no_2,
-    e_rikshaw_model, chassis_no, customer_name_as_per_bank, customer_bank_name,
-    customer_account_number, bank_ifsc_code
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`;
-
-      await db.promise().query(query, [
-        partnerLoanId,
-        lan,
-        row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-        row["Customer Name"],
-        row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
-        row["Father Name"],
-        row["Address Line 1"],
-        row["Address Line 2"],
-        row["Village"],
-        row["District"],
-        row["State"],
-        row["Pincode"],
-        row["Mobile Number"],
-        row["Email"] || null, // Assuming email might be optional
-        row["Loan Amount"],
-        row[" Interest Rate "],
-        row["Tenure"],
-        row["EMI Amount"] || null, // Optional if not provided
-        row["GURANTOR"],
-        row["GURANTOR DOB"] ? excelDateToJSDate(row["GURANTOR DOB"]) : null,
-        row["GURANTOR ADHAR"],
-        row["GURANTOR PAN"],
-        row["DEALER NAME"],
-        row["Name in Bank"],
-        row["Bank name"],
-        row["Account Number"],
-        row["IFSC"],
-        row["Aadhar Number"],
-        row["Pan Card"],
-        row["Product"],
-        row["lender"] || "EV_loan", // Default value as per table definition
-        row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-        row["status"] || "Login", // Default value as per table definition
-        row["Disbursal Amount"] || null, // Optional if not provided
-        row["Processing Fee"] || 0.0, // Default value as per table definition
-        row["CIBIL Score"],
-        row["GURANTOR CIBIL Score"],
-        row["Relationship with Borrower"],
-        row["Co-Applicant"],
-        row["Co-Applicant DOB"]
-          ? excelDateToJSDate(row["Co-Applicant DOB"])
-          : null,
-        row["Co-Applicant AADHAR"],
-        row["Co-Applicant PAN"],
-        row["Co-Applicant CIBIL Score"],
-        row["APR"],
-        row["Battery Name"],
-        row["Battery Type"],
-        row["Battery Serial no 1"],
-        row["Battery Serial no 2"],
-        row["E-Rikshaw model"],
-        row["Chassis no"],
-        row["Customer Name as per bank"] || null, // New field
-        row["Customer Bank name"] || null, // New field
-        row["Customer Account Number"] || null, // New field
-        row["Bank IFSC Code"] || null, // New field
-      ]);
-
-      console.log(
-        `✅ Inserted loan for Interst Rate: ${interestRate}, Aadhar: ${aadharNumber}, LAN: ${lan}`
-      );
+      // insert
+      try {
+        await db.promise().query(
+          `INSERT INTO loan_booking_ev (
+            partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+            address_line_1, address_line_2, village, district, state, pincode,
+            mobile_number, email, loan_amount, interest_rate, loan_tenure, emi_amount,
+            guarantor_name, guarantor_dob, guarantor_aadhar, guarantor_pan, dealer_name,
+            name_in_bank, bank_name, account_number, ifsc, aadhar_number, pan_card,
+            product, lender, agreement_date, status, disbursal_amount, processing_fee,
+            cibil_score, guarantor_cibil_score, relationship_with_borrower, co_applicant,
+            co_applicant_dob, co_applicant_aadhar, co_applicant_pan, co_applicant_cibil_score,
+            apr, battery_name, battery_type, battery_serial_no_1, battery_serial_no_2,
+            e_rikshaw_model, chassis_no, customer_name_as_per_bank, customer_bank_name,
+            customer_account_number, bank_ifsc_code
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          [
+            partnerLoanId,
+            lan,
+            row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+            row["Customer Name"],
+            row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
+            row["Father Name"],
+            row["Address Line 1"],
+            row["Address Line 2"],
+            row["Village"],
+            row["District"],
+            row["State"],
+            row["Pincode"],
+            row["Mobile Number"],
+            row["Email"] || null,
+            row["Loan Amount"],
+            row[" Interest Rate "],
+            row["Tenure"],
+            row["EMI Amount"] || null,
+            row["GURANTOR"],
+            row["GURANTOR DOB"] ? excelDateToJSDate(row["GURANTOR DOB"]) : null,
+            row["GURANTOR ADHAR"],
+            row["GURANTOR PAN"],
+            row["DEALER NAME"],
+            row["Name in Bank"],
+            row["Bank name"],
+            row["Account Number"],
+            row["IFSC"],
+            row["Aadhar Number"],
+            row["Pan Card"],
+            row["Product"],
+            row["lender"] || "EV_loan",
+            row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null, // note: matches your original
+            row["status"] || "Login",
+            row["Disbursal Amount"] || null,
+            row["Processing Fee"] || 0.0,
+            row["CIBIL Score"],
+            row["GURANTOR CIBIL Score"],
+            row["Relationship with Borrower"],
+            row["Co-Applicant"],
+            row["Co-Applicant DOB"] ? excelDateToJSDate(row["Co-Applicant DOB"]) : null,
+            row["Co-Applicant AADHAR"],
+            row["Co-Applicant PAN"],
+            row["Co-Applicant CIBIL Score"],
+            row["APR"],
+            row["Battery Name"],
+            row["Battery Type"],
+            row["Battery Serial no 1"],
+            row["Battery Serial no 2"],
+            row["E-Rikshaw model"],
+            row["Chassis no"],
+            row["Customer Name as per bank"] || null,
+            row["Customer Bank name"] || null,
+            row["Customer Account Number"] || null,
+            row["Bank IFSC Code"] || null,
+          ]
+        );
+        success_rows.push(R);
+        console.log(`✅ Inserted EV row ${R} (LAN ${lan}) intRate: ${interestRate}`);
+      } catch (err) {
+        row_errors.push({ row: R, stage: "insert", reason: toClientError(err).message });
+        continue;
+      }
     }
 
-    res.json({ message: "File uploaded and data saved successfully." });
+    return res.json({
+      message: "File processed.",
+      total_rows: rows.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+    });
   } catch (error) {
     console.error("❌ Error in Upload Process:", error);
-
-    res.status(500).json({
-      message: "Upload failed. Please try again.",
-      error: error.sqlMessage || error.message,
+    return res.status(500).json({
+      message: "Upload failed.",
+      error: toClientError(error),
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
     });
   }
 });
+
 ///////////////////////////////////////////////////////////////////////////////////
 
 // POST /api/loan-booking/create
@@ -1011,56 +1172,257 @@ const parseDate = (v) => {
   }
 };
 //////date above //////
+// router.post("/upload-embifi", upload.single("file"), async (req, res) => {
+//   if (!req.file) return res.status(400).json({ message: "No file uploaded." });
+
+//   try {
+//     const wb = xlsx.read(req.file.buffer, { type: "buffer" });
+//     const ws = wb.Sheets[wb.SheetNames[0]];
+//     const rows = xlsx.utils
+//       .sheet_to_json(ws)
+//       .map((r, i) => ({ __row: i + 2, ...r }));
+
+//     if (!rows.length)
+//       return res.status(400).json({ message: "Empty or invalid Excel." });
+
+//     const success = [],
+//       failed = [];
+
+//     for (const row of rows) {
+//       const R = row.__row;
+
+//       // === map your exact headers ===
+//       const lan = (row["LAN"] || "").toString().trim();
+//       const applicant_name = row["Applicant Name"] || null;
+//       const applicant_dob = parseDate(row["Applicant DOB"]);
+//       const applicant_age_years = num(row["Applicant Age"]);
+//       const applicant_father_name = row["Applicant Father Name"] || null;
+//       const pan_number = (row["PAN Number"] || "").toString().trim() || null;
+//       const applicant_aadhaar_no =
+//         (row["Applicant Aadhaar Number"] || "").toString().trim() || null;
+//       const mobile_number =
+//         (row["Mobile Number"] || "").toString().trim() || null;
+
+//       const coapplicant_name = row["CO-Applicant Name"] || null;
+//       const coapplicant_pan_no =
+//         (row["CO-Applicant Pan No"] || "").toString().trim() || null;
+//       const coapplicant_aadhaar_no =
+//         (row["CO-Applicant Aadhar No"] || "").toString().trim() || null;
+//       const coapplicant_dob = parseDate(row["CO-Applicant DOB"]);
+//       const coapplicant_mobile_no =
+//         (row["CO-Applicant Mobile No"] || "").toString().trim() || null;
+
+//       const approved_loan_amount = num(row["Approved Loan Amount"]);
+//       const processing_fees_with_tax = num(row["Processing Fees With Tax"]);
+//       const processing_fees = num(row["Processing Fess"]); // note: “Fess” in sheet
+//       const processing_fees_tax = num(row["Processing Fees Tax"]);
+//       const subvention = num(row["Subvention"]);
+//       const disbursal_amount = num(row["Disbursal Amount"]);
+
+//       const loan_tenure_months = num(row["Loan Tenure"]);
+//       const emi_amount = num(row["EMI Amount"]);
+//       const interest_rate_percent = num(row["Intrest Rate"]); // note: “Intrest” in sheet
+
+//       const status = row["Loan Status"] || null;
+//       const product = row["Product"] || "Monthly Loan";
+//       const lender = row["Lender"] || "Embifi";
+//       const loan_admin_status = row["Loan Admin Status"] || null;
+
+//       const first_emi_date = parseDate(row["First EMI Date"]);
+//       const last_emi_date = parseDate(row["Last EMI Date"]);
+//       const disbursement_date = parseDate(row["Disbursement Date"]);
+//       const disbursement_utr = row["Disbursement UTR"] || null;
+
+//       const applicant_address = row["Applicant Address"] || null;
+//       const applicant_state = row["Applicant State"] || null;
+//       const applicant_city = row["Applicant City"] || null;
+//       const applicant_pin_code =
+//         (row["Applicant Pin Code"] || "").toString().trim() || null;
+
+//       const coapplicant_address = row["CO-Applicant Address"] || null;
+//       const coapplicant_state =
+//         row["CO-Applicant state"] || row["CO-Applicant State"] || null;
+//       const coapplicant_pin_code =
+//         (row["CO-Applicant Pin Code"] || "").toString().trim() || null;
+
+//       const bureau_score = num(row["Bureau Score"]);
+//       const monthly_income = num(row["Monthly Income"]);
+//       const account_no = (row["Account No."] || "").toString().trim() || null;
+//       const ifsc_code = (row["IFSC Code"] || "").toString().trim() || null;
+
+//       const gps_device_cost = num(row["GPS Device Cost"]);
+//       const gst_on_gps_device = num(row["GST on GPS device"]);
+//       const total_gps_device_cost = num(row["Total GPS Device Cost"]);
+//       const new_interest = num(row["New Interest"]);
+
+//       // basic validation
+//       if (
+//         !lan ||
+//         !applicant_name ||
+//         !approved_loan_amount ||
+//         !loan_tenure_months ||
+//         !interest_rate_percent
+//       ) {
+//         failed.push({ row: R, reason: "Missing LAN/name/amount/tenure/rate" });
+//         continue;
+//       }
+
+//       // Check duplicate PAN/Aadhaar in Embifi table
+//       const [dups] = await db
+//         .promise()
+//         .query(`SELECT id FROM loan_booking_embifi WHERE pan_number = ? `, [
+//           pan_number,
+//         ]);
+//       if (dups.length) {
+//         failed.push({ row: R, reason: "Duplicate PAN" });
+//         continue;
+//       }
+
+//       // get or generate partner_loan_id (your sheet has no column for it)
+//       // let partner_loan_id = null;
+//       // try {
+//       //   const ids = await generateLoanIdentifiers("Embifi");
+//       //   partner_loan_id = ids.partnerLoanId;
+//       // } catch {
+//       //   // minimal fallback if you don’t have the helper yet
+//       //   partner_loan_id = `EMB-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+//       // }
+
+//       // Insert into loan_booking_embifi
+//       const sql = `
+//         INSERT INTO loan_booking_embifi (
+//            lan,
+//           customer_name, applicant_dob, applicant_age_years, applicant_father_name,
+//           pan_number, applicant_aadhaar_no, mobile_number,
+//           coapplicant_name, coapplicant_pan_no, coapplicant_aadhaar_no, coapplicant_dob, coapplicant_mobile_no,
+//           approved_loan_amount, processing_fees_with_tax, processing_fee, processing_fees_tax, subvention, disbursal_amount,
+//           loan_tenure_months, emi_amount, interest_rate,
+//           status, product, lender, loan_admin_status,
+//           first_emi_date, last_emi_date, disbursement_date, disbursement_utr,
+//           applicant_address, applicant_state, applicant_city, applicant_pin_code,
+//           coapplicant_address, coapplicant_state, coapplicant_pin_code,
+//           bureau_score, monthly_income, account_no, ifsc_code,
+//           gps_device_cost, gst_on_gps_device, total_gps_device_cost,new_interest
+//         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+//       `;
+
+//       await db
+//         .promise()
+//         .query(sql, [
+//           lan,
+//           applicant_name,
+//           applicant_dob,
+//           applicant_age_years,
+//           applicant_father_name,
+//           pan_number,
+//           applicant_aadhaar_no,
+//           mobile_number,
+//           coapplicant_name,
+//           coapplicant_pan_no,
+//           coapplicant_aadhaar_no,
+//           coapplicant_dob,
+//           coapplicant_mobile_no,
+//           approved_loan_amount,
+//           processing_fees_with_tax,
+//           processing_fees,
+//           processing_fees_tax,
+//           subvention,
+//           disbursal_amount,
+//           loan_tenure_months,
+//           emi_amount,
+//           interest_rate_percent,
+//           status,
+//           product,
+//           lender,
+//           loan_admin_status,
+//           first_emi_date,
+//           last_emi_date,
+//           disbursement_date,
+//           disbursement_utr,
+//           applicant_address,
+//           applicant_state,
+//           applicant_city,
+//           applicant_pin_code,
+//           coapplicant_address,
+//           coapplicant_state,
+//           coapplicant_pin_code,
+//           bureau_score,
+//           monthly_income,
+//           account_no,
+//           ifsc_code,
+//           gps_device_cost,
+//           gst_on_gps_device,
+//           total_gps_device_cost,
+//           new_interest,
+//         ]);
+
+//       success.push(R);
+//     }
+
+//     return res.json({
+//       message: "✅ Embifi file Save Successfully",
+//       total_rows: rows.length,
+//       inserted_rows: success.length,
+//       failed_rows: failed.length,
+//       success_rows: success,
+//       failed_details: failed,
+//     });
+//   } catch (err) {
+//     console.error("❌ Embifi Upload Error:", err);
+//     return res
+//       .status(500)
+//       .json({
+//         message: "Upload failed.",
+//         error: err.sqlMessage || err.message,
+//       });
+//   }
+// });
+
 router.post("/upload-embifi", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded." });
+
+  // collections
+  const success_rows = [];
+  const row_errors = []; // {row, stage, reason}
 
   try {
     const wb = xlsx.read(req.file.buffer, { type: "buffer" });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = xlsx.utils
-      .sheet_to_json(ws)
-      .map((r, i) => ({ __row: i + 2, ...r }));
+    const rows = xlsx.utils.sheet_to_json(ws).map((r, i) => ({ __row: i + 2, ...r }));
 
-    if (!rows.length)
+    if (!rows.length) {
       return res.status(400).json({ message: "Empty or invalid Excel." });
-
-    const success = [],
-      failed = [];
+    }
 
     for (const row of rows) {
       const R = row.__row;
 
-      // === map your exact headers ===
+      // === map your exact headers (unchanged) ===
       const lan = (row["LAN"] || "").toString().trim();
       const applicant_name = row["Applicant Name"] || null;
       const applicant_dob = parseDate(row["Applicant DOB"]);
       const applicant_age_years = num(row["Applicant Age"]);
       const applicant_father_name = row["Applicant Father Name"] || null;
       const pan_number = (row["PAN Number"] || "").toString().trim() || null;
-      const applicant_aadhaar_no =
-        (row["Applicant Aadhaar Number"] || "").toString().trim() || null;
-      const mobile_number =
-        (row["Mobile Number"] || "").toString().trim() || null;
+      const applicant_aadhaar_no = (row["Applicant Aadhaar Number"] || "").toString().trim() || null;
+      const mobile_number = (row["Mobile Number"] || "").toString().trim() || null;
 
       const coapplicant_name = row["CO-Applicant Name"] || null;
-      const coapplicant_pan_no =
-        (row["CO-Applicant Pan No"] || "").toString().trim() || null;
-      const coapplicant_aadhaar_no =
-        (row["CO-Applicant Aadhar No"] || "").toString().trim() || null;
+      const coapplicant_pan_no = (row["CO-Applicant Pan No"] || "").toString().trim() || null;
+      const coapplicant_aadhaar_no = (row["CO-Applicant Aadhar No"] || "").toString().trim() || null;
       const coapplicant_dob = parseDate(row["CO-Applicant DOB"]);
-      const coapplicant_mobile_no =
-        (row["CO-Applicant Mobile No"] || "").toString().trim() || null;
+      const coapplicant_mobile_no = (row["CO-Applicant Mobile No"] || "").toString().trim() || null;
 
       const approved_loan_amount = num(row["Approved Loan Amount"]);
       const processing_fees_with_tax = num(row["Processing Fees With Tax"]);
-      const processing_fees = num(row["Processing Fess"]); // note: “Fess” in sheet
+      const processing_fees = num(row["Processing Fess"]); // sheet uses "Fess"
       const processing_fees_tax = num(row["Processing Fees Tax"]);
       const subvention = num(row["Subvention"]);
       const disbursal_amount = num(row["Disbursal Amount"]);
 
       const loan_tenure_months = num(row["Loan Tenure"]);
       const emi_amount = num(row["EMI Amount"]);
-      const interest_rate_percent = num(row["Intrest Rate"]); // note: “Intrest” in sheet
+      const interest_rate_percent = num(row["Intrest Rate"]); // sheet uses "Intrest"
 
       const status = row["Loan Status"] || null;
       const product = row["Product"] || "Monthly Loan";
@@ -1075,14 +1437,11 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       const applicant_address = row["Applicant Address"] || null;
       const applicant_state = row["Applicant State"] || null;
       const applicant_city = row["Applicant City"] || null;
-      const applicant_pin_code =
-        (row["Applicant Pin Code"] || "").toString().trim() || null;
+      const applicant_pin_code = (row["Applicant Pin Code"] || "").toString().trim() || null;
 
       const coapplicant_address = row["CO-Applicant Address"] || null;
-      const coapplicant_state =
-        row["CO-Applicant state"] || row["CO-Applicant State"] || null;
-      const coapplicant_pin_code =
-        (row["CO-Applicant Pin Code"] || "").toString().trim() || null;
+      const coapplicant_state = row["CO-Applicant state"] || row["CO-Applicant State"] || null;
+      const coapplicant_pin_code = (row["CO-Applicant Pin Code"] || "").toString().trim() || null;
 
       const bureau_score = num(row["Bureau Score"]);
       const monthly_income = num(row["Monthly Income"]);
@@ -1094,60 +1453,46 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       const total_gps_device_cost = num(row["Total GPS Device Cost"]);
       const new_interest = num(row["New Interest"]);
 
-      // basic validation
-      if (
-        !lan ||
-        !applicant_name ||
-        !approved_loan_amount ||
-        !loan_tenure_months ||
-        !interest_rate_percent
-      ) {
-        failed.push({ row: R, reason: "Missing LAN/name/amount/tenure/rate" });
+      // 1) basic validation
+      if (!lan || !applicant_name || !approved_loan_amount || !loan_tenure_months || !interest_rate_percent) {
+        row_errors.push({ row: R, stage: "validation", reason: "Missing LAN/name/amount/tenure/rate" });
         continue;
       }
 
-      // Check duplicate PAN/Aadhaar in Embifi table
-      const [dups] = await db
-        .promise()
-        .query(`SELECT id FROM loan_booking_embifi WHERE pan_number = ? `, [
-          pan_number,
-        ]);
-      if (dups.length) {
-        failed.push({ row: R, reason: "Duplicate PAN" });
+      // 2) duplicate PAN/Aadhaar check
+      try {
+        const [dups] = await db
+          .promise()
+          .query(`SELECT id FROM loan_booking_embifi WHERE pan_number = ?`, [pan_number]);
+        if (dups.length) {
+          row_errors.push({ row: R, stage: "dup-check", reason: "Duplicate PAN" });
+          continue;
+        }
+      } catch (err) {
+        row_errors.push({ row: R, stage: "dup-check", reason: toClientError(err).message });
         continue;
       }
 
-      // get or generate partner_loan_id (your sheet has no column for it)
-      // let partner_loan_id = null;
-      // try {
-      //   const ids = await generateLoanIdentifiers("Embifi");
-      //   partner_loan_id = ids.partnerLoanId;
-      // } catch {
-      //   // minimal fallback if you don’t have the helper yet
-      //   partner_loan_id = `EMB-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-      // }
+      // 3) insert row
+      try {
+        const sql = `
+          INSERT INTO loan_booking_embifi (
+            lan,
+            customer_name, applicant_dob, applicant_age_years, applicant_father_name,
+            pan_number, applicant_aadhaar_no, mobile_number,
+            coapplicant_name, coapplicant_pan_no, coapplicant_aadhaar_no, coapplicant_dob, coapplicant_mobile_no,
+            approved_loan_amount, processing_fees_with_tax, processing_fee, processing_fees_tax, subvention, disbursal_amount,
+            loan_tenure_months, emi_amount, interest_rate,
+            status, product, lender, loan_admin_status,
+            first_emi_date, last_emi_date, disbursement_date, disbursement_utr,
+            applicant_address, applicant_state, applicant_city, applicant_pin_code,
+            coapplicant_address, coapplicant_state, coapplicant_pin_code,
+            bureau_score, monthly_income, account_no, ifsc_code,
+            gps_device_cost, gst_on_gps_device, total_gps_device_cost, new_interest
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        `;
 
-      // Insert into loan_booking_embifi
-      const sql = `
-        INSERT INTO loan_booking_embifi (
-           lan,
-          customer_name, applicant_dob, applicant_age_years, applicant_father_name,
-          pan_number, applicant_aadhaar_no, mobile_number,
-          coapplicant_name, coapplicant_pan_no, coapplicant_aadhaar_no, coapplicant_dob, coapplicant_mobile_no,
-          approved_loan_amount, processing_fees_with_tax, processing_fee, processing_fees_tax, subvention, disbursal_amount,
-          loan_tenure_months, emi_amount, interest_rate,
-          status, product, lender, loan_admin_status,
-          first_emi_date, last_emi_date, disbursement_date, disbursement_utr,
-          applicant_address, applicant_state, applicant_city, applicant_pin_code,
-          coapplicant_address, coapplicant_state, coapplicant_pin_code,
-          bureau_score, monthly_income, account_no, ifsc_code,
-          gps_device_cost, gst_on_gps_device, total_gps_device_cost,new_interest
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `;
-
-      await db
-        .promise()
-        .query(sql, [
+        await db.promise().query(sql, [
           lan,
           applicant_name,
           applicant_dob,
@@ -1195,27 +1540,33 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
           new_interest,
         ]);
 
-      success.push(R);
+        success_rows.push(R);
+      } catch (err) {
+        row_errors.push({ row: R, stage: "insert", reason: toClientError(err).message });
+        continue;
+      }
     }
 
     return res.json({
-      message: "✅ Embifi file Save Successfully",
+      message: "Embifi file processed.",
       total_rows: rows.length,
-      inserted_rows: success.length,
-      failed_rows: failed.length,
-      success_rows: success,
-      failed_details: failed,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows: success_rows,
+      row_errors: row_errors, // 👈 frontend can render stage + reason per row
     });
   } catch (err) {
     console.error("❌ Embifi Upload Error:", err);
-    return res
-      .status(500)
-      .json({
-        message: "Upload failed.",
-        error: err.sqlMessage || err.message,
-      });
+    return res.status(500).json({
+      message: "Upload failed.",
+      error: toClientError(err),
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      row_errors: row_errors,
+    });
   }
 });
+
 
 ////////////////// BL Loan........./////////////////////////////////
 router.post("/bl-upload", upload.single("file"), async (req, res) => {
@@ -1867,36 +2218,245 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
 });
 
 
+// router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
+//   if (!req.file) return res.status(400).json({ message: "No file uploaded." });
+//   if (!req.body.lenderType)
+//     return res.status(400).json({ message: "Lender type is required." });
+
+//   try {
+//     const lenderType = req.body.lenderType;
+//     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+//     const sheetName = workbook.SheetNames[0];
+//     const rawSheet = workbook.Sheets[sheetName];
+//     const rawData = xlsx.utils.sheet_to_json(rawSheet, {
+//       defval: "",
+//       header: 1,
+//     });
+
+//     // Normalize headers
+//     const rawHeaders = rawData[0];
+//     const normalizedHeaders = {};
+//     rawHeaders.forEach((header, i) => {
+//       const norm = header
+//         ?.toString()
+//         .toLowerCase()
+//         .replace(/\s+/g, " ")
+//         .trim()
+//         .replace(/[^a-z0-9]/g, "");
+//       if (norm) normalizedHeaders[i] = header;
+//     });
+
+//     const sheetData = rawData.slice(1).map((row) => {
+//       const formatted = {};
+//       Object.entries(normalizedHeaders).forEach(([idx, original]) => {
+//         formatted[original] = row[idx] ?? "";
+//       });
+//       return formatted;
+//     });
+
+//     if (sheetData.length === 0) {
+//       return res
+//         .status(400)
+//         .json({ message: "Uploaded Excel file is empty or invalid." });
+//     }
+
+//     const skippedDueToCIBIL = [];
+
+//     for (const row of sheetData) {
+//       const panCard = row["PAN Number"];
+//       const aadharNumber = row["Aadhaar Number"];
+//       const rawCibil = row["Credit Score"] || row["CIBIL Score"];
+//       const cibilScore = parseInt(rawCibil);
+
+//       if (isNaN(cibilScore)) {
+//         skippedDueToCIBIL.push({
+//           ...row,
+//           reason: "Missing or invalid CIBIL Score",
+//         });
+//         continue;
+//       }
+
+//       if (!(cibilScore >= 500 || cibilScore === -1)) {
+//         skippedDueToCIBIL.push({ ...row, reason: "Low CIBIL Score" });
+//         continue;
+//       }
+
+//       // const [existingRecords] = await db
+//       //   .promise()
+//       //   .query(
+//       //     `SELECT lan FROM loan_booking_gq_fsf WHERE pan_number = ? OR aadhaar_number = ?`,
+//       //     [panCard, aadharNumber]
+//       //   );
+
+//       // if (existingRecords.length > 0) {
+//       //   return res.json({
+//       //     message: `Customer already exists. Duplicate found for PAN: ${panCard} or Aadhaar: ${aadharNumber}`,
+//       //   });
+//       // }
+
+//       const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+//       // try {
+//       //   const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+//       // } catch (err) {
+//       //   return res.status(400).json({ message: err.message });
+//       // }
+
+//       const parse = (v) =>
+//         typeof v === "number"
+//           ? v
+//           : parseFloat((v ?? "").toString().replace(/[^0-9.]/g, "")) || 0;
+
+//       await db.promise().query(
+//         `INSERT INTO loan_booking_gq_fsf (
+//           partner_loan_id, lan, app_id, product, customer_type, residence_type, loan_type, disbursal_type,
+//     institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
+//     agreement_signature_type, loan_application_date, emi_day, company_name, fathers_name,
+//     ckyc_no, customer_name, student_name, date_of_birth, gender, current_address_line1,
+//     current_address_line2, current_address_line3, current_address_landmark, current_address_pincode,
+//     current_address_city, current_address_state, proof_of_current_address, permanent_address_line1,
+//     permanent_address_line2, permanent_address_line3, permanent_address_landmark, permanent_address_pincode,
+//     permanent_address_city, permanent_address_state, office_address_line1, office_address_line2,
+//     office_address_line3, office_address_landmark, office_address_pincode, office_address_city,
+//     office_address_state, pan_number, employment_status, annual_income, credit_score, mobile_number,
+//     email_id, institute, loan_amount_sanctioned, loan_tenure_months, monthly_emi,
+//     interest_percent, monthly_interest_amount, no_of_advance_emis, processing_fee, processing_fee_tax,
+//     advance_emi_total, subvention_amount, disbursal_amount, retention_percentage, retention_amount, actual_disbursement, to_be_recovered,
+//     agreement_date, interest_rate_irr, flat_rate, nach_umrn, income_source,
+//     status, monthly_income, age, lender, loan_amount, interest_rate, loan_tenure
+//         ) VALUES (${new Array(79).fill("?").join(",")})`,
+//         [
+//           partnerLoanId,
+//           lan,
+//           row["APPLICATION ID"],
+//           row["Product"],
+//           row["Customer Type"],
+//           row["Residence Type"],
+//           row["Loan Type"],
+//           row["Disbursal Type"],
+//           row["Institute Account Number"],
+//           row["Beneficiary Name"],
+//           row["IFSC Code"],
+//           row["Bank Name"],
+//           aadharNumber,
+//           row["Agreement Signature Type"],
+//           row["Loan Application Date"]
+//             ? excelDateToJSDate(row["Loan Application Date"])
+//             : null,
+//           parse(row["Emi Day"]),
+//           row["Company Name"],
+//           row["Fathers Name"],
+//           row["CKYC No"],
+//           row["Customer Name"],
+//           row["Student Name"],
+//           row["Date Of Birth"] ? excelDateToJSDate(row["Date Of Birth"]) : null,
+//           row["Gender"],
+//           row["Current Address Line 1"],
+//           row["Current Address Line 2"],
+//           row["Current Address Line 3"],
+//           row["Current Address Landmark"],
+//           row["Current Address Pincode"],
+//           row["Current Address City"],
+//           row["Current Address State"],
+//           row["Proof of Current Address"],
+//           row["Permanent Address Line 1"],
+//           row["Permanent Address Line 2"],
+//           row["Permanent Address Line 3"],
+//           row["Permanent Address Landmark"],
+//           row["Permanent Address Pincode"],
+//           row["Permanent Address City"],
+//           row["Permanent Address State"],
+//           row["Office Address Line 1"],
+//           row["Office Address Line 2"],
+//           row["Office Address Line 3"],
+//           row["Office Address Landmark"],
+//           row["Office Address Pincode"],
+//           row["Office Address City"],
+//           row["Office Address State"],
+//           panCard,
+//           row["Employment Status"],
+//           parse(row["Annual Income"]),
+//           cibilScore,
+//           row["Mobile Number"],
+//           row["Email ID"],
+//           row["Institute"],
+//           parse(row["Loan Amount Sanctioned"]),
+//           parse(row["Loan Tenure (Months)"]),
+//           parse(row["Monthly EMI"]),
+//           parse(row["Interest %"]),
+//           parse(row["Monthly Interest Amount"]),
+//           parse(row["No. Of Advance EMIs"]),
+//           parse(row["Processing Fee"]),
+//           parse(row["Processing Fee Tax"]),
+//           parse(row["Advance EMI (Total)"]),
+//           parse(row["Subvention Amount"]),
+//           parse(row["Disbursal Amount"]),
+//           parse(row["Retention Percentage"]),
+//           parse(row["Retention Amount"]),
+//           parse(row["Actual Disbursement"]),
+//           parse(row["To be Recovered"]),
+//           row["Agreement Date (DD-MMM-YYYY)"]
+//             ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"])
+//             : null,
+//           parse(row["Interest Rate (IRR %)"]),
+//           parse(row["Flat Rate (%)"]),
+//           row["Nach UMRN"],
+//           row["Income Source"],
+//           "Login",
+//           parse(row["Monthly Income"]),
+//           parse(row["Age"]),
+//           lenderType,
+//           parse(row["Loan Amount Sanctioned"]),
+//           parse(row["Interest %"]),
+//           parse(row["Loan Tenure (Months)"]),
+//         ]
+//       );
+//     }
+
+//     res.status(200).json({
+//       message: "✅ File uploaded and valid data saved.",
+//       skippedDueToCIBIL,
+//       totalSkipped: skippedDueToCIBIL.length,
+//     });
+//   } catch (error) {
+//     console.error("❌ Upload Error:", error);
+//     res.status(500).json({
+//       message: "Upload failed",
+//       error: error.sqlMessage || error.message,
+//     });
+//   }
+// });
+
+
 router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded." });
   if (!req.body.lenderType)
     return res.status(400).json({ message: "Lender type is required." });
 
+  const lenderType = req.body.lenderType;
+
+  // collections we’ll return to the frontend
+  const success_rows = [];            // e.g., [2, 3, 7]
+  const row_errors = [];              // e.g., [{row, stage, reason}]
+  const skippedDueToCIBIL = [];       // you already had this
+
   try {
-    const lenderType = req.body.lenderType;
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const rawSheet = workbook.Sheets[sheetName];
-    const rawData = xlsx.utils.sheet_to_json(rawSheet, {
-      defval: "",
-      header: 1,
-    });
+    const rawData = xlsx.utils.sheet_to_json(rawSheet, { defval: "", header: 1 });
 
     // Normalize headers
     const rawHeaders = rawData[0];
     const normalizedHeaders = {};
     rawHeaders.forEach((header, i) => {
-      const norm = header
-        ?.toString()
-        .toLowerCase()
-        .replace(/\s+/g, " ")
-        .trim()
-        .replace(/[^a-z0-9]/g, "");
+      const norm = header?.toString().toLowerCase().replace(/\s+/g, " ").trim().replace(/[^a-z0-9]/g, "");
       if (norm) normalizedHeaders[i] = header;
     });
 
-    const sheetData = rawData.slice(1).map((row) => {
-      const formatted = {};
+    // Build row objects using original header names
+    const sheetData = rawData.slice(1).map((row, rIndex) => {
+      const formatted = { __row: rIndex + 2 }; // Excel row number (assuming header row = 1)
       Object.entries(normalizedHeaders).forEach(([idx, original]) => {
         formatted[original] = row[idx] ?? "";
       });
@@ -1904,177 +2464,206 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
     });
 
     if (sheetData.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Uploaded Excel file is empty or invalid." });
+      return res.status(400).json({ message: "Uploaded Excel file is empty or invalid." });
     }
 
-    const skippedDueToCIBIL = [];
+    // util to number-parse your currency/ints
+    const parse = (v) =>
+      typeof v === "number" ? v : parseFloat((v ?? "").toString().replace(/[^0-9.]/g, "")) || 0;
 
     for (const row of sheetData) {
-      const panCard = row["PAN Number"];
-      const aadharNumber = row["Aadhaar Number"];
-      const rawCibil = row["Credit Score"] || row["CIBIL Score"];
-      const cibilScore = parseInt(rawCibil);
+      const R = row.__row;
 
-      if (isNaN(cibilScore)) {
-        skippedDueToCIBIL.push({
-          ...row,
-          reason: "Missing or invalid CIBIL Score",
-        });
+      try {
+        const panCard = row["PAN Number"];
+        const aadharNumber = row["Aadhaar Number"];
+        const rawCibil = row["Credit Score"] || row["CIBIL Score"];
+        const cibilScore = parseInt(rawCibil);
+
+        // CIBIL validation (your existing rules)
+        if (isNaN(cibilScore)) {
+          skippedDueToCIBIL.push({ ...row, reason: "Missing or invalid CIBIL Score" });
+          continue;
+        }
+        if (!(cibilScore >= 500 || cibilScore === -1)) {
+          skippedDueToCIBIL.push({ ...row, reason: "Low CIBIL Score" });
+          continue;
+        }
+
+        // OPTIONAL: duplicate check (PAN/Aadhaar). Uncomment if you want this.
+        /*
+        try {
+          const [existing] = await db
+            .promise()
+            .query(
+              `SELECT lan FROM loan_booking_gq_fsf WHERE pan_number = ? OR aadhaar_number = ?`,
+              [panCard, aadharNumber]
+            );
+          if (existing.length > 0) {
+            row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate PAN/Aadhaar (${panCard || ""} / ${aadharNumber || ""})` });
+            continue;
+          }
+        } catch (dupErr) {
+          row_errors.push({ row: R, stage: "dup-check", reason: toClientError(dupErr).message });
+          continue;
+        }
+        */
+
+        // Generate IDs
+        let partnerLoanId, lan;
+        try {
+          const ids = await generateLoanIdentifiers(lenderType);
+          partnerLoanId = ids.partnerLoanId;
+          lan = ids.lan;
+        } catch (idErr) {
+          row_errors.push({ row: R, stage: "id-gen", reason: toClientError(idErr).message });
+          continue;
+        }
+
+        // Insert
+        try {
+          await db
+            .promise()
+            .query(
+              `INSERT INTO loan_booking_gq_fsf (
+                partner_loan_id, lan, app_id, product, customer_type, residence_type, loan_type, disbursal_type,
+                institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
+                agreement_signature_type, loan_application_date, emi_day, company_name, fathers_name,
+                ckyc_no, customer_name, student_name, date_of_birth, gender, current_address_line1,
+                current_address_line2, current_address_line3, current_address_landmark, current_address_pincode,
+                current_address_city, current_address_state, proof_of_current_address, permanent_address_line1,
+                permanent_address_line2, permanent_address_line3, permanent_address_landmark, permanent_address_pincode,
+                permanent_address_city, permanent_address_state, office_address_line1, office_address_line2,
+                office_address_line3, office_address_landmark, office_address_pincode, office_address_city,
+                office_address_state, pan_number, employment_status, annual_income, credit_score, mobile_number,
+                email_id, institute, loan_amount_sanctioned, loan_tenure_months, monthly_emi,
+                interest_percent, monthly_interest_amount, no_of_advance_emis, processing_fee, processing_fee_tax,
+                advance_emi_total, subvention_amount, disbursal_amount, retention_percentage, retention_amount, actual_disbursement, to_be_recovered,
+                agreement_date, interest_rate_irr, flat_rate, nach_umrn, income_source,
+                status, monthly_income, age, lender, loan_amount, interest_rate, loan_tenure
+              ) VALUES (${new Array(79).fill("?").join(",")})`,
+              [
+                partnerLoanId,
+                lan,
+                row["APPLICATION ID"],
+                row["Product"],
+                row["Customer Type"],
+                row["Residence Type"],
+                row["Loan Type"],
+                row["Disbursal Type"],
+                row["Institute Account Number"],
+                row["Beneficiary Name"],
+                row["IFSC Code"],
+                row["Bank Name"],
+                aadharNumber,
+                row["Agreement Signature Type"],
+                row["Loan Application Date"] ? excelDateToJSDate(row["Loan Application Date"]) : null,
+                parse(row["Emi Day"]),
+                row["Company Name"],
+                row["Fathers Name"],
+                row["CKYC No"],
+                row["Customer Name"],
+                row["Student Name"],
+                row["Date Of Birth"] ? excelDateToJSDate(row["Date Of Birth"]) : null,
+                row["Gender"],
+                row["Current Address Line 1"],
+                row["Current Address Line 2"],
+                row["Current Address Line 3"],
+                row["Current Address Landmark"],
+                row["Current Address Pincode"],
+                row["Current Address City"],
+                row["Current Address State"],
+                row["Proof of Current Address"],
+                row["Permanent Address Line 1"],
+                row["Permanent Address Line 2"],
+                row["Permanent Address Line 3"],
+                row["Permanent Address Landmark"],
+                row["Permanent Address Pincode"],
+                row["Permanent Address City"],
+                row["Permanent Address State"],
+                row["Office Address Line 1"],
+                row["Office Address Line 2"],
+                row["Office Address Line 3"],
+                row["Office Address Landmark"],
+                row["Office Address Pincode"],
+                row["Office Address City"],
+                row["Office Address State"],
+                panCard,
+                row["Employment Status"],
+                parse(row["Annual Income"]),
+                cibilScore,
+                row["Mobile Number"],
+                row["Email ID"],
+                row["Institute"],
+                parse(row["Loan Amount Sanctioned"]),
+                parse(row["Loan Tenure (Months)"]),
+                parse(row["Monthly EMI"]),
+                parse(row["Interest %"]),
+                parse(row["Monthly Interest Amount"]),
+                parse(row["No. Of Advance EMIs"]),
+                parse(row["Processing Fee"]),
+                parse(row["Processing Fee Tax"]),
+                parse(row["Advance EMI (Total)"]),
+                parse(row["Subvention Amount"]),
+                parse(row["Disbursal Amount"]),
+                parse(row["Retention Percentage"]),
+                parse(row["Retention Amount"]),
+                parse(row["Actual Disbursement"]),
+                parse(row["To be Recovered"]),
+                row["Agreement Date (DD-MMM-YYYY)"] ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"]) : null,
+                parse(row["Interest Rate (IRR %)"]),
+                parse(row["Flat Rate (%)"]),
+                row["Nach UMRN"],
+                row["Income Source"],
+                "Login",
+                parse(row["Monthly Income"]),
+                parse(row["Age"]),
+                lenderType,
+                parse(row["Loan Amount Sanctioned"]),
+                parse(row["Interest %"]),
+                parse(row["Loan Tenure (Months)"]),
+              ]
+            );
+
+          success_rows.push(R);
+        } catch (insErr) {
+          row_errors.push({ row: R, stage: "insert", reason: toClientError(insErr).message });
+          continue;
+        }
+      } catch (loopErr) {
+        // This catches any unexpected error per row so one bad row doesn’t kill the rest
+        row_errors.push({ row: R, stage: "unknown", reason: toClientError(loopErr).message });
         continue;
       }
-
-      if (!(cibilScore >= 500 || cibilScore === -1)) {
-        skippedDueToCIBIL.push({ ...row, reason: "Low CIBIL Score" });
-        continue;
-      }
-
-      // const [existingRecords] = await db
-      //   .promise()
-      //   .query(
-      //     `SELECT lan FROM loan_booking_gq_fsf WHERE pan_number = ? OR aadhaar_number = ?`,
-      //     [panCard, aadharNumber]
-      //   );
-
-      // if (existingRecords.length > 0) {
-      //   return res.json({
-      //     message: `Customer already exists. Duplicate found for PAN: ${panCard} or Aadhaar: ${aadharNumber}`,
-      //   });
-      // }
-
-      const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
-
-      // try {
-      //   const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
-      // } catch (err) {
-      //   return res.status(400).json({ message: err.message });
-      // }
-
-      const parse = (v) =>
-        typeof v === "number"
-          ? v
-          : parseFloat((v ?? "").toString().replace(/[^0-9.]/g, "")) || 0;
-
-      await db.promise().query(
-        `INSERT INTO loan_booking_gq_fsf (
-          partner_loan_id, lan, app_id, product, customer_type, residence_type, loan_type, disbursal_type,
-    institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
-    agreement_signature_type, loan_application_date, emi_day, company_name, fathers_name,
-    ckyc_no, customer_name, student_name, date_of_birth, gender, current_address_line1,
-    current_address_line2, current_address_line3, current_address_landmark, current_address_pincode,
-    current_address_city, current_address_state, proof_of_current_address, permanent_address_line1,
-    permanent_address_line2, permanent_address_line3, permanent_address_landmark, permanent_address_pincode,
-    permanent_address_city, permanent_address_state, office_address_line1, office_address_line2,
-    office_address_line3, office_address_landmark, office_address_pincode, office_address_city,
-    office_address_state, pan_number, employment_status, annual_income, credit_score, mobile_number,
-    email_id, institute, loan_amount_sanctioned, loan_tenure_months, monthly_emi,
-    interest_percent, monthly_interest_amount, no_of_advance_emis, processing_fee, processing_fee_tax,
-    advance_emi_total, subvention_amount, disbursal_amount, retention_percentage, retention_amount, actual_disbursement, to_be_recovered,
-    agreement_date, interest_rate_irr, flat_rate, nach_umrn, income_source,
-    status, monthly_income, age, lender, loan_amount, interest_rate, loan_tenure
-        ) VALUES (${new Array(79).fill("?").join(",")})`,
-        [
-          partnerLoanId,
-          lan,
-          row["APPLICATION ID"],
-          row["Product"],
-          row["Customer Type"],
-          row["Residence Type"],
-          row["Loan Type"],
-          row["Disbursal Type"],
-          row["Institute Account Number"],
-          row["Beneficiary Name"],
-          row["IFSC Code"],
-          row["Bank Name"],
-          aadharNumber,
-          row["Agreement Signature Type"],
-          row["Loan Application Date"]
-            ? excelDateToJSDate(row["Loan Application Date"])
-            : null,
-          parse(row["Emi Day"]),
-          row["Company Name"],
-          row["Fathers Name"],
-          row["CKYC No"],
-          row["Customer Name"],
-          row["Student Name"],
-          row["Date Of Birth"] ? excelDateToJSDate(row["Date Of Birth"]) : null,
-          row["Gender"],
-          row["Current Address Line 1"],
-          row["Current Address Line 2"],
-          row["Current Address Line 3"],
-          row["Current Address Landmark"],
-          row["Current Address Pincode"],
-          row["Current Address City"],
-          row["Current Address State"],
-          row["Proof of Current Address"],
-          row["Permanent Address Line 1"],
-          row["Permanent Address Line 2"],
-          row["Permanent Address Line 3"],
-          row["Permanent Address Landmark"],
-          row["Permanent Address Pincode"],
-          row["Permanent Address City"],
-          row["Permanent Address State"],
-          row["Office Address Line 1"],
-          row["Office Address Line 2"],
-          row["Office Address Line 3"],
-          row["Office Address Landmark"],
-          row["Office Address Pincode"],
-          row["Office Address City"],
-          row["Office Address State"],
-          panCard,
-          row["Employment Status"],
-          parse(row["Annual Income"]),
-          cibilScore,
-          row["Mobile Number"],
-          row["Email ID"],
-          row["Institute"],
-          parse(row["Loan Amount Sanctioned"]),
-          parse(row["Loan Tenure (Months)"]),
-          parse(row["Monthly EMI"]),
-          parse(row["Interest %"]),
-          parse(row["Monthly Interest Amount"]),
-          parse(row["No. Of Advance EMIs"]),
-          parse(row["Processing Fee"]),
-          parse(row["Processing Fee Tax"]),
-          parse(row["Advance EMI (Total)"]),
-          parse(row["Subvention Amount"]),
-          parse(row["Disbursal Amount"]),
-          parse(row["Retention Percentage"]),
-          parse(row["Retention Amount"]),
-          parse(row["Actual Disbursement"]),
-          parse(row["To be Recovered"]),
-          row["Agreement Date (DD-MMM-YYYY)"]
-            ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"])
-            : null,
-          parse(row["Interest Rate (IRR %)"]),
-          parse(row["Flat Rate (%)"]),
-          row["Nach UMRN"],
-          row["Income Source"],
-          "Login",
-          parse(row["Monthly Income"]),
-          parse(row["Age"]),
-          lenderType,
-          parse(row["Loan Amount Sanctioned"]),
-          parse(row["Interest %"]),
-          parse(row["Loan Tenure (Months)"]),
-        ]
-      );
     }
 
-    res.status(200).json({
-      message: "✅ File uploaded and valid data saved.",
+    // Final response (200 OK even if some rows failed — the UI will show details)
+    return res.status(200).json({
+      message: "File processed.",
+      total_rows: sheetData.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
       skippedDueToCIBIL,
       totalSkipped: skippedDueToCIBIL.length,
     });
   } catch (error) {
     console.error("❌ Upload Error:", error);
-    res.status(500).json({
+    // Top-level failure (bad file, parsing, etc.). We still return what we collected so far.
+    return res.status(500).json({
       message: "Upload failed",
-      error: error.sqlMessage || error.message,
+      error: toClientError(error),
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+      skippedDueToCIBIL,
+      totalSkipped: skippedDueToCIBIL.length,
     });
   }
 });
+
 
 router.get("/gq-fsf-disbursed", (req, res) => {
   const query =
@@ -2433,173 +3022,377 @@ router.post("/v1/adikosh-cam", verifyApiKey, async (req, res) => {
 ////////////////////// ADIKOSH CAM DATA UPLOAD END     /////////////////////
 
 ///////////// GQ NON FSF  //////////////////////////
-router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "No file uploaded." });
-  }
+// router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
+//   if (!req.file) {
+//     return res.status(400).json({ message: "No file uploaded." });
+//   }
 
-  const lenderType = req.body.lenderType;
-  // if (!["EV Loan", "Health Care"].includes(lenderType)) {
-  //   return res.status(400).json({ message: "Invalid lender type." });
-  // }
+//   const lenderType = req.body.lenderType;
+//   // if (!["EV Loan", "Health Care"].includes(lenderType)) {
+//   //   return res.status(400).json({ message: "Invalid lender type." });
+//   // }
+
+//   try {
+//     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+//     const sheetName = workbook.SheetNames[0];
+//     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+//     if (!sheetData || sheetData.length === 0) {
+//       return res.status(400).json({ message: "Excel file is empty." });
+//     }
+//     for (const row of sheetData) {
+//       const app_id = row["App ID"];
+//       // const aadhaar = row["Aadhaar Number"];
+
+//       const [existing] = await db
+//         .promise()
+//         .query(`SELECT * FROM loan_booking_gq_non_fsf WHERE app_id = ? `, [
+//           app_id,
+//         ]);
+
+//       // const [existing] = await db
+//       //   .promise()
+//       //   .query(`SELECT * FROM loan_booking_gq_non_fsf WHERE pan_number = ?`, [pan]);
+
+//       if (existing.length > 0) {
+//         return res.status(409).json({
+//           message: `Duplicate found for app ID: ${app_id}. Record already exists.`,
+//         });
+//       }
+
+//       // ✅ Generate new loan identifiers
+//       const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+//       const insertQuery = `
+//         INSERT INTO loan_booking_gq_non_fsf (
+//         partner_loan_id, lan,app_id, product, customer_type, residence_type, loan_type, disbursal_type,
+//           institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
+//           agreement_signature_type, loan_application_date, emi_day, company_name, fathers_name,
+//           ckyc_no, customer_name, student_name, date_of_birth, gender, current_address_line1,
+//           current_address_line2, current_address_line3, current_address_landmark, current_address_pincode,
+//           current_address_city, current_address_state, proof_of_current_address, permanent_address_line1,
+//           permanent_address_line2, permanent_address_line3, permanent_address_landmark, permanent_address_pincode,
+//           permanent_address_city, permanent_address_state, office_address_line1, office_address_line2,
+//           office_address_line3, office_address_landmark, office_address_pincode, office_address_city,
+//           office_address_state, pan_number, employment_status, annual_income, credit_score,
+//           mobile_number, email_id, institute, loan_amount_sanctioned, loan_tenure_months, monthly_emi,
+//           interest_percent, monthly_interest_amount, no_of_advance_emis, advance_emi_total, subvention_amount,
+//           disbursal_amount, actual_disbursement, to_be_recovered, agreement_date, interest_rate_irr,
+//           flat_rate, nach_umrn, income_source, status, monthly_income, age,lender,loan_amount,interest_rate,loan_tenure
+//         ) VALUES (${new Array(75).fill("?").join(",")})
+//       `;
+
+//       // const parseDate   = (val) => {
+//       //   if (!val) return null;
+//       //   const parsed = new Date(val);
+//       //   return isNaN(parsed) ? null : parsed;
+//       // };
+
+//       const parseNumber = (val) => (val ? parseFloat(val) : 0);
+//       const loanAmount = row["Loan Amount Sanctioned"]; // ✅ New field for same data insert into 2nd column also
+//       const interestrate = row["Interest %"]; //
+//       const loantenure = row["Loan Tenure (Months)"]; //
+
+//       await db.promise().query(insertQuery, [
+//         partnerLoanId,
+//         lan,
+//         //row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+//         row["App ID"],
+//         row["Product"],
+//         row["Customer Type"],
+//         row["Residence Type"],
+//         row["Loan Type"],
+//         row["Disbursal Type"],
+//         row["Institute Account Number"],
+//         row["Beneficiary Name"],
+//         row["IFSC Code"],
+//         row["Bank Name"],
+//         row["Aadhaar Number"],
+//         row["Agreement Signature Type"],
+//         row["Loan Application Date"]
+//           ? excelDateToJSDate(row["Loan Application Date"])
+//           : null,
+//         row["Emi Day"],
+//         row["Company Name"],
+//         row["Fathers Name"],
+//         row["CKYC No"],
+//         row["Customer Name"],
+//         row["Student Name"],
+//         row["Date Of Birth"] ? excelDateToJSDate(row["Date Of Birth"]) : null,
+//         row["Gender"],
+//         row["Current Address Line 1"],
+//         row["Current Address Line 2"],
+//         row["Current Address Line 3"],
+//         row["Current Address Landmark"],
+//         row["Current Address Pincode"],
+//         row["Current Address City"],
+//         row["Current Address State"],
+//         row["Proof of Current Address"],
+//         row["Permanent Address Line 1"],
+//         row["Permanent Address Line 2"],
+//         row["Permanent Address Line 3"],
+//         row["Permanent Address Landmark"],
+//         row["Permanent Address Pincode"],
+//         row["Permanent Address City"],
+//         row["Permanent Address State"],
+//         row["Office Address Line 1"],
+//         row["Office Address Line 2"],
+//         row["Office Address Line 3"],
+//         row["Office Address Landmark"],
+//         row["Office Address Pincode"],
+//         row["Office Address City"],
+//         row["Office Address State"],
+//         row["PAN Number"],
+//         row["Employment Status"],
+//         parseNumber(row["Annual Income"]),
+//         row["Credit Score"] || null,
+//         row["Mobile Number"],
+//         row["Email ID"],
+//         row["Institute"],
+//         loanAmount,
+//         //parseInt(row["Loan Tenure (Months)"]),
+//         loantenure,
+//         parseNumber(row["Monthly EMI"]),
+//         // parseFloat(row["Insterest %"]),
+//         interestrate,
+//         parseNumber(row["Monthly Interest Amount"]),
+//         parseInt(row["No. Of Advance EMIs"]),
+//         parseNumber(row["Advance EMI (Total)"]),
+//         parseNumber(row["Subvention Amount"]),
+//         parseNumber(row["Disbursal Amount"]),
+//         parseNumber(row["Actual Disbursement"]),
+//         parseNumber(row["To be Recovered"]),
+//         row["Agreement Date (DD-MMM-YYYY)"]
+//           ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"])
+//           : null,
+//         parseFloat(row["Interest Rate (IRR %)"]),
+//         parseFloat(row["Flat Rate (%)"]),
+//         row["Nach UMRN"],
+//         row["Income Source"],
+//         "Login",
+//         parseNumber(row["Monthly Income"]),
+//         parseInt(row["Age"]),
+//         lenderType,
+//         loanAmount,
+//         interestrate, // ✅ New field for same data insert into 2nd column also
+//         loantenure, // ✅ New field for same data insert into 2nd column also
+//       ]);
+//     }
+
+//     res.json({
+//       message: "✅ Loan data uploaded to loan_booking_gq_non_fsf successfully.",
+//     });
+//   } catch (err) {
+//     console.error("❌ Upload Error:", err);
+//     res
+//       .status(500)
+//       .json({ message: "Upload failed", error: err.message, stack: err.stack });
+//   }
+// });
+
+router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded." });
+
+  const lenderType = req.body.lenderType; // optional validation below
+
+  // collections returned to frontend
+  const success_rows = [];   // Excel row numbers that inserted
+  const row_errors = [];     // [{row, stage, reason}]
 
   try {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
-    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName])
+                               .map((r, i) => ({ __row: i + 2, ...r })); // header assumed on row 1
 
     if (!sheetData || sheetData.length === 0) {
       return res.status(400).json({ message: "Excel file is empty." });
     }
+
+    // tiny helpers
+    const n = (v) => (v === null || v === undefined || v === "" ? null : Number(String(v).replace(/[^0-9.-]/g, "")) || 0);
+    const i = (v) => (v === null || v === undefined || v === "" ? null : parseInt(v, 10));
+    const s = (v) => (v === null || v === undefined ? "" : String(v).trim());
+
     for (const row of sheetData) {
-      const app_id = row["App ID"];
-      // const aadhaar = row["Aadhaar Number"];
+      const R = row.__row;
 
-      const [existing] = await db
-        .promise()
-        .query(`SELECT * FROM loan_booking_gq_non_fsf WHERE app_id = ? `, [
+      try {
+        // 1) validation (add more fields here if you want to be strict)
+        const app_id = s(row["App ID"]);
+        if (!app_id) {
+          row_errors.push({ row: R, stage: "validation", reason: "Missing App ID" });
+          continue;
+        }
+        if (!lenderType) {
+          row_errors.push({ row: R, stage: "validation", reason: "Missing lenderType in form data" });
+          continue;
+        }
+
+        // 2) duplicate App ID check
+        try {
+          const [existing] = await db
+            .promise()
+            .query(`SELECT id FROM loan_booking_gq_non_fsf WHERE app_id = ?`, [app_id]);
+          if (existing.length > 0) {
+            row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate App ID (${app_id})` });
+            continue;
+          }
+        } catch (dupErr) {
+          row_errors.push({ row: R, stage: "dup-check", reason: toClientError(dupErr).message });
+          continue;
+        }
+
+        // 3) generate loan identifiers
+        let partnerLoanId, lan;
+        try {
+          const ids = await generateLoanIdentifiers(lenderType);
+          partnerLoanId = ids.partnerLoanId;
+          lan = ids.lan;
+        } catch (idErr) {
+          row_errors.push({ row: R, stage: "id-gen", reason: toClientError(idErr).message });
+          continue;
+        }
+
+        // 4) build values & insert
+        const insertQuery = `
+          INSERT INTO loan_booking_gq_non_fsf (
+            partner_loan_id, lan, app_id, product, customer_type, residence_type, loan_type, disbursal_type,
+            institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
+            agreement_signature_type, loan_application_date, emi_day, company_name, fathers_name,
+            ckyc_no, customer_name, student_name, date_of_birth, gender, current_address_line1,
+            current_address_line2, current_address_line3, current_address_landmark, current_address_pincode,
+            current_address_city, current_address_state, proof_of_current_address, permanent_address_line1,
+            permanent_address_line2, permanent_address_line3, permanent_address_landmark, permanent_address_pincode,
+            permanent_address_city, permanent_address_state, office_address_line1, office_address_line2,
+            office_address_line3, office_address_landmark, office_address_pincode, office_address_city,
+            office_address_state, pan_number, employment_status, annual_income, credit_score,
+            mobile_number, email_id, institute, loan_amount_sanctioned, loan_tenure_months, monthly_emi,
+            interest_percent, monthly_interest_amount, no_of_advance_emis, advance_emi_total, subvention_amount,
+            disbursal_amount, actual_disbursement, to_be_recovered, agreement_date, interest_rate_irr,
+            flat_rate, nach_umrn, income_source, status, monthly_income, age, lender, loan_amount, interest_rate, loan_tenure
+          ) VALUES (${new Array(75).fill("?").join(",")})
+        `;
+
+        // mirror your custom mapping
+        const loanAmount     = row["Loan Amount Sanctioned"];
+        const interestrate   = row["Interest %"];
+        const loantenure     = row["Loan Tenure (Months)"];
+
+        const values = [
+          partnerLoanId,
+          lan,
           app_id,
-        ]);
+          row["Product"],
+          row["Customer Type"],
+          row["Residence Type"],
+          row["Loan Type"],
+          row["Disbursal Type"],
+          row["Institute Account Number"],
+          row["Beneficiary Name"],
+          row["IFSC Code"],
+          row["Bank Name"],
+          row["Aadhaar Number"],
+          row["Agreement Signature Type"],
+          row["Loan Application Date"] ? excelDateToJSDate(row["Loan Application Date"]) : null,
+          row["Emi Day"],
+          row["Company Name"],
+          row["Fathers Name"],
+          row["CKYC No"],
+          row["Customer Name"],
+          row["Student Name"],
+          row["Date Of Birth"] ? excelDateToJSDate(row["Date Of Birth"]) : null,
+          row["Gender"],
+          row["Current Address Line 1"],
+          row["Current Address Line 2"],
+          row["Current Address Line 3"],
+          row["Current Address Landmark"],
+          row["Current Address Pincode"],
+          row["Current Address City"],
+          row["Current Address State"],
+          row["Proof of Current Address"],
+          row["Permanent Address Line 1"],
+          row["Permanent Address Line 2"],
+          row["Permanent Address Line 3"],
+          row["Permanent Address Landmark"],
+          row["Permanent Address Pincode"],
+          row["Permanent Address City"],
+          row["Permanent Address State"],
+          row["Office Address Line 1"],
+          row["Office Address Line 2"],
+          row["Office Address Line 3"],
+          row["Office Address Landmark"],
+          row["Office Address Pincode"],
+          row["Office Address City"],
+          row["Office Address State"],
+          row["PAN Number"],
+          row["Employment Status"],
+          n(row["Annual Income"]),
+          row["Credit Score"] || null,
+          row["Mobile Number"],
+          row["Email ID"],
+          row["Institute"],
+          loanAmount,                 // loan_amount_sanctioned
+          loantenure,                 // loan_tenure_months
+          n(row["Monthly EMI"]),
+          interestrate,               // interest_percent
+          n(row["Monthly Interest Amount"]),
+          i(row["No. Of Advance EMIs"]),
+          n(row["Advance EMI (Total)"]),
+          n(row["Subvention Amount"]),
+          n(row["Disbursal Amount"]),
+          n(row["Actual Disbursement"]),
+          n(row["To be Recovered"]),
+          row["Agreement Date (DD-MMM-YYYY)"] ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"]) : null,
+          parseFloat(row["Interest Rate (IRR %)"]),
+          parseFloat(row["Flat Rate (%)"]),
+          row["Nach UMRN"],
+          row["Income Source"],
+          "Login",
+          n(row["Monthly Income"]),
+          i(row["Age"]),
+          lenderType,
+          loanAmount,                 // loan_amount (duplicate as requested)
+          interestrate,               // interest_rate (duplicate)
+          loantenure,                 // loan_tenure (duplicate)
+        ];
 
-      // const [existing] = await db
-      //   .promise()
-      //   .query(`SELECT * FROM loan_booking_gq_non_fsf WHERE pan_number = ?`, [pan]);
-
-      if (existing.length > 0) {
-        return res.status(409).json({
-          message: `Duplicate found for app ID: ${app_id}. Record already exists.`,
-        });
+        try {
+          await db.promise().query(insertQuery, values);
+          success_rows.push(R);
+        } catch (insErr) {
+          row_errors.push({ row: R, stage: "insert", reason: toClientError(insErr).message });
+          continue;
+        }
+      } catch (loopErr) {
+        // just in case something unexpected breaks the row
+        row_errors.push({ row: R, stage: "unknown", reason: toClientError(loopErr).message });
+        continue;
       }
-
-      // ✅ Generate new loan identifiers
-      const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
-
-      const insertQuery = `
-        INSERT INTO loan_booking_gq_non_fsf (
-        partner_loan_id, lan,app_id, product, customer_type, residence_type, loan_type, disbursal_type,
-          institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
-          agreement_signature_type, loan_application_date, emi_day, company_name, fathers_name,
-          ckyc_no, customer_name, student_name, date_of_birth, gender, current_address_line1,
-          current_address_line2, current_address_line3, current_address_landmark, current_address_pincode,
-          current_address_city, current_address_state, proof_of_current_address, permanent_address_line1,
-          permanent_address_line2, permanent_address_line3, permanent_address_landmark, permanent_address_pincode,
-          permanent_address_city, permanent_address_state, office_address_line1, office_address_line2,
-          office_address_line3, office_address_landmark, office_address_pincode, office_address_city,
-          office_address_state, pan_number, employment_status, annual_income, credit_score,
-          mobile_number, email_id, institute, loan_amount_sanctioned, loan_tenure_months, monthly_emi,
-          interest_percent, monthly_interest_amount, no_of_advance_emis, advance_emi_total, subvention_amount,
-          disbursal_amount, actual_disbursement, to_be_recovered, agreement_date, interest_rate_irr,
-          flat_rate, nach_umrn, income_source, status, monthly_income, age,lender,loan_amount,interest_rate,loan_tenure
-        ) VALUES (${new Array(75).fill("?").join(",")})
-      `;
-
-      // const parseDate   = (val) => {
-      //   if (!val) return null;
-      //   const parsed = new Date(val);
-      //   return isNaN(parsed) ? null : parsed;
-      // };
-
-      const parseNumber = (val) => (val ? parseFloat(val) : 0);
-      const loanAmount = row["Loan Amount Sanctioned"]; // ✅ New field for same data insert into 2nd column also
-      const interestrate = row["Interest %"]; //
-      const loantenure = row["Loan Tenure (Months)"]; //
-
-      await db.promise().query(insertQuery, [
-        partnerLoanId,
-        lan,
-        //row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-        row["App ID"],
-        row["Product"],
-        row["Customer Type"],
-        row["Residence Type"],
-        row["Loan Type"],
-        row["Disbursal Type"],
-        row["Institute Account Number"],
-        row["Beneficiary Name"],
-        row["IFSC Code"],
-        row["Bank Name"],
-        row["Aadhaar Number"],
-        row["Agreement Signature Type"],
-        row["Loan Application Date"]
-          ? excelDateToJSDate(row["Loan Application Date"])
-          : null,
-        row["Emi Day"],
-        row["Company Name"],
-        row["Fathers Name"],
-        row["CKYC No"],
-        row["Customer Name"],
-        row["Student Name"],
-        row["Date Of Birth"] ? excelDateToJSDate(row["Date Of Birth"]) : null,
-        row["Gender"],
-        row["Current Address Line 1"],
-        row["Current Address Line 2"],
-        row["Current Address Line 3"],
-        row["Current Address Landmark"],
-        row["Current Address Pincode"],
-        row["Current Address City"],
-        row["Current Address State"],
-        row["Proof of Current Address"],
-        row["Permanent Address Line 1"],
-        row["Permanent Address Line 2"],
-        row["Permanent Address Line 3"],
-        row["Permanent Address Landmark"],
-        row["Permanent Address Pincode"],
-        row["Permanent Address City"],
-        row["Permanent Address State"],
-        row["Office Address Line 1"],
-        row["Office Address Line 2"],
-        row["Office Address Line 3"],
-        row["Office Address Landmark"],
-        row["Office Address Pincode"],
-        row["Office Address City"],
-        row["Office Address State"],
-        row["PAN Number"],
-        row["Employment Status"],
-        parseNumber(row["Annual Income"]),
-        row["Credit Score"] || null,
-        row["Mobile Number"],
-        row["Email ID"],
-        row["Institute"],
-        loanAmount,
-        //parseInt(row["Loan Tenure (Months)"]),
-        loantenure,
-        parseNumber(row["Monthly EMI"]),
-        // parseFloat(row["Insterest %"]),
-        interestrate,
-        parseNumber(row["Monthly Interest Amount"]),
-        parseInt(row["No. Of Advance EMIs"]),
-        parseNumber(row["Advance EMI (Total)"]),
-        parseNumber(row["Subvention Amount"]),
-        parseNumber(row["Disbursal Amount"]),
-        parseNumber(row["Actual Disbursement"]),
-        parseNumber(row["To be Recovered"]),
-        row["Agreement Date (DD-MMM-YYYY)"]
-          ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"])
-          : null,
-        parseFloat(row["Interest Rate (IRR %)"]),
-        parseFloat(row["Flat Rate (%)"]),
-        row["Nach UMRN"],
-        row["Income Source"],
-        "Login",
-        parseNumber(row["Monthly Income"]),
-        parseInt(row["Age"]),
-        lenderType,
-        loanAmount,
-        interestrate, // ✅ New field for same data insert into 2nd column also
-        loantenure, // ✅ New field for same data insert into 2nd column also
-      ]);
     }
 
-    res.json({
-      message: "✅ Loan data uploaded to loan_booking_gq_non_fsf successfully.",
+    // final summary (200 even if some rows failed; UI shows details)
+    return res.json({
+      message: "File processed.",
+      total_rows: sheetData.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
     });
   } catch (err) {
     console.error("❌ Upload Error:", err);
-    res
-      .status(500)
-      .json({ message: "Upload failed", error: err.message, stack: err.stack });
+    return res.status(500).json({
+      message: "Upload failed",
+      error: toClientError(err),
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+    });
   }
 });
+
 
 // Helpers
 const parse = (v) =>
@@ -2856,123 +3649,290 @@ router.patch("/aldun-loans/:loan_account_number/inactive", async (req, res) => {
 
 ///////////////Adikosh//////////////////////////
 
+// router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
+//   if (!req.file)
+//     return res
+//       .status(400)
+//       .json({ message: "No file uploaded. Please select a valid file." });
+//   if (!req.body.lenderType)
+//     return res.status(400).json({ message: "Lender type is required." });
+
+//   try {
+//     const lenderType = req.body.lenderType;
+//     if (
+//       ["EV Loan", "Health Care", "BL Loan", "GQ FSF", "GQ Non-FSF"].includes(
+//         lenderType
+//       )
+//     ) {
+//       return res.status(400).json({ message: "Invalid adikosh lender type." });
+//     }
+
+//     // ✅ Read Excel File
+//     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+//     const sheetName = workbook.SheetNames[0];
+//     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+//     if (!sheetData || sheetData.length === 0) {
+//       return res
+//         .status(400)
+//         .json({ message: "Uploaded Excel file is empty or invalid." });
+//     }
+
+//     for (const row of sheetData) {
+//       const panCard = row["Pan Card"];
+//       const aadharNumber = row["Aadhar Number"];
+
+//       // ✅ Check for existing customer using PAN & Aadhar
+//       const [existingRecords] = await db
+//         .promise()
+//         .query(
+//           `SELECT lan FROM loan_booking_adikosh WHERE pan_card = ? OR aadhar_number = ?`,
+//           [panCard, aadharNumber]
+//         );
+
+//       if (existingRecords.length > 0) {
+//         return res.json({
+//           message: `Customer already exists. Duplicate found for Pan Card: ${panCard} or Aadhar Number: ${aadharNumber}`,
+//         });
+//       }
+
+//       // ✅ Generate new loan identifiers
+//       const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+//       // ✅ Insert Data into `loan_bookings`
+//       const query = `
+//   INSERT INTO loan_booking_adikosh (
+//     partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+//     address_line_1, address_line_2, village, district, state, pincode,
+//     mobile_number, email, occupation, relationship_with_borrower, cibil_score,
+//     guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
+//     guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
+//     account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant, guarantor_co_applicant_dob, product, lender,
+//     agreement_date, status, salary_day
+//    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?, ?, ?)
+// `;
+
+//       await db.promise().query(query, [
+//         partnerLoanId,
+//         lan,
+//         row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+//         row["Customer Name"],
+//         row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
+//         row["Father Name"],
+//         row["Address Line 1"],
+//         row["Address Line 2"],
+//         row["Village"],
+//         row["District"],
+//         row["State"],
+//         row["Pincode"],
+//         row["Mobile Number"],
+//         row["Email"],
+//         row["Occupation"],
+//         row["Relationship with Borrower"],
+//         row["CIBIL Score"],
+//         row["GURANTOR/Co-Applicant CIBIL Score"], // ✅ New field
+//         row["Loan Amount"],
+//         row["Tenure"],
+//         row["Interest Rate"],
+//         row["EMI Amount"],
+//         row["GURANTOR/Co-Applicant ADHAR"],
+//         row["GURANTOR/Co-Applicant PAN"],
+//         row["DEALER NAME"],
+//         row["Name in Bank"],
+//         row["Bank name"],
+//         row["Account Number"],
+//         row["IFSC"],
+//         row["Aadhar Number"],
+//         row["Pan Card"],
+//         row["GURANTOR/Co-Applicant"], // ✅ New field
+//         row["GURANTOR/Co-Applicant DOB"]
+//           ? excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"])
+//           : null, // ✅ New field
+//         row["Product"],
+//         lenderType,
+//         row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+//         "Approved",
+//         row["Salary Day"], // ✅ New field for salary day
+//       ]);
+//     }
+
+//     res.json({ message: "File uploaded and data saved successfully." });
+//   } catch (error) {
+//     console.error("❌ Error in Upload Process:", error);
+
+//     res.status(500).json({
+//       message: "Upload failed. Please try again.",
+//       error: error.sqlMessage || error.message,
+//     });
+//   }
+// });
+
 router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
   if (!req.file)
-    return res
-      .status(400)
-      .json({ message: "No file uploaded. Please select a valid file." });
+    return res.status(400).json({ message: "No file uploaded. Please select a valid file." });
   if (!req.body.lenderType)
     return res.status(400).json({ message: "Lender type is required." });
 
+  const lenderType = req.body.lenderType;
+
+  // collections to return
+  const success_rows = []; // Excel row numbers that inserted
+  const row_errors = [];   // [{row, stage, reason}]
+
   try {
-    const lenderType = req.body.lenderType;
-    if (
-      ["EV Loan", "Health Care", "BL Loan", "GQ FSF", "GQ Non-FSF"].includes(
-        lenderType
-      )
-    ) {
+    // only Adikosh allowed (your previous logic)
+    if (["EV Loan", "Health Care", "BL Loan", "GQ FSF", "GQ Non-FSF"].includes(lenderType)) {
       return res.status(400).json({ message: "Invalid adikosh lender type." });
     }
 
-    // ✅ Read Excel File
+    // read excel
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
-    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    const sheetData = xlsx.utils
+      .sheet_to_json(workbook.Sheets[sheetName])
+      .map((r, i) => ({ __row: i + 2, ...r })); // header at row 1
 
     if (!sheetData || sheetData.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Uploaded Excel file is empty or invalid." });
+      return res.status(400).json({ message: "Uploaded Excel file is empty or invalid." });
     }
+
+    // tiny helpers
+    const n  = (v) => (v === null || v === undefined || v === "" ? null : Number(String(v).replace(/[^0-9.-]/g, "")));
+    const s  = (v) => (v === null || v === undefined ? "" : String(v).trim());
 
     for (const row of sheetData) {
-      const panCard = row["Pan Card"];
-      const aadharNumber = row["Aadhar Number"];
+      const R = row.__row;
 
-      // ✅ Check for existing customer using PAN & Aadhar
-      const [existingRecords] = await db
-        .promise()
-        .query(
-          `SELECT lan FROM loan_booking_adikosh WHERE pan_card = ? OR aadhar_number = ?`,
-          [panCard, aadharNumber]
-        );
+      try {
+        // 1) basic validation
+        const panCard      = s(row["Pan Card"]);
+        const aadharNumber = s(row["Aadhar Number"]);
+        const loanAmount   = n(row["Loan Amount"]);
+        const tenure       = n(row["Tenure"]);
+        const interestRate = n(row["Interest Rate"]);
+        const customerName = s(row["Customer Name"]);
 
-      if (existingRecords.length > 0) {
-        return res.json({
-          message: `Customer already exists. Duplicate found for Pan Card: ${panCard} or Aadhar Number: ${aadharNumber}`,
-        });
+        if (!customerName || !panCard || !aadharNumber || loanAmount == null || tenure == null || interestRate == null) {
+          row_errors.push({ row: R, stage: "validation", reason: "Missing required fields (Customer/PAN/Aadhaar/Loan/Tenure/Interest)" });
+          continue;
+        }
+
+        // 2) duplicate PAN/Aadhaar
+        try {
+          const [existing] = await db
+            .promise()
+            .query(
+              `SELECT lan FROM loan_booking_adikosh WHERE pan_card = ? OR aadhar_number = ?`,
+              [panCard, aadharNumber]
+            );
+          if (existing.length > 0) {
+            row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate PAN/Aadhaar (${panCard} / ${aadharNumber})` });
+            continue;
+          }
+        } catch (dupErr) {
+          row_errors.push({ row: R, stage: "dup-check", reason: toClientError(dupErr).message });
+          continue;
+        }
+
+        // 3) identifiers
+        let partnerLoanId, lan;
+        try {
+          const ids = await generateLoanIdentifiers(lenderType);
+          partnerLoanId = ids.partnerLoanId;
+          lan = ids.lan;
+        } catch (idErr) {
+          row_errors.push({ row: R, stage: "id-gen", reason: toClientError(idErr).message });
+          continue;
+        }
+
+        // 4) insert
+        try {
+          const query = `
+            INSERT INTO loan_booking_adikosh (
+              partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+              address_line_1, address_line_2, village, district, state, pincode,
+              mobile_number, email, occupation, relationship_with_borrower, cibil_score,
+              guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
+              guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
+              account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant, guarantor_co_applicant_dob, product, lender,
+              agreement_date, status, salary_day
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `;
+
+          await db.promise().query(query, [
+            partnerLoanId,
+            lan,
+            row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+            customerName,
+            row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
+            row["Father Name"],
+            row["Address Line 1"],
+            row["Address Line 2"],
+            row["Village"],
+            row["District"],
+            row["State"],
+            row["Pincode"],
+            row["Mobile Number"],
+            row["Email"],
+            row["Occupation"],
+            row["Relationship with Borrower"],
+            row["CIBIL Score"],
+            row["GURANTOR/Co-Applicant CIBIL Score"],
+            loanAmount,
+            tenure,
+            interestRate,
+            row["EMI Amount"],
+            row["GURANTOR/Co-Applicant ADHAR"],
+            row["GURANTOR/Co-Applicant PAN"],
+            row["DEALER NAME"],
+            row["Name in Bank"],
+            row["Bank name"],
+            row["Account Number"],
+            row["IFSC"],
+            aadharNumber,
+            panCard,
+            row["GURANTOR/Co-Applicant"],
+            row["GURANTOR/Co-Applicant DOB"] ? excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"]) : null,
+            row["Product"],
+            lenderType,
+            row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+            "Approved",
+            row["Salary Day"]
+          ]);
+
+          success_rows.push(R);
+        } catch (insErr) {
+          row_errors.push({ row: R, stage: "insert", reason: toClientError(insErr).message });
+          continue;
+        }
+      } catch (loopErr) {
+        row_errors.push({ row: R, stage: "unknown", reason: toClientError(loopErr).message });
+        continue;
       }
-
-      // ✅ Generate new loan identifiers
-      const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
-
-      // ✅ Insert Data into `loan_bookings`
-      const query = `
-  INSERT INTO loan_booking_adikosh (
-    partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
-    address_line_1, address_line_2, village, district, state, pincode,
-    mobile_number, email, occupation, relationship_with_borrower, cibil_score,
-    guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
-    guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
-    account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant, guarantor_co_applicant_dob, product, lender,
-    agreement_date, status, salary_day
-   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? , ?, ?, ?)
-`;
-
-      await db.promise().query(query, [
-        partnerLoanId,
-        lan,
-        row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-        row["Customer Name"],
-        row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
-        row["Father Name"],
-        row["Address Line 1"],
-        row["Address Line 2"],
-        row["Village"],
-        row["District"],
-        row["State"],
-        row["Pincode"],
-        row["Mobile Number"],
-        row["Email"],
-        row["Occupation"],
-        row["Relationship with Borrower"],
-        row["CIBIL Score"],
-        row["GURANTOR/Co-Applicant CIBIL Score"], // ✅ New field
-        row["Loan Amount"],
-        row["Tenure"],
-        row["Interest Rate"],
-        row["EMI Amount"],
-        row["GURANTOR/Co-Applicant ADHAR"],
-        row["GURANTOR/Co-Applicant PAN"],
-        row["DEALER NAME"],
-        row["Name in Bank"],
-        row["Bank name"],
-        row["Account Number"],
-        row["IFSC"],
-        row["Aadhar Number"],
-        row["Pan Card"],
-        row["GURANTOR/Co-Applicant"], // ✅ New field
-        row["GURANTOR/Co-Applicant DOB"]
-          ? excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"])
-          : null, // ✅ New field
-        row["Product"],
-        lenderType,
-        row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-        "Approved",
-        row["Salary Day"], // ✅ New field for salary day
-      ]);
     }
 
-    res.json({ message: "File uploaded and data saved successfully." });
+    // final summary (200 even if some failed; UI shows details)
+    return res.json({
+      message: "File processed.",
+      total_rows: sheetData.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors
+    });
   } catch (error) {
     console.error("❌ Error in Upload Process:", error);
-
-    res.status(500).json({
+    return res.status(500).json({
       message: "Upload failed. Please try again.",
-      error: error.sqlMessage || error.message,
+      error: toClientError(error),
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors
     });
   }
 });
+
 
 // ✅ Fetch a single disbursed loan by LAN
 // router.get("/disbursed/:lan", (req, res) => {
