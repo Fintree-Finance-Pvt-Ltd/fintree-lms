@@ -9,6 +9,13 @@
     text-align: center;
 }
 
+.table-scroll { overflow: auto; max-height: 300px; border: 1px solid #eee; }
+.error-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.error-table th, .error-table td { border: 1px solid #eee; padding: 6px 8px; text-align: left; }
+.summary-row { margin: 6px 0; }
+.summary-list ul { margin: 4px 0 10px; }
+
+
 /* 🔹 Heading */
 .utr-upload-container h2 {
     font-size: 22px;
