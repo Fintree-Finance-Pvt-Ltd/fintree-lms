@@ -618,46 +618,44 @@ const generateRepaymentScheduleEV = async (
     const annualRate = interestRate / 100;
     let remainingPrincipal = loanAmount;
 
-    // Calculate EMI
+    // Calculate EMI (standard annuity formula)
     const emi = Math.round(
       (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
       (Math.pow(1 + annualRate / 12, tenure) - 1)
     );
 
-    // Set RPS start date to same day of next month from disbursement
-    const disbDate = new Date(disbursementDate);
-    const firstDueDate = new Date(disbDate);
-    firstDueDate.setMonth(disbDate.getMonth() + 1);
+    // ✅ Use getFirstEmiDate like in the first function
+    const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
 
     const rpsData = [];
     let dueDate = new Date(firstDueDate);
 
     for (let i = 1; i <= tenure; i++) {
       const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-      console.log("annualRate:", annualRate);
-      console.log("Remaining Principal:", remainingPrincipal);
-      console.log("Interest:", interest);
-      console.log("EMI:", emi);
       let principal = emi - interest;
+
+      // ✅ Last EMI adjustment
       if (i === tenure) principal = remainingPrincipal;
 
+      // ✅ Keep correct remaining principal
       rpsData.push([
         lan,
         dueDate.toISOString().split("T")[0],
-        principal + interest,
-        interest,
-        principal,
-        principal, // ✅ This shows Remaining Principal = principal for that EMI
-        interest,
-        principal + interest,
+        principal + interest,   // EMI
+        interest,               // Interest portion
+        principal,              // Principal portion
+        remainingPrincipal,     // ✅ Outstanding before this EMI
+        interest,               
+        principal + interest,   // Remaining EMI (for reference)
         "Pending"
       ]);
 
-
+      // Deduct principal from outstanding
       remainingPrincipal -= principal;
       dueDate.setMonth(dueDate.getMonth() + 1);
     }
 
+    // Insert repayment schedule
     await db.promise().query(
       `INSERT INTO manual_rps_ev_loan
       (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
@@ -665,19 +663,20 @@ const generateRepaymentScheduleEV = async (
       [rpsData]
     );
 
-    // ➕ Update emi_amount in loan_bookings
+    // ✅ Also update emi_amount in loan_booking_ev
     await db.promise().query(
       `UPDATE loan_booking_ev
-   SET emi_amount = ?
-   WHERE lan = ?`,
+       SET emi_amount = ?
+       WHERE lan = ?`,
       [emi, lan]
     );
 
-    console.log(`✅ EV RPS generated from next month for ${lan}`);
+    console.log(`✅ EV RPS (with correct outstanding + EMI update) generated for ${lan}`);
   } catch (err) {
     console.error(`❌ EV RPS Error for ${lan}:`, err);
   }
 };
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
