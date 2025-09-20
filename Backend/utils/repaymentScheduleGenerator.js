@@ -554,15 +554,6 @@ const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure
 
         console.log("Calling getFirstEmiDate (EV) with:", { disbursementDate, lender, product });
         console.log("First Due Date (EV):", firstDueDate);
-        console.log("Calling generateRepaymentSchedule with:", {
-          lan: row["LAN"],
-          loanAmount: row["Loan Amount"],
-          interestRate: row["Interest Rate"],
-          tenure: row["Tenure"],
-          disbursementDate: row["Disbursement Date"],
-          product: row["Product"],
-          lender: row["Lender"]
-        });
 
 
         const emi = Math.round(
