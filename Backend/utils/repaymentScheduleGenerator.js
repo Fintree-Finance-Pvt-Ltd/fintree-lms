@@ -546,136 +546,136 @@ const excelSerialDateToJS = (value) => {
 };
 
 
-// const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
-//     try {
-//         const annualRate = interestRate / 100;
-//         let remainingPrincipal = loanAmount;
-//         const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
+const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
+    try {
+        const annualRate = interestRate / 100;
+        let remainingPrincipal = loanAmount;
+        const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
 
-//         console.log("Calling getFirstEmiDate (EV) with:", { disbursementDate, lender, product });
-//         console.log("First Due Date (EV):", firstDueDate);
-//         console.log("Calling generateRepaymentSchedule with:", {
-//           lan: row["LAN"],
-//           loanAmount: row["Loan Amount"],
-//           interestRate: row["Interest Rate"],
-//           tenure: row["Tenure"],
-//           disbursementDate: row["Disbursement Date"],
-//           product: row["Product"],
-//           lender: row["Lender"]
-//         });
+        console.log("Calling getFirstEmiDate (EV) with:", { disbursementDate, lender, product });
+        console.log("First Due Date (EV):", firstDueDate);
+        console.log("Calling generateRepaymentSchedule with:", {
+          lan: row["LAN"],
+          loanAmount: row["Loan Amount"],
+          interestRate: row["Interest Rate"],
+          tenure: row["Tenure"],
+          disbursementDate: row["Disbursement Date"],
+          product: row["Product"],
+          lender: row["Lender"]
+        });
 
 
-//         const emi = Math.round(
-//             (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-//             (Math.pow(1 + annualRate / 12, tenure) - 1)
-//         );
+        const emi = Math.round(
+            (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+            (Math.pow(1 + annualRate / 12, tenure) - 1)
+        );
 
-//         const rpsData = [];
-//         let dueDate = new Date(firstDueDate);
+        const rpsData = [];
+        let dueDate = new Date(firstDueDate);
 
-//         for (let i = 1; i <= tenure; i++) {
-//             const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-//             let principal = emi - interest;
+        for (let i = 1; i <= tenure; i++) {
+            const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+            let principal = emi - interest;
 
-//             if (i === tenure) principal = remainingPrincipal;
+            if (i === tenure) principal = remainingPrincipal;
 
-//             rpsData.push([
-//                 lan,
-//                 dueDate.toISOString().split("T")[0],
-//                 principal + interest,
-//                 interest,
-//                 principal,
-//                 remainingPrincipal,
-//                 interest,
-//                 principal + interest,
-//                 "Pending"
-//             ]);
+            rpsData.push([
+                lan,
+                dueDate.toISOString().split("T")[0],
+                principal + interest,
+                interest,
+                principal,
+                remainingPrincipal,
+                interest,
+                principal + interest,
+                "Pending"
+            ]);
 
-//             remainingPrincipal -= principal;
-//             dueDate.setMonth(dueDate.getMonth() + 1);
-//         }
+            remainingPrincipal -= principal;
+            dueDate.setMonth(dueDate.getMonth() + 1);
+        }
 
-//         await db.promise().query(
-//             `INSERT INTO manual_rps_ev_loan 
-//             (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
-//             VALUES ?`,
-//             [rpsData]
-//         );
+        await db.promise().query(
+            `INSERT INTO manual_rps_ev_loan 
+            (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+            VALUES ?`,
+            [rpsData]
+        );
 
-//         console.log(`✅ EV RPS (standard EMI) generated for ${lan}`);
-//     } catch (err) {
-//         console.error(`❌ EV RPS Error for ${lan}:`, err);
-//     }
-// };
-//////////////////////////// PRE EMI LOAN CALCULATION /////////////////////////////////////////
+        console.log(`✅ EV RPS (standard EMI) generated for ${lan}`);
+    } catch (err) {
+        console.error(`❌ EV RPS Error for ${lan}:`, err);
+    }
+};
+////////////////////////// PRE EMI LOAN CALCULATION /////////////////////////////////////////
 // Calculate adjusted Pre-EMI gap days (subtract disb month days)
 
 
-const generateRepaymentScheduleEV = async (
-  lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
-) => {
-  try {
-    const annualRate = interestRate / 100;
-    let remainingPrincipal = loanAmount;
+// const generateRepaymentScheduleEV = async (
+//   lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
+// ) => {
+//   try {
+//     const annualRate = interestRate / 100;
+//     let remainingPrincipal = loanAmount;
 
-    // Calculate EMI (standard annuity formula)
-    const emi = Math.round(
-      (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-      (Math.pow(1 + annualRate / 12, tenure) - 1)
-    );
+//     // Calculate EMI (standard annuity formula)
+//     const emi = Math.round(
+//       (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+//       (Math.pow(1 + annualRate / 12, tenure) - 1)
+//     );
 
-    // ✅ Use getFirstEmiDate like in the first function
-    const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
+//     // ✅ Use getFirstEmiDate like in the first function
+//     const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
 
-    const rpsData = [];
-    let dueDate = new Date(firstDueDate);
+//     const rpsData = [];
+//     let dueDate = new Date(firstDueDate);
 
-    for (let i = 1; i <= tenure; i++) {
-      const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-      let principal = emi - interest;
+//     for (let i = 1; i <= tenure; i++) {
+//       const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+//       let principal = emi - interest;
 
-      // ✅ Last EMI adjustment
-      if (i === tenure) principal = remainingPrincipal;
+//       // ✅ Last EMI adjustment
+//       if (i === tenure) principal = remainingPrincipal;
 
-      // ✅ Keep correct remaining principal
-      rpsData.push([
-        lan,
-        dueDate.toISOString().split("T")[0],
-        principal + interest,   // EMI
-        interest,               // Interest portion
-        principal,              // Principal portion
-        remainingPrincipal,     // ✅ Outstanding before this EMI
-        interest,               
-        principal + interest,   // Remaining EMI (for reference)
-        "Pending"
-      ]);
+//       // ✅ Keep correct remaining principal
+//       rpsData.push([
+//         lan,
+//         dueDate.toISOString().split("T")[0],
+//         principal + interest,   // EMI
+//         interest,               // Interest portion
+//         principal,              // Principal portion
+//         remainingPrincipal,     // ✅ Outstanding before this EMI
+//         interest,               
+//         principal + interest,   // Remaining EMI (for reference)
+//         "Pending"
+//       ]);
 
-      // Deduct principal from outstanding
-      remainingPrincipal -= principal;
-      dueDate.setMonth(dueDate.getMonth() + 1);
-    }
+//       // Deduct principal from outstanding
+//       remainingPrincipal -= principal;
+//       dueDate.setMonth(dueDate.getMonth() + 1);
+//     }
 
-    // Insert repayment schedule
-    await db.promise().query(
-      `INSERT INTO manual_rps_ev_loan
-      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
-      VALUES ?`,
-      [rpsData]
-    );
+//     // Insert repayment schedule
+//     await db.promise().query(
+//       `INSERT INTO manual_rps_ev_loan
+//       (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+//       VALUES ?`,
+//       [rpsData]
+//     );
 
-    // ✅ Also update emi_amount in loan_booking_ev
-    await db.promise().query(
-      `UPDATE loan_booking_ev
-       SET emi_amount = ?
-       WHERE lan = ?`,
-      [emi, lan]
-    );
+//     // ✅ Also update emi_amount in loan_booking_ev
+//     await db.promise().query(
+//       `UPDATE loan_booking_ev
+//        SET emi_amount = ?
+//        WHERE lan = ?`,
+//       [emi, lan]
+//     );
 
-    console.log(`✅ EV RPS (with correct outstanding + EMI update) generated for ${lan}`);
-  } catch (err) {
-    console.error(`❌ EV RPS Error for ${lan}:`, err);
-  }
-};
+//     console.log(`✅ EV RPS (with correct outstanding + EMI update) generated for ${lan}`);
+//   } catch (err) {
+//     console.error(`❌ EV RPS Error for ${lan}:`, err);
+//   }
+// };
 
 
 
@@ -762,6 +762,7 @@ const generateRepaymentScheduleEV = async (
 //     }
 // };
 ////////////////////////////////// UPDATE BL //////////////////////////////////////////////////////////
+
 const generateRepaymentScheduleBL = async (
   lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
 ) => {
