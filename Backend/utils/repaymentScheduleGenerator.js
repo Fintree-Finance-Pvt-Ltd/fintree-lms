@@ -67,113 +67,113 @@
 // // Calculate adjusted Pre-EMI gap days (subtract disb month days)
 
 
-// const generateRepaymentScheduleEV = async (
-//   lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
-// ) => {
-//   try {
-//     const annualRate = interestRate / 100;
-//     let remainingPrincipal = loanAmount;
-//     const disbDate = new Date(disbursementDate);
+const generateRepaymentScheduleEV = async (
+  lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
+) => {
+  try {
+    const annualRate = interestRate / 100;
+    let remainingPrincipal = loanAmount;
+    const disbDate = new Date(disbursementDate);
 
-//    // Get first EMI due date based on lender/product rules
-//    const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
+   // Get first EMI due date based on lender/product rules
+   const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
 
-//    console.log("Calling generateRepaymentSchedule with:", {
-//      lan,    
-//      loanAmount,
-//      interestRate,
-//      tenure,
-//      disbursementDate,
-//      product,
-//      lender
-//    });
+   console.log("Calling generateRepaymentSchedule with:", {
+     lan,    
+     loanAmount,
+     interestRate,
+     tenure,
+     disbursementDate,
+     product,
+     lender
+   });
 
-//    const getTotalDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-//    console.log("Total Days in Month:", getTotalDaysInMonth(disbDate));
-
-
-
-//    // Calculate gap days from disbursement to 4th of EMI month
-//    const totalDaysInMonth = getTotalDaysInMonth(disbDate); // ✅ You missed declaring this
-//    console.log("Total Days in Month:", totalDaysInMonth);
-
-//      const preEmiEndDate = new Date(firstDueDate);
+   const getTotalDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+   console.log("Total Days in Month:", getTotalDaysInMonth(disbDate));
 
 
-//    preEmiEndDate.setDate(5); // 5th of the EMI due month
+
+   // Calculate gap days from disbursement to 4th of EMI month
+   const totalDaysInMonth = getTotalDaysInMonth(disbDate); // ✅ You missed declaring this
+   console.log("Total Days in Month:", totalDaysInMonth);
+
+     const preEmiEndDate = new Date(firstDueDate);
 
 
-//    const rawGapDays = Math.ceil((preEmiEndDate - disbDate) / (1000 * 60 * 60 * 24));
-//    console.log("Raw Gap Days:", rawGapDays);
-//    //const gapDays = Math.max(rawGapDays, 0); // Ensure not negative
-//    const gapDays = Math.max(rawGapDays - totalDaysInMonth, 0);
-//    console.log("Adjusted Gap Days:", gapDays);
-//    const preEmiInterest = Math.ceil((loanAmount * annualRate * gapDays) / 360);
-//    console.log("Pre-EMI Interest:", preEmiInterest);
-
-//    // EMI Calculation
-//    const emi = Math.round(
-//      (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-//      (Math.pow(1 + annualRate / 12, tenure) - 1)
-//    );
-
-//    const rpsData = [];
-
-//    // 🔹 Pre-EMI Row
-//    if (gapDays > 0) {
-//      rpsData.push([
-//        lan,
-//        disbDate.toISOString().split("T")[0],
-//        preEmiInterest,
-//        preEmiInterest,
-//        0,
-//        remainingPrincipal,
-//        preEmiInterest,
-//        preEmiInterest,
-//        "Pre-EMI"
-//      ]);
-//    }
-// console.log("Pre-EMI Data:", rpsData);
-//    console.log("EMI Data:", emi);
-//    console.log("Remaining Principal:", remainingPrincipal);
-//    console.log("Tenure:", tenure);
-
-//     // 🔹 Regular EMIs
-//     let dueDate = new Date(firstDueDate);
-//     for (let i = 1; i <= tenure; i++) {
-//       const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-//       let principal = emi - interest;
-//       if (i === tenure) principal = remainingPrincipal;
-
-//          rpsData.push([
-//         lan,
-//         dueDate.toISOString().split("T")[0],
-//         principal + interest,
-//         interest,
-//         principal,
-//         principal, // ✅ This shows Remaining Principal = principal for that EMI
-//         interest,
-//         principal + interest,
-//         "Pending"
-//       ]);
+   preEmiEndDate.setDate(5); // 5th of the EMI due month
 
 
-//       remainingPrincipal -= principal;
-//       dueDate.setMonth(dueDate.getMonth() + 1);
-//     }
+   const rawGapDays = Math.ceil((preEmiEndDate - disbDate) / (1000 * 60 * 60 * 24));
+   console.log("Raw Gap Days:", rawGapDays);
+   //const gapDays = Math.max(rawGapDays, 0); // Ensure not negative
+   const gapDays = Math.max(rawGapDays - totalDaysInMonth, 0);
+   console.log("Adjusted Gap Days:", gapDays);
+   const preEmiInterest = Math.ceil((loanAmount * annualRate * gapDays) / 360);
+   console.log("Pre-EMI Interest:", preEmiInterest);
 
-//     await db.promise().query(
-//       `INSERT INTO manual_rps_ev_loan 
-//       (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
-//       VALUES ?`,
-//       [rpsData]
-//     );
+   // EMI Calculation
+   const emi = Math.round(
+     (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+     (Math.pow(1 + annualRate / 12, tenure) - 1)
+   );
 
-//     console.log(`✅ EV RPS with Pre-EMI generated for ${lan}`);
-//   } catch (err) {
-//     console.error(`❌ EV RPS Error for ${lan}:`, err);
-//   }
-// };
+   const rpsData = [];
+
+   // 🔹 Pre-EMI Row
+   if (gapDays > 0) {
+     rpsData.push([
+       lan,
+       disbDate.toISOString().split("T")[0],
+       preEmiInterest,
+       preEmiInterest,
+       0,
+       remainingPrincipal,
+       preEmiInterest,
+       preEmiInterest,
+       "Pre-EMI"
+     ]);
+   }
+console.log("Pre-EMI Data:", rpsData);
+   console.log("EMI Data:", emi);
+   console.log("Remaining Principal:", remainingPrincipal);
+   console.log("Tenure:", tenure);
+
+    // 🔹 Regular EMIs
+    let dueDate = new Date(firstDueDate);
+    for (let i = 1; i <= tenure; i++) {
+      const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+      let principal = emi - interest;
+      if (i === tenure) principal = remainingPrincipal;
+
+         rpsData.push([
+        lan,
+        dueDate.toISOString().split("T")[0],
+        principal + interest,
+        interest,
+        principal,
+        principal, // ✅ This shows Remaining Principal = principal for that EMI
+        interest,
+        principal + interest,
+        "Pending"
+      ]);
+
+
+      remainingPrincipal -= principal;
+      dueDate.setMonth(dueDate.getMonth() + 1);
+    }
+
+    await db.promise().query(
+      `INSERT INTO manual_rps_ev_loan 
+      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+      VALUES ?`,
+      [rpsData]
+    );
+
+    console.log(`✅ EV RPS with Pre-EMI generated for ${lan}`);
+  } catch (err) {
+    console.error(`❌ EV RPS Error for ${lan}:`, err);
+  }
+};
 
 // //SSSSSSSSSSSSSSSSSSSSS
 
@@ -546,68 +546,68 @@ const excelSerialDateToJS = (value) => {
 };
 
 
-const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
-    try {
-        const annualRate = interestRate / 100;
-        let remainingPrincipal = loanAmount;
-        const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
+// const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
+//     try {
+//         const annualRate = interestRate / 100;
+//         let remainingPrincipal = loanAmount;
+//         const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
 
-        console.log("Calling getFirstEmiDate (EV) with:", { disbursementDate, lender, product });
-        console.log("First Due Date (EV):", firstDueDate);
-        console.log("Calling generateRepaymentSchedule with:", {
-          lan: row["LAN"],
-          loanAmount: row["Loan Amount"],
-          interestRate: row["Interest Rate"],
-          tenure: row["Tenure"],
-          disbursementDate: row["Disbursement Date"],
-          product: row["Product"],
-          lender: row["Lender"]
-        });
+//         console.log("Calling getFirstEmiDate (EV) with:", { disbursementDate, lender, product });
+//         console.log("First Due Date (EV):", firstDueDate);
+//         console.log("Calling generateRepaymentSchedule with:", {
+//           lan: row["LAN"],
+//           loanAmount: row["Loan Amount"],
+//           interestRate: row["Interest Rate"],
+//           tenure: row["Tenure"],
+//           disbursementDate: row["Disbursement Date"],
+//           product: row["Product"],
+//           lender: row["Lender"]
+//         });
 
 
-        const emi = Math.round(
-            (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-            (Math.pow(1 + annualRate / 12, tenure) - 1)
-        );
+//         const emi = Math.round(
+//             (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+//             (Math.pow(1 + annualRate / 12, tenure) - 1)
+//         );
 
-        const rpsData = [];
-        let dueDate = new Date(firstDueDate);
+//         const rpsData = [];
+//         let dueDate = new Date(firstDueDate);
 
-        for (let i = 1; i <= tenure; i++) {
-            const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-            let principal = emi - interest;
+//         for (let i = 1; i <= tenure; i++) {
+//             const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+//             let principal = emi - interest;
 
-            if (i === tenure) principal = remainingPrincipal;
+//             if (i === tenure) principal = remainingPrincipal;
 
-            rpsData.push([
-                lan,
-                dueDate.toISOString().split("T")[0],
-                principal + interest,
-                interest,
-                principal,
-                remainingPrincipal,
-                interest,
-                principal + interest,
-                "Pending"
-            ]);
+//             rpsData.push([
+//                 lan,
+//                 dueDate.toISOString().split("T")[0],
+//                 principal + interest,
+//                 interest,
+//                 principal,
+//                 remainingPrincipal,
+//                 interest,
+//                 principal + interest,
+//                 "Pending"
+//             ]);
 
-            remainingPrincipal -= principal;
-            dueDate.setMonth(dueDate.getMonth() + 1);
-        }
+//             remainingPrincipal -= principal;
+//             dueDate.setMonth(dueDate.getMonth() + 1);
+//         }
 
-        await db.promise().query(
-            `INSERT INTO manual_rps_ev_loan 
-            (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
-            VALUES ?`,
-            [rpsData]
-        );
+//         await db.promise().query(
+//             `INSERT INTO manual_rps_ev_loan 
+//             (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+//             VALUES ?`,
+//             [rpsData]
+//         );
 
-        console.log(`✅ EV RPS (standard EMI) generated for ${lan}`);
-    } catch (err) {
-        console.error(`❌ EV RPS Error for ${lan}:`, err);
-    }
-};
-////////////////////////// PRE EMI LOAN CALCULATION /////////////////////////////////////////
+//         console.log(`✅ EV RPS (standard EMI) generated for ${lan}`);
+//     } catch (err) {
+//         console.error(`❌ EV RPS Error for ${lan}:`, err);
+//     }
+// };
+//////////////////////////// PRE EMI LOAN CALCULATION /////////////////////////////////////////
 // Calculate adjusted Pre-EMI gap days (subtract disb month days)
 
 
@@ -618,44 +618,46 @@ const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure
 //     const annualRate = interestRate / 100;
 //     let remainingPrincipal = loanAmount;
 
-//     // Calculate EMI (standard annuity formula)
+//     // Calculate EMI
 //     const emi = Math.round(
 //       (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
 //       (Math.pow(1 + annualRate / 12, tenure) - 1)
 //     );
 
-//     // ✅ Use getFirstEmiDate like in the first function
-//     const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
+//     // Set RPS start date to same day of next month from disbursement
+//     const disbDate = new Date(disbursementDate);
+//     const firstDueDate = new Date(disbDate);
+//     firstDueDate.setMonth(disbDate.getMonth() + 1);
 
 //     const rpsData = [];
 //     let dueDate = new Date(firstDueDate);
 
 //     for (let i = 1; i <= tenure; i++) {
 //       const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+//       console.log("annualRate:", annualRate);
+//       console.log("Remaining Principal:", remainingPrincipal);
+//       console.log("Interest:", interest);
+//       console.log("EMI:", emi);
 //       let principal = emi - interest;
-
-//       // ✅ Last EMI adjustment
 //       if (i === tenure) principal = remainingPrincipal;
 
-//       // ✅ Keep correct remaining principal
 //       rpsData.push([
 //         lan,
 //         dueDate.toISOString().split("T")[0],
-//         principal + interest,   // EMI
-//         interest,               // Interest portion
-//         principal,              // Principal portion
-//         remainingPrincipal,     // ✅ Outstanding before this EMI
-//         interest,               
-//         principal + interest,   // Remaining EMI (for reference)
+//         principal + interest,
+//         interest,
+//         principal,
+//         principal, // ✅ This shows Remaining Principal = principal for that EMI
+//         interest,
+//         principal + interest,
 //         "Pending"
 //       ]);
 
-//       // Deduct principal from outstanding
+
 //       remainingPrincipal -= principal;
 //       dueDate.setMonth(dueDate.getMonth() + 1);
 //     }
 
-//     // Insert repayment schedule
 //     await db.promise().query(
 //       `INSERT INTO manual_rps_ev_loan
 //       (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
@@ -663,20 +665,19 @@ const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure
 //       [rpsData]
 //     );
 
-//     // ✅ Also update emi_amount in loan_booking_ev
+//     // ➕ Update emi_amount in loan_bookings
 //     await db.promise().query(
 //       `UPDATE loan_booking_ev
-//        SET emi_amount = ?
-//        WHERE lan = ?`,
+//    SET emi_amount = ?
+//    WHERE lan = ?`,
 //       [emi, lan]
 //     );
 
-//     console.log(`✅ EV RPS (with correct outstanding + EMI update) generated for ${lan}`);
+//     console.log(`✅ EV RPS generated from next month for ${lan}`);
 //   } catch (err) {
 //     console.error(`❌ EV RPS Error for ${lan}:`, err);
 //   }
 // };
-
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
