@@ -3843,7 +3843,7 @@ if (prod === "ALL" || prod === "Adikosh") {
     SELECT 
       IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
       IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
-    FROM allocation
+    FROM allocation_adikosh
     WHERE allocation_date IS NOT NULL ${r.clause}
       AND lan LIKE 'Adikosh%'
   `);

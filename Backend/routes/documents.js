@@ -135,7 +135,14 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_ev_loan";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
-  } else {
+  } 
+  // else if (lan.startsWith("BL")) {
+  //   loanTable = "loan_bookings";
+  //   rpsTable = "manual_rps_ev_loan";
+  //   paymentsTable = "repayments_upload";
+  //   chargesTable = "loan_charges";
+  // }
+  else {
     loanTable = "loan_bookings";
     rpsTable = "manual_rps_bl_loan";
     paymentsTable = "repayments_upload";
@@ -335,7 +342,7 @@ finalRows.forEach(row => {
         `INSERT INTO loan_documents (lan, file_name, original_name) VALUES (?, ?, ?);`,
         [lan, filename, `SOA - ${lan}`]
       );
-      res.json({ fileUrl: `http://192.168.0.200:5000/uploads/${filename}` });
+      res.json({ fileUrl: `http://localhost:5000/api/uploads/${filename}` });
     });
     doc.end();
 
