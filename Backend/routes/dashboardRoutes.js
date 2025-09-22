@@ -3762,53 +3762,122 @@ router.post("/metric-cards", async (req, res) => {
     }
 
     // P&I collected IN RANGE (display only)
-    if (prod === "ALL" || prod === "BL") {
-      const r = buildDateRangeClause("payment_date", start, end);
-      pniRangeQueries.push(`
-        SELECT IFNULL(SUM(principal),0) AS principal,
-               IFNULL(SUM(interest),0)  AS interest
-        FROM manual_rps_bl_loan
-        WHERE payment_date IS NOT NULL ${r.clause}
-      `);
-      pniRangeParams.push(...r.params);
-    }
-    if (prod === "ALL" || prod === "EV") {
-      const r = buildDateRangeClause("payment_date", start, end);
-      pniRangeQueries.push(`
-        SELECT IFNULL(SUM(principal),0) AS principal,
-               IFNULL(SUM(interest),0)  AS interest
-        FROM manual_rps_ev_loan
-        WHERE payment_date IS NOT NULL ${r.clause}
-      `);
-      pniRangeParams.push(...r.params);
-    }
-    if (prod === "ALL" || prod === "Adikosh") {
-      pniRangeQueries.push(`
-        SELECT IFNULL(SUM(principal),0) AS principal,
-               IFNULL(SUM(interest),0)  AS interest
-        FROM manual_rps_adikosh
-        WHERE payment_date IS NOT NULL ${pclA.clause}
-      `);
-      pniRangeParams.push(...pclA.params);
-    }
-    if (prod === "ALL" || prod === "GQ Non-FSF") {
-      pniRangeQueries.push(`
-        SELECT IFNULL(SUM(principal),0) AS principal,
-               IFNULL(SUM(interest),0)  AS interest
-        FROM manual_rps_gq_non_fsf
-        WHERE payment_date IS NOT NULL ${pclA.clause}
-      `);
-      pniRangeParams.push(...pclA.params);
-    }
-    if (prod === "ALL" || prod === "GQ FSF") {
-      pniRangeQueries.push(`
-        SELECT IFNULL(SUM(principal),0) AS principal,
-               IFNULL(SUM(interest),0)  AS interest
-        FROM manual_rps_gq_fsf
-        WHERE payment_date IS NOT NULL ${pclA.clause}
-      `);
-      pniRangeParams.push(...pclA.params);
-    }
+    // if (prod === "ALL" || prod === "BL") {
+    //   const r = buildDateRangeClause("payment_date", start, end);
+    //   pniRangeQueries.push(`
+    //     SELECT IFNULL(SUM(principal),0) AS principal,
+    //            IFNULL(SUM(interest),0)  AS interest
+    //     FROM manual_rps_bl_loan
+    //     WHERE payment_date IS NOT NULL ${r.clause}
+    //   `);
+    //   pniRangeParams.push(...r.params);
+    // }
+    // if (prod === "ALL" || prod === "EV") {
+    //   const r = buildDateRangeClause("payment_date", start, end);
+    //   pniRangeQueries.push(`
+    //     SELECT IFNULL(SUM(principal),0) AS principal,
+    //            IFNULL(SUM(interest),0)  AS interest
+    //     FROM manual_rps_ev_loan
+    //     WHERE payment_date IS NOT NULL ${r.clause}
+    //   `);
+    //   pniRangeParams.push(...r.params);
+    // }
+    // if (prod === "ALL" || prod === "Adikosh") {
+    //   pniRangeQueries.push(`
+    //     SELECT IFNULL(SUM(principal),0) AS principal,
+    //            IFNULL(SUM(interest),0)  AS interest
+    //     FROM manual_rps_adikosh
+    //     WHERE payment_date IS NOT NULL ${pclA.clause}
+    //   `);
+    //   pniRangeParams.push(...pclA.params);
+    // }
+    // if (prod === "ALL" || prod === "GQ Non-FSF") {
+    //   pniRangeQueries.push(`
+    //     SELECT IFNULL(SUM(principal),0) AS principal,
+    //            IFNULL(SUM(interest),0)  AS interest
+    //     FROM manual_rps_gq_non_fsf
+    //     WHERE payment_date IS NOT NULL ${pclA.clause}
+    //   `);
+    //   pniRangeParams.push(...pclA.params);
+    // }
+    // if (prod === "ALL" || prod === "GQ FSF") {
+    //   pniRangeQueries.push(`
+    //     SELECT IFNULL(SUM(principal),0) AS principal,
+    //            IFNULL(SUM(interest),0)  AS interest
+    //     FROM manual_rps_gq_fsf
+    //     WHERE payment_date IS NOT NULL ${pclA.clause}
+    //   `);
+    //   pniRangeParams.push(...pclA.params);
+    // }
+
+    // P&I collected IN RANGE (display only)
+if (prod === "ALL" || prod === "BL") {
+  const r = buildDateRangeClause("bank_date_allocation", start, end);
+  pniRangeQueries.push(`
+    SELECT 
+      IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
+      IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
+    FROM allocation
+    WHERE allocation_date IS NOT NULL ${r.clause}
+      AND lan LIKE 'BL%'
+  `);
+  pniRangeParams.push(...r.params);
+}
+
+if (prod === "ALL" || prod === "EV") {
+  const r = buildDateRangeClause("bank_date_allocation", start, end);
+  pniRangeQueries.push(`
+    SELECT 
+      IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
+      IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
+    FROM allocation
+    WHERE allocation_date IS NOT NULL ${r.clause}
+      AND lan LIKE 'EV%'
+  `);
+  pniRangeParams.push(...r.params);
+}
+
+if (prod === "ALL" || prod === "Adikosh") {
+  const r = buildDateRangeClause("bank_date_allocation", start, end);
+  pniRangeQueries.push(`
+    SELECT 
+      IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
+      IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
+    FROM allocation
+    WHERE allocation_date IS NOT NULL ${r.clause}
+      AND lan LIKE 'Adikosh%'
+  `);
+  pniRangeParams.push(...r.params);
+}
+
+if (prod === "ALL" || prod === "GQ Non-FSF") {
+  const r = buildDateRangeClause("bank_date_allocation", start, end);
+  pniRangeQueries.push(`
+    SELECT 
+      IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
+      IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
+    FROM allocation
+    WHERE allocation_date IS NOT NULL ${r.clause}
+      AND lan LIKE '%GQN%'
+  `);
+  pniRangeParams.push(...r.params);
+}
+
+if (prod === "ALL" || prod === "GQ FSF") {
+  const r = buildDateRangeClause("bank_date_allocation", start, end);
+  pniRangeQueries.push(`
+    SELECT 
+      IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
+      IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
+    FROM allocation
+    WHERE allocation_date IS NOT NULL ${r.clause}
+      AND lan LIKE '%GQF%'
+  `);
+  pniRangeParams.push(...r.params);
+}
+
+
+
 
     // POS cutoff
     const jsToday = new Date().toISOString().slice(0, 10);
