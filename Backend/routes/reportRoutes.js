@@ -391,6 +391,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_due_collection_all_report_gq_fsf"
         : lender === "bl loan"
         ? "sp_due_collection_all_report_BL_Loan"
+        : lender === "embifi"
+        ? "sp_due_collection_all_report_embifi"
         : lender === "wctl"
         ? "sp_due_collection_all_report_wctl"
         : "sp_due_collection_all_report",
