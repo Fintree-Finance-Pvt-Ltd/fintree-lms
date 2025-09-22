@@ -1,7 +1,6 @@
 // const db = require("../config/db");
 // const { getFirstEmiDate } = require("../utils/emiDateCalculator");
 
-
 // // const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
 // //     try {
 // //         const annualRate = interestRate / 100;
@@ -19,7 +18,6 @@
 // //           product: row["Product"],
 // //           lender: row["Lender"]
 // //         });
-
 
 // //         const emi = Math.round(
 // //             (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
@@ -52,7 +50,7 @@
 // //         }
 
 // //         await db.promise().query(
-// //             `INSERT INTO manual_rps_ev_loan 
+// //             `INSERT INTO manual_rps_ev_loan
 // //             (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
 // //             VALUES ?`,
 // //             [rpsData]
@@ -66,7 +64,6 @@
 // //////////////////////////// PRE EMI LOAN CALCULATION /////////////////////////////////////////
 // // Calculate adjusted Pre-EMI gap days (subtract disb month days)
 
-
 // const generateRepaymentScheduleEV = async (
 //   lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
 // ) => {
@@ -79,7 +76,7 @@
 //    const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
 
 //    console.log("Calling generateRepaymentSchedule with:", {
-//      lan,    
+//      lan,
 //      loanAmount,
 //      interestRate,
 //      tenure,
@@ -91,17 +88,13 @@
 //    const getTotalDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 //    console.log("Total Days in Month:", getTotalDaysInMonth(disbDate));
 
-
-
 //    // Calculate gap days from disbursement to 4th of EMI month
 //    const totalDaysInMonth = getTotalDaysInMonth(disbDate); // ✅ You missed declaring this
 //    console.log("Total Days in Month:", totalDaysInMonth);
 
 //      const preEmiEndDate = new Date(firstDueDate);
 
-
 //    preEmiEndDate.setDate(5); // 5th of the EMI due month
-
 
 //    const rawGapDays = Math.ceil((preEmiEndDate - disbDate) / (1000 * 60 * 60 * 24));
 //    console.log("Raw Gap Days:", rawGapDays);
@@ -157,13 +150,12 @@
 //         "Pending"
 //       ]);
 
-
 //       remainingPrincipal -= principal;
 //       dueDate.setMonth(dueDate.getMonth() + 1);
 //     }
 
 //     await db.promise().query(
-//       `INSERT INTO manual_rps_ev_loan 
+//       `INSERT INTO manual_rps_ev_loan
 //       (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
 //       VALUES ?`,
 //       [rpsData]
@@ -215,13 +207,12 @@
 // //         "Pending"
 // //       ]);
 
-
 // //       remainingPrincipal -= principal;
 // //       dueDate.setMonth(dueDate.getMonth() + 1);
 // //     }
 
 // //     await db.promise().query(
-// //       `INSERT INTO manual_rps_ev_loan 
+// //       `INSERT INTO manual_rps_ev_loan
 // //       (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
 // //       VALUES ?`,
 // //       [rpsData]
@@ -232,9 +223,6 @@
 // //     console.error(`❌ EV RPS Error for ${lan}:`, err);
 // //   }
 // // };
-
-
-
 
 // ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -249,7 +237,6 @@
 
 // //         console.log("Calling getFirstEmiDate (BL) with:", { disbursementDate, lender, product });
 // //         console.log("First Due Date (BL):", firstDueDate);
-
 
 // //         let dueDate = new Date(firstDueDate);
 
@@ -495,8 +482,6 @@
 //   }
 // };
 
-
-
 // ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // const generateRepaymentSchedule = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
@@ -532,8 +517,18 @@ const excelSerialDateToJS = (value) => {
   if (typeof value === "string" && value.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
     const [day, monthAbbr, yearShort] = value.split("-");
     const monthNames = {
-      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
     };
     const month = monthNames[monthAbbr];
     const year = parseInt("20" + yearShort, 10);
@@ -545,65 +540,71 @@ const excelSerialDateToJS = (value) => {
   return null;
 };
 
+// const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
+//     try {
+//         const annualRate = interestRate / 100;
+//         let remainingPrincipal = loanAmount;
+//         const firstDueDate = getFirstEmiDate(disbursementDate, null, lender, product);
 
-const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
-    try {
-        const annualRate = interestRate / 100;
-        let remainingPrincipal = loanAmount;
-        const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
+//         console.log("Calling getFirstEmiDate (EV) with:", { disbursementDate, lender, product });
+//         console.log("First Due Date (EV):", firstDueDate);
 
-        console.log("Calling getFirstEmiDate (EV) with:", { disbursementDate, lender, product });
-        console.log("First Due Date (EV):", firstDueDate);
+//         const emi = Math.round(
+//             (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+//             (Math.pow(1 + annualRate / 12, tenure) - 1)
+//         );
 
+//         const rpsData = [];
+//         let dueDate = new Date(firstDueDate);
 
-        const emi = Math.round(
-            (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-            (Math.pow(1 + annualRate / 12, tenure) - 1)
-        );
+//         for (let i = 1; i <= tenure; i++) {
+//             const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+//             let principal = emi - interest;
 
-        const rpsData = [];
-        let dueDate = new Date(firstDueDate);
+//             if (i === tenure) principal = remainingPrincipal;
 
-        for (let i = 1; i <= tenure; i++) {
-            const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-            let principal = emi - interest;
+//             rpsData.push([
+//                 lan,
+//                 dueDate.toISOString().split("T")[0],
+//                 principal + interest,
+//                 interest,
+//                 principal,
+//                 remainingPrincipal,
+//                 interest,
+//                 principal + interest,
+//                 "Pending"
+//             ]);
 
-            if (i === tenure) principal = remainingPrincipal;
+//             remainingPrincipal -= principal;
+//             dueDate.setMonth(dueDate.getMonth() + 1);
+//         }
 
-            rpsData.push([
-                lan,
-                dueDate.toISOString().split("T")[0],
-                principal + interest,
-                interest,
-                principal,
-                remainingPrincipal,
-                interest,
-                principal + interest,
-                "Pending"
-            ]);
+//         await db.promise().query(
+//             `INSERT INTO manual_rps_ev_loan
+//             (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+//             VALUES ?`,
+//             [rpsData]
+//         );
 
-            remainingPrincipal -= principal;
-            dueDate.setMonth(dueDate.getMonth() + 1);
-        }
+//         console.log(`✅ EV RPS (standard EMI) generated for ${lan}`);
+//     } catch (err) {
+//         console.error(`❌ EV RPS Error for ${lan}:`, err);
+//     }
+// };
 
-        await db.promise().query(
-            `INSERT INTO manual_rps_ev_loan 
-            (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
-            VALUES ?`,
-            [rpsData]
-        );
-
-        console.log(`✅ EV RPS (standard EMI) generated for ${lan}`);
-    } catch (err) {
-        console.error(`❌ EV RPS Error for ${lan}:`, err);
-    }
-};
 //////////////////////////// PRE EMI LOAN CALCULATION /////////////////////////////////////////
 // Calculate adjusted Pre-EMI gap days (subtract disb month days)
 
 
+/////////////////////////////working ev of 20-09-2025//////////////////////////
 // const generateRepaymentScheduleEV = async (
-//   lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
+//   lan,
+//   loanAmount,
+//   interestRate,
+//   tenure,
+//   disbursementDate,
+//   product,
+//   lender
 // ) => {
 //   try {
 //     const annualRate = interestRate / 100;
@@ -612,13 +613,32 @@ const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure
 //     // Calculate EMI
 //     const emi = Math.round(
 //       (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-//       (Math.pow(1 + annualRate / 12, tenure) - 1)
+//         (Math.pow(1 + annualRate / 12, tenure) - 1)
 //     );
 
 //     // Set RPS start date to same day of next month from disbursement
-//     const disbDate = new Date(disbursementDate);
-//     const firstDueDate = new Date(disbDate);
-//     firstDueDate.setMonth(disbDate.getMonth() + 1);
+//     const firstDueRaw = getFirstEmiDate(
+//       disbursementDate,
+//       null,
+//       lender,
+//       product
+//     );
+
+//     console.log("Calling getFirstEmiDate (EV) with:", {
+//       disbursementDate,
+//       lender,
+//       product,
+//     });
+
+//     console.log("First Due Date (EV):", firstDueRaw);
+
+//     const firstDueDate = new Date(firstDueRaw);
+
+//     if (Number.isNaN(firstDueDate.getTime())) {
+//       throw new Error(
+//         `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`
+//       );
+//     }
 
 //     const rpsData = [];
 //     let dueDate = new Date(firstDueDate);
@@ -641,9 +661,8 @@ const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure
 //         principal, // ✅ This shows Remaining Principal = principal for that EMI
 //         interest,
 //         principal + interest,
-//         "Pending"
+//         "Pending",
 //       ]);
-
 
 //       remainingPrincipal -= principal;
 //       dueDate.setMonth(dueDate.getMonth() + 1);
@@ -670,8 +689,100 @@ const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure
 //   }
 // };
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const generateRepaymentScheduleEV = async (
+  conn,           // <<<<<<<<<< ACCEPT TRANSACTION CONNECTION
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender
+) => {
+  // ❗ No outer try/catch here that swallows errors. Let them bubble to caller.
+
+  const annualRate = interestRate / 100;
+  let remainingPrincipal = loanAmount;
+
+  // Calculate EMI
+  const emi = Math.round(
+    (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+      (Math.pow(1 + annualRate / 12, tenure) - 1)
+  );
+
+  // Set RPS start date to same day of next month from disbursement
+  const firstDueRaw = getFirstEmiDate(
+    disbursementDate,
+    null,
+    lender,
+    product
+  );
+
+  console.log("Calling getFirstEmiDate (EV) with:", {
+    disbursementDate,
+    lender,
+    product,
+  });
+
+  console.log("First Due Date (EV):", firstDueRaw);
+
+  const firstDueDate = new Date(firstDueRaw);
+
+  if (Number.isNaN(firstDueDate.getTime())) {
+    throw new Error(
+      `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`
+    );
+  }
+
+  const rpsData = [];
+  let dueDate = new Date(firstDueDate);
+
+  for (let i = 1; i <= tenure; i++) {
+    const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+    console.log("annualRate:", annualRate);
+    console.log("Remaining Principal:", remainingPrincipal);
+    console.log("Interest:", interest);
+    console.log("EMI:", emi);
+    let principal = emi - interest;
+    if (i === tenure) principal = remainingPrincipal;
+
+    rpsData.push([
+      lan,
+      dueDate.toISOString().split("T")[0],
+      principal + interest,
+      interest,
+      principal,
+      principal, // ✅ preserve your existing behavior: Remaining Principal = principal for that EMI
+      interest,
+      principal + interest,
+      "Pending",
+    ]);
+
+    remainingPrincipal -= principal;
+    dueDate.setMonth(dueDate.getMonth() + 1);
+  }
+
+  // Use the SAME TRANSACTION CONNECTION
+  await conn.query(
+    `INSERT INTO manual_rps_ev_loan
+     (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+     VALUES ?`,
+    [rpsData]
+  );
+
+  // ➕ Update emi_amount in loan_bookings (EV) within the same tx
+  await conn.query(
+    `UPDATE loan_booking_ev
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [emi, lan]
+  );
+
+  console.log(`✅ EV RPS generated from next month for ${lan}`);
+};
+
 
 // const generateRepaymentScheduleBL = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
 //     try {
@@ -684,7 +795,6 @@ const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure
 
 //         console.log("Calling getFirstEmiDate (BL) with:", { disbursementDate, lender, product });
 //         console.log("First Due Date (BL):", firstDueDate);
-
 
 //         let dueDate = new Date(firstDueDate);
 
@@ -756,7 +866,13 @@ const generateRepaymentScheduleEV = async (lan, loanAmount, interestRate, tenure
 ////////////////////////////////// UPDATE BL //////////////////////////////////////////////////////////
 
 const generateRepaymentScheduleBL = async (
-  lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender
 ) => {
   try {
     const annualRate = interestRate / 100;
@@ -766,7 +882,11 @@ const generateRepaymentScheduleBL = async (
     let rpsData = [];
     const firstDueDate = getFirstEmiDate(disbursementDate, lender, product);
 
-    console.log("Calling getFirstEmiDate (BL) with:", { disbursementDate, lender, product });
+    console.log("Calling getFirstEmiDate (BL) with:", {
+      disbursementDate,
+      lender,
+      product,
+    });
     console.log("First Due Date (BL):", firstDueDate);
 
     let dueDate = new Date(firstDueDate);
@@ -776,7 +896,7 @@ const generateRepaymentScheduleBL = async (
 
       for (let i = 1; i <= tenure; i++) {
         const interest = parseFloat((loanAmount * dailyRate).toFixed(2));
-        const principal = (i === tenure) ? loanAmount : emiPrincipal;
+        const principal = i === tenure ? loanAmount : emiPrincipal;
         const totalEmi = principal + interest;
 
         rpsData.push([
@@ -788,35 +908,40 @@ const generateRepaymentScheduleBL = async (
           principal,
           totalEmi,
           totalEmi,
-          "Pending"
+          "Pending",
         ]);
 
         loanAmount -= principal;
         dueDate.setDate(dueDate.getDate() + 1);
       }
-
     } else {
       // Monthly Loan
       const emi = Math.round(
         (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
-        (Math.pow(1 + monthlyRate, tenure) - 1)
+          (Math.pow(1 + monthlyRate, tenure) - 1)
       );
 
       let outstandingPrincipal = loanAmount;
 
       // Calculate gap days from disbursement date to first EMI date
       const disbDate = new Date(disbursementDate);
-      const gapDays = Math.ceil((new Date(firstDueDate) - disbDate) / (1000 * 60 * 60 * 24));
+      const gapDays = Math.ceil(
+        (new Date(firstDueDate) - disbDate) / (1000 * 60 * 60 * 24)
+      );
 
       for (let i = 1; i <= tenure; i++) {
         let interest, principal;
 
         if (i === 1) {
           // First EMI interest for gap days
-          interest = parseFloat(((outstandingPrincipal * annualRate * gapDays) / 360).toFixed(2));
+          interest = parseFloat(
+            ((outstandingPrincipal * annualRate * gapDays) / 360).toFixed(2)
+          );
           principal = parseFloat((emi - interest).toFixed(2));
         } else {
-          interest = parseFloat((outstandingPrincipal * monthlyRate).toFixed(2));
+          interest = parseFloat(
+            (outstandingPrincipal * monthlyRate).toFixed(2)
+          );
           principal = parseFloat((emi - interest).toFixed(2));
         }
 
@@ -837,7 +962,7 @@ const generateRepaymentScheduleBL = async (
           principal,
           totalEmi,
           totalEmi,
-          "Pending"
+          "Pending",
         ]);
 
         outstandingPrincipal -= principal;
@@ -889,7 +1014,6 @@ const generateRepaymentScheduleBL = async (
 
 //     console.log("Calling getFirstEmiDate (BL) with:", { disbursementDate, lender, product });
 //     console.log("First Due Date (BL):", firstDueDate);
-
 
 //     console.log(`📅 First due date calculated: ${firstDueDate.toISOString().split("T")[0]}`);
 
@@ -1043,7 +1167,6 @@ const generateRepaymentScheduleBL = async (
 //     console.error(`❌ GQ NON-FSF RPS Error for ${lan}:`, err);
 //   }
 // };
-
 
 ////////////////// GQ NON-FSF LOAN CALCULATION /////////////////////////////////////////
 
@@ -1243,38 +1366,41 @@ const generateRepaymentScheduleBL = async (
 //   }
 // };
 
-
 // helper: round to 2 decimals
-const r2 = x => Math.round((x + Number.EPSILON) * 100) / 100;
+const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 
 // solve for the *implied* monthly rate that amortizes `prem` with fixed `emi` in `m` months
 // (keeps all EMIs = the flat/₹20,127 value you want)
 function solveMonthlyRate(prem, emi, m) {
   // Bisection: find r where PV(emi, r, m) - prem = 0
-  let lo = 0, hi = 0.0; // 0%..5% per month is a safe bracket
+  let lo = 0,
+    hi = 0.0; // 0%..5% per month is a safe bracket
   for (let t = 0; t < 80; t++) {
     const r = (lo + hi) / 2;
     const pow = Math.pow(1 + r, -m);
     const pv = (emi * (1 - pow)) / (r || 1e-9);
-    if (pv > prem) lo = r; else hi = r;
+    if (pv > prem) lo = r;
+    else hi = r;
   }
   return (lo + hi) / 2;
 }
 
 const generateRepaymentScheduleGQNonFSF = async (
   lan,
-  approvedAmount,         // P
+  approvedAmount, // P
   emiDate,
-  interestRate,           // (kept for record; not used to size EMI after advance)
-  tenure,                 // n
+  interestRate, // (kept for record; not used to size EMI after advance)
+  tenure, // n
   disbursementDate,
   subventionAmount,
   product,
   lender,
-  no_of_advance_emis = 1  // we’ll support k >= 1, but your case is k=1
+  no_of_advance_emis = 1 // we’ll support k >= 1, but your case is k=1
 ) => {
   try {
-    console.log(`\n🚀 Generating GQ NON-FSF RPS (flat-advance EMI, reducing thereafter) for LAN: ${lan}`);
+    console.log(
+      `\n🚀 Generating GQ NON-FSF RPS (flat-advance EMI, reducing thereafter) for LAN: ${lan}`
+    );
 
     // --- inputs ---
     const P = Number(approvedAmount || 0);
@@ -1286,48 +1412,52 @@ const generateRepaymentScheduleGQNonFSF = async (
     // --- 1) Advance EMI = flat rule you requested ---
     // EMI_flat = (P/n) + (annual% * P / n). We ROUND TO RUPEES for the EMI value,
     // but we book the *advance principal* to 2 decimals like in your sheet.
-    const annual = Number(interestRate || 0) / 100;         // kept only for record
-    const emiFlatExact = (P / n) + (annual * P / n);        // e.g. 20,126.6931…
-    const EMI = Math.round(emiFlatExact);                   // e.g. 20,127 (used for *all* 24 EMIs)
-    const advPrincipalOne = r2(emiFlatExact);               // e.g. 20,126.69
-    const m = n - k;                                        // remaining months after advance
+    const annual = Number(interestRate || 0) / 100; // kept only for record
+    const emiFlatExact = P / n + (annual * P) / n; // e.g. 20,126.6931…
+    const EMI = Math.round(emiFlatExact); // e.g. 20,127 (used for *all* 24 EMIs)
+    const advPrincipalOne = r2(emiFlatExact); // e.g. 20,126.69
+    const m = n - k; // remaining months after advance
 
     const rows = [];
     let opening = P;
-  if(k>0){
+    if (k > 0) {
+      // --- 1a) Record k advance EMIs (interest = 0, principal = advPrincipalOne each) ---
+      for (let i = 1; i <= k; i++) {
+        const interest = 0;
+        const principal = advPrincipalOne;
+        const closing = r2(opening - principal);
 
+        const dueDate = new Date(disbursementDate); // on disbursement day
+        rows.push({
+          seq: `ADV-${i}`,
+          dueDate: dueDate.toISOString().split("T")[0],
+          emi: EMI,
+          interest: interest,
+          principal: r2(principal),
+          closing: r2(closing),
+        });
 
-    // --- 1a) Record k advance EMIs (interest = 0, principal = advPrincipalOne each) ---
-    for (let i = 1; i <= k; i++) {
-      const interest = 0;
-      const principal = advPrincipalOne;
-      const closing = r2(opening - principal);
-
-      const dueDate = new Date(disbursementDate); // on disbursement day
-      rows.push({
-        seq: `ADV-${i}`,
-        dueDate: dueDate.toISOString().split("T")[0],
-        emi: EMI,
-        interest: (interest),
-        principal: r2(principal),
-        closing: r2(closing),
-      });
-
-      opening = closing;
+        opening = closing;
+      }
     }
-  }
     // --- 2) Regular schedule with *fixed* EMI (= EMI from step 1) on reducing balance ---
     // To keep EMI fixed at ₹20,127 *and* amortize in m months, we use the *implied monthly rate*.
     // (This reproduces the pattern in your screenshot and typically leaves a tiny residual.)
     const r = solveMonthlyRate(opening, EMI, m); // ~0.00805945 for your case (≈9.67% p.a. effective)
 
     for (let i = 1; i <= m; i++) {
-      const interest = r2(opening * r);          // interest rounded to paise as shown
-      const principal = r2(EMI - interest);      // principal is the rest
-      const closing = r2(opening - principal);   // do NOT force last row to zero
+      const interest = r2(opening * r); // interest rounded to paise as shown
+      const principal = r2(EMI - interest); // principal is the rest
+      const closing = r2(opening - principal); // do NOT force last row to zero
 
       const offset = i - 1;
-      const dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, offset);
+      const dueDate = getFirstEmiDate(
+        disbursementDate,
+        emiDate,
+        lender,
+        product,
+        offset
+      );
 
       rows.push({
         seq: i,
@@ -1342,7 +1472,8 @@ const generateRepaymentScheduleGQNonFSF = async (
     }
 
     // (optional) remaining_* totals bottom-up, if you need them for UI
-    let remEmi = 0, remInterest = 0;
+    let remEmi = 0,
+      remInterest = 0;
     for (let i = rows.length - 1; i >= 0; i--) {
       remEmi = r2(remEmi + rows[i].emi);
       remInterest = r2(remInterest + rows[i].interest);
@@ -1352,7 +1483,7 @@ const generateRepaymentScheduleGQNonFSF = async (
     }
 
     // --- 3) Bulk insert into DB as before ---
-    const rpsData = rows.map(rw => ([
+    const rpsData = rows.map((rw) => [
       lan,
       rw.dueDate,
       rw.emi,
@@ -1361,8 +1492,8 @@ const generateRepaymentScheduleGQNonFSF = async (
       rw.principal,
       rw.interest,
       rw.emi,
-      "Pending"
-    ]));
+      "Pending",
+    ]);
 
     await db.promise().query(
       `INSERT INTO manual_rps_gq_non_fsf
@@ -1376,7 +1507,6 @@ const generateRepaymentScheduleGQNonFSF = async (
     console.error(`❌ RPS Error for ${lan}:`, err);
   }
 };
-
 
 //////////GQ FSF LOAN CALCULATION /////////////////////////////////////////
 const generateRepaymentScheduleGQFSF = async (
@@ -1393,20 +1523,26 @@ const generateRepaymentScheduleGQFSF = async (
 ) => {
   try {
     console.log(`\n🚀 Generating GQ FSF RPS for LAN: ${lan}`);
-    console.log(`📝 Inputs → ApprovedAmount: ₹${approvedAmount}, InterestRate: ${interestRate}%, Tenure: ${tenure}, DisbursementDate: ${disbursementDate}, SubventionAmount: ₹${subventionAmount}, Product: ${product}, Lender: ${lender}, AdvanceEMIs: ${no_of_advance_emis}`);
+    console.log(
+      `📝 Inputs → ApprovedAmount: ₹${approvedAmount}, InterestRate: ${interestRate}%, Tenure: ${tenure}, DisbursementDate: ${disbursementDate}, SubventionAmount: ₹${subventionAmount}, Product: ${product}, Lender: ${lender}, AdvanceEMIs: ${no_of_advance_emis}`
+    );
 
     const annualRate = interestRate / 100;
     let remainingPrincipal = approvedAmount;
 
     const isZeroInterest = annualRate === 0;
     const emiPrincipal = Math.round(approvedAmount / tenure);
-    let emiInterest = isZeroInterest ? 0 : Math.ceil((approvedAmount * annualRate) / tenure);
+    let emiInterest = isZeroInterest
+      ? 0
+      : Math.ceil((approvedAmount * annualRate) / tenure);
     let emiTotal = emiPrincipal + emiInterest;
 
     if (isZeroInterest) {
       console.log("💡 Interest-free loan — EMI = Principal only");
     } else {
-      console.log(`💰 EMI Breakdown → Principal: ₹${emiPrincipal}, Interest: ₹${emiInterest}, Total: ₹${emiTotal}`);
+      console.log(
+        `💰 EMI Breakdown → Principal: ₹${emiPrincipal}, Interest: ₹${emiInterest}, Total: ₹${emiTotal}`
+      );
     }
 
     const rpsData = [];
@@ -1418,12 +1554,16 @@ const generateRepaymentScheduleGQFSF = async (
       if (i === tenure) {
         principal = remainingPrincipal;
         emiTotal = principal + interest;
-        console.log(`🔧 Adjusted Final EMI (Month ${i}): ₹${emiTotal} (P: ₹${principal}, I: ₹${interest})`);
+        console.log(
+          `🔧 Adjusted Final EMI (Month ${i}): ₹${emiTotal} (P: ₹${principal}, I: ₹${interest})`
+        );
       }
 
       // ✅ Calculate due date
       let dueDate;
-      console.log(`💰 Month ${i} breakdown — Principal: ₹${principal}, Interest: ₹${interest}, Total: ₹${emiTotal}`);
+      console.log(
+        `💰 Month ${i} breakdown — Principal: ₹${principal}, Interest: ₹${interest}, Total: ₹${emiTotal}`
+      );
       console.log(`no of advance emis`, no_of_advance_emis);
       if (no_of_advance_emis > 0 && i === 1) {
         // Only the first EMI on disbursement date
@@ -1431,7 +1571,13 @@ const generateRepaymentScheduleGQFSF = async (
         dueDate = new Date(disbursementDate);
       } else {
         const offset = no_of_advance_emis > 0 ? i - 2 : i - 1;
-        dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, offset);
+        dueDate = getFirstEmiDate(
+          disbursementDate,
+          emiDate,
+          lender,
+          product,
+          offset
+        );
       }
 
       rpsData.push([
@@ -1443,10 +1589,14 @@ const generateRepaymentScheduleGQFSF = async (
         principal,
         interest,
         emiTotal,
-        "Pending"
+        "Pending",
       ]);
 
-      console.log(`📌 Month ${i}: DueDate=${dueDate.toISOString().split("T")[0]}, EMI=₹${emiTotal}`);
+      console.log(
+        `📌 Month ${i}: DueDate=${
+          dueDate.toISOString().split("T")[0]
+        }, EMI=₹${emiTotal}`
+      );
       remainingPrincipal -= principal;
     }
 
@@ -1458,12 +1608,12 @@ const generateRepaymentScheduleGQFSF = async (
     );
 
     // ➕ Update emi_amount in loan_bookings
-  //   await db.promise().query(
-  //     `UPDATE loan_bookings_gq_fsf
-  //  SET emi_amount = ?
-  //  WHERE lan = ?`,
-  //     [emiTotal, lan]
-  //   );
+    //   await db.promise().query(
+    //     `UPDATE loan_bookings_gq_fsf
+    //  SET emi_amount = ?
+    //  WHERE lan = ?`,
+    //     [emiTotal, lan]
+    //   );
 
     console.log(`✅ GQ FSF RPS generated successfully for ${lan}\n`);
   } catch (err) {
@@ -1501,7 +1651,6 @@ const generateRepaymentScheduleGQFSF = async (
 //       let remainingPrincipal = baseAmount;
 //       let dueDate = new Date(firstDueDate);
 
-  
 //       const emi = Math.ceil(
 //         (baseAmount * (tableAnnualRate / 12) * Math.pow(1 + tableAnnualRate / 12, tenure)) /
 //         (Math.pow(1 + tableAnnualRate / 12, tenure) - 1)
@@ -1612,7 +1761,13 @@ const generateRepaymentScheduleGQFSF = async (
 // };
 /////////////////////////EMBIFI START///////////////////////////////////////
 const generateRepaymentScheduleEmbifi = async (
-  lan, loanAmount, interestRate, tenure, disbursementDate, product, lender
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender
 ) => {
   try {
     const annualRate = interestRate / 100;
@@ -1620,7 +1775,7 @@ const generateRepaymentScheduleEmbifi = async (
 
     const emi = Math.round(
       (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-      (Math.pow(1 + annualRate / 12, tenure) - 1)
+        (Math.pow(1 + annualRate / 12, tenure) - 1)
     );
 
     const disbDate = new Date(disbursementDate);
@@ -1673,8 +1828,6 @@ const generateRepaymentScheduleEmbifi = async (
   }
 };
 
-
-
 ////////////////////////ADIKOSH START //////////////////////////////////
 // Assumes:
 //  - mysql2 connection exported as `db`
@@ -1687,10 +1840,10 @@ const fmt2 = (n) => Number((n ?? 0).toFixed(2));
 const generateRepaymentScheduleAdikosh = async (
   lan,
   loanAmount,
-  interestRate,      // annual % (e.g., 24 => 24% p.a.)
-  tenure,            // months
-  disbursementDate,  // "YYYY-MM-DD"
-  salaryDay          // integer day-of-month for first EMI alignment
+  interestRate, // annual % (e.g., 24 => 24% p.a.)
+  tenure, // months
+  disbursementDate, // "YYYY-MM-DD"
+  salaryDay // integer day-of-month for first EMI alignment
 ) => {
   try {
     const firstDueDate = getFirstEmiDate(
@@ -1702,18 +1855,40 @@ const generateRepaymentScheduleAdikosh = async (
       salaryDay
     );
 
-    console.log({ lan, loanAmount, interestRate, tenure, salaryDay, firstDueDate });
+    console.log({
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      salaryDay,
+      firstDueDate,
+    });
 
     const tables = [
-      { name: "manual_rps_adikosh",         factor: 1.0, customRate: null, hasOC: true  },
-      { name: "manual_rps_adikosh_fintree", factor: 0.8, customRate: null, hasOC: false },
-      { name: "manual_rps_adikosh_partner", factor: 0.2, customRate: null, hasOC: false },
+      {
+        name: "manual_rps_adikosh",
+        factor: 1.0,
+        customRate: null,
+        hasOC: true,
+      },
+      {
+        name: "manual_rps_adikosh_fintree",
+        factor: 0.8,
+        customRate: null,
+        hasOC: false,
+      },
+      {
+        name: "manual_rps_adikosh_partner",
+        factor: 0.2,
+        customRate: null,
+        hasOC: false,
+      },
     ];
 
     for (const table of tables) {
       const rpsData = [];
-      const baseAmount  = loanAmount * table.factor;
-      const annualRate  = (table.customRate ?? interestRate) / 100; // e.g., 24 => 0.24
+      const baseAmount = loanAmount * table.factor;
+      const annualRate = (table.customRate ?? interestRate) / 100; // e.g., 24 => 0.24
       const monthlyRate = annualRate / 12;
 
       let openingPrincipal = fmt2(baseAmount);
@@ -1722,23 +1897,24 @@ const generateRepaymentScheduleAdikosh = async (
       // EMI is fixed for all periods
       const baseEmi = Math.ceil(
         (baseAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
-        (Math.pow(1 + monthlyRate, tenure) - 1)
+          (Math.pow(1 + monthlyRate, tenure) - 1)
       );
 
       for (let i = 1; i <= tenure; i++) {
         const opening = fmt2(openingPrincipal);
 
         // Default month: 30/360 interest on opening
-        let interest  = Math.round((opening * annualRate * 30) / 360);
-        let emi       = baseEmi;
+        let interest = Math.round((opening * annualRate * 30) / 360);
+        let emi = baseEmi;
         let principal = emi - interest;
 
         // LAST INSTALLMENT: keep EMI constant; clear residue in principal, adjust interest
         if (i === tenure) {
           principal = Math.round(opening);
-          interest  = emi - principal;
-          if (interest < 0) {              // safety guard (very unlikely)
-            interest  = 0;
+          interest = emi - principal;
+          if (interest < 0) {
+            // safety guard (very unlikely)
+            interest = 0;
             principal = emi;
           }
         }
@@ -1746,39 +1922,40 @@ const generateRepaymentScheduleAdikosh = async (
         const closing = fmt2(Math.max(opening - principal, 0));
 
         // Column meanings:
-        const remainingAmountField    = fmt2(emi);        // period EMI
-        const remainingPrincipalField = fmt2(principal);  // period principal only
-        const remainingInterestField  = fmt2(interest);   // period interest only
-        const remainingEmiAmount      = remainingPrincipalField + remainingInterestField;       // count of EMIs left
+        const remainingAmountField = fmt2(emi); // period EMI
+        const remainingPrincipalField = fmt2(principal); // period principal only
+        const remainingInterestField = fmt2(interest); // period interest only
+        const remainingEmiAmount =
+          remainingPrincipalField + remainingInterestField; // count of EMIs left
 
         if (table.hasOC) {
           // MAIN TABLE (has opening/closing/remaining_amount)
           rpsData.push([
             lan,
             dueDate.toISOString().split("T")[0],
-            fmt2(emi),                    // emi
-            fmt2(interest),               // interest (period)
-            fmt2(principal),              // principal (period)
-            opening,                      // opening
-            closing,                      // closing
-            remainingEmiAmount,            // remaining_emi (count)
-            remainingAmountField,         // remaining_amount (EMI of period)
-            remainingPrincipalField,      // remaining_principal (period principal)
-            remainingInterestField,       // remaining_interest  (period interest)
-            "Pending"
+            fmt2(emi), // emi
+            fmt2(interest), // interest (period)
+            fmt2(principal), // principal (period)
+            opening, // opening
+            closing, // closing
+            remainingEmiAmount, // remaining_emi (count)
+            remainingAmountField, // remaining_amount (EMI of period)
+            remainingPrincipalField, // remaining_principal (period principal)
+            remainingInterestField, // remaining_interest  (period interest)
+            "Pending",
           ]);
         } else {
           // SPLIT TABLES (no opening/closing/remaining_amount)
           rpsData.push([
             lan,
             dueDate.toISOString().split("T")[0],
-            fmt2(emi),                    // emi
-            fmt2(interest),               // interest (period)
-            fmt2(principal),              // principal (period)
-            remainingPrincipalField,      // remaining_principal (period principal)
-            remainingInterestField,       // remaining_interest  (period interest)
-            remainingEmiAmount,            // remaining_emi (Amount)
-            "Pending"
+            fmt2(emi), // emi
+            fmt2(interest), // interest (period)
+            fmt2(principal), // principal (period)
+            remainingPrincipalField, // remaining_principal (period principal)
+            remainingInterestField, // remaining_interest  (period interest)
+            remainingEmiAmount, // remaining_emi (Amount)
+            "Pending",
           ]);
         }
 
@@ -1819,8 +1996,8 @@ const generateRepaymentScheduleAdikosh = async (
     const fintreeRoiData = [];
     for (const row of mainRows) {
       const scaledPrincipal = Math.round(row.principal * 0.8);
-      const scaledInterest  = Math.round(row.interest  * 0.8 * (21.5 / 33));
-      const roiEmi          = scaledPrincipal + scaledInterest;
+      const scaledInterest = Math.round(row.interest * 0.8 * (21.5 / 33));
+      const roiEmi = scaledPrincipal + scaledInterest;
 
       fintreeRoiData.push([
         lan,
@@ -1829,8 +2006,8 @@ const generateRepaymentScheduleAdikosh = async (
         fmt2(scaledInterest),
         fmt2(scaledPrincipal),
         fmt2(scaledPrincipal), // remaining_principal = period principal (scaled)
-        fmt2(scaledInterest),  // remaining_interest  = period interest  (scaled)
-        0,                     // remaining_emi (set if you need)
+        fmt2(scaledInterest), // remaining_interest  = period interest  (scaled)
+        0, // remaining_emi (set if you need)
         "Pending",
       ]);
     }
@@ -1849,15 +2026,7 @@ const generateRepaymentScheduleAdikosh = async (
   }
 };
 
-
-
-
-
-
 ////////////////////////ADIKOSH END //////////////////////////////////
-
-
-
 
 ///// WIth PRE EMI /////////////
 // const generateRepaymentScheduleAdikosh = async (
@@ -1927,7 +2096,6 @@ const generateRepaymentScheduleAdikosh = async (
 //         // 🔹 Add pre-EMI to first EMI's interest
 //         if (i === 1) interest += preEmiAmount;
 
-
 //         rpsData.push([
 //           lan,
 //           dueDate.toISOString().split("T")[0],
@@ -1969,10 +2137,10 @@ const generateRepaymentScheduleAdikosh = async (
 //   }
 // };
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const generateRepaymentSchedule = async (
+  conn,
   lan,
   loanAmount,
   emiDate,
@@ -1997,9 +2165,9 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
-
   } else if (lender === "EV Loan" && product === "Monthly Loan") {
     await generateRepaymentScheduleEV(
+      conn,
       lan,
       loanAmount,
       interestRate,
@@ -2008,7 +2176,6 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
-
   } else if (lender === "GQ Non-FSF") {
     await generateRepaymentScheduleGQNonFSF(
       lan,
@@ -2022,8 +2189,7 @@ const generateRepaymentSchedule = async (
       lender,
       no_of_advance_emis
     );
-
-  }  else if (lender === "GQ FSF") {
+  } else if (lender === "GQ FSF") {
     await generateRepaymentScheduleGQFSF(
       lan,
       loanAmount,
@@ -2036,7 +2202,7 @@ const generateRepaymentSchedule = async (
       lender,
       no_of_advance_emis
     );
-   } else if (lender === "Adikosh") {
+  } else if (lender === "Adikosh") {
     await generateRepaymentScheduleAdikosh(
       lan,
       loanAmount,
@@ -2045,10 +2211,9 @@ const generateRepaymentSchedule = async (
       disbursementDate,
       salary_day
     );
-  }
-    else if (lender === "Embifi") {
+  } else if (lender === "Embifi") {
     await generateRepaymentScheduleEmbifi(
-       lan,
+      lan,
       loanAmount,
       interestRate,
       tenure,
@@ -2056,7 +2221,6 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
-
   } else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
   }
@@ -2070,5 +2234,5 @@ module.exports = {
   generateRepaymentScheduleAdikosh,
   generateRepaymentSchedule,
   generateRepaymentScheduleEmbifi,
-  excelSerialDateToJS
+  excelSerialDateToJS,
 };
