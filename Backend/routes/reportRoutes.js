@@ -538,10 +538,13 @@ router.post("/trigger", authenticateUser, async (req, res) => {
           const [results] = await db
             .promise()
             .query(`CALL ${selectedProcedure}(?)`, [lan]);
+            console.log ('select proc', selectedProcedure);
+
           const set = results.find(
             (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
           );
           finalRows = set || [];
+          console.log('final row',finalRows);
         } else {
           const [results] = await db
             .promise()
@@ -550,10 +553,14 @@ router.post("/trigger", authenticateUser, async (req, res) => {
               endDate,
               lenderName,
             ]);
+            console.log(startDate,endDate,lenderName
+            )
           const set = results.find(
             (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
           );
+          
           finalRows = set || [];
+        console.log('final row procccc',finalRows);
         }
 
         if (!finalRows.length) {
