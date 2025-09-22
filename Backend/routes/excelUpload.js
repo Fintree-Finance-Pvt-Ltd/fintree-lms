@@ -3273,7 +3273,7 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         try {
           const [existing] = await db
             .promise()
-            .query(`SELECT id FROM loan_booking_gq_non_fsf WHERE app_id = ?`, [app_id]);
+            .query(`SELECT * FROM loan_booking_gq_non_fsf WHERE app_id = ?`, [app_id]);
           if (existing.length > 0) {
             row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate App ID (${app_id})` });
             continue;

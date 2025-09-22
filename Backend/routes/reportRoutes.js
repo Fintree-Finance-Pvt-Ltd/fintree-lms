@@ -391,6 +391,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_due_collection_all_report_gq_fsf"
         : lender === "bl loan"
         ? "sp_due_collection_all_report_BL_Loan"
+        : lender === "embifi"
+        ? "sp_due_collection_all_report_embifi"
         : lender === "wctl"
         ? "sp_due_collection_all_report_wctl"
         : "sp_due_collection_all_report",
@@ -536,10 +538,13 @@ router.post("/trigger", authenticateUser, async (req, res) => {
           const [results] = await db
             .promise()
             .query(`CALL ${selectedProcedure}(?)`, [lan]);
+            console.log ('select proc', selectedProcedure);
+
           const set = results.find(
             (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
           );
-          finalRows = set || [];
+        
+         
         } else {
           const [results] = await db
             .promise()
@@ -548,10 +553,13 @@ router.post("/trigger", authenticateUser, async (req, res) => {
               endDate,
               lenderName,
             ]);
+           
           const set = results.find(
             (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
           );
+          
           finalRows = set || [];
+       
         }
 
         if (!finalRows.length) {
