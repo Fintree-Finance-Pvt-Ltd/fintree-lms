@@ -1620,82 +1620,85 @@ router.post("/trigger", authenticateUser, async (req, res) => {
 
         // ---------- OUTPUT ----------
         if (ext === "xlsx") {
-          // Excel output
-          const workbook = new ExcelJS.Workbook();
-          const worksheet = workbook.addWorksheet("Report");
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Report");
 
-          const headers = Object.keys(finalRows[0]);
-          worksheet.columns = headers.map((key) => ({ header: key, key }));
+  const headers = Object.keys(finalRows[0]);
+  worksheet.columns = headers.map((key) => ({ header: key, key }));
 
-          for (const row of finalRows) {
-            const out = {};
-            for (const k of headers) {
-              let v = row[k];
+  for (const row of finalRows) {
+    const out = {};
+    for (const k of headers) {
+      let v = row[k];
 
-              if (v instanceof Date) {
-                out[k] = formatDateLikeYYYYMMDD(v);
-              } else if (
-                typeof v === "string" &&
-                /^\d{4}-\d{2}-\d{2}$/.test(v)
-              ) {
-                out[k] = v;
-              } else if (
-                typeof v === "string" &&
-                !isNaN(v) &&
-                v.trim() !== ""
-              ) {
-                out[k] = Number(v); // convert numeric string to number
-              } else if (typeof v === "number") {
-                out[k] = v;
-              } else {
-                out[k] = v;
-              }
-            }
-            worksheet.addRow(out);
-          }
+      // ✅ Dates: keep as text
+      if (v instanceof Date) {
+        out[k] = formatDateLikeYYYYMMDD(v);
 
-          // ✅ Apply number formatting
-          worksheet.eachRow((row) => {
-            row.eachCell((cell) => {
-              if (typeof cell.value === "number") {
-                cell.numFmt = "#,##0.00";
-              }
-            });
-          });
+      // ✅ YYYY-MM-DD strings: keep as text
+      } else if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        out[k] = v;
 
-          // style header row
-          worksheet.getRow(1).eachCell((cell) => {
-            cell.fill = {
-              type: "pattern",
-              pattern: "solid",
-              fgColor: { argb: "D6EAF8" },
-            };
-            cell.font = { bold: true };
-            cell.border = {
-              top: { style: "thin" },
-              left: { style: "thin" },
-              bottom: { style: "thin" },
-              right: { style: "thin" },
-            };
-          });
+      // ✅ Numeric-looking strings → convert to Number
+      } else if (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v.replace(/,/g, ''))) {
+        out[k] = Number(v.replace(/,/g, ""));  // strip commas → convert to number
 
-          // borders
-          worksheet.eachRow((row) => {
-            row.eachCell((cell) => {
-              cell.border = {
-                top: { style: "thin" },
-                left: { style: "thin" },
-                bottom: { style: "thin" },
-                right: { style: "thin" },
-              };
-            });
-          });
+      // ✅ Already numbers → keep
+      } else if (typeof v === "number") {
+        out[k] = v;
 
-          // auto-fit
-          autofitColumns(worksheet);
+      // ✅ Everything else → leave
+      } else {
+        out[k] = v;
+      }
+    }
+    worksheet.addRow(out);
+  }
 
-          await workbook.xlsx.writeFile(filePath);
-        } else {
+  // ✅ Apply Excel number formatting
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      if (typeof cell.value === "number") {
+        cell.numFmt = "#,##0.00"; // Excel numeric format with 2 decimals
+      }
+    });
+  });
+
+  // Style header row
+  worksheet.getRow(1).eachCell((cell) => {
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "D6EAF8" },
+    };
+    cell.font = { bold: true };
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  // Add borders
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+  });
+
+  // Auto-fit columns
+  autofitColumns(worksheet);
+
+  await workbook.xlsx.writeFile(filePath);
+}
+// PDF CODE
+ else {
           // PDF generation (unchanged)
           const fonts = {
             Helvetica: {
