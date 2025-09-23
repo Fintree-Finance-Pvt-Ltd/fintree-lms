@@ -354,7 +354,7 @@ function resolveProcedure(rawReportId, rawLender) {
 
     "delayed-interest-report": "delayed-interest-report",
     "rps-generate-report": "rps-generate-report",
-    "gq-non-fsf-irr-report": "gq-non-fsf-irr-report",
+    "irr-report": "irr-report",
 
     "adikosh-cam-report": "adikosh-cam-report",
     "adikosh-cam-report-pivot": "adikosh-cam-report-pivot",
@@ -410,9 +410,18 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_consolidated_mis_report_wctl"
         : "sp_consolidated_mis_report",
 
+
+        // NEW IRR Report add
+     "irr-report": () =>
+      lender === "gq non-fsf"
+     ? "sp_generate_gq_non_fsf_irr_report"
+     : "sp_generate_gq_fsf_irr_report",
+
+
+
     "delayed-interest-report": () => "sp_delayed_interest_report",
     "rps-generate-report": () => "sp_generate_rps_report",
-    "gq-non-fsf-irr-report": () => "sp_generate_gq_non_fsf_irr_report",
+   // "gq-non-fsf-irr-report": () => "sp_generate_gq_non_fsf_irr_report",
 
     // CAM (vertical)
     "adikosh-cam-report": () => "sp_cam_data_report_adikosh",
