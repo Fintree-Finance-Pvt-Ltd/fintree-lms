@@ -1121,14 +1121,14 @@ router.post("/trigger", authenticateUser, async (req, res) => {
             worksheet.addRow(out);
           }
 
-          // ✅ Format numbers as numbers with 2 decimals
-          worksheet.eachRow((row, rowNumber) => {
-            row.eachCell((cell) => {
-              if (typeof cell.value === "number") {
-                cell.numFmt = "#,##0.00";
-              }
-            });
-          });
+          // ✅ Apply number formatting
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      if (typeof cell.value === "number") {
+        cell.numFmt = "#,##0.00"; // show with commas + 2 decimals
+      }
+    });
+  });
 
           // style header row
           worksheet.getRow(1).eachCell((cell) => {
