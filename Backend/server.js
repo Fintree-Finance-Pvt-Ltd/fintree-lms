@@ -18,16 +18,16 @@ const forecloserRoutes = require("./routes/forecloserRoutes");
 const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
-const crypto = require("crypto");
+// const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require('./jobs/smsSchedulerRaw');
-function generateApiKey() {
-  return crypto.randomBytes(32).toString("hex"); 
-  // 32 bytes = 64 characters hex string
-}
+// function generateApiKey() {
+//   return crypto.randomBytes(32).toString("hex"); 
+//   // 32 bytes = 64 characters hex string
+// }
 
-const apiKey = generateApiKey();
-console.log("Generated API Key:", apiKey);
+// const apiKey = generateApiKey();
+// console.log("Generated API Key:", apiKey);
 
 const PORT = process.env.PORT;
 // server.js
