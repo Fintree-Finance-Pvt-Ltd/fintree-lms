@@ -1863,9 +1863,12 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //   }
 // });
 
-////////////////////////////with transaction |////////////////////////
+///////////////////////////////// use this if ////////////////////////////////////////
 // router.post("/upload-utr", upload.single("file"), async (req, res) => {
 //   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+//   // New: collect detailed issues
+//   const rowErrors = []; // {lan, utr, reason, stage}
 
 //   try {
 //     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
@@ -1874,63 +1877,69 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //     );
 
 //     let processedCount = 0;
-//     let duplicateUTRs = [];
-//     let missingLANs = [];
-//     let insertedLANs = new Set();
+//     const duplicateUTRs = [];
+//     const missingLANs = [];
+//     const insertedLANs = new Set();
 
 //     for (const row of sheetData) {
 //       const disbursementUTR = row["Disbursement UTR"];
-//       const disbursementDate = excelDateToJSDate(row["Disbursement Date"]);
+//       const disbursementDate = excelDateToJSDate(row["Disbursement Date"]); // fixed
 //       const lan = row["LAN"];
 
 //       if (!disbursementUTR || !disbursementDate || !lan) {
-//         console.log(`⚠️ Skipping row due to missing data: ${JSON.stringify(row)}`);
+//         const reason = `Missing required fields: ${
+//           !disbursementUTR ? "Disbursement UTR " : ""
+//         }${!disbursementDate ? "Disbursement Date " : ""}${
+//           !lan ? "LAN" : ""
+//         }`.trim();
+//         console.log(`⚠️ Skipping row: ${reason} | ${JSON.stringify(row)}`);
+//         rowErrors.push({ lan: lan || null, utr: disbursementUTR || null, reason, stage: "validation" });
 //         continue;
 //       }
 
-//       // ✅ Fetch loan details depending on LAN type
+//       // Fetch loan details by LAN type
 //       let loanRes = [];
-//       if (lan.startsWith("GQN")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
-//            FROM loan_booking_gq_non_fsf WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else if (lan.startsWith("GQF")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
-//            FROM loan_booking_gq_fsf WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else if (lan.startsWith("E10")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender 
-//            FROM loan_booking_embifi WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else if (lan.startsWith("ADK")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
-//            FROM loan_booking_adikosh WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else if (lan.startsWith("EV")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
-//            FROM loan_booking_ev WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
-//            FROM loan_bookings WHERE lan = ?`,
-//           [lan]
-//         );
+//       try {
+//         if (lan.startsWith("GQN")) {
+//           [loanRes] = await db.promise().query(
+//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
+//              FROM loan_booking_gq_non_fsf WHERE lan = ?`, [lan]
+//           );
+//         } else if (lan.startsWith("GQF")) {
+//           [loanRes] = await db.promise().query(
+//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
+//              FROM loan_booking_gq_fsf WHERE lan = ?`, [lan]
+//           );
+//         } else if (lan.startsWith("E10")) {
+//           [loanRes] = await db.promise().query(
+//             `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender 
+//              FROM loan_booking_embifi WHERE lan = ?`, [lan]
+//           );
+//         } else if (lan.startsWith("ADK")) {
+//           [loanRes] = await db.promise().query(
+//             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
+//              FROM loan_booking_adikosh WHERE lan = ?`, [lan]
+//           );
+//         } else if (lan.startsWith("EV")) {
+//           [loanRes] = await db.promise().query(
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//              FROM loan_booking_ev WHERE lan = ?`, [lan]
+//           );
+//         } else {
+//           [loanRes] = await db.promise().query(
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//              FROM loan_bookings WHERE lan = ?`, [lan]
+//           );
+//         }
+//       } catch (err) {
+//         rowErrors.push({ lan, utr: disbursementUTR, reason: `DB query error: ${toClientError(err).message}`, stage: "fetch-loan" });
+//         continue;
 //       }
 
 //       if (loanRes.length === 0) {
 //         console.warn(`🚫 LAN not found: ${lan}`);
 //         missingLANs.push(lan);
+//         rowErrors.push({ lan, utr: disbursementUTR, reason: "LAN not found", stage: "fetch-loan" });
 //         continue;
 //       }
 
@@ -1946,93 +1955,107 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //         lender,
 //       } = loanRes[0];
 
-//       // ✅ Check duplicate UTR
-//       const [utrExists] = await db
-//         .promise()
-//         .query("SELECT * FROM ev_disbursement_utr WHERE Disbursement_UTR = ?", [
-//           disbursementUTR,
-//         ]);
+//       // Duplicate UTR check
+//       try {
+//         const [utrExists] = await db
+//           .promise()
+//           .query("SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ?", [disbursementUTR]);
 
-//       if (utrExists.length > 0) {
-//         console.warn(`⚠️ Duplicate UTR: ${disbursementUTR}`);
-//         duplicateUTRs.push(disbursementUTR);
+//         if (utrExists.length > 0) {
+//           console.warn(`⚠️ Duplicate UTR: ${disbursementUTR}`);
+//           duplicateUTRs.push(disbursementUTR);
+//           rowErrors.push({ lan, utr: disbursementUTR, reason: "Duplicate UTR", stage: "pre-insert" });
+//           continue;
+//         }
+//       } catch (err) {
+//         rowErrors.push({ lan, utr: disbursementUTR, reason: `DB check error: ${toClientError(err).message}`, stage: "pre-insert" });
 //         continue;
 //       }
 
-//       // ✅ Start transaction
-//       const conn = await db.promise().getConnection();
+//       // Transaction
+//       let conn;
 //       try {
+//         conn = await db.promise().getConnection();
 //         await conn.beginTransaction();
 
-//         if (!insertedLANs.has(lan)) {
-//           await generateRepaymentSchedule(
-//             lan,
-//             loan_amount,
-//             emi_date,
-//             interest_rate,
-//             loan_tenure,
-//             disbursementDate,
-//             subvention_amount,
-//             no_of_advance_emis,
-//             salary_day,
-//             product,
-//             lender
-//           );
-//           insertedLANs.add(lan);
+//         try {
+//           if (!insertedLANs.has(lan)) {
+//             await generateRepaymentSchedule(
+//               lan,
+//               loan_amount,
+//               emi_date,
+//               interest_rate,
+//               loan_tenure,
+//               disbursementDate,
+//               subvention_amount,
+//               no_of_advance_emis,
+//               salary_day,
+//               product,
+//               lender
+//             );
+//             insertedLANs.add(lan);
+//           }
+//         } catch (rpsErr) {
+//           rowErrors.push({ lan, utr: disbursementUTR, reason: `RPS error: ${toClientError(rpsErr).message}`, stage: "rps" });
+//           await conn.rollback();
+//           continue;
 //         }
 
-//         // Insert UTR only if RPS was successful
-//         await conn.query(
-//           "INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)",
-//           [disbursementUTR, disbursementDate, lan]
-//         );
+//         try {
+//           await conn.query(
+//             "INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)",
+//             [disbursementUTR, disbursementDate, lan]
+//           );
+//         } catch (insertErr) {
+//           rowErrors.push({ lan, utr: disbursementUTR, reason: `UTR insert error: ${toClientError(insertErr).message}`, stage: "utr-insert" });
+//           await conn.rollback();
+//           continue;
+//         }
 
-//         // Update loan status
-//         if (lan.startsWith("GQN")) {
-//           await conn.query(
-//             "UPDATE loan_booking_gq_non_fsf SET status = 'Disbursed' WHERE lan = ?",
-//             [lan]
-//           );
-//         } else if (lan.startsWith("GQF")) {
-//           await conn.query(
-//             "UPDATE loan_booking_gq_fsf SET status = 'Disbursed' WHERE lan = ?",
-//             [lan]
-//           );
-//         } else if (lan.startsWith("E10")) {
-//           await conn.query(
-//             "UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?",
-//             [lan]
-//           );
-//         } else if (lan.startsWith("EV")) {
-//           await conn.query(
-//             "UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?",
-//             [lan]
-//           );
-//         } else {
-//           await conn.query(
-//             "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",
-//             [lan]
-//           );
+//         try {
+//           if (lan.startsWith("GQN")) {
+//             await conn.query("UPDATE loan_booking_gq_non_fsf SET status = 'Disbursed' WHERE lan = ?", [lan]);
+//           } else if (lan.startsWith("GQF")) {
+//             await conn.query("UPDATE loan_booking_gq_fsf SET status = 'Disbursed' WHERE lan = ?", [lan]);
+//           } else if (lan.startsWith("E10")) {
+//             await conn.query("UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?", [lan]);
+//           } else if (lan.startsWith("EV")) {
+//             await conn.query("UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?", [lan]);
+//           } else {
+//             await conn.query("UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?", [lan]);
+//           }
+//         } catch (statusErr) {
+//           rowErrors.push({ lan, utr: disbursementUTR, reason: `Status update error: ${toClientError(statusErr).message}`, stage: "status-update" });
+//           await conn.rollback();
+//           continue;
 //         }
 
 //         await conn.commit();
 //         processedCount++;
-//       } catch (rpsErr) {
-//         await conn.rollback(); // ❌ Rollback everything if RPS/UTR/Status fails
-//         console.error(`❌ Failed processing for ${lan}, rollback done`, rpsErr);
+//       } catch (txErr) {
+//         rowErrors.push({ lan, utr: disbursementUTR, reason: `Transaction error: ${toClientError(txErr).message}`, stage: "transaction" });
+//         try { if (conn) await conn.rollback(); } catch (_) {}
 //       } finally {
-//         conn.release();
+//         try { if (conn) conn.release(); } catch (_) {}
 //       }
 //     }
 
-//     res.json({
-//       message: `UTR upload completed. ${processedCount} records inserted.`,
+//     // Always return 200 with a structured summary so UI can show partial success + detailed reasons
+//     return res.json({
+//       message: `UTR upload completed. ${processedCount} record(s) inserted.`,
+//       processed_count: processedCount,
 //       duplicate_utr: duplicateUTRs,
 //       missing_lans: missingLANs,
+//       row_errors: rowErrors, // 👈 NEW: show every failure with a reason & stage
 //     });
+
 //   } catch (error) {
 //     console.error("❌ Error during UTR upload:", error);
-//     res.status(500).json({ message: "Internal server error" });
+//     // For top-level crash (e.g., invalid Excel), return details too
+//     return res.status(500).json({
+//       message: "Upload failed",
+//       details: toClientError(error),
+//     });
 //   }
 // });
 
@@ -2144,7 +2167,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         continue;
       }
 
-      // Transaction
+      // Transaction (UPDATED to make RPS + UTR + status atomic)
       let conn;
       try {
         conn = await db.promise().getConnection();
@@ -2152,7 +2175,9 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
 
         try {
           if (!insertedLANs.has(lan)) {
+            // 🔴 IMPORTANT: pass `conn` (transaction) into the RPS generator.
             await generateRepaymentSchedule(
+              conn,             
               lan,
               loan_amount,
               emi_date,
@@ -2230,6 +2255,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
     });
   }
 });
+
 
 
 // router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
@@ -2491,6 +2517,7 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
       try {
         const panCard = row["PAN Number"];
         const aadharNumber = row["Aadhaar Number"];
+        const appId = row["APPLICATION ID"];
         const rawCibil = row["Credit Score"] || row["CIBIL Score"];
         const cibilScore = parseInt(rawCibil);
 
@@ -2499,29 +2526,30 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
           skippedDueToCIBIL.push({ ...row, reason: "Missing or invalid CIBIL Score" });
           continue;
         }
+        
         if (!(cibilScore >= 500 || cibilScore === -1)) {
           skippedDueToCIBIL.push({ ...row, reason: "Low CIBIL Score" });
           continue;
         }
 
         // OPTIONAL: duplicate check (PAN/Aadhaar). Uncomment if you want this.
-        /*
+      
         try {
           const [existing] = await db
             .promise()
             .query(
-              `SELECT lan FROM loan_booking_gq_fsf WHERE pan_number = ? OR aadhaar_number = ?`,
-              [panCard, aadharNumber]
+              `SELECT * FROM loan_booking_gq_fsf WHERE app_id = ?`,
+              [appId]
             );
           if (existing.length > 0) {
-            row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate PAN/Aadhaar (${panCard || ""} / ${aadharNumber || ""})` });
+            row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate AppId (${appId || ""})` });
             continue;
           }
         } catch (dupErr) {
           row_errors.push({ row: R, stage: "dup-check", reason: toClientError(dupErr).message });
           continue;
         }
-        */
+  
 
         // Generate IDs
         let partnerLoanId, lan;
