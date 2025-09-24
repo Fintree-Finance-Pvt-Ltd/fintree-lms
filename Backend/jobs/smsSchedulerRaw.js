@@ -62,8 +62,15 @@ const EXCLUDE = {
     "manual_rps_adikosh_fintree",
     "manual_rps_adikosh_partner",
     "manual_rps_adikosh_fintree_roi",
+    "manual_rps_gq_fsf",
+    "manual_rps_gq_non_fsf",
+    "manual_rps_gq_non_fsf_bkp",
+    "manual_rps_ev_loan_bl_loan_bkp",
   ],
-  booking: ["loan_booking_adikosh"],
+  booking: ["loan_booking_adikosh",
+    "loan_booking_gq_fsf",
+    "loan_booking_gq_non_fsf",
+  ],
 };
 
 const notIn = (arr) =>

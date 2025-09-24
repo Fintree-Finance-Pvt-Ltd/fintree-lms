@@ -115,7 +115,7 @@
 // export default DocumentsPage;
 
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import api from "../api/api";
 import { useParams } from "react-router-dom";
 
@@ -124,6 +124,11 @@ const DocumentsPage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileNameInput, setFileNameInput] = useState("");
   const [uploadedDocs, setUploadedDocs] = useState([]);
+  const [lockInfo, setLockInfo] = useState({ canEdit: false, status: "unknown" });
+
+const fileReplaceRef = useRef(null);
+const [docToReplace, setDocToReplace] = useState(null);
+
 
   // --- preview state ---
   const [previewDoc, setPreviewDoc] = useState(null); // { doc, url } | null
@@ -143,6 +148,63 @@ const DocumentsPage = () => {
   useEffect(() => {
     if (lan) fetchDocuments();
   }, [lan]);
+
+  useEffect(() => {
+  if (!lan) return;
+  (async () => {
+    try {
+      const r = await api.get(`/documents/lock-state/${lan}`);
+      setLockInfo(r.data); // {canEdit, status}
+    } catch {
+      setLockInfo({ canEdit: false, status: "unknown" });
+    }
+  })();
+}, [lan]);
+
+
+const handleDelete = async (doc) => {
+  if (!lockInfo.canEdit) {
+    alert(`Locked by loan status: ${lockInfo.status || "unknown"}`);
+    return;
+  }
+  const ok = window.confirm(`Delete "${doc.original_name || doc.file_name}"?`);
+  if (!ok) return;
+
+  try {
+    await api.delete(`/documents/${doc.id}`);
+    await fetchDocuments();
+  } catch (e) {
+    console.error("Delete failed:", e);
+    alert("Delete failed");
+  }
+};
+
+const startReplace = (doc) => {
+  if (!lockInfo.canEdit) {
+    alert(`Locked by loan status: ${lockInfo.status || "unknown"}`);
+    return;
+  }
+  setDocToReplace(doc);
+  fileReplaceRef.current?.click();
+};
+
+const onReplaceFileChosen = async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = ""; // reset for next time
+  if (!file || !docToReplace) return;
+
+  try {
+    const fd = new FormData();
+    fd.append("document", file);
+    await api.put(`/documents/${docToReplace.id}/replace`, fd);
+    setDocToReplace(null);
+    await fetchDocuments();
+  } catch (err) {
+    console.error("Replace failed:", err);
+    alert("Replace failed");
+  }
+};
+
 
   const handleUpload = async () => {
     if (!lan || !selectedFile) {
@@ -353,6 +415,10 @@ const DocumentsPage = () => {
       <div style={styles.container}>
         <div style={styles.card}>
           <h4 style={styles.title}>📁 Upload Documents</h4>
+          <div style={{ fontSize: 13, color: lockInfo.canEdit ? "#059669" : "#b91c1c", marginBottom: 8 }}>
+  {lockInfo.canEdit ? "🟢 Editable" : "🔴 Locked"} (status: {lockInfo.status || "unknown"})
+</div>
+
 
           <div style={styles.group}>
             <input
@@ -468,6 +534,32 @@ const DocumentsPage = () => {
                           >
                             Open
                           </a>
+                          <button
+  type="button"
+  onClick={() => startReplace(doc)}
+  disabled={!lockInfo.canEdit}
+  title={lockInfo.canEdit ? "Replace this file" : `Locked (status: ${lockInfo.status})`}
+  style={{ ...styles.btnBase, ...styles.btnSmall, ...styles.btnOutlinePrimary, opacity: lockInfo.canEdit ? 1 : 0.6, cursor: lockInfo.canEdit ? "pointer" : "not-allowed" }}
+  onMouseDown={press}
+  onMouseUp={release}
+  onMouseLeave={release}
+>
+  Replace
+</button>
+
+<button
+  type="button"
+  onClick={() => handleDelete(doc)}
+  disabled={!lockInfo.canEdit}
+  title={lockInfo.canEdit ? "Delete this file" : `Locked (status: ${lockInfo.status})`}
+  style={{ ...styles.btnBase, ...styles.btnSmall, ...styles.btnOutlineSecondary, opacity: lockInfo.canEdit ? 1 : 0.6, cursor: lockInfo.canEdit ? "pointer" : "not-allowed" }}
+  onMouseDown={press}
+  onMouseUp={release}
+  onMouseLeave={release}
+>
+  Delete
+</button>
+
                         </div>
                       </td>
                     </tr>
@@ -476,6 +568,15 @@ const DocumentsPage = () => {
               </tbody>
             </table>
           </div>
+
+          <input
+  type="file"
+  ref={fileReplaceRef}
+  style={{ display: "none" }}
+  onChange={onReplaceFileChosen}
+  aria-hidden="true"
+/>
+
 
           {/* Preview Modal */}
           {previewDoc && (
