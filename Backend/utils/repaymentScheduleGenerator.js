@@ -1480,7 +1480,7 @@ const generateRepaymentScheduleGQNonFSF = async (
         closing,
       });
 
-      console.log("RPS Data", seq, dueDate, EMI, interest, principal, closing)
+      console.log("RPS Data", dueDate, EMI, interest, principal, closing)
 
       opening = closing;
     }
