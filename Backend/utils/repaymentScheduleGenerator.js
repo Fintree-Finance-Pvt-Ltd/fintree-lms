@@ -1433,6 +1433,7 @@ const generateRepaymentScheduleGQNonFSF = async (
     const rows = [];
     let opening = P;
     if (k > 0) {
+      console.log("DEBUG: r (monthly rate) =", r);
       // --- 1a) Record k advance EMIs (interest = 0, principal = advPrincipalOne each) ---
       for (let i = 1; i <= k; i++) {
         const interest = 0;
@@ -1456,8 +1457,9 @@ const generateRepaymentScheduleGQNonFSF = async (
     // To keep EMI fixed at ₹20,127 *and* amortize in m months, we use the *implied monthly rate*.
     // (This reproduces the pattern in your screenshot and typically leaves a tiny residual.)
     const r = solveMonthlyRate(opening, EMI, m); // ~0.00805945 for your case (≈9.67% p.a. effective)
-
+console.log("DEBUG: r (monthly rate) =", r);
     for (let i = 1; i <= m; i++) {
+
       const interest = r2(opening * r); // interest rounded to paise as shown
       const principal = r2(EMI - interest); // principal is the rest
       const closing = r2(opening - principal); // do NOT force last row to zero
@@ -1562,6 +1564,7 @@ const generateRepaymentScheduleGQFSF = async (
     }
 
     const rpsData = [];
+
 
     for (let i = 1; i <= tenure; i++) {
       let principal = emiPrincipal;
