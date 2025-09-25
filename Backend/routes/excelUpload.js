@@ -412,8 +412,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         const [existingRecords] = await db
           .promise()
           .query(
-            `SELECT lan FROM loan_booking_ev WHERE pan_card = ? OR aadhar_number = ?`,
-            [panCard || null, aadharNumber || null]
+            `SELECT lan FROM loan_booking_ev WHERE pan_card = ?`,
+            [panCard || null]
           );
 
         if (existingRecords.length > 0) {
