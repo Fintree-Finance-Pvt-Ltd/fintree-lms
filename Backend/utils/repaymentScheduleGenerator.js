@@ -1509,12 +1509,7 @@ const generateRepaymentScheduleGQNonFSF = async (
       "Pending",
     ]);
 
-    console.log("Remaining RPS data", lan , rw.dueDate,rw.emi,
-      rw.interest,
-      rw.principal,
-      rw.principal,
-      rw.interest,
-      rw.emi );
+    console.log("Remaining RPS data", rpsData );
 
     await db.promise().query(
       `INSERT INTO manual_rps_gq_non_fsf
