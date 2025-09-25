@@ -1387,10 +1387,10 @@ function solveMonthlyRate(prem, emi, m) {
 
 const generateRepaymentScheduleGQNonFSF = async (
   lan,
-  approvedAmount, // P
+  approvedAmount,
   emiDate,
-  interestRate, // (kept for record; not used to size EMI after advance)
-  tenure, // n
+  interestRate,
+  tenure, 
   disbursementDate,
   subventionAmount,
   product,
@@ -1402,6 +1402,17 @@ const generateRepaymentScheduleGQNonFSF = async (
       `\n🚀 Generating GQ NON-FSF RPS (flat-advance EMI, reducing thereafter) for LAN: ${lan}`
     );
 
+    console.log("Data came from utr",lan,
+  approvedAmount,
+  emiDate,
+  interestRate,
+  tenure, 
+  disbursementDate,
+  subventionAmount,
+  product,
+  lender,
+  no_of_advance_emis )
+
     // --- inputs ---
     const P = Number(approvedAmount || 0);
     const n = Number(tenure || 0);
@@ -1412,7 +1423,8 @@ const generateRepaymentScheduleGQNonFSF = async (
     // --- 1) Advance EMI = flat rule you requested ---
     // EMI_flat = (P/n) + (annual% * P / n). We ROUND TO RUPEES for the EMI value,
     // but we book the *advance principal* to 2 decimals like in your sheet.
-    const annual = Number(interestRate || 0) / 100; // kept only for record
+    const annual = Number(interestRate || 0) / 100;
+    console.log("interst rate", interestRate) // kept only for record
     const emiFlatExact = P / n + (annual * P) / n; // e.g. 20,126.6931…
     const EMI = Math.round(emiFlatExact); // e.g. 20,127 (used for *all* 24 EMIs)
     const advPrincipalOne = r2(emiFlatExact); // e.g. 20,126.69
@@ -1468,6 +1480,8 @@ const generateRepaymentScheduleGQNonFSF = async (
         closing,
       });
 
+      console.log("RPS Data", seq, dueDate, EMI, interest, principal, closing)
+
       opening = closing;
     }
 
@@ -1494,6 +1508,13 @@ const generateRepaymentScheduleGQNonFSF = async (
       rw.emi,
       "Pending",
     ]);
+
+    console.log("Remaining RPS data", lan , rw.dueDate,rw.emi,
+      rw.interest,
+      rw.principal,
+      rw.principal,
+      rw.interest,
+      rw.emi );
 
     await db.promise().query(
       `INSERT INTO manual_rps_gq_non_fsf
