@@ -1374,7 +1374,7 @@ const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 function solveMonthlyRate(prem, emi, m) {
   // Bisection: find r where PV(emi, r, m) - prem = 0
   let lo = 0,
-    hi = 0.0; // 0%..5% per month is a safe bracket
+    hi = 0.05; // 0%..5% per month is a safe bracket
   for (let t = 0; t < 80; t++) {
     const r = (lo + hi) / 2;
     const pow = Math.pow(1 + r, -m);
