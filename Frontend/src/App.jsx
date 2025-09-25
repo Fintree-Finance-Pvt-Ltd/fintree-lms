@@ -1,4 +1,9 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PermissionRoute from "./components/PermissionRoute";
 import Layout from "./components/layout";
@@ -61,6 +66,7 @@ import GQNonFsfApproveInitiateScreen from "./components/GQNonFsfApproveInitiateS
 import GQFsfApproveInitiateScreen from "./components/GQFsfApproveInitiateScreen";
 import AdikoshApproveInitiateScreen from "./components/AdikoshApproveInitiateScreen";
 import EVApproveInitiateScreen from "./components/EVApproveInitiateScreen";
+import ProductsDashboard from "./components/ProductsDashboard";
 
 function App() {
   return (
@@ -85,6 +91,15 @@ function App() {
             element={
               <PermissionRoute pageName="Dashboard">
                 <Dashboard />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/products-dashboard"
+            element={
+              <PermissionRoute pageName="Products Dashboard">
+                <ProductsDashboard />
               </PermissionRoute>
             }
           />
@@ -148,7 +163,7 @@ function App() {
             element={
               <PermissionRoute pageName="Upload UTR">
                 <UploadUTR />
-              </PermissionRoute>        
+              </PermissionRoute>
             }
           />
 
@@ -214,7 +229,7 @@ function App() {
             }
           />
 
-            <Route
+          <Route
             path="/ev-loans/login-actions"
             element={
               <PermissionRoute pageName="EV Login Actions">
@@ -315,7 +330,7 @@ function App() {
             }
           />
 
-            <Route
+          <Route
             path="/gq-fsf-loans/login-actions"
             element={
               <PermissionRoute pageName="GQ FSF Login Actions">
@@ -332,7 +347,7 @@ function App() {
               </PermissionRoute>
             }
           />
-          
+
           <Route path="/documents/:lan" element={<DocumentsPage />} />
 
           <Route
@@ -368,7 +383,7 @@ function App() {
             }
           />
 
-            <Route
+          <Route
             path="/gq-non-fsf-loans/login-actions"
             element={
               <PermissionRoute pageName="GQ Non-FSF Login Actions">
@@ -385,7 +400,7 @@ function App() {
               </PermissionRoute>
             }
           />
-            <Route
+          <Route
             path="/adikosh-loans/login"
             element={
               <PermissionRoute pageName="Adikosh Login Loans">
