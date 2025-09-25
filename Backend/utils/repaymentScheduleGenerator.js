@@ -1433,7 +1433,6 @@ const generateRepaymentScheduleGQNonFSF = async (
     const rows = [];
     let opening = P;
     if (k > 0) {
-      console.log("DEBUG: r (monthly rate) =", r);
       // --- 1a) Record k advance EMIs (interest = 0, principal = advPrincipalOne each) ---
       for (let i = 1; i <= k; i++) {
         const interest = 0;
