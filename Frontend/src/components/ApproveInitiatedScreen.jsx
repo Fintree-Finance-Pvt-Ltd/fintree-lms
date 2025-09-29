@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import api from "../api/api";
 import { useNavigate } from "react-router-dom";
 import DataTable from "./ui/DataTable";
+import LoaderOverlay from "./ui/LoaderOverlay";
+
 
 const ApproveInitiatedScreen = ({
   apiUrl,
@@ -17,6 +19,8 @@ const ApproveInitiatedScreen = ({
   useEffect(() => {
     let off = false;
     setLoading(true);
+    setErr("");
+
     api
       .get(apiUrl)
       .then((res) => !off && setRows(Array.isArray(res.data) ? res.data : []))
@@ -38,8 +42,6 @@ const ApproveInitiatedScreen = ({
     }
   };
 
-  if (loading) return <p>Loading…</p>;
-  if (err) return <p style={{ color: "#b91c1c", fontWeight: 600 }}>{err}</p>;
 
   // show Batch ID column only if any LAN begins with ADK
   const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
@@ -217,6 +219,9 @@ const ApproveInitiatedScreen = ({
   ];
 
   return (
+    <>
+    <LoaderOverlay show={loading} label="Fetching data…" />
+      {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
     <DataTable
       title={title}
       rows={rows}
@@ -224,6 +229,7 @@ const ApproveInitiatedScreen = ({
       globalSearchKeys={globalSearchKeys}
       exportFileName="login_stage_loans"
     />
+    </>
   );
 };
 

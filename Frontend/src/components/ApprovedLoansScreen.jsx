@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import api from "../api/api";
 import { useNavigate } from "react-router-dom";
 import DataTable from "./ui/DataTable";
+import LoaderOverlay from "./ui/LoaderOverlay";
+
 
 const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
   const [rows, setRows] = useState([]);
@@ -13,15 +15,13 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
   useEffect(() => {
     let off = false;
     setLoading(true);
+    setErr("");
     api.get(apiUrl)
       .then((res) => !off && setRows(Array.isArray(res.data) ? res.data : []))
       .catch(() => !off && setErr("Failed to fetch data."))
       .finally(() => !off && setLoading(false));
     return () => (off = true);
   }, [apiUrl]);
-
-  if (loading) return <p>Loading…</p>;
-  if (err) return <p style={{ color: "#b91c1c" }}>{err}</p>;
 
   const columns = [
     {
@@ -78,6 +78,9 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
   ];
 
   return (
+    <>
+    <LoaderOverlay show={loading} label="Fetching data…" />
+      {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
     <DataTable
       title={title}
       rows={rows}
@@ -86,6 +89,7 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
       initialSort={{ key: "lan", dir: "asc" }}
       exportFileName="approved_loans"
     />
+    </>
   );
 };
 

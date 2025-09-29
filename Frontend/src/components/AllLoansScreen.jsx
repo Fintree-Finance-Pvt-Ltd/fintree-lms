@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import DataTable from "./ui/DataTable";
+import LoaderOverlay from "./ui/LoaderOverlay";
 
 const AllLoansScreen = ({ apiEndpoint, title = "Disbursed Loans", amountField = "disbursement_amount" }) => {
   const [rows, setRows] = useState([]);
@@ -13,6 +14,7 @@ const AllLoansScreen = ({ apiEndpoint, title = "Disbursed Loans", amountField = 
   useEffect(() => {
     let off = false;
     setLoading(true);
+    setErr("");
     api.get(apiEndpoint)
       .then((res) => {
         if (off) return;
@@ -25,8 +27,6 @@ const AllLoansScreen = ({ apiEndpoint, title = "Disbursed Loans", amountField = 
     return () => (off = true);
   }, [apiEndpoint]);
 
-  if (loading) return <p>Loading…</p>;
-  if (err) return <p style={{ color: "#b91c1c" }}>{err}</p>;
 
   const nf = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
 
@@ -106,6 +106,8 @@ const AllLoansScreen = ({ apiEndpoint, title = "Disbursed Loans", amountField = 
   ];
 
   return (
+    <div><LoaderOverlay show={loading} label="Fetching data…" />
+      {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
     <DataTable
       title={title}
       rows={rows}
@@ -114,6 +116,7 @@ const AllLoansScreen = ({ apiEndpoint, title = "Disbursed Loans", amountField = 
       initialSort={{ key: "disbursement_date", dir: "desc" }}
       exportFileName="disbursed_loans"
     />
+    </div>
   );
 };
 
