@@ -395,7 +395,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         const rowLender = (row["lender"] || "").trim();
         const panCard = row["Pan Card"];
         const aadharNumber = row["Aadhar Number"];
-        const interestRate = row["Interest Rate"]; // <-- use consistent header
+        const interestRate = row[" Interest Rate "]; // <-- use consistent header
 
         // Per-row validations
         if (rowLender !== "EV Loan") {
@@ -406,6 +406,11 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         if (!panCard && !aadharNumber) {
           row_errors.push({ row: R, stage: "validation", reason: "PAN or Aadhar is required in row." });
           continue;
+        }
+
+        if (!interestRate || isNaN(interestRate) || interestRate <= 0) {
+          row_errors.push({ row: R, stage: "validation", reason: "Valid Interest Rate is required in row." });
+           continue;
         }
 
         // Duplicate check
@@ -466,7 +471,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
           row["Mobile Number"],                            // 13
           row["Email"] || null,                            // 14
           row["Loan Amount"],                              // 15
-          row["Interest Rate"],                            // 16  (no stray spaces)
+          row[" Interest Rate "],                            // 16
           row["Tenure"],                                   // 17
           row["EMI Amount"] || null,                       // 18
           row["GURANTOR"],                                 // 19

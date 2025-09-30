@@ -66,6 +66,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import DataTable from "./ui/DataTable";
+import LoaderOverlay from "./ui/LoaderOverlay";
 
 const DisbursedLoansTable = ({
   apiEndpoint,
@@ -83,6 +84,7 @@ const DisbursedLoansTable = ({
   useEffect(() => {
     let off = false;
     setLoading(true);
+    setErr(""); 
     api
       .get(apiEndpoint)
       .then((res) => {
@@ -221,10 +223,11 @@ const DisbursedLoansTable = ({
     },
   ];
 
-  if (loading) return <p>Loading…</p>;
-  if (err) return <p style={{ color: "#b91c1c", fontWeight: 600 }}>{err}</p>;
 
   return (
+    <>
+    <LoaderOverlay show={loading} label="Fetching data…" />
+      {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
     <DataTable
       title={title}
       rows={filteredRows}
@@ -255,6 +258,7 @@ const DisbursedLoansTable = ({
       //   </select>
       // }
     />
+    </>
   );
 };
 

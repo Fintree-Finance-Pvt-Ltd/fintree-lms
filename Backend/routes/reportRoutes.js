@@ -1590,10 +1590,11 @@ router.post("/trigger", authenticateUser, async (req, res) => {
             .promise()
             .query(`CALL ${selectedProcedure}(?)`, [lan]);
           console.log("select proc", selectedProcedure);
-
-          const set = results.find(
-            (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
-          );
+          
+           const set = results.find(
+             (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
+           );
+          finalRows = set || [];
         } else {
           const [results] = await db
             .promise()
