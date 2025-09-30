@@ -13,12 +13,17 @@ const transporter = nodemailer.createTransport({
 async function sendLoanStatusMail({ to, customerName, batchId, loanAmount, status }) {
   let subject, text;
 
-  if (status === "approve initiate") {
+  if (status === "Disburse initiate") {
     subject = `Loan Approved - Batch ID ${batchId}`;
     text = `Dear Team,\n\nThe case for ${customerName} with Batch ID ${batchId} has been approved.\nLoan Amount: ₹${loanAmount}\n\nRegards,\nFintree Finance`;
-  } else {
+  } else if (status === "Rejected") {
     subject = `Loan Rejected - Batch ID ${batchId}`;
     text = `Dear Team,\n\nThe case for ${customerName} with Batch ID ${batchId} has been rejected.\nLoan Amount: ₹${loanAmount}\n\nRegards,\nFintree Finance`;
+  } else {
+    // return or throw error if status is not valid
+    throw new Error(`Invalid loan status: ${status}`);
+    // OR if you prefer not to throw:
+    // return { success: false, message: `Invalid loan status: ${status}` };
   }
 
   const mailOptions = {

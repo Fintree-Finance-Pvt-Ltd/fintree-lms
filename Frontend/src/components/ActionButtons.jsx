@@ -86,10 +86,30 @@ const ActionButtons = ({ lan }) => {
     }
   };
 
+  const handleForeclose = async () => {
+    try {
+      const res = await api.post("/documents/generate-foreclosure", { lan });
+      if (res.data?.fileUrl) {
+        window.open(res.data.fileUrl, "_blank");
+      } else {
+        alert("Foreclosure generation failed.");
+      }
+    } catch (err) {
+      // <- this is where your 400 lands
+      const msg =
+        err?.response?.data?.error || // e.g. "NOC can be generated only when the loan is Fully Paid."
+        err?.response?.data?.message ||
+        err?.message ||
+        "Foreclosure generation failed.";
+      alert(msg);
+    }
+  };
+
   return (
     <>
       <button className="action-buttons" onClick={handleSOA}>SOA</button>
       <button className="action-buttons" onClick={handleNOC}>NOC</button>
+      <button className="action-buttons" onClick={handleForeclose}>Foreclosure</button>
     </>
   );
 };

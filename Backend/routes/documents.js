@@ -1029,4 +1029,256 @@ router.post("/generate-noc", async (req, res) => {
   }
 });
 
+router.post("/generate-foreclosure", async (req, res) => {
+  const { lan } = req.body;
+  if (!lan) return res.status(400).json({ error: "lan required" });
+
+  // 1) Select borrower table (same rules as your NOC)
+  let bookingTable = "";
+  if (lan.startsWith("GQN"))       bookingTable = "loan_booking_gq_non_fsf";
+  else if (lan.startsWith("GQF"))  bookingTable = "loan_booking_gq_fsf";
+  else if (lan.startsWith("ADK"))  bookingTable = "loan_booking_adikosh";
+  else if (lan.startsWith("EV"))   bookingTable = "loan_booking_ev";
+  else if (lan.startsWith("E1"))   bookingTable = "loan_booking_embifi";
+  else if (lan.startsWith("WCTL")) bookingTable = "loan_bookings_wctl";
+  else                             bookingTable = "loan_bookings";
+
+  // Helpers
+  const fmtDateLong = (d) =>
+    new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+
+  // Format numbers like 1,23,456 (no currency sign)
+  const fmtAmt = (n) =>
+    Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+  // Keep 1pt strokes aligned on device pixels to avoid fuzzy/vanishing lines
+  const crisp = (v) => Math.round(v) + 0.5;
+
+  try {
+    // 2) Borrower info
+    const [loanRows] = await db.promise().query(
+      `SELECT lan, customer_name, partner_loan_id,
+              address_line_1, address_line_2, village, district, state, pincode
+         FROM ${bookingTable}
+        WHERE lan = ? LIMIT 1`,
+      [lan]
+    );
+    if (!loanRows.length) {
+      return res.status(404).json({ error: `Borrower not found in ${bookingTable}` });
+    }
+    const loan = loanRows[0];
+
+    // 3) Run foreclosure procedure FIRST
+    const [procRes] = await db.promise().query("CALL sp_calculate_forecloser_collection(?)", [lan]);
+    const fcRows = Array.isArray(procRes) && Array.isArray(procRes[0]) ? procRes[0] : procRes;
+    if (!fcRows || !fcRows.length) {
+      return res.status(404).json({ error: "No foreclosure data produced by procedure" });
+    }
+    const fc = fcRows[0];
+
+    // Values
+    const forecloserDate = fc.forecloser_date || new Date();
+    const principalOS    = Number(fc.total_remaining_principal || 0);
+    const overduePnI     = Number(fc.total_remaining_interest  || 0);
+    const preClosureChg  = Number(fc.foreclosure_fee           || 0);
+    const gstTotal       = Number(fc.foreclosure_tax           || 0);
+    const cgst           = gstTotal / 2;
+    const sgst           = gstTotal / 2;
+    const netReceivable  = Number(fc.total_fc_amount           || 0);
+    const penalty        = Number(fc.penalty || 0);
+    const bounce         = Number(fc.bounce  || 0);
+    const excess         = Number(fc.excess  || 0);
+
+    // 4) PDF
+    const filename = `Foreclosure_${lan}_${Date.now()}.pdf`;
+    const filePath = path.join(uploadPath, filename);
+    try { fs.mkdirSync(uploadPath, { recursive: true }); } catch {}
+
+    const doc = new PDFDocument({ margin: 48 });
+    const ws  = fs.createWriteStream(filePath);
+    doc.pipe(ws);
+
+    // Fonts: use core fonts (no external files)
+    const FONT_REGULAR = "Helvetica";
+    const FONT_BOLD    = "Helvetica-Bold";
+    doc.fillColor("#000");
+
+    // --- Logo top-right (fixed position)
+    const logoPath = path.join(__dirname, "../public/fintree-logo.png");
+    const topY = 44; // consistent top padding
+    if (fs.existsSync(logoPath)) {
+      const imgW = 120;
+      doc.image(logoPath,
+        doc.page.width - doc.page.margins.right - imgW, topY,
+        { width: imgW }
+      );
+    }
+
+    // --- Date + name (top-left)
+    doc.font(FONT_BOLD).fontSize(11).text("Date", doc.page.margins.left, topY + 6);
+    doc.font(FONT_REGULAR).text(fmtDateLong(forecloserDate), doc.page.margins.left + 50, topY + 6);
+    doc.moveDown(0.6);
+
+    if (loan.customer_name) {
+      doc.font(FONT_BOLD).fontSize(11).text(loan.customer_name);
+    }
+
+    // Optional: address block if you want it
+    const addressLines = [
+      loan.address_line_1, loan.address_line_2,
+      [loan.village, loan.district].filter(Boolean).join(", "),
+      [loan.state, loan.pincode].filter(Boolean).join(" - ")
+    ].filter(Boolean);
+    if (addressLines.length) {
+      doc.moveDown(0.2);
+      doc.font(FONT_REGULAR).fontSize(10).text(addressLines.join("\n"));
+    }
+    doc.moveDown(1.0);
+
+    // --- Centered title with crisp rules
+    const title = `Pre-Closure of Your Loan Account No: ${lan}`;
+    const xL = doc.page.margins.left;
+    const xR = doc.page.width - doc.page.margins.right;
+
+    const yRule1 = crisp(doc.y);
+    doc.save().lineWidth(1).strokeColor("#000")
+       .moveTo(xL, yRule1).lineTo(xR, yRule1).stroke().restore();
+
+    doc.moveDown(0.35);
+    doc.font(FONT_BOLD).fontSize(14).text(title, { align: "center" });
+    doc.moveDown(0.35);
+
+    const yRule2 = crisp(doc.y);
+    doc.save().lineWidth(1).strokeColor("#000")
+       .moveTo(xL, yRule2).lineTo(xR, yRule2).stroke().restore();
+    doc.moveDown(0.6);
+
+    // --- Greeting & intro
+    doc.font(FONT_BOLD).fontSize(11).text("Dear Customer,");
+    doc.moveDown(0.15);
+    doc.font(FONT_REGULAR).fontSize(11).text(
+      "We value your relationship with Fintree. As per request for Closure of your above mentioned loan account, " +
+      "Please find below the amount payable:"
+    );
+    doc.moveDown(0.5);
+
+    // --- Structured 3-column table
+    // Columns: [Particulars | Sub | Amount (Rs.)]
+    const tableX = doc.page.margins.left;
+    let   tableY = doc.y;
+    const usableW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const colW = [usableW - 120 - 140, 120, 140]; // big label, sublabel, amount
+    const rowH = 24;
+    const border = 0.8;
+
+    const drawRow = (cells, {
+      bold = false,
+      shaded = false,
+      align = ["left","left","right"]
+    } = {}) => {
+      const y = tableY;
+
+      // shaded background (do it first, isolate state)
+      if (shaded) {
+        doc.save();
+        doc.rect(tableX, y, usableW, rowH).fill("#eeeeee");
+        doc.restore();
+      }
+
+      // top border (crisp)
+      doc.save().lineWidth(border).strokeColor("#000")
+         .moveTo(tableX, crisp(y)).lineTo(tableX + usableW, crisp(y)).stroke().restore();
+
+      // vertical lines and text
+      let cx = tableX;
+      for (let i = 0; i < colW.length; i++) {
+        doc.save().lineWidth(border).strokeColor("#000")
+           .moveTo(crisp(cx), y).lineTo(crisp(cx), y + rowH).stroke().restore();
+
+        doc.font(bold ? FONT_BOLD : FONT_REGULAR).fontSize(11)
+           .fillColor("#000")
+           .text(cells[i] ?? "", cx + 8, y + 6, { width: colW[i] - 16, align: align[i] });
+
+        cx += colW[i];
+      }
+      // right edge
+      doc.save().lineWidth(border).strokeColor("#000")
+         .moveTo(crisp(tableX + usableW), y).lineTo(crisp(tableX + usableW), y + rowH).stroke().restore();
+
+      // bottom border
+      doc.save().lineWidth(border).strokeColor("#000")
+         .moveTo(tableX, crisp(y + rowH)).lineTo(tableX + usableW, crisp(y + rowH)).stroke().restore();
+
+      tableY += rowH;
+    };
+
+    // Header
+    drawRow(["Particulars", " ", "Amount (Rs.)"], { bold: true, shaded: true, align: ["left","left","right"] });
+
+    // Detail rows (amount column only numbers; no ₹ prefix)
+    drawRow(["Principal O/s",                  "", fmtAmt(principalOS)]);
+    drawRow(["Overdue Principal and Interest", "", fmtAmt(overduePnI)]);
+    drawRow(["Penalty",                        "", fmtAmt(penalty)]);
+    drawRow(["Bounce",                         "", fmtAmt(bounce)]);
+    drawRow(["Excess Amount",                  "", fmtAmt(excess)]);
+    drawRow(["Pre-Closure Charge*",            "", fmtAmt(preClosureChg)]);
+    drawRow(["",                             "CGST", fmtAmt(cgst)]);
+    drawRow(["",                             "SGST", fmtAmt(sgst)]);
+
+    // Separator band
+    drawRow(["", "", ""], { shaded: true });
+
+    // Total row (bold)
+    drawRow(["Net Receivable / (Refund)", "", fmtAmt(netReceivable)], { bold: true });
+
+    // --- Notes (below table)
+    doc.y = tableY + 12;
+    doc.moveDown(1.0);
+    doc.font(FONT_BOLD).fontSize(11).text("Kindly note that:");
+    doc.moveDown(0.2);
+    doc.font(FONT_REGULAR).fontSize(11).text(`We have taken the date of the Pre-Closure as ${fmtDateLong(forecloserDate)}`);
+    doc.moveDown(0.6);
+    doc.text("* GST applicable on Charges.");
+
+    // --- Footer (bottom-center, with safe spacing)
+    const footerMinTop = doc.page.height - doc.page.margins.bottom - 60; // cushion
+    if (doc.y < footerMinTop) doc.y = footerMinTop;
+    doc.fontSize(9).fillColor("#000").text(
+      "This is a system generated letter and does not require a signature",
+      { align: "center" }
+    );
+
+    doc.end();
+
+    // 5) Save & respond
+    ws.on("finish", async () => {
+      try {
+        await db.promise().query(
+          `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
+           VALUES (?, ?, ?, NOW())`,
+          [lan, filename, `Foreclosure - ${lan}`]
+        );
+      } catch (e) {
+        console.error("loan_documents insert failed:", e.message);
+      }
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${filename}`;
+      res.status(200).json({ message: "Generated", fileUrl });
+    });
+
+    ws.on("error", (err) => {
+      console.error("PDF write error:", err);
+      res.status(500).json({ error: "Failed to write Foreclosure PDF", details: err.message });
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Foreclosure generation failed", details: err.message });
+  }
+});
+
+
+
+
+
+
 module.exports = router;
