@@ -2565,48 +2565,65 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
-  }else if (lender === "GQ Non-FSF") {
-    // Run both generators for GQ Non-FSF: first the generic, then Fintree variant.
-    // Each is protected so one failure won't stop the other.
+    } else if (lender === "GQ Non-FSF") {
+    // === run generic GQ Non-FSF generator ===
     try {
+      // coerce numeric-ish inputs and log
+      const approvedAmountNum = Number(loanAmount);
+      const interestRateNum = Number(interestRate);
+      const tenureNum = Number(tenure);
+      const noOfAdvanceNum = Number(no_of_advance_emis || 0);
+      console.log("Calling generateRepaymentScheduleGQNonFSF with:",
+        { lan, approvedAmount: approvedAmountNum, emiDate, interestRate: interestRateNum, tenure: tenureNum, disbursementDate, subventionAmount, product, lender, no_of_advance_emis: noOfAdvanceNum });
+
       await generateRepaymentScheduleGQNonFSF(
         lan,
-        loanAmount,
+        approvedAmountNum,
         emiDate,
-        interestRate,
-        tenure,
+        interestRateNum,
+        tenureNum,
         disbursementDate,
         subventionAmount,
         product,
         lender,
-        no_of_advance_emis
+        noOfAdvanceNum
       );
       console.log("✅ generateRepaymentScheduleGQNonFSF completed");
     } catch (err) {
       console.error("❌ generateRepaymentScheduleGQNonFSF failed:", err);
     }
 
+    // === run Fintree variant ===
     try {
+      // IMPORTANT: match the exact signature of generateRepaymentScheduleGQNonFSF_Fintree:
+      // (lan, approvedAmount, emiDate, interestRate, tenure, disbursementDate, subventionAmount, product, lender, no_of_advance_emis = 1)
+      const approvedAmountNum = Number(loanAmount);
+      const interestRateNum = Number(interestRate);
+      const tenureNum = Number(tenure);
+      const noOfAdvanceNum = Number(no_of_advance_emis || 0);
+
+      console.log("Calling generateRepaymentScheduleGQNonFSF_Fintree with:",
+        { lan, approvedAmount: approvedAmountNum, emiDate, interestRate: interestRateNum, tenure: tenureNum, disbursementDate, subventionAmount, product, lender, no_of_advance_emis: noOfAdvanceNum });
+
       await generateRepaymentScheduleGQNonFSF_Fintree(
         lan,
-        loanAmount,
-        tenure,
-        disbursementDate,
-        emiDate,
-        {
-          // If your Fintree signature expects options, pass subvention/retention/emi override here.
-          // If not needed, you can simplify this call to match your function's actual signature.
-          emiAmount: undefined,
-          subventionAmount: subventionAmount,
-          retentionAmount: 0,
-        },
-        product,
-        lender
+        approvedAmountNum,   // approvedAmount
+        emiDate,             // emiDate (day)
+        interestRateNum,     // interestRate (annual %)
+        tenureNum,           // tenure (months)
+        disbursementDate,    // disbursementDate ("YYYY-MM-DD")
+        subventionAmount,    // subventionAmount
+        product,             // product
+        lender,              // lender
+        noOfAdvanceNum       // no_of_advance_emis
       );
+
       console.log("✅ generateRepaymentScheduleGQNonFSF_Fintree completed");
     } catch (err) {
       console.error("❌ generateRepaymentScheduleGQNonFSF_Fintree failed:", err);
     }
+  
+
   } else if (lender === "GQ FSF") {
     await generateRepaymentScheduleGQFSF(
       lan,
