@@ -1416,6 +1416,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_cashflow_report_adikosh"
         : lender === "gq non-fsf"
         ? "sp_cashflow_report_gq_non_fsf"
+        : lender === "embifi"
+        ? "sp_cashflow_report_embifi"
         : lender === "gq fsf"
         ? "sp_cashflow_report_gq_fsf"
         : lender === "wctl"
