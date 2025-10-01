@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom"; // ✅ Import this!
 import "../styles/LoanDetailsPage.css"; // Ensure you have this CSS file
 
-const LoanSidebar = ({ onSelect, isAdikosh }) => {
+const LoanSidebar = ({ onSelect, isAdikosh, isGNonFSF }) => {
     const [activeSection, setActiveSection] = useState("loan-details");
     const navigate = useNavigate(); // ✅ Declare the navigate function
   
@@ -22,6 +22,7 @@ const LoanSidebar = ({ onSelect, isAdikosh }) => {
         { key: "schedule", label: "Schedule" },
         { key: "fintree-schedule", label: "Fintree Schedule", adikoshOnly: true },
         { key: "partner-schedule", label: "Partner Schedule", adikoshOnly: true },
+        { key: "gq-fintree-schedule", label: "Fintree Schedule",gqnonfsfOnly: true },
         { key : "fintree-roi-schedule", label: "Fintree ROI Schedule", adikoshOnly: true },
         { key: "charges-cashflow", label: "Charges & Cashflow" },
         { key: "extra-charges", label: "Extra Charges" },
@@ -34,6 +35,8 @@ const LoanSidebar = ({ onSelect, isAdikosh }) => {
 
     const sections = allSections.filter(
         section => !section.adikoshOnly || isAdikosh
+    ).filter(
+        section => !section.gqnonfsfOnly || isGNonFSF
     );
 
     return (

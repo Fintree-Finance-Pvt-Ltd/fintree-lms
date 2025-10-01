@@ -7,6 +7,7 @@ import DisbursementDetails from "./DisburstmentDetails"; // ✅ Disbursement Com
 import Schedule from "./Schedule"; // ✅ Schedule Component
 import FintreeSchedule from "./FintreeSchedule"; // ✅ Fintree Schedule Component
 import PartnerSchedule from "./PartnerSchedule"; // ✅ Partner Schedule Component
+import GQFintreeSchedule from "./GQFintreeSchedule";
 import FintreeROI from "./FintreeROI"; // ✅ Fintree ROI Component
 import ChargesCashflow from "./ChargesCashflow"; // ✅ Charges & Cashflow Component
 import ExtraCharges from "./ExtraCharges"; // ✅ Extra Charges Component
@@ -22,6 +23,7 @@ const LoanDetailsPage = () => {
     const [loanData, setLoanData] = useState(null);
     const [selectedSection, setSelectedSection] = useState("loan-details"); // ✅ Default Section
     const [isAdikosh, setIsAdikosh] = useState(false);
+    const [isGNonFSF, setIsGNonFSF] = useState(false);
 
     useEffect(() => {
         const fetchLoanDetails = async () => {
@@ -35,6 +37,7 @@ const LoanDetailsPage = () => {
 
         fetchLoanDetails();
         setIsAdikosh(lan.includes("AD"));
+        setIsGNonFSF(lan.includes("GQN"));
     }, [lan]);
 
 
@@ -54,7 +57,7 @@ const LoanDetailsPage = () => {
 
             {/* ✅ Sidebar + Content Layout */}
             <div className="loan-content-layout">
-                <LoanSidebar onSelect={setSelectedSection} isAdikosh={isAdikosh} />
+                <LoanSidebar onSelect={setSelectedSection} isAdikosh={isAdikosh} isGNonFSF={isGNonFSF} />
                 <div className="loan-dynamic-section">
                     {selectedSection === "loan-details" && <LoanDetails data={loanData} />}
                     {selectedSection === "disbursement-details" && <DisbursementDetails data={loanData} />}
@@ -62,6 +65,7 @@ const LoanDetailsPage = () => {
                     {isAdikosh && selectedSection === "fintree-schedule" && <FintreeSchedule lan={lan} />}
                     {isAdikosh && selectedSection === "partner-schedule" && <PartnerSchedule lan={lan} />}
                     {isAdikosh && selectedSection === "fintree-roi-schedule" && <FintreeROI lan={lan} isRoi={true} />}
+                    {isGNonFSF && selectedSection === "gq-fintree-schedule" && <GQFintreeSchedule lan={lan} />}
                     {/* {selectedSection === "fintree-schedule" && <FintreeSchedule lan={lan} />}
                     {selectedSection === "partner-schedule" && <PartnerSchedule lan={lan} />} */}
                     {selectedSection === "charges-cashflow" && <ChargesCashflow data={loanData} />}
