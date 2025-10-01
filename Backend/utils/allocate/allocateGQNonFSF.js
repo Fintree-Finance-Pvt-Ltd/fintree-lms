@@ -74,7 +74,7 @@
 
 const { queryDB } = require("../helpers");
 
-module.exports = async function allocateEV(lan, payment) {
+module.exports = async function allocateGQNonFSF(lan, payment) {
   let remaining = parseFloat(payment.transfer_amount);
   const { payment_date, payment_id } = payment;
 
