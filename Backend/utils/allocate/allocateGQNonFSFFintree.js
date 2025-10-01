@@ -5,6 +5,7 @@ const { queryDB } = require("../helpers");
 module.exports = async function allocateGQNonFSFFintree(lan, payment) {
   let remaining = parseFloat(payment.transfer_amount);
   const { payment_date, payment_id } = payment;
+  console.log("🚀 allocateGQNonFSFFintree called with:", { lan, payment });
 
   if (!payment_id) throw new Error("❌ payment_id missing");
 
@@ -39,6 +40,8 @@ module.exports = async function allocateGQNonFSFFintree(lan, payment) {
       const alloc = Math.min(principal, remaining);
       remaining -= alloc;
       principal -= alloc;
+
+      console.log("🚀 Allocating principal:", { alloc, remaining, principal });
 
       await queryDB(
         `INSERT INTO allocation_fintree (lan, due_date, allocation_fintree_date, allocated_amount, charge_type, payment_id)
