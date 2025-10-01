@@ -29,7 +29,7 @@ module.exports = async function allocateGQNonFSFFintree(lan, payment) {
       interest -= alloc;
 
       await queryDB(
-        `INSERT INTO allocation_fintree (lan, due_date, allocation_fintree_date, allocated_amount, charge_type, payment_id)
+        `INSERT INTO allocation_fintree (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
          VALUES (?, ?, ?, ?, 'Interest', ?)`,
         [lan, emi.due_date, payment_date, alloc, payment_id]
       );
@@ -44,10 +44,12 @@ module.exports = async function allocateGQNonFSFFintree(lan, payment) {
       console.log("🚀 Allocating principal:", { alloc, remaining, principal });
 
       await queryDB(
-        `INSERT INTO allocation_fintree (lan, due_date, allocation_fintree_date, allocated_amount, charge_type, payment_id)
+        `INSERT INTO allocation_fintree (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
          VALUES (?, ?, ?, ?, 'Principal', ?)`,
         [lan, emi.due_date, payment_date, alloc, payment_id]
+       
       );
+       console.log("🚀 After INSERT:", { alloc, remaining, principal })
     }
 
     await queryDB(
@@ -74,9 +76,10 @@ module.exports = async function allocateGQNonFSFFintree(lan, payment) {
        VALUES (?, 'Excess Payment', ?, ?, ?, 'Not Paid', NOW())`,
       [lan, remaining, payment_date, payment_date]
     );
+     console.log("🚀 After INSERT @ 2:", { alloc, remaining, principal })
 
     await queryDB(
-      `INSERT INTO allocation_fintree (lan, due_date, allocation_fintree_date, allocated_amount, charge_type, payment_id)
+      `INSERT INTO allocation_fintree (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
        VALUES (?, ?, ?, ?, 'Excess Payment', ?)`,
       [lan, payment_date, payment_date, remaining, payment_id]
     );
