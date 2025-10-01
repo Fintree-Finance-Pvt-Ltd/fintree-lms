@@ -28,6 +28,7 @@ cron.schedule("*/2 * * * *", async () => {
     "manual_rps_ev_loan",
     "manual_rps_wctl",
     "manual_rps_gq_non_fsf",
+    "manual_rps_gq_non_fsf_fintree",
     "manual_rps_gq_fsf",
     "manual_rps_adikosh",
     "manual_rps_adikosh_fintree",
