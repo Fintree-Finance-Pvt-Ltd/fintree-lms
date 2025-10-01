@@ -30,7 +30,7 @@ const allocateEV = require("./allocateEV");
 const allocateGQFSF = require("./allocateGQFSF");
 const allocateGQNonFSF = require("./allocateGQNonFSF");
 // <-- new import: adjust filename if yours is different
-const allocateGQNonFSFIntree = require("./allocateGQNonFSFIntree");
+const allocateGQNonFSFIntree = require("./allocateGQNonFSFFintree");
 const allocateAdikosh = require("./allocateAdikosh");
 const allocateBL = require("./allocateBL");
 const allocateEmbifi = require("./allocateEmbifi");
