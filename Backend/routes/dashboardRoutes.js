@@ -3277,6 +3277,7 @@ function normalizeProduct(p) {
   if (s === "adikosh") return "Adikosh";
   if (s === "gqnonfsf" || s === "gqnon-fsf") return "GQ Non-FSF";
   if (s === "gqfsf" || s === "gq-fsf") return "GQ FSF";
+  if(s === "embifi" || s === "embifi") return "Embifi";
   return p;
 }
 
@@ -3310,6 +3311,8 @@ router.post("/disbursal-trend", async (req, res) => {
     if (prod === "ALL" || prod === "Adikosh") add("loan_booking_adikosh", "Adikosh");
     if (prod === "ALL" || prod === "GQ Non-FSF") add("loan_booking_gq_non_fsf", "GQ Non-FSF");
     if (prod === "ALL" || prod === "GQ FSF") add("loan_booking_gq_fsf", "GQ FSF");
+    if (prod === "ALL" || prod === "Embifi") add("loan_booking_embifi", "Embifi");
+
 
     const sql = queries.join(" UNION ALL ") + " ORDER BY month, product";
     const [rows] = await db.promise().query(sql, params);
@@ -3392,6 +3395,23 @@ router.post("/repayment-trend", async (req, res) => {
       params.push(...dateA.params);
     }
 
+    if (prod === "ALL" || prod === "Embifi") {
+      queries.push(`
+        SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
+               'Embifi' AS product,
+               SUM(transfer_amount) AS total_collected
+        FROM repayments_upload
+        WHERE payment_date IS NOT NULL
+          AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
+            SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} FROM loan_booking_embifi
+          )
+          ${dateA.clause}
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
+      `);
+      params.push(...dateA.params);
+    }
+
+
     if (prod === "ALL" || prod === "GQ FSF") {
       queries.push(`
         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
@@ -3467,6 +3487,20 @@ router.post("/collection-vs-due", async (req, res) => {
       `);
       params.push(...dueR.params);
     }
+
+    if (prod === "ALL" || prod === "Embifi") {
+      queries.push(`
+        SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
+               'Embifi' AS product,
+               SUM(emi) AS total_due,
+               0 AS total_collected
+        FROM manual_rps_embifi_loan
+        WHERE due_date < CURDATE() ${dueR.clause}
+        GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
+      `);
+      params.push(...dueR.params);
+    }
+
     if (prod === "ALL" || prod === "GQ Non-FSF") {
       queries.push(`
         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
@@ -3593,6 +3627,7 @@ router.post("/product-distribution", async (req, res) => {
     const wcAK = buildDateRangeClause("agreement_date", start, end);
     const wcGQNon = buildDateRangeClause("agreement_date", start, end);
     const wcGQFsf = buildDateRangeClause("agreement_date", start, end);
+    const wcEmbifi = buildDateRangeClause("agreement_date", start, end);
 
     const sql = `
       SELECT 'BL Loan' AS product, COUNT(*) AS value
@@ -3619,13 +3654,19 @@ router.post("/product-distribution", async (req, res) => {
 
       UNION ALL
 
+      SELECT 'Embifi' AS product, COUNT(*) AS value
+      FROM loan_booking_embifi
+      WHERE 1=1 ${wcEmbifi.clause}
+
+      UNION ALL
+
       SELECT 'GQ FSF' AS product, COUNT(*) AS value
       FROM loan_booking_gq_fsf
       WHERE 1=1 ${wcGQFsf.clause}
     `;
 
     const params = [
-      ...wcBL.params, ...wcEV.params, ...wcAK.params, ...wcGQNon.params, ...wcGQFsf.params,
+      ...wcBL.params, ...wcEV.params, ...wcAK.params, ...wcGQNon.params, ...wcGQFsf.params, ...wcEmbifi.params,
     ];
     const [rows] = await db.promise().query(sql, params);
 
@@ -3661,6 +3702,7 @@ router.post("/metric-cards", async (req, res) => {
     const dclEV = buildDateRangeClause("agreement_date", start, end);
     const pclR  = buildDateRangeClause("r.payment_date", start, end);
     const pclA  = buildDateRangeClause("payment_date", start, end);
+    const dclEmbifi = buildDateRangeClause("agreement_date", start, end);
 
     // DISBURSED
     if (prod === "ALL" || prod === "BL") {
@@ -3678,6 +3720,14 @@ router.post("/metric-cards", async (req, res) => {
         WHERE 1=1 ${dclEV.clause}
       `);
       disburseParams.push(...dclEV.params);
+    }
+    if (prod === "ALL" || prod === "Embifi") {
+      disburseQueries.push(`
+        SELECT IFNULL(SUM(approved_loan_amount), 0) AS amount
+        FROM loan_booking_embifi
+        WHERE 1=1 ${dclEmbifi.clause}
+      `);
+      disburseParams.push(...dclEmbifi.params);
     }
     if (prod === "ALL" || prod === "Adikosh") {
       const d = buildDateRangeClause("agreement_date", start, end);
@@ -3723,6 +3773,16 @@ router.post("/metric-cards", async (req, res) => {
         SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
         FROM repayments_upload r
         JOIN loan_booking_ev e ON ${eqLan("e.lan", "r.lan")}
+        WHERE r.payment_date IS NOT NULL
+          ${pclR.clause}
+      `);
+      collectParams.push(...pclR.params);
+    }
+    if (prod === "ALL" || prod === "Embifi") {
+      collectQueries.push(`
+        SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
+        FROM repayments_upload r
+        JOIN loan_booking_embifi e ON ${eqLan("e.lan", "r.lan")}
         WHERE r.payment_date IS NOT NULL
           ${pclR.clause}
       `);
@@ -3837,6 +3897,19 @@ if (prod === "ALL" || prod === "EV") {
   pniRangeParams.push(...r.params);
 }
 
+if (prod === "ALL" || prod === "Embifi") {
+  const r = buildDateRangeClause("bank_date_allocation", start, end);
+  pniRangeQueries.push(`
+    SELECT 
+      IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
+      IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
+    FROM allocation
+    WHERE allocation_date IS NOT NULL ${r.clause}
+      AND lan LIKE 'E1%'
+  `);
+  pniRangeParams.push(...r.params);
+}
+
 if (prod === "ALL" || prod === "Adikosh") {
   const r = buildDateRangeClause("bank_date_allocation", start, end);
   pniRangeQueries.push(`
@@ -3845,7 +3918,7 @@ if (prod === "ALL" || prod === "Adikosh") {
       IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
     FROM allocation_adikosh
     WHERE allocation_date IS NOT NULL ${r.clause}
-      AND lan LIKE 'Adikosh%'
+      AND lan LIKE 'ADK%'
   `);
   pniRangeParams.push(...r.params);
 }
@@ -3902,6 +3975,18 @@ if (prod === "ALL" || prod === "GQ FSF") {
         SELECT IFNULL(SUM(rps.principal),0) AS principal
         FROM manual_rps_ev_loan rps
         JOIN loan_booking_ev e ON ${eqLan("e.lan", "rps.lan")}
+        WHERE rps.payment_date IS NOT NULL
+          AND rps.payment_date < ?
+          ${br.clause}
+      `);
+      pToDateParams.push(cutoff, ...br.params);
+    }
+    if (prod === "ALL" || prod === "Embifi") {
+      const br = buildDateRangeClause("e.agreement_date", start, end);
+      pToDateQueries.push(`
+        SELECT IFNULL(SUM(rps.principal),0) AS principal
+        FROM manual_rps_embifi_loan rps
+        JOIN loan_booking_embifi e ON ${eqLan("e.lan", "rps.lan")}
         WHERE rps.payment_date IS NOT NULL
           AND rps.payment_date < ?
           ${br.clause}
@@ -4022,6 +4107,7 @@ router.post("/dpd-buckets", async (req, res) => {
     if (prod === "ALL" || prod === "Adikosh") unions.push(branch("manual_rps_adikosh", "loan_booking_adikosh"));
     if (prod === "ALL" || prod === "GQ Non-FSF") unions.push(branch("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
     if (prod === "ALL" || prod === "GQ FSF") unions.push(branch("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
+    if (prod === "ALL" || prod === "Embifi") unions.push(branch("manual_rps_embifi_loan", "loan_booking_embifi"));
 
     if (!unions.length)
       return res.json({ buckets: [], asOf: new Date().toISOString().slice(0, 10) });
@@ -4078,6 +4164,7 @@ router.post("/dpd-list", async (req, res) => {
       if (s === "adikosh") return "Adikosh";
       if (s === "gqnonfsf" || s === "gqnon-fsf") return "GQ Non-FSF";
       if (s === "gqfsf" || s === "gq-fsf") return "GQ FSF";
+      if (s === "embifi" || s === "embifi") return "Embifi";
       return p;
     };
 
@@ -4185,6 +4272,9 @@ router.post("/dpd-list", async (req, res) => {
       branches.push(branch({ label: "GQ Non-FSF",   rpsTable: "manual_rps_gq_non_fsf",   bookTable: "loan_booking_gq_non_fsf" }));
     if (prod === "ALL" || prod === "GQ FSF")
       branches.push(branch({ label: "GQ FSF",       rpsTable: "manual_rps_gq_fsf",       bookTable: "loan_booking_gq_fsf" }));
+
+        if (prod === "ALL" || prod === "Embifi")
+      branches.push(branch({ label: "Embifi",       rpsTable: "manual_rps_embifi_loan",       bookTable: "loan_booking_embifi" }));
 
     if (!branches.length) {
       return res.json({ rows: [], pagination: { page, pageSize, total: 0 } });

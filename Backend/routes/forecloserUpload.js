@@ -74,7 +74,7 @@ router.post("/upload", upload.single("excel"), async (req, res) => {
       }
     }
 
-    fs.unlinkSync(filePath); // cleanup
+    fs.unlinkSync(filePath);
     res.json({ message: "✅ Upload and processing completed." });
 
   } catch (error) {
