@@ -30,7 +30,7 @@ const allocateEV = require("./allocateEV");
 const allocateGQFSF = require("./allocateGQFSF");
 const allocateGQNonFSF = require("./allocateGQNonFSF");
 // <-- new import: adjust filename if yours is different
-const allocateGQNonFSFIntree = require("./allocateGQNonFSFFintree");
+const allocateGQNonFSFFintree = require("./allocateGQNonFSFFintree");
 const allocateAdikosh = require("./allocateAdikosh");
 const allocateBL = require("./allocateBL");
 const allocateEmbifi = require("./allocateEmbifi");
@@ -77,7 +77,7 @@ const allocateRepaymentByLAN = async (lan, payment) => {
     // call BOTH GQNonFSF implementations in parallel and merge results
     const promises = [
       allocateGQNonFSF(lan, payment),
-      allocateGQNonFSFIntree(lan, payment),
+      allocateGQNonFSFFintree(lan, payment),
     ];
 
     const settled = await Promise.allSettled(promises);
