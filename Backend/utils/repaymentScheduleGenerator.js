@@ -783,7 +783,7 @@ const generateRepaymentScheduleEV = async (
   console.log(`✅ EV RPS generated from next month for ${lan}`);
 };
 
-
+///////////////// BL RPS CODE OLD ////////////////////////////////
 // const generateRepaymentScheduleBL = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
 //     try {
 //         const annualRate = interestRate / 100;

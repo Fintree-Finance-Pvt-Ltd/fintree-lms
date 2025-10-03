@@ -116,6 +116,16 @@ const excelSerialDateToJS = (value) => {
   return null;
 };
 
+// //// clampDay Function //////////////////
+// function clampDay(year, month, day) {
+//     // JS months are 0-indexed: 0=Jan, 1=Feb, ... 11=Dec
+//     const lastDay = new Date(year, month + 1, 0).getDate(); 
+//     return Math.min(day, lastDay);
+// }
+
+
+
+
 
 function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset = 0, salaryDay ) {
     const disbDate = new Date(disbursementDate);
@@ -124,8 +134,10 @@ function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset
   }
     const disbDay = disbDate.getDate();
 
+/////////////////// EV Loan /////////////////
+
     // ✅ EV Loan: Monthly Loan EMI due based on 5th cut-off logic
-    if (lender === "EV Loan" && product === "Monthly Loan") {
+    if (lender === "Embifi" && product === "Monthly Loan") {
         const dueDate = new Date(disbDate);
 
         if (disbDay <= 5) {
@@ -135,10 +147,12 @@ function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset
         }
 
         dueDate.setDate(5);
-        console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
+        console.log(`[Embifi Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
         return dueDate;
     }
     
+///////////////////// ADIKOSH /////////////////
+
     // ✅ Adikosh Logic: EMI day based on salaryDay + 2
     // if (lender === "Adikosh" && typeof salaryDay === "number") {
     //     console.log(`[Adikosh] Salary Day: ${salaryDay}`);
@@ -230,19 +244,18 @@ else if (lender === "GQ FSF") {
 }
 
 /////////////////// 
-  // ✅ Embifi: Monthly Loan
-    else if (lender === "Embifi" && product === "Monthly Loan") {
-        const dueDate = new Date(disbDate);
-        dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
+  // ✅ EV Loan : Monthly Loan
+else if (lender === "EV Loan" && product === "Monthly Loan") {
+    const dueDate = new Date(disbDate);
+    dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
 
-        const targetDay = disbDay <= 15 ? 15 : 30;
-        const y = dueDate.getFullYear();
-        const m = dueDate.getMonth();
-        dueDate.setDate(clampDay(y, m, targetDay));
+    // Keep the same day as disbursement
+    dueDate.setDate(new Date(disbDate).getDate());
 
-        console.log(`[Embifi Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
-        return dueDate;
-    }
+    console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
+    return dueDate;
+}
+    // ///////////////////
 
 
     // ✅ BL Loan: Daily Loan starts from next day
