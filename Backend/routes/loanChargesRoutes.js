@@ -10,53 +10,27 @@ const upload = multer({ storage: multer.memoryStorage() });
 const query = util.promisify(db.query).bind(db); // ✅ Promisify MySQL queries
 
 
+// ✅ Convert Excel Serial Date or string date to YYYY-MM-DD
 const excelSerialDateToJS = (value) => {
   if (!value) return null;
 
+  // Case 1: Excel numeric serial (e.g., 45687)
   if (!isNaN(value)) {
-    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel base date (UTC)
-
-    let correctDate = new Date(excelEpoch.getTime() + value * 86400000);
-
-    return correctDate.toISOString().split("T")[0]; // Return YYYY-MM-DD (no time manipulation)
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const correctDate = new Date(excelEpoch.getTime() + value * 86400000);
+    return correctDate.toISOString().split("T")[0];
   }
 
-  // ✅ Case 2: Handle Text Date (e.g., "10-Mar-24")
-
-  if (typeof value === "string" && value.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
-    const [day, monthAbbr, yearShort] = value.split("-");
-
-    const monthNames = {
-      Jan: 0,
-      Feb: 1,
-      Mar: 2,
-      Apr: 3,
-      May: 4,
-      Jun: 5,
-      Jul: 6,
-      Aug: 7,
-      Sep: 8,
-      Oct: 9,
-      Nov: 10,
-      Dec: 11,
-    };
-
-    const month = monthNames[monthAbbr];
-
-    if (month === undefined) return null;
-
-    const year = parseInt("20" + yearShort, 10);
-
-    return new Date(Date.UTC(parseInt(day, 10), month, year))
-
-      .toISOString()
-
-      .split("T")[0];
+  // Case 2: Textual date (e.g., "03-10-2025" or "10-Mar-25")
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (!isNaN(parsed)) {
+      return parsed.toISOString().split("T")[0];
+    }
   }
 
   return null;
 };
-
 
 
 
