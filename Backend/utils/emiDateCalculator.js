@@ -124,8 +124,10 @@ function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset
   }
     const disbDay = disbDate.getDate();
 
+/////////////////// EV Loan /////////////////
+
     // ✅ EV Loan: Monthly Loan EMI due based on 5th cut-off logic
-    if (lender === "EV Loan" && product === "Monthly Loan") {
+    if (lender === "Embifi" && product === "Monthly Loan") {
         const dueDate = new Date(disbDate);
 
         if (disbDay <= 5) {
@@ -135,10 +137,12 @@ function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset
         }
 
         dueDate.setDate(5);
-        console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
+        console.log(`[Embifi Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
         return dueDate;
     }
     
+///////////////////// ADIKOSH /////////////////
+
     // ✅ Adikosh Logic: EMI day based on salaryDay + 2
     // if (lender === "Adikosh" && typeof salaryDay === "number") {
     //     console.log(`[Adikosh] Salary Day: ${salaryDay}`);
@@ -231,7 +235,7 @@ else if (lender === "GQ FSF") {
 
 /////////////////// 
   // ✅ Embifi: Monthly Loan
-    else if (lender === "Embifi" && product === "Monthly Loan") {
+    else if (lender === "EV Loan" && product === "Monthly Loan") {
         const dueDate = new Date(disbDate);
         dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
 
@@ -240,7 +244,7 @@ else if (lender === "GQ FSF") {
         const m = dueDate.getMonth();
         dueDate.setDate(clampDay(y, m, targetDay));
 
-        console.log(`[Embifi Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
+        console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
         return dueDate;
     }
 

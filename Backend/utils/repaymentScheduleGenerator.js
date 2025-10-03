@@ -597,102 +597,7 @@ const excelSerialDateToJS = (value) => {
 
 
 /////////////////////////////working ev of 20-09-2025//////////////////////////
-// const generateRepaymentScheduleEV = async (
-//   lan,
-//   loanAmount,
-//   interestRate,
-//   tenure,
-//   disbursementDate,
-//   product,
-//   lender
-// ) => {
-//   try {
-//     const annualRate = interestRate / 100;
-//     let remainingPrincipal = loanAmount;
-
-//     // Calculate EMI
-//     const emi = Math.round(
-//       (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-//         (Math.pow(1 + annualRate / 12, tenure) - 1)
-//     );
-
-//     // Set RPS start date to same day of next month from disbursement
-//     const firstDueRaw = getFirstEmiDate(
-//       disbursementDate,
-//       null,
-//       lender,
-//       product
-//     );
-
-//     console.log("Calling getFirstEmiDate (EV) with:", {
-//       disbursementDate,
-//       lender,
-//       product,
-//     });
-
-//     console.log("First Due Date (EV):", firstDueRaw);
-
-//     const firstDueDate = new Date(firstDueRaw);
-
-//     if (Number.isNaN(firstDueDate.getTime())) {
-//       throw new Error(
-//         `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`
-//       );
-//     }
-
-//     const rpsData = [];
-//     let dueDate = new Date(firstDueDate);
-
-//     for (let i = 1; i <= tenure; i++) {
-//       const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-//       console.log("annualRate:", annualRate);
-//       console.log("Remaining Principal:", remainingPrincipal);
-//       console.log("Interest:", interest);
-//       console.log("EMI:", emi);
-//       let principal = emi - interest;
-//       if (i === tenure) principal = remainingPrincipal;
-
-//       rpsData.push([
-//         lan,
-//         dueDate.toISOString().split("T")[0],
-//         principal + interest,
-//         interest,
-//         principal,
-//         principal, // ✅ This shows Remaining Principal = principal for that EMI
-//         interest,
-//         principal + interest,
-//         "Pending",
-//       ]);
-
-//       remainingPrincipal -= principal;
-//       dueDate.setMonth(dueDate.getMonth() + 1);
-//     }
-
-//     await db.promise().query(
-//       `INSERT INTO manual_rps_ev_loan
-//       (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
-//       VALUES ?`,
-//       [rpsData]
-//     );
-
-//     // ➕ Update emi_amount in loan_bookings
-//     await db.promise().query(
-//       `UPDATE loan_booking_ev
-//    SET emi_amount = ?
-//    WHERE lan = ?`,
-//       [emi, lan]
-//     );
-
-//     console.log(`✅ EV RPS generated from next month for ${lan}`);
-//   } catch (err) {
-//     console.error(`❌ EV RPS Error for ${lan}:`, err);
-//   }
-// };
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
 const generateRepaymentScheduleEV = async (
-  conn,           // <<<<<<<<<< ACCEPT TRANSACTION CONNECTION
   lan,
   loanAmount,
   interestRate,
@@ -701,89 +606,184 @@ const generateRepaymentScheduleEV = async (
   product,
   lender
 ) => {
-  // ❗ No outer try/catch here that swallows errors. Let them bubble to caller.
+  try {
+    const annualRate = interestRate / 100;
+    let remainingPrincipal = loanAmount;
 
-  const annualRate = interestRate / 100;
-  let remainingPrincipal = loanAmount;
-
-  // Calculate EMI
-  const emi = Math.round(
-    (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-      (Math.pow(1 + annualRate / 12, tenure) - 1)
-  );
-
-  // Set RPS start date to same day of next month from disbursement
-  const firstDueRaw = getFirstEmiDate(
-    disbursementDate,
-    null,
-    lender,
-    product
-  );
-
-  console.log("Calling getFirstEmiDate (EV) with:", {
-    disbursementDate,
-    lender,
-    product,
-  });
-
-  console.log("First Due Date (EV):", firstDueRaw);
-
-  const firstDueDate = new Date(firstDueRaw);
-
-  if (Number.isNaN(firstDueDate.getTime())) {
-    throw new Error(
-      `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`
+    // Calculate EMI
+    const emi = Math.round(
+      (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+        (Math.pow(1 + annualRate / 12, tenure) - 1)
     );
+
+    // Set RPS start date to same day of next month from disbursement
+    const firstDueRaw = getFirstEmiDate(
+      disbursementDate,
+      null,
+      lender,
+      product
+    );
+
+    console.log("Calling getFirstEmiDate (EV) with:", {
+      disbursementDate,
+      lender,
+      product,
+    });
+
+    console.log("First Due Date (EV):", firstDueRaw);
+
+    const firstDueDate = new Date(firstDueRaw);
+
+    if (Number.isNaN(firstDueDate.getTime())) {
+      throw new Error(
+        `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`
+      );
+    }
+
+    const rpsData = [];
+    let dueDate = new Date(firstDueDate);
+
+    for (let i = 1; i <= tenure; i++) {
+      const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+      console.log("annualRate:", annualRate);
+      console.log("Remaining Principal:", remainingPrincipal);
+      console.log("Interest:", interest);
+      console.log("EMI:", emi);
+      let principal = emi - interest;
+      if (i === tenure) principal = remainingPrincipal;
+
+      rpsData.push([
+        lan,
+        dueDate.toISOString().split("T")[0],
+        principal + interest,
+        interest,
+        principal,
+        principal, // ✅ This shows Remaining Principal = principal for that EMI
+        interest,
+        principal + interest,
+        "Pending",
+      ]);
+
+      remainingPrincipal -= principal;
+      dueDate.setMonth(dueDate.getMonth() + 1);
+    }
+
+    await db.promise().query(
+      `INSERT INTO manual_rps_ev_loan
+      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+      VALUES ?`,
+      [rpsData]
+    );
+
+    // ➕ Update emi_amount in loan_bookings
+    await db.promise().query(
+      `UPDATE loan_booking_ev
+   SET emi_amount = ?
+   WHERE lan = ?`,
+      [emi, lan]
+    );
+
+    console.log(`✅ EV RPS generated from next month for ${lan}`);
+  } catch (err) {
+    console.error(`❌ EV RPS Error for ${lan}:`, err);
   }
-
-  const rpsData = [];
-  let dueDate = new Date(firstDueDate);
-
-  for (let i = 1; i <= tenure; i++) {
-    const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
-    console.log("annualRate:", annualRate);
-    console.log("Remaining Principal:", remainingPrincipal);
-    console.log("Interest:", interest);
-    console.log("EMI:", emi);
-    let principal = emi - interest;
-    if (i === tenure) principal = remainingPrincipal;
-
-    rpsData.push([
-      lan,
-      dueDate.toISOString().split("T")[0],
-      principal + interest,
-      interest,
-      principal,
-      principal, // ✅ preserve your existing behavior: Remaining Principal = principal for that EMI
-      interest,
-      principal + interest,
-      "Pending",
-    ]);
-
-    remainingPrincipal -= principal;
-    dueDate.setMonth(dueDate.getMonth() + 1);
-  }
-
-  // Use the SAME TRANSACTION CONNECTION
-  await conn.query(
-    `INSERT INTO manual_rps_ev_loan
-     (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
-     VALUES ?`,
-    [rpsData]
-  );
-
-  // ➕ Update emi_amount in loan_bookings (EV) within the same tx
-  await conn.query(
-    `UPDATE loan_booking_ev
-     SET emi_amount = ?
-     WHERE lan = ?`,
-    [emi, lan]
-  );
-
-  console.log(`✅ EV RPS generated from next month for ${lan}`);
 };
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// const generateRepaymentScheduleEV = async (
+//   conn,           // <<<<<<<<<< ACCEPT TRANSACTION CONNECTION
+//   lan,
+//   loanAmount,
+//   interestRate,
+//   tenure,
+//   disbursementDate,
+//   product,
+//   lender
+// ) => {
+//   // ❗ No outer try/catch here that swallows errors. Let them bubble to caller.
+
+//   const annualRate = interestRate / 100;
+//   let remainingPrincipal = loanAmount;
+
+//   // Calculate EMI
+//   const emi = Math.round(
+//     (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+//       (Math.pow(1 + annualRate / 12, tenure) - 1)
+//   );
+
+//   // Set RPS start date to same day of next month from disbursement
+//   const firstDueRaw = getFirstEmiDate(
+//     disbursementDate,
+//     null,
+//     lender,
+//     product
+//   );
+
+//   console.log("Calling getFirstEmiDate (EV) with:", {
+//     disbursementDate,
+//     lender,
+//     product,
+//   });
+
+//   console.log("First Due Date (EV):", firstDueRaw);
+
+//   const firstDueDate = new Date(firstDueRaw);
+
+//   if (Number.isNaN(firstDueDate.getTime())) {
+//     throw new Error(
+//       `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`
+//     );
+//   }
+
+//   const rpsData = [];
+//   let dueDate = new Date(firstDueDate);
+
+//   for (let i = 1; i <= tenure; i++) {
+//     const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+//     console.log("annualRate:", annualRate);
+//     console.log("Remaining Principal:", remainingPrincipal);
+//     console.log("Interest:", interest);
+//     console.log("EMI:", emi);
+//     let principal = emi - interest;
+//     if (i === tenure) principal = remainingPrincipal;
+
+//     rpsData.push([
+//       lan,
+//       dueDate.toISOString().split("T")[0],
+//       principal + interest,
+//       interest,
+//       principal,
+//       principal, // ✅ preserve your existing behavior: Remaining Principal = principal for that EMI
+//       interest,
+//       principal + interest,
+//       "Pending",
+//     ]);
+
+//     remainingPrincipal -= principal;
+//     dueDate.setMonth(dueDate.getMonth() + 1);
+//   }
+
+//   // Use the SAME TRANSACTION CONNECTION
+//   await conn.query(
+//     `INSERT INTO manual_rps_ev_loan
+//      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+//      VALUES ?`,
+//     [rpsData]
+//   );
+
+//   // ➕ Update emi_amount in loan_bookings (EV) within the same tx
+//   await conn.query(
+//     `UPDATE loan_booking_ev
+//      SET emi_amount = ?
+//      WHERE lan = ?`,
+//     [emi, lan]
+//   );
+
+//   console.log(`✅ EV RPS generated from next month for ${lan}`);
+// };
+
+///////////////// BL RPS CODE OLD ////////////////////////////////
 // const generateRepaymentScheduleBL = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
 //     try {
 //         const annualRate = interestRate / 100;
@@ -2556,7 +2556,7 @@ const generateRepaymentSchedule = async (
     );
   } else if (lender === "EV Loan" && product === "Monthly Loan") {
     await generateRepaymentScheduleEV(
-      conn,
+      
       lan,
       loanAmount,
       interestRate,
