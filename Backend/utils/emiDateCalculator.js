@@ -116,12 +116,12 @@ const excelSerialDateToJS = (value) => {
   return null;
 };
 
-//// clampDay Function //////////////////
-function clampDay(year, month, day) {
-    // JS months are 0-indexed: 0=Jan, 1=Feb, ... 11=Dec
-    const lastDay = new Date(year, month + 1, 0).getDate(); 
-    return Math.min(day, lastDay);
-}
+// //// clampDay Function //////////////////
+// function clampDay(year, month, day) {
+//     // JS months are 0-indexed: 0=Jan, 1=Feb, ... 11=Dec
+//     const lastDay = new Date(year, month + 1, 0).getDate(); 
+//     return Math.min(day, lastDay);
+// }
 
 
 
@@ -244,23 +244,18 @@ else if (lender === "GQ FSF") {
 }
 
 /////////////////// 
-  // ✅ Embifi: Monthly Loan
+  // ✅ EV Loan : Monthly Loan
+else if (lender === "EV Loan" && product === "Monthly Loan") {
+    const dueDate = new Date(disbDate);
+    dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
 
+    const targetDay = disbDay <= 15 ? 15 : 30;
+    dueDate.setDate(targetDay);
 
+    console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
+    return dueDate;
+}
 
-
-    else if (lender === "EV Loan" && product === "Monthly Loan") {
-        const dueDate = new Date(disbDate);
-        dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
-
-        const targetDay = disbDay <= 15 ? 15 : 30;
-        const y = dueDate.getFullYear();
-        const m = dueDate.getMonth();
-        dueDate.setDate(clampDay(y, m, targetDay));
-
-        console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
-        return dueDate;
-    }
 
 
     // ✅ BL Loan: Daily Loan starts from next day
