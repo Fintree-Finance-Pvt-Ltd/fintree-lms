@@ -9,39 +9,39 @@ const util = require("util");
 const upload = multer({ storage: multer.memoryStorage() });
 const query = util.promisify(db.query).bind(db);
 // ✅ Convert Excel Serial Date or string date to YYYY-MM-DD
-const excelDateToJSDate = (value) => {
-  if (!value) return null;
+// const excelDateToJSDate = (value) => {
+//   if (!value) return null;
 
-  // Case 1: Excel serial number (e.g., 45687)
-  if (!isNaN(value)) {
-    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel base date
-    const correctDate = new Date(excelEpoch.getTime() + value * 86400000);
-    return correctDate.toISOString().split("T")[0]; // YYYY-MM-DD
-  }
+//   // Case 1: Excel serial number (e.g., 45687)
+//   if (!isNaN(value)) {
+//     const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel base date
+//     const correctDate = new Date(excelEpoch.getTime() + value * 86400000);
+//     return correctDate.toISOString().split("T")[0]; // YYYY-MM-DD
+//   }
 
-  // Case 2: Text format "DD-MMM-YY" like "10-Mar-24"
-  if (typeof value === "string" && value.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
-    const [day, monthAbbr, yearShort] = value.split("-");
-    const monthNames = {
-      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
-    };
-    const month = monthNames[monthAbbr];
-    if (month === undefined) return null;
-    const year = parseInt("20" + yearShort, 10);
-    return new Date(Date.UTC(year, month, parseInt(day)))
-      .toISOString()
-      .split("T")[0];
-  }
+//   // Case 2: Text format "DD-MMM-YY" like "10-Mar-24"
+//   if (typeof value === "string" && value.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
+//     const [day, monthAbbr, yearShort] = value.split("-");
+//     const monthNames = {
+//       Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+//       Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+//     };
+//     const month = monthNames[monthAbbr];
+//     if (month === undefined) return null;
+//     const year = parseInt("20" + yearShort, 10);
+//     return new Date(Date.UTC(year, month, parseInt(day)))
+//       .toISOString()
+//       .split("T")[0];
+//   }
 
-  // Case 3: "DD-MM-YYYY"
-  if (typeof value === "string" && value.match(/^\d{2}-\d{2}-\d{4}$/)) {
-    const [day, month, year] = value.split("-");
-    return new Date(`${year}-${month}-${day}`).toISOString().split("T")[0];
-  }
+//   // Case 3: "DD-MM-YYYY"
+//   if (typeof value === "string" && value.match(/^\d{2}-\d{2}-\d{4}$/)) {
+//     const [day, month, year] = value.split("-");
+//     return new Date(`${year}-${month}-${day}`).toISOString().split("T")[0];
+//   }
 
-  return null;
-};
+//   return null;
+// };
 
 
 
@@ -110,18 +110,87 @@ router.get("/:lan", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
+// 20 % amount /////
+// ✅ Convert Excel Serial Date or string date to YYYY-MM-DD
+const excelDateToJSDate = (value) => {
+  if (!value) {
+    console.warn(`excelDateToJSDate: Input is null or undefined`);
+    return null;
+  }
+
+  // Case 1: Excel serial number (e.g., 45687)
+  if (!isNaN(value) && typeof value === 'number') {
+    try {
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel base date
+      const correctDate = new Date(excelEpoch.getTime() + value * 86400000);
+      if (isNaN(correctDate.getTime())) {
+        console.warn(`excelDateToJSDate: Invalid serial date: ${value}`);
+        return null;
+      }
+      return correctDate.toISOString().split("T")[0]; // YYYY-MM-DD
+    } catch (error) {
+      console.error(`excelDateToJSDate: Error processing serial date ${value}:`, error);
+      return null;
+    }
+  }
+
+  // Case 2: Text format "DD-MMM-YY" like "10-Mar-24"
+  if (typeof value === "string" && value.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
+    try {
+      const [day, monthAbbr, yearShort] = value.split("-");
+      const monthNames = {
+        Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+        Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+      };
+      const month = monthNames[monthAbbr];
+      if (month === undefined) {
+        console.warn(`excelDateToJSDate: Invalid month abbreviation: ${monthAbbr}`);
+        return null;
+      }
+      const year = parseInt("20" + yearShort, 10);
+      const date = new Date(Date.UTC(year, month, parseInt(day)));
+      if (isNaN(date.getTime())) {
+        console.warn(`excelDateToJSDate: Invalid date from DD-MMM-YY: ${value}`);
+        return null;
+      }
+      return date.toISOString().split("T")[0];
+    } catch (error) {
+      console.error(`excelDateToJSDate: Error processing DD-MMM-YY date ${value}:`, error);
+      return null;
+    }
+  }
+
+  // Case 3: "DD-MM-YYYY"
+  if (typeof value === "string" && value.match(/^\d{2}-\d{2}-\d{4}$/)) {
+    try {
+      const [day, month, year] = value.split("-");
+      const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
+      if (isNaN(date.getTime())) {
+        console.warn(`excelDateToJSDate: Invalid date from DD-MM-YYYY: ${value}`);
+        return null;
+      }
+      return date.toISOString().split("T")[0];
+    } catch (error) {
+      console.error(`excelDateToJSDate: Error processing DD-MM-YYYY date ${value}:`, error);
+      return null;
+    }
+  }
+
+  // Log unhandled cases
+  console.warn(`excelDateToJSDate: Unhandled date format: ${value} (type: ${typeof value})`);
+  return null;
+};
 
 // ✅ Upload 20% Amount API
 router.post("/upload-20percent", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-
   try {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const rawSheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: null });
-
+    
     // ✅ Normalize column headers
-    const sheetData = rawSheetData.map(row => {
+    const sheetData = rawSheetData.map((row, index) => {
       const cleanRow = {};
       for (let key in row) {
         const newKey = key.trim().toLowerCase().replace(/%/g, "percent").replace(/\s+/g, "_");
@@ -130,7 +199,7 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
       return cleanRow;
     });
 
-    for (const row of sheetData) {
+    for (const [index, row] of sheetData.entries()) {
       const product = row["product"];
       const lan = row["lan"];
       const appId = row["app_id"];
@@ -139,12 +208,27 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
       const rawPaymentDate = row["payment_date"];
       const paymentDate = rawPaymentDate ? excelDateToJSDate(rawPaymentDate) : null;
 
-      console.log("DEBUG ROW:", row);
+      console.log(`DEBUG ROW ${index + 1}:`, {
+        product,
+        lan,
+        app_id: appId,
+        amount_20percent: amount,
+        utr,
+        payment_date: rawPaymentDate,
+        converted_payment_date: paymentDate
+      });
 
       // ✅ Check required fields (null/undefined safe)
       if (!product || !lan || appId == null || amount == null || !utr) {
-        console.warn("⚠️ Row skipped due to missing required fields:", row);
+        console.warn(`⚠️ Row ${index + 1} skipped due to missing required fields:`, {
+          product, lan, app_id: appId, amount_20percent: amount, utr, payment_date: paymentDate
+        });
         continue;
+      }
+
+      // ✅ Allow optional payment_date
+      if (paymentDate === null) {
+        console.warn(`⚠️ Row ${index + 1}: Payment date is null, proceeding with null value`);
       }
 
       // ✅ Decide target table
@@ -157,7 +241,7 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
         targetTable = "GQFSF_20PercentAmount";
         bookingTable = "loan_booking_gq_fsf";
       } else {
-        console.warn(`⚠️ Unknown product skipped: ${product}`);
+        console.warn(`⚠️ Row ${index + 1}: Unknown product skipped: ${product}`);
         continue;
       }
 
@@ -166,9 +250,8 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
         `SELECT id FROM ${bookingTable} WHERE lan = ? AND app_id = ? LIMIT 1`,
         [lan, appId]
       );
-
       if (booking.length === 0) {
-        console.warn(`⚠️ Not found in ${bookingTable}: LAN=${lan}, App_id=${appId}`);
+        console.warn(`⚠️ Row ${index + 1}: Not found in ${bookingTable}: LAN=${lan}, App_id=${appId}`);
         continue;
       }
 
@@ -177,28 +260,27 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
         `SELECT id FROM ${targetTable} WHERE lan = ? AND app_id = ? LIMIT 1`,
         [lan, appId]
       );
-
       if (exists.length > 0) {
-        console.log(`⏩ Skipping duplicate: ${lan}, App_id=${appId}`);
+        console.log(`⏩ Row ${index + 1}: Skipping duplicate: LAN=${lan}, App_id=${appId}`);
         continue;
       }
 
       // ✅ Step 3: Insert into target table
       await query(
-        `INSERT INTO ${targetTable} 
-         (product, lan, app_id, amount_20percent, utr, payment_date) 
+        `INSERT INTO ${targetTable}
+         (product, lan, app_id, amount_20percent, utr, payment_date)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [product, lan, appId, amount, utr, paymentDate]
       );
-
-      console.log(`✅ Inserted into ${targetTable}: LAN=${lan}, App_id=${appId}`);
+      console.log(`✅ Row ${index + 1}: Inserted into ${targetTable}: LAN=${lan}, App_id=${appId}`);
     }
-
     res.json({ message: "20% Amount data uploaded successfully" });
-
   } catch (error) {
     console.error("❌ Error processing file:", error);
     res.status(500).json({ message: "Error processing file" });
   }
 });
+
+
+
 module.exports = router;
