@@ -4068,15 +4068,27 @@ if (prod === "ALL" || prod === "GQ FSF") {
 });
 
 /** -------------------- DPD Buckets -------------------- */
+// -------------------- DPD BUCKETS --------------------
 router.post("/dpd-buckets", async (req, res) => {
   try {
     const { product } = req.body || {};
+
+    const normalizeProduct = (p) => {
+      if (!p || p === "ALL") return "ALL";
+      const s = String(p).toLowerCase().replace(/\s+/g, "").replace(/-/g, "");
+      if (s === "evloan" || s === "ev_loan") return "EV";
+      if (s === "blloan" || s === "bl_loan") return "BL";
+      if (s === "adikosh") return "Adikosh";
+      if (s === "gqnonfsf" || s === "gqnon-fsf") return "GQ Non-FSF";
+      if (s === "gqfsf" || s === "gq-fsf") return "GQ FSF";
+      if (s === "embifi") return "Embifi";
+      return p;
+    };
+
     const prod = normalizeProduct(product);
+    const BUCKET_ORDER = `'ALL','0','0-30','30-60','60-90','90+'`;
 
-    const unions = [];
-    const OUTSTANDING = `rps.status <> 'Paid' AND rps.due_date < CURDATE()`;
-    const BUCKET_ORDER = `'0','0-30','30-60','60-90','90+'`;
-
+    // --- Branch per product ---
     const branch = (rpsTable, bookTable) => `
       SELECT
         CASE
@@ -4086,51 +4098,109 @@ router.post("/dpd-buckets", async (req, res) => {
           WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
           ELSE '90+'
         END AS bucket,
-        COUNT(*) AS loans,
-        SUM(CASE WHEN t.max_dpd = 0 THEN 0 ELSE t.overdue_emi END) AS overdue_emi
+        COUNT(DISTINCT t.lan) AS loans,
+        SUM(t.overdue_emi) AS overdue_emi,
+        SUM(CASE WHEN LOWER(b.status) = 'disbursed' THEN 1 ELSE 0 END) AS active_loans,
+        SUM(CASE WHEN LOWER(b.status) IN ('fully paid','paid','closed','completed','settled') THEN 1 ELSE 0 END) AS closed_loans
       FROM (
         SELECT rps.lan,
-               MAX(CASE WHEN ${OUTSTANDING}
+               MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
                         THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
                         ELSE 0 END) AS max_dpd,
-               SUM(CASE WHEN ${OUTSTANDING} THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+               SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
         FROM ${rpsTable} rps
-        JOIN ${bookTable} b
-          ON ${eqLan("b.lan", "rps.lan")}
+        JOIN ${bookTable} b ON b.lan = rps.lan
         GROUP BY rps.lan
       ) t
+      JOIN ${bookTable} b ON b.lan = t.lan
       GROUP BY bucket
     `;
 
-    if (prod === "ALL" || prod === "BL") unions.push(branch("manual_rps_bl_loan", "loan_bookings"));
-    if (prod === "ALL" || prod === "EV") unions.push(branch("manual_rps_ev_loan", "loan_booking_ev"));
-    if (prod === "ALL" || prod === "Adikosh") unions.push(branch("manual_rps_adikosh", "loan_booking_adikosh"));
-    if (prod === "ALL" || prod === "GQ Non-FSF") unions.push(branch("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
-    if (prod === "ALL" || prod === "GQ FSF") unions.push(branch("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
-    if (prod === "ALL" || prod === "Embifi") unions.push(branch("manual_rps_embifi_loan", "loan_booking_embifi"));
+    const branchAll = (rpsTable, bookTable) => `
+      SELECT
+        'ALL' AS bucket,
+        COUNT(DISTINCT t.lan) AS loans,
+        SUM(t.overdue_emi) AS overdue_emi,
+        SUM(CASE WHEN LOWER(b.status) = 'disbursed' THEN 1 ELSE 0 END) AS active_loans,
+        SUM(CASE WHEN LOWER(b.status) IN ('fully paid','paid','closed','completed','settled') THEN 1 ELSE 0 END) AS closed_loans
+      FROM (
+        SELECT rps.lan,
+               MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
+                        THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                        ELSE 0 END) AS max_dpd,
+               SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+        FROM ${rpsTable} rps
+        JOIN ${bookTable} b ON b.lan = rps.lan
+        GROUP BY rps.lan
+      ) t
+      JOIN ${bookTable} b ON b.lan = t.lan
+    `;
 
-    if (!unions.length)
+    const unions = [];
+    if (prod === "ALL" || prod === "BL") {
+      unions.push(branch("manual_rps_bl_loan", "loan_bookings"));
+      unions.push(branchAll("manual_rps_bl_loan", "loan_bookings"));
+    }
+    if (prod === "ALL" || prod === "EV") {
+      unions.push(branch("manual_rps_ev_loan", "loan_booking_ev"));
+      unions.push(branchAll("manual_rps_ev_loan", "loan_booking_ev"));
+    }
+    if (prod === "ALL" || prod === "Adikosh") {
+      unions.push(branch("manual_rps_adikosh", "loan_booking_adikosh"));
+      unions.push(branchAll("manual_rps_adikosh", "loan_booking_adikosh"));
+    }
+    if (prod === "ALL" || prod === "GQ Non-FSF") {
+      unions.push(branch("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
+      unions.push(branchAll("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
+    }
+    if (prod === "ALL" || prod === "GQ FSF") {
+      unions.push(branch("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
+      unions.push(branchAll("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
+    }
+    if (prod === "ALL" || prod === "Embifi") {
+      unions.push(branch("manual_rps_embifi_loan", "loan_booking_embifi"));
+      unions.push(branchAll("manual_rps_embifi_loan", "loan_booking_embifi"));
+    }
+
+    if (!unions.length) {
       return res.json({ buckets: [], asOf: new Date().toISOString().slice(0, 10) });
+    }
 
     const sql = `
-      SELECT bucket, SUM(loans) AS loans, SUM(overdue_emi) AS overdue_emi
+      SELECT bucket,
+             SUM(loans) AS loans,
+             SUM(overdue_emi) AS overdue_emi,
+             SUM(active_loans) AS active_loans,
+             SUM(closed_loans) AS closed_loans
       FROM ( ${unions.join(" UNION ALL ")} ) x
       GROUP BY bucket
       ORDER BY FIELD(bucket, ${BUCKET_ORDER})
     `;
+
     const [rows] = await db.promise().query(sql);
 
+    // ensure all buckets exist
     const map = {
-      "0":     { bucket: "0",     loans: 0, overdue_emi: 0 },
-      "0-30":  { bucket: "0-30",  loans: 0, overdue_emi: 0 },
-      "30-60": { bucket: "30-60", loans: 0, overdue_emi: 0 },
-      "60-90": { bucket: "60-90", loans: 0, overdue_emi: 0 },
-      "90+":   { bucket: "90+",   loans: 0, overdue_emi: 0 },
+      "ALL":   { bucket: "ALL", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
+      "0":     { bucket: "0", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
+      "0-30":  { bucket: "0-30", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
+      "30-60": { bucket: "30-60", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
+      "60-90": { bucket: "60-90", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
+      "90+":   { bucket: "90+", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
     };
-    rows.forEach((r) => (map[r.bucket] = r));
+
+    rows.forEach(r => {
+      map[r.bucket] = {
+        bucket: r.bucket,
+        loans: Number(r.loans || 0),
+        overdue_emi: Number(r.overdue_emi || 0),
+        active_loans: Number(r.active_loans || 0),
+        closed_loans: Number(r.closed_loans || 0),
+      };
+    });
 
     res.json({
-      buckets: [map["0"], map["0-30"], map["30-60"], map["60-90"], map["90+"]],
+      buckets: [map["ALL"], map["0"], map["0-30"], map["30-60"], map["60-90"], map["90+"]],
       asOf: new Date().toISOString().slice(0, 10),
     });
   } catch (err) {
@@ -4138,6 +4208,7 @@ router.post("/dpd-buckets", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch DPD buckets" });
   }
 });
+
 
 /** -------------------- DPD List (with disbursal + ageing, fast) -------------------- */
 router.post("/dpd-list", async (req, res) => {
@@ -4151,9 +4222,7 @@ router.post("/dpd-list", async (req, res) => {
       sortDir: sortDirRaw
     } = req.body || {};
 
-    // --- config ---
     const JOIN_COLLATE = "utf8mb4_unicode_ci";
-    const OUT_COLLATE  = "utf8mb4_unicode_ci";
 
     // normalize product
     const normalizeProduct = (p) => {
@@ -4164,10 +4233,9 @@ router.post("/dpd-list", async (req, res) => {
       if (s === "adikosh") return "Adikosh";
       if (s === "gqnonfsf" || s === "gqnon-fsf") return "GQ Non-FSF";
       if (s === "gqfsf" || s === "gq-fsf") return "GQ FSF";
-      if (s === "embifi" || s === "embifi") return "Embifi";
+      if (s === "embifi") return "Embifi";
       return p;
     };
-
     const prod = normalizeProduct(product);
 
     // pagination
@@ -4175,7 +4243,7 @@ router.post("/dpd-list", async (req, res) => {
     const pageSize = Math.min(200, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
     const offset   = (page - 1) * pageSize;
 
-    // --- Bucket -> inline HAVING (no placeholders to avoid param bleeding in UNION) ---
+    // --- Bucket filter ---
     const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
     let havingStr = "";
     if (bucket === "0") {
@@ -4184,136 +4252,138 @@ router.post("/dpd-list", async (req, res) => {
       havingStr = "HAVING max_dpd >= 91";
     } else if (ranges[bucket]) {
       const [minDPD, maxDPD] = ranges[bucket];
-      havingStr = `HAVING max_dpd BETWEEN ${Number(minDPD)} AND ${Number(maxDPD)}`;
+      havingStr = `HAVING max_dpd BETWEEN ${minDPD} AND ${maxDPD}`;
     } else {
       return res.status(400).json({ error: "Invalid bucket" });
     }
     const isZero = bucket === "0";
 
-    // helper: fixed “out” (SELECT) collations
-    const outProduct = (label) =>
-      `CAST('${label}' AS CHAR CHARACTER SET utf8mb4) COLLATE ${OUT_COLLATE}`;
-
-    const outLan = (expr) =>
-      // if any source columns are not utf8mb4, use CONVERT(... USING utf8mb4) first:
-      `CAST(${expr} AS CHAR) COLLATE ${OUT_COLLATE}`;
-
-    const outName = (expr) =>
-      `CAST(${expr} AS CHAR) COLLATE ${OUT_COLLATE}`;
-
-    // Build one product branch. We:
-    // - GROUP BY rps.lan
-    // - output lan as MAX(rps.lan) collated (value is identical per group)
-    // - output customer_name as MAX(b.customer_name) collated
-    const branch = ({ label, rpsTable, bookTable }) => `
-      SELECT ${outProduct(label)} AS product, q.*
-      FROM (
-        SELECT
-          /* normalized outputs */
-          ${outLan("MAX(rps.lan)")}            AS lan,
-          ${outName("MAX(b.customer_name)")}   AS customer_name,
-
-          ${isZero
-            ? `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
-                        THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
-                        ELSE 0 END)`
-            : `MAX(IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)))`
-          } AS max_dpd,
-
-          ${isZero
-            ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0)       ELSE 0 END)`
-            : `SUM(IFNULL(rps.emi,0))`
-          } AS overdue_emi,
-
-          ${isZero
-            ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.principal,0) ELSE 0 END)`
-            : `SUM(IFNULL(rps.principal,0))`
-          } AS overdue_principal,
-
-          ${isZero
-            ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest,0)  ELSE 0 END)`
-            : `SUM(IFNULL(rps.interest,0))`
-          } AS overdue_interest,
-
-          ${isZero
-            ? `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN rps.due_date ELSE NULL END)`
-            : `MAX(rps.due_date)`
-          } AS last_due_date,
-
-          /* POS via fast correlated subquery (index: (payment_date, lan)) */
-          (SELECT SUM(IFNULL(p.principal,0))
-             FROM ${rpsTable} p
-            WHERE p.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-              AND (p.payment_date IS NULL OR p.payment_date >= CURDATE())
-          ) AS pos_principal,
-
-          d.disb_date AS disbursement_date,
-          DATEDIFF(CURDATE(), d.disb_date) AS ageing_days
-
-        FROM ${rpsTable} rps
-        JOIN ${bookTable} b
-          ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-        LEFT JOIN d
-          ON d.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-        ${isZero ? "" : `WHERE rps.status <> 'Paid' AND rps.due_date < CURDATE()`}
-        GROUP BY rps.lan
-        ${havingStr}
-      ) q
-    `;
+    // helper: check if column exists
+    const tableHasColumn = async (tableName, columnName) => {
+      const [rows] = await db.promise().query(
+        `SHOW COLUMNS FROM \`${tableName}\` LIKE ?`,
+        [columnName]
+      );
+      return rows.length > 0;
+    };
 
     const branches = [];
-    if (prod === "ALL" || prod === "EV")
-      branches.push(branch({ label: "Malhotra EV", rpsTable: "manual_rps_ev_loan",      bookTable: "loan_booking_ev" }));
-    if (prod === "ALL" || prod === "BL")
-      branches.push(branch({ label: "UB Loan",      rpsTable: "manual_rps_bl_loan",      bookTable: "loan_bookings" }));
-    if (prod === "ALL" || prod === "Adikosh")
-      branches.push(branch({ label: "Adikosh",      rpsTable: "manual_rps_adikosh",      bookTable: "loan_booking_adikosh" }));
-    if (prod === "ALL" || prod === "GQ Non-FSF")
-      branches.push(branch({ label: "GQ Non-FSF",   rpsTable: "manual_rps_gq_non_fsf",   bookTable: "loan_booking_gq_non_fsf" }));
-    if (prod === "ALL" || prod === "GQ FSF")
-      branches.push(branch({ label: "GQ FSF",       rpsTable: "manual_rps_gq_fsf",       bookTable: "loan_booking_gq_fsf" }));
 
-        if (prod === "ALL" || prod === "Embifi")
-      branches.push(branch({ label: "Embifi",       rpsTable: "manual_rps_embifi_loan",       bookTable: "loan_booking_embifi" }));
+    const addBranchIfNeeded = async ({ label, key, rpsTable, bookTable }) => {
+      if (!(prod === "ALL" || prod === key)) return;
+
+      // check schema dynamically
+      const hasDealerName  = await tableHasColumn(bookTable, "dealer_name");
+      const hasBeneficiary = await tableHasColumn(bookTable, "beneficiary_name");
+      const hasDistrict    = await tableHasColumn(bookTable, "district");
+      const hasCity        = await tableHasColumn(bookTable, "current_address_city");
+
+      // dealerExpr
+      let dealerExpr;
+      if (hasDealerName && hasBeneficiary) {
+        dealerExpr = "COALESCE(MAX(b.dealer_name), MAX(b.beneficiary_name))";
+      } else if (hasDealerName) {
+        dealerExpr = "MAX(b.dealer_name)";
+      } else if (hasBeneficiary) {
+        dealerExpr = "MAX(b.beneficiary_name)";
+      } else {
+        dealerExpr = "'-'";
+      }
+
+      // districtExpr
+      let districtExpr;
+      if (hasDistrict && hasCity) {
+        districtExpr = "COALESCE(MAX(b.district), MAX(b.current_address_city))";
+      } else if (hasDistrict) {
+        districtExpr = "MAX(b.district)";
+      } else if (hasCity) {
+        districtExpr = "MAX(b.current_address_city)";
+      } else {
+        districtExpr = "'-'";
+      }
+
+      // build branch query
+      branches.push(`
+        SELECT '${label}' AS product,
+               rps.lan,
+               MAX(b.customer_name) AS customer_name,
+               ${dealerExpr} AS dealer_name,
+               ${districtExpr} AS district,
+               MAX(b.status) AS status, 
+               CASE
+                 WHEN LOWER(b.status) = 'disbursed' THEN 'Active'
+                 WHEN LOWER(b.status) IN ('fully paid','settled & closed','closed','completed','settled','closed & reopen') THEN 'Closed'
+                 ELSE 'Unknown'
+               END AS loan_status,
+               ${isZero
+                 ? `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
+                             THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END)`
+                 : `MAX(IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)))`
+               } AS max_dpd,
+               ${isZero
+                 ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END)`
+                 : `SUM(IFNULL(rps.emi,0))`
+               } AS overdue_emi,
+               ${isZero
+                 ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.principal,0) ELSE 0 END)`
+                 : `SUM(IFNULL(rps.principal,0))`
+               } AS overdue_principal,
+               ${isZero
+                 ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest,0) ELSE 0 END)`
+                 : `SUM(IFNULL(rps.interest,0))`
+               } AS overdue_interest,
+               ${isZero
+                 ? `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN rps.due_date END)`
+                 : `MAX(rps.due_date)`
+               } AS last_due_date,
+               SUM(IFNULL(rps.principal,0)) AS pos_principal
+        FROM ${rpsTable} rps
+        JOIN ${bookTable} b ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+        GROUP BY rps.lan
+        ${havingStr}
+      `);
+    };
+
+    // add branches for each product
+    await addBranchIfNeeded({ label: "BL",         key: "BL",        rpsTable: "manual_rps_bl_loan",    bookTable: "loan_bookings" });
+    await addBranchIfNeeded({ label: "EV",         key: "EV",        rpsTable: "manual_rps_ev_loan",    bookTable: "loan_booking_ev" });
+    await addBranchIfNeeded({ label: "Adikosh",    key: "Adikosh",   rpsTable: "manual_rps_adikosh",    bookTable: "loan_booking_adikosh" });
+    await addBranchIfNeeded({ label: "GQ Non-FSF", key: "GQ Non-FSF",rpsTable: "manual_rps_gq_non_fsf", bookTable: "loan_booking_gq_non_fsf" });
+    await addBranchIfNeeded({ label: "GQ FSF",     key: "GQ FSF",    rpsTable: "manual_rps_gq_fsf",     bookTable: "loan_booking_gq_fsf" });
+    await addBranchIfNeeded({ label: "Embifi",     key: "Embifi",    rpsTable: "manual_rps_embifi_loan",bookTable: "loan_booking_embifi" });
 
     if (!branches.length) {
       return res.json({ rows: [], pagination: { page, pageSize, total: 0 } });
     }
 
-    // Sorting (whitelist)
+    // Sorting
     const SORT_MAP = {
       pos: "pos_principal",
       emi: "overdue_emi",
       dpd: "max_dpd",
       due: "last_due_date",
       ageing: "ageing_days",
-      // you can also expose 'name'/'lan' if required later
     };
     const sortKey = (typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd");
     const sortCol = SORT_MAP[sortKey] || SORT_MAP.dpd;
     const sortDir = (String(sortDirRaw || "desc").toLowerCase() === "asc") ? "ASC" : "DESC";
 
-    // stable tie-breakers
-    const ties = [];
-    if (sortCol !== "max_dpd")       ties.push("max_dpd DESC");
-    if (sortCol !== "last_due_date") ties.push("last_due_date DESC");
-    ties.push("lan ASC");
-    const orderClause = `ORDER BY ${sortCol} ${sortDir}${ties.length ? ", " + ties.join(", ") : ""}`;
+    const orderClause = `ORDER BY ${sortCol} ${sortDir}, lan ASC`;
 
-    // One pass with CTE for disbursement min-date (visible to all branches)
+    // Final SQL
     const sql = `
       WITH d AS (
         SELECT lan, MIN(Disbursement_Date) AS disb_date
         FROM ev_disbursement_utr
         GROUP BY lan
+      ),
+      base AS (
+        ${branches.join(" UNION ALL ")}
       )
-      SELECT *
-      FROM (
-        SELECT q.*, COUNT(*) OVER() AS total_rows
-        FROM (
-          ${branches.join(" UNION ALL ")}
-        ) q
-      ) z
+      SELECT base.*, d.disb_date, DATEDIFF(CURDATE(), d.disb_date) AS ageing_days,
+             COUNT(*) OVER() AS total_rows
+      FROM base
+      LEFT JOIN d ON d.lan = base.lan
       ${orderClause}
       LIMIT ? OFFSET ?
     `;
@@ -4328,8 +4398,6 @@ router.post("/dpd-list", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch DPD list" });
   }
 });
-
-
 
 /** -------------------- Export current DPD page via email -------------------- */
 router.post("/dpd-export-email", async (req, res) => {
