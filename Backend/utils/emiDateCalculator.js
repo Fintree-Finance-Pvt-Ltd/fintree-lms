@@ -116,6 +116,16 @@ const excelSerialDateToJS = (value) => {
   return null;
 };
 
+//// clampDay Function //////////////////
+function clampDay(year, month, day) {
+    // JS months are 0-indexed: 0=Jan, 1=Feb, ... 11=Dec
+    const lastDay = new Date(year, month + 1, 0).getDate(); 
+    return Math.min(day, lastDay);
+}
+
+
+
+
 
 function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset = 0, salaryDay ) {
     const disbDate = new Date(disbursementDate);
@@ -235,6 +245,10 @@ else if (lender === "GQ FSF") {
 
 /////////////////// 
   // ✅ Embifi: Monthly Loan
+
+
+
+
     else if (lender === "EV Loan" && product === "Monthly Loan") {
         const dueDate = new Date(disbDate);
         dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
