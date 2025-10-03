@@ -6,15 +6,6 @@ const db = require("../config/db");
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// ✅ Function to Convert Excel Serial Date to `YYYY-MM-DD`
-// const excelSerialDateToJS = (serial) => {
-//     if (!serial) return null; // Handle empty date values
-//     const utc_days = Math.floor(serial - 25569); 
-//     const utc_value = utc_days * 86400; // Convert to seconds
-//     return new Date(utc_value * 1000).toISOString().split("T")[0]; // Convert to YYYY-MM-DD
-// };
-
-// ✅ Convert Excel Serial Date to MySQL Date Format (YYYY-MM-DD)
 const excelSerialDateToJS = (value) => {
   if (!value) return null;
 
@@ -131,5 +122,89 @@ router.get("/:lan", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
+
+//////////// 20 % amount charges ////////////////
+// ✅ Upload GQ Non-FSF / FSF 20% Amount Excel API
+router.post("/upload-20percent", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+  try {
+    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    for (const row of sheetData) {
+      const product = row["Product"];
+      const lan = row["LAN"];
+      const appId = row["App id"];
+      const amount = row["20% Amount"];
+      const utr = row["UTR"];
+      const paymentDate = row["Payment date"] ? excelSerialDateToJS(row["Payment date"]) : null;
+
+      // Decide which table & booking table to check
+      let targetTable = "";
+      let bookingTable = "";
+
+      if (product === "GQNonFSF") {
+        targetTable = "GQNonFSF_20PercentAmount";
+        bookingTable = "loan_booking_gq_non_fsf";
+      } else if (product === "GQFSF") {
+        targetTable = "GQFSF_20PercentAmount";
+        bookingTable = "loan_booking_gq_fsf";
+      } else {
+        console.log(`Skipping unknown product: ${product}`);
+        continue; // Skip row if product does not match
+      }
+
+      // ✅ Step 1: Check if LAN & App_id exist in respective booking table
+      const checkBookingQuery = `SELECT id FROM ${bookingTable} WHERE lan = ? AND app_id = ? LIMIT 1`;
+
+      db.query(checkBookingQuery, [lan, appId], (err, bookingResults) => {
+        if (err) {
+          console.error("Booking Table Check Error:", err);
+          return;
+        }
+
+        if (bookingResults.length === 0) {
+          console.log(`No matching record found in ${bookingTable} for LAN: ${lan}, App_id: ${appId}`);
+          return; // Skip insert
+        }
+
+        // ✅ Step 2: Check if already inserted in target table
+        const checkTargetQuery = `SELECT id FROM ${targetTable} WHERE lan = ? AND app_id = ? LIMIT 1`;
+
+        db.query(checkTargetQuery, [lan, appId], (err2, targetResults) => {
+          if (err2) {
+            console.error("Target Table Check Error:", err2);
+            return;
+          }
+
+          if (targetResults.length === 0) {
+            // ✅ Step 3: Insert into target table
+            const insertQuery = `
+              INSERT INTO ${targetTable} 
+              (product, lan, app_id, amount_20percent, utr, payment_date)
+              VALUES (?, ?, ?, ?, ?, ?)
+            `;
+
+            db.query(insertQuery, [product, lan, appId, amount, utr, paymentDate], (err3) => {
+              if (err3) console.error("Database Insert Error:", err3);
+              else console.log(`Inserted into ${targetTable} for LAN: ${lan}, App_id: ${appId}`);
+            });
+          } else {
+            console.log(`Skipping duplicate in ${targetTable} for LAN: ${lan}, App_id: ${appId}`);
+          }
+        });
+      });
+    }
+
+    res.json({ message: "20% Amount data uploaded successfully (with booking table validation)" });
+
+  } catch (error) {
+    console.error("Error processing file:", error);
+    res.status(500).json({ message: "Error processing file" });
+  }
+});
+
 
 module.exports = router;
