@@ -7,14 +7,12 @@ const router = express.Router();
 const util = require("util");
 
 const upload = multer({ storage: multer.memoryStorage() });
-const query = util.promisify(db.query).bind(db); // ✅ Promisify MySQL queries
-
-
+const query = util.promisify(db.query).bind(db);
 // ✅ Convert Excel Serial Date or string date to YYYY-MM-DD
 const excelDateToJSDate = (value) => {
   if (!value) return null;
 
-  // Case 1: Excel serial number (e.g., 44645)
+  // Case 1: Excel serial number (e.g., 45687)
   if (!isNaN(value)) {
     const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel base date
     const correctDate = new Date(excelEpoch.getTime() + value * 86400000);
@@ -25,28 +23,18 @@ const excelDateToJSDate = (value) => {
   if (typeof value === "string" && value.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
     const [day, monthAbbr, yearShort] = value.split("-");
     const monthNames = {
-      Jan: 0,
-      Feb: 1,
-      Mar: 2,
-      Apr: 3,
-      May: 4,
-      Jun: 5,
-      Jul: 6,
-      Aug: 7,
-      Sep: 8,
-      Oct: 9,
-      Nov: 10,
-      Dec: 11,
+      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
     };
     const month = monthNames[monthAbbr];
     if (month === undefined) return null;
     const year = parseInt("20" + yearShort, 10);
-    return new Date(Date.UTC(parseInt(year), month, parseInt(day)))
+    return new Date(Date.UTC(year, month, parseInt(day)))
       .toISOString()
       .split("T")[0];
   }
 
-  // ✅ Case 3: "DD-MM-YYYY" (your format)
+  // Case 3: "DD-MM-YYYY"
   if (typeof value === "string" && value.match(/^\d{2}-\d{2}-\d{4}$/)) {
     const [day, month, year] = value.split("-");
     return new Date(`${year}-${month}-${day}`).toISOString().split("T")[0];
@@ -54,7 +42,6 @@ const excelDateToJSDate = (value) => {
 
   return null;
 };
-
 
 
 
@@ -124,9 +111,7 @@ router.get("/:lan", async (req, res) => {
     }
 });
 
-
-////// 20% Amount Upload API //////
-
+// ✅ Upload 20% Amount API
 router.post("/upload-20percent", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -135,7 +120,7 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
     const sheetName = workbook.SheetNames[0];
     const rawSheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: null });
 
-    // ✅ Normalize keys (trim, lowercase, replace % and spaces with _)
+    // ✅ Normalize column headers
     const sheetData = rawSheetData.map(row => {
       const cleanRow = {};
       for (let key in row) {
@@ -149,20 +134,20 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
       const product = row["product"];
       const lan = row["lan"];
       const appId = row["app_id"];
-      const amount = row["20percent_amount"] ?? row["20_percent_amount"]; // handle both cases
+      const amount = row["20percent_amount"];
       const utr = row["utr"];
       const rawPaymentDate = row["payment_date"];
       const paymentDate = rawPaymentDate ? excelDateToJSDate(rawPaymentDate) : null;
 
-      console.log("DEBUG:", row);
+      console.log("DEBUG ROW:", row);
 
-      // ✅ Check required fields safely (not falsy check)
+      // ✅ Check required fields (null/undefined safe)
       if (!product || !lan || appId == null || amount == null || !utr) {
         console.warn("⚠️ Row skipped due to missing required fields:", row);
         continue;
       }
 
-      // Decide which table & booking table
+      // ✅ Decide target table
       let targetTable = "";
       let bookingTable = "";
       if (product === "GQNonFSF") {
@@ -198,7 +183,7 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
         continue;
       }
 
-      // ✅ Step 3: Insert
+      // ✅ Step 3: Insert into target table
       await query(
         `INSERT INTO ${targetTable} 
          (product, lan, app_id, amount_20percent, utr, payment_date) 
@@ -216,6 +201,4 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
     res.status(500).json({ message: "Error processing file" });
   }
 });
-
-
 module.exports = router;
