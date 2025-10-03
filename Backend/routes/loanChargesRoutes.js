@@ -11,22 +11,45 @@ const query = util.promisify(db.query).bind(db); // ✅ Promisify MySQL queries
 
 
 // ✅ Convert Excel Serial Date or string date to YYYY-MM-DD
-const excelSerialDateToJS = (value) => {
+const excelDateToJSDate = (value) => {
   if (!value) return null;
 
-  // Case 1: Excel numeric serial (e.g., 45687)
+  // Case 1: Excel serial number (e.g., 44645)
   if (!isNaN(value)) {
-    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel base date
     const correctDate = new Date(excelEpoch.getTime() + value * 86400000);
-    return correctDate.toISOString().split("T")[0];
+    return correctDate.toISOString().split("T")[0]; // YYYY-MM-DD
   }
 
-  // Case 2: Textual date (e.g., "03-10-2025" or "10-Mar-25")
-  if (typeof value === "string") {
-    const parsed = new Date(value);
-    if (!isNaN(parsed)) {
-      return parsed.toISOString().split("T")[0];
-    }
+  // Case 2: Text format "DD-MMM-YY" like "10-Mar-24"
+  if (typeof value === "string" && value.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
+    const [day, monthAbbr, yearShort] = value.split("-");
+    const monthNames = {
+      Jan: 0,
+      Feb: 1,
+      Mar: 2,
+      Apr: 3,
+      May: 4,
+      Jun: 5,
+      Jul: 6,
+      Aug: 7,
+      Sep: 8,
+      Oct: 9,
+      Nov: 10,
+      Dec: 11,
+    };
+    const month = monthNames[monthAbbr];
+    if (month === undefined) return null;
+    const year = parseInt("20" + yearShort, 10);
+    return new Date(Date.UTC(parseInt(year), month, parseInt(day)))
+      .toISOString()
+      .split("T")[0];
+  }
+
+  // ✅ Case 3: "DD-MM-YYYY" (your format)
+  if (typeof value === "string" && value.match(/^\d{2}-\d{2}-\d{4}$/)) {
+    const [day, month, year] = value.split("-");
+    return new Date(`${year}-${month}-${day}`).toISOString().split("T")[0];
   }
 
   return null;
@@ -117,7 +140,7 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
       const amount = row["20% Amount"];
       const utr = row["UTR"]?.trim();
       const rawPaymentDate = row["Payment date"];
-      const paymentDate = rawPaymentDate ? excelSerialDateToJS(rawPaymentDate) : null;
+      const paymentDate =  rawPaymentDate? excelDateToJSDate(rawPaymentDate) : null;
 
       console.log("DEBUG DATE:", rawPaymentDate, "=>", paymentDate);
 
