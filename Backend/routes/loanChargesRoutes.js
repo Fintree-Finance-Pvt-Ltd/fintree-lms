@@ -124,7 +124,10 @@ router.get("/:lan", async (req, res) => {
 });
 
 //////////// 20 % amount charges ////////////////
-// ✅ Upload GQ Non-FSF / FSF 20% Amount Excel API
+const util = require("util");
+const query = util.promisify(db.query).bind(db); // ✅ Convert db.query to Promise
+
+// ✅ Upload API with booking check + safe insert
 router.post("/upload-20percent", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -134,17 +137,21 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
     for (const row of sheetData) {
-      const product = row["Product"];
-      const lan = row["LAN"];
+      const product = row["Product"]?.trim();
+      const lan = row["LAN"]?.trim();
       const appId = row["App id"];
       const amount = row["20% Amount"];
-      const utr = row["UTR"];
+      const utr = row["UTR"]?.trim();
       const paymentDate = row["Payment date"] ? excelSerialDateToJS(row["Payment date"]) : null;
 
-      // Decide which table & booking table to check
+      if (!product || !lan || !appId || !amount || !utr || !paymentDate) {
+        console.warn("⚠️ Row skipped due to missing required fields:", row);
+        continue;
+      }
+
+      // Decide which table & booking table
       let targetTable = "";
       let bookingTable = "";
-
       if (product === "GQNonFSF") {
         targetTable = "GQNonFSF_20PercentAmount";
         bookingTable = "loan_booking_gq_non_fsf";
@@ -152,56 +159,47 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
         targetTable = "GQFSF_20PercentAmount";
         bookingTable = "loan_booking_gq_fsf";
       } else {
-        console.log(`Skipping unknown product: ${product}`);
-        continue; // Skip row if product does not match
+        console.warn(`⚠️ Unknown product skipped: ${product}`);
+        continue;
       }
 
-      // ✅ Step 1: Check if LAN & App_id exist in respective booking table
-      const checkBookingQuery = `SELECT id FROM ${bookingTable} WHERE lan = ? AND app_id = ? LIMIT 1`;
+      // ✅ Step 1: Check booking table
+      const booking = await query(
+        `SELECT id FROM ${bookingTable} WHERE lan = ? AND app_id = ? LIMIT 1`,
+        [lan, appId]
+      );
 
-      db.query(checkBookingQuery, [lan, appId], (err, bookingResults) => {
-        if (err) {
-          console.error("Booking Table Check Error:", err);
-          return;
-        }
+      if (booking.length === 0) {
+        console.warn(`⚠️ Not found in ${bookingTable}: LAN=${lan}, App_id=${appId}`);
+        continue;
+      }
 
-        if (bookingResults.length === 0) {
-          console.log(`No matching record found in ${bookingTable} for LAN: ${lan}, App_id: ${appId}`);
-          return; // Skip insert
-        }
+      // ✅ Step 2: Check duplicate in target table
+      const exists = await query(
+        `SELECT id FROM ${targetTable} WHERE lan = ? AND app_id = ? LIMIT 1`,
+        [lan, appId]
+      );
 
-        // ✅ Step 2: Check if already inserted in target table
-        const checkTargetQuery = `SELECT id FROM ${targetTable} WHERE lan = ? AND app_id = ? LIMIT 1`;
+      if (exists.length > 0) {
+        console.log(`⏩ Skipping duplicate: ${lan}, App_id=${appId}`);
+        continue;
+      }
 
-        db.query(checkTargetQuery, [lan, appId], (err2, targetResults) => {
-          if (err2) {
-            console.error("Target Table Check Error:", err2);
-            return;
-          }
+      // ✅ Step 3: Insert
+      await query(
+        `INSERT INTO ${targetTable} 
+        (product, lan, app_id, amount_20percent, utr, payment_date) 
+        VALUES (?, ?, ?, ?, ?, ?)`,
+        [product, lan, appId, amount, utr, paymentDate]
+      );
 
-          if (targetResults.length === 0) {
-            // ✅ Step 3: Insert into target table
-            const insertQuery = `
-              INSERT INTO ${targetTable} 
-              (product, lan, app_id, amount_20percent, utr, payment_date)
-              VALUES (?, ?, ?, ?, ?, ?)
-            `;
-
-            db.query(insertQuery, [product, lan, appId, amount, utr, paymentDate], (err3) => {
-              if (err3) console.error("Database Insert Error:", err3);
-              else console.log(`Inserted into ${targetTable} for LAN: ${lan}, App_id: ${appId}`);
-            });
-          } else {
-            console.log(`Skipping duplicate in ${targetTable} for LAN: ${lan}, App_id: ${appId}`);
-          }
-        });
-      });
+      console.log(`✅ Inserted into ${targetTable}: LAN=${lan}, App_id=${appId}`);
     }
 
-    res.json({ message: "20% Amount data uploaded successfully (with booking table validation)" });
+    res.json({ message: "20% Amount data uploaded successfully" });
 
   } catch (error) {
-    console.error("Error processing file:", error);
+    console.error("❌ Error processing file:", error);
     res.status(500).json({ message: "Error processing file" });
   }
 });
