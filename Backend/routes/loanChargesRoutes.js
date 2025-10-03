@@ -124,27 +124,40 @@ router.get("/:lan", async (req, res) => {
     }
 });
 
-/////////////////// Upload 20% Amount ///////////////////
+
+////// 20% Amount Upload API //////
+
 router.post("/upload-20percent", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
   try {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
-    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    const rawSheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: null });
+
+    // ✅ Normalize keys (trim, lowercase, replace % and spaces with _)
+    const sheetData = rawSheetData.map(row => {
+      const cleanRow = {};
+      for (let key in row) {
+        const newKey = key.trim().toLowerCase().replace(/%/g, "percent").replace(/\s+/g, "_");
+        cleanRow[newKey] = row[key];
+      }
+      return cleanRow;
+    });
 
     for (const row of sheetData) {
-      const product = row["Product"]?.trim();
-      const lan = row["LAN"]?.trim();
-      const appId = row["App id"];
-      const amount = row["20% Amount"];
-      const utr = row["UTR"]?.trim();
-      const rawPaymentDate = row["Payment date"];
-      const paymentDate =  rawPaymentDate? excelDateToJSDate(rawPaymentDate) : null;
+      const product = row["product"];
+      const lan = row["lan"];
+      const appId = row["app_id"];
+      const amount = row["20percent_amount"] ?? row["20_percent_amount"]; // handle both cases
+      const utr = row["utr"];
+      const rawPaymentDate = row["payment_date"];
+      const paymentDate = rawPaymentDate ? excelDateToJSDate(rawPaymentDate) : null;
 
-      console.log("DEBUG DATE:", rawPaymentDate, "=>", paymentDate);
+      console.log("DEBUG:", row);
 
-      if (!product || !lan || !appId || !amount || !utr) {
+      // ✅ Check required fields safely (not falsy check)
+      if (!product || !lan || appId == null || amount == null || !utr) {
         console.warn("⚠️ Row skipped due to missing required fields:", row);
         continue;
       }
@@ -174,7 +187,7 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
         continue;
       }
 
-      // ✅ Step 2: Check duplicate in target table
+      // ✅ Step 2: Check duplicate
       const exists = await query(
         `SELECT id FROM ${targetTable} WHERE lan = ? AND app_id = ? LIMIT 1`,
         [lan, appId]
@@ -185,11 +198,11 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
         continue;
       }
 
-      // ✅ Step 3: Insert (allow NULL for payment_date)
+      // ✅ Step 3: Insert
       await query(
         `INSERT INTO ${targetTable} 
-        (product, lan, app_id, amount_20percent, utr, payment_date) 
-        VALUES (?, ?, ?, ?, ?, ?)`,
+         (product, lan, app_id, amount_20percent, utr, payment_date) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
         [product, lan, appId, amount, utr, paymentDate]
       );
 
@@ -203,5 +216,6 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
     res.status(500).json({ message: "Error processing file" });
   }
 });
+
 
 module.exports = router;
