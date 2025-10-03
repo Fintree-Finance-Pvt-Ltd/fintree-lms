@@ -249,13 +249,13 @@ else if (lender === "EV Loan" && product === "Monthly Loan") {
     const dueDate = new Date(disbDate);
     dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
 
-    const targetDay = disbDay <= 15 ? 15 : 30;
-    dueDate.setDate(targetDay);
+    // Keep the same day as disbursement
+    dueDate.setDate(new Date(disbDate).getDate());
 
     console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
     return dueDate;
 }
-
+    // ///////////////////
 
 
     // ✅ BL Loan: Daily Loan starts from next day
