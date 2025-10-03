@@ -5,6 +5,8 @@ const db = require("../config/db");
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const query = util.promisify(db.query).bind(db); // ✅ Promisify MySQL queries
+
 
 const excelSerialDateToJS = (value) => {
   if (!value) return null;
@@ -123,11 +125,7 @@ router.get("/:lan", async (req, res) => {
     }
 });
 
-//////////// 20 % amount charges ////////////////
-const util = require("util");
-const query = util.promisify(db.query).bind(db); // ✅ Convert db.query to Promise
-
-// ✅ Upload API with booking check + safe insert
+/////////////////// Upload 20% Amount ///////////////////
 router.post("/upload-20percent", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -142,9 +140,12 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
       const appId = row["App id"];
       const amount = row["20% Amount"];
       const utr = row["UTR"]?.trim();
-      const paymentDate = row["Payment date"] ? excelSerialDateToJS(row["Payment date"]) : null;
+      const rawPaymentDate = row["Payment date"];
+      const paymentDate = rawPaymentDate ? excelSerialDateToJS(rawPaymentDate) : null;
 
-      if (!product || !lan || !appId || !amount || !utr || !paymentDate) {
+      console.log("DEBUG DATE:", rawPaymentDate, "=>", paymentDate);
+
+      if (!product || !lan || !appId || !amount || !utr) {
         console.warn("⚠️ Row skipped due to missing required fields:", row);
         continue;
       }
@@ -185,7 +186,7 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
         continue;
       }
 
-      // ✅ Step 3: Insert
+      // ✅ Step 3: Insert (allow NULL for payment_date)
       await query(
         `INSERT INTO ${targetTable} 
         (product, lan, app_id, amount_20percent, utr, payment_date) 
@@ -203,6 +204,5 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
     res.status(500).json({ message: "Error processing file" });
   }
 });
-
 
 module.exports = router;
