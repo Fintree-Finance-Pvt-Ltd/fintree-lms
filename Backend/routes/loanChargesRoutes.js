@@ -4,6 +4,8 @@ const xlsx = require("xlsx");
 const db = require("../config/db");
 
 const router = express.Router();
+const util = require("util");
+
 const upload = multer({ storage: multer.memoryStorage() });
 const query = util.promisify(db.query).bind(db); // ✅ Promisify MySQL queries
 
