@@ -517,6 +517,7 @@ import * as XLSX from "xlsx"; // Excel export
 import DataTable from "../ui/DataTable"; // <- adjust this path to where your DataTable util lives
 
 const bucketMeta = [
+   { key: "closed", label: "Closed Loans" },
   { key: "0", label: "On Time" },
   { key: "0-30", label: "1–30 days" },
   { key: "30-60", label: "30–60 days" },
@@ -526,6 +527,7 @@ const bucketMeta = [
 
 const DpdBuckets = ({ filters }) => {
   const emptySummary = {
+    "closed": { loans: 0, overdue_emi: 0 },
     "0": { loans: 0, overdue_emi: 0 },
     "0-30": { loans: 0, overdue_emi: 0 },
     "30-60": { loans: 0, overdue_emi: 0 },

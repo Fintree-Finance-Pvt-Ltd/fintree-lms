@@ -1684,6 +1684,8 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
   }
 });
 
+
+
 ////////////////// UPLOAD UTR........./////////////////////////////////
 // router.post("/upload-utr", upload.single("file"), async (req, res) => {
 //   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
@@ -2925,6 +2927,168 @@ function buildCoColumns(coApplicants = []) {
   return out;
 }
 
+
+router.post("/v1/finsso-lb", verifyApiKey, async (req, res) => {
+  try {
+    const data = req.body; // Direct JSON
+    console.log("Incoming lenderType:", req.body.lenderType);
+    console.log("Received JSON:", data);
+
+    if (!data.lenderType) {
+      return res.status(400).json({ message: "Lender type is required." });
+    }
+
+    const lenderType = data.lenderType.trim();
+
+    // ✅ Restrict lender
+    if (lenderType.toLowerCase() !== "finsso") {
+      return res.status(400).json({
+        message: `Invalid lenderType: ${lenderType}. Only 'Finsso' loans can be inserted.`,
+      });
+    }
+
+    // ✅ Required fields (all except middleName)
+    const requiredFields = [
+      "loginDate",
+      "batchId",
+      "firstName",
+      "gender",
+      "dob",
+      "fatherName",
+      "mobileNumber",
+      "emailId",
+      "panNumber",
+      "aadharNumber",
+      "currentAddress",
+      "currentVillageCity",
+      "currentDistrict",
+      "currentState",
+      "currentPincode",
+      "permanentAddress",
+      "permanentState",
+      "permanentPincode",
+      "loanAmount",
+      "interestRate",
+      "tenure",
+      "emiAmount",
+      "salaryDay",
+      "cibilScore",
+      "product",
+      "lenderType",
+      "bankName",
+      "nameInBank",
+      "accountNumber",
+      "ifsc",
+      "sanctionDate",
+      "preEmi",
+      "processingFee",
+      "netDisbursement",
+    ];
+
+    for (const field of requiredFields) {
+      if (!data[field] && data[field] !== 0) {
+        console.error(`❌ Missing field: ${field}`);
+        return res.status(400).json({ message: `${field} is required.` });
+      }
+    }
+
+    // ��� Check duplicates
+    const [existingRecords] = await db
+      .promise()
+      .query(
+        `SELECT lan FROM loan_booking_finsso WHERE pan_number = ? OR aadhar_number = ?`,
+        [data.panCard, data.aadharNumber]
+      );
+
+    if (existingRecords.length > 0) {
+      return res.json({
+        message: `Customer already exists for Pan: ${data.panNumber} or Aadhar: ${data.aadharNumber}`,
+      });
+    }
+
+    // ��� Generate Loan IDs
+    const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+    const customerName = `${data.firstName || ""} ${
+      data.lastName || ""
+    }`.trim();
+    const agreement_date = excelDateToJSDate(data.sanctionDate);
+    // ��� Insert into DB
+    await db.promise().query(
+      `INSERT INTO loan_booking_finsso (
+    lan, partner_loan_id, login_date, batch_id,
+    first_name, middle_name, last_name, gender, dob,
+    father_name, mother_name, mobile_number, email_id,
+    pan_number, aadhar_number,
+    current_address, current_village_city, current_district, current_state, current_pincode,
+    permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
+    loan_amount, interest_rate, loan_tenure, emi_amount, salary_day,
+    cibil_score, product, lender,
+    bank_name, name_in_bank, account_number, ifsc,
+    sanction_date, pre_emi, processing_fee, net_disbursement, status, customer_name,agreement_date
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        lan, // 1
+        partnerLoanId, // 2
+        data.loginDate, // 3  
+        data.batchId, // 4 
+        data.firstName, // 5
+        data.middleName, // 6
+        data.lastName, // 7
+        data.gender, // 8  
+        data.dob, // 9
+        data.fatherName, // 10
+        data.motherName, // 11
+        data.mobileNumber, // 12
+        data.emailId, // 13
+        data.panNumber, // 14
+        data.aadharNumber, // 15
+        data.currentAddress, // 16
+        data.currentVillageCity, // 17
+        data.currentDistrict, // 18
+        data.currentState, // 19
+        data.currentPincode, // 20
+        data.permanentAddress, // 21
+        data.permanentVillageCity, // 22
+        data.permanentDistrict, // 23
+        data.permanentState, // 24
+        data.permanentPincode, // 25
+        data.loanAmount, // 26
+        data.interestRate, // 27
+        data.tenure, // 28
+        data.emiAmount, // 29
+        data.salaryDay, // 30
+        data.cibilScore, // 31
+        data.product, // 32
+        data.lenderType, // 33
+        data.bankName, // 34
+        data.nameInBank, // 35
+        data.accountNumber, // 36
+        data.ifsc, // 37
+        data.sanctionDate, // 38
+        data.preEmi, // 39
+        data.processingFee, // 40
+        data.netDisbursement, // 41
+        "Login",
+        customerName, // 42 
+        data.sanctionDate, // 43
+      ]
+    );
+
+    res.json({
+      message: "Finsso loan saved successfully.",
+      partnerLoanId,
+      lan,
+    });
+  } catch (error) {
+    console.error("❌ Error in JSON Upload:", error);
+    res.status(500).json({
+      message: "Upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
+
 // ---------- route ----------
 // ---------- base + per-block columns ----------
 const COLS_BASE = [
@@ -2941,7 +3105,7 @@ const COLS_BASE = [
 ];
 
 // 21 columns per co-app/guarantor block
-function colsForBlock(i) {
+function colsForBlock(i) {  
   return [
     `coapplicant_name_${i}`,
     `coapplicant_dob_${i}`,
