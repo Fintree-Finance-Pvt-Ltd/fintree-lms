@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import * as XLSX from "xlsx";
 import api from "../api/api";
-import "../styles/CreateLoanBooking.css"; // same styles
+import "../styles/CreateLoanBooking.css";
 
 const ForecloserUpload = () => {
   const [file, setFile] = useState(null);
+  const [uploadType, setUploadType] = useState("");
   const [previewData, setPreviewData] = useState([]);
   const [uploadPercentage, setUploadPercentage] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -35,19 +36,34 @@ const ForecloserUpload = () => {
       setIsError(true);
       return;
     }
+    if (!uploadType) {
+      setMessage("❌ Please select a charge type.");
+      setIsError(true);
+      return;
+    }
 
     const formData = new FormData();
-    formData.append("excel", file);
+    formData.append("file", file); // ✅ backend expects "file"
+    formData.append("type", uploadType);
 
     setIsUploading(true);
     setUploadPercentage(0);
     setMessage("");
 
+    let apiEndpoint = "";
+    if (uploadType === "foreclosure-upload") {
+      apiEndpoint = "/forecloser/upload";
+    } else if (uploadType === "20percent-amount") {
+      apiEndpoint = "/forecloser/upload-20percent";
+    }
+
     try {
-      const res = await api.post(`/forecloser/upload`, formData, {
+      await api.post(apiEndpoint, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (progressEvent) => {
-          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          const percent = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
           setUploadPercentage(percent);
         },
       });
@@ -55,6 +71,8 @@ const ForecloserUpload = () => {
       setMessage("✅ Upload successful");
       setIsError(false);
       setFile(null);
+      setUploadType("");
+      setPreviewData([]);
     } catch (err) {
       console.error("❌ Upload failed", err);
       setMessage("❌ Upload failed. Please try again.");
@@ -69,52 +87,49 @@ const ForecloserUpload = () => {
     <div className="loan-booking-container">
       <h4>📤 Foreclosure & Charge Collection Upload</h4>
 
+      <label>Select Excel File</label>
       <input
+        key={file ? file.name : "empty"} // ✅ reset file input
         type="file"
-        accept=".xlsx, .xls"
+        accept=".xlsx"
         onChange={handleFile}
+        required
       />
 
-      <button className="submit-btn" onClick={handleUpload} disabled={isUploading}>
+      <label>Charge Type</label>
+      <select
+        value={uploadType}
+        onChange={(e) => setUploadType(e.target.value)}
+        required
+      >
+        <option value="">Select Type</option>
+        <option value="foreclosure-upload">Foreclosure Upload</option>
+        <option value="20percent-amount">20% Amount Upload</option>
+      </select>
+
+      <button
+        className="submit-btn"
+        onClick={handleUpload}
+        disabled={isUploading}
+      >
         {isUploading ? "Uploading..." : "Upload"}
       </button>
 
       {uploadPercentage > 0 && (
         <div className="progress-bar">
-          <div className="progress" style={{ width: `${uploadPercentage}%` }}></div>
+          <div
+            className="progress"
+            style={{ width: `${uploadPercentage}%` }}
+          ></div>
           <span>{uploadPercentage}%</span>
         </div>
       )}
 
       {message && (
-        <p className={isError ? "error-message" : "success-message"}>{message}</p>
+        <p className={isError ? "error-message" : "success-message"}>
+          {message}
+        </p>
       )}
-
-      {/* 
-      Uncomment below to show preview
-      {previewData.length > 0 && (
-        <div className="forecloser-table-wrapper">
-          <table className="forecloser-preview-table">
-            <thead>
-              <tr>
-                {Object.keys(previewData[0]).map((key) => (
-                  <th key={key}>{key}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {previewData.map((row, i) => (
-                <tr key={i}>
-                  {Object.values(row).map((val, j) => (
-                    <td key={j}>{val}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      */}
     </div>
   );
 };

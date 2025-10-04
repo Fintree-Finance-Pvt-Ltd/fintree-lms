@@ -4,65 +4,44 @@ const xlsx = require("xlsx");
 const db = require("../config/db");
 
 const router = express.Router();
+const util = require("util");
+
 const upload = multer({ storage: multer.memoryStorage() });
-
-// ✅ Function to Convert Excel Serial Date to `YYYY-MM-DD`
-// const excelSerialDateToJS = (serial) => {
-//     if (!serial) return null; // Handle empty date values
-//     const utc_days = Math.floor(serial - 25569); 
-//     const utc_value = utc_days * 86400; // Convert to seconds
-//     return new Date(utc_value * 1000).toISOString().split("T")[0]; // Convert to YYYY-MM-DD
-// };
-
-// ✅ Convert Excel Serial Date to MySQL Date Format (YYYY-MM-DD)
-const excelSerialDateToJS = (value) => {
+const query = util.promisify(db.query).bind(db);
+//✅ Convert Excel Serial Date or string date to YYYY-MM-DD
+const excelDateToJSDate = (value) => {
   if (!value) return null;
 
+  // Case 1: Excel serial number (e.g., 45687)
   if (!isNaN(value)) {
-    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel base date (UTC)
-
-    let correctDate = new Date(excelEpoch.getTime() + value * 86400000);
-
-    return correctDate.toISOString().split("T")[0]; // Return YYYY-MM-DD (no time manipulation)
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel base date
+    const correctDate = new Date(excelEpoch.getTime() + value * 86400000);
+    return correctDate.toISOString().split("T")[0]; // YYYY-MM-DD
   }
 
-  // ✅ Case 2: Handle Text Date (e.g., "10-Mar-24")
-
+  // Case 2: Text format "DD-MMM-YY" like "10-Mar-24"
   if (typeof value === "string" && value.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
     const [day, monthAbbr, yearShort] = value.split("-");
-
     const monthNames = {
-      Jan: 0,
-      Feb: 1,
-      Mar: 2,
-      Apr: 3,
-      May: 4,
-      Jun: 5,
-      Jul: 6,
-      Aug: 7,
-      Sep: 8,
-      Oct: 9,
-      Nov: 10,
-      Dec: 11,
+      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
     };
-
     const month = monthNames[monthAbbr];
-
     if (month === undefined) return null;
-
     const year = parseInt("20" + yearShort, 10);
-
-    return new Date(Date.UTC(parseInt(day, 10), month, year))
-
+    return new Date(Date.UTC(year, month, parseInt(day)))
       .toISOString()
-
       .split("T")[0];
+  }
+
+  // Case 3: "DD-MM-YYYY"
+  if (typeof value === "string" && value.match(/^\d{2}-\d{2}-\d{4}$/)) {
+    const [day, month, year] = value.split("-");
+    return new Date(`${year}-${month}-${day}`).toISOString().split("T")[0];
   }
 
   return null;
 };
-
-
 
 
 
@@ -131,5 +110,9 @@ router.get("/:lan", async (req, res) => {
         res.status(500).json({ error: "Server error" });
     }
 });
+// 20 % amount /////
+// ✅ Convert Excel Serial Date or string date to YYYY-MM-DD
+
+
 
 module.exports = router;
