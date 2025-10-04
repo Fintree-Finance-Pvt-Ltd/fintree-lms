@@ -4138,8 +4138,7 @@ const branchClosed = (rpsTable, bookTable) => `
     COUNT(DISTINCT b.lan) AS loans,
     0 AS overdue_emi
   FROM ${bookTable} b
-  WHERE LOWER(b.status) IN ('closed','fully paid','completed','settled','paid','settled & closed','closed & reopen')
-`;
+  WHERE LOWER(b.status) <> 'disbursed'`;
 
 
 
