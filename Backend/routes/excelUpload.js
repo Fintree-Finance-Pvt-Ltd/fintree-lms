@@ -2382,7 +2382,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         }
           else if (lan.startsWith("FINE")) {
           [loanRes] = await db.promise().query(
-            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+            `SELECT loan_amount,roi_apr as interest_rate  , loan_tenure, product, lender 
              FROM loan_booking_emiclub WHERE lan = ?`, [lan]
           );
         } else {
