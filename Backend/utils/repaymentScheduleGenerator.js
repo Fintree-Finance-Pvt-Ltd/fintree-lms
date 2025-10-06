@@ -782,6 +782,96 @@ const generateRepaymentScheduleEV = async (
 
   console.log(`✅ EV RPS generated from next month for ${lan}`);
 };
+/////////////////// EMI CLUB RPS ///////////////////////
+const generateRepaymentScheduleEmiclub = async (
+  conn,           // Transaction connection
+  lan,
+  loanAmount,
+  interestRate,   // Annual % e.g. 45
+  tenure,         // in months
+  disbursementDate,
+  product,
+  lender
+) => {
+  // 1️⃣ Convert annual → monthly rate
+  const monthlyRate = (interestRate / 100) / 12;
+
+  // 2️⃣ Compute EMI using PMT formula
+  const emi = Math.round(
+    (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
+      (Math.pow(1 + monthlyRate, tenure) - 1)
+  );
+
+  console.log(`✅ EMI (calculated for ${lan}):`, emi);
+
+  // 3️⃣ Get first due date
+  const firstDueRaw = getFirstEmiDate(disbursementDate, null, lender, product);
+  const firstDueDate = new Date(firstDueRaw);
+  if (Number.isNaN(firstDueDate.getTime())) {
+    throw new Error(`Invalid first due date from getFirstEmiDate: ${firstDueRaw}`);
+  }
+
+  // 4️⃣ Generate RPS using PMT/IPMT logic
+  let openingPrincipal = loanAmount;
+  let dueDate = new Date(firstDueDate);
+  const rpsData = [];
+
+  for (let i = 1; i <= tenure; i++) {
+    const interest = Math.round(openingPrincipal * monthlyRate);
+    let principal = emi - interest;
+
+    // ✅ Final month adjustment to close the loan cleanly
+    if (i === tenure) {
+      principal = openingPrincipal;
+    }
+
+    const closingPrincipal = Math.max(0, openingPrincipal - principal);
+    const actualEmi = Math.round(principal + interest);
+
+    // ✅ Remaining fields same as this installment’s EMI, interest & principal
+    const remainingPrincipal = principal;
+    const remainingInterest = interest;
+    const remainingEmi = actualEmi;
+
+    // Push full RPS data row
+    rpsData.push([
+      lan,
+      dueDate.toISOString().split("T")[0], // due_date
+      actualEmi,                           // emi
+      interest,                            // interest
+      principal,                           // principal
+      remainingPrincipal,                  // remaining_principal = principal
+      remainingInterest,                   // remaining_interest = interest
+      remainingEmi,                        // remaining_emi = emi
+      openingPrincipal,                    // opening
+      closingPrincipal,                    // closing
+      "Pending",                           // status
+    ]);
+
+    // Prepare next iteration
+    openingPrincipal = closingPrincipal;
+    dueDate.setMonth(dueDate.getMonth() + 1);
+  }
+
+  // 5️⃣ Insert into manual_rps_emiclub (include all required fields)
+  await conn.query(
+    `INSERT INTO manual_rps_emiclub
+     (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
+     VALUES ?`,
+    [rpsData]
+  );
+
+  // 6️⃣ Update EMI in loan_booking_emiclub
+  await conn.query(
+    `UPDATE loan_booking_emiclub
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [emi, lan]
+  );
+
+  console.log(`✅ EMICLUB RPS generated  for ${lan}`);
+};
+
 
 ///////////////// BL RPS CODE OLD ////////////////////////////////
 // const generateRepaymentScheduleBL = async (lan, loanAmount, interestRate, tenure, disbursementDate, product, lender) => {
@@ -2565,6 +2655,18 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
+  }
+    else if (lender === "EMICLUB" && product === "Monthly Loan") {
+    await generateRepaymentScheduleEmiclub(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender
+    );
     } else if (lender === "GQ Non-FSF") {
     // === run generic GQ Non-FSF generator ===
     try {
@@ -2670,5 +2772,6 @@ module.exports = {
   generateRepaymentScheduleAdikosh,
   generateRepaymentSchedule,
   generateRepaymentScheduleEmbifi,
+  generateRepaymentScheduleEmiclub,
   excelSerialDateToJS,
 };
