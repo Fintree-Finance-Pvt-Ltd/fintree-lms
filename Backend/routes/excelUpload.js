@@ -3366,7 +3366,6 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       "loan_amount",
       "interest_rate",
       "loan_tenure",
-      "product",
       "bank_name",
       "name_in_bank",
       "account_number",
@@ -3450,7 +3449,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         data.loan_amount, // 25
         data.interest_rate, // 26
         data.loan_tenure, // 27
-        data.product, // 28
+        "Monthly Loan", // 28
         data.lender, // 29
         data.bank_name, // 30
         data.name_in_bank, // 31
@@ -3462,7 +3461,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         data.dealer_mobile, // 37
         data.dealer_address, // 38
         data.dealer_city, // 39
-        data.status || "Login", // 40
+         "Login", // 40
         customer_name, // 41
         agreement_date // 42
       ]
@@ -4057,7 +4056,187 @@ const parseRate = (v) => {
 //   const date = new Date(value);
 //   return isNaN(date.getTime()) ? null : date;
 // };
+//////////////// LOAN BOOKING API FOR GQ NON FSF START //////////////////////////
+router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
+  const data = req.body;
 
+  console.log("Incoming GQ NON-FSF JSON Upload:", data);
+
+  const success_rows = [];
+  const row_errors = [];
+
+  try {
+    const lenderType = data.lenderType?.trim();
+    if (!lenderType) {
+      return res.status(400).json({ message: "lenderType is required." });
+    }
+
+    // Restrict to valid lender types if needed
+    const allowedLenders = ["GQ", "NON-FSF"];
+    if (!allowedLenders.includes(lenderType.toUpperCase())) {
+      return res
+        .status(400)
+        .json({ message: `Invalid lenderType: ${lenderType}` });
+    }
+
+    // Required fields — you can tighten or relax as per your Excel logic
+    const requiredFields = ["appId", "loanAmount", "interestRate", "loanTenure"];
+    for (const field of requiredFields) {
+      if (!data[field] && data[field] !== 0) {
+        return res.status(400).json({ message: `${field} is required.` });
+      }
+    }
+
+    // 1️⃣ Duplicate check
+    const [existing] = await db
+      .promise()
+      .query(
+        `SELECT * FROM loan_booking_gq_non_fsf WHERE app_id = ?`,
+        [data.appId]
+      );
+
+    if (existing.length > 0) {
+      return res.status(400).json({
+        message: `Duplicate App ID (${data.appId}) already exists.`,
+      });
+    }
+
+    // 2️⃣ Generate IDs
+    const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+    // 3️⃣ Prepare insert query
+    const insertQuery = `
+      INSERT INTO loan_booking_gq_non_fsf (
+        partner_loan_id, lan, app_id, product, customer_type, residence_type, loan_type, disbursal_type,
+        institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
+        agreement_signature_type, loan_application_date, emi_day, company_name, fathers_name,
+        ckyc_no, customer_name, student_name, date_of_birth, gender, current_address_line1,
+        current_address_line2, current_address_line3, current_address_landmark, current_address_pincode,
+        current_address_city, current_address_state, proof_of_current_address, permanent_address_line1,
+        permanent_address_line2, permanent_address_line3, permanent_address_landmark, permanent_address_pincode,
+        permanent_address_city, permanent_address_state, office_address_line1, office_address_line2,
+        office_address_line3, office_address_landmark, office_address_pincode, office_address_city,
+        office_address_state, pan_number, employment_status, annual_income, credit_score,
+        mobile_number, email_id, institute, loan_amount_sanctioned, loan_tenure_months, monthly_emi,
+        interest_percent, monthly_interest_amount, no_of_advance_emis, advance_emi_total, subvention_amount,
+        disbursal_amount, actual_disbursement, to_be_recovered, agreement_date, interest_rate_irr,
+        flat_rate, nach_umrn, income_source, status, monthly_income, age, lender, loan_amount, interest_rate, loan_tenure
+      ) VALUES (${new Array(75).fill("?").join(",")})
+    `;
+
+    // Helper for parsing numbers safely
+    const n = (v) =>
+      v === null || v === undefined || v === ""
+        ? null
+        : Number(String(v).replace(/[^0-9.-]/g, "")) || 0;
+    const i = (v) =>
+      v === null || v === undefined || v === "" ? null : parseInt(v, 10);
+    const s = (v) =>
+      v === null || v === undefined ? "" : String(v).trim();
+
+    // 4️⃣ Map JSON → DB columns
+    const values = [
+      partnerLoanId,
+      lan,
+      s(data.appId),
+      s(data.product),
+      s(data.customerType),
+      s(data.residenceType),
+      s(data.loanType),
+      s(data.disbursalType),
+      s(data.instituteAccountNumber),
+      s(data.beneficiaryName),
+      s(data.ifscCode),
+      s(data.bankName),
+      s(data.aadhaarNumber),
+      s(data.agreementSignatureType),
+      data.loanApplicationDate || null,
+      i(data.emiDay),
+      s(data.companyName),
+      s(data.fathersName),
+      s(data.ckycNo),
+      s(data.customerName),
+      s(data.studentName),
+      data.dateOfBirth || null,
+      s(data.gender),
+      s(data.currentAddressLine1),
+      s(data.currentAddressLine2),
+      s(data.currentAddressLine3),
+      s(data.currentAddressLandmark),
+      s(data.currentAddressPincode),
+      s(data.currentAddressCity),
+      s(data.currentAddressState),
+      s(data.proofOfCurrentAddress),
+      s(data.permanentAddressLine1),
+      s(data.permanentAddressLine2),
+      s(data.permanentAddressLine3),
+      s(data.permanentAddressLandmark),
+      s(data.permanentAddressPincode),
+      s(data.permanentAddressCity),
+      s(data.permanentAddressState),
+      s(data.officeAddressLine1),
+      s(data.officeAddressLine2),
+      s(data.officeAddressLine3),
+      s(data.officeAddressLandmark),
+      s(data.officeAddressPincode),
+      s(data.officeAddressCity),
+      s(data.officeAddressState),
+      s(data.panNumber),
+      s(data.employmentStatus),
+      n(data.annualIncome),
+      s(data.creditScore),
+      s(data.mobileNumber),
+      s(data.emailId),
+      s(data.institute),
+      n(data.loanAmountSanctioned || data.loanAmount),
+      i(data.loanTenureMonths || data.loanTenure),
+      n(data.monthlyEmi),
+      n(data.interestPercent || data.interestRate),
+      n(data.monthlyInterestAmount),
+      i(data.noOfAdvanceEmis),
+      n(data.advanceEmiTotal),
+      n(data.subventionAmount),
+      n(data.disbursalAmount),
+      n(data.actualDisbursement),
+      n(data.toBeRecovered),
+      data.agreementDate || null,
+      parseFloat(data.interestRateIrr),
+      parseFloat(data.flatRate),
+      s(data.nachUmrn),
+      s(data.incomeSource),
+      s(data.status) || "Login",
+      n(data.monthlyIncome),
+      i(data.age),
+      lenderType,
+      n(data.loanAmount),
+      n(data.interestRate),
+      i(data.loanTenure),
+    ];
+
+    // 5️⃣ Execute insert
+    await db.promise().query(insertQuery, values);
+
+    success_rows.push({ app_id: data.appId, lan, partnerLoanId });
+
+    return res.json({
+      message: "GQ NON-FSF Loan saved successfully.",
+      inserted: success_rows.length,
+      success_rows,
+    });
+  } catch (err) {
+    console.error("❌ GQ NON-FSF JSON Upload Error:", err);
+    return res.status(500).json({
+      message: "Upload failed.",
+      error: err.sqlMessage || err.message,
+      row_errors,
+    });
+  }
+});
+
+
+
+
+/////////// ALDUN LOAN DATA UPLOAD //////////////////////////
 router.post("/aldun-upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded." });
