@@ -2,21 +2,21 @@ const express = require("express");
 const multer = require("multer");
 const xlsx = require("xlsx");
 const db = require("../config/db");
-const dotenv = require("dotenv");
-const { parseStringPromise } = require("xml2js");
-const axios = require("axios");
+// const dotenv = require("dotenv");
+// const { parseStringPromise } = require("xml2js");
+// const axios = require("axios");
 // const verifyApiKey = require("../middleware/authMiddleware");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { sendLoanStatusMail } = require("../jobs/mailer");
 // const { pullCIBILReport }=  require("../jobs/experianService");
-dotenv.config();
+// dotenv.config();
 
 // ================== ENV CONFIG ==================
-const EXPERIAN_USER = process.env.EXPERIAN_USER;
-const EXPERIAN_PASSWORD = process.env.EXPERIAN_PASSWORD;
-const EXPERIAN_URL =
-  process.env.EXPERIAN_URL ||
-  "https://connectuat.experian.in/nextgen-ind-pds-webservices-cbv2/endpoint";
+// const EXPERIAN_USER = process.env.EXPERIAN_USER;
+// const EXPERIAN_PASSWORD = process.env.EXPERIAN_PASSWORD;
+// const EXPERIAN_URL =
+//   process.env.EXPERIAN_URL ||
+//   "https://connectuat.experian.in/nextgen-ind-pds-webservices-cbv2/endpoint";
 
 const {
   generateRepaymentSchedule,
@@ -3581,7 +3581,7 @@ await db.promise().query(
     return res.json({
       message: "✅ EMICLUB loan saved successfully.",
       lan,
-      cibilScore: score || "Not Found",
+      // cibilScore: score || "Not Found",
     });
   } catch (error) {
     console.error("❌ Error in EMICLUB Upload:", error);
