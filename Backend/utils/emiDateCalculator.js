@@ -150,7 +150,30 @@ function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset
         console.log(`[Embifi Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
         return dueDate;
     }
-    
+//////////////// EMI CLUB EMI DATE ////////////////////
+// ✅ EMI Club: Monthly EMI due based on 25th cut-off logic
+if (lender === "EMICLUB" && product === "Monthly Loan") {
+  const dueDate = new Date(disbDate);
+  const disbDay = dueDate.getDate();
+
+  if (disbDay <= 25) {
+    // Disbursed between 1st–25th → Next month 5th
+    dueDate.setMonth(dueDate.getMonth() + 1);
+  } else {
+    // Disbursed after 25th → Next-to-next month 5th
+    dueDate.setMonth(dueDate.getMonth() + 2);
+  }
+
+  dueDate.setDate(5);
+  console.log(
+    `[EmiClub Monthly Loan] Disbursement Day: ${disbDay}, EMI Due: ${dueDate
+      .toISOString()
+      .split("T")[0]}`
+  );
+  return dueDate;
+}
+
+
 ///////////////////// ADIKOSH /////////////////
 
     // ✅ Adikosh Logic: EMI day based on salaryDay + 2

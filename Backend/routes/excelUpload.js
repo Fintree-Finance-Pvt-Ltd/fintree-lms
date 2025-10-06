@@ -2380,6 +2380,12 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_ev WHERE lan = ?`, [lan]
           );
+        }
+          else if (lan.startsWith("FINE")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_emiclub WHERE lan = ?`, [lan]
+          );
         } else {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
@@ -2478,6 +2484,8 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             await conn.query("UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?", [lan]);
           } else if (lan.startsWith("EV")) {
             await conn.query("UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?", [lan]);
+            } else if (lan.startsWith("FINE")) {
+            await conn.query("UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?", [lan]);
           } else {
             await conn.query("UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?", [lan]);
           }
@@ -3329,11 +3337,13 @@ router.post("/v1/finso-lb", async (req, res) => {
 
 //////////////// LOAN BOOKING FOR EMICLUB  //////////////////////
 // routes/loanBookingEmiclub.js
+
 router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
   try {
     if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'emiclub') {
       return res.status(403).json({ message: 'This route is only for Emiclub partner.' });
     }
+
     const data = req.body;
     console.log("Received JSON:", data);
 
@@ -3365,18 +3375,20 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       "permanent_state",
       "permanent_pincode",
       "loan_amount",
-      "interest_rate",
+      "roi_apr",
       "loan_tenure",
+      "emi_amount",
       "bank_name",
       "name_in_bank",
       "account_number",
       "ifsc",
+      "account_type",
+      "type_of_account",
       "employment",
       "annual_income",
       "dealer_name",
-      "dealer_mobile",
-      "dealer_address",
-      "dealer_city"
+      "risk_category",
+      "customer_type"
     ];
 
     for (const field of requiredFields) {
@@ -3404,69 +3416,80 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     const { lan } = await generateLoanIdentifiers(lenderType);
 
     const customer_name = `${data.first_name || ""} ${data.last_name || ""}`.trim();
-    const agreement_date = excelDateToJSDate(data.agreement_date);
+    const agreement_date = (data.login_date);
 
-    // ✅ Insert into DB (all 43 columns aligned)
-    await db.promise().query(
-      `INSERT INTO loan_booking_emiclub (
-        lan, partner_loan_id, login_date,
-        first_name, middle_name, last_name, gender, dob,
-        father_name, mother_name, mobile_number, email_id,
-        pan_number, aadhar_number,
-        current_address, current_village_city, current_district, current_state, current_pincode,
-        permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
-        loan_amount, interest_rate, loan_tenure, product, lender,
-        bank_name, name_in_bank, account_number, ifsc,
-        employment, annual_income,
-        dealer_name, dealer_mobile, dealer_address, dealer_city,
-        status, customer_name, agreement_date
-      )
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [
-        lan, // 1
-        data.partner_loan_id, // 2
-        data.login_date, // 3
-        data.first_name, // 4
-        data.middle_name || null, // 5
-        data.last_name || null, // 6
-        data.gender, // 7
-        data.dob, // 8
-        data.father_name || null, // 9
-        data.mother_name || null, // 10
-        data.mobile_number, // 11
-        data.email_id, // 12
-        data.pan_number, // 13
-        data.aadhar_number, // 14
-        data.current_address, // 15
-        data.current_village_city, // 16
-        data.current_district, // 17
-        data.current_state, // 18
-        data.current_pincode, // 19
-        data.permanent_address, // 20
-        data.permanent_village_city || data.current_village_city, // 21
-        data.permanent_district || data.current_district, // 22
-        data.permanent_state, // 23
-        data.permanent_pincode, // 24
-        data.loan_amount, // 25
-        data.interest_rate, // 26
-        data.loan_tenure, // 27
-        "Monthly Loan", // 28
-        data.lender, // 29
-        data.bank_name, // 30
-        data.name_in_bank, // 31
-        data.account_number, // 32
-        data.ifsc, // 33
-        data.employment, // 34
-        data.annual_income, // 35
-        data.dealer_name, // 36
-        data.dealer_mobile, // 37
-        data.dealer_address, // 38
-        data.dealer_city, // 39
-         "Login", // 40
-        customer_name, // 41
-        agreement_date // 42
-      ]
-    );
+    // ✅ Insert into DB (all columns aligned with schema)
+await db.promise().query(
+  `INSERT INTO loan_booking_emiclub (
+    lan, partner_loan_id, login_date,
+    first_name, middle_name, last_name, gender, dob,
+    father_name, mother_name, mobile_number, email_id,
+    pan_number, aadhar_number,
+    current_address, current_village_city, current_district, current_state, current_pincode,
+    permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
+    loan_amount, interest_rate, roi_apr, loan_tenure, emi_amount, cibil_score,
+    product, lender,
+    bank_name, name_in_bank, account_number, ifsc,
+    account_type, type_of_account,
+    net_disbursement, employment, risk_category, customer_type, annual_income,
+    dealer_name, dealer_mobile, dealer_address, dealer_city,
+    status, customer_name, agreement_date
+  )
+  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+  [
+    lan, // 1
+    data.partner_loan_id, // 2
+    data.login_date, // 3
+    data.first_name, // 4
+    data.middle_name || null, // 5
+    data.last_name || null, // 6
+    data.gender, // 7
+    data.dob, // 8
+    data.father_name || null, // 9
+    data.mother_name || null, // 10
+    data.mobile_number, // 11
+    data.email_id, // 12
+    data.pan_number, // 13
+    data.aadhar_number, // 14
+    data.current_address, // 15
+    data.current_village_city, // 16
+    data.current_district, // 17
+    data.current_state, // 18
+    data.current_pincode, // 19
+    data.permanent_address, // 20
+    data.permanent_village_city || data.current_village_city, // 21
+    data.permanent_district || data.current_district, // 22
+    data.permanent_state, // 23
+    data.permanent_pincode, // 24
+    data.loan_amount, // 25
+    data.interest_rate, // 26
+    data.roi_apr, // 27
+    data.loan_tenure, // 28
+    data.emi_amount, // 29
+    data.cibil_score, // 30
+    "Monthly Loan", // 31 (product)
+    "EMICLUB", // 32 (lender)
+    data.bank_name, // 33
+    data.name_in_bank, // 34
+    data.account_number, // 35
+    data.ifsc, // 36
+    data.account_type, // 37
+    data.type_of_account, // 38
+    data.net_disbursement || data.loan_amount, // 39
+    data.employment, // 40
+    data.risk_category, // 41
+    data.customer_type, // 42
+    data.annual_income, // 43
+    data.dealer_name, // 44
+    data.dealer_mobile, // 45
+    data.dealer_address, // 46
+    data.dealer_city, // 47
+    "Login", // 48
+    customer_name, // 49
+    agreement_date // 50
+  ]
+);
+
 
     console.log("✅ Customer inserted, now pulling CIBIL...");
 
