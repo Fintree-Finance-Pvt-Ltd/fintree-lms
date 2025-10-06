@@ -3352,7 +3352,6 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       "loan_amount",
       "interest_rate",
       "loan_tenure",
-      "product",
       "bank_name",
       "name_in_bank",
       "account_number",
@@ -3436,7 +3435,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         data.loan_amount, // 25
         data.interest_rate, // 26
         data.loan_tenure, // 27
-        data.product, // 28
+        "Monthly Loan", // 28
         data.lender, // 29
         data.bank_name, // 30
         data.name_in_bank, // 31
