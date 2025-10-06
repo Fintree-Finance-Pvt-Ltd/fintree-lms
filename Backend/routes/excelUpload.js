@@ -3311,6 +3311,160 @@ router.post("/v1/finso-lb", async (req, res) => {
   }
 });
 
+//////////////// LOAN BOOKING FOR EMICLUB  //////////////////////
+// routes/loanBookingEmiclub.js
+
+router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
+  try {
+    const data = req.body;
+    console.log("Received JSON:", data);
+
+    // ✅ Validate lender type
+    const lenderType = data.lenderType?.trim()?.toLowerCase();
+    if (!lenderType || lenderType !== "emiclub") {
+      return res.status(400).json({
+        message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
+      });
+    }
+
+    // ✅ Required fields (LAN auto-generated)
+    const requiredFields = [
+      "loginDate",
+      "partnerLoanId",
+      "firstName",
+      "gender",
+      "dob",
+      "mobileNumber",
+      "emailId",
+      "panNumber",
+      "aadharNumber",
+      "currentAddress",
+      "currentVillageCity",
+      "currentDistrict",
+      "currentState",
+      "currentPincode",
+      "permanentAddress",
+      "permanentState",
+      "permanentPincode",
+      "loanAmount",
+      "interestRate",
+      "tenure",
+      "product",
+      "bankName",
+      "nameInBank",
+      "accountNumber",
+      "ifsc",
+      "employment",
+      "annualIncome",
+      "dealerName",
+      "dealerMobile",
+      "dealerAddress",
+      "dealerCity",
+    ];
+
+    for (const field of requiredFields) {
+      if (!data[field] && data[field] !== 0) {
+        console.error(`❌ Missing field: ${field}`);
+        return res.status(400).json({ message: `${field} is required.` });
+      }
+    }
+
+    // ✅ Prevent duplicate PAN or Aadhar
+    const [existing] = await db
+      .promise()
+      .query(
+        `SELECT lan FROM loan_booking_emiclub WHERE pan_number = ? `,
+        [data.panNumber]
+      );
+
+    if (existing.length > 0) {
+      return res.status(400).json({
+        message: `Customer already exists for Pan: ${data.panNumber}`,
+      });
+    }
+
+    // ✅ Auto-generate only LAN
+    const { lan } = await generateLoanIdentifiers(lenderType);
+    const customerName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+    const agreement_date = excelDateToJSDate(data.loginDate);
+
+    // ✅ Insert into DB
+    await db.promise().query(
+      `INSERT INTO loan_booking_emiclub (
+        lan, partner_loan_id, login_date,
+        first_name, middle_name, last_name, gender, dob,
+        father_name, mother_name, mobile_number, email_id,
+        pan_number, aadhar_number,
+        current_address, current_village_city, current_district, current_state, current_pincode,
+        permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
+        loan_amount, interest_rate, loan_tenure, product, lender,
+        bank_name, name_in_bank, account_number, ifsc,
+        employment, annual_income,
+        dealer_name, dealer_mobile, dealer_address, dealer_city,
+        status, customer_name, agreement_date
+      )
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        lan,
+        partnerLoanId,
+        data.loginDate,
+        data.firstName,
+        data.middleName ,
+        data.lastName ,
+        data.gender,
+        data.dob,
+        data.fatherName ,
+        data.motherName ,
+        data.mobileNumber,
+        data.emailId,
+        data.panNumber,
+        data.aadharNumber,
+        data.currentAddress,
+        data.currentVillageCity,
+        data.currentDistrict,
+        data.currentState,
+        data.currentPincode,
+        data.permanentAddress,
+        data.permanentVillageCity ,
+        data.permanentDistrict ,
+        data.permanentState,
+        data.permanentPincode,
+        data.loanAmount,
+        data.interestRate,
+        data.tenure,
+        data.product,
+        data.lenderType,
+        data.bankName,
+        data.nameInBank,
+        data.accountNumber,
+        data.ifsc,
+        data.employment,
+        data.annualIncome,
+        data.dealerName,
+        data.dealerMobile,
+        data.dealerAddress,
+        data.dealerCity,
+        data.status || "Login",
+        customerName,
+        agreement_date,
+      ]
+    );
+
+    res.json({
+      message: "✅ EMICLUB loan saved successfully.",
+      lan,
+    });
+  } catch (error) {
+    console.error("❌ Error in EMICLUB Upload:", error);
+    res.status(500).json({
+      message: "Upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
+export default router;
+
 
 
 
