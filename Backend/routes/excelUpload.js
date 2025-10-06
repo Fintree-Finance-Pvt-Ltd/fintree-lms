@@ -3770,7 +3770,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
       const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
       score =
-        jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.Score?.Value ||
+        jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.BureauScore?.Value ||
         null;
 
       console.log("✅ Parsed CIBIL Score:", score);
