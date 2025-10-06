@@ -4018,7 +4018,6 @@ if (prod === "ALL" || prod === "GQ FSF") {
   }
 });
 
-/** -------------------- DPD Buckets -------------------- */
 // -------------------- DPD BUCKETS --------------------
 router.post("/dpd-buckets", async (req, res) => {
   try {
@@ -4037,80 +4036,93 @@ router.post("/dpd-buckets", async (req, res) => {
     };
 
     const prod = normalizeProduct(product);
-    const BUCKET_ORDER = `'ALL','0','0-30','30-60','60-90','90+'`;
+    const BUCKET_ORDER = `'ALL','0','0-30','30-60','60-90','90+','closed'`;
 
     // --- Branch per product ---
     const branch = (rpsTable, bookTable) => `
-      SELECT
-        CASE
-          WHEN t.max_dpd = 0 THEN '0'
-          WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
-          WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
-          WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
-          ELSE '90+'
-        END AS bucket,
-        COUNT(DISTINCT t.lan) AS loans,
-        SUM(t.overdue_emi) AS overdue_emi,
-        SUM(CASE WHEN LOWER(b.status) = 'disbursed' THEN 1 ELSE 0 END) AS active_loans,
-        SUM(CASE WHEN LOWER(b.status) IN ('fully paid','paid','closed','completed','settled') THEN 1 ELSE 0 END) AS closed_loans
-      FROM (
-        SELECT rps.lan,
-               MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
-                        THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
-                        ELSE 0 END) AS max_dpd,
-               SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
-        FROM ${rpsTable} rps
-        JOIN ${bookTable} b ON b.lan = rps.lan
-        GROUP BY rps.lan
-      ) t
-      JOIN ${bookTable} b ON b.lan = t.lan
-      GROUP BY bucket
-    `;
+  SELECT
+    CASE
+      WHEN t.max_dpd = 0 THEN '0'
+      WHEN t.max_dpd BETWEEN 1 AND 30 THEN '0-30'
+      WHEN t.max_dpd BETWEEN 31 AND 60 THEN '30-60'
+      WHEN t.max_dpd BETWEEN 61 AND 90 THEN '60-90'
+      ELSE '90+'
+    END AS bucket,
+    COUNT(DISTINCT t.lan) AS loans,
+    SUM(t.overdue_emi) AS overdue_emi
+  FROM (
+    SELECT rps.lan,
+           MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
+                    THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                    ELSE 0 END) AS max_dpd,
+           SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+    FROM ${rpsTable} rps
+    JOIN ${bookTable} b ON b.lan = rps.lan
+    WHERE LOWER(b.status) = 'disbursed'
+    GROUP BY rps.lan
+  ) t
+  GROUP BY bucket
+`;
+
 
     const branchAll = (rpsTable, bookTable) => `
-      SELECT
-        'ALL' AS bucket,
-        COUNT(DISTINCT t.lan) AS loans,
-        SUM(t.overdue_emi) AS overdue_emi,
-        SUM(CASE WHEN LOWER(b.status) = 'disbursed' THEN 1 ELSE 0 END) AS active_loans,
-        SUM(CASE WHEN LOWER(b.status) IN ('fully paid','paid','closed','completed','settled') THEN 1 ELSE 0 END) AS closed_loans
-      FROM (
-        SELECT rps.lan,
-               MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
-                        THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
-                        ELSE 0 END) AS max_dpd,
-               SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
-        FROM ${rpsTable} rps
-        JOIN ${bookTable} b ON b.lan = rps.lan
-        GROUP BY rps.lan
-      ) t
-      JOIN ${bookTable} b ON b.lan = t.lan
-    `;
+  SELECT
+    'ALL' AS bucket,
+    COUNT(DISTINCT t.lan) AS loans,
+    SUM(t.overdue_emi) AS overdue_emi
+  FROM (
+    SELECT rps.lan,
+           MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
+                    THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))
+                    ELSE 0 END) AS max_dpd,
+           SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END) AS overdue_emi
+    FROM ${rpsTable} rps
+    JOIN ${bookTable} b ON b.lan = rps.lan
+    WHERE LOWER(b.status) = 'disbursed'
+    GROUP BY rps.lan
+  ) t
+`;
+
+const branchClosed = (rpsTable, bookTable) => `
+  SELECT
+    'closed' AS bucket,
+    COUNT(DISTINCT b.lan) AS loans,
+    0 AS overdue_emi
+  FROM ${bookTable} b
+  WHERE LOWER(b.status) <> 'disbursed'`;
+
+
 
     const unions = [];
     if (prod === "ALL" || prod === "BL") {
       unions.push(branch("manual_rps_bl_loan", "loan_bookings"));
       unions.push(branchAll("manual_rps_bl_loan", "loan_bookings"));
+      unions.push(branchClosed("manual_rps_bl_loan", "loan_bookings"));
     }
     if (prod === "ALL" || prod === "EV") {
       unions.push(branch("manual_rps_ev_loan", "loan_booking_ev"));
       unions.push(branchAll("manual_rps_ev_loan", "loan_booking_ev"));
+      unions.push(branchClosed("manual_rps_ev_loan", "loan_booking_ev"));
     }
     if (prod === "ALL" || prod === "Adikosh") {
       unions.push(branch("manual_rps_adikosh", "loan_booking_adikosh"));
       unions.push(branchAll("manual_rps_adikosh", "loan_booking_adikosh"));
+      unions.push(branchClosed("manual_rps_adikosh", "loan_booking_adikosh"));
     }
     if (prod === "ALL" || prod === "GQ Non-FSF") {
       unions.push(branch("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
       unions.push(branchAll("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
+      unions.push(branchClosed("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
     }
     if (prod === "ALL" || prod === "GQ FSF") {
       unions.push(branch("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
       unions.push(branchAll("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
+      unions.push(branchClosed("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
     }
     if (prod === "ALL" || prod === "Embifi") {
       unions.push(branch("manual_rps_embifi_loan", "loan_booking_embifi"));
       unions.push(branchAll("manual_rps_embifi_loan", "loan_booking_embifi"));
+      unions.push(branchClosed("manual_rps_embifi_loan", "loan_booking_embifi"));
     }
 
     if (!unions.length) {
@@ -4120,9 +4132,7 @@ router.post("/dpd-buckets", async (req, res) => {
     const sql = `
       SELECT bucket,
              SUM(loans) AS loans,
-             SUM(overdue_emi) AS overdue_emi,
-             SUM(active_loans) AS active_loans,
-             SUM(closed_loans) AS closed_loans
+             SUM(overdue_emi) AS overdue_emi
       FROM ( ${unions.join(" UNION ALL ")} ) x
       GROUP BY bucket
       ORDER BY FIELD(bucket, ${BUCKET_ORDER})
@@ -4132,12 +4142,13 @@ router.post("/dpd-buckets", async (req, res) => {
 
     // ensure all buckets exist
     const map = {
-      "ALL":   { bucket: "ALL", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
-      "0":     { bucket: "0", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
-      "0-30":  { bucket: "0-30", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
-      "30-60": { bucket: "30-60", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
-      "60-90": { bucket: "60-90", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
-      "90+":   { bucket: "90+", loans: 0, overdue_emi: 0, active_loans: 0, closed_loans: 0 },
+      "ALL":   { bucket: "ALL", loans: 0, overdue_emi: 0 },
+      "0":     { bucket: "0", loans: 0, overdue_emi: 0 },
+      "0-30":  { bucket: "0-30", loans: 0, overdue_emi: 0 },
+      "30-60": { bucket: "30-60", loans: 0, overdue_emi: 0 },
+      "60-90": { bucket: "60-90", loans: 0, overdue_emi: 0 },
+      "90+":   { bucket: "90+", loans: 0, overdue_emi: 0 },
+      "closed": { bucket: "closed", loans: 0, overdue_emi: 0 },
     };
 
     rows.forEach(r => {
@@ -4151,7 +4162,7 @@ router.post("/dpd-buckets", async (req, res) => {
     });
 
     res.json({
-      buckets: [map["ALL"], map["0"], map["0-30"], map["30-60"], map["60-90"], map["90+"]],
+      buckets: [map["ALL"], map["0"], map["0-30"], map["30-60"], map["60-90"], map["90+"], map["closed"]],
       asOf: new Date().toISOString().slice(0, 10),
     });
   } catch (err) {
@@ -4197,6 +4208,8 @@ router.post("/dpd-list", async (req, res) => {
     // --- Bucket filter ---
     const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
     let havingStr = "";
+    let isClosed = false;
+
     if (bucket === "0") {
       havingStr = "HAVING max_dpd = 0";
     } else if (bucket === "90+") {
@@ -4204,7 +4217,9 @@ router.post("/dpd-list", async (req, res) => {
     } else if (ranges[bucket]) {
       const [minDPD, maxDPD] = ranges[bucket];
       havingStr = `HAVING max_dpd BETWEEN ${minDPD} AND ${maxDPD}`;
-    } else {
+    } else if (bucket === "closed") {
+  isClosed = true;
+} else {
       return res.status(400).json({ error: "Invalid bucket" });
     }
     const isZero = bucket === "0";
@@ -4290,6 +4305,11 @@ router.post("/dpd-list", async (req, res) => {
                SUM(IFNULL(rps.principal,0)) AS pos_principal
         FROM ${rpsTable} rps
         JOIN ${bookTable} b ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+        ${isClosed
+  ? "WHERE LOWER(b.status) IN ('closed','fully paid','completed','settled','paid','settled & closed','closed & reopen')"
+  : "WHERE LOWER(b.status) = 'disbursed'"
+}
+
         GROUP BY rps.lan
         ${havingStr}
       `);

@@ -39,6 +39,10 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "Adikosh") {
     prefixPartnerLoan = "ADK1";
     prefixLan = "ADKF1";
+  }
+  else if (lender === "Finso") {
+    prefixPartnerLoan = "FINS1";
+    prefixLan = "FINS1";
   } else {
     return res.status(400).json({ message: "Invalid hai lender type." }); // ✅ handled in route
   }
@@ -1923,6 +1927,8 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
   }
 });
 
+
+
 ////////////////// UPLOAD UTR........./////////////////////////////////
 // router.post("/upload-utr", upload.single("file"), async (req, res) => {
 //   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
@@ -3129,6 +3135,185 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
     });
   }
 });
+
+router.post("/v1/finso-lb", async (req, res) => {
+  // Column list kept in ONE place to avoid mismatches
+  const COLS = [
+    'lan','partner_loan_id','login_date',
+    'first_name','middle_name','last_name','gender','borrower_dob',
+    'father_name','mother_name','mobile_number','email',
+    'pan_card','aadhar_number',
+    'address_line_1','address_line_2','village','district','state','pincode',
+    'business_village','business_district','business_state','business_pincode',
+    'loan_amount','interest_rate','loan_tenure','cibil_score','product','lender',
+    'employment_type','pre_emi','processing_fee','disbursal_amount',
+    'emi_amount','apr','agreement_date',
+    'udyam_registration','property_type',
+    'aa_bank_name','aa_branch_name','aa_account_type','aa_name_in_bank',
+    'aa_account_number','aa_ifsc',
+    'bank_name','name_in_bank','account_number','ifsc'
+  ];
+  const PLACEHOLDERS = `(${COLS.map(() => '?').join(',')})`;
+  const INSERT_SQL = `INSERT INTO loan_booking_finso (${COLS.join(', ')}) VALUES ${PLACEHOLDERS}`;
+
+  try {
+    // ✅ Extract lender from header (case-insensitive)
+    const lenderTypeRaw = req.headers["x-lender"] ?? req.headers["lender"];
+    const lenderType = lenderTypeRaw?.toString().trim();
+
+    if (!lenderType) {
+      return res.status(400).json({ message: "Lender header is required (x-lender: Finso)." });
+    }
+    if (lenderType.toLowerCase() !== "finso") {
+      return res.status(400).json({
+        message: `Invalid lender: ${lenderType}. Only 'Finso' loans can be inserted.`,
+      });
+    }
+
+    // Normalize payload to an array
+    let records = req.body;
+    if (!Array.isArray(records)) records = [records];
+
+    // Required fields for validation
+    const requiredFields = [
+      "login_date",
+      "first_name",
+      "last_name",
+      "gender",
+      "borrower_dob",
+      "father_name",
+      "mobile_number",
+      "email",
+      "pan_card",
+      "aadhar_number",
+      "address_line_1",
+      "village",
+      "district",
+      "state",
+      "pincode",
+      "loan_amount",
+      "interest_rate",
+      "loan_tenure",
+      "cibil_score",
+      "product",
+      "bank_name",
+      "name_in_bank",
+      "account_number",
+      "ifsc",
+      "disbursal_amount",
+    ];
+
+    const results = [];
+
+    for (const raw of records) {
+      try {
+        // ✅ Normalize aliases just in case upstream uses different keys
+        const data = {
+          ...raw,
+          account_number: raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
+          ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
+          processing_fee: raw.processing_fee ?? 0.0,
+        };
+
+        // ✅ Required fields validation
+        const missingField = requiredFields.find(
+          (f) => data[f] === undefined || data[f] === null || data[f] === ""
+        );
+        if (missingField) {
+          results.push({ error: `${missingField} is required.`, data });
+          continue;
+        }
+
+        // ✅ Duplicate check on PAN or Aadhar
+        const [existing] = await db
+          .promise()
+          .query(
+            `SELECT lan FROM loan_booking_finso WHERE pan_card = ? LIMIT 1`,
+            [data.pan_card]
+          );
+        if (existing.length > 0) {
+          results.push({
+            message: `Customer already exists for Pan: ${data.pan_card}`,
+            data,
+          });
+          continue;
+        }
+
+        // ✅ Generate identifiers
+        const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+          const agreementDate = data.login_date;
+        // ✅ Build values in the exact same order as COLS
+        const values = [
+          // lan / ids / dates
+          lan, partnerLoanId, data.login_date,
+          // name / demographics
+          data.first_name, (data.middle_name ?? null), data.last_name, data.gender, data.borrower_dob,
+          data.father_name, (data.mother_name ?? null), data.mobile_number, data.email,
+          // KYC
+          data.pan_card, data.aadhar_number,
+          // addresses
+          data.address_line_1, (data.address_line_2 ?? null), data.village, data.district, data.state, data.pincode,
+          // business address
+          (data.business_village ?? null), (data.business_district ?? null), (data.business_state ?? null), (data.business_pincode ?? null),
+          // loan
+          data.loan_amount, data.interest_rate, data.loan_tenure, (data.cibil_score ?? null), data.product, lenderType,
+          (data.employment_type ?? null), (data.pre_emi ?? null), (data.processing_fee ?? 0.00), data.disbursal_amount,
+          (data.emi_amount ?? null), (data.apr ?? null), agreementDate,
+          (data.udyam_registration ?? null), (data.property_type ?? null),
+          // AA bank (aggregator) details
+          (data.aa_bank_name ?? null), (data.aa_branch_name ?? null), (data.aa_account_type ?? null), (data.aa_name_in_bank ?? null),
+          (data.aa_account_number ?? null), (data.aa_ifsc ?? null),
+          // disbursal bank
+          data.bank_name, data.name_in_bank, data.account_number, data.ifsc,
+        ];
+
+        // ✅ Defensive assertion (prevents the classic “count mismatch”)
+        if (values.length !== COLS.length) {
+          throw new Error(`INSERT loan_booking_finso: values=${values.length} != columns=${COLS.length}`);
+        }
+
+        // ✅ Insert record
+        await db.promise().query(INSERT_SQL, values);
+
+        results.push({
+          message: "Finso loan saved successfully.",
+          partnerLoanId,
+          lan,
+        });
+      } catch (e) {
+        // Granular DB errors
+        if (e?.code === 'ER_DUP_ENTRY') {
+          results.push({ error: 'Duplicate partner_loan_id / unique key violation.', details: e.message });
+        } else if (e?.code === 'ER_WRONG_VALUE_COUNT_ON_ROW') {
+          results.push({ error: 'Column/value count mismatch (defensive check should prevent this).', details: e.message });
+        } else {
+          results.push({ error: e.sqlMessage || e.message || 'Unknown error' });
+        }
+      }
+    }
+
+    return res.json({
+      message: "Finso upload completed.",
+      results,
+    });
+  } catch (error) {
+    console.error("❌ Error in Finso JSON Upload:", {
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      message: error.sqlMessage || error.message,
+    });
+    return res.status(500).json({
+      message: "Upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
+
+
+
 ////////////////////// ADIKOSH CAM DATA UPLOAD Start     /////////////////////
 /**
  * Flatten up to 5 co-applicants/guarantors into the numbered columns.
@@ -3164,6 +3349,7 @@ function buildCoColumns(coApplicants = []) {
   return out;
 }
 
+
 // ---------- route ----------
 // ---------- base + per-block columns ----------
 const COLS_BASE = [
@@ -3180,7 +3366,7 @@ const COLS_BASE = [
 ];
 
 // 21 columns per co-app/guarantor block
-function colsForBlock(i) {
+function colsForBlock(i) {  
   return [
     `coapplicant_name_${i}`,
     `coapplicant_dob_${i}`,
