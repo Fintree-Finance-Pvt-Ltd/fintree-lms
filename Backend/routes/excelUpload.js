@@ -4058,8 +4058,8 @@ const parseRate = (v) => {
 // };
 //////////////// LOAN BOOKING API FOR GQ NON FSF START //////////////////////////
 router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
-  if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'adikosh') {
-    return res.status(403).json({ message: 'This route is only for Adikosh partner.' });
+  if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'gqnonfsf') {
+    return res.status(403).json({ message: 'This route is only for GQ NON-FSF partner.' });
   }
   const data = req.body;
 
