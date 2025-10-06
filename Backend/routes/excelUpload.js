@@ -2987,6 +2987,9 @@ router.get("/gq-fsf-disbursed", (req, res) => {
 // ✅ JSON Upload Route
 router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
   try {
+    if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'adikosh') {
+    return res.status(403).json({ message: 'This route is only for Adikosh partner.' });
+  }
     const data = req.body; // Direct JSON
     console.log("Incoming lenderType:", req.body.lenderType);
     console.log("Received JSON:", data);
@@ -3166,6 +3169,9 @@ router.post("/v1/finso-lb", async (req, res) => {
   const INSERT_SQL = `INSERT INTO loan_booking_finso (${COLS.join(', ')}) VALUES ${PLACEHOLDERS}`;
 
   try {
+    if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'finso') {
+    return res.status(403).json({ message: "This route is only for Finso partner." });
+  }
     // ✅ Extract lender from header (case-insensitive)
     const lenderTypeRaw = req.headers["x-lender"] ?? req.headers["lender"];
     const lenderType = lenderTypeRaw?.toString().trim();
@@ -3324,6 +3330,9 @@ router.post("/v1/finso-lb", async (req, res) => {
 // routes/loanBookingEmiclub.js
 router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
   try {
+    if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'emiclub') {
+      return res.status(403).json({ message: 'This route is only for Emiclub partner.' });
+    }
     const data = req.body;
     console.log("Received JSON:", data);
 
