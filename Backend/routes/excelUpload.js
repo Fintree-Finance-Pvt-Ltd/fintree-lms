@@ -3447,7 +3447,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         data.dealer_mobile, // 37
         data.dealer_address, // 38
         data.dealer_city, // 39
-        data.status || "Login", // 40
+         "Login", // 40
         customer_name, // 41
         agreement_date // 42
       ]
