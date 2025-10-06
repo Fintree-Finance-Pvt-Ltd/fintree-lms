@@ -4058,56 +4058,57 @@ const parseRate = (v) => {
 // };
 //////////////// LOAN BOOKING API FOR GQ NON FSF START //////////////////////////
 router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
-  if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'gqnonfsf') {
-    return res.status(403).json({ message: 'This route is only for GQ NON-FSF partner.' });
-  }
-  const data = req.body;
-
-  console.log("Incoming GQ NON-FSF JSON Upload:", data);
-
-  const success_rows = [];
-  const row_errors = [];
+  let row_errors = [];
 
   try {
-    const lenderType = data.lenderType?.trim();
-    if (!lenderType) {
-      return res.status(400).json({ message: "lenderType is required." });
+    console.log((req.partner.name));
+
+    // 1️⃣ Verify Partner
+    if (!req.partner || (req.partner.name || "") !== "GQ Non-FSF") {
+      return res.status(403).json({ message: "This route is only for GQ NON-FSF partner." });
     }
 
-    // Restrict to valid lender types if needed
-    const allowedLenders = ["GQ", "NON-FSF"];
-    if (!allowedLenders.includes(lenderType.toUpperCase())) {
-      return res
-        .status(400)
-        .json({ message: `Invalid lenderType: ${lenderType}` });
+
+    const data = req.body;
+    console.log("📥 Incoming GQ NON-FSF JSON:", data);
+
+    const success_rows = [];
+
+    // 2️⃣ lenderType validation
+    const lenderType = data.lenderType;
+    if (!lenderType) return res.status(400).json({ message: "lenderType is required." });
+
+    if (lenderType !== "GQ Non-FSF") {
+      return res.status(400).json({
+        message: `Invalid lenderType: ${lenderType}. Only 'GQNONFSF' is allowed.`,
+      });
     }
 
-    // Required fields — you can tighten or relax as per your Excel logic
+    // 3️⃣ Required field validation
     const requiredFields = ["appId", "loanAmount", "interestRate", "loanTenure"];
     for (const field of requiredFields) {
       if (!data[field] && data[field] !== 0) {
+        console.error(`❌ Missing field: ${field}`);
         return res.status(400).json({ message: `${field} is required.` });
       }
     }
 
-    // 1️⃣ Duplicate check
+    // 4️⃣ Duplicate check
     const [existing] = await db
       .promise()
-      .query(
-        `SELECT * FROM loan_booking_gq_non_fsf WHERE app_id = ?`,
-        [data.appId]
-      );
+      .query(`SELECT lan FROM loan_booking_gq_non_fsf WHERE app_id = ?`, [data.appId]);
 
     if (existing.length > 0) {
+      console.warn(`⚠️ Duplicate App ID found: ${data.appId}`);
       return res.status(400).json({
         message: `Duplicate App ID (${data.appId}) already exists.`,
       });
     }
 
-    // 2️⃣ Generate IDs
+    // 5️⃣ Generate unique IDs (now safe)
     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
 
-    // 3️⃣ Prepare insert query
+    // 6️⃣ Insert query
     const insertQuery = `
       INSERT INTO loan_booking_gq_non_fsf (
         partner_loan_id, lan, app_id, product, customer_type, residence_type, loan_type, disbursal_type,
@@ -4127,17 +4128,15 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
       ) VALUES (${new Array(75).fill("?").join(",")})
     `;
 
-    // Helper for parsing numbers safely
+    // 7️⃣ Value helpers
     const n = (v) =>
-      v === null || v === undefined || v === ""
-        ? null
-        : Number(String(v).replace(/[^0-9.-]/g, "")) || 0;
+      v === null || v === undefined || v === "" ? null : Number(String(v).replace(/[^0-9.-]/g, "")) || 0;
     const i = (v) =>
       v === null || v === undefined || v === "" ? null : parseInt(v, 10);
     const s = (v) =>
       v === null || v === undefined ? "" : String(v).trim();
 
-    // 4️⃣ Map JSON → DB columns
+    // 8️⃣ Map JSON → DB fields
     const values = [
       partnerLoanId,
       lan,
@@ -4203,8 +4202,8 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
       n(data.actualDisbursement),
       n(data.toBeRecovered),
       data.agreementDate || null,
-      parseFloat(data.interestRateIrr),
-      parseFloat(data.flatRate),
+      parseFloat(data.interestRateIrr) || null,
+      parseFloat(data.flatRate) || null,
       s(data.nachUmrn),
       s(data.incomeSource),
       s(data.status) || "Login",
@@ -4213,21 +4212,25 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
       lenderType,
       n(data.loanAmount),
       n(data.interestRate),
-      i(data.loanTenure),
+      i(data.loanTenure)
     ];
 
-    // 5️⃣ Execute insert
+    // 9️⃣ Execute insert
     await db.promise().query(insertQuery, values);
+    console.log(`✅ Loan inserted successfully → App ID: ${data.appId}, LAN: ${lan}`);
 
-    success_rows.push({ app_id: data.appId, lan, partnerLoanId });
+    success_rows.push({ appId: data.appId, lan, partnerLoanId });
 
+    // 🔟 Respond
     return res.json({
       message: "GQ NON-FSF Loan saved successfully.",
       inserted: success_rows.length,
       success_rows,
     });
   } catch (err) {
-    console.error("❌ GQ NON-FSF JSON Upload Error:", err);
+    console.error("❌ GQ NON-FSF Upload Error:", err);
+    row_errors.push(err.message);
+
     return res.status(500).json({
       message: "Upload failed.",
       error: err.sqlMessage || err.message,
@@ -4235,9 +4238,6 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
     });
   }
 });
-
-
-
 
 /////////// ALDUN LOAN DATA UPLOAD //////////////////////////
 router.post("/aldun-upload", upload.single("file"), async (req, res) => {
