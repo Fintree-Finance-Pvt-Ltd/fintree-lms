@@ -67,6 +67,12 @@ import GQFsfApproveInitiateScreen from "./components/GQFsfApproveInitiateScreen"
 import AdikoshApproveInitiateScreen from "./components/AdikoshApproveInitiateScreen";
 import EVApproveInitiateScreen from "./components/EVApproveInitiateScreen";
 import ProductsDashboard from "./components/ProductsDashboard";
+import EmiClubApprovedLoans from "./components/EmiClubApprovedLoans";
+import EmiClubDisbursedLoans from "./components/EmiClubDisbursedLoans";
+import EmiClubAllLoans from "./components/EmiClubAllLoans";
+import EmiClubLoginLoans from "./components/EmiClubLoginLoans";
+import EmiClubActionScreen from "./components/EmiClubActionScreen";
+import EmiClubApproveInitiateScreen from "./components/EmiClubApproveInitiateScreen";
 
 function App() {
   return (
@@ -243,6 +249,59 @@ function App() {
             element={
               <PermissionRoute pageName="EV Disburse Initiated">
                 <EVApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+          {/* ✅ Loan routes */}
+
+          <Route
+            path="/emiclub-loans/approved"
+            element={
+              <PermissionRoute pageName="EmiClub Approved Loans">
+                <EmiClubApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/emiclub-loans/disbursed"
+            element={
+              <PermissionRoute pageName="EmiClub Disbursed Loans">
+                <EmiClubDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/emiclub-loans/all"
+            element={
+              <PermissionRoute pageName="EmiClub All Loans">
+                <EmiClubAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/emiclub-loans/login-cases"
+            element={
+              <PermissionRoute pageName="EmiClub Login Loans">
+                <EmiClubLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/emiclub-loans/login-actions"
+            element={
+              <PermissionRoute pageName="EmiClub Login Actions">
+                <EmiClubActionScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/emiclub-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="EmiClub Disburse Initiated">
+                <EmiClubApproveInitiateScreen />
               </PermissionRoute>
             }
           />

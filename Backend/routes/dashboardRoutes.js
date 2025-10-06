@@ -4383,7 +4383,11 @@ router.post("/dpd-list", async (req, res) => {
       dpd: "max_dpd",
       due: "last_due_date",
       ageing: "ageing_days",
+      customer: "customer_name",
+  dealer: "dealer_name",
+  district: "district"
     };
+
     const sortKey = (typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd");
     const sortCol = SORT_MAP[sortKey] || SORT_MAP.dpd;
     const sortDir = (String(sortDirRaw || "desc").toLowerCase() === "asc") ? "ASC" : "DESC";

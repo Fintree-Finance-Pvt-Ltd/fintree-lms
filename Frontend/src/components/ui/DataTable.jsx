@@ -500,24 +500,44 @@ const DataTable = ({
     });
   };
 
-  const applyFilter = () => {
-    if (!openFilterCol) return;
-    setFilters((prev) => {
-      const copy = { ...prev };
-      copy[openFilterCol] = new Set(tempSelections);
-      return copy;
-    });
-    closeFilter();
-  };
+  // Apply the currently selected filter values
+const applyFilter = () => {
+  if (!openFilterCol) return;
+  const opts = uniqueOptions[openFilterCol] || [];
+  const allValues = new Set(opts.map((o) => o.valueNorm));
 
-  const clearFilter = (colKey) => {
-    setFilters((prev) => {
-      const copy = { ...prev };
-      delete copy[colKey];
-      return copy;
-    });
-    if (openFilterCol === colKey) closeFilter();
-  };
+  setFilters((prev) => {
+    const copy = { ...prev };
+    // if everything is selected or no selection at all, treat as "no filter"
+    if (
+      tempSelections.size === 0 ||
+      tempSelections.size === allValues.size
+    ) {
+      delete copy[openFilterCol];
+    } else {
+      copy[openFilterCol] = new Set(tempSelections);
+    }
+    return copy;
+  });
+
+  closeFilter();
+};
+
+// Clear the current column's filter entirely
+const clearFilter = (colKey) => {
+  setFilters((prev) => {
+    const copy = { ...prev };
+    delete copy[colKey];
+    return copy;
+  });
+  if (openFilterCol === colKey) {
+    // reset temp selections when closing
+    setTempSelections(new Set());
+    setFilterSearch("");
+    setOpenFilterCol(null);
+  }
+};
+
 
   const selectAllToggle = (colKey, selectAll) => {
     const opts = uniqueOptions[colKey] || [];

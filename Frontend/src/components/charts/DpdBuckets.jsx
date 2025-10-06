@@ -920,7 +920,12 @@ const DpdBuckets = ({ filters }) => {
           <option value="dpd">DPD</option>
           <option value="due">Last Due Date</option>
           <option value="ageing">Ageing (days)</option>
+          <option value="customer">Customer Name</option>
+<option value="dealer">Dealer / Institute</option>
+<option value="district">District</option>
+
         </select>
+
 
         <button
           onClick={() => toggleDir()}
