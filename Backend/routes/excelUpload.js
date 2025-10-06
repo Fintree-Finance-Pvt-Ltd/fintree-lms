@@ -601,8 +601,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       "Product",
       "lender",
       "Agreement Date",
-      "status",
-      "Processing Fee",
       "CIBIL Score",
       "GURANTOR CIBIL Score",
       "Relationship with Borrower",
@@ -734,9 +732,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
           row["Product"],
           row["lender"] || "EV Loan",
           row["Agreement Date"] ? excelDateToJSDate(row["Agreement Date"]) : null,
-          row["status"],
+          row["status"] || "Login",
           row["Disbursal Amount"],
-          row["Processing Fee"],
+          row["Processing Fee"] || 0.0,
           row["CIBIL Score"],
           row["GURANTOR CIBIL Score"],
           row["Relationship with Borrower"],
@@ -958,6 +956,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
+    loan_booking_emiclub: true,
   };
 
   if (!allowedTables[table]) {
@@ -986,6 +985,7 @@ router.get("/approve-initiate-loans", (req, res) => {
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
+    loan_booking_emiclub: true,
   };
 
   if (!allowedTables[table]) {
@@ -1015,6 +1015,7 @@ router.get("/all-loans", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
+    loan_booking_emiclub: true,
     loan_booking_embifi: true,
   };
 
@@ -1047,6 +1048,7 @@ router.get("/approved-loans", (req, res) => {
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
+    loan_booking_emiclub: true,
     loan_booking_embifi: true,
   };
 
@@ -1074,6 +1076,7 @@ router.get("/disbursed-loans", (req, res) => {
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
+    loan_booking_emiclub: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
     loan_booking_embifi: true,
@@ -1149,6 +1152,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
+    loan_booking_emiclub: true,
   };
 
   if (!allowedTables[table]) {
@@ -1227,6 +1231,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
+    loan_booking_emiclub: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
   };
