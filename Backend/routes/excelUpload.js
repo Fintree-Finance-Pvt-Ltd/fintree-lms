@@ -5,6 +5,7 @@ const db = require("../config/db");
 // const verifyApiKey = require("../middleware/authMiddleware");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { sendLoanStatusMail } = require("../jobs/mailer");
+const { pullCIBILReport }=  require("../jobs/experianService");
 
 const {
   generateRepaymentSchedule,
@@ -3490,11 +3491,40 @@ await db.promise().query(
 );
 
 
-    res.json({
-      message: "✅ EMICLUB loan saved successfully.",
-      lan
+    console.log("✅ Customer inserted, now pulling CIBIL...");
+
+    // ✅ Call Experian API
+    const cibilResult = await pullCIBILReport({
+      first_name: data.first_name,
+      last_name: data.last_name,
+      dob: data.dob,
+      pan_number: data.pan_number,
+      mobile_number: data.mobile_number,
+      current_address: data.current_address,
+      current_state: data.current_state,
+      current_pincode: data.current_pincode,
+      current_village_city: data.current_village_city,
     });
 
+    if (cibilResult.success) {
+      // ✅ Optional: store CIBIL score
+      await db
+        .promise()
+        .query(
+          `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at) VALUES (?,?,?,?,NOW())`,
+          [lan, data.pan_number, cibilResult.score, cibilResult.xmlResponse]
+        );
+
+      console.log("✅ CIBIL Pull Success for", data.pan_number);
+    } else {
+      console.warn("⚠️ CIBIL Pull Failed:", cibilResult.error);
+    }
+
+    res.json({
+      message: "✅ EMICLUB loan saved successfully.",
+      lan,
+      cibilScore: cibilResult.score || null,
+    });
   } catch (error) {
     console.error("❌ Error in EMICLUB Upload:", error);
     res.status(500).json({
@@ -3503,7 +3533,6 @@ await db.promise().query(
     });
   }
 });
-
 ////////////////////// ADIKOSH CAM DATA UPLOAD Start     /////////////////////
 /**
  * Flatten up to 5 co-applicants/guarantors into the numbered columns.
