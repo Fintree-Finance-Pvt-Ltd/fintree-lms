@@ -2,21 +2,21 @@ const express = require("express");
 const multer = require("multer");
 const xlsx = require("xlsx");
 const db = require("../config/db");
-// const dotenv = require("dotenv");
-// const { parseStringPromise } = require("xml2js");
-// const axios = require("axios");
+const dotenv = require("dotenv");
+const { parseStringPromise } = require("xml2js");
+const axios = require("axios");
 // const verifyApiKey = require("../middleware/authMiddleware");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { sendLoanStatusMail } = require("../jobs/mailer");
 // const { pullCIBILReport }=  require("../jobs/experianService");
-// dotenv.config();
+dotenv.config();
 
 // ================== ENV CONFIG ==================
-// const EXPERIAN_USER = process.env.EXPERIAN_USER;
-// const EXPERIAN_PASSWORD = process.env.EXPERIAN_PASSWORD;
-// const EXPERIAN_URL =
-//   process.env.EXPERIAN_URL ||
-//   "https://connectuat.experian.in/nextgen-ind-pds-webservices-cbv2/endpoint";
+const EXPERIAN_USER = process.env.EXPERIAN_USER;
+const EXPERIAN_PASSWORD = process.env.EXPERIAN_PASSWORD;
+const EXPERIAN_URL =
+  process.env.EXPERIAN_URL ||
+  "https://connectuat.experian.in/nextgen-ind-pds-webservices-cbv2/endpoint";
 
 const {
   generateRepaymentSchedule,
@@ -3504,78 +3504,78 @@ await db.promise().query(
 
     console.log("✅ Customer inserted, now pulling CIBIL...");
 
-    // // 6️⃣ Build SOAP XML
-    // const dobFormatted = data.dob.replace(/-/g, "");
-    // const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
-    //   <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-    //     <soapenv:Header/>
-    //     <soapenv:Body>
-    //       <urn:process>
-    //         <urn:in>
-    //           <INProfileRequest>
-    //             <Identification>
-    //               <XMLUser>${EXPERIAN_USER}</XMLUser>
-    //               <XMLPassword>${EXPERIAN_PASSWORD}</XMLPassword>
-    //             </Identification>
-    //             <Application>
-    //               <FTReferenceNumber>FT${Date.now()}</FTReferenceNumber>
-    //               <CustomerReferenceID>${data.pan_number}</CustomerReferenceID>
-    //               <EnquiryReason>13</EnquiryReason>
-    //               <FinancePurpose>99</FinancePurpose>
-    //               <AmountFinanced>${data.loan_amount}</AmountFinanced>
-    //               <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-    //               <ScoreFlag>1</ScoreFlag>
-    //               <PSVFlag>0</PSVFlag>
-    //             </Application>
-    //             <Applicant>
-    //               <Surname>${data.last_name || ""}</Surname>
-    //               <FirstName>${data.first_name || ""}</FirstName>
-    //               <DateOfBirth>${dobFormatted}</DateOfBirth>
-    //               <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
-    //               <PhoneNumber>${data.mobile_number}</PhoneNumber>
-    //             </Applicant>
-    //             <Address>
-    //               <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
-    //               <City>${data.current_village_city}</City>
-    //               <State>${data.current_state}</State>
-    //               <PinCode>${data.current_pincode}</PinCode>
-    //             </Address>
-    //             <AdditionalAddressFlag><Flag>N</Flag></AdditionalAddressFlag>
-    //           </INProfileRequest>
-    //         </urn:in>
-    //       </urn:process>
-    //     </soapenv:Body>
-    //   </soapenv:Envelope>`;
+    // 6️⃣ Build SOAP XML
+    const dobFormatted = data.dob.replace(/-/g, "");
+    const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
+      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+        <soapenv:Header/>
+        <soapenv:Body>
+          <urn:process>
+            <urn:in>
+              <INProfileRequest>
+                <Identification>
+                  <XMLUser>${EXPERIAN_USER}</XMLUser>
+                  <XMLPassword>${EXPERIAN_PASSWORD}</XMLPassword>
+                </Identification>
+                <Application>
+                  <FTReferenceNumber>FT${Date.now()}</FTReferenceNumber>
+                  <CustomerReferenceID>${data.pan_number}</CustomerReferenceID>
+                  <EnquiryReason>13</EnquiryReason>
+                  <FinancePurpose>99</FinancePurpose>
+                  <AmountFinanced>${data.loan_amount}</AmountFinanced>
+                  <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
+                  <ScoreFlag>1</ScoreFlag>
+                  <PSVFlag>0</PSVFlag>
+                </Application>
+                <Applicant>
+                  <Surname>${data.last_name || ""}</Surname>
+                  <FirstName>${data.first_name || ""}</FirstName>
+                  <DateOfBirth>${dobFormatted}</DateOfBirth>
+                  <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
+                  <PhoneNumber>${data.mobile_number}</PhoneNumber>
+                </Applicant>
+                <Address>
+                  <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
+                  <City>${data.current_village_city}</City>
+                  <State>${data.current_state}</State>
+                  <PinCode>${data.current_pincode}</PinCode>
+                </Address>
+                <AdditionalAddressFlag><Flag>N</Flag></AdditionalAddressFlag>
+              </INProfileRequest>
+            </urn:in>
+          </urn:process>
+        </soapenv:Body>
+      </soapenv:Envelope>`;
 
-    // // 7️⃣ Send SOAP request to Experian
-    // let score = null;
-    // try {
-    //   const { data: xmlResponse } = await axios.post(EXPERIAN_URL, soapBody, {
-    //     headers: {
-    //       "Content-Type": "text/xml; charset=utf-8",
-    //       SOAPAction: "urn:cbv2/process",
-    //       Accept: "text/xml",
-    //     },
-    //     timeout: 30000,
-    //   });
+    // 7️⃣ Send SOAP request to Experian
+    let score = null;
+    try {
+      const { data: xmlResponse } = await axios.post(EXPERIAN_URL, soapBody, {
+        headers: {
+          "Content-Type": "text/xml; charset=utf-8",
+          SOAPAction: "urn:cbv2/process",
+          Accept: "text/xml",
+        },
+        timeout: 30000,
+      });
 
-    //   const jsonResponse = await parseStringPromise(xmlResponse, { explicitArray: false });
-    //   score =
-    //     jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.Score?.Value ||
-    //     null;
+      const jsonResponse = await parseStringPromise(xmlResponse, { explicitArray: false });
+      score =
+        jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.Score?.Value ||
+        null;
 
-    //   await db
-    //     .promise()
-    //     .query(
-    //       `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
-    //        VALUES (?,?,?,?,NOW())`,
-    //       [lan, data.pan_number, score, xmlResponse]
-    //     );
+      await db
+        .promise()
+        .query(
+          `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+           VALUES (?,?,?,?,NOW())`,
+          [lan, data.pan_number, score, xmlResponse]
+        );
 
-    //   console.log("✅ CIBIL fetched successfully:", score);
-    // } catch (err) {
-    //   console.error("⚠️ CIBIL Pull Failed:", err.message);
-    // }
+      console.log("✅ CIBIL fetched successfully:", score);
+    } catch (err) {
+      console.error("⚠️ CIBIL Pull Failed:", err.message);
+    }
 
     // 8️⃣ Final Response
     return res.json({
