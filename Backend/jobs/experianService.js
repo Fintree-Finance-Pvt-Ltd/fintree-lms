@@ -1,6 +1,6 @@
-import axios from "axios";
-import { parseStringPromise } from "xml2js";
-import dotenv from "dotenv";
+const axios = require("axios");
+const { parseStringPromise }= require("xml2js");
+const dotenv = require( "dotenv");
 dotenv.config();
 
 const EXPERIAN_USER = process.env.EXPERIAN_USER;
