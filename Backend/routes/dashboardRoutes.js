@@ -3821,56 +3821,7 @@ router.post("/metric-cards", async (req, res) => {
       collectParams.push(...pclA.params);
     }
 
-    // P&I collected IN RANGE (display only)
-    // if (prod === "ALL" || prod === "BL") {
-    //   const r = buildDateRangeClause("payment_date", start, end);
-    //   pniRangeQueries.push(`
-    //     SELECT IFNULL(SUM(principal),0) AS principal,
-    //            IFNULL(SUM(interest),0)  AS interest
-    //     FROM manual_rps_bl_loan
-    //     WHERE payment_date IS NOT NULL ${r.clause}
-    //   `);
-    //   pniRangeParams.push(...r.params);
-    // }
-    // if (prod === "ALL" || prod === "EV") {
-    //   const r = buildDateRangeClause("payment_date", start, end);
-    //   pniRangeQueries.push(`
-    //     SELECT IFNULL(SUM(principal),0) AS principal,
-    //            IFNULL(SUM(interest),0)  AS interest
-    //     FROM manual_rps_ev_loan
-    //     WHERE payment_date IS NOT NULL ${r.clause}
-    //   `);
-    //   pniRangeParams.push(...r.params);
-    // }
-    // if (prod === "ALL" || prod === "Adikosh") {
-    //   pniRangeQueries.push(`
-    //     SELECT IFNULL(SUM(principal),0) AS principal,
-    //            IFNULL(SUM(interest),0)  AS interest
-    //     FROM manual_rps_adikosh
-    //     WHERE payment_date IS NOT NULL ${pclA.clause}
-    //   `);
-    //   pniRangeParams.push(...pclA.params);
-    // }
-    // if (prod === "ALL" || prod === "GQ Non-FSF") {
-    //   pniRangeQueries.push(`
-    //     SELECT IFNULL(SUM(principal),0) AS principal,
-    //            IFNULL(SUM(interest),0)  AS interest
-    //     FROM manual_rps_gq_non_fsf
-    //     WHERE payment_date IS NOT NULL ${pclA.clause}
-    //   `);
-    //   pniRangeParams.push(...pclA.params);
-    // }
-    // if (prod === "ALL" || prod === "GQ FSF") {
-    //   pniRangeQueries.push(`
-    //     SELECT IFNULL(SUM(principal),0) AS principal,
-    //            IFNULL(SUM(interest),0)  AS interest
-    //     FROM manual_rps_gq_fsf
-    //     WHERE payment_date IS NOT NULL ${pclA.clause}
-    //   `);
-    //   pniRangeParams.push(...pclA.params);
-    // }
 
-    // P&I collected IN RANGE (display only)
 if (prod === "ALL" || prod === "BL") {
   const r = buildDateRangeClause("bank_date_allocation", start, end);
   pniRangeQueries.push(`
