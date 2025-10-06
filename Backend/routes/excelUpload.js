@@ -40,6 +40,10 @@ const generateLoanIdentifiers = async (lender) => {
     prefixPartnerLoan = "ADK1";
     prefixLan = "ADKF1";
   }
+   else if (lender === "emiclub") {
+    //prefixPartnerLosan = "FINE1";
+    prefixLan = "FINE1";
+  }
   else if (lender === "Finso") {
     prefixPartnerLoan = "FINS1";
     prefixLan = "FINS1";
@@ -3313,7 +3317,6 @@ router.post("/v1/finso-lb", async (req, res) => {
 
 //////////////// LOAN BOOKING FOR EMICLUB  //////////////////////
 // routes/loanBookingEmiclub.js
-
 router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
   try {
     const data = req.body;
@@ -3327,39 +3330,39 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       });
     }
 
-    // ✅ Required fields (LAN auto-generated)
+    // ✅ Required fields validation
     const requiredFields = [
-      "loginDate",
-      "partnerLoanId",
-      "firstName",
+      "login_date",
+      "partner_loan_id",
+      "first_name",
       "gender",
       "dob",
-      "mobileNumber",
-      "emailId",
-      "panNumber",
-      "aadharNumber",
-      "currentAddress",
-      "currentVillageCity",
-      "currentDistrict",
-      "currentState",
-      "currentPincode",
-      "permanentAddress",
-      "permanentState",
-      "permanentPincode",
-      "loanAmount",
-      "interestRate",
-      "tenure",
+      "mobile_number",
+      "email_id",
+      "pan_number",
+      "aadhar_number",
+      "current_address",
+      "current_village_city",
+      "current_district",
+      "current_state",
+      "current_pincode",
+      "permanent_address",
+      "permanent_state",
+      "permanent_pincode",
+      "loan_amount",
+      "interest_rate",
+      "loan_tenure",
       "product",
-      "bankName",
-      "nameInBank",
-      "accountNumber",
+      "bank_name",
+      "name_in_bank",
+      "account_number",
       "ifsc",
       "employment",
-      "annualIncome",
-      "dealerName",
-      "dealerMobile",
-      "dealerAddress",
-      "dealerCity",
+      "annual_income",
+      "dealer_name",
+      "dealer_mobile",
+      "dealer_address",
+      "dealer_city"
     ];
 
     for (const field of requiredFields) {
@@ -3369,26 +3372,27 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       }
     }
 
-    // ✅ Prevent duplicate PAN or Aadhar
+    // ✅ Prevent duplicate PAN
     const [existing] = await db
       .promise()
       .query(
-        `SELECT lan FROM loan_booking_emiclub WHERE pan_number = ? `,
-        [data.panNumber]
+        `SELECT lan FROM loan_booking_emiclub WHERE pan_number = ?`,
+        [data.pan_number]
       );
 
     if (existing.length > 0) {
       return res.status(400).json({
-        message: `Customer already exists for Pan: ${data.panNumber}`,
+        message: `Customer already exists for Pan: ${data.pan_number}`,
       });
     }
 
     // ✅ Auto-generate only LAN
     const { lan } = await generateLoanIdentifiers(lenderType);
-    const customerName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
-    const agreement_date = excelDateToJSDate(data.loginDate);
 
-    // ✅ Insert into DB
+    const customer_name = `${data.first_name || ""} ${data.last_name || ""}`.trim();
+    const agreement_date = excelDateToJSDate(data.agreement_date);
+
+    // ✅ Insert into DB (all 43 columns aligned)
     await db.promise().query(
       `INSERT INTO loan_booking_emiclub (
         lan, partner_loan_id, login_date,
@@ -3403,57 +3407,58 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         dealer_name, dealer_mobile, dealer_address, dealer_city,
         status, customer_name, agreement_date
       )
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        lan,
-        partnerLoanId,
-        data.loginDate,
-        data.firstName,
-        data.middleName ,
-        data.lastName ,
-        data.gender,
-        data.dob,
-        data.fatherName ,
-        data.motherName ,
-        data.mobileNumber,
-        data.emailId,
-        data.panNumber,
-        data.aadharNumber,
-        data.currentAddress,
-        data.currentVillageCity,
-        data.currentDistrict,
-        data.currentState,
-        data.currentPincode,
-        data.permanentAddress,
-        data.permanentVillageCity ,
-        data.permanentDistrict ,
-        data.permanentState,
-        data.permanentPincode,
-        data.loanAmount,
-        data.interestRate,
-        data.tenure,
-        data.product,
-        data.lenderType,
-        data.bankName,
-        data.nameInBank,
-        data.accountNumber,
-        data.ifsc,
-        data.employment,
-        data.annualIncome,
-        data.dealerName,
-        data.dealerMobile,
-        data.dealerAddress,
-        data.dealerCity,
-        data.status || "Login",
-        customerName,
-        agreement_date,
+        lan, // 1
+        data.partner_loan_id, // 2
+        data.login_date, // 3
+        data.first_name, // 4
+        data.middle_name || null, // 5
+        data.last_name || null, // 6
+        data.gender, // 7
+        data.dob, // 8
+        data.father_name || null, // 9
+        data.mother_name || null, // 10
+        data.mobile_number, // 11
+        data.email_id, // 12
+        data.pan_number, // 13
+        data.aadhar_number, // 14
+        data.current_address, // 15
+        data.current_village_city, // 16
+        data.current_district, // 17
+        data.current_state, // 18
+        data.current_pincode, // 19
+        data.permanent_address, // 20
+        data.permanent_village_city || data.current_village_city, // 21
+        data.permanent_district || data.current_district, // 22
+        data.permanent_state, // 23
+        data.permanent_pincode, // 24
+        data.loan_amount, // 25
+        data.interest_rate, // 26
+        data.loan_tenure, // 27
+        data.product, // 28
+        data.lender, // 29
+        data.bank_name, // 30
+        data.name_in_bank, // 31
+        data.account_number, // 32
+        data.ifsc, // 33
+        data.employment, // 34
+        data.annual_income, // 35
+        data.dealer_name, // 36
+        data.dealer_mobile, // 37
+        data.dealer_address, // 38
+        data.dealer_city, // 39
+        data.status || "Login", // 40
+        customer_name, // 41
+        agreement_date // 42
       ]
     );
 
     res.json({
       message: "✅ EMICLUB loan saved successfully.",
-      lan,
+      lan
     });
+
   } catch (error) {
     console.error("❌ Error in EMICLUB Upload:", error);
     res.status(500).json({
@@ -3462,11 +3467,6 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     });
   }
 });
-
-export default router;
-
-
-
 
 ////////////////////// ADIKOSH CAM DATA UPLOAD Start     /////////////////////
 /**
