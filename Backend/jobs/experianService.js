@@ -7,7 +7,7 @@ const EXPERIAN_USER = process.env.EXPERIAN_USER;
 const EXPERIAN_PASSWORD = process.env.EXPERIAN_PASSWORD;
 const EXPERIAN_URL = process.env.EXPERIAN_URL || "https://connectuat.experian.in/nextgen-ind-pds-webservices-cbv2/endpoint";
 
-export async function pullCIBILReport({ first_name, last_name, dob, pan_number, mobile_number, current_address, current_state, current_pincode, current_village_city }) {
+module.exports.pullCIBILReport = async function ({ first_name, last_name, dob, pan_number, mobile_number, current_address, current_state, current_pincode, current_village_city }) {
   const dobFormatted = dob.replace(/-/g, ""); // yyyyMMdd
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
