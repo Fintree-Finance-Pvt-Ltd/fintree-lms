@@ -3629,12 +3629,12 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     // --- Required field check ---
     const requiredFields = [
-      "login_date", "partner_loan_id", "first_name", "gender", "dob",
+      "login_date", "partner_loan_id", "first_name","aast_name", "gender", "dob",
       "mobile_number", "email_id", "pan_number", "aadhar_number",
       "current_address", "current_village_city", "current_district",
       "current_state", "current_pincode", "permanent_address",
       "permanent_state", "permanent_pincode", "loan_amount", "roi_apr",
-      "loan_tenure", "emi_amount", "bank_name", "name_in_bank",
+      "loan_tenure", "bank_name", "name_in_bank",
       "account_number", "ifsc", "account_type", "type_of_account",
       "employment", "annual_income", "dealer_name", "risk_category", "customer_type"
     ];
@@ -3705,6 +3705,8 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     // --- Build SOAP XML ---
     console.log("🧩 Building SOAP request body for Experian...");
     const dobFormatted = data.dob.replace(/-/g, "");
+    console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
+    console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
     const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
       <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
