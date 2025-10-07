@@ -3705,7 +3705,6 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     // --- Build SOAP XML ---
     console.log("🧩 Building SOAP request body for Experian...");
     const dobFormatted = data.dob.replace(/-/g, "");
-    console.log("📅 Formatted DOB for SOAP:", dobFormatted);
 
     const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
       <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
@@ -3751,6 +3750,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
 
     // --- Send SOAP request ---
+    console.log("formatted dob", dobFormatted);
     console.log("🌐 Sending SOAP request to Experian...");
     let score = null;
 
