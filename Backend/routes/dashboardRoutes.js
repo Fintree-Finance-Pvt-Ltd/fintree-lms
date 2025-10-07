@@ -4089,7 +4089,7 @@ const branchClosed = (rpsTable, bookTable) => `
     COUNT(DISTINCT b.lan) AS loans,
     0 AS overdue_emi
   FROM ${bookTable} b
-  WHERE LOWER(b.status) <> 'disbursed'`;
+  WHERE LOWER(b.status) NOT IN ('disbursed', 'login', 'disburse initiate')`;
 
 
 
@@ -4173,6 +4173,207 @@ const branchClosed = (rpsTable, bookTable) => `
 
 
 /** -------------------- DPD List (with disbursal + ageing, fast) -------------------- */
+// router.post("/dpd-list", async (req, res) => {
+//   try {
+//     const {
+//       product,
+//       bucket,
+//       page: pageRaw,
+//       pageSize: pageSizeRaw,
+//       sortBy: sortByRaw,
+//       sortDir: sortDirRaw
+//     } = req.body || {};
+
+//     const JOIN_COLLATE = "utf8mb4_unicode_ci";
+
+//     // normalize product
+//     const normalizeProduct = (p) => {
+//       if (!p || p === "ALL") return "ALL";
+//       const s = String(p).toLowerCase().replace(/\s+/g, "").replace(/-/g, "");
+//       if (s === "evloan" || s === "ev_loan") return "EV";
+//       if (s === "blloan" || s === "bl_loan") return "BL";
+//       if (s === "adikosh") return "Adikosh";
+//       if (s === "gqnonfsf" || s === "gqnon-fsf") return "GQ Non-FSF";
+//       if (s === "gqfsf" || s === "gq-fsf") return "GQ FSF";
+//       if (s === "embifi") return "Embifi";
+//       return p;
+//     };
+//     const prod = normalizeProduct(product);
+
+//     // pagination
+//     const page     = Math.max(1, parseInt(pageRaw || 1, 10));
+//     const pageSize = Math.min(200, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
+//     const offset   = (page - 1) * pageSize;
+
+//     // --- Bucket filter ---
+//     const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
+//     let havingStr = "";
+//     let isClosed = false;
+
+//     if (bucket === "0") {
+//       havingStr = "HAVING max_dpd = 0";
+//     } else if (bucket === "90+") {
+//       havingStr = "HAVING max_dpd >= 91";
+//     } else if (ranges[bucket]) {
+//       const [minDPD, maxDPD] = ranges[bucket];
+//       havingStr = `HAVING max_dpd BETWEEN ${minDPD} AND ${maxDPD}`;
+//     } else if (bucket === "closed") {
+//   isClosed = true;
+// } else {
+//       return res.status(400).json({ error: "Invalid bucket" });
+//     }
+//     const isZero = bucket === "0";
+
+//     // helper: check if column exists
+//     const tableHasColumn = async (tableName, columnName) => {
+//       const [rows] = await db.promise().query(
+//         `SHOW COLUMNS FROM \`${tableName}\` LIKE ?`,
+//         [columnName]
+//       );
+//       return rows.length > 0;
+//     };
+
+//     const branches = [];
+
+//     const addBranchIfNeeded = async ({ label, key, rpsTable, bookTable }) => {
+//       if (!(prod === "ALL" || prod === key)) return;
+
+//       // check schema dynamically
+//       const hasDealerName  = await tableHasColumn(bookTable, "dealer_name");
+//       const hasBeneficiary = await tableHasColumn(bookTable, "beneficiary_name");
+//       const hasDistrict    = await tableHasColumn(bookTable, "district");
+//       const hasCity        = await tableHasColumn(bookTable, "current_address_city");
+
+//       // dealerExpr
+//       let dealerExpr;
+//       if (hasDealerName && hasBeneficiary) {
+//         dealerExpr = "COALESCE(MAX(b.dealer_name), MAX(b.beneficiary_name))";
+//       } else if (hasDealerName) {
+//         dealerExpr = "MAX(b.dealer_name)";
+//       } else if (hasBeneficiary) {
+//         dealerExpr = "MAX(b.beneficiary_name)";
+//       } else {
+//         dealerExpr = "'-'";
+//       }
+
+//       // districtExpr
+//       let districtExpr;
+//       if (hasDistrict && hasCity) {
+//         districtExpr = "COALESCE(MAX(b.district), MAX(b.current_address_city))";
+//       } else if (hasDistrict) {
+//         districtExpr = "MAX(b.district)";
+//       } else if (hasCity) {
+//         districtExpr = "MAX(b.current_address_city)";
+//       } else {
+//         districtExpr = "'-'";
+//       }
+
+//       // build branch query
+//       branches.push(`
+//         SELECT '${label}' AS product,
+//                rps.lan,
+//                MAX(b.customer_name) AS customer_name,
+//                ${dealerExpr} AS dealer_name,
+//                ${districtExpr} AS district,
+//                MAX(b.status) AS status, 
+//                CASE
+//                  WHEN LOWER(b.status) = 'disbursed' THEN 'Active'
+//                  WHEN LOWER(b.status) IN ('fully paid','settled & closed','closed','completed','settled','closed & reopen') THEN 'Closed'
+//                  ELSE 'Unknown'
+//                END AS loan_status,
+//                ${isZero
+//                  ? `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
+//                              THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END)`
+//                  : `MAX(IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)))`
+//                } AS max_dpd,
+//                ${isZero
+//                  ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END)`
+//                  : `SUM(IFNULL(rps.emi,0))`
+//                } AS overdue_emi,
+//                ${isZero
+//                  ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.principal,0) ELSE 0 END)`
+//                  : `SUM(IFNULL(rps.principal,0))`
+//                } AS overdue_principal,
+//                ${isZero
+//                  ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest,0) ELSE 0 END)`
+//                  : `SUM(IFNULL(rps.interest,0))`
+//                } AS overdue_interest,
+//                ${isZero
+//                  ? `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN rps.due_date END)`
+//                  : `MAX(rps.due_date)`
+//                } AS last_due_date,
+//                SUM(IFNULL(rps.principal,0)) AS pos_principal
+//         FROM ${rpsTable} rps
+//         JOIN ${bookTable} b ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+//         ${isClosed
+//   ? "WHERE LOWER(b.status) IN ('closed','fully paid','completed','settled','paid','settled & closed','closed & reopen')"
+//   : "WHERE LOWER(b.status) = 'disbursed'"
+// }
+
+//         GROUP BY rps.lan
+//         ${havingStr}
+//       `);
+//     };
+
+//     // add branches for each product
+//     await addBranchIfNeeded({ label: "BL",         key: "BL",        rpsTable: "manual_rps_bl_loan",    bookTable: "loan_bookings" });
+//     await addBranchIfNeeded({ label: "EV",         key: "EV",        rpsTable: "manual_rps_ev_loan",    bookTable: "loan_booking_ev" });
+//     await addBranchIfNeeded({ label: "Adikosh",    key: "Adikosh",   rpsTable: "manual_rps_adikosh",    bookTable: "loan_booking_adikosh" });
+//     await addBranchIfNeeded({ label: "GQ Non-FSF", key: "GQ Non-FSF",rpsTable: "manual_rps_gq_non_fsf", bookTable: "loan_booking_gq_non_fsf" });
+//     await addBranchIfNeeded({ label: "GQ FSF",     key: "GQ FSF",    rpsTable: "manual_rps_gq_fsf",     bookTable: "loan_booking_gq_fsf" });
+//     await addBranchIfNeeded({ label: "Embifi",     key: "Embifi",    rpsTable: "manual_rps_embifi_loan",bookTable: "loan_booking_embifi" });
+
+//     if (!branches.length) {
+//       return res.json({ rows: [], pagination: { page, pageSize, total: 0 } });
+//     }
+
+//     // Sorting
+//     const SORT_MAP = {
+//       pos: "pos_principal",
+//       emi: "overdue_emi",
+//       dpd: "max_dpd",
+//       due: "last_due_date",
+//       ageing: "ageing_days",
+//       customer: "customer_name",
+//   dealer: "dealer_name",
+//   district: "district"
+//     };
+
+//     const sortKey = (typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd");
+//     const sortCol = SORT_MAP[sortKey] || SORT_MAP.dpd;
+//     const sortDir = (String(sortDirRaw || "desc").toLowerCase() === "asc") ? "ASC" : "DESC";
+
+//     const orderClause = `ORDER BY ${sortCol} ${sortDir}, lan ASC`;
+
+    // // Final SQL
+    // const sql = `
+    //   WITH d AS (
+    //     SELECT lan, MIN(Disbursement_Date) AS disb_date
+    //     FROM ev_disbursement_utr
+    //     GROUP BY lan
+    //   ),
+    //   base AS (
+    //     ${branches.join(" UNION ALL ")}
+    //   )
+    //   SELECT base.*, d.disb_date, DATEDIFF(CURDATE(), d.disb_date) AS ageing_days,
+    //          COUNT(*) OVER() AS total_rows
+    //   FROM base
+    //   LEFT JOIN d ON d.lan = base.lan
+    //   ${orderClause}
+    //   LIMIT ? OFFSET ?
+    // `;
+
+//     const [pageRows] = await db.promise().query(sql, [pageSize, offset]);
+//     const total = pageRows.length ? Number(pageRows[0].total_rows) : 0;
+//     const rows  = pageRows.map(({ total_rows, ...r }) => r);
+
+//     res.json({ rows, pagination: { page, pageSize, total } });
+//   } catch (err) {
+//     console.error("❌ DPD List Error:", err);
+//     res.status(500).json({ error: "Failed to fetch DPD list" });
+//   }
+// });
+
 router.post("/dpd-list", async (req, res) => {
   try {
     const {
@@ -4201,9 +4402,9 @@ router.post("/dpd-list", async (req, res) => {
     const prod = normalizeProduct(product);
 
     // pagination
-    const page     = Math.max(1, parseInt(pageRaw || 1, 10));
+    const page = Math.max(1, parseInt(pageRaw || 1, 10));
     const pageSize = Math.min(200, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
-    const offset   = (page - 1) * pageSize;
+    const offset = (page - 1) * pageSize;
 
     // --- Bucket filter ---
     const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
@@ -4218,11 +4419,10 @@ router.post("/dpd-list", async (req, res) => {
       const [minDPD, maxDPD] = ranges[bucket];
       havingStr = `HAVING max_dpd BETWEEN ${minDPD} AND ${maxDPD}`;
     } else if (bucket === "closed") {
-  isClosed = true;
-} else {
+      isClosed = true;
+    } else {
       return res.status(400).json({ error: "Invalid bucket" });
     }
-    const isZero = bucket === "0";
 
     // helper: check if column exists
     const tableHasColumn = async (tableName, columnName) => {
@@ -4239,10 +4439,10 @@ router.post("/dpd-list", async (req, res) => {
       if (!(prod === "ALL" || prod === key)) return;
 
       // check schema dynamically
-      const hasDealerName  = await tableHasColumn(bookTable, "dealer_name");
+      const hasDealerName = await tableHasColumn(bookTable, "dealer_name");
       const hasBeneficiary = await tableHasColumn(bookTable, "beneficiary_name");
-      const hasDistrict    = await tableHasColumn(bookTable, "district");
-      const hasCity        = await tableHasColumn(bookTable, "current_address_city");
+      const hasDistrict = await tableHasColumn(bookTable, "district");
+      const hasCity = await tableHasColumn(bookTable, "current_address_city");
 
       // dealerExpr
       let dealerExpr;
@@ -4281,35 +4481,40 @@ router.post("/dpd-list", async (req, res) => {
                  WHEN LOWER(b.status) IN ('fully paid','settled & closed','closed','completed','settled','closed & reopen') THEN 'Closed'
                  ELSE 'Unknown'
                END AS loan_status,
-               ${isZero
-                 ? `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE()
-                             THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END)`
-                 : `MAX(IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)))`
-               } AS max_dpd,
-               ${isZero
-                 ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi,0) ELSE 0 END)`
-                 : `SUM(IFNULL(rps.emi,0))`
-               } AS overdue_emi,
-               ${isZero
-                 ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.principal,0) ELSE 0 END)`
-                 : `SUM(IFNULL(rps.principal,0))`
-               } AS overdue_principal,
-               ${isZero
-                 ? `SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest,0) ELSE 0 END)`
-                 : `SUM(IFNULL(rps.interest,0))`
-               } AS overdue_interest,
-               ${isZero
-                 ? `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN rps.due_date END)`
-                 : `MAX(rps.due_date)`
-               } AS last_due_date,
-               SUM(IFNULL(rps.principal,0)) AS pos_principal
-        FROM ${rpsTable} rps
-        JOIN ${bookTable} b ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-        ${isClosed
-  ? "WHERE LOWER(b.status) IN ('closed','fully paid','completed','settled','paid','settled & closed','closed & reopen')"
-  : "WHERE LOWER(b.status) = 'disbursed'"
-}
+               MAX(IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))) AS max_dpd,
 
+               -- ✅ Correct overdue EMI logic
+               SUM(CASE 
+                     WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() 
+                     THEN IFNULL(rps.emi, 0) 
+                     ELSE 0 
+                   END) AS overdue_emi,
+
+               SUM(CASE 
+                     WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() 
+                     THEN IFNULL(rps.principal, 0) 
+                     ELSE 0 
+                   END) AS overdue_principal,
+
+               SUM(CASE 
+                     WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() 
+                     THEN IFNULL(rps.interest, 0) 
+                     ELSE 0 
+                   END) AS overdue_interest,
+
+               MAX(CASE 
+                     WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() 
+                     THEN rps.due_date 
+                   END) AS last_due_date,
+
+               SUM(IFNULL(rps.principal, 0)) AS pos_principal
+        FROM ${rpsTable} rps
+        JOIN ${bookTable} b 
+          ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+        ${isClosed
+          ? "WHERE LOWER(b.status) IN ('closed','fully paid','completed','settled','paid','settled & closed','closed & reopen')"
+          : "WHERE LOWER(b.status) = 'disbursed'"
+        }
         GROUP BY rps.lan
         ${havingStr}
       `);
@@ -4335,8 +4540,8 @@ router.post("/dpd-list", async (req, res) => {
       due: "last_due_date",
       ageing: "ageing_days",
       customer: "customer_name",
-  dealer: "dealer_name",
-  district: "district"
+      dealer: "dealer_name",
+      district: "district"
     };
 
     const sortKey = (typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd");
@@ -4348,14 +4553,14 @@ router.post("/dpd-list", async (req, res) => {
     // Final SQL
     const sql = `
       WITH d AS (
-        SELECT lan, MIN(Disbursement_Date) AS disb_date
+        SELECT lan, MIN(Disbursement_Date) AS disbursement_date
         FROM ev_disbursement_utr
         GROUP BY lan
       ),
       base AS (
         ${branches.join(" UNION ALL ")}
       )
-      SELECT base.*, d.disb_date, DATEDIFF(CURDATE(), d.disb_date) AS ageing_days,
+      SELECT base.*, d.disbursement_date, DATEDIFF(CURDATE(), d.disbursement_date) AS ageing_days,
              COUNT(*) OVER() AS total_rows
       FROM base
       LEFT JOIN d ON d.lan = base.lan
@@ -4365,7 +4570,7 @@ router.post("/dpd-list", async (req, res) => {
 
     const [pageRows] = await db.promise().query(sql, [pageSize, offset]);
     const total = pageRows.length ? Number(pageRows[0].total_rows) : 0;
-    const rows  = pageRows.map(({ total_rows, ...r }) => r);
+    const rows = pageRows.map(({ total_rows, ...r }) => r);
 
     res.json({ rows, pagination: { page, pageSize, total } });
   } catch (err) {
@@ -4373,6 +4578,8 @@ router.post("/dpd-list", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch DPD list" });
   }
 });
+
+
 
 /** -------------------- Export current DPD page via email -------------------- */
 router.post("/dpd-export-email", async (req, res) => {

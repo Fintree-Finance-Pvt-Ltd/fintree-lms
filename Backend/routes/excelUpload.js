@@ -3701,7 +3701,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       ]
     );
     console.log("✅ Customer record inserted successfully.");
-
+    console.log ("cibil request data", "pan number", data.pan_number, "loan amount", data.loan_amount, "loan tenure", data.loan_tenure, "first name", data.first_name, "last name", data.last_name, "dob", data.dob, "mobile number", data.mobile_number, "current address", data.current_address, "current city", data.current_village_city, "current state", data.current_state, "current pincode", data.current_pincode);
     // --- Build SOAP XML ---
     console.log("🧩 Building SOAP request body for Experian...");
     const dobFormatted = data.dob.replace(/-/g, "");
