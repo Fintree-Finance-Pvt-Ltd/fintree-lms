@@ -3629,7 +3629,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     // --- Required field check ---
     const requiredFields = [
-      "login_date", "partner_loan_id", "first_name","aast_name", "gender", "dob",
+      "login_date", "partner_loan_id", "first_name","last_name", "gender", "dob",
       "mobile_number", "email_id", "pan_number", "aadhar_number",
       "current_address", "current_village_city", "current_district",
       "current_state", "current_pincode", "permanent_address",
