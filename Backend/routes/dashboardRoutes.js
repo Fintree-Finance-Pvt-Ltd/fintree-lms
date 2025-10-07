@@ -17,7 +17,6 @@
 //   return { start, end };
 // }
 
-
 // // Builds "AND field >= ? AND field < ?" with params, using start/end if present
 // function buildDateRangeClause(field, start, end) {
 //   const parts = [];
@@ -480,7 +479,7 @@
 //       const bookRange = buildDateRangeClause("l.agreement_date", start, end);
 
 //       posQueries.push(`
-//         SELECT 
+//         SELECT
 //           IFNULL(SUM(
 //             CASE
 //               WHEN rps.payment_date IS NULL THEN rps.principal
@@ -507,7 +506,7 @@
 //     if (prod === "ALL" || prod === "Adikosh") {
 //       const bookRange = buildDateRangeClause("b.agreement_date", start, end);
 //       posQueries.push(`
-//         SELECT 
+//         SELECT
 //           IFNULL(SUM(
 //             CASE
 //               WHEN rps.payment_date IS NULL THEN rps.principal
@@ -533,7 +532,7 @@
 //     if (prod === "ALL" || prod === "GQ Non-FSF") {
 //       const bookRange = buildDateRangeClause("b.agreement_date", start, end);
 //       posQueries.push(`
-//         SELECT 
+//         SELECT
 //           IFNULL(SUM(
 //             CASE
 //               WHEN rps.payment_date IS NULL THEN rps.principal
@@ -592,7 +591,6 @@
 //     res.status(500).json({ error: "Failed to fetch metrics" });
 //   }
 // });
-
 
 // /** -------------------- DPD Buckets (summary) -------------------- */
 // /** body: { product }  -> uses normalizeProduct(product) */
@@ -706,7 +704,6 @@
 //   }
 // });
 
-
 // /** -------------------- DPD Loan List (by bucket) -------------------- */
 // /** body: { product, bucket }  // bucket: '0-30' | '30-60' | '60-90' */
 // router.post("/dpd-list", async (req, res) => {
@@ -806,9 +803,7 @@
 //   }
 // });
 
-
 // module.exports = router;
-
 
 // const express = require("express");
 // const db = require("../config/db");
@@ -1447,7 +1442,7 @@
 //     if (prod === "ALL" || prod === "BL") {
 //       const bookRange = buildDateRangeClause("b.agreement_date", start, end);
 //       posQueries.push(`
-//         SELECT 
+//         SELECT
 //           IFNULL(SUM(
 //             CASE
 //               WHEN rps.payment_date IS NULL THEN rps.principal
@@ -1473,7 +1468,7 @@
 //     if (prod === "ALL" || prod === "EV") {
 //       const bookRange = buildDateRangeClause("e.agreement_date", start, end);
 //       posQueries.push(`
-//         SELECT 
+//         SELECT
 //           IFNULL(SUM(
 //             CASE
 //               WHEN rps.payment_date IS NULL THEN rps.principal
@@ -1499,7 +1494,7 @@
 //     if (prod === "ALL" || prod === "Adikosh") {
 //       const bookRange = buildDateRangeClause("b.agreement_date", start, end);
 //       posQueries.push(`
-//         SELECT 
+//         SELECT
 //           IFNULL(SUM(
 //             CASE
 //               WHEN rps.payment_date IS NULL THEN rps.principal
@@ -1525,7 +1520,7 @@
 //     if (prod === "ALL" || prod === "GQ Non-FSF") {
 //       const bookRange = buildDateRangeClause("b.agreement_date", start, end);
 //       posQueries.push(`
-//         SELECT 
+//         SELECT
 //           IFNULL(SUM(
 //             CASE
 //               WHEN rps.payment_date IS NULL THEN rps.principal
@@ -1550,7 +1545,7 @@
 //     if (prod === "ALL" || prod === "GQ FSF") {
 //       const bookRange = buildDateRangeClause("b.agreement_date", start, end);
 //       posQueries.push(`
-//         SELECT 
+//         SELECT
 //           IFNULL(SUM(
 //             CASE
 //               WHEN rps.payment_date IS NULL THEN rps.principal
@@ -1919,7 +1914,7 @@
 //   IFNULL(SUM(
 //     CASE
 //       WHEN rps.payment_date IS NULL OR rps.payment_date >= ? THEN
-//         CASE 
+//         CASE
 //           WHEN rps.remaining_principal IS NOT NULL AND rps.remaining_principal <> 0
 //             THEN rps.remaining_principal
 //           ELSE rps.principal
@@ -2082,7 +2077,7 @@
 //                'BL Loan' AS product,
 //                SUM(r.transfer_amount) AS total_collected
 //         FROM repayments_upload r
-//         JOIN loan_bookings b 
+//         JOIN loan_bookings b
 //           ON b.lan COLLATE ${JOIN_COLLATE} = r.lan COLLATE ${JOIN_COLLATE}
 //         WHERE r.payment_date IS NOT NULL
 //           ${dateR.clause}
@@ -2098,7 +2093,7 @@
 //                'EV Loan' AS product,
 //                SUM(r.transfer_amount) AS total_collected
 //         FROM repayments_upload r
-//         JOIN loan_booking_ev e 
+//         JOIN loan_booking_ev e
 //           ON e.lan COLLATE ${JOIN_COLLATE} = r.lan COLLATE ${JOIN_COLLATE}
 //         WHERE r.payment_date IS NOT NULL
 //           ${dateR.clause}
@@ -2255,7 +2250,7 @@
 //                0 AS total_due,
 //                SUM(r.transfer_amount) AS total_collected
 //         FROM repayments_upload r
-//         JOIN loan_bookings b 
+//         JOIN loan_bookings b
 //           ON b.lan COLLATE ${JOIN_COLLATE} = r.lan COLLATE ${JOIN_COLLATE}
 //         WHERE r.payment_date IS NOT NULL
 //           AND r.payment_date < CURDATE()
@@ -2273,7 +2268,7 @@
 //                0 AS total_due,
 //                SUM(r.transfer_amount) AS total_collected
 //         FROM repayments_upload r
-//         JOIN loan_booking_ev e 
+//         JOIN loan_booking_ev e
 //           ON e.lan COLLATE ${JOIN_COLLATE} = r.lan COLLATE ${JOIN_COLLATE}
 //         WHERE r.payment_date IS NOT NULL
 //           AND r.payment_date < CURDATE()
@@ -2884,7 +2879,6 @@
 //   }
 // });
 
-
 // router.post("/dpd-list", async (req, res) => {
 //   try {
 //     const {
@@ -2964,7 +2958,7 @@
 //           FROM manual_rps_bl_loan rps
 //           JOIN loan_bookings b
 //             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//             ${DISB_JOIN} 
+//             ${DISB_JOIN}
 //           GROUP BY rps.lan
 //           ${havingClause}
 //         ) t
@@ -2992,7 +2986,7 @@
 //           FROM manual_rps_ev_loan rps
 //           JOIN loan_booking_ev e
 //             ON e.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//             ${DISB_JOIN} 
+//             ${DISB_JOIN}
 //           GROUP BY rps.lan
 //           ${havingClause}
 //         ) t
@@ -3020,7 +3014,7 @@
 //           FROM manual_rps_adikosh rps
 //           JOIN loan_booking_adikosh b
 //             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//             ${DISB_JOIN} 
+//             ${DISB_JOIN}
 //           GROUP BY rps.lan
 //           ${havingClause}
 //         ) t
@@ -3048,7 +3042,7 @@
 //           FROM manual_rps_gq_non_fsf rps
 //           JOIN loan_booking_gq_non_fsf b
 //             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//             ${DISB_JOIN} 
+//             ${DISB_JOIN}
 //           GROUP BY rps.lan
 //           ${havingClause}
 //         ) t
@@ -3076,7 +3070,7 @@
 //           FROM manual_rps_gq_fsf rps
 //           JOIN loan_booking_gq_fsf b
 //             ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-//             ${DISB_JOIN} 
+//             ${DISB_JOIN}
 //           GROUP BY rps.lan
 //           ${havingClause}
 //         ) t
@@ -3125,7 +3119,6 @@
 //     res.status(500).json({ error: "Failed to fetch DPD list" });
 //   }
 // });
-
 
 // router.post("/dpd-export-email", async (req, res) => {
 //   try {
@@ -3216,12 +3209,7 @@
 //   }
 // });
 
-
 // module.exports = router;
-
-
-
-
 
 ////////////////////////////////////////////////////////////
 
@@ -3263,8 +3251,14 @@ function dayRange(from, to) {
 function buildDateRangeClause(field, start, end) {
   const parts = [];
   const params = [];
-  if (start) { parts.push(`${field} >= ?`); params.push(start); }
-  if (end)   { parts.push(`${field} < ?`);  params.push(end); }
+  if (start) {
+    parts.push(`${field} >= ?`);
+    params.push(start);
+  }
+  if (end) {
+    parts.push(`${field} < ?`);
+    params.push(end);
+  }
   return { clause: parts.length ? ` AND ${parts.join(" AND ")}` : "", params };
 }
 
@@ -3277,7 +3271,7 @@ function normalizeProduct(p) {
   if (s === "adikosh") return "Adikosh";
   if (s === "gqnonfsf" || s === "gqnon-fsf") return "GQ Non-FSF";
   if (s === "gqfsf" || s === "gq-fsf") return "GQ FSF";
-  if(s === "embifi" || s === "embifi") return "Embifi";
+  if (s === "embifi" || s === "embifi") return "Embifi";
   return p;
 }
 
@@ -3308,11 +3302,14 @@ router.post("/disbursal-trend", async (req, res) => {
 
     if (prod === "ALL" || prod === "BL") add("loan_bookings", "BL Loan");
     if (prod === "ALL" || prod === "EV") add("loan_booking_ev", "EV Loan");
-    if (prod === "ALL" || prod === "Adikosh") add("loan_booking_adikosh", "Adikosh");
-    if (prod === "ALL" || prod === "GQ Non-FSF") add("loan_booking_gq_non_fsf", "GQ Non-FSF");
-    if (prod === "ALL" || prod === "GQ FSF") add("loan_booking_gq_fsf", "GQ FSF");
-    if (prod === "ALL" || prod === "Embifi") add("loan_booking_embifi", "Embifi");
-
+    if (prod === "ALL" || prod === "Adikosh")
+      add("loan_booking_adikosh", "Adikosh");
+    if (prod === "ALL" || prod === "GQ Non-FSF")
+      add("loan_booking_gq_non_fsf", "GQ Non-FSF");
+    if (prod === "ALL" || prod === "GQ FSF")
+      add("loan_booking_gq_fsf", "GQ FSF");
+    if (prod === "ALL" || prod === "Embifi")
+      add("loan_booking_embifi", "Embifi");
 
     const sql = queries.join(" UNION ALL ") + " ORDER BY month, product";
     const [rows] = await db.promise().query(sql, params);
@@ -3387,7 +3384,9 @@ router.post("/repayment-trend", async (req, res) => {
         FROM repayments_upload
         WHERE payment_date IS NOT NULL
           AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
-            SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} FROM loan_booking_gq_non_fsf
+            SELECT lan ${
+              USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
+            } FROM loan_booking_gq_non_fsf
           )
           ${dateA.clause}
         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
@@ -3403,14 +3402,15 @@ router.post("/repayment-trend", async (req, res) => {
         FROM repayments_upload
         WHERE payment_date IS NOT NULL
           AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
-            SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} FROM loan_booking_embifi
+            SELECT lan ${
+              USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
+            } FROM loan_booking_embifi
           )
           ${dateA.clause}
         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
       `);
       params.push(...dateA.params);
     }
-
 
     if (prod === "ALL" || prod === "GQ FSF") {
       queries.push(`
@@ -3420,7 +3420,9 @@ router.post("/repayment-trend", async (req, res) => {
         FROM repayments_upload
         WHERE payment_date IS NOT NULL
           AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
-            SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} FROM loan_booking_gq_fsf
+            SELECT lan ${
+              USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
+            } FROM loan_booking_gq_fsf
           )
           ${dateA.clause}
         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
@@ -3582,7 +3584,9 @@ router.post("/collection-vs-due", async (req, res) => {
         WHERE payment_date IS NOT NULL
           AND payment_date < CURDATE()
           AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
-            SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} FROM loan_booking_gq_non_fsf
+            SELECT lan ${
+              USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
+            } FROM loan_booking_gq_non_fsf
           )
           ${payR.clause}
         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
@@ -3599,7 +3603,9 @@ router.post("/collection-vs-due", async (req, res) => {
         WHERE payment_date IS NOT NULL
           AND payment_date < CURDATE()
           AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
-            SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} FROM loan_booking_gq_fsf
+            SELECT lan ${
+              USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
+            } FROM loan_booking_gq_fsf
           )
           ${payR.clause}
         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
@@ -3666,7 +3672,12 @@ router.post("/product-distribution", async (req, res) => {
     `;
 
     const params = [
-      ...wcBL.params, ...wcEV.params, ...wcAK.params, ...wcGQNon.params, ...wcGQFsf.params, ...wcEmbifi.params,
+      ...wcBL.params,
+      ...wcEV.params,
+      ...wcAK.params,
+      ...wcGQNon.params,
+      ...wcGQFsf.params,
+      ...wcEmbifi.params,
     ];
     const [rows] = await db.promise().query(sql, params);
 
@@ -3675,7 +3686,9 @@ router.post("/product-distribution", async (req, res) => {
       productMap[product] = (productMap[product] || 0) + Number(value || 0);
     });
 
-    res.json(Object.entries(productMap).map(([product, value]) => ({ product, value })));
+    res.json(
+      Object.entries(productMap).map(([product, value]) => ({ product, value }))
+    );
   } catch (err) {
     console.error("❌ Product Distribution Error:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -3700,8 +3713,8 @@ router.post("/metric-cards", async (req, res) => {
 
     const dclBL = buildDateRangeClause("agreement_date", start, end);
     const dclEV = buildDateRangeClause("agreement_date", start, end);
-    const pclR  = buildDateRangeClause("r.payment_date", start, end);
-    const pclA  = buildDateRangeClause("payment_date", start, end);
+    const pclR = buildDateRangeClause("r.payment_date", start, end);
+    const pclA = buildDateRangeClause("payment_date", start, end);
     const dclEmbifi = buildDateRangeClause("agreement_date", start, end);
 
     // DISBURSED
@@ -3802,7 +3815,9 @@ router.post("/metric-cards", async (req, res) => {
         FROM repayments_upload
         WHERE payment_date IS NOT NULL
           AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
-            SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} FROM loan_booking_gq_non_fsf
+            SELECT lan ${
+              USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
+            } FROM loan_booking_gq_non_fsf
           )
           ${pclA.clause}
       `);
@@ -3814,17 +3829,18 @@ router.post("/metric-cards", async (req, res) => {
         FROM repayments_upload
         WHERE payment_date IS NOT NULL
           AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
-            SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} FROM loan_booking_gq_fsf
+            SELECT lan ${
+              USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
+            } FROM loan_booking_gq_fsf
           )
           ${pclA.clause}
       `);
       collectParams.push(...pclA.params);
     }
 
-
-if (prod === "ALL" || prod === "BL") {
-  const r = buildDateRangeClause("bank_date_allocation", start, end);
-  pniRangeQueries.push(`
+    if (prod === "ALL" || prod === "BL") {
+      const r = buildDateRangeClause("bank_date_allocation", start, end);
+      pniRangeQueries.push(`
     SELECT 
       IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
       IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
@@ -3832,12 +3848,12 @@ if (prod === "ALL" || prod === "BL") {
     WHERE allocation_date IS NOT NULL ${r.clause}
       AND lan LIKE 'BL%'
   `);
-  pniRangeParams.push(...r.params);
-}
+      pniRangeParams.push(...r.params);
+    }
 
-if (prod === "ALL" || prod === "EV") {
-  const r = buildDateRangeClause("bank_date_allocation", start, end);
-  pniRangeQueries.push(`
+    if (prod === "ALL" || prod === "EV") {
+      const r = buildDateRangeClause("bank_date_allocation", start, end);
+      pniRangeQueries.push(`
     SELECT 
       IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
       IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
@@ -3845,12 +3861,12 @@ if (prod === "ALL" || prod === "EV") {
     WHERE allocation_date IS NOT NULL ${r.clause}
       AND lan LIKE 'EV%'
   `);
-  pniRangeParams.push(...r.params);
-}
+      pniRangeParams.push(...r.params);
+    }
 
-if (prod === "ALL" || prod === "Embifi") {
-  const r = buildDateRangeClause("bank_date_allocation", start, end);
-  pniRangeQueries.push(`
+    if (prod === "ALL" || prod === "Embifi") {
+      const r = buildDateRangeClause("bank_date_allocation", start, end);
+      pniRangeQueries.push(`
     SELECT 
       IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
       IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
@@ -3858,12 +3874,12 @@ if (prod === "ALL" || prod === "Embifi") {
     WHERE allocation_date IS NOT NULL ${r.clause}
       AND lan LIKE 'E1%'
   `);
-  pniRangeParams.push(...r.params);
-}
+      pniRangeParams.push(...r.params);
+    }
 
-if (prod === "ALL" || prod === "Adikosh") {
-  const r = buildDateRangeClause("bank_date_allocation", start, end);
-  pniRangeQueries.push(`
+    if (prod === "ALL" || prod === "Adikosh") {
+      const r = buildDateRangeClause("bank_date_allocation", start, end);
+      pniRangeQueries.push(`
     SELECT 
       IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
       IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
@@ -3871,12 +3887,12 @@ if (prod === "ALL" || prod === "Adikosh") {
     WHERE allocation_date IS NOT NULL ${r.clause}
       AND lan LIKE 'ADK%'
   `);
-  pniRangeParams.push(...r.params);
-}
+      pniRangeParams.push(...r.params);
+    }
 
-if (prod === "ALL" || prod === "GQ Non-FSF") {
-  const r = buildDateRangeClause("bank_date_allocation", start, end);
-  pniRangeQueries.push(`
+    if (prod === "ALL" || prod === "GQ Non-FSF") {
+      const r = buildDateRangeClause("bank_date_allocation", start, end);
+      pniRangeQueries.push(`
     SELECT 
       IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
       IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
@@ -3884,12 +3900,12 @@ if (prod === "ALL" || prod === "GQ Non-FSF") {
     WHERE allocation_date IS NOT NULL ${r.clause}
       AND lan LIKE '%GQN%'
   `);
-  pniRangeParams.push(...r.params);
-}
+      pniRangeParams.push(...r.params);
+    }
 
-if (prod === "ALL" || prod === "GQ FSF") {
-  const r = buildDateRangeClause("bank_date_allocation", start, end);
-  pniRangeQueries.push(`
+    if (prod === "ALL" || prod === "GQ FSF") {
+      const r = buildDateRangeClause("bank_date_allocation", start, end);
+      pniRangeQueries.push(`
     SELECT 
       IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
       IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
@@ -3897,11 +3913,8 @@ if (prod === "ALL" || prod === "GQ FSF") {
     WHERE allocation_date IS NOT NULL ${r.clause}
       AND lan LIKE '%GQF%'
   `);
-  pniRangeParams.push(...r.params);
-}
-
-
-
+      pniRangeParams.push(...r.params);
+    }
 
     // POS cutoff
     const jsToday = new Date().toISOString().slice(0, 10);
@@ -3981,26 +3994,39 @@ if (prod === "ALL" || prod === "GQ FSF") {
       pToDateParams.push(cutoff, ...br.params);
     }
 
-    const [
-      [disbRows],
-      [collRows],
-      [pniRangeRows],
-      [pToDateRows],
-    ] = await Promise.all([
-      db.promise().query(disburseQueries.join(" UNION ALL "), disburseParams),
-      db.promise().query(collectQueries.join(" UNION ALL "), collectParams),
-      db.promise().query(pniRangeQueries.join(" UNION ALL "), pniRangeParams),
-      db.promise().query(pToDateQueries.join(" UNION ALL "), pToDateParams),
-    ]);
+    const [[disbRows], [collRows], [pniRangeRows], [pToDateRows]] =
+      await Promise.all([
+        db.promise().query(disburseQueries.join(" UNION ALL "), disburseParams),
+        db.promise().query(collectQueries.join(" UNION ALL "), collectParams),
+        db.promise().query(pniRangeQueries.join(" UNION ALL "), pniRangeParams),
+        db.promise().query(pToDateQueries.join(" UNION ALL "), pToDateParams),
+      ]);
 
-    const totalDisbursed  = disbRows.reduce((s, r) => s + Number(r.amount || 0), 0);
-    const totalCollected  = collRows.reduce((s, r) => s + Number(r.amount || 0), 0);
-    const totalPrincipal  = pniRangeRows.reduce((s, r) => s + Number(r.principal || 0), 0);
-    const totalInterest   = pniRangeRows.reduce((s, r) => s + Number(r.interest || 0), 0);
-    const principalToDate = pToDateRows.reduce((s, r) => s + Number(r.principal || 0), 0);
+    const totalDisbursed = disbRows.reduce(
+      (s, r) => s + Number(r.amount || 0),
+      0
+    );
+    const totalCollected = collRows.reduce(
+      (s, r) => s + Number(r.amount || 0),
+      0
+    );
+    const totalPrincipal = pniRangeRows.reduce(
+      (s, r) => s + Number(r.principal || 0),
+      0
+    );
+    const totalInterest = pniRangeRows.reduce(
+      (s, r) => s + Number(r.interest || 0),
+      0
+    );
+    const principalToDate = pToDateRows.reduce(
+      (s, r) => s + Number(r.principal || 0),
+      0
+    );
 
     const principalOutstanding = Math.max(totalDisbursed - principalToDate, 0);
-    const collectionRate = totalDisbursed ? (totalCollected / totalDisbursed) * 100 : 0;
+    const collectionRate = totalDisbursed
+      ? (totalCollected / totalDisbursed) * 100
+      : 0;
 
     res.json({
       totalDisbursed,
@@ -4036,7 +4062,7 @@ router.post("/dpd-buckets", async (req, res) => {
     };
 
     const prod = normalizeProduct(product);
-    const BUCKET_ORDER = `'ALL','0','0-30','30-60','60-90','90+','closed'`;
+    const BUCKET_ORDER = `'ALL','active','0','0-30','30-60','60-90','90+','closed'`;
 
     // --- Branch per product ---
     const branch = (rpsTable, bookTable) => `
@@ -4064,7 +4090,6 @@ router.post("/dpd-buckets", async (req, res) => {
   GROUP BY bucket
 `;
 
-
     const branchAll = (rpsTable, bookTable) => `
   SELECT
     'ALL' AS bucket,
@@ -4083,7 +4108,31 @@ router.post("/dpd-buckets", async (req, res) => {
   ) t
 `;
 
-const branchClosed = (rpsTable, bookTable) => `
+    // ✅ NEW BUCKET: Active Loans
+   const branchActive = (rpsTable, bookTable) => `
+  SELECT
+    'active' AS bucket,
+    COUNT(DISTINCT t.lan) AS loans,
+    SUM(t.overdue_emi) AS overdue_emi
+  FROM (
+    SELECT rps.lan,
+           SUM(
+             CASE 
+               WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() 
+               THEN IFNULL(rps.emi, 0) 
+               ELSE 0 
+             END
+           ) AS overdue_emi
+    FROM ${rpsTable} rps
+    JOIN ${bookTable} b ON b.lan = rps.lan
+    WHERE LOWER(b.status) = 'disbursed'
+    GROUP BY rps.lan
+  ) t
+`;
+
+
+
+    const branchClosed = (rpsTable, bookTable) => `
   SELECT
     'closed' AS bucket,
     COUNT(DISTINCT b.lan) AS loans,
@@ -4091,42 +4140,55 @@ const branchClosed = (rpsTable, bookTable) => `
   FROM ${bookTable} b
   WHERE LOWER(b.status) NOT IN ('disbursed', 'login', 'disburse initiate')`;
 
-
-
     const unions = [];
     if (prod === "ALL" || prod === "BL") {
       unions.push(branch("manual_rps_bl_loan", "loan_bookings"));
       unions.push(branchAll("manual_rps_bl_loan", "loan_bookings"));
       unions.push(branchClosed("manual_rps_bl_loan", "loan_bookings"));
+      unions.push(branchActive("manual_rps_bl_loan", "loan_bookings"));
     }
     if (prod === "ALL" || prod === "EV") {
       unions.push(branch("manual_rps_ev_loan", "loan_booking_ev"));
       unions.push(branchAll("manual_rps_ev_loan", "loan_booking_ev"));
       unions.push(branchClosed("manual_rps_ev_loan", "loan_booking_ev"));
+      unions.push(branchActive("manual_rps_ev_loan", "loan_booking_ev"));
     }
     if (prod === "ALL" || prod === "Adikosh") {
       unions.push(branch("manual_rps_adikosh", "loan_booking_adikosh"));
       unions.push(branchAll("manual_rps_adikosh", "loan_booking_adikosh"));
       unions.push(branchClosed("manual_rps_adikosh", "loan_booking_adikosh"));
+      unions.push(branchActive("manual_rps_adikosh", "loan_booking_adikosh"));
     }
     if (prod === "ALL" || prod === "GQ Non-FSF") {
       unions.push(branch("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
-      unions.push(branchAll("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
-      unions.push(branchClosed("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
+      unions.push(
+        branchAll("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf")
+      );
+      unions.push(
+        branchClosed("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf")
+      );
+      unions.push(branchActive("manual_rps_gq_non_fsf", "loan_booking_gq_non_fsf"));
     }
     if (prod === "ALL" || prod === "GQ FSF") {
       unions.push(branch("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
       unions.push(branchAll("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
       unions.push(branchClosed("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
+      unions.push(branchActive("manual_rps_gq_fsf", "loan_booking_gq_fsf"));
     }
     if (prod === "ALL" || prod === "Embifi") {
       unions.push(branch("manual_rps_embifi_loan", "loan_booking_embifi"));
       unions.push(branchAll("manual_rps_embifi_loan", "loan_booking_embifi"));
-      unions.push(branchClosed("manual_rps_embifi_loan", "loan_booking_embifi"));
+      unions.push(
+        branchClosed("manual_rps_embifi_loan", "loan_booking_embifi")
+      );  
+      unions.push(branchActive("manual_rps_embifi_loan", "loan_booking_embifi"));
     }
 
     if (!unions.length) {
-      return res.json({ buckets: [], asOf: new Date().toISOString().slice(0, 10) });
+      return res.json({
+        buckets: [],
+        asOf: new Date().toISOString().slice(0, 10),
+      });
     }
 
     const sql = `
@@ -4142,16 +4204,17 @@ const branchClosed = (rpsTable, bookTable) => `
 
     // ensure all buckets exist
     const map = {
-      "ALL":   { bucket: "ALL", loans: 0, overdue_emi: 0 },
-      "0":     { bucket: "0", loans: 0, overdue_emi: 0 },
-      "0-30":  { bucket: "0-30", loans: 0, overdue_emi: 0 },
+      ALL: { bucket: "ALL", loans: 0, overdue_emi: 0 },
+      active: { bucket: "active", loans: 0, overdue_emi: 0 },
+      0: { bucket: "0", loans: 0, overdue_emi: 0 },
+      "0-30": { bucket: "0-30", loans: 0, overdue_emi: 0 },
       "30-60": { bucket: "30-60", loans: 0, overdue_emi: 0 },
       "60-90": { bucket: "60-90", loans: 0, overdue_emi: 0 },
-      "90+":   { bucket: "90+", loans: 0, overdue_emi: 0 },
-      "closed": { bucket: "closed", loans: 0, overdue_emi: 0 },
+      "90+": { bucket: "90+", loans: 0, overdue_emi: 0 },
+      closed: { bucket: "closed", loans: 0, overdue_emi: 0 },
     };
 
-    rows.forEach(r => {
+    rows.forEach((r) => {
       map[r.bucket] = {
         bucket: r.bucket,
         loans: Number(r.loans || 0),
@@ -4162,7 +4225,16 @@ const branchClosed = (rpsTable, bookTable) => `
     });
 
     res.json({
-      buckets: [map["ALL"], map["0"], map["0-30"], map["30-60"], map["60-90"], map["90+"], map["closed"]],
+      buckets: [
+        map["ALL"],
+        map["active"],
+        map["0"],
+        map["0-30"],
+        map["30-60"],
+        map["60-90"],
+        map["90+"],
+        map["closed"],
+      ],
       asOf: new Date().toISOString().slice(0, 10),
     });
   } catch (err) {
@@ -4170,7 +4242,6 @@ const branchClosed = (rpsTable, bookTable) => `
     res.status(500).json({ error: "Failed to fetch DPD buckets" });
   }
 });
-
 
 /** -------------------- DPD List (with disbursal + ageing, fast) -------------------- */
 // router.post("/dpd-list", async (req, res) => {
@@ -4275,7 +4346,7 @@ const branchClosed = (rpsTable, bookTable) => `
 //                MAX(b.customer_name) AS customer_name,
 //                ${dealerExpr} AS dealer_name,
 //                ${districtExpr} AS district,
-//                MAX(b.status) AS status, 
+//                MAX(b.status) AS status,
 //                CASE
 //                  WHEN LOWER(b.status) = 'disbursed' THEN 'Active'
 //                  WHEN LOWER(b.status) IN ('fully paid','settled & closed','closed','completed','settled','closed & reopen') THEN 'Closed'
@@ -4345,23 +4416,23 @@ const branchClosed = (rpsTable, bookTable) => `
 
 //     const orderClause = `ORDER BY ${sortCol} ${sortDir}, lan ASC`;
 
-    // // Final SQL
-    // const sql = `
-    //   WITH d AS (
-    //     SELECT lan, MIN(Disbursement_Date) AS disb_date
-    //     FROM ev_disbursement_utr
-    //     GROUP BY lan
-    //   ),
-    //   base AS (
-    //     ${branches.join(" UNION ALL ")}
-    //   )
-    //   SELECT base.*, d.disb_date, DATEDIFF(CURDATE(), d.disb_date) AS ageing_days,
-    //          COUNT(*) OVER() AS total_rows
-    //   FROM base
-    //   LEFT JOIN d ON d.lan = base.lan
-    //   ${orderClause}
-    //   LIMIT ? OFFSET ?
-    // `;
+// // Final SQL
+// const sql = `
+//   WITH d AS (
+//     SELECT lan, MIN(Disbursement_Date) AS disb_date
+//     FROM ev_disbursement_utr
+//     GROUP BY lan
+//   ),
+//   base AS (
+//     ${branches.join(" UNION ALL ")}
+//   )
+//   SELECT base.*, d.disb_date, DATEDIFF(CURDATE(), d.disb_date) AS ageing_days,
+//          COUNT(*) OVER() AS total_rows
+//   FROM base
+//   LEFT JOIN d ON d.lan = base.lan
+//   ${orderClause}
+//   LIMIT ? OFFSET ?
+// `;
 
 //     const [pageRows] = await db.promise().query(sql, [pageSize, offset]);
 //     const total = pageRows.length ? Number(pageRows[0].total_rows) : 0;
@@ -4382,7 +4453,7 @@ router.post("/dpd-list", async (req, res) => {
       page: pageRaw,
       pageSize: pageSizeRaw,
       sortBy: sortByRaw,
-      sortDir: sortDirRaw
+      sortDir: sortDirRaw,
     } = req.body || {};
 
     const JOIN_COLLATE = "utf8mb4_unicode_ci";
@@ -4403,13 +4474,17 @@ router.post("/dpd-list", async (req, res) => {
 
     // pagination
     const page = Math.max(1, parseInt(pageRaw || 1, 10));
-    const pageSize = Math.min(1000, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
+    const pageSize = Math.min(
+      1000,
+      Math.max(1, parseInt(pageSizeRaw || 25, 10))
+    );
     const offset = (page - 1) * pageSize;
 
     // --- Bucket filter ---
     const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
     let havingStr = "";
     let isClosed = false;
+    let isActive = false;
 
     if (bucket === "0") {
       havingStr = "HAVING max_dpd = 0";
@@ -4420,16 +4495,17 @@ router.post("/dpd-list", async (req, res) => {
       havingStr = `HAVING max_dpd BETWEEN ${minDPD} AND ${maxDPD}`;
     } else if (bucket === "closed") {
       isClosed = true;
+    } else if (bucket === "active") {
+      isActive = true;
     } else {
       return res.status(400).json({ error: "Invalid bucket" });
     }
 
     // helper: check if column exists
     const tableHasColumn = async (tableName, columnName) => {
-      const [rows] = await db.promise().query(
-        `SHOW COLUMNS FROM \`${tableName}\` LIKE ?`,
-        [columnName]
-      );
+      const [rows] = await db
+        .promise()
+        .query(`SHOW COLUMNS FROM \`${tableName}\` LIKE ?`, [columnName]);
       return rows.length > 0;
     };
 
@@ -4440,7 +4516,10 @@ router.post("/dpd-list", async (req, res) => {
 
       // check schema dynamically
       const hasDealerName = await tableHasColumn(bookTable, "dealer_name");
-      const hasBeneficiary = await tableHasColumn(bookTable, "beneficiary_name");
+      const hasBeneficiary = await tableHasColumn(
+        bookTable,
+        "beneficiary_name"
+      );
       const hasDistrict = await tableHasColumn(bookTable, "district");
       const hasCity = await tableHasColumn(bookTable, "current_address_city");
 
@@ -4512,21 +4591,54 @@ router.post("/dpd-list", async (req, res) => {
         JOIN ${bookTable} b 
           ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
         ${isClosed
-          ? "WHERE LOWER(b.status) IN ('closed','fully paid','completed','settled','paid','settled & closed','closed & reopen')"
-          : "WHERE LOWER(b.status) = 'disbursed'"
-        }
+  ? "WHERE LOWER(b.status) NOT IN ('disbursed', 'login', 'disburse initiate')"
+  : isActive
+  ? "WHERE LOWER(b.status) = 'disbursed'"
+  : "WHERE LOWER(b.status) = 'disbursed'"
+}
+
         GROUP BY rps.lan
-        ${havingStr}
+        ${!isActive ? havingStr : ""}
       `);
     };
 
     // add branches for each product
-    await addBranchIfNeeded({ label: "BL",         key: "BL",        rpsTable: "manual_rps_bl_loan",    bookTable: "loan_bookings" });
-    await addBranchIfNeeded({ label: "EV",         key: "EV",        rpsTable: "manual_rps_ev_loan",    bookTable: "loan_booking_ev" });
-    await addBranchIfNeeded({ label: "Adikosh",    key: "Adikosh",   rpsTable: "manual_rps_adikosh",    bookTable: "loan_booking_adikosh" });
-    await addBranchIfNeeded({ label: "GQ Non-FSF", key: "GQ Non-FSF",rpsTable: "manual_rps_gq_non_fsf", bookTable: "loan_booking_gq_non_fsf" });
-    await addBranchIfNeeded({ label: "GQ FSF",     key: "GQ FSF",    rpsTable: "manual_rps_gq_fsf",     bookTable: "loan_booking_gq_fsf" });
-    await addBranchIfNeeded({ label: "Embifi",     key: "Embifi",    rpsTable: "manual_rps_embifi_loan",bookTable: "loan_booking_embifi" });
+    await addBranchIfNeeded({
+      label: "BL",
+      key: "BL",
+      rpsTable: "manual_rps_bl_loan",
+      bookTable: "loan_bookings",
+    });
+    await addBranchIfNeeded({
+      label: "EV",
+      key: "EV",
+      rpsTable: "manual_rps_ev_loan",
+      bookTable: "loan_booking_ev",
+    });
+    await addBranchIfNeeded({
+      label: "Adikosh",
+      key: "Adikosh",
+      rpsTable: "manual_rps_adikosh",
+      bookTable: "loan_booking_adikosh",
+    });
+    await addBranchIfNeeded({
+      label: "GQ Non-FSF",
+      key: "GQ Non-FSF",
+      rpsTable: "manual_rps_gq_non_fsf",
+      bookTable: "loan_booking_gq_non_fsf",
+    });
+    await addBranchIfNeeded({
+      label: "GQ FSF",
+      key: "GQ FSF",
+      rpsTable: "manual_rps_gq_fsf",
+      bookTable: "loan_booking_gq_fsf",
+    });
+    await addBranchIfNeeded({
+      label: "Embifi",
+      key: "Embifi",
+      rpsTable: "manual_rps_embifi_loan",
+      bookTable: "loan_booking_embifi",
+    });
 
     if (!branches.length) {
       return res.json({ rows: [], pagination: { page, pageSize, total: 0 } });
@@ -4541,12 +4653,14 @@ router.post("/dpd-list", async (req, res) => {
       ageing: "ageing_days",
       customer: "customer_name",
       dealer: "dealer_name",
-      district: "district"
+      district: "district",
     };
 
-    const sortKey = (typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd");
+    const sortKey =
+      typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd";
     const sortCol = SORT_MAP[sortKey] || SORT_MAP.dpd;
-    const sortDir = (String(sortDirRaw || "desc").toLowerCase() === "asc") ? "ASC" : "DESC";
+    const sortDir =
+      String(sortDirRaw || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
 
     const orderClause = `ORDER BY ${sortCol} ${sortDir}, lan ASC`;
 
@@ -4579,12 +4693,16 @@ router.post("/dpd-list", async (req, res) => {
   }
 });
 
-
-
 /** -------------------- Export current DPD page via email -------------------- */
 router.post("/dpd-export-email", async (req, res) => {
   try {
-    const { userId: userIdFromBody, product, bucket, page, rows } = req.body || {};
+    const {
+      userId: userIdFromBody,
+      product,
+      bucket,
+      page,
+      rows,
+    } = req.body || {};
     const userId = req.user?.id || userIdFromBody;
     if (!userId) return res.status(400).json({ error: "Missing userId" });
 
@@ -4593,11 +4711,11 @@ router.post("/dpd-export-email", async (req, res) => {
     }
 
     // recipient
-    const [[u]] = await db.promise().query(
-      "SELECT email, name FROM users WHERE id = ? LIMIT 1",
-      [userId]
-    );
-    if (!u?.email) return res.status(404).json({ error: "User email not found" });
+    const [[u]] = await db
+      .promise()
+      .query("SELECT email, name FROM users WHERE id = ? LIMIT 1", [userId]);
+    if (!u?.email)
+      return res.status(404).json({ error: "User email not found" });
 
     // workbook
     const columns = [
@@ -4611,8 +4729,8 @@ router.post("/dpd-export-email", async (req, res) => {
       { key: "pos_principal", header: "POS (Principal)" },
     ];
 
-    const header = columns.map(c => c.header);
-    const dataRows = rows.map(r => ([
+    const header = columns.map((c) => c.header);
+    const dataRows = rows.map((r) => [
       r.lan ?? "",
       r.customer_name ?? "",
       r.product ?? "",
@@ -4620,21 +4738,28 @@ router.post("/dpd-export-email", async (req, res) => {
       Number(r.overdue_emi ?? 0),
       Number(r.overdue_principal ?? 0),
       Number(r.overdue_interest ?? 0),
-      Number(r.pos_principal ?? 0)
-    ]));
+      Number(r.pos_principal ?? 0),
+    ]);
 
     const ws = XLSX.utils.aoa_to_sheet([header, ...dataRows]);
     for (let r = 1; r <= dataRows.length; r++) {
-      for (const c of [3,4,5,6]) {
+      for (const c of [3, 4, 5, 6]) {
         const addr = XLSX.utils.encode_cell({ r, c });
-        if (ws[addr]) { ws[addr].t = "n"; ws[addr].z = "#,##0"; }
+        if (ws[addr]) {
+          ws[addr].t = "n";
+          ws[addr].z = "#,##0";
+        }
       }
     }
     ws["!cols"] = header.map((h, i) => ({
-      wch: Math.min(40, Math.max(12,
-        String(h).length + 2,
-        ...dataRows.map(row => (row[i] ? String(row[i]).length + 2 : 0))
-      ))
+      wch: Math.min(
+        40,
+        Math.max(
+          12,
+          String(h).length + 2,
+          ...dataRows.map((row) => (row[i] ? String(row[i]).length + 2 : 0))
+        )
+      ),
     }));
 
     const wb = XLSX.utils.book_new();
@@ -4651,7 +4776,9 @@ router.post("/dpd-export-email", async (req, res) => {
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT || 587),
       secure: String(process.env.SMTP_SECURE) === "true",
-      auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+      auth: process.env.SMTP_USER
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        : undefined,
     });
 
     await transporter.sendMail({
@@ -4659,8 +4786,17 @@ router.post("/dpd-export-email", async (req, res) => {
       to: u.email,
       subject: `DPD report — ${product} ${bucket} (page ${page || 1})`,
       text: `Hi ${u.name || ""},\n\nAttached is your DPD report (${filename}).`,
-      html: `<p>Hi ${u.name || ""},</p><p>Attached is your DPD report:</p><p><b>${filename}</b></p>`,
-      attachments: [{ filename, content: buf, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }]
+      html: `<p>Hi ${
+        u.name || ""
+      },</p><p>Attached is your DPD report:</p><p><b>${filename}</b></p>`,
+      attachments: [
+        {
+          filename,
+          content: buf,
+          contentType:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+      ],
     });
 
     res.json({ ok: true, sentTo: u.email });
