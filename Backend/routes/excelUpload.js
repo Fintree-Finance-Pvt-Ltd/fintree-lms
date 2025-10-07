@@ -3750,7 +3750,6 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
 
     // --- Send SOAP request ---
-    console.log("formatted dob", dobFormatted);
     console.log("🌐 Sending SOAP request to Experian...");
     let score = null;
 
