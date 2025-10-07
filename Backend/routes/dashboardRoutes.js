@@ -4403,7 +4403,7 @@ router.post("/dpd-list", async (req, res) => {
 
     // pagination
     const page = Math.max(1, parseInt(pageRaw || 1, 10));
-    const pageSize = Math.min(200, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
+    const pageSize = Math.min(1000, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
     const offset = (page - 1) * pageSize;
 
     // --- Bucket filter ---
