@@ -124,7 +124,7 @@ const UploadUTR = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await api.post("/loan-booking/upload-utr", formData, {
+      const response = await api.post("/utr/upload-utr", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (event) => {
           if (event.total) {
