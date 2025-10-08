@@ -4,6 +4,9 @@ const multer = require("multer");
 const xlsx = require("xlsx");
 const db = require("../config/db"); // adjust path to your DB config
 const { sendLoanWebhook } = require("../utils/webhook");
+const {
+  generateRepaymentSchedule,
+} = require("../utils/repaymentScheduleGenerator");
 
 const upload = multer();
 
