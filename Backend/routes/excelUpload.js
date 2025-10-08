@@ -21,6 +21,7 @@ const EXPERIAN_URL =
 const {
   generateRepaymentSchedule,
 } = require("../utils/repaymentScheduleGenerator");
+const { verify } = require("jsonwebtoken");
 
 const router = express.Router();
 
@@ -2820,7 +2821,7 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
   }
 });
 
-router.post("/v1/finso-lb", async (req, res) => {
+router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
   // Column list kept in ONE place to avoid mismatches
   const COLS = [
     'lan','partner_loan_id','login_date',
