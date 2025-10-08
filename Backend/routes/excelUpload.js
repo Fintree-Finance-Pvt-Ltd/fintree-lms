@@ -3026,9 +3026,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
     const results = [];
 
-    const customerName = `${data.first_name || ""} ${
-      data.last_name || ""
-    }`.trim();
+    
 
     for (const raw of records) {
       try {
@@ -3049,6 +3047,9 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           results.push({ error: `${missingField} is required.`, data });
           continue;
         }
+        const customerName = `${data.first_name || ""} ${
+      data.last_name || ""
+    }`.trim();
 
         // ✅ Duplicate check on PAN or Aadhar
         const [existing] = await db
@@ -3128,6 +3129,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           data.name_in_bank,
           data.account_number,
           data.ifsc,
+          customerName,
         ];
 
         // ✅ Defensive assertion (prevents the classic “count mismatch”)
