@@ -3700,106 +3700,108 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         "Login", customer_name, agreement_date
       ]
     );
-    console.log("✅ Customer record inserted successfully.");
-    console.log ("cibil request data", "pan number :", data.pan_number, "loan amount :", data.loan_amount, "loan tenure :", data.loan_tenure, "first name :", data.first_name, "last name :", data.last_name, "mobile number :", data.mobile_number, "current address :", data.current_address, "current city :", data.current_village_city, "current state :", data.current_state, "current pincode :", data.current_pincode);
-    // --- Build SOAP XML ---
-    console.log("🧩 Building SOAP request body for Experian...");
-    const dobFormatted = data.dob.replace(/-/g, "");
-    console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
-    console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
-    const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
-      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-        <soapenv:Header/>
-        <soapenv:Body>
-          <urn:process>
-            <urn:in>
-              <INProfileRequest>
-                <Identification>
-                  <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-                  <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-                </Identification>
-                <Application>
-                  <FTReferenceNumber>FT${Date.now()}</FTReferenceNumber>
-                  <CustomerReferenceID>${data.pan_number}</CustomerReferenceID>
-                  <EnquiryReason>13</EnquiryReason>
-                  <FinancePurpose>99</FinancePurpose>
-                  <AmountFinanced>${data.loan_amount}</AmountFinanced>
-                  <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-                  <ScoreFlag>1</ScoreFlag>
-                  <PSVFlag>0</PSVFlag>
-                </Application>
-                <Applicant>
-                  <Surname>${data.last_name || ""}</Surname>
-                  <FirstName>${data.first_name || ""}</FirstName>
-                  <DateOfBirth>${dobFormatted}</DateOfBirth>
-                  <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
-                  <PhoneNumber>${data.mobile_number}</PhoneNumber>
-                </Applicant>
-                <Address>
-                  <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
-                  <City>${data.current_village_city}</City>
-                  <State>${data.current_state}</State>
-                  <PinCode>${data.current_pincode}</PinCode>
-                </Address>
-                <AdditionalAddressFlag><Flag>N</Flag></AdditionalAddressFlag>
-              </INProfileRequest>
-            </urn:in>
-          </urn:process>
-        </soapenv:Body>
-      </soapenv:Envelope>`;
+    // ////  BEURO SCORE  CODE START/////
+    // console.log("✅ Customer record inserted successfully.");
+    // console.log ("cibil request data", "pan number :", data.pan_number, "loan amount :", data.loan_amount, "loan tenure :", data.loan_tenure, "first name :", data.first_name, "last name :", data.last_name, "mobile number :", data.mobile_number, "current address :", data.current_address, "current city :", data.current_village_city, "current state :", data.current_state, "current pincode :", data.current_pincode);
+    // // --- Build SOAP XML ---
+    // console.log("🧩 Building SOAP request body for Experian...");
+    // const dobFormatted = data.dob.replace(/-/g, "");
+    // console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
+    // console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
-    console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
+    // const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
+    //   <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+    //     <soapenv:Header/>
+    //     <soapenv:Body>
+    //       <urn:process>
+    //         <urn:in>
+    //           <INProfileRequest>
+    //             <Identification>
+    //               <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+    //               <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+    //             </Identification>
+    //             <Application>
+    //               <FTReferenceNumber>FT${Date.now()}</FTReferenceNumber>
+    //               <CustomerReferenceID>${data.pan_number}</CustomerReferenceID>
+    //               <EnquiryReason>13</EnquiryReason>
+    //               <FinancePurpose>99</FinancePurpose>
+    //               <AmountFinanced>${data.loan_amount}</AmountFinanced>
+    //               <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
+    //               <ScoreFlag>1</ScoreFlag>
+    //               <PSVFlag>0</PSVFlag>
+    //             </Application>
+    //             <Applicant>
+    //               <Surname>${data.last_name || ""}</Surname>
+    //               <FirstName>${data.first_name || ""}</FirstName>
+    //               <DateOfBirth>${dobFormatted}</DateOfBirth>
+    //               <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
+    //               <PhoneNumber>${data.mobile_number}</PhoneNumber>
+    //             </Applicant>
+    //             <Address>
+    //               <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
+    //               <City>${data.current_village_city}</City>
+    //               <State>${data.current_state}</State>
+    //               <PinCode>${data.current_pincode}</PinCode>
+    //             </Address>
+    //             <AdditionalAddressFlag><Flag>N</Flag></AdditionalAddressFlag>
+    //           </INProfileRequest>
+    //         </urn:in>
+    //       </urn:process>
+    //     </soapenv:Body>
+    //   </soapenv:Envelope>`;
 
-    // --- Send SOAP request ---
-    console.log("🌐 Sending SOAP request to Experian...");
-    let score = null;
+    // console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
 
-    try {
-      const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
-        headers: {
-          "Content-Type": "text/xml; charset=utf-8",
-          SOAPAction: "urn:cbv2/process",
-          Accept: "text/xml",
-        },
-        timeout: 30000,
-        validateStatus: () => true,
-      });
+    // // --- Send SOAP request ---
+    // console.log("🌐 Sending SOAP request to Experian...");
+    // let score = null;
 
-      console.log("📥 Experian HTTP Status:", response.status);
-      console.log("📥 Experian Raw Response (first 1000 chars):", response.data?.substring(0, 1000));
+    // try {
+    //   const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
+    //     headers: {
+    //       "Content-Type": "text/xml; charset=utf-8",
+    //       SOAPAction: "urn:cbv2/process",
+    //       Accept: "text/xml",
+    //     },
+    //     timeout: 30000,
+    //     validateStatus: () => true,
+    //   });
 
-      if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
+    //   console.log("📥 Experian HTTP Status:", response.status);
+    //   console.log("📥 Experian Raw Response (first 1000 chars):", response.data?.substring(0, 1000));
 
-      const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
-      score =
-        jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.Score?.Value ||
-        null;
+    //   if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
 
-      console.log("✅ Parsed CIBIL Score:", score);
+    //   const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
+    //   score =
+    //     jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.Score?.Value ||
+    //     null;
 
-      await db.promise().query(
-        `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
-         VALUES (?,?,?,?,NOW())`,
-        [lan, data.pan_number, score, response.data]
-      );
+    //   console.log("✅ Parsed CIBIL Score:", score);
 
-      console.log("✅ CIBIL report saved successfully.");
-    } catch (err) {
-      console.error("⚠️ CIBIL Pull Failed:", err.message);
-      console.error("➡️ Response status:", err.response?.status);
-      console.error("➡️ Response data:", err.response?.data);
-      console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
-      console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
-    }
+    //   await db.promise().query(
+    //     `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+    //      VALUES (?,?,?,?,NOW())`,
+    //     [lan, data.pan_number, score, response.data]
+    //   );
 
-    console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
-    console.log("================= 📦 EMICLUB REQUEST END =================\n");
+    //   console.log("✅ CIBIL report saved successfully.");
+    // } catch (err) {
+    //   console.error("⚠️ CIBIL Pull Failed:", err.message);
+    //   console.error("➡️ Response status:", err.response?.status);
+    //   console.error("➡️ Response data:", err.response?.data);
+    //   console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
+    //   console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
+    // }
+
+    // console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
+    // console.log("================= 📦 EMICLUB REQUEST END =================\n");
 
     return res.json({
       message: "✅ EMICLUB loan saved successfully.",
       lan,
-      cibilScore: score || "Not Found",
+     // cibilScore: score || "Not Found",
     });
 
   } catch (error) {
