@@ -891,72 +891,74 @@ const toClientError = (err) => {
 };
 
 
-function toIsoDateSafe(input) {
-  if (input === null || input === undefined) return null;
+// function toIsoDateSafe(input) {
+//   if (input === null || input === undefined) return null;
 
-  // If xlsx returned a real JS Date (when using cellDates: true)
-  if (input instanceof Date && !Number.isNaN(input.getTime())) {
-    return input.toISOString().split("T")[0];
-  }
+//   // If xlsx returned a real JS Date (when using cellDates: true)
+//   if (input instanceof Date && !Number.isNaN(input.getTime())) {
+//     return input.toISOString().split("T")[0];
+//   }
 
-  // Excel serial number (days since 1899-12-30; adjust for 1900-02-29 bug)
-  if (typeof input === "number" && Number.isFinite(input)) {
-    const excelEpoch = Date.UTC(1899, 11, 30);
-    const days = Math.trunc(input);
-    const msWholeDays = (days - (days >= 60 ? 1 : 0)) * 86400000;
-    const msFracDay = Math.round((input - days) * 86400000);
-    return new Date(excelEpoch + msWholeDays + msFracDay)
-      .toISOString()
-      .split("T")[0];
-  }
+//   // Excel serial number (days since 1899-12-30; adjust for 1900-02-29 bug)
+//   if (typeof input === "number" && Number.isFinite(input)) {
+//     const excelEpoch = Date.UTC(1899, 11, 30);
+//     const days = Math.trunc(input);
+//     const msWholeDays = (days - (days >= 60 ? 1 : 0)) * 86400000;
+//     const msFracDay = Math.round((input - days) * 86400000);
+//     return new Date(excelEpoch + msWholeDays + msFracDay)
+//       .toISOString()
+//       .split("T")[0];
+//   }
 
-  // Normalize strings
-  const s = String(input).trim();
-  if (!s) return null;
+//   // Normalize strings
+//   const s = String(input).trim();
+//   if (!s) return null;
 
-  // YYYY-MM-DD
-  let m;
-  if ((m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s))) {
-    return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]))
-      .toISOString()
-      .split("T")[0];
-  }
+//   // YYYY-MM-DD
+//   let m;
+//   if ((m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s))) {
+//     return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]))
+//       .toISOString()
+//       .split("T")[0];
+//   }
 
-  // DD/MM/YYYY or DD-MM-YYYY
-  if ((m = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/.exec(s))) {
-    return new Date(Date.UTC(+m[3], +m[2] - 1, +m[1]))
-      .toISOString()
-      .split("T")[0];
-  }
+//   // DD/MM/YYYY or DD-MM-YYYY
+//   if ((m = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/.exec(s))) {
+//     return new Date(Date.UTC(+m[3], +m[2] - 1, +m[1]))
+//       .toISOString()
+//       .split("T")[0];
+//   }
 
-  // DD-MMM-YY (e.g., 20-Aug-25)
-  if ((m = /^(\d{1,2})-([A-Za-z]{3})-(\d{2})$/.exec(s))) {
-    const months = {
-      Jan: 0,
-      Feb: 1,
-      Mar: 2,
-      Apr: 3,
-      May: 4,
-      Jun: 5,
-      Jul: 6,
-      Aug: 7,
-      Sep: 8,
-      Oct: 9,
-      Nov: 10,
-      Dec: 11,
-    };
-    const day = +m[1];
-    const mon = months[m[2]];
-    const year = 2000 + +m[3]; // assume 20xx
-    if (mon !== undefined) {
-      return new Date(Date.UTC(year, mon, day)).toISOString().split("T")[0];
-    }
-  }
+//   // DD-MMM-YY (e.g., 20-Aug-25)
+//   if ((m = /^(\d{1,2})-([A-Za-z]{3})-(\d{2})$/.exec(s))) {
+//     const months = {
+//       Jan: 0,
+//       Feb: 1,
+//       Mar: 2,
+//       Apr: 3,
+//       May: 4,
+//       Jun: 5,
+//       Jul: 6,
+//       Aug: 7,
+//       Sep: 8,
+//       Oct: 9,
+//       Nov: 10,
+//       Dec: 11,
+//     };
+//     const day = +m[1];
+//     const mon = months[m[2]];
+//     const year = 2000 + +m[3]; // assume 20xx
+//     if (mon !== undefined) {
+//       return new Date(Date.UTC(year, mon, day)).toISOString().split("T")[0];
+//     }
+//   }
 
-  // Last resort
-  const dt = new Date(s);
-  return Number.isNaN(dt.getTime()) ? null : dt.toISOString().split("T")[0];
-}
+//   // Last resort
+//   const dt = new Date(s);
+//   return Number.isNaN(dt.getTime()) ? null : dt.toISOString().split("T")[0];
+// }
+
+
 
 router.get("/login-loans", (req, res) => {
   const { table = "loan_booking_ev", prefix = "EV" } = req.query;
@@ -969,6 +971,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
+    loan_booking_finso:true,
   };
 
   if (!allowedTables[table]) {
@@ -998,6 +1001,7 @@ router.get("/approve-initiate-loans", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
+    loan_booking_finso:true,
   };
 
   if (!allowedTables[table]) {
@@ -1029,6 +1033,7 @@ router.get("/all-loans", (req, res) => {
     loan_booking_ev: true,
     loan_booking_emiclub: true,
     loan_booking_embifi: true,
+    loan_booking_finso:true,
   };
 
   if (!allowedTables[table]) {
@@ -1062,6 +1067,7 @@ router.get("/approved-loans", (req, res) => {
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
     loan_booking_embifi: true,
+    loan_booking_finso:true,
   };
 
   if (!allowedTables[table]) {
@@ -1092,6 +1098,7 @@ router.get("/disbursed-loans", (req, res) => {
     loan_bookings_wctl: true,
     loan_booking_ev: true,
     loan_booking_embifi: true,
+    loan_booking_finso:true,
   };
 
   if (!allowedTables[table]) {
@@ -1165,6 +1172,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_bookings_wctl: true,
     loan_booking_ev: true,
     loan_booking_emiclub: true,
+    loan_booking_finso: true,
   };
 
   if (!allowedTables[table]) {
@@ -1183,15 +1191,14 @@ router.put("/login-loans/:lan", (req, res) => {
       console.error("Error updating loan status:", err);
       return res.status(500).json({ message: "Database error", error: err });
     }
+
     if (result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ message: "Loan not found with LAN " + lan });
+      return res.status(404).json({ message: `Loan not found with LAN ${lan}` });
     }
 
-    // ✅ Fetch loan amount for email
+    // ✅ Fetch loan details for email + webhook
     db.query(
-      `SELECT customer_name, loan_amount, batch_id FROM ?? WHERE lan = ?`,
+      `SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`,
       [table, lan],
       async (fetchErr, rows) => {
         if (fetchErr) {
@@ -1201,9 +1208,10 @@ router.put("/login-loans/:lan", (req, res) => {
             loan_amount: loanAmount,
             customer_name: customerName,
             batch_id: batchId,
+            partner_loan_id: partnerLoanId,
           } = rows[0];
 
-          // ✅ Only trigger email if LAN starts with "ADK"
+          // ✅ EMAIL — for ADK loans only
           if (lan.startsWith("ADK")) {
             try {
               await sendLoanStatusMail({
@@ -1224,6 +1232,24 @@ router.put("/login-loans/:lan", (req, res) => {
               console.error("Error sending email:", mailErr);
             }
           }
+
+          // ✅ WEBHOOK — for FINS loans only
+          if (lan.startsWith("FINS")) {
+            const webhookUrl = "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
+            const payload = {
+              lan,
+              status,
+              partner_loan_id: partnerLoanId,
+              customer_name: customerName,
+            };
+
+            try {
+              await axios.post(webhookUrl, payload);
+              console.log(`✅ Webhook sent for ${lan} (${status})`);
+            } catch (webhookErr) {
+              console.error("❌ Error sending webhook:", webhookErr.message);
+            }
+          }
         }
       }
     );
@@ -1233,6 +1259,7 @@ router.put("/login-loans/:lan", (req, res) => {
     });
   });
 });
+
 
 router.put("/approve-initiated-loans/:lan", (req, res) => {
   const lan = req.params.lan;
@@ -1246,6 +1273,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_emiclub: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
+    loan_booking_finso:true,
   };
 
   if (!allowedTables[table]) {
@@ -2391,8 +2419,12 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_ev WHERE lan = ?`, [lan]
           );
-        }
-          else if (lan.startsWith("FINE")) {
+          } else if (lan.startsWith("FINS")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_finso WHERE lan = ?`, [lan]
+          );
+        } else if (lan.startsWith("FINE")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount,roi_apr as interest_rate  , loan_tenure, product, lender 
              FROM loan_booking_emiclub WHERE lan = ?`, [lan]
@@ -2495,8 +2527,10 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             await conn.query("UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?", [lan]);
           } else if (lan.startsWith("EV")) {
             await conn.query("UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?", [lan]);
-            } else if (lan.startsWith("FINE")) {
+          } else if (lan.startsWith("FINE")) {
             await conn.query("UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?", [lan]);
+          } else if (lan.startsWith("FINS")) {
+            await conn.query("UPDATE loan_booking_finso SET status = 'Disbursed' WHERE lan = ?", [lan]);
           } else {
             await conn.query("UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?", [lan]);
           }
@@ -5130,6 +5164,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_embifi_loan";
   }else if (lan.startsWith("FINE")) {
     tableName = "manual_rps_emiclub";
+  }else if (lan.startsWith("FINS")) {
+    tableName = "manual_rps_finso_loan";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
     // ✅ Only fetch Main Adikosh RPS - Specify columns for ADK

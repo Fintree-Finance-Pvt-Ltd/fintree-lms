@@ -34,6 +34,7 @@ const allocateGQNonFSFFintree = require("./allocateGQNonFSFFintree");
 const allocateAdikosh = require("./allocateAdikosh");
 const allocateBL = require("./allocateBL");
 const allocateEmbifi = require("./allocateEmbifi");
+const allocateFinso = require("./allocateFinso");
 
 /**
  * Utility helpers for merging allocation results.
@@ -71,10 +72,11 @@ const allocateRepaymentByLAN = async (lan, payment) => {
     return allocateEV(lan, payment);
   } else if (lan.startsWith("GQF")) {
     return allocateGQFSF(lan, payment);
+  }else if (lan.startsWith("FINS")) {
+    return allocateFinso(lan, payment);
   } else if (lan.startsWith("BL")) {
     return allocateBL(lan, payment);
   } else if (lan.startsWith("GQN")) {
-    // call BOTH GQNonFSF implementations in parallel and merge results
     const promises = [
       allocateGQNonFSF(lan, payment),
       allocateGQNonFSFFintree(lan, payment),

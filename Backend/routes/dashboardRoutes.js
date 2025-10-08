@@ -4138,7 +4138,7 @@ router.post("/dpd-buckets", async (req, res) => {
     COUNT(DISTINCT b.lan) AS loans,
     0 AS overdue_emi
   FROM ${bookTable} b
-  WHERE LOWER(b.status) NOT IN ('disbursed', 'login', 'disburse initiate')`;
+  WHERE LOWER(b.status) NOT IN ('disbursed', 'login', 'disburse initiate', 'rejected', 'approved')`;
 
     const unions = [];
     if (prod === "ALL" || prod === "BL") {

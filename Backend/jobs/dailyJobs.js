@@ -34,7 +34,8 @@ cron.schedule("*/2 * * * *", async () => {
     "manual_rps_adikosh_fintree",
     "manual_rps_adikosh_partner",
     "manual_rps_adikosh_fintree_roi",
-    "manual_rps_embifi_loan"
+    "manual_rps_embifi_loan",
+    "manual_rps_finso_loan"
   ];
 
   try {
@@ -61,7 +62,6 @@ cron.schedule("*/2 * * * *", async () => {
           END
       `);
 
-      //console.log(`✅ DPD update for ${table} completed successfully`);
     }
 
     console.log("✅ All tables updated successfully");

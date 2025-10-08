@@ -73,6 +73,12 @@ import EmiClubAllLoans from "./components/EmiClubAllLoans";
 import EmiClubLoginLoans from "./components/EmiClubLoginLoans";
 import EmiClubActionScreen from "./components/EmiClubActionScreen";
 import EmiClubApproveInitiateScreen from "./components/EmiClubApproveInitiateScreen";
+import FinsoApprovedLoans from "./components/FinsoApprovedLoans";
+import FinsoDisbursedLoans from "./components/FinsoDisbursedLoans";
+import FinsoAllLoans from "./components/FinsoAllLoans";
+import FinsoLoginLoans from "./components/FinsoLoginLoans";
+import FinsoActionScreen from "./components/FinsoActionScreen";
+import FinsoApproveInitiateScreen from "./components/FinsoApproveInitiateScreen";
 
 function App() {
   return (
@@ -249,6 +255,59 @@ function App() {
             element={
               <PermissionRoute pageName="EV Disburse Initiated">
                 <EVApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+            {/* ✅ Loan routes */}
+
+          <Route
+            path="/finso-loans/approved"
+            element={
+              <PermissionRoute pageName="Finso Approved Loans">
+                <FinsoApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/finso-loans/disbursed"
+            element={
+              <PermissionRoute pageName="Finso Disbursed Loans">
+                <FinsoDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/finso-loans/all"
+            element={
+              <PermissionRoute pageName="Finso All Loans">
+                <FinsoAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/finso-loans/login-cases"
+            element={
+              <PermissionRoute pageName="Finso Login Loans">
+                <FinsoLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/finso-loans/login-actions"
+            element={
+              <PermissionRoute pageName="Finso Login Actions">
+                <FinsoActionScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/finso-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="Finso Disburse Initiated">
+                <FinsoApproveInitiateScreen />
               </PermissionRoute>
             }
           />

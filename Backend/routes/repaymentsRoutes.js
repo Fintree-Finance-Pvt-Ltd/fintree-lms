@@ -181,6 +181,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         queryDB(`SELECT lan FROM loan_booking_ev WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_bookings_wctl WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_booking_embifi WHERE lan IN (?)`, [uniqueLANs]),
+        queryDB(`SELECT lan FROM loan_booking_finso WHERE lan IN (?)`, [uniqueLANs]),
       ]);
       validLANs = new Set(results.flat().map((r) => r.lan));
     }
@@ -232,6 +233,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
       // 5) Generate penal charge
       try {
+        console.log(`Generating penal charge for LAN ${lan} (row ${rowNumber})`);
         await queryDB(`CALL sp_generate_penal_charge(?)`, [lan]);
       } catch (err) {
         rowErrors.push({ row: rowNumber, lan, utr, stage: "penal", reason: toClientError(err).message });
