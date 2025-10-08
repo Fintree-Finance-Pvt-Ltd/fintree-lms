@@ -3146,7 +3146,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
         results.push({
           message: "Finso loan saved successfully.",
-          partnerLoanId,
+          partner_loan_id: data.partner_loan_id,
           lan,
         });
       } catch (e) {
