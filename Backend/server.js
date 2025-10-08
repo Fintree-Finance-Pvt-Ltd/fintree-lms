@@ -73,6 +73,7 @@ app.use("/reports", express.static(reportsPath));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/loan-booking', excelUploadRoutes);
+app.use('/api/utr', require('./routes/utrRoutes')); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 // app.use("/api/courses", courseRoutes);
 app.use("/api/loan", loanRoutes); //  routes chanegd

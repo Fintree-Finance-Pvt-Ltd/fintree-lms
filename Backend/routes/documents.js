@@ -58,7 +58,8 @@ const LAN_TABLE_MAP = {
   GQFSF:  { table: "loan_booking_gq_non_fsf", statusCol: "status" },
   ADKF:  { table: "loan_booking_adikosh",    statusCol: "status" },
   WCTL: { table: "loan_bookings_wctl",      statusCol: "status" },
-  EMB:  { table: "loan_booking_embifi",     statusCol: "status" },
+  E1:  { table: "loan_booking_embifi",     statusCol: "status" },
+  FINE: { table: "loan_booking_emiclub",   statusCol: "status" },
 };
 
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing

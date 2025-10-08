@@ -1977,192 +1977,8 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 });
 
 
+///////////////////////////// UPLOAD_UTR by SAJAG JAIN /////////////////////////////////////
 
-////////////////// UPLOAD UTR........./////////////////////////////////
-// router.post("/upload-utr", upload.single("file"), async (req, res) => {
-//   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-
-//   try {
-//     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-//     const sheetData = xlsx.utils.sheet_to_json(
-//       workbook.Sheets[workbook.SheetNames[0]]
-//     );
-
-//     let processedCount = 0;
-//     let duplicateUTRs = [];
-//     let missingLANs = [];
-//     let insertedLANs = new Set();
-
-//     for (const row of sheetData) {
-//       const disbursementUTR = row["Disbursement UTR"];
-//       const disbursementDate = excelDateToJSDate(row["Disbursement Date"]);
-//       // const disbursementDate = row["Disbursement Date"]
-//       //   ? new Date((row["Disbursement Date"] - 25569) * 86400000)
-//       //       .toISOString()
-//       //       .split("T")[0]
-//       //   : null;
-//       const lan = row["LAN"];
-
-//       if (!disbursementUTR || !disbursementDate || !lan) {
-//         console.log(
-//           `⚠️ Skipping row due to missing data: ${JSON.stringify(row)}`
-//         );
-//         continue;
-//       }
-
-//       // ✅ Separate query for each table
-//       let loanRes = [];
-//       if (lan.startsWith("GQN")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount,no_of_advance_emis, product, lender 
-//            FROM loan_booking_gq_non_fsf WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else if (lan.startsWith("GQF")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
-//            FROM loan_booking_gq_fsf WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else if (lan.startsWith("E10")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender 
-//            FROM loan_booking_embifi WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else if (lan.startsWith("ADK")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
-//            FROM loan_booking_adikosh WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else if (lan.startsWith("EV")) {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
-//            FROM loan_booking_ev WHERE lan = ?`,
-//           [lan]
-//         );
-//       } else {
-//         [loanRes] = await db.promise().query(
-//           `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
-//            FROM loan_bookings WHERE lan = ?`,
-//           [lan]
-//         );
-//       }
-
-//       if (loanRes.length === 0) {
-//         console.warn(`🚫 LAN not found: ${lan}`);
-//         missingLANs.push(lan);
-//         continue;
-//       }
-
-//       const {
-//         loan_amount,
-//         emi_date,
-//         interest_rate,
-//         loan_tenure,
-//         subvention_amount,
-//         no_of_advance_emis,
-//         salary_day,
-//         product,
-//         lender,
-//       } = loanRes[0];
-
-//       const [utrExists] = await db
-//         .promise()
-//         .query("SELECT * FROM ev_disbursement_utr WHERE Disbursement_UTR = ?", [
-//           disbursementUTR,
-//         ]);
-
-//       if (utrExists.length > 0) {
-//         console.warn(`⚠️ Duplicate UTR: ${disbursementUTR}`);
-//         duplicateUTRs.push(disbursementUTR);
-//         continue;
-//       }
-
-//       try {
-//         if (!insertedLANs.has(lan)) {
-//           await generateRepaymentSchedule(
-//             lan,
-//             loan_amount,
-//             emi_date,
-//             interest_rate,
-//             loan_tenure,
-//             disbursementDate,
-//             subvention_amount,
-//             no_of_advance_emis,
-//             salary_day,
-//             product,
-//             lender
-//           );
-
-//           insertedLANs.add(lan);
-//         }
-
-//         // ✅ Only insert UTR if RPS was successfully generated
-//         await db
-//           .promise()
-//           .query(
-//             "INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)",
-//             [disbursementUTR, disbursementDate, lan]
-//           );
-//         // ✅ Update loan status if it's a GQ loan
-//         if (lan.startsWith("GQN")) {
-//           await db
-//             .promise()
-//             .query(
-//               "UPDATE loan_booking_gq_non_fsf SET status = 'Disbursed' WHERE lan = ?",
-//               [lan]
-//             );
-//         } else if (lan.startsWith("GQF")) {
-//           await db
-//             .promise()
-//             .query(
-//               "UPDATE loan_booking_gq_fsf SET status = 'Disbursed' WHERE lan = ?",
-//               [lan]
-//             );
-//         } else if (lan.startsWith("E10")) {
-//           await db
-//             .promise()
-//             .query(
-//               "UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?",
-//               [lan]
-//             );
-//         } else if (lan.startsWith("EV")) {
-//           await db
-//             .promise()
-//             .query(
-//               "UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?",
-//               [lan]
-//             );
-//         } else {
-//           await db
-//             .promise()
-//             .query(
-//               "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",
-//               [lan]
-//             );
-//         }
-//         processedCount++;
-//       } catch (rpsErr) {
-//         console.error(
-//           `❌ Failed RPS generation for ${lan}, skipping UTR insert`,
-//           rpsErr
-//         );
-//       }
-//     }
-//     res.json({
-//       message: `UTR upload completed. ${processedCount} records inserted.`,
-//       duplicate_utr: duplicateUTRs,
-//       missing_lans: missingLANs,
-//     });
-//   } catch (error) {
-//     console.error("❌ Error during UTR upload:", error);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// });
-
-///////////////////////////////// use this if ////////////////////////////////////////
 // router.post("/upload-utr", upload.single("file"), async (req, res) => {
 //   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
@@ -2224,6 +2040,13 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
 //              FROM loan_booking_ev WHERE lan = ?`, [lan]
 //           );
+//         }
+//         ////// this for EMI CLUB //////// 
+//           else if (lan.startsWith("FINE")) {
+//           [loanRes] = await db.promise().query(
+//             `SELECT loan_amount,roi_apr as interest_rate  , loan_tenure, product, lender 
+//              FROM loan_booking_emiclub WHERE lan = ?`, [lan]
+//           );
 //         } else {
 //           [loanRes] = await db.promise().query(
 //             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
@@ -2271,7 +2094,7 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //         continue;
 //       }
 
-//       // Transaction
+//       // Transaction (UPDATED to make RPS + UTR + status atomic)
 //       let conn;
 //       try {
 //         conn = await db.promise().getConnection();
@@ -2279,7 +2102,9 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 
 //         try {
 //           if (!insertedLANs.has(lan)) {
+//             // 🔴 IMPORTANT: pass `conn` (transaction) into the RPS generator.
 //             await generateRepaymentSchedule(
+//               conn,             
 //               lan,
 //               loan_amount,
 //               emi_date,
@@ -2320,6 +2145,10 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //             await conn.query("UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?", [lan]);
 //           } else if (lan.startsWith("EV")) {
 //             await conn.query("UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?", [lan]);
+//             }
+//             ///// this for EMI CLUB /////
+//              else if (lan.startsWith("FINE")) {
+//             await conn.query("UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?", [lan]);
 //           } else {
 //             await conn.query("UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?", [lan]);
 //           }
@@ -2358,218 +2187,7 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //   }
 // });
 
-router.post("/upload-utr", upload.single("file"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
-
-  // New: collect detailed issues
-  const rowErrors = []; // {lan, utr, reason, stage}
-
-  try {
-    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-    const sheetData = xlsx.utils.sheet_to_json(
-      workbook.Sheets[workbook.SheetNames[0]]
-    );
-
-    let processedCount = 0;
-    const duplicateUTRs = [];
-    const missingLANs = [];
-    const insertedLANs = new Set();
-
-    for (const row of sheetData) {
-      const disbursementUTR = row["Disbursement UTR"];
-      const disbursementDate = excelDateToJSDate(row["Disbursement Date"]); // fixed
-      const lan = row["LAN"];
-
-      if (!disbursementUTR || !disbursementDate || !lan) {
-        const reason = `Missing required fields: ${
-          !disbursementUTR ? "Disbursement UTR " : ""
-        }${!disbursementDate ? "Disbursement Date " : ""}${
-          !lan ? "LAN" : ""
-        }`.trim();
-        console.log(`⚠️ Skipping row: ${reason} | ${JSON.stringify(row)}`);
-        rowErrors.push({ lan: lan || null, utr: disbursementUTR || null, reason, stage: "validation" });
-        continue;
-      }
-
-      // Fetch loan details by LAN type
-      let loanRes = [];
-      try {
-        if (lan.startsWith("GQN")) {
-          [loanRes] = await db.promise().query(
-            `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
-             FROM loan_booking_gq_non_fsf WHERE lan = ?`, [lan]
-          );
-        } else if (lan.startsWith("GQF")) {
-          [loanRes] = await db.promise().query(
-            `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
-             FROM loan_booking_gq_fsf WHERE lan = ?`, [lan]
-          );
-        } else if (lan.startsWith("E10")) {
-          [loanRes] = await db.promise().query(
-            `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender 
-             FROM loan_booking_embifi WHERE lan = ?`, [lan]
-          );
-        } else if (lan.startsWith("ADK")) {
-          [loanRes] = await db.promise().query(
-            `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
-             FROM loan_booking_adikosh WHERE lan = ?`, [lan]
-          );
-        } else if (lan.startsWith("EV")) {
-          [loanRes] = await db.promise().query(
-            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
-             FROM loan_booking_ev WHERE lan = ?`, [lan]
-          );
-          } else if (lan.startsWith("FINS")) {
-          [loanRes] = await db.promise().query(
-            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
-             FROM loan_booking_finso WHERE lan = ?`, [lan]
-          );
-        } else if (lan.startsWith("FINE")) {
-          [loanRes] = await db.promise().query(
-            `SELECT loan_amount,roi_apr as interest_rate  , loan_tenure, product, lender 
-             FROM loan_booking_emiclub WHERE lan = ?`, [lan]
-          );
-        } else {
-          [loanRes] = await db.promise().query(
-            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
-             FROM loan_bookings WHERE lan = ?`, [lan]
-          );
-        }
-      } catch (err) {
-        rowErrors.push({ lan, utr: disbursementUTR, reason: `DB query error: ${toClientError(err).message}`, stage: "fetch-loan" });
-        continue;
-      }
-
-      if (loanRes.length === 0) {
-        console.warn(`🚫 LAN not found: ${lan}`);
-        missingLANs.push(lan);
-        rowErrors.push({ lan, utr: disbursementUTR, reason: "LAN not found", stage: "fetch-loan" });
-        continue;
-      }
-
-      const {
-        loan_amount,
-        emi_date,
-        interest_rate,
-        loan_tenure,
-        subvention_amount,
-        no_of_advance_emis,
-        salary_day,
-        product,
-        lender,
-      } = loanRes[0];
-
-      // Duplicate UTR check
-      try {
-        const [utrExists] = await db
-          .promise()
-          .query("SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ?", [disbursementUTR]);
-
-        if (utrExists.length > 0) {
-          console.warn(`⚠️ Duplicate UTR: ${disbursementUTR}`);
-          duplicateUTRs.push(disbursementUTR);
-          rowErrors.push({ lan, utr: disbursementUTR, reason: "Duplicate UTR", stage: "pre-insert" });
-          continue;
-        }
-      } catch (err) {
-        rowErrors.push({ lan, utr: disbursementUTR, reason: `DB check error: ${toClientError(err).message}`, stage: "pre-insert" });
-        continue;
-      }
-
-      // Transaction (UPDATED to make RPS + UTR + status atomic)
-      let conn;
-      try {
-        conn = await db.promise().getConnection();
-        await conn.beginTransaction();
-
-        try {
-          if (!insertedLANs.has(lan)) {
-            // 🔴 IMPORTANT: pass `conn` (transaction) into the RPS generator.
-            await generateRepaymentSchedule(
-              conn,             
-              lan,
-              loan_amount,
-              emi_date,
-              interest_rate,
-              loan_tenure,
-              disbursementDate,
-              subvention_amount,
-              no_of_advance_emis,
-              salary_day,
-              product,
-              lender
-            );
-            insertedLANs.add(lan);
-          }
-        } catch (rpsErr) {
-          rowErrors.push({ lan, utr: disbursementUTR, reason: `RPS error: ${toClientError(rpsErr).message}`, stage: "rps" });
-          await conn.rollback();
-          continue;
-        }
-
-        try {
-          await conn.query(
-            "INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)",
-            [disbursementUTR, disbursementDate, lan]
-          );
-        } catch (insertErr) {
-          rowErrors.push({ lan, utr: disbursementUTR, reason: `UTR insert error: ${toClientError(insertErr).message}`, stage: "utr-insert" });
-          await conn.rollback();
-          continue;
-        }
-
-        try {
-          if (lan.startsWith("GQN")) {
-            await conn.query("UPDATE loan_booking_gq_non_fsf SET status = 'Disbursed' WHERE lan = ?", [lan]);
-          } else if (lan.startsWith("GQF")) {
-            await conn.query("UPDATE loan_booking_gq_fsf SET status = 'Disbursed' WHERE lan = ?", [lan]);
-          } else if (lan.startsWith("E10")) {
-            await conn.query("UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?", [lan]);
-          } else if (lan.startsWith("EV")) {
-            await conn.query("UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?", [lan]);
-          } else if (lan.startsWith("FINE")) {
-            await conn.query("UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?", [lan]);
-          } else if (lan.startsWith("FINS")) {
-            await conn.query("UPDATE loan_booking_finso SET status = 'Disbursed' WHERE lan = ?", [lan]);
-          } else {
-            await conn.query("UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?", [lan]);
-          }
-        } catch (statusErr) {
-          rowErrors.push({ lan, utr: disbursementUTR, reason: `Status update error: ${toClientError(statusErr).message}`, stage: "status-update" });
-          await conn.rollback();
-          continue;
-        }
-
-        await conn.commit();
-        processedCount++;
-      } catch (txErr) {
-        rowErrors.push({ lan, utr: disbursementUTR, reason: `Transaction error: ${toClientError(txErr).message}`, stage: "transaction" });
-        try { if (conn) await conn.rollback(); } catch (_) {}
-      } finally {
-        try { if (conn) conn.release(); } catch (_) {}
-      }
-    }
-
-    // Always return 200 with a structured summary so UI can show partial success + detailed reasons
-    return res.json({
-      message: `UTR upload completed. ${processedCount} record(s) inserted.`,
-      processed_count: processedCount,
-      duplicate_utr: duplicateUTRs,
-      missing_lans: missingLANs,
-      row_errors: rowErrors, // 👈 NEW: show every failure with a reason & stage
-    });
-
-  } catch (error) {
-    console.error("❌ Error during UTR upload:", error);
-    // For top-level crash (e.g., invalid Excel), return details too
-    return res.status(500).json({
-      message: "Upload failed",
-      details: toClientError(error),
-    });
-  }
-});
-
-
+///////////////////////////////// SAJAG ADD NEW ABOVE WALA //////////////////////////////////////
 
 // router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
 //   if (!req.file) return res.status(400).json({ message: "No file uploaded." });
@@ -3663,12 +3281,12 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     // --- Required field check ---
     const requiredFields = [
-      "login_date", "partner_loan_id", "first_name", "gender", "dob",
+      "login_date", "partner_loan_id", "first_name","last_name", "gender", "dob",
       "mobile_number", "email_id", "pan_number", "aadhar_number",
       "current_address", "current_village_city", "current_district",
       "current_state", "current_pincode", "permanent_address",
       "permanent_state", "permanent_pincode", "loan_amount", "roi_apr",
-      "loan_tenure", "emi_amount", "bank_name", "name_in_bank",
+      "loan_tenure", "bank_name", "name_in_bank",
       "account_number", "ifsc", "account_type", "type_of_account",
       "employment", "annual_income", "dealer_name", "risk_category", "customer_type"
     ];
@@ -3734,104 +3352,108 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         "Login", customer_name, agreement_date
       ]
     );
-    console.log("✅ Customer record inserted successfully.");
-    console.log ("cibil request data", "pan number :", data.pan_number, "loan amount :", data.loan_amount, "loan tenure :", data.loan_tenure, "first name :", data.first_name, "last name :", data.last_name, "mobile number :", data.mobile_number, "current address :", data.current_address, "current city :", data.current_village_city, "current state :", data.current_state, "current pincode :", data.current_pincode);
-    // --- Build SOAP XML ---
-    console.log("🧩 Building SOAP request body for Experian...");
-    const dobFormatted = data.dob.replace(/-/g, "");
 
-    const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
-      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-        <soapenv:Header/>
-        <soapenv:Body>
-          <urn:process>
-            <urn:in>
-              <INProfileRequest>
-                <Identification>
-                  <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-                  <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-                </Identification>
-                <Application>
-                  <FTReferenceNumber>FT${Date.now()}</FTReferenceNumber>
-                  <CustomerReferenceID>${data.pan_number}</CustomerReferenceID>
-                  <EnquiryReason>13</EnquiryReason>
-                  <FinancePurpose>99</FinancePurpose>
-                  <AmountFinanced>${data.loan_amount}</AmountFinanced>
-                  <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-                  <ScoreFlag>1</ScoreFlag>
-                  <PSVFlag>0</PSVFlag>
-                </Application>
-                <Applicant>
-                  <Surname>${data.last_name || ""}</Surname>
-                  <FirstName>${data.first_name || ""}</FirstName>
-                  <DateOfBirth>${dobFormatted}</DateOfBirth>
-                  <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
-                  <PhoneNumber>${data.mobile_number}</PhoneNumber>
-                </Applicant>
-                <Address>
-                  <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
-                  <City>${data.current_village_city}</City>
-                  <State>${data.current_state}</State>
-                  <PinCode>${data.current_pincode}</PinCode>
-                </Address>
-                <AdditionalAddressFlag><Flag>N</Flag></AdditionalAddressFlag>
-              </INProfileRequest>
-            </urn:in>
-          </urn:process>
-        </soapenv:Body>
-      </soapenv:Envelope>`;
+    // ////  BEURO SCORE  CODE START/////
+    // console.log("✅ Customer record inserted successfully.");
+    // console.log ("cibil request data", "pan number :", data.pan_number, "loan amount :", data.loan_amount, "loan tenure :", data.loan_tenure, "first name :", data.first_name, "last name :", data.last_name, "mobile number :", data.mobile_number, "current address :", data.current_address, "current city :", data.current_village_city, "current state :", data.current_state, "current pincode :", data.current_pincode);
+    // // --- Build SOAP XML ---
+    // console.log("🧩 Building SOAP request body for Experian...");
+    // const dobFormatted = data.dob.replace(/-/g, "");
+    // console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
+    // console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
-    console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
+    // const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
+    //   <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+    //     <soapenv:Header/>
+    //     <soapenv:Body>
+    //       <urn:process>
+    //         <urn:in>
+    //           <INProfileRequest>
+    //             <Identification>
+    //               <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+    //               <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+    //             </Identification>
+    //             <Application>
+    //               <FTReferenceNumber>FT${Date.now()}</FTReferenceNumber>
+    //               <CustomerReferenceID>${data.pan_number}</CustomerReferenceID>
+    //               <EnquiryReason>13</EnquiryReason>
+    //               <FinancePurpose>99</FinancePurpose>
+    //               <AmountFinanced>${data.loan_amount}</AmountFinanced>
+    //               <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
+    //               <ScoreFlag>1</ScoreFlag>
+    //               <PSVFlag>0</PSVFlag>
+    //             </Application>
+    //             <Applicant>
+    //               <Surname>${data.last_name || ""}</Surname>
+    //               <FirstName>${data.first_name || ""}</FirstName>
+    //               <DateOfBirth>${dobFormatted}</DateOfBirth>
+    //               <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
+    //               <PhoneNumber>${data.mobile_number}</PhoneNumber>
+    //             </Applicant>
+    //             <Address>
+    //               <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
+    //               <City>${data.current_village_city}</City>
+    //               <State>${data.current_state}</State>
+    //               <PinCode>${data.current_pincode}</PinCode>
+    //             </Address>
+    //             <AdditionalAddressFlag><Flag>N</Flag></AdditionalAddressFlag>
+    //           </INProfileRequest>
+    //         </urn:in>
+    //       </urn:process>
+    //     </soapenv:Body>
+    //   </soapenv:Envelope>`;
 
-    // --- Send SOAP request ---
-    console.log("🌐 Sending SOAP request to Experian...");
-    let score = null;
+    // console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
 
-    try {
-      const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
-        headers: {
-          "Content-Type": "text/xml; charset=utf-8",
-          SOAPAction: "urn:cbv2/process",
-          Accept: "text/xml",
-        },
-        timeout: 30000,
-        validateStatus: () => true,
-      });
+    // // --- Send SOAP request ---
+    // console.log("🌐 Sending SOAP request to Experian...");
+    // let score = null;
 
-      console.log("📥 Experian HTTP Status:", response.status);
-      console.log("📥 Experian Raw Response (first 1000 chars):", response.data?.substring(0, 1000));
+    // try {
+    //   const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
+    //     headers: {
+    //       "Content-Type": "text/xml; charset=utf-8",
+    //       SOAPAction: "urn:cbv2/process",
+    //       Accept: "text/xml",
+    //     },
+    //     timeout: 30000,
+    //     validateStatus: () => true,
+    //   });
 
-      if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
+    //   console.log("📥 Experian HTTP Status:", response.status);
+    //   console.log("📥 Experian Raw Response (first 1000 chars):", response.data?.substring(0, 1000));
 
-      const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
-      score =
-        jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.Score?.Value ||
-        null;
+    //   if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
 
-      console.log("✅ Parsed CIBIL Score:", score);
+    //   const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
+    //   score =
+    //     jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.Score?.Value ||
+    //     null;
 
-      await db.promise().query(
-        `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
-         VALUES (?,?,?,?,NOW())`,
-        [lan, data.pan_number, score, response.data]
-      );
+    //   console.log("✅ Parsed CIBIL Score:", score);
 
-      console.log("✅ CIBIL report saved successfully.");
-    } catch (err) {
-      console.error("⚠️ CIBIL Pull Failed:", err.message);
-      console.error("➡️ Response status:", err.response?.status);
-      console.error("➡️ Response data:", err.response?.data);
-      console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
-      console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
-    }
+    //   await db.promise().query(
+    //     `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+    //      VALUES (?,?,?,?,NOW())`,
+    //     [lan, data.pan_number, score, response.data]
+    //   );
 
-    console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
-    console.log("================= 📦 EMICLUB REQUEST END =================\n");
+    //   console.log("✅ CIBIL report saved successfully.");
+    // } catch (err) {
+    //   console.error("⚠️ CIBIL Pull Failed:", err.message);
+    //   console.error("➡️ Response status:", err.response?.status);
+    //   console.error("➡️ Response data:", err.response?.data);
+    //   console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
+    //   console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
+    // }
+
+    // console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
+    // console.log("================= 📦 EMICLUB REQUEST END =================\n");
 
     return res.json({
       message: "✅ EMICLUB loan saved successfully.",
       lan,
-      cibilScore: score || "Not Found",
+     // cibilScore: score || "Not Found",
     });
 
   } catch (error) {
