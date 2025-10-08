@@ -3066,15 +3066,17 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           continue;
         }
 
-        // ✅ Generate identifiers
-        const { lan } = await generateLoanIdentifiers(lenderType);
+        // --- Generate loan code ---
+   
+    const { lan } = await generateLoanIdentifiers(lenderType);
+
 
         const agreementDate = data.login_date;
         // ✅ Build values in the exact same order as COLS
         const values = [
           // lan / ids / dates
           lan,
-          data.partnerLoanId,
+          data.partner_loan_id,
           data.login_date,
 
           data.first_name,
