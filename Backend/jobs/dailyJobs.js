@@ -36,11 +36,7 @@ cron.schedule("*/2 * * * *", async () => {
     "manual_rps_adikosh_fintree_roi",
     "manual_rps_embifi_loan",
     "manual_rps_emiclub",
-    "manual_rps_bl_loan",
-    "manual_rps_fintree_loan",
-    "manual_rps_fintree_loan_roi",
-    "manual_rps_fintree_partner",
-    "manual_rps_fintree_partner_roi"
+    "manual_rps_bl_loan"
   ];
 
   try {
