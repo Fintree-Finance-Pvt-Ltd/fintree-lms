@@ -56,10 +56,9 @@ const generateLoanIdentifiers = async (lender) => {
     //prefixPartnerLosan = "FINE1";
     prefixLan = "FINE1";
   } else if (lender === "Finso") {
-    prefixPartnerLoan = "FINS1";
     prefixLan = "FINS1";
   } else {
-    return res.status(400).json({ message: "Invalid hai lender type." }); // ✅ handled in route
+    return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
   }
 
   console.log("prefixPartnerLoan:", prefixPartnerLoan);
