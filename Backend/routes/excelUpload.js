@@ -52,12 +52,10 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "Adikosh") {
     prefixPartnerLoan = "ADK1";
     prefixLan = "ADKF1";
-  }
-   else if (lender === "emiclub") {
+  } else if (lender === "emiclub") {
     //prefixPartnerLosan = "FINE1";
     prefixLan = "FINE1";
-  }
-  else if (lender === "Finso") {
+  } else if (lender === "Finso") {
     prefixPartnerLoan = "FINS1";
     prefixLan = "FINS1";
   } else {
@@ -572,7 +570,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     if (lenderType !== "EV Loan") {
       return res
         .status(400)
-        .json({ message: "Invalid upload lender type. Only EV Loan is supported." });
+        .json({
+          message: "Invalid upload lender type. Only EV Loan is supported.",
+        });
     }
 
     // Read Excel
@@ -581,7 +581,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
     if (!sheetData || sheetData.length === 0) {
-      return res.status(400).json({ message: "Uploaded Excel file is empty or invalid." });
+      return res
+        .status(400)
+        .json({ message: "Uploaded Excel file is empty or invalid." });
     }
 
     // ✅ ALL required fields (as per DB insert — 54 columns)
@@ -676,7 +678,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         // Duplicate check
         const [existingRecords] = await db
           .promise()
-          .query(`SELECT lan FROM loan_booking_ev WHERE pan_card = ?`, [panCard || null]);
+          .query(`SELECT lan FROM loan_booking_ev WHERE pan_card = ?`, [
+            panCard || null,
+          ]);
 
         if (existingRecords.length > 0) {
           row_errors.push({
@@ -688,7 +692,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         }
 
         // Generate IDs
-        const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+        const { partnerLoanId, lan } = await generateLoanIdentifiers(
+          lenderType
+        );
 
         // ✅ Insert into DB
         const query = `
@@ -712,67 +718,77 @@ router.post("/upload", upload.single("file"), async (req, res) => {
           )
         `;
 
-        await db.promise().query(query, [
-          partnerLoanId,
-          lan,
-          row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-          row["Customer Name"],
-          row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
-          row["Father Name"],
-          row["Address Line 1"],
-          row["Address Line 2"],
-          row["Village"],
-          row["District"],
-          row["State"],
-          row["Pincode"],
-          row["Mobile Number"],
-          row["Email"],
-          row["Loan Amount"],
-          row[" Interest Rate "],
-          row["Tenure"],
-          row["EMI Amount"],
-          row["GURANTOR"],
-          row["GURANTOR DOB"] ? excelDateToJSDate(row["GURANTOR DOB"]) : null,
-          row["GURANTOR ADHAR"],
-          row["GURANTOR PAN"],
-          row["DEALER NAME"],
-          row["Name in Bank"],
-          row["Bank name"],
-          row["Account Number"],
-          row["IFSC"],
-          row["Aadhar Number"],
-          row["Pan Card"],
-          row["Product"],
-          row["lender"] || "EV Loan",
-          row["Agreement Date"] ? excelDateToJSDate(row["Agreement Date"]) : null,
-          row["status"] || "Login",
-          row["Disbursal Amount"],
-          row["Processing Fee"] || 0.0,
-          row["CIBIL Score"],
-          row["GURANTOR CIBIL Score"],
-          row["Relationship with Borrower"],
-          row["Co-Applicant"],
-          row["Co-Applicant DOB"] ? excelDateToJSDate(row["Co-Applicant DOB"]) : null,
-          row["Co-Applicant AADHAR"],
-          row["Co-Applicant PAN"],
-          row["Co-Applicant CIBIL Score"],
-          row["APR"],
-          row["Battery Name"],
-          row["Battery Type"],
-          row["Battery Serial no 1"],
-          row["Battery Serial no 2"],
-          row["E-Rikshaw model"],
-          row["Chassis no"],
-          row["Customer Name as per bank"],
-          row["Customer Bank name"],
-          row["Customer Account Number"],
-          row["Bank IFSC Code"],
-        ]);
+        await db
+          .promise()
+          .query(query, [
+            partnerLoanId,
+            lan,
+            row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+            row["Customer Name"],
+            row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
+            row["Father Name"],
+            row["Address Line 1"],
+            row["Address Line 2"],
+            row["Village"],
+            row["District"],
+            row["State"],
+            row["Pincode"],
+            row["Mobile Number"],
+            row["Email"],
+            row["Loan Amount"],
+            row[" Interest Rate "],
+            row["Tenure"],
+            row["EMI Amount"],
+            row["GURANTOR"],
+            row["GURANTOR DOB"] ? excelDateToJSDate(row["GURANTOR DOB"]) : null,
+            row["GURANTOR ADHAR"],
+            row["GURANTOR PAN"],
+            row["DEALER NAME"],
+            row["Name in Bank"],
+            row["Bank name"],
+            row["Account Number"],
+            row["IFSC"],
+            row["Aadhar Number"],
+            row["Pan Card"],
+            row["Product"],
+            row["lender"] || "EV Loan",
+            row["Agreement Date"]
+              ? excelDateToJSDate(row["Agreement Date"])
+              : null,
+            row["status"] || "Login",
+            row["Disbursal Amount"],
+            row["Processing Fee"] || 0.0,
+            row["CIBIL Score"],
+            row["GURANTOR CIBIL Score"],
+            row["Relationship with Borrower"],
+            row["Co-Applicant"],
+            row["Co-Applicant DOB"]
+              ? excelDateToJSDate(row["Co-Applicant DOB"])
+              : null,
+            row["Co-Applicant AADHAR"],
+            row["Co-Applicant PAN"],
+            row["Co-Applicant CIBIL Score"],
+            row["APR"],
+            row["Battery Name"],
+            row["Battery Type"],
+            row["Battery Serial no 1"],
+            row["Battery Serial no 2"],
+            row["E-Rikshaw model"],
+            row["Chassis no"],
+            row["Customer Name as per bank"],
+            row["Customer Bank name"],
+            row["Customer Account Number"],
+            row["Bank IFSC Code"],
+          ]);
 
         success_rows.push({ row: R, lan, partnerLoanId, interestRate });
         console.log(`✅ Inserted row ${R} | PAN: ${panCard} | LAN: ${lan}`);
       } catch (err) {
-        row_errors.push({ row: R, stage: "insert", reason: err.sqlMessage || err.message });
+        row_errors.push({
+          row: R,
+          stage: "insert",
+          reason: err.sqlMessage || err.message,
+        });
         console.error(`❌ Row ${R} failed:`, err);
       }
     }
@@ -793,7 +809,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     });
   }
 });
-
 
 ///////////////////////////////////////////////////////////////////////////////////
 
@@ -891,7 +906,6 @@ const toClientError = (err) => {
   };
 };
 
-
 // function toIsoDateSafe(input) {
 //   if (input === null || input === undefined) return null;
 
@@ -959,8 +973,6 @@ const toClientError = (err) => {
 //   return Number.isNaN(dt.getTime()) ? null : dt.toISOString().split("T")[0];
 // }
 
-
-
 router.get("/login-loans", (req, res) => {
   const { table = "loan_booking_ev", prefix = "EV" } = req.query;
 
@@ -972,7 +984,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
-    loan_booking_finso:true,
+    loan_booking_finso: true,
   };
 
   if (!allowedTables[table]) {
@@ -1002,7 +1014,7 @@ router.get("/approve-initiate-loans", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
-    loan_booking_finso:true,
+    loan_booking_finso: true,
   };
 
   if (!allowedTables[table]) {
@@ -1034,7 +1046,7 @@ router.get("/all-loans", (req, res) => {
     loan_booking_ev: true,
     loan_booking_emiclub: true,
     loan_booking_embifi: true,
-    loan_booking_finso:true,
+    loan_booking_finso: true,
   };
 
   if (!allowedTables[table]) {
@@ -1068,7 +1080,7 @@ router.get("/approved-loans", (req, res) => {
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
     loan_booking_embifi: true,
-    loan_booking_finso:true,
+    loan_booking_finso: true,
   };
 
   if (!allowedTables[table]) {
@@ -1099,7 +1111,7 @@ router.get("/disbursed-loans", (req, res) => {
     loan_bookings_wctl: true,
     loan_booking_ev: true,
     loan_booking_embifi: true,
-    loan_booking_finso:true,
+    loan_booking_finso: true,
   };
 
   if (!allowedTables[table]) {
@@ -1194,7 +1206,9 @@ router.put("/login-loans/:lan", (req, res) => {
     }
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: `Loan not found with LAN ${lan}` });
+      return res
+        .status(404)
+        .json({ message: `Loan not found with LAN ${lan}` });
     }
 
     // ✅ Fetch loan details for email + webhook
@@ -1236,7 +1250,8 @@ router.put("/login-loans/:lan", (req, res) => {
 
           // ✅ WEBHOOK — for FINS loans only
           if (lan.startsWith("FINS")) {
-            const webhookUrl = "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
+            const webhookUrl =
+              "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
             const payload = {
               lan,
               status,
@@ -1261,7 +1276,6 @@ router.put("/login-loans/:lan", (req, res) => {
   });
 });
 
-
 router.put("/approve-initiated-loans/:lan", (req, res) => {
   const lan = req.params.lan;
   const { status, table } = req.body;
@@ -1274,7 +1288,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_emiclub: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
-    loan_booking_finso:true,
+    loan_booking_finso: true,
   };
 
   if (!allowedTables[table]) {
@@ -1700,7 +1714,9 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
   try {
     const wb = xlsx.read(req.file.buffer, { type: "buffer" });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = xlsx.utils.sheet_to_json(ws).map((r, i) => ({ __row: i + 2, ...r }));
+    const rows = xlsx.utils
+      .sheet_to_json(ws)
+      .map((r, i) => ({ __row: i + 2, ...r }));
 
     if (!rows.length) {
       return res.status(400).json({ message: "Empty or invalid Excel." });
@@ -1716,14 +1732,19 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       const applicant_age_years = num(row["Applicant Age"]);
       const applicant_father_name = row["Applicant Father Name"] || null;
       const pan_number = (row["PAN Number"] || "").toString().trim() || null;
-      const applicant_aadhaar_no = (row["Applicant Aadhaar Number"] || "").toString().trim() || null;
-      const mobile_number = (row["Mobile Number"] || "").toString().trim() || null;
+      const applicant_aadhaar_no =
+        (row["Applicant Aadhaar Number"] || "").toString().trim() || null;
+      const mobile_number =
+        (row["Mobile Number"] || "").toString().trim() || null;
 
       const coapplicant_name = row["CO-Applicant Name"] || null;
-      const coapplicant_pan_no = (row["CO-Applicant Pan No"] || "").toString().trim() || null;
-      const coapplicant_aadhaar_no = (row["CO-Applicant Aadhar No"] || "").toString().trim() || null;
+      const coapplicant_pan_no =
+        (row["CO-Applicant Pan No"] || "").toString().trim() || null;
+      const coapplicant_aadhaar_no =
+        (row["CO-Applicant Aadhar No"] || "").toString().trim() || null;
       const coapplicant_dob = parseDate(row["CO-Applicant DOB"]);
-      const coapplicant_mobile_no = (row["CO-Applicant Mobile No"] || "").toString().trim() || null;
+      const coapplicant_mobile_no =
+        (row["CO-Applicant Mobile No"] || "").toString().trim() || null;
 
       const approved_loan_amount = num(row["Approved Loan Amount"]);
       const processing_fees_with_tax = num(row["Processing Fees With Tax"]);
@@ -1749,11 +1770,14 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       const applicant_address = row["Applicant Address"] || null;
       const applicant_state = row["Applicant State"] || null;
       const applicant_city = row["Applicant City"] || null;
-      const applicant_pin_code = (row["Applicant Pin Code"] || "").toString().trim() || null;
+      const applicant_pin_code =
+        (row["Applicant Pin Code"] || "").toString().trim() || null;
 
       const coapplicant_address = row["CO-Applicant Address"] || null;
-      const coapplicant_state = row["CO-Applicant state"] || row["CO-Applicant State"] || null;
-      const coapplicant_pin_code = (row["CO-Applicant Pin Code"] || "").toString().trim() || null;
+      const coapplicant_state =
+        row["CO-Applicant state"] || row["CO-Applicant State"] || null;
+      const coapplicant_pin_code =
+        (row["CO-Applicant Pin Code"] || "").toString().trim() || null;
 
       const bureau_score = num(row["Bureau Score"]);
       const monthly_income = num(row["Monthly Income"]);
@@ -1766,8 +1790,18 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       const new_interest = num(row["New Interest"]);
 
       // 1) basic validation
-      if (!lan || !applicant_name || !approved_loan_amount || !loan_tenure_months || !interest_rate_percent) {
-        row_errors.push({ row: R, stage: "validation", reason: "Missing LAN/name/amount/tenure/rate" });
+      if (
+        !lan ||
+        !applicant_name ||
+        !approved_loan_amount ||
+        !loan_tenure_months ||
+        !interest_rate_percent
+      ) {
+        row_errors.push({
+          row: R,
+          stage: "validation",
+          reason: "Missing LAN/name/amount/tenure/rate",
+        });
         continue;
       }
 
@@ -1775,13 +1809,23 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
       try {
         const [dups] = await db
           .promise()
-          .query(`SELECT id FROM loan_booking_embifi WHERE pan_number = ?`, [pan_number]);
+          .query(`SELECT id FROM loan_booking_embifi WHERE pan_number = ?`, [
+            pan_number,
+          ]);
         if (dups.length) {
-          row_errors.push({ row: R, stage: "dup-check", reason: "Duplicate PAN" });
+          row_errors.push({
+            row: R,
+            stage: "dup-check",
+            reason: "Duplicate PAN",
+          });
           continue;
         }
       } catch (err) {
-        row_errors.push({ row: R, stage: "dup-check", reason: toClientError(err).message });
+        row_errors.push({
+          row: R,
+          stage: "dup-check",
+          reason: toClientError(err).message,
+        });
         continue;
       }
 
@@ -1804,57 +1848,63 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `;
 
-        await db.promise().query(sql, [
-          lan,
-          applicant_name,
-          applicant_dob,
-          applicant_age_years,
-          applicant_father_name,
-          pan_number,
-          applicant_aadhaar_no,
-          mobile_number,
-          coapplicant_name,
-          coapplicant_pan_no,
-          coapplicant_aadhaar_no,
-          coapplicant_dob,
-          coapplicant_mobile_no,
-          approved_loan_amount,
-          processing_fees_with_tax,
-          processing_fees,
-          processing_fees_tax,
-          subvention,
-          disbursal_amount,
-          loan_tenure_months,
-          emi_amount,
-          interest_rate_percent,
-          status,
-          product,
-          lender,
-          loan_admin_status,
-          first_emi_date,
-          last_emi_date,
-          disbursement_date,
-          disbursement_utr,
-          applicant_address,
-          applicant_state,
-          applicant_city,
-          applicant_pin_code,
-          coapplicant_address,
-          coapplicant_state,
-          coapplicant_pin_code,
-          bureau_score,
-          monthly_income,
-          account_no,
-          ifsc_code,
-          gps_device_cost,
-          gst_on_gps_device,
-          total_gps_device_cost,
-          new_interest,
-        ]);
+        await db
+          .promise()
+          .query(sql, [
+            lan,
+            applicant_name,
+            applicant_dob,
+            applicant_age_years,
+            applicant_father_name,
+            pan_number,
+            applicant_aadhaar_no,
+            mobile_number,
+            coapplicant_name,
+            coapplicant_pan_no,
+            coapplicant_aadhaar_no,
+            coapplicant_dob,
+            coapplicant_mobile_no,
+            approved_loan_amount,
+            processing_fees_with_tax,
+            processing_fees,
+            processing_fees_tax,
+            subvention,
+            disbursal_amount,
+            loan_tenure_months,
+            emi_amount,
+            interest_rate_percent,
+            status,
+            product,
+            lender,
+            loan_admin_status,
+            first_emi_date,
+            last_emi_date,
+            disbursement_date,
+            disbursement_utr,
+            applicant_address,
+            applicant_state,
+            applicant_city,
+            applicant_pin_code,
+            coapplicant_address,
+            coapplicant_state,
+            coapplicant_pin_code,
+            bureau_score,
+            monthly_income,
+            account_no,
+            ifsc_code,
+            gps_device_cost,
+            gst_on_gps_device,
+            total_gps_device_cost,
+            new_interest,
+          ]);
 
         success_rows.push(R);
       } catch (err) {
-        row_errors.push({ row: R, stage: "insert", reason: toClientError(err).message });
+        row_errors.push({
+          row: R,
+          stage: "insert",
+          reason: toClientError(err).message,
+        });
         continue;
       }
     }
@@ -1878,7 +1928,6 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
     });
   }
 });
-
 
 ////////////////// BL Loan........./////////////////////////////////
 router.post("/bl-upload", upload.single("file"), async (req, res) => {
@@ -1977,7 +2026,6 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
   }
 });
 
-
 ///////////////////////////// UPLOAD_UTR by SAJAG JAIN /////////////////////////////////////
 
 // router.post("/upload-utr", upload.single("file"), async (req, res) => {
@@ -2018,39 +2066,39 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //       try {
 //         if (lan.startsWith("GQN")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
+//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender
 //              FROM loan_booking_gq_non_fsf WHERE lan = ?`, [lan]
 //           );
 //         } else if (lan.startsWith("GQF")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
+//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender
 //              FROM loan_booking_gq_fsf WHERE lan = ?`, [lan]
 //           );
 //         } else if (lan.startsWith("E10")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender 
+//             `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender
 //              FROM loan_booking_embifi WHERE lan = ?`, [lan]
 //           );
 //         } else if (lan.startsWith("ADK")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender
 //              FROM loan_booking_adikosh WHERE lan = ?`, [lan]
 //           );
 //         } else if (lan.startsWith("EV")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
 //              FROM loan_booking_ev WHERE lan = ?`, [lan]
 //           );
 //         }
-//         ////// this for EMI CLUB //////// 
+//         ////// this for EMI CLUB ////////
 //           else if (lan.startsWith("FINE")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount,roi_apr as interest_rate  , loan_tenure, product, lender 
+//             `SELECT loan_amount,roi_apr as interest_rate  , loan_tenure, product, lender
 //              FROM loan_booking_emiclub WHERE lan = ?`, [lan]
 //           );
 //         } else {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
 //              FROM loan_bookings WHERE lan = ?`, [lan]
 //           );
 //         }
@@ -2105,7 +2153,7 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //           if (!insertedLANs.has(lan)) {
 //             // 🔴 IMPORTANT: pass `conn` (transaction) into the RPS generator.
 //             await generateRepaymentSchedule(
-//               conn,             
+//               conn,
 //               lan,
 //               loan_amount,
 //               emi_date,
@@ -2399,7 +2447,6 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 //   }
 // });
 
-
 router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded." });
   if (!req.body.lenderType)
@@ -2408,21 +2455,29 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
   const lenderType = req.body.lenderType;
 
   // collections we’ll return to the frontend
-  const success_rows = [];            // e.g., [2, 3, 7]
-  const row_errors = [];              // e.g., [{row, stage, reason}]
-  const skippedDueToCIBIL = [];       // you already had this
+  const success_rows = []; // e.g., [2, 3, 7]
+  const row_errors = []; // e.g., [{row, stage, reason}]
+  const skippedDueToCIBIL = []; // you already had this
 
   try {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const rawSheet = workbook.Sheets[sheetName];
-    const rawData = xlsx.utils.sheet_to_json(rawSheet, { defval: "", header: 1 });
+    const rawData = xlsx.utils.sheet_to_json(rawSheet, {
+      defval: "",
+      header: 1,
+    });
 
     // Normalize headers
     const rawHeaders = rawData[0];
     const normalizedHeaders = {};
     rawHeaders.forEach((header, i) => {
-      const norm = header?.toString().toLowerCase().replace(/\s+/g, " ").trim().replace(/[^a-z0-9]/g, "");
+      const norm = header
+        ?.toString()
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/[^a-z0-9]/g, "");
       if (norm) normalizedHeaders[i] = header;
     });
 
@@ -2436,12 +2491,16 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
     });
 
     if (sheetData.length === 0) {
-      return res.status(400).json({ message: "Uploaded Excel file is empty or invalid." });
+      return res
+        .status(400)
+        .json({ message: "Uploaded Excel file is empty or invalid." });
     }
 
     // util to number-parse your currency/ints
     const parse = (v) =>
-      typeof v === "number" ? v : parseFloat((v ?? "").toString().replace(/[^0-9.]/g, "")) || 0;
+      typeof v === "number"
+        ? v
+        : parseFloat((v ?? "").toString().replace(/[^0-9.]/g, "")) || 0;
 
     for (const row of sheetData) {
       const R = row.__row;
@@ -2455,33 +2514,42 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
 
         // CIBIL validation (your existing rules)
         if (isNaN(cibilScore)) {
-          skippedDueToCIBIL.push({ ...row, reason: "Missing or invalid CIBIL Score" });
+          skippedDueToCIBIL.push({
+            ...row,
+            reason: "Missing or invalid CIBIL Score",
+          });
           continue;
         }
-        
+
         if (!(cibilScore >= 500 || cibilScore === -1)) {
           skippedDueToCIBIL.push({ ...row, reason: "Low CIBIL Score" });
           continue;
         }
 
         // OPTIONAL: duplicate check (PAN/Aadhaar). Uncomment if you want this.
-      
+
         try {
           const [existing] = await db
             .promise()
-            .query(
-              `SELECT * FROM loan_booking_gq_fsf WHERE app_id = ?`,
-              [appId]
-            );
+            .query(`SELECT * FROM loan_booking_gq_fsf WHERE app_id = ?`, [
+              appId,
+            ]);
           if (existing.length > 0) {
-            row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate AppId (${appId || ""})` });
+            row_errors.push({
+              row: R,
+              stage: "dup-check",
+              reason: `Duplicate AppId (${appId || ""})`,
+            });
             continue;
           }
         } catch (dupErr) {
-          row_errors.push({ row: R, stage: "dup-check", reason: toClientError(dupErr).message });
+          row_errors.push({
+            row: R,
+            stage: "dup-check",
+            reason: toClientError(dupErr).message,
+          });
           continue;
         }
-  
 
         // Generate IDs
         let partnerLoanId, lan;
@@ -2490,16 +2558,18 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
           partnerLoanId = ids.partnerLoanId;
           lan = ids.lan;
         } catch (idErr) {
-          row_errors.push({ row: R, stage: "id-gen", reason: toClientError(idErr).message });
+          row_errors.push({
+            row: R,
+            stage: "id-gen",
+            reason: toClientError(idErr).message,
+          });
           continue;
         }
 
         // Insert
         try {
-          await db
-            .promise()
-            .query(
-              `INSERT INTO loan_booking_gq_fsf (
+          await db.promise().query(
+            `INSERT INTO loan_booking_gq_fsf (
                 partner_loan_id, lan, app_id, product, customer_type, residence_type, loan_type, disbursal_type,
                 institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
                 agreement_signature_type, loan_application_date, emi_day, company_name, fathers_name,
@@ -2516,97 +2586,111 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
                 agreement_date, interest_rate_irr, flat_rate, nach_umrn, income_source,
                 status, monthly_income, age, lender, loan_amount, interest_rate, loan_tenure
               ) VALUES (${new Array(79).fill("?").join(",")})`,
-              [
-                partnerLoanId,
-                lan,
-                row["APPLICATION ID"],
-                row["Product"],
-                row["Customer Type"],
-                row["Residence Type"],
-                row["Loan Type"],
-                row["Disbursal Type"],
-                row["Institute Account Number"],
-                row["Beneficiary Name"],
-                row["IFSC Code"],
-                row["Bank Name"],
-                aadharNumber,
-                row["Agreement Signature Type"],
-                row["Loan Application Date"] ? excelDateToJSDate(row["Loan Application Date"]) : null,
-                parse(row["Emi Day"]),
-                row["Company Name"],
-                row["Fathers Name"],
-                row["CKYC No"],
-                row["Customer Name"],
-                row["Student Name"],
-                row["Date Of Birth"] ? excelDateToJSDate(row["Date Of Birth"]) : null,
-                row["Gender"],
-                row["Current Address Line 1"],
-                row["Current Address Line 2"],
-                row["Current Address Line 3"],
-                row["Current Address Landmark"],
-                row["Current Address Pincode"],
-                row["Current Address City"],
-                row["Current Address State"],
-                row["Proof of Current Address"],
-                row["Permanent Address Line 1"],
-                row["Permanent Address Line 2"],
-                row["Permanent Address Line 3"],
-                row["Permanent Address Landmark"],
-                row["Permanent Address Pincode"],
-                row["Permanent Address City"],
-                row["Permanent Address State"],
-                row["Office Address Line 1"],
-                row["Office Address Line 2"],
-                row["Office Address Line 3"],
-                row["Office Address Landmark"],
-                row["Office Address Pincode"],
-                row["Office Address City"],
-                row["Office Address State"],
-                panCard,
-                row["Employment Status"],
-                parse(row["Annual Income"]),
-                cibilScore,
-                row["Mobile Number"],
-                row["Email ID"],
-                row["Institute"],
-                parse(row["Loan Amount Sanctioned"]),
-                parse(row["Loan Tenure (Months)"]),
-                parse(row["Monthly EMI"]),
-                parse(row["Interest %"]),
-                parse(row["Monthly Interest Amount"]),
-                parse(row["No. Of Advance EMIs"]),
-                parse(row["Processing Fee"]),
-                parse(row["Processing Fee Tax"]),
-                parse(row["Advance EMI (Total)"]),
-                parse(row["Subvention Amount"]),
-                parse(row["Disbursal Amount"]),
-                parse(row["Retention Percentage"]),
-                parse(row["Retention Amount"]),
-                parse(row["Actual Disbursement"]),
-                parse(row["To be Recovered"]),
-                row["Agreement Date (DD-MMM-YYYY)"] ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"]) : null,
-                parse(row["Interest Rate (IRR %)"]),
-                parse(row["Flat Rate (%)"]),
-                row["Nach UMRN"],
-                row["Income Source"],
-                "Login",
-                parse(row["Monthly Income"]),
-                parse(row["Age"]),
-                lenderType,
-                parse(row["Loan Amount Sanctioned"]),
-                parse(row["Interest %"]),
-                parse(row["Loan Tenure (Months)"]),
-              ]
-            );
+            [
+              partnerLoanId,
+              lan,
+              row["APPLICATION ID"],
+              row["Product"],
+              row["Customer Type"],
+              row["Residence Type"],
+              row["Loan Type"],
+              row["Disbursal Type"],
+              row["Institute Account Number"],
+              row["Beneficiary Name"],
+              row["IFSC Code"],
+              row["Bank Name"],
+              aadharNumber,
+              row["Agreement Signature Type"],
+              row["Loan Application Date"]
+                ? excelDateToJSDate(row["Loan Application Date"])
+                : null,
+              parse(row["Emi Day"]),
+              row["Company Name"],
+              row["Fathers Name"],
+              row["CKYC No"],
+              row["Customer Name"],
+              row["Student Name"],
+              row["Date Of Birth"]
+                ? excelDateToJSDate(row["Date Of Birth"])
+                : null,
+              row["Gender"],
+              row["Current Address Line 1"],
+              row["Current Address Line 2"],
+              row["Current Address Line 3"],
+              row["Current Address Landmark"],
+              row["Current Address Pincode"],
+              row["Current Address City"],
+              row["Current Address State"],
+              row["Proof of Current Address"],
+              row["Permanent Address Line 1"],
+              row["Permanent Address Line 2"],
+              row["Permanent Address Line 3"],
+              row["Permanent Address Landmark"],
+              row["Permanent Address Pincode"],
+              row["Permanent Address City"],
+              row["Permanent Address State"],
+              row["Office Address Line 1"],
+              row["Office Address Line 2"],
+              row["Office Address Line 3"],
+              row["Office Address Landmark"],
+              row["Office Address Pincode"],
+              row["Office Address City"],
+              row["Office Address State"],
+              panCard,
+              row["Employment Status"],
+              parse(row["Annual Income"]),
+              cibilScore,
+              row["Mobile Number"],
+              row["Email ID"],
+              row["Institute"],
+              parse(row["Loan Amount Sanctioned"]),
+              parse(row["Loan Tenure (Months)"]),
+              parse(row["Monthly EMI"]),
+              parse(row["Interest %"]),
+              parse(row["Monthly Interest Amount"]),
+              parse(row["No. Of Advance EMIs"]),
+              parse(row["Processing Fee"]),
+              parse(row["Processing Fee Tax"]),
+              parse(row["Advance EMI (Total)"]),
+              parse(row["Subvention Amount"]),
+              parse(row["Disbursal Amount"]),
+              parse(row["Retention Percentage"]),
+              parse(row["Retention Amount"]),
+              parse(row["Actual Disbursement"]),
+              parse(row["To be Recovered"]),
+              row["Agreement Date (DD-MMM-YYYY)"]
+                ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"])
+                : null,
+              parse(row["Interest Rate (IRR %)"]),
+              parse(row["Flat Rate (%)"]),
+              row["Nach UMRN"],
+              row["Income Source"],
+              "Login",
+              parse(row["Monthly Income"]),
+              parse(row["Age"]),
+              lenderType,
+              parse(row["Loan Amount Sanctioned"]),
+              parse(row["Interest %"]),
+              parse(row["Loan Tenure (Months)"]),
+            ]
+          );
 
           success_rows.push(R);
         } catch (insErr) {
-          row_errors.push({ row: R, stage: "insert", reason: toClientError(insErr).message });
+          row_errors.push({
+            row: R,
+            stage: "insert",
+            reason: toClientError(insErr).message,
+          });
           continue;
         }
       } catch (loopErr) {
         // This catches any unexpected error per row so one bad row doesn’t kill the rest
-        row_errors.push({ row: R, stage: "unknown", reason: toClientError(loopErr).message });
+        row_errors.push({
+          row: R,
+          stage: "unknown",
+          reason: toClientError(loopErr).message,
+        });
         continue;
       }
     }
@@ -2638,7 +2722,6 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
   }
 });
 
-
 router.get("/gq-fsf-disbursed", (req, res) => {
   const query =
     "SELECT * FROM loan_booking_gq_fsf WHERE status = 'Disbursed' and LAN Like 'GQF%'";
@@ -2660,9 +2743,14 @@ router.get("/gq-fsf-disbursed", (req, res) => {
 // ✅ JSON Upload Route
 router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
   try {
-    if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'adikosh') {
-    return res.status(403).json({ message: 'This route is only for Adikosh partner.' });
-  }
+    if (
+      !req.partner ||
+      (req.partner.name || "").toLowerCase().trim() !== "adikosh"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "This route is only for Adikosh partner." });
+    }
     const data = req.body; // Direct JSON
     console.log("Incoming lenderType:", req.body.lenderType);
     console.log("Received JSON:", data);
@@ -2824,33 +2912,79 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
 router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
   // Column list kept in ONE place to avoid mismatches
   const COLS = [
-    'lan','partner_loan_id','login_date',
-    'first_name','middle_name','last_name','gender','borrower_dob',
-    'father_name','mother_name','mobile_number','email',
-    'pan_card','aadhar_number',
-    'address_line_1','address_line_2','village','district','state','pincode',
-    'business_village','business_district','business_state','business_pincode',
-    'loan_amount','interest_rate','loan_tenure','cibil_score','product','lender',
-    'employment_type','pre_emi','processing_fee','disbursal_amount',
-    'emi_amount','apr','agreement_date',
-    'udyam_registration','property_type',
-    'aa_bank_name','aa_branch_name','aa_account_type','aa_name_in_bank',
-    'aa_account_number','aa_ifsc',
-    'bank_name','name_in_bank','account_number','ifsc'
+    "lan",
+    "partner_loan_id",
+    "login_date",
+    "first_name",
+    "middle_name",
+    "last_name",
+    "gender",
+    "borrower_dob",
+    "father_name",
+    "mother_name",
+    "mobile_number",
+    "email",
+    "pan_card",
+    "aadhar_number",
+    "address_line_1",
+    "address_line_2",
+    "village",
+    "district",
+    "state",
+    "pincode",
+    "business_village",
+    "business_district",
+    "business_state",
+    "business_pincode",
+    "loan_amount",
+    "interest_rate",
+    "loan_tenure",
+    "cibil_score",
+    "product",
+    "lender",
+    "employment_type",
+    "pre_emi",
+    "processing_fee",
+    "disbursal_amount",
+    "emi_amount",
+    "apr",
+    "agreement_date",
+    "udyam_registration",
+    "property_type",
+    "aa_bank_name",
+    "aa_branch_name",
+    "aa_account_type",
+    "aa_name_in_bank",
+    "aa_account_number",
+    "aa_ifsc",
+    "bank_name",
+    "name_in_bank",
+    "account_number",
+    "ifsc",
+    "customer_name",
   ];
-  const PLACEHOLDERS = `(${COLS.map(() => '?').join(',')})`;
-  const INSERT_SQL = `INSERT INTO loan_booking_finso (${COLS.join(', ')}) VALUES ${PLACEHOLDERS}`;
+  const PLACEHOLDERS = `(${COLS.map(() => "?").join(",")})`;
+  const INSERT_SQL = `INSERT INTO loan_booking_finso (${COLS.join(
+    ", "
+  )}) VALUES ${PLACEHOLDERS}`;
 
   try {
-    if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'finso') {
-    return res.status(403).json({ message: "This route is only for Finso partner." });
-  }
+    if (
+      !req.partner ||
+      (req.partner.name || "").toLowerCase().trim() !== "finso"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "This route is only for Finso partner." });
+    }
     // ✅ Extract lender from header (case-insensitive)
     const lenderTypeRaw = req.headers["x-lender"] ?? req.headers["lender"];
     const lenderType = lenderTypeRaw?.toString().trim();
 
     if (!lenderType) {
-      return res.status(400).json({ message: "Lender header is required (x-lender: Finso)." });
+      return res
+        .status(400)
+        .json({ message: "Lender header is required (x-lender: Finso)." });
     }
     if (lenderType.toLowerCase() !== "finso") {
       return res.status(400).json({
@@ -2893,12 +3027,17 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
     const results = [];
 
+    const customerName = `${data.first_name || ""} ${
+      data.last_name || ""
+    }`.trim();
+
     for (const raw of records) {
       try {
         // ✅ Normalize aliases just in case upstream uses different keys
         const data = {
           ...raw,
-          account_number: raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
+          account_number:
+            raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
           ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
           processing_fee: raw.processing_fee ?? 0.0,
         };
@@ -2928,37 +3067,75 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         }
 
         // ✅ Generate identifiers
-        const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+        const { lan } = await generateLoanIdentifiers(lenderType);
 
-          const agreementDate = data.login_date;
+        const agreementDate = data.login_date;
         // ✅ Build values in the exact same order as COLS
         const values = [
           // lan / ids / dates
-          lan, partnerLoanId, data.login_date,
-          // name / demographics
-          data.first_name, (data.middle_name ?? null), data.last_name, data.gender, data.borrower_dob,
-          data.father_name, (data.mother_name ?? null), data.mobile_number, data.email,
+          lan,
+          data.partnerLoanId,
+          data.login_date,
+
+          data.first_name,
+          data.middle_name ?? null,
+          data.last_name,
+          data.gender,
+          data.borrower_dob,
+          data.father_name,
+          data.mother_name ?? null,
+          data.mobile_number,
+          data.email,
           // KYC
-          data.pan_card, data.aadhar_number,
+          data.pan_card,
+          data.aadhar_number,
           // addresses
-          data.address_line_1, (data.address_line_2 ?? null), data.village, data.district, data.state, data.pincode,
+          data.address_line_1,
+          data.address_line_2 ?? null,
+          data.village,
+          data.district,
+          data.state,
+          data.pincode,
           // business address
-          (data.business_village ?? null), (data.business_district ?? null), (data.business_state ?? null), (data.business_pincode ?? null),
+          data.business_village ?? null,
+          data.business_district ?? null,
+          data.business_state ?? null,
+          data.business_pincode ?? null,
           // loan
-          data.loan_amount, data.interest_rate, data.loan_tenure, (data.cibil_score ?? null), data.product, lenderType,
-          (data.employment_type ?? null), (data.pre_emi ?? null), (data.processing_fee ?? 0.00), data.disbursal_amount,
-          (data.emi_amount ?? null), (data.apr ?? null), agreementDate,
-          (data.udyam_registration ?? null), (data.property_type ?? null),
+          data.loan_amount,
+          data.interest_rate,
+          data.loan_tenure,
+          data.cibil_score ?? null,
+          data.product,
+          lenderType,
+          data.employment_type ?? null,
+          data.pre_emi ?? null,
+          data.processing_fee ?? 0.0,
+          data.disbursal_amount,
+          data.emi_amount ?? null,
+          data.apr ?? null,
+          agreementDate,
+          data.udyam_registration ?? null,
+          data.property_type ?? null,
           // AA bank (aggregator) details
-          (data.aa_bank_name ?? null), (data.aa_branch_name ?? null), (data.aa_account_type ?? null), (data.aa_name_in_bank ?? null),
-          (data.aa_account_number ?? null), (data.aa_ifsc ?? null),
+          data.aa_bank_name ?? null,
+          data.aa_branch_name ?? null,
+          data.aa_account_type ?? null,
+          data.aa_name_in_bank ?? null,
+          data.aa_account_number ?? null,
+          data.aa_ifsc ?? null,
           // disbursal bank
-          data.bank_name, data.name_in_bank, data.account_number, data.ifsc,
+          data.bank_name,
+          data.name_in_bank,
+          data.account_number,
+          data.ifsc,
         ];
 
         // ✅ Defensive assertion (prevents the classic “count mismatch”)
         if (values.length !== COLS.length) {
-          throw new Error(`INSERT loan_booking_finso: values=${values.length} != columns=${COLS.length}`);
+          throw new Error(
+            `INSERT loan_booking_finso: values=${values.length} != columns=${COLS.length}`
+          );
         }
 
         // ✅ Insert record
@@ -2971,12 +3148,19 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         });
       } catch (e) {
         // Granular DB errors
-        if (e?.code === 'ER_DUP_ENTRY') {
-          results.push({ error: 'Duplicate partner_loan_id / unique key violation.', details: e.message });
-        } else if (e?.code === 'ER_WRONG_VALUE_COUNT_ON_ROW') {
-          results.push({ error: 'Column/value count mismatch (defensive check should prevent this).', details: e.message });
+        if (e?.code === "ER_DUP_ENTRY") {
+          results.push({
+            error: "Duplicate partner_loan_id / unique key violation.",
+            details: e.message,
+          });
+        } else if (e?.code === "ER_WRONG_VALUE_COUNT_ON_ROW") {
+          results.push({
+            error:
+              "Column/value count mismatch (defensive check should prevent this).",
+            details: e.message,
+          });
         } else {
-          results.push({ error: e.sqlMessage || e.message || 'Unknown error' });
+          results.push({ error: e.sqlMessage || e.message || "Unknown error" });
         }
       }
     }
@@ -3154,7 +3338,6 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 //   ]
 // );
 
-
 //     console.log("✅ Customer inserted, now pulling CIBIL...");
 
 //     // 6️⃣ Build SOAP XML
@@ -3245,14 +3428,13 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 //   }
 // });
 
-
-
-
 ////console ///////////////
 
 router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
   try {
-    console.log("================= 📦 NEW EMICLUB REQUEST START =================");
+    console.log(
+      "================= 📦 NEW EMICLUB REQUEST START ================="
+    );
     console.log("🔹 Timestamp:", new Date().toISOString());
 
     // --- Log all ENV variables used ---
@@ -3263,9 +3445,14 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     // --- Partner validation ---
     console.log("👥 Partner received:", req.partner);
-    if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'emiclub') {
+    if (
+      !req.partner ||
+      (req.partner.name || "").toLowerCase().trim() !== "emiclub"
+    ) {
       console.error("❌ Partner validation failed!");
-      return res.status(403).json({ message: 'This route is only for Emiclub partner.' });
+      return res
+        .status(403)
+        .json({ message: "This route is only for Emiclub partner." });
     }
 
     // --- Body logging ---
@@ -3277,19 +3464,47 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     console.log("🏦 Lender type received:", lenderType);
     if (!lenderType || lenderType !== "emiclub") {
       console.error("❌ Invalid lenderType provided:", lenderType);
-      return res.status(400).json({ message: "Invalid lenderType. Only 'EMICLUB' loans are accepted." });
+      return res
+        .status(400)
+        .json({
+          message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
+        });
     }
 
     // --- Required field check ---
     const requiredFields = [
-      "login_date", "partner_loan_id", "first_name","last_name", "gender", "dob",
-      "mobile_number", "email_id", "pan_number", "aadhar_number",
-      "current_address", "current_village_city", "current_district",
-      "current_state", "current_pincode", "permanent_address",
-      "permanent_state", "permanent_pincode", "loan_amount", "roi_apr",
-      "loan_tenure", "bank_name", "name_in_bank",
-      "account_number", "ifsc", "account_type", "type_of_account",
-      "employment", "annual_income", "dealer_name", "risk_category", "customer_type"
+      "login_date",
+      "partner_loan_id",
+      "first_name",
+      "last_name",
+      "gender",
+      "dob",
+      "mobile_number",
+      "email_id",
+      "pan_number",
+      "aadhar_number",
+      "current_address",
+      "current_village_city",
+      "current_district",
+      "current_state",
+      "current_pincode",
+      "permanent_address",
+      "permanent_state",
+      "permanent_pincode",
+      "loan_amount",
+      "roi_apr",
+      "loan_tenure",
+      "bank_name",
+      "name_in_bank",
+      "account_number",
+      "ifsc",
+      "account_type",
+      "type_of_account",
+      "employment",
+      "annual_income",
+      "dealer_name",
+      "risk_category",
+      "customer_type",
     ];
 
     for (const field of requiredFields) {
@@ -3302,10 +3517,16 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     // --- Duplicate PAN check ---
     console.log("🔍 Checking existing PAN:", data.pan_number);
-    const [existing] = await db.promise().query(
-      `SELECT lan FROM loan_booking_emiclub WHERE pan_number = ?`, [data.pan_number]
+    const [existing] = await db
+      .promise()
+      .query(`SELECT lan FROM loan_booking_emiclub WHERE pan_number = ?`, [
+        data.pan_number,
+      ]);
+    console.log(
+      "🧾 Duplicate check result:",
+      existing.length,
+      "records found."
     );
-    console.log("🧾 Duplicate check result:", existing.length, "records found.");
 
     if (existing.length > 0) {
       console.error("❌ Duplicate PAN found:", data.pan_number);
@@ -3319,7 +3540,9 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     const { lan } = await generateLoanIdentifiers(lenderType);
     console.log("✅ Generated LAN:", lan);
 
-    const customer_name = `${data.first_name || ""} ${data.last_name || ""}`.trim();
+    const customer_name = `${data.first_name || ""} ${
+      data.last_name || ""
+    }`.trim();
     const agreement_date = data.login_date;
 
     // --- Insert into DB ---
@@ -3338,19 +3561,56 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       )
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
-        lan, data.partner_loan_id, data.login_date,
-        data.first_name, data.middle_name || null, data.last_name || null,
-        data.gender, data.dob, data.father_name || null, data.mother_name || null,
-        data.mobile_number, data.email_id, data.pan_number, data.aadhar_number,
-        data.current_address, data.current_village_city, data.current_district, data.current_state, data.current_pincode,
-        data.permanent_address, data.permanent_village_city || data.current_village_city,
-        data.permanent_district || data.current_district, data.permanent_state, data.permanent_pincode,
-        data.loan_amount, data.interest_rate, data.roi_apr, data.loan_tenure, data.emi_amount, data.cibil_score,
-        "Monthly Loan", "EMICLUB", data.bank_name, data.name_in_bank, data.account_number, data.ifsc,
-        data.account_type, data.type_of_account,
-        data.net_disbursement || data.loan_amount, data.employment, data.risk_category, data.customer_type,
-        data.annual_income, data.dealer_name, data.dealer_mobile, data.dealer_address, data.dealer_city,
-        "Login", customer_name, agreement_date
+        lan,
+        data.partner_loan_id,
+        data.login_date,
+        data.first_name,
+        data.middle_name || null,
+        data.last_name || null,
+        data.gender,
+        data.dob,
+        data.father_name || null,
+        data.mother_name || null,
+        data.mobile_number,
+        data.email_id,
+        data.pan_number,
+        data.aadhar_number,
+        data.current_address,
+        data.current_village_city,
+        data.current_district,
+        data.current_state,
+        data.current_pincode,
+        data.permanent_address,
+        data.permanent_village_city || data.current_village_city,
+        data.permanent_district || data.current_district,
+        data.permanent_state,
+        data.permanent_pincode,
+        data.loan_amount,
+        data.interest_rate,
+        data.roi_apr,
+        data.loan_tenure,
+        data.emi_amount,
+        data.cibil_score,
+        "Monthly Loan",
+        "EMICLUB",
+        data.bank_name,
+        data.name_in_bank,
+        data.account_number,
+        data.ifsc,
+        data.account_type,
+        data.type_of_account,
+        data.net_disbursement || data.loan_amount,
+        data.employment,
+        data.risk_category,
+        data.customer_type,
+        data.annual_income,
+        data.dealer_name,
+        data.dealer_mobile,
+        data.dealer_address,
+        data.dealer_city,
+        "Login",
+        customer_name,
+        agreement_date,
       ]
     );
 
@@ -3454,9 +3714,8 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     return res.json({
       message: "✅ EMICLUB loan saved successfully.",
       lan,
-     // cibilScore: score || "Not Found",
+      // cibilScore: score || "Not Found",
     });
-
   } catch (error) {
     console.error("❌ Unhandled Error in EMICLUB Upload:", error);
     res.status(500).json({
@@ -3465,7 +3724,6 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     });
   }
 });
-
 
 ////////////////////// ADIKOSH CAM DATA UPLOAD Start     /////////////////////
 /**
@@ -3502,7 +3760,6 @@ function buildCoColumns(coApplicants = []) {
   return out;
 }
 
-
 // ---------- route ----------
 // ---------- base + per-block columns ----------
 const COLS_BASE = [
@@ -3519,7 +3776,7 @@ const COLS_BASE = [
 ];
 
 // 21 columns per co-app/guarantor block
-function colsForBlock(i) {  
+function colsForBlock(i) {
   return [
     `coapplicant_name_${i}`,
     `coapplicant_dob_${i}`,
@@ -3821,22 +4078,27 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
   const lenderType = req.body.lenderType; // optional validation below
 
   // collections returned to frontend
-  const success_rows = [];   // Excel row numbers that inserted
-  const row_errors = [];     // [{row, stage, reason}]
+  const success_rows = []; // Excel row numbers that inserted
+  const row_errors = []; // [{row, stage, reason}]
 
   try {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
-    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName])
-                               .map((r, i) => ({ __row: i + 2, ...r })); // header assumed on row 1
+    const sheetData = xlsx.utils
+      .sheet_to_json(workbook.Sheets[sheetName])
+      .map((r, i) => ({ __row: i + 2, ...r })); // header assumed on row 1
 
     if (!sheetData || sheetData.length === 0) {
       return res.status(400).json({ message: "Excel file is empty." });
     }
 
     // tiny helpers
-    const n = (v) => (v === null || v === undefined || v === "" ? null : Number(String(v).replace(/[^0-9.-]/g, "")) || 0);
-    const i = (v) => (v === null || v === undefined || v === "" ? null : parseInt(v, 10));
+    const n = (v) =>
+      v === null || v === undefined || v === ""
+        ? null
+        : Number(String(v).replace(/[^0-9.-]/g, "")) || 0;
+    const i = (v) =>
+      v === null || v === undefined || v === "" ? null : parseInt(v, 10);
     const s = (v) => (v === null || v === undefined ? "" : String(v).trim());
 
     for (const row of sheetData) {
@@ -3846,11 +4108,19 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         // 1) validation (add more fields here if you want to be strict)
         const app_id = s(row["App ID"]);
         if (!app_id) {
-          row_errors.push({ row: R, stage: "validation", reason: "Missing App ID" });
+          row_errors.push({
+            row: R,
+            stage: "validation",
+            reason: "Missing App ID",
+          });
           continue;
         }
         if (!lenderType) {
-          row_errors.push({ row: R, stage: "validation", reason: "Missing lenderType in form data" });
+          row_errors.push({
+            row: R,
+            stage: "validation",
+            reason: "Missing lenderType in form data",
+          });
           continue;
         }
 
@@ -3858,13 +4128,23 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         try {
           const [existing] = await db
             .promise()
-            .query(`SELECT * FROM loan_booking_gq_non_fsf WHERE app_id = ?`, [app_id]);
+            .query(`SELECT * FROM loan_booking_gq_non_fsf WHERE app_id = ?`, [
+              app_id,
+            ]);
           if (existing.length > 0) {
-            row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate App ID (${app_id})` });
+            row_errors.push({
+              row: R,
+              stage: "dup-check",
+              reason: `Duplicate App ID (${app_id})`,
+            });
             continue;
           }
         } catch (dupErr) {
-          row_errors.push({ row: R, stage: "dup-check", reason: toClientError(dupErr).message });
+          row_errors.push({
+            row: R,
+            stage: "dup-check",
+            reason: toClientError(dupErr).message,
+          });
           continue;
         }
 
@@ -3875,7 +4155,11 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
           partnerLoanId = ids.partnerLoanId;
           lan = ids.lan;
         } catch (idErr) {
-          row_errors.push({ row: R, stage: "id-gen", reason: toClientError(idErr).message });
+          row_errors.push({
+            row: R,
+            stage: "id-gen",
+            reason: toClientError(idErr).message,
+          });
           continue;
         }
 
@@ -3900,9 +4184,9 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         `;
 
         // mirror your custom mapping
-        const loanAmount     = row["Loan Amount Sanctioned"];
-        const interestrate   = row["Interest %"];
-        const loantenure     = row["Loan Tenure (Months)"];
+        const loanAmount = row["Loan Amount Sanctioned"];
+        const interestrate = row["Interest %"];
+        const loantenure = row["Loan Tenure (Months)"];
 
         const values = [
           partnerLoanId,
@@ -3919,7 +4203,9 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
           row["Bank Name"],
           row["Aadhaar Number"],
           row["Agreement Signature Type"],
-          row["Loan Application Date"] ? excelDateToJSDate(row["Loan Application Date"]) : null,
+          row["Loan Application Date"]
+            ? excelDateToJSDate(row["Loan Application Date"])
+            : null,
           row["Emi Day"],
           row["Company Name"],
           row["Fathers Name"],
@@ -3957,10 +4243,10 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
           row["Mobile Number"],
           row["Email ID"],
           row["Institute"],
-          loanAmount,                 // loan_amount_sanctioned
-          loantenure,                 // loan_tenure_months
+          loanAmount, // loan_amount_sanctioned
+          loantenure, // loan_tenure_months
           n(row["Monthly EMI"]),
-          interestrate,               // interest_percent
+          interestrate, // interest_percent
           n(row["Monthly Interest Amount"]),
           i(row["No. Of Advance EMIs"]),
           n(row["Advance EMI (Total)"]),
@@ -3968,7 +4254,9 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
           n(row["Disbursal Amount"]),
           n(row["Actual Disbursement"]),
           n(row["To be Recovered"]),
-          row["Agreement Date (DD-MMM-YYYY)"] ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"]) : null,
+          row["Agreement Date (DD-MMM-YYYY)"]
+            ? excelDateToJSDate(row["Agreement Date (DD-MMM-YYYY)"])
+            : null,
           parseFloat(row["Interest Rate (IRR %)"]),
           parseFloat(row["Flat Rate (%)"]),
           row["Nach UMRN"],
@@ -3977,21 +4265,29 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
           n(row["Monthly Income"]),
           i(row["Age"]),
           lenderType,
-          loanAmount,                 // loan_amount (duplicate as requested)
-          interestrate,               // interest_rate (duplicate)
-          loantenure,                 // loan_tenure (duplicate)
+          loanAmount, // loan_amount (duplicate as requested)
+          interestrate, // interest_rate (duplicate)
+          loantenure, // loan_tenure (duplicate)
         ];
 
         try {
           await db.promise().query(insertQuery, values);
           success_rows.push(R);
         } catch (insErr) {
-          row_errors.push({ row: R, stage: "insert", reason: toClientError(insErr).message });
+          row_errors.push({
+            row: R,
+            stage: "insert",
+            reason: toClientError(insErr).message,
+          });
           continue;
         }
       } catch (loopErr) {
         // just in case something unexpected breaks the row
-        row_errors.push({ row: R, stage: "unknown", reason: toClientError(loopErr).message });
+        row_errors.push({
+          row: R,
+          stage: "unknown",
+          reason: toClientError(loopErr).message,
+        });
         continue;
       }
     }
@@ -4017,7 +4313,6 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
     });
   }
 });
-
 
 // Helpers
 const parse = (v) =>
@@ -4047,13 +4342,14 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
   let row_errors = [];
 
   try {
-    console.log((req.partner.name));
+    console.log(req.partner.name);
 
     // 1️⃣ Verify Partner
     if (!req.partner || (req.partner.name || "") !== "GQ Non-FSF") {
-      return res.status(403).json({ message: "This route is only for GQ NON-FSF partner." });
+      return res
+        .status(403)
+        .json({ message: "This route is only for GQ NON-FSF partner." });
     }
-
 
     const data = req.body;
     console.log("📥 Incoming GQ NON-FSF JSON:", data);
@@ -4062,7 +4358,8 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
 
     // 2️⃣ lenderType validation
     const lenderType = data.lenderType;
-    if (!lenderType) return res.status(400).json({ message: "lenderType is required." });
+    if (!lenderType)
+      return res.status(400).json({ message: "lenderType is required." });
 
     if (lenderType !== "GQ Non-FSF") {
       return res.status(400).json({
@@ -4071,7 +4368,12 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
     }
 
     // 3️⃣ Required field validation
-    const requiredFields = ["appId", "loanAmount", "interestRate", "loanTenure"];
+    const requiredFields = [
+      "appId",
+      "loanAmount",
+      "interestRate",
+      "loanTenure",
+    ];
     for (const field of requiredFields) {
       if (!data[field] && data[field] !== 0) {
         console.error(`❌ Missing field: ${field}`);
@@ -4082,7 +4384,9 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
     // 4️⃣ Duplicate check
     const [existing] = await db
       .promise()
-      .query(`SELECT lan FROM loan_booking_gq_non_fsf WHERE app_id = ?`, [data.appId]);
+      .query(`SELECT lan FROM loan_booking_gq_non_fsf WHERE app_id = ?`, [
+        data.appId,
+      ]);
 
     if (existing.length > 0) {
       console.warn(`⚠️ Duplicate App ID found: ${data.appId}`);
@@ -4116,11 +4420,12 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
 
     // 7️⃣ Value helpers
     const n = (v) =>
-      v === null || v === undefined || v === "" ? null : Number(String(v).replace(/[^0-9.-]/g, "")) || 0;
+      v === null || v === undefined || v === ""
+        ? null
+        : Number(String(v).replace(/[^0-9.-]/g, "")) || 0;
     const i = (v) =>
       v === null || v === undefined || v === "" ? null : parseInt(v, 10);
-    const s = (v) =>
-      v === null || v === undefined ? "" : String(v).trim();
+    const s = (v) => (v === null || v === undefined ? "" : String(v).trim());
 
     // 8️⃣ Map JSON → DB fields
     const values = [
@@ -4198,12 +4503,14 @@ router.post("/v1/gq-non-fsf-lb", verifyApiKey, async (req, res) => {
       lenderType,
       n(data.loanAmount),
       n(data.interestRate),
-      i(data.loanTenure)
+      i(data.loanTenure),
     ];
 
     // 9️⃣ Execute insert
     await db.promise().query(insertQuery, values);
-    console.log(`✅ Loan inserted successfully → App ID: ${data.appId}, LAN: ${lan}`);
+    console.log(
+      `✅ Loan inserted successfully → App ID: ${data.appId}, LAN: ${lan}`
+    );
 
     success_rows.push({ appId: data.appId, lan, partnerLoanId });
 
@@ -4577,7 +4884,9 @@ router.patch("/aldun-loans/:loan_account_number/inactive", async (req, res) => {
 
 router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
   if (!req.file)
-    return res.status(400).json({ message: "No file uploaded. Please select a valid file." });
+    return res
+      .status(400)
+      .json({ message: "No file uploaded. Please select a valid file." });
   if (!req.body.lenderType)
     return res.status(400).json({ message: "Lender type is required." });
 
@@ -4585,11 +4894,15 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
 
   // collections to return
   const success_rows = []; // Excel row numbers that inserted
-  const row_errors = [];   // [{row, stage, reason}]
+  const row_errors = []; // [{row, stage, reason}]
 
   try {
     // only Adikosh allowed (your previous logic)
-    if (["EV Loan", "Health Care", "BL Loan", "GQ FSF", "GQ Non-FSF"].includes(lenderType)) {
+    if (
+      ["EV Loan", "Health Care", "BL Loan", "GQ FSF", "GQ Non-FSF"].includes(
+        lenderType
+      )
+    ) {
       return res.status(400).json({ message: "Invalid adikosh lender type." });
     }
 
@@ -4601,27 +4914,44 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
       .map((r, i) => ({ __row: i + 2, ...r })); // header at row 1
 
     if (!sheetData || sheetData.length === 0) {
-      return res.status(400).json({ message: "Uploaded Excel file is empty or invalid." });
+      return res
+        .status(400)
+        .json({ message: "Uploaded Excel file is empty or invalid." });
     }
 
     // tiny helpers
-    const n  = (v) => (v === null || v === undefined || v === "" ? null : Number(String(v).replace(/[^0-9.-]/g, "")));
-    const s  = (v) => (v === null || v === undefined ? "" : String(v).trim());
+    const n = (v) =>
+      v === null || v === undefined || v === ""
+        ? null
+        : Number(String(v).replace(/[^0-9.-]/g, ""));
+    const s = (v) => (v === null || v === undefined ? "" : String(v).trim());
 
     for (const row of sheetData) {
       const R = row.__row;
 
       try {
         // 1) basic validation
-        const panCard      = s(row["Pan Card"]);
+        const panCard = s(row["Pan Card"]);
         const aadharNumber = s(row["Aadhar Number"]);
-        const loanAmount   = n(row["Loan Amount"]);
-        const tenure       = n(row["Tenure"]);
+        const loanAmount = n(row["Loan Amount"]);
+        const tenure = n(row["Tenure"]);
         const interestRate = n(row["Interest Rate"]);
         const customerName = s(row["Customer Name"]);
 
-        if (!customerName || !panCard || !aadharNumber || loanAmount == null || tenure == null || interestRate == null) {
-          row_errors.push({ row: R, stage: "validation", reason: "Missing required fields (Customer/PAN/Aadhaar/Loan/Tenure/Interest)" });
+        if (
+          !customerName ||
+          !panCard ||
+          !aadharNumber ||
+          loanAmount == null ||
+          tenure == null ||
+          interestRate == null
+        ) {
+          row_errors.push({
+            row: R,
+            stage: "validation",
+            reason:
+              "Missing required fields (Customer/PAN/Aadhaar/Loan/Tenure/Interest)",
+          });
           continue;
         }
 
@@ -4634,11 +4964,19 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
               [panCard, aadharNumber]
             );
           if (existing.length > 0) {
-            row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate PAN/Aadhaar (${panCard} / ${aadharNumber})` });
+            row_errors.push({
+              row: R,
+              stage: "dup-check",
+              reason: `Duplicate PAN/Aadhaar (${panCard} / ${aadharNumber})`,
+            });
             continue;
           }
         } catch (dupErr) {
-          row_errors.push({ row: R, stage: "dup-check", reason: toClientError(dupErr).message });
+          row_errors.push({
+            row: R,
+            stage: "dup-check",
+            reason: toClientError(dupErr).message,
+          });
           continue;
         }
 
@@ -4649,7 +4987,11 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
           partnerLoanId = ids.partnerLoanId;
           lan = ids.lan;
         } catch (idErr) {
-          row_errors.push({ row: R, stage: "id-gen", reason: toClientError(idErr).message });
+          row_errors.push({
+            row: R,
+            stage: "id-gen",
+            reason: toClientError(idErr).message,
+          });
           continue;
         }
 
@@ -4667,54 +5009,70 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `;
 
-          await db.promise().query(query, [
-            partnerLoanId,
-            lan,
-            row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-            customerName,
-            row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
-            row["Father Name"],
-            row["Address Line 1"],
-            row["Address Line 2"],
-            row["Village"],
-            row["District"],
-            row["State"],
-            row["Pincode"],
-            row["Mobile Number"],
-            row["Email"],
-            row["Occupation"],
-            row["Relationship with Borrower"],
-            row["CIBIL Score"],
-            row["GURANTOR/Co-Applicant CIBIL Score"],
-            loanAmount,
-            tenure,
-            interestRate,
-            row["EMI Amount"],
-            row["GURANTOR/Co-Applicant ADHAR"],
-            row["GURANTOR/Co-Applicant PAN"],
-            row["DEALER NAME"],
-            row["Name in Bank"],
-            row["Bank name"],
-            row["Account Number"],
-            row["IFSC"],
-            aadharNumber,
-            panCard,
-            row["GURANTOR/Co-Applicant"],
-            row["GURANTOR/Co-Applicant DOB"] ? excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"]) : null,
-            row["Product"],
-            lenderType,
-            row["Agreement Date"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-            "Approved",
-            row["Salary Day"]
-          ]);
+          await db
+            .promise()
+            .query(query, [
+              partnerLoanId,
+              lan,
+              row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+              customerName,
+              row["Borrower DOB"]
+                ? excelDateToJSDate(row["Borrower DOB"])
+                : null,
+              row["Father Name"],
+              row["Address Line 1"],
+              row["Address Line 2"],
+              row["Village"],
+              row["District"],
+              row["State"],
+              row["Pincode"],
+              row["Mobile Number"],
+              row["Email"],
+              row["Occupation"],
+              row["Relationship with Borrower"],
+              row["CIBIL Score"],
+              row["GURANTOR/Co-Applicant CIBIL Score"],
+              loanAmount,
+              tenure,
+              interestRate,
+              row["EMI Amount"],
+              row["GURANTOR/Co-Applicant ADHAR"],
+              row["GURANTOR/Co-Applicant PAN"],
+              row["DEALER NAME"],
+              row["Name in Bank"],
+              row["Bank name"],
+              row["Account Number"],
+              row["IFSC"],
+              aadharNumber,
+              panCard,
+              row["GURANTOR/Co-Applicant"],
+              row["GURANTOR/Co-Applicant DOB"]
+                ? excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"])
+                : null,
+              row["Product"],
+              lenderType,
+              row["Agreement Date"]
+                ? excelDateToJSDate(row["LOGIN DATE"])
+                : null,
+              "Approved",
+              row["Salary Day"],
+            ]);
 
           success_rows.push(R);
         } catch (insErr) {
-          row_errors.push({ row: R, stage: "insert", reason: toClientError(insErr).message });
+          row_errors.push({
+            row: R,
+            stage: "insert",
+            reason: toClientError(insErr).message,
+          });
           continue;
         }
       } catch (loopErr) {
-        row_errors.push({ row: R, stage: "unknown", reason: toClientError(loopErr).message });
+        row_errors.push({
+          row: R,
+          stage: "unknown",
+          reason: toClientError(loopErr).message,
+        });
         continue;
       }
     }
@@ -4726,7 +5084,7 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
       inserted_rows: success_rows.length,
       failed_rows: row_errors.length,
       success_rows,
-      row_errors
+      row_errors,
     });
   } catch (error) {
     console.error("❌ Error in Upload Process:", error);
@@ -4736,11 +5094,10 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
       inserted_rows: success_rows.length,
       failed_rows: row_errors.length,
       success_rows,
-      row_errors
+      row_errors,
     });
   }
 });
-
 
 // ✅ Fetch a single disbursed loan by LAN
 // router.get("/disbursed/:lan", (req, res) => {
@@ -4785,9 +5142,9 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_bl_loan";
   } else if (lan.startsWith("E10")) {
     tableName = "manual_rps_embifi_loan";
-  }else if (lan.startsWith("FINE")) {
+  } else if (lan.startsWith("FINE")) {
     tableName = "manual_rps_emiclub";
-  }else if (lan.startsWith("FINS")) {
+  } else if (lan.startsWith("FINS")) {
     tableName = "manual_rps_finso_loan";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
