@@ -9,7 +9,7 @@ const util = require("util");
 const upload = multer({ storage: multer.memoryStorage() });
 const query = util.promisify(db.query).bind(db);
 //✅ Convert Excel Serial Date or string date to YYYY-MM-DD
-const excelDateToJSDate = (value) => {
+const excelSerialDateToJS = (value) => {
   if (!value) return null;
 
   // Case 1: Excel serial number (e.g., 45687)
