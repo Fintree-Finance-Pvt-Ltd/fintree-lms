@@ -3630,6 +3630,51 @@ console.log("📈 Using interest rate:", interest_rate);
     console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
     console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
+    const stateCodes = {
+  "JAMMU and KASHMIR": 1,
+  "HIMACHAL PRADESH": 2,
+  "PUNJAB": 3,
+  "CHANDIGARH": 4,
+  "UTTRANCHAL": 5,
+  "HARAYANA": 6,
+  "DELHI": 7,
+  "RAJASTHAN": 8,
+  "UTTAR PRADESH": 9,
+  "BIHAR": 10,
+  "SIKKIM": 11,
+  "ARUNACHAL PRADESH": 12,
+  "NAGALAND": 13,
+  "MANIPUR": 14,
+  "MIZORAM": 15,
+  "TRIPURA": 16,
+  "MEGHALAYA": 17,
+  "ASSAM": 18,
+  "WEST BENGAL": 19,
+  "JHARKHAND": 20,
+  "ORRISA": 21,
+  "CHHATTISGARH": 22,
+  "MADHYA PRADESH": 23,
+  "GUJRAT": 24,
+  "DAMAN and DIU": 25,
+  "DADARA and NAGAR HAVELI": 26,
+  "MAHARASHTRA": 27,
+  "ANDHRA PRADESH": 28,
+  "KARNATAKA": 29,
+  "GOA": 30,
+  "LAKSHADWEEP": 31,
+  "KERALA": 32,
+  "TAMIL NADU": 33,
+  "PONDICHERRY": 34,
+  "ANDAMAN and NICOBAR ISLANDS": 35,
+  "TELANGANA": 36
+};
+
+const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
+const state_code = stateCodes[state.toUpperCase()] ?? null;
+
+    const firstName = data.first_name.toUpperCase();
+    const lastName = data.last_name.toUpperCase();
+    const gender_code = (data.gender ?? 'Male') === 'Female' ? 2 : 1;
     const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
    <soapenv:Header/>
    <soapenv:Body>
@@ -3637,27 +3682,27 @@ console.log("📈 Using interest rate:", interest_rate);
          <urn:in>
             <INProfileRequest>
     <Identification>
-       <XMLUser>cpu2fintreef_prod03</XMLUser>
-<XMLPassword>Sajagjain98@#</XMLPassword>
+       <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+<XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
     </Identification>
     <Application>
         <FTReferenceNumber></FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>13</EnquiryReason>
+        <EnquiryReason>13</EnquiryReason> 
         <FinancePurpose>99</FinancePurpose>
-        <AmountFinanced>1</AmountFinanced>
-        <DurationOfAgreement>6</DurationOfAgreement>
+        <AmountFinanced>${data.loan_amount}</AmountFinanced>
+        <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
         <ScoreFlag>3</ScoreFlag>
         <PSVFlag>0</PSVFlag>
     </Application>
     <Applicant>
-        <Surname>BHADANGE</Surname>
-        <FirstName>VITTHAL</FirstName>
+        <Surname>${lastName}</Surname>
+        <FirstName>${firstName}</FirstName>
         <MiddleName1></MiddleName1>
         <MiddleName2></MiddleName2>
         <MiddleName3></MiddleName3>
-        <GenderCode>1</GenderCode>
-        <IncomeTaxPAN>DGUPB9409M</IncomeTaxPAN>
+        <GenderCode>${gender_code}</GenderCode>
+        <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
         <PANIssueDate></PANIssueDate>
         <PANExpirationDate></PANExpirationDate>
         <PassportNumber></PassportNumber>
@@ -3675,9 +3720,9 @@ console.log("📈 Using interest rate:", interest_rate);
         <UniversalIDNumber></UniversalIDNumber>
         <UniversalIDIssueDate></UniversalIDIssueDate>
         <UniversalIDExpirationDate></UniversalIDExpirationDate>
-        <DateOfBirth>19850505</DateOfBirth>
+        <DateOfBirth>${dobFormatted}</DateOfBirth>
         <STDPhoneNumber></STDPhoneNumber>
-        <PhoneNumber>8762812793</PhoneNumber>
+        <PhoneNumber>${data.mobile_number}</PhoneNumber>
         <TelephoneExtension></TelephoneExtension>
         <TelephoneType></TelephoneType>
         <MobilePhone></MobilePhone>
@@ -3691,13 +3736,13 @@ console.log("📈 Using interest rate:", interest_rate);
         <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
     </Details>
     <Address>
-        <FlatNoPlotNoHouseNo>Belgundi</FlatNoPlotNoHouseNo>
+        <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
         <BldgNoSocietyName></BldgNoSocietyName>
         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-        <City>Belgundi</City>
+        <City>${data.current_village_city}</City>
         <Landmark></Landmark>
-        <State>29</State>
-        <PinCode>591108</PinCode>
+      <State>${state_code}</State>
+        <PinCode>${data.current_pincode}</PinCode>
     </Address>
     <AdditionalAddressFlag>
         <Flag>N</Flag>
@@ -3741,7 +3786,7 @@ console.log("📈 Using interest rate:", interest_rate);
 
       const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
       score =
-        jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.Score?.Value ||
+        jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.BureauScore?.Value ||
         null;
 
       console.log("✅ Parsed CIBIL Score:", score);
@@ -3767,7 +3812,7 @@ console.log("📈 Using interest rate:", interest_rate);
     return res.json({
       message: "✅ EMICLUB loan saved successfully.",
       lan,
-      // cibilScore: score || "Not Found",
+      cibilScore: score || "Not Found",
     });
   } catch (error) {
     console.error("❌ Unhandled Error in EMICLUB Upload:", error);
