@@ -3649,13 +3649,14 @@ console.log("📈 Using interest rate:", interest_rate);
                   <AmountFinanced>1</AmountFinanced>
                   <DurationOfAgreement>10</DurationOfAgreement>
                   <ScoreFlag>1</ScoreFlag>
-                  <PSVFlag>0</PSVFlag>
+                  <PSVFlag></PSVFlag>
                 </Application>
                 <Applicant>
                   <Surname>Bhadange</Surname>
                   <FirstName>Vitthal</FirstName>
-                  <DateOfBirth>19850505</DateOfBirth>
+                  <GenderCode>1</GenderCode>
                   <IncomeTaxPAN>DGUPB9409M</IncomeTaxPAN>
+                  <DateOfBirth>19850505</DateOfBirth>
                   <PhoneNumber>8762812793</PhoneNumber>
                 </Applicant>
                 <Address>
