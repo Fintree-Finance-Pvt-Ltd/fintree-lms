@@ -3644,8 +3644,8 @@ console.log("📈 Using interest rate:", interest_rate);
                 <Application>
                   <FTReferenceNumber>FT347983</FTReferenceNumber>
                   <CustomerReferenceID>DGUPB9409M</CustomerReferenceID>
-                  <EnquiryReason>132</EnquiryReason>
-                  <FinancePurpose>9</FinancePurpose>
+                  <EnquiryReason>13</EnquiryReason>
+                  <FinancePurpose>99</FinancePurpose>
                   <AmountFinanced>1</AmountFinanced>
                   <DurationOfAgreement>10</DurationOfAgreement>
                   <ScoreFlag>1</ScoreFlag>
