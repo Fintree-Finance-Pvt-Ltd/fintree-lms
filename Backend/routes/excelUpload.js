@@ -3638,31 +3638,31 @@ console.log("📈 Using interest rate:", interest_rate);
             <urn:in>
               <INProfileRequest>
                 <Identification>
-                  <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-                  <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+                  <XMLUser>cpu2fintreef_prod03</XMLUser>
+                  <XMLPassword>Sajagjain98@#</XMLPassword>
                 </Identification>
                 <Application>
-                  <FTReferenceNumber>FT${Date.now()}</FTReferenceNumber>
-                  <CustomerReferenceID>${data.pan_number}</CustomerReferenceID>
-                  <EnquiryReason>13</EnquiryReason>
-                  <FinancePurpose>99</FinancePurpose>
-                  <AmountFinanced>${data.loan_amount}</AmountFinanced>
-                  <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
+                  <FTReferenceNumber>FT347983</FTReferenceNumber>
+                  <CustomerReferenceID>DGUPB9409M</CustomerReferenceID>
+                  <EnquiryReason>132</EnquiryReason>
+                  <FinancePurpose>9</FinancePurpose>
+                  <AmountFinanced>1</AmountFinanced>
+                  <DurationOfAgreement>10</DurationOfAgreement>
                   <ScoreFlag>1</ScoreFlag>
                   <PSVFlag>0</PSVFlag>
                 </Application>
                 <Applicant>
-                  <Surname>${data.last_name || ""}</Surname>
-                  <FirstName>${data.first_name || ""}</FirstName>
-                  <DateOfBirth>${dobFormatted}</DateOfBirth>
-                  <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
-                  <PhoneNumber>${data.mobile_number}</PhoneNumber>
+                  <Surname>Bhadange</Surname>
+                  <FirstName>Vitthal</FirstName>
+                  <DateOfBirth>19850505</DateOfBirth>
+                  <IncomeTaxPAN>DGUPB9409M</IncomeTaxPAN>
+                  <PhoneNumber>8762812793</PhoneNumber>
                 </Applicant>
                 <Address>
-                  <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
-                  <City>${data.current_village_city}</City>
-                  <State>${data.current_state}</State>
-                  <PinCode>${data.current_pincode}</PinCode>
+                  <FlatNoPlotNoHouseNo>Belgundi</FlatNoPlotNoHouseNo>
+                  <City>Belgundi</City>
+                  <State>29</State>
+                  <PinCode>591108</PinCode>
                 </Address>
                 <AdditionalAddressFlag><Flag>N</Flag></AdditionalAddressFlag>
               </INProfileRequest>
