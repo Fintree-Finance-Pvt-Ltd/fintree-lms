@@ -3548,6 +3548,10 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     }`.trim();
     const agreement_date = data.login_date;
 
+    // --- Determine interest rate ---
+const interest_rate =  data.roi_apr / 12;
+console.log("📈 Using interest rate:", interest_rate);
+
     // --- Insert into DB ---
     console.log("💾 Inserting customer record into loan_booking_emiclub...");
     await db.promise().query(
@@ -3589,7 +3593,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         data.permanent_state,
         data.permanent_pincode,
         data.loan_amount,
-        data.interest_rate ?? data.roi_apr / 12,
+        interest_rate ,
         data.roi_apr,
         data.loan_tenure,
         data.emi_amount,
