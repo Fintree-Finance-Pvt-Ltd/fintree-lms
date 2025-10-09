@@ -3630,47 +3630,92 @@ console.log("📈 Using interest rate:", interest_rate);
     console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
     console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
-    const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
-      <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-        <soapenv:Header/>
-        <soapenv:Body>
-          <urn:process>
-            <urn:in>
-              <INProfileRequest>
-                <Identification>
-                  <XMLUser>cpu2fintreef_prod03</XMLUser>
-                  <XMLPassword>Sajagjain98@#</XMLPassword>
-                </Identification>
-                <Application>
-                  <FTReferenceNumber>FT347983</FTReferenceNumber>
-                  <CustomerReferenceID>DGUPB9409M</CustomerReferenceID>
-                  <EnquiryReason>13</EnquiryReason>
-                  <FinancePurpose>99</FinancePurpose>
-                  <AmountFinanced>1</AmountFinanced>
-                  <DurationOfAgreement>10</DurationOfAgreement>
-                  <ScoreFlag>1</ScoreFlag>
-                  <PSVFlag></PSVFlag>
-                </Application>
-                <Applicant>
-                  <Surname>Bhadange</Surname>
-                  <FirstName>Vitthal</FirstName>
-                  <GenderCode>1</GenderCode>
-                  <IncomeTaxPAN>DGUPB9409M</IncomeTaxPAN>
-                  <DateOfBirth>19850505</DateOfBirth>
-                  <PhoneNumber>8762812793</PhoneNumber>
-                </Applicant>
-                <Address>
-                  <FlatNoPlotNoHouseNo>Belgundi</FlatNoPlotNoHouseNo>
-                  <City>Belgundi</City>
-                  <State>29</State>
-                  <PinCode>591108</PinCode>
-                </Address>
-                <AdditionalAddressFlag><Flag>N</Flag></AdditionalAddressFlag>
-              </INProfileRequest>
-            </urn:in>
-          </urn:process>
-        </soapenv:Body>
-      </soapenv:Envelope>`;
+    const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <urn:process>
+         <urn:in>
+            <INProfileRequest>
+    <Identification>
+       <XMLUser>cpu2fintreef_prod03</XMLUser>
+<XMLPassword>Sajagjain98@#</XMLPassword>
+    </Identification>
+    <Application>
+        <FTReferenceNumber></FTReferenceNumber>
+        <CustomerReferenceID></CustomerReferenceID>
+        <EnquiryReason>13</EnquiryReason>
+        <FinancePurpose>99</FinancePurpose>
+        <AmountFinanced>1</AmountFinanced>
+        <DurationOfAgreement>6</DurationOfAgreement>
+        <ScoreFlag>3</ScoreFlag>
+        <PSVFlag>0</PSVFlag>
+    </Application>
+    <Applicant>
+        <Surname>BHADANGE</Surname>
+        <FirstName>VITTHAL</FirstName>
+        <MiddleName1></MiddleName1>
+        <MiddleName2></MiddleName2>
+        <MiddleName3></MiddleName3>
+        <GenderCode>1</GenderCode>
+        <IncomeTaxPAN>DGUPB9409M</IncomeTaxPAN>
+        <PANIssueDate></PANIssueDate>
+        <PANExpirationDate></PANExpirationDate>
+        <PassportNumber></PassportNumber>
+        <PassportIssueDate></PassportIssueDate>
+        <PassportExpirationDate></PassportExpirationDate>
+        <VoterIdentityCard></VoterIdentityCard>
+        <VoterIDIssueDate></VoterIDIssueDate>
+        <VoterIDExpirationDate></VoterIDExpirationDate>
+        <DriverLicenseNumber></DriverLicenseNumber>
+        <DriverLicenseIssueDate></DriverLicenseIssueDate>
+        <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
+        <RationCardNumber></RationCardNumber>
+        <RationCardIssueDate></RationCardIssueDate>
+        <RationCardExpirationDate></RationCardExpirationDate>
+        <UniversalIDNumber></UniversalIDNumber>
+        <UniversalIDIssueDate></UniversalIDIssueDate>
+        <UniversalIDExpirationDate></UniversalIDExpirationDate>
+        <DateOfBirth>19850505</DateOfBirth>
+        <STDPhoneNumber></STDPhoneNumber>
+        <PhoneNumber>8762812793</PhoneNumber>
+        <TelephoneExtension></TelephoneExtension>
+        <TelephoneType></TelephoneType>
+        <MobilePhone></MobilePhone>
+        <EMailId></EMailId>
+    </Applicant>
+    <Details>
+        <Income></Income>
+        <MaritalStatus></MaritalStatus>
+        <EmployStatus></EmployStatus>
+        <TimeWithEmploy></TimeWithEmploy>
+        <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
+    </Details>
+    <Address>
+        <FlatNoPlotNoHouseNo>Belgundi</FlatNoPlotNoHouseNo>
+        <BldgNoSocietyName></BldgNoSocietyName>
+        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+        <City>Belgundi</City>
+        <Landmark></Landmark>
+        <State>29</State>
+        <PinCode>591108</PinCode>
+    </Address>
+    <AdditionalAddressFlag>
+        <Flag>N</Flag>
+    </AdditionalAddressFlag>
+    <AdditionalAddress>
+        <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
+        <BldgNoSocietyName></BldgNoSocietyName>
+        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+        <City></City>
+        <Landmark></Landmark>
+        <State></State>
+        <PinCode></PinCode>
+    </AdditionalAddress>
+</INProfileRequest>
+</urn:in>
+      </urn:process>
+   </soapenv:Body>
+</soapenv:Envelope>`;
 
     console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
 
