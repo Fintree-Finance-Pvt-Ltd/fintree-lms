@@ -11,18 +11,6 @@ const { sendLoanStatusMail } = require("../jobs/mailer");
 // const { pullCIBILReport }=  require("../jobs/experianService");
 dotenv.config();
 
-// ================== ENV CONFIG ==================
-const EXPERIAN_USER = process.env.EXPERIAN_USER;
-const EXPERIAN_PASSWORD = process.env.EXPERIAN_PASSWORD;
-const EXPERIAN_URL =
-  process.env.EXPERIAN_URL ||
-  "https://connectuat.experian.in/nextgen-ind-pds-webservices-cbv2/endpoint";
-
-const {
-  generateRepaymentSchedule,
-} = require("../utils/repaymentScheduleGenerator");
-const { verify } = require("jsonwebtoken");
-
 const router = express.Router();
 
 const storage = multer.memoryStorage();
@@ -3621,194 +3609,194 @@ console.log("📈 Using interest rate:", interest_rate);
       ]
     );
 
-    ////  BEURO SCORE  CODE START/////
-    console.log("✅ Customer record inserted successfully.");
-    console.log ("cibil request data", "pan number :", data.pan_number, "loan amount :", data.loan_amount, "loan tenure :", data.loan_tenure, "first name :", data.first_name, "last name :", data.last_name, "mobile number :", data.mobile_number, "current address :", data.current_address, "current city :", data.current_village_city, "current state :", data.current_state, "current pincode :", data.current_pincode);
-    // --- Build SOAP XML ---
-    console.log("🧩 Building SOAP request body for Experian...");
-    const dobFormatted = data.dob.replace(/-/g, "");
-    console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
-    console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
+//     ////  BEURO SCORE  CODE START/////
+//     console.log("✅ Customer record inserted successfully.");
+//     console.log ("cibil request data", "pan number :", data.pan_number, "loan amount :", data.loan_amount, "loan tenure :", data.loan_tenure, "first name :", data.first_name, "last name :", data.last_name, "mobile number :", data.mobile_number, "current address :", data.current_address, "current city :", data.current_village_city, "current state :", data.current_state, "current pincode :", data.current_pincode);
+//     // --- Build SOAP XML ---
+//     console.log("🧩 Building SOAP request body for Experian...");
+//     const dobFormatted = data.dob.replace(/-/g, "");
+//     console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
+//     console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
-    const stateCodes = {
-  "JAMMU and KASHMIR": 1,
-  "HIMACHAL PRADESH": 2,
-  "PUNJAB": 3,
-  "CHANDIGARH": 4,
-  "UTTRANCHAL": 5,
-  "HARAYANA": 6,
-  "DELHI": 7,
-  "RAJASTHAN": 8,
-  "UTTAR PRADESH": 9,
-  "BIHAR": 10,
-  "SIKKIM": 11,
-  "ARUNACHAL PRADESH": 12,
-  "NAGALAND": 13,
-  "MANIPUR": 14,
-  "MIZORAM": 15,
-  "TRIPURA": 16,
-  "MEGHALAYA": 17,
-  "ASSAM": 18,
-  "WEST BENGAL": 19,
-  "JHARKHAND": 20,
-  "ORRISA": 21,
-  "CHHATTISGARH": 22,
-  "MADHYA PRADESH": 23,
-  "GUJRAT": 24,
-  "DAMAN and DIU": 25,
-  "DADARA and NAGAR HAVELI": 26,
-  "MAHARASHTRA": 27,
-  "ANDHRA PRADESH": 28,
-  "KARNATAKA": 29,
-  "GOA": 30,
-  "LAKSHADWEEP": 31,
-  "KERALA": 32,
-  "TAMIL NADU": 33,
-  "PONDICHERRY": 34,
-  "ANDAMAN and NICOBAR ISLANDS": 35,
-  "TELANGANA": 36
-};
+//     const stateCodes = {
+//   "JAMMU and KASHMIR": 1,
+//   "HIMACHAL PRADESH": 2,
+//   "PUNJAB": 3,
+//   "CHANDIGARH": 4,
+//   "UTTRANCHAL": 5,
+//   "HARAYANA": 6,
+//   "DELHI": 7,
+//   "RAJASTHAN": 8,
+//   "UTTAR PRADESH": 9,
+//   "BIHAR": 10,
+//   "SIKKIM": 11,
+//   "ARUNACHAL PRADESH": 12,
+//   "NAGALAND": 13,
+//   "MANIPUR": 14,
+//   "MIZORAM": 15,
+//   "TRIPURA": 16,
+//   "MEGHALAYA": 17,
+//   "ASSAM": 18,
+//   "WEST BENGAL": 19,
+//   "JHARKHAND": 20,
+//   "ORRISA": 21,
+//   "CHHATTISGARH": 22,
+//   "MADHYA PRADESH": 23,
+//   "GUJRAT": 24,
+//   "DAMAN and DIU": 25,
+//   "DADARA and NAGAR HAVELI": 26,
+//   "MAHARASHTRA": 27,
+//   "ANDHRA PRADESH": 28,
+//   "KARNATAKA": 29,
+//   "GOA": 30,
+//   "LAKSHADWEEP": 31,
+//   "KERALA": 32,
+//   "TAMIL NADU": 33,
+//   "PONDICHERRY": 34,
+//   "ANDAMAN and NICOBAR ISLANDS": 35,
+//   "TELANGANA": 36
+// };
 
-const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
-const state_code = stateCodes[state.toUpperCase()] ?? null;
+// const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
+// const state_code = stateCodes[state.toUpperCase()] ?? null;
 
-    const firstName = data.first_name.toUpperCase();
-    const lastName = data.last_name.toUpperCase();
-    const gender_code = (data.gender ?? 'Male') === 'Female' ? 2 : 1;
-    const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <urn:process>
-         <urn:in>
-            <INProfileRequest>
-    <Identification>
-       <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-<XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-    </Identification>
-    <Application>
-        <FTReferenceNumber></FTReferenceNumber>
-        <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>13</EnquiryReason> 
-        <FinancePurpose>99</FinancePurpose>
-        <AmountFinanced>${data.loan_amount}</AmountFinanced>
-        <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-        <ScoreFlag>3</ScoreFlag>
-        <PSVFlag>0</PSVFlag>
-    </Application>
-    <Applicant>
-        <Surname>${lastName}</Surname>
-        <FirstName>${firstName}</FirstName>
-        <MiddleName1></MiddleName1>
-        <MiddleName2></MiddleName2>
-        <MiddleName3></MiddleName3>
-        <GenderCode>${gender_code}</GenderCode>
-        <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
-        <PANIssueDate></PANIssueDate>
-        <PANExpirationDate></PANExpirationDate>
-        <PassportNumber></PassportNumber>
-        <PassportIssueDate></PassportIssueDate>
-        <PassportExpirationDate></PassportExpirationDate>
-        <VoterIdentityCard></VoterIdentityCard>
-        <VoterIDIssueDate></VoterIDIssueDate>
-        <VoterIDExpirationDate></VoterIDExpirationDate>
-        <DriverLicenseNumber></DriverLicenseNumber>
-        <DriverLicenseIssueDate></DriverLicenseIssueDate>
-        <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
-        <RationCardNumber></RationCardNumber>
-        <RationCardIssueDate></RationCardIssueDate>
-        <RationCardExpirationDate></RationCardExpirationDate>
-        <UniversalIDNumber></UniversalIDNumber>
-        <UniversalIDIssueDate></UniversalIDIssueDate>
-        <UniversalIDExpirationDate></UniversalIDExpirationDate>
-        <DateOfBirth>${dobFormatted}</DateOfBirth>
-        <STDPhoneNumber></STDPhoneNumber>
-        <PhoneNumber>${data.mobile_number}</PhoneNumber>
-        <TelephoneExtension></TelephoneExtension>
-        <TelephoneType></TelephoneType>
-        <MobilePhone></MobilePhone>
-        <EMailId></EMailId>
-    </Applicant>
-    <Details>
-        <Income></Income>
-        <MaritalStatus></MaritalStatus>
-        <EmployStatus></EmployStatus>
-        <TimeWithEmploy></TimeWithEmploy>
-        <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
-    </Details>
-    <Address>
-        <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
-        <BldgNoSocietyName></BldgNoSocietyName>
-        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-        <City>${data.current_village_city}</City>
-        <Landmark></Landmark>
-      <State>${state_code}</State>
-        <PinCode>${data.current_pincode}</PinCode>
-    </Address>
-    <AdditionalAddressFlag>
-        <Flag>N</Flag>
-    </AdditionalAddressFlag>
-    <AdditionalAddress>
-        <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
-        <BldgNoSocietyName></BldgNoSocietyName>
-        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-        <City></City>
-        <Landmark></Landmark>
-        <State></State>
-        <PinCode></PinCode>
-    </AdditionalAddress>
-</INProfileRequest>
-</urn:in>
-      </urn:process>
-   </soapenv:Body>
-</soapenv:Envelope>`;
+//     const firstName = data.first_name.toUpperCase();
+//     const lastName = data.last_name.toUpperCase();
+//     const gender_code = (data.gender ?? 'Male') === 'Female' ? 2 : 1;
+//     const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+//    <soapenv:Header/>
+//    <soapenv:Body>
+//       <urn:process>
+//          <urn:in>
+//             <INProfileRequest>
+//     <Identification>
+//        <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+// <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+//     </Identification>
+//     <Application>
+//         <FTReferenceNumber></FTReferenceNumber>
+//         <CustomerReferenceID></CustomerReferenceID>
+//         <EnquiryReason>13</EnquiryReason> 
+//         <FinancePurpose>99</FinancePurpose>
+//         <AmountFinanced>${data.loan_amount}</AmountFinanced>
+//         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
+//         <ScoreFlag>3</ScoreFlag>
+//         <PSVFlag>0</PSVFlag>
+//     </Application>
+//     <Applicant>
+//         <Surname>${lastName}</Surname>
+//         <FirstName>${firstName}</FirstName>
+//         <MiddleName1></MiddleName1>
+//         <MiddleName2></MiddleName2>
+//         <MiddleName3></MiddleName3>
+//         <GenderCode>${gender_code}</GenderCode>
+//         <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
+//         <PANIssueDate></PANIssueDate>
+//         <PANExpirationDate></PANExpirationDate>
+//         <PassportNumber></PassportNumber>
+//         <PassportIssueDate></PassportIssueDate>
+//         <PassportExpirationDate></PassportExpirationDate>
+//         <VoterIdentityCard></VoterIdentityCard>
+//         <VoterIDIssueDate></VoterIDIssueDate>
+//         <VoterIDExpirationDate></VoterIDExpirationDate>
+//         <DriverLicenseNumber></DriverLicenseNumber>
+//         <DriverLicenseIssueDate></DriverLicenseIssueDate>
+//         <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
+//         <RationCardNumber></RationCardNumber>
+//         <RationCardIssueDate></RationCardIssueDate>
+//         <RationCardExpirationDate></RationCardExpirationDate>
+//         <UniversalIDNumber></UniversalIDNumber>
+//         <UniversalIDIssueDate></UniversalIDIssueDate>
+//         <UniversalIDExpirationDate></UniversalIDExpirationDate>
+//         <DateOfBirth>${dobFormatted}</DateOfBirth>
+//         <STDPhoneNumber></STDPhoneNumber>
+//         <PhoneNumber>${data.mobile_number}</PhoneNumber>
+//         <TelephoneExtension></TelephoneExtension>
+//         <TelephoneType></TelephoneType>
+//         <MobilePhone></MobilePhone>
+//         <EMailId></EMailId>
+//     </Applicant>
+//     <Details>
+//         <Income></Income>
+//         <MaritalStatus></MaritalStatus>
+//         <EmployStatus></EmployStatus>
+//         <TimeWithEmploy></TimeWithEmploy>
+//         <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
+//     </Details>
+//     <Address>
+//         <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
+//         <BldgNoSocietyName></BldgNoSocietyName>
+//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+//         <City>${data.current_village_city}</City>
+//         <Landmark></Landmark>
+//       <State>${state_code}</State>
+//         <PinCode>${data.current_pincode}</PinCode>
+//     </Address>
+//     <AdditionalAddressFlag>
+//         <Flag>N</Flag>
+//     </AdditionalAddressFlag>
+//     <AdditionalAddress>
+//         <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
+//         <BldgNoSocietyName></BldgNoSocietyName>
+//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+//         <City></City>
+//         <Landmark></Landmark>
+//         <State></State>
+//         <PinCode></PinCode>
+//     </AdditionalAddress>
+// </INProfileRequest>
+// </urn:in>
+//       </urn:process>
+//    </soapenv:Body>
+// </soapenv:Envelope>`;
 
-    console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
+//     console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
 
-    // --- Send SOAP request ---
-    console.log("🌐 Sending SOAP request to Experian...");
-    let score = null;
+//     // --- Send SOAP request ---
+//     console.log("🌐 Sending SOAP request to Experian...");
+//     let score = null;
 
-    try {
-      const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
-        headers: {
-          "Content-Type": "text/xml; charset=utf-8",
-          SOAPAction: "urn:cbv2/process",
-          Accept: "text/xml",
-        },
-        timeout: 30000,
-        validateStatus: () => true,
-      });
+//     try {
+//       const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
+//         headers: {
+//           "Content-Type": "text/xml; charset=utf-8",
+//           SOAPAction: "urn:cbv2/process",
+//           Accept: "text/xml",
+//         },
+//         timeout: 30000,
+//         validateStatus: () => true,
+//       });
 
-      console.log("📥 Experian HTTP Status:", response.status);
-      console.log("📥 Experian Raw Response (first 1000 chars):", response.data?.substring(0, 1000));
+//       console.log("📥 Experian HTTP Status:", response.status);
+//       console.log("📥 Experian Raw Response (first 1000 chars):", response.data?.substring(0, 1000));
 
-      if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
+//       if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
 
-      const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
-      score =
-        jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.BureauScore?.Value ||
-        null;
+//       const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
+//       score =
+//         jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.BureauScore?.Value ||
+//         null;
 
-      console.log("✅ Parsed CIBIL Score:", score);
+//       console.log("✅ Parsed CIBIL Score:", score);
 
-      await db.promise().query(
-        `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
-         VALUES (?,?,?,?,NOW())`,
-        [lan, data.pan_number, score, response.data]
-      );
+//       await db.promise().query(
+//         `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+//          VALUES (?,?,?,?,NOW())`,
+//         [lan, data.pan_number, score, response.data]
+//       );
 
-      console.log("✅ CIBIL report saved successfully.");
-    } catch (err) {
-      console.error("⚠️ CIBIL Pull Failed:", err.message);
-      console.error("➡️ Response status:", err.response?.status);
-      console.error("➡️ Response data:", err.response?.data);
-      console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
-      console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
-    }
+//       console.log("✅ CIBIL report saved successfully.");
+//     } catch (err) {
+//       console.error("⚠️ CIBIL Pull Failed:", err.message);
+//       console.error("➡️ Response status:", err.response?.status);
+//       console.error("➡️ Response data:", err.response?.data);
+//       console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
+//       console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
+//     }
 
-    console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
-    console.log("================= 📦 EMICLUB REQUEST END =================\n");
-
+//     console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
+//     console.log("================= 📦 EMICLUB REQUEST END =================\n");
+///////////////////    beauro code end ////////////
     return res.json({
       message: "✅ EMICLUB loan saved successfully.",
       lan,
