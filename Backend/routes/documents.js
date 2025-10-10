@@ -725,6 +725,12 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_ev_loan";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
+  }
+  else if (lan.startsWith("E1")) {
+    loanTable = "loan_booking_embifi";
+    rpsTable = "manual_rps_embifi_loan";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
   } else {
     loanTable = "loan_bookings";
     rpsTable = "manual_rps_bl_loan";
