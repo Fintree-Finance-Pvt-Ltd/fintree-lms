@@ -9,7 +9,7 @@ const axios = require("axios");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { sendLoanStatusMail } = require("../jobs/mailer");
 // const { pullCIBILReport }=  require("../jobs/experianService");
-const { parseStringPromise, Builder } = require('xml2js');
+const { parseStringPromise, Builder } = require("xml2js");
 dotenv.config();
 
 const router = express.Router();
@@ -789,11 +789,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const lenderType = req.body.lenderType.trim();
     if (lenderType !== "EV Loan") {
-      return res
-        .status(400)
-        .json({
-          message: "Invalid upload lender type. Only EV Loan is supported.",
-        });
+      return res.status(400).json({
+        message: "Invalid upload lender type. Only EV Loan is supported.",
+      });
     }
 
     // Read Excel
@@ -3248,8 +3246,6 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
     const results = [];
 
-    
-
     for (const raw of records) {
       try {
         // ✅ Normalize aliases just in case upstream uses different keys
@@ -3270,8 +3266,8 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           continue;
         }
         const customerName = `${data.first_name || ""} ${
-      data.last_name || ""
-    }`.trim();
+          data.last_name || ""
+        }`.trim();
 
         // ✅ Duplicate check on PAN or Aadhar
         const [existing] = await db
@@ -3289,9 +3285,8 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         }
 
         // --- Generate loan code ---
-   
-    const { lan } = await generateLoanIdentifiers(lenderType);
 
+        const { lan } = await generateLoanIdentifiers(lenderType);
 
         const agreementDate = data.login_date;
         // ✅ Build values in the exact same order as COLS
@@ -3910,7 +3905,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 //     <Application>
 //         <FTReferenceNumber></FTReferenceNumber>
 //         <CustomerReferenceID></CustomerReferenceID>
-//         <EnquiryReason>13</EnquiryReason> 
+//         <EnquiryReason>13</EnquiryReason>
 //         <FinancePurpose>99</FinancePurpose>
 //         <AmountFinanced>${data.loan_amount}</AmountFinanced>
 //         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
@@ -4046,18 +4041,18 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 // });
 ////////////////////// SAJAG JAIN NEW CODE FOR PARSE  ////////////////
 // ---------- XML helpers ----------
-function unescapeXml(str = '') {
+function unescapeXml(str = "") {
   return String(str)
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'");
 }
 
 function findKey(obj, regex) {
-  if (!obj || typeof obj !== 'object') return null;
-  return Object.keys(obj).find(k => regex.test(k));
+  if (!obj || typeof obj !== "object") return null;
+  return Object.keys(obj).find((k) => regex.test(k));
 }
 
 /**
@@ -4084,17 +4079,20 @@ async function getParsedArtifacts(soapXml) {
   let inProfileJson = null;
 
   // Case 1: 'out' is already an object containing INProfileResponse
-  if (out && typeof out === 'object') {
-    inProfileJson = out.INProfileResponse || out['ns2:INProfileResponse'] || null;
+  if (out && typeof out === "object") {
+    inProfileJson =
+      out.INProfileResponse || out["ns2:INProfileResponse"] || null;
     if (inProfileJson) {
       inProfileJson = { INProfileResponse: inProfileJson };
     }
   }
 
   // Case 2: 'out' is an escaped inner XML string
-  if (!inProfileJson && typeof out === 'string') {
+  if (!inProfileJson && typeof out === "string") {
     const innerXmlRaw = unescapeXml(out);
-    const innerParsed = await parseStringPromise(innerXmlRaw, { explicitArray: false });
+    const innerParsed = await parseStringPromise(innerXmlRaw, {
+      explicitArray: false,
+    });
 
     // Most responses have root <INProfileResponse>. Normalize the shape.
     if (innerParsed?.INProfileResponse) {
@@ -4108,7 +4106,10 @@ async function getParsedArtifacts(soapXml) {
 
   // Rare fallback: INProfileResponse directly under processResponse
   if (!inProfileJson) {
-    const anyInProfileKey = findKey(processResponse || {}, /(INProfileResponse)$/);
+    const anyInProfileKey = findKey(
+      processResponse || {},
+      /(INProfileResponse)$/
+    );
     if (anyInProfileKey) {
       inProfileJson = { INProfileResponse: processResponse[anyInProfileKey] };
     }
@@ -4127,8 +4128,8 @@ async function getParsedArtifacts(soapXml) {
 
   // Build pretty XML (only the INProfileResponse, not the whole SOAP)
   const builder = new Builder({
-    xmldec: { version: '1.0', encoding: 'UTF-8', standalone: true },
-    renderOpts: { pretty: true, indent: '  ', newline: '\n' },
+    xmldec: { version: "1.0", encoding: "UTF-8", standalone: true },
+    renderOpts: { pretty: true, indent: "  ", newline: "\n" },
     headless: false,
   });
 
@@ -4171,11 +4172,9 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     console.log("🏦 Lender type received:", lenderType);
     if (!lenderType || lenderType !== "emiclub") {
       console.error("❌ Invalid lenderType provided:", lenderType);
-      return res
-        .status(400)
-        .json({
-          message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
-        });
+      return res.status(400).json({
+        message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
+      });
     }
 
     // --- Required field check ---
@@ -4234,7 +4233,11 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       existing.length,
       "records found."
     );
-    console.log("🧾 Duplicate check result:", existing.length, "records found.");
+    console.log(
+      "🧾 Duplicate check result:",
+      existing.length,
+      "records found."
+    );
 
     if (existing.length > 0) {
       console.error("❌ Duplicate PAN found:", data.pan_number);
@@ -4254,8 +4257,8 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     const agreement_date = data.login_date;
 
     // --- Determine interest rate ---
-const interest_rate =  data.roi_apr / 12;
-console.log("📈 Using interest rate:", interest_rate);
+    const interest_rate = data.roi_apr / 12;
+    console.log("📈 Using interest rate:", interest_rate);
 
     // --- Insert into DB ---
     console.log("💾 Inserting customer record into loan_booking_emiclub...");
@@ -4278,11 +4281,11 @@ console.log("📈 Using interest rate:", interest_rate);
         data.login_date,
         data.first_name,
         data.middle_name || null,
-        data.last_name ,
+        data.last_name,
         data.gender,
         data.dob,
-        data.father_name ,
-        data.mother_name ,
+        data.father_name,
+        data.mother_name,
         data.mobile_number,
         data.email_id,
         data.pan_number,
@@ -4298,7 +4301,7 @@ console.log("📈 Using interest rate:", interest_rate);
         data.permanent_state,
         data.permanent_pincode,
         data.loan_amount,
-        interest_rate ,
+        interest_rate,
         data.roi_apr,
         data.loan_tenure,
         data.emi_amount,
@@ -4328,58 +4331,89 @@ console.log("📈 Using interest rate:", interest_rate);
 
     ////  BEURO SCORE  CODE START/////
     console.log("✅ Customer record inserted successfully.");
-    console.log ("cibil request data", "pan number :", data.pan_number, "loan amount :", data.loan_amount, "loan tenure :", data.loan_tenure, "first name :", data.first_name, "last name :", data.last_name, "mobile number :", data.mobile_number, "current address :", data.current_address, "current city :", data.current_village_city, "current state :", data.current_state, "current pincode :", data.current_pincode);
+    console.log(
+      "cibil request data",
+      "pan number :",
+      data.pan_number,
+      "loan amount :",
+      data.loan_amount,
+      "loan tenure :",
+      data.loan_tenure,
+      "first name :",
+      data.first_name,
+      "last name :",
+      data.last_name,
+      "mobile number :",
+      data.mobile_number,
+      "current address :",
+      data.current_address,
+      "current city :",
+      data.current_village_city,
+      "current state :",
+      data.current_state,
+      "current pincode :",
+      data.current_pincode
+    );
     // --- Build SOAP XML ---
     console.log("🧩 Building SOAP request body for Experian...");
     const dobFormatted = data.dob.replace(/-/g, "");
-    console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
+    console.log(
+      data.first_name,
+      data.last_name,
+      data.pan_number,
+      data.mobile_number,
+      data.current_address,
+      data.current_village_city,
+      data.current_state,
+      data.current_pincode
+    );
     console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
     const stateCodes = {
-  "JAMMU and KASHMIR": 1,
-  "HIMACHAL PRADESH": 2,
-  "PUNJAB": 3,
-  "CHANDIGARH": 4,
-  "UTTRANCHAL": 5,
-  "HARAYANA": 6,
-  "DELHI": 7,
-  "RAJASTHAN": 8,
-  "UTTAR PRADESH": 9,
-  "BIHAR": 10,
-  "SIKKIM": 11,
-  "ARUNACHAL PRADESH": 12,
-  "NAGALAND": 13,
-  "MANIPUR": 14,
-  "MIZORAM": 15,
-  "TRIPURA": 16,
-  "MEGHALAYA": 17,
-  "ASSAM": 18,
-  "WEST BENGAL": 19,
-  "JHARKHAND": 20,
-  "ORRISA": 21,
-  "CHHATTISGARH": 22,
-  "MADHYA PRADESH": 23,
-  "GUJRAT": 24,
-  "DAMAN and DIU": 25,
-  "DADARA and NAGAR HAVELI": 26,
-  "MAHARASHTRA": 27,
-  "ANDHRA PRADESH": 28,
-  "KARNATAKA": 29,
-  "GOA": 30,
-  "LAKSHADWEEP": 31,
-  "KERALA": 32,
-  "TAMIL NADU": 33,
-  "PONDICHERRY": 34,
-  "ANDAMAN and NICOBAR ISLANDS": 35,
-  "TELANGANA": 36
-};
+      "JAMMU and KASHMIR": 1,
+      "HIMACHAL PRADESH": 2,
+      PUNJAB: 3,
+      CHANDIGARH: 4,
+      UTTRANCHAL: 5,
+      HARAYANA: 6,
+      DELHI: 7,
+      RAJASTHAN: 8,
+      "UTTAR PRADESH": 9,
+      BIHAR: 10,
+      SIKKIM: 11,
+      "ARUNACHAL PRADESH": 12,
+      NAGALAND: 13,
+      MANIPUR: 14,
+      MIZORAM: 15,
+      TRIPURA: 16,
+      MEGHALAYA: 17,
+      ASSAM: 18,
+      "WEST BENGAL": 19,
+      JHARKHAND: 20,
+      ORRISA: 21,
+      CHHATTISGARH: 22,
+      "MADHYA PRADESH": 23,
+      GUJRAT: 24,
+      "DAMAN and DIU": 25,
+      "DADARA and NAGAR HAVELI": 26,
+      MAHARASHTRA: 27,
+      "ANDHRA PRADESH": 28,
+      KARNATAKA: 29,
+      GOA: 30,
+      LAKSHADWEEP: 31,
+      KERALA: 32,
+      "TAMIL NADU": 33,
+      PONDICHERRY: 34,
+      "ANDAMAN and NICOBAR ISLANDS": 35,
+      TELANGANA: 36,
+    };
 
-const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
-const state_code = stateCodes[state.toUpperCase()] ?? null;
+    const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
+    const state_code = stateCodes[state.toUpperCase()] ?? null;
 
     const firstName = data.first_name.toUpperCase();
     const lastName = data.last_name.toUpperCase();
-    const gender_code = (data.gender ?? 'Male') === 'Female' ? 2 : 1;
+    const gender_code = (data.gender ?? "Male") === "Female" ? 2 : 1;
     const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
    <soapenv:Header/>
    <soapenv:Body>
@@ -4467,7 +4501,10 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
    </soapenv:Body>
 </soapenv:Envelope>`;
 
-    console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
+    console.log(
+      "🧾 SOAP XML Preview (first 500 chars):",
+      soapBody.substring(0, 500)
+    );
 
     // --- Send SOAP request ---
     console.log("🌐 Sending SOAP request to Experian...");
@@ -4486,20 +4523,34 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
       });
 
       console.log("📥 Experian HTTP Status:", response.status);
-      console.log("📥 Experian Raw Response (first 1000 chars):", response.data?.substring(0, 1000));
+      console.log(
+        "📥 Experian Raw Response (first 1000 chars):",
+        response.data?.substring(0, 1000)
+      );
 
-      if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
+      if (response.status !== 200)
+        throw new Error(`Experian returned HTTP ${response.status}`);
 
 
 
       console.log("✅ Parsed CIBIL Score:", score);
-      console.log("🧾 Normalized INProfileResponse (first 500 chars):", parsedXmlToStore?.substring(0, 500));
+      console.log(
+        "🧾 Normalized INProfileResponse (first 500 chars):",
+        parsedXmlToStore?.substring(0, 500)
+      );
 
       await db.promise().query(
         `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
          VALUES (?,?,?,?,NOW())`,
         [lan, data.pan_number, score, parsedXmlToStore] // store parsed/pretty INProfileResponse XML
       );
+
+      await db
+        .promise()
+        .execute(
+          "UPDATE loan_booking_emiclub SET cibil_score = ? WHERE lan = ?",
+          [score, lan]
+        );
 
       console.log("✅ CIBIL report (parsed XML) saved successfully.");
 
@@ -4569,13 +4620,6 @@ parsedXmlToStore = innerXml || null;
     });
   }
 });
-
-
-
-
-
-
-
 
 ////////////////////// ADIKOSH CAM DATA UPLOAD Start     /////////////////////
 /**
