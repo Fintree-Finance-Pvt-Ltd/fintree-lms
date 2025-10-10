@@ -44,6 +44,9 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       const disbursementDate = excelDateToJSDate(row["Disbursement Date"]);
       const lan = row["LAN"];
 
+
+      console.log(`Processing row: LAN=${lan}, UTR=${disbursementUTR}, Date=${disbursementDate}`);
+
       if (!disbursementUTR || !disbursementDate || !lan) {
         const reason = `Missing required fields: ${
           !disbursementUTR ? "Disbursement UTR " : ""
@@ -80,6 +83,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_ev WHERE lan = ?`, [lan]
           );
+          
         }
         ////// this for EMI CLUB //////// 
           else if (lan.startsWith("FINE")) {
