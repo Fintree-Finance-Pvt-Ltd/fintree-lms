@@ -89,6 +89,7 @@ app.use("/api/forecloser-collection", forecloserRoutes); // NOT foreclose-collec
 app.use("/api/forecloser", forecloserUploadRoutes); // ✅ Register Route for Forecloser Upload FC Upload
  app.use("/reports", express.static(path.join(__dirname, "/reports")));
 app.use("/api/reports", reportsRoutes);// ✅ Register Route for Reports
+app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
 
 
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents

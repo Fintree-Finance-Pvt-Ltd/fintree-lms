@@ -79,6 +79,7 @@ import FinsoAllLoans from "./components/FinsoAllLoans";
 import FinsoLoginLoans from "./components/FinsoLoginLoans";
 import FinsoActionScreen from "./components/FinsoActionScreen";
 import FinsoApproveInitiateScreen from "./components/FinsoApproveInitiateScreen";
+import CustomerGenerateSOA from "./components/CustomerGenerateSOA";
 
 function App() {
   return (
@@ -166,6 +167,15 @@ function App() {
             element={
               <PermissionRoute pageName="Delete Cashflow">
                 <DeleteCashflow />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/customer-soa"
+            element={
+              <PermissionRoute pageName="Generate Customer SOA">
+                <CustomerGenerateSOA />
               </PermissionRoute>
             }
           />
