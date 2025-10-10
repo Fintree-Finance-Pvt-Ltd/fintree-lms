@@ -153,27 +153,18 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
 });
 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API /////////////////
-// Strongly-typed doc names (adjust as needed)
-const ALLOWED_DOCS = new Set([
-  "KYC",
-  "PAN_CARD",
-  "PAN_VERIFICATION_AUDIT_TRAIL",
-  "OFFLINE_VERIFICATION_OF_AADHAAR",
-  "PROFILE_IMAGE",
-  "INVOICE",
-  "AGREEMENT",
-  "KFS_DOCUMENT",
-  "AUDIT_REPORT",
-]);
-
-function isValidUrl(u) {
-  try { new URL(u); return true; } catch { return false; }
-}
-
+// POST /upload-files-emiclub  (JSON ingest → loan_documents)
 router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
   try {
-    const { documents } = req.body;
+    const { lan: bodyLan, documents } = req.body;
 
+    // --- Top-level LAN required ---
+    const lan = String(bodyLan || "").trim();
+    if (!lan) {
+      return res.status(400).json({ error: "lan is required at top-level body." });
+    }
+
+    // --- Documents array checks ---
     if (!Array.isArray(documents) || documents.length === 0) {
       return res.status(400).json({ error: "documents[] is required." });
     }
@@ -181,23 +172,28 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
       return res.status(400).json({ error: "Too many documents (max 50)." });
     }
 
-    // Basic validation + ensure all LANs match (like your prior /upload-files requiring one LAN)
     const errors = [];
     const cleaned = [];
 
     for (let i = 0; i < documents.length; i++) {
       const d = documents[i] || {};
       const doc_name = String(d.doc_name || "").trim();
-      const lan = String(d.reference_number || "").trim();
-      const url = String(d.documet_url || "").trim(); // keeping your provided key
+      const url = String(d.documet_url || "").trim();      // keep provided key
       const doc_password = (d.doc_password ?? "").toString().trim();
+      const ref = String(d.reference_number || "").trim();  // optional per-doc
+
+      // If reference_number provided in doc, it must match top-level lan
+      if (ref && ref !== lan) {
+        errors.push({
+          index: i,
+          field: "reference_number",
+          reason: `Must match top-level lan (${lan})`,
+        });
+        continue;
+      }
 
       if (!doc_name || !ALLOWED_DOCS.has(doc_name)) {
         errors.push({ index: i, field: "doc_name", reason: "Invalid or unsupported doc_name" });
-        continue;
-      }
-      if (!lan) {
-        errors.push({ index: i, field: "reference_number", reason: "LAN/reference_number is required" });
         continue;
       }
       if (!url || !isValidUrl(url)) {
@@ -206,9 +202,10 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
       }
 
       cleaned.push({
-        lan,
+        lan, // use top-level LAN
         doc_name,
         source_url: url,
+        original_name: inferOriginalNameFromUrl(url), // best-effort
         doc_password: doc_password || null,
       });
     }
@@ -217,30 +214,25 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
       return res.status(400).json({ error: "No valid documents to insert.", details: errors });
     }
 
-    // Optional: Enforce single-LAN batch like your multer route did
-    const uniqueLANs = new Set(cleaned.map(x => x.lan));
-    if (uniqueLANs.size !== 1) {
-      return res.status(400).json({ error: "All documents must have the same LAN in one request." });
-    }
-    const lan = [...uniqueLANs][0];
-
-    // Build bulk insert with ON DUPLICATE KEY UPDATE
+    const now = new Date();
     const values = cleaned.map(row => [
       row.lan,
       row.doc_name,
       row.source_url,
       row.doc_password,
-      new Date(),
+      row.original_name,
+      now,
     ]);
 
     const sql = `
-      INSERT INTO emiclub_documents
-        (lan, doc_name, source_url, doc_password, received_at)
+      INSERT INTO loan_documents
+        (lan, doc_name, source_url, doc_password, original_name, uploaded_at)
       VALUES ?
       ON DUPLICATE KEY UPDATE
-        source_url = VALUES(source_url),
-        doc_password = VALUES(doc_password),
-        received_at = VALUES(received_at)
+        source_url    = VALUES(source_url),
+        doc_password  = VALUES(doc_password),
+        original_name = VALUES(original_name),
+        uploaded_at   = VALUES(uploaded_at)
     `;
 
     await new Promise((resolve, reject) => {
@@ -259,6 +251,7 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
         doc_name: d.doc_name,
         url: d.source_url,
         password_set: !!d.doc_password,
+        original_name: d.original_name || null
       })),
     });
   } catch (err) {
@@ -266,6 +259,7 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
     return res.status(500).json({ error: "Server error while recording documents." });
   }
 });
+
 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API END /////////////////
 // Lock state for UI
