@@ -300,7 +300,7 @@ const sql = `
     });
   } catch (err) {
     console.error("❌ /upload-files-emiclub error:", err);
-    return res.status(500).json({ error: "Server error while recording documents." });
+    return res.status(500).json({ error: "Duplicate data Issue." });
   }
 });
 
