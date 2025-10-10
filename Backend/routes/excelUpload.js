@@ -16,6 +16,239 @@ const router = express.Router();
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
+///////// PDF   //////////  
+function bureauReportHtml({ lan, score, data, experian }) {
+  // experian = { ern, enquiryRef, bureauMember, userId, userName, reportDateTime }
+  // fallbacks from request payload
+  const fullName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+  const addrLine = `${data.current_address || ''}`.trim();
+  const cityStatePin = `${data.current_village_city || ''} ${data.current_state || ''} ${data.current_pincode || ''}`.trim();
+  const gender = (data.gender || '').toString();
+  const dateTime = experian?.reportDateTime || new Date().toISOString();
+
+  const scoreText = (score ?? 'Not Found');
+
+  // score factors are sample placeholders; you may map real reasons if you extract them from XML
+  const scoreFactors = [
+    'Recency : Recent Credit Account Defaults',
+    'Leverage : Credit Accounts with on-time re-payment history',
+    'Coverage : Non-delinquent and delinquent Credit Accounts',
+    'Delinquency Status : Defaults on Credit Accounts (current & recent periodic intervals)',
+  ];
+
+  return `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Experian Credit Information Report</title>
+  <style>
+    @page { size: A4; margin: 20mm; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; color: #222; }
+    h1,h2,h3 { margin: 0; }
+    .header { text-align: right; font-size: 10px; color: #555; }
+    .title { font-size: 16px; font-weight: bold; text-align: left; margin: 8px 0 12px; }
+    .section { margin-top: 14px; }
+    .section-title { background: #efefef; font-weight: bold; padding: 6px 8px; border: 1px solid #ddd; }
+    .kv { display: grid; grid-template-columns: 180px 1fr; gap: 4px 10px; padding: 10px; border: 1px solid #ddd; border-top: 0; }
+    .line { height: 1px; background: #ddd; margin: 8px 0; }
+    .box { border: 1px solid #ddd; padding: 10px; }
+    .muted { color: #666; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .footnote { font-size: 9px; color: #555; margin-top: 8px; }
+    .page-note { text-align: right; font-size: 9px; color: #777; }
+    .score { font-size: 40px; font-weight: bold; text-align: center; padding: 16px 0; }
+    .mono { font-family: "Courier New", Courier, monospace; white-space: pre-wrap; word-break: break-word; }
+    .small { font-size: 10px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    LAN: <b>${lan}</b>
+  </div>
+
+  <div class="title">Experian Credit Information Report (Consumer)</div>
+  <div class="box small">
+    Experian Reference Number (ERN): <b>${experian?.ern || '-'}</b> &nbsp;&nbsp;
+    Enquiry Reference: <b>${experian?.enquiryRef || '-'}</b> &nbsp;&nbsp;
+    Date/Time: <b>${dateTime}</b> <br/>
+    Bureau Member: <b>${experian?.bureauMember || '-'}</b> &nbsp;&nbsp;
+    User ID: <b>${experian?.userId || '-'}</b> &nbsp;&nbsp; User Name: <b>${experian?.userName || '-'}</b>
+  </div>
+
+  <div class="section">
+    <div class="section-title">MATCH DETAILS</div>
+    <div class="box">No Match Found.</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">CURRENT APPLICATION INFORMATION</div>
+    <div class="kv">
+      <div>Date/Time</div><div>${dateTime}</div>
+      <div>Experian Reference - Industry</div><div>${experian?.industry || 'NBFC'}</div>
+      <div>Credit Provider</div><div>${experian?.bureauMember || '—'}</div>
+      <div>Account Type</div><div>${experian?.accountType || (data.product || 'Loan')}</div>
+      <div>Amount Considered</div><div>${data.loan_amount}</div>
+      <div>Terms</div><div>${data.loan_tenure} Monthly</div>
+      <div>Purpose</div><div>${experian?.purpose || 'Two/Three Wheeler Loan'}</div>
+      <div>Financial Purpose Type</div><div>${experian?.financialPurposeType || '0'}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="grid-2">
+      <div>
+        <div class="section-title">APPLICANT DETAILS</div>
+        <div class="kv">
+          <div>Name</div><div>${fullName || '-'}</div>
+          <div>Address</div><div>${addrLine || '-'}</div>
+          <div>City/State/PIN</div><div>${cityStatePin || '-'}</div>
+          <div>Date Of Birth</div><div>${data.dob || '-'}</div>
+          <div>Gender</div><div>${gender || '-'}</div>
+          <div>Mobile Phone</div><div>${data.mobile_number || '-'}</div>
+          <div>Email</div><div>${data.email_id || '-'}</div>
+          <div>PAN</div><div>${data.pan_number || '-'}</div>
+          <div>Aadhaar</div><div>${data.aadhar_number || '-'}</div>
+          <div>Occupation</div><div>${data.employment || '-'}</div>
+          <div>Annual Income</div><div>${data.annual_income || '-'}</div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title">BANKING DETAILS</div>
+        <div class="kv">
+          <div>Bank Name</div><div>${data.bank_name}</div>
+          <div>Name in Bank</div><div>${data.name_in_bank}</div>
+          <div>Account Number</div><div>${data.account_number}</div>
+          <div>IFSC</div><div>${data.ifsc}</div>
+          <div>Account Type</div><div>${data.account_type}</div>
+          <div>Type of Account</div><div>${data.type_of_account}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">EXPERIAN RISK GRADING</div>
+    <div class="box">
+      <div>Your Experian Credit Report is summarized in the form of Experian Risk Grading which ranges from 0 - 10.</div>
+      <div class="score">${scoreText}</div>
+      <div><b>Score Factors</b></div>
+      <ul>
+        ${scoreFactors.map(s => `<li>${s}</li>`).join('')}
+      </ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">CONTACTING US</div>
+    <div class="box small">
+      Under the Credit Information Companies (Regulation) Act 2005 and as per the guidelines set by the Reserve Bank of India, Experian Credit Information Company of India Private Limited is not authorized to change any data in the credit information report without authorization from the lender.<br/><br/>
+      Email: consumer.support@in.experian.com &nbsp;&nbsp; Telephone: 022 6641 9000/9010 &nbsp;&nbsp; Post: Experian Credit Information Company of India Private Limited, 5th Floor, East Wing, Tower 3, Equinox Business Park, LBS Marg, Kurla (W), Mumbai - 400 070. &nbsp;&nbsp; Website: www.experian.in
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">LEGAL / DISCLOSURE</div>
+    <div class="box small">
+      The report reflects information submitted by member institutions and is as current and up to date as provided by the members. It is not a guarantee of any outcome and must not be used as the sole basis for decisions.
+    </div>
+  </div>
+
+  <div class="page-note">© Experian Ltd, 2015. All rights reserved.</div>
+</body>
+</html>
+`;
+}
+
+
+const path = require('path');
+const fs = require('fs');
+const fsp = fs.promises;
+const puppeteer = require('puppeteer');
+async function generateAndStoreBureauPdfHtml({
+  lan, score, data, experianMeta, db, baseUrl, outputDir
+}) {
+  await fsp.mkdir(outputDir, { recursive: true });
+
+  const safeLan = String(lan).replace(/[^A-Za-z0-9_-]/g, '');
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const fileName = `CIBIL_Report_${safeLan}_${ts}.pdf`;
+  const filePath = path.join(outputDir, fileName);
+
+  const html = bureauReportHtml({
+    lan, score, data, experian: experianMeta
+  });
+
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    // executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, // if needed
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.pdf({
+      path: filePath,
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
+    });
+  } finally {
+    await browser.close();
+  }
+
+  const st = await fsp.stat(filePath);
+  const source_url = baseUrl ? `${baseUrl.replace(/\/$/, '')}/${fileName}` : null;
+
+  const doc_name = 'CIBIL_STYLE_REPORT'; // unique per (lan, doc_name)
+  const meta = {
+    mime: 'application/pdf',
+    size_bytes: st.size,
+    template: 'experian-cibil-style-v1',
+    partner: 'EMICLUB',
+    lan,
+    fields: {
+      applicant: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
+      dob: data.dob,
+      pan: data.pan_number,
+      mobile: data.mobile_number,
+      city: data.current_village_city,
+      state: data.current_state,
+      pincode: data.current_pincode,
+      loan_amount: data.loan_amount,
+      loan_tenure: data.loan_tenure,
+      roi_apr: data.roi_apr,
+      score,
+    },
+    experianMeta,
+    file_path: filePath,
+  };
+
+  await db.promise().query(
+    `INSERT INTO loan_documents
+       (lan, doc_name, source_url, doc_password, file_name, original_name, meta_json, uploaded_at)
+     VALUES (?,?,?,?,?,?,?,NOW())
+     ON DUPLICATE KEY UPDATE
+       source_url = VALUES(source_url),
+       file_name  = VALUES(file_name),
+       original_name = VALUES(original_name),
+       meta_json = VALUES(meta_json),
+       uploaded_at = VALUES(uploaded_at)`,
+    [
+      lan,
+      doc_name,
+      source_url,
+      null,        // doc_password (set if you add encryption later)
+      fileName,
+      fileName,
+      JSON.stringify(meta),
+    ]
+  );
+
+  return { filePath, fileName, source_url };
+}
+
 
 const generateLoanIdentifiers = async (lender) => {
   lender = lender.trim(); // normalize input
@@ -4257,10 +4490,7 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
 
       if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
 
-      // 👉 NEW: robust parsing + normalized XML for storage
-      const { score: s, innerXml } = await getParsedArtifacts(response.data);
-      score = s || null;
-      parsedXmlToStore = innerXml || null;
+
 
       console.log("✅ Parsed CIBIL Score:", score);
       console.log("🧾 Normalized INProfileResponse (first 500 chars):", parsedXmlToStore?.substring(0, 500));
@@ -4272,14 +4502,56 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
       );
 
       console.log("✅ CIBIL report (parsed XML) saved successfully.");
-    } catch (err) {
-      console.error("⚠️ CIBIL Pull Failed:", err.message);
-      console.error("➡️ Response status:", err.response?.status);
-      console.error("➡️ Response data:", err.response?.data);
-      console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
-      console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
-    }
 
+const { score: s, innerXml } = await getParsedArtifacts(response.data);
+score = s || null;
+parsedXmlToStore = innerXml || null;
+// 🔽🔽🔽 ADD YOUR PDF GENERATION BLOCK HERE 🔽🔽🔽
+  try {
+    const outputDir = process.env.DOCS_DIR || path.join(__dirname, '..', 'uploads', 'loan_docs');
+    const baseUrl = process.env.DOCS_BASE_URL || null;
+
+    // You can derive these from parsedXmlToStore later if desired
+    const experianMeta = {
+      ern: undefined,
+      enquiryRef: undefined,
+      bureauMember: 'Fintree Finance Pvt. Ltd.',
+      userId: process.env.EXPERIAN_USER,
+      userName: undefined,
+      reportDateTime: new Date().toISOString(),
+      industry: 'NBFC',
+      accountType: 'P2P Auto Loan',
+      purpose: 'Two/Three Wheeler Loan',
+      financialPurposeType: '0',
+    };
+
+    const { source_url, fileName } = await generateAndStoreBureauPdfHtml({
+      lan,
+      score,
+      data,
+      experianMeta,
+      db,
+      baseUrl,
+      outputDir,
+    });
+
+    console.log('📄 CIBIL-style PDF generated:', fileName);
+    console.log('🔗 Stored in loan_documents. URL:', source_url || '(no public URL)');
+
+    // (optional) attach to response object if you want to return it later
+    req.generatedDocUrl = source_url || null;
+  } catch (pdfErr) {
+    console.error('⚠️ Failed to generate/store CIBIL-style PDF:', pdfErr);
+  }
+  // 🔼🔼🔼 END OF INSERTED BLOCK 🔼🔼🔼
+
+} catch (err) {
+  console.error("⚠️ CIBIL Pull Failed:", err.message);
+  console.error("➡️ Response status:", err.response?.status);
+  console.error("➡️ Response data:", err.response?.data);
+  console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
+  console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
+}
     console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
     console.log("================= 📦 EMICLUB REQUEST END =================\n");
 
