@@ -95,6 +95,10 @@ app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 
+// Mount our CIBIL routes
+const cibilRoutes = require('./routes/cibilRoutes');
+app.use('/api', cibilRoutes);
+
 app.get("/api/test-sms", async (req, res) => {
   try {
     await runOnce(); // queues due/overdue and sends immediately
