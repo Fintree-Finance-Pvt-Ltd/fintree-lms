@@ -4,6 +4,7 @@ const multer = require("multer");
 const xlsx = require("xlsx");
 const db = require("../config/db");
 const util = require("util");
+const allocateForeclosure = require("../utils/allocate/allocateForeclosure");
 
 const upload = multer({ storage: multer.memoryStorage() }); // ✅ unified storage
 const query = util.promisify(db.query).bind(db);
@@ -93,12 +94,20 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         [lan, bankDate, utr, paymentDate, paymentId, paymentMode, transferAmount]
       );
 
-      // ✅ Call stored procedures if foreclosure is Yes
+      // === Call allocateForeclosure directly ===
       if (foreclosure?.toLowerCase() === "yes") {
-        await query("CALL sp_calculate_forecloser_collection(?)", [lan]);
-        await query("CALL sp_process_forecloser_charges(?, ?, ?, ?, ?, ?, ?)", [
-          lan, paymentId, utr, paymentMode, transferAmount, paymentDate, bankDate
-        ]);
+        const payment = {
+          transfer_amount: transferAmount,
+          payment_date: paymentDate,
+          payment_id: paymentId,
+        };
+
+        try {
+          const result = await allocateForeclosure(lan, payment);
+          console.log(`✅ Foreclosure processed for LAN: ${lan}`, result.message);
+        } catch (err) {
+          console.error(`❌ Error allocating foreclosure for LAN: ${lan}`, err);
+        }
       }
     }
 
@@ -109,6 +118,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     res.status(500).json({ message: "Error processing foreclosure Excel file." });
   }
 });
+
 
 //////////////////// 20% Amount Upload ////////////////////
 router.post("/upload-20percent", upload.single("file"), async (req, res) => {
