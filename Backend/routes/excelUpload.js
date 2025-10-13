@@ -4281,7 +4281,7 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
         const panCard = row["pan_number"];
         const aadharNumber = row["aadhaar_number"];
         const appId = row["app_id"];
-        //const cibilScore = parseInt(row["credit_score"]);
+        const cibilScore = parseInt(row["credit_score"]);
 
         if (isNaN(cibilScore)) {
           skippedDueToCIBIL.push({ ...row, reason: "Invalid or missing credit score" });
