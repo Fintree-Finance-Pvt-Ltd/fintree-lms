@@ -3170,16 +3170,6 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     "agreement_date",
     "udyam_registration",
     "property_type",
-    "aa_bank_name",
-    "aa_branch_name",
-    "aa_account_type",
-    "aa_name_in_bank",
-    "aa_account_number",
-    "aa_ifsc",
-    "bank_name",
-    "name_in_bank",
-    "account_number",
-    "ifsc",
     "customer_name",
   ];
   const PLACEHOLDERS = `(${COLS.map(() => "?").join(",")})`;
