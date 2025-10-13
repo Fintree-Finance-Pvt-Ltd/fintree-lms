@@ -26,6 +26,9 @@ const generateLoanIdentifiers = async (lender) => {
   if (lender === "EV Loan") {
     prefixPartnerLoan = "MANEV1";
     prefixLan = "EV1";
+  } else if (lender === "HEY EV Loan") {
+    prefixPartnerLoan = "HEYEV1";
+    prefixLan = "HEYEV1";
   } else if (lender === "HC") {
     prefixPartnerLoan = "HCIN1";
     prefixLan = "HCF1";
@@ -41,9 +44,6 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "Adikosh") {
     prefixPartnerLoan = "ADK1";
     prefixLan = "ADKF1";
-  } else if (lender === "HEY EV Loan") {
-    prefixPartnerLoan = "HEYEV1";
-    prefixLan = "HEYEV1";
   } else if (lender === "emiclub") {
     //prefixPartnerLosan = "FINE1";
     prefixLan = "FINE1";
@@ -1290,6 +1290,7 @@ router.get("/all-loans", (req, res) => {
     loan_booking_emiclub: true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
+    loan_bookinh_circle_pe: true,
   };
 
   if (!allowedTables[table]) {
@@ -1357,6 +1358,7 @@ router.get("/disbursed-loans", (req, res) => {
     loan_booking_hey_ev:true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
+    loan_bookinh_circle_pe: true,
   };
 
   if (!allowedTables[table]) {
@@ -1432,6 +1434,8 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_hey_ev:true,
     loan_booking_emiclub: true,
     loan_booking_finso: true,
+    loan_bookinh_circle_pe: true,
+
   };
 
   if (!allowedTables[table]) {
@@ -1536,6 +1540,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_ev: true,
     loan_booking_hey_ev:true,
     loan_booking_finso: true,
+    loan_bookinh_circle_pe: true,
   };
 
   if (!allowedTables[table]) {
@@ -4504,6 +4509,149 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     });
   }
 });
+//////////////////////////////   CIRCLE PE ADD FOR LOAN BOOKING  ////////////////////////
+
+router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded." });
+  if (!req.body.lenderType)
+    return res.status(400).json({ message: "Lender type is required." });
+
+  const lenderType = req.body.lenderType;
+  const success_rows = [];
+  const row_errors = [];
+  const skippedDueToCIBIL = [];
+
+  try {
+    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rawData = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+
+    if (rawData.length === 0)
+      return res.status(400).json({ message: "Excel is empty or invalid." });
+
+    const parse = (v) =>
+      typeof v === "number"
+        ? v
+        : parseFloat((v ?? "").toString().replace(/[^0-9.-]/g, "")) || 0;
+
+    for (const [i, row] of rawData.entries()) {
+      const R = i + 2;
+
+      try {
+        const panCard = row["pan_number"];
+        const aadharNumber = row["aadhaar_number"];
+        const appId = row["app_id"];
+        const cibilScore = parseInt(row["credit_score"]);
+
+        if (isNaN(cibilScore)) {
+          skippedDueToCIBIL.push({ ...row, reason: "Invalid or missing credit score" });
+          continue;
+        }
+        if (!(cibilScore >= 500 || cibilScore === -1)) {
+          skippedDueToCIBIL.push({ ...row, reason: "Low CIBIL Score" });
+          continue;
+        }
+
+        // Check for duplicate app_id
+        const [exists] = await db
+          .promise()
+          .query(`SELECT * FROM loan_booking_circle_pe WHERE app_id = ?`, [appId]);
+        if (exists.length > 0) {
+          row_errors.push({ row: R, stage: "dup-check", reason: `Duplicate App ID (${appId})` });
+          continue;
+        }
+
+        // Generate partnerLoanId + LAN
+        let partnerLoanId, lan;
+        try {
+          const ids = await generateLoanIdentifiers(lenderType);
+          partnerLoanId = ids.partnerLoanId;
+          lan = ids.lan;
+        } catch (err) {
+          row_errors.push({ row: R, stage: "id-gen", reason: toClientError(err).message });
+          continue;
+        }
+
+        // Insert record
+        await db.promise().query(
+          `INSERT INTO loan_booking_circle_pe (
+            login_date, lan, partner_loan_id, app_id, customer_name, gender, dob,
+            father_name, mobile_number, email_id, pan_number, aadhar_number, current_address,
+            current_pincode, loan_amount, interest_rate, loan_tenure, emi_amount, cibil_score,
+            product, lender, residence_type, customer_type, bank_name, name_in_bank,
+            account_number, ifsc, net_disbursement, agreement_date, status
+          ) VALUES (${new Array(30).fill("?").join(",")})`,
+          [
+            row["loan_application_date"] || null,
+            lan,
+            partnerLoanId,
+            appId,
+            row["customer_name"],
+            row["gender"],
+            row["date_of_birth"] || null,
+            row["fathers_name"],
+            row["mobile_number"],
+            row["email_id"],
+            panCard,
+            aadharNumber,
+            row["current_address_line1"],
+            row["current_address_pincode"],
+            parse(row["loan_amount_sanctioned"]),
+            parse(row["interest_percent"]),
+            parse(row["loan_tenure_months"]),
+            parse(row["monthly_emi"]),
+            cibilScore,
+            row["product"],
+            row["LenderType"] || lenderType,
+            row["residence_type"],
+            row["customer_type"],
+            row["bank_name"],
+            row["beneficiary_name"],
+            row["institute_account_number"],
+            row["ifsc_code"],
+            parse(row["loan_amount_sanctioned"]), // net_disbursement = loan_amount
+            row["loan_application_date"] || null, // agreement_date = login_date
+            "Login",
+          ]
+        );
+
+        success_rows.push(R);
+      } catch (err) {
+        row_errors.push({ row: R, stage: "insert", reason: toClientError(err).message });
+        continue;
+      }
+    }
+
+    return res.status(200).json({
+      message: "Circle Pay file processed.",
+      total_rows: rawData.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+      skippedDueToCIBIL,
+      totalSkipped: skippedDueToCIBIL.length,
+    });
+  } catch (error) {
+    console.error("❌ Circle Pay Upload Error:", error);
+    return res.status(500).json({
+      message: "Upload failed",
+      error: toClientError(error),
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+      skippedDueToCIBIL,
+      totalSkipped: skippedDueToCIBIL.length,
+    });
+  }
+});
+
+
+
+
+//////////////////////////////   CIRCLE PE ADD FOR LOAN BOOKING  END ////////////////////////
 
 ////////////////////// ADIKOSH CAM DATA UPLOAD Start     /////////////////////
 /**
@@ -5924,6 +6072,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_embifi_loan";
   } else if (lan.startsWith("FINE")) {
     tableName = "manual_rps_emiclub";
+    } else if (lan.startsWith("CIRF")) {
+    tableName = "manual_rps_circle_pe";
   } else if (lan.startsWith("FINS")) {
     tableName = "manual_rps_finso_loan";
   }else if (lan.startsWith("HEYEV")) {
