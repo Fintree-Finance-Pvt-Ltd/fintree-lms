@@ -4602,10 +4602,10 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
             aadharNumber,
             row["current_address_line1"],
             row["current_address_pincode"],
-            row["loan amount sanctioned"],
+            parse(row["loan amount sanctioned"]),
             row["interest_percent"],
             row["loan_tenure_months"],
-            row["monthly emi"],
+            parse(row["monthly emi"]),
             cibilScore,
             row["product"],
             row["LenderType"] || lenderType,
@@ -4620,6 +4620,12 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
             "Login",
           ]
         );
+
+console.log( parse(row["loan amount sanctioned"]),
+            row["interest_percent"],
+            row["loan_tenure_months"],
+            parse(row["monthly emi"]),)
+
 
         success_rows.push(R);
       } catch (err) {
