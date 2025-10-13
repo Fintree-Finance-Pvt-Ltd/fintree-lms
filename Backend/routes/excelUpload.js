@@ -41,6 +41,9 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "Adikosh") {
     prefixPartnerLoan = "ADK1";
     prefixLan = "ADKF1";
+  } else if (lender === "HEY EV Loan") {
+    prefixPartnerLoan = "HEYEV1";
+    prefixLan = "HEYEV1";
   } else if (lender === "emiclub") {
     //prefixPartnerLosan = "FINE1";
     prefixLan = "FINE1";
@@ -796,6 +799,258 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
+  if (!req.file)
+    return res
+      .status(400)
+      .json({ message: "No file uploaded. Please select a valid file." });
+
+  if (!req.body.lenderType)
+    return res.status(400).json({ message: "Lender type is required." });
+
+  try {
+    const lenderType = req.body.lenderType.trim();
+    if (lenderType !== "HEY EV Loan") {
+      return res.status(400).json({
+        message: "Invalid upload lender type. Only HEY EV Loan is supported.",
+      });
+    }
+
+    // Read Excel
+    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    if (!sheetData || sheetData.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Uploaded Excel file is empty or invalid." });
+    }
+
+    // ✅ ALL required fields (as per DB insert — 54 columns)
+    const requiredFields = [
+      "LOGIN DATE",
+      "Customer Name",
+      "Borrower DOB",
+      "Father Name",
+      "Address Line 1",
+      "Address Line 2",
+      "Village",
+      "District",
+      "State",
+      "Pincode",
+      "Mobile Number",
+      "Loan Amount",
+      " Interest Rate ",
+      "Tenure",
+      "GURANTOR",
+      "GURANTOR DOB",
+      "GURANTOR ADHAR",
+      "GURANTOR PAN",
+      "DEALER NAME",
+      "Name in Bank",
+      "Bank name",
+      "Account Number",
+      "IFSC",
+      "Aadhar Number",
+      "Pan Card",
+      "Product",
+      "lender",
+      "Agreement Date",
+      "CIBIL Score",
+      "GURANTOR CIBIL Score",
+      "Relationship with Borrower",
+      "Battery Name",
+      "Battery Type",
+      "Battery Serial no 1",
+      "E-Rikshaw model",
+      "Chassis no",
+      "Customer Name as per bank",
+      "Customer Bank name",
+      "Customer Account Number",
+      "Bank IFSC Code",
+    ];
+
+    const success_rows = [];
+    const row_errors = [];
+
+    for (let i = 0; i < sheetData.length; i++) {
+      const row = sheetData[i];
+      const R = i + 2;
+
+      try {
+        // ✅ Check if *any required field* is missing
+        const missingFields = requiredFields.filter(
+          (field) => !row[field] || String(row[field]).trim() === ""
+        );
+
+        if (missingFields.length > 0) {
+          row_errors.push({
+            row: R,
+            stage: "validation",
+            reason: `Missing required fields: ${missingFields.join(", ")}`,
+          });
+          continue;
+        }
+
+        const rowLender = (row["lender"] || "").trim();
+        const panCard = row["Pan Card"];
+        const aadharNumber = row["Aadhar Number"];
+        const interestRate = row[" Interest Rate "];
+
+        if (rowLender !== "HEY EV Loan") {
+          row_errors.push({
+            row: R,
+            stage: "validation",
+            reason: "Invalid lender type in row. Only HEY EV Loan is supported.",
+          });
+          continue;
+        }
+
+        if (isNaN(interestRate) || interestRate <= 0) {
+          row_errors.push({
+            row: R,
+            stage: "validation",
+            reason: "Valid numeric Interest Rate is required.",
+          });
+          continue;
+        }
+
+        // Duplicate check
+        const [existingRecords] = await db
+          .promise()
+          .query(`SELECT lan FROM loan_booking_hey_ev WHERE pan_card = ?`, [
+            panCard || null,
+          ]);
+
+        if (existingRecords.length > 0) {
+          row_errors.push({
+            row: R,
+            stage: "dup-check",
+            reason: `Customer already exists. Duplicate found for Pan Card: ${panCard}`,
+          });
+          continue;
+        }
+
+        // Generate IDs
+        const { partnerLoanId, lan } = await generateLoanIdentifiers(
+          lenderType
+        );
+
+        // ✅ Insert into DB
+        const query = `
+          INSERT INTO loan_booking_hey_ev (
+            partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+            address_line_1, address_line_2, village, district, state, pincode,
+            mobile_number, email, loan_amount, interest_rate, loan_tenure, emi_amount,
+            guarantor_name, guarantor_dob, guarantor_aadhar, guarantor_pan, dealer_name,
+            name_in_bank, bank_name, account_number, ifsc, aadhar_number, pan_card,
+            product, lender, agreement_date, status, disbursal_amount, processing_fee,
+            cibil_score, guarantor_cibil_score, relationship_with_borrower, co_applicant,
+            co_applicant_dob, co_applicant_aadhar, co_applicant_pan, co_applicant_cibil_score,
+            apr, battery_name, battery_type, battery_serial_no_1, battery_serial_no_2,
+            e_rikshaw_model, chassis_no, customer_name_as_per_bank, customer_bank_name,
+            customer_account_number, bank_ifsc_code
+          ) VALUES (
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          )
+        `;
+
+        await db
+          .promise()
+          .query(query, [
+            partnerLoanId,
+            lan,
+            row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+            row["Customer Name"],
+            row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
+            row["Father Name"],
+            row["Address Line 1"],
+            row["Address Line 2"],
+            row["Village"],
+            row["District"],
+            row["State"],
+            row["Pincode"],
+            row["Mobile Number"],
+            row["Email"],
+            row["Loan Amount"],
+            row[" Interest Rate "],
+            row["Tenure"],
+            row["EMI Amount"],
+            row["GURANTOR"],
+            row["GURANTOR DOB"] ? excelDateToJSDate(row["GURANTOR DOB"]) : null,
+            row["GURANTOR ADHAR"],
+            row["GURANTOR PAN"],
+            row["DEALER NAME"],
+            row["Name in Bank"],
+            row["Bank name"],
+            row["Account Number"],
+            row["IFSC"],
+            row["Aadhar Number"],
+            row["Pan Card"],
+            row["Product"],
+            row["lender"] || "EV Loan",
+            row["Agreement Date"]
+              ? excelDateToJSDate(row["Agreement Date"])
+              : null,
+            row["status"] || "Login",
+            row["Disbursal Amount"],
+            row["Processing Fee"] || 0.0,
+            row["CIBIL Score"],
+            row["GURANTOR CIBIL Score"],
+            row["Relationship with Borrower"],
+            row["Co-Applicant"],
+            row["Co-Applicant DOB"]
+              ? excelDateToJSDate(row["Co-Applicant DOB"])
+              : null,
+            row["Co-Applicant AADHAR"],
+            row["Co-Applicant PAN"],
+            row["Co-Applicant CIBIL Score"],
+            row["APR"],
+            row["Battery Name"],
+            row["Battery Type"],
+            row["Battery Serial no 1"],
+            row["Battery Serial no 2"],
+            row["E-Rikshaw model"],
+            row["Chassis no"],
+            row["Customer Name as per bank"],
+            row["Customer Bank name"],
+            row["Customer Account Number"],
+            row["Bank IFSC Code"],
+          ]);
+
+        success_rows.push({ row: R, lan, partnerLoanId, interestRate });
+        console.log(`✅ Inserted row ${R} | PAN: ${panCard} | LAN: ${lan}`);
+      } catch (err) {
+        row_errors.push({
+          row: R,
+          stage: "insert",
+          reason: err.sqlMessage || err.message,
+        });
+        console.error(`❌ Row ${R} failed:`, err);
+      }
+    }
+
+    return res.json({
+      message: "File processed.",
+      total_rows: sheetData.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+    });
+  } catch (error) {
+    console.error("❌ Error in Upload Process:", error);
+    return res.status(500).json({
+      message: "Upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
 ///////////////////////////////////////////////////////////////////////////////////
 
 // POST /api/loan-booking/create
@@ -965,6 +1220,7 @@ router.get("/login-loans", (req, res) => {
   const allowedTables = {
     loan_bookings: true,
     loan_booking_ev: true,
+    loan_booking_hey_ev:true,
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
@@ -995,6 +1251,7 @@ router.get("/approve-initiate-loans", (req, res) => {
   const allowedTables = {
     loan_bookings: true,
     loan_booking_ev: true,
+    loan_booking_hey_ev:true,
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
@@ -1029,7 +1286,7 @@ router.get("/all-loans", (req, res) => {
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
-    loan_booking_ev: true,
+    loan_booking_hey_ev:true,
     loan_booking_emiclub: true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
@@ -1060,6 +1317,7 @@ router.get("/approved-loans", (req, res) => {
   const allowedTables = {
     loan_bookings: true,
     loan_booking_ev: true,
+    loan_booking_hey_ev:true,
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
@@ -1096,6 +1354,7 @@ router.get("/disbursed-loans", (req, res) => {
     loan_booking_emiclub: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
+    loan_booking_hey_ev:true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
   };
@@ -1170,6 +1429,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
+    loan_booking_hey_ev:true,
     loan_booking_emiclub: true,
     loan_booking_finso: true,
   };
@@ -1274,6 +1534,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_emiclub: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
+    loan_booking_hey_ev:true,
     loan_booking_finso: true,
   };
 
@@ -5665,6 +5926,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_emiclub";
   } else if (lan.startsWith("FINS")) {
     tableName = "manual_rps_finso_loan";
+  }else if (lan.startsWith("HEYEV")) {
+    tableName = "manual_rps_hey_ev";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
     // ✅ Only fetch Main Adikosh RPS - Specify columns for ADK

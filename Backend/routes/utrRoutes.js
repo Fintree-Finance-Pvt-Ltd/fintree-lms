@@ -83,7 +83,12 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_ev WHERE lan = ?`, [lan]
           );
-          
+        }
+        else if (lan.startsWith("HEYEV")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_hey_ev WHERE lan = ?`, [lan]
+          );
         }
         ////// this for EMI CLUB //////// 
           else if (lan.startsWith("FINE")) {
@@ -189,6 +194,9 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             await conn.query("UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?", [lan]);
           } else if (lan.startsWith("EV")) {
             await conn.query("UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?", [lan]);
+            }
+          else if (lan.startsWith("HEYEV")) {
+            await conn.query("UPDATE loan_booking_hey_ev SET status = 'Disbursed' WHERE lan = ?", [lan]);
             }
             ///// this for EMI CLUB /////
              else if (lan.startsWith("FINE")) {
