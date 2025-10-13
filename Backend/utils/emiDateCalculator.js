@@ -278,6 +278,18 @@ else if (lender === "EV Loan" && product === "Monthly Loan") {
     console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
     return dueDate;
 }
+
+  // ✅ HEY EV Loan : Monthly Loan
+else if (lender === "HEY EV Loan") {
+    const dueDate = new Date(disbDate);
+    dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
+
+    // Keep the same day as disbursement
+    dueDate.setDate(new Date(disbDate).getDate());
+
+    console.log(`[HEY EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
+    return dueDate;
+}
     // ///////////////////
 
 

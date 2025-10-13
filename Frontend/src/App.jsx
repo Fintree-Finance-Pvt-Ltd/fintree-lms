@@ -80,6 +80,12 @@ import FinsoLoginLoans from "./components/FinsoLoginLoans";
 import FinsoActionScreen from "./components/FinsoActionScreen";
 import FinsoApproveInitiateScreen from "./components/FinsoApproveInitiateScreen";
 import CustomerGenerateSOA from "./components/CustomerGenerateSOA";
+import HEYEVApprovedLoans from "./components/heyevApprovedLoans";
+import HEYEVDisbursedLoans from "./components/HEYEVDisbursedLoans";
+import HEYEVLoginLoans from "./components/HEYEVLoginLoans";
+import HEYEVActionScreen from "./components/HEYEVActionScreen";
+import HEYEVApproveInitiateScreen from "./components/HEYEVApproveInitiateScreen";
+import HEYEVAllLoans from "./components/HEYEVAllLoans";
 
 function App() {
   return (
@@ -265,6 +271,59 @@ function App() {
             element={
               <PermissionRoute pageName="EV Disburse Initiated">
                 <EVApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+          {/* ✅ Loan routes */}
+
+          <Route
+            path="/hey-ev-loans/approved"
+            element={
+              <PermissionRoute pageName="Hey EV Approved Loans">
+                <HEYEVApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/hey-ev-loans/disbursed"
+            element={
+              <PermissionRoute pageName="Hey EV Disbursed Loans">
+                <HEYEVDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/hey-ev-loans/all"
+            element={
+              <PermissionRoute pageName="Hey EV All Loans">
+                <HEYEVAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/hey-ev-loans/login-cases"
+            element={
+              <PermissionRoute pageName="Hey EV Login Loans">
+                <HEYEVLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/hey-ev-loans/login-actions"
+            element={
+              <PermissionRoute pageName="Hey EV Login Actions">
+                <HEYEVActionScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/hey-ev-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="Hey EV Disburse Initiated">
+                <HEYEVApproveInitiateScreen />
               </PermissionRoute>
             }
           />

@@ -782,6 +782,98 @@ const generateRepaymentScheduleEV = async (
 
   console.log(`✅ EV RPS generated from next month for ${lan}`);
 };
+
+const generateRepaymentScheduleHEYEV = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender
+) => {
+  // ❗ No outer try/catch here that swallows errors. Let them bubble to caller.
+
+  const annualRate = interestRate / 100;
+  let remainingPrincipal = loanAmount;
+
+  // Calculate EMI
+  const emi = Math.round(
+    (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+      (Math.pow(1 + annualRate / 12, tenure) - 1)
+  );
+
+  // Set RPS start date to same day of next month from disbursement
+  const firstDueRaw = getFirstEmiDate(
+    disbursementDate,
+    null,
+    lender,
+    product
+  );
+
+  console.log("Calling getFirstEmiDate (HEY EV) with:", {
+    disbursementDate,
+    lender,
+    product,
+  });
+
+  console.log("First Due Date (HEYEV):", firstDueRaw);
+
+  const firstDueDate = new Date(firstDueRaw);
+
+  if (Number.isNaN(firstDueDate.getTime())) {
+    throw new Error(
+      `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`
+    );
+  }
+
+  const rpsData = [];
+  let dueDate = new Date(firstDueDate);
+
+  for (let i = 1; i <= tenure; i++) {
+    const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+    console.log("annualRate:", annualRate);
+    console.log("Remaining Principal:", remainingPrincipal);
+    console.log("Interest:", interest);
+    console.log("EMI:", emi);
+    let principal = emi - interest;
+    if (i === tenure) principal = remainingPrincipal;
+
+    rpsData.push([
+      lan,
+      dueDate.toISOString().split("T")[0],
+      principal + interest,
+      interest,
+      principal,
+      principal, // ✅ preserve your existing behavior: Remaining Principal = principal for that EMI
+      interest,
+      principal + interest,
+      "Pending",
+    ]);
+
+    remainingPrincipal -= principal;
+    dueDate.setMonth(dueDate.getMonth() + 1);
+  }
+
+  // Use the SAME TRANSACTION CONNECTION
+  await conn.query(
+    `INSERT INTO manual_rps_hey_ev
+     (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+     VALUES ?`,
+    [rpsData]
+  );
+
+  // ➕ Update emi_amount in loan_bookings (HEY EV) within the same tx
+  await conn.query(
+    `UPDATE loan_booking_hey_ev
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [emi, lan]
+  );
+
+  console.log(`✅ EV RPS generated from next month for ${lan}`);
+};
 /////////////////// EMI CLUB RPS ///////////////////////
 const generateRepaymentScheduleEmiclub = async (
   conn,           // Transaction connection
@@ -2906,7 +2998,18 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
-  } else if (lender === "Finso") {
+  }else if (lender === "HEY EV Loan") {
+    await generateRepaymentScheduleHEYEV(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender
+    );
+  }  else if (lender === "Finso") {
     await generateRepaymentScheduleFinso365(
       conn,
       lan,
@@ -3026,6 +3129,7 @@ const generateRepaymentSchedule = async (
 
 module.exports = {
   generateRepaymentScheduleEV,
+  generateRepaymentScheduleHEYEV,
   generateRepaymentScheduleFinso360,
   generateRepaymentScheduleFinso365,
   generateRepaymentScheduleBL,

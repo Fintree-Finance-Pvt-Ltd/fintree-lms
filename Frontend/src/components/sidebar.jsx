@@ -181,6 +181,7 @@ const Sidebar = () => {
           '/embifi-loans',
           '/emiclub-loans',
           '/finso-loans',
+          '/hey-ev-loans',
          // '/health-care-loans',
           '/aldun-loans',
           '/mis-reports',
@@ -198,6 +199,7 @@ const Sidebar = () => {
     'Elysium Loans': allowedPages.filter(p => p.path.includes('/elysium-loans')),
     'EMI Club Loans': allowedPages.filter(p => p.path.includes('/emiclub-loans')),
     'Finso Loans': allowedPages.filter(p => p.path.includes('/finso-loans')),
+    'HEY EV Loans': allowedPages.filter(p => p.path.includes('/hey-ev-loans')),
     'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),
     'MIS Reports': allowedPages.filter(p => p.path.includes('/mis-reports')),
   };

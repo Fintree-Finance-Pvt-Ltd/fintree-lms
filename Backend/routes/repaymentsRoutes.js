@@ -52,6 +52,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         queryDB(`SELECT lan FROM loan_booking_adikosh WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_bookings WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_booking_ev WHERE lan IN (?)`, [uniqueLANs]),
+        queryDB(`SELECT lan FROM loan_booking_hey_ev WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_bookings_wctl WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_booking_embifi WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_booking_finso WHERE lan IN (?)`, [uniqueLANs]),

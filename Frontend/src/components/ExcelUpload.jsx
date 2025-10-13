@@ -201,8 +201,9 @@ const CreateLoanBooking = () => {
 
   function getApiEndpoint(type) {
     switch (type) {
-      case "Health Care": return `/loan-booking/hc-upload`;
+      // case "Health Care": return `/loan-booking/hc-upload`;
       case "BL Loan":     return `/loan-booking/bl-upload`;
+      case "HEY EV Loan": return `/loan-booking/hey-ev-upload`;
       case "EV Loan":     return `/loan-booking/upload`;
       case "GQ FSF":      return `/loan-booking/gq-fsf-upload`;
       case "GQ Non-FSF":  return `/loan-booking/gq-non-fsf-upload`;
@@ -270,7 +271,7 @@ const CreateLoanBooking = () => {
         <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} required>
           <option value="">Select Type</option>
           <option value="EV Loan">EV Loan</option>
-          <option value="Health Care">Health Care</option>
+          <option value="HEY EV Loan">HEY EV Loan</option>
           <option value="BL Loan">BL Loan</option>
           <option value="GQ FSF">GQ FSF</option>
           <option value="GQ Non-FSF">GQ Non-FSF</option>

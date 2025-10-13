@@ -197,6 +197,9 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
              } else if (lan.startsWith("CIRF")) {
             await conn.query("UPDATE loan_booking_circle_pe SET status = 'Disbursed' WHERE lan = ?", [lan]);
             }
+          else if (lan.startsWith("HEYEV")) {
+            await conn.query("UPDATE loan_booking_hey_ev SET status = 'Disbursed' WHERE lan = ?", [lan]);
+            }
             ///// this for EMI CLUB /////
              else if (lan.startsWith("FINE")) {
             await conn.query("UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?", [lan]);
