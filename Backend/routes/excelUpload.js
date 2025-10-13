@@ -3236,8 +3236,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
       "interest_rate",
       "loan_tenure",
       "cibil_score",
-      "product",
-      "disbursal_amount",
+      "product"
     ];
 
     const results = [];
