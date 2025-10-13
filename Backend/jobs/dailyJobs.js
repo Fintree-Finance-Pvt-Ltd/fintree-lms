@@ -18,6 +18,7 @@
 
 const cron = require("node-cron");
 const db = require("../config/db");
+const { generateAllPending } = require("./cibilPdfService");
 
 // Run every day at 12:05 AM server time
 cron.schedule("*/2 * * * *", async () => {
@@ -79,3 +80,18 @@ cron.schedule("*/2 * * * *", async () => {
     console.error("❌ Cron job failed:", err.sqlMessage || err.message);
   }
 });
+
+cron.schedule("*/2 * * * *", async () => {
+  console.log("🧾 Running CIBIL PDF generator (every 2 min)...");
+  try {
+    const results = await generateAllPending(150);
+    const ok = results.filter(r => r.ok).length;
+    const fail = results.length - ok;
+    console.log(`✅ PDF job finished | processed: ${results.length}, success: ${ok}, failed: ${fail}`);
+    results.filter(r => !r.ok).forEach(r => console.error(`  ↳ id=${r.id} error=${r.error}`));
+  } catch (e) {
+    console.error("❌ PDF cron failed:", e.message);
+  }
+});
+
+require('../server');

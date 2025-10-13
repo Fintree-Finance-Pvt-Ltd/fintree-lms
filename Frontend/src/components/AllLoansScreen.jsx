@@ -27,6 +27,10 @@ const AllLoansScreen = ({ apiEndpoint, title = "Disbursed Loans", amountField = 
     return () => (off = true);
   }, [apiEndpoint]);
 
+  const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
+  const hasEV = rows.some((r) => typeof r?.lan === "string" && /^EV/i.test(r.lan));
+  const hasGQFSF = rows.some((r) => typeof r?.lan === "string" && /^GQFSF/i.test(r.lan));
+  const hasGQNonFSF = rows.some((r) => typeof r?.lan === "string" && /^GQNONFSF/i.test(r.lan));
 
   const nf = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
 
@@ -57,6 +61,67 @@ const AllLoansScreen = ({ apiEndpoint, title = "Disbursed Loans", amountField = 
       sortAccessor: (r) => (r.lan || "").toLowerCase(),
       width: 150,
     },
+    // Batch ID column (only for ADK LANs; non-ADK shows —)
+    ...(hasADK
+      ? [
+          {
+            key: "batch_id",
+            header: "Batch ID",
+            sortable: true,
+            render: (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^ADK/i.test(r?.lan) ? String(r?.batch_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
+
+      // Batch ID column (only for GQFSF LANs; non-GQFSF shows —)
+    ...(hasGQFSF
+      ? [
+          {
+            key: "app_id",
+            header: "APP ID",
+            sortable: true,
+            render: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^GQFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
+      
+    ...(hasGQNonFSF
+      ? [
+          {
+            key: "app_id",
+            header: "APP ID",
+            sortable: true,
+            render: (r) => (/^GQNonFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^GQNonFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^GQNonFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
+
+      ...(hasEV
+      ? [
+          {
+            key: "partner_loan_id",
+            header: "Partner Loan ID",
+            sortable: true,
+            render: (r) => (/^EV/i.test(r?.lan) ? (r.partner_loan_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^EV/i.test(r?.lan) ? String(r?.partner_loan_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^EV/i.test(r?.lan) ? (r.partner_loan_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
     {
       key: amountField,
       header: "Disbursement Amount",
@@ -112,7 +177,7 @@ const AllLoansScreen = ({ apiEndpoint, title = "Disbursed Loans", amountField = 
       title={title}
       rows={rows}
       columns={columns}
-      globalSearchKeys={["customer_name", "lan", "status", amountField]}
+      globalSearchKeys={["customer_name", "lan", "app_id", "batch_id", "partner_loan_id", "status", amountField]}
       initialSort={{ key: "disbursement_date", dir: "desc" }}
       exportFileName="disbursed_loans"
     />
