@@ -4283,7 +4283,7 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
       try {
         const panCard = row["pan_number"];
         const aadharNumber = row["aadhaar_number"];
-        const appId = row["app_id"];
+        //const appId = row["app_id"];
         const cibilScore = parseInt(row["credit_score"]);
 
         if (isNaN(cibilScore)) {
@@ -4325,13 +4325,15 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
             account_number, ifsc, net_disbursement, agreement_date, status
           ) VALUES (${new Array(30).fill("?").join(",")})`,
           [
-            row["loan_application_date"] || null,
+            row["loan_application_date"] ? excelDateToJSDate(row["loan_application_date"])
+                : null,
             lan,
             partnerLoanId,
-            appId,
+            row ["App_Id"],
             row["customer_name"],
             row["gender"],
-            row["date_of_birth"] || null,
+            row["date_of_birth"] ? excelDateToJSDate(row["date_of_birth"])
+                : null,
             row["fathers_name"],
             row["mobile_number"],
             row["email_id"],
