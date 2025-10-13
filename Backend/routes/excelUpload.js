@@ -4586,13 +4586,13 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
     net_disbursement, agreement_date, status
   ) VALUES (${new Array(30).fill("?").join(",")})`,
   [
-    row["loan_application_date"] || null,
+    row["loan_application_date"] ? excelDateToJSDate (row["loan_application_date"]) :null,
     lan,
     partnerLoanId,
     row["App_Id"] || row["app_id"],
     row["customer_name"],
     row["gender"],
-    row["date_of_birth"] || null,
+    row["date_of_birth"] ? excelDateToJSDate (row["date_of_birth"]) : null,
     row["fathers_name"],
     row["mobile_number"],
     row["email_id"],
@@ -4614,7 +4614,7 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
     row["institute_account_number"],
     row["ifsc_code"],
     parse(row["loan amount sanctioned"] || row["loan_amount_sanctioned"]), // net_disbursement
-    row["loan_application_date"] || null, // agreement_date = login_date
+     row["loan_application_date"] ? excelDateToJSDate (row["loan_application_date"]) :null, // agreement date
     "Login",
   ]
 );
