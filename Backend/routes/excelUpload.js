@@ -4283,7 +4283,7 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
       try {
         const panCard = row["pan_number"];
         const aadharNumber = row["aadhaar_number"];
-        //const appId = row["app_id"];
+        const appId = row["App_Id"];
         const cibilScore = parseInt(row["credit_score"]);
 
         if (isNaN(cibilScore)) {
