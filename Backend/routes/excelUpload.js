@@ -44,6 +44,9 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "Adikosh") {
     prefixPartnerLoan = "ADK1";
     prefixLan = "ADKF1";
+    } else if (lender === "Circle PE") {
+    prefixPartnerLoan = "FCIR1";
+    prefixLan = "CRIF1";
   } else if (lender === "emiclub") {
     //prefixPartnerLosan = "FINE1";
     prefixLan = "FINE1";
