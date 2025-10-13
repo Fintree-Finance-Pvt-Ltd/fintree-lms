@@ -18,6 +18,7 @@ const forecloserRoutes = require("./routes/forecloserRoutes");
 const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 // const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require('./jobs/smsSchedulerRaw');
@@ -95,9 +96,23 @@ app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 
-// Mount our CIBIL routes
-const cibilRoutes = require('./routes/cibilRoutes');
-app.use('/api', cibilRoutes);
+app.post('/api/cibil/:id/pdf', async (req, res) => {
+  try {
+    const doc = await generateForReport(req.params.id);
+    res.json({ ok: true, document: doc });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/cibil/generate-pending', async (req, res) => {
+  try {
+    const results = await generateAllPending(200);
+    res.json({ ok: true, results });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 
 app.get("/api/test-sms", async (req, res) => {
   try {

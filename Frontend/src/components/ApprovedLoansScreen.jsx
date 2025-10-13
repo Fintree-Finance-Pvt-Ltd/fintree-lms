@@ -23,6 +23,12 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
     return () => (off = true);
   }, [apiUrl]);
 
+    const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
+  const hasEV = rows.some((r) => typeof r?.lan === "string" && /^EV/i.test(r.lan));
+  const hasGQFSF = rows.some((r) => typeof r?.lan === "string" && /^GQFSF/i.test(r.lan));
+  const hasGQNonFSF = rows.some((r) => typeof r?.lan === "string" && /^GQNONFSF/i.test(r.lan));
+
+
   const columns = [
     {
       key: "customer_name",
@@ -40,6 +46,52 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
     },
     { key: "lender", header: "Lender", sortable: true, width: 140 },
     { key: "partner_loan_id", header: "Partner Loan ID", sortable: true, width: 160 },
+    // Batch ID column (only for ADK LANs; non-ADK shows —)
+    ...(hasADK
+      ? [
+          {
+            key: "batch_id",
+            header: "Batch ID",
+            sortable: true,
+            render: (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^ADK/i.test(r?.lan) ? String(r?.batch_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
+
+      // Batch ID column (only for GQFSF LANs; non-GQFSF shows —)
+    ...(hasGQFSF
+      ? [
+          {
+            key: "app_id",
+            header: "APP ID",
+            sortable: true,
+            render: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^GQFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
+      // App ID column (only for NonGQFSF LANs; non-FSFshows —)
+    ...(hasGQNonFSF
+      ? [
+          {
+            key: "app_id",
+            header: "APP ID",
+            sortable: true,
+            render: (r) => (/^GQNonFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^GQNonFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^GQNonFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
     { key: "lan", header: "LAN", sortable: true, width: 140 },
     { key: "mobile_number", header: "Mobile Number", sortable: true, width: 160 },
     {
@@ -85,7 +137,7 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
       title={title}
       rows={rows}
       columns={columns}
-      globalSearchKeys={["customer_name", "lender", "partner_loan_id", "lan", "mobile_number"]}
+      globalSearchKeys={["customer_name", "lender","app_id", "batch_id", "partner_loan_id", "lan", "mobile_number"]}
       initialSort={{ key: "lan", dir: "asc" }}
       exportFileName="approved_loans"
     />

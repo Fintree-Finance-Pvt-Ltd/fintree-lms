@@ -149,6 +149,8 @@ const LoginCaseScreen = ({
 
   // Show Batch ID column only if any LAN begins with ADK
   const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
+  const hasGQFSF = rows.some((r) => typeof r?.lan === "string" && /^GQFSF/i.test(r.lan));
+  const hasGQNonFSF = rows.some((r) => typeof r?.lan === "string" && /^GQNONFSF/i.test(r.lan));
 
   const statusPillStyle = (status) => {
     const map = {
@@ -236,6 +238,37 @@ const LoginCaseScreen = ({
         ]
       : []),
 
+      // Batch ID column (only for GQFSF LANs; non-GQFSF shows —)
+    ...(hasGQFSF
+      ? [
+          {
+            key: "app_id",
+            header: "APP ID",
+            sortable: true,
+            render: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^GQFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
+      // App ID column (only for NonGQFSF LANs; non-FSFshows —)
+    ...(hasGQNonFSF
+      ? [
+          {
+            key: "app_id",
+            header: "APP ID",
+            sortable: true,
+            render: (r) => (/^GQNonFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^GQNonFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^GQNonFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
+
     // ⛔ Customer ID column removed as requested
 
     {
@@ -300,7 +333,9 @@ const LoginCaseScreen = ({
         "customer_name",
         "partner_loan_id",
         "lan",
-        ...(hasADK ? ["batch_id"] : []), // include in search only when present
+        ...(hasADK ? ["batch_id"] : []),
+        ...(hasGQFSF ? ["app_id"] : []),
+        ...(hasGQNonFSF ? ["app_id"] : []),
         "mobile_number",
         "status",
       ]}
