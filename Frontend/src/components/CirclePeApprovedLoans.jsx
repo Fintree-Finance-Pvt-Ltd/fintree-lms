@@ -3,8 +3,8 @@ import ApprovedLoansTable from './ApprovedLoansScreen'
 
 const CirclePeApprovedLoans = () => {
   return (
-    // BLApprovedLoans.js
-<ApprovedLoansTable apiUrl={`/loan-booking/approved-loans?table=loan_booking_adikosh&prefix=ADK`} title="Circle Pe Approved Loans" />
+    // Circle pe ApprovedLoans.js
+<ApprovedLoansTable apiUrl={`/loan-booking/approved-loans?table=loan_booking_circle_pe&prefix=CIRF`} title="Circle Pe Approved Loans" />
 
   )
 }
