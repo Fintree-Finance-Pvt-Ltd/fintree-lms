@@ -80,7 +80,7 @@ import FinsoLoginLoans from "./components/FinsoLoginLoans";
 import FinsoActionScreen from "./components/FinsoActionScreen";
 import FinsoApproveInitiateScreen from "./components/FinsoApproveInitiateScreen";
 import CustomerGenerateSOA from "./components/CustomerGenerateSOA";
-import HEYEVApprovedLoans from "./components/heyevApprovedLoans";
+import HEYEVApprovedLoans from "./components/HEYEVApprovedLoans";
 import HEYEVDisbursedLoans from "./components/HEYEVDisbursedLoans";
 import HEYEVLoginLoans from "./components/HEYEVLoginLoans";
 import HEYEVActionScreen from "./components/HEYEVActionScreen";
