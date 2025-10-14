@@ -1290,7 +1290,7 @@ router.get("/all-loans", (req, res) => {
     loan_booking_emiclub: true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
-    loan_bookinh_circle_pe: true,
+    loan_booking_circle_pe: true,
   };
 
   if (!allowedTables[table]) {
@@ -1358,7 +1358,7 @@ router.get("/disbursed-loans", (req, res) => {
     loan_booking_hey_ev:true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
-    loan_bookinh_circle_pe: true,
+    loan_booking_circle_pe: true,
   };
 
   if (!allowedTables[table]) {
@@ -1420,11 +1420,119 @@ WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-router.put("/login-loans/:lan", (req, res) => {
-  const lan = req.params.lan;
-  const { status, table } = req.body;
+// router.put("/login-loans/:lan", (req, res) => {
+//   const lan = req.params.lan;
+//   const { status, table } = req.body;
 
-  const allowedTables = {
+  // const allowedTables = {
+  //   loan_bookings: true,
+  //   loan_booking_adikosh: true,
+  //   loan_booking_gq_non_fsf: true,
+  //   loan_booking_gq_fsf: true,
+  //   loan_bookings_wctl: true,
+  //   loan_booking_ev: true,
+  //   loan_booking_hey_ev:true,
+  //   loan_booking_emiclub: true,
+  //   loan_booking_finso: true,
+  //   loan_booking_circle_pe: true,
+
+  // };
+
+//   if (!allowedTables[table]) {
+//     return res.status(400).json({ message: "Invalid table name" });
+//   }
+
+//   if (!["Disburse initiate", "rejected"].includes(status)) {
+//     return res.status(400).json({ message: "Invalid status value" });
+//   }
+
+//   const query = `UPDATE ?? SET status = ? WHERE lan = ?`;
+//   const values = [table, status, lan];
+
+//   db.query(query, values, async (err, result) => {
+//     if (err) {
+//       console.error("Error updating loan status:", err);
+//       return res.status(500).json({ message: "Database error", error: err });
+//     }
+
+//     if (result.affectedRows === 0) {
+//       return res
+//         .status(404)
+//         .json({ message: `Loan not found with LAN ${lan}` });
+//     }
+
+//     // ✅ Fetch loan details for email + webhook
+//     db.query(
+//       `SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`,
+//       [table, lan],
+//       async (fetchErr, rows) => {
+//         if (fetchErr) {
+//           console.error("Error fetching loan details:", fetchErr);
+//         } else if (rows.length > 0) {
+//           const {
+//             loan_amount: loanAmount,
+//             customer_name: customerName,
+//             batch_id: batchId,
+//             partner_loan_id: partnerLoanId,
+//           } = rows[0];
+
+//           // ✅ EMAIL — for ADK loans only
+//           if (lan.startsWith("ADK")) {
+//             try {
+//               await sendLoanStatusMail({
+//                 to: [
+//                   "abhishek@getkosh.com",
+//                   "ravikumar@nfcpl.in",
+//                   "vineet.ranjan@getkosh.com",
+//                   "rajeev@nfcpl.in",
+//                   "sanika.gurav@fintreefinance.com",
+//                 ],
+//                 customerName,
+//                 batchId,
+//                 loanAmount,
+//                 status,
+//               });
+//               console.log(`Email sent for ${lan} (${status})`);
+//             } catch (mailErr) {
+//               console.error("Error sending email:", mailErr);
+//             }
+//           }
+
+//           // ✅ WEBHOOK — for FINS loans only
+//           if (lan.startsWith("FINS")) {
+//             const webhookUrl =
+//               "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
+//             const payload = {
+//               lan,
+//               status,
+//               partner_loan_id: partnerLoanId,
+//               customer_name: customerName,
+//             };
+
+//             try {
+//               await axios.post(webhookUrl, payload);
+//               console.log(`✅ Webhook sent for ${lan} (${status})`);
+//             } catch (webhookErr) {
+//               console.error("❌ Error sending webhook:", webhookErr.message);
+//             }
+//           }
+//         }
+//       }
+//     );
+
+//     res.json({
+//       message: `Loan with LAN ${lan} updated to ${status} in ${table}`,
+//     });
+//   });
+// });
+
+
+router.put("/login-loans/:lan", async (req, res) => {
+  try {
+    const lan = req.params.lan;
+    const { status, table } = req.body;
+
+    const allowedTables = {
     loan_bookings: true,
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
@@ -1434,96 +1542,59 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_hey_ev:true,
     loan_booking_emiclub: true,
     loan_booking_finso: true,
-    loan_bookinh_circle_pe: true,
-
+    loan_booking_circle_pe: true,
   };
 
-  if (!allowedTables[table]) {
-    return res.status(400).json({ message: "Invalid table name" });
-  }
+    if (!allowedTables[table]) return res.status(400).json({ message: "Invalid table name" });
+    if (!["Disburse initiate", "rejected"].includes(status)) return res.status(400).json({ message: "Invalid status value" });
 
-  if (!["Disburse initiate", "rejected"].includes(status)) {
-    return res.status(400).json({ message: "Invalid status value" });
-  }
+    const result = await db.query(`UPDATE ?? SET status = ? WHERE lan = ?`, [table, status, lan]);
+    if (result.affectedRows === 0) return res.status(404).json({ message: `Loan not found with LAN ${lan}` });
 
-  const query = `UPDATE ?? SET status = ? WHERE lan = ?`;
-  const values = [table, status, lan];
+    const [loan] = await db.query(`SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`, [table, lan]);
+    if (!loan) return res.json({ message: `Loan updated, but no details found for ${lan}` });
 
-  db.query(query, values, async (err, result) => {
-    if (err) {
-      console.error("Error updating loan status:", err);
-      return res.status(500).json({ message: "Database error", error: err });
+    const { customer_name, loan_amount, batch_id, partner_loan_id } = loan;
+    const tasks = [];
+
+    if (lan.startsWith("ADK")) {
+      tasks.push(sendLoanStatusMail({
+        to: [
+          "abhishek@getkosh.com",
+          "ravikumar@nfcpl.in",
+          "vineet.ranjan@getkosh.com",
+          "rajeev@nfcpl.in",
+          "sanika.gurav@fintreefinance.com",
+        ],
+        customerName: customer_name,
+        batchId: batch_id,
+        loanAmount: loan_amount,
+        status,
+      }));
     }
 
-    if (result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ message: `Loan not found with LAN ${lan}` });
+    if (lan.startsWith("FINS")) {
+      const webhookUrl = "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
+      tasks.push(axios.post(webhookUrl, {
+        lan,
+        status,
+        partner_loan_id,
+        customer_name,
+      }));
     }
 
-    // ✅ Fetch loan details for email + webhook
-    db.query(
-      `SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`,
-      [table, lan],
-      async (fetchErr, rows) => {
-        if (fetchErr) {
-          console.error("Error fetching loan details:", fetchErr);
-        } else if (rows.length > 0) {
-          const {
-            loan_amount: loanAmount,
-            customer_name: customerName,
-            batch_id: batchId,
-            partner_loan_id: partnerLoanId,
-          } = rows[0];
-
-          // ✅ EMAIL — for ADK loans only
-          if (lan.startsWith("ADK")) {
-            try {
-              await sendLoanStatusMail({
-                to: [
-                  "abhishek@getkosh.com",
-                  "ravikumar@nfcpl.in",
-                  "vineet.ranjan@getkosh.com",
-                  "rajeev@nfcpl.in",
-                  "sanika.gurav@fintreefinance.com",
-                ],
-                customerName,
-                batchId,
-                loanAmount,
-                status,
-              });
-              console.log(`Email sent for ${lan} (${status})`);
-            } catch (mailErr) {
-              console.error("Error sending email:", mailErr);
-            }
-          }
-
-          // ✅ WEBHOOK — for FINS loans only
-          if (lan.startsWith("FINS")) {
-            const webhookUrl =
-              "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
-            const payload = {
-              lan,
-              status,
-              partner_loan_id: partnerLoanId,
-              customer_name: customerName,
-            };
-
-            try {
-              await axios.post(webhookUrl, payload);
-              console.log(`✅ Webhook sent for ${lan} (${status})`);
-            } catch (webhookErr) {
-              console.error("❌ Error sending webhook:", webhookErr.message);
-            }
-          }
-        }
-      }
-    );
-
-    res.json({
-      message: `Loan with LAN ${lan} updated to ${status} in ${table}`,
+    // Run webhook and email in parallel, don’t block response for too long
+    Promise.allSettled(tasks).then(results => {
+      results.forEach(r => {
+        if (r.status === "rejected") console.error("Background task failed:", r.reason);
+      });
     });
-  });
+
+    res.json({ message: `Loan with LAN ${lan} updated to ${status} in ${table}` });
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Internal Server Error", error: err.message });
+  }
 });
 
 router.put("/approve-initiated-loans/:lan", (req, res) => {
@@ -1540,7 +1611,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_ev: true,
     loan_booking_hey_ev:true,
     loan_booking_finso: true,
-    loan_bookinh_circle_pe: true,
+    loan_booking_circle_pe: true,
   };
 
   if (!allowedTables[table]) {
@@ -3270,6 +3341,212 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
       "loan_tenure",
       "cibil_score",
       "product"
+    ];
+
+    const results = [];
+
+    for (const raw of records) {
+      try {
+        // ✅ Normalize aliases just in case upstream uses different keys
+        const data = {
+          ...raw,
+          account_number:
+            raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
+          ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
+          processing_fee: raw.processing_fee ?? 0.0,
+        };
+
+        // ✅ Required fields validation
+        const missingField = requiredFields.find(
+          (f) => data[f] === undefined || data[f] === null || data[f] === ""
+        );
+        if (missingField) {
+          results.push({ error: `${missingField} is required.`, data });
+          continue;
+        }
+        const customerName = `${data.first_name || ""} ${
+          data.last_name || ""
+        }`.trim();
+
+        // ✅ Duplicate check on PAN or Aadhar
+        const [existing] = await db
+          .promise()
+          .query(
+            `SELECT lan FROM loan_booking_finso WHERE pan_card = ? LIMIT 1`,
+            [data.pan_card]
+          );
+        if (existing.length > 0) {
+          results.push({
+            message: `Customer already exists for Pan: ${data.pan_card}`,
+            data,
+          });
+          continue;
+        }
+
+        // --- Generate loan code ---
+
+        const { lan } = await generateLoanIdentifiers(lenderType);
+
+        const agreementDate = data.login_date;
+        // ✅ Build values in the exact same order as COLS
+        const values = [
+          // lan / ids / dates
+          lan,
+          data.partner_loan_id,
+          data.login_date,
+
+          data.first_name,
+          data.middle_name ?? null,
+          data.last_name,
+          data.gender,
+          data.dob,
+          data.father_name,
+          data.mother_name ?? null,
+          data.mobile_number,
+          data.email,
+          // KYC
+          data.pan_card,
+          data.aadhar_number,
+          // addresses
+          data.address_line_1,
+          data.address_line_2 ?? null,
+          data.village,
+          data.district,
+          data.state,
+          data.pincode,
+          // business address
+          data.business_village ?? null,
+          data.business_district ?? null,
+          data.business_state ?? null,
+          data.business_pincode ?? null,
+          // loan
+          data.loan_amount,
+          data.interest_rate,
+          data.loan_tenure,
+          data.cibil_score ?? null,
+          data.product,
+          lenderType,
+          data.employment_type ?? null,
+          data.pre_emi ?? null,
+          data.processing_fee ?? 0.0,
+          data.disbursal_amount,
+          data.emi_amount ?? null,
+          data.apr ?? null,
+          agreementDate,
+          data.udyam_registration ?? null,
+          data.property_type ?? null,
+          // AA bank (aggregator) details
+          data.aa_bank_name ?? null,
+          data.aa_branch_name ?? null,
+          data.aa_account_type ?? null,
+          data.aa_name_in_bank ?? null,
+          data.aa_account_number ?? null,
+          data.aa_ifsc ?? null,
+          // disbursal bank
+          data.bank_name,
+          data.name_in_bank,
+          data.account_number,
+          data.ifsc,
+          customerName,
+        ];
+
+        // ✅ Defensive assertion (prevents the classic “count mismatch”)
+        if (values.length !== COLS.length) {
+          throw new Error(
+            `INSERT loan_booking_finso: values=${values.length} != columns=${COLS.length}`
+          );
+        }
+
+        // ✅ Insert record
+        await db.promise().query(INSERT_SQL, values);
+
+        results.push({
+          message: "Finso loan saved successfully.",
+          partner_loan_id: data.partner_loan_id,
+          lan,
+        });
+      } catch (e) {
+        // Granular DB errors
+        if (e?.code === "ER_DUP_ENTRY") {
+          results.push({
+            error: "Duplicate partner_loan_id / unique key violation.",
+            details: e.message,
+          });
+        } else if (e?.code === "ER_WRONG_VALUE_COUNT_ON_ROW") {
+          results.push({
+            error:
+              "Column/value count mismatch (defensive check should prevent this).",
+            details: e.message,
+          });
+        } else {
+          results.push({ error: e.sqlMessage || e.message || "Unknown error" });
+        }
+      }
+    }
+
+    return res.json({
+      message: "Finso upload completed.",
+      results,
+    });
+  } catch (error) {
+    console.error("❌ Error in Finso JSON Upload:", {
+      code: error.code,
+      errno: error.errno,
+      sqlState: error.sqlState,
+      message: error.sqlMessage || error.message,
+    });
+    return res.status(500).json({
+      message: "Upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
+router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
+  // Column list kept in ONE place to avoid mismatches
+  const COLS = [
+    "e_mandate_no",
+    "bank_name",
+    "name_in_bank",
+    "account_number",
+    "ifsc",
+  ];
+  const PLACEHOLDERS = `(${COLS.map(() => "?").join(",")})`;
+  const INSERT_SQL = `INSERT INTO loan_booking_finso (${COLS.join(
+    ", "
+  )}) VALUES ${PLACEHOLDERS}`;
+
+  try {
+    if (
+      !req.partner ||
+      (req.partner.name || "").toLowerCase().trim() !== "finso"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "This route is only for Finso partner." });
+    }
+    // ✅ Extract lender from header (case-insensitive)
+    const lenderTypeRaw = req.headers["x-lender"] ?? req.headers["lender"];
+    const lenderType = lenderTypeRaw?.toString().trim();
+
+    if (!lenderType) {
+      return res
+        .status(400)
+        .json({ message: "Lender header is required (x-lender: Finso)." });
+    }
+    if (lenderType.toLowerCase() !== "finso") {
+      return res.status(400).json({
+        message: `Invalid lender: ${lenderType}. Only 'Finso' loans can be inserted.`,
+      });
+    }
+
+    // Normalize payload to an array
+    let records = req.body;
+    if (!Array.isArray(records)) records = [records];
+
+    // Required fields for validation
+    const requiredFields = [
+      "lan",
     ];
 
     const results = [];

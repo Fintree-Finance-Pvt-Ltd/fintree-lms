@@ -20,7 +20,7 @@ function excelDateToJSDate(serial) {
 function toClientError(err) {
   return { message: err.message || String(err) };
 }
-
+    
 
 router.post("/upload-utr", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
@@ -82,6 +82,11 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_ev WHERE lan = ?`, [lan]
+          );
+           }else if (lan.startsWith("HEYEV")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_hey_ev WHERE lan = ?`, [lan]
           );
            } else if (lan.startsWith("CIRF")) {
           [loanRes] = await db.promise().query(
