@@ -3508,37 +3508,18 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
   }
 });
 
+// ✅ Update Finso Bank Details by LAN
 router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
-  // Column list kept in ONE place to avoid mismatches
-  const COLS = [
-    "e_mandate_no",
-    "bank_name",
-    "name_in_bank",
-    "account_number",
-    "ifsc",
-  ];
-  const PLACEHOLDERS = `(${COLS.map(() => "?").join(",")})`;
-  const INSERT_SQL = `INSERT INTO loan_booking_finso (${COLS.join(
-    ", "
-  )}) VALUES ${PLACEHOLDERS}`;
-
   try {
-    if (
-      !req.partner ||
-      (req.partner.name || "").toLowerCase().trim() !== "finso"
-    ) {
-      return res
-        .status(403)
-        .json({ message: "This route is only for Finso partner." });
+    if (!req.partner || (req.partner.name || "").toLowerCase().trim() !== "finso") {
+      return res.status(403).json({ message: "This route is only for Finso partner." });
     }
-    // ✅ Extract lender from header (case-insensitive)
+
     const lenderTypeRaw = req.headers["x-lender"] ?? req.headers["lender"];
     const lenderType = lenderTypeRaw?.toString().trim();
 
     if (!lenderType) {
-      return res
-        .status(400)
-        .json({ message: "Lender header is required (x-lender: Finso)." });
+      return res.status(400).json({ message: "Lender header is required (x-lender: Finso)." });
     }
     if (lenderType.toLowerCase() !== "finso") {
       return res.status(400).json({
@@ -3546,95 +3527,72 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
       });
     }
 
-    // Normalize payload to an array
+    // Normalize input
     let records = req.body;
     if (!Array.isArray(records)) records = [records];
 
-    // Required fields for validation
     const requiredFields = [
-    "lan",
-    "e_mandate_no",
-    "bank_name",
-    "name_in_bank",
-    "account_number",
-    "ifsc",
+      "lan",
+      "e_mandate_no",
+      "bank_name",
+      "name_in_bank",
+      "account_number",
+      "ifsc",
     ];
 
     const results = [];
 
     for (const raw of records) {
-      try {
-        // ✅ Normalize aliases just in case upstream uses different keys
-        const data = {
-          ...raw,
-          account_number:
-            raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
-          ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
-        };
+      const data = {
+        ...raw,
+        account_number: raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
+        ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
+      };
 
-        // ✅ Required fields validation
-        const missingField = requiredFields.find(
-          (f) => data[f] === undefined || data[f] === null || data[f] === ""
-        );
-        if (missingField) {
-          results.push({ error: `${missingField} is required.`, data });
-          continue;
-        }
-       
-
-        // ✅ Duplicate check on PAN or Aadhar
-        const [existing] = await db
-          .promise()
-          .query(
-            `SELECT customer_id FROM loan_booking_finso WHERE lan = ? LIMIT 1`,
-            [data.lan]
-          );
-        if (existing.length == 0) {
-          results.push({
-            message: `Customer not found for lan: ${data.lan}`,
-            data,
-          });
-          continue;
-        }
-        const values = [
-          data.e_mandate_no,
-          data.bank_name,
-          data.name_in_bank,
-          data.account_number,
-          data.ifsc,
-        ];
-
-        // ✅ Defensive assertion (prevents the classic “count mismatch”)
-        if (values.length !== COLS.length) {
-          throw new Error(
-            `INSERT loan_booking_finso: values=${values.length} != columns=${COLS.length}`
-          );
-        }
-
-        // ✅ Insert record
-        await db.promise().query(INSERT_SQL, values);
-
-        results.push({
-          message: "Finso loan bank details saved successfully.",
-          lan: data.lan,
-        });
-      } catch (e) {
-        // Granular DB errors
-        if (e?.code === "ER_DUP_ENTRY") {
-          results.push({
-            error: "Duplicate partner_loan_id / unique key violation.",
-            details: e.message,
-          });
-        } else if (e?.code === "ER_WRONG_VALUE_COUNT_ON_ROW") {
-          results.push({
-            error:
-              "Column/value count mismatch (defensive check should prevent this).",
-            details: e.message,
-          });
-        } else {
-          results.push({ error: e.sqlMessage || e.message || "Unknown error" });
-        }
+      const missingField = requiredFields.find(
+        (f) => data[f] === undefined || data[f] === null || data[f] === ""
+      );
+      if (missingField) {
+        results.push({ error: `${missingField} is required.`, data });
+        continue;
       }
+
+      // ✅ Update existing record where LAN matches
+      const [existing] = await db
+        .promise()
+        .query(`SELECT lan FROM loan_booking_finso WHERE lan = ? LIMIT 1`, [data.lan]);
+
+      if (existing.length === 0) {
+        results.push({ message: `Customer not found for lan: ${data.lan}`, data });
+        continue;
+      }
+
+      const UPDATE_SQL = `
+        UPDATE loan_booking_finso
+        SET 
+          e_mandate_no = ?,
+          bank_name = ?,
+          name_in_bank = ?,
+          account_number = ?,
+          ifsc = ?
+        WHERE lan = ?
+      `;
+
+      const values = [
+        data.e_mandate_no,
+        data.bank_name,
+        data.name_in_bank,
+        data.account_number,
+        data.ifsc,
+        data.lan,
+      ];
+
+      await db.promise().query(UPDATE_SQL, values);
+
+      results.push({
+        message: "Finso loan bank details updated successfully.",
+        lan: data.lan,
+      });
     }
 
     return res.json({
@@ -3642,18 +3600,14 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
       results,
     });
   } catch (error) {
-    console.error("❌ Error in Finso JSON Upload:", {
-      code: error.code,
-      errno: error.errno,
-      sqlState: error.sqlState,
-      message: error.sqlMessage || error.message,
-    });
+    console.error("❌ Error in Finso JSON Upload:", error);
     return res.status(500).json({
       message: "Upload failed. Please try again.",
       error: error.sqlMessage || error.message,
     });
   }
 });
+
 
 //////////////// LOAN BOOKING FOR EMICLUB  //////////////////////
 // routes/loanBookingEmiclub.js
