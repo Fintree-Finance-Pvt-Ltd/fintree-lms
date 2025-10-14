@@ -3549,7 +3549,12 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
 
     // Required fields for validation
     const requiredFields = [
-      "lan",
+    "lan",
+    "e_mandate_no",
+    "bank_name",
+    "name_in_bank",
+    "account_number",
+    "ifsc",
     ];
 
     const results = [];
@@ -3562,7 +3567,6 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
           account_number:
             raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
           ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
-          processing_fee: raw.processing_fee ?? 0.0,
         };
 
         // ✅ Required fields validation
@@ -3573,90 +3577,27 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
           results.push({ error: `${missingField} is required.`, data });
           continue;
         }
-        const customerName = `${data.first_name || ""} ${
-          data.last_name || ""
-        }`.trim();
+       
 
         // ✅ Duplicate check on PAN or Aadhar
         const [existing] = await db
           .promise()
           .query(
-            `SELECT lan FROM loan_booking_finso WHERE pan_card = ? LIMIT 1`,
-            [data.pan_card]
+            `SELECT id FROM loan_booking_finso WHERE lan = ? LIMIT 1`,
+            [data.lan]
           );
-        if (existing.length > 0) {
+        if (existing.length == 0) {
           results.push({
-            message: `Customer already exists for Pan: ${data.pan_card}`,
+            message: `Customer not found for lan: ${data.lan}`,
             data,
           });
           continue;
         }
-
-        // --- Generate loan code ---
-
-        const { lan } = await generateLoanIdentifiers(lenderType);
-
-        const agreementDate = data.login_date;
-        // ✅ Build values in the exact same order as COLS
         const values = [
-          // lan / ids / dates
-          lan,
-          data.partner_loan_id,
-          data.login_date,
-
-          data.first_name,
-          data.middle_name ?? null,
-          data.last_name,
-          data.gender,
-          data.dob,
-          data.father_name,
-          data.mother_name ?? null,
-          data.mobile_number,
-          data.email,
-          // KYC
-          data.pan_card,
-          data.aadhar_number,
-          // addresses
-          data.address_line_1,
-          data.address_line_2 ?? null,
-          data.village,
-          data.district,
-          data.state,
-          data.pincode,
-          // business address
-          data.business_village ?? null,
-          data.business_district ?? null,
-          data.business_state ?? null,
-          data.business_pincode ?? null,
-          // loan
-          data.loan_amount,
-          data.interest_rate,
-          data.loan_tenure,
-          data.cibil_score ?? null,
-          data.product,
-          lenderType,
-          data.employment_type ?? null,
-          data.pre_emi ?? null,
-          data.processing_fee ?? 0.0,
-          data.disbursal_amount,
-          data.emi_amount ?? null,
-          data.apr ?? null,
-          agreementDate,
-          data.udyam_registration ?? null,
-          data.property_type ?? null,
-          // AA bank (aggregator) details
-          data.aa_bank_name ?? null,
-          data.aa_branch_name ?? null,
-          data.aa_account_type ?? null,
-          data.aa_name_in_bank ?? null,
-          data.aa_account_number ?? null,
-          data.aa_ifsc ?? null,
-          // disbursal bank
           data.bank_name,
           data.name_in_bank,
           data.account_number,
           data.ifsc,
-          customerName,
         ];
 
         // ✅ Defensive assertion (prevents the classic “count mismatch”)
@@ -3670,8 +3611,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
         await db.promise().query(INSERT_SQL, values);
 
         results.push({
-          message: "Finso loan saved successfully.",
-          partner_loan_id: data.partner_loan_id,
+          message: "Finso loan bank details saved successfully.",
           lan,
         });
       } catch (e) {
@@ -3694,7 +3634,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
     }
 
     return res.json({
-      message: "Finso upload completed.",
+      message: "Finso bank details uploaded successfully.",
       results,
     });
   } catch (error) {
