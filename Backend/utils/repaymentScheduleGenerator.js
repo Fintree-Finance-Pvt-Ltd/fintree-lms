@@ -1078,12 +1078,13 @@ const generateRepaymentScheduleCirclePE = async (
     rpsData.push([
       lan,
       finalDue.toISOString().split("T")[0],
-      totalInterest + loanAmount,             // emi (single payment)
+      Number(totalInterest) + Number(loanAmount),
+             // emi (single payment)
       totalInterest,            // interest
       loanAmount,               // principal
       loanAmount,               // remaining_principal
       totalInterest,            // remaining_interest
-      totalPayable,             // remaining_emi
+      Number(totalInterest) + Number(loanAmount),             // remaining_emi
       openingPrincipal,         // opening
       0,                        // closing
       "Pending",                // status
