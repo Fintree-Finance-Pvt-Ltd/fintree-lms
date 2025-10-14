@@ -304,28 +304,17 @@ else if (lender === "Circlepe" && (product === "Monthly Loan" || product === "Bu
 }
 
 
-// ✅ HEY EV Loan : Monthly Loan (timezone-safe fix)
+  // ✅ HEY EV Loan : Monthly Loan
 else if (lender === "HEY EV Loan") {
-  // Normalize to local date so 19 Sep stays 19 Sep (not 18 Sep UTC)
-  const localDisbDate = new Date(
-    disbDate.getFullYear(),
-    disbDate.getMonth(),
-    disbDate.getDate()
-  );
+    const dueDate = new Date(disbDate);
+    dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
 
-  const dueDate = new Date(localDisbDate);
-  dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
+    // Keep the same day as disbursement
+    dueDate.setDate(new Date(disbDate).getDate());
 
-  // Keep the same local calendar day
-  const disbDay = localDisbDate.getDate();
-  dueDate.setDate(disbDay);
-
-  console.log(
-    `[HEY EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`
-  );
-  return dueDate;
+    console.log(`[HEY EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
+    return dueDate;
 }
-
     // ///////////////////
 
 
