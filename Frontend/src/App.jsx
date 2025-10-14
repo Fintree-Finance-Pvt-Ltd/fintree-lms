@@ -35,6 +35,10 @@ import AdikoshDisbursedLoans from "./components/AdikoshDisbursedLoans";
 import AdikoshAllLoans from "./components/AdikoshAllLoans";
 import CirclePEApprovedLoans from "./components/CirclePeApprovedLoans";
 import CirclePEDisbursedLoans from "./components/CirclePeDisbursedLoans";
+import CirclePeActionScreen from "./components/CirclePeActionScreen";
+import CirclePeAllLoans from "./components/CirclePeAllLoans";
+import CirclePeApproveInitiateScreen from "./components/CirclePeApproveInitiateScreen";
+import CirclePeLoginLoans from "./components/CirclePeLoginLoans";
 import ElysiumApprovedLoans from "./components/ElysiumApprovedLoans";
 import ElysiumDisbursedLoans from "./components/ElysiumDisbursedLoans";
 import UploadUTR from "./components/UploadUTR";
@@ -654,6 +658,42 @@ function App() {
               </PermissionRoute>
             }
           />
+          <Route
+            path="/circlepe-loans/all"
+            element={
+              <PermissionRoute pageName="CirclePe All Loans">
+                <FinsoAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-loans/login-cases"
+            element={
+              <PermissionRoute pageName="CirclePe Login Loans">
+                <FinsoLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/circlepe-loans/login-actions"
+            element={
+              <PermissionRoute pageName="CirclePe Login Actions">
+                <FinsoActionScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/circlepe-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="CirclePe Disburse Initiated">
+                <FinsoApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+
           <Route
             path="/elysium-loans/approved"
             element={
