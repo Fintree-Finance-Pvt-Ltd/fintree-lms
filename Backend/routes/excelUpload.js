@@ -3586,7 +3586,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
         const [existing] = await db
           .promise()
           .query(
-            `SELECT id FROM loan_booking_finso WHERE lan = ? LIMIT 1`,
+            `SELECT customer_id FROM loan_booking_finso WHERE lan = ? LIMIT 1`,
             [data.lan]
           );
         if (existing.length == 0) {
@@ -3637,7 +3637,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
     }
 
     return res.json({
-      message: "Finso bank details uploaded successfully.",
+      message: "Finso bank details processed successfully.",
       results,
     });
   } catch (error) {
