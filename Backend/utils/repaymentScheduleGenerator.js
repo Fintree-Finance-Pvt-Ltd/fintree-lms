@@ -3185,7 +3185,7 @@ const generateRepaymentSchedule = async (
       lender
     );
   }
-    else if (lender === "Circle Pe" ) {
+    else if (lender === "Circlepe" ) {
     await generateRepaymentScheduleCirclePE(
       conn,
       lan,
