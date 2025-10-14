@@ -44,6 +44,9 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "Adikosh") {
     prefixPartnerLoan = "ADK1";
     prefixLan = "ADKF1";
+    } else if (lender === "Circle PE") {
+    prefixPartnerLoan = "FCIR1";
+    prefixLan = "CIRF1";
   } else if (lender === "emiclub") {
     //prefixPartnerLosan = "FINE1";
     prefixLan = "FINE1";
@@ -4850,50 +4853,55 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        // Insert record
-        await db.promise().query(
-          `INSERT INTO loan_booking_circle_pe (
-            login_date, lan, partner_loan_id, app_id, customer_name, gender, dob,
-            father_name, mobile_number, email_id, pan_number, aadhar_number, current_address,
-            current_pincode, loan_amount, interest_rate, loan_tenure, emi_amount, cibil_score,
-            product, lender, residence_type, customer_type, bank_name, name_in_bank,
-            account_number, ifsc, net_disbursement, agreement_date, status
-          ) VALUES (${new Array(30).fill("?").join(",")})`,
-          [
-            row["loan_application_date"] ? excelDateToJSDate(row["loan_application_date"])
-                : null,
-            lan,
-            partnerLoanId,
-            row ["App_Id"],
-            row["customer_name"],
-            row["gender"],
-            row["date_of_birth"] ? excelDateToJSDate(row["date_of_birth"])
-                : null,
-            row["fathers_name"],
-            row["mobile_number"],
-            row["email_id"],
-            panCard,
-            aadharNumber,
-            row["current_address_line1"],
-            row["current_address_pincode"],
-            parse(row["loan_amount_sanctioned"]),
-            parse(row["interest_percent"]),
-            parse(row["loan_tenure_months"]),
-            parse(row["monthly_emi"]),
-            cibilScore,
-            row["product"],
-            row["LenderType"] || lenderType,
-            row["residence_type"],
-            row["customer_type"],
-            row["bank_name"],
-            row["beneficiary_name"],
-            row["institute_account_number"],
-            row["ifsc_code"],
-            parse(row["loan_amount_sanctioned"]), // net_disbursement = loan_amount
-            row["loan_application_date"] || null, // agreement_date = login_date
-            "Login",
-          ]
-        );
+       await db.promise().query(
+  `INSERT INTO loan_booking_circle_pe (
+    login_date, lan, partner_loan_id, app_id, customer_name, gender, dob,
+    father_name, mobile_number, email_id, pan_number, aadhar_number,
+    current_address, current_pincode, loan_amount, interest_rate,
+    loan_tenure, emi_amount, cibil_score, product, lender, residence_type,
+    customer_type, bank_name, name_in_bank, account_number, ifsc,
+    net_disbursement, agreement_date, status
+  ) VALUES (${new Array(30).fill("?").join(",")})`,
+  [
+    row["loan_application_date"] ? excelDateToJSDate (row["loan_application_date"]) :null,
+    lan,
+    partnerLoanId,
+    row["App_Id"] || row["app_id"],
+    row["customer_name"],
+    row["gender"],
+    row["date_of_birth"] ? excelDateToJSDate (row["date_of_birth"]) : null,
+    row["fathers_name"],
+    row["mobile_number"],
+    row["email_id"],
+    row["pan_number"],
+    row["aadhaar_number"],
+    row["current_address_line1"],
+    row["current_address_pincode"],
+    parse(row["loan amount sanctioned"] || row["loan_amount_sanctioned"]),
+    parse(row["interest_percent"]),
+    parse(row["loan_tenure_months"]),
+    parse(row["monthly emi"] || row["monthly_emi"]),
+    parseInt(row["credit_score"]),
+    row["product"],
+    row["LenderType"] || lenderType,
+    row["residence_type"],
+    row["customer_type"],
+    row["bank_name"],
+    row["beneficiary_name"],
+    row["institute_account_number"],
+    row["ifsc_code"],
+    parse(row["loan amount sanctioned"] || row["loan_amount_sanctioned"]), // net_disbursement
+     row["loan_application_date"] ? excelDateToJSDate (row["loan_application_date"]) :null, // agreement date
+    "Login",
+  ]
+);
+
+
+console.log( parse(row["loan amount sanctioned"]),
+            row["interest_percent"],
+            row["loan_tenure_months"],
+            parse(row["monthly emi"]),)
+
 
         success_rows.push(R);
       } catch (err) {

@@ -279,6 +279,31 @@ else if (lender === "EV Loan" && product === "Monthly Loan") {
     return dueDate;
 }
 
+  // ✅ Circle pe Loan : Monthly Loan and Bullet Loan
+// ✅ Circlepe Loan: Monthly Loan and Bullet Loan
+else if (lender === "Circlepe" && (product === "Monthly Loan" || product === "Bullet Loan")) {
+  const disb = new Date(disbDate);
+  const day = disb.getDate();
+  const dueDate = new Date(disb);
+
+  if (day >= 1 && day <= 25) {
+    // If disbursed on 1st–25th → next month 5th
+    dueDate.setMonth(dueDate.getMonth() + 1);
+    dueDate.setDate(5);
+  } else {
+    // If disbursed on 26th–end of month → month after next 5th
+    dueDate.setMonth(dueDate.getMonth() + 2);
+    dueDate.setDate(5);
+  }
+
+  console.log(
+    `[EV Monthly Loan] Disbursed: ${disb.toISOString().split("T")[0]} | EMI due: ${dueDate.toISOString().split("T")[0]}`
+  );
+
+  return dueDate;
+}
+
+
   // ✅ HEY EV Loan : Monthly Loan
 else if (lender === "HEY EV Loan") {
     const dueDate = new Date(disbDate);
