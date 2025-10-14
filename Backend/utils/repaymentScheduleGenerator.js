@@ -1078,7 +1078,7 @@ const generateRepaymentScheduleCirclePE = async (
     rpsData.push([
       lan,
       finalDue.toISOString().split("T")[0],
-      totalPayable,             // emi (single payment)
+      totalInterest + loanAmount,             // emi (single payment)
       totalInterest,            // interest
       loanAmount,               // principal
       loanAmount,               // remaining_principal
