@@ -1230,6 +1230,7 @@ router.get("/login-loans", (req, res) => {
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
     loan_booking_finso: true,
+    loan_booking_circle_pe: true,
   };
 
   if (!allowedTables[table]) {
@@ -1261,6 +1262,7 @@ router.get("/approve-initiate-loans", (req, res) => {
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
     loan_booking_finso: true,
+    loan_booking_circle_pe: true,
   };
 
   if (!allowedTables[table]) {
@@ -1329,6 +1331,7 @@ router.get("/approved-loans", (req, res) => {
     loan_booking_emiclub: true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
+    loan_booking_circle_pe: true,
   };
 
   if (!allowedTables[table]) {
@@ -1423,119 +1426,11 @@ WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?
 
 /////////////////////////////////////////////////////////////////////////////////////
 
-// router.put("/login-loans/:lan", (req, res) => {
-//   const lan = req.params.lan;
-//   const { status, table } = req.body;
+router.put("/login-loans/:lan", (req, res) => {
+  const lan = req.params.lan;
+  const { status, table } = req.body;
 
-  // const allowedTables = {
-  //   loan_bookings: true,
-  //   loan_booking_adikosh: true,
-  //   loan_booking_gq_non_fsf: true,
-  //   loan_booking_gq_fsf: true,
-  //   loan_bookings_wctl: true,
-  //   loan_booking_ev: true,
-  //   loan_booking_hey_ev:true,
-  //   loan_booking_emiclub: true,
-  //   loan_booking_finso: true,
-  //   loan_booking_circle_pe: true,
-
-  // };
-
-//   if (!allowedTables[table]) {
-//     return res.status(400).json({ message: "Invalid table name" });
-//   }
-
-//   if (!["Disburse initiate", "rejected"].includes(status)) {
-//     return res.status(400).json({ message: "Invalid status value" });
-//   }
-
-//   const query = `UPDATE ?? SET status = ? WHERE lan = ?`;
-//   const values = [table, status, lan];
-
-//   db.query(query, values, async (err, result) => {
-//     if (err) {
-//       console.error("Error updating loan status:", err);
-//       return res.status(500).json({ message: "Database error", error: err });
-//     }
-
-//     if (result.affectedRows === 0) {
-//       return res
-//         .status(404)
-//         .json({ message: `Loan not found with LAN ${lan}` });
-//     }
-
-//     // ✅ Fetch loan details for email + webhook
-//     db.query(
-//       `SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`,
-//       [table, lan],
-//       async (fetchErr, rows) => {
-//         if (fetchErr) {
-//           console.error("Error fetching loan details:", fetchErr);
-//         } else if (rows.length > 0) {
-//           const {
-//             loan_amount: loanAmount,
-//             customer_name: customerName,
-//             batch_id: batchId,
-//             partner_loan_id: partnerLoanId,
-//           } = rows[0];
-
-//           // ✅ EMAIL — for ADK loans only
-//           if (lan.startsWith("ADK")) {
-//             try {
-//               await sendLoanStatusMail({
-//                 to: [
-//                   "abhishek@getkosh.com",
-//                   "ravikumar@nfcpl.in",
-//                   "vineet.ranjan@getkosh.com",
-//                   "rajeev@nfcpl.in",
-//                   "sanika.gurav@fintreefinance.com",
-//                 ],
-//                 customerName,
-//                 batchId,
-//                 loanAmount,
-//                 status,
-//               });
-//               console.log(`Email sent for ${lan} (${status})`);
-//             } catch (mailErr) {
-//               console.error("Error sending email:", mailErr);
-//             }
-//           }
-
-//           // ✅ WEBHOOK — for FINS loans only
-//           if (lan.startsWith("FINS")) {
-//             const webhookUrl =
-//               "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
-//             const payload = {
-//               lan,
-//               status,
-//               partner_loan_id: partnerLoanId,
-//               customer_name: customerName,
-//             };
-
-//             try {
-//               await axios.post(webhookUrl, payload);
-//               console.log(`✅ Webhook sent for ${lan} (${status})`);
-//             } catch (webhookErr) {
-//               console.error("❌ Error sending webhook:", webhookErr.message);
-//             }
-//           }
-//         }
-//       }
-//     );
-
-//     res.json({
-//       message: `Loan with LAN ${lan} updated to ${status} in ${table}`,
-//     });
-//   });
-// });
-
-
-router.put("/login-loans/:lan", async (req, res) => {
-  try {
-    const lan = req.params.lan;
-    const { status, table } = req.body;
-
-    const allowedTables = {
+  const allowedTables = {
     loan_bookings: true,
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
@@ -1546,59 +1441,167 @@ router.put("/login-loans/:lan", async (req, res) => {
     loan_booking_emiclub: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
+
   };
 
-    if (!allowedTables[table]) return res.status(400).json({ message: "Invalid table name" });
-    if (!["Disburse initiate", "rejected"].includes(status)) return res.status(400).json({ message: "Invalid status value" });
-
-    const result = await db.query(`UPDATE ?? SET status = ? WHERE lan = ?`, [table, status, lan]);
-    if (result.affectedRows === 0) return res.status(404).json({ message: `Loan not found with LAN ${lan}` });
-
-    const [loan] = await db.query(`SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`, [table, lan]);
-    if (!loan) return res.json({ message: `Loan updated, but no details found for ${lan}` });
-
-    const { customer_name, loan_amount, batch_id, partner_loan_id } = loan;
-    const tasks = [];
-
-    if (lan.startsWith("ADK")) {
-      tasks.push(sendLoanStatusMail({
-        to: [
-          "abhishek@getkosh.com",
-          "ravikumar@nfcpl.in",
-          "vineet.ranjan@getkosh.com",
-          "rajeev@nfcpl.in",
-          "sanika.gurav@fintreefinance.com",
-        ],
-        customerName: customer_name,
-        batchId: batch_id,
-        loanAmount: loan_amount,
-        status,
-      }));
-    }
-
-    if (lan.startsWith("FINS")) {
-      const webhookUrl = "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
-      tasks.push(axios.post(webhookUrl, {
-        lan,
-        status,
-        partner_loan_id,
-        customer_name,
-      }));
-    }
-
-    // Run webhook and email in parallel, don’t block response for too long
-    Promise.allSettled(tasks).then(results => {
-      results.forEach(r => {
-        if (r.status === "rejected") console.error("Background task failed:", r.reason);
-      });
-    });
-
-    res.json({ message: `Loan with LAN ${lan} updated to ${status} in ${table}` });
-  } catch (err) {
-    console.error("Error:", err);
-    res.status(500).json({ message: "Internal Server Error", error: err.message });
+  if (!allowedTables[table]) {
+    return res.status(400).json({ message: "Invalid table name" });
   }
+
+  if (!["Disburse initiate", "rejected"].includes(status)) {
+    return res.status(400).json({ message: "Invalid status value" });
+  }
+
+  const query = `UPDATE ?? SET status = ? WHERE lan = ?`;
+  const values = [table, status, lan];
+
+  db.query(query, values, async (err, result) => {
+    if (err) {
+      console.error("Error updating loan status:", err);
+      return res.status(500).json({ message: "Database error", error: err });
+    }
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(404)
+        .json({ message: `Loan not found with LAN ${lan}` });
+    }
+
+    // ✅ Fetch loan details for email + webhook
+    db.query(
+      `SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`,
+      [table, lan],
+      async (fetchErr, rows) => {
+        if (fetchErr) {
+          console.error("Error fetching loan details:", fetchErr);
+        } else if (rows.length > 0) {
+          const {
+            loan_amount: loanAmount,
+            customer_name: customerName,
+            batch_id: batchId,
+            partner_loan_id: partnerLoanId,
+          } = rows[0];
+
+          // ✅ EMAIL — for ADK loans only
+          if (lan.startsWith("ADK")) {
+            try {
+              await sendLoanStatusMail({
+                to: [
+                  "abhishek@getkosh.com",
+                  "ravikumar@nfcpl.in",
+                  "vineet.ranjan@getkosh.com",
+                  "rajeev@nfcpl.in",
+                  "sanika.gurav@fintreefinance.com",
+                ],
+                customerName,
+                batchId,
+                loanAmount,
+                status,
+              });
+              console.log(`Email sent for ${lan} (${status})`);
+            } catch (mailErr) {
+              console.error("Error sending email:", mailErr);
+            }
+          }
+
+          // ✅ WEBHOOK — for FINS loans only
+          if (lan.startsWith("FINS")) {
+            const webhookUrl =
+              "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
+            const payload = {
+              lan,
+              status,
+              partner_loan_id: partnerLoanId,
+              customer_name: customerName,
+            };
+
+            try {
+              await axios.post(webhookUrl, payload);
+              console.log(`✅ Webhook sent for ${lan} (${status})`);
+            } catch (webhookErr) {
+              console.error("❌ Error sending webhook:", webhookErr.message);
+            }
+          }
+        }
+      }
+    );
+
+    res.json({
+      message: `Loan with LAN ${lan} updated to ${status} in ${table}`,
+    });
+  });
 });
+
+
+// router.put("/login-loans/:lan", async (req, res) => {
+//   try {
+//     const lan = req.params.lan;
+//     const { status, table } = req.body;
+
+//     const allowedTables = {
+//     loan_bookings: true,
+//     loan_booking_adikosh: true,
+//     loan_booking_gq_non_fsf: true,
+//     loan_booking_gq_fsf: true,
+//     loan_bookings_wctl: true,
+//     loan_booking_ev: true,
+//     loan_booking_hey_ev:true,
+//     loan_booking_emiclub: true,
+//     loan_booking_finso: true,
+//     loan_booking_circle_pe: true,
+//   };
+
+//     if (!allowedTables[table]) return res.status(400).json({ message: "Invalid table name" });
+//     if (!["Disburse initiate", "rejected"].includes(status)) return res.status(400).json({ message: "Invalid status value" });
+
+//     const result = await db.query(`UPDATE ?? SET status = ? WHERE lan = ?`, [table, status, lan]);
+//     if (result.affectedRows === 0) return res.status(404).json({ message: `Loan not found with LAN ${lan}` });
+
+//     const [loan] = await db.query(`SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`, [table, lan]);
+//     if (!loan) return res.json({ message: `Loan updated, but no details found for ${lan}` });
+
+//     const { customer_name, loan_amount, batch_id, partner_loan_id } = loan;
+//     const tasks = [];
+
+//     if (lan.startsWith("ADK")) {
+//       tasks.push(sendLoanStatusMail({
+//         to: [
+//           "abhishek@getkosh.com",
+//           "ravikumar@nfcpl.in",
+//           "vineet.ranjan@getkosh.com",
+//           "rajeev@nfcpl.in",
+//           "sanika.gurav@fintreefinance.com",
+//         ],
+//         customerName: customer_name,
+//         batchId: batch_id,
+//         loanAmount: loan_amount,
+//         status,
+//       }));
+//     }
+
+//     if (lan.startsWith("FINS")) {
+//       const webhookUrl = "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
+//       tasks.push(axios.post(webhookUrl, {
+//         lan,
+//         status,
+//         partner_loan_id,
+//         customer_name,
+//       }));
+//     }
+
+//     // Run webhook and email in parallel, don’t block response for too long
+//     Promise.allSettled(tasks).then(results => {
+//       results.forEach(r => {
+//         if (r.status === "rejected") console.error("Background task failed:", r.reason);
+//       });
+//     });
+
+//     res.json({ message: `Loan with LAN ${lan} updated to ${status} in ${table}` });
+//   } catch (err) {
+//     console.error("Error:", err);
+//     res.status(500).json({ message: "Internal Server Error", error: err.message });
+//   }
+// });
 
 router.put("/approve-initiated-loans/:lan", (req, res) => {
   const lan = req.params.lan;

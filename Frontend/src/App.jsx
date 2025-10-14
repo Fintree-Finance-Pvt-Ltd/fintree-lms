@@ -662,7 +662,7 @@ function App() {
             path="/circlepe-loans/all"
             element={
               <PermissionRoute pageName="CirclePe All Loans">
-                <FinsoAllLoans />
+                <CirclePeAllLoans />
               </PermissionRoute>
             }
           />
@@ -670,7 +670,7 @@ function App() {
             path="/circlepe-loans/login-cases"
             element={
               <PermissionRoute pageName="CirclePe Login Loans">
-                <FinsoLoginLoans />
+                <CirclePeLoginLoans />
               </PermissionRoute>
             }
           />
@@ -679,7 +679,7 @@ function App() {
             path="/circlepe-loans/login-actions"
             element={
               <PermissionRoute pageName="CirclePe Login Actions">
-                <FinsoActionScreen />
+                <CirclePeActionScreen />
               </PermissionRoute>
             }
           />
@@ -688,7 +688,7 @@ function App() {
             path="/circlepe-loans/approve-initiate-actions"
             element={
               <PermissionRoute pageName="CirclePe Disburse Initiated">
-                <FinsoApproveInitiateScreen />
+                <CirclePeApproveInitiateScreen />
               </PermissionRoute>
             }
           />
