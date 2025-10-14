@@ -1101,11 +1101,11 @@ const generateRepaymentScheduleCirclePE = async (
   );
 
   // ===================================================
-  // 💾 Update EMI in loan_booking_circlepe
+  // 💾 Update EMI in loan_booking_circle_pe
   // ===================================================
   const updateEmiValue = isBullet ? 0 : emi;
   await conn.query(
-    `UPDATE loan_booking_circlepe
+    `UPDATE loan_booking_circle_pe
      SET emi_amount = ?
      WHERE lan = ?`,
     [updateEmiValue, lan]
