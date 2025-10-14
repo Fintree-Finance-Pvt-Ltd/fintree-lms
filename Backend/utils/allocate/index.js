@@ -36,6 +36,7 @@ const allocateBL = require("./allocateBL");
 const allocateEmbifi = require("./allocateEmbifi");
 const allocateFinso = require("./allocateFinso");
 const allocateHEYEV = require("./allocateHeyEV");
+const allocateCirclePE = require("./allocateCirclePE");
 
 /**
  * Utility helpers for merging allocation results.
@@ -79,6 +80,8 @@ const allocateRepaymentByLAN = async (lan, payment) => {
     return allocateFinso(lan, payment);
   } else if (lan.startsWith("BL")) {
     return allocateBL(lan, payment);
+     } else if (lan.startsWith("CIRF")) {
+    return allocateCirclePE(lan, payment);
   } else if (lan.startsWith("GQN")) {
     const promises = [
       allocateGQNonFSF(lan, payment),
