@@ -3617,7 +3617,6 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
 //     if (!req.partner || (req.partner.name || '').toLowerCase().trim() !== 'emiclub') {
 //       return res.status(403).json({ message: 'This route is only for Emiclub partner.' });
 //     }
-
 //     const data = req.body;
 //     console.log("Received JSON:", data);
 
