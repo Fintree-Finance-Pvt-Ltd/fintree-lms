@@ -3616,7 +3616,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
 
         results.push({
           message: "Finso loan bank details saved successfully.",
-          lan,
+          lan: data.lan,
         });
       } catch (e) {
         // Granular DB errors
