@@ -3597,6 +3597,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
           continue;
         }
         const values = [
+          data.e_mandate_no,
           data.bank_name,
           data.name_in_bank,
           data.account_number,
