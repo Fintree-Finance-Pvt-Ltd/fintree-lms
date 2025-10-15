@@ -4033,398 +4033,6 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
 
 ////console sajag jain code running comment  ///////////////
 
-router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
-  try {
-    console.log(
-      "================= 📦 NEW EMICLUB REQUEST START ================="
-    );
-    console.log("🔹 Timestamp:", new Date().toISOString());
-
-    // --- Log all ENV variables used ---
-    console.log("🔧 ENV:: EXPERIAN_URL =", process.env.EXPERIAN_URL);
-    console.log("🔧 ENV:: EXPERIAN_USER =", process.env.EXPERIAN_USER);
-    console.log("🔧 ENV:: EXPERIAN_PASSWORD =", process.env.EXPERIAN_PASSWORD);
-    console.log("🔧 ENV:: DB_CONNECTED =", !!db ? "✅ Yes" : "❌ No");
-
-    // --- Partner validation ---
-    console.log("👥 Partner received:", req.partner);
-    if (
-      !req.partner ||
-      (req.partner.name || "").toLowerCase().trim() !== "emiclub"
-    ) {
-      console.error("❌ Partner validation failed!");
-      return res
-        .status(403)
-        .json({ message: "This route is only for Emiclub partner." });
-    }
-
-    // --- Body logging ---
-    const data = req.body;
-    console.log("📥 Received JSON payload:", JSON.stringify(data, null, 2));
-
-    // --- Lender type validation ---
-    const lenderType = data.lenderType?.trim()?.toLowerCase();
-    console.log("🏦 Lender type received:", lenderType);
-    if (!lenderType || lenderType !== "emiclub") {
-      console.error("❌ Invalid lenderType provided:", lenderType);
-      return res
-        .status(400)
-        .json({
-          message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
-        });
-    }
-
-    // --- Required field check ---
-    const requiredFields = [
-      "login_date",
-      "partner_loan_id",
-      "first_name",
-      "last_name",
-      "gender",
-      "dob",
-      "mobile_number",
-      "email_id",
-      "pan_number",
-      "aadhar_number",
-      "current_address",
-      "current_village_city",
-      "current_district",
-      "current_state",
-      "current_pincode",
-      "permanent_address",
-      "permanent_state",
-      "permanent_pincode",
-      "loan_amount",
-      "roi_apr",
-      "loan_tenure",
-      "bank_name",
-      "name_in_bank",
-      "account_number",
-      "ifsc",
-      "account_type",
-      "type_of_account",
-      "employment",
-      "annual_income",
-      "dealer_name",
-      "risk_category",
-      "customer_type",
-    ];
-
-    for (const field of requiredFields) {
-      if (!data[field] && data[field] !== 0) {
-        console.error(`❌ Missing field detected: ${field}`);
-        return res.status(400).json({ message: `${field} is required.` });
-      }
-    }
-    console.log("✅ All required fields present.");
-
-    // --- Duplicate PAN check ---
-    console.log("🔍 Checking existing PAN:", data.pan_number);
-    const [existing] = await db
-      .promise()
-      .query(`SELECT lan FROM loan_booking_emiclub WHERE pan_number = ?`, [
-        data.pan_number,
-      ]);
-    console.log(
-      "🧾 Duplicate check result:",
-      existing.length,
-      "records found."
-    );
-
-    if (existing.length > 0) {
-      console.error("❌ Duplicate PAN found:", data.pan_number);
-      return res.status(400).json({
-        message: `Customer already exists for Pan: ${data.pan_number}`,
-      });
-    }
-
-    // --- Generate loan code ---
-    console.log("⚙️ Generating LAN for lender:", lenderType);
-    const { lan } = await generateLoanIdentifiers(lenderType);
-    console.log("✅ Generated LAN:", lan);
-
-    const customer_name = `${data.first_name || ""} ${
-      data.last_name || ""
-    }`.trim();
-    const agreement_date = data.login_date;
-
-    // --- Determine interest rate ---
-const interest_rate =  data.roi_apr / 12;
-console.log("📈 Using interest rate:", interest_rate);
-
-    // --- Insert into DB ---
-    console.log("💾 Inserting customer record into loan_booking_emiclub...");
-    await db.promise().query(
-      `INSERT INTO loan_booking_emiclub (
-        lan, partner_loan_id, login_date, first_name, middle_name, last_name, gender, dob,
-        father_name, mother_name, mobile_number, email_id,
-        pan_number, aadhar_number, current_address, current_village_city, current_district, current_state, current_pincode,
-        permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
-        loan_amount, interest_rate, roi_apr, loan_tenure, emi_amount, cibil_score,
-        product, lender, bank_name, name_in_bank, account_number, ifsc,
-        account_type, type_of_account, net_disbursement, employment, risk_category, customer_type,
-        annual_income, dealer_name, dealer_mobile, dealer_address, dealer_city,
-        status, customer_name, agreement_date
-      )
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [
-        lan,
-        data.partner_loan_id,
-        data.login_date,
-        data.first_name,
-        data.middle_name || null,
-        data.last_name ,
-        data.gender,
-        data.dob,
-        data.father_name ,
-        data.mother_name ,
-        data.mobile_number,
-        data.email_id,
-        data.pan_number,
-        data.aadhar_number,
-        data.current_address,
-        data.current_village_city,
-        data.current_district,
-        data.current_state,
-        data.current_pincode,
-        data.permanent_address,
-        data.permanent_village_city || data.current_village_city,
-        data.permanent_district || data.current_district,
-        data.permanent_state,
-        data.permanent_pincode,
-        data.loan_amount,
-        interest_rate ,
-        data.roi_apr,
-        data.loan_tenure,
-        data.emi_amount,
-        data.cibil_score,
-        "Monthly Loan",
-        "EMICLUB",
-        data.bank_name,
-        data.name_in_bank,
-        data.account_number,
-        data.ifsc,
-        data.account_type,
-        data.type_of_account,
-        data.net_disbursement || data.loan_amount,
-        data.employment,
-        data.risk_category,
-        data.customer_type,
-        data.annual_income,
-        data.dealer_name,
-        data.dealer_mobile,
-        data.dealer_address,
-        data.dealer_city,
-        "Login",
-        customer_name,
-        agreement_date,
-      ]
-    );
-
-    ////  BEURO SCORE  CODE START/////
-    console.log("✅ Customer record inserted successfully.");
-    console.log ("cibil request data", "pan number :", data.pan_number, "loan amount :", data.loan_amount, "loan tenure :", data.loan_tenure, "first name :", data.first_name, "last name :", data.last_name, "mobile number :", data.mobile_number, "current address :", data.current_address, "current city :", data.current_village_city, "current state :", data.current_state, "current pincode :", data.current_pincode);
-    // --- Build SOAP XML ---
-    console.log("🧩 Building SOAP request body for Experian...");
-    const dobFormatted = data.dob.replace(/-/g, "");
-    console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
-    console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
-
-    const stateCodes = {
-  "JAMMU and KASHMIR": 1,
-  "HIMACHAL PRADESH": 2,
-  "PUNJAB": 3,
-  "CHANDIGARH": 4,
-  "UTTRANCHAL": 5,
-  "HARAYANA": 6,
-  "DELHI": 7,
-  "RAJASTHAN": 8,
-  "UTTAR PRADESH": 9,
-  "BIHAR": 10,
-  "SIKKIM": 11,
-  "ARUNACHAL PRADESH": 12,
-  "NAGALAND": 13,
-  "MANIPUR": 14,
-  "MIZORAM": 15,
-  "TRIPURA": 16,
-  "MEGHALAYA": 17,
-  "ASSAM": 18,
-  "WEST BENGAL": 19,
-  "JHARKHAND": 20,
-  "ORRISA": 21,
-  "CHHATTISGARH": 22,
-  "MADHYA PRADESH": 23,
-  "GUJRAT": 24,
-  "DAMAN and DIU": 25,
-  "DADARA and NAGAR HAVELI": 26,
-  "MAHARASHTRA": 27,
-  "ANDHRA PRADESH": 28,
-  "KARNATAKA": 29,
-  "GOA": 30,
-  "LAKSHADWEEP": 31,
-  "KERALA": 32,
-  "TAMIL NADU": 33,
-  "PONDICHERRY": 34,
-  "ANDAMAN and NICOBAR ISLANDS": 35,
-  "TELANGANA": 36
-};
-
-const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
-const state_code = stateCodes[state.toUpperCase()] ?? null;
-
-    const firstName = data.first_name.toUpperCase();
-    const lastName = data.last_name.toUpperCase();
-    const gender_code = (data.gender ?? 'Male') === 'Female' ? 2 : 1;
-    const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <urn:process>
-         <urn:in>
-            <INProfileRequest>
-    <Identification>
-       <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-<XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-    </Identification>
-    <Application>
-        <FTReferenceNumber></FTReferenceNumber>
-        <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>13</EnquiryReason>
-        <FinancePurpose>99</FinancePurpose>
-        <AmountFinanced>${data.loan_amount}</AmountFinanced>
-        <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-        <ScoreFlag>3</ScoreFlag>
-        <PSVFlag>0</PSVFlag>
-    </Application>
-    <Applicant>
-        <Surname>${lastName}</Surname>
-        <FirstName>${firstName}</FirstName>
-        <MiddleName1></MiddleName1>
-        <MiddleName2></MiddleName2>
-        <MiddleName3></MiddleName3>
-        <GenderCode>${gender_code}</GenderCode>
-        <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
-        <PANIssueDate></PANIssueDate>
-        <PANExpirationDate></PANExpirationDate>
-        <PassportNumber></PassportNumber>
-        <PassportIssueDate></PassportIssueDate>
-        <PassportExpirationDate></PassportExpirationDate>
-        <VoterIdentityCard></VoterIdentityCard>
-        <VoterIDIssueDate></VoterIDIssueDate>
-        <VoterIDExpirationDate></VoterIDExpirationDate>
-        <DriverLicenseNumber></DriverLicenseNumber>
-        <DriverLicenseIssueDate></DriverLicenseIssueDate>
-        <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
-        <RationCardNumber></RationCardNumber>
-        <RationCardIssueDate></RationCardIssueDate>
-        <RationCardExpirationDate></RationCardExpirationDate>
-        <UniversalIDNumber></UniversalIDNumber>
-        <UniversalIDIssueDate></UniversalIDIssueDate>
-        <UniversalIDExpirationDate></UniversalIDExpirationDate>
-        <DateOfBirth>${dobFormatted}</DateOfBirth>
-        <STDPhoneNumber></STDPhoneNumber>
-        <PhoneNumber>${data.mobile_number}</PhoneNumber>
-        <TelephoneExtension></TelephoneExtension>
-        <TelephoneType></TelephoneType>
-        <MobilePhone></MobilePhone>
-        <EMailId></EMailId>
-    </Applicant>
-    <Details>
-        <Income></Income>
-        <MaritalStatus></MaritalStatus>
-        <EmployStatus></EmployStatus>
-        <TimeWithEmploy></TimeWithEmploy>
-        <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
-    </Details>
-    <Address>
-        <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
-        <BldgNoSocietyName></BldgNoSocietyName>
-        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-        <City>${data.current_village_city}</City>
-        <Landmark></Landmark>
-      <State>${state_code}</State>
-        <PinCode>${data.current_pincode}</PinCode>
-    </Address>
-    <AdditionalAddressFlag>
-        <Flag>N</Flag>
-    </AdditionalAddressFlag>
-    <AdditionalAddress>
-        <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
-        <BldgNoSocietyName></BldgNoSocietyName>
-        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-        <City></City>
-        <Landmark></Landmark>
-        <State></State>
-        <PinCode></PinCode>
-    </AdditionalAddress>
-</INProfileRequest>
-</urn:in>
-      </urn:process>
-   </soapenv:Body>
-</soapenv:Envelope>`;
-
-    console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
-
-    // --- Send SOAP request ---
-    console.log("🌐 Sending SOAP request to Experian...");
-    let score = null;
-
-    try {
-      const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
-        headers: {
-          "Content-Type": "text/xml; charset=utf-8",
-          SOAPAction: "urn:cbv2/process",
-          Accept: "text/xml",
-        },
-        timeout: 30000,
-        validateStatus: () => true,
-      });
-
-      console.log("📥 Experian HTTP Status:", response.status);
-      console.log("📥 Experian Raw Response (first 1000 chars):", response.data?.substring(0, 1000));
-
-      if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
-
-      const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
-      score =
-        jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.BureauScore?.Value ||
-        null;
-
-      console.log("✅ Parsed CIBIL Score:", score);
-
-      await db.promise().query(
-        `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
-         VALUES (?,?,?,?,NOW())`,
-        [lan, data.pan_number, score, response.data]
-      );
-
-      console.log("✅ CIBIL report saved successfully.");
-    } catch (err) {
-      console.error("⚠️ CIBIL Pull Failed:", err.message);
-      console.error("➡️ Response status:", err.response?.status);
-      console.error("➡️ Response data:", err.response?.data);
-      console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
-      console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
-    }
-
-    console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
-    console.log("================= 📦 EMICLUB REQUEST END =================\n");
-///////////////////    beauro code end ////////////
-    return res.json({
-      message: "✅ EMICLUB loan saved successfully.",
-      lan,
-      cibilScore: score || "Not Found",
-    });
-  } catch (error) {
-    console.error("❌ Unhandled Error in EMICLUB Upload:", error);
-    res.status(500).json({
-      message: "Upload failed. Please try again.",
-      error: error.sqlMessage || error.message,
-    });
-  }
-});
-////////////////////// SAJAG JAIN NEW CODE FOR PARSE  ////////////////
-
-// ---------- ROUTE ----------
 // router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 //   try {
 //     console.log(
@@ -4459,9 +4067,11 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
 //     console.log("🏦 Lender type received:", lenderType);
 //     if (!lenderType || lenderType !== "emiclub") {
 //       console.error("❌ Invalid lenderType provided:", lenderType);
-//       return res.status(400).json({
-//         message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
-//       });
+//       return res
+//         .status(400)
+//         .json({
+//           message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
+//         });
 //     }
 
 //     // --- Required field check ---
@@ -4520,11 +4130,6 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
 //       existing.length,
 //       "records found."
 //     );
-//     console.log(
-//       "🧾 Duplicate check result:",
-//       existing.length,
-//       "records found."
-//     );
 
 //     if (existing.length > 0) {
 //       console.error("❌ Duplicate PAN found:", data.pan_number);
@@ -4544,8 +4149,8 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
 //     const agreement_date = data.login_date;
 
 //     // --- Determine interest rate ---
-//     const interest_rate = data.roi_apr / 12;
-//     console.log("📈 Using interest rate:", interest_rate);
+// const interest_rate =  data.roi_apr / 12;
+// console.log("📈 Using interest rate:", interest_rate);
 
 //     // --- Insert into DB ---
 //     console.log("💾 Inserting customer record into loan_booking_emiclub...");
@@ -4568,11 +4173,11 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
 //         data.login_date,
 //         data.first_name,
 //         data.middle_name || null,
-//         data.last_name,
+//         data.last_name ,
 //         data.gender,
 //         data.dob,
-//         data.father_name,
-//         data.mother_name,
+//         data.father_name ,
+//         data.mother_name ,
 //         data.mobile_number,
 //         data.email_id,
 //         data.pan_number,
@@ -4588,7 +4193,7 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
 //         data.permanent_state,
 //         data.permanent_pincode,
 //         data.loan_amount,
-//         interest_rate,
+//         interest_rate ,
 //         data.roi_apr,
 //         data.loan_tenure,
 //         data.emi_amount,
@@ -4618,89 +4223,484 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
 
 //     ////  BEURO SCORE  CODE START/////
 //     console.log("✅ Customer record inserted successfully.");
-//     console.log(
-//       "cibil request data",
-//       "pan number :",
-//       data.pan_number,
-//       "loan amount :",
-//       data.loan_amount,
-//       "loan tenure :",
-//       data.loan_tenure,
-//       "first name :",
-//       data.first_name,
-//       "last name :",
-//       data.last_name,
-//       "mobile number :",
-//       data.mobile_number,
-//       "current address :",
-//       data.current_address,
-//       "current city :",
-//       data.current_village_city,
-//       "current state :",
-//       data.current_state,
-//       "current pincode :",
-//       data.current_pincode
-//     );
+//     console.log ("cibil request data", "pan number :", data.pan_number, "loan amount :", data.loan_amount, "loan tenure :", data.loan_tenure, "first name :", data.first_name, "last name :", data.last_name, "mobile number :", data.mobile_number, "current address :", data.current_address, "current city :", data.current_village_city, "current state :", data.current_state, "current pincode :", data.current_pincode);
 //     // --- Build SOAP XML ---
 //     console.log("🧩 Building SOAP request body for Experian...");
 //     const dobFormatted = data.dob.replace(/-/g, "");
-//     console.log(
-//       data.first_name,
-//       data.last_name,
-//       data.pan_number,
-//       data.mobile_number,
-//       data.current_address,
-//       data.current_village_city,
-//       data.current_state,
-//       data.current_pincode
-//     );
+//     console.log(data.first_name, data.last_name, data.pan_number, data.mobile_number, data.current_address, data.current_village_city, data.current_state, data.current_pincode);
 //     console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
 //     const stateCodes = {
-//       "JAMMU and KASHMIR": 1,
-//       "HIMACHAL PRADESH": 2,
-//       PUNJAB: 3,
-//       CHANDIGARH: 4,
-//       UTTRANCHAL: 5,
-//       HARAYANA: 6,
-//       DELHI: 7,
-//       RAJASTHAN: 8,
-//       "UTTAR PRADESH": 9,
-//       BIHAR: 10,
-//       SIKKIM: 11,
-//       "ARUNACHAL PRADESH": 12,
-//       NAGALAND: 13,
-//       MANIPUR: 14,
-//       MIZORAM: 15,
-//       TRIPURA: 16,
-//       MEGHALAYA: 17,
-//       ASSAM: 18,
-//       "WEST BENGAL": 19,
-//       JHARKHAND: 20,
-//       ORRISA: 21,
-//       CHHATTISGARH: 22,
-//       "MADHYA PRADESH": 23,
-//       GUJRAT: 24,
-//       "DAMAN and DIU": 25,
-//       "DADARA and NAGAR HAVELI": 26,
-//       MAHARASHTRA: 27,
-//       "ANDHRA PRADESH": 28,
-//       KARNATAKA: 29,
-//       GOA: 30,
-//       LAKSHADWEEP: 31,
-//       KERALA: 32,
-//       "TAMIL NADU": 33,
-//       PONDICHERRY: 34,
-//       "ANDAMAN and NICOBAR ISLANDS": 35,
-//       TELANGANA: 36,
-//     };
+//   "JAMMU and KASHMIR": 1,
+//   "HIMACHAL PRADESH": 2,
+//   "PUNJAB": 3,
+//   "CHANDIGARH": 4,
+//   "UTTRANCHAL": 5,
+//   "HARAYANA": 6,
+//   "DELHI": 7,
+//   "RAJASTHAN": 8,
+//   "UTTAR PRADESH": 9,
+//   "BIHAR": 10,
+//   "SIKKIM": 11,
+//   "ARUNACHAL PRADESH": 12,
+//   "NAGALAND": 13,
+//   "MANIPUR": 14,
+//   "MIZORAM": 15,
+//   "TRIPURA": 16,
+//   "MEGHALAYA": 17,
+//   "ASSAM": 18,
+//   "WEST BENGAL": 19,
+//   "JHARKHAND": 20,
+//   "ORRISA": 21,
+//   "CHHATTISGARH": 22,
+//   "MADHYA PRADESH": 23,
+//   "GUJRAT": 24,
+//   "DAMAN and DIU": 25,
+//   "DADARA and NAGAR HAVELI": 26,
+//   "MAHARASHTRA": 27,
+//   "ANDHRA PRADESH": 28,
+//   "KARNATAKA": 29,
+//   "GOA": 30,
+//   "LAKSHADWEEP": 31,
+//   "KERALA": 32,
+//   "TAMIL NADU": 33,
+//   "PONDICHERRY": 34,
+//   "ANDAMAN and NICOBAR ISLANDS": 35,
+//   "TELANGANA": 36
+// };
 
-//     const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
-//     const state_code = stateCodes[state.toUpperCase()] ?? null;
+// const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
+// const state_code = stateCodes[state.toUpperCase()] ?? null;
 
 //     const firstName = data.first_name.toUpperCase();
 //     const lastName = data.last_name.toUpperCase();
-//     const gender_code = (data.gender ?? "Male") === "Female" ? 2 : 1;
+//     const gender_code = (data.gender ?? 'Male') === 'Female' ? 2 : 1;
+//     const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+//    <soapenv:Header/>
+//    <soapenv:Body>
+//       <urn:process>
+//          <urn:in>
+//             <INProfileRequest>
+//     <Identification>
+//        <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+// <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+//     </Identification>
+//     <Application>
+//         <FTReferenceNumber></FTReferenceNumber>
+//         <CustomerReferenceID></CustomerReferenceID>
+//         <EnquiryReason>13</EnquiryReason>
+//         <FinancePurpose>99</FinancePurpose>
+//         <AmountFinanced>${data.loan_amount}</AmountFinanced>
+//         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
+//         <ScoreFlag>3</ScoreFlag>
+//         <PSVFlag>0</PSVFlag>
+//     </Application>
+//     <Applicant>
+//         <Surname>${lastName}</Surname>
+//         <FirstName>${firstName}</FirstName>
+//         <MiddleName1></MiddleName1>
+//         <MiddleName2></MiddleName2>
+//         <MiddleName3></MiddleName3>
+//         <GenderCode>${gender_code}</GenderCode>
+//         <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
+//         <PANIssueDate></PANIssueDate>
+//         <PANExpirationDate></PANExpirationDate>
+//         <PassportNumber></PassportNumber>
+//         <PassportIssueDate></PassportIssueDate>
+//         <PassportExpirationDate></PassportExpirationDate>
+//         <VoterIdentityCard></VoterIdentityCard>
+//         <VoterIDIssueDate></VoterIDIssueDate>
+//         <VoterIDExpirationDate></VoterIDExpirationDate>
+//         <DriverLicenseNumber></DriverLicenseNumber>
+//         <DriverLicenseIssueDate></DriverLicenseIssueDate>
+//         <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
+//         <RationCardNumber></RationCardNumber>
+//         <RationCardIssueDate></RationCardIssueDate>
+//         <RationCardExpirationDate></RationCardExpirationDate>
+//         <UniversalIDNumber></UniversalIDNumber>
+//         <UniversalIDIssueDate></UniversalIDIssueDate>
+//         <UniversalIDExpirationDate></UniversalIDExpirationDate>
+//         <DateOfBirth>${dobFormatted}</DateOfBirth>
+//         <STDPhoneNumber></STDPhoneNumber>
+//         <PhoneNumber>${data.mobile_number}</PhoneNumber>
+//         <TelephoneExtension></TelephoneExtension>
+//         <TelephoneType></TelephoneType>
+//         <MobilePhone></MobilePhone>
+//         <EMailId></EMailId>
+//     </Applicant>
+//     <Details>
+//         <Income></Income>
+//         <MaritalStatus></MaritalStatus>
+//         <EmployStatus></EmployStatus>
+//         <TimeWithEmploy></TimeWithEmploy>
+//         <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
+//     </Details>
+//     <Address>
+//         <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
+//         <BldgNoSocietyName></BldgNoSocietyName>
+//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+//         <City>${data.current_village_city}</City>
+//         <Landmark></Landmark>
+//       <State>${state_code}</State>
+//         <PinCode>${data.current_pincode}</PinCode>
+//     </Address>
+//     <AdditionalAddressFlag>
+//         <Flag>N</Flag>
+//     </AdditionalAddressFlag>
+//     <AdditionalAddress>
+//         <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
+//         <BldgNoSocietyName></BldgNoSocietyName>
+//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+//         <City></City>
+//         <Landmark></Landmark>
+//         <State></State>
+//         <PinCode></PinCode>
+//     </AdditionalAddress>
+// </INProfileRequest>
+// </urn:in>
+//       </urn:process>
+//    </soapenv:Body>
+// </soapenv:Envelope>`;
+
+//     console.log("🧾 SOAP XML Preview (first 500 chars):", soapBody.substring(0, 500));
+
+//     // --- Send SOAP request ---
+//     console.log("🌐 Sending SOAP request to Experian...");
+//     let score = null;
+
+//     try {
+//       const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
+//         headers: {
+//           "Content-Type": "text/xml; charset=utf-8",
+//           SOAPAction: "urn:cbv2/process",
+//           Accept: "text/xml",
+//         },
+//         timeout: 30000,
+//         validateStatus: () => true,
+//       });
+
+//       console.log("📥 Experian HTTP Status:", response.status);
+//       console.log("📥 Experian Raw Response (first 1000 chars):", response.data?.substring(0, 1000));
+
+//       if (response.status !== 200) throw new Error(`Experian returned HTTP ${response.status}`);
+
+//       const jsonResponse = await parseStringPromise(response.data, { explicitArray: false });
+//       score =
+//         jsonResponse?.["soapenv:Envelope"]?.["soapenv:Body"]?.["processResponse"]?.out?.INProfileResponse?.BureauScore?.Value ||
+//         null;
+
+//       console.log("✅ Parsed CIBIL Score:", score);
+
+//       await db.promise().query(
+//         `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+//          VALUES (?,?,?,?,NOW())`,
+//         [lan, data.pan_number, score, response.data]
+//       );
+
+//       console.log("✅ CIBIL report saved successfully.");
+//     } catch (err) {
+//       console.error("⚠️ CIBIL Pull Failed:", err.message);
+//       console.error("➡️ Response status:", err.response?.status);
+//       console.error("➡️ Response data:", err.response?.data);
+//       console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
+//       console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
+//     }
+
+//     console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
+//     console.log("================= 📦 EMICLUB REQUEST END =================\n");
+// ///////////////////    beauro code end ////////////
+//     return res.json({
+//       message: "✅ EMICLUB loan saved successfully.",
+//       lan,
+//       cibilScore: score || "Not Found",
+//     });
+//   } catch (error) {
+//     console.error("❌ Unhandled Error in EMICLUB Upload:", error);
+//     res.status(500).json({
+//       message: "Upload failed. Please try again.",
+//       error: error.sqlMessage || error.message,
+//     });
+//   }
+// });
+////////////////////// SAJAG JAIN NEW CODE FOR PARSE  ////////////////
+
+// ---------- ROUTE ----------
+router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
+  try {
+    console.log(
+      "================= 📦 NEW EMICLUB REQUEST START ================="
+    );
+    console.log("🔹 Timestamp:", new Date().toISOString());
+
+    // --- Log all ENV variables used ---
+    console.log("🔧 ENV:: EXPERIAN_URL =", process.env.EXPERIAN_URL);
+    console.log("🔧 ENV:: EXPERIAN_USER =", process.env.EXPERIAN_USER);
+    console.log("🔧 ENV:: EXPERIAN_PASSWORD =", process.env.EXPERIAN_PASSWORD);
+    console.log("🔧 ENV:: DB_CONNECTED =", !!db ? "✅ Yes" : "❌ No");
+
+    // --- Partner validation ---
+    console.log("👥 Partner received:", req.partner);
+    if (
+      !req.partner ||
+      (req.partner.name || "").toLowerCase().trim() !== "emiclub"
+    ) {
+      console.error("❌ Partner validation failed!");
+      return res
+        .status(403)
+        .json({ message: "This route is only for Emiclub partner." });
+    }
+
+    // --- Body logging ---
+    const data = req.body;
+    console.log("📥 Received JSON payload:", JSON.stringify(data, null, 2));
+
+    // --- Lender type validation ---
+    const lenderType = data.lenderType?.trim()?.toLowerCase();
+    console.log("🏦 Lender type received:", lenderType);
+    if (!lenderType || lenderType !== "emiclub") {
+      console.error("❌ Invalid lenderType provided:", lenderType);
+      return res.status(400).json({
+        message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
+      });
+    }
+
+    // --- Required field check ---
+    const requiredFields = [
+      "login_date",
+      "partner_loan_id",
+      "first_name",
+      "last_name",
+      "gender",
+      "dob",
+      "mobile_number",
+      "email_id",
+      "pan_number",
+      "aadhar_number",
+      "current_address",
+      "current_village_city",
+      "current_district",
+      "current_state",
+      "current_pincode",
+      "permanent_address",
+      "permanent_state",
+      "permanent_pincode",
+      "loan_amount",
+      "roi_apr",
+      "loan_tenure",
+      "bank_name",
+      "name_in_bank",
+      "account_number",
+      "ifsc",
+      "account_type",
+      "type_of_account",
+      "employment",
+      "annual_income",
+      "dealer_name",
+      "risk_category",
+      "customer_type",
+    ];
+
+    for (const field of requiredFields) {
+      if (!data[field] && data[field] !== 0) {
+        console.error(`❌ Missing field detected: ${field}`);
+        return res.status(400).json({ message: `${field} is required.` });
+      }
+    }
+    console.log("✅ All required fields present.");
+
+    // --- Duplicate PAN check ---
+    console.log("🔍 Checking existing PAN:", data.pan_number);
+    const [existing] = await db
+      .promise()
+      .query(`SELECT lan FROM loan_booking_emiclub WHERE pan_number = ?`, [
+        data.pan_number,
+      ]);
+    console.log(
+      "🧾 Duplicate check result:",
+      existing.length,
+      "records found."
+    );
+    console.log(
+      "🧾 Duplicate check result:",
+      existing.length,
+      "records found."
+    );
+
+    if (existing.length > 0) {
+      console.error("❌ Duplicate PAN found:", data.pan_number);
+      return res.status(400).json({
+        message: `Customer already exists for Pan: ${data.pan_number}`,
+      });
+    }
+
+    // --- Generate loan code ---
+    console.log("⚙️ Generating LAN for lender:", lenderType);
+    const { lan } = await generateLoanIdentifiers(lenderType);
+    console.log("✅ Generated LAN:", lan);
+
+    const customer_name = `${data.first_name || ""} ${
+      data.last_name || ""
+    }`.trim();
+    const agreement_date = data.login_date;
+
+    // --- Determine interest rate ---
+    const interest_rate = data.roi_apr / 12;
+    console.log("📈 Using interest rate:", interest_rate);
+
+    // --- Insert into DB ---
+    console.log("💾 Inserting customer record into loan_booking_emiclub...");
+    await db.promise().query(
+      `INSERT INTO loan_booking_emiclub (
+        lan, partner_loan_id, login_date, first_name, middle_name, last_name, gender, dob,
+        father_name, mother_name, mobile_number, email_id,
+        pan_number, aadhar_number, current_address, current_village_city, current_district, current_state, current_pincode,
+        permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
+        loan_amount, interest_rate, roi_apr, loan_tenure, emi_amount, cibil_score,
+        product, lender, bank_name, name_in_bank, account_number, ifsc,
+        account_type, type_of_account, net_disbursement, employment, risk_category, customer_type,
+        annual_income, dealer_name, dealer_mobile, dealer_address, dealer_city,
+        status, customer_name, agreement_date
+      )
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        lan,
+        data.partner_loan_id,
+        data.login_date,
+        data.first_name,
+        data.middle_name || null,
+        data.last_name,
+        data.gender,
+        data.dob,
+        data.father_name,
+        data.mother_name,
+        data.mobile_number,
+        data.email_id,
+        data.pan_number,
+        data.aadhar_number,
+        data.current_address,
+        data.current_village_city,
+        data.current_district,
+        data.current_state,
+        data.current_pincode,
+        data.permanent_address,
+        data.permanent_village_city || data.current_village_city,
+        data.permanent_district || data.current_district,
+        data.permanent_state,
+        data.permanent_pincode,
+        data.loan_amount,
+        interest_rate,
+        data.roi_apr,
+        data.loan_tenure,
+        data.emi_amount,
+        data.cibil_score,
+        "Monthly Loan",
+        "EMICLUB",
+        data.bank_name,
+        data.name_in_bank,
+        data.account_number,
+        data.ifsc,
+        data.account_type,
+        data.type_of_account,
+        data.net_disbursement || data.loan_amount,
+        data.employment,
+        data.risk_category,
+        data.customer_type,
+        data.annual_income,
+        data.dealer_name,
+        data.dealer_mobile,
+        data.dealer_address,
+        data.dealer_city,
+        "Login",
+        customer_name,
+        agreement_date,
+      ]
+    );
+
+    ////  BEURO SCORE  CODE START/////
+    console.log("✅ Customer record inserted successfully.");
+    console.log(
+      "cibil request data",
+      "pan number :",
+      data.pan_number,
+      "loan amount :",
+      data.loan_amount,
+      "loan tenure :",
+      data.loan_tenure,
+      "first name :",
+      data.first_name,
+      "last name :",
+      data.last_name,
+      "mobile number :",
+      data.mobile_number,
+      "current address :",
+      data.current_address,
+      "current city :",
+      data.current_village_city,
+      "current state :",
+      data.current_state,
+      "current pincode :",
+      data.current_pincode
+    );
+    // --- Build SOAP XML ---
+    console.log("🧩 Building SOAP request body for Experian...");
+    const dobFormatted = data.dob.replace(/-/g, "");
+    console.log(
+      data.first_name,
+      data.last_name,
+      data.pan_number,
+      data.mobile_number,
+      data.current_address,
+      data.current_village_city,
+      data.current_state,
+      data.current_pincode
+    );
+    console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
+
+    const stateCodes = {
+      "JAMMU and KASHMIR": 1,
+      "HIMACHAL PRADESH": 2,
+      PUNJAB: 3,
+      CHANDIGARH: 4,
+      UTTRANCHAL: 5,
+      HARAYANA: 6,
+      DELHI: 7,
+      RAJASTHAN: 8,
+      "UTTAR PRADESH": 9,
+      BIHAR: 10,
+      SIKKIM: 11,
+      "ARUNACHAL PRADESH": 12,
+      NAGALAND: 13,
+      MANIPUR: 14,
+      MIZORAM: 15,
+      TRIPURA: 16,
+      MEGHALAYA: 17,
+      ASSAM: 18,
+      "WEST BENGAL": 19,
+      JHARKHAND: 20,
+      ORRISA: 21,
+      CHHATTISGARH: 22,
+      "MADHYA PRADESH": 23,
+      GUJRAT: 24,
+      "DAMAN and DIU": 25,
+      "DADARA and NAGAR HAVELI": 26,
+      MAHARASHTRA: 27,
+      "ANDHRA PRADESH": 28,
+      KARNATAKA: 29,
+      GOA: 30,
+      LAKSHADWEEP: 31,
+      KERALA: 32,
+      "TAMIL NADU": 33,
+      PONDICHERRY: 34,
+      "ANDAMAN and NICOBAR ISLANDS": 35,
+      TELANGANA: 36,
+    };
+
+    const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
+    const state_code = stateCodes[state.toUpperCase()] ?? null;
+
+    const firstName = data.first_name.toUpperCase();
+    const lastName = data.last_name.toUpperCase();
+    const gender_code = (data.gender ?? "Male") === "Female" ? 2 : 1;
 //     const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
 //    <soapenv:Header/>
 //    <soapenv:Body>
@@ -4788,82 +4788,170 @@ const state_code = stateCodes[state.toUpperCase()] ?? null;
 //    </soapenv:Body>
 // </soapenv:Envelope>`;
 
-//     console.log(
-//       "🧾 SOAP XML Preview (first 500 chars):",
-//       soapBody.substring(0, 500)
-//     );
 
-//     // --- Send SOAP request ---
-//     console.log("🌐 Sending SOAP request to Experian...");
-//     let score = null;
-//     let parsedXmlToStore = null;
+const soapBody= `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <urn:process>
+         <urn:in>
+            <INProfileRequest>
+    <Identification>
+       <XMLUser>cpu2fintreef_prod03</XMLUser>
+<XMLPassword>Sajagjain98@#</XMLPassword>
+    </Identification>
+    <Application>
+        <FTReferenceNumber></FTReferenceNumber>
+        <CustomerReferenceID></CustomerReferenceID>
+        <EnquiryReason>13</EnquiryReason>
+        <FinancePurpose>99</FinancePurpose>
+        <AmountFinanced>1</AmountFinanced>
+        <DurationOfAgreement>6</DurationOfAgreement>
+        <ScoreFlag>3</ScoreFlag>
+        <PSVFlag>0</PSVFlag>
+    </Application>
+    <Applicant>
+        <Surname>BHADANGE</Surname>
+        <FirstName>VITTHAL</FirstName>
+        <MiddleName1></MiddleName1>
+        <MiddleName2></MiddleName2>
+        <MiddleName3></MiddleName3>
+        <GenderCode>1</GenderCode>
+        <IncomeTaxPAN>DGUPB9409M</IncomeTaxPAN>
+        <PANIssueDate></PANIssueDate>
+        <PANExpirationDate></PANExpirationDate>
+        <PassportNumber></PassportNumber>
+        <PassportIssueDate></PassportIssueDate>
+        <PassportExpirationDate></PassportExpirationDate>
+        <VoterIdentityCard></VoterIdentityCard>
+        <VoterIDIssueDate></VoterIDIssueDate>
+        <VoterIDExpirationDate></VoterIDExpirationDate>
+        <DriverLicenseNumber></DriverLicenseNumber>
+        <DriverLicenseIssueDate></DriverLicenseIssueDate>
+        <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
+        <RationCardNumber></RationCardNumber>
+        <RationCardIssueDate></RationCardIssueDate>
+        <RationCardExpirationDate></RationCardExpirationDate>
+        <UniversalIDNumber></UniversalIDNumber>
+        <UniversalIDIssueDate></UniversalIDIssueDate>
+        <UniversalIDExpirationDate></UniversalIDExpirationDate>
+        <DateOfBirth>19850505</DateOfBirth>
+        <STDPhoneNumber></STDPhoneNumber>
+        <PhoneNumber>8762812793</PhoneNumber>
+        <TelephoneExtension></TelephoneExtension>
+        <TelephoneType></TelephoneType>
+        <MobilePhone></MobilePhone>
+        <EMailId></EMailId>
+    </Applicant>
+    <Details>
+        <Income></Income>
+        <MaritalStatus></MaritalStatus>
+        <EmployStatus></EmployStatus>
+        <TimeWithEmploy></TimeWithEmploy>
+        <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
+    </Details>
+    <Address>
+        <FlatNoPlotNoHouseNo>Belgundi</FlatNoPlotNoHouseNo>
+        <BldgNoSocietyName></BldgNoSocietyName>
+        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+        <City>Belgundi</City>
+        <Landmark></Landmark>
+        <State>29</State>
+        <PinCode>591108</PinCode>
+    </Address>
+    <AdditionalAddressFlag>
+        <Flag>N</Flag>
+    </AdditionalAddressFlag>
+    <AdditionalAddress>
+        <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
+        <BldgNoSocietyName></BldgNoSocietyName>
+        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+        <City></City>
+        <Landmark></Landmark>
+        <State></State>
+        <PinCode></PinCode>
+    </AdditionalAddress>
+</INProfileRequest>
+</urn:in>
+      </urn:process>
+   </soapenv:Body>
+</soapenv:Envelope>
+`
+    console.log(
+      "🧾 SOAP XML Preview (first 500 chars):",
+      soapBody.substring(0, 500)
+    );
 
-//     try {
-//       const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
-//         headers: {
-//           "Content-Type": "text/xml; charset=utf-8",
-//           SOAPAction: "urn:cbv2/process",
-//           Accept: "text/xml",
-//         },
-//         timeout: 30000,
-//         validateStatus: () => true,
-//       });
+    // --- Send SOAP request ---
+    console.log("🌐 Sending SOAP request to Experian...");
+    let score = null;
+    let parsedXmlToStore = null;
 
-//       console.log("📥 Experian HTTP Status:", response.status);
-//       console.log(
-//         "📥 Experian Raw Response (first 1000 chars):",
-//         response.data?.substring(0, 1000)
-//       );
+    try {
+      const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
+        headers: {
+          "Content-Type": "text/xml; charset=utf-8",
+          SOAPAction: "urn:cbv2/process",
+          Accept: "text/xml",
+        },
+        timeout: 30000,
+        validateStatus: () => true,
+      });
 
-//       if (response.status !== 200)
-//         throw new Error(`Experian returned HTTP ${response.status}`);
+      console.log("📥 Experian HTTP Status:", response.status);
+      console.log(
+        "📥 Experian Raw Response (first 1000 chars):",
+        response.data?.substring(0, 1000)
+      );
+
+      if (response.status !== 200)
+        throw new Error(`Experian returned HTTP ${response.status}`);
 
 
 
-//       console.log("✅ Parsed CIBIL Score:", score);
-//       console.log(
-//         "🧾 Normalized INProfileResponse (first 500 chars):",
-//         parsedXmlToStore?.substring(0, 500)
-//       );
+      console.log("✅ Parsed CIBIL Score:", score);
+      console.log(
+        "🧾 Normalized INProfileResponse (first 500 chars):",
+        parsedXmlToStore?.substring(0, 500)
+      );
 
-//       await db.promise().query(
-//         `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
-//          VALUES (?,?,?,?,NOW())`,
-//         [lan, data.pan_number, score, parsedXmlToStore] // store parsed/pretty INProfileResponse XML
-//       );
+      await db.promise().query(
+        `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+         VALUES (?,?,?,?,NOW())`,
+        [lan, data.pan_number, score, parsedXmlToStore] // store parsed/pretty INProfileResponse XML
+      );
 
-//       await db
-//         .promise()
-//         .execute(
-//           "UPDATE loan_booking_emiclub SET cibil_score = ? WHERE lan = ?",
-//           [score, lan]
-//         );
+      await db
+        .promise()
+        .execute(
+          "UPDATE loan_booking_emiclub SET cibil_score = ? WHERE lan = ?",
+          [score, lan]
+        );
 
-//       console.log("✅ CIBIL report (parsed XML) saved successfully.");
-// } catch (err) {
-//   console.error("⚠️ CIBIL Pull Failed:", err.message);
-//   console.error("➡️ Response status:", err.response?.status);
-//   console.error("➡️ Response data:", err.response?.data);
-//   console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
-//   console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
-// }
-//     console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
-//     console.log("================= 📦 EMICLUB REQUEST END =================\n");
+      console.log("✅ CIBIL report (parsed XML) saved successfully.");
+} catch (err) {
+  console.error("⚠️ CIBIL Pull Failed:", err.message);
+  console.error("➡️ Response status:", err.response?.status);
+  console.error("➡️ Response data:", err.response?.data);
+  console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
+  console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
+}
+    console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
+    console.log("================= 📦 EMICLUB REQUEST END =================\n");
 
-//     /////////////////// beauro code end ////////////
-//     return res.json({
-//       message: "✅ EMICLUB loan saved successfully.",
-//       lan,
-//       cibilScore: score || "Not Found",
-//     });
-//   } catch (error) {
-//     console.error("❌ Unhandled Error in EMICLUB Upload:", error);
-//     res.status(500).json({
-//       message: "Upload failed. Please try again.",
-//       error: error.sqlMessage || error.message,
-//     });
-//   }
-// });
+    /////////////////// beauro code end ////////////
+    return res.json({
+      message: "✅ EMICLUB loan saved successfully.",
+      lan,
+      cibilScore: score || "Not Found",
+    });
+  } catch (error) {
+    console.error("❌ Unhandled Error in EMICLUB Upload:", error);
+    res.status(500).json({
+      message: "Upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
 //////////////////////////////   CIRCLE PE ADD FOR LOAN BOOKING  ////////////////////////
 
 router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
