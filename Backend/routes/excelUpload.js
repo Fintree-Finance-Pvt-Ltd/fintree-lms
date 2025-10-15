@@ -4701,122 +4701,34 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     const firstName = data.first_name.toUpperCase();
     const lastName = data.last_name.toUpperCase();
     const gender_code = (data.gender ?? "Male") === "Female" ? 2 : 1;
-//     const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-//    <soapenv:Header/>
-//    <soapenv:Body>
-//       <urn:process>
-//          <urn:in>
-//             <INProfileRequest>
-//     <Identification>
-//        <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-// <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-//     </Identification>
-//     <Application>
-//         <FTReferenceNumber></FTReferenceNumber>
-//         <CustomerReferenceID></CustomerReferenceID>
-//         <EnquiryReason>13</EnquiryReason> 
-//         <FinancePurpose>99</FinancePurpose>
-//         <AmountFinanced>${data.loan_amount}</AmountFinanced>
-//         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-//         <ScoreFlag>3</ScoreFlag>
-//         <PSVFlag>0</PSVFlag>
-//     </Application>
-//     <Applicant>
-//         <Surname>${lastName}</Surname>
-//         <FirstName>${firstName}</FirstName>
-//         <MiddleName1></MiddleName1>
-//         <MiddleName2></MiddleName2>
-//         <MiddleName3></MiddleName3>
-//         <GenderCode>${gender_code}</GenderCode>
-//         <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
-//         <PANIssueDate></PANIssueDate>
-//         <PANExpirationDate></PANExpirationDate>
-//         <PassportNumber></PassportNumber>
-//         <PassportIssueDate></PassportIssueDate>
-//         <PassportExpirationDate></PassportExpirationDate>
-//         <VoterIdentityCard></VoterIdentityCard>
-//         <VoterIDIssueDate></VoterIDIssueDate>
-//         <VoterIDExpirationDate></VoterIDExpirationDate>
-//         <DriverLicenseNumber></DriverLicenseNumber>
-//         <DriverLicenseIssueDate></DriverLicenseIssueDate>
-//         <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
-//         <RationCardNumber></RationCardNumber>
-//         <RationCardIssueDate></RationCardIssueDate>
-//         <RationCardExpirationDate></RationCardExpirationDate>
-//         <UniversalIDNumber></UniversalIDNumber>
-//         <UniversalIDIssueDate></UniversalIDIssueDate>
-//         <UniversalIDExpirationDate></UniversalIDExpirationDate>
-//         <DateOfBirth>${dobFormatted}</DateOfBirth>
-//         <STDPhoneNumber></STDPhoneNumber>
-//         <PhoneNumber>${data.mobile_number}</PhoneNumber>
-//         <TelephoneExtension></TelephoneExtension>
-//         <TelephoneType></TelephoneType>
-//         <MobilePhone></MobilePhone>
-//         <EMailId></EMailId>
-//     </Applicant>
-//     <Details>
-//         <Income></Income>
-//         <MaritalStatus></MaritalStatus>
-//         <EmployStatus></EmployStatus>
-//         <TimeWithEmploy></TimeWithEmploy>
-//         <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
-//     </Details>
-//     <Address>
-//         <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
-//         <BldgNoSocietyName></BldgNoSocietyName>
-//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-//         <City>${data.current_village_city}</City>
-//         <Landmark></Landmark>
-//       <State>${state_code}</State>
-//         <PinCode>${data.current_pincode}</PinCode>
-//     </Address>
-//     <AdditionalAddressFlag>
-//         <Flag>N</Flag>
-//     </AdditionalAddressFlag>
-//     <AdditionalAddress>
-//         <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
-//         <BldgNoSocietyName></BldgNoSocietyName>
-//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-//         <City></City>
-//         <Landmark></Landmark>
-//         <State></State>
-//         <PinCode></PinCode>
-//     </AdditionalAddress>
-// </INProfileRequest>
-// </urn:in>
-//       </urn:process>
-//    </soapenv:Body>
-// </soapenv:Envelope>`;
-
-
-const soapBody= `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+    const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
    <soapenv:Header/>
    <soapenv:Body>
       <urn:process>
          <urn:in>
             <INProfileRequest>
     <Identification>
-       <XMLUser>cpu2fintreef_prod03</XMLUser>
-<XMLPassword>Sajagjain98@#</XMLPassword>
+       <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+<XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
     </Identification>
     <Application>
         <FTReferenceNumber></FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>13</EnquiryReason>
+        <EnquiryReason>13</EnquiryReason> 
         <FinancePurpose>99</FinancePurpose>
-        <AmountFinanced>1</AmountFinanced>
-        <DurationOfAgreement>6</DurationOfAgreement>
+        <AmountFinanced>${data.loan_amount}</AmountFinanced>
+        <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
         <ScoreFlag>3</ScoreFlag>
         <PSVFlag>0</PSVFlag>
     </Application>
     <Applicant>
-        <Surname>BHADANGE</Surname>
-        <FirstName>VITTHAL</FirstName>
+        <Surname>${lastName}</Surname>
+        <FirstName>${firstName}</FirstName>
         <MiddleName1></MiddleName1>
         <MiddleName2></MiddleName2>
         <MiddleName3></MiddleName3>
-        <GenderCode>1</GenderCode>
-        <IncomeTaxPAN>DGUPB9409M</IncomeTaxPAN>
+        <GenderCode>${gender_code}</GenderCode>
+        <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
         <PANIssueDate></PANIssueDate>
         <PANExpirationDate></PANExpirationDate>
         <PassportNumber></PassportNumber>
@@ -4834,9 +4746,9 @@ const soapBody= `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soa
         <UniversalIDNumber></UniversalIDNumber>
         <UniversalIDIssueDate></UniversalIDIssueDate>
         <UniversalIDExpirationDate></UniversalIDExpirationDate>
-        <DateOfBirth>19850505</DateOfBirth>
+        <DateOfBirth>${dobFormatted}</DateOfBirth>
         <STDPhoneNumber></STDPhoneNumber>
-        <PhoneNumber>8762812793</PhoneNumber>
+        <PhoneNumber>${data.mobile_number}</PhoneNumber>
         <TelephoneExtension></TelephoneExtension>
         <TelephoneType></TelephoneType>
         <MobilePhone></MobilePhone>
@@ -4850,13 +4762,13 @@ const soapBody= `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soa
         <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
     </Details>
     <Address>
-        <FlatNoPlotNoHouseNo>Belgundi</FlatNoPlotNoHouseNo>
+        <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
         <BldgNoSocietyName></BldgNoSocietyName>
         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-        <City>Belgundi</City>
+        <City>${data.current_village_city}</City>
         <Landmark></Landmark>
-        <State>29</State>
-        <PinCode>591108</PinCode>
+      <State>${state_code}</State>
+        <PinCode>${data.current_pincode}</PinCode>
     </Address>
     <AdditionalAddressFlag>
         <Flag>N</Flag>
@@ -4874,8 +4786,8 @@ const soapBody= `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soa
 </urn:in>
       </urn:process>
    </soapenv:Body>
-</soapenv:Envelope>
-`
+</soapenv:Envelope>`;
+
     console.log(
       "🧾 SOAP XML Preview (first 500 chars):",
       soapBody.substring(0, 500)
