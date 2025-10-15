@@ -1866,6 +1866,7 @@ const templateMap = {
   adikosh: "adikosh.xlsx",
   utr_upload: "UTR_UPLOAD.xlsx",
   repayment_upload: "repayment_upload.xlsx",
+  emiclub :"emiclub.xlsx",
 };
 
 router.get("/download-template/:product", (req, res) => {
