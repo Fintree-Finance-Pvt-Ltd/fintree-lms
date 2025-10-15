@@ -4718,8 +4718,8 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         <FinancePurpose>99</FinancePurpose>
         <AmountFinanced>${data.loan_amount}</AmountFinanced>
         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-        <ScoreFlag>3</ScoreFlag>
-        <PSVFlag>0</PSVFlag>
+        <ScoreFlag>1</ScoreFlag>
+        <PSVFlag></PSVFlag>
     </Application>
     <Applicant>
         <Surname>${lastName}</Surname>
