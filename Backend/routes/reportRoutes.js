@@ -1424,6 +1424,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_cashflow_report_wctl"
         : lender === "ev loan"
         ? "sp_cashflow_report_ev"
+        : lender === "emiclub"
+        ? "sp_cashflow_report_emiclub"
         : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
@@ -1441,6 +1443,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_due_collection_all_report_embifi"
         : lender === "wctl"
         ? "sp_due_collection_all_report_wctl"
+        : lender === "emiclub"
+        ? "sp_due_collection_all_report_emiclub"
         : "sp_due_collection_all_report",
 
     "consolidated-mis": () =>
@@ -1454,6 +1458,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_consolidated_mis_report_embifi"
         : lender === "wctl"
         ? "sp_consolidated_mis_report_wctl"
+        : lender === "emiclub"
+        ? "sp_consolidated_mis_report_emiclub"
         : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
