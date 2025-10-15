@@ -2,112 +2,144 @@ import React from "react";
 import "../styles/LoanDetails.css"; // ✅ Import the CSS
 
 const LoanDetails = ({ data }) => {
-    const showRetentionFields = data.lan?.startsWith("GQF");
-    const showSubventionFields = data.lan?.startsWith("GQN");
-    const showSalaryDays = data.lan?.startsWith("ADK");
+  const showRetentionFields = data.lan?.startsWith("GQF");
+  const showSubventionFields = data.lan?.startsWith("GQN");
+  const showSalaryDays = data.lan?.startsWith("ADK");
+  const emiclub = data.lan?.startsWith("FINE");
 
-    return (
-        <div className="loan-details-content">
-            <h2>Loan Application By {data.customer_name}</h2>
+  return (
+    <div className="loan-details-content">
+      <h2>Loan Application By {data.customer_name}</h2>
 
-            <div className="loan-details-grid">
-                <div className="loan-details-field">
-                    <label>LAN</label>
-                    <input type="text" value={data.lan} readOnly />
-                </div>
-
-                <div className="loan-details-field">
-                    <label>Created At</label>
-                    <input type="text" value={data.login_date} readOnly />
-                </div>
-
-                <div className="loan-details-field">
-                    <label>Mobile Number</label>
-                    <input type="text" value={data.mobile_number} readOnly />
-                </div>
-
-                <div className="loan-details-field">
-                    <label>Email</label>
-                    <input type="text" value={data.email_id} readOnly />
-                </div>
-
-                <div className="loan-details-field">
-                    <label>Approval Status</label>
-                    <input type="text" value={data.status} readOnly />
-                </div>
-            </div>
-
-            <h3>Loan Details</h3>
-            <div className="loan-details-grid">
-                <div className="loan-details-field">
-                    <label>Approved Loan Amount</label>
-                    <input type="text" value={data.loan_amount || data.approved_loan_amount} readOnly />
-                </div>
-
-                <div className="loan-details-field">
-                    <label>Interest Rate</label>
-                    <input type="text" value={data.interest_rate } readOnly />
-                </div>
-
-                <div className="loan-details-field">
-                    <label>Installment Amount</label>
-                    <input type="text" value={data.emi_amount || data.monthly_emi} readOnly />
-                </div>
-
-                <div className="loan-details-field">
-                    <label>Number of Installments</label>
-                    <input type="text" value={data.loan_tenure || data.loan_tenure_months} readOnly />
-                </div>
-
-                <div className="loan-details-field">
-                    <label>Payment Frequency</label>
-                    <input type="text" value="Monthly" readOnly />
-                </div>
-
-                {showRetentionFields && (
-                    <>
-                        <div className="loan-details-field">
-                            <label>Subvention Amount</label>
-                            <input type="text" value={data.subvention_amount || "0.00"} readOnly />
-                        </div>
-
-                        <div className="loan-details-field">
-                            <label>Retention Percentage</label>
-                            <input type="text" value={data.retention_percentage || "0"} readOnly />
-                        </div>
-
-                        <div className="loan-details-field">
-                            <label>Retention Amount</label>
-                            <input type="text" value={data.retention_amount || "0.00"} readOnly />
-                        </div>
-                    </>
-                )}
-
-                {showSubventionFields && (
-                    <>
-                        <div className="loan-details-field">
-                            <label>Subvention Amount</label>
-                            <input type="text" value={data.subvention_amount || "0.00"} readOnly />
-                        </div>
-                    </>
-                )}
-                {showSalaryDays && (
-                    <>
-                        <div className="loan-details-field">
-                            <label>Salary Day </label>
-                            <input type="text" value={data.salary_day} readOnly />
-                        </div>
-                    </>
-                )}
-            </div>
+      <div className="loan-details-grid">
+        <div className="loan-details-field">
+          <label>LAN</label>
+          <input type="text" value={data.lan} readOnly />
         </div>
-    );
+
+        <div className="loan-details-field">
+          <label>Created At</label>
+          <input type="text" value={data.login_date} readOnly />
+        </div>
+
+        <div className="loan-details-field">
+          <label>Mobile Number</label>
+          <input type="text" value={data.mobile_number} readOnly />
+        </div>
+
+        <div className="loan-details-field">
+          <label>Email</label>
+          <input type="text" value={data.email_id} readOnly />
+        </div>
+
+        <div className="loan-details-field">
+          <label>Approval Status</label>
+          <input type="text" value={data.status} readOnly />
+        </div>
+      </div>
+
+      <h3>Loan Details</h3>
+      <div className="loan-details-grid">
+        <div className="loan-details-field">
+          <label>Approved Loan Amount</label>
+          <input
+            type="text"
+            value={data.loan_amount || data.approved_loan_amount}
+            readOnly
+          />
+        </div>
+
+        <div className="loan-details-field">
+          <label>Interest Rate</label>
+          <input
+            type="text"
+            value={
+              emiclub ? data.roi_apr || "N/A" : data.interest_rate || "N/A"
+            }
+            readOnly
+          />
+        </div>
+
+        <div className="loan-details-field">
+          <label>Installment Amount</label>
+          <input
+            type="text"
+            value={data.emi_amount || data.monthly_emi}
+            readOnly
+          />
+        </div>
+
+        <div className="loan-details-field">
+          <label>Number of Installments</label>
+          <input
+            type="text"
+            value={data.loan_tenure || data.loan_tenure_months}
+            readOnly
+          />
+        </div>
+
+        <div className="loan-details-field">
+          <label>Payment Frequency</label>
+          <input type="text" value="Monthly" readOnly />
+        </div>
+
+        {showRetentionFields && (
+          <>
+            <div className="loan-details-field">
+              <label>Subvention Amount</label>
+              <input
+                type="text"
+                value={data.subvention_amount || "0.00"}
+                readOnly
+              />
+            </div>
+
+            <div className="loan-details-field">
+              <label>Retention Percentage</label>
+              <input
+                type="text"
+                value={data.retention_percentage || "0"}
+                readOnly
+              />
+            </div>
+
+            <div className="loan-details-field">
+              <label>Retention Amount</label>
+              <input
+                type="text"
+                value={data.retention_amount || "0.00"}
+                readOnly
+              />
+            </div>
+          </>
+        )}
+
+        {showSubventionFields && (
+          <>
+            <div className="loan-details-field">
+              <label>Subvention Amount</label>
+              <input
+                type="text"
+                value={data.subvention_amount || "0.00"}
+                readOnly
+              />
+            </div>
+          </>
+        )}
+        {showSalaryDays && (
+          <>
+            <div className="loan-details-field">
+              <label>Salary Day </label>
+              <input type="text" value={data.salary_day} readOnly />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default LoanDetails;
-
-
-
 
 // import React, { useEffect, useState } from "react";
 // import { useParams } from "react-router-dom";
