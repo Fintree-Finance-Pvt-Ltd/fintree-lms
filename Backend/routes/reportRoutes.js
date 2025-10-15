@@ -1398,6 +1398,7 @@ function resolveProcedure(rawReportId, rawLender) {
     "due-demand-vs-collection-report":
       "due-demand-vs-collection-report(all-products)",
     "consolidated-mis": "consolidated-mis",
+    "consolidated mis": "consolidated-mis",
     "delayed-interest-report": "delayed-interest-report",
     "rps-generate-report": "rps-generate-report",
     "irr-report": "irr-report",
