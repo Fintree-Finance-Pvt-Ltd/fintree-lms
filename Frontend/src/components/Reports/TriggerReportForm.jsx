@@ -275,7 +275,8 @@ const productOptions = [
   { label: "GQ Non-FSF", value: "GQ Non-FSF" },
   { label: "Adikosh", value: "Adikosh" },
   { label: "CCOD", value: "CC-OD" },
-  { label: "Embifi", value: "Embifi" }
+  { label: "Embifi", value: "Embifi" },
+  { lable: "EMI CLUB", value: "EMICLUB"}
 ];
 
 const formatDate = (date) => {
