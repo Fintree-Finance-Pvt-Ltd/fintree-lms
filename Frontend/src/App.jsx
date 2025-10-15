@@ -90,6 +90,7 @@ import HEYEVLoginLoans from "./components/HEYEVLoginLoans";
 import HEYEVActionScreen from "./components/HEYEVActionScreen";
 import HEYEVApproveInitiateScreen from "./components/HEYEVApproveInitiateScreen";
 import HEYEVAllLoans from "./components/HEYEVAllLoans";
+import EVManualEntry from "./components/EVManualEntry";
 
 function App() {
   return (
@@ -141,6 +142,15 @@ function App() {
             element={
               <PermissionRoute pageName="Excel Upload">
                 <ExcelUpload />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/ev-manual-entry"
+            element={
+              <PermissionRoute pageName="EV Manual Entry">
+                <EVManualEntry />
               </PermissionRoute>
             }
           />
