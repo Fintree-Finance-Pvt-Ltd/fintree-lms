@@ -61,7 +61,7 @@ router.get("/loan-booking/:lan", (req, res) => {
     table = "loan_bookings_wctl";
     posTable = "manual_rps_wctl";
   }else if (lan.startsWith("CIRF")) {
-    table = "loan_bookings_circle_pe";
+    table = "loan_booking_circle_pe";
     posTable = "manual_rps_circlepe";
   }
 
