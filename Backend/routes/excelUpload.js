@@ -802,6 +802,184 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+
+router.post("/upload/ev-manual", async (req, res) => {
+  try {
+    const data = req.body;
+    console.log("data", data);
+
+    // Basic lender validation
+    if (!data.lenderType || data.lenderType.trim() !== "EV Loan") {
+      return res
+        .status(400)
+        .json({ message: "Invalid lender type. Only EV Loan is supported." });
+    }
+
+    // ✅ Required fields same as Excel upload
+    const requiredFields = [
+      "LOGIN_DATE",
+      "Customer_Name",
+      "Borrower_DOB",
+      "Father_Name",
+      "Mobile_Number",
+      "Address_Line_1",
+      "Village",
+      "District",
+      "State",
+      "Pincode",
+      "Loan_Amount",
+      "Interest_Rate",
+      "Tenure",
+      "GURANTOR",
+      "GURANTOR_DOB",
+      "GURANTOR_ADHAR",
+      "GURANTOR_PAN",
+      "DEALER_NAME",
+      "Name_in_Bank",
+      "Bank_name",
+      "Account_Number",
+      "IFSC",
+      "Aadhar_Number",
+      "Pan_Card",
+      "Product",
+      "lender",
+      "CIBIL_Score",
+      "GURANTOR_CIBIL_Score",
+      "Relationship_with_Borrower",
+      "Battery_Name",
+      "Battery_Type",
+      "Battery_Serial_no_1",
+      "E_Rikshaw_model",
+      "Chassis_no",
+      "Customer_Name_as_per_bank",
+      "Customer_Bank_name",
+      "Customer_Account_Number",
+      "Bank_IFSC_Code",
+    ];
+
+    const missingFields = requiredFields.filter(
+      (f) => !data[f] || String(data[f]).trim() === ""
+    );
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        message: `Missing required fields: ${missingFields.join(", ")}`,
+      });
+    }
+
+    // Validate numeric Interest Rate
+    const interestRate = Number(data.Interest_Rate);
+    if (isNaN(interestRate) || interestRate <= 0) {
+      return res
+        .status(400)
+        .json({ message: "Valid numeric Interest Rate is required." });
+    }
+
+    // Check duplicate PAN
+    const [dup] = await db
+      .promise()
+      .query(`SELECT lan FROM loan_booking_ev WHERE pan_card = ?`, [
+        data.Pan_Card || null,
+      ]);
+    if (dup.length > 0) {
+      return res.status(409).json({
+        message: `Duplicate entry found for PAN: ${data.Pan_Card}`,
+      });
+    }
+
+    // Generate IDs
+    const { partnerLoanId, lan } = await generateLoanIdentifiers(data.lender);
+
+    // ✅ Insert into DB
+    const query = `
+      INSERT INTO loan_booking_ev (
+        partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+        address_line_1, address_line_2, village, district, state, pincode,
+        mobile_number, email, loan_amount, interest_rate, loan_tenure, emi_amount,
+        guarantor_name, guarantor_dob, guarantor_aadhar, guarantor_pan, dealer_name,
+        name_in_bank, bank_name, account_number, ifsc, aadhar_number, pan_card,
+        product, lender, agreement_date, status, disbursal_amount, processing_fee,
+        cibil_score, guarantor_cibil_score, relationship_with_borrower, co_applicant,
+        co_applicant_dob, co_applicant_aadhar, co_applicant_pan, co_applicant_cibil_score,
+        apr, battery_name, battery_type, battery_serial_no_1, battery_serial_no_2,
+        e_rikshaw_model, chassis_no, customer_name_as_per_bank, customer_bank_name,
+        customer_account_number, bank_ifsc_code
+      )
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    `;
+
+    await db.promise().query(query, [
+      partnerLoanId,
+      lan,
+      data.LOGIN_DATE || null,
+      data.Customer_Name,
+      data.Borrower_DOB || null,
+      data.Father_Name,
+      data.Address_Line_1,
+      data.Address_Line_2,
+      data.Village,
+      data.District,
+      data.State,
+      data.Pincode,
+      data.Mobile_Number,
+      data.Email,
+      data.Loan_Amount,
+      data.Interest_Rate,
+      data.Tenure,
+      data.EMI_Amount,
+      data.GURANTOR,
+      data.GURANTOR_DOB || null,
+      data.GURANTOR_ADHAR,
+      data.GURANTOR_PAN,
+      data.DEALER_NAME,
+      data.Name_in_Bank,
+      data.Bank_name,
+      data.Account_Number,
+      data.IFSC,
+      data.Aadhar_Number,
+      data.Pan_Card,
+      data.Product,
+      data.lender,
+      data.LOGIN_DATE || null,
+      data.status || "Login",
+      data.Disbursal_Amount || null,
+      data.Processing_Fee || 0.0,
+      data.CIBIL_Score,
+      data.GURANTOR_CIBIL_Score,
+      data.Relationship_with_Borrower,
+      data.Co_Applicant,
+      data.Co_Applicant_DOB || null,
+      data.Co_Applicant_AADHAR,
+      data.Co_Applicant_PAN,
+      data.Co_Applicant_CIBIL_Score,
+      data.APR,
+      data.Battery_Name,
+      data.Battery_Type,
+      data.Battery_Serial_no_1,
+      data.Battery_Serial_no_2,
+      data.E_Rikshaw_model,
+      data.Chassis_no,
+      data.Customer_Name_as_per_bank,
+      data.Customer_Bank_name,
+      data.Customer_Account_Number,
+      data.Bank_IFSC_Code,
+    ]);
+
+    console.log(`✅ Manual EV Loan inserted | LAN: ${lan} | PAN: ${data.Pan_Card}`);
+
+    return res.json({
+      message: "EV Loan manually inserted successfully.",
+      lan,
+      partnerLoanId,
+    });
+  } catch (err) {
+    console.error("❌ Manual entry failed:", err);
+    return res.status(500).json({
+      message: "Manual entry failed.",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
 router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
   if (!req.file)
     return res
@@ -4540,8 +4718,8 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         <FinancePurpose>99</FinancePurpose>
         <AmountFinanced>${data.loan_amount}</AmountFinanced>
         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-        <ScoreFlag>3</ScoreFlag>
-        <PSVFlag>0</PSVFlag>
+        <ScoreFlag>1</ScoreFlag>
+        <PSVFlag></PSVFlag>
     </Application>
     <Applicant>
         <Surname>${lastName}</Surname>
@@ -4610,9 +4788,12 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
    </soapenv:Body>
 </soapenv:Envelope>`;
 
+
+console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data.pan_number, state_code, data.current_pincode)
+
     console.log(
       "🧾 SOAP XML Preview (first 500 chars):",
-      soapBody.substring(0, 500)
+      soapBody.substring(0, 7000)
     );
 
     // --- Send SOAP request ---
@@ -4634,7 +4815,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       console.log("📥 Experian HTTP Status:", response.status);
       console.log(
         "📥 Experian Raw Response (first 1000 chars):",
-        response.data?.substring(0, 1000)
+        response.data?.substring(0, 7000)
       );
 
       if (response.status !== 200)
@@ -4645,7 +4826,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       console.log("✅ Parsed CIBIL Score:", score);
       console.log(
         "🧾 Normalized INProfileResponse (first 500 chars):",
-        parsedXmlToStore?.substring(0, 500)
+        parsedXmlToStore?.substring(0, 7000)
       );
 
       await db.promise().query(
