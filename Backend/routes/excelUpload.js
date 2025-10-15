@@ -4793,7 +4793,7 @@ console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data
 
     console.log(
       "🧾 SOAP XML Preview (first 500 chars):",
-      soapBody.substring(0, 2000)
+      soapBody.substring(0, 7000)
     );
 
     // --- Send SOAP request ---
@@ -4815,7 +4815,7 @@ console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data
       console.log("📥 Experian HTTP Status:", response.status);
       console.log(
         "📥 Experian Raw Response (first 1000 chars):",
-        response.data?.substring(0, 3000)
+        response.data?.substring(0, 7000)
       );
 
       if (response.status !== 200)
@@ -4826,7 +4826,7 @@ console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data
       console.log("✅ Parsed CIBIL Score:", score);
       console.log(
         "🧾 Normalized INProfileResponse (first 500 chars):",
-        parsedXmlToStore?.substring(0, 3000)
+        parsedXmlToStore?.substring(0, 7000)
       );
 
       await db.promise().query(
