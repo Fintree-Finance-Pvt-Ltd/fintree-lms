@@ -4788,9 +4788,12 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
    </soapenv:Body>
 </soapenv:Envelope>`;
 
+
+console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data.pan_number, state_code, data.current_pincode)
+
     console.log(
       "🧾 SOAP XML Preview (first 500 chars):",
-      soapBody.substring(0, 500)
+      soapBody.substring(0, 2000)
     );
 
     // --- Send SOAP request ---
@@ -4812,7 +4815,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       console.log("📥 Experian HTTP Status:", response.status);
       console.log(
         "📥 Experian Raw Response (first 1000 chars):",
-        response.data?.substring(0, 1000)
+        response.data?.substring(0, 3000)
       );
 
       if (response.status !== 200)
@@ -4823,7 +4826,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       console.log("✅ Parsed CIBIL Score:", score);
       console.log(
         "🧾 Normalized INProfileResponse (first 500 chars):",
-        parsedXmlToStore?.substring(0, 500)
+        parsedXmlToStore?.substring(0, 3000)
       );
 
       await db.promise().query(
