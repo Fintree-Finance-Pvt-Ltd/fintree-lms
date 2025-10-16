@@ -1696,19 +1696,21 @@ if (isPrintReport) {
   //     }
   //   });
   // });
-  // ✅ Apply Excel number formatting
+  // ✅ Force text format for Debit & Credit A/c Number cells
   worksheet.eachRow((row) => {
     row.eachCell((cell, colNumber) => {
       const header = headers[colNumber - 1];
-      // Skip formatting for Credit A/c Number (keep text)
-      if (header && header.toLowerCase().includes("credit a/c number")) {
+      if (
+        header &&
+        (header.toLowerCase().includes("debit a/c number") ||
+         header.toLowerCase().includes("credit a/c number"))
+      ) {
         cell.numFmt = "@"; // text format
       } else if (typeof cell.value === "number") {
         cell.numFmt = "#,##0.00";
       }
     });
   });
-
 
 
   // Style header row
