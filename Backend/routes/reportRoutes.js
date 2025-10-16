@@ -1407,6 +1407,10 @@ function resolveProcedure(rawReportId, rawLender) {
     "adikosh-cam-report-print": "adikosh-cam-report-print",
     "adikosh-cam-print": "adikosh-cam-report-print",
     "ccod-loan-data-report": "ccod-loan-data-report",
+  "bank-payment-file-report": "bank-payment-file-report",
+  "bank payment file report": "bank-payment-file-report",
+
+
   };
 
   const key = aliases[id] || id;
@@ -1481,6 +1485,11 @@ function resolveProcedure(rawReportId, rawLender) {
 
     // CCOD LOAN DATA REPORT
     "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
+
+        // Bank Payment File Report (for EmiClub)
+    "bank-payment-file-report": () => "sp_bank_payment_file",
+
+
   };
 
   return procMap[key] ? procMap[key]() : null;
@@ -1540,19 +1549,33 @@ router.post("/trigger", authenticateUser, async (req, res) => {
     normalizedReportId === "adikosh-cam-print";
 
   // Basic validation
-  if (isPrintReport) {
-    if (!lan) {
-      return res
-        .status(400)
-        .json({ error: "LAN is required for CAM print report" });
-    }
-  } else {
-    if (!startDate || !endDate || !lenderName) {
-      return res
-        .status(400)
-        .json({ error: "startDate, endDate and product are required" });
-    }
+  // if (isPrintReport) {
+  //   if (!lan) {
+  //     return res
+  //       .status(400)
+  //       .json({ error: "LAN is required for CAM print report" });
+  //   }
+  // } else {
+  //   if (!startDate || !endDate || !lenderName) {
+  //     return res
+  //       .status(400)
+  //       .json({ error: "startDate, endDate and product are required" });
+  //   }
+  // }
+if (isPrintReport) {
+  if (!lan) {
+    return res
+      .status(400)
+      .json({ error: "LAN is required for CAM print report" });
   }
+} else if (normalizedReportId !== "bank-payment-file-report") {
+  // skip date validation for bank payment file
+  if (!startDate || !endDate || !lenderName) {
+    return res
+      .status(400)
+      .json({ error: "startDate, endDate and product are required" });
+  }
+}
 
   // Filename/extension by output type (PDF only for print)
   const usePdf = outputFormat?.toLowerCase() === "pdf" && isPrintReport;
@@ -1665,14 +1688,40 @@ router.post("/trigger", authenticateUser, async (req, res) => {
     worksheet.addRow(out);
   }
 
-  // ✅ Apply Excel number formatting
-  worksheet.eachRow((row) => {
-    row.eachCell((cell) => {
-      if (typeof cell.value === "number") {
-        cell.numFmt = "#,##0.00"; // Excel numeric format with 2 decimals
-      }
-    });
+  // // ✅ Apply Excel number formatting
+  // worksheet.eachRow((row) => {
+  //   row.eachCell((cell) => {
+  //     if (typeof cell.value === "number") {
+  //       cell.numFmt = "#,##0.00"; // Excel numeric format with 2 decimals
+  //     }
+  //   });
+  // });
+  // ✅ Force text format for Debit & Credit A/c Number cells
+ worksheet.eachRow((row) => {
+  row.eachCell((cell, colNumber) => {
+    const header = headers[colNumber - 1];
+
+    if (!header) return;
+
+    const lowerHeader = header.toLowerCase();
+
+    // ✅ Force text format for these specific fields
+    if (
+      lowerHeader.includes("debit a/c number") ||
+      lowerHeader.includes("credit a/c number") ||
+      lowerHeader === "mobile"
+    ) {
+      cell.value = cell.value != null ? String(cell.value).trim() : "";
+      cell.numFmt = "@"; // Excel text format
+
+    // ✅ Normal numeric formatting for number values (e.g., Amount)
+    } else if (typeof cell.value === "number") {
+      cell.numFmt = "#,##0.00";
+    }
   });
+});
+
+
 
   // Style header row
   worksheet.getRow(1).eachCell((cell) => {
