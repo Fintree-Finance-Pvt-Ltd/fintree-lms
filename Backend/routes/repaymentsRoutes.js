@@ -91,7 +91,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       let table = "repayments_upload";
       if (lan.startsWith("ADK")) {
         table = "repayments_upload_adikosh";
-      } else if (lan.startsWith("E11")) {
+      } else if (lan.startsWith("E1")) {
         table = "repayments_upload_embifi"; // if you have a specific embifi upload table; else keep default
       } // else default stays
 
