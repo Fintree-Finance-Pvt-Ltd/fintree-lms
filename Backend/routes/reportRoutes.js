@@ -1407,6 +1407,10 @@ function resolveProcedure(rawReportId, rawLender) {
     "adikosh-cam-report-print": "adikosh-cam-report-print",
     "adikosh-cam-print": "adikosh-cam-report-print",
     "ccod-loan-data-report": "ccod-loan-data-report",
+  "bank-payment-file-report": "bank-payment-file-report",
+  "bank payment file report": "bank-payment-file-report",
+
+
   };
 
   const key = aliases[id] || id;
@@ -1481,6 +1485,11 @@ function resolveProcedure(rawReportId, rawLender) {
 
     // CCOD LOAN DATA REPORT
     "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
+
+        // Bank Payment File Report (for EmiClub)
+    "bank-payment-file-report": () => "sp_bank_payment_file",
+
+
   };
 
   return procMap[key] ? procMap[key]() : null;
@@ -1540,19 +1549,33 @@ router.post("/trigger", authenticateUser, async (req, res) => {
     normalizedReportId === "adikosh-cam-print";
 
   // Basic validation
-  if (isPrintReport) {
-    if (!lan) {
-      return res
-        .status(400)
-        .json({ error: "LAN is required for CAM print report" });
-    }
-  } else {
-    if (!startDate || !endDate || !lenderName) {
-      return res
-        .status(400)
-        .json({ error: "startDate, endDate and product are required" });
-    }
+  // if (isPrintReport) {
+  //   if (!lan) {
+  //     return res
+  //       .status(400)
+  //       .json({ error: "LAN is required for CAM print report" });
+  //   }
+  // } else {
+  //   if (!startDate || !endDate || !lenderName) {
+  //     return res
+  //       .status(400)
+  //       .json({ error: "startDate, endDate and product are required" });
+  //   }
+  // }
+if (isPrintReport) {
+  if (!lan) {
+    return res
+      .status(400)
+      .json({ error: "LAN is required for CAM print report" });
   }
+} else if (normalizedReportId !== "bank-payment-file-report") {
+  // skip date validation for bank payment file
+  if (!startDate || !endDate || !lenderName) {
+    return res
+      .status(400)
+      .json({ error: "startDate, endDate and product are required" });
+  }
+}
 
   // Filename/extension by output type (PDF only for print)
   const usePdf = outputFormat?.toLowerCase() === "pdf" && isPrintReport;
