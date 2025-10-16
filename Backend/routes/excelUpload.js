@@ -5,6 +5,8 @@ const db = require("../config/db");
 const dotenv = require("dotenv");
 const { parseStringPromise } = require("xml2js");
 const axios = require("axios");
+const he = require("he");
+const { XMLParser } = require("fast-xml-parser");
 // const verifyApiKey = require("../middleware/authMiddleware");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { sendLoanStatusMail } = require("../jobs/mailer");
@@ -4820,9 +4822,33 @@ console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data
 
       if (response.status !== 200)
         throw new Error(`Experian returned HTTP ${response.status}`);
+//////////////////// new addd.//////////
+ // --- Parse SOAP XML ---
+      const parser = new XMLParser({ ignoreAttributes: false });
+      const soapParsed = parser.parse(response.data);
+      const encodedInnerXml =
+        soapParsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.["ns2:processResponse"]?.["ns2:out"];
 
+      if (!encodedInnerXml) throw new Error("Missing ns2:out field in Experian response");
 
+      // Decode and parse the inner XML
+      const decodedInnerXml = he.decode(encodedInnerXml);
+      parsedXmlToStore = decodedInnerXml;
+      const innerParsed = parser.parse(decodedInnerXml);
 
+      // Extract score and message
+      const scoreStr = innerParsed?.INProfileResponse?.SCORE?.BureauScore ?? null;
+      const userMsg = innerParsed?.INProfileResponse?.UserMessage?.UserMessageText ?? "";
+
+      if (userMsg.includes("No record found")) {
+        score = null;
+      } else if (scoreStr && !isNaN(Number(scoreStr)) && Number(scoreStr) >= 300) {
+        score = Number(scoreStr);
+      } else {
+        score = null;
+      }
+
+///////////////////// end  ////////////////
       console.log("✅ Parsed CIBIL Score:", score);
       console.log(
         "🧾 Normalized INProfileResponse (first 500 chars):",
