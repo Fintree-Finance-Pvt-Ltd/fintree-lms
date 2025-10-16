@@ -4974,7 +4974,9 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
       console.log(`\n🚀 Processing LAN: ${lan} (PAN: ${pan_number})`);
 
       const state = current_state || "MAHARASHTRA";
+      console.log("state", state);
       const state_code = stateCodes[state.toUpperCase()] ?? null;
+      console.log("state code", state_code)
       const gender_code = (gender ?? "Male").toLowerCase() === "female" ? 2 : 1;
      // --- Normalize and validate DOB ---
 let dobFormatted = null;
