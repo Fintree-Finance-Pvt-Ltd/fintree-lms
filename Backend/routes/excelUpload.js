@@ -4976,7 +4976,34 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
       const state = current_state || "MAHARASHTRA";
       const state_code = stateCodes[state.toUpperCase()] ?? null;
       const gender_code = (gender ?? "Male").toLowerCase() === "female" ? 2 : 1;
-      const dobFormatted = dob.replace(/-/g, "");
+     // --- Normalize and validate DOB ---
+let dobFormatted = null;
+if (dob) {
+  if (dob instanceof Date) {
+    // Convert Date object to YYYYMMDD
+    const yyyy = dob.getFullYear();
+    const mm = String(dob.getMonth() + 1).padStart(2, "0");
+    const dd = String(dob.getDate()).padStart(2, "0");
+    dobFormatted = `${yyyy}${mm}${dd}`;
+  } else if (typeof dob === "string") {
+    // Clean string and remove hyphens
+    dobFormatted = dob.replace(/[^0-9]/g, "");
+  } else {
+    console.warn(`⚠️ Invalid DOB format for LAN ${lan}:`, dob);
+  }
+}
+
+if (!dobFormatted || dobFormatted.length !== 8) {
+  console.warn(`⚠️ Skipping LAN ${lan}: Invalid or missing DOB.`);
+  results.push({
+    lan,
+    pan_number,
+    status: "skipped",
+    reason: "Invalid or missing DOB",
+  });
+  continue; // move to next case
+}
+
 
       const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
    <soapenv:Header/>
