@@ -4841,7 +4841,7 @@ console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data
       //const userMsg = innerParsed?.INProfileResponse?.UserMessage?.UserMessageText ?? "";
       console.log(scoreStr, "score str");
 
-     if (scoreStr && !isNaN(Number(scoreStr))) {
+     if (scoreStr) {
         score = Number(scoreStr);
       } else {
         score = null;
