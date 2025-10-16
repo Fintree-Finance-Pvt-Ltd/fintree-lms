@@ -4840,9 +4840,7 @@ console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data
       const scoreStr = innerParsed?.INProfileResponse?.SCORE?.BureauScore ?? null;
       const userMsg = innerParsed?.INProfileResponse?.UserMessage?.UserMessageText ?? "";
 
-      if (userMsg.includes("No record found")) {
-        score = null;
-      } else if (scoreStr && !isNaN(Number(scoreStr)) && Number(scoreStr) >= 300) {
+     if (scoreStr && !isNaN(Number(scoreStr))) {
         score = Number(scoreStr);
       } else {
         score = null;
