@@ -1697,20 +1697,30 @@ if (isPrintReport) {
   //   });
   // });
   // ✅ Force text format for Debit & Credit A/c Number cells
-  worksheet.eachRow((row) => {
-    row.eachCell((cell, colNumber) => {
-      const header = headers[colNumber - 1];
-      if (
-        header &&
-        (header.toLowerCase().includes("debit a/c number") ||
-         header.toLowerCase().includes("credit a/c number"))
-      ) {
-        cell.numFmt = "@"; // text format
-      } else if (typeof cell.value === "number") {
-        cell.numFmt = "#,##0.00";
-      }
-    });
+ worksheet.eachRow((row) => {
+  row.eachCell((cell, colNumber) => {
+    const header = headers[colNumber - 1];
+
+    if (!header) return;
+
+    const lowerHeader = header.toLowerCase();
+
+    // ✅ Force text format for these specific fields
+    if (
+      lowerHeader.includes("debit a/c number") ||
+      lowerHeader.includes("credit a/c number") ||
+      lowerHeader === "mobile"
+    ) {
+      cell.value = cell.value != null ? String(cell.value).trim() : "";
+      cell.numFmt = "@"; // Excel text format
+
+    // ✅ Normal numeric formatting for number values (e.g., Amount)
+    } else if (typeof cell.value === "number") {
+      cell.numFmt = "#,##0.00";
+    }
   });
+});
+
 
 
   // Style header row
