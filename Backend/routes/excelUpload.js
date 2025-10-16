@@ -4838,7 +4838,8 @@ console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data
 
       // Extract score and message
       const scoreStr = innerParsed?.INProfileResponse?.SCORE?.BureauScore ?? null;
-      const userMsg = innerParsed?.INProfileResponse?.UserMessage?.UserMessageText ?? "";
+      //const userMsg = innerParsed?.INProfileResponse?.UserMessage?.UserMessageText ?? "";
+      console.log(scoreStr, "score str");
 
      if (scoreStr && !isNaN(Number(scoreStr))) {
         score = Number(scoreStr);
