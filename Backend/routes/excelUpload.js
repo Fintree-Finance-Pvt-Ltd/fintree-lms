@@ -4903,7 +4903,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
     const [rows] = await db
       .promise()
       .query(
-        `SELECT * FROM loan_booking_emiclub WHERE cibil_score IS NULL ORDER BY id DESC LIMIT ?`,
+        `SELECT * FROM loan_booking_emiclub WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
         [limit]
       );
 
