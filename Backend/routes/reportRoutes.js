@@ -1688,14 +1688,28 @@ if (isPrintReport) {
     worksheet.addRow(out);
   }
 
+  // // ✅ Apply Excel number formatting
+  // worksheet.eachRow((row) => {
+  //   row.eachCell((cell) => {
+  //     if (typeof cell.value === "number") {
+  //       cell.numFmt = "#,##0.00"; // Excel numeric format with 2 decimals
+  //     }
+  //   });
+  // });
   // ✅ Apply Excel number formatting
   worksheet.eachRow((row) => {
-    row.eachCell((cell) => {
-      if (typeof cell.value === "number") {
-        cell.numFmt = "#,##0.00"; // Excel numeric format with 2 decimals
+    row.eachCell((cell, colNumber) => {
+      const header = headers[colNumber - 1];
+      // Skip formatting for Credit A/c Number (keep text)
+      if (header && header.toLowerCase().includes("credit a/c number")) {
+        cell.numFmt = "@"; // text format
+      } else if (typeof cell.value === "number") {
+        cell.numFmt = "#,##0.00";
       }
     });
   });
+
+
 
   // Style header row
   worksheet.getRow(1).eachCell((cell) => {
