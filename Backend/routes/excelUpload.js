@@ -1649,7 +1649,7 @@ router.put("/login-loans/:lan", (req, res) => {
 
     // ✅ Fetch loan details for email + webhook
     db.query(
-      `SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`,
+      `SELECT customer_name, loan_amount, partner_loan_id FROM ?? WHERE lan = ?`,
       [table, lan],
       async (fetchErr, rows) => {
         if (fetchErr) {
