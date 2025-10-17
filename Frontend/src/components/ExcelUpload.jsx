@@ -299,6 +299,8 @@ const CreateLoanBooking = () => {
           <option value="Adikosh">Adikosh</option>
           <option value="Embifi">Embifi</option>
           <option value="Circle PE">Circle PE</option>
+          <option value="WCTL">WCTL</option>
+
         </select>
 
         <button type="submit" className="submit-btn" disabled={isSubmitting}>
