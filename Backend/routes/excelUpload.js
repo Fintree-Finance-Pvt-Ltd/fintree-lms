@@ -38,6 +38,7 @@ const generateLoanIdentifiers = async (lender) => {
     prefixPartnerLoan = "BLIN1";
     prefixLan = "BL1";
   }else if (lender === "WCTL") {
+    prefixPartnerLoan = "WCTL1";
     prefixLan = "WCTL1";
   } else if (lender === "GQ FSF") {
     prefixPartnerLoan = "GQFSF1";
@@ -5311,7 +5312,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
       await db
         .promise()
         .query(query, [
-          "WCTL",
+          row["Category"],
           row["Product Short Name"],
           row["Customer Name"],
           row["Loan Account Number"],
