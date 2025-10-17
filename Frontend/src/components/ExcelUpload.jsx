@@ -172,7 +172,6 @@
 
 // export default CreateLoanBooking;
 
-
 import React, { useState } from "react";
 import api from "../api/api";
 import "../styles/CreateLoanBooking.css";
@@ -202,16 +201,28 @@ const CreateLoanBooking = () => {
   function getApiEndpoint(type) {
     switch (type) {
       // case "Health Care": return `/loan-booking/hc-upload`;
-      case "BL Loan":     return `/loan-booking/bl-upload`;
-      case "HEY EV Loan": return `/loan-booking/hey-ev-upload`;
-      case "EV Loan":     return `/loan-booking/upload`;
-      case "GQ FSF":      return `/loan-booking/gq-fsf-upload`;
-      case "GQ Non-FSF":  return `/loan-booking/gq-non-fsf-upload`;
-      case "Adikosh":     return `/loan-booking/adikosh-upload`;
-      case "Aldun":       return `/loan-booking/aldun-upload`;
-      case "Embifi":      return `/loan-booking/upload-embifi`;
-      case "Circle PE":  return `/loan-booking/circle-pe-upload`;
-      default:            return "";
+      case "BL Loan":
+        return `/loan-booking/bl-upload`;
+      case "HEY EV Loan":
+        return `/loan-booking/hey-ev-upload`;
+      case "EV Loan":
+        return `/loan-booking/upload`;
+      case "GQ FSF":
+        return `/loan-booking/gq-fsf-upload`;
+      case "GQ Non-FSF":
+        return `/loan-booking/gq-non-fsf-upload`;
+      case "Adikosh":
+        return `/loan-booking/adikosh-upload`;
+      case "Aldun":
+        return `/loan-booking/aldun-upload`;
+      case "Embifi":
+        return `/loan-booking/upload-embifi`;
+      case "Circle PE":
+        return `/loan-booking/circle-pe-upload`;
+      case "WCTL":
+        return `/loan-booking/wctl-upload`;
+      default:
+        return "";
     }
   }
 
@@ -233,7 +244,8 @@ const CreateLoanBooking = () => {
       const res = await api.post(getApiEndpoint(uploadType), formData, {
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (e) => {
-          if (e.total) setUploadPercentage(Math.round((e.loaded * 100) / e.total));
+          if (e.total)
+            setUploadPercentage(Math.round((e.loaded * 100) / e.total));
         },
       });
 
@@ -265,10 +277,19 @@ const CreateLoanBooking = () => {
         />
 
         <label>Select Excel File</label>
-        <input type="file" accept=".xlsx" onChange={handleFileChange} required />
+        <input
+          type="file"
+          accept=".xlsx"
+          onChange={handleFileChange}
+          required
+        />
 
         <label>Loan Type</label>
-        <select value={uploadType} onChange={(e) => setUploadType(e.target.value)} required>
+        <select
+          value={uploadType}
+          onChange={(e) => setUploadType(e.target.value)}
+          required
+        >
           <option value="">Select Type</option>
           <option value="EV Loan">EV Loan</option>
           <option value="HEY EV Loan">HEY EV Loan</option>
@@ -278,6 +299,8 @@ const CreateLoanBooking = () => {
           <option value="Adikosh">Adikosh</option>
           <option value="Embifi">Embifi</option>
           <option value="Circle PE">Circle PE</option>
+          <option value="WCTL">WCTL</option>
+
         </select>
 
         <button type="submit" className="submit-btn" disabled={isSubmitting}>
@@ -300,20 +323,36 @@ const CreateLoanBooking = () => {
         <div className="summary-card">
           {"inserted_rows" in summary && (
             <>
-              <div className="summary-line"><strong>Inserted:</strong> {summary.inserted_rows ?? 0}</div>
-              <div className="summary-line"><strong>Failed:</strong> {summary.failed_rows ?? 0}</div>
+              <div className="summary-line">
+                <strong>Inserted:</strong> {summary.inserted_rows ?? 0}
+              </div>
+              <div className="summary-line">
+                <strong>Failed:</strong> {summary.failed_rows ?? 0}
+              </div>
 
               {summary.duplicate_utrs?.length > 0 && (
                 <div className="chip-list">
                   <strong>Duplicate UTRs:</strong>
-                  <ul>{summary.duplicate_utrs.map((u) => <li key={u} className="mono">{u}</li>)}</ul>
+                  <ul>
+                    {summary.duplicate_utrs.map((u) => (
+                      <li key={u} className="mono">
+                        {u}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
               {summary.missing_lans?.length > 0 && (
                 <div className="chip-list">
                   <strong>Missing LANs:</strong>
-                  <ul>{summary.missing_lans.map((l) => <li key={l} className="mono">{l}</li>)}</ul>
+                  <ul>
+                    {summary.missing_lans.map((l) => (
+                      <li key={l} className="mono">
+                        {l}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
@@ -335,7 +374,11 @@ const CreateLoanBooking = () => {
                           <tr key={`${e.row}-${e.stage}-${i}`}>
                             <td>{i + 1}</td>
                             <td className="mono">{e.row ?? "-"}</td>
-                            <td><span className="stage-pill">{e.stage ?? "-"}</span></td>
+                            <td>
+                              <span className="stage-pill">
+                                {e.stage ?? "-"}
+                              </span>
+                            </td>
                             <td>{e.reason ?? "-"}</td>
                           </tr>
                         ))}
@@ -379,7 +422,9 @@ const CreateLoanBooking = () => {
           {"error" in summary && summary.error && (
             <div className="chip-list">
               <strong>Top-level Error:</strong>
-              <ul><li>{summary.error.message || String(summary.error)}</li></ul>
+              <ul>
+                <li>{summary.error.message || String(summary.error)}</li>
+              </ul>
             </div>
           )}
         </div>
