@@ -252,6 +252,37 @@ if (lan.startsWith("FINE")) {
     });
   }
 }
+
+// ✅ Call webhook for FINE (Finso) loans only
+if (lan.startsWith("FINS")) {
+  try {
+    // Fetch partner_loan_id for external_ref_no
+    const [partnerData] = await db.promise().query(
+      "SELECT partner_loan_id FROM loan_booking_finso WHERE lan = ?",
+      [lan]
+    );
+
+    const partnerLoanId = partnerData.length > 0 ? partnerData[0].partner_loan_id : null;
+
+    await sendLoanWebhook({
+      external_ref_no: partnerLoanId , // use partner_loan_id if available
+      utr: disbursementUTR,
+      disbursement_date: disbursementDate.toISOString().split("T")[0],
+      reference_number: lan,
+      status: "DISBURSED",
+      reject_reason: null
+    });
+  } catch (webhookErr) {
+    console.error(`⚠️ Webhook failed for ${partnerLoanId}:`, webhookErr.message);
+    rowErrors.push({
+      partnerLoanId,
+      lan,
+      utr: disbursementUTR,
+      reason: `Webhook failed: ${webhookErr.message}`,
+      stage: "webhook"
+    });
+  }
+}
       } catch (txErr) {
         rowErrors.push({ lan, utr: disbursementUTR, reason: `Transaction error: ${toClientError(txErr).message}`, stage: "transaction" });
         try { if (conn) await conn.rollback(); } catch (_) {}

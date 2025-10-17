@@ -3777,6 +3777,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
       });
     }
 
+
     return res.json({
       message: "Finso bank details processed successfully.",
       results,
