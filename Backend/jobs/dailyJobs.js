@@ -38,7 +38,9 @@ cron.schedule("*/2 * * * *", async () => {
     "manual_rps_embifi_loan",
     "manual_rps_emiclub",
     "manual_rps_bl_loan",
-    "manual_rps_circlepe"
+    "manual_rps_circlepe",
+    "manual_rps_finso_loan",
+    "manual_rps_hey_ev"
 
   ];
 
