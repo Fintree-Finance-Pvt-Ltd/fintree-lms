@@ -5254,9 +5254,94 @@ console.log( parse(row["loan amount sanctioned"]),
 });
 
 
-
-
 //////////////////////////////   CIRCLE PE ADD FOR LOAN BOOKING  END ////////////////////////
+
+////////////////////////   WCTL LOAN BOOKIN START /////////////////
+
+router.post("/wctl-upload", upload.single("file"), async (req, res) => {
+  console.log("Request received:", req.body);
+
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+  if (!req.body.lenderType)
+    return res.status(400).json({ message: "Lender type is required." });
+
+  try {
+    const lenderType = req.body.lenderType;
+    console.log("Lender Type:", lenderType);
+
+    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheetRaw = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], {
+      defval: "",
+    });
+
+    // Normalize headers (remove spaces, consistent keys)
+    const sheetData = sheetRaw.map((row) => {
+      const cleanedRow = {};
+      for (const key in row) {
+        const cleanKey = key.toString().trim();
+        cleanedRow[cleanKey] = row[key];
+      }
+      return cleanedRow;
+    });
+
+    if (!sheetData || sheetData.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "Uploaded Excel file is empty or invalid." });
+    }
+
+    for (const row of sheetData) {
+      const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+      const query = `
+  INSERT INTO loan_bookings_wctl (
+    category, product_short_name, customer_name, loan_account_number,
+    lan, loan_amount, interest_rate, loan_tenure, agreement_date,
+    first_emi_date, tenure_end_date, emi_amount, interest_amount,
+    rm_name, partner_loan_id, lender, status
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`;
+
+      await db
+        .promise()
+        .query(query, [
+          row["Category"],
+          row["Product Short Name"],
+          row["Customer Name"],
+          row["Loan Account Number"],
+          lan,
+          parseFloat(row["Loan Amount"]) || 0,
+          parseFloat(row["ROI %"]) || 0,
+          parseInt(row["TenureNo"]) || 0,
+          row["Disbursement Date"]
+            ? excelDateToJSDate(row["Disbursement Date"])
+            : null,
+          row["1st EMI start Date"]
+            ? excelDateToJSDate(row["1st EMI start Date"])
+            : null,
+          row["Tenure End Date"]
+            ? excelDateToJSDate(row["Tenure End Date"])
+            : null,
+          parseFloat(row["EMI AMOUNT"]) || 0,
+          parseFloat(row["Interest Amount"]) || 0,
+          row["RM NAME"],
+          partnerLoanId,
+          lenderType,
+          "Approved",
+        ]);
+    }
+
+    res.json({ message: "✅ WCTL Upload successful" });
+  } catch (error) {
+    console.error("❌ Error processing WCTL upload:", error);
+    res
+      .status(500)
+      .json({ message: "Error processing WCTL upload", error: error.message });
+  }
+});
+
+////////////////// WCT LOAN BOOKIN END /////////////////////////////
 
 ////////////////////// ADIKOSH CAM DATA UPLOAD Start     /////////////////////
 /**
