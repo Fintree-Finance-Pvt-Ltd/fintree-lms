@@ -5311,7 +5311,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
       await db
         .promise()
         .query(query, [
-          row["Category"],
+          "WCTL",
           row["Product Short Name"],
           row["Customer Name"],
           row["Loan Account Number"],
