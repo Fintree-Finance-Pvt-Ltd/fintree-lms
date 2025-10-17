@@ -37,6 +37,8 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "BL Loan") {
     prefixPartnerLoan = "BLIN1";
     prefixLan = "BL1";
+  }else if (lender === "WCTL") {
+    prefixLan = "WCTL1";
   } else if (lender === "GQ FSF") {
     prefixPartnerLoan = "GQFSF1";
     prefixLan = "GQFSF1";
