@@ -3355,9 +3355,9 @@ router.post("/disbursal-trend", async (req, res) => {
     if (prod === "ALL" || prod === "Finso")
       add("loan_booking_finso", "Finso");
     if (prod === "ALL" || prod === "circlepe")
-      add("loan_booking_embifi", "Circlepe");
+      add("loan_booking_circle_pe", "Circlepe");
     if (prod === "ALL" || prod === "Hey EV")
-      add("loan_booking_embifi", "Hey EV");
+      add("loan_booking_hey_ev", "Hey EV");
 
     const sql = queries.join(" UNION ALL ") + " ORDER BY month, product";
     const [rows] = await db.promise().query(sql, params);
