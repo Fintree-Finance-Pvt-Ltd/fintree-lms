@@ -1684,6 +1684,8 @@ router.put("/login-loans/:lan", (req, res) => {
             }
           }
 
+          console.log(lan, "lan", status, "status", partnerLoanId, "partner loan id", customerName , "customer name");
+
           // ✅ WEBHOOK — for FINS loans only
           if (lan.startsWith("FINS")) {
             const webhookUrl =
