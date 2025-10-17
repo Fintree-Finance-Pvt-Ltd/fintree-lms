@@ -1649,7 +1649,7 @@ router.put("/login-loans/:lan", (req, res) => {
 
     // ✅ Fetch loan details for email + webhook
     db.query(
-      `SELECT customer_name, loan_amount, batch_id, partner_loan_id FROM ?? WHERE lan = ?`,
+      `SELECT customer_name, loan_amount, partner_loan_id FROM ?? WHERE lan = ?`,
       [table, lan],
       async (fetchErr, rows) => {
         if (fetchErr) {
@@ -1683,6 +1683,8 @@ router.put("/login-loans/:lan", (req, res) => {
               console.error("Error sending email:", mailErr);
             }
           }
+
+          console.log(lan, "lan", status, "status", partnerLoanId, "partner loan id", customerName , "customer name");
 
           // ✅ WEBHOOK — for FINS loans only
           if (lan.startsWith("FINS")) {
@@ -3774,6 +3776,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
         lan: data.lan,
       });
     }
+
 
     return res.json({
       message: "Finso bank details processed successfully.",
