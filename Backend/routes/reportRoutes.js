@@ -1365,6 +1365,8 @@ const fs = require("fs");
 const path = require("path");
 const ExcelJS = require("exceljs");
 const authenticateUser = require("../middleware/verifyToken");
+const exportBankPaymentFile = require("../utils/exportBankPaymentFile");
+
 
 // Optional PDF support
 const PdfPrinter = require("pdfmake");
@@ -1527,6 +1529,339 @@ function formatDateLikeYYYYMMDD(val) {
 
 /** -------------------- trigger report -------------------- **/
 
+// router.post("/trigger", authenticateUser, async (req, res) => {
+//   const startTime = Date.now();
+//   const {
+//     reportId,
+//     startDate,
+//     endDate,
+//     product: lenderName,
+//     description,
+//     outputFormat,
+//     lan,
+//   } = req.body;
+
+//   console.log("📤 Triggering report with:", req.body);
+
+//   const createdByUser = req.user?.name || "system";
+//   const normalizedReportId = norm(reportId);
+//   const selectedProcedure = resolveProcedure(reportId, lenderName);
+
+//   if (!selectedProcedure) {
+//     return res.status(400).json({ error: `Invalid report ID: ${reportId}` });
+//   }
+
+//   // Decide whether this is a single-LAN print report
+//   const isPrintReport =
+//     normalizedReportId === "adikosh-cam-report-print" ||
+//     normalizedReportId === "adikosh-cam-print";
+
+//   // Basic validation
+//   // if (isPrintReport) {
+//   //   if (!lan) {
+//   //     return res
+//   //       .status(400)
+//   //       .json({ error: "LAN is required for CAM print report" });
+//   //   }
+//   // } else {
+//   //   if (!startDate || !endDate || !lenderName) {
+//   //     return res
+//   //       .status(400)
+//   //       .json({ error: "startDate, endDate and product are required" });
+//   //   }
+//   // }
+// if (isPrintReport) {
+//   if (!lan) {
+//     return res
+//       .status(400)
+//       .json({ error: "LAN is required for CAM print report" });
+//   }
+// } else if (normalizedReportId !== "bank-payment-file-report") {
+//   // skip date validation for bank payment file
+//   if (!startDate || !endDate || !lenderName) {
+//     return res
+//       .status(400)
+//       .json({ error: "startDate, endDate and product are required" });
+//   }
+// }
+
+//   // Filename/extension by output type (PDF only for print)
+//   const usePdf = outputFormat?.toLowerCase() === "pdf" && isPrintReport;
+//   const ext = usePdf ? "pdf" : "xlsx";
+
+//   const timestamp = Date.now();
+//   const fileSafeId = normalizedReportId.replace(/[^a-z0-9-]/g, "");
+//   const fileName = `${fileSafeId}_${timestamp}.${ext}`;
+//   const filePath = path.join(reportsDir, fileName);
+
+//   try {
+//     const [insertResult] = await db.promise().query(
+//       `INSERT INTO reports_download 
+//        (report_id, file_name, file_path, description, product, created_by, time_taken, generated_at, status)
+//        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)`,
+//       [
+//         reportId,
+//         fileName,
+//         filePath,
+//         description || "No description",
+//         lenderName || (isPrintReport ? "Adikosh" : "Unknown"),
+//         createdByUser,
+//         "In progress",
+//         "Running",
+//       ]
+//     );
+
+//     const reportRowId = insertResult.insertId;
+//     console.log("🆕 Inserted report row ID:", reportRowId, "| file:", filePath);
+
+//     // Respond immediately
+//     res.status(202).json({ message: "Report triggered", fileName });
+
+//     // Background job
+//     setImmediate(async () => {
+//       try {
+//         console.log("⚙️ Executing procedure:", selectedProcedure);
+
+//         let finalRows = [];
+//         if (isPrintReport) {
+//           const [results] = await db
+//             .promise()
+//             .query(`CALL ${selectedProcedure}(?)`, [lan]);
+//           console.log("select proc", selectedProcedure);
+          
+//            const set = results.find(
+//              (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
+//            );
+//           finalRows = set || [];
+//         } else {
+//           const [results] = await db
+//             .promise()
+//             .query(`CALL ${selectedProcedure}(?, ?, ?)`, [
+//               startDate,
+//               endDate,
+//               lenderName,
+//             ]);
+
+//           const set = results.find(
+//             (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
+//           );
+
+//           finalRows = set || [];
+//         }
+
+//         if (!finalRows.length) {
+//           console.warn("ℹ️ Procedure returned no rows");
+//           await db
+//             .promise()
+//             .query(`UPDATE reports_download SET status='Failed' WHERE id=?`, [
+//               reportRowId,
+//             ]);
+//           return;
+//         }
+
+//         // ---------- OUTPUT ----------
+//         if (ext === "xlsx") {
+//   const workbook = new ExcelJS.Workbook();
+//   const worksheet = workbook.addWorksheet("Report");
+
+//   const headers = Object.keys(finalRows[0]);
+//   worksheet.columns = headers.map((key) => ({ header: key, key }));
+
+//   for (const row of finalRows) {
+//     const out = {};
+//     for (const k of headers) {
+//       let v = row[k];
+
+//       // ✅ Dates: keep as text
+//       if (v instanceof Date) {
+//         out[k] = formatDateLikeYYYYMMDD(v);
+
+//       // ✅ YYYY-MM-DD strings: keep as text
+//       } else if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+//         out[k] = v;
+
+//       // ✅ Numeric-looking strings → convert to Number
+//       } else if (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v.replace(/,/g, ''))) {
+//         out[k] = Number(v.replace(/,/g, ""));  // strip commas → convert to number
+
+//       // ✅ Already numbers → keep
+//       } else if (typeof v === "number") {
+//         out[k] = v;
+
+//       // ✅ Everything else → leave
+//       } else {
+//         out[k] = v;
+//       }
+//     }
+//     worksheet.addRow(out);
+//   }
+
+//   // // ✅ Apply Excel number formatting
+//   // worksheet.eachRow((row) => {
+//   //   row.eachCell((cell) => {
+//   //     if (typeof cell.value === "number") {
+//   //       cell.numFmt = "#,##0.00"; // Excel numeric format with 2 decimals
+//   //     }
+//   //   });
+//   // });
+//   // ✅ Force text format for Debit & Credit A/c Number cells
+//  worksheet.eachRow((row) => {
+//   row.eachCell((cell, colNumber) => {
+//     const header = headers[colNumber - 1];
+
+//     if (!header) return;
+
+//     const lowerHeader = header.toLowerCase();
+    
+
+//     // ✅ Force text format for these specific fields
+//     if (
+//       lowerHeader.includes("debit a/c number") ||
+//       lowerHeader.includes("credit a/c number") ||
+//       lowerHeader === "mobile"
+//     ) {
+//       cell.value = cell.value != null ? String(cell.value).trim() : "";
+//       cell.numFmt = "@"; // Excel text format
+
+//     // ✅ Normal numeric formatting for number values (e.g., Amount)
+//     } else if (typeof cell.value === "number" && lowerHeader.includes("amount")) {
+//       cell.numFmt = "#,##0";
+//     }
+//   });
+// });
+
+
+
+//   // Style header row
+//   worksheet.getRow(1).eachCell((cell) => {
+//     cell.fill = {
+//       type: "pattern",
+//       pattern: "solid",
+//       fgColor: { argb: "D6EAF8" },
+//     };
+//     cell.font = { bold: true };
+//     cell.border = {
+//       top: { style: "thin" },
+//       left: { style: "thin" },
+//       bottom: { style: "thin" },
+//       right: { style: "thin" },
+//     };
+//   });
+
+//   // Add borders
+//   worksheet.eachRow((row) => {
+//     row.eachCell((cell) => {
+//       cell.border = {
+//         top: { style: "thin" },
+//         left: { style: "thin" },
+//         bottom: { style: "thin" },
+//         right: { style: "thin" },
+//       };
+//     });
+//   });
+
+//   // Auto-fit columns
+//   autofitColumns(worksheet);
+
+//   await workbook.xlsx.writeFile(filePath);
+// }
+// // PDF CODE
+//  else {
+//           // PDF generation (unchanged)
+//           const fonts = {
+//             Helvetica: {
+//               normal: "Helvetica",
+//               bold: "Helvetica-Bold",
+//               italics: "Helvetica-Oblique",
+//               bolditalics: "Helvetica-BoldOblique",
+//             },
+//           };
+//           const printer = new PdfPrinter(fonts);
+
+//           const grouped = {};
+//           for (const r of finalRows) {
+//             const sec = r.section || "General";
+//             const sub = r.sub_section || "Details";
+//             if (!grouped[sec]) grouped[sec] = {};
+//             if (!grouped[sec][sub]) grouped[sec][sub] = [];
+//             grouped[sec][sub].push([r.label, r.value ?? ""]);
+//           }
+
+//           const content = [{ text: "CAM DATA REPORT", style: "header" }];
+//           for (const [section, subs] of Object.entries(grouped)) {
+//             content.push({ text: section, style: "sectionHeader" });
+//             for (const [sub, rows] of Object.entries(subs)) {
+//               content.push({ text: sub, style: "subHeader" });
+//               content.push({
+//                 table: {
+//                   widths: ["35%", "65%"],
+//                   body: [["Field", "Value"], ...rows],
+//                 },
+//                 layout: "lightHorizontalLines",
+//                 margin: [0, 0, 0, 8],
+//               });
+//             }
+//           }
+
+//           const docDefinition = {
+//             content,
+//             pageSize: "A4",
+//             pageMargins: [30, 30, 30, 40],
+//             styles: {
+//               header: {
+//                 fontSize: 16,
+//                 bold: true,
+//                 alignment: "center",
+//                 margin: [0, 0, 0, 12],
+//               },
+//               sectionHeader: { fontSize: 13, bold: true, margin: [0, 8, 0, 4] },
+//               subHeader: { fontSize: 11, bold: true, margin: [0, 4, 0, 4] },
+//             },
+//             defaultStyle: { font: "Helvetica" },
+//           };
+
+//           const pdfDoc = printer.createPdfKitDocument(docDefinition);
+//           await new Promise((resolve, reject) => {
+//             const stream = fs.createWriteStream(filePath);
+//             pdfDoc.pipe(stream);
+//             pdfDoc.end();
+//             stream.on("finish", resolve);
+//             stream.on("error", reject);
+//           });
+//         }
+
+//         const secs = Math.floor((Date.now() - startTime) / 1000);
+//         const pretty = `${Math.floor(secs / 60)} minute ${secs % 60} seconds`;
+//         await db
+//           .promise()
+//           .query(
+//             `UPDATE reports_download 
+//              SET status='Completed', time_taken=?, generated_at=NOW()
+//              WHERE id=?`,
+//             [pretty, reportRowId]
+//           );
+
+//         console.log("✅ Report generated:", fileName);
+//       } catch (err) {
+//         console.error("❌ Background job error:", err);
+//         await db
+//           .promise()
+//           .query(`UPDATE reports_download SET status='Failed' WHERE id=?`, [
+//             reportRowId,
+//           ]);
+//       }
+//     });
+//   } catch (err) {
+//     console.error("❌ Trigger error:", err);
+//     res.status(500).json({ error: err.message || "Server error" });
+//   }
+// });
+
+
+
+
+////////////////////new for payment file /////////////////////
+
 router.post("/trigger", authenticateUser, async (req, res) => {
   const startTime = Date.now();
   const {
@@ -1549,44 +1884,28 @@ router.post("/trigger", authenticateUser, async (req, res) => {
     return res.status(400).json({ error: `Invalid report ID: ${reportId}` });
   }
 
-  // Decide whether this is a single-LAN print report
   const isPrintReport =
     normalizedReportId === "adikosh-cam-report-print" ||
     normalizedReportId === "adikosh-cam-print";
 
-  // Basic validation
-  // if (isPrintReport) {
-  //   if (!lan) {
-  //     return res
-  //       .status(400)
-  //       .json({ error: "LAN is required for CAM print report" });
-  //   }
-  // } else {
-  //   if (!startDate || !endDate || !lenderName) {
-  //     return res
-  //       .status(400)
-  //       .json({ error: "startDate, endDate and product are required" });
-  //   }
-  // }
-if (isPrintReport) {
-  if (!lan) {
-    return res
-      .status(400)
-      .json({ error: "LAN is required for CAM print report" });
+  // ✅ Validation rules
+  if (isPrintReport) {
+    if (!lan) {
+      return res
+        .status(400)
+        .json({ error: "LAN is required for CAM print report" });
+    }
+  } else if (normalizedReportId !== "bank-payment-file-report") {
+    if (!startDate || !endDate || !lenderName) {
+      return res
+        .status(400)
+        .json({ error: "startDate, endDate and product are required" });
+    }
   }
-} else if (normalizedReportId !== "bank-payment-file-report") {
-  // skip date validation for bank payment file
-  if (!startDate || !endDate || !lenderName) {
-    return res
-      .status(400)
-      .json({ error: "startDate, endDate and product are required" });
-  }
-}
 
-  // Filename/extension by output type (PDF only for print)
+  // ✅ File setup
   const usePdf = outputFormat?.toLowerCase() === "pdf" && isPrintReport;
   const ext = usePdf ? "pdf" : "xlsx";
-
   const timestamp = Date.now();
   const fileSafeId = normalizedReportId.replace(/[^a-z0-9-]/g, "");
   const fileName = `${fileSafeId}_${timestamp}.${ext}`;
@@ -1611,11 +1930,9 @@ if (isPrintReport) {
 
     const reportRowId = insertResult.insertId;
     console.log("🆕 Inserted report row ID:", reportRowId, "| file:", filePath);
-
-    // Respond immediately
     res.status(202).json({ message: "Report triggered", fileName });
 
-    // Background job
+    // ✅ Background job
     setImmediate(async () => {
       try {
         console.log("⚙️ Executing procedure:", selectedProcedure);
@@ -1625,11 +1942,9 @@ if (isPrintReport) {
           const [results] = await db
             .promise()
             .query(`CALL ${selectedProcedure}(?)`, [lan]);
-          console.log("select proc", selectedProcedure);
-          
-           const set = results.find(
-             (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
-           );
+          const set = results.find(
+            (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
+          );
           finalRows = set || [];
         } else {
           const [results] = await db
@@ -1639,11 +1954,9 @@ if (isPrintReport) {
               endDate,
               lenderName,
             ]);
-
           const set = results.find(
             (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
           );
-
           finalRows = set || [];
         }
 
@@ -1657,114 +1970,24 @@ if (isPrintReport) {
           return;
         }
 
-        // ---------- OUTPUT ----------
+        // ✅ Output Handling
         if (ext === "xlsx") {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet("Report");
-
-  const headers = Object.keys(finalRows[0]);
-  worksheet.columns = headers.map((key) => ({ header: key, key }));
-
-  for (const row of finalRows) {
-    const out = {};
-    for (const k of headers) {
-      let v = row[k];
-
-      // ✅ Dates: keep as text
-      if (v instanceof Date) {
-        out[k] = formatDateLikeYYYYMMDD(v);
-
-      // ✅ YYYY-MM-DD strings: keep as text
-      } else if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        out[k] = v;
-
-      // ✅ Numeric-looking strings → convert to Number
-      } else if (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v.replace(/,/g, ''))) {
-        out[k] = Number(v.replace(/,/g, ""));  // strip commas → convert to number
-
-      // ✅ Already numbers → keep
-      } else if (typeof v === "number") {
-        out[k] = v;
-
-      // ✅ Everything else → leave
-      } else {
-        out[k] = v;
-      }
-    }
-    worksheet.addRow(out);
-  }
-
-  // // ✅ Apply Excel number formatting
-  // worksheet.eachRow((row) => {
-  //   row.eachCell((cell) => {
-  //     if (typeof cell.value === "number") {
-  //       cell.numFmt = "#,##0.00"; // Excel numeric format with 2 decimals
-  //     }
-  //   });
-  // });
-  // ✅ Force text format for Debit & Credit A/c Number cells
- worksheet.eachRow((row) => {
-  row.eachCell((cell, colNumber) => {
-    const header = headers[colNumber - 1];
-
-    if (!header) return;
-
-    const lowerHeader = header.toLowerCase();
-
-    // ✅ Force text format for these specific fields
-    if (
-      lowerHeader.includes("debit a/c number") ||
-      lowerHeader.includes("credit a/c number") ||
-      lowerHeader === "mobile"
-    ) {
-      cell.value = cell.value != null ? String(cell.value).trim() : "";
-      cell.numFmt = "@"; // Excel text format
-
-    // ✅ Normal numeric formatting for number values (e.g., Amount)
-    } else if (typeof cell.value === "number") {
-      cell.numFmt = "#,##0.00";
-    }
-  });
-});
-
-
-
-  // Style header row
-  worksheet.getRow(1).eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "D6EAF8" },
-    };
-    cell.font = { bold: true };
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
-
-  // Add borders
-  worksheet.eachRow((row) => {
-    row.eachCell((cell) => {
-      cell.border = {
-        top: { style: "thin" },
-        left: { style: "thin" },
-        bottom: { style: "thin" },
-        right: { style: "thin" },
-      };
-    });
-  });
-
-  // Auto-fit columns
-  autofitColumns(worksheet);
-
-  await workbook.xlsx.writeFile(filePath);
-}
-// PDF CODE
- else {
-          // PDF generation (unchanged)
+          if (normalizedReportId === "bank-payment-file-report") {
+            // ⚙️ Use custom helper for bank payment file
+            await exportBankPaymentFile(finalRows, filePath);
+          } else {
+            // ✅ Default Excel export
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet("Report");
+            const headers = Object.keys(finalRows[0]);
+            worksheet.columns = headers.map((key) => ({ header: key, key }));
+            for (const row of finalRows) worksheet.addRow(row);
+            worksheet.getRow(1).font = { bold: true };
+            autofitColumns(worksheet);
+            await workbook.xlsx.writeFile(filePath);
+          }
+        } else {
+          // ✅ PDF export logic (unchanged)
           const fonts = {
             Helvetica: {
               normal: "Helvetica",
@@ -1774,7 +1997,6 @@ if (isPrintReport) {
             },
           };
           const printer = new PdfPrinter(fonts);
-
           const grouped = {};
           for (const r of finalRows) {
             const sec = r.section || "General";
@@ -1805,12 +2027,7 @@ if (isPrintReport) {
             pageSize: "A4",
             pageMargins: [30, 30, 30, 40],
             styles: {
-              header: {
-                fontSize: 16,
-                bold: true,
-                alignment: "center",
-                margin: [0, 0, 0, 12],
-              },
+              header: { fontSize: 16, bold: true, alignment: "center", margin: [0, 0, 0, 12] },
               sectionHeader: { fontSize: 13, bold: true, margin: [0, 8, 0, 4] },
               subHeader: { fontSize: 11, bold: true, margin: [0, 4, 0, 4] },
             },
@@ -1827,6 +2044,7 @@ if (isPrintReport) {
           });
         }
 
+        // ✅ Mark report as completed
         const secs = Math.floor((Date.now() - startTime) / 1000);
         const pretty = `${Math.floor(secs / 60)} minute ${secs % 60} seconds`;
         await db
@@ -1837,7 +2055,6 @@ if (isPrintReport) {
              WHERE id=?`,
             [pretty, reportRowId]
           );
-
         console.log("✅ Report generated:", fileName);
       } catch (err) {
         console.error("❌ Background job error:", err);
@@ -1853,6 +2070,7 @@ if (isPrintReport) {
     res.status(500).json({ error: err.message || "Server error" });
   }
 });
+
 
 /** -------------------- download a generated file -------------------- **/
 router.get("/download/:fileName", (req, res) => {
