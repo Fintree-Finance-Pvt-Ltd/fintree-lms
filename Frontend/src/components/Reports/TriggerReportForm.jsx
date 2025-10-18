@@ -276,7 +276,8 @@ const productOptions = [
   { label: "Adikosh", value: "Adikosh" },
   { label: "CCOD", value: "CC-OD" },
   { label: "Embifi", value: "Embifi" },
-  { label: "EMICLUB", value: "EMICLUB"}
+  { label: "EMICLUB", value: "EMICLUB"},
+  { label: "Circle Pe", value: "Circlepe"}
 ];
 
 const formatDate = (date) => {
