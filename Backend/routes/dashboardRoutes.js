@@ -3985,7 +3985,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(loan_amount), 0) AS amount
         FROM loan_bookings
-        WHERE 1=1 ${dclBL.clause}
+        WHERE 1=1 ${dclBL.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...dclBL.params);
     }
@@ -3993,7 +3993,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(loan_amount), 0) AS amount
         FROM loan_booking_ev
-        WHERE 1=1 ${dclEV.clause}
+        WHERE 1=1 ${dclEV.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...dclEV.params);
     }
@@ -4001,7 +4001,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(approved_loan_amount), 0) AS amount
         FROM loan_booking_embifi
-        WHERE 1=1 ${dclEmbifi.clause}
+        WHERE 1=1 ${dclEmbifi.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...dclEmbifi.params);
     }
@@ -4010,7 +4010,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(net_disbursement), 0) AS amount
         FROM loan_booking_adikosh
-        WHERE 1=1 ${d.clause}
+        WHERE 1=1 ${d.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...d.params);
     }
@@ -4019,7 +4019,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
         FROM loan_booking_gq_non_fsf
-        WHERE 1=1 ${d.clause}
+        WHERE 1=1 ${d.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...d.params);
     }
@@ -4028,7 +4028,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
         FROM loan_booking_gq_fsf
-        WHERE 1=1 ${d.clause}
+        WHERE 1=1 ${d.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...d.params);
     }
@@ -4037,7 +4037,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(loan_amount), 0) AS amount
         FROM loan_booking_emiclub
-        WHERE 1=1 ${d.clause}
+        WHERE 1=1 ${d.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...d.params);
     }
@@ -4046,7 +4046,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
         FROM loan_booking_finso
-        WHERE 1=1 ${d.clause}
+        WHERE 1=1 ${d.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...d.params);
     }
@@ -4055,7 +4055,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
         FROM loan_booking_hey_ev
-        WHERE 1=1 ${d.clause}
+        WHERE 1=1 ${d.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...d.params);
     }
@@ -4064,7 +4064,7 @@ router.post("/metric-cards", async (req, res) => {
       disburseQueries.push(`
         SELECT IFNULL(SUM(loan_amount), 0) AS amount
         FROM loan_booking_circle_pe
-        WHERE 1=1 ${d.clause}
+        WHERE 1=1 ${d.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...d.params);
     }
