@@ -5,11 +5,13 @@ import CollectionVsDueChart from "../components/charts/CollectionVsDueChart";
 import ChartFilter from "../components/charts/ChartFilter";
 import ProductDistributionChart from "../components/charts/ProductDistributionChart";
 import DpdBuckets from "../components/charts/DpdBuckets";
+import LoaderOverlay from "../components/ui/LoaderOverlay"
 import "../styles/Dashboard.css";
 import api from "../api/api";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("disbursal");
+  const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState({
     product: "ALL",
     from: "",
@@ -30,6 +32,7 @@ const [metrics, setMetrics] = useState({
 
   const fetchMetrics = async () => {
     try {
+      setLoading(true);
       const res = await api.post(
         `/dashboard/metric-cards`,
         filters
@@ -37,10 +40,14 @@ const [metrics, setMetrics] = useState({
       setMetrics(res.data);
     } catch (err) {
       console.error("Metric Cards Fetch Error:", err);
+    }finally{
+      setLoading(false)
     }
   };
 
   return (
+    <>
+    <LoaderOverlay show={loading} label="Fetching dashboard data" />
     <div style={{ padding: "1rem", overflowY: "auto" }}>
       <ChartFilter onFilterChange={setFilters} />
 
@@ -126,6 +133,7 @@ const [metrics, setMetrics] = useState({
         </div>
       </div>
     </div>
+    </>
   );
 };
 
