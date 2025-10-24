@@ -42,9 +42,9 @@ async function addAlloc({ lan, dueDate, allocDate, amount, chargeType, paymentId
   return amount;
 }
 
-/** Update one EMI row with new remaining fields */
+/** Update EMI row */
 async function updateEmiAmounts(emiTable, emiId, { ri, rp, paymentDate }) {
-  const remainingEmi = ri + rp;
+  const remainingEmi = (Number(ri) || 0) + (Number(rp) || 0);
   await queryDB(
     `UPDATE ${emiTable}
        SET remaining_interest = ?,
@@ -57,7 +57,35 @@ async function updateEmiAmounts(emiTable, emiId, { ri, rp, paymentDate }) {
   );
 }
 
-/** Sweep for EMIs with due_date <= T (collect principal then overdue interest) */
+/** Safely coerce numeric */
+function N(x) {
+  const v = Number(x);
+  return isNaN(v) ? 0 : v;
+}
+
+/** Try to read a principal component for a FUTURE EMI even when remaining_principal is 0 */
+function computeFuturePrincipalComponent(emi) {
+  // common column names across your variants
+  const candidates = [
+    emi.remaining_principal, emi.principal_component, emi.emi_principal,
+    emi.principal, emi.principal_amt, emi.principal_amount
+  ];
+
+  for (const c of candidates) {
+    const v = N(c);
+    if (v > 0) return v;
+  }
+
+  // derive from EMI - interest if possible
+  const emiAmt = N(emi.emi_amount) || N(emi.total_emi) || N(emi.remaining_amount) || N(emi.remaining_emi);
+  const interestComp = N(emi.remaining_interest) || N(emi.emi_interest) || N(emi.interest);
+  if (emiAmt > 0 && emiAmt - interestComp > 0) return +(emiAmt - interestComp).toFixed(2);
+
+  // final fallback: 0
+  return 0;
+}
+
+/** Sweep due_date <= paymentDate : Principal then Overdue Interest */
 async function sweepPastEmis({ emiTable, lan, paymentDate, paymentId, remaining }) {
   if (remaining <= 0) return remaining;
 
@@ -74,8 +102,8 @@ async function sweepPastEmis({ emiTable, lan, paymentDate, paymentId, remaining 
     if (remaining <= 0) break;
 
     const dueDate = emi.due_date;
-    let rp = Number(emi.remaining_principal || 0);
-    let ri = Number(emi.remaining_interest || 0);
+    let rp = N(emi.remaining_principal);
+    let ri = N(emi.remaining_interest);
 
     // principal first
     if (rp > 0 && remaining > 0) {
@@ -100,82 +128,77 @@ async function sweepPastEmis({ emiTable, lan, paymentDate, paymentId, remaining 
 }
 
 /**
- * Sweep future EMIs (due_date > T):
- * - allocate only principal
- * - when an EMI's principal is fully covered, waive its remaining interest to 0
- * - if principal not fully covered, do not waive its interest (foreclosure incomplete)
+ * Sweep due_date > paymentDate:
+ *  - allocate ONLY principal component (even if remaining_principal is 0)
+ *  - ALWAYS waive future interest of each EMI to 0 (per requirement)
+ *  - update the row so leftover (if any) is carried as remaining_principal (interest=0)
  */
 async function sweepFutureEmisPrincipalOnly({ emiTable, lan, paymentDate, paymentId, remaining }) {
-  if (remaining <= 0) return { remaining, totalFutureInterestWaived: 0 };
+  if (remaining <= 0) return { remaining, totalFutureInterestWaived: 0, totalFuturePrincipalAllocated: 0 };
 
   const emis = await queryDB(
     `SELECT * FROM ${emiTable}
       WHERE lan = ?
-        AND (remaining_interest > 0 OR remaining_principal > 0)
+        AND (remaining_interest > 0 OR remaining_principal > 0 OR remaining_emi > 0 OR remaining_amount > 0)
         AND due_date > ?
       ORDER BY due_date ASC`,
     [lan, paymentDate]
   );
 
   let totalFutureInterestWaived = 0;
+  let totalFuturePrincipalAllocated = 0;
 
   for (const emi of emis) {
     if (remaining <= 0) break;
 
     const dueDate = emi.due_date;
-    let rp = Number(emi.remaining_principal || 0);
-    let ri = Number(emi.remaining_interest || 0);
 
-    if (rp <= 0 && ri > 0) {
-      // principal already zero; this is pure future interest -> waive it
+    // Compute this EMI's future principal component (scheduled principal)
+    const principalComp = computeFuturePrincipalComponent(emi);
+
+    // Compute this EMI's future interest component (waive fully)
+    const interestComp = N(emi.remaining_interest) || N(emi.emi_interest) || N(emi.interest);
+
+    // Always waive future interest (regardless of principal coverage)
+    if (interestComp > 0) {
       await addAlloc({
         lan,
         dueDate,
         allocDate: paymentDate,
-        amount: ri,
+        amount: interestComp,
         chargeType: "Waiver - Interest (Future)",
         paymentId,
         meta: { reason: "Foreclosure future interest waived" },
       });
-      totalFutureInterestWaived += ri;
-      ri = 0;
-      await updateEmiAmounts(emiTable, emi.id, { ri, rp, paymentDate });
-      continue;
+      totalFutureInterestWaived += interestComp;
     }
 
-    if (rp > 0) {
-      // allocate principal only
-      const useP = Math.min(rp, remaining);
-      if (useP > 0) {
-        await addAlloc({ lan, dueDate, allocDate: paymentDate, amount: useP, chargeType: "Principal", paymentId });
-        rp -= useP;
-        remaining -= useP;
-      }
-
-      // fully cleared principal -> waive any remaining future interest for this EMI
-      if (rp === 0 && ri > 0) {
-        await addAlloc({
-          lan,
-          dueDate,
-          allocDate: paymentDate,
-          amount: ri,
-          chargeType: "Waiver - Interest (Future)",
-          paymentId,
-          meta: { reason: "Foreclosure future interest waived" },
-        });
-        totalFutureInterestWaived += ri;
-        ri = 0;
-      }
-
-      await updateEmiAmounts(emiTable, emi.id, { ri, rp, paymentDate });
+    // Allocate principal only
+    let rp_left = principalComp;
+    if (principalComp > 0 && remaining > 0) {
+      const useP = Math.min(principalComp, remaining);
+      await addAlloc({ lan, dueDate, allocDate: paymentDate, amount: useP, chargeType: "Principal", paymentId });
+      totalFuturePrincipalAllocated += useP;
+      rp_left = +(principalComp - useP).toFixed(2);
+      remaining = +(remaining - useP).toFixed(2);
     }
+
+    // After foreclosure rule: interest becomes 0 for all future EMIs
+    const ri_after = 0;
+
+    // Update row to reflect true leftover: only principal can remain
+    await updateEmiAmounts(emiTable, emi.id, {
+      ri: ri_after,
+      rp: rp_left,
+      paymentDate
+    });
   }
 
-  return { remaining, totalFutureInterestWaived };
+  return { remaining, totalFutureInterestWaived, totalFuturePrincipalAllocated };
 }
 
 const allocateForeclosure = async (lan, payment) => {
-  const totalReceived = Number(payment.transfer_amount || 0);
+  const totalReceived = N(payment.transfer_amount);
   const paymentDate = payment.payment_date; // drive by Payment Date
   const paymentId   = payment.payment_id;
   if (!paymentId) throw new Error("❌ payment_id is required");
@@ -184,17 +207,17 @@ const allocateForeclosure = async (lan, payment) => {
 
   await begin();
   try {
-    // 1) Get breakup as-of payment date
+    // 1) Get breakup as-of payment date (for ACC, fee, tax)
     const fcRows = await queryDB(`CALL ${PROC_NAME}(?, ?)`, [lan, paymentDate]);
     const fc = Array.isArray(fcRows) ? (Array.isArray(fcRows[0]) ? fcRows[0][0] : fcRows[0]) : fcRows[0];
     if (!fc) throw new Error("❌ FC proc returned no row");
 
-    const TRP = Number(fc.total_remaining_principal || 0); // all principal (past + future)
-    const TRI = Number(fc.total_remaining_interest || 0);  // overdue interest ≤ T
-    const ACC = Number(fc.accrued_interest || 0);          // accrual from last due date → T
-    const FEE = Number(fc.foreclosure_fee || 0);
-    const GST = Number(fc.foreclosure_tax || 0);
-    const FC_TOTAL = Number(fc.total_fc_amount || 0);
+    const TRP = N(fc.total_remaining_principal); // reference
+    const TRI = N(fc.total_remaining_interest);  // overdue interest ≤ T (reference)
+    const ACC = N(fc.accrued_interest);          // accrual last due -> T
+    const FEE = N(fc.foreclosure_fee);
+    const GST = N(fc.foreclosure_tax);
+    const FC_TOTAL = N(fc.total_fc_amount);
 
     let remaining = totalReceived;
 
@@ -213,25 +236,25 @@ const allocateForeclosure = async (lan, payment) => {
         paymentId,
         meta: { from_proc: true, computed: ACC },
       });
-      remaining -= use;
+      remaining = +(remaining - use).toFixed(2);
     }
 
-    // 4) Future EMIs: principal only; waive future interest on cleared EMIs
+    // 4) Future EMIs: principal only; always waive future interest
     const futureRes = await sweepFutureEmisPrincipalOnly({
       emiTable, lan, paymentDate, paymentId, remaining
     });
     remaining = futureRes.remaining;
 
-    // 5) FC fee, then GST
+    // 5) FC fee, then GST (both MUST appear in allocation)
     if (remaining > 0 && FEE > 0) {
       const use = Math.min(FEE, remaining);
       await addAlloc({ lan, dueDate: paymentDate, allocDate: paymentDate, amount: use, chargeType: "FC Fee", paymentId, meta: { computed: FEE } });
-      remaining -= use;
+      remaining = +(remaining - use).toFixed(2);
     }
     if (remaining > 0 && GST > 0) {
       const use = Math.min(GST, remaining);
       await addAlloc({ lan, dueDate: paymentDate, allocDate: paymentDate, amount: use, chargeType: "FC GST", paymentId, meta: { computed: GST } });
-      remaining -= use;
+      remaining = +(remaining - use).toFixed(2);
     }
 
     // 6) Penal charges
@@ -243,14 +266,13 @@ const allocateForeclosure = async (lan, payment) => {
           WHERE lan = ? AND charge_type = 'Penal' AND status IN ('Unpaid','Due')`,
         [lan]
       );
-      penalDue = Number(p?.due || 0);
+      penalDue = N(p?.due);
     } catch { penalDue = 0; }
 
     if (remaining > 0 && penalDue > 0) {
       const use = Math.min(penalDue, remaining);
       await addAlloc({ lan, dueDate: paymentDate, allocDate: paymentDate, amount: use, chargeType: "Penal Charges", paymentId });
-      remaining -= use;
-      penalDue -= use;
+      remaining = +(remaining - use).toFixed(2);
     }
 
     // 7) NACH bounce charges
@@ -262,14 +284,13 @@ const allocateForeclosure = async (lan, payment) => {
           WHERE lan = ? AND charge_type = 'NACH Bounce' AND status IN ('Unpaid','Due')`,
         [lan]
       );
-      nachDue = Number(n?.due || 0);
+      nachDue = N(n?.due);
     } catch { nachDue = 0; }
 
     if (remaining > 0 && nachDue > 0) {
       const use = Math.min(nachDue, remaining);
       await addAlloc({ lan, dueDate: paymentDate, allocDate: paymentDate, amount: use, chargeType: "NACH Charges", paymentId });
-      remaining -= use;
-      nachDue -= use;
+      remaining = +(remaining - use).toFixed(2);
     }
 
     // 8) Excess
@@ -278,7 +299,7 @@ const allocateForeclosure = async (lan, payment) => {
       remaining = 0;
     }
 
-    // 9) Close loan if nothing remains anywhere
+    // 9) Close loan if nothing remains on any EMI
     const [pending] = await queryDB(
       `SELECT COUNT(*) AS cnt
          FROM ${emiTable}
@@ -286,7 +307,6 @@ const allocateForeclosure = async (lan, payment) => {
           AND (remaining_interest > 0 OR remaining_principal > 0)`,
       [lan]
     );
-
     if (pending.cnt === 0) {
       await queryDB(`UPDATE ${loanTable} SET status = 'Fully Paid' WHERE lan = ?`, [lan]);
     }
@@ -296,7 +316,8 @@ const allocateForeclosure = async (lan, payment) => {
       ok: true,
       message: "✅ Foreclosure allocation completed",
       fc_breakup: { TRP, TRI, ACC, FEE, GST, FC_TOTAL },
-      future_interest_waived: futureRes.totalFutureInterestWaived || 0
+      future_interest_waived: futureRes.totalFutureInterestWaived || 0,
+      future_principal_allocated: futureRes.totalFuturePrincipalAllocated || 0
     };
   } catch (e) {
     await rollback();
