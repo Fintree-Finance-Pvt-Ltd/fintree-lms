@@ -13,7 +13,7 @@ const commit = () => queryDB("COMMIT");
 const rollback = () => queryDB("ROLLBACK");
 
 // === CONFIG ===
-const PROC_NAME = "sp_calculate_forecloser_collection"; // created above
+const PROC_NAME = "sp_calculate_forecloser_allocation_cal"; // created above
 
 function detectTablesByLan(lan) {
   const key = String(lan || "").trim().toUpperCase();
