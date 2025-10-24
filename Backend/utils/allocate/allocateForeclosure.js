@@ -178,7 +178,7 @@ const allocateForeclosure = async (lan, payment) => {
       const use = Math.min(ACC, remaining);
       await addAlloc({
         lan,
-        dueDate: null,
+        dueDate: paymentDate,
         allocDate: paymentDate,
         amount: use,
         chargeType: "Accrued Interest",
@@ -193,7 +193,7 @@ const allocateForeclosure = async (lan, payment) => {
       const use = Math.min(FEE, remaining);
       await addAlloc({
         lan,
-        dueDate: null,
+        dueDate: paymentDate,
         allocDate: paymentDate,
         amount: use,
         chargeType: "FC Fee",
@@ -208,7 +208,7 @@ const allocateForeclosure = async (lan, payment) => {
       const use = Math.min(GST, remaining);
       await addAlloc({
         lan,
-        dueDate: null,
+        dueDate: paymentDate,
         allocDate: paymentDate,
         amount: use,
         chargeType: "FC GST",
@@ -232,7 +232,7 @@ const allocateForeclosure = async (lan, payment) => {
 
     if (remaining > 0 && penalDue > 0) {
       const use = Math.min(penalDue, remaining);
-      await addAlloc({ lan, dueDate: null, allocDate: paymentDate, amount: use, chargeType: "Penal Charges", paymentId });
+      await addAlloc({ lan, dueDate: paymentDate, allocDate: paymentDate, amount: use, chargeType: "Penal Charges", paymentId });
       remaining -= use;
       penalDue -= use;
     }
@@ -251,7 +251,7 @@ const allocateForeclosure = async (lan, payment) => {
 
     if (remaining > 0 && nachDue > 0) {
       const use = Math.min(nachDue, remaining);
-      await addAlloc({ lan, dueDate: null, allocDate: paymentDate, amount: use, chargeType: "NACH Charges", paymentId });
+      await addAlloc({ lan, dueDate: paymentDate, allocDate: paymentDate, amount: use, chargeType: "NACH Charges", paymentId });
       remaining -= use;
       nachDue -= use;
     }
@@ -315,7 +315,7 @@ const allocateForeclosure = async (lan, payment) => {
         if (w.amt > 0) {
           await addAlloc({
             lan,
-            dueDate: null,
+            dueDate: paymentDate,
             allocDate: paymentDate,
             amount: Number(w.amt.toFixed(2)),
             chargeType: `Waiver - ${w.head}`,
