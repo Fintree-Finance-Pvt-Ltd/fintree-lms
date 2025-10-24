@@ -19,8 +19,23 @@ function detectTablesByLan(lan) {
   const key = String(lan || "").trim().toUpperCase();
   if (key.startsWith("WCTL")) {
     return { emiTable: "manual_rps_wctl", loanTable: "loan_bookings_wctl" };
+  }else if (key.startsWith("BL")) {
+    return { emiTable: "manual_rps_bl_loan", loanTable: "loan_bookings" };
   }
-  // default EV
+  else if (key.startsWith("GQFSF")) {
+    return { emiTable: "manual_rps_gq_fsf", loanTable: "loan_booking_gq_fsf" };
+  }
+  else if (key.startsWith("GQNON")) {
+    return { emiTable: "manual_rps_gq_non_fsf", loanTable: "loan_booking_gq_non_fsf" };
+  }
+  else if (key.startsWith("FINE")) {
+    return { emiTable: "manual_rps_emiclub", loanTable: "loan_booking_emiclub" };
+  }
+  else if (key.startsWith("E1")) {
+    return { emiTable: "manual_rps_embifi_loan", loanTable: "loan_booking_embifi" };
+  }else if (key.startsWith("FINS")) {
+    return { emiTable: "manual_rps_finso_loan", loanTable: "loan_booking_finso" };
+  }
   return { emiTable: "manual_rps_ev_loan", loanTable: "loan_booking_ev" };
 }
 
