@@ -17,27 +17,29 @@ const PROC_NAME = "sp_calculate_forecloser_allocation_cal"; // created above
 
 function detectTablesByLan(lan) {
   const key = String(lan || "").trim().toUpperCase();
+
   if (key.startsWith("WCTL")) {
     return { emiTable: "manual_rps_wctl", loanTable: "loan_bookings_wctl" };
-  }else if (key.startsWith("BL")) {
+  } else if (key.startsWith("BL")) {
     return { emiTable: "manual_rps_bl_loan", loanTable: "loan_bookings" };
-  }
-  else if (key.startsWith("GQFSF")) {
+  } else if (key.startsWith("GQFSF")) {
     return { emiTable: "manual_rps_gq_fsf", loanTable: "loan_booking_gq_fsf" };
-  }
-  else if (key.startsWith("GQNON")) {
+  } else if (key.startsWith("GQNON")) {
     return { emiTable: "manual_rps_gq_non_fsf", loanTable: "loan_booking_gq_non_fsf" };
-  }
-  else if (key.startsWith("FINE")) {
+  } else if (key.startsWith("FINE")) {
     return { emiTable: "manual_rps_emiclub", loanTable: "loan_booking_emiclub" };
-  }
-  else if (key.startsWith("E1")) {
+  } else if (key.startsWith("CIRF")) {
+    return { emiTable: "manual_rps_circlepe", loanTable: "loan_booking_circle_pe" };
+  } else if (key.startsWith("E1")) {
     return { emiTable: "manual_rps_embifi_loan", loanTable: "loan_booking_embifi" };
-  }else if (key.startsWith("FINS")) {
-    return { emiTable: "manual_rps_finso_loan", loanTable: "loan_booking_finso" };
+  } else if (key.startsWith("ADK")) {
+    return { emiTable: "manual_rps_adikosh", loanTable: "loan_booking_adikosh" };
   }
+
+  // default EV
   return { emiTable: "manual_rps_ev_loan", loanTable: "loan_booking_ev" };
 }
+
 
 async function addAlloc({ lan, dueDate, allocDate, amount, chargeType, paymentId, meta = null }) {
   if (!amount || amount <= 0) return 0;
