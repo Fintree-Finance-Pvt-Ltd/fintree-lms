@@ -44,6 +44,102 @@ const excelDateToJSDate = (value) => {
   return null;
 };
 
+
+
+// router.post("/upload", upload.single("file"), async (req, res) => {
+//   if (!req.file)
+//     return res.status(400).json({ message: "No Excel file uploaded." });
+
+//   const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+//   const sheetName = workbook.SheetNames?.[0];
+//   if (!sheetName) return res.status(400).json({ message: "Invalid Excel file." });
+
+//   const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: null });
+//   if (!rows.length) return res.status(400).json({ message: "Excel sheet is empty." });
+
+//   console.log(`📄 Processing ${rows.length} foreclosure rows...`);
+//   const success = [];
+//   const failed = [];
+
+//   for (const [i, row] of rows.entries()) {
+//     const lan = row["LAN"]?.toString().trim();
+//     const bankDate = excelDateToJSDate(row["Bank Date"]);
+//     const paymentDate = excelDateToJSDate(row["Payment Date"]);
+//     const paymentId = row["Payment ID"] || row["Payment Id"];
+//     const utr = row["UTR"];
+//     const paymentMode = row["Payment Mode"];
+//     const transferAmount = parseFloat(row["Transfer Amount"]);
+//     const foreclosure = row["Foreclosure"]?.toString().trim();
+//     const chargeType = row["Charge Type"] || row["Charge_Type"];
+//     const maxWaiver = parseFloat(row["Maximum Waiver Amount"]) || 0;
+
+//     // ⚠️ Validation
+//     if (!lan || !paymentId || isNaN(transferAmount)) {
+//       console.warn(`⚠️ Row ${i + 2}: Skipped due to missing required fields.`);
+//       failed.push({ row: i + 2, lan, reason: "Missing required fields" });
+//       continue;
+//     }
+
+//     try {
+//       await query("START TRANSACTION");
+
+//       // ✅ Insert into foreclosure_upload
+//       await query(
+//         `INSERT INTO foreclosure_upload 
+//          (lan, bank_date, utr, payment_date, payment_id, payment_mode, transfer_amount, foreclosure, charge_type, max_waiver_amount, created_at)
+//          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+//         [lan, bankDate, utr, paymentDate, paymentId, paymentMode, transferAmount, foreclosure, chargeType, maxWaiver]
+//       );
+
+//       // ✅ Insert into repayments_upload
+//       await query(
+//         `INSERT INTO repayments_upload
+//          (lan, bank_date, utr, payment_date, payment_id, payment_mode, transfer_amount, created_at)
+//          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+//         [lan, bankDate, utr, paymentDate, paymentId, paymentMode, transferAmount]
+//       );
+
+//       // ✅ If foreclosure flag is "Yes", process foreclosure SP
+//       if (foreclosure?.toLowerCase() === "yes") {
+//         console.log(`🔁 [${lan}] Foreclosure YES — running procedures...`);
+
+//         // Step 1: Calculate foreclosure
+//         await query("CALL sp_calculate_forecloser_collection(?)", [lan]);
+
+//         // Step 2: Process foreclosure charges
+//         await query("CALL sp_process_forecloser_charges(?, ?, ?, ?, ?, ?, ?)", [
+//           lan,
+//           paymentId,
+//           utr,
+//           paymentMode,
+//           transferAmount,
+//           paymentDate,
+//           bankDate,
+//         ]);
+
+//         console.log(`✅ [${lan}] Foreclosure processed successfully.`);
+//       }
+
+//       await query("COMMIT");
+//       success.push({ lan, status: "Success" });
+//     } catch (err) {
+//       await query("ROLLBACK");
+//       console.error(`❌ [${lan}] Failed:`, err.message);
+//       failed.push({ lan, error: err.message });
+//     }
+//   }
+
+//   res.json({
+//     message: "🏁 Foreclosure upload completed.",
+//     totalRows: rows.length,
+//     successCount: success.length,
+//     failedCount: failed.length,
+//     success,
+//     failed,
+//   });
+// });
+
+
 //////////////////// Foreclosure Upload ////////////////////
 router.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });

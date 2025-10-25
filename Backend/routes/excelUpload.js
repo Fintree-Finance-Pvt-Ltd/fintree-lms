@@ -6769,7 +6769,7 @@ router.get("/schedule/:lan", (req, res) => {
   } else if (lan.startsWith("FINE")) {
     tableName = "manual_rps_emiclub";
     } else if (lan.startsWith("CIRF")) {
-    tableName = "manual_rps_circle_pe";
+    tableName = "manual_rps_circlepe";
   } else if (lan.startsWith("FINS")) {
     tableName = "manual_rps_finso_loan";
   }else if (lan.startsWith("HEYEV")) {
