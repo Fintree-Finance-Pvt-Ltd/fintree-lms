@@ -18,6 +18,7 @@ const forecloserRoutes = require("./routes/forecloserRoutes");
 const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const collectionApiRoutes = require("./routes/collectionApi")
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 // const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
@@ -79,6 +80,7 @@ app.use("/api/dashboard", dashboardRoutes);
 // app.use("/api/courses", courseRoutes);
 app.use("/api/loan", loanRoutes); //  routes chanegd
 app.use("/api/repayments", repaymentRoutes);
+app.use("/api/collection", collectionApiRoutes);
 app.use("/api/loan-charges", loanChargesRoutes);
 app.use("/api/manual-rps", manualRPSRoutes);
 app.use("/api/disbursal", DisbursalRoutes);

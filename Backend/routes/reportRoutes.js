@@ -1366,6 +1366,7 @@ const path = require("path");
 const ExcelJS = require("exceljs");
 const authenticateUser = require("../middleware/verifyToken");
 const exportBankPaymentFile = require("../utils/exportBankPaymentFile");
+const exportConsumerBureauReport = require("../utils/exportConsumerBureauReport")
 
 
 // Optional PDF support
@@ -1411,6 +1412,10 @@ function resolveProcedure(rawReportId, rawLender) {
     "ccod-loan-data-report": "ccod-loan-data-report",
   "bank-payment-file-report": "bank-payment-file-report",
   "bank payment file report": "bank-payment-file-report",
+"consumer-bureau-report": "consumer-bureau-report",
+"consumer bureau report": "consumer-bureau-report",
+"consumer_bureau_report": "consumer-bureau-report",
+
 
 
   };
@@ -1496,6 +1501,10 @@ function resolveProcedure(rawReportId, rawLender) {
 
         // Bank Payment File Report (for EmiClub)
     "bank-payment-file-report": () => "sp_bank_payment_file",
+
+    // consumer bureau report
+"consumer-bureau-report": () => "sp_consumer_bureau_report_all_products",
+
 
 
   };
@@ -1895,6 +1904,8 @@ router.post("/trigger", authenticateUser, async (req, res) => {
         .status(400)
         .json({ error: "LAN is required for CAM print report" });
     }
+  } else if (normalizedReportId === "consumer-bureau-report") {
+  if (!endDate) return res.status(400).json({ error: "endDate is required" });
   } else if (normalizedReportId !== "bank-payment-file-report") {
     if (!startDate || !endDate || !lenderName) {
       return res
@@ -1946,7 +1957,14 @@ router.post("/trigger", authenticateUser, async (req, res) => {
             (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
           );
           finalRows = set || [];
-        } else {
+        } else if (normalizedReportId === "consumer-bureau-report") {
+  const [results] = await db.promise().query(
+    `CALL ${selectedProcedure}(?)`,
+    [endDate]
+  );
+  const set = results.find(r => Array.isArray(r) && r.length && typeof r[0] === "object");
+  finalRows = set || [];
+} else {
           const [results] = await db
             .promise()
             .query(`CALL ${selectedProcedure}(?, ?, ?)`, [
@@ -1975,7 +1993,9 @@ router.post("/trigger", authenticateUser, async (req, res) => {
           if (normalizedReportId === "bank-payment-file-report") {
             // ⚙️ Use custom helper for bank payment file
             await exportBankPaymentFile(finalRows, filePath);
-          } else {
+          } else if (normalizedReportId === "consumer-bureau-report") {
+  await exportConsumerBureauReport(finalRows, filePath);
+} else {
             // ✅ Default Excel export
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet("Report");

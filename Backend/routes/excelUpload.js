@@ -811,7 +811,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 router.post("/upload/ev-manual", async (req, res) => {
   try {
     const data = req.body;
-    console.log("data", data);
 
     // Basic lender validation
     if (!data.lenderType || data.lenderType.trim() !== "EV Loan") {

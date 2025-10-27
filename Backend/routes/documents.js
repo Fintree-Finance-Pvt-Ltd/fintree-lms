@@ -85,7 +85,6 @@ async function getLockState(lan) {
   const canEdit = statusNormalized ? ALLOWED_STATUSES.has(statusNormalized) : false;
 
   const dbg = { lan, prefix, table: map.table, statusCol: map.statusCol, statusRaw, statusNormalized, canEdit };
-  console.log("[lock]", dbg);
 
   // keep response shape that your UI expects, but add _dbg for quick troubleshooting
   return { status: statusRaw || "unknown", canEdit, _dbg: dbg };

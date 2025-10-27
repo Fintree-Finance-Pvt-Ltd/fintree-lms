@@ -144,7 +144,6 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol} - ${retentionCol})`;
   }
 
-  console.log(`📦 Using table: ${tableName} for LAN: ${lan}`);
 
   const query = `
     SELECT 
@@ -163,8 +162,6 @@ router.get("/:lan", async (req, res) => {
     WHERE lb.lan = ?;
   `;
 
-  console.log("📄 SQL Query Prepared.");
-
   // Step 4: Execute Query
   db.query(query, [lan], (err, result) => {
     if (err) {
@@ -172,7 +169,6 @@ router.get("/:lan", async (req, res) => {
       return res.status(500).json({ error: "Database query failed" });
     }
 
-    console.log("✅ Query executed successfully.");
 
     if (result.length === 0) {
       console.warn(`⚠️ No disbursal details found for LAN: ${lan}`);
@@ -181,7 +177,6 @@ router.get("/:lan", async (req, res) => {
         .json({ error: `No disbursal details found for LAN: ${lan}` });
     }
 
-    console.log("📦 Disbursal details fetched:", result[0]);
     res.json(result[0]);
   });
 });

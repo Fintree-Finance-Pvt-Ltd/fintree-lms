@@ -14,7 +14,8 @@ const dummyReports = [
   { id: 8, name: "Adikosh CAM Report Print" }, // ✅ New report added here
   { id: 9, name: "CashFlow Report Bank Date" }, // ✅ New report added here
   { id: 10, name: "CCOD Loan Data Report" }, // ✅ New report added here
-   { id: 11, name: "Bank Payment File Report" } // ✅ New report added here
+   { id: 11, name: "Bank Payment File Report" }, // ✅ New report added here
+   {id: 12, name: "Consumer Bureau Report"}
 
 ];
 

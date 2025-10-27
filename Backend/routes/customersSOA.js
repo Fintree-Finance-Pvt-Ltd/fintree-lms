@@ -58,7 +58,6 @@ router.get("/search", async (req, res) => {
     // Loop through each table and query it
     for (const table of tablesToSearch) {
       const query = `SELECT *, '${table}' AS source_table FROM ${table} WHERE ${whereClause}`;
-      console.log("🔍 Searching:", query, values);
 
       const [rows] = await db.promise().query(query, values);
       allResults = allResults.concat(rows);
