@@ -104,7 +104,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         console.log(`🔁 [${lan}] Foreclosure YES — running procedures...`);
 
         // Step 1: Calculate foreclosure
-        await query("CALL sp_calculate_forecloser_collection(?)", [lan]);
+        await query("CALL sp_calculate_forecloser_allocation_call(?, ?)", [lan, paymentDate]);
 
         // Step 2: Process foreclosure charges
         await query("CALL sp_process_forecloser_charges(?, ?, ?, ?, ?, ?, ?)", [
