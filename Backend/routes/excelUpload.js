@@ -4610,7 +4610,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         data.type_of_account,
         data.net_disbursement || data.loan_amount,
         data.employment,
-        data.risk_category,
+        null,
         data.customer_type,
         data.annual_income,
         data.dealer_name,
