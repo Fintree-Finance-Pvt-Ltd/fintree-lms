@@ -117,26 +117,8 @@
 // module.exports = exportBankPaymentFile;
 
 
-
-const ExcelJS = require("exceljs");
+const xl = require("excel4node");
 const fs = require("fs");
-
-function autofitColumns(worksheet) {
-  worksheet.columns.forEach((col) => {
-    let maxLen = 10;
-    col.eachCell({ includeEmpty: true }, (cell) => {
-      const v =
-        cell.value == null
-          ? ""
-          : typeof cell.value === "object" && cell.value.text
-          ? cell.value.text
-          : String(cell.value);
-      maxLen = Math.max(maxLen, v.length + 2);
-    });
-    col.width = Math.min(maxLen, 60);
-  });
-}
-
 
 function formatDateLikeDDMMYYYY(val) {
   if (!(val instanceof Date)) return val;
@@ -147,64 +129,69 @@ function formatDateLikeDDMMYYYY(val) {
 }
 
 async function exportBankPaymentFile(finalRows, filePath) {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet("Bank Payment File");
+  if (!finalRows || !finalRows.length)
+    throw new Error("No data to export for Bank Payment File");
 
-  if (!finalRows.length) throw new Error("No data to export");
+  const wb = new xl.Workbook();
+  const ws = wb.addWorksheet("Bank Payment File");
 
+  // Normal text style (no bold, all text)
+  const textStyle = wb.createStyle({
+    numberFormat: "@",
+    font: { bold: false },
+  });
+
+  // Get headers
   const headers = Object.keys(finalRows[0]);
-  worksheet.columns = headers.map((key) => ({ header: key, key }));
 
-  for (const row of finalRows) {
-    const out = {};
-    for (const k of headers) {
-      let v = row[k];
-      const lower = k.toLowerCase();
+  // Write headers — make “Blank Column” header cell blank
+  headers.forEach((header, i) => {
+    const displayHeader =
+      header.toLowerCase().includes("blank") ? "" : header;
+    ws.cell(1, i + 1).string(displayHeader).style(textStyle);
+  });
 
-      // Blank Email & Mobile
-      if (lower === "email" || lower === "mobile") {
-        out[k] = "";
-        continue;
+  // Write data rows
+  finalRows.forEach((row, rowIndex) => {
+    headers.forEach((key, colIndex) => {
+      let v = row[key];
+      const lower = key.toLowerCase();
+
+      // Remove Email & Mobile
+      if (lower === "email" || lower === "mobile") v = "";
+
+      // Format date
+      if (v instanceof Date) v = formatDateLikeDDMMYYYY(v);
+
+      // Strip .00 for numeric values
+      if (typeof v === "number" || /^[0-9]+(\.00)?$/.test(String(v))) {
+        v = String(v).replace(/\.00$/, "");
       }
 
-      // Format date to DD/MM/YYYY
-      if (v instanceof Date) {
-        out[k] = formatDateLikeDDMMYYYY(v);
-        continue;
-      }
+      if (v === null || v === undefined) v = "";
+      const strVal = String(v).replace(/,/g, "").trim();
 
-      // Always store as text (remove commas, preserve leading zeros)
-      if (v === null || v === undefined) {
-        out[k] = "";
-      } else {
-        out[k] = String(v).replace(/,/g, "").trim();
-      }
-    }
-    worksheet.addRow(out);
-  }
-
-  // All cells as text and no borders
-  worksheet.eachRow((row) => {
-    row.eachCell((cell) => {
-      cell.numFmt = "@"; // text
-      cell.border = undefined;
+      ws.cell(rowIndex + 2, colIndex + 1).string(strVal).style(textStyle);
     });
   });
 
-  // Header styling: only bold
-  worksheet.getRow(1).eachCell((cell) => {
-    cell.font = { bold: true };
-    cell.border = undefined;
+  // Auto-fit column widths
+  headers.forEach((key, i) => {
+    let maxLength = key.length + 2;
+    finalRows.forEach((row) => {
+      const len = String(row[key] ?? "").length + 2;
+      if (len > maxLength) maxLength = len;
+    });
+    ws.column(i + 1).setWidth(Math.min(maxLength, 60));
   });
 
-  autofitColumns(worksheet);
-
-  // ✅ Save as .xls using ExcelJS CSV workaround (since ExcelJS doesn't directly support .xls)
-  const tempCsvPath = filePath.replace(/\.xls$/i, ".csv");
-  await workbook.csv.writeFile(tempCsvPath);
-
-  // Rename .csv to .xls so it opens in Excel 97–2003 format
-  fs.renameSync(tempCsvPath, filePath);
+  // Write to .xls
+  await new Promise((resolve, reject) => {
+    wb.write(filePath, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
 }
 
 module.exports = exportBankPaymentFile;
