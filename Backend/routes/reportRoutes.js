@@ -1916,7 +1916,8 @@ router.post("/trigger", authenticateUser, async (req, res) => {
 
   // ✅ File setup
   const usePdf = outputFormat?.toLowerCase() === "pdf" && isPrintReport;
-  const ext = usePdf ? "pdf" : "xlsx";
+  const isBankPaymentFile = norm(reportId) === "bank-payment-file-report";
+const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
   const timestamp = Date.now();
   const fileSafeId = normalizedReportId.replace(/[^a-z0-9-]/g, "");
   const fileName = `${fileSafeId}_${timestamp}.${ext}`;
