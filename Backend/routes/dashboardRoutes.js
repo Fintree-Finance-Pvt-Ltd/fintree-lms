@@ -5065,17 +5065,20 @@ router.post("/dpd-list", async (req, res) => {
       const hasCity = await tableHasColumn(bookTable, "current_address_city");
 
       // dealerExpr
-      let dealerExpr;
-if (hasDealerName && hasBeneficiary) {
-  dealerExpr = "COALESCE(NULLIF(MAX(b.trade_name), ''), MAX(b.dealer_name), MAX(b.beneficiary_name))";
+      // ✅ Dealer expression logic (prefer trade_name if it exists)
+const hasTradeName = await tableHasColumn(bookTable, "trade_name");
+
+let dealerExpr;
+if (hasTradeName) {
+  // if the table has trade_name, always use it — ignore dealer_name
+  dealerExpr = "MAX(b.trade_name)";
 } else if (hasDealerName) {
-  dealerExpr = "COALESCE(NULLIF(MAX(b.trade_name), ''), MAX(b.dealer_name))";
+  dealerExpr = "MAX(b.dealer_name)";
 } else if (hasBeneficiary) {
   dealerExpr = "MAX(b.beneficiary_name)";
 } else {
   dealerExpr = "'-'";
 }
-
 
 
       // districtExpr
