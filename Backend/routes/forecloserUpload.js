@@ -70,6 +70,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const paymentMode = row["Payment Mode"];
     const transferAmount = parseFloat(row["Transfer Amount"]);
     const foreclosure = row["Foreclosure"]?.toString().trim();
+    const settled = row["Settled"]?.toString().trim();
     const chargeType = row["Charge Type"] || row["Charge_Type"];
     const maxWaiver = parseFloat(row["Maximum Waiver Amount"]) || 0;
 
@@ -120,6 +121,24 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         ]);
 
         console.log(`✅ [${lan}] Foreclosure processed successfully.`);
+        
+      } else if (settled?.toLowerCase() === "yes") {
+        console.log(`🔁 [${lan}] Settlement YES — running settlement procedure...`);
+
+        // ✅ Run only the settlement procedure
+        await query("CALL sp_process_settlement(?, ?, ?, ?, ?, ?, ?)", [
+          lan,
+          paymentId,
+          utr,
+          paymentMode,
+          transferAmount,
+          paymentDate,
+          bankDate,
+        ]);
+
+        console.log(`✅ [${lan}] Settlement processed successfully.`);
+      } else {
+        console.log(`ℹ️ [${lan}] Neither Foreclosure nor Settled marked — skipping.`);
       }
 
       await query("COMMIT");
