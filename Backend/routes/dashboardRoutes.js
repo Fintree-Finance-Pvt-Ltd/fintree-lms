@@ -5069,7 +5069,7 @@ router.post("/dpd-list", async (req, res) => {
       if (hasDealerName && hasBeneficiary) {
         dealerExpr = "COALESCE(MAX(b.dealer_name), MAX(b.beneficiary_name))";
       } else if (hasDealerName) {
-        dealerExpr = "MAX(dealer_name) || MAX(trade_name)";
+        dealerExpr = "COALESCE(MAX(b.dealer_name), MAX(b.trade_name))";
       } else if (hasBeneficiary) {
         dealerExpr = "MAX(b.beneficiary_name)";
       } else {
