@@ -2343,6 +2343,186 @@ const generateRepaymentScheduleGQFSF = async (
   }
 };
 
+///////////////////////////    GQ FSF FINTREE RPS ////////////////////////////
+//////////////////////////////////////////////////////////
+/// GQ FSF Loan Calculation - Fintree Enhanced Version ///
+//////////////////////////////////////////////////////////
+
+// Helper: IRR Calculator
+function calculateIRR(cashflows, guess = 0.01) {
+  const maxIter = 1000;
+  const precision = 1e-7;
+  let rate = guess;
+
+  for (let i = 0; i < maxIter; i++) {
+    let npv = 0;
+    let dnpv = 0;
+    for (let t = 0; t < cashflows.length; t++) {
+      npv += cashflows[t] / Math.pow(1 + rate, t);
+      dnpv -= (t * cashflows[t]) / Math.pow(1 + rate, t + 1);
+    }
+    const newRate = rate - npv / dnpv;
+    if (Math.abs(newRate - rate) < precision) return rate;
+    rate = newRate;
+  }
+  return rate;
+}
+
+const generateRepaymentScheduleGQFSF_Fintree = async (
+  lan,
+  approvedAmount,
+  emiDate,
+  interestRate,
+  tenure,
+  disbursementDate,
+  subventionAmount,
+  product,
+  lender,
+  no_of_advance_emis
+) => {
+  try {
+    console.log(`\n🚀 Generating GQ FSF (Fintree) RPS for LAN: ${lan}`);
+    console.log(
+      `📝 Inputs → ApprovedAmount: ₹${approvedAmount}, InterestRate: ${interestRate}%, Tenure: ${tenure}, DisbursementDate: ${disbursementDate}, SubventionAmount: ₹${subventionAmount}, Product: ${product}, Lender: ${lender}, AdvanceEMIs: ${no_of_advance_emis}`
+    );
+
+    const annualRate = interestRate / 100;
+    const monthlyRate = annualRate / 12;
+    const advEmiCount = Number(no_of_advance_emis || 0);
+    const subvention = subventionAmount || 0;
+
+    // Derived values
+    const netLoanForLender = approvedAmount - subvention;
+    const retentionPercent = 0.3;
+    const retentionAmount = +(netLoanForLender * retentionPercent).toFixed(2);
+    const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
+
+    // EMI breakup (Equal Principal)
+    const emiPrincipal = Math.round(approvedAmount / tenure);
+    console.log(`💰 EMI Principal Component: ₹${emiPrincipal}`);
+
+    let openingBal = approvedAmount;
+    const rpsData = [];
+    const cashflows = [-netDisbursement]; // initial lender outflow
+
+    console.log(`💵 Net Disbursement to Partner: ₹${netDisbursement}`);
+    console.log(`🏦 Retention (30%): ₹${retentionAmount}`);
+    console.log(`💸 Subvention: ₹${subvention}`);
+
+    //////////////////////////////////////////////////////////
+    // 1️⃣ Advance EMI (if applicable)
+    //////////////////////////////////////////////////////////
+    if (advEmiCount > 0) {
+      const advPrincipal = emiPrincipal;
+      const advInterest = 0;
+      const advClosing = +(openingBal - advPrincipal).toFixed(2);
+      const advDueDate = new Date(disbursementDate);
+
+      rpsData.push([
+        lan,
+        advDueDate.toISOString().split("T")[0],
+        emiPrincipal,
+        advInterest,
+        advPrincipal,
+        advClosing,
+        advInterest,
+        emiPrincipal,
+        "Pending",
+      ]);
+
+      console.log(
+        `📅 Advance EMI → Date=${advDueDate.toISOString().split("T")[0]}, EMI=₹${emiPrincipal}, Interest=₹0, Principal=₹${advPrincipal}, ClosingBal=₹${advClosing}`
+      );
+
+      cashflows.push(emiPrincipal);
+      openingBal = advClosing;
+    }
+
+    //////////////////////////////////////////////////////////
+    // 2️⃣ Regular EMIs
+    //////////////////////////////////////////////////////////
+    const normalEmiCount = tenure - advEmiCount;
+
+    for (let i = 1; i <= normalEmiCount; i++) {
+      const interest = +(openingBal * monthlyRate).toFixed(2);
+      const principal = +(emiPrincipal - interest).toFixed(2);
+      const closingBal = +(openingBal - principal).toFixed(2);
+
+      const emiDueDate = getFirstEmiDate(
+        disbursementDate,
+        emiDate,
+        lender,
+        product,
+        advEmiCount > 0 ? i - 1 : i - 1
+      );
+
+      const emiTotal = principal + interest;
+
+      rpsData.push([
+        lan,
+        emiDueDate.toISOString().split("T")[0],
+        emiTotal,
+        interest,
+        principal,
+        closingBal,
+        interest,
+        emiTotal,
+        "Pending",
+      ]);
+
+      console.log(
+        `📅 EMI ${i}: Date=${emiDueDate.toISOString().split("T")[0]}, OpeningBal=₹${openingBal.toFixed(
+          2
+        )}, Interest=₹${interest.toFixed(2)}, Principal=₹${principal.toFixed(
+          2
+        )}, ClosingBal=₹${closingBal.toFixed(2)}`
+      );
+
+      cashflows.push(emiTotal);
+      openingBal = closingBal;
+    }
+
+    //////////////////////////////////////////////////////////
+    // 3️⃣ APR / IRR Calculation
+    //////////////////////////////////////////////////////////
+    const monthlyIRR = calculateIRR(cashflows);
+    const apr = ((1 + monthlyIRR) ** 12 - 1) * 100;
+    console.log(`📊 Derived APR = ${apr.toFixed(2)}%`);
+
+    //////////////////////////////////////////////////////////
+    // 4️⃣ Save RPS to Database
+    //////////////////////////////////////////////////////////
+    await db.promise().query(
+      `INSERT INTO manual_rps_gq_fsf
+      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+      VALUES ?`,
+      [rpsData]
+    );
+
+    console.log(`✅ GQ FSF Fintree RPS generated successfully for ${lan}\n`);
+
+    //////////////////////////////////////////////////////////
+    // 5️⃣ Return Summary
+    //////////////////////////////////////////////////////////
+    return {
+      lan,
+      totalEmis: tenure,
+      advanceEmiCount: advEmiCount,
+      emiPrincipal,
+      subventionAmount: subvention,
+      netLoanForLender,
+      retentionPercent: retentionPercent * 100,
+      retentionAmount,
+      netDisbursement,
+      apr: +apr.toFixed(2),
+    };
+  } catch (err) {
+    console.error(`❌ GQ FSF RPS Error for ${lan}:`, err);
+  }
+};
+
+
+
 ///////////////////////////// ADIKOSH LOAN CALCULATION /////////////////////////////////////////
 /////// Without PRE EMI /////////////
 
@@ -3253,19 +3433,101 @@ const generateRepaymentSchedule = async (
     }
   
 
-  } else if (lender === "GQ FSF") {
-    await generateRepaymentScheduleGQFSF(
+  // } else if (lender === "GQ FSF") {
+  //   await generateRepaymentScheduleGQFSF(
+  //     lan,
+  //     loanAmount,
+  //     emiDate,
+  //     interestRate,
+  //     tenure,
+  //     disbursementDate,
+  //     subventionAmount,
+  //     product,
+  //     lender,
+  //     no_of_advance_emis
+  //   );
+} else if (lender === "GQ FSF") {
+  // === run generic GQ FSF generator ===
+  try {
+    // coerce numeric-ish inputs and log
+    const approvedAmountNum = Number(loanAmount);
+    const interestRateNum = Number(interestRate);
+    const tenureNum = Number(tenure);
+    const noOfAdvanceNum = Number(no_of_advance_emis || 0);
+
+    console.log("Calling generateRepaymentScheduleGQFSF with:", {
       lan,
-      loanAmount,
+      approvedAmount: approvedAmountNum,
       emiDate,
-      interestRate,
-      tenure,
+      interestRate: interestRateNum,
+      tenure: tenureNum,
       disbursementDate,
       subventionAmount,
       product,
       lender,
-      no_of_advance_emis
+      no_of_advance_emis: noOfAdvanceNum,
+    });
+
+    await generateRepaymentScheduleGQFSF(
+      lan,
+      approvedAmountNum,
+      emiDate,
+      interestRateNum,
+      tenureNum,
+      disbursementDate,
+      subventionAmount,
+      product,
+      lender,
+      noOfAdvanceNum
     );
+
+    console.log("✅ generateRepaymentScheduleGQFSF completed");
+  } catch (err) {
+    console.error("❌ generateRepaymentScheduleGQFSF failed:", err);
+  }
+
+  // === run Fintree variant ===
+  try {
+    // IMPORTANT: match the exact signature of generateRepaymentScheduleGQFSF_Fintree:
+    // (lan, approvedAmount, emiDate, interestRate, tenure, disbursementDate, subventionAmount, product, lender, no_of_advance_emis)
+    const approvedAmountNum = Number(loanAmount);
+    const interestRateNum = Number(interestRate);
+    const tenureNum = Number(tenure);
+    const noOfAdvanceNum = Number(no_of_advance_emis || 0);
+
+    console.log("Calling generateRepaymentScheduleGQFSF_Fintree with:", {
+      lan,
+      approvedAmount: approvedAmountNum,
+      emiDate,
+      interestRate: interestRateNum,
+      tenure: tenureNum,
+      disbursementDate,
+      subventionAmount,
+      product,
+      lender,
+      no_of_advance_emis: noOfAdvanceNum,
+    });
+
+    await generateRepaymentScheduleGQFSF_Fintree(
+      lan,
+      approvedAmountNum,   // approvedAmount
+      emiDate,             // emiDate (day)
+      interestRateNum,     // interestRate (annual %)
+      tenureNum,           // tenure (months)
+      disbursementDate,    // disbursementDate ("YYYY-MM-DD")
+      subventionAmount,    // subventionAmount
+      product,             // product
+      lender,              // lender
+      noOfAdvanceNum       // no_of_advance_emis
+    );
+
+    console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
+  } catch (err) {
+    console.error("❌ generateRepaymentScheduleGQFSF_Fintree failed:", err);
+  }
+
+
+
   } else if (lender === "Adikosh") {
     await generateRepaymentScheduleAdikosh(
       lan,
