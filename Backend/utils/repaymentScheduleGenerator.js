@@ -1893,7 +1893,7 @@ const generateRepaymentScheduleGQNonFSF = async (
 ) => {
   try {
     console.log(
-      `\n🚀 Generating GQ NON-FSF RPS (flat-advance EMI, reducing thereafter) for LAN: ${lan}`
+      `\n🚀 Generating GQ NON-FSF RPS (flat-advance EMI, reducing thereafter) for LAN: ${lan} disbdate : ${disbursementDate}`
     );
 
     // --- inputs ---
@@ -1918,15 +1918,16 @@ const generateRepaymentScheduleGQNonFSF = async (
         const principal = advPrincipalOne;
         const closing = r2(opening - principal);
         const dueDate = new Date(disbursementDate);
-
+        console.log("Advance RPS Data", dueDate, EMI, 0, principal, closing);
         rows.push({
           seq: `ADV-${i}`,
-          dueDate: dueDate.toISOString().split("T")[0],
+          dueDate: dueDate.toLocaleDateString("en-CA"),
           emi: EMI,
           interest: 0,
           principal: r2(principal),
           closing: r2(closing),
         });
+        
 
         opening = closing;
       }
@@ -2087,15 +2088,11 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
       opening = r2(opening - advPrincipal);
 
       const usingGetFirst = (typeof getFirstEmiDate === "function");
-      const advDate = usingGetFirst
-        ? getFirstEmiDate(disbursementDate, emiDate, lender, product, a - 1)
-        : (function () {
-            const d = new Date(disbursementDate);
-            const target = new Date(d.getFullYear(), d.getMonth() + (a - 1), 1);
-            const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-            target.setDate(Math.min(Number(emiDate || 5), last));
-            return target;
-          })();
+      // ✅ FIX: Advance EMI uses disbursement date directly
+
+      const advDate = new Date(disbursementDate);
+
+      advDate.setHours(12, 0, 0, 0);
 
       console.log(`ADV-${a}: date=${advDate.toISOString().split('T')[0]}, advPrincipal=${advPrincipal}, opening(before)=${beforeOpening} -> opening(after)=${opening}, usedGetFirstEmiDate=${usingGetFirst}`);
 

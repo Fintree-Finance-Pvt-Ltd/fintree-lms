@@ -244,21 +244,73 @@ if (lender === "Adikosh" && Number.isFinite(Number(salaryDay))) {
     }
 
 // ✅ GQ Non-FSF: EMI due follows 5th-of-month cutoff logic
-else if (lender === "GQ Non-FSF" && product === "Bureau Score Based") {
-    const disbDate = new Date(disbursementDate); // use original disbursementDate param
-    const disbDay = disbDate.getDate();
-    const dueDate = new Date(emiDate);
-    console.log(dueDate);
-    if (disbDay <= 20) {
-        dueDate.setMonth(dueDate.getMonth() + 1 + monthOffset);
-      } else {
-        dueDate.setMonth(dueDate.getMonth() + 2 + monthOffset);
-      }
-    dueDate.setDate(emiDate); // Always due on the emi day basis
-    console.log(`[GQ Non-FSF] EMI due (cutoff logic): ${dueDate.toISOString().split("T")[0]}`);
+// else if (lender === "GQ Non-FSF" && product === "Bureau Score Based") {
+//     const disbDate = new Date(disbursementDate); // use original disbursementDate param
+//     console.log("disbdate", disbDate);
+//     const disbDay = disbDate.getDate();
+//     console.log("disbDay", disbDay)
+//     const dueDate = new Date(emiDate);
+//     console.log("Due Date before adjustment:", dueDate);
+//     if (disbDay <= 20) {
+//         dueDate.setMonth(dueDate.getMonth() + 1 + monthOffset);
+//       } else {
+//         dueDate.setMonth(dueDate.getMonth() + 2 + monthOffset);
+//       }
+//     dueDate.setDate(emiDate); // Always due on the emi day basis
+//     console.log(`[GQ Non-FSF] EMI due (cutoff logic): ${dueDate.toISOString().split("T")[0]}`);
 
-    return dueDate;
+//     return dueDate;
+// }
+else if (lender === "GQ Non-FSF" && product === "Bureau Score Based") {
+  // --- Step 1: Parse disbursementDate manually ---
+  let disbDate;
+
+  if (typeof disbursementDate === "string" && disbursementDate.includes("-")) {
+    const [day, monthAbbr, yearShort] = value.split("-");
+    const monthNames = {
+      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+    };
+    const month = monthNames[monthAbbr];
+    const year = parseInt("20" + yearShort, 10);
+ 
+    disbDate = new Date(year, monthMap[monthStr], Number(day), 12, 0, 0, 0); // set to noon to avoid UTC shift
+  } else {
+    disbDate = new Date(disbursementDate);
+    disbDate.setHours(12, 0, 0, 0); // ensure local noon
+  }
+
+ 
+
+  // --- Step 2: Calculate disbDay and base due date ---
+  const disbDay = disbDate.getDate();
+
+  const dueDate = new Date(disbDate);
+
+  // --- Step 3: Apply cutoff logic ---
+  if (disbDay <= 20) {
+    dueDate.setMonth(dueDate.getMonth() + 1 + monthOffset);
+  } else {
+    dueDate.setMonth(dueDate.getMonth() + 2 + monthOffset);
+  }
+
+  // --- Step 4: Set EMI date (same day each month) ---
+  dueDate.setDate(Number(emiDate));
+  dueDate.setHours(12, 0, 0, 0);
+
+  // --- Step 5: Log clean local date ---
+  const formattedDisbDate = disbDate.toLocaleDateString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric"
+  });
+
+  const formattedDueDate = dueDate.toLocaleDateString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric"
+  });
+
+
+  return dueDate;
 }
+
 
 // ✅ GQ Non-FSF: EMI due follows 5th-of-month cutoff logic
 else if (lender === "GQ FSF") {
