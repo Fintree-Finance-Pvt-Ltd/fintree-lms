@@ -2493,7 +2493,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     // 4️⃣ Save RPS to Database
     //////////////////////////////////////////////////////////
     await db.promise().query(
-      `INSERT INTO manual_rps_gq_fsf
+      `INSERT INTO manual_rps_gq_fsf_fintree
       (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
       VALUES ?`,
       [rpsData]
