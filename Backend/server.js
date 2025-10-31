@@ -1,7 +1,6 @@
 require('dotenv').config({ path: __dirname + '/.env' });
 const express = require('express');
 const cors = require('cors');
-const db = require('./config/db'); // ✅ this line
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const excelUploadRoutes = require('./routes/excelUpload');

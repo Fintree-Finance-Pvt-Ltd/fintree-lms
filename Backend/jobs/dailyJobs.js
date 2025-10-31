@@ -98,4 +98,14 @@ cron.schedule("*/2 * * * *", async () => {
   }
 });
 
+cron.schedule("*/2 * * * *", async () => {
+  try {
+     const sql = `CALL update_risk_and_bucket()`;
+    await db.promise().query(sql);
+    console.log("✅ Risk done");
+  } catch (e) {
+    console.error("❌ Risk cron failed:", e.message);
+  }
+});
+
 require('../server');
