@@ -8,6 +8,7 @@ import Schedule from "./Schedule"; // ✅ Schedule Component
 import FintreeSchedule from "./FintreeSchedule"; // ✅ Fintree Schedule Component
 import PartnerSchedule from "./PartnerSchedule"; // ✅ Partner Schedule Component
 import GQFintreeSchedule from "./GQFintreeSchedule";
+import GQFSFFintreeSchedule from "./GQFSFFintreeSchedule";
 import FintreeROI from "./FintreeROI"; // ✅ Fintree ROI Component
 import ChargesCashflow from "./ChargesCashflow"; // ✅ Charges & Cashflow Component
 import ExtraCharges from "./ExtraCharges"; // ✅ Extra Charges Component
@@ -24,6 +25,7 @@ const LoanDetailsPage = () => {
     const [selectedSection, setSelectedSection] = useState("loan-details"); // ✅ Default Section
     const [isAdikosh, setIsAdikosh] = useState(false);
     const [isGNonFSF, setIsGNonFSF] = useState(false);
+    const [isGQFSF, setIsGQFSF] = useState(false);
 
     useEffect(() => {
         const fetchLoanDetails = async () => {
@@ -38,6 +40,7 @@ const LoanDetailsPage = () => {
         fetchLoanDetails();
         setIsAdikosh(lan.includes("AD"));
         setIsGNonFSF(lan.includes("GQN"));
+        setIsGQFSF(lan.includes("GQFSF"));
     }, [lan]);
 
 
@@ -66,6 +69,7 @@ const LoanDetailsPage = () => {
                     {isAdikosh && selectedSection === "partner-schedule" && <PartnerSchedule lan={lan} />}
                     {isAdikosh && selectedSection === "fintree-roi-schedule" && <FintreeROI lan={lan} isRoi={true} />}
                     {isGNonFSF && selectedSection === "gq-fintree-schedule" && <GQFintreeSchedule lan={lan} />}
+                    {isGQFSF && selectedSection === "gqfsf-fintree-schedule" && <GQFSFFintreeSchedule lan={lan} />}
                     {/* {selectedSection === "fintree-schedule" && <FintreeSchedule lan={lan} />}
                     {selectedSection === "partner-schedule" && <PartnerSchedule lan={lan} />} */}
                     {selectedSection === "charges-cashflow" && <ChargesCashflow data={loanData} />}
