@@ -3141,7 +3141,7 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
-  } else if (lender === "EV Loan" && product === "Monthly Loan") {
+  } else if (lender === "EV Loan" && product.toLowerCase() === "monthly loan") {
     await generateRepaymentScheduleEV(
       conn,
       lan,
