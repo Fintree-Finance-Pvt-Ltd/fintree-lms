@@ -6842,6 +6842,24 @@ router.get("/schedule/gqnonfsf/fintree/:lan", async (req, res) => {
   }
 });
 
+router.get("/schedule/gqfsf/fintree/:lan", async (req, res) => {
+  const { lan } = req.params;
+  try {
+    const [results] = await db
+      .promise()
+      .query(
+        `SELECT * FROM manual_rps_gq_fsf_fintree WHERE lan = ? ORDER BY due_date ASC`,
+        [lan]
+      );
+    if (!results.length)
+      return res.status(404).json({ message: "No Fintree RPS found" });
+    res.json(results);
+  } catch (err) {
+    console.error("❌ Error fetching Fintree RPS:", err);
+    res.status(500).json({ message: "Database error" });
+  }
+});
+
 // Partner RPS for Adikosh
 router.get("/schedule/adikosh/partner/:lan", async (req, res) => {
   const { lan } = req.params;

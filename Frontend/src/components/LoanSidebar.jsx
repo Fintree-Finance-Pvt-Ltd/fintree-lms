@@ -23,6 +23,7 @@ const LoanSidebar = ({ onSelect, isAdikosh, isGNonFSF }) => {
         { key: "fintree-schedule", label: "Fintree Schedule", adikoshOnly: true },
         { key: "partner-schedule", label: "Partner Schedule", adikoshOnly: true },
         { key: "gq-fintree-schedule", label: "Fintree Schedule",gqnonfsfOnly: true },
+        { key: "gqfsf-fintree-schedule", label: "Fintree Schedule", gqfsfOnly: true },
         { key : "fintree-roi-schedule", label: "Fintree ROI Schedule", adikoshOnly: true },
         { key: "charges-cashflow", label: "Charges & Cashflow" },
         { key: "extra-charges", label: "Extra Charges" },
