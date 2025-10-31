@@ -238,13 +238,14 @@ if (lender === "Adikosh" && Number.isFinite(Number(salaryDay))) {
 else if (lender === "GQ Non-FSF" && product === "Bureau Score Based") {
     const disbDate = new Date(disbursementDate); // use original disbursementDate param
     const disbDay = disbDate.getDate();
-    const dueDate = new Date(disbDate);
+    const dueDate = new Date(emiDate);
+    console.log(dueDate);
     if (disbDay <= 20) {
         dueDate.setMonth(dueDate.getMonth() + 1 + monthOffset);
       } else {
         dueDate.setMonth(dueDate.getMonth() + 2 + monthOffset);
       }
-    dueDate.setDate(5); // Always due on the 5th
+    dueDate.setDate(emiDate); // Always due on the emi day basis
     console.log(`[GQ Non-FSF] EMI due (cutoff logic): ${dueDate.toISOString().split("T")[0]}`);
 
     return dueDate;
@@ -254,14 +255,14 @@ else if (lender === "GQ Non-FSF" && product === "Bureau Score Based") {
 else if (lender === "GQ FSF") {
     const disbDate = new Date(disbursementDate); // use original disbursementDate param
     const disbDay = disbDate.getDate();
-    const dueDate = new Date(disbDate);
-
+    const dueDate = new Date(emiDate);
+console.log("Due Date before adjustment:", dueDate.toISOString().split("T")[0]);
     if (disbDay <= 20) {
         dueDate.setMonth(dueDate.getMonth() + 1 + monthOffset);
       } else {
         dueDate.setMonth(dueDate.getMonth() + 2 + monthOffset);
       }
-    dueDate.setDate(emiDate); // Always due on the 5th
+    dueDate.setDate(emiDate); // Always due on the emi days basis
     console.log(`[GQ FSF] EMI due (cutoff logic): ${dueDate.toISOString().split("T")[0]}`);
     return dueDate;
 }
