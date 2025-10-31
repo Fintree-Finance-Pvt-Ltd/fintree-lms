@@ -10,33 +10,16 @@ const {
 
 const upload = multer();
 
-// ✅ Excel serial date to JS date (YYYY-MM-DD)
-const excelSerialDateToJS = (value) => {
-  if (!value) return null;
-
-  if (!isNaN(value)) {
-    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-    return new Date(excelEpoch.getTime() + value * 86400000)
-      .toISOString()
-      .split("T")[0];
-  }
-
-  if (typeof value === "string" && value.match(/^\d{2}-[A-Za-z]{3}-\d{2}$/)) {
-    const [day, monthAbbr, yearShort] = value.split("-");
-    const monthNames = {
-      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
-    };
-    const month = monthNames[monthAbbr];
-    const year = parseInt("20" + yearShort, 10);
-    return new Date(Date.UTC(parseInt(day), month, year))
-      .toISOString()
-      .split("T")[0];
-  }
-
-  return null;
-};
-
+function excelDateToJSDate(serial) {
+  const utc_days = Math.floor(serial - 25569);
+  const utc_value = utc_days * 86400;
+  const date_info = new Date(utc_value * 1000);
+  return new Date(
+    date_info.getFullYear(),
+    date_info.getMonth(),
+    date_info.getDate()
+  );
+}
 
 function toClientError(err) {
   return { message: err.message || String(err) };
@@ -61,7 +44,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
 
     for (const row of sheetData) {
       const disbursementUTR = row["Disbursement UTR"];
-      const disbursementDate = excelSerialDateToJSDate(row["Disbursement Date"]);
+      const disbursementDate = excelDateToJSDate(row["Disbursement Date"]);
       const lan = row["LAN"];
 
       console.log(
