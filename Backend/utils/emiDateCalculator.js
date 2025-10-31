@@ -123,12 +123,20 @@ const excelSerialDateToJS = (value) => {
 //     return Math.min(day, lastDay);
 // }
 
-
+// 🔄 Helper: Parse any valid date to JS Date safely
+function toDate(dateInput) {
+  if (!dateInput) return null;
+  if (dateInput instanceof Date) return dateInput;
+  const str = excelSerialDateToJS(dateInput);
+  if (!str) return null;
+  const d = new Date(str + "T00:00:00Z");
+  return d;
+}
 
 
 
 function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset = 0, salaryDay ) {
-    const disbDate = new Date(disbursementDate);
+    const disbDate = toDate(disbursementDate);
     if (Number.isNaN(disbDate.getTime())) {
     throw new Error(`Invalid disbursementDate: ${disbursementDate}`);
   }
@@ -337,6 +345,7 @@ else if (lender === "HEY EV Loan") {
 
 module.exports = {
     getFirstEmiDate,
+    excelSerialDateToJS,
 };
 
 
