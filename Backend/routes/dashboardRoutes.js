@@ -3298,6 +3298,8 @@ function normalizeProduct(p) {
     case "gqfsf":
     case "gq-fsf":
       return "GQ FSF";
+    case "wctl":
+      return "WCTL";
     case "embifi":
       return "Embifi";
     case "circlepe":
@@ -3352,6 +3354,8 @@ router.post("/disbursal-trend", async (req, res) => {
       add("loan_booking_embifi", "Embifi");
     if (prod === "ALL" || prod === "EMICLUB")
       add("loan_booking_emiclub", "EMICLUB");
+    if (prod === "ALL" || prod === "WCTL")
+      add("loan_bookings_wctl", "WCTL");
     if (prod === "ALL" || prod === "Finso")
       add("loan_booking_finso", "Finso");
     if (prod === "ALL" || prod === "circlepe")
@@ -3453,6 +3457,24 @@ router.post("/repayment-trend", async (req, res) => {
             SELECT lan ${
               USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
             } FROM loan_booking_embifi
+          )
+          ${dateA.clause}
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
+      `);
+      params.push(...dateA.params);
+    }
+
+    if (prod === "ALL" || prod === "WCTL") {
+      queries.push(`
+        SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
+               'WCTL' AS product,
+               SUM(transfer_amount) AS total_collected
+        FROM repayments_upload
+        WHERE payment_date IS NOT NULL
+          AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
+            SELECT lan ${
+              USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
+            } FROM loan_bookings_wctl
           )
           ${dateA.clause}
         GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
@@ -3596,6 +3618,19 @@ router.post("/collection-vs-due", async (req, res) => {
                SUM(emi) AS total_due,
                0 AS total_collected
         FROM manual_rps_embifi_loan
+        WHERE due_date < CURDATE() ${dueR.clause}
+        GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
+      `);
+      params.push(...dueR.params);
+    }
+
+    if (prod === "ALL" || prod === "WCTL") {
+      queries.push(`
+        SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
+               'WCTL' AS product,
+               SUM(emi) AS total_due,
+               0 AS total_collected
+        FROM manual_rps_wctl
         WHERE due_date < CURDATE() ${dueR.clause}
         GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
       `);
@@ -3764,6 +3799,26 @@ router.post("/collection-vs-due", async (req, res) => {
       params.push(...payR.params);
     }
 
+    if (prod === "ALL" || prod === "WCTL") {
+      queries.push(`
+        SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
+               'WCTL' AS product,
+               0 AS total_due,
+               SUM(transfer_amount) AS total_collected
+        FROM repayments_upload
+        WHERE payment_date IS NOT NULL
+          AND payment_date < CURDATE()
+          AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
+            SELECT lan ${
+              USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""
+            } FROM loan_bookings_wctl
+          )
+          ${payR.clause}
+        GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
+      `);
+      params.push(...payR.params);
+    }
+
     if (prod === "ALL" || prod === "EMICLUB") {
       queries.push(`
         SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
@@ -3869,6 +3924,7 @@ router.post("/product-distribution", async (req, res) => {
     const wcFinso = buildDateRangeClause("agreement_date", start, end);
     const wcHeyev = buildDateRangeClause("agreement_date", start, end);
     const wcCirclepe = buildDateRangeClause("agreement_date", start, end);
+    const wcWCTL = buildDateRangeClause("agreement_date", start, end);
 
     const sql = `
       SELECT 'BL Loan' AS product, COUNT(*) AS value
@@ -3898,6 +3954,12 @@ router.post("/product-distribution", async (req, res) => {
       SELECT 'Embifi' AS product, COUNT(*) AS value
       FROM loan_booking_embifi
       WHERE 1=1 ${wcEmbifi.clause}
+
+      UNION ALL
+
+      SELECT 'WCTL' AS product, COUNT(*) AS value
+      FROM loan_bookings_wctl
+      WHERE 1=1 ${wcWCTL.clause}
 
       UNION ALL
 
@@ -3937,6 +3999,7 @@ router.post("/product-distribution", async (req, res) => {
       ...wcGQNon.params,
       ...wcGQFsf.params,
       ...wcEmbifi.params,
+      ...wcWCTL.params,
       ...wcEMICLUB.params,
       ...wcCirclepe.params,
       ...wcFinso.params,
@@ -3979,6 +4042,7 @@ router.post("/metric-cards", async (req, res) => {
     const pclR = buildDateRangeClause("r.payment_date", start, end);
     const pclA = buildDateRangeClause("payment_date", start, end);
     const dclEmbifi = buildDateRangeClause("agreement_date", start, end);
+    const dclWCTL = buildDateRangeClause("agreement_date", start, end);
 
     // DISBURSED
     if (prod === "ALL" || prod === "BL") {
@@ -4004,6 +4068,14 @@ router.post("/metric-cards", async (req, res) => {
         WHERE 1=1 ${dclEmbifi.clause} and status = 'Disbursed'
       `);
       disburseParams.push(...dclEmbifi.params);
+    }
+    if (prod === "ALL" || prod === "WCTL") {
+      disburseQueries.push(`
+        SELECT IFNULL(SUM(loan_amount), 0) AS amount
+        FROM loan_bookings_wctl
+        WHERE 1=1 ${dclWCTL.clause} and status = 'Disbursed'
+      `);
+      disburseParams.push(...dclWCTL.params);
     }
     if (prod === "ALL" || prod === "Adikosh") {
       const d = buildDateRangeClause("agreement_date", start, end);
@@ -4053,7 +4125,7 @@ router.post("/metric-cards", async (req, res) => {
     if (prod === "ALL" || prod === "Hey EV") {
       const d = buildDateRangeClause("agreement_date", start, end);
       disburseQueries.push(`
-        SELECT IFNULL(SUM(disbursal_amount), 0) AS amount
+        SELECT IFNULL(SUM(loan_amount), 0) AS amount
         FROM loan_booking_hey_ev
         WHERE 1=1 ${d.clause} and status = 'Disbursed'
       `);
@@ -4100,6 +4172,18 @@ router.post("/metric-cards", async (req, res) => {
       `);
       collectParams.push(...pclR.params);
     }
+
+    if (prod === "ALL" || prod === "WCTL") {
+      collectQueries.push(`
+        SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
+        FROM repayments_upload r
+        JOIN loan_bookings_wctl w ON ${eqLan("w.lan", "r.lan")}
+        WHERE r.payment_date IS NOT NULL
+          ${pclR.clause}
+      `);
+      collectParams.push(...pclR.params);
+    }
+
     if (prod === "ALL" || prod === "Adikosh") {
       collectQueries.push(`
         SELECT IFNULL(SUM(transfer_amount), 0) AS amount
@@ -4229,6 +4313,19 @@ router.post("/metric-cards", async (req, res) => {
     FROM allocation
     WHERE allocation_date IS NOT NULL ${r.clause}
       AND lan LIKE 'E1%'
+  `);
+      pniRangeParams.push(...r.params);
+    }
+
+    if (prod === "ALL" || prod === "WCTL") {
+      const r = buildDateRangeClause("bank_date_allocation", start, end);
+      pniRangeQueries.push(`
+    SELECT 
+      IFNULL(SUM(CASE WHEN charge_type = 'Principal' THEN allocated_amount ELSE 0 END), 0) AS principal,
+      IFNULL(SUM(CASE WHEN charge_type = 'Interest'  THEN allocated_amount ELSE 0 END), 0) AS interest
+    FROM allocation
+    WHERE allocation_date IS NOT NULL ${r.clause}
+      AND lan LIKE 'WCTL%'
   `);
       pniRangeParams.push(...r.params);
     }
@@ -4365,6 +4462,20 @@ router.post("/metric-cards", async (req, res) => {
       `);
       pToDateParams.push(cutoff, ...br.params);
     }
+
+    if (prod === "ALL" || prod === "WCTL") {
+      const br = buildDateRangeClause("b.agreement_date", start, end);
+      pToDateQueries.push(`
+        SELECT IFNULL(SUM(rps.principal),0) AS principal
+        FROM manual_rps_wctl rps
+        JOIN loan_bookings_wctl b ON ${eqLan("b.lan", "rps.lan")}
+        WHERE rps.payment_date IS NOT NULL
+          AND rps.payment_date < ?
+          ${br.clause}
+      `);
+      pToDateParams.push(cutoff, ...br.params);
+    }
+
     if (prod === "ALL" || prod === "Adikosh") {
       const br = buildDateRangeClause("b.agreement_date", start, end);
       pToDateQueries.push(`
@@ -4541,6 +4652,8 @@ router.post("/dpd-buckets", async (req, res) => {
       return "GQ FSF";
     case "embifi":
       return "Embifi";
+    case "wctl":
+      return "WCTL";
     case "circlepe":
       return "Circle Pe";
     case "emiclub":
@@ -4678,6 +4791,14 @@ router.post("/dpd-buckets", async (req, res) => {
       );  
       unions.push(branchActive("manual_rps_embifi_loan", "loan_booking_embifi"));
     }
+
+    if (prod === "ALL" || prod === "WCTL") {
+      unions.push(branch("manual_rps_wctl", "loan_bookings_wctl"));
+      unions.push(branchAll("manual_rps_wctl", "loan_bookings_wctl"));
+      unions.push(branchClosed("manual_rps_wctl", "loan_bookings_wctl"));
+      unions.push(branchActive("manual_rps_wctl", "loan_bookings_wctl"));
+    }
+
     if (prod === "ALL" || prod === "EMICLUB") {
       unions.push(branch("manual_rps_emiclub", "loan_booking_emiclub"));
       unions.push(branchAll("manual_rps_emiclub", "loan_booking_emiclub"));
@@ -4998,6 +5119,8 @@ router.post("/dpd-list", async (req, res) => {
       return "GQ FSF";
     case "embifi":
       return "Embifi";
+    case "wctl":
+      return "WCTL";
     case "circlepe":
       return "Circle Pe";
     case "emiclub":
@@ -5184,6 +5307,12 @@ if (hasTradeName) {
       key: "Embifi",
       rpsTable: "manual_rps_embifi_loan",
       bookTable: "loan_booking_embifi",
+    });
+    await addBranchIfNeeded({
+      label: "WCTL",
+      key: "WCTL",
+      rpsTable: "manual_rps_wctl",
+      bookTable: "loan_bookings_wctl",
     });
     await addBranchIfNeeded({
       label: "EMICLUB",
