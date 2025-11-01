@@ -2352,10 +2352,8 @@ function calculateIRR(cashflows, guess = 0.01) {
   const maxIter = 1000;
   const precision = 1e-7;
   let rate = guess;
-
   for (let i = 0; i < maxIter; i++) {
-    let npv = 0;
-    let dnpv = 0;
+    let npv = 0, dnpv = 0;
     for (let t = 0; t < cashflows.length; t++) {
       npv += cashflows[t] / Math.pow(1 + rate, t);
       dnpv -= (t * cashflows[t]) / Math.pow(1 + rate, t + 1);
@@ -2394,11 +2392,11 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       manualRetentionAmount || +(netLoanForLender * 0.25).toFixed(2);
     const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2); // 85,481
     const monthlyRate = 0.0084; // ≈ 10.56% APR
-    let openingBal = 99288; // starting principal (per Excel)
+    let openingBal = 99288; // starting principal (from Excel)
+    const totalEmis = tenure;
 
     const rpsData = [];
     const cashflows = [-netDisbursement];
-    const totalEmis = tenure;
     let remainingEmi = tenure;
 
     console.log(`💵 Net Disbursement: ₹${netDisbursement}`);
@@ -2445,6 +2443,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       const interest = +(openingBal * monthlyRate).toFixed(2);
       const principal = +(emiAmount - interest).toFixed(2);
       const closingBal = +(openingBal - principal).toFixed(2);
+
       const emiDueDate = new Date(disbursementDate);
       emiDueDate.setMonth(emiDueDate.getMonth() + i);
       emiDueDate.setDate(emiDay);
@@ -2481,20 +2480,34 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     console.log(`📊 Derived APR = ${apr.toFixed(2)}%`);
 
     // -----------------------------
-    // 4️⃣ SAVE TO DATABASE
+    // ✅ FIXED INSERT
     // -----------------------------
-    await db.promise().query(
-      `INSERT INTO manual_rps_gq_fsf_fintree
+    // IMPORTANT: use [rpsData] only ONCE; do not double-wrap
+    const insertSQL = `
+      INSERT INTO manual_rps_gq_fsf_fintree
       (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi,
        remaining_interest, remaining_principal, payment_date, dpd, remaining_amount, extra_paid)
-      VALUES ?`,
-      [rpsData]
+      VALUES ?
+    `;
+
+    await db.promise().query(insertSQL, [rpsData]);
+
+    console.log(`✅ Inserted ${rpsData.length} rows into manual_rps_gq_fsf_fintree for ${lan}`);
+
+    // Optional: print table for quick view
+    console.table(
+      rpsData.map(r => ({
+        DueDate: r[1],
+        EMI: r[3],
+        Interest: r[4],
+        Principal: r[5],
+        Opening: r[6],
+        Closing: r[7]
+      }))
     );
 
-    console.log(`✅ GQ FSF Fintree RPS inserted successfully for ${lan}\n`);
-
     // -----------------------------
-    // 5️⃣ RETURN SUMMARY
+    // 4️⃣ RETURN SUMMARY
     // -----------------------------
     return {
       lan,
