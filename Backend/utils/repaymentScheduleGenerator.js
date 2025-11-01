@@ -2370,7 +2370,7 @@ function calculateIRR(cashflows, guess = 0.01) {
 //////////////////////////////////////////////////////////
 // FINAL: Object-based safe version for Fintree (10.56%)
 //////////////////////////////////////////////////////////
-
+// Works with generateRepaymentScheduleGQFSF_Fintree({ lan: '...', ... })
 const generateRepaymentScheduleGQFSF_Fintree = async ({
   lan,
   approvedAmount,
@@ -2389,22 +2389,23 @@ const generateRepaymentScheduleGQFSF_Fintree = async ({
 
     const emiAmount = 14687.5;
     const advEmiCount = Number(no_of_advance_emis);
-    const subvention = Number(subventionAmount) || 0;
-    const netLoanForLender = approvedAmount - subvention;
-    const retentionAmount = Number(manualRetentionAmount) || +(netLoanForLender * 0.25).toFixed(2);
+    const subvention = Number(subventionAmount);
+    const netLoanForLender = Number(approvedAmount) - subvention;
+    const retentionAmount =
+      Number(manualRetentionAmount) || +(netLoanForLender * 0.25).toFixed(2);
     const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
-    const monthlyRate = 0.0084; // 10.56% annual
+    const monthlyRate = 0.0084;
     let openingBal = 99288;
-    const totalEmis = tenure;
+    const totalEmis = Number(tenure);
     const rpsData = [];
     const cashflows = [-netDisbursement];
-    let remainingEmi = tenure;
+    let remainingEmi = totalEmis;
 
-    console.log(`💵 Net Disbursement: ₹${netDisbursement}`);
-    console.log(`🏦 Retention: ₹${retentionAmount}`);
-    console.log(`💸 Subvention: ₹${subvention}`);
+    if (!lan || !totalEmis || !approvedAmount) {
+      throw new Error("Missing or invalid input parameters");
+    }
 
-    // Advance EMI
+    // --- Advance EMI ---
     if (advEmiCount > 0) {
       const advInterest = 0;
       const advPrincipal = emiAmount;
@@ -2412,87 +2413,58 @@ const generateRepaymentScheduleGQFSF_Fintree = async ({
       const advDueDate = new Date(disbursementDate);
 
       rpsData.push([
-        lan,
-        advDueDate.toISOString().split("T")[0],
-        "Pending",
-        emiAmount,
-        advInterest,
-        advPrincipal,
-        openingBal,
-        advClosing,
-        remainingEmi--,
-        0.0,
-        advClosing,
-        null,
-        0,
-        emiAmount,
-        0
+        lan, advDueDate.toISOString().split("T")[0], "Pending",
+        emiAmount, advInterest, advPrincipal,
+        openingBal, advClosing,
+        remainingEmi--, 0.0, advClosing,
+        null, 0, emiAmount, 0
       ]);
 
       cashflows.push(emiAmount);
       openingBal = advClosing;
     }
 
-    // Regular EMIs
-    const normalEmiCount = tenure - advEmiCount;
-
+    // --- Regular EMIs ---
+    const normalEmiCount = totalEmis - advEmiCount;
     for (let i = 1; i <= normalEmiCount; i++) {
       const interest = +(openingBal * monthlyRate).toFixed(2);
       const principal = +(emiAmount - interest).toFixed(2);
       const closingBal = +(openingBal - principal).toFixed(2);
-
       const emiDueDate = new Date(disbursementDate);
       emiDueDate.setMonth(emiDueDate.getMonth() + i);
       emiDueDate.setDate(emiDate);
-
       const remainingInterest = +(closingBal * monthlyRate).toFixed(2);
 
       rpsData.push([
-        lan,
-        emiDueDate.toISOString().split("T")[0],
-        "Pending",
-        emiAmount,
-        interest,
-        principal,
-        openingBal,
-        closingBal,
-        remainingEmi--,
-        remainingInterest,
-        closingBal,
-        null,
-        0,
-        emiAmount,
-        0
+        lan, emiDueDate.toISOString().split("T")[0], "Pending",
+        emiAmount, interest, principal,
+        openingBal, closingBal,
+        remainingEmi--, remainingInterest, closingBal,
+        null, 0, emiAmount, 0
       ]);
 
       cashflows.push(emiAmount);
       openingBal = closingBal;
     }
 
+    // --- APR ---
     const monthlyIRR = calculateIRR(cashflows);
     const apr = ((1 + monthlyIRR) ** 12 - 1) * 100;
     console.log(`📊 Derived APR = ${apr.toFixed(2)}%`);
 
-    const insertSQL = `
-      INSERT INTO manual_rps_gq_fsf_fintree
-      (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi,
-       remaining_interest, remaining_principal, payment_date, dpd, remaining_amount, extra_paid)
-      VALUES ?
-    `;
-
-    await db.promise().query(insertSQL, [rpsData]);
-    console.log(`✅ Inserted ${rpsData.length} rows into manual_rps_gq_fsf_fintree for ${lan}`);
-
-    console.table(
-      rpsData.map(r => ({
-        DueDate: r[1],
-        EMI: r[3],
-        Interest: r[4],
-        Principal: r[5],
-        Opening: r[6],
-        Closing: r[7]
-      }))
-    );
+    // --- Safe insert only if rows exist ---
+    if (rpsData.length) {
+      const sql = `
+        INSERT INTO manual_rps_gq_fsf_fintree
+        (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi,
+         remaining_interest, remaining_principal, payment_date, dpd, remaining_amount, extra_paid)
+        VALUES ?
+      `;
+      await db.promise().query(sql, [rpsData]);
+      console.log(`✅ Inserted ${rpsData.length} rows for ${lan}`);
+    } else {
+      console.warn("⚠️ No rows generated — nothing inserted");
+    }
 
     return {
       lan,
@@ -2508,6 +2480,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async ({
     console.error(`❌ GQ FSF RPS Error for ${lan}:`, err);
   }
 };
+
 
 
 ///////////////////////////// ADIKOSH LOAN CALCULATION /////////////////////////////////////////
