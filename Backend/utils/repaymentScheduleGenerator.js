@@ -2368,33 +2368,34 @@ function calculateIRR(cashflows, guess = 0.01) {
 //////////////////////////////////////////////////////////
 // MAIN FUNCTION
 //////////////////////////////////////////////////////////
-const generateRepaymentScheduleGQFSF_Fintree = async (
+// FINAL: Object-based safe version for Fintree (10.56%)
+//////////////////////////////////////////////////////////
+
+const generateRepaymentScheduleGQFSF_Fintree = async ({
   lan,
-  approvedAmount,      // e.g. 117500
-  emiDay,              // e.g. 5
-  tenure,              // 8
-  disbursementDate,    // e.g. '2025-08-26'
-  subventionAmount,    // 3525
-  no_of_advance_emis,  // 1
-  manualRetentionAmount // 28494
-) => {
+  approvedAmount,
+  emiDate,
+  interestRate = 10.56,
+  tenure,
+  disbursementDate,
+  subventionAmount = 0,
+  product,
+  lender,
+  no_of_advance_emis = 0,
+  manualRetentionAmount = 28494
+}) => {
   try {
     console.log(`\n🚀 Generating Fintree RPS for LAN: ${lan}`);
 
-    // -----------------------------
-    // CONSTANTS
-    // -----------------------------
     const emiAmount = 14687.5;
-    const advEmiCount = Number(no_of_advance_emis || 0);
-    const subvention = subventionAmount || 0;
-    const netLoanForLender = approvedAmount - subvention; // 113,975
-    const retentionAmount =
-      manualRetentionAmount || +(netLoanForLender * 0.25).toFixed(2);
-    const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2); // 85,481
-    const monthlyRate = 0.0084; // ≈ 10.56% APR
-    let openingBal = 99288; // starting principal (from Excel)
+    const advEmiCount = Number(no_of_advance_emis);
+    const subvention = Number(subventionAmount) || 0;
+    const netLoanForLender = approvedAmount - subvention;
+    const retentionAmount = Number(manualRetentionAmount) || +(netLoanForLender * 0.25).toFixed(2);
+    const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
+    const monthlyRate = 0.0084; // 10.56% annual
+    let openingBal = 99288;
     const totalEmis = tenure;
-
     const rpsData = [];
     const cashflows = [-netDisbursement];
     let remainingEmi = tenure;
@@ -2403,9 +2404,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     console.log(`🏦 Retention: ₹${retentionAmount}`);
     console.log(`💸 Subvention: ₹${subvention}`);
 
-    // -----------------------------
-    // 1️⃣ ADVANCE EMI
-    // -----------------------------
+    // Advance EMI
     if (advEmiCount > 0) {
       const advInterest = 0;
       const advPrincipal = emiAmount;
@@ -2434,9 +2433,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       openingBal = advClosing;
     }
 
-    // -----------------------------
-    // 2️⃣ REGULAR EMIs
-    // -----------------------------
+    // Regular EMIs
     const normalEmiCount = tenure - advEmiCount;
 
     for (let i = 1; i <= normalEmiCount; i++) {
@@ -2446,7 +2443,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
       const emiDueDate = new Date(disbursementDate);
       emiDueDate.setMonth(emiDueDate.getMonth() + i);
-      emiDueDate.setDate(emiDay);
+      emiDueDate.setDate(emiDate);
 
       const remainingInterest = +(closingBal * monthlyRate).toFixed(2);
 
@@ -2472,17 +2469,10 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       openingBal = closingBal;
     }
 
-    // -----------------------------
-    // 3️⃣ APR CALCULATION
-    // -----------------------------
     const monthlyIRR = calculateIRR(cashflows);
     const apr = ((1 + monthlyIRR) ** 12 - 1) * 100;
     console.log(`📊 Derived APR = ${apr.toFixed(2)}%`);
 
-    // -----------------------------
-    // ✅ FIXED INSERT
-    // -----------------------------
-    // IMPORTANT: use [rpsData] only ONCE; do not double-wrap
     const insertSQL = `
       INSERT INTO manual_rps_gq_fsf_fintree
       (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi,
@@ -2491,10 +2481,8 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     `;
 
     await db.promise().query(insertSQL, [rpsData]);
-
     console.log(`✅ Inserted ${rpsData.length} rows into manual_rps_gq_fsf_fintree for ${lan}`);
 
-    // Optional: print table for quick view
     console.table(
       rpsData.map(r => ({
         DueDate: r[1],
@@ -2506,9 +2494,6 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       }))
     );
 
-    // -----------------------------
-    // 4️⃣ RETURN SUMMARY
-    // -----------------------------
     return {
       lan,
       totalEmis,
