@@ -2343,20 +2343,19 @@ const generateRepaymentScheduleGQFSF = async (
   }
 };
 
-///////////////////////////    GQ FSF FINTREE RPS ////////////////////////////
+/////////////////////////// GQ FSF FINTREE RPS ////////////////////////////
 //////////////////////////////////////////////////////////
-/// GQ FSF Loan Calculation - Fintree Enhanced Version ///
+//////////////////////////////////////////////////////////
+// GQ FSF Loan Calculation - Fintree (Dynamic EMI + IRR)
 //////////////////////////////////////////////////////////
 
-// Helper: IRR Calculator
+// --- IRR Helper ---
 function calculateIRR(cashflows, guess = 0.01) {
   const maxIter = 1000;
   const precision = 1e-7;
   let rate = guess;
-
   for (let i = 0; i < maxIter; i++) {
-    let npv = 0;
-    let dnpv = 0;
+    let npv = 0, dnpv = 0;
     for (let t = 0; t < cashflows.length; t++) {
       npv += cashflows[t] / Math.pow(1 + rate, t);
       dnpv -= (t * cashflows[t]) / Math.pow(1 + rate, t + 1);
@@ -2368,153 +2367,171 @@ function calculateIRR(cashflows, guess = 0.01) {
   return rate;
 }
 
+// --- EMI Helper ---
+function calculateEMI(principal, monthlyRate, tenure) {
+  if (monthlyRate === 0) return principal / tenure;
+  const factor = Math.pow(1 + monthlyRate, tenure);
+  return +(principal * monthlyRate * factor / (factor - 1)).toFixed(2);
+}
+
+//////////////////////////////////////////////////////////
+// MAIN FUNCTION (Dynamic)
+//////////////////////////////////////////////////////////
 const generateRepaymentScheduleGQFSF_Fintree = async (
   lan,
-  approvedAmount,
-  emiDate,
-  interestRate,
-  tenure,
-  disbursementDate,
-  subventionAmount,
+  approvedAmount,      // from DB or input
+  emiDate,             // e.g. 10
+  interestRate,        // if 0, we derive via IRR or APR
+  tenure,              // months
+  disbursementDate,    // e.g. '2025-08-26'
+  subventionAmount,    // from DB
   product,
   lender,
-  no_of_advance_emis
+  no_of_advance_emis,  // from DB
+  retentionPercent,    // from DB (or null)
+  manualRetentionAmount // optional
 ) => {
   try {
-    console.log(`\n🚀 Generating GQ FSF (Fintree) RPS for LAN: ${lan}`);
-    console.log(
-      `📝 Inputs → ApprovedAmount: ₹${approvedAmount}, InterestRate: ${interestRate}%, Tenure: ${tenure}, DisbursementDate: ${disbursementDate}, SubventionAmount: ₹${subventionAmount}, Product: ${product}, Lender: ${lender}, AdvanceEMIs: ${no_of_advance_emis}`
-    );
+    console.log(`\n🚀 Generating Fintree RPS for LAN: ${lan}`);
 
-    const annualRate = interestRate / 100;
-    const monthlyRate = annualRate / 12;
-    const advEmiCount = Number(no_of_advance_emis || 0);
-    const subvention = subventionAmount || 0;
-
-    // Derived values
-    const netLoanForLender = approvedAmount - subvention;
-    const retentionPercent = 0.3;
-    const retentionAmount = +(netLoanForLender * retentionPercent).toFixed(2);
+    //---------------------------------------------------------
+    // 1️⃣ INPUT PREP
+    //---------------------------------------------------------
+    const subvention = Number(subventionAmount || 0);
+    const netLoanForLender = Number(approvedAmount) - subvention;
+    const retentionAmount =
+      manualRetentionAmount
+        ? Number(manualRetentionAmount)
+        : retentionPercent
+        ? +(netLoanForLender * retentionPercent).toFixed(2)
+        : 0;
     const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
+    const advEmiCount = Number(no_of_advance_emis || 0);
+    const totalEmis = Number(tenure);
 
-    // EMI breakup (Equal Principal)
-    const emiPrincipal = Math.round(approvedAmount / tenure);
-    console.log(`💰 EMI Principal Component: ₹${emiPrincipal}`);
-
-    let openingBal = approvedAmount;
-    const rpsData = [];
-    const cashflows = [-netDisbursement]; // initial lender outflow
-
-    console.log(`💵 Net Disbursement to Partner: ₹${netDisbursement}`);
-    console.log(`🏦 Retention (30%): ₹${retentionAmount}`);
+    console.log(`💵 Approved Amount: ₹${approvedAmount}`);
     console.log(`💸 Subvention: ₹${subvention}`);
+    console.log(`🏦 Retention: ₹${retentionAmount}`);
+    console.log(`💰 Net Disbursement: ₹${netDisbursement}`);
 
-    //////////////////////////////////////////////////////////
-    // 1️⃣ Advance EMI (if applicable)
-    //////////////////////////////////////////////////////////
+    //---------------------------------------------------------
+    // 2️⃣ ESTIMATE RATE & EMI (Dynamic)
+    //---------------------------------------------------------
+    // If interestRate = 0, assume effective APR ≈ 10.56%
+    const annualRate = interestRate && interestRate > 0 ? interestRate : 10.56;
+    const monthlyRate = +(annualRate / 12 / 100).toFixed(6);
+
+    // EMI from lender’s principal (netLoanForLender)
+    const emiAmount = calculateEMI(netLoanForLender, monthlyRate, totalEmis);
+    console.log(`📆 EMI Calculated: ₹${emiAmount} (Rate: ${annualRate}% p.a.)`);
+
+    //---------------------------------------------------------
+    // 3️⃣ GENERATE RPS
+    //---------------------------------------------------------
+    let openingBal = netLoanForLender;
+    const rpsData = [];
+    const cashflows = [-netDisbursement];
+    let remainingEmi = totalEmis;
+
+    // Advance EMI (deducted on disbursement)
     if (advEmiCount > 0) {
-      const advPrincipal = emiPrincipal;
-      const advInterest = 0;
+      const advInterest = +(openingBal * monthlyRate).toFixed(2);
+      const advPrincipal = +(emiAmount - advInterest).toFixed(2);
       const advClosing = +(openingBal - advPrincipal).toFixed(2);
       const advDueDate = new Date(disbursementDate);
 
       rpsData.push([
         lan,
         advDueDate.toISOString().split("T")[0],
-        emiPrincipal,
+        "Pending",
+        emiAmount,
         advInterest,
         advPrincipal,
+        openingBal,
         advClosing,
+        emiAmount,
         advInterest,
-        emiPrincipal,
-        "Pending",
+        advClosing,
+        null,
+        0,
+        emiAmount,
+        0
       ]);
 
-      console.log(
-        `📅 Advance EMI → Date=${advDueDate.toISOString().split("T")[0]}, EMI=₹${emiPrincipal}, Interest=₹0, Principal=₹${advPrincipal}, ClosingBal=₹${advClosing}`
-      );
-
-      cashflows.push(emiPrincipal);
+      cashflows.push(emiAmount);
       openingBal = advClosing;
     }
 
-    //////////////////////////////////////////////////////////
-    // 2️⃣ Regular EMIs
-    //////////////////////////////////////////////////////////
-    const normalEmiCount = tenure - advEmiCount;
-
+    // Regular EMIs
+    const normalEmiCount = totalEmis - advEmiCount;
     for (let i = 1; i <= normalEmiCount; i++) {
       const interest = +(openingBal * monthlyRate).toFixed(2);
-      const principal = +(emiPrincipal - interest).toFixed(2);
+      const principal = +(emiAmount - interest).toFixed(2);
       const closingBal = +(openingBal - principal).toFixed(2);
+      const emiDueDate = new Date(disbursementDate);
+      emiDueDate.setMonth(emiDueDate.getMonth() + i);
+      emiDueDate.setDate(emiDate);
 
-      const emiDueDate = getFirstEmiDate(
-        disbursementDate,
-        emiDate,
-        lender,
-        product,
-        advEmiCount > 0 ? i - 1 : i - 1
-      );
-
-      const emiTotal = principal + interest;
+      const remainingInterest = +(closingBal * monthlyRate).toFixed(2);
 
       rpsData.push([
         lan,
         emiDueDate.toISOString().split("T")[0],
-        emiTotal,
+        "Pending",
+        emiAmount,
         interest,
         principal,
+        openingBal,
         closingBal,
+        emiAmount,
+        principal,
         interest,
-        emiTotal,
-        "Pending",
+        null,
+        0,
+        emiAmount,
+        0
       ]);
 
-      console.log(
-        `📅 EMI ${i}: Date=${emiDueDate.toISOString().split("T")[0]}, OpeningBal=₹${openingBal.toFixed(
-          2
-        )}, Interest=₹${interest.toFixed(2)}, Principal=₹${principal.toFixed(
-          2
-        )}, ClosingBal=₹${closingBal.toFixed(2)}`
-      );
-
-      cashflows.push(emiTotal);
+      cashflows.push(emiAmount);
       openingBal = closingBal;
     }
 
-    //////////////////////////////////////////////////////////
-    // 3️⃣ APR / IRR Calculation
-    //////////////////////////////////////////////////////////
+    //---------------------------------------------------------
+    // 4️⃣ DERIVE EFFECTIVE IRR / APR
+    //---------------------------------------------------------
     const monthlyIRR = calculateIRR(cashflows);
     const apr = ((1 + monthlyIRR) ** 12 - 1) * 100;
     console.log(`📊 Derived APR = ${apr.toFixed(2)}%`);
 
-    //////////////////////////////////////////////////////////
-    // 4️⃣ Save RPS to Database
-    //////////////////////////////////////////////////////////
-    await db.promise().query(
-      `INSERT INTO manual_rps_gq_fsf
-      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
-      VALUES ?`,
-      [rpsData]
-    );
+    //---------------------------------------------------------
+    // 5️⃣ INSERT TO DB
+    //---------------------------------------------------------
+    if (rpsData.length > 0) {
+      const sql = `
+        INSERT INTO manual_rps_gq_fsf_fintree
+        (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi,
+         remaining_interest, remaining_principal, payment_date, dpd, remaining_amount, extra_paid)
+        VALUES ?
+      `;
+      await db.promise().query(sql, [rpsData]);
+      console.log(`✅ Inserted ${rpsData.length} rows for ${lan}`);
+    } else {
+      console.warn("⚠️ No rows generated — nothing inserted");
+    }
 
-    console.log(`✅ GQ FSF Fintree RPS generated successfully for ${lan}\n`);
-
-    //////////////////////////////////////////////////////////
-    // 5️⃣ Return Summary
-    //////////////////////////////////////////////////////////
+    //---------------------------------------------------------
+    // 6️⃣ RETURN SUMMARY
+    //---------------------------------------------------------
     return {
       lan,
-      totalEmis: tenure,
-      advanceEmiCount: advEmiCount,
-      emiPrincipal,
+      totalEmis,
+      advEmiCount,
+      emiAmount,
       subventionAmount: subvention,
       netLoanForLender,
-      retentionPercent: retentionPercent * 100,
       retentionAmount,
       netDisbursement,
-      apr: +apr.toFixed(2),
+      apr: +apr.toFixed(2)
     };
   } catch (err) {
     console.error(`❌ GQ FSF RPS Error for ${lan}:`, err);
