@@ -73,8 +73,6 @@ const mergeAllocations = (a, b) => {
 const allocateRepaymentByLAN = async (lan, payment) => {
   if (lan.startsWith("EV") || lan.startsWith("WCTL")) {
     return allocateEV(lan, payment);
-  } else if (lan.startsWith("GQF")) {
-    return allocateGQFSF(lan, payment);
   }else if (lan.startsWith("HEYEV")) {
     return allocateHEYEV(lan, payment);
   }else if (lan.startsWith("FINS")) {
@@ -88,7 +86,13 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   } else if (lan.startsWith("GQN")) {
     const promises = [
       allocateGQNonFSF(lan, payment),
-      allocateGQNonFSFFintree(lan, payment),
+      allocateGQNonFSFFintree(lan, payment);
+    }  else if (lan.startsWith("GQF")) {
+    const promises = [
+      allocateGQFSF(lan, payment),
+      allocateGQFSFFintree(lan, payment),
+    } 
+
     ];
 
     const settled = await Promise.allSettled(promises);
