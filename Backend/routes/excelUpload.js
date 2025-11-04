@@ -4901,215 +4901,215 @@ console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data
 
 //////////////////emiclub missed cibil cases temporary route////////////////
 
-// router.post("/v1/emiclub-cibil-retry", async (req, res) => {
-//   console.log("================= ♻️ EMICLUB CIBIL RETRY START =================");
-//   const limit = req.body.limit || 10; // default 10 at a time
-//   try {
-//     const [rows] = await db
-//       .promise()
-//       .query(
-//         `SELECT * FROM loan_booking_emiclub WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
-//         [limit]
-//       );
+router.post("/v1/emiclub-cibil-retry", async (req, res) => {
+  console.log("================= ♻️ EMICLUB CIBIL RETRY START =================");
+  const limit = req.body.limit || 10; // default 10 at a time
+  try {
+    const [rows] = await db
+      .promise()
+      .query(
+        `SELECT * FROM loan_booking_emiclub WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+        [limit]
+      );
 
-//     if (!rows.length) {
-//       return res.json({ message: "✅ No pending records with NULL CIBIL found." });
-//     }
+    if (!rows.length) {
+      return res.json({ message: "✅ No pending records with NULL CIBIL found." });
+    }
 
-//     console.log(`🔍 Found ${rows.length} pending cases.`);
+    console.log(`🔍 Found ${rows.length} pending cases.`);
 
-//     const stateCodes = {
-//   "JAMMU and KASHMIR": "01",
-//   "HIMACHAL PRADESH": "02",
-//   PUNJAB: "03",
-//   CHANDIGARH: "04",
-//   UTTRANCHAL: "05",
-//   HARAYANA: "06",
-//   DELHI: "07",
-//   RAJASTHAN: "08",
-//   "UTTAR PRADESH": "09",
-//   BIHAR: "10",
-//   SIKKIM: "11",
-//   "ARUNACHAL PRADESH": "12",
-//   NAGALAND: "13",
-//   MANIPUR: "14",
-//   MIZORAM: "15",
-//   TRIPURA: "16",
-//   MEGHALAYA: "17",
-//   ASSAM: "18",
-//   "WEST BENGAL": "19",
-//   JHARKHAND: "20",
-//   ORRISA: "21",
-//   CHHATTISGARH: "22",
-//   "MADHYA PRADESH": "23",
-//   GUJRAT: "24",
-//   "DAMAN and DIU": "25",
-//   "DADARA and NAGAR HAVELI": "26",
-//   MAHARASHTRA: "27",
-//   "ANDHRA PRADESH": "28",
-//   KARNATAKA: "29",
-//   GOA: "30",
-//   LAKSHADWEEP: "31",
-//   KERALA: "32",
-//   "TAMIL NADU": "33",
-//   PONDICHERRY: "34",
-//   "ANDAMAN and NICOBAR ISLANDS": "35",
-//   TELANGANA: "36",
-// };
-
-
-//     const results = [];
-
-//     for (const row of rows) {
-//       const {
-//         lan,
-//         first_name,
-//         last_name,
-//         gender,
-//         dob,
-//         pan_number,
-//         loan_amount,
-//         loan_tenure,
-//         mobile_number,
-//         current_address,
-//         current_village_city,
-//         current_state,
-//         current_pincode,
-//       } = row;
-
-//       console.log(`\n🚀 Processing LAN: ${lan} (PAN: ${pan_number})`);
-
-//       const state = current_state || "MAHARASHTRA";
-//       console.log("state", state);
-//       const state_code = stateCodes[state.toUpperCase()] ?? null;
-//       console.log("state code", state_code)
-//       const gender_code = (gender ?? "Male").toLowerCase() === "female" ? 2 : 1;
-//      // --- Normalize and validate DOB ---
-// let dobFormatted = null;
-// if (dob) {
-//   if (dob instanceof Date) {
-//     // Convert Date object to YYYYMMDD
-//     const yyyy = dob.getFullYear();
-//     const mm = String(dob.getMonth() + 1).padStart(2, "0");
-//     const dd = String(dob.getDate()).padStart(2, "0");
-//     dobFormatted = `${yyyy}${mm}${dd}`;
-//   } else if (typeof dob === "string") {
-//     // Clean string and remove hyphens
-//     dobFormatted = dob.replace(/[^0-9]/g, "");
-//   } else {
-//     console.warn(`⚠️ Invalid DOB format for LAN ${lan}:`, dob);
-//   }
-// }
-
-// if (!dobFormatted || dobFormatted.length !== 8) {
-//   console.warn(`⚠️ Skipping LAN ${lan}: Invalid or missing DOB.`);
-//   results.push({
-//     lan,
-//     pan_number,
-//     status: "skipped",
-//     reason: "Invalid or missing DOB",
-//   });
-//   continue; // move to next case
-// }
+    const stateCodes = {
+  "JAMMU and KASHMIR": "01",
+  "HIMACHAL PRADESH": "02",
+  PUNJAB: "03",
+  CHANDIGARH: "04",
+  UTTRANCHAL: "05",
+  HARAYANA: "06",
+  DELHI: "07",
+  RAJASTHAN: "08",
+  "UTTAR PRADESH": "09",
+  BIHAR: "10",
+  SIKKIM: "11",
+  "ARUNACHAL PRADESH": "12",
+  NAGALAND: "13",
+  MANIPUR: "14",
+  MIZORAM: "15",
+  TRIPURA: "16",
+  MEGHALAYA: "17",
+  ASSAM: "18",
+  "WEST BENGAL": "19",
+  JHARKHAND: "20",
+  ORRISA: "21",
+  CHHATTISGARH: "22",
+  "MADHYA PRADESH": "23",
+  GUJRAT: "24",
+  "DAMAN and DIU": "25",
+  "DADARA and NAGAR HAVELI": "26",
+  MAHARASHTRA: "27",
+  "ANDHRA PRADESH": "28",
+  KARNATAKA: "29",
+  GOA: "30",
+  LAKSHADWEEP: "31",
+  KERALA: "32",
+  "TAMIL NADU": "33",
+  PONDICHERRY: "34",
+  "ANDAMAN and NICOBAR ISLANDS": "35",
+  TELANGANA: "36",
+};
 
 
-//       const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-//    <soapenv:Header/>
-//    <soapenv:Body>
-//       <urn:process>
-//          <urn:in>
-//             <INProfileRequest>
-//               <Identification>
-//                 <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-//                 <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-//               </Identification>
-//               <Application>
-//                 <EnquiryReason>13</EnquiryReason>
-//                 <FinancePurpose>99</FinancePurpose>
-//                 <AmountFinanced>${loan_amount}</AmountFinanced>
-//                 <DurationOfAgreement>${loan_tenure}</DurationOfAgreement>
-//                 <ScoreFlag>1</ScoreFlag>
-//               </Application>
-//               <Applicant>
-//                 <Surname>${(last_name || "").toUpperCase()}</Surname>
-//                 <FirstName>${(first_name || "").toUpperCase()}</FirstName>
-//                 <GenderCode>${gender_code}</GenderCode>
-//                 <IncomeTaxPAN>${pan_number}</IncomeTaxPAN>
-//                 <DateOfBirth>${dobFormatted}</DateOfBirth>
-//                 <PhoneNumber>${mobile_number}</PhoneNumber>
-//               </Applicant>
-//               <Address>
-//                 <FlatNoPlotNoHouseNo>${current_address}</FlatNoPlotNoHouseNo>
-//                 <City>${current_village_city}</City>
-//                 <State>${state_code}</State>
-//                 <PinCode>${current_pincode}</PinCode>
-//               </Address>
-//             </INProfileRequest>
-//          </urn:in>
-//       </urn:process>
-//    </soapenv:Body>
-// </soapenv:Envelope>`;
+    const results = [];
 
-//       try {
-//         const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
-//           headers: {
-//             "Content-Type": "text/xml; charset=utf-8",
-//             SOAPAction: "urn:cbv2/process",
-//           },
-//           timeout: 30000,
-//           validateStatus: () => true,
-//         });
+    for (const row of rows) {
+      const {
+        lan,
+        first_name,
+        last_name,
+        gender,
+        dob,
+        pan_number,
+        loan_amount,
+        loan_tenure,
+        mobile_number,
+        current_address,
+        current_village_city,
+        current_state,
+        current_pincode,
+      } = row;
 
-//         if (response.status !== 200) {
-//           throw new Error(`HTTP ${response.status}`);
-//         }
+      console.log(`\n🚀 Processing LAN: ${lan} (PAN: ${pan_number})`);
 
-//         const parser = new XMLParser({ ignoreAttributes: false });
-//         const parsed = parser.parse(response.data);
-//         const encodedInnerXml =
-//           parsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.["ns2:processResponse"]?.["ns2:out"];
+      const state = current_state || "MAHARASHTRA";
+      console.log("state", state);
+      const state_code = stateCodes[state.toUpperCase()] ?? null;
+      console.log("state code", state_code)
+      const gender_code = (gender ?? "Male").toLowerCase() === "female" ? 2 : 1;
+     // --- Normalize and validate DOB ---
+let dobFormatted = null;
+if (dob) {
+  if (dob instanceof Date) {
+    // Convert Date object to YYYYMMDD
+    const yyyy = dob.getFullYear();
+    const mm = String(dob.getMonth() + 1).padStart(2, "0");
+    const dd = String(dob.getDate()).padStart(2, "0");
+    dobFormatted = `${yyyy}${mm}${dd}`;
+  } else if (typeof dob === "string") {
+    // Clean string and remove hyphens
+    dobFormatted = dob.replace(/[^0-9]/g, "");
+  } else {
+    console.warn(`⚠️ Invalid DOB format for LAN ${lan}:`, dob);
+  }
+}
 
-//         if (!encodedInnerXml) throw new Error("Missing ns2:out in response");
+if (!dobFormatted || dobFormatted.length !== 8) {
+  console.warn(`⚠️ Skipping LAN ${lan}: Invalid or missing DOB.`);
+  results.push({
+    lan,
+    pan_number,
+    status: "skipped",
+    reason: "Invalid or missing DOB",
+  });
+  continue; // move to next case
+}
 
-//         const decoded = he.decode(encodedInnerXml);
-//         const innerParsed = parser.parse(decoded);
-//         const scoreStr = innerParsed?.INProfileResponse?.SCORE?.BureauScore ?? null;
-//         const score = scoreStr ? Number(scoreStr) : null;
 
-//         await db
-//           .promise()
-//           .query(
-//             `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
-//              VALUES (?,?,?,?,NOW())`,
-//             [lan, pan_number, score, decoded]
-//           );
+      const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <urn:process>
+         <urn:in>
+            <INProfileRequest>
+              <Identification>
+                <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+                <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+              </Identification>
+              <Application>
+                <EnquiryReason>13</EnquiryReason>
+                <FinancePurpose>99</FinancePurpose>
+                <AmountFinanced>${loan_amount}</AmountFinanced>
+                <DurationOfAgreement>${loan_tenure}</DurationOfAgreement>
+                <ScoreFlag>1</ScoreFlag>
+              </Application>
+              <Applicant>
+                <Surname>${(last_name || "").toUpperCase()}</Surname>
+                <FirstName>${(first_name || "").toUpperCase()}</FirstName>
+                <GenderCode>${gender_code}</GenderCode>
+                <IncomeTaxPAN>${pan_number}</IncomeTaxPAN>
+                <DateOfBirth>${dobFormatted}</DateOfBirth>
+                <PhoneNumber>${mobile_number}</PhoneNumber>
+              </Applicant>
+              <Address>
+                <FlatNoPlotNoHouseNo>${current_address}</FlatNoPlotNoHouseNo>
+                <City>${current_village_city}</City>
+                <State>${state_code}</State>
+                <PinCode>${current_pincode}</PinCode>
+              </Address>
+            </INProfileRequest>
+         </urn:in>
+      </urn:process>
+   </soapenv:Body>
+</soapenv:Envelope>`;
 
-//         await db
-//           .promise()
-//           .execute(`UPDATE loan_booking_emiclub SET cibil_score = ? WHERE lan = ?`, [score, lan]);
+      try {
+        const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
+          headers: {
+            "Content-Type": "text/xml; charset=utf-8",
+            SOAPAction: "urn:cbv2/process",
+          },
+          timeout: 30000,
+          validateStatus: () => true,
+        });
 
-//         console.log(`✅ CIBIL fetched for ${lan} → Score: ${score}`);
-//         results.push({ lan, pan_number, score, status: "success" });
-//       } catch (err) {
-//         console.error(`⚠️ Error for ${lan}:`, err.message);
-//         results.push({ lan, pan_number, error: err.message, status: "failed" });
-//       }
-//     }
+        if (response.status !== 200) {
+          throw new Error(`HTTP ${response.status}`);
+        }
 
-//     console.log("================= ♻️ EMICLUB CIBIL RETRY END =================");
-//     return res.json({
-//       message: "Retry process completed.",
-//       processed: results.length,
-//       results,
-//     });
-//   } catch (err) {
-//     console.error("❌ Fatal error in retry route:", err.message);
-//     res.status(500).json({
-//       message: "CIBIL retry failed.",
-//       error: err.message,
-//     });
-//   }
-// });
+        const parser = new XMLParser({ ignoreAttributes: false });
+        const parsed = parser.parse(response.data);
+        const encodedInnerXml =
+          parsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.["ns2:processResponse"]?.["ns2:out"];
+
+        if (!encodedInnerXml) throw new Error("Missing ns2:out in response");
+
+        const decoded = he.decode(encodedInnerXml);
+        const innerParsed = parser.parse(decoded);
+        const scoreStr = innerParsed?.INProfileResponse?.SCORE?.BureauScore ?? null;
+        const score = scoreStr ? Number(scoreStr) : null;
+
+        await db
+          .promise()
+          .query(
+            `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+             VALUES (?,?,?,?,NOW())`,
+            [lan, pan_number, score, decoded]
+          );
+
+        await db
+          .promise()
+          .execute(`UPDATE loan_booking_emiclub SET cibil_score = ? WHERE lan = ?`, [score, lan]);
+
+        console.log(`✅ CIBIL fetched for ${lan} → Score: ${score}`);
+        results.push({ lan, pan_number, score, status: "success" });
+      } catch (err) {
+        console.error(`⚠️ Error for ${lan}:`, err.message);
+        results.push({ lan, pan_number, error: err.message, status: "failed" });
+      }
+    }
+
+    console.log("================= ♻️ EMICLUB CIBIL RETRY END =================");
+    return res.json({
+      message: "Retry process completed.",
+      processed: results.length,
+      results,
+    });
+  } catch (err) {
+    console.error("❌ Fatal error in retry route:", err.message);
+    res.status(500).json({
+      message: "CIBIL retry failed.",
+      error: err.message,
+    });
+  }
+});
 
 ////////////////////////////////////////////////////////////////////////////
 //////////////////////////////   CIRCLE PE ADD FOR LOAN BOOKING  ////////////////////////

@@ -3262,23 +3262,6 @@ function buildDateRangeClause(field, start, end) {
   return { clause: parts.length ? ` AND ${parts.join(" AND ")}` : "", params };
 }
 
-// Normalize product values coming from UI
-// function normalizeProduct(p) {
-//   if (!p || p === "ALL") return "ALL";
-//   const s = String(p).toLowerCase().replace(/\s+/g, "").replace(/-/g, "");
-//   if (s === "evloan" || s === "ev_loan") return "EV";
-//   if (s === "blloan" || s === "bl_loan") return "BL";
-//   if (s === "adikosh") return "Adikosh";
-//   if (s === "gqnonfsf" || s === "gqnon-fsf") return "GQ Non-FSF";
-//   if (s === "gqfsf" || s === "gq-fsf") return "GQ FSF";
-//   if (s === "embifi" || s === "embifi") return "Embifi";
-//   if (s === "circle pe" || s === "circlepe") return "circle pe";
-//   if (s === "emiclub" || s === "emiclub") return "emiclub";
-//   if (s === "finso" || s === "finso") return "finso";
-//   if (s === "hey ev" || s === "heyev") return "hey ev";
-
-//   return p;
-// }
 
 function normalizeProduct(p) {
   if (!p || p === "ALL") return "ALL";
@@ -4616,22 +4599,6 @@ router.post("/dpd-buckets", async (req, res) => {
   try {
     const { product } = req.body || {};
 
-  //   const normalizeProduct = (p) => {
-  //     if (!p || p === "ALL") return "ALL";
-  //     const s = String(p).toLowerCase().replace(/\s+/g, "").replace(/-/g, "");
-  //     if (s === "evloan" || s === "ev_loan") return "EV";
-  //     if (s === "blloan" || s === "bl_loan") return "BL";
-  //     if (s === "adikosh") return "Adikosh";
-  //     if (s === "gqnonfsf" || s === "gqnon-fsf") return "GQ Non-FSF";
-  //     if (s === "gqfsf" || s === "gq-fsf") return "GQ FSF";
-  //     if (s === "embifi") return "Embifi";
-  //     if (s === "circle pe" || s === "circlepe") return "circle pe";
-  // if (s === "emiclub" || s === "emiclub") return "emiclub";
-  // if (s === "finso" || s === "finso") return "finso";
-  // if (s === "hey ev" || s === "heyev") return "hey ev";
-  //     return p;
-  //   };
-
   const normalizeProduct = (p) => {
   if (!p || p === "ALL") return "ALL";
   const s = String(p).toLowerCase().replace(/\s+/g, "").replace(/-/g, "");
@@ -5506,3 +5473,4 @@ router.post("/dpd-export-email", async (req, res) => {
 });
 
 module.exports = router;
+           
