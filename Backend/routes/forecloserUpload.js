@@ -137,10 +137,30 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         ]);
 
         console.log(`✅ [${lan}] Settlement processed successfully.`);
-      } else {
-        console.log(`ℹ️ [${lan}] Neither Foreclosure nor Settled marked — skipping.`);
-      }
 
+      } else if (
+  settled?.toLowerCase() === "no" &&
+  foreclosure?.toLowerCase() === "no"
+) {
+  console.log(`🔁 [${lan}] Settlement and Foreclosure = NO — running Cancelled procedure...`);
+
+  await query("CALL sp_process_cancelled_loan (?, ?, ?, ?, ?, ?, ?)", [
+    lan,
+    paymentId,
+    utr,
+    paymentMode,
+    transferAmount,
+    paymentDate,
+    bankDate,
+  ]);
+
+  console.log(`✅ [${lan}] Cancelled processed successfully.`);
+} else {
+  console.log(`ℹ️ [${lan}] Neither Foreclosure nor Settled marked — skipping.`);
+}
+
+
+    
       await query("COMMIT");
       success.push({ lan, status: "Success" });
     } catch (err) {

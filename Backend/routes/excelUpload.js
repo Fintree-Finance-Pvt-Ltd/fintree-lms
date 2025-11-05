@@ -49,7 +49,7 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "Adikosh") {
     prefixPartnerLoan = "ADK1";
     prefixLan = "ADKF1";
-    } else if (lender === "Circle PE") {
+    } else if (lender === "circlepe") {
     prefixPartnerLoan = "FCIR1";
     prefixLan = "CIRF1";
   } else if (lender === "emiclub") {
@@ -5252,6 +5252,177 @@ console.log( parse(row["loan amount sanctioned"]),
 
 //////////////////////////////   CIRCLE PE ADD FOR LOAN BOOKING  END ////////////////////////
 
+///////////// CIRCLE PAY API CALL for Loan Booking ////////
+router.post("/v1/circlepe-lb", verifyApiKey, async (req, res) => {
+  try {
+    console.log("============== 📦 NEW CIRCLE PE REQUEST START ==============");
+    console.log("🔹 Timestamp:", new Date().toISOString());
+
+    // --- ENV info ---
+    console.log("🔧 DB_CONNECTED =", !!db ? "✅ Yes" : "❌ No");
+
+    // --- Partner validation ---
+    console.log("👥 Partner received:", req.partner);
+    if (
+      !req.partner ||
+      (req.partner.name || "").toLowerCase().trim() !== "circlepe"
+    ) {
+      console.error("❌ Partner validation failed!");
+      return res
+        .status(403)
+        .json({ message: "This route is only for Circle Pe partner." });
+    }
+
+    // --- Payload logging ---
+    const data = req.body;
+    console.log("📥 Received JSON payload:", JSON.stringify(data, null, 2));
+
+    // --- Lender type check ---
+    const lenderType = data.lenderType?.trim()?.toLowerCase();
+    console.log("🏦 Lender type received:", lenderType);
+    if (!lenderType || lenderType !== "circlepe") {
+      console.error("❌ Invalid lenderType:", lenderType);
+      return res.status(400).json({
+        message: "Invalid lenderType. Only 'CIRCLEPE' loans are accepted.",
+      });
+    }
+
+    // --- Required fields check ---
+    const requiredFields = [
+      "App_Id",
+      "customer_name",
+      "mobile_number",
+      "pan_number",
+      "aadhaar_number",
+      "loan_amount_sanctioned",
+      "loan_tenure_months",
+      "monthly_emi",
+      "interest_percent",
+      "credit_score",
+      "bank_name",
+      "beneficiary_name",
+      "institute_account_number",
+      "ifsc_code",
+    ];
+
+   for (const f of requiredFields) {
+      if (!data[f] && data[f] !== 0) {
+        console.error(`❌ Missing field detected: ${f}`);
+        return res.status(400).json({ message: `${f} is required.` });
+      }
+    }
+    console.log("✅ All required fields present.");
+
+    // --- Credit score check ---
+    const cibilScore = parseInt(data.credit_score);
+    if (isNaN(cibilScore)) {
+      console.error("❌ Invalid or missing credit score");
+      return res.status(400).json({ message: "Invalid or missing credit score." });
+    }
+    if (!(cibilScore >= 500 || cibilScore === -1)) {
+      console.warn("⚠️ Skipping due to low CIBIL:", cibilScore);
+      return res.status(400).json({
+        message: `Low CIBIL Score (${cibilScore}). Application skipped.`,
+      });
+    }
+
+    // --- Duplicate App_Id check ---
+    console.log("🔍 Checking for duplicate App_Id:", data.App_Id);
+    const [exists] = await db
+      .promise()
+      .query(`SELECT lan FROM loan_booking_circle_pe WHERE app_id = ?`, [
+        data.App_Id,
+      ]);
+    console.log("🧾 Duplicate check result:", exists.length, "records found.");
+    if (exists.length > 0) {
+      console.error("❌ Duplicate App_Id found:", data.App_Id);
+      return res
+        .status(400)
+        .json({ message: `Duplicate App_Id: ${data.App_Id}` });
+    }
+
+
+    // --- Generate LAN and PartnerLoanId ---
+    console.log("⚙️ Generating LAN for lender:", lenderType);
+    const { lan, partnerLoanId } = await generateLoanIdentifiers(lenderType);
+    console.log("✅ Generated IDs:", { lan, partnerLoanId });
+
+    const parseNum = (v) =>
+      typeof v === "number"
+        ? v
+        : parseFloat((v ?? "").toString().replace(/[^0-9.-]/g, "")) || 0;
+
+    // --- Insert into DB ---
+    console.log("💾 Inserting record into loan_booking_circle_pe...");
+    await db.promise().query(
+      `INSERT INTO loan_booking_circle_pe (
+        login_date, lan, partner_loan_id, app_id, customer_name, gender, dob,
+        father_name, mobile_number, email_id, pan_number, aadhar_number,
+        current_address, current_pincode, loan_amount, interest_rate,
+        loan_tenure, emi_amount, cibil_score, product, lender, residence_type,
+        customer_type, bank_name, name_in_bank, account_number, ifsc,
+        net_disbursement, agreement_date, status
+      ) VALUES (${new Array(30).fill("?").join(",")})`,
+      [
+        data.loan_application_date || new Date(),
+        lan,
+        partnerLoanId,
+        data.App_Id,
+        data.customer_name,
+        data.gender ,
+        data.date_of_birth ,
+        data.fathers_name ,
+        data.mobile_number,
+        data.email_id ,
+        data.pan_number,
+        data.aadhaar_number,
+        data.current_address_line1 ,
+        data.current_address_pincode ,
+        parseNum(data.loan_amount_sanctioned),
+        parseNum(data.interest_percent),
+        parseNum(data.loan_tenure_months),
+        parseNum(data.monthly_emi),
+        cibilScore,
+        data.product || "Mobile Finance",
+        lenderType,
+        data.residence_type ,
+        data.customer_type ,
+        data.bank_name,
+        data.beneficiary_name,
+        data.institute_account_number,
+        data.ifsc_code,
+        parseNum(data.loan_amount_sanctioned),
+        data.loan_application_date ,
+        "Login",
+      ]
+    );
+
+    console.log("✅ Record inserted successfully for LAN:", lan);
+
+return res.status(200).json({
+  message: "Circle Pe upload completed.",
+  results: [
+    {
+      message: "Circle Pe loan saved successfully.",
+      app_id: data.App_Id,
+      lan: lan,
+    },
+  ],
+});
+
+  } catch (error) {
+    console.error("❌ Unhandled Error in Circle Pe Upload:", error);
+    res.status(500).json({
+      message: "Upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  } finally {
+    console.log("================ 📦 CIRCLE PE REQUEST END ================\n");
+  }
+});
+
+
+///////////// CIRCLE PAY API CALL  END for Loan Booking ////////
 ////////////////////////   WCTL LOAN BOOKIN START /////////////////
 
 router.post("/wctl-upload", upload.single("file"), async (req, res) => {
