@@ -52,10 +52,6 @@ const EVManualEntry = () => {
     Battery_Serial_no_2: "",
     E_Rikshaw_model: "",
     Chassis_no: "",
-    Customer_Name_as_per_bank: "",
-    Customer_Bank_name: "",
-    Customer_Account_Number: "",
-    Bank_IFSC_Code: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -102,10 +98,6 @@ const EVManualEntry = () => {
     "Battery_Serial_no_1",
     "E_Rikshaw_model",
     "Chassis_no",
-    "Customer_Name_as_per_bank",
-    "Customer_Bank_name",
-    "Customer_Account_Number",
-    "Bank_IFSC_Code",
   ];
 
   // Handle input change
@@ -221,10 +213,6 @@ const EVManualEntry = () => {
     Battery_Serial_no_2: "",
     E_Rikshaw_model: "",
     Chassis_no: "",
-    Customer_Name_as_per_bank: "",
-    Customer_Bank_name: "",
-    Customer_Account_Number: "",
-    Bank_IFSC_Code: "",
       }));
     } catch (err) {
       setMessage(
@@ -268,6 +256,8 @@ const EVManualEntry = () => {
           {renderInput("Father Name", "Father_Name")}
           {renderInput("Mobile Number", "Mobile_Number", "number")}
           {renderInput("Email", "Email", "email")}
+          {renderInput("Aadhar Number", "Aadhar_Number", "number")}
+          {renderInput("Pan Card", "Pan_Card")}
         </fieldset>
 
         <fieldset>
@@ -356,21 +346,11 @@ const EVManualEntry = () => {
           {renderInput("Bank Name", "Bank_name")}
           {renderInput("Account Number", "Account_Number", "number")}
           {renderInput("IFSC Code", "IFSC")}
-          {renderInput("Customer Name (Bank)", "Customer_Name_as_per_bank")}
-          {renderInput("Customer Bank Name", "Customer_Bank_name")}
-          {renderInput(
-            "Customer Account Number",
-            "Customer_Account_Number",
-            "number"
-          )}
-          {renderInput("Bank IFSC Code", "Bank_IFSC_Code")}
         </fieldset>
 
         <fieldset>
           <legend>Product Details</legend>
           {renderInput("Dealer Name", "DEALER_NAME")}
-          {renderInput("Aadhar Number", "Aadhar_Number", "number")}
-          {renderInput("Pan Card", "Pan_Card")}
           {renderInput("Battery Name", "Battery_Name")}
           {renderInput("Battery Type", "Battery_Type")}
           {renderInput("Battery Serial no 1", "Battery_Serial_no_1")}
