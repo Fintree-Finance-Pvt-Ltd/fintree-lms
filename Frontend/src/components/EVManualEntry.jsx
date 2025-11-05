@@ -194,7 +194,6 @@ const EVManualEntry = () => {
     GURANTOR_DOB: "",
     GURANTOR_ADHAR: "",
     GURANTOR_PAN: "",
-    dealer_name: "",
     customer_name_as_per_bank: "",
     customer_bank_name: "",
     customer_account_number: "",
