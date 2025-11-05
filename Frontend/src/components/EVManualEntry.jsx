@@ -78,16 +78,16 @@ const EVManualEntry = () => {
     "Loan_Amount",
     "Interest_Rate",
     "Tenure",
-    "DEALER_NAME",
+    "dealer_name",
     "GURANTOR",
     "GURANTOR_DOB",
     "GURANTOR_ADHAR",
     "GURANTOR_PAN",
-    "DEALER_NAME",
-    "Name_in_Bank",
-    "Bank_name",
-    "Account_Number",
-    "IFSC",
+    "name_in_bank",
+    "bank_name",
+    "account_number",
+    "ifsc",
+    "gst_no",
     "Aadhar_Number",
     "Pan_Card",
     "CIBIL_Score",
@@ -98,6 +98,10 @@ const EVManualEntry = () => {
     "Battery_Serial_no_1",
     "E_Rikshaw_model",
     "Chassis_no",
+    "customer_name_as_per_bank",
+    "customer_bank_name",
+    "customer_account_number",
+    "bank_ifsc_code",
   ];
 
   // Handle input change
@@ -178,6 +182,7 @@ const EVManualEntry = () => {
     Village: "",
     District: "",
     State: "",
+    trade_name: "",
     Pincode: "",
     Mobile_Number: "",
     Email: "",
@@ -189,13 +194,18 @@ const EVManualEntry = () => {
     GURANTOR_DOB: "",
     GURANTOR_ADHAR: "",
     GURANTOR_PAN: "",
-    DEALER_NAME: "",
-    Name_in_Bank: "",
-    Bank_name: "",
-    Account_Number: "",
-    IFSC: "",
+    dealer_name: "",
+    customer_name_as_per_bank: "",
+    customer_bank_name: "",
+    customer_account_number: "",
+    bank_ifsc_code: "",
+    name_in_bank: "",
+    bank_name: "",
+    account_number: "",
+    ifsc: "",
     Aadhar_Number: "",
     Pan_Card: "",
+    gst_no: "",
     Disbursal_Amount: "",
     Processing_Fee: "",
     CIBIL_Score: "",
@@ -213,7 +223,10 @@ const EVManualEntry = () => {
     Battery_Serial_no_2: "",
     E_Rikshaw_model: "",
     Chassis_no: "",
-      }));
+    dealer_name: "",
+    dealer_contact: "",
+    dealer_address: "",
+    }));
     } catch (err) {
       setMessage(
         `❌ ${
@@ -261,7 +274,7 @@ const EVManualEntry = () => {
         </fieldset>
 
         <fieldset>
-          <legend>Address</legend>
+          <legend>Address (Customer)</legend>
           {renderInput("Address Line 1", "Address_Line_1")}
           {renderInput("Address Line 2", "Address_Line_2")}
           {renderInput("Village", "Village")}
@@ -341,16 +354,28 @@ const EVManualEntry = () => {
         </fieldset>
 
         <fieldset>
-          <legend>Bank Details</legend>
-          {renderInput("Name in Bank", "Name_in_Bank")}
-          {renderInput("Bank Name", "Bank_name")}
-          {renderInput("Account Number", "Account_Number", "number")}
-          {renderInput("IFSC Code", "IFSC")}
+          <legend>Bank Details (Customer)</legend>
+          {renderInput("Customer Name", "customer_name_as_per_bank")}
+          {renderInput("Bank Name", "customer_bank_name")}
+          {renderInput("Account Number", "customer_account_number", "number")}
+          {renderInput("IFSC Code", "bank_ifsc_code")}
+        </fieldset>
+
+        <fieldset>
+          <legend>Dealer Details</legend>
+          {renderInput("Trade Name", "trade_name")}
+          {renderInput("Dealer Name", "dealer_name")}
+          {renderInput("Contact No.", "dealer_contact", "number")}
+          {renderInput("GST No.", "gst_no")}
+          {renderInput("Dealer Address", "dealer_address")}
+          {renderInput("Name in Bank", "name_in_bank")}
+          {renderInput("Bank Name", "bank_name")}
+          {renderInput("Account Number", "account_number", "number")}
+          {renderInput("IFSC Code", "ifsc")}
         </fieldset>
 
         <fieldset>
           <legend>Product Details</legend>
-          {renderInput("Dealer Name", "DEALER_NAME")}
           {renderInput("Battery Name", "Battery_Name")}
           {renderInput("Battery Type", "Battery_Type")}
           {renderInput("Battery Serial no 1", "Battery_Serial_no_1")}
