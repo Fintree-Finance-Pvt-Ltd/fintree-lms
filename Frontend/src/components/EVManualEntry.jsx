@@ -298,6 +298,7 @@ const EVManualEntry = () => {
     <input
       type="text"
       name="District"
+      onChange={handleChange}
       value={formData.District}
       style={{ backgroundColor: "#f9f9f9" }}
     />
@@ -309,6 +310,7 @@ const EVManualEntry = () => {
       type="text"
       name="State"
       value={formData.State}
+      onChange={handleChange}
       style={{ backgroundColor: "#f9f9f9" }}
     />
   </div>
