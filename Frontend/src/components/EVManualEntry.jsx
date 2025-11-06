@@ -299,7 +299,6 @@ const EVManualEntry = () => {
       type="text"
       name="District"
       value={formData.District}
-      readOnly
       style={{ backgroundColor: "#f9f9f9" }}
     />
   </div>
@@ -310,7 +309,6 @@ const EVManualEntry = () => {
       type="text"
       name="State"
       value={formData.State}
-      readOnly
       style={{ backgroundColor: "#f9f9f9" }}
     />
   </div>
