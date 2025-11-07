@@ -54,13 +54,16 @@ cron.schedule("*/2 * * * *", async () => {
         UPDATE ${table}
         SET
           status = CASE
-            WHEN remaining_principal = 0 AND remaining_interest = 0 THEN 'Paid'
-            WHEN remaining_principal > 0 AND remaining_principal < principal THEN 'Part Paid'
-            WHEN due_date < CURDATE() AND remaining_principal > 0 THEN 'Late'
-            WHEN due_date = CURDATE() AND remaining_principal > 0 THEN 'Due'
-            WHEN due_date > CURDATE() THEN 'Not Set'
-            ELSE status
-          END,
+    WHEN remaining_principal = 0 AND remaining_interest = 0 THEN 'Paid'
+    WHEN remaining_principal > 0 
+         AND remaining_principal < principal 
+         AND remaining_interest > 0 
+         AND remaining_interest < interest THEN 'Part Paid'
+    WHEN due_date < CURDATE() AND remaining_principal > 0 THEN 'Late'
+    WHEN due_date = CURDATE() AND remaining_principal > 0 THEN 'Due'
+    WHEN due_date > CURDATE() THEN 'Not Set'
+    ELSE status
+END,
           dpd = CASE
             WHEN remaining_principal = 0 AND remaining_interest = 0 THEN 0
             WHEN due_date > CURDATE() THEN 0
