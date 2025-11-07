@@ -57,10 +57,8 @@ cron.schedule("*/2 * * * *", async () => {
     WHEN remaining_principal = 0 AND remaining_interest = 0 THEN 'Paid'
 
     WHEN (
-        (remaining_principal > 0 AND remaining_principal < principal)
-        OR (remaining_interest > 0 AND remaining_interest < interest)
-        OR (remaining_principal = 0 AND remaining_interest > 0)
-    ) THEN 'Part Paid'
+        (emi > 0 AND remaining_emi < 0)
+           ) THEN 'Part Paid'
 
     WHEN due_date < CURDATE() AND remaining_principal > 0 THEN 'Late'
     WHEN due_date = CURDATE() AND remaining_principal > 0 THEN 'Due'
