@@ -25,9 +25,9 @@ const ChartFilter = ({ onFilterChange }) => {
           <option value="GQ FSF">GQ FSF</option>
           <option value="EMICLUB">EMICLUB</option>
           <option value="WCTL">WCTL Business Loans</option>
-          <option value="Circle Pe">Circle Pe (In progress)</option>
-          <option value="Finso">Finso (In progress)</option>
-          <option value="Hey EV">Hey EV (In progress)</option>
+          <option value="Circle Pe">Circle Pe </option>
+          <option value="Finso">Finso </option>
+          <option value="Hey EV">Hey EV </option>
           <option value="Embifi">Embifi</option>
         </select>
       </div>
