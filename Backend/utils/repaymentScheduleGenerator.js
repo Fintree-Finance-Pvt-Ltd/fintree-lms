@@ -2144,18 +2144,9 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
 
       const closing = r2(opening - principal);
 
-      const usingGetFirst = (typeof getFirstEmiDate === "function");
-      const dueDate = usingGetFirst
-        ? getFirstEmiDate(disbursementDate, emiDate, lender, product, i - 1 + k)
-        : (function () {
-            const d = new Date(disbursementDate);
-            const target = new Date(d.getFullYear(), d.getMonth() + (i - 1 + k + 1), 1);
-            const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-            target.setDate(Math.min(Number(emiDate || 5), last));
-            return target;
-          })();
-
-      console.log(`Row ${i}: dueDate=${dueDate.toISOString().split('T')[0]}, opening(before)=${beforeOpening}, interest=${interest}, principal=${principal}, closing=${closing}, usedGetFirstEmiDate=${usingGetFirst}`);
+     // const usingGetFirst = (typeof getFirstEmiDate === "function");
+      const dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, i - 1 + k)
+       
 
       rows.push({
         seq: i,
