@@ -39,7 +39,7 @@ const LoanDetailsPage = () => {
 
         fetchLoanDetails();
         setIsAdikosh(lan.includes("AD"));
-        setIsGNonFSF(lan.includes("GQN"));
+        setIsGNonFSF(lan.includes("GQNon"));
         setIsGQFSF(lan.includes("GQFSF"));
     }, [lan]);
 

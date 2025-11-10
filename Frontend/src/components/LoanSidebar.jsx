@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom"; // ✅ Import this!
 import "../styles/LoanDetailsPage.css"; // Ensure you have this CSS file
 
-const LoanSidebar = ({ onSelect, isAdikosh, isGNonFSF }) => {
+const LoanSidebar = ({ onSelect, isAdikosh, isGNonFSF, isGQFSF }) => {
     const [activeSection, setActiveSection] = useState("loan-details");
     const navigate = useNavigate(); // ✅ Declare the navigate function
   
@@ -38,6 +38,8 @@ const LoanSidebar = ({ onSelect, isAdikosh, isGNonFSF }) => {
         section => !section.adikoshOnly || isAdikosh
     ).filter(
         section => !section.gqnonfsfOnly || isGNonFSF
+    ).filter(
+        section => !section.gqfsfOnly || isGQFSF
     );
 
     return (
