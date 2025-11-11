@@ -61,6 +61,7 @@ const LAN_TABLE_MAP = {
   WCTL: { table: "loan_bookings_wctl",      statusCol: "status" },
   E1:  { table: "loan_booking_embifi",     statusCol: "status" },
   FINE: { table: "loan_booking_emiclub",   statusCol: "status" },
+  FINS: { table: "loan_booking_finso",    statusCol: "status" },
 };
 
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing
