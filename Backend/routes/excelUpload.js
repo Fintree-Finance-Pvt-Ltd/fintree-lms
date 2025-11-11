@@ -1693,8 +1693,7 @@ router.put("/login-loans/:lan", (req, res) => {
 
           // ✅ WEBHOOK — for FINS loans only
           if (lan.startsWith("FINS")) {
-            const webhookUrl =
-              "https://n8nautomation.dsacrm.com/webhook/d8b42123-feea-4b3c-9df6-330899116e10";
+            const webhookUrl =process.env.FINS_DISBINITIATE_WEBHOOK_URL;
             const payload = {
               lan,
               status,
