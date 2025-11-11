@@ -266,7 +266,8 @@ else if (lender === "GQ Non-FSF" && product === "Bureau Score Based") {
     const month = monthNames[monthAbbr];
     const year = parseInt("20" + yearShort, 10);
  
-    disbDate = new Date(year, monthMap[monthStr], Number(day), 12, 0, 0, 0); // set to noon to avoid UTC shift
+  disbDate = new Date(year, month, day, 12, 0, 0, 0);
+
   } else {
     disbDate = new Date(disbursementDate);
     disbDate.setHours(12, 0, 0, 0); // ensure local noon
