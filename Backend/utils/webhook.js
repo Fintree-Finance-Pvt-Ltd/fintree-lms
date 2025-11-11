@@ -52,6 +52,8 @@ const axios = require("axios");
 
 const WEBHOOK_URL = process.env.UTR_WEBHOOK_URL_EMICLUB;
 const FINSO_WEBHOOK_URL = process.env.FINSO_WEBHOOK_URL;
+const FINSO_WEBHOOK_USERNAME = process.env.FINSO_WEBHOOK_USERNAME;
+const FINSO_WEBHOOK_PASSWORD = process.env.FINSO_WEBHOOK_PASSWORD;
 
 /**
  * Sends webhook notification when loan status changes.
@@ -77,19 +79,24 @@ async function sendLoanWebhook(data) {
   try {
     const ref = reference_number.toUpperCase();
     let url;
+    let config = {
+      headers: { "Content-Type": "application/json" },
+    };
 
     if (ref.startsWith("FINE")) {
       url = WEBHOOK_URL;
     } else if (ref.startsWith("FINS")) {
       url = FINSO_WEBHOOK_URL;
+      config.auth = {
+        username: FINSO_WEBHOOK_USERNAME,
+        password: FINSO_WEBHOOK_PASSWORD,
+      };
     } else {
       console.warn(`⚠️ Unknown reference prefix for ${reference_number}. Webhook not sent.`);
       return;
     }
 
-    const response = await axios.post(url, payload, {
-      headers: { "Content-Type": "application/json" },
-    });
+    const response = await axios.post(url, payload, config);
 
     console.log(`✅ Webhook sent successfully for ${reference_number}:`, response.data);
     return response.data;

@@ -1701,8 +1701,19 @@ router.put("/login-loans/:lan", (req, res) => {
               customer_name: customerName,
             };
 
+             const username = process.env.FINSO_WEBHOOK_USERNAME;
+             const password = process.env.FINSO_WEBHOOK_PASSWORD;
+
             try {
-              await axios.post(webhookUrl, payload);
+              await axios.post(webhookUrl, payload, {
+                auth:{
+                  username,
+                  password,
+                },
+                headers:{
+                  "Content-Type":"application/json",
+                },
+              });
               console.log(`✅ Webhook sent for ${lan} (${status})`);
             } catch (webhookErr) {
               console.error("❌ Error sending webhook:", webhookErr.message);
