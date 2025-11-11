@@ -2145,7 +2145,7 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
       const closing = r2(opening - principal);
 
      // const usingGetFirst = (typeof getFirstEmiDate === "function");
-      const dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, i - 1 + k)
+      const dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, i - 1 )
        
 
       rows.push({
