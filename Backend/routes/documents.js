@@ -823,7 +823,7 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_embifi_loan";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
-  } else {
+  } else if (lan.startsWith("BL")) {
     loanTable = "loan_bookings";
     rpsTable = "manual_rps_bl_loan";
     paymentsTable = "repayments_upload";
@@ -1185,7 +1185,11 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("GQF")) loanTable = "loan_booking_gq_fsf";
   else if (lan.startsWith("ADK")) loanTable = "loan_booking_adikosh";
   else if (lan.startsWith("EV"))  loanTable = "loan_booking_ev";
-  else                            loanTable = "loan_bookings";
+  else if (lan.startsWith("BL"))  loanTable = "loan_bookings";
+  else if (lan.startsWith("E1"))  loanTable = "loan_booking_embifi";
+  else if (lan.startsWith("FINE"))  loanTable = "loan_booking_emiclub";
+
+
 
   try {
     const [loanRows] = await db
@@ -1295,7 +1299,8 @@ router.post("/generate-foreclosure", async (req, res) => {
   else if (lan.startsWith("EV"))   bookingTable = "loan_booking_ev";
   else if (lan.startsWith("E1"))   bookingTable = "loan_booking_embifi";
   else if (lan.startsWith("WCTL")) bookingTable = "loan_bookings_wctl";
-  else                             bookingTable = "loan_bookings";
+  else if (lan.startsWith("BL"))   bookingTable = "loan_bookings";
+  else if (lan.startsWith("FINE")) bookingTable = "loan_booking_emiclub";
 
   // Helpers
   const fmtDateLong = (d) =>

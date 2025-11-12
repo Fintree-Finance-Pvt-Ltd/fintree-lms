@@ -97,7 +97,7 @@ router.get("/:lan", async (req, res) => {
     processingFeeCol = "lb.processing_fee";
     subventionCol = "0";
     retentionCol = "0";
-    partnerLoanIdCol = "null AS partner_loan_id";
+    partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = "lb.disbursal_amount";
   } 
   if (lan.startsWith("GQN")) {
