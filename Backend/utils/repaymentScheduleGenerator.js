@@ -2442,11 +2442,9 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
         advClosing,
         emiAmount,
         advInterest,
-        advClosing,
-        null,
-        0,
-        emiAmount,
-        0
+        advPrincipal,
+        emiAmount
+        
       ]);
 
       cashflows.push(emiAmount);
