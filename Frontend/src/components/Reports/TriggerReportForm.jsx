@@ -268,6 +268,7 @@ import "../../styles/TriggerReportForm.css";
 
 const productOptions = [
   { label: "EV Loan", value: "EV Loan" },
+  { label: "Hey EV", value: "Hey EV" },
   { label: "Healthcare", value: "Healthcare" },
   { label: "BL Loan", value: "BL Loan" },
   { label: "WCTL-BL Loan", value: "WCTL" },
