@@ -2475,8 +2475,9 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
         openingBal,
         closingBal,
         emiAmount,
-        principal,
         interest,
+        principal,
+        
         null,
         0,
         emiAmount,
