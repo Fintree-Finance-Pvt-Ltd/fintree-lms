@@ -2477,11 +2477,9 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
         emiAmount,
         interest,
         principal,
+        emiAmount
+
         
-        null,
-        0,
-        emiAmount,
-        0
       ]);
 
       cashflows.push(emiAmount);
@@ -2502,7 +2500,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       const sql = `
         INSERT INTO manual_rps_gq_fsf_fintree
         (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi,
-         remaining_interest, remaining_principal, payment_date, dpd, remaining_amount, extra_paid)
+         remaining_interest, remaining_principal,remaining_amount)
         VALUES ?
       `;
       await db.promise().query(sql, [rpsData]);
