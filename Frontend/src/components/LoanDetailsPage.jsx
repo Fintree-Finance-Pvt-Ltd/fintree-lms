@@ -60,7 +60,7 @@ const LoanDetailsPage = () => {
 
             {/* ✅ Sidebar + Content Layout */}
             <div className="loan-content-layout">
-                <LoanSidebar onSelect={setSelectedSection} isAdikosh={isAdikosh} isGNonFSF={isGNonFSF} />
+                <LoanSidebar onSelect={setSelectedSection} isAdikosh={isAdikosh} isGNonFSF={isGNonFSF} isGQFSF={isGQFSF}/>
                 <div className="loan-dynamic-section">
                     {selectedSection === "loan-details" && <LoanDetails data={loanData} />}
                     {selectedSection === "disbursement-details" && <DisbursementDetails data={loanData} />}
