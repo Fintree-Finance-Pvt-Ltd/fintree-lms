@@ -3032,7 +3032,7 @@ const generateRepaymentScheduleAdikosh = async (
       {
         name: "manual_rps_adikosh_fintree",
         factor: 0.8,
-        customRate: null,
+        customRate: 21.5,
         hasOC: false,
       },
       {
