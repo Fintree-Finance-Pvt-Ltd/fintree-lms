@@ -204,6 +204,6 @@ cron.schedule("*/2 * * * *", async () => {
   } catch (err) {
     console.error("❌ Allocation cron failed:", err.sqlMessage || err.message);
   }
-});S
+});
 
 require('../server');
