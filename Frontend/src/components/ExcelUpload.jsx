@@ -217,7 +217,7 @@ const CreateLoanBooking = () => {
         return `/loan-booking/aldun-upload`;
       case "Embifi":
         return `/loan-booking/upload-embifi`;
-      case "Circle PE":
+      case "CirclePE":
         return `/loan-booking/circle-pe-upload`;
       case "WCTL":
         return `/loan-booking/wctl-upload`;
@@ -298,7 +298,7 @@ const CreateLoanBooking = () => {
           <option value="GQ Non-FSF">GQ Non-FSF</option>
           <option value="Adikosh">Adikosh</option>
           <option value="Embifi">Embifi</option>
-          <option value="Circle PE">Circle PE</option>
+          <option value="CirclePE">Circle PE</option>
           <option value="WCTL">WCTL</option>
 
         </select>
