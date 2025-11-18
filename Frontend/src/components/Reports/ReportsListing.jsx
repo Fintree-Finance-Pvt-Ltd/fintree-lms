@@ -15,7 +15,8 @@ const dummyReports = [
   { id: 9, name: "CashFlow Report Bank Date" }, // ✅ New report added here
   { id: 10, name: "CCOD Loan Data Report" }, // ✅ New report added here
    { id: 11, name: "Bank Payment File Report" }, // ✅ New report added here
-   {id: 12, name: "Consumer Bureau Report"}
+   {id: 12, name: "Consumer Bureau Report"} , //Consumer Bureau Report
+   {id: 13, name: "Pay Out Report"}  //Consumer Bureau Report
 
 ];
 

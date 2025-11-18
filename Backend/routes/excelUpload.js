@@ -5132,7 +5132,8 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
   if (!req.body.lenderType)
     return res.status(400).json({ message: "Lender type is required." });
 
-  const lenderType = req.body.lenderType;
+  const lenderType = req.body.lenderType?.toLowerCase().trim();
+
   const success_rows = [];
   const row_errors = [];
   const skippedDueToCIBIL = [];
