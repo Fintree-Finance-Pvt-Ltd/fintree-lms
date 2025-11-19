@@ -114,17 +114,24 @@
 
 // startAadhaarCron.js (FINAL UPDATED VERSION)
 
+// startAadhaarCron.js
+
 const cron = require("node-cron");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const xml2js = require("xml2js");
-const unzipper = require("unzipper");
 const db = require("../config/db");
 const { createAadhaarPDF } = require("./aadhaarPdfGenerator");
 
-function parseAadhaarXML(xmlBuffer) {
-  return xml2js.parseStringPromise(xmlBuffer.toString(), {
+async function parseAadhaarXML(xmlBuffer) {
+  const xmlString = xmlBuffer.toString("utf8");
+
+  console.log("🔍 XML Preview (first 200 chars):");
+  console.log(xmlString.slice(0, 200).replace(/\s+/g, " ").trim());
+  console.log("🔍 XML Length:", xmlString.length);
+
+  return await xml2js.parseStringPromise(xmlString, {
     explicitArray: false,
     trim: true,
   });
@@ -132,9 +139,9 @@ function parseAadhaarXML(xmlBuffer) {
 
 function startAadhaarCron() {
   cron.schedule("*/2 * * * *", async () => {
-    console.log("\n===============================");
-    console.log("⏳ Aadhaar PDF Cron Running...");
-    console.log("===============================\n");
+    console.log("\n======================================");
+    console.log("⏳ Aadhaar PDF Cron Triggered...");
+    console.log("======================================\n");
 
     const sql = `
       SELECT id, lan, file_name, source_url, meta_json
@@ -144,11 +151,11 @@ function startAadhaarCron() {
 
     db.query(sql, async (err, rows) => {
       if (err) {
-        console.error("❌ DB Error:", err);
+        console.error("❌ DB Error while fetching Aadhaar docs:", err);
         return;
       }
 
-      console.log(`📌 Found ${rows.length} Aadhaar records.`);
+      console.log(`📌 Total Aadhaar rows found: ${rows.length}`);
 
       for (let row of rows) {
         console.log("\n-----------------------------------");
@@ -156,65 +163,91 @@ function startAadhaarCron() {
         console.log("-----------------------------------");
 
         let meta = {};
-        try { meta = JSON.parse(row.meta_json || "{}"); } catch {}
+        try {
+          meta = JSON.parse(row.meta_json || "{}");
+        } catch (e) {
+          console.warn("⚠ Could not parse meta_json, using empty object.");
+        }
 
         if (meta.aadhaar_pdf_generated === true) {
-          console.log("➡ PDF already generated. Skipping...");
+          console.log("➡ PDF already generated. Skipping this row.");
           continue;
         }
 
         try {
-          console.log(`🔗 Source URL: ${row.source_url}`);
-
-          // ============================
-          // 📥 DOWNLOAD FILE AS STREAM
-          // ============================
-          console.log("⬇ Downloading Aadhaar file (stream mode)...");
-          const resp = await axios.get(row.source_url, {
-            responseType: "stream",
-          });
-
-          const chunks = [];
-          for await (const chunk of resp.data) chunks.push(chunk);
-          const fileBuffer = Buffer.concat(chunks);
-
-          console.log(`📦 Download Complete — Size: ${fileBuffer.length} bytes`);
-
-          // ============================
-          // 🔍 DETECT ZIP
-          // ============================
-          const isZip =
-            row.source_url.endsWith(".zip") ||
-            resp.headers["content-type"]?.includes("zip") ||
-            fileBuffer.slice(0, 2).toString("hex") === "504b";
-
-          let xmlBuffer;
-
-          if (isZip) {
-            console.log("📦 ZIP detected → extracting XML...");
-
-            try {
-              const directory = await unzipper.Open.buffer(fileBuffer);
-              const xmlFile = directory.files.find(f =>
-                f.path.toLowerCase().endsWith(".xml")
-              );
-
-              if (!xmlFile) {
-                console.log("❌ ERROR: No XML found inside ZIP.");
-                continue;
-              }
-
-              console.log(`📄 Found XML inside ZIP: ${xmlFile.path}`);
-              xmlBuffer = await xmlFile.buffer();
-              console.log("📄 XML Extracted Successfully.");
-            } catch (zipError) {
-              console.error("❌ ZIP Extraction Error:", zipError.message);
-              continue;
-            }
-          } else {
-            console.log("📄 File is plain XML → using directly.");
-            xmlBuffer = fileBuffer;
+          if (!row.source_url) {
+            console.log("❌ No source_url found for this row. Skipping.");
+            continue;
           }
+
+          // Decide local XML path
+          let xmlFileName = row.file_name;
+          let xmlPath = xmlFileName
+            ? path.join("uploads", xmlFileName)
+            : null;
+
+          // ============================
+          // 📥 DOWNLOAD XML IF NEEDED
+          // ============================
+          let needDownload = true;
+
+          if (xmlFileName && fs.existsSync(xmlPath)) {
+            console.log(`📂 Local XML file already exists: ${xmlPath}`);
+            needDownload = false;
+          }
+
+          if (needDownload) {
+            console.log(`🌐 Downloading XML for ID ${row.id}`);
+            console.log(`🔗 URL: ${row.source_url}`);
+
+            const resp = await axios.get(row.source_url, {
+              responseType: "arraybuffer",
+            });
+
+            console.log("🌐 HTTP Status:", resp.status);
+            console.log("🌐 Content-Type:", resp.headers["content-type"]);
+            console.log("🌐 Downloaded Bytes:", resp.data.length);
+
+            // Force save as .xml (like your old code)
+            const newFile = `${Date.now()}_${row.id}.xml`;
+            xmlPath = path.join("uploads", newFile);
+
+            // Ensure uploads dir exists
+            if (!fs.existsSync("uploads")) {
+              fs.mkdirSync("uploads", { recursive: true });
+              console.log("📁 'uploads' directory created.");
+            }
+
+            fs.writeFileSync(xmlPath, resp.data);
+            console.log(`💾 XML saved to: ${xmlPath}`);
+
+            // Update DB file_name to the new xml file
+            db.query(
+              "UPDATE loan_documents SET file_name=? WHERE id=?",
+              [newFile, row.id],
+              (updateErr) => {
+                if (updateErr) {
+                  console.error("❌ Error updating file_name in DB:", updateErr);
+                } else {
+                  console.log("✅ DB updated with new XML file_name:", newFile);
+                }
+              }
+            );
+
+            row.file_name = newFile;
+          }
+
+          // ============================
+          // 📖 READ LOCAL XML
+          // ============================
+          if (!xmlPath || !fs.existsSync(xmlPath)) {
+            console.log("❌ XML file missing on disk even after download. Skipping.");
+            continue;
+          }
+
+          console.log(`📖 Reading XML from: ${xmlPath}`);
+          const xmlBuffer = fs.readFileSync(xmlPath);
+          console.log("📖 XML File Size (bytes):", xmlBuffer.length);
 
           // ============================
           // 🔍 PARSE XML
@@ -224,48 +257,66 @@ function startAadhaarCron() {
           console.log("📘 XML Parsed Successfully!");
 
           // ============================
-          // 📄 GENERATE PDF
+          // 🖨 GENERATE PDF
           // ============================
-          const pdfFile = `${Date.now()}_${row.id}.pdf`;
+          const pdfFile = row.file_name.replace(".xml", ".pdf");
           const pdfPath = path.join("uploads", pdfFile);
 
           console.log(`🖨 Generating PDF → ${pdfFile}`);
           await createAadhaarPDF(json, pdfPath);
-          console.log("✔ PDF Created Successfully!");
+          console.log("✔ PDF generated successfully at:", pdfPath);
 
           // ============================
           // 💾 INSERT PDF RECORD
           // ============================
           const pdfMeta = {
             type: "aadhaar_pdf",
-            source: row.source_url,
+            xml_source: row.file_name,
             generated_at: new Date(),
           };
 
-          console.log("💾 Inserting PDF metadata into DB...");
+          console.log("💾 Inserting new PDF row in loan_documents...");
+
+          const insertSQL = `
+            INSERT INTO loan_documents
+            (lan, doc_name, file_name, original_name, source_url, meta_json, uploaded_at)
+            VALUES (?, 'OFFLINE_VERIFICATION_OF_AADHAAR_PDF', ?, ?, NULL, ?, NOW())
+          `;
 
           db.query(
-            `INSERT INTO loan_documents
-            (lan, doc_name, file_name, original_name, source_url, meta_json, uploaded_at)
-            VALUES (?, 'OFFLINE_VERIFICATION_OF_AADHAAR_PDF', ?, ?, NULL, ?, NOW())`,
-            [row.lan, pdfFile, pdfFile, JSON.stringify(pdfMeta)]
+            insertSQL,
+            [row.lan, pdfFile, pdfFile, JSON.stringify(pdfMeta)],
+            (insertErr) => {
+              if (insertErr) {
+                console.error("❌ Error inserting PDF row:", insertErr);
+              } else {
+                console.log("✅ PDF row inserted successfully.");
+              }
+            }
           );
 
           // ============================
-          // 💾 UPDATE ORIGINAL RECORD
+          // 💾 UPDATE ORIGINAL META_JSON
           // ============================
           meta.aadhaar_pdf_generated = true;
           meta.aadhaar_pdf_file = pdfFile;
 
           db.query(
             "UPDATE loan_documents SET meta_json=? WHERE id=?",
-            [JSON.stringify(meta), row.id]
+            [JSON.stringify(meta), row.id],
+            (metaErr) => {
+              if (metaErr) {
+                console.error("❌ Error updating meta_json:", metaErr);
+              } else {
+                console.log("✅ meta_json updated with PDF info.");
+              }
+            }
           );
 
-          console.log(`✅ DONE — PDF generated for ID ${row.id}`);
+          console.log(`✅ DONE — PDF generated for LAN ${row.lan}, ID ${row.id}`);
 
         } catch (e) {
-          console.error(`❌ ERROR processing ID ${row.id}:`, e.message);
+          console.error(`❌ Error processing ID ${row.id}:`, e.message);
         }
       }
     });

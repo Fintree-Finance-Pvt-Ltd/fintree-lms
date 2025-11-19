@@ -150,7 +150,7 @@ cron.schedule("*/2 * * * *", async () => {
     }
 
     console.log("✅ All tables updated successfully");
-    
+
     const sql = `CALL sp_cc_ood_generate_all(
       DATE_SUB(CURDATE(), INTERVAL 1 DAY),
       DATE_SUB(CURDATE(), INTERVAL 1 DAY)
@@ -212,7 +212,7 @@ cron.schedule("*/2 * * * *", () => {
   runDailyInterestAccrual();
 });
 
-startAadhaarCron();
+// startAadhaarCron();
 
 
 require('../server');
