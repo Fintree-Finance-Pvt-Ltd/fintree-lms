@@ -1,5 +1,5 @@
 // utils/interestEngine.js
-import db from "../config/db.js";
+const db = require( "../config/db");
 
 export const runDailyInterestAccrual = async () => {
   console.log("\n🔁  Running Daily Interest Accrual Engine…");
