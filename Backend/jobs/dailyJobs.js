@@ -101,6 +101,8 @@
 const cron = require("node-cron");
 const db = require("../config/db");
 const { generateAllPending } = require("./cibilPdfService");
+const { runDailyInterestAccrual } = require( "./wctlccodinterestengine");
+const startAadhaarCron = require("./aadhaarPdfCron");
 
 // 1️⃣ DPD + OOD Cron
 cron.schedule("*/2 * * * *", async () => {
@@ -148,7 +150,7 @@ cron.schedule("*/2 * * * *", async () => {
     }
 
     console.log("✅ All tables updated successfully");
-//// cc od product call
+    
     const sql = `CALL sp_cc_ood_generate_all(
       DATE_SUB(CURDATE(), INTERVAL 1 DAY),
       DATE_SUB(CURDATE(), INTERVAL 1 DAY)
@@ -205,5 +207,12 @@ cron.schedule("*/2 * * * *", async () => {
     console.error("❌ Allocation cron failed:", err.sqlMessage || err.message);
   }
 });
+
+cron.schedule("*/2 * * * *", () => {
+  runDailyInterestAccrual();
+});
+
+startAadhaarCron();
+
 
 require('../server');

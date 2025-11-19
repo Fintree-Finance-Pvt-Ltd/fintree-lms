@@ -6,6 +6,7 @@ const dotenv = require("dotenv");
 const { parseStringPromise } = require("xml2js");
 const axios = require("axios");
 const he = require("he");
+const authenticateUser = require("../middleware/verifyToken")
 const { XMLParser } = require("fast-xml-parser");
 // const verifyApiKey = require("../middleware/authMiddleware");
 const verifyApiKey = require("../middleware/apiKeyAuth");
@@ -55,6 +56,9 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "emiclub") {
     //prefixPartnerLosan = "FINE1";
     prefixLan = "FINE1";
+  }
+  else if (lender === "WCTL_CC_OD") {
+    prefixLan = "FCCOD1";
   } else if (lender === "Finso") {
     prefixLan = "FINS1";
   } else {
@@ -5530,6 +5534,8 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
       .json({ message: "Error processing WCTL upload", error: error.message });
   }
 });
+
+
 
 ////////////////// WCT LOAN BOOKIN END /////////////////////////////
 

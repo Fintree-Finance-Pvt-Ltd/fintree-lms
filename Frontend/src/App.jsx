@@ -91,6 +91,12 @@ import HEYEVActionScreen from "./components/HEYEVActionScreen";
 import HEYEVApproveInitiateScreen from "./components/HEYEVApproveInitiateScreen";
 import HEYEVAllLoans from "./components/HEYEVAllLoans";
 import EVManualEntry from "./components/EVManualEntry";
+import LoanBookingWctlCcOd from "./components/WCTLCCOD/LoanBookingWctlCcOd";
+import WCTLCCODAllLoans from "./components/WCTLCCOD/WCTLCCODAllLoans";
+import WCTLInventoryAdd from "./components/WCTLCCOD/InventoryAdd";
+import InvoiceAdd from "./components/WCTLCCOD/InvoiceAdd";
+import RepaymentAdd from "./components/WCTLCCOD/RepaymentAdd";
+import InterestLedger from "./components/WCTLCCOD/InterestLedger";
 
 function App() {
   return (
@@ -145,6 +151,8 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          
 
           <Route
             path="/ev-manual-entry"
@@ -232,6 +240,62 @@ function App() {
             element={
               <PermissionRoute pageName="Download Excel Templates">
                 <DownloadExcelTemplates />
+              </PermissionRoute>
+            }
+          />
+
+          {/* WCTL CCOD LOAN ROUTES */}
+
+          <Route 
+            path="/wctl-ccod/loan-booking-wctl-ccod"
+            element= {
+              <PermissionRoute pageName="WCTL CCOD Loan Book">
+                <LoanBookingWctlCcOd />
+              </PermissionRoute>
+            }
+          />
+
+          <Route 
+            path="/wctl-ccod/all-loans"
+            element= {
+              <PermissionRoute pageName="WCTL CCOD ALL Loans">
+                <WCTLCCODAllLoans/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route 
+            path="/wctl-ccod/add-inventory/:lan"
+            element= {
+              <PermissionRoute pageName="WCTL CCOD Add Inventory">
+                <WCTLInventoryAdd/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route 
+            path="/wctl-ccod/add-invoice/:lan"
+            element= {
+              <PermissionRoute pageName="WCTL CCOD Add Invoice">
+                <InvoiceAdd/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route 
+            path="/wctl-ccod/repayment/:lan"
+            element= {
+              <PermissionRoute pageName="Repayment Add">
+                <RepaymentAdd/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route 
+            path="/wctl-ccod/interest-ledger/:lan"
+            element= {
+              <PermissionRoute pageName="Interest ledger">
+                <InterestLedger/>
               </PermissionRoute>
             }
           />

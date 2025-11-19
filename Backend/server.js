@@ -17,7 +17,7 @@ const forecloserRoutes = require("./routes/forecloserRoutes");
 const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
-const collectionApiRoutes = require("./routes/collectionApi")
+const collectionApiRoutes = require("./routes/collectionApi");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
@@ -74,6 +74,7 @@ app.use("/reports", express.static(reportsPath));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/loan-booking', excelUploadRoutes);
+app.use('/api/wctl-ccod', require('./routes/wctlCCODRoutes/wctlRoutes')); // ✅ Register WCTL-CC-OD Routes
 app.use('/api/utr', require('./routes/utrRoutes')); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 // app.use("/api/courses", courseRoutes);

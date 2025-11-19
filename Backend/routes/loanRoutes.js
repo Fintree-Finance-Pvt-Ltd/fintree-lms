@@ -64,6 +64,9 @@ router.get("/loan-booking/:lan", (req, res) => {
     table = "loan_booking_circle_pe";
     posTable = "manual_rps_circlepe";
   }
+  else if (lan.startsWith("FCCOD")) {
+    table = "loan_booking_wctl_cc_od";
+  }
 
     const query = `SELECT * FROM ${table} WHERE lan = ?`;
 
