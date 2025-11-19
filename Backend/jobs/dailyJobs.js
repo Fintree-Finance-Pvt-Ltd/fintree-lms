@@ -212,7 +212,7 @@ cron.schedule("*/2 * * * *", () => {
   runDailyInterestAccrual();
 });
 
-// startAadhaarCron();
+startAadhaarCron();
 
 
 require('../server');
