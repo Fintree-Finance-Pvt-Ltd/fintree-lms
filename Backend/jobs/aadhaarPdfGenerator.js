@@ -1,3 +1,5 @@
+// aadhaarPdfGenerator.js
+
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 
@@ -18,31 +20,26 @@ function formatTimestamp(ts) {
     };
 
     const formatted = date.toLocaleString("en-IN", options);
-    return formatted.replace(",", "");  // Cleanup
-  } catch (e) {
-    return ts; // fallback
+    return formatted.replace(",", "");
+  } catch {
+    return ts;
   }
 }
-
 
 async function createAadhaarPDF(json, outputPath) {
   const doc = new PDFDocument({ margin: 40 });
   const stream = fs.createWriteStream(outputPath);
   doc.pipe(stream);
 
-  const kyc = json.Certificate.CertificateData.KycRes;
-  const uid = kyc.UidData;
+  const kyc = json.Certificate.CertificateData.KycRes || {};
+  const uid = kyc.UidData || {};
 
   const poi = uid.Poi?.$ || {};
   const poa = uid.Poa?.$ || {};
 
-  // Aadhaar number
   const aadhaarRaw = uid.$?.uid || null;
-  const aadhaarMasked = aadhaarRaw
-    ? `XXXX XXXX ${aadhaarRaw.slice(-4)}`
-    : "-";
+  const aadhaarMasked = aadhaarRaw ? `XXXX XXXX ${aadhaarRaw.slice(-4)}` : "-";
 
-  // Title
   doc.fontSize(20).text("Offline Aadhaar KYC", { align: "center" });
   doc.moveDown(1.5);
 
@@ -57,17 +54,17 @@ async function createAadhaarPDF(json, outputPath) {
     doc.rect(startX, y, col1Width, rowHeight).stroke();
     doc.rect(startX + col1Width, y, col2Width, rowHeight).stroke();
     doc.fontSize(12).text(label, startX + 10, y + 10);
-    doc.text(value, startX + col1Width + 10, y + 10);
+    doc.text(String(value || "-"), startX + col1Width + 10, y + 10);
     y += rowHeight;
   }
 
-  drawRow("Name", poi.name || "-");
+  drawRow("Name", poi.name);
   drawRow("Aadhaar Number", aadhaarMasked);
-  drawRow("Gender", poi.gender || "-");
-  drawRow("Date of birth", poi.dob || "-");
+  drawRow("Gender", poi.gender);
+  drawRow("Date of birth", poi.dob);
+
   const rawTimestamp = kyc.$?.ts || "-";
-const formattedTimestamp = formatTimestamp(rawTimestamp);
-drawRow("KYC Timestamp", formattedTimestamp);
+  drawRow("KYC Timestamp", formatTimestamp(rawTimestamp));
 
   // ADDRESS
   let address = `
@@ -80,10 +77,8 @@ ${poa.state || ""} ${poa.pc || ""}
   if (!address.replace(/[\s,]/g, "")) address = "-";
 
   const addressHeight = 90;
-
   doc.rect(startX, y, col1Width, addressHeight).stroke();
   doc.rect(startX + col1Width, y, col2Width, addressHeight).stroke();
-
   doc.fontSize(12).text("Address", startX + 10, y + 10);
   doc.fontSize(11).text(address, startX + col1Width + 10, y + 10, {
     width: col2Width - 20,
@@ -91,14 +86,13 @@ ${poa.state || ""} ${poa.pc || ""}
 
   y += addressHeight;
 
-  // IMAGE ROW
+  // PHOTO
   const imgHeight = 200;
-
   doc.rect(startX, y, col1Width, imgHeight).stroke();
   doc.rect(startX + col1Width, y, col2Width, imgHeight).stroke();
+
   doc.fontSize(12).text("Image", startX + 10, y + 10);
 
-  // UNIVERSAL PHOTO EXTRACTION
   let photoBase64 = null;
 
   if (uid.Pht) {
@@ -110,26 +104,17 @@ ${poa.state || ""} ${poa.pc || ""}
   if (photoBase64) {
     try {
       const img = Buffer.from(photoBase64, "base64");
-
-      // Draw image (NO ROTATION)
-      const imgW = 150;
-      const imgH = 180;
-
-      const imgX = startX + col1Width + 20;
-      const imgY = y + 10;
-
-      doc.image(img, imgX, imgY, { width: imgW, height: imgH });
-
+      doc.image(img, startX + col1Width + 20, y + 10, {
+        width: 150,
+        height: 180
+      });
     } catch (err) {
       console.log("❌ Image decode error:", err.message);
     }
-  } else {
-    console.log("⚠ No image found in XML");
   }
 
-  y += imgHeight;
-
   doc.end();
+
   return new Promise((resolve) => stream.on("finish", resolve));
 }
 
