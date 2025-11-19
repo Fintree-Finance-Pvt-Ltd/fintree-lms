@@ -1,7 +1,7 @@
 // utils/interestEngine.js
 const db = require( "../config/db");
 
-export const runDailyInterestAccrual = async () => {
+ const runDailyInterestAccrual = async () => {
   console.log("\n🔁  Running Daily Interest Accrual Engine…");
 
   try {
@@ -114,3 +114,6 @@ export const runDailyInterestAccrual = async () => {
     console.error("❌ Daily Interest Cron Error:", err);
   }
 };
+
+
+module.exports = { runDailyInterestAccrual };
