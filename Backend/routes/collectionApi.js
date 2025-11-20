@@ -140,4 +140,20 @@ router.get("/malhotra/search", async (req, res) => {
   }
 });
 
+router.get("/malhotra/total-cases", async(req, res) => {
+  try {
+    console.log("first")
+    const sql = `
+      SELECT COUNT(*) AS totalCases
+      FROM loan_booking_ev;
+    `;
+
+    const [rows] = await db.promise().query(sql);
+    return res.json({ totalCases: rows[0].totalCases || 0 });
+  } catch (err) {
+    console.error("[/malhotra/total-cases] error:", err);
+    return res.status(500).json({ message: "Internal error" });
+  }
+});
+
 module.exports = router;
