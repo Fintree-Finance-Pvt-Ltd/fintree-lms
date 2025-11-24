@@ -205,7 +205,7 @@ cron.schedule("*/2 * * * *", async () => {
 
     const sqlAllocationAdikosh = `
       UPDATE allocation_adikosh a
-      JOIN repayments_upload ru 
+      JOIN repayments_upload_adikosh ru 
         ON a.payment_id = ru.payment_id 
        AND a.lan = ru.lan
       SET a.bank_date_allocation = ru.bank_date
