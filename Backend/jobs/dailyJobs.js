@@ -190,10 +190,11 @@ cron.schedule("*/2 * * * *", async () => {
 });
 
 // 4️⃣ NEW: Allocation bank_date update cron (every 2 minutes)
+// 4️⃣ NEW: Allocation bank_date update cron (every 2 minutes)
 cron.schedule("*/2 * * * *", async () => {
   console.log("🏦 Running Allocation bank_date update...");
   try {
-    const sql = `
+    const sqlAllocation = `
       UPDATE allocation a
       JOIN repayments_upload ru 
         ON a.payment_id = ru.payment_id 
@@ -201,12 +202,25 @@ cron.schedule("*/2 * * * *", async () => {
       SET a.bank_date_allocation = ru.bank_date
       WHERE ru.bank_date IS NOT NULL
     `;
-    await db.promise().query(sql);
-    console.log("✅ Allocation bank_date_allocation updated");
+
+    const sqlAllocationAdikosh = `
+      UPDATE allocation_adikosh a
+      JOIN repayments_upload ru 
+        ON a.payment_id = ru.payment_id 
+       AND a.lan = ru.lan
+      SET a.bank_date_allocation = ru.bank_date
+      WHERE ru.bank_date IS NOT NULL
+    `;
+
+    await db.promise().query(sqlAllocation);
+    await db.promise().query(sqlAllocationAdikosh);
+
+    console.log("✅ allocation & allocation_adikosh bank_date_allocation updated");
   } catch (err) {
     console.error("❌ Allocation cron failed:", err.sqlMessage || err.message);
   }
 });
+// 5️⃣ WCTL CCOD Interest Accrual Cron
 
 cron.schedule("*/2 * * * *", () => {
   runDailyInterestAccrual();
