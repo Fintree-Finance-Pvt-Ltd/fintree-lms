@@ -19,6 +19,8 @@ exports.initAadhaarKyc = async (lan, mobile_number, email_id, customer_name) => 
       expiryHours: 72,
     };
 
+    console.log("client and secret id from env", process.env.DIGITAP_CLIENT_ID, process.env.DIGITAP_CLIENT_SECRET)
+
     const authHeader = Buffer.from(
       `${process.env.DIGITAP_CLIENT_ID}:${process.env.DIGITAP_CLIENT_SECRET}`
     ).toString("base64");
@@ -36,23 +38,26 @@ exports.initAadhaarKyc = async (lan, mobile_number, email_id, customer_name) => 
 
     const model = response.data.model;
     const kycUrl = model.shortUrl || model.url;
+    console.log("model", model);
+    console.log("kycurl", kycUrl);
     const loanName = "Personal Loan";      // dynamic
 const validityMinutes = 10; 
     // -------------------------
     // SEND SMS TO CUSTOMER
     // -------------------------
-    if (mobile_number) {
-      const message = `Dear ${customer_name}, to complete your Aadhaar DigiLocker KYC for ${loanName}, please click ${model.shortUrl || model.url}. This link is valid for ${validityMinutes} minutes. Do not share this link or any OTP with anyone. - Regards Fintree Finance Pvt Ltd.`;
-      await sendSms({
-        mobile: mobile_number,
-        message,
-        dltTemplateId: process.env.DLT_TEMPLATE_ID_AADHAAR_KYC,
-      });
+    // if (mobile_number) {
+    //   const message = `Dear ${customer_name}, to complete your Aadhaar DigiLocker KYC for ${loanName}, please click ${model.shortUrl || model.url}. This link is valid for ${validityMinutes} minutes. Do not share this link or any OTP with anyone. - Regards Fintree Finance Pvt Ltd.`;
+    //   await sendSms({
+    //     mobile: mobile_number,
+    //     message,
+    //     dltTemplateId: process.env.DLT_TEMPLATE_ID_AADHAAR_KYC,
+    //   });
 
-      console.log("📨 Aadhaar KYC SMS sent to:", mobile_number);
-    }
+    //   console.log("📨 Aadhaar KYC SMS sent to:", mobile_number);
+    // }
 
     // 🔹 Send Email (NEW)
+    console.log("just before email-id")
     if (email_id) {
       console.log("started aadhar kyc mail sending");
       try {
