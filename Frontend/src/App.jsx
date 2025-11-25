@@ -97,6 +97,10 @@ import WCTLInventoryAdd from "./components/WCTLCCOD/InventoryAdd";
 import InvoiceAdd from "./components/WCTLCCOD/InvoiceAdd";
 import RepaymentAdd from "./components/WCTLCCOD/RepaymentAdd";
 import InterestLedger from "./components/WCTLCCOD/InterestLedger";
+import HeliumManualEntry from "./components/helium/heliumLoanBooking";
+import HeliumAllLoans from "./components/helium/heliumAllLoans";
+import HeliumApprovedLoans from "./components/helium/heliumApprovedLoans";
+import HeliumApprovedLoanDetails from "./components/helium/HeliumApprovedLoanDetails";
 
 function App() {
   return (
@@ -296,6 +300,44 @@ function App() {
             element= {
               <PermissionRoute pageName="Interest ledger">
                 <InterestLedger/>
+              </PermissionRoute>
+            }
+          />
+
+          {/* ✅ Helium Loan routes */}
+
+          <Route
+            path="/helium-loans/manual-entry"
+            element={
+              <PermissionRoute pageName="Helium Manual Entry">
+                <HeliumManualEntry />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/helium-loans/all-loans"
+            element={
+              <PermissionRoute pageName="Helium All Loans">
+                <HeliumAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/helium-loans/approved-loans"
+            element={
+              <PermissionRoute pageName="Helium Approved Loans">
+                <HeliumApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/approved-loan-details-helium/:lan"
+            element={
+              <PermissionRoute pageName="Approved Loan Details">
+                <HeliumApprovedLoanDetails />
               </PermissionRoute>
             }
           />

@@ -62,6 +62,7 @@ const LAN_TABLE_MAP = {
   E1:  { table: "loan_booking_embifi",     statusCol: "status" },
   FINE: { table: "loan_booking_emiclub",   statusCol: "status" },
   FINS: { table: "loan_booking_finso",    statusCol: "status" },
+  HEL: { table: "loan_booking_helium",   statusCol: "status" },
 };
 
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing

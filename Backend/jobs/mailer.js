@@ -36,4 +36,38 @@ async function sendLoanStatusMail({ to, customerName, batchId, loanAmount, statu
   return transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendLoanStatusMail };
+
+async function sendAadhaarKycMail({ to, customerName, lan, kycUrl }) {
+  if (!to) throw new Error("Missing email address for Aadhaar KYC mail");
+
+  const subject = `Complete your Aadhaar KYC - LAN ${lan}`;
+  const text = `
+Dear ${customerName || "Customer"},
+
+Thank you for applying for a loan with Fintree Finance.
+
+To complete your Aadhaar-based KYC, please click on the link below:
+
+${kycUrl}
+
+This link is valid for a limited time. Kindly complete your KYC at the earliest.
+
+Regards,
+Fintree Finance
+  `.trim();
+
+  const mailOptions = {
+    from: process.env.FROM_EMAIL,
+    to,
+    subject,
+    text,
+  };
+
+  return transporter.sendMail(mailOptions);
+}
+
+module.exports = { 
+  sendLoanStatusMail,
+  sendAadhaarKycMail
+};
+

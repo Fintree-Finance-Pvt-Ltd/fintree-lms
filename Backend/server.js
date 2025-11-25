@@ -75,6 +75,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/loan-booking', excelUploadRoutes);
 app.use('/api/wctl-ccod', require('./routes/wctlCCODRoutes/wctlRoutes')); // ✅ Register WCTL-CC-OD Routes
+app.use('/api/helium-loans', require('./routes/heliumRoutes/heliumRoutes')); // ✅ Register Helium Loan Routes
 app.use('/api/utr', require('./routes/utrRoutes')); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 // app.use("/api/courses", courseRoutes);

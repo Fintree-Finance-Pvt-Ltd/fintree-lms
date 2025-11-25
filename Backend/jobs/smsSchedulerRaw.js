@@ -36,6 +36,14 @@ async function sendSms({ mobile, message, dltTemplateId }) {
   const msisdn = cleanMobile(mobile);
   if (!msisdn) throw new Error("Invalid mobile number");
 
+   console.log("🔍 Env:", {
+    ALOT_USER,
+    ALOT_PASSWORD,
+    SENDER_ID,
+    DLT_PEID,
+    ALOT_API_URL,
+  });
+
   const smsUrl = `${ALOT_API_URL}?user=${encodeURIComponent(
     ALOT_USER
   )}&password=${encodeURIComponent(
@@ -45,10 +53,12 @@ async function sendSms({ mobile, message, dltTemplateId }) {
   }&flashsms=${ALOT_FLASH}&number=${msisdn}&text=${encodeURIComponent(
     message
   )}&route=${ALOT_ROUTE}&DLTTemplateId=${dltTemplateId || ""}&PEID=${DLT_PEID}`;
+ console.log("📤 Sending SMS URL:", smsUrl);
 
   const res = await axios.get(smsUrl, { timeout: 20000 });
   const body =
     typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+    console.log("📥 Provider raw response:", body);
   const ok = /success|^1701\b|^000\b/i.test(body);
 
   if (!ok) throw new Error(`ALOT send failed: ${body}`);

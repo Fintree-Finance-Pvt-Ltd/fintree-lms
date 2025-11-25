@@ -63,8 +63,10 @@ router.get("/loan-booking/:lan", (req, res) => {
   }else if (lan.startsWith("CIRF")) {
     table = "loan_booking_circle_pe";
     posTable = "manual_rps_circlepe";
-  }
-  else if (lan.startsWith("FCCOD")) {
+  }else if (lan.startsWith("HEL")) {
+    table = "loan_booking_helium";
+    posTable = "manual_rps_helium";
+  }else if (lan.startsWith("FCCOD")) {
     table = "loan_booking_wctl_cc_od";
   }
 

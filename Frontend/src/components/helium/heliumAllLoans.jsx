@@ -1,0 +1,225 @@
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../../api/api";
+import DataTable from "../ui/DataTable";
+import LoaderOverlay from "../ui/LoaderOverlay";
+
+const HeliumAllLoans = ({
+  apiEndpoint = "helium-loans/all-loans",
+  title = "All Loans",
+  amountField = "disbursement_amount",
+}) => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const nav = useNavigate();
+
+  useEffect(() => {
+    let off = false;
+    setLoading(true);
+    setErr("");
+
+    api
+      .get(apiEndpoint)
+      .then((res) => {
+        if (off) return;
+        const data = Array.isArray(res.data) ? res.data : [];
+        const sorted = [...data].sort((a, b) =>
+          String(b?.lan ?? "").localeCompare(String(a?.lan ?? ""))
+        );
+        setRows(sorted);
+      })
+      .catch(() => {
+        if (!off) setErr("Failed to fetch data.");
+      })
+      .finally(() => {
+        if (!off) setLoading(false);
+      });
+
+    return () => {
+      off = true;
+    };
+  }, [apiEndpoint]);
+
+  const nf = new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  });
+
+  const amountHeader =
+    amountField === "disbursement_amount"
+      ? "Disbursement Amount"
+      : "Loan Amount";
+
+  const columns = [
+    {
+      key: "customer_name",
+      header: "Customer Name",
+      sortable: true,
+      render: (r) => (
+        <span
+          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+          onClick={() => nav(`/loan-details/${r.lan}`)}
+        >
+          {r.customer_name ?? "—"}
+        </span>
+      ),
+      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
+      width: 220,
+    },
+    {
+      key: "lan",
+      header: "LAN",
+      sortable: true,
+      render: (r) => (
+        <span
+          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+          onClick={() => nav(`/loan-details/${r.lan}`)}
+        >
+          {r.lan ?? "—"}
+        </span>
+      ),
+      sortAccessor: (r) => (r.lan || "").toLowerCase(),
+      width: 150,
+    },
+    {
+      key: amountField,
+      header: amountHeader,
+      sortable: true,
+      render: (r) => {
+        const raw = r?.[amountField] ?? r?.loan_amount;
+        const n = Number(raw);
+        return Number.isFinite(n) ? nf.format(n) : "—";
+      },
+      sortAccessor: (r) => {
+        const v = Number(r?.[amountField] ?? r?.loan_amount ?? 0);
+        return Number.isFinite(v) ? v : 0;
+      },
+      width: 190,
+    },
+    {
+      key: "disbursement_date",
+      header: "Disbursement Date",
+      sortable: true,
+      sortAccessor: (r) =>
+        r.disbursement_date ? Date.parse(r.disbursement_date) : 0,
+      width: 170,
+    },
+    {
+      key: "status",
+      header: "Status",
+      sortable: true,
+      render: (r) => {
+        const status = r.status || "—";
+
+        // Extended map to support all loan statuses
+        const map = {
+          Login: {
+            bg: "rgba(59,130,246,.12)",
+            bd: "rgba(59,130,246,.35)",
+            fg: "#1d4ed8",
+          },
+          "Under Verification": {
+            bg: "rgba(59,130,246,.12)",
+            bd: "rgba(59,130,246,.35)",
+            fg: "#1d4ed8",
+          },
+          "KYC Pending": {
+            bg: "rgba(234,179,8,.12)",
+            bd: "rgba(234,179,8,.35)",
+            fg: "#713f12",
+          },
+          "KYC Failed": {
+            bg: "rgba(239,68,68,.12)",
+            bd: "rgba(239,68,68,.35)",
+            fg: "#7f1d1d",
+          },
+          Approved: {
+            bg: "rgba(16,185,129,.12)",
+            bd: "rgba(16,185,129,.35)",
+            fg: "#065f46",
+          },
+          Rejected: {
+            bg: "rgba(239,68,68,.12)",
+            bd: "rgba(239,68,68,.35)",
+            fg: "#7f1d1d",
+          },
+          Disbursed: {
+            bg: "rgba(16,185,129,.12)",
+            bd: "rgba(16,185,129,.35)",
+            fg: "#065f46",
+          },
+          Settled: {
+            bg: "rgba(59,130,246,.12)",
+            bd: "rgba(59,130,246,.35)",
+            fg: "#1e3a8a",
+          },
+          Pending: {
+            bg: "rgba(234,179,8,.12)",
+            bd: "rgba(234,179,8,.35)",
+            fg: "#713f12",
+          },
+          Failed: {
+            bg: "rgba(239,68,68,.12)",
+            bd: "rgba(239,68,68,.35)",
+            fg: "#7f1d1d",
+          },
+        };
+
+        const c =
+          map[status] || {
+            bg: "rgba(107,114,128,.12)",
+            bd: "rgba(107,114,128,.35)",
+            fg: "#374151",
+          };
+
+        return (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 10px",
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 700,
+              background: c.bg,
+              color: c.fg,
+              border: `1px solid ${c.bd}`,
+            }}
+          >
+            {status}
+          </span>
+        );
+      },
+      sortAccessor: (r) => (r.status || "").toLowerCase(),
+      width: 130,
+    },
+  ];
+
+  return (
+    <div>
+      <LoaderOverlay show={loading} label="Fetching data…" />
+      {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
+      <DataTable
+        title={title}
+        rows={rows}
+        columns={columns}
+        globalSearchKeys={[
+          "customer_name",
+          "lan",
+          "app_id",
+          "batch_id",
+          "partner_loan_id",
+          "status",
+          amountField,
+        ]}
+        initialSort={{ key: "disbursement_date", dir: "desc" }}
+        exportFileName="helium_loans"
+      />
+    </div>
+  );
+};
+
+export default HeliumAllLoans;
