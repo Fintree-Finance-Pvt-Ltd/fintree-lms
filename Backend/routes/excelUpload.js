@@ -3593,7 +3593,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         // --- Generate loan code ---
 
         const { lan } = await generateLoanIdentifiers(lenderType);
-
+        
         const agreementDate = data.login_date;
         // ✅ Build values in the exact same order as COLS
         const values = [
@@ -4657,21 +4657,21 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     console.log(
       "================= 📦 NEW EMICLUB REQUEST START ================="
     );
-    console.log("🔹 Timestamp:", new Date().toISOString());
+    // console.log("🔹 Timestamp:", new Date().toISOString());
 
-    // --- Log all ENV variables used ---
-    console.log("🔧 ENV:: EXPERIAN_URL =", process.env.EXPERIAN_URL);
-    console.log("🔧 ENV:: EXPERIAN_USER =", process.env.EXPERIAN_USER);
-    console.log("🔧 ENV:: EXPERIAN_PASSWORD =", process.env.EXPERIAN_PASSWORD);
-    console.log("🔧 ENV:: DB_CONNECTED =", !!db ? "✅ Yes" : "❌ No");
+    // // --- Log all ENV variables used ---
+    // console.log("🔧 ENV:: EXPERIAN_URL =", process.env.EXPERIAN_URL);
+    // console.log("🔧 ENV:: EXPERIAN_USER =", process.env.EXPERIAN_USER);
+    // console.log("🔧 ENV:: EXPERIAN_PASSWORD =", process.env.EXPERIAN_PASSWORD);
+    // console.log("🔧 ENV:: DB_CONNECTED =", !!db ? "✅ Yes" : "❌ No");
 
     // --- Partner validation ---
-    console.log("👥 Partner received:", req.partner);
+    //console.log("👥 Partner received:", req.partner);
     if (
       !req.partner ||
       (req.partner.name || "").toLowerCase().trim() !== "emiclub"
     ) {
-      console.error("❌ Partner validation failed!");
+      //console.error("❌ Partner validation failed!");
       return res
         .status(403)
         .json({ message: "This route is only for Emiclub partner." });
@@ -4679,11 +4679,11 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     // --- Body logging ---
     const data = req.body;
-    console.log("📥 Received JSON payload:", JSON.stringify(data, null, 2));
+    //console.log("📥 Received JSON payload:", JSON.stringify(data, null, 2));
 
     // --- Lender type validation ---
     const lenderType = data.lenderType?.trim()?.toLowerCase();
-    console.log("🏦 Lender type received:", lenderType);
+    //console.log("🏦 Lender type received:", lenderType);
     if (!lenderType || lenderType !== "emiclub") {
       console.error("❌ Invalid lenderType provided:", lenderType);
       return res.status(400).json({
@@ -4733,7 +4733,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         return res.status(400).json({ message: `${field} is required.` });
       }
     }
-    console.log("✅ All required fields present.");
+//    console.log("✅ All required fields present.");
 
     // --- Duplicate PAN check ---
     console.log("🔍 Checking existing PAN:", data.pan_number);
@@ -4742,11 +4742,6 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       .query(`SELECT lan FROM loan_booking_emiclub WHERE pan_number = ?`, [
         data.pan_number,
       ]);
-    console.log(
-      "🧾 Duplicate check result:",
-      existing.length,
-      "records found."
-    );
     console.log(
       "🧾 Duplicate check result:",
       existing.length,
@@ -4761,7 +4756,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     }
 
     // --- Generate loan code ---
-    console.log("⚙️ Generating LAN for lender:", lenderType);
+    //console.log("⚙️ Generating LAN for lender:", lenderType);
     const { lan } = await generateLoanIdentifiers(lenderType);
     console.log("✅ Generated LAN:", lan);
 
@@ -4772,10 +4767,10 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     // --- Determine interest rate ---
     const interest_rate = data.roi_apr / 12;
-    console.log("📈 Using interest rate:", interest_rate);
+//    console.log("📈 Using interest rate:", interest_rate);
 
     // --- Insert into DB ---
-    console.log("💾 Inserting customer record into loan_booking_emiclub...");
+  //  console.log("💾 Inserting customer record into loan_booking_emiclub...");
     await db.promise().query(
       `INSERT INTO loan_booking_emiclub (
         lan, partner_loan_id, login_date, first_name, middle_name, last_name, gender, dob,
@@ -4845,29 +4840,29 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     ////  BEURO SCORE  CODE START/////
     console.log("✅ Customer record inserted successfully.");
-    console.log(
-      "cibil request data",
-      "pan number :",
-      data.pan_number,
-      "loan amount :",
-      data.loan_amount,
-      "loan tenure :",
-      data.loan_tenure,
-      "first name :",
-      data.first_name,
-      "last name :",
-      data.last_name,
-      "mobile number :",
-      data.mobile_number,
-      "current address :",
-      data.current_address,
-      "current city :",
-      data.current_village_city,
-      "current state :",
-      data.current_state,
-      "current pincode :",
-      data.current_pincode
-    );
+    // console.log(
+    //   "cibil request data",
+    //   "pan number :",
+    //   data.pan_number,
+    //   "loan amount :",
+    //   data.loan_amount,
+    //   "loan tenure :",
+    //   data.loan_tenure,
+    //   "first name :",
+    //   data.first_name,
+    //   "last name :",
+    //   data.last_name,
+    //   "mobile number :",
+    //   data.mobile_number,
+    //   "current address :",
+    //   data.current_address,
+    //   "current city :",
+    //   data.current_village_city,
+    //   "current state :",
+    //   data.current_state,
+    //   "current pincode :",
+    //   data.current_pincode
+    // );
     // --- Build SOAP XML ---
     console.log("🧩 Building SOAP request body for Experian...");
     const dobFormatted = data.dob.replace(/-/g, "");
@@ -5016,12 +5011,12 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 </soapenv:Envelope>`;
 
 
-console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data.pan_number, state_code, data.current_pincode)
+//console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data.pan_number, state_code, data.current_pincode)
 
-    console.log(
-      "🧾 SOAP XML Preview (first 500 chars):",
-      soapBody.substring(0, 7000)
-    );
+    // console.log(
+    //   "🧾 SOAP XML Preview (first 500 chars):",
+    //   soapBody.substring(0, 7000)
+    // );
 
     // --- Send SOAP request ---
     console.log("🌐 Sending SOAP request to Experian...");
@@ -5074,10 +5069,10 @@ console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data
 
 ///////////////////// end  ////////////////
       console.log("✅ Parsed CIBIL Score:", score);
-      console.log(
-        "🧾 Normalized INProfileResponse (first 500 chars):",
-        parsedXmlToStore?.substring(0, 7000)
-      );
+      // console.log(
+      //   "🧾 Normalized INProfileResponse (first 500 chars):",
+      //   parsedXmlToStore?.substring(0, 7000)
+      // );
 
       await db.promise().query(
         `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
