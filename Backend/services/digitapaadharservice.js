@@ -54,6 +54,7 @@ const validityMinutes = 10;
 
     // 🔹 Send Email (NEW)
     if (email_id) {
+      console.log("started aadhar kyc mail sending");
       try {
         await sendAadhaarKycMail({
           to: email_id,

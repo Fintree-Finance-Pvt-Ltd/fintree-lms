@@ -70,14 +70,14 @@ const runBureau = async (data) => {
     // Format required fields
   //  -----------------------------
 
-    const dobFormatted = formatDobForExperian(data.dob); // 1999-05-21 → 19990521
-    const gender_code = data.gender === "Female" ? 2 : 1;
+    // const dobFormatted = formatDobForExperian(data.dob); // 1999-05-21 → 19990521
+    // const gender_code = data.gender === "Female" ? 2 : 1;
 
-    const state_code =
-      STATE_CODES[data.current_state?.toUpperCase()] ?? STATE_CODES["MAHARASHTRA"];
+    // const state_code =
+    //   STATE_CODES[data.current_state?.toUpperCase()] ?? STATE_CODES["MAHARASHTRA"];
 
-    const firstName = data.first_name.toUpperCase();
-    const lastName = data.last_name.toUpperCase();
+    // const firstName = data.first_name.toUpperCase();
+    // const lastName = data.last_name.toUpperCase();
 
     // -----------------------------
     // YOUR EXACT SOAP XML (NO REMOVALS)
