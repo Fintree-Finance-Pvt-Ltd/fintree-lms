@@ -18,6 +18,7 @@ const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const collectionApiRoutes = require("./routes/collectionApi");
+const enachRoutes = require("./routes/enachRoutes")
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
@@ -69,6 +70,11 @@ const reportsPath = path.join(__dirname, "reports");
 if (!fs.existsSync(reportsPath)) {
   fs.mkdirSync(reportsPath, { recursive: true });
 }
+
+app.use(
+  "/agreements",
+  express.static(path.join(process.cwd(), "uploads", "agreements"))
+); 
 app.use("/reports", express.static(reportsPath));
 
 app.use('/api/auth', authRoutes);
@@ -78,6 +84,7 @@ app.use('/api/wctl-ccod', require('./routes/wctlCCODRoutes/wctlRoutes')); // ✅
 app.use('/api/helium-loans', require('./routes/heliumRoutes/heliumRoutes')); // ✅ Register Helium Loan Routes
 app.use('/api/utr', require('./routes/utrRoutes')); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/enach", enachRoutes);
 // app.use("/api/courses", courseRoutes);
 app.use("/api/loan", loanRoutes); //  routes chanegd
 app.use("/api/repayments", repaymentRoutes);

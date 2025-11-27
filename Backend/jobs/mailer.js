@@ -66,8 +66,38 @@ Fintree Finance
   return transporter.sendMail(mailOptions);
 }
 
+async function sendEnachMandateMail({ to, customerName, lan, mandateUrl, amount }) {
+  if (!to || !mandateUrl) {
+    throw new Error("Missing to or mandateUrl for eNACH mail");
+  }
+
+  const subject = `eNACH Mandate Authorisation - LAN ${lan}`;
+  const text = `Dear ${customerName || "Customer"},
+
+To complete the auto-debit (eNACH) setup for your loan (LAN: ${lan}), please click the link below and complete the mandate authorisation:
+
+${mandateUrl}
+
+Mandate Amount: ₹${amount}
+
+Please complete this step as soon as possible. Do not share this link or any OTP with anyone.
+
+Regards,
+Fintree Finance Pvt Ltd`;
+
+  const mailOptions = {
+    from: process.env.FROM_EMAIL,
+    to,
+    subject,
+    text,
+  };
+
+  return transporter.sendMail(mailOptions);
+}
+
 module.exports = { 
   sendLoanStatusMail,
-  sendAadhaarKycMail
+  sendAadhaarKycMail,
+  sendEnachMandateMail,
 };
 
