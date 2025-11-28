@@ -18,7 +18,8 @@ const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const collectionApiRoutes = require("./routes/collectionApi");
-const enachRoutes = require("./routes/enachRoutes")
+const enachRoutes = require("./routes/enachRoutes");
+const esignRoutes = require("./routes/esignRoutes");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
@@ -85,6 +86,7 @@ app.use('/api/helium-loans', require('./routes/heliumRoutes/heliumRoutes')); // 
 app.use('/api/utr', require('./routes/utrRoutes')); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
+app.use("/api/esign", esignRoutes);
 // app.use("/api/courses", courseRoutes);
 app.use("/api/loan", loanRoutes); //  routes chanegd
 app.use("/api/repayments", repaymentRoutes);

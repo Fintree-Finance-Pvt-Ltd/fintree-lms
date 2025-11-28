@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import DataTable from "../ui/DataTable";
 import LoaderOverlay from "../ui/LoaderOverlay";
 // import AgreementModal from "./AgreementModal";
-// import useDigioMandate from "../../hooks/useDigioMandate"; 
+// import useDigioMandate from "../../hooks/useDigioMandate";
 
 const heliumApprovedLoans = ({
   apiUrl = "/helium-loans/approved-loans",
@@ -14,11 +14,6 @@ const heliumApprovedLoans = ({
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [agreeOpen, setAgreeOpen] = useState(false);
-const [agreeLan, setAgreeLan] = useState("");
-const [agreeUrl, setAgreeUrl] = useState("");
-const [agreeLoading, setAgreeLoading] = useState(false);
-
 
   // modal state
   const [showBankModal, setShowBankModal] = useState(false);
@@ -39,7 +34,7 @@ const [agreeLoading, setAgreeLoading] = useState(false);
   const [bankResult, setBankResult] = useState(null);
 
   const nav = useNavigate();
-//   const { startMandateFlow } = useDigioMandate();
+  //   const { startMandateFlow } = useDigioMandate();
 
   useEffect(() => {
     let off = false;
@@ -71,24 +66,48 @@ const [agreeLoading, setAgreeLoading] = useState(false);
     return toYMD(d);
   };
 
+  const handleDownload = async (lan) => {
+    try {
+      const res = await api.get(
+        `/esign/${lan}/pdf`,
 
+        { responseType: "blob" }
+      );
 
+      const blob = new Blob([res.data], { type: "application/pdf" });
+
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+
+      link.href = url;
+
+      link.download = `Rental_Agreement_${lan}.pdf`;
+
+      document.body.appendChild(link);
+
+      link.click();
+
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+
+      alert("Error downloading agreement");
+    }
+  };
 
   const openBankModal = (loanRow) => {
-     const startDate =
-      loanRow.agreement_date ||
-      loanRow.login_date ||
-      toYMD(new Date());
+    const startDate =
+      loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
 
     const endDate =
       loanRow.loan_tenure && Number(loanRow.loan_tenure) > 0
         ? addMonths(startDate, loanRow.loan_tenure)
         : "";
 
-    const defaultAmount =
-      loanRow.emi_amount ||
-      loanRow.loan_amount ||
-      "";
+    const defaultAmount = loanRow.emi_amount || loanRow.loan_amount || "";
     setSelectedLoan(loanRow);
     setBankError("");
     setBankResult(null);
@@ -98,7 +117,7 @@ const [agreeLoading, setAgreeLoading] = useState(false);
       account_type: "SAVINGS",
       bank_name: "",
       account_holder_name: loanRow.customer_name || "",
-      mandate_amount:defaultAmount,
+      mandate_amount: defaultAmount,
       mandate_start_date: startDate,
       mandate_end_date: endDate,
       mandate_frequency: "monthly",
@@ -125,8 +144,17 @@ const [agreeLoading, setAgreeLoading] = useState(false);
     setBankError("");
     setBankResult(null);
 
-    const { account_no, ifsc, account_type, bank_name, account_holder_name, mandate_amount, mandate_start_date, mandate_end_date, mandate_frequency, } =
-      bankForm;
+    const {
+      account_no,
+      ifsc,
+      account_type,
+      bank_name,
+      account_holder_name,
+      mandate_amount,
+      mandate_start_date,
+      mandate_end_date,
+      mandate_frequency,
+    } = bankForm;
 
     if (!account_no || !ifsc || !account_holder_name || !mandate_amount) {
       setBankError("Please fill all required fields.");
@@ -189,7 +217,7 @@ const [agreeLoading, setAgreeLoading] = useState(false);
         return;
       }
       const mandData = mandateRes.data || {};
-       if (!mandData.success) {
+      if (!mandData.success) {
         setBankError(
           mandData.message || "Mandate creation failed. Please try again."
         );
@@ -205,15 +233,15 @@ const [agreeLoading, setAgreeLoading] = useState(false);
       }));
 
       // 3️⃣ Trigger Digio SDK (must be from user-initiated flow – this handler is OK)
-    //   startMandateFlow(
-    //     documentId,
-    //     idForDigio || customer_identifier,
-    //     {
-    //       environment:
-    //         import.meta.env.VITE_DIGIO_ENV === "production" ? "production" : "sandbox",
-    //       logoUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQsgaD5YZqK9dKyriIyBzAFLXaUZXuGKV5yYQ&s", // replace with your logo
-    //     }
-    //   );
+      //   startMandateFlow(
+      //     documentId,
+      //     idForDigio || customer_identifier,
+      //     {
+      //       environment:
+      //         import.meta.env.VITE_DIGIO_ENV === "production" ? "production" : "sandbox",
+      //       logoUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQsgaD5YZqK9dKyriIyBzAFLXaUZXuGKV5yYQ&s", // replace with your logo
+      //     }
+      //   );
 
       // You can keep modal open to show verify result, or close it:
       // closeBankModal();
@@ -244,9 +272,19 @@ const [agreeLoading, setAgreeLoading] = useState(false);
       csvAccessor: (r) => r.customer_name || "",
       width: 220,
     },
-    { key: "partner_loan_id", header: "Partner Loan ID", sortable: true, width: 160 },
+    {
+      key: "partner_loan_id",
+      header: "Partner Loan ID",
+      sortable: true,
+      width: 160,
+    },
     { key: "lan", header: "LAN", sortable: true, width: 140 },
-    { key: "mobile_number", header: "Mobile Number", sortable: true, width: 160 },
+    {
+      key: "mobile_number",
+      header: "Mobile Number",
+      sortable: true,
+      width: 160,
+    },
     {
       key: "status",
       header: "Status",
@@ -306,18 +344,25 @@ const [agreeLoading, setAgreeLoading] = useState(false);
             🏦 Add Bank
           </button>
           <button
+            type="button"
+            onClick={() => handleDownload(r.lan)} // 🔹 pass LAN here
             style={{
-              padding: "6px 8px",
+              padding: "6px 10px",
+
               borderRadius: 8,
-              border: "1px solid #fbbf24",
-              color: "#92400e",
-              background: "#fffbeb",
+
+              border: "1px solid #d1d5db",
+
+              background: "#f9fafb",
+
               cursor: "pointer",
+
               fontSize: 12,
+
               fontWeight: 600,
             }}
           >
-            📄 Agreement
+            📝 Agreement
           </button>
         </div>
       ),
@@ -334,7 +379,12 @@ const [agreeLoading, setAgreeLoading] = useState(false);
         title={title}
         rows={rows}
         columns={columns}
-        globalSearchKeys={["customer_name", "partner_loan_id", "lan", "mobile_number"]}
+        globalSearchKeys={[
+          "customer_name",
+          "partner_loan_id",
+          "lan",
+          "mobile_number",
+        ]}
         initialSort={{ key: "lan", dir: "asc" }}
         exportFileName="approved_loans"
       />
@@ -445,8 +495,7 @@ const [agreeLoading, setAgreeLoading] = useState(false);
               {bankResult && (
                 <div style={{ marginTop: 8, fontSize: 13 }}>
                   <div>
-                    ✅ Verified:{" "}
-                    <b>{bankResult.verified ? "YES" : "NO"}</b>
+                    ✅ Verified: <b>{bankResult.verified ? "YES" : "NO"}</b>
                   </div>
                   {bankResult.fuzzy_score != null && (
                     <div>Fuzzy Score: {bankResult.fuzzy_score}</div>

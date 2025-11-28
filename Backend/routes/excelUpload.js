@@ -3672,7 +3672,8 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
         console.log("📌 Starting Experian CIBIL for FINSO LAN:", lan);
 
-        const dobFormatted = data.borrower_dob.replace(/-/g, "");
+        const dobFormatted = data.dob.replace(/-/g, "");
+        console.log("dob", dobFormatted);
 
         const stateCodes = {
           "JAMMU and KASHMIR": "01",
