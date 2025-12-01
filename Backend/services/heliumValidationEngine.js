@@ -581,7 +581,6 @@ exports.autoApproveIfAllVerified = async (lan) => {
        WHERE lan=?`,
       [lan]
     );
-    return;
   }
 
   // 4️⃣ Compute Helium Risk Score + component scores/flags
