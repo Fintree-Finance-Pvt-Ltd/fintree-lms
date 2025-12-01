@@ -1,6 +1,7 @@
 require("dotenv").config();
 // const mysql = require("mysql2/promise");
 const db = require("../config/db");
+const { autoApproveIfAllVerified } = require("../services/heliumValidationEngine");
 const { runBureau } = require("../services/Bueraupullapiservice");
 
 async function main() {
@@ -64,7 +65,29 @@ async function main() {
   console.log("✔ Score:", result.score);
   console.log("✔ XML Report:\n", result.response);
 
+   try {
+    await db.promise().query(
+      `INSERT INTO loan_cibil_reports 
+      (lan, pan_number, score, report_xml, created_at)
+      VALUES (?, ?, ?, ?, NOW())`,
+      [
+        lan,
+        loan.pan_number,
+        result.score,
+        result.response ? String(result.response) : null,
+      ]
+    );
+
+    console.log("🟢 CIBIL Report saved successfully!");
+  } catch (err) {
+    console.error("❌ Failed to save CIBIL report:", err);
+  }
+
+  await autoApproveIfAllVerified(lan);
+
   process.exit(0);
+
+  
 }
 
 main();
