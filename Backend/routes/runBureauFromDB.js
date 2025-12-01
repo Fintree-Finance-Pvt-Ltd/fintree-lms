@@ -1,5 +1,6 @@
 require("dotenv").config();
-const mysql = require("mysql2/promise");
+// const mysql = require("mysql2/promise");
+const db = require("../config/db");
 const { runBureau } = require("../services/Bueraupullapiservice");
 
 async function main() {
@@ -12,14 +13,7 @@ async function main() {
 
   console.log("🔍 Fetching loan for LAN:", lan);
 
-  const db = await mysql.createConnection({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  });
-
-  const [rows] = await db.query(
+  const [rows] = db.promise().query(
     "SELECT * FROM loan_booking_helium WHERE lan = ? LIMIT 1",
     [lan]
   );
