@@ -566,7 +566,7 @@ exports.autoApproveIfAllVerified = async (lan) => {
   if (!age || age < 21 || age > 60) hardFailReasons.push("AGE");
   if (loan.loan_amount < 25000 || loan.loan_amount > 500000)
     hardFailReasons.push("TICKET");
-  if (Number(loan.loan_tenure) !== 12) hardFailReasons.push("TENURE");
+  if (Number(loan.loan_tenure) !== 11) hardFailReasons.push("TENURE");
   if (!loan.cibil_score || loan.cibil_score < 675)
     hardFailReasons.push("BUREAU_MIN");
 
