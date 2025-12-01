@@ -1,8 +1,8 @@
 require("dotenv").config();
 // const mysql = require("mysql2/promise");
-const db = require("../config/db");
-const { autoApproveIfAllVerified } = require("../services/heliumValidationEngine");
-const { runBureau } = require("../services/Bueraupullapiservice");
+const db = require("./config/db");
+const { autoApproveIfAllVerified } = require("./services/heliumValidationEngine");
+const { runBureau } = require("./services/Bueraupullapiservice");
 
 async function main() {
   const lan = process.argv[2];
