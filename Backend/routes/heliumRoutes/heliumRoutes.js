@@ -31,6 +31,30 @@ async function downloadAndSaveFile(url, baseName) {
   }
 }
 
+const saveBase64ToFile = async (base64Str, fileName, subFolder = "aadhaar") => {
+  if (!base64Str) return null;
+
+  // Remove possible data URI prefix & whitespace/newlines
+  const cleaned = base64Str
+    .replace(/^data:.*;base64,/, "")
+    .replace(/\s/g, "");
+
+  const buffer = Buffer.from(cleaned, "base64");
+
+  const uploadRoot = path.join(__dirname,  "../../uploads"); // adjust to your uploads dir
+  const folderPath = path.join(uploadRoot, subFolder);
+
+  await fs.promises.mkdir(folderPath, { recursive: true });
+
+  const filePath = path.join(folderPath, fileName);
+  await fs.promises.writeFile(filePath, buffer);
+
+  return filePath;
+};
+
+const isProbablyUrl = (str = "") => /^https?:\/\//i.test(str);
+
+
 const generateLoanIdentifiers = async (lender) => {
   lender = lender.trim(); // normalize input
 
@@ -778,19 +802,61 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     const lan = rows[0].lan;
     console.log("🔗 Webhook Aadhaar mapped to LAN:", lan);
 
-    // PDF + XML links from webhook data
-    const pdfLink = data.pdfLink || null; // presigned PDF URL
-    const xmlLink = data.link || null;    // zip/xml presigned URL
+    // // PDF + XML links from webhook data
+    // const pdfLink = data.pdfLink || null; // presigned PDF URL
+    // const xmlLink = data.link || null;    // zip/xml presigned URL
 
-    // Download & save locally
-    const pdfFilePath = await downloadAndSaveFile(
+    // // Download & save locally
+    // const pdfFilePath = await downloadAndSaveFile(
+    //   pdfLink,
+    //   `aadhaar_${lan}_${Date.now()}.pdf`
+    // );
+    // const xmlFilePath = await downloadAndSaveFile(
+    //   xmlLink,
+    //   `aadhaar_${lan}_${Date.now()}.xml`
+    // );
+
+    // PDF + XML from webhook data
+const pdfLink = data.pdfLink || null; // can be base64 OR URL
+const xmlLink = data.link || null;    // can be base64 OR URL
+
+let pdfFilePath = null;
+let xmlFilePath = null;
+
+// 🔹 Handle PDF
+if (pdfLink) {
+  if (isProbablyUrl(pdfLink)) {
+    // old behaviour (if provider ever sends URLs)
+    pdfFilePath = await downloadAndSaveFile(
       pdfLink,
       `aadhaar_${lan}_${Date.now()}.pdf`
     );
-    const xmlFilePath = await downloadAndSaveFile(
+  } else {
+    // base64 → file
+    pdfFilePath = await saveBase64ToFile(
+      pdfLink,
+      `aadhaar_${lan}_${Date.now()}.pdf`,
+      "aadhaar"
+    );
+  }
+}
+
+// 🔹 Handle XML / ZIP
+if (xmlLink) {
+  if (isProbablyUrl(xmlLink)) {
+    xmlFilePath = await downloadAndSaveFile(
       xmlLink,
       `aadhaar_${lan}_${Date.now()}.xml`
     );
+  } else {
+    xmlFilePath = await saveBase64ToFile(
+      xmlLink,
+      `aadhaar_${lan}_${Date.now()}.xml`,
+      "aadhaar"
+    );
+  }
+}
+
 
     // Insert docs into loan_documents (like manual upload)
     if (pdfFilePath) {
