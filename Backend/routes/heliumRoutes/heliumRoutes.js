@@ -723,6 +723,7 @@ router.get("/aadhaar-callback", async (req, res) => {
 //   https://yourdomain.com/api/helium-loans/aadhaar-webhook
 router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
   try {
+    console.log("Inside aaahdar webhook");
     const payload = req.body || {};
     console.log("📥 Digitap Aadhaar Webhook Payload:", JSON.stringify(payload).slice(0, 500));
 
