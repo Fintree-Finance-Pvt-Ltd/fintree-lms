@@ -465,10 +465,10 @@ exports.runAllValidations = async (lan) => {
       gender: loan.gender,
       pan_number: loan.pan_number,
       mobile_number: loan.mobile_number,
-      current_address: loan.current_address,
-      current_village_city: loan.current_village_city,
-      current_state: loan.current_state,
-      current_pincode: loan.current_pincode,
+      current_address: loan.permanent_address,
+      current_village_city: loan.permanent_village_city,
+      current_state: loan.permanent_state,
+      current_pincode: loan.permanent_pincode,
       loan_amount: loan.loan_amount,
       loan_tenure: loan.loan_tenure,
     }).catch((err) => {
@@ -489,6 +489,17 @@ exports.runAllValidations = async (lan) => {
         lan,
       ]
     );
+
+    await pool.query(
+  `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+   VALUES (?,?,?,?, NOW())`,
+  [
+    lan,
+    loan.pan_number,
+    bureauResult.score,
+    bureauResult.response ? String(bureauResult.response) : null,
+  ]
+);
 
     console.log(
       `📌 Bureau Status for ${lan}:`,

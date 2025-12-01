@@ -145,6 +145,7 @@ router.post("/manual-entry", async (req, res) => {
     // insert into loan_booking_helium
     const insertLoan = `
 INSERT INTO loan_booking_helium (
+    first_name, last_name,
   login_date, lan, partner_loan_id, app_id,
   customer_name, gender, dob, father_name, mother_name,
   mobile_number, email_id, pan_number, aadhar_number,
@@ -166,7 +167,7 @@ INSERT INTO loan_booking_helium (
   pre_emi, processing_fee, net_disbursement,
 
   status, agreement_date
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
           NULL, NULL,
           'HELIUM', 'FINTREE',
           NULL, NULL, NULL, NULL, NULL, NULL,
@@ -176,6 +177,8 @@ INSERT INTO loan_booking_helium (
 
 
     await db.promise().query(insertLoan, [
+      data.first_name,
+      data.last_name,
   data.login_date,
   lan,
   partnerLoanId,

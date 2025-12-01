@@ -64,13 +64,14 @@ const STATE_CODES = {
 
 const runBureau = async (data) => {
   try {
-    console.log("🏦 Running Experian Bureau Utility...");
+    
+    console.log("🏦 Running Experian Bureau Utility...", data);
 
     // -----------------------------
     // Format required fields
   //  -----------------------------
 
-    const dobFormatted = formatDobForExperian(data.dob); // 1999-05-21 → 19990521
+    const dobFormatted = formatDobForExperian(data.dob); 
     const gender_code = data.gender === "Female" ? 2 : 1;
 
     const state_code =
@@ -78,6 +79,8 @@ const runBureau = async (data) => {
 
     const firstName = data.first_name.toUpperCase();
     const lastName = data.last_name.toUpperCase();
+
+    console.log(dobFormatted, gender_code, firstName, lastName);
 
     // -----------------------------
     // YOUR EXACT SOAP XML (NO REMOVALS)
