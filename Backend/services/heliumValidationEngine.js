@@ -394,7 +394,7 @@ exports.runAllValidations = async (lan) => {
       "UPDATE kyc_verification_status SET pan_status=?, pan_api_response=? WHERE lan=?",
       [
         // panResult.success ? "VERIFIED" : "FAILED",
-        panResult.success ? "VERIFIED" : "VERIFIED",
+        panResult.success ? "VERIFIED" : "FAILED",
         JSON.stringify(panResult.response || {}),
         lan,
       ]
@@ -484,7 +484,7 @@ exports.runAllValidations = async (lan) => {
       "UPDATE kyc_verification_status SET bureau_status=?, bureau_api_response=? WHERE lan=?",
       [
         // bureauResult.success ? "VERIFIED" : "FAILED",
-        bureauResult.success ? "VERIFIED" : "VERIFIED",
+        bureauResult.success ? "VERIFIED" : "FAILED",
         JSON.stringify(bureauResult.response || {}),
         lan,
       ]

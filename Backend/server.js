@@ -76,6 +76,7 @@ app.use(
   "/agreements",
   express.static(path.join(process.cwd(), "uploads", "agreements"))
 ); 
+app.use("/generated", express.static(path.join(__dirname, "generated")));
 app.use("/reports", express.static(reportsPath));
 
 app.use('/api/auth', authRoutes);

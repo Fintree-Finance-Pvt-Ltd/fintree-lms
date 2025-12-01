@@ -4,13 +4,16 @@ const dayjs = require("dayjs");
 const CU_date = dayjs().format("DD-MM-YYYY");
 const handlebars = require("handlebars");
 const puppeteer = require("puppeteer");
+const authenticateUser = require("../middleware/verifyToken");
 const fs = require("fs");
 const path = require("path");
-
-
+const {
+  generateSanctionLetterPdf,
+  generateAgreementPdf
+} = require("../services/pdfGenerationService");
+const { initEsign } = require("../services/esignService")
 const router = express.Router();
 
-// Load & compile template once
 
 const templatePath = path.join(
   __dirname,
@@ -120,17 +123,6 @@ function numberToWords(num) {
   return convert(num);
 }
 
-/**
-
- * 1) List all loans from helium_loan_summary
-
- *    -> used for table in React
-
- */
-
-
-
-
 
 router.get("/api/loans", async (req, res) => {
   try {
@@ -158,13 +150,6 @@ router.get("/api/loans", async (req, res) => {
   }
 });
 
-/**
-
- * 2) Generate PDF by LAN (lan is UNIQUE in your table)
-
- *    URL pattern: /api/loans/:lan/pdf
-
- */
 
 router.get("/:lan/pdf", async (req, res) => {
   const lan = req.params.lan;
@@ -377,5 +362,177 @@ router.get("/:lan/pdf", async (req, res) => {
   }
 });
 
+
+
+
+
+///////////////////////// new routes ///////////////////
+
+
+router.post("/:lan/esign/sanction", authenticateUser, async (req, res) => {
+  try {
+    const out = await initEsign(req.params.lan, "SANCTION");
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post("/:lan/esign/agreement", authenticateUser, async (req, res) => {
+  try {
+    // 🔐 ensure SANCTION completed before agreement
+    const [rows] = await db.promise().query(
+      "SELECT sanction_esign_status FROM loan_booking_helium WHERE lan=?",
+      [req.params.lan]
+    );
+    if (rows[0].sanction_esign_status !== "SIGNED") {
+      return res.status(400).json({
+        success: false,
+        message: "Sanction Letter must be signed before loan agreement."
+      });
+    }
+
+    const out = await initEsign(req.params.lan, "AGREEMENT");
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
+router.post("/v1/digio-esign-webhook", async (req, res) => {
+  const event = req.body;
+  const docId = event.id;
+  const status = event.state;
+
+  const [rows] = await db.promise().query(
+    "SELECT lan, document_type FROM esign_documents WHERE document_id=?",
+    [docId]
+  );
+  if (!rows.length) return res.status(200).send("ignored");
+
+  const { lan, document_type } = rows[0];
+
+  // Update esign_documents table
+  await db.promise().query(
+    "UPDATE esign_documents SET status=?, raw_response=? WHERE document_id=?",
+    [status, JSON.stringify(event), docId]
+  );
+
+  // Update loan table
+  if (document_type === "SANCTION") {
+    await db.promise().query(
+      `UPDATE loan_booking_helium SET sanction_esign_status=? WHERE lan=?`,
+      [status === "signed" ? "SIGNED" : status, lan]
+    );
+  } else {
+    await db.promise().query(
+      `UPDATE loan_booking_helium SET agreement_esign_status=? WHERE lan=?`,
+      [status === "signed" ? "SIGNED" : status, lan]
+    );
+  }
+
+  res.status(200).send("ok");
+});
+
+
+router.get("/:lan/generate-sanction", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    // 1. Fetch loan
+    const [rows] = await db
+      .promise()
+      .query("SELECT * FROM loan_booking_helium WHERE lan=?", [lan]);
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Loan not found" });
+    }
+
+    const loan = rows[0];
+
+    // 2. Generate PDF → returns ONLY fileName
+    const pdfName = await generateSanctionLetterPdf(lan);
+
+    if (!pdfName) {
+      return res.status(500).json({
+        success: false,
+        message: "PDF generation failed",
+      });
+    }
+
+    // 3. Save in DB
+    await db.promise().query(
+      `INSERT INTO loan_documents(lan, file_name, original_name, uploaded_at)
+       VALUES (?,?,?,NOW())`,
+      [lan, pdfName, "SANCTION_LETTER"]
+    );
+
+    // 4. Return correct URL
+    return res.json({
+      success: true,
+      url: `/generated/${pdfName}`,
+      pdfName,
+    });
+  } catch (err) {
+    console.error("Sanction PDF Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate sanction letter",
+    });
+  }
+});
+
+
+router.get("/:lan/generate-agreement", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    const [rows] = await db
+      .promise()
+      .query("SELECT * FROM loan_booking_helium WHERE lan=?", [lan]);
+
+    if (!rows.length) return res.status(404).json({ message: "Loan not found" });
+
+    const loan = rows[0];
+
+    const { filePath, pdfName } = await generateAgreementPdf(lan, loan);
+
+    // Save in DB
+    await db.promise().query(
+      `INSERT INTO loan_documents(lan, file_name, original_name, uploaded_at)
+       VALUES (?,?,?,NOW())`,
+      [lan, pdfName, "AGREEMENT"]
+    );
+
+    res.json({
+      success: true,
+      url: `/uploads/${pdfName}`,
+      pdfName
+    });
+  } catch (err) {
+    console.error("Agreement PDF Error:", err);
+    res.status(500).json({ message: "Failed to generate agreement" });
+  }
+});
+
+
+
+
+
+
+////////////////////////// new routes for digitap //////////////////////
+
+// router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
+//   try {
+//     const { lan, type } = req.params;
+//     const result = await initEsign(lan, type.toUpperCase());
+
+//     res.json(result);
+//   } catch (err) {
+//     console.error("❌ ESIGN ERROR:", err);
+//     res.status(500).json({ success: false, error: err.message });
+//   }
+// });
 
 module.exports = router;

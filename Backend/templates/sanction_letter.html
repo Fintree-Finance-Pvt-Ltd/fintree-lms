@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Sanction Letter</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Calibri", Arial, sans-serif;
+        font-size: 12px;
+        margin: 0;
+        padding: 20mm 15mm;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 10px;
+      }
+      .company-name {
+        font-size: 16px;
+        font-weight: bold;
+      }
+      .company-sub {
+        font-size: 11px;
+      }
+      .title {
+        font-size: 18px;
+        font-weight: bold;
+        text-decoration: underline;
+        margin-top: 10px;
+      }
+      .meta-row {
+        margin-top: 15px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+      }
+      .section {
+        margin-top: 14px;
+      }
+      .section-title {
+        font-weight: bold;
+        text-decoration: underline;
+        margin-bottom: 4px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 6px;
+      }
+      th,
+      td {
+        border: 1px solid #000;
+        padding: 4px 6px;
+        font-size: 11px;
+        vertical-align: top;
+      }
+      th {
+        text-align: left;
+        width: 35%;
+      }
+      .no-border-table th,
+      .no-border-table td {
+        border: none;
+        padding: 2px 0;
+      }
+      .sign-row {
+        margin-top: 30px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .sign-block {
+        width: 45%;
+        text-align: left;
+        font-size: 11px;
+      }
+      .sign-line {
+        margin-top: 40px;
+        border-top: 1px solid #000;
+        width: 80%;
+      }
+      .small-text {
+        font-size: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- HEADER -->
+ 
+    <div class="header">
+<img src="../public/fintree_finance_logo.png" alt="fintree_finance_logo" width="150" height="50">
+ 
+      <div class="company-name">Fintree Finance Pvt. Ltd.</div>
+      <div class="title">SANCTION LETTER</div>
+    </div>
+ 
+    <!-- DATE + LAN -->
+    <div class="meta-row">
+      <div><b>Date:</b> {{CU_date}}</div>
+      <div><b>LAN:</b> {{lan}}</div>
+    </div>
+ 
+    <!-- BORROWER DETAILS -->
+    <div class="section">
+      <div class="section-title">Borrower Details</div>
+      <table>
+        <tr>
+          <th>Applicant Name</th>
+          <td>{{C_N}}</td>
+        </tr>
+        <tr>
+          <th>Current Address</th>
+          <td>{{cur_add}}</td>
+        </tr>
+        <tr>
+          <th>Permanent Address</th>
+          <td>{{per_add}}</td>
+        </tr>
+      </table>
+    </div>
+ 
+    <!-- LOAN SANCTION TERMS -->
+    <div class="section">
+      <div class="section-title">Loan Sanction Terms</div>
+      <table>
+        <tr>
+          <th>Product / Scheme</th>
+          <td>{{L_P}}</td>
+        </tr>
+        <tr>
+          <th>Sanctioned Loan Amount</th>
+          <td>₹ {{L_A}} ({{L_A_W}})</td>
+        </tr>
+        <tr>
+          <th>Tenure</th>
+          <td>{{L_T}} Months</td>
+        </tr>
+        <tr>
+          <th>Rate of Interest (p.a.)</th>
+          <td>{{I_R}} %</td>
+        </tr>
+        <tr>
+          <th>Loan Booking / Disbursement Date</th>
+          <td>{{L_date}}</td>
+        </tr>
+        <tr>
+          <th>Total Number of EMIs</th>
+          <td>{{T_E}}</td>
+        </tr>
+        <tr>
+          <th>EMI Start / First Due Date</th>
+          <td>{{E_S}}</td>
+        </tr>
+        <tr>
+          <th>Interest Servicing / Method</th>
+          <td>{{I_S}}</td>
+        </tr>
+        <tr>
+          <th>Principal Servicing / Method</th>
+          <td>{{P_S}}</td>
+        </tr>
+      </table>
+    </div>
+ 
+    <!-- FIRST EMI / RPS SNAPSHOT -->
+    <div class="section">
+      <div class="section-title">Repayment Snapshot (First Instalment)</div>
+      <table>
+        <tr>
+          <th>Instalment No.</th>
+          <td>{{id}}</td>
+        </tr>
+        <tr>
+          <th>EMI Amount</th>
+          <td>₹ {{emi}}</td>
+        </tr>
+        <tr>
+          <th>Principal Component</th>
+          <td>₹ {{principal}}</td>
+        </tr>
+        <tr>
+          <th>Interest Component</th>
+          <td>₹ {{interest}}</td>
+        </tr>
+        <tr>
+          <th>Opening Principal Outstanding</th>
+          <td>₹ {{opening}}</td>
+        </tr>
+        <tr>
+          <th>Closing Principal Outstanding</th>
+          <td>₹ {{closing}}</td>
+        </tr>
+        <tr>
+          <th>Remaining No. of EMIs</th>
+          <td>{{remaining_emi}}</td>
+        </tr>
+        <tr>
+          <th>Remaining Interest (Total)</th>
+          <td>₹ {{remaining_interest}}</td>
+        </tr>
+        <tr>
+          <th>Remaining Principal (Total)</th>
+          <td>₹ {{remaining_principal}}</td>
+        </tr>
+      </table>
+    </div>
+ 
+    <!-- BANK DETAILS -->
+    <div class="section">
+      <div class="section-title">Borrower Bank Details (for Disbursal)</div>
+      <table>
+        <tr>
+          <th>Bank Name</th>
+          <td>{{B_Na}}</td>
+        </tr>
+        <tr>
+          <th>Account Number</th>
+          <td>{{A_no}}</td>
+        </tr>
+        <tr>
+          <th>IFSC Code</th>
+          <td>{{ifsc}}</td>
+        </tr>
+      </table>
+    </div>
+ 
+    <!-- GENERIC TERMS -->
+    <div class="section">
+      <div class="section-title">Key Conditions</div>
+      <table class="no-border-table">
+        <tr>
+          <td class="small-text">
+            1. The above sanction is subject to execution of requisite loan
+            documentation and submission of satisfactory KYC and income
+            documents as per policy.
+          </td>
+        </tr>
+        <tr>
+          <td class="small-text">
+            2. The rate of interest, fees and other charges are subject to
+            change as per the policies of the lender and applicable laws, from
+            time to time.
+          </td>
+        </tr>
+        <tr>
+          <td class="small-text">
+            3. In case of default in payment of any instalment on or before the
+            due date, penal charges and/or additional interest may be levied as
+            per policy.
+          </td>
+        </tr>
+        <tr>
+          <td class="small-text">
+            4. The borrower confirms that information and documents submitted
+            are true and correct and agrees to be bound by the terms of the
+            loan agreement and related documents.
+          </td>
+        </tr>
+      </table>
+    </div>
+ 
+    <!-- ACCEPTANCE PARA -->
+    <div class="section">
+      <p class="small-text">
+        I/We hereby confirm that I/We have read and understood the terms and
+        conditions mentioned in this sanction letter and agree to abide by the
+        same. I/We further agree to execute the loan agreement and any other
+        documents as may be required by the lender.
+      </p>
+    </div>
+ 
+    <!-- SIGNATURES -->
+    <div class="sign-row">
+      <div class="sign-block">
+        <div class="sign-line"></div>
+        <div class="small-text"><b>Borrower</b></div>
+        <div class="small-text">Name: {{C_N}}</div>
+      </div>
+      <div class="sign-block" style="text-align: right;">
+        <div class="sign-line" style="margin-left: auto;"></div>
+        <div class="small-text"><b>For Fintree / NBFC</b></div>
+        <div class="small-text">Authorised Signatory</div>
+      </div>
+    </div>
+  </body>
+</html>
+ 
+      
+ 

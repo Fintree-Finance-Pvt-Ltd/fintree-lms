@@ -101,6 +101,8 @@ import HeliumManualEntry from "./components/helium/heliumLoanBooking";
 import HeliumAllLoans from "./components/helium/heliumAllLoans";
 import HeliumApprovedLoans from "./components/helium/heliumApprovedLoans";
 import HeliumApprovedLoanDetails from "./components/helium/HeliumApprovedLoanDetails";
+import EsignSuccess from "./components/helium/EsignSuccess";
+import EsignError from "./components/helium/EsignError";
 
 function App() {
   return (
@@ -118,6 +120,10 @@ function App() {
             </ProtectedRoute>
           }
         >
+
+          <Route path="/esign/success" element={<EsignSuccess />} />
+<Route path="/esign/error" element={<EsignError />} />
+
           {/* ✅ All pages go INSIDE this layout block */}
 
           <Route
