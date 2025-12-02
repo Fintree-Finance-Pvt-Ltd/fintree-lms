@@ -58,12 +58,12 @@ const isProbablyUrl = (str = "") => /^https?:\/\//i.test(str);
 const generateLoanIdentifiers = async (lender) => {
   lender = lender.trim(); // normalize input
 
-  let prefixPartnerLoan;
+  let application_id;
   let prefixLan;
 
   if (lender === "HELIUM") {
     prefixLan = "HEL10";
-    prefixPartnerLoan = "HELF10";
+    application_id = "HHF0001";
   }
   else {
     return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
@@ -140,13 +140,13 @@ router.post("/manual-entry", async (req, res) => {
     }
 
     // generate LAN + PLID
-    const { lan, partnerLoanId } = await generateLoanIdentifiers("HELIUM");
+    const { lan, application_id } = await generateLoanIdentifiers("HELIUM");
 
     // insert into loan_booking_helium
     const insertLoan = `
 INSERT INTO loan_booking_helium (
     first_name, last_name,
-  login_date, lan, partner_loan_id, app_id,
+  login_date, lan,app_id,
   customer_name, gender, dob, father_name, mother_name,
   mobile_number, email_id, pan_number, aadhar_number,
 
@@ -181,8 +181,7 @@ INSERT INTO loan_booking_helium (
       data.last_name,
   data.login_date,
   lan,
-  partnerLoanId,
-  data.app_id,
+  application_id,
 
   data.customer_name,
   data.gender,
