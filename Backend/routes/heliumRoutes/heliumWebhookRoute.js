@@ -202,40 +202,160 @@ async function downloadSignedPdf(docId) {
   return resp.data; // Buffer (PDF)
 }
 
+async function downloadSignedPdfFromDigio(documentId) {
+  const downloadUrl = `${process.env.DIGIO_BASE_URL}/v2/client/document/download?document_id=${documentId}`;
+
+  const response = await axios.get(downloadUrl, {
+    responseType: "arraybuffer",
+    headers: {
+      Authorization:
+        "Basic " +
+        Buffer.from(
+          process.env.DIGIO_CLIENT_ID + ":" + process.env.DIGIO_CLIENT_SECRET
+        ).toString("base64"),
+    },
+  });
+
+  return response.data; // PDF binary
+}
+
+
 // ---------------------------
 // 🔔 DIGIO WEBHOOK LISTENER
 // ---------------------------
+// router.post("/esign-webhook", async (req, res) => {
+//  try {
+//     const body = req.body;
+//     const event = body.event; // doc.signed | doc.sign.failed | doc.sign.rejected
+
+//     console.log("📥 Digio Webhook Received:", event);
+
+//     // Extract Document ID
+//     const doc = body?.payload?.document;
+//     const documentId = doc?.id;
+
+//     if (!documentId) {
+//       console.log("⚠️ No document ID in webhook");
+//       return res.status(200).send("ignored");
+//     }
+
+//     // Get LAN from esign_documents
+//     const [rows] = await db.promise().query(
+//       `SELECT lan, document_type FROM esign_documents WHERE document_id = ?`,
+//       [documentId]
+//     );
+
+//     if (!rows.length) {
+//       console.log("⚠️ No matching LAN found for this doc");
+//       return res.status(200).send("ignored");
+//     }
+
+//     const lan = rows[0].lan;
+//     const type = rows[0].document_type; // SANCTION | AGREEMENT
+
+//     // Save webhook entry
+//     await db.promise().query(
+//       `INSERT INTO esign_webhooks(document_id, lan, event, raw_payload, digio_timestamp)
+//        VALUES (?, ?, ?, ?, ?)`,
+//       [
+//         documentId,
+//         lan,
+//         event,
+//         JSON.stringify(body),
+//         body.created_at || null
+//       ]
+//     );
+
+//     // If NOT signed → just mark failure
+//     if (event !== "doc.signed") {
+//       await db.promise().query(
+//         `UPDATE esign_documents SET status=? WHERE document_id=?`,
+//         ["FAILED", documentId]
+//       );
+
+//       return res.status(200).send("event-processed");
+//     }
+
+//     console.log("✅ Document SIGNED. Downloading signed PDF…");
+
+//     // Signed document download link
+//     const downloadUrl = doc?.signed_file_url || doc?.file_download_url;
+
+//     if (!downloadUrl) {
+//       console.log("❌ No signed file URL from Digio");
+//       return res.status(200).send("missing-download-url");
+//     }
+
+//     // Download PDF
+//     const fileName = `signed_${lan}_${type}_${Date.now()}.pdf`;
+//     const savePath = path.join(uploadDir, fileName);
+
+//     const response = await axios.get(downloadUrl, { responseType: "arraybuffer" });
+//     fs.writeFileSync(savePath, response.data);
+
+//     console.log("📄 Signed PDF saved at:", savePath);
+
+//     // Update esign table
+//     await db.promise().query(
+//       `UPDATE esign_documents 
+//        SET status='SIGNED', signed_file_path=? 
+//        WHERE document_id=?`,
+//       [savePath, documentId]
+//     );
+
+//     // Insert into loan_documents
+//     await db.promise().query(
+//       `INSERT INTO loan_documents(lan, file_name, original_name, uploaded_at)
+//        VALUES (?, ?, ?, NOW())`,
+//       [lan, fileName, `${type}_SIGNED`]
+//     );
+
+//     // Update loan table
+//     if (type === "SANCTION") {
+//       await db.promise().query(
+//         `UPDATE loan_booking_helium 
+//          SET sanction_esign_status='SIGNED' WHERE lan=?`,
+//         [lan]
+//       );
+//     } else {
+//       await db.promise().query(
+//         `UPDATE loan_booking_helium 
+//          SET agreement_esign_status='SIGNED' WHERE lan=?`,
+//         [lan]
+//       );
+//     }
+
+//     return res.status(200).send("ok");
+//   } catch (err) {
+//     console.error("❌ Webhook Processing Error:", err);
+//     return res.status(200).send("error-logged"); // Must return 200 always
+//   }
+// });
+
 router.post("/esign-webhook", async (req, res) => {
- try {
+  try {
     const body = req.body;
-    const event = body.event; // doc.signed | doc.sign.failed | doc.sign.rejected
+    const event = body.event;
 
     console.log("📥 Digio Webhook Received:", event);
 
-    // Extract Document ID
     const doc = body?.payload?.document;
     const documentId = doc?.id;
 
-    if (!documentId) {
-      console.log("⚠️ No document ID in webhook");
-      return res.status(200).send("ignored");
-    }
+    if (!documentId) return res.status(200).send("ignored");
 
-    // Get LAN from esign_documents
+    // Get LAN & type
     const [rows] = await db.promise().query(
       `SELECT lan, document_type FROM esign_documents WHERE document_id = ?`,
       [documentId]
     );
 
-    if (!rows.length) {
-      console.log("⚠️ No matching LAN found for this doc");
-      return res.status(200).send("ignored");
-    }
+    if (!rows.length) return res.status(200).send("ignored");
 
     const lan = rows[0].lan;
-    const type = rows[0].document_type; // SANCTION | AGREEMENT
+    const type = rows[0].document_type;
 
-    // Save webhook entry
+    // Store webhook JSON
     await db.promise().query(
       `INSERT INTO esign_webhooks(document_id, lan, event, raw_payload, digio_timestamp)
        VALUES (?, ?, ?, ?, ?)`,
@@ -244,40 +364,36 @@ router.post("/esign-webhook", async (req, res) => {
         lan,
         event,
         JSON.stringify(body),
-        body.created_at || null
+        body.created_at || null,
       ]
     );
 
-    // If NOT signed → just mark failure
+    // If not signed: update DB
     if (event !== "doc.signed") {
       await db.promise().query(
-        `UPDATE esign_documents SET status=? WHERE document_id=?`,
-        ["FAILED", documentId]
+        `UPDATE esign_documents SET status='FAILED' WHERE document_id=?`,
+        [documentId]
       );
-
-      return res.status(200).send("event-processed");
+      return res.status(200).send("failed-event-processed");
     }
 
-    console.log("✅ Document SIGNED. Downloading signed PDF…");
+    console.log("✅ Document SIGNED. Fetching signed PDF…");
 
-    // Signed document download link
-    const downloadUrl = doc?.signed_file_url || doc?.file_download_url;
+    // 🔥 Download signed PDF from Digio API
+    const pdfBinary = await downloadSignedPdfFromDigio(documentId);
 
-    if (!downloadUrl) {
-      console.log("❌ No signed file URL from Digio");
-      return res.status(200).send("missing-download-url");
-    }
+    // Save locally
+    const folderPath = path.join(__dirname, "../../uploads/esign");
+    if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
 
-    // Download PDF
     const fileName = `signed_${lan}_${type}_${Date.now()}.pdf`;
-    const savePath = path.join(uploadDir, fileName);
+    const savePath = path.join(folderPath, fileName);
 
-    const response = await axios.get(downloadUrl, { responseType: "arraybuffer" });
-    fs.writeFileSync(savePath, response.data);
+    fs.writeFileSync(savePath, pdfBinary);
 
-    console.log("📄 Signed PDF saved at:", savePath);
+    console.log("📄 Signed PDF saved:", savePath);
 
-    // Update esign table
+    // Update Document Table
     await db.promise().query(
       `UPDATE esign_documents 
        SET status='SIGNED', signed_file_path=? 
@@ -287,12 +403,12 @@ router.post("/esign-webhook", async (req, res) => {
 
     // Insert into loan_documents
     await db.promise().query(
-      `INSERT INTO loan_documents(lan, file_name, original_name, uploaded_at)
+      `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
        VALUES (?, ?, ?, NOW())`,
       [lan, fileName, `${type}_SIGNED`]
     );
 
-    // Update loan table
+    // Update loan status
     if (type === "SANCTION") {
       await db.promise().query(
         `UPDATE loan_booking_helium 
@@ -309,10 +425,11 @@ router.post("/esign-webhook", async (req, res) => {
 
     return res.status(200).send("ok");
   } catch (err) {
-    console.error("❌ Webhook Processing Error:", err);
-    return res.status(200).send("error-logged"); // Must return 200 always
+    console.error("❌ Webhook Processing Error:", err.response?.data || err);
+    return res.status(200).send("error-logged");
   }
 });
+
 
 
 module.exports = router;
