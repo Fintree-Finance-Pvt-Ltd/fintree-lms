@@ -229,6 +229,14 @@ INSERT INTO loan_booking_helium (
   data.login_date // agreement_date = login_date
 ]);
 
+  // 🧮 Call both procedures based on LAN
+    // If they can be independent, you can also do Promise.all here
+db.promise().query("CALL sp_build_helium_loan_summary(?)", [lan])
+  .catch(err => console.error("Error in sp_build_helium_loan_summary:", err));
+
+db.promise().query("CALL sp_generate_helium_rps(?)", [lan])
+  .catch(err => console.error("Error in sp_generate_helium_rps:", err));
+
 
     // Insert into verification table
     const insertVerify = `
@@ -242,6 +250,10 @@ INSERT INTO loan_booking_helium (
       lan,
       partnerLoanId,
     });
+
+
+
+
 
     // 🔥 Trigger async validations (non-blocking)
     runAllValidations(lan);
