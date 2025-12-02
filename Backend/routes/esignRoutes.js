@@ -385,12 +385,12 @@ router.post("/:lan/esign/agreement", authenticateUser, async (req, res) => {
       "SELECT sanction_esign_status FROM loan_booking_helium WHERE lan=?",
       [req.params.lan]
     );
-    if (rows[0].sanction_esign_status !== "SIGNED") {
-      return res.status(400).json({
-        success: false,
-        message: "Sanction Letter must be signed before loan agreement."
-      });
-    }
+    // if (rows[0].sanction_esign_status !== "SIGNED") {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Sanction Letter must be signed before loan agreement."
+    //   });
+    // }
 
     const out = await initEsign(req.params.lan, "AGREEMENT");
     res.json(out);

@@ -194,7 +194,7 @@ exports.generateSanctionLetterPdf = async (lan) => {
 -------------------------------------------------------------- */
 exports.generateAgreementPdf = async (lan) => {
   const loanData = await getLoanData(lan);
-  const templateHtml = loadTemplate("agreement.html");
+  const templateHtml = loadTemplate("helium_agreement.html");
   const filledHtml = fillTemplate(templateHtml, loanData);
 
   const fileName = `agreement_${lan}.pdf`;

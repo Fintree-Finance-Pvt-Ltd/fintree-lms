@@ -1,7 +1,9 @@
 const express = require("express");
 const db = require("../../config/db");
 const path = require("path");
+const axios = require("axios");
 const fs = require("fs");
+require("dotenv").config();
 
 const router = express.Router();
 
@@ -178,5 +180,125 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     return res.status(200).send("error-logged");
   }
 });
+
+
+
+// 🔐 Digio credentials for downloading signed file
+const DIGIO_USERNAME = process.env.DIGIO_CLIENT_ID;
+const DIGIO_PASSWORD = process.env.DIGIO_CLIENT_SECRET;
+
+// Helper: Download Signed PDF
+async function downloadSignedPdf(docId) {
+  const url = `https://api.digio.in/v2/client/document/${docId}/download`;
+
+  const resp = await axios.get(url, {
+    responseType: "arraybuffer",
+    auth: { username: DIGIO_USERNAME, password: DIGIO_PASSWORD },
+  });
+
+  return resp.data; // Buffer (PDF)
+}
+
+// ---------------------------
+// 🔔 DIGIO WEBHOOK LISTENER
+// ---------------------------
+router.post("/esign-webhook", async (req, res) => {
+  try {
+    const event = req.body.event;
+    const doc = req.body.payload?.document;
+    const docId = doc?.id;
+
+    console.log("📩 DIGIO WEBHOOK EVENT:", event);
+    console.log("📄 DOCUMENT ID:", docId);
+
+    if (!docId) {
+      return res.status(400).send("Invalid webhook payload: missing docId");
+    }
+
+    // Log webhook into table
+    await db.promise().query(
+      `INSERT INTO esign_webhooks (document_id, event, raw_payload) VALUES (?, ?, ?)`,
+      [docId, event, JSON.stringify(req.body)]
+    );
+
+    // Determine status
+    let status = "PENDING";
+
+    if (event === "doc.signed") status = "SIGNED";
+    if (event === "doc.sign.failed") status = "FAILED";
+    if (event === "doc.sign.rejected") status = "REJECTED";
+
+    // Update esign_documents table
+    await db.promise().query(
+      `
+      UPDATE esign_documents 
+      SET status=?, webhook_response=? 
+      WHERE document_id=?
+      `,
+      [status, JSON.stringify(req.body), docId]
+    );
+
+    // Identify if sanction or agreement
+    const [rows] = await db.promise().query(
+      `SELECT lan, document_type FROM esign_documents WHERE document_id=?`,
+      [docId]
+    );
+
+    if (!rows.length) {
+      console.log("⚠ No matching LAN found for doc:", docId);
+      return res.send("ok");
+    }
+
+    const lan = rows[0].lan;
+    const type = rows[0].document_type;
+
+    // Update loan table
+    if (type === "SANCTION") {
+      await db
+        .promise()
+        .query(
+          `UPDATE loan_booking_helium SET sanction_esign_status=? WHERE lan=?`,
+          [status, lan]
+        );
+    } else {
+      await db
+        .promise()
+        .query(
+          `UPDATE loan_booking_helium SET agreement_esign_status=? WHERE lan=?`,
+          [status, lan]
+        );
+    }
+
+    // ----------------------
+    // DOWNLOAD SIGNED PDF
+    // ----------------------
+    if (event === "doc.signed") {
+      console.log("⬇ Downloading Signed PDF for:", docId);
+
+      const pdfBuffer = await downloadSignedPdf(docId);
+
+      const savePath = `./signed_docs/${docId}.pdf`;
+      require("fs").writeFileSync(savePath, pdfBuffer);
+
+      console.log("✅ Signed PDF Saved:", savePath);
+
+      // Save path in DB
+      await db.promise().query(
+        `
+        UPDATE esign_documents 
+        SET signed_file_path=? 
+        WHERE document_id=?
+        `,
+        [savePath, docId]
+      );
+    }
+
+    res.status(200).send("OK");
+  } catch (err) {
+    console.error("❌ Webhook Error:", err);
+    res.status(500).send("Webhook processing failed");
+  }
+});
+
 
 module.exports = router;

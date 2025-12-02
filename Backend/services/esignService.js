@@ -1,4 +1,4 @@
-// services/esignService.js
+// // services/esignService.js
 const fs = require("fs");
 const path = require("path");
 const db = require("../config/db");
@@ -10,101 +10,140 @@ const {
 } = require("./pdfGenerationService");  // YOU WILL CREATE/UPDATE THIS
 
 exports.initEsign = async (lan, type) => {
-  if (!["SANCTION", "AGREEMENT"].includes(type)) {
-    throw new Error("Invalid eSign type");
-  }
+  try {
+    console.log("🚀 INITIATING DIGIO ESIGN FOR:", lan, type);
 
-  // Fetch loan
-  const [loanRows] = await db.promise().query(
-    "SELECT * FROM loan_booking_helium WHERE lan = ?",
-    [lan]
-  );
-  if (!loanRows.length) throw new Error("Loan not found");
+    // --------------------- VALIDATION ---------------------
+    if (!["SANCTION", "AGREEMENT"].includes(type)) {
+      throw new Error("Invalid eSign type");
+    }
 
-  const loan = loanRows[0];
-  const identifier = loan.mobile_number || loan.email_id;
-  if (!identifier) throw new Error("No customer identifier found");
+    // Fetch loan details
+    const [loanRows] = await db
+      .promise()
+      .query("SELECT * FROM loan_booking_helium WHERE lan = ?", [lan]);
 
-  // Generate PDF
-  let fileName;
-  if (type === "SANCTION") {
-    fileName = await generateSanctionLetterPdf(lan, loan);
-  } else {
-    fileName = await generateAgreementPdf(lan, loan);
-  }
+    if (!loanRows.length) throw new Error("Loan not found");
 
-  // Construct full absolute path
-  const filePath = path.join(__dirname, "../generated", fileName);
+    const loan = loanRows[0];
+    const identifier = loan.mobile_number || loan.email_id;
 
-  console.log("📄 eSign using PDF:", filePath);
+    if (!identifier) throw new Error("No customer mobile/email found");
 
-  // Validate file exists
-  if (!fs.existsSync(filePath)) {
-    throw new Error("PDF file not found on server: " + filePath);
-  }
+    console.log("➡ Using Identifier:", identifier);
 
-  // Read PDF
-  const fileDataBase64 = fs.readFileSync(filePath).toString("base64");
+    // --------------------- GENERATE PDF ---------------------
+    let fileName =
+      type === "SANCTION"
+        ? await generateSanctionLetterPdf(lan, loan)
+        : await generateAgreementPdf(lan, loan);
 
-  // Digio payload
-  const payload = {
-    signers: [
-      {
-        identifier,
-        name: loan.customer_name,
-        sign_type: "aadhaar",
-        reason: `${type} eSign`,
-      },
-    ],
-    expire_in_days: 10,
-    display_on_page: "all",
-    notify_signers: true,
-    send_sign_link: true,
-    file_name: fileName,
-    file_data: fileDataBase64,
-    meta_data: { lan, type },
-  };
+    const filePath = path.join(__dirname, "../generated", fileName);
 
-  console.log("sneding payload", payload)
+    console.log("📄 Using PDF:", filePath);
 
-  // Upload to Digio
-  const resp = await digioEsign.post("/v2/client/document/uploadpdf", payload);
-  const docId = resp.data.id;
+    if (!fs.existsSync(filePath)) {
+      throw new Error("PDF file missing: " + filePath);
+    }
 
-  // Save into DB
-  await db
-    .promise()
-    .query(
-      `INSERT INTO esign_documents
-       (lan, document_id, document_type, status, signer_identifier, raw_request, raw_response)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    const pdfBase64 = fs.readFileSync(filePath).toString("base64");
+
+    // --------------------- PREPARE PAYLOAD ---------------------
+    const payload = {
+      file_name: fileName,
+      expire_in_days: 10,
+      notify_signers: true,
+      send_sign_link: true,
+      include_authentication_url: true,
+      display_on_page: "all",
+
+      signers: [
+        {
+          identifier,
+          name: loan.customer_name,
+          sign_type: "aadhaar",
+          reason: `${type} Signing`,
+        },
+      ],
+
+      reference_id: `${lan}_${type}_${Date.now()}`,
+      file_data: pdfBase64,
+    };
+
+    console.log("📤 SENT PAYLOAD TO DIGIO:");
+    console.dir(payload, { depth: null });
+
+    // --------------------- DIGIO API CALL ---------------------
+    let resp;
+    try {
+      resp = await digioEsign.post("/v2/client/document/uploadpdf", payload);
+    } catch (err) {
+      console.log("❌ DIGIO ERROR RAW:", err);
+      console.log("❌ DIGIO ERROR RESPONSE:", err.response?.data);
+      console.log("❌ DIGIO ERROR STATUS:", err.response?.status);
+
+      throw new Error(
+        "DIGIO API ERROR: " +
+          JSON.stringify(err.response?.data || err.message)
+      );
+    }
+
+    console.log("✅ DIGIO UPLOAD RESPONSE:");
+    console.dir(resp.data, { depth: null });
+
+    const docId = resp.data.id;
+    const authUrl = resp.data.authentication_url || null;
+
+    // --------------------- SAVE TO DB ---------------------
+    await db.promise().query(
+      `
+        INSERT INTO esign_documents 
+        (lan, document_id, document_type, status, signer_identifier, raw_request, raw_response)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
       [
         lan,
         docId,
         type,
-        "initiated",
+        "INITIATED",
         identifier,
         JSON.stringify(payload),
         JSON.stringify(resp.data),
       ]
     );
 
-  // update loan table
-  if (type === "SANCTION") {
-    await db.promise().query(
-      `UPDATE loan_booking_helium 
-       SET sanction_esign_status='INITIATED', sanction_esign_document_id=? WHERE lan=?`,
-      [docId, lan]
-    );
-  } else {
-    await db.promise().query(
-      `UPDATE loan_booking_helium 
-       SET agreement_esign_status='INITIATED', agreement_esign_document_id=? WHERE lan=?`,
-      [docId, lan]
-    );
-  }
+    // Update loan table
+    if (type === "SANCTION") {
+      await db
+        .promise()
+        .query(
+          `UPDATE loan_booking_helium 
+           SET sanction_esign_status='INITIATED', sanction_esign_document_id=? 
+           WHERE lan=?`,
+          [docId, lan]
+        );
+    } else {
+      await db
+        .promise()
+        .query(
+          `UPDATE loan_booking_helium 
+           SET agreement_esign_status='INITIATED', agreement_esign_document_id=? 
+           WHERE lan=?`,
+          [docId, lan]
+        );
+    }
 
-  return { success: true, lan, docId };
+    // --------------------- RETURN TO FRONTEND ---------------------
+    return {
+      success: true,
+      lan,
+      docId,
+      authentication_url: authUrl, // You can choose to open in frontend
+    };
+  } catch (err) {
+    console.error("❌ FINAL ESIGN ERROR:", err);
+    throw err;
+  }
 };
 
 
@@ -158,23 +197,36 @@ exports.initEsign = async (lan, type) => {
 //   const uniqueId = `${lan}_${type}_${Date.now()}`;
 
 //   const payload = {
-//     uniqueId,
-//     reason: `${type} Signing`, // as per documentation
-//     templateId: "ALL",
-//     fileName: pdfFileName,
-//     signers: [
+//     "uniqueId": "HEL1011036_SANCTION_17664732140",
+//     "reason": `${type} Signing`, // as per documentation
+//     "templateId": "ESIG5054779",
+//     "fileName": pdfFileName,
+//     "signers": [
 //       {
-//         name: signerName,
-//         mobile: identifier,
-//         email: loan.email_id || undefined,
-//         location: "India",
+//         "email": loan.email_id || undefined,
+//         "location": "Madhya Pradesh",
+//         "mobile": identifier,
+//         "name": signerName,
 //       },
 //     ],
 //   };
 
 //   console.log("📨 Sending Digitap request:", payload);
+// let genRes;
+//   // const genRes = await digitapEsign.post("/v1/generate-esign", payload);
+//   try {
+//       genRes = await digitapEsign.post("/v1/generate-esign", payload);
+//     } catch (err) {
+//       console.log("❌ DIGITAP ERROR RAW:", err);
+//       console.log("❌ DIGITAP ERROR RESPONSE:", err.response?.data);
+//       console.log("❌ DIGITAP ERROR STATUS:", err.response?.status);
 
-//   const genRes = await digitapEsign.post("/v1/generate-esign", payload);
+//       throw new Error(
+//         "DIGITAP API ERROR: " +
+//           JSON.stringify(err.response?.data || err.message)
+//       );
+//     }
+//   console.log("res", genRes);
 //   const model = genRes.data.model;
 
 //   const docId = model.docId;

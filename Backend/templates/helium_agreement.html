@@ -1,2203 +1,1113 @@
-<!DOCTYPE html><!--[if IE]>  <html class="pdf24_ie"> <![endif]-->
+<!DOCTYPE html>
 <html>
-	<head>
-		<meta charset="utf-8" />
-		<title>
-		</title>
-		
-<style>
-  @page {
-    size: A4;
-    margin: 20mm;
-  }
+<head>
+  <meta charset="utf-8" />
+  <title>Rental Finance Agreement</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-  body {
-    font-family: "Times New Roman", serif;
-    margin: 0;
-  }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Calibri", Arial, sans-serif;
+      font-size: 11px;
+      line-height: 1.4;
+    }
 
-  .page {
-   height: 257mm;
-   overflow: hidden;
-   position: relative;
-   page-break-after: always;
-}
+    .page {
+      width: 210mm;
+      height: 297mm;
+      padding: 20mm 18mm;
+      margin: 0 auto;
+      position: relative;
+      page-break-after: always;
+    }
 
-p, h1, h2, h3 {
-   margin: 0 0 10px 0;
-}
+    .header-center {
+      text-align: center;
+    }
 
+    .company-name {
+      font-weight: bold;
+      font-size: 16px;
+      text-transform: uppercase;
+    }
 
+    .company-tagline {
+      font-size: 11px;
+      margin-top: 2px;
+    }
 
-  .footer{
-	display:flex;
-    justify-content:space-between;
-     position: absolute;
-   bottom: 10mm;
-   left: 0;
-   right: 0;
-    font-weight:bold;
-  }
-</style>
+    .doc-title {
+      margin-top: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      text-align: center;
+      text-transform: uppercase;
+      text-decoration: underline;
+    }
 
-</head> 
-	<body>
-		<div class="page">
+    .sub-title {
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: bold;
+      text-align: center;
+    }
 
-    <h1 style="text-align:center; margin-top:40px;">
-        Fintree Finance Pvt. Ltd.
-    </h1>
+    p {
+      margin: 4px 0;
+      text-align: justify;
+    }
 
-    <p style="text-align:center; font-style:italic; margin-top:-10px;">
-        Empowering SME Growth
-    </p>
+    .section-heading {
+      margin-top: 10px;
+      margin-bottom: 4px;
+      font-weight: bold;
+      text-decoration: underline;
+    }
 
-    <h2 style="text-align:center; margin-top:30px;">
-        RENTAL FINANCE AGREEMENT
-    </h2>
+    .clause-heading {
+      margin-top: 8px;
+      font-weight: bold;
+    }
 
-    <h3 style="text-align:center; margin-top:10px;">
-        Master Agreement
-    </h3>
+    ol, ul {
+      margin: 4px 0 4px 18px;
+      padding: 0;
+    }
 
-    <p style="margin-top:40px;">
-        This Agreement is made on {{L_date}} and between the persons whose
-        name(s) and address(es) are specified in the Schedule to this Agreement
-        (“Schedule“) (hereinafter called the “Borrower” or “Customer”) of ONE PART;
-    </p>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      margin-bottom: 8px;
+      font-size: 11px;
+    }
 
-    <p style="margin-top:20px;">
-        AND
-    </p>
+    table th, table td {
+      border: 1px solid #000;
+      padding: 4px 5px;
+      vertical-align: top;
+    }
 
-    <p>
-        Fintree Finance Private Limited, a Company incorporated under the Companies
-        Act 2013 and registered as an NBFC under the RBI Act, 1934, having its
-        Registered Office at 4<sup>th</sup> Floor, Engineering Centre, 9 Mathew Road,
-        Opera House, Charni Road (East), Mumbai 400004
-        (hereinafter called the “Lender” or “FFPL”) of SECOND PART.
-    </p>
+    table th {
+      font-weight: bold;
+    }
 
-    <p>
-        The expressions Borrower and Lender or FFPL, unless repugnant to the context,
-        shall include their respective legal heirs, representatives, successors,
-        executors, administrators and assigns.
-    </p>
+    .no-border-table th,
+    .no-border-table td {
+      border: none;
+    }
 
-    <p>
-        The Borrower and the Lender shall individually be referred to as a “Party”
-        and jointly as “Parties”.
-    </p>
+    .right {
+      text-align: right;
+    }
 
-    <div style="
-        display:flex; 
-        justify-content:space-between;
-        margin-top:80px;
-        font-weight:bold;
-    ">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>1 of 31</span>
+    .center {
+      text-align: center;
+    }
+
+    .mt-4 { margin-top: 4px; }
+    .mt-8 { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+
+    .footer {
+      position: absolute;
+      bottom: 12mm;
+      left: 18mm;
+      right: 18mm;
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .signature-line {
+      margin-top: 16px;
+    }
+
+    .signature-line span {
+      display: inline-block;
+      border-top: 1px solid #000;
+      min-width: 120px;
+      text-align: center;
+      padding-top: 2px;
+      font-size: 11px;
+    }
+
+    .two-col {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .two-col > div {
+      width: 48%;
+    }
+
+    .small-note {
+      font-size: 9px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1: Title & Parties -->
+  <div class="page">
+    <div class="header-center">
+      <div class="company-name">Fintree Finance Pvt. Ltd.</div>
+      <div class="company-tagline">Empowering SME Growth</div>
     </div>
 
-</div>
+    <div class="doc-title mt-16">RENTAL FINANCE AGREEMENT</div>
+    <div class="sub-title">Master Agreement</div>
 
-		<div class="page">
-
-    <p>
-        WHEREAS the Borrower has approached and requested FFPL for grant of Loan /
-        Loan facility (as defined below) (hereinafter called “Loan” or “Loan Facility”)
-        and FFPL has agreed to provide Loan up to the limit(s) as specified in the
-        Schedule as per the terms and conditions appearing hereunder in this Agreement.
+    <p class="mt-12">
+      This Agreement is made on the date and at the place and between persons, whose name(s) and
+      address(es) are as specified in the Schedule to Agreement (“Schedule”) (hereinafter called the
+      “Borrower” or “Customer” of ONE PART);
     </p>
 
-    <h2 style="margin-top:30px;">NOW IT IS AGREED BY AND BETWEEN THE PARTIES AS FOLLOWS:</h2>
-
-    <h3 style="margin-top:20px;">1. DEFINITIONS AND INTERPRETATION</h3>
-
-    <p><strong>1.1</strong> In this Agreement, the following meanings are applicable:</p>
+    <p class="center mt-8"><b>AND</b></p>
 
     <p>
-        <strong>‘Additional Loan’</strong> means the additional loan availed by the Borrower
-        for the purpose as defined in the Schedule.
+      Fintree Finance Private Limited, a Company incorporated under the Companies Act 2013 and registered
+      under the Reserve Bank of India (RBI) Act, 1934 as a Non-Banking Financial Company, having its
+      Registered Office at 4th Floor, Engineering Centre, 9 Mathew Road, Opera House, Charni Road (East),
+      Mumbai 400 004 (hereinafter called the “Lender” or “FFPL” of SECOND PART).
+    </p>
+
+    <p class="mt-8">
+      The expressions Borrower and Lender or FFPL, unless repugnant to the context, shall include their
+      respective legal heirs, representatives, successors, executive, administrators and assigns etc.
+      The Borrower and the Lender shall individually be referred to as a ‘Party’ and jointly as ‘Parties’.
+    </p>
+
+    <p class="mt-12">
+      WHEREAS the Borrower has approached and requested FFPL for grant of Loan / Loan facility (as defined
+      below) (hereinafter called “Loan” or “Loan Facility”) and FFPL has agreed to provide Loan up to the
+      limit(s) as specified in the Schedule as per the terms and conditions appearing hereunder in this
+      Agreement.
+    </p>
+
+    <p class="mt-12">
+      NOW IT IS AGREED BY AND BETWEEN THE PARTIES AS FOLLOWS:
+    </p>
+
+    <div class="section-heading mt-12">1. DEFINITIONS AND INTERPRETATION</div>
+
+    <p>In this Agreement, the following meanings are applicable:</p>
+
+    <p><b>‘Additional Loan’</b> – the additional loan availed by the Borrower for the purpose as defined in the Schedule.</p>
+    <p><b>‘Agreement’</b> – means and includes this Agreement for grant of Loan Facility including the Loan Documents
+      together with all the schedules, exhibits, addendums, attachments and appendices annexed hereto and all
+      amendments/supplements executed in relation to the Loan Facility.</p>
+    <p><b>‘Application Form’</b> – means the Loan application, in the form and manner prescribed and acceptable to the
+      Lender together with such documents and information as may be required by the Lender, filled in and
+      submitted by the Borrower to the Lender in relation to the Loan.</p>
+
+    <p><b>‘Bounce Charges’</b> – means an amount payable by the Borrower to the Lender as a penalty where
+      ECS/ NACH or Mandate or any other Repayment Mode is returned or not honored.</p>
+
+    <p><b>‘Broken Period’</b> – means the period between the date of disbursement till the date of beginning of 1st EPI.</p>
+
+    <p><b>‘Broken Period Interest’</b> – means the interest charged to the loan account(s) during the Broken Period.</p>
+
+    <p><b>‘Due Date’</b> – in relation to the EPI, means the date, on or before which each EPI is to be repaid by the
+      Borrower, as more specifically mentioned in the Schedule commencing from the date of the disbursement
+      of Loan and includes the due date for the payment of interest on the principal amount payable by the
+      Borrower before the commencement of the EPI and in relation to the Outstanding Dues means the date, on
+      or before which, the entire Outstanding Dues is to be repaid by the Borrower which shall be communicated
+      by the Lender from time to time.</p>
+
+    <p><b>‘EPI’ or ‘Equated Periodic Instalment’</b> – shall mean an equated or fixed amount of repayments, consisting
+      of both the principal and interest, to be paid by a borrower towards repayment of a loan at such periodic
+      intervals as stated in the Schedule resulting in complete amortization of the loan. An EPI with monthly
+      frequency is known as EMI.</p>
+
+    <p><b>‘Interest Rate’</b> – means the rate of interest in relation to the Loan as mentioned in the Schedule.</p>
+
+    <p><b>‘Key Fact Statement (KFS)’</b> – means a statement of legally significant and deterministic facts in a
+      standardized format as prescribed by the RBI that shall help a prospective borrower to take an informed
+      decision.</p>
+
+    <p><b>‘Loan’ / ‘Loan Facility’</b> – means the total loan facility (including Additional Loan, if any) provided by the
+      Lender to the Borrower up to a maximum loan amount as mentioned in the Schedule(s) in the form of a term
+      loan or in any other form as may be specified by FFPL at its sole discretion. The Loan facility may
+      comprise of one or more loan account(s) as detailed in the Schedule(s).</p>
+
+    <p><b>‘Loan Tenure’</b> – shall mean the tenure of the Loan as specified in Schedule.</p>
+  </div>
+
+  <!-- PAGE 2: More Definitions + Loan Terms -->
+  <div class="page">
+    <p><b>‘Pre-payment Charges’</b> – means an amount payable by the Borrower to the Lender for repayment of the
+      Outstanding Dues, either in part or whole, before its scheduled Repayment Date, details of which are
+      provided in Schedule.</p>
+
+    <p><b>‘RBI’</b> – means the Reserve Bank of India.</p>
+
+    <p><b>‘Schedule’</b> – means the schedule(s) appended to this Agreement.</p>
+
+    <p><b>‘Lending Service Provider’</b> – means Nome Residencies Private Limited.</p>
+
+    <p class="mt-8">
+      In this Agreement, singular shall include plural and the masculine gender shall include the feminine or
+      neutral gender as the context so requires;
     </p>
 
     <p>
-        <strong>‘Agreement’</strong> means and includes this Agreement for grant of Loan
-        Facility including the Loan Documents together with all the schedules, exhibits,
-        addendums, attachments and appendices annexed hereto and all amendments/
-        supplements executed in relation to the Loan Facility.
+      Any expression not defined herein shall, if defined under General Clauses Act, 1897, carry the same
+      meaning as assigned to it under the said Act;
     </p>
 
     <p>
-        <strong>‘Application Form’</strong> means the Loan application, in the form and
-        manner prescribed and acceptable to the Lender together with such documents
-        and information as may be required by the Lender, filled in and submitted by the
-        Borrower to the Lender in relation to the Loan.
+      The arrangement of clauses in this Agreement shall have no bearing on their interpretation. The clause
+      headings are inserted for the sake of convenience only and shall not affect the interpretation of the
+      provisions hereof; and
     </p>
 
     <p>
-        <strong>‘Bounce Charges’</strong> means an amount payable by the Borrower to the
-        Lender as a penalty where ECS/NACH or Mandate or any other Repayment Mode
-        is returned or not honored.
+      Except where the context otherwise requires, references to any enactment shall include references to such
+      enactment as re-enacted, amended or extended and any subordinate legislation made under it.
+    </p>
+
+    <div class="section-heading mt-12">2. LOAN TERMS</div>
+
+    <div class="clause-heading">2.1 DISBURSEMENT</div>
+
+    <p>
+      The Borrower agrees to borrow from the Lender through the Service Provider’s platform namely, Nome
+      Residencies Private Limited and the Lender agrees to make available and extend to the Borrower, at its
+      sole and absolute discretion, the Loan, for an amount as mentioned in the Schedule, for the purpose as
+      mentioned in the Schedule, on the terms and conditions contained in this Agreement and in other applicable
+      Loan Documents.
     </p>
 
     <p>
-        <strong>‘Broken Period’</strong> means the period between the date of disbursement
-        till the date of beginning of 1st EPI.
+      The disbursement of the Loan may be made directly to the Borrower or upon the instructions of the
+      Borrower, to the Beneficiary for the specific end use as mentioned in the Schedule in one lump sum or in
+      such tranches as per the details provided under the Schedule, subject to the terms and conditions
+      contained herein.
     </p>
 
     <p>
-        <strong>‘Broken Period Interest’</strong> means the interest charged to the Loan
-        account(s) during the Broken Period.
+      The Borrower understands and agrees that the disbursement of the Loan to the Borrower shall always be
+      subject to the compliance of RBI restrictions, if any, with regard to timings, monetary limits or any
+      other limitation(s), applicable to any authorized banking channel, including without limitation, IMPS,
+      NEFT, RTGS, Cheque, UPI etc. and thus the disbursement may be made in tranches accordingly and the
+      Borrower shall have no right or claim in any manner whatsoever against FFPL in case of delay of
+      disbursement or lesser disbursement.
     </p>
 
     <p>
-        <strong>‘Due Date’</strong> in relation to the EPI, means the date on or before which
-        each EPI is to be repaid by the Borrower, as mentioned in the Schedule commencing
-        from the date of disbursement of Loan, and includes the due date for the payment
-        of interest before commencement of the EPI. In relation to Outstanding Dues,
-        “Due Date” means the date on or before which the entire Outstanding Dues is to be
-        repaid by the Borrower as communicated by the Lender from time to time.
+      The Borrower may also avail Additional Loan in the form and manner prescribed by the Lender. The Additional
+      Loan shall be subject to the terms and conditions of the Loan Documents, such other terms and conditions
+      as may be prescribed by the Lender in this regard.
+    </p>
+
+    <div class="clause-heading mt-8">2.2 INTEREST AND OTHER CHARGES</div>
+
+    <p>
+      The Borrower agrees to pay interest on the Loan as per the Schedule. Interest on the Loan shall begin to
+      accrue from the Disbursement Date at the applicable Interest Rate and shall be applied on a reducing
+      balance taking a base of 365 days per year (irrespective of the leap year).
     </p>
 
     <p>
-        <strong>‘EPI’ or ‘Equated Periodic Instalment’</strong> shall mean an equated or fixed
-        amount of repayment, consisting of both the principal and interest, to be paid by
-        the Borrower at periodic intervals as stated in the Schedule resulting in complete
-        amortization of the loan. An EPI with monthly frequency is known as EMI.
+      FFPL shall be entitled to revise the Interest Rate at any time and from time to time as per its policy,
+      if any, during the Loan Tenure, at its sole discretion or due to change in the regulatory requirements
+      including any guidelines/ regulations issued by RBI and such revised Interest Rate shall be deemed to
+      form part of the Loan and the Borrower shall also be liable to pay such revised amount of interest on the
+      Loan in such manner and within such period as may be determined by the Lender in its sole discretion.
+      Any such revision in the Interest Rates shall be effective from a prospective date and the Lender shall
+      notify the Borrower via email or notice in advance to this effect and the same would be binding upon the
+      Borrower. The Lender shall also notify any changes in its Interest Rates by updating the same on its
+      Website.
     </p>
 
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        margin-top:80px;
-        font-weight:bold;
-    ">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>2 of 31</span>
+    <p>
+      Borrower shall solely bear processing fees, cess, stamp duty or any other charges by whatever name be
+      called including Goods and Service Tax (GST), if any, and in case the same are borne by FFPL, the Borrower
+      agrees to pay the same separately.
+    </p>
+
+    <p>
+      In case there is any Broken Period in the Loan Tenure under this Agreement, the Borrower shall pay the
+      Broken Period Interest.
+    </p>
+
+    <p>
+      FFPL shall be entitled to charge/debit the Borrower’s loan account(s) for all amounts due and payable by
+      the Borrower under this Agreement including but not limited to interest, tax, fees, charges, stamp duty,
+      processing fee, login fees, costs, service and other charges/expenses incurred by FFPL in relation to
+      Loan Facility provided, unless separately reimbursed to/ collected upfront by FFPL from the Borrower.
+      Such amount shall form part of the Loan.
+    </p>
+
+    <p>
+      All amounts in default for payment (i.e. not paid by the Borrower when due to FFPL) including arrears of
+      EMIs/EPIs, costs, interest, charges, fees, expenses etc. charged to the loan account(s), shall, inter
+      alia, attract “Late Payment Charges” or “Penal Charges” as per Schedule.
+    </p>
+
+    <p>
+      Without prejudice to the Late Payment Charges as per the above clause, FFPL shall be entitled to impose
+      and the Borrower shall be liable to pay Bounce Charges, Pre-Payment Charges, Mandate Swapping Charges or
+      any other charges, as may be applicable, as detailed in the Schedule.
+    </p>
+
+    <p>
+      The Borrower agrees and acknowledges that the imposition of Penal Charges is essential to maintain the
+      financial integrity of the lending process. By instilling a sense of credit discipline, these charges
+      protect the revenue of the Lender and mitigate the risk of delinquency. They serve as a proactive measure
+      to encourage timely repayment, fostering a mutually beneficial relationship between the Lender and the
+      Borrower. The Lender has and shall always endeavour to ensure that the quantum of these charges are
+      reasonable and commensurate with the impact of the default, ensuring fairness and transparency in the
+      lending relationship. For avoidance of doubt, the Lender does hereby declare that there is no
+      capitalization of any penal charges. Without prejudice to the above, the Borrower understands and agrees
+      that non capitalization of penal charges shall not impact the normal compounding of the interest in the
+      Loan account(s).
+    </p>
+  </div>
+
+  <!-- PAGE 3: Repayment + Additional Loan + KFS (summary text) -->
+  <div class="page">
+    <div class="clause-heading">2.3 REPAYMENT</div>
+
+    <p>
+      The Borrower agrees to repay the loan availed by him by way of Equated Periodic Instalments (EPI) on or
+      before the monthly Due Date in terms of the Repayment Schedule.
+    </p>
+
+    <p>
+      The repayment of loan (including the principal, interest thereon and any other charges, premium, fees,
+      taxes, levies or other dues payable by the Borrower to FFPL in terms of this Agreement) will be made by
+      the Borrower:
+    </p>
+
+    <p>
+      (a) by way of Equated Periodic Instalment (EPI) via preferred repayment modes including but not limited to
+      Post Date Cheques (PDCs)/NACH/e-NACH/ECS (“Debit Mandate”), as mentioned in the Schedule towards
+      repayment of principal and interest amount; the Borrower agrees to give such Debit Mandate for the
+      repayment of the loan and is fully cognizant of the fact that dishonor of such Debit Mandates is a
+      criminal offence under the law. The Borrower undertakes to maintain his/her Bank account and will not
+      close the Bank account during the continuance of this Agreement;
+    </p>
+
+    <p>
+      (b) by way of cash in lieu of dishonored Debit mandates or otherwise due or payable through prescribed
+      authorized payment channels as may be notified by FFPL.
+    </p>
+
+    <p>
+      The Borrower agrees to continue paying EPI’s and other charges, costs, fees, expenses etc. charged to the
+      Loan account, until all amounts due under the Loan have been repaid in full to FFPL.
+    </p>
+
+    <p>
+      The Borrower acknowledges and agrees that strict compliance with the Repayment Schedule is an essential
+      condition for grant of this Loan Facility.
+    </p>
+
+    <p>
+      The Borrower understands and confirms that repayment of the loan is a non-negotiable obligation to be
+      fulfilled by the Borrower and any dispute between the Borrower and the Beneficiary shall not waive the
+      borrower’s repayment obligation under this Loan Agreement.
+    </p>
+
+    <p>
+      The Borrower understands and confirms that any dispute raised by him/her on the computation of the
+      interest or any other term of the Loan availed by him shall not entitle the Borrower to withhold payment
+      of any EPI.
+    </p>
+
+    <p>
+      The Borrower agrees that in case a Debit Mandate is dishonored, he shall be liable to pay Bounce Charges
+      as detailed in the Schedule.
+    </p>
+
+    <p>
+      No notice, reminder or intimation will be given to the Borrower regarding his/her obligation to pay the
+      EPI regularly on each Due Date. It shall, entirely, be his/her responsibility to ensure timely payment to
+      FFPL. Any delay or default in payment of any EPI shall make the Borrower liable to pay to FFPL Late
+      Payment Charges (for the period of such default) as mentioned in the Schedule, besides constituting an
+      event of a default thereby entitling FFPL to terminate the Agreement, making all sums under this
+      Agreement due and payable to FFPL immediately.
+    </p>
+
+    <p>
+      FFPL shall be entitled to recover from the Borrower prepayment charges at the rate mentioned in the
+      Schedule on the amount of Loan, if the Borrower decides, after the expiry of 6 months from the date of
+      disbursement (“Lock-in”), to foreclose the account ahead of the repayment terms i.e. pre-payment of Loan
+      amount before the completion of tenure of Loan, as mentioned in the Schedule. However, the Borrower shall
+      be liable to pay extra Pre-payment Charges, as mentioned in the Schedule, if the loan is closed within
+      first 6 months.
+    </p>
+
+    <!-- (Other clauses: Additional Loan, FFPL Rights, General Terms, SMA/NPA, Default, Indemnity,
+         Disclosure, Electronic media, Severability, Arbitration, Jurisdiction, Acceptance)
+         – You already have full text above; they can all remain as <p> blocks on
+         subsequent pages exactly like here.
+         For brevity in this snippet, we jump to the SCHEDULE + KFS & Repayment which
+         are critical for data placeholders. Fill in the rest from the same DOCX
+         text, using <p> for paragraphs and .section-heading for headers. -->
+  </div>
+
+  <!-- PAGE 4: SCHEDULE (with placeholders) -->
+  <div class="page">
+    <div class="section-heading">SCHEDULE</div>
+
+    <table>
+      <tr>
+        <th>DATE OF AGREEMENT</th>
+        <td>{{L_date}}</td>
+      </tr>
+      <tr>
+        <th>PLACE OF EXECUTION</th>
+        <td><!-- You can fill fixed text or placeholder if needed --></td>
+      </tr>
+      <tr>
+        <th>LOAN ACCOUNT NO.</th>
+        <td>{{lan}}</td>
+      </tr>
+      <tr>
+        <th>FACILITY</th>
+        <td>PERSONAL LOAN – RENT FINANCING</td>
+      </tr>
+      <tr>
+        <th>PURPOSE</th>
+        <td>RENT PAYMENT</td>
+      </tr>
+      <tr>
+        <th>ADDITIONAL LOAN</th>
+        <td>NA</td>
+      </tr>
+      <tr>
+        <th>NAME OF THE BORROWER</th>
+        <td>{{C_N}}</td>
+      </tr>
+      <tr>
+        <th>ADDRESS OF BORROWER</th>
+        <td>{{per_add}}</td>
+      </tr>
+      <tr>
+        <th>LOAN AMOUNT</th>
+        <td>{{L_A}}</td>
+      </tr>
+      <tr>
+        <th>INTEREST AMOUNT*</th>
+        <td>{{I_R}}</td>
+      </tr>
+      <tr>
+        <th>TOTAL REPAYABLE</th>
+        <td>{{E_S}}</td>
+      </tr>
+      <tr>
+        <th>MODE OF DISBURSEMENT</th>
+        <td>NEFT/RTGS</td>
+      </tr>
+      <tr>
+        <th>BENEFICIARY DETAILS, IF APPLICABLE</th>
+        <td>
+          Name: {{B_Na}}<br />
+          Service: RENT<br />
+          Bank Details: A/c No.: {{A_no}}<br />
+          IFSC: {{ifsc}}
+        </td>
+      </tr>
+    </table>
+
+    <p class="small-note">
+      *Total Interest Amount may include a Broken Period Interest (BPI) deducted upfront from the Loan Amount.<br />
+      ^First EPI may be different depending on the date of disbursement and due date of first EPI.
+    </p>
+  </div>
+
+  <!-- PAGE 5: KEY FACT STATEMENT (KFS) - PART 1 -->
+  <div class="page">
+    <div class="header-center">
+      <div class="company-name">Fintree Finance Pvt. Ltd.</div>
+      <div class="company-tagline">Empowering SME Growth</div>
     </div>
 
-</div>
+    <div class="doc-title mt-16">Key Fact Statement (KFS)</div>
+    <div class="sub-title">PART 1</div>
 
-		<div class="page">
+    <table>
+      <tr>
+        <th style="width: 30px;">1</th>
+        <th>Loan Product/account No.</th>
+        <td>{{lan}}</td>
+      </tr>
+      <tr>
+        <th>2</th>
+        <th>Type of loan</th>
+        <td>Personal Loan</td>
+      </tr>
+      <tr>
+        <th>3</th>
+        <th>Sanctioned Loan amount (in Rs.)</th>
+        <td>{{L_A}}</td>
+      </tr>
+      <tr>
+        <th>4</th>
+        <th>Disbursal Schedule<br /><span class="small-note">Disbursement in stage or 100% upfront</span></th>
+        <td>100%</td>
+      </tr>
+      <tr>
+        <th>5</th>
+        <th>Loan Term (year/months/weeks/days)</th>
+        <td>Months</td>
+      </tr>
+    </table>
 
-    <p>
-        <strong>‘Interest Rate’</strong> means the rate of interest in relation to the Loan as
-        mentioned in the Schedule.
+    <table>
+      <tr>
+        <th colspan="3">Instalment details</th>
+      </tr>
+      <tr>
+        <th>Type of instalments</th>
+        <th>Number of Equated Monthly Installments</th>
+        <th>Amount of Equated Monthly Installments</th>
+      </tr>
+      <tr>
+        <td>Monthly</td>
+        <td>{{L_T}}</td>
+        <td>{{emi}}</td>
+      </tr>
+      <tr>
+        <th>Commencement of repayment, post sanction</th>
+        <td colspan="2">Monthly (as per Schedule)</td>
+      </tr>
+    </table>
+
+    <table>
+      <tr>
+        <th style="width: 30px;">6</th>
+        <th>Interest rate (%) and type (fixed or floating or hybrid)</th>
+        <td>Fixed – {{I_R}}%</td>
+      </tr>
+    </table>
+
+    <table>
+      <tr>
+        <th rowspan="2" style="width: 30px;">7</th>
+        <th rowspan="2">Fee/charge</th>
+        <th colspan="2">Payable to Lender (A)</th>
+        <th colspan="2">Payable to third party through Lender (B)</th>
+      </tr>
+      <tr>
+        <th>One-time/Recurring</th>
+        <th>Amount (₹) / %</th>
+        <th>One-time/Recurring</th>
+        <th>Amount (₹) / %</th>
+      </tr>
+      <tr>
+        <td></td>
+        <td>Processing Fees</td>
+        <td>One-time</td>
+        <td>One-time</td>
+        <td>NA</td>
+        <td>NA</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>Insurance Charges</td>
+        <td>One-time</td>
+        <td>NA</td>
+        <td>One-time</td>
+        <td>NA</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>Stamp Paper</td>
+        <td>One-time</td>
+        <td>NA</td>
+        <td>One-time</td>
+        <td>NA</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>BPI</td>
+        <td colspan="4">{{emi}}</td>
+      </tr>
+      <tr>
+        <td></td>
+        <td>Nach charges</td>
+        <td colspan="4"></td>
+      </tr>
+    </table>
+
+    <table>
+      <tr>
+        <th style="width: 30px;">9</th>
+        <th>Annual Percentage Rate (APR) (%)</th>
+        <td>{{I_R}}</td>
+      </tr>
+      <tr>
+        <th>10</th>
+        <th>Details of Contingent Charges (in ₹ or %)</th>
+        <td>
+          i. Penal charges, in case of delayed payment – As per Schedule<br />
+          ii. Other Penal charges, if any – NA<br />
+          iii. Foreclosure charges, if applicable – NA<br />
+          iv. Charges for switching of loans – NA<br />
+          v. Any other charges – NA
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- PAGE 6: KFS - PART 2 + Repayment Schedule heading -->
+  <div class="page">
+    <div class="sub-title">Key Fact Statement – Part 2</div>
+
+    <table>
+      <tr>
+        <th style="width: 30px;">1</th>
+        <th>Clause of Loan agreement relating to engagement of recovery agents</th>
+        <td>Clause 5</td>
+      </tr>
+      <tr>
+        <th>2</th>
+        <th>Clause of Loan agreement which details grievance redressal mechanism</th>
+        <td>Clause 16</td>
+      </tr>
+      <tr>
+        <th>3</th>
+        <th>Phone number and email id of the nodal grievance redressal officer</th>
+        <td>
+          Fintree Finance Private Limited<br />
+          Name: Sweta Parekh<br />
+          Contact No.: 1800 2678111<br />
+          Email: wecare@fintreefinance.com
+        </td>
+      </tr>
+      <tr>
+        <th>4</th>
+        <th>Whether the loan is, or in future maybe, subject to transfer to other REs or securitisation (Yes/No)</th>
+        <td>Yes</td>
+      </tr>
+      <tr>
+        <th>5</th>
+        <th>In case of digital loans – Cooling off/look-up period</th>
+        <td>
+          Cooling off period of 3 days. Details of LSP acting as recovery agent and authorised to approach
+          the borrower:<br />
+          Name: Lekhanand Umapathy<br />
+          Address: 09, 3rd Cross, Vidyaranyapura, Bengaluru, Karnataka 560097<br />
+          Contact: +91 8056031308
+        </td>
+      </tr>
+    </table>
+
+    <div class="doc-title mt-16">REPAYMENT SCHEDULE</div>
+
+    <table>
+  <tr>
+    <th>Instalment No.</th>
+    <th>Opening Balance</th>
+    <th>Principal</th>
+    <th>Interest</th>
+    <th>EMI Amount</th>
+    <th>Closing Balance</th>
+  </tr>
+
+  {{#RPS}}
+  <tr>
+    <td>{{id}}</td>
+    <td>{{opening}}</td>
+    <td>{{principal}}</td>
+    <td>{{interest}}</td>
+    <td>{{emi}}</td>
+    <td>{{closing}}</td>
+  </tr>
+  {{/RPS}}
+</table>
+  </div>
+
+  <!-- PAGE 7: Computation of APR -->
+  <div class="page">
+    <div class="doc-title">Computation of APR</div>
+
+    <table>
+      <tr>
+        <th style="width: 40px;">Sr. No.</th>
+        <th>Parameter</th>
+        <th>Details</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>Sanctioned Loan amount (in Rupees)</td>
+        <td>{{L_A}}</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Loan Term (in years/ months/ days)</td>
+        <td>Months</td>
+      </tr>
+      <tr>
+        <td>2(a)</td>
+        <td>No. of instalments for payment of principal, in case of non-equated periodic loans</td>
+        <td>1</td>
+      </tr>
+      <tr>
+        <td>2(b)</td>
+        <td>Type of EPI/EMI. Amount of each EPI/EMI (in Rupees) and nos. of EPIs/EMIs</td>
+        <td>{{emi}}</td>
+      </tr>
+      <tr>
+        <td>2(c)</td>
+        <td>No. of instalments for payment of capitalised interest, if any</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>2(d)</td>
+        <td>Commencement of repayments, post sanction</td>
+        <td>5th every month</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Interest rate type</td>
+        <td>Fixed</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Rate of Interest</td>
+        <td>{{I_R}}</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Total Interest Amount to be charged during the entire tenor of the loan (₹)</td>
+        <td>{{I_S}}</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Fee/ Charges payable (₹)</td>
+        <td>– (A: to RE –; B: to third-party – 0)</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Net disbursed amount (1 – 6)</td>
+        <td>{{L_A}}</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>Total amount to be paid by the borrower (₹)</td>
+        <td>{{E_S}}</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Annual Percentage rate – Effective annualized interest rate (%)</td>
+        <td>{{I_R}}</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>Schedule of disbursement as per terms and conditions</td>
+        <td>100% Upfront</td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td>Due date of payment of instalment and interest</td>
+        <td>5th of every Month</td>
+      </tr>
+    </table>
+
+    <p class="small-note">
+      Note: The dates are indicative and may change depending upon the actual date of disbursement.
+      Schedule of charges will also form part of the Loan agreement to be executed between Lender & the Borrower.
+    </p>
+  </div>
+
+  <!-- PAGE 8+: Sanction Letter conditions, Promissory Note, Disbursement Request, Acknowledgement,
+       Declaration, End-use Undertaking, Consent & Self Declaration -->
+
+  <!-- PROMISSORY NOTE PAGE -->
+  <div class="page">
+    <div class="doc-title">PROMISSORY NOTE</div>
+
+    <p class="mt-8">
+      Date: {{L_date}}<br />
+      Place: Bangalore
+    </p>
+
+    <p class="mt-8">To,<br />Fintree Finance Private Limited (the "Payee").</p>
+
+    <p class="mt-8">
+      ON DEMAND and ON OCCURRENCE OF AN EVENT OF DEFAULT as per the Loan Agreement/ Sanction Letter/ any writing
+      by and between the parties, I/We (the "Borrowers acting jointly and severally”) unconditionally promise
+      to pay the Payee at its office located at 4th Floor, Engineering Centre, 9 Mathew Road, Opera House,
+      Charni Road (East), Mumbai 400004 or at such other place as payee may designate, the principal sum of
+      Rs. {{L_A}}/- (Rupees _________Only) with interest, from the date hereof through and including the
+      dates of payment for value received.
     </p>
 
     <p>
-        <strong>‘Key Fact Statement (KFS)’</strong> means a statement of legally significant
-        and deterministic facts in a standardized format as prescribed by the RBI that
-        helps a prospective borrower take an informed decision.
+      The Borrower do hereby acknowledge that time is of the essence hereof, and unconditionally promises,
+      that for any principal and interest sum due under this Note, if not received by Payee on the day the
+      Payee makes demand for payment of such sum, the Maker shall pay, in addition to the amount of such sum,
+      a late payment amount as stated in the Sanction Letter and/or Loan Summary Schedule for each such day
+      until realization. Presentment for payment and noting and protest of the note are hereby unconditionally
+      and irrevocably waived.
     </p>
 
-    <p>
-        <strong>‘Loan’ / ‘Loan Facility’</strong> means the total loan facility (including
-        Additional Loan, if any) provided by the Lender to the Borrower up to the maximum
-        amount mentioned in the Schedule(s), in the form of a term loan or any other form
-        as specified by FFPL at its sole discretion. The Loan facility may comprise one
-        or more loan accounts as detailed in the Schedule(s).
+    <p class="mt-8 small-note">
+      Affix Revenue Stamp and sign across the stamp.
     </p>
 
-    <p>
-        <strong>‘Loan Tenure’</strong> shall mean the tenure of the Loan as specified in the
-        Schedule.
-    </p>
-
-    <p>
-        <strong>‘Pre-payment Charges’</strong> means an amount payable by the Borrower to
-        the Lender for repayment of the Outstanding Dues, either in part or whole, before
-        its scheduled Repayment Date, details of which are provided in the Schedule.
-    </p>
-
-    <p>
-        <strong>‘RBI’</strong> means the Reserve Bank of India.
-    </p>
-
-    <p>
-        <strong>‘Schedule’</strong> means the schedule(s) appended to this Agreement.
-    </p>
-
-    <p>
-        <strong>“Lending Service Provider”</strong> means Nome Residencies Private
-        Limited.
-    </p>
-
-    <h3 style="margin-top:30px;">1.2</h3>
-    <p>
-        In this Agreement, singular shall include plural and the masculine gender shall
-        include the feminine or neutral gender as the context so requires.
-    </p>
-
-    <h3 style="margin-top:20px;">1.3</h3>
-    <p>
-        Any expression not defined herein shall, if defined under the General Clauses
-        Act, 1897, carry the same meaning as assigned to it under the said Act.
-    </p>
-
-    <h3 style="margin-top:20px;">1.4</h3>
-    <p>
-        The arrangement of clauses in this Agreement shall have no bearing on their
-        interpretation. The clause headings are inserted solely for convenience and shall
-        not affect the interpretation of any provision hereof.
-    </p>
-
-    <h3 style="margin-top:20px;">1.5</h3>
-    <p>
-        Except where the context otherwise requires, references to any enactment shall
-        include references to such enactment as re-enacted, amended, or extended and any
-        subordinate legislation made under it.
-    </p>
-
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        margin-top:80px;
-        font-weight:bold;
-    ">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>3 of 31</span>
+    <div class="signature-line mt-16">
+      <span>Name: {{C_N}}</span>
     </div>
+    <p>Residential Address: {{per_add}}</p>
+  </div>
 
-</div>
+  <!-- DISBURSEMENT REQUEST LETTER -->
+  <div class="page">
+    <div class="doc-title">DISBURSEMENT REQUEST LETTER</div>
 
-		<div class="page">
+    <p>Date: {{L_date}}</p>
 
-    <h2>2. LOAN TERMS</h2>
+    <p>To,<br />The Manager,<br />Fintree Finance Private Limited (“FFPL”).</p>
 
-    <h3>2.1 DISBURSEMENT</h3>
+    <p class="mt-8"><b>Subject: Disbursement Request Letter from the Borrower</b></p>
 
-    <p>
-        <strong>2.1.1</strong> The Borrower agrees to borrow from the Lender through the Service
-        Provider’s platform namely, Nome Residencies Private Limited and the Lender agrees to
-        make available and extend to the Borrower, at its sole and absolute discretion, the Loan,
-        for an amount as mentioned in the Schedule, for the purpose as mentioned in the Schedule,
-        on the terms and conditions contained in this Agreement and in other applicable Loan
-        Documents.
+    <p class="mt-8">
+      Pursuant to the Loan Agreement dated {{L_date}} executed between FFPL and Borrower, I/we have received
+      sanction letter of the Loan amount of Rs. {{L_A}} /- (Rupees ___Only) from FFPL vide loan Application
+      Number {{lan}}.
     </p>
 
     <p>
-        <strong>2.1.2</strong> The disbursement of the Loan may be made directly to the Borrower
-        or upon the instructions of the Borrower, to the Beneficiary for the specific end use as
-        mentioned in the Schedule in one lump sum or in such tranches as per the details provided
-        under the Schedule, subject to the terms and conditions contained herein.
+      I confirm that I have complied with the terms of the Loan Agreement including the conditions precedent
+      set out therein.
     </p>
 
     <p>
-        <strong>2.1.3</strong> The Borrower understands and agrees that the disbursement of the
-        Loan to the Borrower shall always be subject to the compliance of RBI restrictions, if any,
-        with regard to timings, monetary limits or any other limitation(s), applicable to any
-        authorized banking channel, including without limitation, IMPS, NEFT, RTGS, Cheque, UPI
-        etc. and thus the disbursement may be made in tranches accordingly and the Borrower shall
-        have no right or claim in any manner whatsoever against FFPL in case of delay of
-        disbursement or lesser disbursement.
-    </p>
-
-    <p>
-        <strong>2.1.4</strong> The Borrower may also avail Additional Loan in the form and manner
-        prescribed by the Lender. The Additional Loan shall be subject to the terms and conditions
-        of the Loan Documents, such other terms and conditions as may be prescribed by the Lender
-        in this regard.
-    </p>
-
-    <h3>2.2 INTEREST AND OTHER CHARGES</h3>
-
-    <p>
-        <strong>2.2.1</strong> The Borrower agrees to pay interest on the Loan as per the Schedule.
-        Interest on the Loan shall begin to accrue from the Disbursement Date at the applicable
-        Interest Rate and shall be applied on a reducing balance taking a base of 365 days per year
-        (irrespective of the leap year).
-    </p>
-
-    <p>
-        <strong>2.2.2</strong> FFPL shall be entitled to revise the Interest Rate at any time and
-        from time to time as per its policy, if any, during the Loan Tenure, at its sole discretion
-        or due to change in the regulatory requirements including any guidelines/ regulations
-        issued by RBI and such revised Interest Rate shall be deemed to form part of the Loan and
-        the Borrower shall also be liable to pay such revised amount of interest on the Loan in
-        such manner and within such period as may be determined by the Lender in its sole
-        discretion. Any such revision in the Interest Rates shall be effective from a prospective
-        date and the Lender shall notify the Borrower via email or notice in advance to this effect
-        and the same would be binding upon the Borrower. The Lender shall also notify any changes
-        in its Interest Rates by updating the same on its Website.
-    </p>
-
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        margin-top:80px;
-        font-weight:bold;
-    ">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>4 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <p>
-        <strong>2.2.3</strong> Borrower shall solely bear processing fees, cess, stamp duty or any other
-        charges by whatever name be called including Goods and Service Tax (GST), if any, and in
-        case the same are borne by FFPL, the Borrower agrees to pay the same separately.
-    </p>
-
-    <p>
-        <strong>2.2.4</strong> In case there is any Broken Period in the Loan Tenure under this Agreement,
-        the Borrower shall pay the Broken Period Interest.
-    </p>
-
-    <p>
-        <strong>2.2.5</strong> FFPL shall be entitled to charge/debit the Borrower’s loan account(s) for
-        all amounts due and payable by the Borrower under this Agreement including but not limited
-        to interest, tax, fees, charges, stamp duty, processing fee, login fees, costs, service/and
-        other charges/expenses incurred by FFPL in relation to Loan Facility provided, unless
-        separately reimbursed to/ collected upfront by FFPL from the Borrower. Such amount shall
-        form part of the Loan.
-    </p>
-
-    <p>
-        <strong>2.2.6</strong> All amounts in default for payment (i.e. not paid by the Borrower when due
-        to FFPL) including arrears of EMIs/EPIs, costs, interest, charges, fees, expenses etc.
-        charged to the loan account(s), shall, inter alia, attract “Late Payment Charges” or “Penal
-        Charges” as per Schedule.
-    </p>
-
-    <p>
-        <strong>2.2.7</strong> Without prejudice to the Late Payment Charges as per the above clause,
-        FFPL shall be entitled to impose and the Borrower shall be liable to pay Bounce Charges,
-        Pre-Payment Charges, Mandate Swapping Charges or any other charges, as may be applicable,
-        as detailed in the Schedule.
-    </p>
-
-    <p>
-        <strong>2.2.8</strong> The Borrower agrees and acknowledges that the imposition of Penal Charges
-        is essential to maintain the financial integrity of the lending process. By instilling a
-        sense of credit discipline, these charges protect the revenue of the Lender and mitigate
-        the risk of delinquency. They serve as a proactive measure to encourage timely repayment,
-        fostering a mutually beneficial relationship between the Lender and the Borrower. The
-        Lender has and shall always endeavour to ensure that the quantum of these charges are
-        reasonable and commensurate with the impact of the default, ensuring fairness and
-        transparency in the lending relationship. For avoidance of doubt, the Lender does her by
-        declare that there is no capitalization of any penal charges. Without prejudice to the
-        above, the Borrower understands and agrees that non capitalization of penal charges shall
-        not impact the normal compounding of the interest in the Loan account(s).
-    </p>
-
-    <h3>2.3 REPAYMENT</h3>
-
-    <p>
-        <strong>2.3.1</strong> The Borrower agrees to repay the loan availed by him by way of Equated
-        Periodic Instalments (EPI) on or before the monthly Due Date in terms of the Repayment
-        Schedule.
-    </p>
-
-    <p>
-        <strong>2.3.2</strong> The repayment of loan (including the principal, interest thereon and any
-        other charges, premium, fees, taxes, levies or other dues payable by the Borrower to FFPL
-        in terms of this Agreement) will be made by the Borrower:
-    </p>
-
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        margin-top:80px;
-        font-weight:bold;
-    ">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>5 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <p>
-        <strong>a.</strong> by way of Equated Periodic Instalment (EPI) via preferred repayment modes
-        including but not limited to Post Date Cheques (PDCs)/NACH/e-NACH/ECS (“Debit Mandate”),
-        as mentioned in the Schedule towards repayment of principal and interest amount; the
-        Borrower agrees to give such Debit Mandate for the repayment of the loan and is fully
-        cognizant of the fact that dishonor of such Debit Mandates is a criminal offence under the
-        law. The Borrower undertakes to maintain his/her Bank account and will not close the Bank
-        account during the continuance of this Agreement;
-    </p>
-
-    <p>
-        <strong>b.</strong> by way of cash in lieu of dishonored Debit mandates or otherwise due or
-        payable through prescribed authorized payment channels as may be notified by FFPL.
-    </p>
-
-    <p>
-        <strong>2.3.3</strong> The Borrower agrees to continue paying EPI’s and other charges, costs,
-        fees, expenses etc. charged to the Loan account, until all amounts due under the Loan have
-        been repaid in full to FFPL. The Borrower acknowledges and agrees that strict compliance
-        with the Repayment Schedule is an essential condition for grant of this Loan Facility.
-    </p>
-
-    <p>
-        <strong>2.3.4</strong> The Borrower understands and confirms that repayment of the loan is a
-        non-negotiable obligation to be fulfilled by the Borrower and any dispute between the
-        Borrower and the Beneficiary shall not waive the borrower’s repayment obligation under this
-        Loan Agreement.
-    </p>
-
-    <p>
-        <strong>2.3.5</strong> The Borrower understands and confirms that any dispute raised by
-        him/her on the computation of the interest or any other term of the Loan availed by him
-        shall not entitle the Borrower to withhold payment of any EPI.
-    </p>
-
-    <p>
-        <strong>2.3.6</strong> The Borrower agrees that in case a Debit Mandate is dishonored, he
-        shall be liable to pay Bounce Charges as detailed in the Schedule.
-    </p>
-
-    <p>
-        <strong>2.3.7</strong> No notice, reminder or intimation will be given to the Borrower
-        regarding his/her obligation to pay the EPI regularly on each Due Date. It shall, entirely,
-        be his/her responsibility to ensure timely payment to FFPL. Any delay or default in payment
-        of any EPI shall make the Borrower liable to pay to FFPL Late Payment Charges (for the
-        period of such default) as mentioned in the Schedule, besides constituting an event of a
-        default thereby entitling FFPL to determine terminate the Agreement, making all sums under
-        this Agreement due and payable to FFPL immediately.
-    </p>
-
-    <p>
-        <strong>2.3.8</strong> FFPL shall be entitled to recover from the Borrower prepayment
-        charges at the rate mentioned in the Schedule on the amount of Loan, if the Borrower
-        decides, after the expiry of 6 months from the date of disbursement (“Lock-in”), to
-        foreclose the account ahead of the repayment terms i.e. pre-payment of Loan amount before
-        the completion of tenure of Loan, as mentioned in the Schedule. However, the Borrower shall
-        be liable to pay extra Pre-payment Charges, as mentioned in the Schedule, if the loan is
-        closed within first 6 months.
-    </p>
-
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        margin-top:80px;
-        font-weight:bold;
-    ">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>6 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <p>
-        If any or all of Debit Mandates given to FFPL by the Borrower pursuant to above clauses:
-        mandatess:
-    </p>
-
-    <p><strong>a)</strong> is/are lost, destroyed or misplaced while in custody of FFPL, or</p>
-
-    <p>
-        <strong>b)</strong> become(s) non-encashable due to death, insolvency, lunacy, termination of
-        Authority or otherwise of the signatory or any more of the signatories (if more than one
-        thereof) or liquidation or moratorium of the drawer bank, then in such an event, the
-        Borrower (or the successor(s), legal representative of the Borrower) shall, on receipt of
-        the intimation of such loss, destruction or misplacement (as the case may be) from FFPL,
-        deliver to FFPL such number of Debit Mandates as are adequate to replace those that have
-        been lost, destroyed, misplaced or become non-encashable or make such suitable arrangement
-        for repayment of Loan as is acceptable to and approved by FFPL.
-    </p>
-
-    <p>
-        <strong>2.3.9</strong> It is agreed and understood by the Borrower that non-presentation of the
-        Debit Mandates by FFPL due to any reason whatsoever will not affect the liability of the
-        Borrower to repay the loan to FFPL and FFPL shall not, in any way, be responsible for delay,
-        omission or neglect in encashment. The Borrower shall always maintain sufficient funds in
-        his/her account to honour all the Debit Mandates becoming due and payable at any point of
-        time. The Borrower warrants that in case any dispute is raised about the amount or interest
-        computation, it shall not enable the Borrower to withhold payments of any EPI.
-    </p>
-
-    <p>
-        <strong>2.3.10</strong> It is further agreed that if a Debit Mandate given by the Borrower is
-        dishonored and the same is presented again and honoured but if in the meantime the cash
-        amount in lieu of dishonored Mandate is deposited, FFPL shall not be liable for any
-        consequences due to said double payment. However, excess payment shall be refunded or
-        adjusted as per the mutual settlement between the Parties.
-    </p>
-
-    <p>
-        <strong>2.3.11</strong> No damage, loss or delay in presentation of any Debit Mandate (already
-        given by the Borrower to FFPL in terms hereof) for any reason whatsoever would, in any
-        manner, mean waiver of any of the rights of FFPL.
-    </p>
-
-    <p>
-        <strong>2.3.12</strong> The Borrower shall undertake necessary due diligence and shall ensure
-        not to deposit the EPI amount to any person/entity fraudulently claiming to be FFPL
-        Representative for collection of repayment amount. The Borrower agrees that FFPL shall not
-        be responsible for any loss/damage/costs incurred by the Borrower on account of any such
-        event of fraud and that such events shall not relieve the Borrower of his liability to repay
-        the Outstanding Dues under this Agreement.
-    </p>
-
-    <h3>2.4 ADDITIONAL LOAN</h3>
-
-    <p>
-        <strong>2.4.1</strong> In case of loans for specific end use, the Borrower may opt to avail
-        Additional Loan for the purpose mentioned in the Schedule which shall be disbursed to the
-        Beneficiary’s Bank Account along with the Primary Loan. For avoidance of doubts, it is
-        hereby clarified that an Additional Loan is not a top up or loan renewal, but an add-on loan
-        availed by the Borrower along with the Primary Loan.
-    </p>
-
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        margin-top:80px;
-        font-weight:bold;
-    ">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>7 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <p><strong>2.4.2</strong> The Primary and Additional Loan shall be treated as Separate Loan Accounts
-        but shall be governed by this single loan agreement. Details of both the loan accounts
-        shall be mentioned in the respective Schedule(s) appended hereunder.
-    </p>
-
-    <p><strong>2.4.3</strong> The Additional Loan shall be subject to the Rate of Interest and repayment
-        terms as mentioned in the Schedule.
-    </p>
-
-    <p><strong>2.4.4</strong> The Additional Loan shall be subject to the same credit underwriting,
-        assessment and evaluation at the sole discretion of the Lender.
-    </p>
-
-    <p>
-        <strong>2.4.5</strong> Without prejudice to the provisions contained hereunder, an Event of
-        Default <em>(as per Clause 8.1)</em> of one loan shall automatically constitute a Default
-        for other Loan and accordingly the Consequences of Default <em>(as per Clause 8.2)</em>
-        shall be applicable to both the loans and the Lender shall <em>inter alia</em> have the
-        right to:
-    </p>
-
-    <p>a) Classify both loan accounts as overdue and delinquent.</p>
-
-    <p>
-        b) Report the default to Credit Information Companies (CICs) / Credit Bureaus, which may
-        impact the Borrower’s overall credit profile.
-    </p>
-
-    <p>
-        c) Initiate recovery proceedings for both loan accounts together, treating them as a
-        single exposure for enforcement purposes.
-    </p>
-
-    <p>
-        <strong>2.4.6</strong> Except as expressly stated otherwise, all the terms of this Agreement
-        shall apply <em>mutatis mutandis</em> to both the loan accounts.
-    </p>
-
-    <h3>2.5 KEY FACT STATEMENT (KFS)</h3>
-
-    <p>
-        <strong>2.5.1</strong> The Borrower acknowledges and affirms that before execution of this
-        Agreement, he has received a KFS containing all the specific details and terms of the Loan
-        offered to him and that he has read, understood and accepted the same.
-    </p>
-
-    <p>
-        <strong>2.5.2</strong> A summary of the KFS for quick reference to the details of the loan is
-        attached with this Agreement.
-    </p>
-
-    <p>
-        <strong>2.5.3</strong> As per the Key Fact Statement, there is a cooling off period of 3 days
-        within which the Borrower can cancel the loan and repay the complete loan without paying
-        prepayment charges. However, in case of loans for specific end use wherein the loan amount
-        is disbursed to a Beneficiary Account, if the Borrower exercises the right to cancel the
-        loan within the cooling off period, it shall be the responsibility of the Borrower to
-        repay the complete loan.
-    </p>
-
-    <h3>3. REPRESENTATIONS, WARRANTIES, COVENANTS AND UNDERTAKINGS</h3>
-
-    <p>
-        With a view to induce FFPL to grant the Loan Facility to him/her, the Borrower hereby
-        represents/warrants to/ covenants/undertakes with FFPL that the Borrower:
-    </p>
-
-    <p>
-        <strong>a)</strong> in case of loan being availed for a specific end use for which the Loan is
-        being disbursed to a Beneficiary account, the Borrower shall provide the relevant
-        information and wherever required, furnish the relevant documents, evidencing the
-        arrangement between the Borrower and Beneficiary wch may include <em>(without
-        limitation)</em> an Agreement, Invoice, Service Terms, identity and address details of
-        the Beneficiary etc. or any other document to the satisfaction of the Lender.
-    </p>
-
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        margin-top:80px;
-        font-weight:bold;
-    ">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>8 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <p><strong>b)</strong> the Borrower has satisfied itself and conducted necessary due diligence of the
-        Beneficiary and the services being availed by the Borrower from the Beneficiary and that the
-        Lender shall not be responsible for any disputes arising thereunder.
-    </p>
-
-    <p><strong>c)</strong> has furnished complete and accurate information and details to FFPL about
-        himself and no vital information has been omitted/concealed and if, at any stage, FFPL
-        discovers that the Borrower have provided false or wrong information or concealed any material
-        facts related to his loan application, FFPL reserves the right to reject the loan application,
-        cancel any sanction or recall the entire loan or any part thereof without any explanation and
-        in future the Borrower shall promptly notify FFPL regarding any change(s) in his details so
-        furnished and provide the supporting proofs, by whatever name called, as may be called upon by
-        FFPL at any frequency and in the manner required by FFPL;
-    </p>
-
-    <p><strong>d)</strong> shall observe and perform all its obligations and covenants under and shall
-        be bound by this Agreement and other related documents, including but not limited to the Loan
-        Documents, without any failure;
-    </p>
-
-    <p><strong>e)</strong> shall ensure sufficient funds in his Bank Accounts against which he has
-        given the Debit mandates to fulfil his repayment obligations;
-    </p>
-
-    <p><strong>f)</strong> shall ensure timely payment of the EPIs to the Lender and ensure that the
-        Repayment Modes issued towards payment of the Monthly Instalments are honoured on presentation.
-        It is the duty of the Borrower to ensure that his/her bank account has been debited towards
-        each EPI and in case of his/her account not been so debited, the Borrower shall be obliged to
-        inform the Lender in this regard within 3 (three) Business Days from the Due Date of such EPI;
-    </p>
-
-    <p><strong>g)</strong> has been explained and he has understood all the repayment terms, Interest
-        Rates, charges, fees, taxes etc. and that he shall not dispute such Interest Rates, charges,
-        fees, taxes etc. or any other repayment term during or after the Loan Tenure;
-    </p>
-
-    <p><strong>h)</strong> shall not withhold the payment of any EPI for any reason whatsoever;
-    </p>
-
-    <p><strong>i)</strong> has no suits, actions or claims, of any nature whatsoever, pending or likely
-        to be filed or taken (whether civil or criminal or otherwise) against him/her;
-    </p>
-
-    <p><strong>j)</strong> shall use the Loan proceeds towards the purpose mentioned in the Loan
-        Application Form and not to use it for any illegal, unlawful and/or speculative purpose;
-    </p>
-
-    <p><strong>k)</strong> has understood all the relevant terms and conditions of the Loan and shall
-        comply with the same and also keep himself aware of all the terms and conditions, covenants
-        pertaining to this Loan and in force from time to time; and
-    </p>
-
-    <p><strong>l)</strong> shall do all such things and execute all such writings as the Lender may
-        require from time to time for duly or more perfectly securing the repayment of the Loan.
-    </p>
-
-    <h3>4. FFPL’s RIGHTS</h3>
-
-    <p>FFPL shall, in relation to the Loan Facility, have the following rights against the
-        Borrower:
-    </p>
-
-    <p><strong>a)</strong> Right, but not obligation, to send instruction(s) to the Borrower, written or
-        verbal, for payment of EPI towards the Outstanding Dues and to call upon any additional
-        information or details from the Borrower at any time during the existence or after the expiry
-        of this Agreement;
-    </p>
-
-    <p><strong>b)</strong> Right to inspect the documents furnished by the Borrower towards the Loan
-        Facility and/ or call upon any further additional information or documentation as may be
-        required by FFPL to decide upon the disbursement or otherwise on the Loan;
-    </p>
-
-    <div style="display:flex;justify-content:space-between;margin-top:60px;font-weight:bold;">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>9 of 31</span>
-    </div>
-
-</div>
-
-
-<div class="page">
-
-    <p><strong>c)</strong> Right to assign its right of collection and recovery of any Outstanding Dues
-        to a Third Party Agency (hereinafter referred to as “Collection Agency”);
-    </p>
-
-    <p><strong>d)</strong> Right to allocate and apportion the amount received by the Lender from the
-        Borrower in any manner at its sole discretion. Without prejudice to the generality of the
-        foregoing, the amount received from the Borrower towards his Loan obligations shall generally
-        be apportioned in the preference order detailed hereunder:
-    </p>
-
-    <p><strong>I.</strong> against interest payment;</p>
-    <p><strong>II.</strong> against Principal;</p>
-    <p><strong>III.</strong> against Bounce Charges;</p>
-    <p><strong>IV.</strong> against any other penal charges or any other claim of the Lender on the
-        Borrower under the Loan Documents;
-    </p>
-
-    <p><strong>e)</strong> Right to inspect the documents / information / details (collectively referred
-        to as ‘Data’) furnished by the Borrower and if, at any stage, during the concurrence or after
-        the expiry of this Agreement, it is found that such Data was false and misrepresented or was
-        obtained fraudulently, FFPL shall have an irrevocable right to discontinue the Loan Facility
-        and shall not disburse the pending tranches, if any;
-    </p>
-
-    <p><strong>f)</strong> Right to levy such fees and/or charges, from time to time, as specified in the
-        Loan Documents.
-    </p>
-
-    <p><strong>g)</strong> Right to take any and all appropriate actions and steps, as FFPL may deem fit,
-        for recovery and collection of the Outstanding Dues from the Borrower; and
-    </p>
-
-    <p><strong>h)</strong> Right to disclose and submit the necessary information collected from the
-        Borrower for this Loan facility with Credit Information Companies (CICs), RBI, Auditors,
-        Courts and / or any other authority as may be required from time to time.
-    </p>
-
-    <h3>5. COLLECTION/RECOVERY AGENCIES AND ASSIGNMENT OF RIGHTS</h3>
-
-    <p><strong>5.1</strong> FFPL shall, at any time, without any consent of or notice to the Borrower be
-        entitled to securitize, sell, assign, discount or transfer all or any part of its rights and
-        obligations under this Agreement or other Loan Documents, to any person(s) or entity(ies) and
-        in such manner and on such terms as it may decide.
-    </p>
-
-    <p><strong>5.2</strong> Without prejudice to the generality of the clause 5.1 above, FFPL reserves the
-        right to hire/empanel/engage a Collection Agency(ies), for collecting/recovering the
-        Outstanding Dues from the Borrower and the Borrower do hereby agrees that he shall allow and
-        co-operate with such Collection Agency(ies) to send instructions, verbal or written, to visit
-        his registered address or to take any and all relevant actions, steps and things as may be
-        deemed necessary and incidental to recover the Outstanding Dues from the Borrower.
-    </p>
-
-    <p><strong>5.3</strong> The Lending Service Provider is appointed as recovery and collection agent and
-        is authorised by the Lender to approach the borrower to collect the outstanding dues.
-    </p>
-
-    <p><strong>5.4</strong> FFPL shall provide the details of such Collection Agencies to the Borrower and
-        a list of such Agencies is available on the Website of the Company and in case of any
-        change(s) therein, the lists shall be updated on the website from time to time.
-    </p>
-
-    <p><strong>5.5</strong> The Borrower shall not be entitled to directly or indirectly assign or in any
-        manner transfer, whether in whole or part, any rights or obligations under this Agreement and
-        other Loan Documents.
-    </p>
-
-    <div style="
-        display:flex;
-        justify-content:space-between;
-        margin-top:80px;
-        font-weight:bold;
-    ">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>7 of 31</span>
-    </div>
-
-</div>
-
-		<!-- Page 11 of 31 -->
-<div class="page">
-
-    <h3>6. GENERAL TERMS</h3>
-
-    <p><strong>6.1</strong> The Lender is not privy to the arrangement between the Borrower and Beneficiary and as such
-        Lender shall not be held liable for any delay, quality deficiency, disputes, claim, damages
-        etc., by whatever nature, occurring between the Borrower and Beneficiary. Furthermore, any
-        such disputes or claims shall not waive the repayment obligation of the Borrower.
-    </p>
-
-    <p><strong>6.2</strong> FFPL reserves the right to levy such fees and/or charges, from time to time, as specified in the
-        Loan Documents. The fees and charges levied by FFPL in pursuance to the Loan Documents
-        shall be non-refundable and non- transferable. FFPL may during the Loan Tenure and at its
-        sole discretion, with or without any prior notice to the Borrower, amend / revise any of the
-        terms and conditions contained in the Agreement including the repayment schedule, Interest
-        Rate and/or any other fee or charge such as Penal Interest, processing fees, annual
-        maintenance charges, Bounce Charges, Outstation Collection Charges, PDC Swap Charges,
-        Pre-payment Charges, activation fee, service charges or any other charges, by whatever name
-        called, and the Borrower acknowledges and agrees to be bound by such revised terms and
-        conditions including repayment schedule, Interest Rate and/or such fee or the charges
-        mentioned above. FFPL shall give notice to the Borrower of any such
-        amendment/revision/addition and shall ensure that changes in Interest Rate and other fee or
-        charges are effected only prospectively. FFPL shall notify the Borrower of such changes by
-        updating the same on the Website or through other modes of communication. The Borrower
-        hereby agrees to keep himself/herself abreast with all notifications on the Website in this
-        regard and shall be bound by the aforesaid change and agrees not to dispute the same.
-    </p>
-
-    <p><strong>6.3</strong> Any statement of account furnished by the Lender regarding the Outstanding Dues payable by
-        the Borrower under this Agreement shall be accepted by and be binding on the Borrower and
-        shall be a conclusive proof of the correctness of the amount mentioned therein. Without
-        prejudice to the above, if the Borrower desire to question any statement or any part thereof,
-        the Borrower shall furnish to the Lender full details of the same within 10 (ten) Business
-        Days from the receipt of the statement by the Borrower and the Lender may consider the
-        same and make necessary adjustments, if and to whatever extent required. It is however
-        clarified that the Borrower shall not be entitled to default or delay the payment of EPI on the
-        ground of the statement of account furnished by the Lender being inaccurate or any other
-        ground whatsoever.
-    </p>
-
-    <p><strong>6.4</strong> The Borrower shall execute all such documents/undertaking/agreements, by whatever name
-        be called, as may be required by FFPL at any time during the pendency of this Loan in order
-        to secure the repayment of the Loan facility granted.
-    </p>
-
-    <p><strong>6.5</strong> The Borrower shall comply with the terms and conditions of the Collection Agency hired or
-        engaged by FFPL and shall deposit the relevant EPI amount, in Cash / Cheque, to such
-        Collection Agency only. The Borrower is hereby strictly informed and instructed to deposit
-        the EPI amount or entertain collection / recovery actions from only such person/entities as
-        have been authorized by FFPL and not to deposit the EPI amount with any FFPL
-        Representative unless such FFPL Representative have been specifically authorised by FFPL
-        in this regard.
-    </p>
-
-    <p><strong>6.6</strong> The Borrower understand that FFPL and Business Correspondents (BC) / Lending Service
-        Providers (LSP), if any, engaged by FFPL for sourcing of the loan are independent entities
-        and the Borrower will not hold FFPL responsible in any manner for any loan / facility or any
-        other product &amp; services provided or promised by such BCs or LSPs, by whatever name be
-        called.
-    </p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>11 of 31</span>
-    </div>
-
-</div>
-
-<!-- Page 12 of 31 -->
-<div class="page">
-
-    <p><strong>6.7</strong> By entering into this Agreement, the Borrower do hereby, grants an irrevocable right to the
-        Lender, its employees, officers, agents and other representatives to access, inspect, examine,
-        submit/furnish with any authority and use in any other manner, the information, documents
-        and other details (collectively ‘Data’) supplied by the Borrower.
-    </p>
-
-    <p><strong>6.8</strong> The Borrower hereby agree(s) as a pre-condition of the said Loan Facility granted to it by
-        FFPL that in case the Borrower commits default in the repayment of the Loan Facility or in
-        the repayment of interest thereon or any of the agreed instalment of the Loan Facility on Due
-        Dates, FFPL shall be, without prejudice to the generality of clause 6.8 below, free to disclose
-        or publish the name of the Borrower as defaulter in such manner and through such medium
-        as FFPL in its absolute discretion may think fit.
-    </p>
-
-    <p><strong>6.9</strong> Neither FFPL nor FFPL Representatives shall, in any way, be responsible and/or liable and
-        the Borrower hereby agrees not to make FFPL or its officers, agents or any nominees liable
-        for any loss, damage, limitation or otherwise, caused to the Borrower during the recovery of
-        the Outstanding Dues.
-    </p>
-
-    <p><strong>6.10</strong> The Borrower do hereby agree and grants his unconditional consent that all the rights of the
-        Lender specified under this Agreement or under any applicable law, to which this Agreement
-        is subjected, shall, to whatever extent permissible and required, remain valid and enforceable
-        during and after the existence of this Agreement.
-    </p>
-
-    <p><strong>6.11</strong> The Borrower do acknowledge that he have the option to withhold additional information
-        requested by FFPL from time to time; withdraw any information or consents already
-        provided by the borrower at any stage; or request FFPL to delete borrower’s
-        information/documents from its records. For this the Borrower may send an email to the
-        Lender at <a href="mailto:wecare@fintreefinance.com">wecare@fintreefinance.com</a>. However, the Borrower understands that exercising
-        these options grants FFPL the right to cancel any sanction or recall the entire loan or any part
-        thereof without any explanation.
-    </p>
-
-    <p><strong>6.12</strong> The Borrower has authorised FFPL to send communications and/or information about product,
-        services, schemes &amp; offers etc. through email / mobile number / letters / whatsapp or any
-        other mode of communication either by the FFPL itself or through its authorized Business
-        Correspondents, Direct Selling Agents (DSAs) or Lending Service Providers (LSPs) etc. as
-        may be deemed fit by FFPL. And the Borrower confirm that the laws related to unsolicited
-        communication referred in “National Do Not Call Registry” by the “Telecom Regulatory
-        Authority of India” do not apply to such communications/calls/SMS from FFPL, its
-        employees, agents, or associates.
-    </p>
-
-    <p><strong>6.13</strong> Without prejudice to any specific charge or penalty mentioned herein, FFPL shall have
-        unconditional right to proceed with legal action or proceedings under relevant laws as may
-        be applicable for this transaction from time to time.
-    </p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>12 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h3>7. SPECIAL MENTION ACCOUNTS (“SMA”) & NON PERFORMING ASSETS (“NPA”)</h3>
-
-    <p>
-        The borrower loan account shall be downgraded to SMA classification as provided below,
-        if borrower fails to pay any EMI by the “Due Date” or the outstanding dues or any other
-        amount wholly or partly overdue. The classification of SMA is done at the borrower level
-        which means all the loan accounts of the borrower will be classified as applicable for the
-        loan with highest overdue days.
-    </p>
-
-    <p><strong>Basis for classification of loans:</strong></p>
-
-    <p>
-        Lender shall flag an account as SMA if Borrower fails to pay any EMI by the “Due Date” or
-        the outstanding dues or any other amount wholly or partly overdue at the time of running
-        day‐end process, in the manner provided below.
+      I, hereby, request you to remit the proceeds of the disbursement into the following account number
+      mentioned in below table (after deduction of applicable interest, charges, fees and taxes):
     </p>
 
     <table>
-        <tr>
-            <th>SMA Sub-categories</th>
-            <th>Basis for classification – Principal or interest payment or any other amount wholly or partly overdue.</th>
-        </tr>
-        <tr>
-            <td>SMA-0</td>
-            <td>Upto 30 days.</td>
-        </tr>
-        <tr>
-            <td>SMA-1</td>
-            <td>More than 30 days and up to 60 days.</td>
-        </tr>
-        <tr>
-            <td>SMA-2</td>
-            <td>More than 60 days and up to 90 days.</td>
-        </tr>
+      <tr>
+        <th>Name of Payee</th>
+        <th>Bank Name &amp; Account Number</th>
+        <th>Amount (Rs.)</th>
+      </tr>
+      <tr>
+        <td>{{C_N}}</td>
+        <td>{{A_no}}</td>
+        <td>{{L_A}}</td>
+      </tr>
     </table>
 
-    <h4>(i) Illustration for Classification of borrowers account as SMA/NPA (non-performing assets) for easy reference</h4>
-
-    <p>
-        If the due date of a loan account is March 31, 2023, and full dues are not received before the
-        lending institution runs the day-end process for this date, the date of overdue shall be March
-        31, 2023. If it continues to remain overdue, then this account shall get tagged as SMA-1 upon
-        running the day-end process till April 30, 2023, i.e. till completion of 31 days of being
-        continuously overdue. Accordingly, the date of SMA-0 classification for that account shall
-        be March 31, 2023, till April 29, 2023, and SMA-1 with effect from April 30, 2023.
-    </p>
-
-    <p>
-        Similarly, if the account continues to remain overdue, it shall get tagged as SMA-2 upon
-        running day end process on May 30, 2023, and if continues to remain overdue further, it shall
-        get classified as NPA upon running day-end process on June 29, 2023.
-    </p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>13 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <p>
-        Below table outlines the sequence of classifications of unpaid loan fallen due on March 31, 2023
-    </p>
-
-    <table>
-        <tr>
-            <th>Event</th>
-            <th>Date</th>
-            <th>Classification date</th>
-            <th>Classification</th>
-        </tr>
-
-        <tr>
-            <td>Date on which Account became Overdue/SMA - 0</td>
-            <td>March 31, 2023</td>
-            <td>March 31, 2023</td>
-            <td>SMA-0</td>
-        </tr>
-
-        <tr>
-            <td>SMA-1 Classification</td>
-            <td>Until May 30, 2023</td>
-            <td>April 30, 2023</td>
-            <td>SMA – 1</td>
-        </tr>
-
-        <tr>
-            <td>SMA-2 Classification</td>
-            <td>Until June 29, 2023</td>
-            <td>May 30, 2023</td>
-            <td>SMA – 2</td>
-        </tr>
-
-        <tr>
-            <td>NPA</td>
-            <td>June 29, 2023</td>
-            <td>June 29, 2023</td>
-            <td>NPA</td>
-        </tr>
-    </table>
-
-    <h4>(ii) Impact on the credit score :</h4>
-
-    <p>
-        With the classification of loan accounts with SMA being reported to the credit information
-        companies by the lending institution, the credit score of the borrower and guarantor, if any,
-        shall be adversely impacted.
-    </p>
-
-    <h4>(iii) Upgradation of NPA accounts to Standard Accounts :</h4>
-
-    <p>
-        SMA/ NPA shall only be upgraded to standard account if payment of all past and current arrears
-        of interest and principal (EMI)/and or any other amount overdue is made by the borrower at
-        the time of running the day‐end activity of that particular date.
-    </p>
-
-    <p>
-        SMA/ NPA shall only be upgraded to standard account if payment of all past and current arrears
-        of interest and principal (EMI)/and or any other amount overdue is made by the borrower at
-        the time of running the day‐end activity of that particular date.
-    </p>
-
-    <p>
-        In the light of the above, the company advises all its customers to pay the installments and
-        other amounts due, if any, on or before due dates without any delay or default to avoid
-        classification of their accounts as SMA or NPA.
-    </p>
-
-    <h3>8. DEFAULT</h3>
-
-    <h4>8.1 EVENTS OF DEFAULT</h4>
-
-    <p>
-        The Borrower shall be deemed to have committed an act of default if the Borrower does not
-        comply with his obligations as mentioned in this Agreement and also on the happening of any
-        one or more of the following events (each an ‘Event of Default’ and collectively ‘Events of
-        Default’):
-    </p>
-
-    <p><strong>a)</strong> The Borrower fails to pay any EPI or the Outstanding Dues under this Agreement on or before
-        the Due Date or commits breach of any of the terms, covenants or conditions contained in this
-        Agreement;
-    </p>
-
-    <p><strong>b)</strong> It is found that the Borrower commits a default of any of the terms and conditions in respect
-        of any other loan or facility extended by the Lender to the Borrower under any of the Previous
-        Agreements entered between the Parties;
-    </p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>14 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h4>c)</h4>
-    <p>
-        There exists any circumstances which in the opinion of the Lender prejudicially affects or may
-        affect the Lender’s interest or the Borrower’s ability to repay the Loan;
-    </p>
-
-    <h4>d)</h4>
-    <p>
-        If the Borrower compounds with his/her creditors or permits any attachment or sequestrations
-        or other processes against any of his/her assets or properties;
-    </p>
-
-    <h4>e)</h4>
-    <p>
-        If the Borrower commits an act of insolvency or if the Borrower is declared insolvent or 
-        bankrupt or if a receiver or official assignee is appointed in respect of any property or estate 
-        of the Borrower or if the Borrower asks for any application for declaring himself an insolvent 
-        or if an application for declaring the Borrower as insolvent is made or any order is passed by 
-        any competent court or authority for taking the Borrower into insolvency; and
-    </p>
-
-    <h4>f)</h4>
-    <p>
-        If any proceedings are pending or threatened against the Borrower by any government agency 
-        or authority for any misconduct or breach/violation of any law or regulations or code of 
-        conduct, etc.
-    </p>
-
-    <h3>8.2 CONSEQUENCES OF DEFAULT</h3>
-
-    <p>
-        Upon occurrence of any Event of Default, the Lender may, at its own discretion, take such 
-        appropriate action(s), including without limitations the action(s) referred hereunder, against 
-        the Borrower to recover the Outstanding Dues:
-    </p>
-
-    <h4>a)</h4>
-    <p>accelerate the repayment of the Loan including the Outstanding Dues;</p>
-
-    <h4>b)</h4>
-    <p>
-        place the Loan on demand or declare all the Outstanding Dues payable by the Borrower in 
-        respect of the Loan to be due and payable immediately;
-    </p>
-
-    <h4>c)</h4>
-    <p>
-        recover the charges for dishonour of the Repayment Modes, Penal Interest and any other penal 
-        charges from the Borrower as mentioned in Schedule;
-    </p>
-
-    <h4>d)</h4>
-    <p>
-        exercise its right to enforce the security obtained, if any, under this Agreement or any other 
-        Previous Agreements;
-    </p>
-
-    <h4>e)</h4>
-    <p>terminate this Agreement;</p>
-
-    <h4>f)</h4>
-    <p>
-        exercise such other rights and remedies as may be available to the Lender under law during the 
-        pendency of the Loan including without limitation under Section 138 of the Negotiable 
-        Instruments Act, 1881 and under Section 25 of Payment of Settlement System Act, 2007;
-    </p>
-
-    <h4>g)</h4>
-    <p>
-        stipulate such other condition(s) or take such other action(s) as the Lender deems fit.
-    </p>
-
-    <h3>9. GRIEVANCE REDRESSAL MECHANISM</h3>
-
-    <p>
-        The Lender hereby provides a grievance redressal mechanism to handle, address & resolve 
-        the borrower’s complaints. Following are the details of the nodal grievance officer:
-    </p>
-
-    <p><strong>Name:</strong> Ms. Sweta Parekh</p>
-    <p>
-        <strong>Address:</strong> 4th Floor, Engineering Centre, 9 Mathew Road, Opera House, 
-        Charni Road (East), Mumbai 400004, Maharashtra.
-    </p>
-    <p><strong>Contact:</strong> 18002678111</p>
-    <p><strong>Email:</strong> <a href="mailto:wecare@fintreefinance.com">wecare@fintreefinance.com</a></p>
-
-    <p><strong>Lending Service Provider:</strong></p>
-    <p>Name: ________</p>
-    <p>Address: ________</p>
-    <p>Contact: ________</p>
-    <p>Email: ________</p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>15 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h3>10. INDEMNITY</h3>
-
-    <p>
-        The Borrower shall indemnify FFPL and FFPL Representatives at all times hereafter from and 
-        against any and all claims, damages, costs, losses, expenses, suits, proceedings, actions, 
-        liabilities, etc., that may have been suffered by them by reason of any act by the Borrower or 
-        default on the part of the Borrower under this Agreement/in respect of the Loan and/or for the 
-        recovery of the Outstanding Dues (including legal/attorney fee).
-    </p>
-
-    <h3>11. DISCLOSURE</h3>
-
-    <h4>11.1</h4>
-    <p>
-        The Borrower agrees and understand that as a pre-condition relating to the grant of the loan to 
-        the Borrower, the Lender requires the Borrower’s consent for the disclosure by the Lender of 
-        information and data relating to the borrower, of the Loan availed of/to be availed by the 
-        Borrower in discharge thereof and any other information made available by the Borrower to 
-        the Lender.
-    </p>
-
-    <h4>11.2</h4>
-    <p>
-        Accordingly, the Borrower agrees and give consent for the disclosure by the Lender, if required 
-        under the applicable law, of:
-    </p>
-
-    <ul>
-        <li>(a) information and data relating to the Borrower;</li>
-        <li>(b) the information or data relating to Loan availed of/to be availed by the Borrower; and</li>
-        <li>(c) default, if any, committed by the Borrower.</li>
-    </ul>
-
-    <p>
-        The Lender may disclose this to CICs or any other agency authorised by RBI.
-        If the Borrower commits a default, the Lender may disclose Borrower’s name to RBI and CICs.
-    </p>
-
-    <h4>11.3</h4>
-    <p>
-        The aforesaid right is in addition to other rights available under this Agreement.
-    </p>
-
-    <h4>11.4</h4>
-    <p>
-        CICs and authorised agencies may use/process the disclosed information.
-    </p>
-
-    <h4>11.5</h4>
-    <p>
-        CICs may furnish such processed information to lenders/financial institutions or other users 
-        authorised by RBI.
-    </p>
-
-    <h4>11.6</h4>
-    <p>
-        The Lender may also disclose information/documents relating to the Borrower to any third 
-        party including Lender’s affiliates for promotional purposes or any other purpose.
-    </p>
-
-    <h3>12. ELECTRONIC MEDIA</h3>
-
-    <h4>12.1</h4>
-    <p>
-        The Borrower agrees that the Agreement and connected documents may be executed digitally 
-        using OTP, e-link, etc.
-    </p>
-
-    <h4>12.2</h4>
-    <p>
-        Borrower agrees not to question authenticity of e-signed documents.
-    </p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>16 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h4>12.3</h4>
-    <p>
-        The Borrower avails the online Loan Facility entirely at his own risk under IT Act and related 
-        regulations. Borrower agrees that executing this Agreement through e-sign modes constitutes 
-        valid acceptance.
-    </p>
-
-    <h4>12.4</h4>
-    <p>
-        Borrower acknowledges internet is not a secure medium and involves risks such as viruses, 
-        data interception, alteration, unauthorized usage. Borrower agrees the Lender shall not be 
-        responsible for such risks.
-    </p>
-
-    <h4>12.5</h4>
-    <p>
-        The Lender may rely on instructions provided through e-mail.
-    </p>
-
-    <h4>12.6</h4>
-    <p>
-        Borrower agrees Lender may use email, SMS, WhatsApp, websites or any electronic means 
-        ('Electronic Mode') for reminders, communication, updates, etc., and borrower has no 
-        objection to this.
-    </p>
-
-    <h4>12.7</h4>
-    <p>
-        Borrower agrees online acceptance through website/internet shall create a binding contract.
-    </p>
-
-    <h4>12.8</h4>
-    <p>
-        Borrower understands the risks but still desires to receive and send communications through 
-        Electronic Mode.
-    </p>
-
-    <h3>13. SEVERABILITY</h3>
-
-    <p>
-        If any provision is invalid or unenforceable, the rest of the Agreement remains valid.  
-    </p>
-
-    <h3>14. ARBITRATION</h3>
-
-    <h4>14.1</h4>
-    <p>
-        In case of any dispute, claims or differences arising between the Parties...
-        (text continues on next page).
-    </p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>17 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h3>14. ARBITRATION</h3>
-
-    <h4>14.1</h4>
-    <p>
-        Any dispute, claim or difference arising out of or relating to this Agreement or the validity or 
-        the breach of the terms and conditions thereof, including all aspects governing the 
-        interpretation and enforcement of this Agreement, the security and other documentation 
-        pursuant hereto, shall be settled amicably by the Parties. Failing such settlement, the same 
-        shall be referred to a sole Arbitrator, to be appointed by FFPL, for arbitration, as per the 
-        provisions of the Arbitration & Conciliation Act, 1996, as amended up to date and/or in 
-        accordance with the Rules of Arbitration of the Indian Council of Arbitration. The award of 
-        such sole Arbitrator shall be final and binding on the Parties.
-    </p>
-
-    <h4>14.2</h4>
-    <p>
-        If the originally appointed Arbitrator dies or is unable to act for any reason, FFPL shall appoint 
-        another person to act as Arbitrator, who may proceed with the reference from the stage at 
-        which it was left by his predecessor.
-    </p>
-
-    <h4>14.3</h4>
-    <p>
-        The venue of Arbitration proceedings shall be Mumbai.
-    </p>
-
-    <h4>14.4</h4>
-    <p>
-        The cost of such Arbitration shall be borne by the losing Party or as determined by the 
-        Arbitration Award. If a Party is required to enforce an Arbitration Award through legal action, 
-        the Party against whom such action is taken shall pay all reasonable costs, expenses, and 
-        attorney’s fees including any additional litigation costs incurred by the Party seeking to 
-        enforce the award.
-    </p>
-
-    <h3>15. JURISDICTION</h3>
-    <p>
-        The validity, interpretation, implementation and resolution of disputes arising out of or in 
-        connection with this Agreement shall be governed by Indian law. All matters arising out of this 
-        Agreement shall be subject to the exclusive jurisdiction of the courts or tribunals at Mumbai.
-    </p>
-
-    <h3>16. ACCEPTANCE</h3>
-
-    <h4>i.</h4>
-    <p>
-        The Borrower accepts and declares that he/she has read and understood the entire Agreement, 
-        or the same has been read and explained to him/her in his/her mother tongue, including the 
-        material particulars provided in the Schedule.
-    </p>
-
-    <p>
-        The Borrower has been explained the Most Important Terms and Conditions in the language 
-        understood by him/her and can download a copy from the Company’s website.
-    </p>
-
-    <p>
-        The Borrower has been provided with the Key Fact Statement (KFS) and has read, understood 
-        and accepted all relevant terms before executing this Agreement. A summary of the KFS is 
-        attached with this Agreement.
-    </p>
-
-    <h4>iv.</h4>
-    <p>
-        The Borrower has voluntarily used English as the preferred language for execution of the loan 
-        documents, physically or on the Mobile Application, and was given the option for vernacular 
-        language. The vernacular format is available on the Company’s website.
-    </p>
-
-    <h4>v.</h4>
-    <p>
-        The Borrower has been explained and understands the process of classifying an account as 
-        NPA as per extant RBI regulations. The illustration in this Agreement has been understood.
-    </p>
-
-    <h4>vi.</h4>
-    <p>
-        The Borrower has affixed signatures or e-signed the Agreement or confirmed acceptance by 
-        OTP after verifying and understanding the contents of the Agreement.
-    </p>
-
-    <h4>vii.</h4>
-    <p>
-        The Borrower agrees that the Agreement is legally enforceable and binding and permits FFPL 
-        to pay applicable stamp duty on behalf of the parties.
-    </p>
-
-    <h4>viii.</h4>
-    <p>
-        The Borrower agrees and permits FFPL to communicate in English language only.
-    </p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>18 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h3>SCHEDULE</h3>
-
-    <p><strong>Date of Agreement:</strong> {{L_date}}</p>
-    <p><strong>Place of Execution:</strong> {{PLACE}}</p>
-
-    <p><strong>Loan Account No.:</strong> {{lan}}</p>
-
-    <p><strong>Facility:</strong> Personal Loan – Rent Financing</p>
-    <p><strong>Purpose:</strong> Rent Payment</p>
-    <p><strong>Additional Loan:</strong> NA</p>
-
-    <p><strong>Name of the Borrower:</strong> {{C_N}}</p>
-    <p><strong>Address of Borrower:</strong> {{per_add}}</p>
-
-    <p><strong>Loan Amount:</strong> {{L_A}}</p>
-    <p><strong>Interest Amount:</strong> {{I_R}}</p>
-    <p><strong>Total Repayable:</strong> {{E_S}}</p>
-
-    <p><strong>Mode of Disbursement:</strong> NEFT/RTGS</p>
-
-    <h4>Beneficiary Details (if applicable)</h4>
-    <p><strong>Name:</strong> {{B_Na}}</p>
-    <p><strong>Service:</strong> RENT</p>
-    <p><strong>Bank Account No.:</strong> {{A_no}}</p>
-    <p><strong>IFSC:</strong> {{ifsc}}</p>
-
-    <p class="note">
-        * Total Interest Amount may include Broken Period Interest (BPI) deducted upfront from the Loan Amount.<br>
-        ^ First EMI may vary depending on disbursement date and first EMI due date.
-    </p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>19 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h2>Fintree Finance Pvt. Ltd.</h2>
-    <p>Empowering SME Growth</p>
-
-    <h3>Key Fact Statement (KFS)</h3>
-    <h4>PART 1</h4>
-
-    <table class="kfs-table">
-
-        <tr>
-            <th>1. Loan Product / Account No.</th>
-            <td>{{lan}}</td>
-            <th>Type of Loan</th>
-            <td>Personal Loan</td>
-        </tr>
-
-        <tr>
-            <th>2. Sanctioned Loan Amount (₹)</th>
-            <td>{{L_A}}</td>
-            <th colspan="2">100%</th>
-        </tr>
-
-        <tr>
-            <th>3. Disbursal Schedule</th>
-            <td colspan="3">
-                <strong>(i)</strong> Disbursement in stages or 100% upfront<br>
-                <strong>(ii)</strong> If stage-wise, relevant clause number: 6
-            </td>
-        </tr>
-
-        <tr>
-            <th>4. Loan Term</th>
-            <td>{{L_T}} Months</td>
-            <th>5. Instalment Details</th>
-            <td>Monthly EMI</td>
-        </tr>
-
-        <tr>
-            <th>Type of instalments</th>
-            <td>Fixed</td>
-            <th>Number of EMIs</th>
-            <td>{{L_T}}</td>
-        </tr>
-
-        <tr>
-            <th>Amount of EMI</th>
-            <td>{{emi}}</td>
-            <th>Commencement of repayment</th>
-            <td>Post Sanction</td>
-        </tr>
-
-        <tr>
-            <th>6. Interest Rate (%)</th>
-            <td>{{I_R}} (Fixed)</td>
-            <th>7. Fee / Charges</th>
-            <td>As below</td>
-        </tr>
-
-    </table>
-
-    <h4>Fee / Charges Breakdown</h4>
-
-    <table class="charges-table">
-        <tr>
-            <th></th>
-            <th>Payable to Lender (A)</th>
-            <th>Payable to Third Party through Lender (B)</th>
-        </tr>
-
-        <tr>
-            <td>Processing Fees</td>
-            <td>One-time</td>
-            <td>NA</td>
-        </tr>
-
-        <tr>
-            <td>Insurance Charges</td>
-            <td>NA</td>
-            <td>NA</td>
-        </tr>
-
-        <tr>
-            <td>Stamp Paper</td>
-            <td>One-time</td>
-            <td>One-time</td>
-        </tr>
-
-        <tr>
-            <td>BPI</td>
-            <td>{{I_R}}</td>
-            <td>{{emi}}</td>
-        </tr>
-
-        <tr>
-            <td>NACH Charges</td>
-            <td>---</td>
-            <td>---</td>
-        </tr>
-
-        <tr>
-            <td>9. APR (%)</td>
-            <td colspan="2">{{APR}}</td>
-        </tr>
-    </table>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>20 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-    <h3>10. Details of Contingent Charges (in ₹ or %)</h3>
-
-    <table>
-        <tr>
-            <td>i.</td>
-            <td>Penal charges, in case of delayed payment</td>
-            <td>NA</td>
-        </tr>
-        <tr>
-            <td>ii.</td>
-            <td>Other penal charges, if any</td>
-            <td>NA</td>
-        </tr>
-        <tr>
-            <td>iii.</td>
-            <td>Foreclosure charges, if applicable</td>
-            <td>NA</td>
-        </tr>
-        <tr>
-            <td>iv.</td>
-            <td>Charges for switching of loans from floating to fixed rate and vice-versa</td>
-            <td>NA</td>
-        </tr>
-        <tr>
-            <td>v.</td>
-            <td>Any other charges (please specify)</td>
-            <td>NA</td>
-        </tr>
-    </table>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>21 of 31</span>
-    </div>
-</div>
-
-		<div class="page">
-    <h3>Part 2</h3>
-
-    <h4>1. Clause of loan agreement relating to engagement of recovery agents</h4>
-    <p>Refer Clause 17.</p>
-
-    <h4>2. Clause of loan agreement which details grievance redressal mechanism</h4>
-    <p>Refer Clause 16.</p>
-
-    <h4>3. Phone number and email ID of the nodal grievance redressal officer</h4>
-    <p><strong>Fintree Finance Private Limited</strong><br>
-       Name: Sweta Parekh<br>
-       Designation: Grievance Redressal Officer<br>
-       Contact No.: 1800 2678111<br>
-       Email: wecare@fintreefinance.com</p>
-
-    <h4>4. Whether the loan is or may be subject to transfer or securitisation (Yes/No)</h4>
-    <p><strong>Yes</strong></p>
-
-    <h4>5. In case of digital loans, the following disclosures must be furnished</h4>
-
-    <p><strong>(i)</strong> Cooling-off / look-up period (as per RE's board approved policy):  
-    <strong>3 days</strong></p>
-
-    <p><strong>(ii)</strong> Details of LSP acting as recovery agent and authorised to approach the borrower:</p>
-
-    <p>
-        Name: Lekhanand Umapathy<br>
-        Address: 09, 3rd Cross, Vidyaranyapura, Bengaluru, Karnataka, 560097<br>
-        Contact: +91 8056031308
-    </p>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>22 of 31</span>
-    </div>
-</div>
-
-		<div class="page">
-    <h3>Repayment Schedule</h3>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Instalment No.</th>
-                <th>Principal Outstanding (₹)</th>
-                <th>Principal (₹)</th>
-                <th>Interest (₹)</th>
-                <th>Instalment Amount (₹)</th>
-            </tr>
-        </thead>
-
-        <tbody>
-            <tr>
-                <td>1</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>2</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>3</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>4</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>5</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>6</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>7</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>8</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>9</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>10</td>
-                <td>{{opening}}</td>
-                <td>{{principal}}</td>
-                <td>{{interest}}</td>
-                <td>{{emi}}</td>
-            </tr>
-            <tr>
-                <td>11</td>
-                <td>{{opening}}</td>
-                <td>{{L_P}}</td>
-                <td>{{interest}}</td>
-                <td>{{T_E}}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div class="footer">
-        <span>Lender</span>
-        <span>Borrower</span>
-        <span>23 of 31</span>
-    </div>
-</div>
-
-		<div class="page">
-    <h3>Computation of APR</h3>
-
-    <table>
-        <tr>
-            <th>Sr. No.</th>
-            <th>Parameter</th>
-            <th>Details</th>
-        </tr>
-
-        <tr>
-            <td>1.</td>
-            <td>Sanctioned Loan Amount (in Rupees)</td>
-            <td>{{L_A}}</td>
-        </tr>
-
-        <tr>
-            <td>2.</td>
-            <td>Loan Term (in years / months / days)</td>
-            <td>Months - 1</td>
-        </tr>
-
-        <tr>
-            <td>2(a)</td>
-            <td>No. of instalments for payment of principal (non-equated periodic loans)</td>
-            <td>-</td>
-        </tr>
-
-        <tr>
-            <td>2(b)</td>
-            <td>Type of EMI / Amount of EMI / Number of EMIs</td>
-            <td>{{emi}}</td>
-        </tr>
-
-        <tr>
-            <td>2(c)</td>
-            <td>No. of instalments for payment of capitalised interest</td>
-            <td>-</td>
-        </tr>
-
-        <tr>
-            <td>2(d)</td>
-            <td>Commencement of repayments post sanction</td>
-            <td>5th of every month</td>
-        </tr>
-
-        <tr>
-            <td>3.</td>
-            <td>Interest rate type</td>
-            <td>Fixed</td>
-        </tr>
-
-        <tr>
-            <td>4.</td>
-            <td>Rate of Interest</td>
-            <td>{{I_R}}</td>
-        </tr>
-
-        <tr>
-            <td>5.</td>
-            <td>Total interest amount to be charged during the tenor</td>
-            <td>{{I_S}}</td>
-        </tr>
-
-        <tr>
-            <td>6.</td>
-            <td>Fees / Charges payable</td>
-            <td>-</td>
-        </tr>
-
-        <tr>
-            <td>6(A)</td>
-            <td>Payable to RE</td>
-            <td>-</td>
-        </tr>
-
-        <tr>
-            <td>6(B)</td>
-            <td>Payable to third-party routed through RE</td>
-            <td>0</td>
-        </tr>
-
-        <tr>
-            <td>7.</td>
-            <td>Net disbursed amount (1 - 6)</td>
-            <td>{{L_A}}</td>
-        </tr>
-
-        <tr>
-            <td>8.</td>
-            <td>Total amount to be paid by the borrower</td>
-            <td>{{E_S}}</td>
-        </tr>
-
-        <tr>
-            <td>9.</td>
-            <td>Annual Percentage Rate (Effective annualised interest rate)</td>
-            <td>{{I_R}}</td>
-        </tr>
-
-        <tr>
-            <td>10.</td>
-            <td>Schedule of disbursement</td>
-            <td>100% Upfront</td>
-        </tr>
-
-        <tr>
-            <td>11.</td>
-            <td>Due date for payment of instalment and interest</td>
-            <td>5th of every Month</td>
-        </tr>
-    </table>
-
-    <p><strong>Note:</strong> The dates are indicative and may change depending upon the actual disbursement date.</p>
-    <p>The schedule of charges will form part of the Loan Agreement.</p>
-    <p>Please note that the facility will be subject to the following terms and conditions.</p>
-
-    <div class="footer">
-        <span>Lender</span><span>Borrower</span><span>24 of 31</span>
-    </div>
-</div>
-
-		<div class="page">
-    <h3>Terms & Conditions</h3>
-
-    <p><strong>1.</strong> Loan tenure and/or EMI amount mentioned herein are subject to change from time to time as per terms of the loan documents.</p>
-
-    <p><strong>2.</strong> Any material fact concerning the borrower’s/guarantor’s income, repayment ability, or other relevant information shall not be concealed or suppressed.</p>
-
-    <p><strong>3.</strong> All statutory taxes, duties, and levies shall be payable by the borrower as applicable.</p>
-
-    <h4>Other Terms and Conditions:</h4>
-
-    <p><strong>1.</strong> All payments shall be made in favour of the Lender through any mode prescribed by the Lender, against an acknowledgement receipt.</p>
-
-    <p><strong>2.</strong> Additional charges including service charges, stamp duty, and documentation charges shall be borne by the borrower.</p>
-
-    <p><strong>3.</strong> Extension beyond the sanctioned tenure shall be at the discretion of the Lender and only upon written request.</p>
-
-    <p><strong>4.</strong> Continuance of the facility is subject to cancellation or repayment on demand without assigning any reason.</p>
-
-    <p><strong>5.</strong> Borrower must immediately intimate the Lender regarding any change in repayment capacity or information previously submitted.</p>
-
-    <p><strong>6.</strong> This is the only sanction letter issued for this facility. Lenders are not bound by any other communication.</p>
-
-    <p>I/We hereby give consent to FFPL to disclose information to KYC Registry, third-party vendors, outsourcing agencies, information utilities, credit bureaus (e.g. CIBIL), etc., for verification, processing, and reporting purposes.</p>
-
-    <p>Issuance of this sanction letter does not guarantee disbursement. Disbursement shall be at the sole discretion of the Lender. This letter does not constitute a contract or an offer.</p>
-
-    <p>Borrower must sign and return a copy of this letter within <strong>31 days</strong> to confirm acceptance.</p>
-
-    <div class="footer">
-        <span>Lender</span><span>Borrower</span><span>25 of 31</span>
-    </div>
-</div>
-
-		<div class="page">
-    <h3>PROMISSORY NOTE</h3>
-
-    <p><strong>Date:</strong></p>
-    <p><strong>Place:</strong> Bangalore</p>
-
-    <p>To,<br>
-       <strong>Fintree Finance Private Limited</strong> (“Payee”)</p>
-
-    <p>
-    ON DEMAND and ON OCCURRENCE OF AN EVENT OF DEFAULT as per the Loan Agreement / Sanction Letter,  
-    I/We (the "Borrowers" acting jointly and severally) unconditionally promise to pay the Payee at its office  
-    at 4th Floor, Engineering Centre, 9 Mathew Road, Opera House, Charni Road (East), Mumbai 400004,  
-    or such other place as designated, the principal sum of Rs. {{L_A}}/-  
-    (Rupees {{L_A_W}} Only) with interest.
-    </p>
-
-    <p>The Borrower acknowledges that time is of the essence and agrees that failure to pay upon demand will attract  
-    late payment charges as stated in the Sanction Letter or Loan Schedule. Presentment, noting, and protest  
-    of this Note are irrevocably waived.</p>
-
-    <p><strong>Affix Revenue Stamp</strong><br>
-       Sign across the stamp.</p>
-
-    <p><strong>Name:</strong> {{C_N}}</p>
-    <p><strong>Residential Address:</strong> {{per_add}}</p>
-
-    <div class="footer">
-        <span>Lender</span><span>Borrower</span><span>26 of 31</span>
-    </div>
-</div>
-
-		<div class="page">
-
-    <h3>DISBURSEMENT REQUEST LETTER</h3>
-
-    <p><strong>Date:</strong></p>
-
-    <p><strong>To,</strong><br>
-       The Manager,<br>
-       Fintree Finance Private Limited (“FFPL”).</p>
-
-    <p><strong>Subject:</strong> Disbursement Request Letter from the Borrower</p>
-
-    <p>Pursuant to the Loan Agreement dated {{CU_date}} executed between FFPL and Borrower,  
-       I/we have received sanction letter of the Loan amount of Rs. {{L_A}}/-  
-       (Rupees {{F_A_W}} Only) from FFPL vide Loan Application Number {{lan}}.</p>
-
-    <p>I confirm that I have complied with the terms of the Loan Agreement including the conditions precedent.</p>
-
-    <p>I hereby request you to remit the proceeds of the disbursement into the following account  
-       (after deduction of applicable interest, charges, fees and taxes):</p>
-
-    <table>
-        <tr>
-            <th>Name of Payee</th>
-            <th>Bank Name & Account Number</th>
-            <th>Amount (Rs.)</th>
-        </tr>
-        <tr>
-            <td>{{C_N}}</td>
-            <td>{{A_no}}</td>
-            <td>{{L_A}}</td>
-        </tr>
-    </table>
-
-    <div class="footer">
-        <span>Lender</span><span>Borrower</span><span>27 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h3>Disbursement Acknowledgement Letter</h3>
-
-    <p><strong>Date:</strong></p>
-
-    <p><strong>To,</strong><br>
-       The Manager,<br>
-       Fintree Finance Private Limited (“FFPL”).</p>
-
-    <p><strong>Subject:</strong> Acknowledgement of Disbursement for Loan/Facility Sanctioned</p>
-
-    <p>I/We hereby confirm that we have received the Disbursement of  
-       Rs. {{L_A}}/- (Rupees __________________ Only)  
-       in respect of the loan/facility sanctioned by FFPL to me/us  
-       vide the Loan Agreement dated {{CU_date}}.</p>
-
-    <p>The amount has been received through Cheque / RTGS / NEFT  
-       No. __________ dated ______ day of ______________ 20___.</p>
-
-    <p><strong>Place:</strong></p>
-
-    <p>Yours Faithfully</p>
-
-    <p><strong>Name:</strong></p>
-    <p><strong>Signature:</strong></p>
-
-    <div class="footer">
-        <span>Lender</span><span>Borrower</span><span>28 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h3>DECLARATION FOR THUMB IMPRESSION / SIGNING IN VERNACULAR LANGUAGE</h3>
-
-    <p><em>(This declaration must be signed by the employee of Fintree Finance Private Limited (“FFPL”))</em></p>
-
-    <p>This is to certify that I have read out the contents of the Loan Agreement entered into with FFPL  
-       to Mr/Ms {{C_N}} (“Borrower” / “Borrower Representative”), and he/she has understood the same.</p>
-
-    <p>Further, I hereby certify that Mr/Ms {{C_N}} has affixed his/her thumb impression (left/right hand)  
-       or has signed in vernacular language in my presence after the contents were explained.</p>
-
-    <p><strong>Name of the Employee:</strong></p>
-    <p><strong>Address:</strong></p>
-    <p><strong>Signature of Employee:</strong></p>
-
-    <p><strong>Name of the Borrower / Borrower Representative:</strong> {{C_N}}</p>
-
-    <p>I confirm that the terms and conditions in the Loan Agreement have been explained  
-       by the Service Provider in English. I have understood and agree to the terms.</p>
-
-    <p><strong>Signature / Thumb Impression:</strong></p>
-
-    <p><strong>Signature and Stamp of Branch:</strong></p>
-
-    <p><strong>Date:</strong></p>
-
-    <div class="footer">
-        <span>Lender</span><span>Borrower</span><span>29 of 31</span>
-    </div>
-
-</div>
-
-		<div class="page">
-
-    <h3>END USE UNDERTAKING</h3>
-
-    <p><strong>Date:</strong></p>
-
-    <p><strong>To,</strong><br>
-       FINTREE FINANCE PRIVATE LIMITED</p>
-
-    <p>In respect of the facility amounting to Rs. {{L_A}}/- (Rupees {{L_A_W}} Only) granted  
-       by Fintree Finance Pvt Ltd to us,</p>
-
-    <p>I/We {{cur_add}}, having its office/residing at {{per_add}} (“Borrower”)  
-       hereby undertake, agree and confirm:</p>
-
-    <p><strong>1.</strong> We hereby confirm that a facility of Rs. {{L_A}}/-  
-       (Rupees {{L_A_W}} Only) has been granted to us by Fintree Finance Pvt Ltd  
-       under the Loan Agreement dated {{CU_date}} (“Loan Agreement”).</p>
-
-    <p><strong>2.</strong> As a pre-condition for availing the aforesaid facility,  
-       we shall use the funds received under the Loan Agreement for the specific purpose  
-       mentioned therein and shall submit all the evidence to the satisfaction of  
-       FINTREE FINANCE PRIVATE LIMITED regarding such usage.</p>
-
-    <p><strong>3.</strong> We hereby undertake and affirm that we will use the funds  
-       received under the Loan Agreement only for the specified purpose and  
-       shall submit all evidence to the satisfaction of FINTREE FINANCE PRIVATE LIMITED.</p>
-
-    <p><strong>4.</strong> We hereby agree and confirm that the facility has been granted  
-       based on the above-mentioned condition.</p>
-
-    <p><strong>5.</strong> We further understand, agree and confirm that failure to comply  
-       with the above undertaking shall be considered an “Event of Default”  
-       under the Loan Agreement.</p>
-
-    <p><strong>6.</strong> We hereby indemnify and shall keep indemnified  
-       FINTREE FINANCE PRIVATE LIMITED against all proceedings (civil and/or criminal),  
-       claims, expenses, and liabilities arising hereunder.</p>
-
-    <p><strong>7.</strong> For the aforesaid purpose, we undertake to execute such further  
-       deeds, affidavits, documents, and/or letters as may be required  
-       by FINTREE FINANCE PRIVATE LIMITED from time to time.</p>
-
+    <p class="mt-16">Thanking you.</p>
     <p>Yours faithfully,</p>
+    <p>(Borrower)</p>
+  </div>
 
+  <!-- DISBURSEMENT ACKNOWLEDGEMENT LETTER -->
+  <div class="page">
+    <div class="doc-title">DISBURSEMENT ACKNOWLEDGEMENT LETTER</div>
+
+    <p>Date: {{L_date}}</p>
+
+    <p>To,<br />The Manager,<br />Fintree Finance Private Limited (“FFPL”).</p>
+
+    <p class="mt-8"><b>Subject: Acknowledgement Of Disbursement For Loan/Facility Sanctioned</b></p>
+
+    <p class="mt-8">
+      I/We hereby confirm that we have received the Disbursement of an amount of Rs. {{L_A}}/- (Rupees
+      __________________Only), in respect of the loan/facility sanctioned by FFPL to me/us vide the Loan
+      Agreement dated {{L_date}} executed between FFPL and me/us, through Cheque/ RTGS / NEFT
+      No.__________ on ______ day of, ______________ 20___.
+    </p>
+
+    <p class="mt-16">Place:</p>
+    <p>Yours faithfully,</p>
+    <p>Name: ___________________</p>
+    <p>Signature: ________________</p>
+  </div>
+
+  <!-- VERNACULAR / THUMB DECLARATION -->
+  <div class="page">
+    <div class="doc-title">DECLARATION FOR THUMB IMPRESSION / SIGNING IN VERNACULAR LANGUAGE</div>
+
+    <p class="small-note">
+      (This declaration must be signed by the employee of Fintree Finance Private Limited (“FFPL”))
+    </p>
+
+    <p>
+      This is to certify that I have read out the contents of the Loan Agreement being entered into with FFPL
+      to Mr/Ms {{C_N}} (“Borrower”/”Borrower Representative”) and he/she has understood the same.
+    </p>
+
+    <p>
+      Further, I hereby certify that Mr./Ms. {{C_N}} has affixed his/her thumb impression (left hand/right
+      hand) or has signed in vernacular language in my presence after I have explained the contents to him/her.
+    </p>
+
+    <p class="mt-12">Name of the Employee:</p>
+    <p>Address:</p>
+    <p>Signature of Employee:</p>
+
+    <p class="mt-16"><b>Name of the Borrower/ Borrower Representative: {{C_N}}</b></p>
+
+    <p>
+      I confirm that the terms and conditions contained in the Loan Agreement to be entered into with FFPL
+      have been explained by Service Provider in English language.
+    </p>
+
+    <p>
+      I have understood and agree to the terms and conditions mentioned in the Loan Agreement.
+    </p>
+
+    <p>Signature/Thumb Impression: _______________________</p>
+
+    <p class="mt-16">Signature and Stamp of Branch:<br />Date: ___________</p>
+  </div>
+
+  <!-- END USE UNDERTAKING -->
+  <div class="page">
+    <div class="doc-title">END USE UNDERTAKING</div>
+
+    <p>Date: {{L_date}}</p>
+
+    <p>To,<br />FINTREE FINANCE PRIVATE LIMITED</p>
+
+    <p class="mt-8">
+      In respect of the facility amounting to Rs. {{L_A}}/- (Rupees ________________________________Only)
+      granted by Fintree Finance Pvt Ltd to us,
+    </p>
+
+    <p>
+      I/We {{cur_add}}, having its office/ residing at {{per_add}} (“Borrower”) hereby undertake, agree
+      and confirm:
+    </p>
+
+    <p>
+      We hereby confirm that a facility of Rs. {{L_A}}/- (Rupees _______________________Only) has been
+      granted to us by Fintree Finance Pvt Ltd under the loan agreement dated ___/___/_______ (“Loan
+      Agreement”).
+    </p>
+
+    <p>
+      As a pre-condition for availing of the aforesaid facility, we are required to undertake, we shall use
+      the funds received by us from FINTREE FINANCE PRIVATE LIMITED under the aforesaid Loan Agreement for the
+      purpose specified in the Loan Agreement and shall submit all the evidence to the satisfaction of FINTREE
+      FINANCE PRIVATE LIMITED regarding the usage of funds.
+    </p>
+
+    <p>
+      We hereby undertake, agree and affirm that, we will use the funds received by us from FINTREE FINANCE
+      PRIVATE LIMITED under the aforesaid Loan Agreement for the purpose specified and shall submit all the
+      evidence to the satisfaction of FINTREE FINANCE PRIVATE LIMITED regarding the usage of funds.
+    </p>
+
+    <p>
+      We hereby agree and confirm that FINTREE FINANCE PRIVATE LIMITED has granted us the above-mentioned
+      facility based on the above-mentioned condition.
+    </p>
+
+    <p>
+      We further understand, agree and confirm that a failure to comply with the undertaking provided
+      hereinabove shall be considered an “Event of Default” under the Loan Agreement.
+    </p>
+
+    <p>
+      WE, hereby indemnify and shall keep indemnified FINTREE FINANCE PRIVATE LIMITED, against all proceedings
+      civil and/or criminal, claims, expenses and liabilities whatsoever which may be taken or made against or
+      incurred by FINTREE FINANCE PRIVATE LIMITED, by reason of any liability arising hereunder.
+    </p>
+
+    <p>
+      For the aforesaid purpose, we undertake to execute such further deed(s), affidavit(s), document(s) and/or
+      letter(s) as may be required by the FINTREE FINANCE PRIVATE LIMITED from time to time.
+    </p>
+
+    <p class="mt-16">Yours faithfully,</p>
     <p>________________________</p>
+  </div>
 
-    <div class="footer">
-        <span>Lender</span><span>Borrower</span><span>30 of 31</span>
-    </div>
+  <!-- CONSENT & SELF DECLARATION -->
+  <div class="page">
+    <div class="doc-title">CONSENT AND SELF DECLARATION</div>
 
-</div>
+    <p>Date: {{L_date}}</p>
 
-		<div class="page">
+    <p>
+      I/ We hereby declare that all the particulars, information and details provided by me/us are true,
+      correct, complete and up-to-date in all respect and that I/we have not withheld any information
+      whatsoever.
+    </p>
 
-    <h3>CONSENT AND SELF DECLARATION</h3>
+    <p>
+      I/ We hereby confirm that no insolvency proceedings or suits for recovery of outstanding dues or monies
+      whatsoever for attachment of my/our assets or properties and/or any criminal proceedings have been
+      initiated and/or are pending against me/us and that I/we have never been adjudicated insolvent by any
+      court or any other authority nor has any receiver, administrator, administrative receiver, trustee or
+      similar officer been appointed for my assets.
+    </p>
 
-    <p><strong>Date:</strong></p>
+    <p>
+      I/We hereby authorise Fintree Finance Private Limited(FFPL) (hereinafter referred to as “Lender”) or its
+      associates/subsidiaries/affiliates to obtain, verify, exchange, share or part with all the information or
+      otherwise, regarding my/our office/ residence and/or contact me/us or my/our family/ employer/Banker/
+      Credit Bureau/ RBI or any third parties as deemed necessary and/or do any such acts till such period as
+      they deem necessary and/or disclose to Reserve Bank of India, Credit Information Companies, Banks/NBFCs,
+      or any other authority and institution, including but not limited to current balance, payment history,
+      default, if any, etc.
+    </p>
 
-    <p><strong>1.</strong> I/We hereby declare that all particulars and details provided by me/us  
-       are true, correct, complete and up-to-date and nothing has been withheld.</p>
+    <p>
+      I/We hereby authorise Lender’s employees/agents to access my/our premises during normal office hours for
+      carrying out any verification/investigation and post disbursement scrutiny.
+    </p>
 
-    <p><strong>2.</strong> I/We confirm that no insolvency proceedings, suits for recovery,  
-       attachment of assets, or criminal proceedings have ever been initiated or are pending  
-       against me/us and no receiver or similar officer has ever been appointed.</p>
+    <p>
+      I/We hereby authorise Lender to approach my/our existing bankers or any other prospective lender for any
+      relevant information for consideration of loan and thereafter.
+    </p>
 
-    <p><strong>3.</strong> I/We hereby authorise Fintree Finance Private Limited (FFPL) (“Lender”)  
-       or its associates/subsidiaries/affiliates to obtain, verify, share, or part with  
-       information regarding my/our office/residence or contact details with my/our  
-       family/employer/banker/credit bureau/RBI or any third party as deemed necessary.</p>
+    <p>
+      I/We hereby provide my/our consent to receive information/services etc for marketing purpose through
+      telephone/mobile/SMS/Email.
+    </p>
 
-    <p><strong>4.</strong> I/We hereby authorise Lender’s employees/agents to access my/our premises  
-       during office hours for verification/investigation and post-disbursement scrutiny.</p>
+    <p>
+      I/We hereby authorise Lender to market/sell/promote/endorse any other product or service beneficial to
+      me/us.
+    </p>
 
-    <p><strong>5.</strong> I/We hereby authorise Lender to approach my/our existing or prospective  
-       bankers or lenders for relevant information for consideration of the loan.</p>
+    <p>
+      I/We hereby authorise Lender to purge the documents submitted by me/us, if the case is not disbursed/
+      approved for whatever reason within 3 months of application.
+    </p>
 
-    <p><strong>6.</strong> I/We consent to receive marketing information/services through  
-       telephone/mobile/SMS/email.</p>
+    <p>
+      I/We hereby provide my/our consent to avail information on products and services of other Companies and
+      authorise to cross sell other company’s product and services.
+    </p>
 
-    <p><strong>7.</strong> I/We authorise Lender to market/sell/promote/endorse any additional  
-       product or service beneficial to me/us.</p>
+    <p>
+      I/We hereby authorise Lender’s authorised person(s)/Agency to visit my/our residence & business premises
+      for verification, which includes taking photographs.
+    </p>
 
-    <p><strong>8.</strong> I/We authorise Lender to purge the documents submitted if the case is  
-       not disbursed/approved within 3 months of application.</p>
+    <p>
+      I/We hereby agree to give my/our express consent to Lender to disclose all the information and data
+      furnished by me/us and/or to receive information from Central KYC Registry/third parties including but
+      not limited to vendors, outsourcing agencies, business correspondents for analysing, processing, report
+      generation, storing, record keeping or to various credit information companies/ credit bureaus e.g.
+      Credit Information Bureaus (India) Limited (CIBIL), or to information utilities under the Insolvency
+      Bankruptcy Code 2016 through physical or SMS or email or any other mode.
+    </p>
 
-    <p><strong>9.</strong> I/We consent to receive information on products/services of other  
-       companies and authorise cross-selling of such products/services.</p>
+    <p class="mt-16">Borrower</p>
+    <p>________________________</p>
+  </div>
 
-    <p><strong>10.</strong> I/We authorise Lender’s authorised personnel/agency to visit my/our  
-       residence/business premises for verification, including taking photographs.</p>
-
-    <p><strong>11.</strong> I/We consent to Lender disclosing information and data furnished by me/us  
-       to Central KYC Registry, vendors, outsourcing agencies, business correspondents,  
-       credit bureaus (e.g., CIBIL), information utilities under the Insolvency  
-       and Bankruptcy Code 2016, or other authorities via physical, SMS, email, or any mode.</p>
-
-    <div class="footer">
-        <span>Lender</span><span>Borrower</span><span>31 of 31</span>
-    </div>
-
-</div>
-
-	</body>
+</body>
 </html>
