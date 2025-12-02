@@ -58,12 +58,12 @@ const isProbablyUrl = (str = "") => /^https?:\/\//i.test(str);
 const generateLoanIdentifiers = async (lender) => {
   lender = lender.trim(); // normalize input
 
-  let prefixPartnerLoan;
+  let application_id;
   let prefixLan;
 
   if (lender === "HELIUM") {
     prefixLan = "HEL10";
-    prefixPartnerLoan = "HELF10";
+    application_id = "HHF0001";
   }
   else {
     return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
@@ -99,7 +99,7 @@ const generateLoanIdentifiers = async (lender) => {
   }
 
   return {
-    partnerLoanId: `${prefixPartnerLoan}${newSequence}`,
+    application_id: `${application_id}${newSequence}`,
     lan: `${prefixLan}${newSequence}`,
   };
 };
@@ -111,7 +111,7 @@ router.post("/manual-entry", async (req, res) => {
     // Required fields
     const requiredFields = [
       "login_date",
-      "app_id",
+      
       "customer_name",
       "gender",
       "dob",
@@ -140,13 +140,13 @@ router.post("/manual-entry", async (req, res) => {
     }
 
     // generate LAN + PLID
-    const { lan, partnerLoanId } = await generateLoanIdentifiers("HELIUM");
+    const { lan, application_id } = await generateLoanIdentifiers("HELIUM");
 
     // insert into loan_booking_helium
     const insertLoan = `
 INSERT INTO loan_booking_helium (
     first_name, last_name,
-  login_date, lan, partner_loan_id, app_id,
+  login_date, lan,app_id,
   customer_name, gender, dob, father_name, mother_name,
   mobile_number, email_id, pan_number, aadhar_number,
 
@@ -167,7 +167,7 @@ INSERT INTO loan_booking_helium (
   pre_emi, processing_fee, net_disbursement,
 
   status, agreement_date
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
           NULL, NULL,
           'HELIUM', 'FINTREE',
           NULL, NULL, NULL, NULL, NULL, NULL,
@@ -181,8 +181,7 @@ INSERT INTO loan_booking_helium (
       data.last_name,
   data.login_date,
   lan,
-  partnerLoanId,
-  data.app_id,
+  application_id,
 
   data.customer_name,
   data.gender,
@@ -231,11 +230,12 @@ INSERT INTO loan_booking_helium (
 
   // 🧮 Call both procedures based on LAN
     // If they can be independent, you can also do Promise.all here
-db.promise().query("CALL sp_build_helium_loan_summary(?)", [lan])
-  .catch(err => console.error("Error in sp_build_helium_loan_summary:", err));
 
-db.promise().query("CALL sp_generate_helium_rps(?)", [lan])
+    db.promise().query("CALL sp_generate_helium_rps(?)", [lan])
   .catch(err => console.error("Error in sp_generate_helium_rps:", err));
+
+
+
 
 
     // Insert into verification table
@@ -245,10 +245,14 @@ db.promise().query("CALL sp_generate_helium_rps(?)", [lan])
 
     await db.promise().query(insertVerify, [lan]);
 
+db.promise().query("CALL sp_build_helium_loan_summary(?)", [lan])
+  .catch(err => console.error("Error in sp_build_helium_loan_summary:", err));
+
+
     res.json({
       message: "Helium loan created successfully",
       lan,
-      partnerLoanId,
+      application_id,
     });
 
 
