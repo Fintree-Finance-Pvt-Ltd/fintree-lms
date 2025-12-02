@@ -406,10 +406,21 @@ import React, { useState, useEffect } from "react";
 import api from "../../api/api";
 import axios from "axios";
 
+const getTodayDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`; // e.g. 2025-12-02
+};
+
+
+
+
 const HeliumManualEntry = () => {
   const [formData, setFormData] = useState({
-    login_date: "",
-    app_id: "",
+      login_date: getTodayDateString(), // ✅ auto-fetch current date
+    
     // new split fields
     first_name: "",
     last_name: "",
@@ -456,8 +467,7 @@ const HeliumManualEntry = () => {
 
   // Required fields
   const requiredFields = [
-    "login_date",
-    "app_id",
+  
     "first_name",
     "last_name",
     "customer_name",
@@ -556,6 +566,15 @@ const HeliumManualEntry = () => {
       newValue = value.replace(/\D/g, "").slice(0, 6);
     }
 
+    // ✅ Numeric-only fields (money)
+  if (
+    name === "net_monthly_income" ||
+    name === "avg_monthly_rent" ||
+    name === "loan_amount"
+  ) {
+    newValue = value.replace(/[^\d]/g, ""); // only digits allowed
+  }
+
     setFormData((prev) => {
       const updated = { ...prev, [name]: newValue };
 
@@ -631,8 +650,7 @@ const HeliumManualEntry = () => {
 
       // Reset form after submission
       setFormData({
-        login_date: "",
-        app_id: "",
+        login_date: getTodayDateString(), // reset to today's date
         first_name: "",
         last_name: "",
         customer_name: "",
@@ -732,8 +750,19 @@ const HeliumManualEntry = () => {
         <fieldset>
           <legend>Borrower Details</legend>
 
-          {renderInput("Login Date", "login_date", "date")}
-          {renderInput("Application ID", "app_id")}
+           <div className="form-group">
+    <label>
+      Login Date <span className="req">*</span>
+    </label>
+    <input
+      type="date"
+      name="login_date"
+      value={formData.login_date}
+      readOnly
+      disabled   // user cannot change it
+    />
+  </div>
+          
           {renderInput("First Name", "first_name")}
           {renderInput("Last Name", "last_name")}
           {renderInput("Customer Full Name", "customer_name")}
@@ -787,12 +816,12 @@ const HeliumManualEntry = () => {
           {renderInput(
             "Net Monthly Income",
             "net_monthly_income",
-            "text"
+            "number"
           )}
           {renderInput(
             "Average Monthly Rent",
             "avg_monthly_rent",
-            "text"
+            "number"
           )}
 
           {renderSelect(
