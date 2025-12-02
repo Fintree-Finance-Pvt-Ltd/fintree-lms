@@ -4736,25 +4736,25 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     }
 //    console.log("✅ All required fields present.");
 
-    // --- Duplicate PAN check ---
-    console.log("🔍 Checking existing PAN:", data.pan_number);
-    const [existing] = await db
-      .promise()
-      .query(`SELECT lan FROM loan_booking_emiclub WHERE pan_number = ?`, [
-        data.pan_number,
-      ]);
-    console.log(
-      "🧾 Duplicate check result:",
-      existing.length,
-      "records found."
-    );
+    // // --- Duplicate PAN check ---
+    // console.log("🔍 Checking existing PAN:", data.pan_number);
+    // const [existing] = await db
+    //   .promise()
+    //   .query(`SELECT lan FROM loan_booking_emiclub WHERE pan_number = ?`, [
+    //     data.pan_number,
+    //   ]);
+    // console.log(
+    //   "🧾 Duplicate check result:",
+    //   existing.length,
+    //   "records found."
+    // );
 
-    if (existing.length > 0) {
-      console.error("❌ Duplicate PAN found:", data.pan_number);
-      return res.status(400).json({
-        message: `Customer already exists for Pan: ${data.pan_number}`,
-      });
-    }
+    // if (existing.length > 0) {
+    //   console.error("❌ Duplicate PAN found:", data.pan_number);
+    //   return res.status(400).json({
+    //     message: `Customer already exists for Pan: ${data.pan_number}`,
+    //   });
+    // }
 
     // --- Generate loan code ---
     //console.log("⚙️ Generating LAN for lender:", lenderType);
