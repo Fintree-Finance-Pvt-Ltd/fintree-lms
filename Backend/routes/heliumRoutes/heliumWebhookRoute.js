@@ -219,6 +219,19 @@ async function downloadSignedPdfFromDigio(documentId) {
   return response.data; // PDF binary
 }
 
+function parseDigioError(err) {
+  try {
+    if (err?.response?.data instanceof Buffer) {
+      const text = err.response.data.toString("utf8");
+      return JSON.parse(text);
+    }
+  } catch (e) {
+    return { message: "Failed to parse Digio error buffer", raw: err.response.data.toString("utf8") };
+  }
+
+  return err.response?.data || { message: err.message };
+}
+
 
 // ---------------------------
 // 🔔 DIGIO WEBHOOK LISTENER
