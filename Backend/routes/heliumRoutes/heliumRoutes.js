@@ -315,6 +315,8 @@ router.get("/approved-loans", async (req, res) => {
           mobile_number,
           partner_loan_id,
           loan_amount,
+          sanction_esign_status,
+          agreement_esign_status,
           status
         FROM loan_booking_helium where status = 'Approved'
         ORDER BY login_date DESC, lan DESC
@@ -373,6 +375,8 @@ router.get("/:lan", async (req, res) => {
           lb.net_disbursement,
           lb.cibil_score,
           lb.status,
+          lb.sanction_esign_status,
+          lb.agreement_esign_status,
 
           -- HRS / risk fields (assumes you added these columns)
           lb.helium_risk_score,
@@ -430,6 +434,8 @@ router.get("/:lan", async (req, res) => {
       email_id: row.email_id,
       pan_number: row.pan_number,
       aadhar_number: row.aadhar_number,
+      sanction_esign_status: row.sanction_esign_status,
+      agreement_esign_status: row.agreement_esign_status,
 
       current_address: row.current_address,
       current_village_city: row.current_village_city,

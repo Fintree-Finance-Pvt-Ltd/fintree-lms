@@ -10,7 +10,7 @@ const router = express.Router();
 const uploadPath = path.join(__dirname, "../../uploads");
 if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
 
-const uploadDir = path.join(__dirname, "../../uploads/esign");
+const uploadDir = path.join(__dirname, "../../uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 async function downloadAndSaveFile(url, baseName) {
@@ -359,7 +359,7 @@ router.post("/esign-webhook", async (req, res) => {
 
     // Get LAN & type
     const [rows] = await db.promise().query(
-      `SELECT lan, document_type FROM esign_documents WHERE document_id = ?`,
+      `SELECT lan, document_type FROM esign_documents WHERE document_id = ? LIMIT 1`,
       [documentId]
     );
 
@@ -396,7 +396,7 @@ router.post("/esign-webhook", async (req, res) => {
     const pdfBinary = await downloadSignedPdfFromDigio(documentId);
 
     // Save locally
-    const folderPath = path.join(__dirname, "../../uploads/esign");
+    const folderPath = path.join(__dirname, "../../uploads");
     if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
 
     const fileName = `signed_${lan}_${type}_${Date.now()}.pdf`;

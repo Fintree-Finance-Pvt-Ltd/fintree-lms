@@ -4,8 +4,6 @@
 // import { useNavigate } from "react-router-dom";
 // import DataTable from "../ui/DataTable";
 // import LoaderOverlay from "../ui/LoaderOverlay";
-// // import AgreementModal from "./AgreementModal";
-// // import useDigioMandate from "../../hooks/useDigioMandate";
 
 // const heliumApprovedLoans = ({
 //   apiUrl = "/helium-loans/approved-loans",
@@ -15,7 +13,11 @@
 //   const [loading, setLoading] = useState(true);
 //   const [err, setErr] = useState("");
 
-//   // modal state
+//   // row-level action loading (LAN so we know which row is busy)
+//   const [actionLan, setActionLan] = useState(null);
+//   const [toast, setToast] = useState(null);
+
+//   // 🔹 Bank / eNACH modal state
 //   const [showBankModal, setShowBankModal] = useState(false);
 //   const [selectedLoan, setSelectedLoan] = useState(null);
 //   const [bankForm, setBankForm] = useState({
@@ -34,21 +36,32 @@
 //   const [bankResult, setBankResult] = useState(null);
 
 //   const nav = useNavigate();
-//   //   const { startMandateFlow } = useDigioMandate();
 
 //   useEffect(() => {
 //     let off = false;
 //     setLoading(true);
 //     setErr("");
+
 //     api
 //       .get(apiUrl)
-//       .then((res) => !off && setRows(Array.isArray(res.data) ? res.data : []))
+//       .then((res) => {
+//         if (off) return;
+//         const data = Array.isArray(res.data) ? res.data : [];
+//         setRows(data);
+//       })
 //       .catch(() => !off && setErr("Failed to fetch data."))
 //       .finally(() => !off && setLoading(false));
-//     return () => (off = true);
+
+//     return () => {
+//       off = true;
+//     };
 //   }, [apiUrl]);
 
-//   // ---------- helpers ----------
+//   const resetToastAfterDelay = () => {
+//     setTimeout(() => setToast(null), 3000);
+//   };
+
+//    // ---------- date helpers for mandate ----------
 //   const toYMD = (d) => {
 //     const date = d instanceof Date ? d : new Date(d);
 //     if (Number.isNaN(date.getTime())) return "";
@@ -66,38 +79,7 @@
 //     return toYMD(d);
 //   };
 
-//   const handleDownload = async (lan) => {
-//     try {
-//       const res = await api.get(
-//         `/esign/${lan}/pdf`,
-
-//         { responseType: "blob" }
-//       );
-
-//       const blob = new Blob([res.data], { type: "application/pdf" });
-
-//       const url = window.URL.createObjectURL(blob);
-
-//       const link = document.createElement("a");
-
-//       link.href = url;
-
-//       link.download = `Rental_Agreement_${lan}.pdf`;
-
-//       document.body.appendChild(link);
-
-//       link.click();
-
-//       link.remove();
-
-//       window.URL.revokeObjectURL(url);
-//     } catch (err) {
-//       console.error(err);
-
-//       alert("Error downloading agreement");
-//     }
-//   };
-
+//   // ---------- Bank modal helpers ----------
 //   const openBankModal = (loanRow) => {
 //     const startDate =
 //       loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
@@ -108,6 +90,7 @@
 //         : "";
 
 //     const defaultAmount = loanRow.emi_amount || loanRow.loan_amount || "";
+
 //     setSelectedLoan(loanRow);
 //     setBankError("");
 //     setBankResult(null);
@@ -176,7 +159,7 @@
 //         bank_name,
 //         account_type,
 //         mandate_amount,
-//         amount: 1, // Re 1 test; or mandate_amount if you want
+//         amount: 1, // Re 1 test
 //       });
 
 //       const verifyData = verifyRes.data || {};
@@ -192,8 +175,6 @@
 //       }
 
 //       // 2️⃣ Create mandate in backend
-//       const today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
-
 //       const mandateRes = await api.post("/enach/create-mandate", {
 //         lan,
 //         customer_identifier,
@@ -209,14 +190,15 @@
 //         bank_name,
 //       });
 
-//       const { documentId } = mandateRes.data || {};
+//       const mandData = mandateRes.data || {};
+//       const { documentId } = mandData;
 
 //       if (!documentId) {
 //         setBankError("Mandate creation failed.");
 //         setBankLoading(false);
 //         return;
 //       }
-//       const mandData = mandateRes.data || {};
+
 //       if (!mandData.success) {
 //         setBankError(
 //           mandData.message || "Mandate creation failed. Please try again."
@@ -225,25 +207,15 @@
 //         return;
 //       }
 
-//       console.log("document id", documentId, idForDigio || customer_identifier);
+//       console.log("document id", documentId, customer_identifier);
+
 //       setBankResult((prev) => ({
 //         ...prev,
 //         mandate_created: true,
 //         document_id: documentId,
 //       }));
 
-//       // 3️⃣ Trigger Digio SDK (must be from user-initiated flow – this handler is OK)
-//       //   startMandateFlow(
-//       //     documentId,
-//       //     idForDigio || customer_identifier,
-//       //     {
-//       //       environment:
-//       //         import.meta.env.VITE_DIGIO_ENV === "production" ? "production" : "sandbox",
-//       //       logoUrl: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQsgaD5YZqK9dKyriIyBzAFLXaUZXuGKV5yYQ&s", // replace with your logo
-//       //     }
-//       //   );
-
-//       // You can keep modal open to show verify result, or close it:
+//       // you can choose to close modal here if you want:
 //       // closeBankModal();
 //     } catch (err) {
 //       console.error("Add bank / eNACH error:", err);
@@ -255,6 +227,181 @@
 //     }
 //   };
 
+
+//   // small helper to show colored status chip
+//   const EsignChip = ({ status }) => {
+//     const st = (status || "PENDING").toUpperCase();
+
+//     const map = {
+//       SIGNED: {
+//         bg: "rgba(16,185,129,.12)",
+//         bd: "rgba(16,185,129,.35)",
+//         fg: "#065f46",
+//         label: "Signed",
+//       },
+//       INITIATED: {
+//         bg: "rgba(59,130,246,.12)",
+//         bd: "rgba(59,130,246,.35)",
+//         fg: "#1e3a8a",
+//         label: "Initiated",
+//       },
+//       FAILED: {
+//         bg: "rgba(239,68,68,.12)",
+//         bd: "rgba(239,68,68,.35)",
+//         fg: "#7f1d1d",
+//         label: "Failed",
+//       },
+//       PENDING: {
+//         bg: "rgba(234,179,8,.12)",
+//         bd: "rgba(234,179,8,.35)",
+//         fg: "#713f12",
+//         label: "Pending",
+//       },
+//     };
+
+//     const c = map[st] || map.PENDING;
+
+//     return (
+//       <span
+//         style={{
+//           display: "inline-flex",
+//           alignItems: "center",
+//           gap: 6,
+//           padding: "3px 8px",
+//           borderRadius: 999,
+//           fontSize: 11,
+//           fontWeight: 600,
+//           background: c.bg,
+//           color: c.fg,
+//           border: `1px solid ${c.bd}`,
+//           textTransform: "uppercase",
+//         }}
+//       >
+//         ● {c.label}
+//       </span>
+//     );
+//   };
+
+//   // 🔹 Call backend to initiate SANCTION eSign
+//   const handleSanctionEsign = async (row) => {
+//     const lan = row.lan;
+//     if (!lan) return;
+
+//     if (row.sanction_esign_status === "SIGNED") {
+//       setToast({ type: "info", msg: "Sanction letter already signed." });
+//       resetToastAfterDelay();
+//       return;
+//     }
+
+//     if (
+//       !window.confirm(
+//         `Send sanction letter eSign link to customer for LAN ${lan}?`
+//       )
+//     ) {
+//       return;
+//     }
+
+//     setActionLan(lan);
+//     try {
+//       const res = await api.post(`/esign/${lan}/esign/sanction`);
+//       console.log("Sanction eSign init:", res.data);
+
+//       setToast({
+//         type: "success",
+//         msg: "Sanction eSign initiated. Customer will receive the link.",
+//       });
+//       resetToastAfterDelay();
+
+//       // refresh row status locally
+//       setRows((old) =>
+//         old.map((r) =>
+//           r.lan === lan
+//             ? {
+//                 ...r,
+//                 sanction_esign_status: "INITIATED",
+//               }
+//             : r
+//         )
+//       );
+//     } catch (err) {
+//       console.error("Sanction eSign error:", err);
+//       setToast({
+//         type: "error",
+//         msg:
+//           err.response?.data?.message ||
+//           "Failed to start sanction eSign. Try again.",
+//       });
+//       resetToastAfterDelay();
+//     } finally {
+//       setActionLan(null);
+//     }
+//   };
+
+//   // 🔹 Call backend to initiate AGREEMENT eSign
+//   const handleAgreementEsign = async (row) => {
+//     const lan = row.lan;
+//     if (!lan) return;
+
+//     if (row.agreement_esign_status === "SIGNED") {
+//       setToast({ type: "info", msg: "Agreement already signed." });
+//       resetToastAfterDelay();
+//       return;
+//     }
+
+//     // enforce ordering: sanction must be signed first
+//     if (row.sanction_esign_status !== "SIGNED") {
+//       setToast({
+//         type: "error",
+//         msg: "Sanction letter must be signed before agreement eSign.",
+//       });
+//       resetToastAfterDelay();
+//       return;
+//     }
+
+//     if (
+//       !window.confirm(
+//         `Send loan agreement eSign link to customer for LAN ${lan}?`
+//       )
+//     ) {
+//       return;
+//     }
+
+//     setActionLan(lan);
+//     try {
+//       const res = await api.post(`/esign/${lan}/esign/agreement`);
+//       console.log("Agreement eSign init:", res.data);
+
+//       setToast({
+//         type: "success",
+//         msg: "Agreement eSign initiated. Customer will receive the link.",
+//       });
+//       resetToastAfterDelay();
+
+//       // refresh row status locally
+//       setRows((old) =>
+//         old.map((r) =>
+//           r.lan === lan
+//             ? {
+//                 ...r,
+//                 agreement_esign_status: "INITIATED",
+//               }
+//             : r
+//         )
+//       );
+//     } catch (err) {
+//       console.error("Agreement eSign error:", err);
+//       setToast({
+//         type: "error",
+//         msg:
+//           err.response?.data?.message ||
+//           "Failed to start agreement eSign. Try again.",
+//       });
+//       resetToastAfterDelay();
+//     } finally {
+//       setActionLan(null);
+//     }
+//   };
+
 //   const columns = [
 //     {
 //       key: "customer_name",
@@ -262,7 +409,11 @@
 //       sortable: true,
 //       render: (r) => (
 //         <span
-//           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+//           style={{
+//             color: "#2563eb",
+//             fontWeight: 600,
+//             cursor: "pointer",
+//           }}
 //           onClick={() => nav(`/approved-loan-details-helium/${r.lan}`)}
 //         >
 //           {r.customer_name ?? "—"}
@@ -272,23 +423,13 @@
 //       csvAccessor: (r) => r.customer_name || "",
 //       width: 220,
 //     },
-//     {
-//       key: "partner_loan_id",
-//       header: "Partner Loan ID",
-//       sortable: true,
-//       width: 160,
-//     },
+//     { key: "partner_loan_id", header: "Partner Loan ID", sortable: true, width: 160 },
 //     { key: "lan", header: "LAN", sortable: true, width: 140 },
-//     {
-//       key: "mobile_number",
-//       header: "Mobile Number",
-//       sortable: true,
-//       width: 160,
-//     },
+//     { key: "mobile_number", header: "Mobile Number", sortable: true, width: 160 },
 //     {
 //       key: "status",
-//       header: "Status",
-//       render: () => (
+//       header: "Loan Status",
+//       render: (r) => (
 //         <span
 //           style={{
 //             display: "inline-flex",
@@ -302,12 +443,84 @@
 //             border: "1px solid rgba(16,185,129,.35)",
 //           }}
 //         >
-//           ● Approved
+//           ● {r.status || "Approved"}
 //         </span>
 //       ),
-//       csvAccessor: () => "Approved",
+//       csvAccessor: (r) => r.status || "Approved",
 //       width: 130,
 //     },
+
+//     // 🔹 SANCTION eSign column
+//     {
+//       key: "sanction_esign",
+//       header: "Sanction eSign",
+//       width: 210,
+//       render: (r) => (
+//         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+//           <EsignChip status={r.sanction_esign_status} />
+//           <button
+//             onClick={() => handleSanctionEsign(r)}
+//             disabled={actionLan === r.lan}
+//             style={{
+//               padding: "6px 8px",
+//               borderRadius: 6,
+//               border: "1px solid #93c5fd",
+//               color: "#1d4ed8",
+//               background: "#fff",
+//               cursor: actionLan === r.lan ? "wait" : "pointer",
+//               fontSize: 12,
+//               fontWeight: 600,
+//             }}
+//           >
+//             {actionLan === r.lan ? "Processing..." : "Send Sanction eSign"}
+//           </button>
+//         </div>
+//       ),
+//       csvAccessor: (r) => r.sanction_esign_status || "PENDING",
+//     },
+
+//     // 🔹 AGREEMENT eSign column
+//     {
+//       key: "agreement_esign",
+//       header: "Agreement eSign",
+//       width: 220,
+//       render: (r) => {
+//         const disabled =
+//           actionLan === r.lan || r.sanction_esign_status !== "SIGNED";
+
+//         return (
+//           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+//             <EsignChip status={r.agreement_esign_status} />
+//             <button
+//               onClick={() => handleAgreementEsign(r)}
+//               disabled={disabled}
+//               style={{
+//                 padding: "6px 8px",
+//                 borderRadius: 6,
+//                 border: disabled ? "1px solid #cbd5f5" : "1px solid #93c5fd",
+//                 color: disabled ? "#9ca3af" : "#1d4ed8",
+//                 background: "#fff",
+//                 cursor: disabled ? "not-allowed" : "pointer",
+//                 fontSize: 12,
+//                 fontWeight: 600,
+//               }}
+//             >
+//               {actionLan === r.lan
+//                 ? "Processing..."
+//                 : "Send Agreement eSign"}
+//             </button>
+//             {r.sanction_esign_status !== "SIGNED" && (
+//               <small style={{ fontSize: 11, color: "#9ca3af" }}>
+//                 Sanction must be signed first
+//               </small>
+//             )}
+//           </div>
+//         );
+//       },
+//       csvAccessor: (r) => r.agreement_esign_status || "PENDING",
+//     },
+
+//      // 🔹 Actions column: Docs + Add Bank
 //     {
 //       key: "actions",
 //       header: "Actions",
@@ -316,13 +529,13 @@
 //           <button
 //             onClick={() => nav(`/documents/${r.lan}`)}
 //             style={{
-//               padding: "6px 8px",
+//               padding: "8px 10px",
 //               borderRadius: 8,
 //               border: "1px solid #93c5fd",
 //               color: "#1d4ed8",
 //               background: "#fff",
 //               cursor: "pointer",
-//               fontSize: 12,
+//               fontSize: 13,
 //               fontWeight: 600,
 //             }}
 //           >
@@ -331,43 +544,22 @@
 //           <button
 //             onClick={() => openBankModal(r)}
 //             style={{
-//               padding: "6px 8px",
+//               padding: "8px 10px",
 //               borderRadius: 8,
 //               border: "1px solid #34d399",
 //               color: "#047857",
 //               background: "#ecfdf5",
 //               cursor: "pointer",
-//               fontSize: 12,
+//               fontSize: 13,
 //               fontWeight: 600,
 //             }}
 //           >
 //             🏦 Add Bank
 //           </button>
-//           <button
-//             type="button"
-//             onClick={() => handleDownload(r.lan)} // 🔹 pass LAN here
-//             style={{
-//               padding: "6px 10px",
-
-//               borderRadius: 8,
-
-//               border: "1px solid #d1d5db",
-
-//               background: "#f9fafb",
-
-//               cursor: "pointer",
-
-//               fontSize: 12,
-
-//               fontWeight: 600,
-//             }}
-//           >
-//             📝 Agreement
-//           </button>
 //         </div>
 //       ),
 //       csvAccessor: () => "",
-//       width: 260,
+//       width: 230,
 //     },
 //   ];
 
@@ -375,6 +567,38 @@
 //     <>
 //       <LoaderOverlay show={loading} label="Fetching data…" />
 //       {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
+//       {toast && (
+//         <div
+//           style={{
+//             marginBottom: 12,
+//             padding: "8px 12px",
+//             borderRadius: 6,
+//             fontSize: 13,
+//             fontWeight: 500,
+//             background:
+//               toast.type === "error"
+//                 ? "rgba(248,113,113,.1)"
+//                 : toast.type === "success"
+//                 ? "rgba(16,185,129,.08)"
+//                 : "rgba(59,130,246,.08)",
+//             color:
+//               toast.type === "error"
+//                 ? "#991b1b"
+//                 : toast.type === "success"
+//                 ? "#14532d"
+//                 : "#1e3a8a",
+//             border:
+//               toast.type === "error"
+//                 ? "1px solid rgba(248,113,113,.4)"
+//                 : toast.type === "success"
+//                 ? "1px solid rgba(16,185,129,.35)"
+//                 : "1px solid rgba(59,130,246,.35)",
+//           }}
+//         >
+//           {toast.msg}
+//         </div>
+//       )}
+
 //       <DataTable
 //         title={title}
 //         rows={rows}
@@ -384,6 +608,9 @@
 //           "partner_loan_id",
 //           "lan",
 //           "mobile_number",
+//           "email_id",
+//           "sanction_esign_status",
+//           "agreement_esign_status",
 //         ]}
 //         initialSort={{ key: "lan", dir: "asc" }}
 //         exportFileName="approved_loans"
@@ -393,7 +620,7 @@
 //       {showBankModal && (
 //         <div className="modal-backdrop">
 //           <div className="modal">
-//             <h3>Add Bank Details & Mandate</h3>
+//             <h3>Add Bank Details &amp; Mandate</h3>
 
 //             <form onSubmit={handleBankSubmit} className="bank-form">
 //               <div className="field-row">
@@ -484,7 +711,7 @@
 //                   onChange={handleBankChange}
 //                 >
 //                   <option value="monthly">Monthly</option>
-//                   {/* add "weekly", "quarterly" if product supports */}
+//                   {/* add more if supported */}
 //                 </select>
 //               </div>
 
@@ -586,11 +813,11 @@ const heliumApprovedLoans = ({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // row-level action loading (LAN so we know which row is busy)
+  // Which LAN is processing eSign
   const [actionLan, setActionLan] = useState(null);
   const [toast, setToast] = useState(null);
 
-  // 🔹 Bank / eNACH modal state
+  // ---------- Bank / eNACH Modal ----------
   const [showBankModal, setShowBankModal] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [bankForm, setBankForm] = useState({
@@ -610,6 +837,7 @@ const heliumApprovedLoans = ({
 
   const nav = useNavigate();
 
+  // ---------- INITIAL LOAD ----------
   useEffect(() => {
     let off = false;
     setLoading(true);
@@ -630,11 +858,12 @@ const heliumApprovedLoans = ({
     };
   }, [apiUrl]);
 
+  // ---------- Toast reset ----------
   const resetToastAfterDelay = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-   // ---------- date helpers for mandate ----------
+  // ---------- Date Helpers ----------
   const toYMD = (d) => {
     const date = d instanceof Date ? d : new Date(d);
     if (Number.isNaN(date.getTime())) return "";
@@ -652,7 +881,7 @@ const heliumApprovedLoans = ({
     return toYMD(d);
   };
 
-  // ---------- Bank modal helpers ----------
+  // ---------- Bank Modal ----------
   const openBankModal = (loanRow) => {
     const startDate =
       loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
@@ -723,7 +952,7 @@ const heliumApprovedLoans = ({
       const customer_identifier =
         selectedLoan.mobile_number || selectedLoan.email_id || "";
 
-      // 1️⃣ Verify bank (penny drop)
+      // 1️⃣ Verify bank
       const verifyRes = await api.post("/enach/verify-bank", {
         lan,
         account_no,
@@ -732,7 +961,7 @@ const heliumApprovedLoans = ({
         bank_name,
         account_type,
         mandate_amount,
-        amount: 1, // Re 1 test
+        amount: 1,
       });
 
       const verifyData = verifyRes.data || {};
@@ -747,7 +976,7 @@ const heliumApprovedLoans = ({
         return;
       }
 
-      // 2️⃣ Create mandate in backend
+      // 2️⃣ Create mandate
       const mandateRes = await api.post("/enach/create-mandate", {
         lan,
         customer_identifier,
@@ -780,28 +1009,22 @@ const heliumApprovedLoans = ({
         return;
       }
 
-      console.log("document id", documentId, customer_identifier);
-
       setBankResult((prev) => ({
         ...prev,
         mandate_created: true,
         document_id: documentId,
       }));
-
-      // you can choose to close modal here if you want:
-      // closeBankModal();
     } catch (err) {
-      console.error("Add bank / eNACH error:", err);
       setBankError(
-        err.response?.data?.message || "Something went wrong. Please try again."
+        err.response?.data?.message ||
+          "Something went wrong. Please try again."
       );
     } finally {
       setBankLoading(false);
     }
   };
 
-
-  // small helper to show colored status chip
+  // ---------- Status Chip ----------
   const EsignChip = ({ status }) => {
     const st = (status || "PENDING").toUpperCase();
 
@@ -832,7 +1055,7 @@ const heliumApprovedLoans = ({
       },
     };
 
-    const c = map[st] || map.PENDING;
+    const c = map[st];
 
     return (
       <span
@@ -855,66 +1078,48 @@ const heliumApprovedLoans = ({
     );
   };
 
-  // 🔹 Call backend to initiate SANCTION eSign
+  // ---------- SANCTION ESIGN ----------
   const handleSanctionEsign = async (row) => {
     const lan = row.lan;
-    if (!lan) return;
 
     if (row.sanction_esign_status === "SIGNED") {
-      setToast({ type: "info", msg: "Sanction letter already signed." });
+      setToast({ type: "info", msg: "Sanction already signed." });
       resetToastAfterDelay();
       return;
     }
 
-    if (
-      !window.confirm(
-        `Send sanction letter eSign link to customer for LAN ${lan}?`
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm(`Send sanction eSign to ${lan}?`)) return;
 
     setActionLan(lan);
+
     try {
       const res = await api.post(`/esign/${lan}/esign/sanction`);
-      console.log("Sanction eSign init:", res.data);
-      window.open(res.data.launch_url, "_blank");
-
       setToast({
         type: "success",
-        msg: "Sanction eSign initiated. Customer will receive the link.",
+        msg: "Sanction eSign initiated.",
       });
       resetToastAfterDelay();
 
-      // refresh row status locally
       setRows((old) =>
         old.map((r) =>
           r.lan === lan
-            ? {
-                ...r,
-                sanction_esign_status: "INITIATED",
-              }
+            ? { ...r, sanction_esign_status: "INITIATED" }
             : r
         )
       );
     } catch (err) {
-      console.error("Sanction eSign error:", err);
       setToast({
         type: "error",
-        msg:
-          err.response?.data?.message ||
-          "Failed to start sanction eSign. Try again.",
+        msg: "Failed to start sanction eSign.",
       });
-      resetToastAfterDelay();
     } finally {
       setActionLan(null);
     }
   };
 
-  // 🔹 Call backend to initiate AGREEMENT eSign
+  // ---------- AGREEMENT ESIGN ----------
   const handleAgreementEsign = async (row) => {
     const lan = row.lan;
-    if (!lan) return;
 
     if (row.agreement_esign_status === "SIGNED") {
       setToast({ type: "info", msg: "Agreement already signed." });
@@ -922,60 +1127,45 @@ const heliumApprovedLoans = ({
       return;
     }
 
-    // enforce ordering: sanction must be signed first
     if (row.sanction_esign_status !== "SIGNED") {
       setToast({
         type: "error",
-        msg: "Sanction letter must be signed before agreement eSign.",
+        msg: "Sanction must be signed first.",
       });
       resetToastAfterDelay();
       return;
     }
 
-    if (
-      !window.confirm(
-        `Send loan agreement eSign link to customer for LAN ${lan}?`
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm(`Send agreement eSign to ${lan}?`)) return;
 
     setActionLan(lan);
+
     try {
       const res = await api.post(`/esign/${lan}/esign/agreement`);
-      console.log("Agreement eSign init:", res.data);
-
       setToast({
         type: "success",
-        msg: "Agreement eSign initiated. Customer will receive the link.",
+        msg: "Agreement eSign initiated.",
       });
       resetToastAfterDelay();
 
-      // refresh row status locally
       setRows((old) =>
         old.map((r) =>
           r.lan === lan
-            ? {
-                ...r,
-                agreement_esign_status: "INITIATED",
-              }
+            ? { ...r, agreement_esign_status: "INITIATED" }
             : r
         )
       );
     } catch (err) {
-      console.error("Agreement eSign error:", err);
       setToast({
         type: "error",
-        msg:
-          err.response?.data?.message ||
-          "Failed to start agreement eSign. Try again.",
+        msg: "Failed to start agreement eSign.",
       });
-      resetToastAfterDelay();
     } finally {
       setActionLan(null);
     }
   };
 
+  // ---------- TABLE COLUMNS ----------
   const columns = [
     {
       key: "customer_name",
@@ -993,96 +1183,112 @@ const heliumApprovedLoans = ({
           {r.customer_name ?? "—"}
         </span>
       ),
-      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
-      csvAccessor: (r) => r.customer_name || "",
-      width: 220,
     },
-    { key: "partner_loan_id", header: "Partner Loan ID", sortable: true, width: 160 },
-    { key: "lan", header: "LAN", sortable: true, width: 140 },
-    { key: "mobile_number", header: "Mobile Number", sortable: true, width: 160 },
+
+    { key: "partner_loan_id", header: "Partner Loan ID" },
+    { key: "lan", header: "LAN" },
+    { key: "mobile_number", header: "Mobile" },
+
     {
       key: "status",
       header: "Loan Status",
       render: (r) => (
         <span
           style={{
-            display: "inline-flex",
-            gap: 6,
             padding: "6px 10px",
             borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 700,
             background: "rgba(16,185,129,.12)",
-            color: "#065f46",
             border: "1px solid rgba(16,185,129,.35)",
+            color: "#065f46",
+            fontWeight: 700,
           }}
         >
           ● {r.status || "Approved"}
         </span>
       ),
-      csvAccessor: (r) => r.status || "Approved",
-      width: 130,
     },
 
-    // 🔹 SANCTION eSign column
+    // 🔹 SANCTION eSign
     {
       key: "sanction_esign",
       header: "Sanction eSign",
-      width: 210,
-      render: (r) => (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <EsignChip status={r.sanction_esign_status} />
-          <button
-            onClick={() => handleSanctionEsign(r)}
-            disabled={actionLan === r.lan}
-            style={{
-              padding: "6px 8px",
-              borderRadius: 6,
-              border: "1px solid #93c5fd",
-              color: "#1d4ed8",
-              background: "#fff",
-              cursor: actionLan === r.lan ? "wait" : "pointer",
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            {actionLan === r.lan ? "Processing..." : "Send Sanction eSign"}
-          </button>
-        </div>
-      ),
-      csvAccessor: (r) => r.sanction_esign_status || "PENDING",
+      render: (r) => {
+        const disabled =
+          actionLan === r.lan ||
+          r.sanction_esign_status === "INITIATED" ||
+          r.sanction_esign_status === "SIGNED";
+
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <EsignChip status={r.sanction_esign_status} />
+
+            <button
+              onClick={() => handleSanctionEsign(r)}
+              disabled={disabled}
+              style={{
+                padding: "6px 8px",
+                borderRadius: 6,
+                border: disabled
+                  ? "1px solid #cbd5f5"
+                  : "1px solid #93c5fd",
+                color: disabled ? "#9ca3af" : "#1d4ed8",
+                background: "#fff",
+                cursor: disabled ? "not-allowed" : "pointer",
+                fontWeight: 600,
+              }}
+            >
+              {actionLan === r.lan
+                ? "Processing..."
+                : r.sanction_esign_status === "INITIATED"
+                ? "Pending Signature…"
+                : r.sanction_esign_status === "SIGNED"
+                ? "Already Signed"
+                : "Send Sanction eSign"}
+            </button>
+          </div>
+        );
+      },
     },
 
-    // 🔹 AGREEMENT eSign column
+    // 🔹 AGREEMENT eSign
     {
       key: "agreement_esign",
       header: "Agreement eSign",
-      width: 220,
       render: (r) => {
         const disabled =
-          actionLan === r.lan || r.sanction_esign_status !== "SIGNED";
+          actionLan === r.lan ||
+          r.sanction_esign_status !== "SIGNED" ||
+          r.agreement_esign_status === "INITIATED" ||
+          r.agreement_esign_status === "SIGNED";
 
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <EsignChip status={r.agreement_esign_status} />
+
             <button
               onClick={() => handleAgreementEsign(r)}
               disabled={disabled}
               style={{
                 padding: "6px 8px",
                 borderRadius: 6,
-                border: disabled ? "1px solid #cbd5f5" : "1px solid #93c5fd",
+                border: disabled
+                  ? "1px solid #cbd5f5"
+                  : "1px solid #93c5fd",
                 color: disabled ? "#9ca3af" : "#1d4ed8",
                 background: "#fff",
                 cursor: disabled ? "not-allowed" : "pointer",
-                fontSize: 12,
                 fontWeight: 600,
               }}
             >
               {actionLan === r.lan
                 ? "Processing..."
+                : r.agreement_esign_status === "INITIATED"
+                ? "Pending Signature…"
+                : r.agreement_esign_status === "SIGNED"
+                ? "Already Signed"
                 : "Send Agreement eSign"}
             </button>
+
             {r.sanction_esign_status !== "SIGNED" && (
               <small style={{ fontSize: 11, color: "#9ca3af" }}>
                 Sanction must be signed first
@@ -1091,10 +1297,9 @@ const heliumApprovedLoans = ({
           </div>
         );
       },
-      csvAccessor: (r) => r.agreement_esign_status || "PENDING",
     },
 
-     // 🔹 Actions column: Docs + Add Bank
+    // 🔹 ACTION Buttons
     {
       key: "actions",
       header: "Actions",
@@ -1109,12 +1314,11 @@ const heliumApprovedLoans = ({
               color: "#1d4ed8",
               background: "#fff",
               cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
             }}
           >
             📂 Docs
           </button>
+
           <button
             onClick={() => openBankModal(r)}
             style={{
@@ -1124,49 +1328,47 @@ const heliumApprovedLoans = ({
               color: "#047857",
               background: "#ecfdf5",
               cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
             }}
           >
             🏦 Add Bank
           </button>
         </div>
       ),
-      csvAccessor: () => "",
-      width: 230,
     },
   ];
 
+  // ---------- FINAL JSX ----------
   return (
     <>
       <LoaderOverlay show={loading} label="Fetching data…" />
-      {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
+
+      {err && <p style={{ color: "#b91c1c" }}>{err}</p>}
+
       {toast && (
         <div
           style={{
             marginBottom: 12,
             padding: "8px 12px",
             borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 500,
             background:
               toast.type === "error"
                 ? "rgba(248,113,113,.1)"
                 : toast.type === "success"
                 ? "rgba(16,185,129,.08)"
                 : "rgba(59,130,246,.08)",
-            color:
-              toast.type === "error"
-                ? "#991b1b"
-                : toast.type === "success"
-                ? "#14532d"
-                : "#1e3a8a",
             border:
               toast.type === "error"
                 ? "1px solid rgba(248,113,113,.4)"
                 : toast.type === "success"
                 ? "1px solid rgba(16,185,129,.35)"
                 : "1px solid rgba(59,130,246,.35)",
+            color:
+              toast.type === "error"
+                ? "#991b1b"
+                : toast.type === "success"
+                ? "#14532d"
+                : "#1e3a8a",
+            fontWeight: 500,
           }}
         >
           {toast.msg}
@@ -1182,7 +1384,6 @@ const heliumApprovedLoans = ({
           "partner_loan_id",
           "lan",
           "mobile_number",
-          "email_id",
           "sanction_esign_status",
           "agreement_esign_status",
         ]}
@@ -1190,11 +1391,11 @@ const heliumApprovedLoans = ({
         exportFileName="approved_loans"
       />
 
-      {/* 🔹 Bank Details Modal */}
+      {/* BANK MODAL remains unchanged */}
       {showBankModal && (
         <div className="modal-backdrop">
           <div className="modal">
-            <h3>Add Bank Details &amp; Mandate</h3>
+            <h3>Add Bank Details & Mandate</h3>
 
             <form onSubmit={handleBankSubmit} className="bank-form">
               <div className="field-row">
@@ -1285,7 +1486,6 @@ const heliumApprovedLoans = ({
                   onChange={handleBankChange}
                 >
                   <option value="monthly">Monthly</option>
-                  {/* add more if supported */}
                 </select>
               </div>
 
