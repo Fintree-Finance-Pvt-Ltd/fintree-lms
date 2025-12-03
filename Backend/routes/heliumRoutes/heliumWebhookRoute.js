@@ -187,8 +187,8 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
 
 
 // 🔐 Digio credentials for downloading signed file
-const DIGIO_USERNAME = process.env.DIGIO_CLIENT_ID;
-const DIGIO_PASSWORD = process.env.DIGIO_CLIENT_SECRET;
+const DIGIO_USERNAME = process.env.DIGIO_ESIGN_CLIENT_ID;
+const DIGIO_PASSWORD = process.env.DIGIO_ESIGN_CLIENT_SECRET;
 
 // Helper: Download Signed PDF
 async function downloadSignedPdf(docId) {
@@ -211,7 +211,7 @@ async function downloadSignedPdfFromDigio(documentId) {
       Authorization:
         "Basic " +
         Buffer.from(
-          process.env.DIGIO_CLIENT_ID + ":" + process.env.DIGIO_CLIENT_SECRET
+          process.env.DIGIO_ESIGN_CLIENT_ID + ":" + process.env.DIGIO_ESIGN_CLIENT_SECRET
         ).toString("base64"),
     },
   });
@@ -438,9 +438,12 @@ router.post("/esign-webhook", async (req, res) => {
 
     return res.status(200).send("ok");
   } catch (err) {
-    console.error("❌ Webhook Processing Error:", err.response?.data || err);
-    return res.status(200).send("error-logged");
-  }
+  const digioError = parseDigioError(err);
+
+  console.error("❌ Webhook Processing Error:", digioError);
+
+  return res.status(200).send("error-logged");
+}
 });
 
 
