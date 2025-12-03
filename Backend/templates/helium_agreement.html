@@ -2,180 +2,334 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Rental Finance Agreement</title>
-  <style>
-    /* Running header container */
-.borrower-tag {
-  position: absolute;
-  right: 18mm;     /* align to right */
-  bottom: -2mm;    /* adjust height from bottom */
-  font-size: 11px;
-  font-weight: bolder;
-  text-align: right;
-}
+  <title>Sanction + Loan Agreement Pack</title>
 
-    * {
-      box-sizing: border-box;
-    }
+  <style>
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
       padding: 0;
       font-family: "Calibri", Arial, sans-serif;
       font-size: 11px;
-      line-height: 1.5;
+      line-height: 1.4;
     }
 
     .page {
       width: 210mm;
-      height: 297mm;
+      min-height: 297mm;
       padding: 20mm 18mm;
-      margin: 0 auto;
       position: relative;
       page-break-after: always;
     }
 
-    .header-center {
+    .header {
       text-align: center;
+      margin-bottom: 8px;
     }
 
     .company-name {
-      font-weight: bold;
-      font-size: 16px;
-      text-transform: uppercase;
-    }
-
-    .company-tagline {
-      font-size: 11px;
-      margin-top: 2px;
-    }
-
-    .doc-title {
-      margin-top: 14px;
       font-size: 16px;
       font-weight: bold;
-      text-align: center;
-      text-transform: uppercase;
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: bold;
       text-decoration: underline;
+      margin-top: 4px;
     }
 
     .sub-title {
-      margin-top: 10px;
+      text-align: center;
       font-size: 13px;
       font-weight: bold;
+      margin-top: 3px;
+    }
+
+    .doc-title {
+      font-weight: bold;
+      font-size: 16px;
       text-align: center;
+      text-transform: uppercase;
+      text-decoration: underline;
+      margin-bottom: 8px;
     }
 
-    p {
-      margin: 4px 0;
-      text-align: justify;
-    }
-
-    .section-heading {
+    .meta-row {
       margin-top: 10px;
-      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    .section-title {
       font-weight: bold;
       text-decoration: underline;
-    }
-
-    .clause-heading {
-      margin-top: 8px;
-      font-weight: bold;
-    }
-
-    ol, ul {
-      margin: 4px 0 4px 18px;
-      padding: 0;
+      margin-top: 12px;
+      margin-bottom: 4px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 6px;
-      margin-bottom: 8px;
       font-size: 11px;
     }
 
-    table th, table td {
+    th, td {
       border: 1px solid #000;
-      padding: 4px 5px;
+      padding: 4px 6px;
       vertical-align: top;
-    }
-
-    table th {
-      font-weight: bold;
     }
 
     .no-border-table th,
     .no-border-table td {
       border: none;
-    }
-
-    .right {
-      text-align: right;
-    }
-
-    .center {
-      text-align: center;
-    }
-
-    .mt-4 { margin-top: 4px; }
-    .mt-8 { margin-top: 8px; }
-    .mt-12 { margin-top: 12px; }
-    .mt-16 { margin-top: 16px; }
-
-    .footer {
-      position: absolute;
-      bottom: 12mm;
-      left: 18mm;
-      right: 18mm;
-      font-size: 10px;
-      text-align: center;
-    }
-
-    .signature-line {
-      margin-top: 16px;
-    }
-
-    .signature-line span {
-      display: inline-block;
-      border-top: 1px solid #000;
-      min-width: 120px;
-      text-align: center;
-      padding-top: 2px;
-      font-size: 11px;
-    }
-
-    .two-col {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .two-col > div {
-      width: 48%;
+      padding: 2px 0;
     }
 
     .small-note {
       font-size: 9px;
-      color: #555;
     }
+
+    .sign-row {
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .sign-block {
+      width: 45%;
+      font-size: 11px;
+    }
+
+    .sign-line {
+      border-bottom: 1px solid #000;
+      height: 24px;
+      width: 80%;
+      margin-bottom: 4px;
+    }
+
+    .borrower-tag {
+      position: absolute;
+      right: 18mm;
+      bottom: 8mm;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .center { text-align: center; }
+    .right { text-align: right; }
   </style>
 </head>
+
 <body>
 
-  <!-- PAGE 1: Title & Parties -->
+  <!-- ================= PAGE 1: SANCTION LETTER ================= -->
   <div class="page">
-    <div class="header-center">
-        <img src="../public/fintree_finance_logo.jpg" alt="fintree_finance_logo" width="150" height="120">
+
+    <div class="header">
+      <!-- optional logo -->
+      <!-- <img src="data:image/jpg;base64,{{logo_base64}}" width="120" /> -->
       <div class="company-name">Fintree Finance Pvt. Ltd.</div>
-      <div class="company-tagline"><b>Empowering SME Growth</b></div>
+      <div class="title">SANCTION LETTER</div>
     </div>
 
-    <div class="doc-title mt-16">RENTAL FINANCE AGREEMENT</div>
-    <div class="sub-title"> <b>Agreement</b></div>
+    <!-- DATE + LAN -->
+    <div class="meta-row">
+      <div><b>Date:</b> {{CU_date}}</div>
+      <div><b>LAN:</b> {{lan}}</div>
+    </div>
 
-    <p class="mt-12">
+    <!-- BORROWER DETAILS -->
+    <div class="section-title">Borrower Details</div>
+    <table>
+      <tr>
+        <th>Applicant Name</th>
+        <td>{{C_N}}</td>
+      </tr>
+      <tr>
+        <th>Current Address</th>
+        <td>{{cur_add}}</td>
+      </tr>
+      <tr>
+        <th>Permanent Address</th>
+        <td>{{per_add}}</td>
+      </tr>
+    </table>
+
+    <!-- LOAN SANCTION TERMS -->
+    <div class="section-title">Loan Sanction Terms</div>
+    <table>
+      <tr>
+        <th>Product / Scheme</th>
+        <td>Monthly</td>
+      </tr>
+      <tr>
+        <th>Sanctioned Loan Amount</th>
+        <td>₹ {{L_A}}</td>
+      </tr>
+      <tr>
+        <th>Tenure</th>
+        <td>{{L_T}} Months</td>
+      </tr>
+      <tr>
+        <th>Rate of Interest (p.a.)</th>
+        <td>{{I_R}} %</td>
+      </tr>
+      <tr>
+        <th>Loan Booking / Disbursement Date</th>
+        <td>{{CU_date}}</td>
+      </tr>
+      <tr>
+        <th>Total Number of EMIs</th>
+        <td>{{L_T}}</td>
+      </tr>
+      <tr>
+        <th>EMI Start / First Due Date</th>
+        <td>5th of Every Month</td>
+      </tr>
+      <tr>
+        <th>Interest Servicing / Method</th>
+        <td>{{I_S}}</td>
+      </tr>
+      <tr>
+        <th>Principal Servicing / Method</th>
+        <td>{{P_S}}</td>
+      </tr>
+    </table>
+
+    <!-- FIRST EMI / RPS SNAPSHOT -->
+    <div class="section-title">Repayment Snapshot (First Instalment)</div>
+    <table>
+      <tr>
+        <th>Instalment</th>
+        <td>{{L_T}}</td>
+      </tr>
+      <tr>
+        <th>EMI Amount</th>
+        <td>₹ {{emi}}</td>
+      </tr>
+      <tr>
+        <th>Principal Component</th>
+        <td>₹ {{principal}}</td>
+      </tr>
+      <tr>
+        <th>Interest Component</th>
+        <td>₹ {{interest}}</td>
+      </tr>
+      <tr>
+        <th>Opening Principal Outstanding</th>
+        <td>₹ {{opening}}</td>
+      </tr>
+      <tr>
+        <th>Closing Principal Outstanding</th>
+        <td>₹ {{closing}}</td>
+      </tr>
+      <tr>
+        <th>Remaining No. of EMIs</th>
+        <td>{{remaining_emi}}</td>
+      </tr>
+      <tr>
+        <th>Remaining Interest (Total)</th>
+        <td>₹ {{remaining_interest}}</td>
+      </tr>
+      <tr>
+        <th>Remaining Principal (Total)</th>
+        <td>₹ {{remaining_principal}}</td>
+      </tr>
+    </table>
+
+    <!-- BANK DETAILS -->
+    <div class="section-title">Borrower Bank Details (for Disbursal)</div>
+    <table>
+      <tr>
+        <th>Bank Name</th>
+        <td>{{B_Na}}</td>
+      </tr>
+      <tr>
+        <th>Account Number</th>
+        <td>{{A_no}}</td>
+      </tr>
+      <tr>
+        <th>IFSC Code</th>
+        <td>{{ifsc}}</td>
+      </tr>
+    </table>
+
+    <!-- GENERIC TERMS -->
+    <div class="section-title">Key Conditions</div>
+    <table class="no-border-table">
+      <tr>
+        <td class="small-text">
+          1. The above sanction is subject to execution of requisite loan
+          documentation and submission of satisfactory KYC and income
+          documents as per policy.
+        </td>
+      </tr>
+      <tr>
+        <td class="small-text">
+          2. The rate of interest, fees and other charges are subject to
+          change as per the policies of the lender and applicable laws, from
+          time to time.
+        </td>
+      </tr>
+      <tr>
+        <td class="small-text">
+          3. In case of default in payment of any instalment on or before the
+          due date, penal charges and/or additional interest may be levied as
+          per policy.
+        </td>
+      </tr>
+      <tr>
+        <td class="small-text">
+          4. The borrower confirms that information and documents submitted
+          are true and correct and agrees to be bound by the terms of the
+          loan agreement and related documents.
+        </td>
+      </tr>
+    </table>
+
+     <!-- ACCEPTANCE PARA -->
+    <div class="section">
+      <p class="small-text">
+        I/We hereby confirm that I/We have read and understood the terms and
+        conditions mentioned in this sanction letter and agree to abide by the
+        same. I/We further agree to execute the loan agreement and any other
+        documents as may be required by the lender.
+      </p>
+    </div>
+
+    <!-- SIGNATURES -->
+    <div class="sign-row">
+      <div class="sign-block">
+        <div class="small-note"><b>Borrower</b></div>
+        <div class="small-note">Name: {{C_N}}</div>
+      </div>
+      <div class="sign-block" style="text-align:right;">
+        <div class="small-note"><b>Fintree Finance Pvt. Ltd.</b></div>
+        <div class="small-note">Authorised Signatory</div>
+      </div>
+    </div>
+
+    
+
+  </div>
+
+  <!-- ================= PAGE 2: INTRO + DEFINITIONS ================= -->
+  <div class="page">
+
+  <!-- Header Block -->
+  <div style="margin-top:60px; text-align:center;">
+      <div class="small-text"><b>Fintree Finance Pvt. Ltd.</b></div>
+      <div class="small-text"><b>Empowering SME Growth</b></div>
+
+      <div class="doc-title" style="margin-top:10px;">RENTAL FINANCE AGREEMENT</div>
+      <div class="sub-title"><b>Agreement</b></div>
+  </div>
+
+<p class="mt-12">
       This Agreement is made on the date and at the place and between persons, whose name(s) and
       address(es) are as specified in the Schedule to Agreement (“Schedule”) (hereinafter called the
       “Borrower” or “Customer” of ONE PART);
@@ -250,10 +404,6 @@
       comprise of one or more loan account(s) as detailed in the Schedule(s).</p>
 
     <p><b>‘Loan Tenure’</b> – shall mean the tenure of the Loan as specified in Schedule.</p>
-
-
-     <div class="borrower-tag"><b>Borrower<b></div>  
-
   </div>
 
   <!-- PAGE 2: More Definitions + Loan Terms -->
@@ -266,12 +416,8 @@
 
     <p><b>‘Schedule’</b> – means the schedule(s) appended to this Agreement.</p>
 
-  <b>  <p><b>‘Lending Service Provider’</b>:</p>
-       <p>Name: <b>Nome Residencies Private Limited.<b></p>
-       <p><b>Address:</b> Floor No.: 4th Floor, Building No.62, LRDE HBCS Layout, Outer Ring Road, Karthik Nagar, Bengaluru, Karnataka, 560037</p>
-       <p><b>Contact:</b>9220338249</p>
-       <p><b>Email:</b> depositsaver@heliumhomes.in</p>
-</b>
+    <p><b>‘Lending Service Provider’</b> – means Nome Residencies Private Limited.</p>
+
     <p class="mt-8">
       In this Agreement, singular shall include plural and the masculine gender shall include the feminine or
       neutral gender as the context so requires;
@@ -295,7 +441,7 @@
 
     <div class="section-heading mt-12">2. LOAN TERMS</div>
 
-    <div class="clause-heading">2.1 DISBURSEMENT</div>
+    <div class="sub-title">2.1 DISBURSEMENT</div>
 
     <p>
       The Borrower agrees to borrow from the Lender through the Service Provider’s platform namely, Nome
@@ -327,7 +473,7 @@
       as may be prescribed by the Lender in this regard.
     </p>
 
-    <div class="clause-heading mt-8">2.2 INTEREST AND OTHER CHARGES</div>
+    <div class="sub-title mt-8">2.2 INTEREST AND OTHER CHARGES</div>
 
     <p>
       The Borrower agrees to pay interest on the Loan as per the Schedule. Interest on the Loan shall begin to
@@ -390,13 +536,11 @@
       that non capitalization of penal charges shall not impact the normal compounding of the interest in the
       Loan account(s).
     </p>
-
-    <div class="borrower-tag"><b>Borrower<b></div>  
   </div>
 
   <!-- PAGE 3: Repayment + Additional Loan + KFS (summary text) -->
   <div class="page">
-    <div class="clause-heading">2.3 REPAYMENT</div>
+    <div class="sub-title">2.3 REPAYMENT</div>
 
     <p>
       The Borrower agrees to repay the loan availed by him by way of Equated Periodic Instalments (EPI) on or
@@ -467,7 +611,6 @@
       be liable to pay extra Pre-payment Charges, as mentioned in the Schedule, if the loan is closed within
       first 6 months.
     </p>
-     <div class="borrower-tag"><b>Borrower<b></div>  
 
     <!-- (Other clauses: Additional Loan, FFPL Rights, General Terms, SMA/NPA, Default, Indemnity,
          Disclosure, Electronic media, Severability, Arbitration, Jurisdiction, Acceptance)
@@ -476,12 +619,10 @@
          For brevity in this snippet, we jump to the SCHEDULE + KFS & Repayment which
          are critical for data placeholders. Fill in the rest from the same DOCX
          text, using <p> for paragraphs and .section-heading for headers. -->
-
-           
   </div>
 
   <!-- PAGE 4: SCHEDULE (with placeholders) -->
-  <div class="page">
+ <div class="page">
     <div class="sub-title"><b>SCHEDULE</b></div>
 
     <table>
@@ -544,12 +685,10 @@
       </tr>
     </table>
 
-    <p class="note">
+    <p class="small-note">
       *Total Interest Amount may include a Broken Period Interest (BPI) deducted upfront from the Loan Amount.<br />
       ^First EPI may be different depending on the date of disbursement and due date of first EPI.
     </p>
-
-    <div class="borrower-tag"><b>Borrower<b></div>  
   </div>
 
   <!-- PAGE 5: KEY FACT STATEMENT (KFS) - PART 1 -->
@@ -559,7 +698,7 @@
       <div class="company-tagline">Empowering SME Growth</div>
     </div>
 
-    <div class="doc-title mt-16">Key Fact Statement (KFS)</div>
+    <div class="doc-title">Key Fact Statement (KFS)</div>
     <div class="sub-title">PART 1</div>
 
     <table>
@@ -682,14 +821,9 @@
           iii. Foreclosure charges, if applicable – NA<br />
           iv. Charges for switching of loans – NA<br />
           v. Any other charges – NA
-          
         </td>
-         
       </tr>
-     
     </table>
-
-    <div class="borrower-tag"><b>Borrower<b></div>  
   </div>
 
   <!-- PAGE 6: KFS - PART 2 + Repayment Schedule heading -->
@@ -726,34 +860,30 @@
         <th>5</th>
         <th>In case of digital loans – Cooling off/look-up period</th>
         <td>
-         <b>
-             <b></b>Cooling off period of 3 days. Details of LSP acting as recovery agent and authorised to approach
-          the borrower:<br /></b>
-          <b>Name: Lekhanand Umapathy<br /></b>
-          <b>Address: 09, 3rd Cross, Vidyaranyapura, Bengaluru, Karnataka 560097<br /></b>
-          <b>Contact: +91 8056031308 </b>
-        </b>
+          Cooling off period of 3 days. Details of LSP acting as recovery agent and authorised to approach
+          the borrower:<br />
+          Name: Lekhanand Umapathy<br />
+          Address: 09, 3rd Cross, Vidyaranyapura, Bengaluru, Karnataka 560097<br />
+          Contact: +91 8056031308
         </td>
       </tr>
     </table>
 
-    <div class="doc-title mt-16">REPAYMENT SCHEDULE</div>
- 
-<table>
-  <tr>
-    <th>Instalment No.</th>
-    <th>Opening Balance</th>
-    <th>Principal</th>
-    <th>Interest</th>
-    <th>EMI Amount</th>
-    <th>Closing Balance</th>
-  </tr>
- 
-  {{RPS_ROWS}}
-</table>
- 
+    <div class="doc-title" style="margin-top:16px;">REPAYMENT SCHEDULE</div>
 
-<div class="borrower-tag"><b>Borrower<b></div>  
+    <table>
+      <tr>
+        <th>Instalment No.</th>
+        <th>Opening Balance</th>
+        <th>Principal</th>
+        <th>Interest</th>
+        <th>EMI</th>
+        <th>Closing Balance</th>
+      </tr>
+
+      {{RPS_ROWS}}
+    </table>
+  <div class="borrower-tag">Borrower</div>
   </div>
 
   <!-- PAGE 7: Computation of APR -->
@@ -847,8 +977,6 @@
       Note: The dates are indicative and may change depending upon the actual date of disbursement.
       Schedule of charges will also form part of the Loan agreement to be executed between Lender & the Borrower.
     </p>
-
-    <div class="borrower-tag"><b>Borrower<b></div>  
   </div>
 
   <!-- PAGE 8+: Sanction Letter conditions, Promissory Note, Disbursement Request, Acknowledgement,
@@ -870,7 +998,7 @@
       by and between the parties, I/We (the "Borrowers acting jointly and severally”) unconditionally promise
       to pay the Payee at its office located at 4th Floor, Engineering Centre, 9 Mathew Road, Opera House,
       Charni Road (East), Mumbai 400004 or at such other place as payee may designate, the principal sum of
-      Rs. {{L_A}}/- (Rupees {{L_A_W}} Only) with interest, from the date hereof through and including the
+      Rs. {{L_A}}/- (Rupees _________Only) with interest, from the date hereof through and including the
       dates of payment for value received.
     </p>
 
@@ -891,7 +1019,6 @@
       <span>Name: {{C_N}}</span>
     </div>
     <p>Residential Address: {{per_add}}</p>
-     <div class="borrower-tag"><b>Borrower<b></div> 
   </div>
 
   <!-- DISBURSEMENT REQUEST LETTER -->
@@ -905,8 +1032,8 @@
     <p class="mt-8"><b>Subject: Disbursement Request Letter from the Borrower</b></p>
 
     <p class="mt-8">
-      Pursuant to the Loan Agreement dated {{CU_date}} executed between FFPL and Borrower, I/we have received
-      sanction letter of the Loan amount of Rs. {{L_A}} /- (Rupees {{L_A_W}} Only) from FFPL vide loan Application
+      Pursuant to the Loan Agreement dated {{L_date}} executed between FFPL and Borrower, I/we have received
+      sanction letter of the Loan amount of Rs. {{L_A}} /- (Rupees ___Only) from FFPL vide loan Application
       Number {{lan}}.
     </p>
 
@@ -935,8 +1062,7 @@
 
     <p class="mt-16">Thanking you.</p>
     <p>Yours faithfully,</p>
-    <p>{{C_N}}</p>
-     <div class="borrower-tag"><b>Borrower<b></div> 
+    <p>(Borrower)</p>
   </div>
 
   <!-- DISBURSEMENT ACKNOWLEDGEMENT LETTER -->
@@ -950,9 +1076,9 @@
     <p class="mt-8"><b>Subject: Acknowledgement Of Disbursement For Loan/Facility Sanctioned</b></p>
 
     <p class="mt-8">
-      I/We hereby confirm that we have received the Disbursement of an amount of Rs. {{L_A}}/- {{(Rupees
-      {{L_A_W}} Only)}}, in respect of the loan/facility sanctioned by FFPL to me/us vide the Loan
-      Agreement dated {{CU_date}} executed between FFPL and me/us, through Cheque/ RTGS / NEFT
+      I/We hereby confirm that we have received the Disbursement of an amount of Rs. {{L_A}}/- (Rupees
+      __________________Only), in respect of the loan/facility sanctioned by FFPL to me/us vide the Loan
+      Agreement dated {{L_date}} executed between FFPL and me/us, through Cheque/ RTGS / NEFT
       No.__________ on ______ day of, ______________ 20___.
     </p>
 
@@ -960,8 +1086,6 @@
     <p>Yours faithfully,</p>
     <p>Name: ___________________</p>
     <p>Signature: ________________</p>
-
-     <div class="borrower-tag"><b>Borrower<b></div> 
   </div>
 
   <!-- VERNACULAR / THUMB DECLARATION -->
@@ -1000,8 +1124,6 @@
     <p>Signature/Thumb Impression: _______________________</p>
 
     <p class="mt-16">Signature and Stamp of Branch:<br />Date: ___________</p>
-
-     <div class="borrower-tag"><b>Borrower<b></div> 
   </div>
 
   <!-- END USE UNDERTAKING -->
@@ -1023,8 +1145,8 @@
     </p>
 
     <p>
-      We hereby confirm that a facility of Rs. {{L_A}}/- (Rupee {{L_A_W}} Only) has been
-      granted to us by Fintree Finance Pvt Ltd under the loan agreement dated {{CU_date}} (“Loan
+      We hereby confirm that a facility of Rs. {{L_A}}/- (Rupees _______________________Only) has been
+      granted to us by Fintree Finance Pvt Ltd under the loan agreement dated ___/___/_______ (“Loan
       Agreement”).
     </p>
 
@@ -1064,8 +1186,6 @@
 
     <p class="mt-16">Yours faithfully,</p>
     <p>________________________</p>
-
-     <div class="borrower-tag"><b>Borrower<b></div> 
   </div>
 
   <!-- CONSENT & SELF DECLARATION -->
@@ -1144,9 +1264,7 @@
 
     <p class="mt-16">Borrower</p>
     <p>________________________</p>
-
-     <div class="borrower-tag"><b>Borrower<b></div> 
   </div>
-
+  
 </body>
 </html>
