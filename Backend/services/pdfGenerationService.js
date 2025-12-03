@@ -76,21 +76,21 @@ async function generatePdfFromHtml(html, outputFile) {
     timeout: 120000,
   });
  
-  await page.evaluate(async () => {
-    const images = Array.from(document.images).map((img) => img.src);
+  // await page.evaluate(async () => {
+  //   const images = Array.from(document.images).map((img) => img.src);
  
-    await Promise.all(
-      images.map(
-        (src) =>
-          new Promise((resolve) => {
-            const img = new Image();
-            img.src = src;
-            img.onload = resolve;
-            img.onerror = resolve;
-          })
-      )
-    );
-  });
+  //   await Promise.all(
+  //     images.map(
+  //       (src) =>
+  //         new Promise((resolve) => {
+  //           const img = new Image();
+  //           img.src = src;
+  //           img.onload = resolve;
+  //           img.onerror = resolve;
+  //         })
+  //     )
+  //   );
+  // });
  
   const pdfBuffer = await page.pdf({
     format: "A4",
