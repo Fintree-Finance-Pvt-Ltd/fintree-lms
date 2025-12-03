@@ -244,7 +244,7 @@ async function processRows(sheetData, res) {
 
       // validation
       if (!lan || !utr || !payment_date || !payment_id || !transfer_amount) {
-        rowErrors.push({ row: rowNumber, lan, utr, stage: "validation", reason: "Missing required fields" });
+        rowErrors.push({ row: rowNumber, lan, utr, bank_date,payment_date, payment_id,payment_mode,transfer_amount, stage: "validation", reason: "Missing required fields" });
         continue;
       }
 

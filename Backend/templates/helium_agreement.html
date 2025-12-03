@@ -738,8 +738,8 @@
     </table>
 
     <div class="doc-title mt-16">REPAYMENT SCHEDULE</div>
-
-    <table>
+ 
+<table>
   <tr>
     <th>Instalment No.</th>
     <th>Opening Balance</th>
@@ -748,18 +748,10 @@
     <th>EMI Amount</th>
     <th>Closing Balance</th>
   </tr>
-
-  {{#RPS}}
-  <tr>
-    <td>{{id}}</td>
-    <td>{{opening}}</td>
-    <td>{{principal}}</td>
-    <td>{{interest}}</td>
-    <td>{{emi}}</td>
-    <td>{{closing}}</td>
-  </tr>
-  {{/RPS}}
+ 
+  {{RPS_ROWS}}
 </table>
+ 
 
 <div class="borrower-tag"><b>Borrower<b></div>  
   </div>
