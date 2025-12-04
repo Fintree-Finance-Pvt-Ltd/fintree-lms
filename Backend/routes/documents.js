@@ -1204,7 +1204,7 @@ router.post("/generate-noc", async (req, res) => {
 
     // ✅ simple gate: ONLY when status === 'Fully Paid'
     const statusNorm = String(loan.status || "").trim().toLowerCase();
-    if (statusNorm !== ("fully paid" || "foreclosed" || "settled" ))
+    if (statusNorm !== ("fully paid" || "foreclosed" || "settled" )){
       return res.status(400).json({
         error: "NOC can be generated only when the loan is Fully Paid.",
         currentStatus: loan.status || "-"
