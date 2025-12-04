@@ -991,6 +991,9 @@ router.post("/upload/ev-manual", async (req, res) => {
   }
 });
 
+
+/////////////////////////// NEW CODE FOR HEY EV LOAN DATA CROOS CHECK AND INSERTION //////////////////////
+
 router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
   if (!req.file)
     return res
@@ -1035,6 +1038,8 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
       "Loan Amount",
       " Interest Rate ",
       "Tenure",
+      "FLDG",
+      "PROCESS FEE",
       "GURANTOR",
       "GURANTOR DOB",
       "GURANTOR ADHAR",
@@ -1129,12 +1134,28 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
           lenderType
         );
 
+const loanAmt = Number(row["Loan Amount"]) || 0;
+const fldgPercent = Number(row["FLDG"]) || 0;   // e.g., 5 = 5%
+const processPercent = Number(row["PROCESS FEE"]) || 0; // e.g., 2 = 2%
+
+// Convert percentages to amounts
+const fldgValue = loanAmt * (fldgPercent / 100);
+const processFeeValue = loanAmt * (processPercent / 100);
+
+// GST on process fee
+const gstValue = processFeeValue * 0.18;
+
+// Final disbursement amount
+const disbursementAmount = loanAmt - (fldgValue + processFeeValue + gstValue);
+
+
+
         // ✅ Insert into DB
         const query = `
           INSERT INTO loan_booking_hey_ev (
             partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
             address_line_1, address_line_2, village, district, state, pincode,
-            mobile_number, email, loan_amount, interest_rate, loan_tenure, emi_amount,
+            mobile_number, email, loan_amount, interest_rate, loan_tenure,fldg,process_fee,emi_amount,
             guarantor_name, guarantor_dob, guarantor_aadhar, guarantor_pan, dealer_name,
             name_in_bank, bank_name, account_number, ifsc, aadhar_number, pan_card,
             product, lender, agreement_date, status, disbursal_amount, processing_fee,
@@ -1147,7 +1168,7 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?
           )
         `;
 
@@ -1171,6 +1192,8 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
             row["Loan Amount"],
             row[" Interest Rate "],
             row["Tenure"],
+            row["FLDG"],
+            row["PROCESS FEE"],
             row["EMI Amount"],
             row["GURANTOR"],
             row["GURANTOR DOB"] ? excelDateToJSDate(row["GURANTOR DOB"]) : null,
@@ -1189,7 +1212,7 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
               ? excelDateToJSDate(row["Agreement Date"])
               : null,
             row["status"] || "Login",
-            row["Disbursal Amount"],
+             disbursementAmount,
             row["Processing Fee"] || 0.0,
             row["CIBIL Score"],
             row["GURANTOR CIBIL Score"],
