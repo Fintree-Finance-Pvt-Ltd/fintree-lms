@@ -317,6 +317,7 @@ router.get("/approved-loans", async (req, res) => {
           loan_amount,
           sanction_esign_status,
           agreement_esign_status,
+          bank_status,
           status
         FROM loan_booking_helium where status = 'Approved'
         ORDER BY login_date DESC, lan DESC

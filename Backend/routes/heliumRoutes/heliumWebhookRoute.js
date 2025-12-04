@@ -447,5 +447,76 @@ router.post("/esign-webhook", async (req, res) => {
 });
 
 
+router.post("/enach-webhook", async (req, res) => {
+  try {
+    const event = req.body.event;
+    const mandate = req.body?.payload?.mandate;
+    const mandateId = mandate?.id;
+
+    console.log("📥 eNACH WEBHOOK:", event, "Mandate:", mandateId);
+
+    if (!mandateId) return res.status(200).send("ignored");
+
+    // Save webhook JSON
+    await db.promise().query(
+      `UPDATE enach_mandates 
+       SET webhook_payload=? 
+       WHERE document_id=?`,
+      [JSON.stringify(req.body), mandateId]
+    );
+
+    // Fetch LAN
+    const [rows] = await db.promise().query(
+      `SELECT lan FROM enach_mandates WHERE document_id=?`,
+      [mandateId]
+    );
+
+    if (!rows.length) return res.status(200).send("unknown-mandate");
+
+    const lan = rows[0].lan;
+    const newStatus = mandate.state || "UNKNOWN";
+    const umrn = mandate.umrn || null;
+
+    console.log("🔄 Updating mandate:", mandateId, "STATUS:", newStatus);
+
+    // Update mandate table
+    await db.promise().query(
+      `UPDATE enach_mandates 
+       SET status=?, umrn=?, raw_response=? 
+       WHERE document_id=?`,
+      [
+        newStatus,
+        umrn,
+        JSON.stringify(mandate),
+        mandateId
+      ]
+    );
+
+    // Update loan table status
+    let bankStatus = "PENDING";
+
+    if (event === "mandate.auth_success") bankStatus = "AUTH_SUCCESS";
+    if (event === "mandate.register_success") bankStatus = "ACTIVE";
+    if (event === "mandate.auth_fail" || event === "mandate.register_failed") bankStatus = "FAILED";
+
+    await db.promise().query(
+      `UPDATE loan_booking_helium 
+       SET bank_status=?, enach_umrn=? 
+       WHERE lan=?`,
+      [bankStatus, umrn, lan]
+    );
+
+    console.log("✅ Loan updated =>", lan, bankStatus);
+
+    return res.status(200).send("ok");
+
+  } catch (err) {
+    console.error("❌ Webhook error:", err);
+    return res.status(200).send("error");
+  }
+});
+
+
+
 
 module.exports = router;

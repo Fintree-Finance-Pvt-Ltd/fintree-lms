@@ -14,7 +14,7 @@ exports.initEsign = async (lan, type) => {
     console.log("🚀 INITIATING DIGIO ESIGN FOR:", lan, type);
 
     // --------------------- VALIDATION ---------------------
-    if (!["SANCTION", "AGREEMENT"].includes(type)) {
+    if (!["AGREEMENT"].includes(type)) {
       throw new Error("Invalid eSign type");
     }
 
