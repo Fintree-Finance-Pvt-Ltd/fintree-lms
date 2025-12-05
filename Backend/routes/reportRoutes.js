@@ -50,6 +50,8 @@ function resolveProcedure(rawReportId, rawLender) {
     "adikosh-cam-report-pivot": "adikosh-cam-report-pivot",
     "adikosh-cam-report-print": "adikosh-cam-report-print",
     "adikosh-cam-print": "adikosh-cam-report-print",
+    "delete-collection-data": "delete-collection-data",
+     "delete collection data": "delete-collection-data",
     "ccod-loan-data-report": "ccod-loan-data-report",
   "bank-payment-file-report": "bank-payment-file-report",
   "bank payment file report": "bank-payment-file-report",
@@ -145,6 +147,9 @@ function resolveProcedure(rawReportId, rawLender) {
     // CAM printable (single LAN)
     "adikosh-cam-report-print": () => "sp_cam_data_report_adikosh_print",
 
+    // Delete Collection Report
+    "delete-collection-data": () => "SP_Delete_data_collection",
+
     // CCOD LOAN DATA REPORT
     "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
 
@@ -214,7 +219,8 @@ router.post("/trigger", authenticateUser, async (req, res) => {
 
   const isPrintReport =
     normalizedReportId === "adikosh-cam-report-print" ||
-    normalizedReportId === "adikosh-cam-print";
+    normalizedReportId === "adikosh-cam-print"||
+    normalizedReportId === "delete-collection-data";
 
   // ✅ Validation rules
   if (isPrintReport) {
