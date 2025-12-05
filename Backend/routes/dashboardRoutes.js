@@ -5484,7 +5484,7 @@ router.post("/dpd-list", async (req, res) => {
                      THEN rps.due_date 
                    END) AS last_due_date,
 
-               SUM(IFNULL(rps.principal, 0)) AS pos_principal
+               SUM(IFNULL(rps.remaining_principal, 0)) AS pos_principal
         FROM ${rpsTable} rps
         JOIN ${bookTable} b 
           ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
