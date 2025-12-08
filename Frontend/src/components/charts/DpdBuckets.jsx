@@ -715,76 +715,106 @@ const DpdBuckets = ({ filters }) => {
   }; 
 
   // Export exactly the visible rows to Excel (same logic as you already had)
-  const handleDownloadCurrentView = (visibleRows = rows) => {
-    if (!visibleRows.length) return;
+ const handleDownloadCurrentView = (visibleRows = rows) => {
+  if (!visibleRows || !visibleRows.length) return;
 
-    const columns = [
-      { key: "lan", header: "LAN" },
-      { key: "product", header: "Product" },
-      { key: "customer_name", header: "Customer Name" },
-      { key : "dealer_name", header: "Dealer/ Institute Name" },
-      { key: "district", header: "District" },
-      { key : "loan_status", header: "Loan Status" },
-      { key: "max_dpd", header: "Max DPD" },
-      { key: "overdue_emi", header: "Overdue EMI" },
-      { key: "overdue_principal", header: "Overdue Principal" },
-      { key: "overdue_interest", header: "Overdue Interest" },
-      { key: "pos_principal", header: "POS (Principal)" },
-      { key: "disbursement_date", header: "Disbursement Date" },
-      { key: "ageing_days", header: "Ageing (days)" },
-      { key: "last_due_date", header: "Last Due Date" }
-    ];
+  const columns = [
+    { key: "lan", header: "LAN" },
+    { key: "product", header: "Product" },
+    { key: "customer_name", header: "Customer Name" },
+    { key: "dealer_name", header: "Dealer/ Institute Name" },
+    { key: "district", header: "District" },
+    { key: "loan_status", header: "Loan Status" },
+    { key: "max_dpd", header: "Max DPD" },
+    { key: "overdue_emi", header: "Overdue EMI" },
+    { key: "overdue_principal", header: "Overdue Principal" },
+    { key: "overdue_interest", header: "Overdue Interest" },
+    { key: "pos_principal", header: "POS (Principal)" },
+    { key: "disbursement_date", header: "Disbursement Date" },
+    { key: "ageing_days", header: "Ageing (days)" },
+    { key: "last_due_date", header: "Last Due Date" },
+  ];
 
-    const headerRow = columns.map(c => c.header);
-    const dataRows = visibleRows.map(r => ([
-      r.lan ?? "",
-      r.product ?? "",
-      r.customer_name ?? "",
-      Number(r.max_dpd ?? 0),
+  const headerRow = columns.map((c) => c.header);
 
-      Number(r.overdue_emi ?? 0),
-      Number(r.overdue_principal ?? 0),
-      Number(r.overdue_interest ?? 0),
-      Number(r.pos_principal ?? 0),
-      r.disbursement_date ? new Date(r.disbursement_date) : "",
-      Number(r.ageing_days ?? 0),
-      r.last_due_date ? new Date(r.last_due_date) : ""
-    ]));
+  const toDate = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? "" : d;
+  };
 
-    const aoa = [headerRow, ...dataRows];
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
+  // ⚠️ IMPORTANT: dataRows must match columns index-by-index
+  const dataRows = visibleRows.map((r) => [
+    r.lan ?? "",                     // 0: LAN
+    r.product ?? "",                 // 1: Product
+    r.customer_name ?? "",           // 2: Customer Name
+    r.dealer_name ?? "",             // 3: Dealer/ Institute Name
+    r.district ?? "",                // 4: District
+    r.loan_status ?? "",             // 5: Loan Status
+    Number(r.max_dpd ?? 0),          // 6: Max DPD
+    Number(r.overdue_emi ?? 0),      // 7: Overdue EMI
+    Number(r.overdue_principal ?? 0),// 8: Overdue Principal
+    Number(r.overdue_interest ?? 0), // 9: Overdue Interest
+    Number(r.pos_principal ?? 0),    // 10: POS (Principal)
+    toDate(r.disbursement_date),     // 11: Disbursement Date (Date or "")
+    Number(r.ageing_days ?? 0),      // 12: Ageing (days)
+    toDate(r.last_due_date),         // 13: Last Due Date (Date or "")
+  ]);
 
-    // number & date formats
-    for (let r = 1; r < aoa.length; r++) {
-      for (const c of [3,4,5,6,7,9]) {
-        const addr = XLSX.utils.encode_cell({ r, c });
-        if (ws[addr]) { ws[addr].t = "n"; ws[addr].z = "#,##0"; }
-      }
-      for (const c of [8,10]) {
-        const addr = XLSX.utils.encode_cell({ r, c });
-        if (ws[addr] && aoa[r][c] instanceof Date) {
-          ws[addr].t = "d"; ws[addr].z = "yyyy-mm-dd";
-        }
+  const aoa = [headerRow, ...dataRows];
+
+  // Make sure dates are treated as dates
+  const ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true });
+
+  const numberCols = [6, 7, 8, 9, 10, 12]; // numeric column indexes
+  const dateCols = [11, 13];              // date column indexes
+
+  for (let r = 1; r < aoa.length; r++) {
+    // numeric formatting
+    for (const c of numberCols) {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const cell = ws[addr];
+      if (cell && typeof aoa[r][c] === "number") {
+        cell.t = "n";
+        cell.z = "#,##0";
       }
     }
 
-    const colWidths = headerRow.map((h, idx) => {
-      const maxLen = Math.max(
-        String(h).length,
-        ...dataRows.map(row => (row[idx] == null ? 0 : String(row[idx]).length))
-      );
-      return { wch: Math.min(40, Math.max(10, maxLen + 2)) };
-    });
-    ws["!cols"] = colWidths;
+    // date formatting (only set format, not type)
+    for (const c of dateCols) {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const cell = ws[addr];
+      const value = aoa[r][c];
+      if (cell && value instanceof Date) {
+        // aoa_to_sheet already knows it's a date when cellDates: true
+        cell.z = "yyyy-mm-dd";
+      }
+    }
+  }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Visible Rows");
+  // Column widths
+  const colWidths = headerRow.map((h, idx) => {
+    const maxLen = Math.max(
+      String(h).length,
+      ...dataRows.map((row) =>
+        row[idx] == null ? 0 : String(row[idx]).length
+      )
+    );
+    return { wch: Math.min(40, Math.max(10, maxLen + 2)) };
+  });
+  ws["!cols"] = colWidths;
 
-    const safeProduct = String(filters.product || "ALL").replace(/[^\w-]+/g, "_");
-    const safeBucket = String(selected).replace(/[^\w-]+/g, "_");
-    const filename = `DPD_${safeProduct}_${safeBucket}_${safeBucket}_all_${sortBy}_${sortDir}.xlsx`;
-    XLSX.writeFile(wb, filename);
-  };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Visible Rows");
+
+  const safeProduct = String(filters.product || "ALL").replace(/[^\w-]+/g, "_");
+  const safeBucket = String(selected || "").replace(/[^\w-]+/g, "_");
+  const filename = `DPD_${safeProduct}_${safeBucket}_all_${sortBy}_${sortDir}.xlsx`;
+
+  // Ensure dates are written correctly
+  XLSX.writeFile(wb, filename, { cellDates: true });
+};
+
   
 ////////////////////////
 
