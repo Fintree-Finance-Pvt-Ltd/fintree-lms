@@ -201,7 +201,7 @@
     </table>
 
     <!-- FIRST EMI / RPS SNAPSHOT -->
-    <div class="section-title">Repayment Snapshot (First Instalment)</div>
+    <div class="section-title">Repayment Snapshot </div>
     <table>
       <tr>
         <th>Instalment</th>
@@ -212,32 +212,32 @@
         <td>₹ {{emi}}</td>
       </tr>
       <tr>
-        <th>Principal Component</th>
-        <td>₹ {{principal}}</td>
+        <th>Total Principal Component</th>
+        <td>₹ {{P_S}}</td>
       </tr>
       <tr>
-        <th>Interest Component</th>
-        <td>₹ {{interest}}</td>
+        <th>Total Interest Component</th>
+        <td>₹ {{I_S}}</td>
       </tr>
       <tr>
         <th>Opening Principal Outstanding</th>
-        <td>₹ {{opening}}</td>
+        <td>₹ {{P_S}}</td>
       </tr>
       <tr>
         <th>Closing Principal Outstanding</th>
-        <td>₹ {{closing}}</td>
+        <td>₹ {{P_S}}</td>
       </tr>
       <tr>
         <th>Remaining No. of EMIs</th>
-        <td>{{remaining_emi}}</td>
+        <td>10</td>
       </tr>
       <tr>
         <th>Remaining Interest (Total)</th>
-        <td>₹ {{remaining_interest}}</td>
+        <td>₹ {{I_S}}</td>
       </tr>
       <tr>
         <th>Remaining Principal (Total)</th>
-        <td>₹ {{remaining_principal}}</td>
+        <td>₹ {{I_P}}</td>
       </tr>
     </table>
 
@@ -664,7 +664,7 @@
       </tr>
       <tr>
         <th>INTEREST AMOUNT*</th>
-        <td>{{I_R}}</td>
+        <td>{{I_S}}</td>
       </tr>
       <tr>
         <th>TOTAL REPAYABLE</th>
@@ -998,7 +998,7 @@
       by and between the parties, I/We (the "Borrowers acting jointly and severally”) unconditionally promise
       to pay the Payee at its office located at 4th Floor, Engineering Centre, 9 Mathew Road, Opera House,
       Charni Road (East), Mumbai 400004 or at such other place as payee may designate, the principal sum of
-      Rs. {{L_A}}/- (Rupees _________Only) with interest, from the date hereof through and including the
+      Rs. {{L_A}}/- (Rupees {{L_A_W}} Only) with interest, from the date hereof through and including the
       dates of payment for value received.
     </p>
 
@@ -1077,7 +1077,7 @@
 
     <p class="mt-8">
       I/We hereby confirm that we have received the Disbursement of an amount of Rs. {{L_A}}/- (Rupees
-      __________________Only), in respect of the loan/facility sanctioned by FFPL to me/us vide the Loan
+      {{L_A_W}} Only), in respect of the loan/facility sanctioned by FFPL to me/us vide the Loan
       Agreement dated {{L_date}} executed between FFPL and me/us, through Cheque/ RTGS / NEFT
       No.__________ on ______ day of, ______________ 20___.
     </p>
@@ -1135,7 +1135,7 @@
     <p>To,<br />FINTREE FINANCE PRIVATE LIMITED</p>
 
     <p class="mt-8">
-      In respect of the facility amounting to Rs. {{L_A}}/- (Rupees ________________________________Only)
+      In respect of the facility amounting to Rs. {{L_A}}/- (Rupees {{L_A_W}} Only)
       granted by Fintree Finance Pvt Ltd to us,
     </p>
 
@@ -1145,7 +1145,7 @@
     </p>
 
     <p>
-      We hereby confirm that a facility of Rs. {{L_A}}/- (Rupees _______________________Only) has been
+      We hereby confirm that a facility of Rs. {{L_A}}/- (Rupees {{L_A_W}} Only) has been
       granted to us by Fintree Finance Pvt Ltd under the loan agreement dated ___/___/_______ (“Loan
       Agreement”).
     </p>

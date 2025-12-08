@@ -157,45 +157,29 @@ router.get("/:lan/pdf", async (req, res) => {
   try {
     // STEP A: Get summary row from helium_loan_summary
 
+     // A: Get summary data
     const [summaryRows] = await db.promise().query(
       `SELECT
-
-         lan,
-
-         C_N,
-
-         cur_add,
-
-         per_add,
-
-         L_A,
-
-         I_R,
-
-         L_T,
-
-         B_Na,
-
-         A_no,
-
-         ifsc,
-
-         DATE_FORMAT(L_date, '%d-%m-%Y') AS L_date,
-
-         E_S,
-
-         I_S,
-
-         P_S,
-
-         T_E,
-
-         L_P
-
-       FROM helium_loan_summary
-
-       WHERE lan = ?`,
-
+          lan,
+          C_N,
+          cur_add,
+          per_add,
+          L_A,
+          I_R,
+          L_T,
+          B_Na,
+          A_no,
+          ifsc,
+          DATE_FORMAT(L_date, '%d-%m-%Y') AS L_date,
+          E_S,
+          I_S,
+          P_S,
+          T_E,
+          L_P,
+          L_A_W,
+          DATE_FORMAT(CU_date, '%d-%m-%Y') AS CU_date
+        FROM helium_loan_summary
+        WHERE lan = ?`,
       [lan]
     );
 
@@ -207,103 +191,47 @@ router.get("/:lan/pdf", async (req, res) => {
 
     // ⭐ NEW: Convert loan amount to words
 
-    const L_A_W = numberToWords(summary.L_A);
-
-    // ⭐ Insert current date (DD-MM-YYYY)
-
-    const CU_date = dayjs().format("DD-MM-YYYY");
+      // If not saved in DB → compute on the fly
+    const L_A_W = summary.L_A_W || numberToWords(summary.L_A);
+    const CU_date = summary.CU_date || dayjs().format("DD-MM-YYYY");
 
     // STEP B: Get EMI (and schedule info) from loan_rps_helium
 
+      // B: EMI (latest entry)
     const [rpsRows] = await db.promise().query(
       `SELECT
-
-      id,
-
-         emi,
-
-         interest,
-
-         principal,
-
-         opening,
-
-         closing,
-
-         remaining_emi,
-
-         remaining_interest,
-
-         remaining_principal
-
-       FROM loan_rps_helium
-
-       WHERE lan = ?
-
-       ORDER BY id ASC`,
-
+          id,
+          emi,
+          interest,
+          principal,
+          opening,
+          closing,
+          remaining_emi,
+          remaining_interest,
+          remaining_principal
+        FROM loan_rps_helium
+        WHERE lan = ?
+        ORDER BY id DESC
+        LIMIT 1`,
       [lan]
     );
 
     const rps = rpsRows[0] || {};
 
     // STEP C: Data for template – match keys to {{placeholders}}
-
+  // C: Map data for template
     const dataForTemplate = {
-      lan: summary.lan,
-
-      C_N: summary.C_N,
-
-      cur_add: summary.cur_add,
-
-      per_add: summary.per_add,
-
-      L_A: summary.L_A,
-
+      ...summary,
       L_A_W,
-
       CU_date,
-
-      I_R: summary.I_R,
-
-      L_T: summary.L_T,
-
-      B_Na: summary.B_Na,
-
-      A_no: summary.A_no,
-
-      ifsc: summary.ifsc,
-
-      L_date: summary.L_date,
-
-      E_S: summary.E_S,
-
-      I_S: summary.I_S,
-
-      P_S: summary.P_S,
-
-      T_E: summary.T_E, // total EMI
-
-      L_P: summary.L_P, // loan principal
-
-      // from RPS:
-
       id: rps.id || "",
-
       emi: rps.emi || 0,
-
       opening: rps.opening || 0,
-
       closing: rps.closing || 0,
-
       remaining_emi: rps.remaining_emi || 0,
-
       remaining_interest: rps.remaining_interest || 0,
-
       remaining_principal: rps.remaining_principal || 0,
-
       interest: rps.interest || 0,
-
       principal: rps.principal || 0,
     };
 

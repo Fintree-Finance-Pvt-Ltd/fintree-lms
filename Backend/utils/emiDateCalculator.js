@@ -445,7 +445,23 @@ else if (lender === "HEY EV Loan") {
     console.log(`[HEY EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
     return dueDate;
 }
-    // ///////////////////
+    // /////////////////// HEY EV BATTERY LOAN /////////////////
+
+// ✅ HeyEV Battery : Monthly Loan
+else if (lender === "HeyEV Battery") {
+  const dueDate = new Date(disbDate);
+  dueDate.setMonth(dueDate.getMonth() + 1 + (monthOffset || 0));
+
+  // Keep the same day as disbursement
+  dueDate.setDate(new Date(disbDate).getDate());
+
+  console.log(
+    `[HeyEV Battery Monthly Loan] EMI due: ${dueDate
+      .toISOString()
+      .split("T")[0]}`
+  );
+  return dueDate;
+}
 
 
     // ✅ BL Loan: Daily Loan starts from next day

@@ -103,6 +103,12 @@ import HeliumApprovedLoans from "./components/helium/heliumApprovedLoans";
 import HeliumApprovedLoanDetails from "./components/helium/HeliumApprovedLoanDetails";
 import EsignSuccess from "./components/helium/EsignSuccess";
 import EsignError from "./components/helium/EsignError";
+import HEYEBatteryVActionScreen from "./components/HEYEVBatteryActionScreen";
+import HEYEVBatteryLoginLoans from "./components/HEYEVBatteryLoginLoans";
+import HEYEVBatteryDisbursedLoans from "./components/HEYEVBatteryDisbursedLoans";
+import HEYEVBatteryApproveInitiateScreen from "./components/HEYEVBatteryApproveInitiateScreen";
+import HEYEVBatteryAllLoans from "./components/HEYEVBatteryAllLoans";
+import HEYEVBatteryApprovedLoans from "./components/HEYEVBatteryApprovedLoans";
 
 function App() {
   return (
@@ -932,7 +938,64 @@ function App() {
               </PermissionRoute>
             }
           />
-        </Route>
+     
+                  {/* ✅ Hey EV Battery Loan routes */}
+
+          <Route
+            path="/hey-ev-battery-loans/approved"
+            element={
+              <PermissionRoute pageName="Hey EV Battery Approved Loans">
+                <HEYEVBatteryApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/hey-ev-battery-loans/disbursed"
+            element={
+              <PermissionRoute pageName="Hey EV Battery Disbursed Loans">
+                <HEYEVBatteryDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/hey-ev-battery-loans/all"
+            element={
+              <PermissionRoute pageName="Hey EV Battery All Loans">
+                <HEYEVBatteryAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/hey-ev-battery-loans/login-cases"
+            element={
+              <PermissionRoute pageName="Hey EV Battery Login Loans">
+                <HEYEVBatteryLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/hey-ev-battery-loans/login-actions"
+            element={
+              <PermissionRoute pageName="Hey EV Battery Login Actions">
+                <HEYEBatteryVActionScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/hey-ev-battery-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="Hey EV Battery Disburse Initiated">
+                <HEYEVBatteryApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+       </Route>
+
       </Routes>
     </Router>
   );

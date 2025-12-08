@@ -103,6 +103,13 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
              FROM loan_booking_hey_ev WHERE lan = ?`,
             [lan]
           );
+           } else if (lan.startsWith("HEYBF1")) {
+          // 🔋 HeyEV Battery loans
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_hey_ev_battery WHERE lan = ?`,
+            [lan]
+          );
         } else if (lan.startsWith("FINS")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
@@ -284,6 +291,11 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
           } else if (lan.startsWith("HEYEV")) {
             await conn.query(
               "UPDATE loan_booking_hey_ev SET status = 'Disbursed' WHERE lan = ?",
+              [lan]
+            );
+             } else if (lan.startsWith("HEYBF1")) {
+            await conn.query(
+              "UPDATE loan_booking_hey_ev_battery SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
           } else if (lan.startsWith("FINS")) {

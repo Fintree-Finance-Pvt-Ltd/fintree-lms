@@ -183,6 +183,7 @@ const Sidebar = () => {
           '/emiclub-loans',
           '/finso-loans',
           '/hey-ev-loans',
+          '/hey-ev-battery-loans', /////sajag
           '/helium-loans',
          // '/health-care-loans',
           '/aldun-loans',
@@ -203,6 +204,7 @@ const Sidebar = () => {
     'EMI Club Loans': allowedPages.filter(p => p.path.includes('/emiclub-loans')),
     'Finso Loans': allowedPages.filter(p => p.path.includes('/finso-loans')),
     'HEY EV Loans': allowedPages.filter(p => p.path.includes('/hey-ev-loans')),
+    'HEY EV Battery Loans': allowedPages.filter(p => p.path.includes('/hey-ev-battery-loans')),
     'Helium Loans': allowedPages.filter(p => p.path.includes('/helium-loans')),
     'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),
     'MIS Reports': allowedPages.filter(p => p.path.includes('/mis-reports')),

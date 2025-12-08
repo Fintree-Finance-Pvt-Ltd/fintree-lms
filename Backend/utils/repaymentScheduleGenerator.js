@@ -954,6 +954,94 @@ const generateRepaymentScheduleHEYEV = async (
 
   console.log(`✅ EV RPS generated from next month for ${lan}`);
 };
+
+/////////////////////// HEY EV BATTERY RPS GENERATE START ////////////////////////
+const generateRepaymentScheduleHEYEVBattery = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender
+) => {
+  const annualRate = interestRate / 100;
+  let remainingPrincipal = loanAmount;
+
+  // EMI
+  const emi = Math.round(
+    (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
+      (Math.pow(1 + annualRate / 12, tenure) - 1)
+  );
+
+  // First EMI date
+  const firstDueRaw = getFirstEmiDate(
+    disbursementDate,
+    null,
+    lender,
+    product
+  );
+
+  console.log("Calling getFirstEmiDate (HEY EV Battery) with:", {
+    disbursementDate,
+    lender,
+    product,
+  });
+  console.log("First Due Date (HEYEV Battery):", firstDueRaw);
+
+  const firstDueDate = new Date(firstDueRaw);
+  if (Number.isNaN(firstDueDate.getTime())) {
+    throw new Error(
+      `Invalid first due date from getFirstEmiDate (Battery): ${firstDueRaw}`
+    );
+  }
+
+  const rpsData = [];
+  let dueDate = new Date(firstDueDate);
+
+  for (let i = 1; i <= tenure; i++) {
+    const interest = Math.ceil((remainingPrincipal * annualRate * 30) / 360);
+    let principal = emi - interest;
+    if (i === tenure) principal = remainingPrincipal;
+
+    rpsData.push([
+      lan,
+      dueDate.toISOString().split("T")[0],
+      principal + interest, // emi
+      interest,
+      principal,
+      principal, // keeping same behaviour as HEYEV: remaining_principal = principal
+      interest,
+      principal + interest,
+      "Pending",
+    ]);
+
+    remainingPrincipal -= principal;
+    dueDate.setMonth(dueDate.getMonth() + 1);
+  }
+
+  // Battery RPS table
+  await conn.query(
+    `INSERT INTO manual_rps_hey_ev_battery
+     (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
+     VALUES ?`,
+    [rpsData]
+  );
+
+  // Update emi_amount in battery loan table
+  await conn.query(
+    `UPDATE loan_booking_hey_ev_battery
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [emi, lan]
+  );
+
+  console.log(`✅ HEY EV Battery RPS generated from next month for ${lan}`);
+};
+
+
+
 /////////////////// EMI CLUB RPS ///////////////////////
 const generateRepaymentScheduleEmiclub = async (
   conn,           // Transaction connection
@@ -3423,6 +3511,20 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
+  
+    } else if (lender === "HeyEV Battery") {
+  await generateRepaymentScheduleHEYEVBattery(
+    conn,
+    lan,
+    loanAmount,
+    interestRate,
+    tenure,
+    disbursementDate,
+    product,
+    lender
+  );
+
+
   }  else if (lender === "Finso") {
     await generateRepaymentScheduleFinso365(
       conn,
