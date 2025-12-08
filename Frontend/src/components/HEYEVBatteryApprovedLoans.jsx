@@ -9,4 +9,4 @@ const HEYEVBatteryApprovedLoans = () => {
   )
 }
 
-export default HEYEVNBatteryApprovedLoans
+export default HEYEVBatteryApprovedLoans

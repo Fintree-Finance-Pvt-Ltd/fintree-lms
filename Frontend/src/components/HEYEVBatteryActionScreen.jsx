@@ -12,4 +12,4 @@ const HEYEVBatteryActionScreen = () => {
   );
 }
 
-export default HEYEBatteryVActionScreen
+export default HEYEVBatteryActionScreen
