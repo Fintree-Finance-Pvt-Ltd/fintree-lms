@@ -225,6 +225,7 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_finso WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_booking_emiclub WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_booking_circle_pe WHERE lan IN (?)`, [uniqueLANs]),
+        queryDB(`SELECT lan FROM loan_booking_helium WHERE lan IN (?)`, [uniqueLANs]),
       ]);
 
       validLANs = new Set(results.flat().map((r) => r.lan));

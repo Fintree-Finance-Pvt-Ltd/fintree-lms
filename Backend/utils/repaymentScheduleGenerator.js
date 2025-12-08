@@ -782,6 +782,84 @@ const generateRepaymentScheduleEV = async (
 
   console.log(`✅ EV RPS generated from next month for ${lan}`);
 };
+////////////////////// HELIUM  RPS ////////////////////////
+
+const generateRepaymentScheduleHelium = async (
+  conn,              // transaction connection
+  lan,
+  loanAmount,
+  interestRate,      // annual rate e.g. 18
+  tenure,            // in months
+  disbursementDate,
+  product,
+  lender
+) => {
+
+  // 1️⃣ Convert annual → monthly interest
+  const monthlyRate = (interestRate / 100) / 12;
+
+  // 2️⃣ First EMI date from rule = always 5th
+  const firstDueRaw = getFirstEmiDate(disbursementDate, null, "HELIUM", product);
+  const firstDueDate = new Date(firstDueRaw);
+
+  if (Number.isNaN(firstDueDate.getTime())) {
+    throw new Error(`Invalid first EMI date returned for HELIUM: ${firstDueRaw}`);
+  }
+
+  console.log(`💠 HELIUM first EMI date →`, firstDueDate.toISOString().split("T")[0]);
+
+  let openingPrincipal = loanAmount;
+  let dueDate = new Date(firstDueDate);
+
+  const rpsData = [];
+
+  for (let i = 1; i <= tenure; i++) {
+
+    // 3️⃣ Interest-only EMI (no principal until last EMI)
+    const interest = Math.round(openingPrincipal * monthlyRate);
+    let principal = 0;
+    let emiAmount = interest;
+
+    // Final month — full settlement (principal + interest)
+    if (i === tenure) {
+      principal = openingPrincipal;
+      emiAmount = principal + interest;
+    }
+
+    // Closing principal after this installment
+    const closingPrincipal = Math.max(0, openingPrincipal - principal);
+
+    // push row like EMICLUB style
+    rpsData.push([
+      lan,
+      dueDate.toISOString().split("T")[0],  // due_date
+      emiAmount,                            // emi
+      interest,                             // interest
+      principal,                            // principal
+      principal,                            // remaining_principal (same as principal paid)
+      interest,                             // remaining_interest
+      emiAmount,                            // remaining_emi
+      openingPrincipal,                     // opening balance
+      closingPrincipal,                     // closing balance
+      "Pending",
+    ]);
+
+    openingPrincipal = closingPrincipal;
+    dueDate.setMonth(dueDate.getMonth() + 1);
+  }
+
+  // 5️⃣ Insert into manual_rps_helium
+  await conn.query(
+    `INSERT INTO manual_rps_helium
+     (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
+     VALUES ?`,
+    [rpsData]
+  );
+
+  console.log(`📌 HELIUM RPS generated for ${lan}`);
+};
+
+
 
 ////////////////// HEY EV RPS GENERATE START ////////////// 
 
@@ -3552,6 +3630,17 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
+    } else if (lender === "HELIUM") {
+    await generateRepaymentScheduleHelium(
+      conn,
+      lan,
+      loan_amount,
+      interest_rate,
+      loan_tenure,
+      disbursementDate,
+      product,
+      lender
+    );
   } else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
   }
@@ -3571,5 +3660,6 @@ module.exports = {
   generateRepaymentScheduleEmbifi,
   generateRepaymentScheduleEmiclub,
   generateRepaymentScheduleCirclePE,
+  generateRepaymentScheduleHelium,
   excelSerialDateToJS,
 };

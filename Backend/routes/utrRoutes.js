@@ -52,11 +52,9 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       );
 
       if (!disbursementUTR || !disbursementDate || !lan) {
-        const reason = `Missing required fields: ${
-          !disbursementUTR ? "Disbursement UTR " : ""
-        }${!disbursementDate ? "Disbursement Date " : ""}${
-          !lan ? "LAN" : ""
-        }`.trim();
+        const reason = `Missing required fields: ${!disbursementUTR ? "Disbursement UTR " : ""
+          }${!disbursementDate ? "Disbursement Date " : ""}${!lan ? "LAN" : ""
+          }`.trim();
         rowErrors.push({
           lan: lan || null,
           utr: disbursementUTR || null,
@@ -125,6 +123,15 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
              FROM loan_booking_emiclub WHERE lan = ?`,
             [lan]
           );
+        }
+        else if (lan.startsWith("HEL")) {   // You can change prefix to whatever you use for Helium
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender
+     FROM loan_booking_helium WHERE lan = ?`,
+            [lan]
+          );
+
+
         } else {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
@@ -291,6 +298,12 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               "UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
+          }
+            else if (lan.startsWith("HEL")) {
+            await conn.query(
+              "UPDATE loan_booking_helium SET status = 'Disbursed' WHERE lan = ?",
+              [lan]
+            );
           } else {
             await conn.query(
               "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",
@@ -393,11 +406,11 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         });
         try {
           if (conn) await conn.rollback();
-        } catch (_) {}
+        } catch (_) { }
       } finally {
         try {
           if (conn) conn.release();
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 

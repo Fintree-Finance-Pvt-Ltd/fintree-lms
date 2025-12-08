@@ -384,6 +384,30 @@ else if (lender === "EV Loan" && product === "Monthly Loan") {
     console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
     return dueDate;
 }
+/////// HELIUM ///////////////////
+
+// ✅ HELIUM loan EMI date logic
+else if (lender === "HELIUM") {
+    const disb = new Date(disbursementDate);
+    const disbDay = disb.getDate();
+    const dueDate = new Date(disb);
+
+    // Banking style cutoff:
+    // If disbursed on/before 5th → next month 5th
+    // If disbursed after 5th → month after next 5th
+    if (disbDay <= 25) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+    } else {
+        dueDate.setMonth(dueDate.getMonth() + 2);
+    }
+
+    dueDate.setDate(5);   // Always 5th of month
+
+    console.log(`[HELIUM EMI DATE] First EMI: ${dueDate.toISOString().split("T")[0]}`);
+
+    return dueDate;
+}
+
 
   // ✅ Circle pe Loan : Monthly Loan and Bullet Loan
 // ✅ Circlepe Loan: Monthly Loan and Bullet Loan
