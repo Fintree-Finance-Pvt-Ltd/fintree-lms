@@ -212,14 +212,39 @@ cron.schedule("*/2 * * * *", async () => {
       WHERE ru.bank_date IS NOT NULL
     `;
 
+    /* 🔵 allocation_fintree_fsf → only LAN starting with 'GQFSF' */
+    const sqlAllocationFintreeFSF = `
+      UPDATE allocation_fintree_fsf a
+      JOIN repayments_upload ru 
+        ON a.payment_id = ru.payment_id 
+       AND a.lan = ru.lan
+      SET a.bank_date_allocation = ru.bank_date
+      WHERE ru.bank_date IS NOT NULL
+        AND ru.lan LIKE 'GQFSF%'
+    `;
+
+    /* 🟢 allocation_fintree → only LAN starting with 'GQNonFSF' */
+    const sqlAllocationFintree = `
+      UPDATE allocation_fintree a
+      JOIN repayments_upload ru 
+        ON a.payment_id = ru.payment_id 
+       AND a.lan = ru.lan
+      SET a.bank_date_allocation = ru.bank_date
+      WHERE ru.bank_date IS NOT NULL
+        AND ru.lan LIKE 'GQNonFSF%'
+    `;
+
     await db.promise().query(sqlAllocation);
     await db.promise().query(sqlAllocationAdikosh);
+    await db.promise().query(sqlAllocationFintreeFSF);
+    await db.promise().query(sqlAllocationFintree);
 
-    console.log("✅ allocation & allocation_adikosh bank_date_allocation updated");
+    console.log("✅ allocation, adikosh, fintree_fsf, fintree bank_date_allocation updated");
   } catch (err) {
     console.error("❌ Allocation cron failed:", err.sqlMessage || err.message);
   }
 });
+
 // 5️⃣ WCTL CCOD Interest Accrual Cron
 
 cron.schedule("*/2 * * * *", () => {
