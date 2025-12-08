@@ -308,6 +308,8 @@ const TriggerReportForm = () => {
     [reportId]
   );
 
+ 
+
   useEffect(() => {
     if (isCamPrint) setOutputFormat("pdf");
   }, [isCamPrint]);
