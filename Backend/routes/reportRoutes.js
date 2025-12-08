@@ -214,10 +214,9 @@ router.post("/trigger", authenticateUser, async (req, res) => {
     return res.status(400).json({ error: `Invalid report ID: ${reportId}` });
   }
 
-  const isPrintReport =
+   const isPrintReport =
     normalizedReportId === "adikosh-cam-report-print" ||
-    normalizedReportId === "adikosh-cam-print"||
- 
+    normalizedReportId === "adikosh-cam-print";
 
   // ✅ Validation rules
   if (isPrintReport) {
