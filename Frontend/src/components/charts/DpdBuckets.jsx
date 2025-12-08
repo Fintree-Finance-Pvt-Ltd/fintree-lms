@@ -712,7 +712,7 @@ const DpdBuckets = ({ filters }) => {
     } else {
       toggleDir();
     }
-  };
+  }; 
 
   // Export exactly the visible rows to Excel (same logic as you already had)
   const handleDownloadCurrentView = (visibleRows = rows) => {
@@ -722,6 +722,9 @@ const DpdBuckets = ({ filters }) => {
       { key: "lan", header: "LAN" },
       { key: "product", header: "Product" },
       { key: "customer_name", header: "Customer Name" },
+      { key : "dealer_name", header: "Dealer/ Institute Name" },
+      { key: "district", header: "District" },
+      { key : "loan_status", header: "Loan Status" },
       { key: "max_dpd", header: "Max DPD" },
       { key: "overdue_emi", header: "Overdue EMI" },
       { key: "overdue_principal", header: "Overdue Principal" },
@@ -738,6 +741,7 @@ const DpdBuckets = ({ filters }) => {
       r.product ?? "",
       r.customer_name ?? "",
       Number(r.max_dpd ?? 0),
+
       Number(r.overdue_emi ?? 0),
       Number(r.overdue_principal ?? 0),
       Number(r.overdue_interest ?? 0),
