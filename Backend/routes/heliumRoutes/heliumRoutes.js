@@ -231,7 +231,7 @@ INSERT INTO loan_booking_helium (
   // 🧮 Call both procedures based on LAN
     // If they can be independent, you can also do Promise.all here
 
-    db.promise().query("CALL sp_generate_helium_rps(?)", [lan])
+  await  db.promise().query("CALL sp_generate_helium_rps(?)", [lan])
   .catch(err => console.error("Error in sp_generate_helium_rps:", err));
 
 
@@ -245,7 +245,7 @@ INSERT INTO loan_booking_helium (
 
     await db.promise().query(insertVerify, [lan]);
 
-db.promise().query("CALL sp_build_helium_loan_summary(?)", [lan])
+await db.promise().query("CALL sp_build_helium_loan_summary(?)", [lan])
   .catch(err => console.error("Error in sp_build_helium_loan_summary:", err));
 
 
