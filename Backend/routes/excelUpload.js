@@ -1272,40 +1272,286 @@ const disbursementAmount = loanAmt - (fldgValue + processFeeValue + gstValue);
 
 /////////////////////////// NEW CODE FOR HEY EV Battery LOAN DATA CROOS CHECK AND INSERTION //////////////////////
 
+// router.post(
+//   "/hey-ev-battery-upload",
+//   upload.single("file"),
+//   async (req, res) => {
+//     if (!req.file) {
+//       return res
+//         .status(400)
+//         .json({ message: "No file uploaded. Please select a valid file." });
+//     }
+
+//     if (!req.body.lenderType) {
+//       return res.status(400).json({ message: "Lender type is required." });
+//     }
+
+//     try {
+//       const lenderType = req.body.lenderType.trim();
+//       if (lenderType !== "HeyEV Battery") {
+//         return res.status(400).json({
+//           message:
+//             "Invalid upload lender type. Only HeyEV Battery is supported for this endpoint.",
+//         });
+//       }
+
+//       const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+//       const sheetName = workbook.SheetNames[0];
+//       const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+//       if (!sheetData || sheetData.length === 0) {
+//         return res.status(400).json({
+//           message: "Uploaded Excel file is empty or invalid.",
+//         });
+//       }
+
+//       // 43 required Excel fields
+//       const requiredFields = [
+//         "LOGIN DATE",
+//         "Customer Name",
+//         "Borrower DOB",
+//         "Father Name",
+//         "Address Line 1",
+//         "Address Line 2",
+//         "Village",
+//         "District",
+//         "State",
+//         "Pincode",
+//         "Mobile Number",
+//         "Invoice Amount",
+//         "LTV",
+//         "Loan Amount",
+//         " Interest Rate ",
+//         "Tenure",
+//         "DEALER NAME",
+//         "Name in Bank",
+//         "Bank name",
+//         "Account Number",
+//         "IFSC",
+//         "Borrower Aadhar Number",
+//         "Borrower Pan Card",
+//         "Product",
+//         "lender",
+//         "Agreement Date",
+//         "CIBIL Score",
+//         "APR",
+//         "Customer Name as per bank",
+//         "Customer Bank name",
+//         "Customer Account Number",
+//         "Bank IFSC Code",
+//         "Battery Name",
+//         "Battery Type",
+//         "Battery Serial no 1",
+//         "Charger Serial no",
+//         "E-Rikshaw model",
+//         "Chassis no",
+//         "CKYC NO",
+//         "E-Rickshaw No.",
+//       ];
+
+//       const success_rows = [];
+//       const row_errors = [];
+
+//       for (let i = 0; i < sheetData.length; i++) {
+//         const row = sheetData[i];
+//         const R = i + 2; // Excel row (header = 1)
+
+//         try {
+//           // 1) Required-field validation
+//           const missingFields = requiredFields.filter(
+//             (field) => !row[field] || String(row[field]).trim() === ""
+//           );
+
+//           if (missingFields.length > 0) {
+//             row_errors.push({
+//               row: R,
+//               stage: "validation",
+//               reason: `Missing required fields: ${missingFields.join(", ")}`,
+//             });
+//             continue;
+//           }
+
+//           const rowLender = (row["lender"] || "").trim();
+//           if (rowLender !== "HeyEV Battery") {
+//             row_errors.push({
+//               row: R,
+//               stage: "validation",
+//               reason:
+//                 "Invalid lender type in row. Only HeyEV Battery is supported for this sheet.",
+//             });
+//             continue;
+//           }
+
+//           const interestRate = Number(row[" Interest Rate "]);
+//           if (isNaN(interestRate) || interestRate <= 0) {
+//             row_errors.push({
+//               row: R,
+//               stage: "validation",
+//               reason: "Valid numeric Interest Rate is required.",
+//             });
+//             continue;
+//           }
+
+//           const aadharNumber = String(row["Borrower Aadhar Number"]).trim();
+//           const panCard = String(row["Borrower Pan Card"]).trim();
+
+//           // 2) Duplicate check on PAN in battery table
+//           const [existingRecords] = await db
+//             .promise()
+//             .query(
+//               `SELECT lan FROM loan_booking_hey_ev_battery WHERE borrower_pan_card = ?`,
+//               [panCard || null]
+//             );
+
+//           if (existingRecords.length > 0) {
+//             row_errors.push({
+//               row: R,
+//               stage: "dup-check",
+//               reason: `Customer already exists. Duplicate found for Pan Card: ${panCard}`,
+//             });
+//             continue;
+//           }
+
+//           // 3) Generate IDs
+//           const { partnerLoanId, lan } = await generateLoanIdentifiers(
+//             lenderType
+//           );
+
+//           // 4) Prepare values
+//           const loanAmount = Number(row["Loan Amount"]) || 0;
+//           const apr = Number(row["APR"]) || 0;
+
+//           const insertQuery = `
+//             INSERT INTO loan_booking_hey_ev_battery (
+//               partner_loan_id, lan,
+//               login_date, customer_name, borrower_dob, father_name,
+//               address_line_1, address_line_2, village, district, state, pincode,
+//               mobile_number, invoice_amount, ltv, eligible_loan_amount, loan_amount,
+//               interest_rate, tenure, dealer_name, name_in_bank, bank_name, account_number,
+//               ifsc, borrower_aadhar_number, borrower_pan_card, product, lender,
+//               agreement_date, cibil_score, apr,
+//               customer_name_as_per_bank, customer_bank_name, customer_account_number,
+//               bank_ifsc_code, battery_name, battery_type, battery_serial_no_1,
+//               charger_serial_no, e_rikshaw_model, chassis_no, ckyc_no, e_rickshaw_no,
+//               status
+//             ) VALUES (
+//               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+//               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+//               ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+//               ?, ?, ?, ?, ?, ?, ?
+//             )
+//           `;
+
+//           await db.promise().query(insertQuery, [
+//             partnerLoanId,
+//             lan,
+//             row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+//             row["Customer Name"],
+//             row["Borrower DOB"]
+//               ? excelDateToJSDate(row["Borrower DOB"])
+//               : null,
+//             row["Father Name"],
+//             row["Address Line 1"],
+//             row["Address Line 2"],
+//             row["Village"],
+//             row["District"],
+//             row["State"],
+//             row["Pincode"],
+//             row["Mobile Number"],
+//             row["Invoice Amount"],
+//             row["LTV"],
+//             row["Eligible Loan Amount"],
+//             loanAmount,
+//             interestRate,
+//             row["Tenure"],
+//             row["DEALER NAME"],
+//             row["Name in Bank"],
+//             row["Bank name"],
+//             row["Account Number"],
+//             row["IFSC"],
+//             aadharNumber,
+//             panCard,
+//             row["Product"],
+//             row["lender"],
+//             row["Agreement Date"]
+//               ? excelDateToJSDate(row["Agreement Date"])
+//               : null,
+//             row["CIBIL Score"],
+//             row["Risk Category"],
+//             row["Risk bucket"],
+//             apr,
+//             row["Customer Name as per bank"],
+//             row["Customer Bank name"],
+//             row["Customer Account Number"],
+//             row["Bank IFSC Code"],
+//             row["Battery Name"],
+//             row["Battery Type"],
+//             row["Battery Serial no 1"],
+//             row["Charger Serial no"],
+//             row["E-Rikshaw model"],
+//             row["Chassis no"],
+//             row["CKYC NO"],
+//             row["E-Rickshaw No."],
+//             "Login", // default status
+//           ]);
+
+//           success_rows.push({ row: R, lan, partnerLoanId, interestRate });
+//           console.log(
+//             `✅ [Battery] Inserted row ${R} | PAN: ${panCard} | LAN: ${lan}`
+//           );
+//         } catch (err) {
+//           row_errors.push({
+//             row: R,
+//             stage: "insert",
+//             reason: err.sqlMessage || err.message,
+//           });
+//           console.error(`❌ [Battery] Row ${R} failed:`, err);
+//         }
+//       }
+
+//       return res.json({
+//         message: "HeyEV Battery file processed.",
+//         total_rows: sheetData.length,
+//         inserted_rows: success_rows.length,
+//         failed_rows: row_errors.length,
+//         success_rows,
+//         row_errors,
+//       });
+//     } catch (error) {
+//       console.error("❌ Error in HeyEV Battery Upload Process:", error);
+//       return res.status(500).json({
+//         message: "Battery upload failed. Please try again.",
+//         error: error.sqlMessage || error.message,
+//       });
+//     }
+//   }
+// );
+
 router.post(
   "/hey-ev-battery-upload",
   upload.single("file"),
   async (req, res) => {
-    if (!req.file) {
-      return res
-        .status(400)
-        .json({ message: "No file uploaded. Please select a valid file." });
-    }
+    if (!req.file)
+      return res.status(400).json({ message: "No file uploaded." });
 
-    if (!req.body.lenderType) {
+    if (!req.body.lenderType)
       return res.status(400).json({ message: "Lender type is required." });
-    }
 
     try {
       const lenderType = req.body.lenderType.trim();
       if (lenderType !== "HeyEV Battery") {
         return res.status(400).json({
-          message:
-            "Invalid upload lender type. Only HeyEV Battery is supported for this endpoint.",
+          message: "Invalid lender type. Only HeyEV Battery allowed.",
         });
       }
 
       const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-      const sheetName = workbook.SheetNames[0];
-      const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      const sheet = workbook.SheetNames[0];
+      const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet]);
 
-      if (!sheetData || sheetData.length === 0) {
-        return res.status(400).json({
-          message: "Uploaded Excel file is empty or invalid.",
-        });
-      }
+      if (!sheetData.length)
+        return res.status(400).json({ message: "Empty Excel file." });
 
-      // 43 required Excel fields
       const requiredFields = [
         "LOGIN DATE",
         "Customer Name",
@@ -1320,10 +1566,11 @@ router.post(
         "Mobile Number",
         "Invoice Amount",
         "LTV",
-        "Eligible Loan Amount",
         "Loan Amount",
         " Interest Rate ",
         "Tenure",
+        "FLDG",
+        "Process Fee",
         "DEALER NAME",
         "Name in Bank",
         "Bank name",
@@ -1335,8 +1582,6 @@ router.post(
         "lender",
         "Agreement Date",
         "CIBIL Score",
-        "Risk Category",
-        "Risk bucket",
         "APR",
         "Customer Name as per bank",
         "Customer Bank name",
@@ -1357,102 +1602,115 @@ router.post(
 
       for (let i = 0; i < sheetData.length; i++) {
         const row = sheetData[i];
-        const R = i + 2; // Excel row (header = 1)
+        const R = i + 2;
 
         try {
-          // 1) Required-field validation
-          const missingFields = requiredFields.filter(
+          // Validate required fields
+          const missing = requiredFields.filter(
             (field) => !row[field] || String(row[field]).trim() === ""
           );
 
-          if (missingFields.length > 0) {
+          if (missing.length) {
             row_errors.push({
               row: R,
-              stage: "validation",
-              reason: `Missing required fields: ${missingFields.join(", ")}`,
+              reason: `Missing: ${missing.join(", ")}`,
             });
             continue;
           }
 
-          const rowLender = (row["lender"] || "").trim();
-          if (rowLender !== "HeyEV Battery") {
+          // Validate lender
+          if (String(row["lender"]).trim() !== "HeyEV Battery") {
             row_errors.push({
               row: R,
-              stage: "validation",
-              reason:
-                "Invalid lender type in row. Only HeyEV Battery is supported for this sheet.",
+              reason: "Invalid lender value in row.",
             });
             continue;
           }
 
+          // Validate interest
           const interestRate = Number(row[" Interest Rate "]);
           if (isNaN(interestRate) || interestRate <= 0) {
             row_errors.push({
               row: R,
-              stage: "validation",
-              reason: "Valid numeric Interest Rate is required.",
+              reason: "Invalid interest rate.",
             });
             continue;
           }
 
-          const aadharNumber = String(row["Borrower Aadhar Number"]).trim();
-          const panCard = String(row["Borrower Pan Card"]).trim();
+          const pan = row["Borrower Pan Card"].trim();
 
-          // 2) Duplicate check on PAN in battery table
-          const [existingRecords] = await db
+          // Duplicate check
+          const [exists] = await db
             .promise()
             .query(
-              `SELECT lan FROM loan_booking_hey_ev_battery WHERE borrower_pan_card = ?`,
-              [panCard || null]
+              "SELECT lan FROM loan_booking_hey_ev_battery WHERE borrower_pan_card = ?",
+              [pan]
             );
 
-          if (existingRecords.length > 0) {
+          if (exists.length) {
             row_errors.push({
               row: R,
-              stage: "dup-check",
-              reason: `Customer already exists. Duplicate found for Pan Card: ${panCard}`,
+              reason: `Duplicate PAN: ${pan}`,
             });
             continue;
           }
 
-          // 3) Generate IDs
+          // Generate IDs
           const { partnerLoanId, lan } = await generateLoanIdentifiers(
             lenderType
           );
 
-          // 4) Prepare values
-          const loanAmount = Number(row["Loan Amount"]) || 0;
-          const apr = Number(row["APR"]) || 0;
+          // -------------------------------
+          // Auto Calculations
+          // -------------------------------
 
-          const insertQuery = `
+          const invoiceAmount = Number(row["Invoice Amount"]) || 0;
+
+          // LTV may contain %, remove it
+          const ltvRaw = String(row["LTV"]).replace("%", "");
+          const ltvPercent = Number(ltvRaw) || 0;
+
+          const eligibleLoanAmount = invoiceAmount * (ltvPercent / 100);
+
+          const loanAmount = Number(row["Loan Amount"]) || 0;
+
+          // Fees
+          const fldgPercent = Number(row["FLDG"]) || 0;
+          const processPercent = Number(row["Process Fee"]) || 0;
+
+          const fldgValue = loanAmount * (fldgPercent / 100);
+          const processFeeValue = loanAmount * (processPercent / 100);
+          const gstValue = processFeeValue * 0.18;
+
+          const disbursementAmount =
+            loanAmount - (fldgValue + processFeeValue + gstValue);
+
+          // -------------------------------
+          // INSERT QUERY — EXACT MATCH TO DB STRUCTURE
+          // -------------------------------
+
+          const q = `
             INSERT INTO loan_booking_hey_ev_battery (
-              partner_loan_id, lan,
-              login_date, customer_name, borrower_dob, father_name,
-              address_line_1, address_line_2, village, district, state, pincode,
-              mobile_number, invoice_amount, ltv, eligible_loan_amount, loan_amount,
-              interest_rate, tenure, dealer_name, name_in_bank, bank_name, account_number,
-              ifsc, borrower_aadhar_number, borrower_pan_card, product, lender,
-              agreement_date, cibil_score, risk_category, risk_bucket, apr,
-              customer_name_as_per_bank, customer_bank_name, customer_account_number,
-              bank_ifsc_code, battery_name, battery_type, battery_serial_no_1,
-              charger_serial_no, e_rikshaw_model, chassis_no, ckyc_no, e_rickshaw_no,
-              status
-            ) VALUES (
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-              ?, ?, ?, ?, ?, ?, ?, ?, ?
-            )
+              partner_loan_id, lan, login_date, customer_name, borrower_dob,
+              father_name, address_line_1, address_line_2, village, district,
+              state, pincode, mobile_number, invoice_amount, ltv,
+              eligible_loan_amount, loan_amount, interest_rate, tenure,
+              dealer_name, name_in_bank, bank_name, account_number, ifsc,
+              borrower_aadhar_number, borrower_pan_card, product, lender,
+              agreement_date, cibil_score, apr, customer_name_as_per_bank,
+              customer_bank_name, customer_account_number, bank_ifsc_code,
+              battery_name, battery_type, battery_serial_no_1, charger_serial_no,
+              e_rikshaw_model, chassis_no, ckyc_no, e_rickshaw_no,
+              fldg, process_fee, gst, disbursement_amount, status
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           `;
 
-          await db.promise().query(insertQuery, [
+          await db.promise().query(q, [
             partnerLoanId,
             lan,
-            row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+            excelDateToJSDate(row["LOGIN DATE"]),
             row["Customer Name"],
-            row["Borrower DOB"]
-              ? excelDateToJSDate(row["Borrower DOB"])
-              : null,
+            excelDateToJSDate(row["Borrower DOB"]),
             row["Father Name"],
             row["Address Line 1"],
             row["Address Line 2"],
@@ -1461,9 +1719,9 @@ router.post(
             row["State"],
             row["Pincode"],
             row["Mobile Number"],
-            row["Invoice Amount"],
-            row["LTV"],
-            row["Eligible Loan Amount"],
+            invoiceAmount,
+            ltvPercent,
+            eligibleLoanAmount,
             loanAmount,
             interestRate,
             row["Tenure"],
@@ -1472,17 +1730,13 @@ router.post(
             row["Bank name"],
             row["Account Number"],
             row["IFSC"],
-            aadharNumber,
-            panCard,
+            row["Borrower Aadhar Number"],
+            pan,
             row["Product"],
             row["lender"],
-            row["Agreement Date"]
-              ? excelDateToJSDate(row["Agreement Date"])
-              : null,
+            excelDateToJSDate(row["Agreement Date"]),
             row["CIBIL Score"],
-            row["Risk Category"],
-            row["Risk bucket"],
-            apr,
+            row["APR"],
             row["Customer Name as per bank"],
             row["Customer Bank name"],
             row["Customer Account Number"],
@@ -1495,40 +1749,40 @@ router.post(
             row["Chassis no"],
             row["CKYC NO"],
             row["E-Rickshaw No."],
-            "Login", // default status
+            fldgValue,
+            processFeeValue,
+            gstValue,
+            disbursementAmount,
+            "Login",
           ]);
 
-          success_rows.push({ row: R, lan, partnerLoanId, interestRate });
-          console.log(
-            `✅ [Battery] Inserted row ${R} | PAN: ${panCard} | LAN: ${lan}`
-          );
+          success_rows.push({ row: R, lan, partnerLoanId });
         } catch (err) {
           row_errors.push({
             row: R,
-            stage: "insert",
-            reason: err.sqlMessage || err.message,
+            reason: err.message,
           });
-          console.error(`❌ [Battery] Row ${R} failed:`, err);
         }
       }
 
       return res.json({
-        message: "HeyEV Battery file processed.",
-        total_rows: sheetData.length,
-        inserted_rows: success_rows.length,
-        failed_rows: row_errors.length,
+        message: "HeyEV Battery Upload Complete",
+        inserted: success_rows.length,
+        failed: row_errors.length,
         success_rows,
         row_errors,
       });
-    } catch (error) {
-      console.error("❌ Error in HeyEV Battery Upload Process:", error);
+    } catch (e) {
       return res.status(500).json({
-        message: "Battery upload failed. Please try again.",
-        error: error.sqlMessage || error.message,
+        message: "Server error",
+        error: e.message,
       });
     }
   }
 );
+
+
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////
