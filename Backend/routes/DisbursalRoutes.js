@@ -131,6 +131,18 @@ router.get("/:lan", async (req, res) => {
     subventionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = "lb.net_disbursement";
+  }
+    else if (lan.startsWith("HEL")) {
+    tableName = "loan_booking_helium";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.loan_tenure";
+    processingFeeCol = "lb.processing_fee";
+    subventionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    netDisbursementExpr = "lb.net_disbursement";
+    
   } else if (lan.startsWith("GQF")) {
     tableName = "loan_booking_gq_fsf";
     loanAmountCol = "lb.loan_amount_sanctioned AS loan_amount";

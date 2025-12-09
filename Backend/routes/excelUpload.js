@@ -1530,7 +1530,9 @@ const disbursementAmount = loanAmt - (fldgValue + processFeeValue + gstValue);
 router.post(
   "/hey-ev-battery-upload",
   upload.single("file"),
+
   async (req, res) => {
+    console.log( `in side the route` )
     if (!req.file)
       return res.status(400).json({ message: "No file uploaded." });
 

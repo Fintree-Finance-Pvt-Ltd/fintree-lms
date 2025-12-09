@@ -302,7 +302,7 @@ const CreateLoanBooking = () => {
           <option value="Embifi">Embifi</option>
           <option value="CirclePE">Circle PE</option>
           <option value="WCTL">WCTL</option>
-          <><option value="HeyEV Battery">Hey EV Battery</option></>
+          <option value="HeyEV Battery">Hey EV Battery</option>
 
         </select>
 
