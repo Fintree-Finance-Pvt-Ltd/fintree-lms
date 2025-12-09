@@ -1766,9 +1766,10 @@ router.post(
       }
 
       return res.json({
-        message: "HeyEV Battery Upload Complete",
-        inserted: success_rows.length,
-        failed: row_errors.length,
+        message: "HeyEV Battery file processed.",
+        total_rows: sheetData.length,
+        inserted_rows: success_rows.length,
+        failed_rows: row_errors.length,
         success_rows,
         row_errors,
       });
