@@ -392,21 +392,21 @@ else if (lender === "HELIUM") {
     const disbDay = disb.getDate();
     const dueDate = new Date(disb);
 
-    // Banking style cutoff:
-    // If disbursed on/before 5th → next month 5th
-    // If disbursed after 5th → month after next 5th
-    if (disbDay <= 25) {
+    // Banking-style cutoff: 5th of every month
+    if (disbDay <= 5) {
         dueDate.setMonth(dueDate.getMonth() + 1);
     } else {
         dueDate.setMonth(dueDate.getMonth() + 2);
     }
 
-    dueDate.setDate(5);   // Always 5th of month
+    // Always set EMI date to 5th
+    dueDate.setDate(5);
 
     console.log(`[HELIUM EMI DATE] First EMI: ${dueDate.toISOString().split("T")[0]}`);
 
     return dueDate;
 }
+
 
 
   // ✅ Circle pe Loan : Monthly Loan and Bullet Loan
