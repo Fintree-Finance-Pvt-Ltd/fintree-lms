@@ -482,6 +482,11 @@ const HeliumManualEntry = () => {
     "current_district",
     "current_state",
     "current_pincode",
+    "permanent_address",
+    "permanent_village_city",
+    "permanent_district",
+    "permanent_state",
+    "permanent_pincode",
     "loan_amount",
     "interest_rate",
     "loan_tenure",
@@ -573,6 +578,15 @@ const HeliumManualEntry = () => {
     name === "loan_amount"
   ) {
     newValue = value.replace(/[^\d]/g, ""); // only digits allowed
+  }
+  // ✅ Account number digits only (optional length cap)
+  if (name === "account_number") {
+    newValue = value.replace(/\D/g, "").slice(0, 20); // adjust length as per your policy
+  }
+
+  // ✅ IFSC upper-case, alphanumeric, max 11
+  if (name === "ifsc") {
+    newValue = value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11);
   }
 
     setFormData((prev) => {
@@ -743,118 +757,117 @@ const HeliumManualEntry = () => {
 
   return (
     <div className="manual-entry-container">
-      <h2>HELIUM Loan Manual Entry</h2>
+  <h2>HELIUM Loan Manual Entry</h2>
 
-      <form onSubmit={handleSubmit}>
-        {/* Borrower Details */}
-        <fieldset>
-          <legend>Borrower Details</legend>
+  <form onSubmit={handleSubmit}>
+    {/* Borrower Details */}
+    <fieldset>
+      <legend>Borrower Details</legend>
 
-           <div className="form-group">
-    <label>
-      Login Date <span className="req">*</span>
-    </label>
-    <input
-      type="date"
-      name="login_date"
-      value={formData.login_date}
-      readOnly
-      disabled   // user cannot change it
-    />
-  </div>
-          
-          {renderInput("First Name", "first_name")}
-          {renderInput("Last Name", "last_name")}
-          {renderInput("Customer Full Name", "customer_name")}
-          {renderSelect("Gender", "gender", ["Male", "Female", "Other"])}
-          {renderInput("Date of Birth", "dob", "date")}
-          {renderInput("Father Name", "father_name")}
-          {renderInput("Mother Name", "mother_name")}
-          {renderInput("Mobile Number", "mobile_number", "tel")}
-          {renderInput("Email ID", "email_id", "email")}
-          {renderInput("PAN Number", "pan_number")}
-          {renderInput("Aadhaar Number", "aadhar_number", "tel")}
-        </fieldset>
+      <div className="form-group">
+        <label>
+          Login Date <span className="req">*</span>
+        </label>
+        <input
+          type="date"
+          name="login_date"
+          value={formData.login_date}
+          readOnly
+          disabled   // user cannot change it
+        />
+      </div>
 
-        {/* Current / Property Address */}
-        <fieldset>
-          <legend>Current / Property Address</legend>
+      {renderInput("First Name", "first_name")}
+      {renderInput("Last Name", "last_name")}
+      {renderInput("Customer Full Name", "customer_name")}
+      {renderSelect("Gender", "gender", ["Male", "Female", "Other"])}
+      {renderInput("Date of Birth", "dob", "date")}
+      {renderInput("Father Name", "father_name")}
+      {renderInput("Mother Name", "mother_name")}
+      {renderInput("Mobile Number", "mobile_number", "tel")}
+      {renderInput("Email ID", "email_id", "email")}
+      {renderInput("PAN Number", "pan_number")}
+      {renderInput("Aadhaar Number", "aadhar_number", "tel")}
+    </fieldset>
 
-          {renderInput("Address", "current_address")}
-          {renderInput("Village / City", "current_village_city")}
-          {renderInput("Pincode", "current_pincode", "tel")}
-          {renderInput("District", "current_district")}
-          {renderInput("State", "current_state")}
-        </fieldset>
+    {/* Current / Property Address */}
+    <fieldset>
+      <legend>Current / Property Address</legend>
 
-        {/* Permanent Address */}
-        <fieldset>
-          <legend>Permanent Address</legend>
+      {renderInput("Address", "current_address")}
+      {renderInput("Village / City", "current_village_city")}
+      {renderInput("Pincode", "current_pincode", "tel")}
+      {renderInput("District", "current_district")}
+      {renderInput("State", "current_state")}
+    </fieldset>
 
-          {renderInput("Address", "permanent_address")}
-          {renderInput("Village / City", "permanent_village_city")}
-          {renderInput("Pincode", "permanent_pincode", "tel")}
-          {renderInput("District", "permanent_district")}
-          {renderInput("State", "permanent_state")}
-        </fieldset>
+    {/* Permanent Address */}
+    <fieldset>
+      <legend>Permanent Address</legend>
 
-        {/* Profile / Income Details (for BRE) */}
-        <fieldset>
-          <legend>Profile & Income Details</legend>
+      {renderInput("Address", "permanent_address")}
+      {renderInput("Village / City", "permanent_village_city")}
+      {renderInput("Pincode", "permanent_pincode", "tel")}
+      {renderInput("District", "permanent_district")}
+      {renderInput("State", "permanent_state")}
+    </fieldset>
 
-          {renderSelect("Customer Type (Family / Individual)", "customer_type", [
-            "Family",
-            "Individual",
-          ])}
+    {/* Profile / Income Details (for BRE) */}
+    <fieldset>
+      <legend>Profile & Income Details</legend>
 
-          {renderSelect(
-            "Employment Type (Salaried / Business / Others)",
-            "employment_type",
-            ["Salaried", "Business", "Others"]
-          )}
+      {renderSelect("Customer Type (Family / Individual)", "customer_type", [
+        "Family",
+        "Individual",
+      ])}
 
-          {renderInput(
-            "Net Monthly Income",
-            "net_monthly_income",
-            "number"
-          )}
-          {renderInput(
-            "Average Monthly Rent",
-            "avg_monthly_rent",
-            "number"
-          )}
+      {renderSelect(
+        "Employment Type (Salaried / Business / Others)",
+        "employment_type",
+        ["Salaried", "Business", "Others"]
+      )}
 
-          {renderSelect(
-            "Residence Type (Owned / Rented)",
-            "residence_type",
-            ["Owned", "Rented"]
-          )}
-        </fieldset>
+      {renderInput("Net Monthly Income", "net_monthly_income", "number")}
+      {renderInput("Average Monthly Rent", "avg_monthly_rent", "number")}
 
-        {/* Loan Details */}
-        <fieldset>
-          <legend>Loan Details</legend>
+      {renderSelect(
+        "Residence Type (Owned / Rented)",
+        "residence_type",
+        ["Owned", "Rented"]
+      )}
+    </fieldset>
 
-          {renderInput("Loan Amount", "loan_amount", "number")}
-          {renderInput("Interest Rate (%)", "interest_rate", "number", {
-            readOnly: true,
-          })}
-          {renderInput(
-            "Loan Tenure (months)",
-            "loan_tenure",
-            "number",
-            { readOnly: true }
-          )}
-        </fieldset>
+    {/* Bank Details */}
+    <fieldset>
+      <legend>Bank Details</legend>
 
-        {/* Charges removed: pre_emi & processing_fee no longer shown */}
+      {renderInput("Bank Name", "bank_name")}
+      {renderInput("Name as per Bank", "name_in_bank")}
+      {renderInput("Account Number", "account_number", "tel")}
+      {renderInput("IFSC Code", "ifsc")}
+    </fieldset>
 
-        <button type="submit" disabled={loading}>
-          {loading ? "Submitting..." : "Submit Loan"}
-        </button>
-      </form>
+    {/* Loan Details */}
+    <fieldset>
+      <legend>Loan Details</legend>
 
-      {message && <div className="message">{message}</div>}
+      {renderInput("Loan Amount", "loan_amount", "number")}
+      {renderInput("Interest Rate (%)", "interest_rate", "number", {
+        readOnly: true,
+      })}
+      {renderInput("Loan Tenure (months)", "loan_tenure", "number", {
+        readOnly: true,
+      })}
+    </fieldset>
+
+    {/* Charges removed: pre_emi & processing_fee no longer shown */}
+
+    <button type="submit" disabled={loading}>
+      {loading ? "Submitting..." : "Submit Loan"}
+    </button>
+  </form>
+
+  {message && <div className="message">{message}</div>}
 
       {/* Styling same as EV form */}
       <style>{`

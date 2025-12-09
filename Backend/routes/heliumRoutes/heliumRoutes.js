@@ -104,14 +104,182 @@ const generateLoanIdentifiers = async (lender) => {
   };
 };
 
+// router.post("/manual-entry", async (req, res) => {
+//   try {
+//     const data = req.body;
+
+//     // Required fields
+//     const requiredFields = [
+//       "login_date",
+      
+//       "customer_name",
+//       "gender",
+//       "dob",
+//       "father_name",
+//       "mobile_number",
+//       "pan_number",
+//       "aadhar_number",
+//       "current_address",
+//       "current_village_city",
+//       "current_district",
+//       "current_state",
+//       "current_pincode",
+//       "loan_amount",
+//       "interest_rate",
+//       "loan_tenure",
+//     ];
+
+//     const missing = requiredFields.filter(
+//       (key) => !data[key] || String(data[key]).trim() === ""
+//     );
+
+//     if (missing.length > 0) {
+//       return res.status(400).json({
+//         message: `Missing fields: ${missing.join(", ")}`,
+//       });
+//     }
+
+//     // generate LAN + PLID
+//     const { lan, application_id } = await generateLoanIdentifiers("HELIUM");
+
+//     // insert into loan_booking_helium
+//     const insertLoan = `
+// INSERT INTO loan_booking_helium (
+//     first_name, last_name,
+//   login_date, lan,app_id,
+//   customer_name, gender, dob, father_name, mother_name,
+//   mobile_number, email_id, pan_number, aadhar_number,
+
+//   current_address, current_village_city, current_district,
+//   current_state, current_pincode,
+
+//   permanent_address, permanent_village_city, permanent_district,
+//   permanent_state, permanent_pincode,
+
+//   loan_amount, interest_rate, loan_tenure,
+//   emi_amount, cibil_score,
+
+//   product, lender,
+
+//   residence_type, customer_type,
+//   bank_name, name_in_bank, account_number, ifsc,
+
+//   pre_emi, processing_fee, net_disbursement,
+
+//   status, agreement_date
+// ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+//           NULL, NULL,
+//           'HELIUM', 'FINTREE',
+//           NULL, NULL, NULL, NULL, NULL, NULL,
+//           ?, ?, NULL,
+//           'Login', ?)
+// `;
+
+
+//     await db.promise().query(insertLoan, [
+//       data.first_name,
+//       data.last_name,
+//   data.login_date,
+//   lan,
+//   application_id,
+
+//   data.customer_name,
+//   data.gender,
+//   data.dob,
+//   data.father_name,
+//   data.mother_name || null,
+
+//   data.mobile_number,
+//   data.email_id || null,
+//   data.pan_number,
+//   data.aadhar_number,
+
+//   data.current_address,
+//   data.current_village_city,
+//   data.current_district,
+//   data.current_state,
+//   data.current_pincode,
+
+//   data.permanent_address || null,
+//   data.permanent_village_city || null,
+//   data.permanent_district || null,
+//   data.permanent_state || null,
+//   data.permanent_pincode || null,
+
+//   data.loan_amount,
+//   data.interest_rate,
+//   data.loan_tenure,
+
+//   // emi_amount = NULL
+//   // cibil_score = NULL
+
+//   // product = HELIUM
+//   // lender = FINTREE
+
+//   // residence_type = NULL
+//   // customer_type = NULL
+//   // bank fields = NULL
+
+//   data.pre_emi || null,
+//   data.processing_fee || null,
+
+//   // net_disbursement = NULL
+
+//   data.login_date // agreement_date = login_date
+// ]);
+
+//   // 🧮 Call both procedures based on LAN
+//     // If they can be independent, you can also do Promise.all here
+
+//   await  db.promise().query("CALL sp_generate_helium_rps(?)", [lan])
+//   .catch(err => console.error("Error in sp_generate_helium_rps:", err));
+
+
+
+
+
+//     // Insert into verification table
+//     const insertVerify = `
+//       INSERT INTO kyc_verification_status (lan) VALUES (?)
+//     `;
+
+//     await db.promise().query(insertVerify, [lan]);
+
+// await db.promise().query("CALL sp_build_helium_loan_summary(?)", [lan])
+//   .catch(err => console.error("Error in sp_build_helium_loan_summary:", err));
+
+
+//     res.json({
+//       message: "Helium loan created successfully",
+//       lan,
+//       application_id,
+//     });
+
+
+
+
+
+//     // 🔥 Trigger async validations (non-blocking)
+//     runAllValidations(lan);
+
+//   } catch (err) {
+//     console.error("Error creating helium loan:", err);
+//     res.status(500).json({
+//       message: "Failed to create loan",
+//       error: err.sqlMessage || err.message,
+//     });
+//   }
+// });
+
 router.post("/manual-entry", async (req, res) => {
   try {
     const data = req.body;
 
-    // Required fields
+    // ✅ Required fields (aligned with frontend)
     const requiredFields = [
       "login_date",
-      
+      "first_name",
+      "last_name",
       "customer_name",
       "gender",
       "dob",
@@ -124,12 +292,28 @@ router.post("/manual-entry", async (req, res) => {
       "current_district",
       "current_state",
       "current_pincode",
+      "permanent_address",
+      "permanent_village_city",
+      "permanent_district",
+      "permanent_state",
+      "permanent_pincode",
       "loan_amount",
       "interest_rate",
       "loan_tenure",
+      // BRE-critical
+      "customer_type",
+      "employment_type",
+      "net_monthly_income",
+      "avg_monthly_rent",
+      "residence_type",
+      // make banking mandatory only if you want:
+      "bank_name",
+      "name_in_bank",
+      "account_number",
+      "ifsc",
     ];
 
-    const missing = requiredFields.filter(
+     const missing = requiredFields.filter(
       (key) => !data[key] || String(data[key]).trim() === ""
     );
 
@@ -139,115 +323,149 @@ router.post("/manual-entry", async (req, res) => {
       });
     }
 
-    // generate LAN + PLID
+    // 🎫 generate LAN + PLID
     const { lan, application_id } = await generateLoanIdentifiers("HELIUM");
 
-    // insert into loan_booking_helium
+    // 📝 INSERT into loan_booking_helium
     const insertLoan = `
-INSERT INTO loan_booking_helium (
-    first_name, last_name,
-  login_date, lan,app_id,
-  customer_name, gender, dob, father_name, mother_name,
-  mobile_number, email_id, pan_number, aadhar_number,
-
-  current_address, current_village_city, current_district,
-  current_state, current_pincode,
-
-  permanent_address, permanent_village_city, permanent_district,
-  permanent_state, permanent_pincode,
-
-  loan_amount, interest_rate, loan_tenure,
-  emi_amount, cibil_score,
-
-  product, lender,
-
-  residence_type, customer_type,
-  bank_name, name_in_bank, account_number, ifsc,
-
-  pre_emi, processing_fee, net_disbursement,
-
-  status, agreement_date
-) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-          NULL, NULL,
-          'HELIUM', 'FINTREE',
-          NULL, NULL, NULL, NULL, NULL, NULL,
-          ?, ?, NULL,
-          'Login', ?)
-`;
-
-
-    await db.promise().query(insertLoan, [
-      data.first_name,
-      data.last_name,
-  data.login_date,
-  lan,
-  application_id,
-
-  data.customer_name,
-  data.gender,
-  data.dob,
-  data.father_name,
-  data.mother_name || null,
-
-  data.mobile_number,
-  data.email_id || null,
-  data.pan_number,
-  data.aadhar_number,
-
-  data.current_address,
-  data.current_village_city,
-  data.current_district,
-  data.current_state,
-  data.current_pincode,
-
-  data.permanent_address || null,
-  data.permanent_village_city || null,
-  data.permanent_district || null,
-  data.permanent_state || null,
-  data.permanent_pincode || null,
-
-  data.loan_amount,
-  data.interest_rate,
-  data.loan_tenure,
-
-  // emi_amount = NULL
-  // cibil_score = NULL
-
-  // product = HELIUM
-  // lender = FINTREE
-
-  // residence_type = NULL
-  // customer_type = NULL
-  // bank fields = NULL
-
-  data.pre_emi || null,
-  data.processing_fee || null,
-
-  // net_disbursement = NULL
-
-  data.login_date // agreement_date = login_date
-]);
-
-  // 🧮 Call both procedures based on LAN
-    // If they can be independent, you can also do Promise.all here
-
-  await  db.promise().query("CALL sp_generate_helium_rps(?)", [lan])
-  .catch(err => console.error("Error in sp_generate_helium_rps:", err));
-
-
-
-
-
-    // Insert into verification table
-    const insertVerify = `
-      INSERT INTO kyc_verification_status (lan) VALUES (?)
+      INSERT INTO loan_booking_helium (
+        first_name,
+        last_name,
+        login_date,
+        lan,
+        app_id,
+        customer_name,
+        gender,
+        dob,
+        father_name,
+        mother_name,
+        mobile_number,
+        email_id,
+        pan_number,
+        aadhar_number,
+        current_address,
+        current_village_city,
+        current_district,
+        current_state,
+        current_pincode,
+        permanent_address,
+        permanent_village_city,
+        permanent_district,
+        permanent_state,
+        permanent_pincode,
+        loan_amount,
+        interest_rate,
+        loan_tenure,
+        emi_amount,
+        cibil_score,
+        product,
+        lender,
+        residence_type,
+        customer_type,
+        bank_name,
+        name_in_bank,
+        account_number,
+        ifsc,
+        pre_emi,
+        processing_fee,
+        net_disbursement,
+        status,
+        agreement_date,
+        employment_type,
+        net_monthly_income,
+        avg_monthly_rent
+      ) VALUES (
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?
+      )
     `;
 
-    await db.promise().query(insertVerify, [lan]);
+    await db.promise().query(insertLoan, [
+      // 1–5
+      data.first_name || null,
+      data.last_name || null,
+      data.login_date,
+      lan,
+      application_id,
 
-await db.promise().query("CALL sp_build_helium_loan_summary(?)", [lan])
-  .catch(err => console.error("Error in sp_build_helium_loan_summary:", err));
+      // 6–10
+      data.customer_name,
+      data.gender,
+      data.dob,
+      data.father_name,
+      data.mother_name || null,
 
+      // 11–15
+      data.mobile_number,
+      data.email_id || null,
+      data.pan_number,
+      data.aadhar_number,
+      data.current_address,
+
+      // 16–20
+      data.current_village_city,
+      data.current_district,
+      data.current_state,
+      data.current_pincode,
+      data.permanent_address || null,
+
+      // 21–25
+      data.permanent_village_city || null,
+      data.permanent_district || null,
+      data.permanent_state || null,
+      data.permanent_pincode || null,
+      data.loan_amount,
+
+      // 26–30
+      data.interest_rate,
+      data.loan_tenure,
+      data.emi_amount || null,      // not in UI → null
+      data.cibil_score || null,     // not in UI → null
+      "HELIUM",
+
+      // 31–35
+      "FINTREE",
+      data.residence_type || null,
+      data.customer_type || null,
+      data.bank_name || null,
+      data.name_in_bank || null,
+
+      // 36–40
+      data.account_number || null,
+      data.ifsc || null,
+      data.pre_emi || null,
+      data.processing_fee || null,
+      data.net_disbursement || null, // or compute if needed
+
+      // 41–45
+      "Login",
+      data.agreement_date || data.login_date,
+      data.employment_type || null,
+      data.net_monthly_income || null,
+      data.avg_monthly_rent || null,
+    ]);
+
+    // 🧮 Call both procedures based on LAN
+    await db
+      .promise()
+      .query("CALL sp_generate_helium_rps(?)", [lan])
+      .catch((err) => console.error("Error in sp_generate_helium_rps:", err));
+
+    // KYC verification row
+    await db
+      .promise()
+      .query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [lan]);
+
+    // Build loan summary
+    await db
+      .promise()
+      .query("CALL sp_build_helium_loan_summary(?)", [lan])
+      .catch((err) =>
+        console.error("Error in sp_build_helium_loan_summary:", err)
+      );
 
     res.json({
       message: "Helium loan created successfully",
@@ -255,13 +473,8 @@ await db.promise().query("CALL sp_build_helium_loan_summary(?)", [lan])
       application_id,
     });
 
-
-
-
-
     // 🔥 Trigger async validations (non-blocking)
     runAllValidations(lan);
-
   } catch (err) {
     console.error("Error creating helium loan:", err);
     res.status(500).json({
@@ -270,6 +483,7 @@ await db.promise().query("CALL sp_build_helium_loan_summary(?)", [lan])
     });
   }
 });
+
 
 router.get("/all-loans", async (req, res) => {
   try {
@@ -318,6 +532,9 @@ router.get("/approved-loans", async (req, res) => {
           sanction_esign_status,
           agreement_esign_status,
           bank_status,
+          bank_name,
+          account_number,
+          ifsc,
           status
         FROM loan_booking_helium where status = 'Approved'
         ORDER BY login_date DESC, lan DESC

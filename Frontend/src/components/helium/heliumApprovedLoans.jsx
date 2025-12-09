@@ -882,33 +882,56 @@ const heliumApprovedLoans = ({
   };
 
   // ---------- Bank Modal ----------
-  const openBankModal = (loanRow) => {
-    const startDate =
-      loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
+const openBankModal = (loanRow) => {
+  console.log("loanRow in openBankModal:", loanRow);
 
-    const endDate =
-      loanRow.loan_tenure && Number(loanRow.loan_tenure) > 0
-        ? addMonths(startDate, loanRow.loan_tenure)
-        : "";
+  const startDate =
+    loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
 
-    const defaultAmount = loanRow.emi_amount || loanRow.loan_amount || "";
+  const endDate =
+    loanRow.loan_tenure && Number(loanRow.loan_tenure) > 0
+      ? addMonths(startDate, loanRow.loan_tenure)
+      : "";
 
-    setSelectedLoan(loanRow);
-    setBankError("");
-    setBankResult(null);
-    setBankForm({
-      account_no: "",
-      ifsc: "",
-      account_type: "SAVINGS",
-      bank_name: "",
-      account_holder_name: loanRow.customer_name || "",
-      mandate_amount: defaultAmount,
-      mandate_start_date: startDate,
-      mandate_end_date: endDate,
-      mandate_frequency: "monthly",
-    });
-    setShowBankModal(true);
-  };
+  const defaultAmount = loanRow.emi_amount || loanRow.loan_amount || "";
+
+  setSelectedLoan(loanRow);
+  setBankError("");
+  setBankResult(null);
+
+  setBankForm({
+    account_no:
+      loanRow.account_number ||
+      loanRow.account_no ||
+      loanRow.acc_no ||
+      loanRow.bankAccNo ||
+      "",
+    ifsc:
+      loanRow.ifsc ||
+      loanRow.bank_ifsc ||
+      loanRow.bankIfsc ||
+      "",
+    account_type: loanRow.bank_account_type || "SAVINGS",
+    bank_name:
+      loanRow.bank_name ||
+      loanRow.customer_bank_name ||
+      loanRow.bankName ||
+      "",
+    account_holder_name:
+      loanRow.account_holder_name ||
+      loanRow.acc_holder_name ||
+      loanRow.customer_name ||
+      "",
+    mandate_amount: defaultAmount,
+    mandate_start_date: startDate,
+    mandate_end_date: endDate,
+    mandate_frequency: "monthly",
+  });
+
+  setShowBankModal(true);
+};
+
+
 
   const closeBankModal = () => {
     setShowBankModal(false);
@@ -1456,6 +1479,7 @@ const heliumApprovedLoans = ({
                   name="account_holder_name"
                   value={bankForm.account_holder_name}
                   onChange={handleBankChange}
+                  readOnly
                 />
               </div>
 
@@ -1465,6 +1489,7 @@ const heliumApprovedLoans = ({
                   name="bank_name"
                   value={bankForm.bank_name}
                   onChange={handleBankChange}
+                  readOnly
                 />
               </div>
 
@@ -1474,6 +1499,7 @@ const heliumApprovedLoans = ({
                   name="account_no"
                   value={bankForm.account_no}
                   onChange={handleBankChange}
+                  readOnly
                 />
               </div>
 
@@ -1483,6 +1509,7 @@ const heliumApprovedLoans = ({
                   name="ifsc"
                   value={bankForm.ifsc}
                   onChange={handleBankChange}
+                  readOnly
                 />
               </div>
 
@@ -1495,6 +1522,7 @@ const heliumApprovedLoans = ({
                 >
                   <option value="SAVINGS">SAVINGS</option>
                   <option value="CURRENT">CURRENT</option>
+                  readOnly
                 </select>
               </div>
 
@@ -1507,6 +1535,7 @@ const heliumApprovedLoans = ({
                   name="mandate_amount"
                   value={bankForm.mandate_amount}
                   onChange={handleBankChange}
+                  readOnly
                 />
               </div>
 
@@ -1517,6 +1546,7 @@ const heliumApprovedLoans = ({
                   name="mandate_start_date"
                   value={bankForm.mandate_start_date}
                   onChange={handleBankChange}
+                  readOnly
                 />
               </div>
 
@@ -1527,6 +1557,7 @@ const heliumApprovedLoans = ({
                   name="mandate_end_date"
                   value={bankForm.mandate_end_date}
                   onChange={handleBankChange}
+                  readOnly
                 />
               </div>
 
@@ -1538,6 +1569,7 @@ const heliumApprovedLoans = ({
                   onChange={handleBankChange}
                 >
                   <option value="monthly">Monthly</option>
+                  readOnly
                 </select>
               </div>
 
