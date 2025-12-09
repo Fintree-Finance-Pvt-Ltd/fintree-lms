@@ -1765,7 +1765,7 @@ router.post(
         }
       }
 
-      return res.json({
+             return res.json({
         message: "HeyEV Battery file processed.",
         total_rows: sheetData.length,
         inserted_rows: success_rows.length,
@@ -1773,10 +1773,11 @@ router.post(
         success_rows,
         row_errors,
       });
-    } catch (e) {
+    } catch (error) {
+      console.error("❌ Error in HeyEV Battery Upload Process:", error);
       return res.status(500).json({
-        message: "Server error",
-        error: e.message,
+        message: "Battery upload failed. Please try again.",
+        error: error.sqlMessage || error.message,
       });
     }
   }
