@@ -424,10 +424,10 @@ router.post("/manual-entry", async (req, res) => {
       data.loan_tenure,
       data.emi_amount || null,      // not in UI → null
       data.cibil_score || null,     // not in UI → null
-      "HELIUM",
+      "Monthly Loan",
 
       // 31–35
-      "FINTREE",
+      "HELIUM",
       data.residence_type || null,
       data.customer_type || null,
       data.bank_name || null,

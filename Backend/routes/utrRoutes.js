@@ -137,8 +137,6 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
      FROM loan_booking_helium WHERE lan = ?`,
             [lan]
           );
-
-
         } else {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
