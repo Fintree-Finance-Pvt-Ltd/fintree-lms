@@ -3736,9 +3736,9 @@ const generateRepaymentSchedule = async (
     await generateRepaymentScheduleHelium(
       conn,
       lan,
-      loan_amount,
-      interest_rate,
-      loan_tenure,
+      loanAmount,
+      interestRate,
+      tenure,
       disbursementDate,
       product,
       lender
