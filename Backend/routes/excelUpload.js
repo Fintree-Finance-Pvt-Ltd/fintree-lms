@@ -7710,6 +7710,9 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_embifi_loan";
   } else if (lan.startsWith("FINE")) {
     tableName = "manual_rps_emiclub";
+  }
+    else if (lan.startsWith("HEL")) {
+    tableName = "manual_rps_helium";
     } else if (lan.startsWith("CIRF")) {
     tableName = "manual_rps_circlepe";
   } else if (lan.startsWith("FINS")) {
