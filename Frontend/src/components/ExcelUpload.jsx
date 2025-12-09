@@ -205,7 +205,7 @@ const CreateLoanBooking = () => {
         return `/loan-booking/bl-upload`;
       case "HEY EV Loan":
         return `/loan-booking/hey-ev-upload`;
-        case "HeyEV Battery ":
+        case "HeyEV Battery":
         return `/loan-booking/hey-ev-battery-upload`;
       case "EV Loan":
         return `/loan-booking/upload`;
