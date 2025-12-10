@@ -872,18 +872,37 @@ const DpdBuckets = ({ filters }) => {
 
   // DataTable columns configuration
   const columns = [
-    { key: "lan", header: "LAN", width: 130,  filterable: true  },
+    { key: "lan", header: "LAN", width: 130, filterable: true },
     { key: "product", header: "Product", width: 140, filterable: true },
     { key: "customer_name", header: "Customer", width: 220, filterable: true },
     { key: "dealer_name", header: "Dealer / Institute", width: 200, filterable: true },
     { key: "district", header: "District", width: 150, filterable: true },
+
+    // ⭐ ADD THESE TWO NEW COLUMNS HERE ⭐
+    {
+      key: "collection_remarks",
+      header: "Collection Remarks",
+      width: 250,
+      filterable: true,
+      render: (r) => r.collection_remarks || "—",
+      csvAccessor: (r) => r.collection_remarks || ""
+    },
+    {
+      key: "collection_assigner",
+      header: "Collection Assigner",
+      width: 180,
+      filterable: true,
+      render: (r) => r.collection_assigner || "—",
+      csvAccessor: (r) => r.collection_assigner || ""
+    },
+
     { key: "max_dpd", header: "DPD", width: 80, sortable: true, filterable: true },
     {
-    key: "status",
-    header: "Loan Status",
-    width: 120,
-    filterable: true
-  },
+      key: "status",
+      header: "Loan Status",
+      width: 120,
+      filterable: true
+    },
     {
       key: "overdue_emi",
       header: "Overdue EMI",
@@ -936,7 +955,8 @@ const DpdBuckets = ({ filters }) => {
       render: (r) => r.last_due_date ? String(r.last_due_date).slice(0,10) : "—",
       csvAccessor: (r) => r.last_due_date ? String(r.last_due_date).slice(0,10) : ""
     },
-  ];
+];
+
 
   // DataTable top-right toolbar content (download & email + server sorting controls)
   const renderTopRight = (
