@@ -5325,25 +5325,54 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     }
 //    console.log("✅ All required fields present.");
 
-    // // --- Duplicate PAN check ---
-    // console.log("🔍 Checking existing PAN:", data.pan_number);
-    // const [existing] = await db
-    //   .promise()
-    //   .query(`SELECT lan FROM loan_booking_emiclub WHERE pan_number = ?`, [
-    //     data.pan_number,
-    //   ]);
-    // console.log(
-    //   "🧾 Duplicate check result:",
-    //   existing.length,
-    //   "records found."
-    // );
+    // --- Duplicate PAN check ---
+    console.log("🔍 Checking existing PAN:", data.pan_number);
+    const [existing] = await db
+      .promise()
+      .query(`SELECT lan, partner_loan_id, customer_name FROM loan_booking_emiclub WHERE partner_loan_id = ? AND pan_number = ?`, [
+        data.partner_loan_id,
+        data.pan_number,
+      ]);
+    console.log(
+      "🧾 Duplicate check result:",
+      existing.length,
+      "records found."
+    );
 
-    // if (existing.length > 0) {
-    //   console.error("❌ Duplicate PAN found:", data.pan_number);
-    //   return res.status(400).json({
-    //     message: `Customer already exists for Pan: ${data.pan_number}`,
-    //   });
-    // }
+    if (existing.length > 0) {
+      console.error("❌ Duplicate PAN found:", data.pan_number);
+
+      // ===========================
+  // try {
+  //   const webhookUrl = process.env.FINS_DISBINITIATE_WEBHOOK_URL;
+  //   const username = process.env.FINSO_WEBHOOK_USERNAME;
+  //   const password = process.env.FINSO_WEBHOOK_PASSWORD;
+
+  //   const payload = {
+  //     lan: null,                           
+  //     status: "Failed - Duplicate Entry",
+  //     partner_loan_id: data.partner_loan_id,
+  //     customer_name: existing[0].customer_name,
+  //     pan_number: data.pan_number
+  //   };
+
+  //   await axios.post(webhookUrl, payload, {
+  //     auth: { username, password },
+  //     headers: { "Content-Type": "application/json" },
+  //   });
+
+  //   console.log(`📤 Webhook sent for Duplicate PAN (${data.pan_number})`);
+
+  // } catch (webhookErr) {
+  //   console.error("❌ Error sending webhook:", webhookErr.message);
+  // }
+
+    return res.status(400).json({
+    status: "Failed",
+    message: `Duplicate entry — the customer already exist.`,
+    existingLan: existing[0].lan
+  });
+}
 
     // --- Generate loan code ---
     //console.log("⚙️ Generating LAN for lender:", lenderType);
