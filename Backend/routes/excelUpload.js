@@ -12,6 +12,7 @@ const { XMLParser } = require("fast-xml-parser");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { sendLoanStatusMail } = require("../jobs/mailer");
 // const { pullCIBILReport }=  require("../jobs/experianService");
+
 dotenv.config();
 
 const router = express.Router();
@@ -561,6 +562,45 @@ const pickIncome = (arr, idx) => (Array.isArray(arr) ? dec(arr[idx]) : null);
 //     });
 //   }
 // });
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////// SAVE REMARKS //////////////////////
+
+router.post("/save-remarks", async (req, res) => {
+  const { lan, remarks, collection_assigner } = req.body;
+
+  if (!lan) {
+    return res.status(400).json({ error: "LAN is required" });
+  }
+
+  try {
+    const [loan] = await db.promise().query(
+      "SELECT * FROM loan_booking_embifi WHERE lan = ?",
+      [lan]
+    );
+
+    if (loan.length === 0) {
+      return res.status(404).json({ error: "LAN not found" });
+    }
+
+    await db.promise().query(
+      `UPDATE loan_booking_embifi 
+       SET 
+         collection_remarks = ?, 
+         collection_assigner = ?, 
+         updated_at = NOW() 
+       WHERE lan = ?`,
+      [remarks || null, collection_assigner || null, lan]
+    );
+
+    return res.json({ message: "Remarks & Assigner saved successfully" });
+
+  } catch (err) {
+    console.error("Save remarks error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
 ////////////////////// NEW CODE FOR DATA CROOS CHECK AND INSERTION //////////////////////
 router.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file)

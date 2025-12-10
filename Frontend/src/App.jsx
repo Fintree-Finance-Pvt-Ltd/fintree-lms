@@ -109,6 +109,7 @@ import HEYEVBatteryDisbursedLoans from "./components/HEYEVBatteryDisbursedLoans"
 import HEYEVBatteryApproveInitiateScreen from "./components/HEYEVBatteryApproveInitiateScreen";
 import HEYEVBatteryAllLoans from "./components/HEYEVBatteryAllLoans";
 import HEYEVBatteryApprovedLoans from "./components/HEYEVBatteryApprovedLoans";
+import EmbifiCustomerRemarks from "./components/EmbifiCustomerRemarks";
 
 function App() {
   return (
@@ -582,6 +583,16 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          <Route
+            path="/embifi-loans/collection-remarks"
+            element={
+              <PermissionRoute pageName="Embifi Remarks">
+                <EmbifiCustomerRemarks />
+              </PermissionRoute>
+            }
+          />
+
           <Route
             path="/embifi-loans/all"
             element={
