@@ -153,4 +153,90 @@ router.get("/search", async (req, res) => {
   }
 });
 
+// router.get("/search", async (req, res) => {
+//   const { customer_name, mobile_number, lan, district, dealer_name } = req.query;
+
+//   if (!customer_name && !mobile_number && !lan && !district && !dealer_name) {
+//     return res.status(400).json({ message: "Please provide at least one search parameter" });
+//   }
+
+//   try {
+//     let tablesToSearch = [];
+
+//     if (lan) {
+//       const matched = allowedTables.find((t) => lan.startsWith(t.prefix));
+//       tablesToSearch = matched ? [matched.table] : allowedTables.map((t) => t.table);
+//     } else {
+//       tablesToSearch = allowedTables.map((t) => t.table);
+//     }
+
+//     let allResults = [];
+
+//     // ⭐ Correct AND filtering
+//     const conditions = [];
+//     const values = [];
+
+//     if (lan) {
+//       conditions.push("lan LIKE ?");
+//       values.push(`%${lan}%`);
+//     }
+
+//     if (mobile_number) {
+//       conditions.push("mobile_number LIKE ?");
+//       values.push(`%${mobile_number}%`);
+//     }
+
+//     if (customer_name) {
+//       conditions.push("customer_name LIKE ?");
+//       values.push(`%${customer_name}%`);
+//     }
+
+//     if (district) {
+//       conditions.push("district LIKE ?");
+//       values.push(`%${district}%`);
+//     }
+
+//     if (dealer_name) {
+//       conditions.push("dealer_name LIKE ?");
+//       values.push(`%${dealer_name}%`);
+//     }
+
+//     const whereClause = conditions.length > 0 ? conditions.join(" AND ") : "1=1";
+
+//     // ⭐ Query table
+//     for (const table of tablesToSearch) {
+//       const query = `
+//         SELECT 
+//           lan,
+//           customer_name,
+//           mobile_number,
+//           dealer_name,
+//           district,
+//           collection_remarks,
+//           collection_assigner,
+//           product,
+//           max_dpd,
+//           overdue_emi,
+//           overdue_principal,
+//           overdue_interest,
+//           pos_principal,
+//           disbursement_date,
+//           ageing_days,
+//           last_due_date
+//         FROM ${table}
+//         WHERE ${whereClause}
+//       `;
+
+//       const [rows] = await db.promise().query(query, values);
+//       allResults = allResults.concat(rows);
+//     }
+
+//     res.json(allResults);
+//   } catch (err) {
+//     console.error("❌ Error searching customers:", err);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// });
+
+
 module.exports = router;
