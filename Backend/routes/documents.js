@@ -6,7 +6,7 @@ const fs = require("fs");
 const db = require("../config/db");
 const PDFDocument = require("pdfkit"); // (ok to keep or remove if unused)
 const verifyApiKey = require("../middleware/apiKeyAuth");
-
+const { sendLoanWebhook } = require("../utils/webhook");
 const router = express.Router();
 
 // Ensure upload folder exists
