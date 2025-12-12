@@ -157,8 +157,12 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API /////////////////
 /* ============================== Helpers ============================== */
 
+/* =======================
+   CONSTANTS
+======================= */
+
 const ALLOWED_DOCS = new Set([
-   "KYC",
+  "KYC",
   "PAN_CARD",
   "OFFLINE_VERIFICATION_OF_AADHAAR",
   "PROFILE_IMAGE",
@@ -170,8 +174,19 @@ const ALLOWED_DOCS = new Set([
   "CIBIL_REPORT",
 ]);
 
+const REQUIRED_DOCS = [...ALLOWED_DOCS];
+
+/* =======================
+   HELPERS
+======================= */
+
 function isValidUrl(u) {
-  try { new URL(u); return true; } catch { return false; }
+  try {
+    new URL(u);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function inferOriginalNameFromUrl(url) {
@@ -179,23 +194,45 @@ function inferOriginalNameFromUrl(url) {
     const p = new URL(url).pathname || "";
     const base = p.split("/").pop() || "";
     return base.trim() || null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
+async function checkMissingDocuments(lan, db) {
+  const rows = await new Promise((resolve, reject) => {
+    db.query(
+      `SELECT DISTINCT doc_name FROM loan_documents WHERE lan = ?`,
+      [lan],
+      (err, result) => (err ? reject(err) : resolve(result))
+    );
+  });
+
+  const uploaded = new Set(rows.map(r => r.doc_name));
+  return REQUIRED_DOCS.filter(doc => !uploaded.has(doc));
+}
+
+/* =======================
+   ROUTE
+======================= */
 
 router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
   try {
-    const { lan: bodyLan, documents } = req.body;
+    const { lan: bodyLan, documents, partnerLoanId } = req.body;
 
     const lan = String(bodyLan || "").trim();
     if (!lan) return res.status(400).json({ error: "lan is required" });
 
-    if (!Array.isArray(documents) || documents.length === 0)
+    if (!Array.isArray(documents) || documents.length === 0) {
       return res.status(400).json({ error: "documents[] is required" });
+    }
 
     const errors = [];
-    const warnings = [];
     const cleaned = [];
+
+    /* =======================
+       DOWNLOAD & VALIDATE
+    ======================= */
 
     for (let i = 0; i < documents.length; i++) {
       const d = documents[i] || {};
@@ -207,25 +244,25 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
         errors.push({ index: i, field: "doc_name", reason: "Invalid doc_name" });
         continue;
       }
+
       if (!isValidUrl(url)) {
         errors.push({ index: i, field: "documet_url", reason: "Invalid URL" });
         continue;
       }
 
-      // 1️⃣ Try downloading the file
-      let file_name = null;
+      let file_name;
       const original_name = inferOriginalNameFromUrl(url) || `${doc_name}.pdf`;
+
       try {
         const resp = await axios.get(url, { responseType: "arraybuffer" });
         const ext = path.extname(original_name) || ".bin";
         file_name = `${Date.now()}_${doc_name}${ext}`;
-        const fullPath = path.join(uploadPath, file_name);
-        fs.writeFileSync(fullPath, resp.data);
-      } catch (downloadErr) {
+        fs.writeFileSync(path.join(uploadPath, file_name), resp.data);
+      } catch (err) {
         errors.push({
           index: i,
           field: "documet_url",
-          reason: `Failed to fetch remote file: ${downloadErr.message}`,
+          reason: `Download failed: ${err.message}`,
         });
         continue;
       }
@@ -233,52 +270,104 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
       cleaned.push({
         lan,
         doc_name,
-        source_url: url,
         file_name,
+        source_url: url,
         original_name,
         doc_password: doc_password || null,
       });
     }
 
-    if (cleaned.length === 0)
-      return res.status(400).json({ error: "No valid documents to insert", details: errors });
+    if (cleaned.length === 0) {
+      return res.status(400).json({
+        error: "No valid documents uploaded",
+        details: errors,
+      });
+    }
+
+    /* =======================
+       INSERT INTO DB
+    ======================= */
 
     const now = new Date();
-    const values = cleaned.map((row) => [
-      row.lan,
-      row.doc_name,
-      row.file_name,
-      row.source_url,
-      row.doc_password,
-      row.original_name,
+    const values = cleaned.map(d => [
+      d.lan,
+      d.doc_name,
+      d.file_name,
+      d.source_url,
+      d.doc_password,
+      d.original_name,
       now,
     ]);
 
-    const sql = `
-      INSERT INTO loan_documents
-        (lan, doc_name, file_name, source_url, doc_password, original_name, uploaded_at)
-      VALUES ?
-    `;
-
     await new Promise((resolve, reject) => {
-      db.query(sql, [values], (err, result) => (err ? reject(err) : resolve(result)));
+      db.query(
+        `
+        INSERT INTO loan_documents
+        (lan, doc_name, file_name, source_url, doc_password, original_name, uploaded_at)
+        VALUES ?
+        `,
+        [values],
+        (err) => (err ? reject(err) : resolve())
+      );
     });
+
+    /* =======================
+       CHECK MISSING DOCS
+    ======================= */
+
+    const missingDocs = await checkMissingDocuments(lan, db);
+
+    if (missingDocs.length > 0) {
+      // ❌ Reject case
+      await new Promise((resolve, reject) => {
+        db.query(
+          `
+          UPDATE loan_booking_emiclub
+          SET status = 'REJECTED'
+          WHERE lan = ?
+          `,
+          [lan],
+          (err) => (err ? reject(err) : resolve())
+        );
+      });
+
+      // 🔔 Webhook
+      await sendLoanWebhook({
+        external_ref_no: partnerLoanId,
+        utr: null,
+        disbursement_date: null,
+        reference_number: lan,
+        status: "REJECTED",
+        reject_reason: `Missing documents: ${missingDocs.join(", ")}`,
+      });
+
+      return res.status(200).json({
+        message: "❌ Case rejected",
+        lan,
+        missing_documents: missingDocs,
+        uploaded_documents: cleaned.length,
+        errors,
+      });
+    }
+
+    /* =======================
+       SUCCESS
+    ======================= */
 
     return res.status(200).json({
-      message: "✅ Documents downloaded & saved locally",
+      message: "✅ All mandatory documents uploaded",
       lan,
       inserted_count: cleaned.length,
-      warnings,
-      skipped_or_errors: errors,
-      docs: cleaned.map((d) => ({
+      errors,
+      documents: cleaned.map(d => ({
         doc_name: d.doc_name,
         original_name: d.original_name,
-        local_file: d.file_name,
-        source_url: d.source_url,
+        file_name: d.file_name,
       })),
     });
+
   } catch (err) {
-    console.error("❌ /upload-files-emiclub error:", err);
+    console.error("❌ upload-files-emiclub error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });

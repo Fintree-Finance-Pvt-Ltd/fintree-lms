@@ -5325,54 +5325,65 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     }
 //    console.log("✅ All required fields present.");
 
-    // --- Duplicate PAN check ---
-    console.log("🔍 Checking existing PAN:", data.pan_number);
-    const [existing] = await db
-      .promise()
-      .query(`SELECT lan, partner_loan_id, customer_name FROM loan_booking_emiclub WHERE partner_loan_id = ? AND pan_number = ?`, [
-        data.partner_loan_id,
-        data.pan_number,
-      ]);
-    console.log(
-      "🧾 Duplicate check result:",
-      existing.length,
-      "records found."
-    );
+    // --- Duplicate TECH LOAN ID check ---
+// --- Duplicate TECH LOAN ID check ---
+console.log("🔍 Checking existing TECH LOAN ID:", data.partner_loan_id);
+const [existing] = await db
+  .promise()
+  .query(
+    `SELECT lan, partner_loan_id, customer_name 
+     FROM loan_booking_emiclub 
+     WHERE partner_loan_id = ?`,
+    [data.partner_loan_id]
+  );
 
-    if (existing.length > 0) {
-      console.error("❌ Duplicate PAN found:", data.pan_number);
-
-      // ===========================
-  // try {
-  //   const webhookUrl = process.env.FINS_DISBINITIATE_WEBHOOK_URL;
-  //   const username = process.env.FINSO_WEBHOOK_USERNAME;
-  //   const password = process.env.FINSO_WEBHOOK_PASSWORD;
-
-  //   const payload = {
-  //     lan: null,                           
-  //     status: "Failed - Duplicate Entry",
-  //     partner_loan_id: data.partner_loan_id,
-  //     customer_name: existing[0].customer_name,
-  //     pan_number: data.pan_number
-  //   };
-
-  //   await axios.post(webhookUrl, payload, {
-  //     auth: { username, password },
-  //     headers: { "Content-Type": "application/json" },
-  //   });
-
-  //   console.log(`📤 Webhook sent for Duplicate PAN (${data.pan_number})`);
-
-  // } catch (webhookErr) {
-  //   console.error("❌ Error sending webhook:", webhookErr.message);
-  // }
-
-    return res.status(400).json({
+if (existing.length > 0) {
+  return res.status(400).json({
     status: "Failed",
-    message: `Duplicate entry — the customer already exist.`,
-    existingLan: existing[0].lan
+    message: "Duplicate Partner Loan ID",
+    existingLan: existing[0].lan,
   });
 }
+
+/* =====================================================
+   🔴 START CHANGE: PAN + STATUS DUPLICATE CHECK
+   ===================================================== */
+
+console.log("🔍 Checking PAN duplication:", data.pan_number);
+
+const [panRecords] = await db.promise().query(
+  `SELECT status 
+   FROM loan_booking_emiclub 
+   WHERE pan_number = ?`,
+  [data.pan_number]
+);
+
+// Allowed statuses for re-insert
+const allowedStatuses = ["Cancelled", "Foreclosed", "Fully Paid", "Rejected"];
+
+if (panRecords.length > 0) {
+  const hasActiveCase = panRecords.some(
+    (row) => !allowedStatuses.includes(row.status)
+  );
+
+  if (hasActiveCase) {
+    console.error("❌ Active case exists for PAN:", data.pan_number);
+    return res.status(400).json({
+      status: "Failed",
+      message:
+        "PAN already exists with an active loan. New loan not allowed.",
+    });
+  }
+
+  console.log(
+    "✅ PAN exists but all cases are closed. Proceeding with insert."
+  );
+}
+
+/* =====================================================
+   🔴 END CHANGE
+   ===================================================== */
+
 
     // --- Generate loan code ---
     //console.log("⚙️ Generating LAN for lender:", lenderType);
