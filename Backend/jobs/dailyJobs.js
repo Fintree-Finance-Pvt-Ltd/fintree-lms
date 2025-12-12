@@ -200,7 +200,7 @@ cron.schedule("*/2 * * * *", async () => {
     const checkMissingDocsQuery = `
       SELECT lb.lan
       FROM loan_booking_emiclub lb
-      WHERE lb.status = 'Login'
+      WHERE lb.status is('Login','Rejected')
       AND EXISTS (
           SELECT 1
           FROM (
