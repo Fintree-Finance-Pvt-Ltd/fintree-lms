@@ -208,8 +208,14 @@ async function checkMissingDocuments(lan, db) {
     );
   });
 
-  const uploaded = new Set(rows.map(r => r.doc_name));
-  return REQUIRED_DOCS.filter(doc => !uploaded.has(doc));
+  // 🔥 NORMALIZE DB VALUES
+  const uploaded = new Set(
+    rows.map(r => String(r.doc_name).trim().toUpperCase())
+  );
+
+  return REQUIRED_DOCS.filter(
+    doc => !uploaded.has(doc)
+  );
 }
 
 /* =======================
@@ -236,7 +242,9 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
 
     for (let i = 0; i < documents.length; i++) {
       const d = documents[i] || {};
-      const doc_name = String(d.doc_name || "").trim();
+        const doc_name = String(d.doc_name || "")
+    .trim()
+    .toUpperCase();
       const url = String(d.documet_url || "").trim();
       const doc_password = (d.doc_password ?? "").toString().trim();
 
