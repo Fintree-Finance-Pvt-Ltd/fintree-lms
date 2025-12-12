@@ -6,7 +6,7 @@ const fs = require("fs");
 const db = require("../config/db");
 const PDFDocument = require("pdfkit"); // (ok to keep or remove if unused)
 const verifyApiKey = require("../middleware/apiKeyAuth");
-const { sendLoanWebhook } = require("../utils/webhook");
+
 const router = express.Router();
 
 // Ensure upload folder exists
@@ -157,36 +157,21 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API /////////////////
 /* ============================== Helpers ============================== */
 
-/* =======================
-   CONSTANTS
-======================= */
-
 const ALLOWED_DOCS = new Set([
   "KYC",
   "PAN_CARD",
+  "PAN_VERIFICATION_AUDIT_TRAIL",
   "OFFLINE_VERIFICATION_OF_AADHAAR",
   "PROFILE_IMAGE",
   "INVOICE",
   "AGREEMENT",
   "KFS_DOCUMENT",
   "AUDIT_REPORT",
-  "PAN_VERIFICATION_AUDIT_TRAIL",
   "CIBIL_REPORT",
 ]);
 
-const REQUIRED_DOCS = [...ALLOWED_DOCS];
-
-/* =======================
-   HELPERS
-======================= */
-
 function isValidUrl(u) {
-  try {
-    new URL(u);
-    return true;
-  } catch {
-    return false;
-  }
+  try { new URL(u); return true; } catch { return false; }
 }
 
 function inferOriginalNameFromUrl(url) {
@@ -194,57 +179,146 @@ function inferOriginalNameFromUrl(url) {
     const p = new URL(url).pathname || "";
     const base = p.split("/").pop() || "";
     return base.trim() || null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-async function checkMissingDocuments(lan, db) {
-  const rows = await new Promise((resolve, reject) => {
-    db.query(
-      `SELECT DISTINCT doc_name FROM loan_documents WHERE lan = ?`,
-      [lan],
-      (err, result) => (err ? reject(err) : resolve(result))
-    );
-  });
+// router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
+//   try {
+//     const { lan: bodyLan, documents } = req.body;
 
-  // 🔥 NORMALIZE DB VALUES
-  const uploaded = new Set(
-    rows.map(r => String(r.doc_name).trim().toUpperCase())
-  );
+//     // --- Top-level LAN required ---
+//     const lan = String(bodyLan || "").trim();
+//     if (!lan) {
+//       return res.status(400).json({ error: "lan is required at top-level body." });
+//     }
 
-  return REQUIRED_DOCS.filter(
-    doc => !uploaded.has(doc)
-  );
-}
+//     // --- Documents array checks ---
+//     if (!Array.isArray(documents) || documents.length === 0) {
+//       return res.status(400).json({ error: "documents[] is required." });
+//     }
+//     if (documents.length > 50) {
+//       return res.status(400).json({ error: "Too many documents (max 50)." });
+//     }
 
-/* =======================
-   ROUTE
-======================= */
+//     const errors = [];
+//     const warnings = [];
+//     const cleaned = [];
+
+//     for (let i = 0; i < documents.length; i++) {
+//       const d = documents[i] || {};
+//       const doc_name = String(d.doc_name || "").trim();
+//       const url = String(d.documet_url || "").trim();           // keep provided key name
+//       const doc_password = (d.doc_password ?? "").toString().trim();
+//       const ref = String(d.reference_number || "").trim();       // optional per-doc
+
+//       // If reference_number present but different, warn and proceed with top-level lan
+//       if (ref && ref !== lan) {
+//         warnings.push({
+//           index: i,
+//           field: "reference_number",
+//           reason: `reference_number (${ref}) does not match top-level lan (${lan}); using top-level lan`,
+//         });
+//       }
+
+//       if (!doc_name || !ALLOWED_DOCS.has(doc_name)) {
+//         errors.push({ index: i, field: "doc_name", reason: "Invalid or unsupported doc_name" });
+//         continue;
+//       }
+//       if (!url || !isValidUrl(url)) {
+//         errors.push({ index: i, field: "documet_url", reason: "Valid URL is required" });
+//         continue;
+//       }
+
+//       cleaned.push({
+//         lan, // always use top-level LAN
+//         doc_name,
+//         source_url: url,
+//         original_name: inferOriginalNameFromUrl(url),
+//         doc_password: doc_password || null,
+//       });
+//     }
+
+//     // If nothing valid after validation, fail
+//     if (cleaned.length === 0) {
+//       return res.status(400).json({ error: "No valid documents to insert.", details: errors });
+//     }
+
+//     // Bulk UPSERT into loan_documents (no file_name for URL ingest)
+//     const now = new Date();
+//     const values = cleaned.map(row => [
+//       row.lan,
+//       row.doc_name,
+//       row.source_url,
+//       row.doc_password,
+//       row.original_name,
+//       now,
+//     ]);
+
+//     // const sql = `
+//     //   INSERT INTO loan_documents
+//     //     (lan, doc_name, source_url, doc_password, original_name, uploaded_at)
+//     //   VALUES ?
+//     //   ON DUPLICATE KEY UPDATE
+//     //     source_url    = VALUES(source_url),
+//     //     doc_password  = VALUES(doc_password),
+//     //     original_name = VALUES(original_name),
+//     //     uploaded_at   = VALUES(uploaded_at)
+//     // `;
+// const sql = `
+//   INSERT INTO loan_documents
+//     (lan, doc_name, source_url, doc_password, original_name, uploaded_at)
+//   VALUES ?
+// `;
+
+//     await new Promise((resolve, reject) => {
+//       db.query(sql, [values], (err, result) => {
+//         if (err) return reject(err);
+//         resolve(result);
+//       });
+//     });
+
+//     return res.status(200).json({
+//       message: "✅ Documents recorded successfully",
+//       lan,
+//       inserted_count: cleaned.length,
+//       warnings,              // soft issues (like mismatched reference_number)
+//       skipped_or_errors: errors, // hard skips (invalid doc_name/url)
+//       docs: cleaned.map(d => ({
+//         doc_name: d.doc_name,
+//         url: d.source_url,
+//         password_set: !!d.doc_password,
+//         original_name: d.original_name || null
+//       })),
+//     });
+//   } catch (err) {
+//     console.error("❌ /upload-files-emiclub error:", err);
+//     return res.status(500).json({ error: "Duplicate data Issue." });
+//   }
+// });
+
+
+
+///////////////// NEW CODE for EMICLUB DOC UPLOAD API END /////////////////
+// Lock state for UI
+
 
 router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
   try {
-    const { lan: bodyLan, documents, partnerLoanId } = req.body;
+    const { lan: bodyLan, documents } = req.body;
 
     const lan = String(bodyLan || "").trim();
     if (!lan) return res.status(400).json({ error: "lan is required" });
 
-    if (!Array.isArray(documents) || documents.length === 0) {
+    if (!Array.isArray(documents) || documents.length === 0)
       return res.status(400).json({ error: "documents[] is required" });
-    }
 
     const errors = [];
+    const warnings = [];
     const cleaned = [];
-
-    /* =======================
-       DOWNLOAD & VALIDATE
-    ======================= */
 
     for (let i = 0; i < documents.length; i++) {
       const d = documents[i] || {};
-        const doc_name = String(d.doc_name || "")
-    .trim()
-    .toUpperCase();
+      const doc_name = String(d.doc_name || "").trim();
       const url = String(d.documet_url || "").trim();
       const doc_password = (d.doc_password ?? "").toString().trim();
 
@@ -252,25 +326,25 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
         errors.push({ index: i, field: "doc_name", reason: "Invalid doc_name" });
         continue;
       }
-
       if (!isValidUrl(url)) {
         errors.push({ index: i, field: "documet_url", reason: "Invalid URL" });
         continue;
       }
 
-      let file_name;
+      // 1️⃣ Try downloading the file
+      let file_name = null;
       const original_name = inferOriginalNameFromUrl(url) || `${doc_name}.pdf`;
-
       try {
         const resp = await axios.get(url, { responseType: "arraybuffer" });
         const ext = path.extname(original_name) || ".bin";
         file_name = `${Date.now()}_${doc_name}${ext}`;
-        fs.writeFileSync(path.join(uploadPath, file_name), resp.data);
-      } catch (err) {
+        const fullPath = path.join(uploadPath, file_name);
+        fs.writeFileSync(fullPath, resp.data);
+      } catch (downloadErr) {
         errors.push({
           index: i,
           field: "documet_url",
-          reason: `Download failed: ${err.message}`,
+          reason: `Failed to fetch remote file: ${downloadErr.message}`,
         });
         continue;
       }
@@ -278,109 +352,55 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
       cleaned.push({
         lan,
         doc_name,
-        file_name,
         source_url: url,
+        file_name,
         original_name,
         doc_password: doc_password || null,
       });
     }
 
-    if (cleaned.length === 0) {
-      return res.status(400).json({
-        error: "No valid documents uploaded",
-        details: errors,
-      });
-    }
-
-    /* =======================
-       INSERT INTO DB
-    ======================= */
+    if (cleaned.length === 0)
+      return res.status(400).json({ error: "No valid documents to insert", details: errors });
 
     const now = new Date();
-    const values = cleaned.map(d => [
-      d.lan,
-      d.doc_name,
-      d.file_name,
-      d.source_url,
-      d.doc_password,
-      d.original_name,
+    const values = cleaned.map((row) => [
+      row.lan,
+      row.doc_name,
+      row.file_name,
+      row.source_url,
+      row.doc_password,
+      row.original_name,
       now,
     ]);
 
-    await new Promise((resolve, reject) => {
-      db.query(
-        `
-        INSERT INTO loan_documents
+    const sql = `
+      INSERT INTO loan_documents
         (lan, doc_name, file_name, source_url, doc_password, original_name, uploaded_at)
-        VALUES ?
-        `,
-        [values],
-        (err) => (err ? reject(err) : resolve())
-      );
+      VALUES ?
+    `;
+
+    await new Promise((resolve, reject) => {
+      db.query(sql, [values], (err, result) => (err ? reject(err) : resolve(result)));
     });
-
-    /* =======================
-       CHECK MISSING DOCS
-    ======================= */
-
-    const missingDocs = await checkMissingDocuments(lan, db);
-
-    if (missingDocs.length > 0) {
-      // ❌ Reject case
-      await new Promise((resolve, reject) => {
-        db.query(
-          `
-          UPDATE loan_booking_emiclub
-          SET status = 'REJECTED'
-          WHERE lan = ?
-          `,
-          [lan],
-          (err) => (err ? reject(err) : resolve())
-        );
-      });
-
-      // 🔔 Webhook
-      await sendLoanWebhook({
-        external_ref_no: partnerLoanId,
-        utr: null,
-        disbursement_date: null,
-        reference_number: lan,
-        status: "REJECTED",
-        reject_reason: `Missing documents: ${missingDocs.join(", ")}`,
-      });
-
-      return res.status(200).json({
-        message: "❌ Case rejected",
-        lan,
-        missing_documents: missingDocs,
-        uploaded_documents: cleaned.length,
-        errors,
-      });
-    }
-
-    /* =======================
-       SUCCESS
-    ======================= */
 
     return res.status(200).json({
-      message: "✅ All mandatory documents uploaded",
+      message: "✅ Documents downloaded & saved locally",
       lan,
       inserted_count: cleaned.length,
-      errors,
-      documents: cleaned.map(d => ({
+      warnings,
+      skipped_or_errors: errors,
+      docs: cleaned.map((d) => ({
         doc_name: d.doc_name,
         original_name: d.original_name,
-        file_name: d.file_name,
+        local_file: d.file_name,
+        source_url: d.source_url,
       })),
     });
-
   } catch (err) {
-    console.error("❌ upload-files-emiclub error:", err);
+    console.error("❌ /upload-files-emiclub error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
-
-////////////////////////////////////////////////////////////////
 
 router.get("/lock-state/:lan", async (req, res) => {
   try {

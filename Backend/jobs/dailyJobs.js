@@ -103,6 +103,7 @@ const db = require("../config/db");
 const { generateAllPending } = require("./cibilPdfService");
 const { runDailyInterestAccrual } = require( "./wctlccodinterestengine");
 const startAadhaarCron = require("./aadhaarPdfCron");
+const { sendLoanWebhook } = require("../utils/webhookService");
 
 // 1️⃣ DPD + OOD Cron
 cron.schedule("*/2 * * * *", async () => {
@@ -190,6 +191,85 @@ cron.schedule("*/2 * * * *", async () => {
     console.error("❌ Risk cron failed:", e.message);
   }
 });
+///////////////////// EMI CLUB CRON JOB /////////////////////
+cron.schedule("*/2 * * * *", async () => {
+  console.log("⏰ Document validation cron started");
+
+  try {
+    // 1️⃣ Find LANs with missing documents
+    const checkMissingDocsQuery = `
+      SELECT lb.lan
+      FROM loan_booking_emiclub lb
+      WHERE lb.status = 'Login'
+      AND EXISTS (
+          SELECT 1
+          FROM (
+              SELECT 'KYC' AS doc_name UNION ALL
+              SELECT 'PAN_CARD' UNION ALL
+              SELECT 'OFFLINE_VERIFICATION_OF_AADHAAR' UNION ALL
+              SELECT 'PROFILE_IMAGE' UNION ALL
+              SELECT 'INVOICE' UNION ALL
+              SELECT 'AGREEMENT' UNION ALL
+              SELECT 'KFS_DOCUMENT' UNION ALL
+              SELECT 'AUDIT_REPORT' UNION ALL
+              SELECT 'PAN_VERIFICATION_AUDIT_TRAIL' UNION ALL
+              SELECT 'CIBIL_REPORT'
+          ) required_docs
+          WHERE NOT EXISTS (
+              SELECT 1
+              FROM loan_documents ld
+              WHERE ld.lan = lb.lan
+              AND ld.doc_name = required_docs.doc_name
+          )
+      );
+    `;
+
+    const [rows] = await db.promise().query(checkMissingDocsQuery);
+
+    if (rows.length === 0) {
+      console.log("✅ No LANs found with missing documents");
+      return;
+    }
+
+    console.log(`⚠️ ${rows.length} LAN(s) found with missing documents`);
+
+    // 2️⃣ Process each LAN
+    for (const row of rows) {
+      const lan = row.lan;
+
+      try {
+        // Update status to Rejected
+        const updateQuery = `
+          UPDATE loan_booking_emiclub
+          SET status = 'Rejected'
+          WHERE lan = ?
+          AND status = 'Login'
+        `;
+        await db.promise().query(updateQuery, [lan]);
+
+        console.log(`❌ LAN ${lan} marked as Rejected`);
+
+        // 3️⃣ Call webhook for Rejected only
+        await sendLoanWebhook({
+          external_ref_no: lan, // or partnerLoanId if you have it
+          utr: null,
+          disbursement_date: null,
+          reference_number: lan,
+          status: "REJECTED",
+          reject_reason: "Required KYC documents missing",
+        });
+
+        console.log(`📡 Rejection webhook sent for LAN ${lan}`);
+      } catch (lanError) {
+        console.error(`❌ Error processing LAN ${lan}:`, lanError.message);
+      }
+    }
+  } catch (e) {
+    console.error("❌ Document validation cron failed:", e.message);
+  }
+});
+
+
 
 // 4️⃣ NEW: Allocation bank_date update cron (every 2 minutes)
 // 4️⃣ NEW: Allocation bank_date update cron (every 2 minutes)
