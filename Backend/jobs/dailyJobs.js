@@ -240,11 +240,16 @@ cron.schedule("*/2 * * * *", async () => {
       try {
         // Update status to Rejected
         const updateQuery = `
-          UPDATE loan_booking_emiclub
-          SET status = 'Rejected'
-          WHERE lan = ?
-          AND status = 'Login'
-        `;
+  UPDATE loan_booking_emiclub
+  SET status = CASE
+    WHEN status = 'Login' THEN 'Rejected'
+    WHEN status = 'Rejected' THEN 'Login'
+    ELSE status
+  END
+  WHERE lan = ?;
+'
+`;
+
         await db.promise().query(updateQuery, [lan]);
 
         console.log(`❌ LAN ${lan} marked as Rejected`);
