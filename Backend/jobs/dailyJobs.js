@@ -103,7 +103,7 @@ const db = require("../config/db");
 const { generateAllPending } = require("./cibilPdfService");
 const { runDailyInterestAccrual } = require( "./wctlccodinterestengine");
 const startAadhaarCron = require("./aadhaarPdfCron");
-const { sendLoanWebhook } = require("../utils/webhookService");
+const { sendLoanWebhook } = require("../utils/webhook");
 
 // 1️⃣ DPD + OOD Cron
 cron.schedule("*/2 * * * *", async () => {
