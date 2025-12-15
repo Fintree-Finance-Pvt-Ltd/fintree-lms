@@ -1522,7 +1522,7 @@ const openBankModal = (loanRow) => {
                 >
                   <option value="SAVINGS">SAVINGS</option>
                   <option value="CURRENT">CURRENT</option>
-                  readOnly
+                 
                 </select>
               </div>
 
@@ -1535,7 +1535,7 @@ const openBankModal = (loanRow) => {
                   name="mandate_amount"
                   value={bankForm.mandate_amount}
                   onChange={handleBankChange}
-                  readOnly
+                  
                 />
               </div>
 
@@ -1546,7 +1546,7 @@ const openBankModal = (loanRow) => {
                   name="mandate_start_date"
                   value={bankForm.mandate_start_date}
                   onChange={handleBankChange}
-                  readOnly
+                  
                 />
               </div>
 
@@ -1557,7 +1557,7 @@ const openBankModal = (loanRow) => {
                   name="mandate_end_date"
                   value={bankForm.mandate_end_date}
                   onChange={handleBankChange}
-                  readOnly
+                  
                 />
               </div>
 
