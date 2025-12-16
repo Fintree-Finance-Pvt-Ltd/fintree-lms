@@ -65,9 +65,9 @@ router.get("/:lan", async (req, res) => {
    if (lan.startsWith("HEYBF")) {
     tableName = "loan_booking_hey_ev_battery";
     loanAmountCol = "lb.loan_amount";
-    loanAmountExpr = "lb.disbursement_amount as loan_amount";
+    loanAmountExpr = "lb.disbursement_amount AS loan_amount";
     interestRateCol = "lb.interest_rate";
-    tenureCol = "lb.tenure as loan_tenure";
+    tenureCol = "lb.tenure AS loan_tenure";
     processingFeeCol = "COALESCE(lb.process_fee, 0) AS processing_fee";
     subventionCol = "0";
     retentionCol = "0";
