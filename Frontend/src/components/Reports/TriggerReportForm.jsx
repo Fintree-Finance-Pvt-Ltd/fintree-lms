@@ -269,6 +269,7 @@ import "../../styles/TriggerReportForm.css";
 const productOptions = [
   { label: "EV Loan", value: "EV Loan" },
   { label: "Hey EV", value: "Hey EV" },
+   { label: "HeyEV Battery", value: "HeyEV Battery" }, // Added new product option
   { label: "Healthcare", value: "Healthcare" },
   { label: "BL Loan", value: "BL Loan" },
   { label: "WCTL-BL Loan", value: "WCTL" },
@@ -278,7 +279,8 @@ const productOptions = [
   { label: "CCOD", value: "CC-OD" },
   { label: "Embifi", value: "Embifi" },
   { label: "EMICLUB", value: "EMICLUB"},
-  { label: "Circle Pe", value: "Circlepe"}
+  { label: "Circle Pe", value: "Circlepe"},
+   { label: "HELIUM", value: "HELIUM" } // Added new product option
 ];
 
 const formatDate = (date) => {

@@ -85,6 +85,10 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_cashflow_report_emiclub"
         : lender === "circlepe"
         ? "sp_cashflow_report_circlepe"
+        : lender === "heyev battery"
+        ? "sp_cashflow_report_heyev_battery"
+        : lender === "helium"
+        ? "sp_cashflow_report_helium"
         : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
@@ -102,8 +106,12 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_due_collection_all_report_embifi"
         : lender === "wctl"
         ? "sp_due_collection_all_report_wctl"
-        : lender === "hey ev"
+         : lender === "hey ev"
         ? "sp_due_collection_all_report_hey_ev"
+        : lender === "heyev battery"
+        ? "sp_due_collection_all_report_heyev_battery"
+        : lender === "helium"
+        ? "sp_due_collection_all_report_helium"
         : lender === "emiclub"
         ? "sp_due_collection_all_report_emiclub"
         : lender === "circlepe"
@@ -125,6 +133,10 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_consolidated_mis_report_emiclub"
         : lender === "hey ev"
         ? "sp_consolidated_mis_report_hey_ev"
+        : lender === "heyev battery"
+        ? "sp_consolidated_mis_report_heyev_battery"
+        : lender === "helium"
+        ? "sp_consolidated_mis_report_helium"
         : lender === "circlepe"
         ? "sp_consolidated_mis_report_circlepe"
         : "sp_consolidated_mis_report",
