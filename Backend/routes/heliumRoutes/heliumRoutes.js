@@ -741,6 +741,9 @@ router.get("/:lan", async (req, res) => {
 
       helium_demographic_score: row.helium_demographic_score,
       helium_demographic_flag: row.helium_demographic_flag,
+
+      net_monthly_income: row.net_monthly_income,
+      avg_monthly_rent: row.avg_monthly_rent,
     };
 
     const kyc = {
