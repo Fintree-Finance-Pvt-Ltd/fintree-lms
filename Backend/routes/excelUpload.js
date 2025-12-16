@@ -1784,7 +1784,7 @@ router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) =>
             row["Charger Serial no"],
             row["E-Rikshaw model"],
             row["Chassis no"],
-            row["CKYC NO"],
+            row["CKYC NO"] || null,
             row["E-Rickshaw No."],
             fldgValue,
             processFeeValue,
