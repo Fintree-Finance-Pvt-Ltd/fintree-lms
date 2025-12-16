@@ -106,7 +106,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
            } else if (lan.startsWith("HEYBF1")) {
           // 🔋 HeyEV Battery loans
           [loanRes] = await db.promise().query(
-            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+            `SELECT loan_amount, interest_rate, tenure AS loan_tenure, product, lender 
              FROM loan_booking_hey_ev_battery WHERE lan = ?`,
             [lan]
           );
