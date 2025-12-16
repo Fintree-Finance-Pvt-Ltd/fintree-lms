@@ -1080,7 +1080,7 @@ const drawLine = (x, label, value) => {
 
 doc.text(`Customer Name: ${loan.customer_name || "-"}`)
       .text(`Loan Account No: ${loan.lan || "-"}`)
-      .text(`Partner Loan ID: ${loan.partner_loan_id || "-"}`)
+      .text(`Partner Loan ID: ${loan.app_id || "-"}`)
 drawLine(leftX,  "Loan Amount (Rs)",            inr(loanAmt));
 drawLine(leftX,  "Rate of Interest (%)",        roi);
 drawLine(leftX,  "EMI Start Date",              fmtDDMMMYYYY(emiStart));
@@ -1190,6 +1190,10 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("BL"))  loanTable = "loan_bookings";
   else if (lan.startsWith("E1"))  loanTable = "loan_booking_embifi";
   else if (lan.startsWith("FINE"))  loanTable = "loan_booking_emiclub";
+  else if (lan.startsWith("HEYBF"))  loanTable = "loan_booking_hey_ev_battery";
+  else if (lan.startsWith("HEY"))  loanTable = "loan_booking_hey_ev";
+  else if (lan.startsWith("HEL"))  loanTable = "loan_booking_helium";
+  else if (lan.startsWith("FINS"))  loanTable = "loan_booking_finso";
 
 
 
@@ -1245,6 +1249,7 @@ if (!allowedStatuses.includes(statusNorm)) {
     doc.text(`Date: ${fmtDate(new Date())}`).moveDown(0.5);
     doc.text(`Name of the Borrower: ${loan.customer_name || ""}`);
     doc.text(`Ref.: Loan Account Number: ${loan.lan || ""}`);
+    doc.text(`Ref.: Partner Account Number: ${loan.partner_loan_id || ""}`);
     doc.text(`Ref.: Partner Loan Account Number: ${loan.partner_loan_id || ""}`);
     doc.text(`Address of the Borrower: ${address}`).moveDown(1);
 
