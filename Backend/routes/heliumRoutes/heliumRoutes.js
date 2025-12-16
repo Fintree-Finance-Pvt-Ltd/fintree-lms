@@ -659,6 +659,9 @@ router.get("/:lan", async (req, res) => {
           lb.helium_demographic_score,
           lb.helium_demographic_flag,
 
+          lb.net_monthly_income,
+          lb.avg_monthly_rent,
+
           -- KYC status
           k.pan_status      AS kyc_pan_status,
           k.aadhaar_status  AS kyc_aadhaar_status,
