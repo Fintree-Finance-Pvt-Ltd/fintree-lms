@@ -1631,7 +1631,6 @@ router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) =>
         "Charger Serial no",
         "E-Rikshaw model",
         "Chassis no",
-        "CKYC NO",
         "E-Rickshaw No.",
       ];
 
