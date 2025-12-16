@@ -334,54 +334,45 @@ router.post("/v1/helium-lb", verifyApiKey, async (req, res) => {
 
     const data = req.body;
 
-    if (!data.lenderType) {
-      return res.status(400).json({ message: "lenderType is required." });
-    }
-
-    const lenderType = data.lenderType.trim();
-
-    if (lenderType.toLowerCase() !== "helium") {
+    // 🔎 lenderType check
+    if (!data.lenderType || data.lenderType.toLowerCase() !== "helium") {
       return res.status(400).json({
-        message: `Invalid lenderType: ${lenderType}. Only 'Helium' is allowed.`,
+        message: "Invalid lenderType. Only HELIUM allowed.",
       });
     }
 
-    // ✅ Required fields (Helium aligned)
+    // ✅ Required fields (snake_case only)
     const requiredFields = [
-      "loginDate",
-      "firstName",
-      "lastName",
+      "login_date",
+      "first_name",
+      "last_name",
       "gender",
       "dob",
-      "fatherName",
-      "mobileNumber",
-      "panNumber",
-      "aadharNumber",
-      "currentAddress",
-      "currentVillageCity",
-      "currentDistrict",
-      "currentState",
-      "currentPincode",
-      "permanentAddress",
-      "permanentVillageCity",
-      "permanentDistrict",
-      "permanentState",
-      "permanentPincode",
-      "loanAmount",
-      "interestRate",
-      "loanTenure",
-
-      // BRE critical
-      "customerType",
-      "employmentType",
-      "netMonthlyIncome",
-      "avgMonthlyRent",
-      "residenceType",
-
-      // Banking
-      "bankName",
-      "nameInBank",
-      "accountNumber",
+      "father_name",
+      "mobile_number",
+      "pan_number",
+      "aadhar_number",
+      "current_address",
+      "current_village_city",
+      "current_district",
+      "current_state",
+      "current_pincode",
+      "permanent_address",
+      "permanent_village_city",
+      "permanent_district",
+      "permanent_state",
+      "permanent_pincode",
+      "loan_amount",
+      "interest_rate",
+      "loan_tenure",
+      "customer_type",
+      "employment_type",
+      "net_monthly_income",
+      "avg_monthly_rent",
+      "residence_type",
+      "bank_name",
+      "name_in_bank",
+      "account_number",
       "ifsc",
     ];
 
@@ -395,9 +386,9 @@ router.post("/v1/helium-lb", verifyApiKey, async (req, res) => {
 
     // 🔁 Duplicate PAN / Aadhaar check
     const [existing] = await db.promise().query(
-      `SELECT lan FROM loan_booking_helium 
+      `SELECT lan FROM loan_booking_helium
        WHERE pan_number = ? OR aadhar_number = ?`,
-      [data.panNumber, data.aadharNumber]
+      [data.pan_number, data.aadhar_number]
     );
 
     if (existing.length > 0) {
@@ -406,15 +397,18 @@ router.post("/v1/helium-lb", verifyApiKey, async (req, res) => {
       });
     }
 
-    // 🎫 Generate LAN & Application ID
+    // 🎫 Generate identifiers
     const { lan, application_id } =
       await generateLoanIdentifiers("HELIUM");
 
-    const customerName = `${data.firstName} ${data.lastName}`.trim();
+    // 👤 customer_name auto concat
+    const customer_name = `${data.first_name} ${data.last_name}`.trim();
 
-    // 📝 Insert into loan_booking_helium
-    await db.promise().query(
-      `
+    // 🗓️ AUTO fields
+    const agreement_date = data.login_date;
+
+    // 📝 SQL (KEEP THIS FORMAT – MariaDB safe)
+    const insertSql = `
       INSERT INTO loan_booking_helium (
         first_name, last_name, login_date,
         lan, app_id, customer_name,
@@ -431,71 +425,84 @@ router.post("/v1/helium-lb", verifyApiKey, async (req, res) => {
         pre_emi, processing_fee, net_disbursement,
         status, agreement_date,
         employment_type, net_monthly_income, avg_monthly_rent
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `,
-      [
-        data.first_name,
-        data.last_name,
-        data.login_date,
-        lan,
-        application_id,
-        customer_name,
+      ) VALUES (
+        ?,?,?,?,?,?,?,?,?,?,
+        ?,?,?,?,?,?,?,?,?,?,
+        ?,?,?,?,?,?,?,?,?,?,
+        ?,?,?,?,?,?,?,?,?,?,
+        ?,?,?,?,?
+      );
+    `;
 
-        data.gender,
-        data.dob,
-        data.father_name,
-        data.mother_name || null,
+    const values = [
+      data.first_name,
+      data.last_name,
+      data.login_date,
+      lan,
+      application_id,
+      customer_name,
 
-        data.mobile_number,
-        data.email_id || null,
+      data.gender,
+      data.dob,
+      data.father_name,
+      data.mother_name || null,
 
-        data.pan_number,
-        data.aadhar_number,
+      data.mobile_number,
+      data.email_id || null,
 
-        data.current_address,
-        data.current_village_city,
-        data.current_district,
-        data.current_state,
-        data.current_pincode,
+      data.pan_number,
+      data.aadhar_number,
 
-        data.permanent_address,
-        data.permanent_village_city,
-        data.permanent_district,
-        data.permanent_state,
-        data.permanent_pincode,
+      data.current_address,
+      data.current_village_city,
+      data.current_district,
+      data.current_state,
+      data.current_pincode,
 
-        data.loan_amount,
-        data.interest_rate,
-        data.loan_tenure,
+      data.permanent_address,
+      data.permanent_village_city,
+      data.permanent_district,
+      data.permanent_state,
+      data.permanent_pincode,
 
-        data.emi_amount || null,
-        data.cibil_score || null,
+      data.loan_amount,
+      data.interest_rate,
+      data.loan_tenure,
 
-        "Monthly Loan",
-        "HELIUM",
+      null, // emi_amount (AUTO)
+      null, // cibil_score (AUTO)
 
-        data.residence_type,
-        data.customer_type,
+      "Monthly Loan",
+      "HELIUM",
 
-        data.bank_name,
-        data.name_in_bank,
-        data.account_number,
-        data.ifsc,
+      data.residence_type,
+      data.customer_type,
 
-        data.pre_emi || null,
-        data.processing_fee || null,
-        data.net_disbursement || null,
+      data.bank_name,
+      data.name_in_bank,
+      data.account_number,
+      data.ifsc,
 
-        "Login",
-        data.agreement_date || data.login_date,
+      null, // pre_emi (AUTO)
+      null, // processing_fee (AUTO)
+      null, // net_disbursement (AUTO)
 
-        data.employment_type,
-        data.net_monthly_income,
-        data.avg_monthly_rent,
-      ]
-    );
+      "Login",
+      data.login_date,
 
-    // 🧮 Post-insert system processes
+      data.employment_type,
+      data.net_monthly_income,
+      data.avg_monthly_rent
+    ];
+
+    // 🛡️ Safety check
+    if (values.length !== 45) {
+      throw new Error(`SQL values mismatch: ${values.length}`);
+    }
+
+    await db.promise().query(insertSql, values);
+
+    // 🧮 Post-insert processes
     await db.promise().query("CALL sp_generate_helium_rps(?)", [lan]);
     await db.promise().query(
       "INSERT INTO kyc_verification_status (lan) VALUES (?)",
@@ -512,7 +519,7 @@ router.post("/v1/helium-lb", verifyApiKey, async (req, res) => {
       application_id,
     });
 
-    // 🔥 Async validations
+    // 🔥 async validations
     runAllValidations(lan);
   } catch (error) {
     console.error("❌ Helium API Error:", error);

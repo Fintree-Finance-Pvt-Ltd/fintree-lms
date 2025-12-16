@@ -314,6 +314,74 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               "UPDATE loan_booking_helium SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
+// 2️⃣ Fetch loan financials + disbursement date
+  const [[loan]] = await conn.query(
+    `
+    SELECT 
+      loan_amount,
+      interest_rate,
+      disbursement_date
+    FROM loan_booking_helium
+    WHERE lan = ?
+    `,
+    [lan]
+  );
+
+  if (!loan) {
+    throw new Error("Helium loan not found");
+  }
+
+  // 3️⃣ Fetch FIRST EMI due date from manual_rps_helium
+  const [[rps]] = await conn.query(
+    `
+    SELECT due_date
+    FROM manual_rps_helium
+    WHERE lan = ?
+    ORDER BY due_date ASC
+    LIMIT 1
+    `,
+    [lan]
+  );
+
+  if (!rps) {
+    throw new Error("EMI schedule not found for HEL loan");
+  }
+
+  // 4️⃣ Calculate PRE-EMI DAYS
+  const disbDate = new Date(loan.disbursement_date);
+  const emiStartDate = new Date(rps.due_date);
+
+  const diffMs = emiStartDate - disbDate;
+  const preEmiDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  // 5️⃣ Calculate PRE-EMI
+  const loanAmount = Number(loan.loan_amount);
+  const interestRate = Number(loan.interest_rate);
+
+  const preEmi =
+    (loanAmount * interestRate * preEmiDays) / (100 * 365);
+
+  const preEmiAmount = Number(preEmi.toFixed(2));
+
+  // 6️⃣ Calculate NET DISBURSEMENT
+  const netDisbursement = Number(
+    (loanAmount - preEmiAmount).toFixed(2)
+  );
+
+  // 7️⃣ Update calculated values
+  await conn.query(
+    `
+    UPDATE loan_booking_helium
+    SET 
+      pre_emi_days = ?,
+      pre_emi = ?,
+      net_disbursement = ?
+    WHERE lan = ?
+    `,
+    [preEmiDays, preEmiAmount, netDisbursement, lan]
+  );
+
+
           } else {
             await conn.query(
               "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",
