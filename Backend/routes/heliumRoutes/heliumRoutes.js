@@ -6,6 +6,7 @@ const { autoApproveIfAllVerified } = require("../../services/heliumValidationEng
 const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
+const verifyApiKey = require("../middleware/apiKeyAuth");
 
 const router = express.Router();
 
