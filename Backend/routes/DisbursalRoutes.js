@@ -72,7 +72,7 @@ router.get("/:lan", async (req, res) => {
     subventionCol = "0";
     retentionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
-    netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+    netDisbursementExpr = `(lb.disbursement_amount - ${subventionCol})`;
   }
 
   if (lan.startsWith("FINE")) {
