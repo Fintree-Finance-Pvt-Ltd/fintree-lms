@@ -7794,7 +7794,7 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_finso_loan";
   }else if (lan.startsWith("HEYEV")) {
     tableName = "manual_rps_hey_ev";
-     }else if (lan.startsWith("HEYB")) {
+     }else if (lan.startsWith("HEYBF")) {
     tableName = "manual_rps_hey_ev_battery";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
