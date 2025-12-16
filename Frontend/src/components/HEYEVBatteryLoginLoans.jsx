@@ -5,7 +5,7 @@ import LoginCaseScreen from './LoginCaseScreen';
 const HEYEVBatteryLoginLoans = () => {
   return (
     <LoginCaseScreen
-      apiUrl={`/loan-booking/login-loans?table=loan_booking_hey_ev_battery&prefix=HEYB`}
+      apiUrl={`/loan-booking/login-loans?table=loan_booking_hey_ev_battery&prefix=HEYBF`}
       title="HEY EV Battery Login Stage Loans"
       tableName="loan_booking_hey_ev_battery"
     />

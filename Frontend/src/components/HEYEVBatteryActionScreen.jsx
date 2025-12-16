@@ -5,7 +5,7 @@ import LoginActionScreen from './LoginActionScreen';
 const HEYEVBatteryActionScreen = () => {
   return (
     <LoginActionScreen
-      apiUrl={`/loan-booking/login-loans?table=loan_booking_hey_ev_battery&prefix=HEYB`}
+      apiUrl={`/loan-booking/login-loans?table=loan_booking_hey_ev_battery&prefix=HEYBF`}
       title="EV Battry Action Pending Loans"
       tableName="loan_booking_hey_ev_battery"
     />

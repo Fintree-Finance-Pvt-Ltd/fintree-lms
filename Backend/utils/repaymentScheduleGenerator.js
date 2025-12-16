@@ -3751,6 +3751,7 @@ const generateRepaymentSchedule = async (
 module.exports = {
   generateRepaymentScheduleEV,
   generateRepaymentScheduleHEYEV,
+  generateRepaymentScheduleHEYEVBattery,
   generateRepaymentScheduleFinso360,
   generateRepaymentScheduleFinso365,
   generateRepaymentScheduleBL,
