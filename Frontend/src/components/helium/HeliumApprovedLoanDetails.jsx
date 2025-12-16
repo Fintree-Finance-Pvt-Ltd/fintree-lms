@@ -79,6 +79,14 @@ const HeliumApprovedLoanDetails = () => {
       score: loan.helium_demographic_score,
       flag: loan.helium_demographic_flag,
     },
+     {
+      label: "Net Monthly Income",
+      score: loan.net_monthly_income, 
+    },
+    {
+      label: "Average Monthly Rent",
+      score: loan.avg_monthly_rent, 
+    },
   ];
 
   const pillForStatus = (status) => {
