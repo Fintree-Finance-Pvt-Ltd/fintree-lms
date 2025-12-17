@@ -103,7 +103,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
              FROM loan_booking_hey_ev WHERE lan = ?`,
             [lan]
           );
-           } else if (lan.startsWith("HEYBF1")) {
+        } else if (lan.startsWith("HEYBF1")) {
           // 🔋 HeyEV Battery loans
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, tenure AS loan_tenure, product, lender 
@@ -291,7 +291,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               "UPDATE loan_booking_hey_ev SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
-             } else if (lan.startsWith("HEYBF1")) {
+          } else if (lan.startsWith("HEYBF1")) {
             await conn.query(
               "UPDATE loan_booking_hey_ev_battery SET status = 'Disbursed' WHERE lan = ?",
               [lan]
@@ -309,68 +309,64 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               [lan]
             );
           }
-            else if (lan.startsWith("HEL")) {
+          else if (lan.startsWith("HEL")) {
+
+            // 1️⃣ Mark loan as Disbursed
             await conn.query(
               "UPDATE loan_booking_helium SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
-// 2️⃣ Fetch loan financials + disbursement date
-  const [[loan]] = await conn.query(
-    `
+
+            // 2️⃣ Fetch ALL required data using JOIN
+            const [[loan]] = await conn.query(
+              `
     SELECT 
-      loan_amount,
-      interest_rate,
-      disbursement_date
-    FROM loan_booking_helium
-    WHERE lan = ?
+      lb.loan_amount,
+      lb.interest_rate,
+      eu.disbursement_date
+    FROM loan_booking_helium lb
+    JOIN ev_disbursement_utr eu 
+      ON eu.lan = lb.lan
+    WHERE lb.lan = ?
     `,
-    [lan]
-  );
+              [lan]
+            );
 
-  if (!loan) {
-    throw new Error("Helium loan not found");
-  }
+            if (!loan) {
+              throw new Error("Helium loan or disbursement record not found");
+            }
 
-  // 3️⃣ Fetch FIRST EMI due date from manual_rps_helium
-  const [[rps]] = await conn.query(
-    `
-    SELECT due_date
-    FROM manual_rps_helium
-    WHERE lan = ?
-    ORDER BY due_date ASC
-    LIMIT 1
-    `,
-    [lan]
-  );
+            // 3️⃣ DISBURSEMENT DATE
+            const disbDate = new Date(loan.disbursement_date);
 
-  if (!rps) {
-    throw new Error("EMI schedule not found for HEL loan");
-  }
+            // 4️⃣ FIRST EMI DATE (runtime only → not stored)
+            const firstEmiDate = new Date(
+              disbDate.getFullYear(),
+              disbDate.getMonth() + 1, // next month
+              5
+            );
 
-  // 4️⃣ Calculate PRE-EMI DAYS
-  const disbDate = new Date(loan.disbursement_date);
-  const emiStartDate = new Date(rps.due_date);
+            // 5️⃣ PRE-EMI DAYS
+            const diffMs = firstEmiDate - disbDate;
+            const preEmiDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  const diffMs = emiStartDate - disbDate;
-  const preEmiDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            // 6️⃣ PRE-EMI CALCULATION
+            const loanAmount = Number(loan.loan_amount);
+            const interestRate = Number(loan.interest_rate);
 
-  // 5️⃣ Calculate PRE-EMI
-  const loanAmount = Number(loan.loan_amount);
-  const interestRate = Number(loan.interest_rate);
+            const preEmi =
+              (loanAmount * interestRate * preEmiDays) / (100 * 365);
 
-  const preEmi =
-    (loanAmount * interestRate * preEmiDays) / (100 * 365);
+            const preEmiAmount = Number(preEmi.toFixed(2));
 
-  const preEmiAmount = Number(preEmi.toFixed(2));
+            // 7️⃣ NET DISBURSEMENT
+            const netDisbursement = Number(
+              (loanAmount - preEmiAmount).toFixed(2)
+            );
 
-  // 6️⃣ Calculate NET DISBURSEMENT
-  const netDisbursement = Number(
-    (loanAmount - preEmiAmount).toFixed(2)
-  );
-
-  // 7️⃣ Update calculated values
-  await conn.query(
-    `
+            // 8️⃣ UPDATE ONLY FINANCIALS (NO EMI DATE)
+            await conn.query(
+              `
     UPDATE loan_booking_helium
     SET 
       pre_emi_days = ?,
@@ -378,10 +374,8 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       net_disbursement = ?
     WHERE lan = ?
     `,
-    [preEmiDays, preEmiAmount, netDisbursement, lan]
-  );
-
-
+              [preEmiDays, preEmiAmount, netDisbursement, lan]
+            );
           } else {
             await conn.query(
               "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",
