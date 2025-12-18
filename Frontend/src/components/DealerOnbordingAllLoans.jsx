@@ -9,4 +9,4 @@ const DealerOnboardingAllLoans = () => {
   )
 }
 
-export default DealerOnboardingAllLoans
+export default DealerOnboardingAllLoans;

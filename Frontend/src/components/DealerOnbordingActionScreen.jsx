@@ -12,4 +12,4 @@ const DealerOnbordingActionScreen = () => {
   );
 }
 
-export default DealerOnbordingActionScreen
+export default DealerOnbordingActionScreen;
