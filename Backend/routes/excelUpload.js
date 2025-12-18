@@ -2220,6 +2220,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery:true,
+    dealer_onboarding: true,
 
   };
 
