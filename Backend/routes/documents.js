@@ -1250,7 +1250,7 @@ if (!allowedStatuses.includes(statusNorm)) {
     doc.text(`Name of the Borrower: ${loan.customer_name || ""}`);
     doc.text(`Ref.: Loan Account Number: ${loan.lan || ""}`);
     doc.text(`Ref.: Partner Account Number: ${loan.partner_loan_id || ""}`);
-    doc.text(`Ref.: Partner Loan Account Number: ${loan.partner_loan_id || ""}`);
+    doc.text(`Ref.: Partner Loan Account Number: ${loan.app_id || ""}`);
     doc.text(`Address of the Borrower: ${address}`).moveDown(1);
 
     doc.text("Dear Sir/Madam,").moveDown(0.8);
