@@ -42,10 +42,10 @@ const AllLoansScreen = ({ apiEndpoint, title = "Disbursed Loans", amountField = 
       render: (r) => (
         <span style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
               onClick={() => nav(`/loan-details/${r.lan}`)}>
-          {r.customer_name ?? "—"}
+          {r.customer_name ?? r.pan_name ?? "—"}
         </span>
       ),
-      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
+      sortAccessor: (r) => (r.customer_name || r.pan_name || "").toLowerCase(),
       width: 220,
     },
     {

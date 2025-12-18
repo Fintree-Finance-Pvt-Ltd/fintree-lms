@@ -21,6 +21,7 @@ const collectionApiRoutes = require("./routes/collectionApi");
 const enachRoutes = require("./routes/enachRoutes");
 const esignRoutes = require("./routes/esignRoutes");
 const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute")
+const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
@@ -106,7 +107,7 @@ app.use("/api/forecloser", forecloserUploadRoutes); // ✅ Register Route for Fo
  app.use("/reports", express.static(path.join(__dirname, "/reports")));
 app.use("/api/reports", reportsRoutes);// ✅ Register Route for Reports
 app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
-
+app.use("/api/dealer-onboarding", dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
 
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files

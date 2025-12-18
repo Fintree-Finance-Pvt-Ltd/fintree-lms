@@ -110,7 +110,8 @@ import HEYEVBatteryApproveInitiateScreen from "./components/HEYEVBatteryApproveI
 import HEYEVBatteryAllLoans from "./components/HEYEVBatteryAllLoans";
 import HEYEVBatteryApprovedLoans from "./components/HEYEVBatteryApprovedLoans";
 import EmbifiCustomerRemarks from "./components/EmbifiCustomerRemarks";
-
+import DealerOnboardingAllLoans from "./components/DealerOnbordingAllLoans";
+import DealerOnboardingLoginActions from "./components/DealerOnbordingActionScreen";
 function App() {
   return (
     <Router>
@@ -977,6 +978,14 @@ function App() {
                 <HEYEVBatteryAllLoans />
               </PermissionRoute>
             }
+ />
+            <Route
+            path="/dealer-onboarding/all"
+            element={
+              <PermissionRoute pageName="Dealer Onboarding All Loans">
+                <DealerOnboardingAllLoans />
+              </PermissionRoute>
+            }
           />
 
           <Route
@@ -993,6 +1002,14 @@ function App() {
             element={
               <PermissionRoute pageName="Hey EV Battery Login Actions">
                 <HEYEBatteryVActionScreen />
+              </PermissionRoute>
+            }
+          />
+           <Route
+            path="/dealer-onboarding/login-actions"
+            element={
+              <PermissionRoute pageName="Dealer Onboarding Login Actions">
+                <DealerOnboardingLoginActions />
               </PermissionRoute>
             }
           />

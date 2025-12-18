@@ -63,6 +63,7 @@ const LAN_TABLE_MAP = {
   FINE: { table: "loan_booking_emiclub",   statusCol: "status" },
   FINS: { table: "loan_booking_finso",    statusCol: "status" },
   HEL: { table: "loan_booking_helium",   statusCol: "status" },
+  DLR: { table: "dealer_onboarding",   statusCol: "status" },
 };
 
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing
@@ -182,126 +183,6 @@ function inferOriginalNameFromUrl(url) {
   } catch { return null; }
 }
 
-// router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
-//   try {
-//     const { lan: bodyLan, documents } = req.body;
-
-//     // --- Top-level LAN required ---
-//     const lan = String(bodyLan || "").trim();
-//     if (!lan) {
-//       return res.status(400).json({ error: "lan is required at top-level body." });
-//     }
-
-//     // --- Documents array checks ---
-//     if (!Array.isArray(documents) || documents.length === 0) {
-//       return res.status(400).json({ error: "documents[] is required." });
-//     }
-//     if (documents.length > 50) {
-//       return res.status(400).json({ error: "Too many documents (max 50)." });
-//     }
-
-//     const errors = [];
-//     const warnings = [];
-//     const cleaned = [];
-
-//     for (let i = 0; i < documents.length; i++) {
-//       const d = documents[i] || {};
-//       const doc_name = String(d.doc_name || "").trim();
-//       const url = String(d.documet_url || "").trim();           // keep provided key name
-//       const doc_password = (d.doc_password ?? "").toString().trim();
-//       const ref = String(d.reference_number || "").trim();       // optional per-doc
-
-//       // If reference_number present but different, warn and proceed with top-level lan
-//       if (ref && ref !== lan) {
-//         warnings.push({
-//           index: i,
-//           field: "reference_number",
-//           reason: `reference_number (${ref}) does not match top-level lan (${lan}); using top-level lan`,
-//         });
-//       }
-
-//       if (!doc_name || !ALLOWED_DOCS.has(doc_name)) {
-//         errors.push({ index: i, field: "doc_name", reason: "Invalid or unsupported doc_name" });
-//         continue;
-//       }
-//       if (!url || !isValidUrl(url)) {
-//         errors.push({ index: i, field: "documet_url", reason: "Valid URL is required" });
-//         continue;
-//       }
-
-//       cleaned.push({
-//         lan, // always use top-level LAN
-//         doc_name,
-//         source_url: url,
-//         original_name: inferOriginalNameFromUrl(url),
-//         doc_password: doc_password || null,
-//       });
-//     }
-
-//     // If nothing valid after validation, fail
-//     if (cleaned.length === 0) {
-//       return res.status(400).json({ error: "No valid documents to insert.", details: errors });
-//     }
-
-//     // Bulk UPSERT into loan_documents (no file_name for URL ingest)
-//     const now = new Date();
-//     const values = cleaned.map(row => [
-//       row.lan,
-//       row.doc_name,
-//       row.source_url,
-//       row.doc_password,
-//       row.original_name,
-//       now,
-//     ]);
-
-//     // const sql = `
-//     //   INSERT INTO loan_documents
-//     //     (lan, doc_name, source_url, doc_password, original_name, uploaded_at)
-//     //   VALUES ?
-//     //   ON DUPLICATE KEY UPDATE
-//     //     source_url    = VALUES(source_url),
-//     //     doc_password  = VALUES(doc_password),
-//     //     original_name = VALUES(original_name),
-//     //     uploaded_at   = VALUES(uploaded_at)
-//     // `;
-// const sql = `
-//   INSERT INTO loan_documents
-//     (lan, doc_name, source_url, doc_password, original_name, uploaded_at)
-//   VALUES ?
-// `;
-
-//     await new Promise((resolve, reject) => {
-//       db.query(sql, [values], (err, result) => {
-//         if (err) return reject(err);
-//         resolve(result);
-//       });
-//     });
-
-//     return res.status(200).json({
-//       message: "✅ Documents recorded successfully",
-//       lan,
-//       inserted_count: cleaned.length,
-//       warnings,              // soft issues (like mismatched reference_number)
-//       skipped_or_errors: errors, // hard skips (invalid doc_name/url)
-//       docs: cleaned.map(d => ({
-//         doc_name: d.doc_name,
-//         url: d.source_url,
-//         password_set: !!d.doc_password,
-//         original_name: d.original_name || null
-//       })),
-//     });
-//   } catch (err) {
-//     console.error("❌ /upload-files-emiclub error:", err);
-//     return res.status(500).json({ error: "Duplicate data Issue." });
-//   }
-// });
-
-
-
-///////////////// NEW CODE for EMICLUB DOC UPLOAD API END /////////////////
-// Lock state for UI
-
-
 router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
   try {
     const { lan: bodyLan, documents } = req.body;
@@ -401,6 +282,157 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+///////////////// DEALER API DOC UPLOAD START /////////////////////
+/* ===========================
+   Dealer Allowed Docs
+=========================== */
+
+const ALLOWED_DEALER_DOCS = new Set([
+  "BUSINESS_REGISTRATION",
+  "INCORPORATION_CERTIFICATE",
+  "SHOP_ESTABLISHMENT_CERTIFICATE",
+
+  "GST_CERTIFICATE",
+  "DEALER_PAN_CARD",
+  "UDYAM_CERTIFICATE",
+  "CIN_CERTIFICATE",
+
+  "DEALER_KYC",
+  "SHOP_ADDRESS_PROOF",
+  "PROFILE_IMAGE",
+  "BILL_INVOICE",
+
+  "CANCELLED_CHEQUE",
+  "BANK_STATEMENT",
+  "BANK_ACCOUNT_CONFIRMATION",
+
+  "RENTAL_AGREEMENT",
+  "STORE_PHOTO_INSIDE",
+  "STORE_PHOTO_OUTSIDE",
+  "UTILITY_BILL",
+
+  "DEALER_AGREEMENT",
+  "FINANCING_ADDENDUM",
+  "MISC_DOCUMENT",
+]);
+
+/* ===========================
+   Helper Functions (Shared)
+=========================== */
+
+function isValidUrl(u) {
+  try {
+    new URL(u);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function inferOriginalNameFromUrl(url) {
+  try {
+    const p = new URL(url).pathname || "";
+    const base = p.split("/").pop() || "";
+    return base.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/* ===========================
+   Dealer Upload Route
+=========================== */
+
+router.post(
+  "/upload-files-dealer",
+  verifyApiKey,
+  upload.array("documents", 20), // ✅ REQUIRED for form-data
+  async (req, res) => {
+    try {
+      const { lan: bodyLan } = req.body || {};
+      const files = req.files || [];
+
+      const lan = String(bodyLan || "").trim();
+      if (!lan)
+        return res.status(400).json({ error: "lan is required" });
+
+      if (!files.length)
+        return res.status(400).json({ error: "documents[] is required" });
+
+      const errors = [];
+      const cleaned = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+
+        // doc_name should be sent along with each file as form-data field
+        const doc_name = String(req.body[`doc_name_${i}`] || "").trim();
+        const doc_password = String(req.body[`doc_password_${i}`] || "").trim();
+
+        if (!doc_name || !ALLOWED_DEALER_DOCS.has(doc_name)) {
+          errors.push({
+            index: i,
+            field: "doc_name",
+            reason: "Invalid dealer doc_name",
+          });
+          continue;
+        }
+
+        cleaned.push({
+          lan,
+          doc_name,
+          source_url: null,
+          file_name: file.filename,
+          original_name: file.originalname,
+          doc_password: doc_password || null,
+        });
+      }
+
+      if (cleaned.length === 0) {
+        return res.status(400).json({
+          error: "No valid documents to insert",
+          details: errors,
+        });
+      }
+
+      const now = new Date();
+      const values = cleaned.map((r) => [
+        r.lan,
+        r.doc_name,
+        r.file_name,
+        r.source_url,
+        r.doc_password,
+        r.original_name,
+        now,
+      ]);
+
+      await q(
+        `INSERT INTO loan_documents
+         (lan, doc_name, file_name, source_url, doc_password, original_name, uploaded_at)
+         VALUES ?`,
+        [values]
+      );
+
+      res.status(200).json({
+        message: "✅ Dealer documents uploaded successfully",
+        lan,
+        inserted_count: cleaned.length,
+        skipped_or_errors: errors,
+      });
+    } catch (err) {
+      console.error("❌ /upload-files-dealer error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+
+
+
+
+///////////////// DEALER API DOC UPLOAD END /////////////////////
+
 
 router.get("/lock-state/:lan", async (req, res) => {
   try {

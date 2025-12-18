@@ -69,6 +69,9 @@ router.get("/loan-booking/:lan", (req, res) => {
   }else if (lan.startsWith("HEL")) {
     table = "loan_booking_helium";
     posTable = "manual_rps_helium";
+    }else if (lan.startsWith("DLR")) {
+    table = "dealer_onboarding";
+   
   }else if (lan.startsWith("FCCOD")) {
     table = "loan_booking_wctl_cc_od";
   }

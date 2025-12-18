@@ -185,6 +185,7 @@ const Sidebar = () => {
           '/hey-ev-loans',
           '/hey-ev-battery-loans', /////sajag
           '/helium-loans',
+          '/dealer-onboarding',
          // '/health-care-loans',
           '/aldun-loans',
           '/mis-reports',
@@ -206,6 +207,7 @@ const Sidebar = () => {
     'HEY EV Loans': allowedPages.filter(p => p.path.includes('/hey-ev-loans')),
     'HEY EV Battery Loans': allowedPages.filter(p => p.path.includes('/hey-ev-battery-loans')),
     'Helium Loans': allowedPages.filter(p => p.path.includes('/helium-loans')),
+    'Dealer ALL': allowedPages.filter(p => p.path.includes('/dealer-onboarding')),
     'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),
     'MIS Reports': allowedPages.filter(p => p.path.includes('/mis-reports')),
   };

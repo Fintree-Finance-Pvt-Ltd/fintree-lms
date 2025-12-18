@@ -229,7 +229,7 @@ const LoginActionScreen = ({
           {r.customer_name ?? "—"}
         </span>
       ),
-      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
+      sortAccessor: (r) => (r.customer_name || r.pan_name || "").toLowerCase(),
       width: 220,
     },
     {
@@ -318,27 +318,40 @@ const LoginActionScreen = ({
       width: 120,
     },
     {
-      key: "actions",
-      header: "Actions",
-      render: (r) => (
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            style={actionBtn("approve")}
-            onClick={() => handleStatusChange(r.lan, "Disburse initiate", tableName)}
-          >
-            ✅ Disburse initiate
-          </button>
-          <button
-            style={actionBtn("reject")}
-            onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
-          >
-            ❌ Reject
-          </button>
-        </div>
-      ),
-      csvAccessor: () => "",
-      width: 210,
-    },
+  key: "actions",
+  header: "Actions",
+  render: (r) => {
+    const isDLR = /^DLR/i.test(r.lan);
+
+    return (
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          style={actionBtn("approve")}
+          onClick={() =>
+            handleStatusChange(
+              r.lan,
+              isDLR ? "Approved" : "Disburse initiate",
+              tableName
+            )
+          }
+        >
+          {isDLR ? "✅ Approve" : "✅ Disburse initiate"}
+        </button>
+
+        <button
+          style={actionBtn("reject")}
+          onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
+        >
+          ❌ Reject
+        </button>
+      </div>
+    );
+  },
+  csvAccessor: () => "",
+  width: 210,
+}
+
+,
   ];
 
   // include batch_id in search/CSV only when present

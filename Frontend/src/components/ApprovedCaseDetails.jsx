@@ -44,7 +44,11 @@ const ApprovedCaseDetails = () => {
                 ← Back
             </button>
 
-            <h2>Loan Application By {data.customer_name}</h2>
+           <h2>
+  Loan Application By {data.customer_name}
+  {data.pan_name ? ` (${data.pan_name})` : ""}
+</h2>
+
 
             <div className="loan-details-grid">
                 <div className="loan-details-field">

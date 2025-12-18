@@ -50,7 +50,9 @@ const LoanDetailsPage = () => {
         <div className="loan-details-container">
             {/* ✅ Customer Details (Full Width) */}
             <div className="loan-customer-info">
-                <h2>Loan Application By {loanData.customer_name}</h2>
+                 <h2>
+    Loan Application By {loanData.customer_name || loanData.pan_name || "—"}
+  </h2>
                 <p><strong>LAN:</strong> {loanData.lan}</p>
                 <p><strong>Created At:</strong> {loanData.login_date}</p>
                 <p><strong>Mobile:</strong> {loanData.mobile_number}</p>
