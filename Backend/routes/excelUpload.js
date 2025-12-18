@@ -2109,6 +2109,7 @@ router.get("/approved-loans", (req, res) => {
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery:true,
+    dealer_onboarding: true,
   };
 
   if (!allowedTables[table]) {
@@ -2228,7 +2229,7 @@ router.put("/login-loans/:lan", (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  if (!["Disburse initiate", "rejected"].includes(status)) {
+  if (!["Disburse initiate", "rejected", "Approved"].includes(status)) {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
