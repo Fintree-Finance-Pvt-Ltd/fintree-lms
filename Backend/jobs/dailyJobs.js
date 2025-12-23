@@ -192,85 +192,85 @@ cron.schedule("*/2 * * * *", async () => {
   }
 });
 ///////////////////// EMI CLUB CRON JOB /////////////////////
-cron.schedule("*/2 * * * *", async () => {
-  console.log("⏰ Document validation cron started");
+// cron.schedule("*/2 * * * *", async () => {
+//   console.log("⏰ Document validation cron started");
 
-  try {
-    const checkMissingDocsQuery = `
-      SELECT lb.lan
-      FROM loan_booking_emiclub lb
-      WHERE lb.status = 'Login'
-      AND lb.login_at <= NOW() - INTERVAL 5 MINUTE
-      AND EXISTS (
-          SELECT 1
-          FROM (
-              SELECT 'KYC' AS doc_name UNION ALL
-              SELECT 'PAN_CARD' UNION ALL
-              SELECT 'OFFLINE_VERIFICATION_OF_AADHAAR' UNION ALL
-              SELECT 'PROFILE_IMAGE' UNION ALL
-              SELECT 'INVOICE' UNION ALL
-              SELECT 'AGREEMENT' UNION ALL
-              SELECT 'KFS_DOCUMENT' UNION ALL
-              SELECT 'AUDIT_REPORT' UNION ALL
-              SELECT 'PAN_VERIFICATION_AUDIT_TRAIL' UNION ALL
-              SELECT 'CIBIL_REPORT'
-          ) required_docs
-          WHERE NOT EXISTS (
-              SELECT 1
-              FROM loan_documents ld
-              WHERE ld.lan = lb.lan
-              AND ld.doc_name = required_docs.doc_name
-          )
-      );
-    `;
+//   try {
+//     const checkMissingDocsQuery = `
+//       SELECT lb.lan
+//       FROM loan_booking_emiclub lb
+//       WHERE lb.status = 'Login'
+//       AND lb.login_at <= NOW() - INTERVAL 5 MINUTE
+//       AND EXISTS (
+//           SELECT 1
+//           FROM (
+//               SELECT 'KYC' AS doc_name UNION ALL
+//               SELECT 'PAN_CARD' UNION ALL
+//               SELECT 'OFFLINE_VERIFICATION_OF_AADHAAR' UNION ALL
+//               SELECT 'PROFILE_IMAGE' UNION ALL
+//               SELECT 'INVOICE' UNION ALL
+//               SELECT 'AGREEMENT' UNION ALL
+//               SELECT 'KFS_DOCUMENT' UNION ALL
+//               SELECT 'AUDIT_REPORT' UNION ALL
+//               SELECT 'PAN_VERIFICATION_AUDIT_TRAIL' UNION ALL
+//               SELECT 'CIBIL_REPORT'
+//           ) required_docs
+//           WHERE NOT EXISTS (
+//               SELECT 1
+//               FROM loan_documents ld
+//               WHERE ld.lan = lb.lan
+//               AND ld.doc_name = required_docs.doc_name
+//           )
+//       );
+//     `;
 
-    const [rows] = await db.promise().query(checkMissingDocsQuery);
+//     const [rows] = await db.promise().query(checkMissingDocsQuery);
 
-    if (rows.length === 0) {
-      console.log("✅ No LANs eligible for rejection");
-      return;
-    }
+//     if (rows.length === 0) {
+//       console.log("✅ No LANs eligible for rejection");
+//       return;
+//     }
 
-    console.log(`⚠️ ${rows.length} LAN(s) eligible for rejection`);
+//     console.log(`⚠️ ${rows.length} LAN(s) eligible for rejection`);
 
-    for (const { lan } of rows) {
-      try {
-        // Reject only once
-        const updateQuery = `
-          UPDATE loan_booking_emiclub
-          SET status = 'Rejected'
-          WHERE lan = ?
-          AND status = 'Login'
-        `;
+//     for (const { lan } of rows) {
+//       try {
+//         // Reject only once
+//         const updateQuery = `
+//           UPDATE loan_booking_emiclub
+//           SET status = 'Rejected'
+//           WHERE lan = ?
+//           AND status = 'Login'
+//         `;
 
-        const [result] = await db.promise().query(updateQuery, [lan]);
+//         const [result] = await db.promise().query(updateQuery, [lan]);
 
-        if (result.affectedRows === 0) {
-          console.log(`ℹ️ LAN ${lan} already processed`);
-          continue;
-        }
+//         if (result.affectedRows === 0) {
+//           console.log(`ℹ️ LAN ${lan} already processed`);
+//           continue;
+//         }
 
-        console.log(`❌ LAN ${lan} rejected`);
+//         console.log(`❌ LAN ${lan} rejected`);
 
-        // Send webhook only for rejection
-        await sendLoanWebhook({
-          external_ref_no: lan,
-          utr: null,
-          disbursement_date: null,
-          reference_number: lan,
-          status: "REJECTED",
-          reject_reason: "Required KYC documents not uploaded within 5 minutes",
-        });
+//         // Send webhook only for rejection
+//         await sendLoanWebhook({
+//           external_ref_no: lan,
+//           utr: null,
+//           disbursement_date: null,
+//           reference_number: lan,
+//           status: "REJECTED",
+//           reject_reason: "Required KYC documents not uploaded within 5 minutes",
+//         });
 
-        console.log(`📡 Rejection webhook sent for LAN ${lan}`);
-      } catch (lanErr) {
-        console.error(`❌ LAN ${lan} error:`, lanErr.message);
-      }
-    }
-  } catch (e) {
-    console.error("❌ Document validation cron failed:", e.message);
-  }
-});
+//         console.log(`📡 Rejection webhook sent for LAN ${lan}`);
+//       } catch (lanErr) {
+//         console.error(`❌ LAN ${lan} error:`, lanErr.message);
+//       }
+//     }
+//   } catch (e) {
+//     console.error("❌ Document validation cron failed:", e.message);
+//   }
+// });
 
 
 
