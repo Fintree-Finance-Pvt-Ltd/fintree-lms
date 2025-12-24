@@ -146,6 +146,7 @@ router.post("/manual-entry", async (req, res) => {
       "name_in_bank",
       "account_number",
       "ifsc",
+      "email_id",
     ];
 
      const missing = requiredFields.filter(
