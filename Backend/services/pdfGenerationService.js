@@ -124,7 +124,7 @@ async function getLoanData(lan) {
  
   const [rpsRows] = await db.promise().query(
     `SELECT
-       emi_no, emi, interest, principal, opening, closing,
+       id, emi, interest, principal, opening, closing,
        remaining_emi, remaining_interest, remaining_principal
      FROM loan_rps_helium WHERE lan = ? ORDER BY id ASC`,
     [lan]
