@@ -108,6 +108,7 @@ app.use("/api/forecloser", forecloserUploadRoutes); // ✅ Register Route for Fo
 app.use("/api/reports", reportsRoutes);// ✅ Register Route for Reports
 app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
 app.use("/api/dealer-onboarding", dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
+app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers  
 
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
