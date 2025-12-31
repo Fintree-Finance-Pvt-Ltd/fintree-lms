@@ -806,7 +806,15 @@ router.get("/:lan/generate-agreement", async (req, res) => {
   );
   if (!rows.length) return res.status(404).json({ message: "Loan not found" });
 
-  const { pdfName } = await generateAgreementPdf(lan, rows[0]);
+ const result = await generateAgreementPdf(lan, rows[0]);
+
+if (!result || !result.pdfName) {
+  console.error("❌ Agreement PDF generation returned empty result:", result);
+  return;
+}
+
+const { pdfName } = result;
+
   res.json({ success: true, pdfName, url: `/uploads/${pdfName}` });
 });
 
