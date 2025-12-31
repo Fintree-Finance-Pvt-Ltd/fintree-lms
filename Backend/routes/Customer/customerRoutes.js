@@ -135,9 +135,12 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
     );
 
     if (existing.length > 0) {
-      return res.json({
-        message: "Customer already exists with PAN or Aadhaar.",
-      });
+      return res.status(409).json({
+  success: false,
+  code: "DUPLICATE_CUSTOMER",
+  message: "Customer already exists with PAN or Aadhaar.",
+  lan: existing[0].lan,
+});
     }
 
     // 🎫 Generate LAN
@@ -267,10 +270,13 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
       [lan]
     );
 
-    res.json({
-      message: "Zypay Customer loan created successfully.",
-      lan,
-    });
+      res.status(201).json({
+  success: true,
+  code: "LMS_CREATED",
+  message: "Zypay Customer loan created successfully",
+  lan,
+});
+      
 
     runAllValidations(lan);
   } catch (error) {
