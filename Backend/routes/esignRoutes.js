@@ -554,25 +554,21 @@ const { initEsign } = require("../services/esignService");
 const router = express.Router();
 
 /* ======================================================
-   TEMPLATE SETUP
+   TEMPLATE LOADER
 ====================================================== */
 function loadAgreementTemplate(lan) {
-  const templateFile =
-    lan.startsWith("CUST")
-      ? "Customer_Aggrement_Zypay.html"
-      : "helium_agreement.html";
+  const templateFile = lan.startsWith("CUST")
+    ? "Customer_Aggrement_Zypay.html"
+    : "helium_agreement.html";
 
   const templatePath = path.join(__dirname, "../templates", templateFile);
   const rawHtml = fs.readFileSync(templatePath, "utf-8");
 
-  return {
-    rawHtml,
-    compiled: handlebars.compile(rawHtml)
-  };
+  return rawHtml;
 }
 
 /* ======================================================
-   TABLE RESOLVER (SINGLE SOURCE OF TRUTH)
+   TABLE RESOLVER
 ====================================================== */
 function getLoanContext(lan) {
   if (lan.startsWith("CUST")) {
@@ -604,6 +600,7 @@ function fillTemplate(html, data) {
 
 function numberToWords(num) {
   if (!num || num === 0) return "Zero Rupees Only";
+
   const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
     "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
     "Seventeen", "Eighteen", "Nineteen"];
@@ -622,7 +619,7 @@ function numberToWords(num) {
 }
 
 /* ======================================================
-   FETCH ALL LOANS (OPTIONAL LIST API)
+   FETCH ALL LOANS
 ====================================================== */
 router.get("/api/loans", async (req, res) => {
   try {
@@ -639,13 +636,15 @@ router.get("/api/loans", async (req, res) => {
 });
 
 /* ======================================================
-   PDF GENERATION (CUSTOMER + HELIUM)
+   PDF GENERATION
 ====================================================== */
 router.get("/:lan/pdf", async (req, res) => {
   const { lan } = req.params;
   const { summaryTable, rpsTable } = getLoanContext(lan);
 
   try {
+    const rawTemplateHtml = loadAgreementTemplate(lan);
+
     const [summaryRows] = await db.promise().query(
       `
       SELECT
@@ -664,6 +663,7 @@ router.get("/:lan/pdf", async (req, res) => {
     }
 
     const summary = summaryRows[0];
+
     const [rpsRows] = await db.promise().query(
       `
       SELECT
@@ -712,7 +712,7 @@ router.get("/:lan/pdf", async (req, res) => {
 });
 
 /* ======================================================
-   ESIGN (SANCTION / AGREEMENT)
+   ESIGN ROUTES
 ====================================================== */
 router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
   const { lan, type } = req.params;
@@ -775,7 +775,7 @@ router.post("/v1/digio-esign-webhook", async (req, res) => {
 });
 
 /* ======================================================
-   SANCTION & AGREEMENT PDF GENERATION
+   SANCTION & AGREEMENT GENERATION
 ====================================================== */
 router.get("/:lan/generate-sanction", async (req, res) => {
   const { lan } = req.params;
@@ -806,4 +806,3 @@ router.get("/:lan/generate-agreement", async (req, res) => {
 });
 
 module.exports = router;
-
