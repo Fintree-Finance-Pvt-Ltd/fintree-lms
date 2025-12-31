@@ -556,6 +556,11 @@ const router = express.Router();
 /* ======================================================
    TEMPLATE LOADER
 ====================================================== */
+function isCustomerLan(lan = "") {
+  const s = String(lan).toUpperCase();
+  return s.startsWith("ZypF1"); // ✅ add ZypF
+}
+
 function loadAgreementTemplate(lan) {
   const templateFile = lan.startsWith("ZypF1")
     ? "Customer_Aggrement_Zypay.html"
