@@ -557,7 +557,7 @@ const router = express.Router();
    TEMPLATE LOADER
 ====================================================== */
 function loadAgreementTemplate(lan) {
-  const templateFile = lan.startsWith("CUST")
+  const templateFile = lan.startsWith("ZypF1")
     ? "Customer_Aggrement_Zypay.html"
     : "helium_agreement.html";
 
@@ -571,7 +571,7 @@ function loadAgreementTemplate(lan) {
    TABLE RESOLVER
 ====================================================== */
 function getLoanContext(lan) {
-  if (lan.startsWith("CUST")) {
+  if (lan.startsWith("ZypF1")) {
     return {
       summaryTable: "customer_loan_summary",
       rpsTable: "loan_rps_customer",
