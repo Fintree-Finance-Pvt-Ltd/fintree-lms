@@ -4,6 +4,9 @@ const verifyApiKey = require("../../middleware/apiKeyAuth");
 const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
+const { generateAgreementPdf } = require("../../services/pdfGenerationService");
+const { initEsign } = require("../../services/esignService");
+
 
 const router = express.Router();
 
@@ -276,9 +279,45 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
   message: "Zypay Customer loan created successfully",
   lan,
 });
-      
 
-    runAllValidations(lan);
+/* =====================================
+   AUTO AGREEMENT + ESIGN (ASYNC SAFE)
+===================================== */
+(async () => {
+  try {
+    const [rows] = await db.promise().query(
+      "SELECT * FROM loan_booking_zypay_customer WHERE lan = ?",
+      [lan]
+    );
+
+    if (!rows.length) {
+      console.error("❌ Agreement flow failed: booking row not found", lan);
+      return;
+    }
+
+    /* 1️⃣ Generate Agreement PDF */
+    const { pdfName } = await generateAgreementPdf(lan, rows[0]);
+
+    await db.promise().query(
+      `UPDATE loan_booking_zypay_customer
+       SET agreement_pdf_name = ?,
+           agreement_generated_at = NOW()
+       WHERE lan = ?`,
+      [pdfName, lan]
+    );
+
+    console.log(`✅ Agreement PDF generated for ${lan}`);
+
+    /* 2️⃣ Trigger Agreement eSign */
+    const esignResponse = await initEsign(lan, "AGREEMENT");
+
+    console.log(`✍️ Agreement eSign initiated for ${lan}`, esignResponse);
+  } catch (err) {
+    console.error("❌ Auto Agreement + eSign failed for", lan, err.message);
+  }
+})();
+
+
   } catch (error) {
     console.error("❌ Zypay Customer API Error:", error);
     res.status(500).json({
