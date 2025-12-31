@@ -284,7 +284,7 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
     (async () => {
       try {
         const [rows] = await db.promise().query(
-          "SELECT * FROM loan_booking_zypay_customer WHERE lan = ?",
+          "SELECT * FROM customer_loan_summary WHERE lan = ?",
           [lan]
         );
 
