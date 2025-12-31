@@ -230,6 +230,20 @@ function buildRpsTableRows(RPS = []) {
   `).join("");
 }
 
+async function waitForLoanSummary(lan, retries = 5, delayMs = 2000) {
+  for (let i = 1; i <= retries; i++) {
+    const data = await getLoanData(lan);
+    if (data) return data;
+
+    console.log(
+      `⏳ Loan summary not ready for ${lan}, retry ${i}/${retries}`
+    );
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return null;
+}
+
+
 /* ======================================================
    FETCH LOAN DATA (CUSTOMER / HELIUM)
 ====================================================== */
@@ -310,8 +324,11 @@ async function generatePdfFromHtml(html, fileName) {
    SANCTION PDF
 ====================================================== */
 exports.generateSanctionLetterPdf = async (lan) => {
-  const loanData = await getLoanData(lan);
-  if (!loanData) throw new Error("Loan data not found");
+ const loanData = await waitForLoanSummary(lan);
+if (!loanData) {
+  throw new Error("Loan summary not available after retries");
+}
+
 
   const html = fillTemplate(loadTemplate("sanction_letter.html"), loanData);
   const pdfName = `SANCTION_${lan}.pdf`;
