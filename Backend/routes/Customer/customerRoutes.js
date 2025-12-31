@@ -255,14 +255,13 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
       agreement_date,
     ];
 
-    // 🛡️ Safety check
-    if (values.length !== 45) {
+     if (values.length !== 45) {
       throw new Error(`SQL values mismatch: ${values.length}`);
     }
 
     await db.promise().query(insertSql, values);
 
-    // 🧮 Post insert
+    /* ================== POST INSERT ================== */
     await db.promise().query("CALL sp_generate_zypay_customer_rps(?)", [lan]);
     await db.promise().query(
       "INSERT INTO kyc_verification_status (lan) VALUES (?)",
@@ -273,58 +272,47 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
       [lan]
     );
 
-      res.status(201).json({
-  success: true,
-  code: "LMS_CREATED",
-  message: "Zypay Customer loan created successfully",
-  lan,
-});
+    /* ================== RESPONSE ================== */
+    res.status(201).json({
+      success: true,
+      code: "LMS_CREATED",
+      message: "Zypay Customer loan created successfully",
+      lan,
+    });
 
-/* =====================================
-   AUTO AGREEMENT + ESIGN (SAFE)
-===================================== */
-(async () => {
-  try {
-    const [rows] = await db.promise().query(
-      "SELECT * FROM loan_booking_zypay_customer WHERE lan = ?",
-      [lan]
-    );
+    /* ================== AUTO AGREEMENT + ESIGN ================== */
+    (async () => {
+      try {
+        const [rows] = await db.promise().query(
+          "SELECT * FROM loan_booking_zypay_customer WHERE lan = ?",
+          [lan]
+        );
 
-    if (!rows.length) {
-      throw new Error("Booking row not found");
-    }
+        if (!rows.length) throw new Error("Booking row not found");
 
-    /* 1️⃣ Generate Agreement PDF (SAFE) */
-    const result = await generateAgreementPdf(lan, rows[0]);
+        const result = await generateAgreementPdf(lan, rows[0]);
+        if (!result || !result.pdfName) {
+          throw new Error("Agreement PDF not generated");
+        }
 
-    if (!result || !result.pdfName) {
-      throw new Error("Agreement PDF not generated");
-    }
+        const { pdfName } = result;
 
-    const { pdfName } = result;
+        await db.promise().query(
+          `UPDATE loan_booking_zypay_customer
+           SET agreement_pdf_name = ?, agreement_generated_at = NOW()
+           WHERE lan = ?`,
+          [pdfName, lan]
+        );
 
-    await db.promise().query(
-      `UPDATE loan_booking_zypay_customer
-       SET agreement_pdf_name = ?,
-           agreement_generated_at = NOW()
-       WHERE lan = ?`,
-      [pdfName, lan]
-    );
+        console.log(`✅ Agreement PDF generated for ${lan}`);
 
-    console.log(`✅ Agreement PDF generated for ${lan}: ${pdfName}`);
+        await initEsign(lan, "AGREEMENT");
+        console.log(`✍️ Agreement eSign initiated for ${lan}`);
 
-    /* 2️⃣ Trigger Agreement eSign */
-    const esignResponse = await initEsign(lan, "AGREEMENT");
-
-    console.log(`✍️ Agreement eSign initiated for ${lan}`, esignResponse);
-
-  } catch (err) {
-    console.error(
-      `❌ Auto Agreement + eSign failed for ${lan}:`,
-      err.message
-    );
-  }
-})();
+      } catch (err) {
+        console.error(`❌ Auto Agreement + eSign failed for ${lan}:`, err.message);
+      }
+    })();
 
   } catch (error) {
     console.error("❌ Zypay Customer API Error:", error);
