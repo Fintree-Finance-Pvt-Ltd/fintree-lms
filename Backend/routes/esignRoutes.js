@@ -556,9 +556,20 @@ const router = express.Router();
 /* ======================================================
    TEMPLATE SETUP
 ====================================================== */
-const templatePath = path.join(__dirname, "../templates", "helium_agreement.html");
-const rawTemplateHtml = fs.readFileSync(templatePath, "utf-8");
-const template = handlebars.compile(rawTemplateHtml);
+function loadAgreementTemplate(lan) {
+  const templateFile =
+    lan.startsWith("CUST")
+      ? "Customer_Aggrement_Zypay.html"
+      : "helium_agreement.html";
+
+  const templatePath = path.join(__dirname, "../templates", templateFile);
+  const rawHtml = fs.readFileSync(templatePath, "utf-8");
+
+  return {
+    rawHtml,
+    compiled: handlebars.compile(rawHtml)
+  };
+}
 
 /* ======================================================
    TABLE RESOLVER (SINGLE SOURCE OF TRUTH)
