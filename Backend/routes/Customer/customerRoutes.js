@@ -53,6 +53,7 @@ const generateLoanIdentifiers = async (lender) => {
 router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
   try {
     // 🔐 Partner validation
+    console.log("ROHIT ");
     if (
       !req.partner ||
       (req.partner.name || "").trim() !== "ZYPAY"
@@ -63,6 +64,7 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
     }
 
     const data = req.body;
+    console.log(data);
 
     // 🔎 lenderType check
     if (!data.lenderType || data.lenderType.toUpperCase() !== "ZYPAY") {
