@@ -281,7 +281,7 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
 });
 
 /* =====================================
-   AUTO AGREEMENT + ESIGN (ASYNC SAFE)
+   AUTO AGREEMENT + ESIGN (SAFE)
 ===================================== */
 (async () => {
   try {
@@ -291,12 +291,17 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
     );
 
     if (!rows.length) {
-      console.error("❌ Agreement flow failed: booking row not found", lan);
-      return;
+      throw new Error("Booking row not found");
     }
 
-    /* 1️⃣ Generate Agreement PDF */
-    const { pdfName } = await generateAgreementPdf(lan, rows[0]);
+    /* 1️⃣ Generate Agreement PDF (SAFE) */
+    const result = await generateAgreementPdf(lan, rows[0]);
+
+    if (!result || !result.pdfName) {
+      throw new Error("Agreement PDF not generated");
+    }
+
+    const { pdfName } = result;
 
     await db.promise().query(
       `UPDATE loan_booking_zypay_customer
@@ -306,17 +311,20 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
       [pdfName, lan]
     );
 
-    console.log(`✅ Agreement PDF generated for ${lan}`);
+    console.log(`✅ Agreement PDF generated for ${lan}: ${pdfName}`);
 
     /* 2️⃣ Trigger Agreement eSign */
     const esignResponse = await initEsign(lan, "AGREEMENT");
 
     console.log(`✍️ Agreement eSign initiated for ${lan}`, esignResponse);
+
   } catch (err) {
-    console.error("❌ Auto Agreement + eSign failed for", lan, err.message);
+    console.error(
+      `❌ Auto Agreement + eSign failed for ${lan}:`,
+      err.message
+    );
   }
 })();
-
 
   } catch (error) {
     console.error("❌ Zypay Customer API Error:", error);
