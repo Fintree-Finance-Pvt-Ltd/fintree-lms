@@ -19,18 +19,32 @@ exports.initEsign = async (lan, type) => {
     }
 
     // Fetch loan details
-    const [loanRows] = await db
-      .promise()
-      .query("SELECT * FROM loan_booking_helium WHERE lan = ?", [lan]);
+    const [loanRows] = await db.promise().query(
+  `
+  SELECT mobile_number, email_id
+  FROM loan_booking_helium
+  WHERE lan = ?
 
-    if (!loanRows.length) throw new Error("Loan not found");
+  UNION ALL
 
-    const loan = loanRows[0];
-    const identifier = loan.mobile_number || loan.email_id;
+  SELECT mobile_number, email_id
+  FROM loan_booking_zypay_customer
+  WHERE lan = ?
 
-    if (!identifier) throw new Error("No customer mobile/email found");
+  LIMIT 1
+  `,
+  [lan, lan]
+);
 
-    console.log("➡ Using Identifier:", identifier);
+if (!loanRows.length) throw new Error("Loan not found");
+
+const loan = loanRows[0];
+const identifier = loan.mobile_number || loan.email_id;
+
+if (!identifier) throw new Error("No customer mobile/email found");
+
+console.log("➡ Using Identifier:", identifier);
+
 
     // --------------------- GENERATE PDF ---------------------
     let fileName =
