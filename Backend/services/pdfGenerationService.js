@@ -159,19 +159,385 @@
 
 /////////////////////////
 
+// const fs = require("fs");
+// const path = require("path");
+// const db = require("../config/db");
+// const dayjs = require("dayjs");
+// const puppeteer = require("puppeteer");
+
+// /* ======================================================
+//    LAN HELPER
+// ====================================================== */
+// function isCustomerLan(lan = "") {
+//   const s = String(lan).toUpperCase();
+//   return s.startsWith("ZypF") || s.startsWith("HEL");
+// }
+
+// /* ======================================================
+//    TEMPLATE LOADER
+// ====================================================== */
+// function loadTemplate(filename) {
+//   const filePath = path.join(__dirname, "../templates", filename);
+//   if (!fs.existsSync(filePath)) {
+//     throw new Error(`Template not found: ${filePath}`);
+//   }
+//   return fs.readFileSync(filePath, "utf-8");
+// }
+
+// /* ======================================================
+//    TEMPLATE FILL
+// ====================================================== */
+// function fillTemplate(html, data) {
+//   return html.replace(/{{\s*(.*?)\s*}}/g, (_, key) => {
+//     return data[key] ?? "";
+//   });
+// }
+
+// /* ======================================================
+//    NUMBER TO WORDS
+// ====================================================== */
+// function numberToWords(num) {
+//   if (!num || num === 0) return "Zero Rupees Only";
+//   const a = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
+//     "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
+//     "Seventeen","Eighteen","Nineteen"];
+//   const b = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+
+//   const convert = (n) => {
+//     if (n < 20) return a[n];
+//     if (n < 100) return b[Math.floor(n/10)] + (n%10 ? " " + a[n%10] : "");
+//     if (n < 1000) return a[Math.floor(n/100)] + " Hundred" + (n%100 ? " " + convert(n%100) : "");
+//     if (n < 100000) return convert(Math.floor(n/1000)) + " Thousand" + (n%1000 ? " " + convert(n%1000) : "");
+//     if (n < 10000000) return convert(Math.floor(n/100000)) + " Lakh" + (n%100000 ? " " + convert(n%100000) : "");
+//     return convert(Math.floor(n/10000000)) + " Crore";
+//   };
+//   return convert(Number(num));
+// }
+
+// /* ======================================================
+//    BUILD RPS TABLE
+// ====================================================== */
+// function buildRpsTableRows(RPS = []) {
+//   return RPS.map(r => `
+//     <tr>
+//       <td>${r.id}</td>
+//       <td>${r.opening}</td>
+//       <td>${r.principal}</td>
+//       <td>${r.interest}</td>
+//       <td>${r.emi}</td>
+//       <td>${r.closing}</td>
+//     </tr>
+//   `).join("");
+// }
+
+// async function waitForLoanSummary(lan, retries = 5, delayMs = 2000) {
+//   for (let i = 1; i <= retries; i++) {
+//     const data = await getLoanData(lan);
+//     if (data) return data;
+
+//     console.log(
+//       `⏳ Loan summary not ready for ${lan}, retry ${i}/${retries}`
+//     );
+//     await new Promise((r) => setTimeout(r, delayMs));
+//   }
+//   return null;
+// }
+
+
+// /* ======================================================
+//    FETCH LOAN DATA (CUSTOMER / HELIUM)
+// ====================================================== */
+// async function getLoanData(lan) {
+//   const customer = isCustomerLan(lan);
+
+//   const summaryTable = customer
+//     ? "customer_loan_summary"
+//     : "helium_loan_summary";
+
+//   const rpsTable = customer
+//     ? "loan_rps_customer"
+//     : "loan_rps_helium";
+
+//   const [summaryRows] = await db.promise().query(
+//     `SELECT
+//       lan, C_N, cur_add, per_add, L_A, I_R, L_T,
+//       B_Na, A_no, ifsc,
+//       DATE_FORMAT(L_date,'%d-%m-%Y') AS L_date,
+//       E_S, I_S, P_S, T_E, L_P
+//      FROM ${summaryTable}
+//      WHERE lan=?`,
+//     [lan]
+//   );
+
+//   if (!summaryRows.length) return null;
+
+//   const [rpsRows] = await db.promise().query(
+//     `SELECT id, emi, interest, principal, opening, closing
+//      FROM ${rpsTable}
+//      WHERE lan=? ORDER BY id ASC`,
+//     [lan]
+//   );
+
+//   return {
+//     ...summaryRows[0],
+//     RPS: rpsRows,
+//     RPS_ROWS: buildRpsTableRows(rpsRows),
+//     L_A_W: numberToWords(summaryRows[0].L_A),
+//     CU_date: dayjs().format("DD-MM-YYYY")
+//   };
+// }
+
+// /* ======================================================
+//    PDF GENERATOR
+// ====================================================== */
+// async function generatePdfFromHtml(html, fileName) {
+//   const outputDir = path.join(__dirname, "../uploads");
+//   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+//   const outputPath = path.join(outputDir, fileName);
+
+//   const browser = await puppeteer.launch({
+//     headless: "new",
+//     args: ["--no-sandbox", "--disable-setuid-sandbox"]
+//   });
+
+//   const page = await browser.newPage();
+//   await page.setContent(html, { waitUntil: "networkidle0", timeout: 120000 });
+
+//   await page.pdf({
+//     path: outputPath,
+//     format: "A4",
+//     printBackground: true,
+//     margin: { top: "20mm", bottom: "20mm", left: "15mm", right: "15mm" }
+//   });
+
+//   await browser.close();
+
+//   if (!fs.existsSync(outputPath)) {
+//     throw new Error("PDF not created on disk");
+//   }
+
+//   return fileName;
+// }
+
+// /* ======================================================
+//    SANCTION PDF
+// ====================================================== */
+// exports.generateSanctionLetterPdf = async (lan) => {
+//  const loanData = await waitForLoanSummary(lan);
+// if (!loanData) {
+//   throw new Error("Loan summary not available after retries");
+// }
+
+
+//   const html = fillTemplate(loadTemplate("sanction_letter.html"), loanData);
+//   const pdfName = `SANCTION_${lan}.pdf`;
+
+//   await generatePdfFromHtml(html, pdfName);
+//   return pdfName;
+// };
+
+// /* ======================================================
+//    AGREEMENT PDF (FIXED)
+// ====================================================== */
+// exports.generateAgreementPdf = async (lan) => {
+//   const loanData = await getLoanData(lan);
+//   if (!loanData) throw new Error("Loan data not found");
+
+//   const template = isCustomerLan(lan)
+//     ? "Customer_Aggrement_Zypay.html"
+//     : "helium_agreement.html";
+
+//   const html = fillTemplate(loadTemplate(template), loanData);
+//   const pdfName = `AGREEMENT_${lan}.pdf`;
+
+//   await generatePdfFromHtml(html, pdfName);
+
+//   return { pdfName }; // ✅ IMPORTANT
+// };
+
+
+
+// /////////////////////////////
+// const fs = require("fs");
+// const path = require("path");
+// const db = require("../config/db");
+// const dayjs = require("dayjs");
+// const puppeteer = require("puppeteer");
+// const { isCustomerLan } = require("../utils/lanHelper");
+// const { getLoanContext } = require("../utils/lanHelper");
+// const { summaryTable, rpsTable, agreementTemplate } = getLoanContext(lan);
+
+// /* ======================================================
+//    TEMPLATE LOADER
+// ====================================================== */
+// function loadTemplate(filename) {
+//   const filePath = path.join(__dirname, "../templates", filename);
+//   if (!fs.existsSync(filePath)) {
+//     throw new Error(`Template not found: ${filePath}`);
+//   }
+//   return fs.readFileSync(filePath, "utf-8");
+// }
+
+// /* ======================================================
+//    TEMPLATE FILL
+// ====================================================== */
+// function fillTemplate(html, data) {
+//   return html.replace(/{{\s*(.*?)\s*}}/g, (_, key) => {
+//     return data[key] ?? "";
+//   });
+// }
+
+// /* ======================================================
+//    NUMBER TO WORDS
+// ====================================================== */
+// function numberToWords(num) {
+//   if (!num || num === 0) return "Zero Rupees Only";
+
+//   const a = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
+//     "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
+//     "Seventeen","Eighteen","Nineteen"];
+//   const b = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+
+//   const convert = (n) => {
+//     if (n < 20) return a[n];
+//     if (n < 100) return b[Math.floor(n/10)] + (n%10 ? " " + a[n%10] : "");
+//     if (n < 1000) return a[Math.floor(n/100)] + " Hundred" + (n%100 ? " " + convert(n%100) : "");
+//     if (n < 100000) return convert(Math.floor(n/1000)) + " Thousand" + (n%1000 ? " " + convert(n%1000) : "");
+//     if (n < 10000000) return convert(Math.floor(n/100000)) + " Lakh" + (n%100000 ? " " + convert(n%100000) : "");
+//     return convert(Math.floor(n/10000000)) + " Crore";
+//   };
+
+//   return convert(Number(num));
+// }
+
+// /* ======================================================
+//    FETCH LOAN DATA
+// ====================================================== */
+// async function getLoanData(lan) {
+//   const customer = isCustomerLan(lan);
+
+//   const summaryTable = customer
+//     ? "customer_loan_summary"
+//     : "helium_loan_summary";
+
+//   const rpsTable = customer
+//     ? "loan_rps_customer"
+//     : "loan_rps_helium";
+
+//   const [summaryRows] = await db.promise().query(
+//     `
+//     SELECT
+//       lan, C_N, cur_add, per_add, L_A, I_R, L_T,
+//       B_Na, A_no, ifsc,
+//       DATE_FORMAT(L_date,'%d-%m-%Y') AS L_date,
+//       E_S, I_S, P_S, T_E, L_P
+//     FROM ${summaryTable}
+//     WHERE lan=?
+//     `,
+//     [lan]
+//   );
+
+//   if (!summaryRows.length) return null;
+
+//   const [rpsRows] = await db.promise().query(
+//     `
+//     SELECT id, emi, interest, principal, opening, closing
+//     FROM ${rpsTable}
+//     WHERE lan=?
+//     ORDER BY id ASC
+//     `,
+//     [lan]
+//   );
+
+//   return {
+//     ...summaryRows[0],
+//     RPS: rpsRows,
+//     L_A_W: numberToWords(summaryRows[0].L_A),
+//     CU_date: dayjs().format("DD-MM-YYYY")
+//   };
+// }
+
+// /* ======================================================
+//    WAIT FOR SUMMARY (CRITICAL FIX)
+// ====================================================== */
+// async function waitForLoanSummary(lan, retries = 6, delay = 2000) {
+//   for (let i = 1; i <= retries; i++) {
+//     const data = await getLoanData(lan);
+//     if (data) return data;
+
+//     console.log(`⏳ Waiting for loan summary ${lan} (${i}/${retries})`);
+//     await new Promise(r => setTimeout(r, delay));
+//   }
+//   return null;
+// }
+
+// /* ======================================================
+//    PDF GENERATOR
+// ====================================================== */
+// async function generatePdfFromHtml(html, fileName) {
+//   const outputDir = path.join(__dirname, "../uploads");
+//   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+//   const outputPath = path.join(outputDir, fileName);
+
+//   const browser = await puppeteer.launch({
+//     headless: "new",
+//     args: ["--no-sandbox"]
+//   });
+
+//   const page = await browser.newPage();
+//   await page.setContent(html, { waitUntil: "networkidle0" });
+
+//   await page.pdf({
+//     path: outputPath,
+//     format: "A4",
+//     printBackground: true,
+//     margin: { top: "20mm", bottom: "20mm", left: "15mm", right: "15mm" }
+//   });
+
+//   await browser.close();
+//   return fileName;
+// }
+
+// /* ======================================================
+//    SANCTION PDF
+// ====================================================== */
+// exports.generateSanctionLetterPdf = async (lan) => {
+//   const loanData = await waitForLoanSummary(lan);
+//   if (!loanData) throw new Error("Loan summary not available");
+
+//   const html = fillTemplate(loadTemplate("sanction_letter.html"), loanData);
+//   const pdfName = `SANCTION_${lan}.pdf`;
+
+//   await generatePdfFromHtml(html, pdfName);
+//   return pdfName;
+// };
+
+// /* ======================================================
+//    AGREEMENT PDF (FIXED)
+// ====================================================== */
+// exports.generateAgreementPdf = async (lan) => {
+//   const loanData = await waitForLoanSummary(lan);
+//   if (!loanData) throw new Error("Loan summary not available");
+
+//   const template = isCustomerLan(lan)
+//     ? "Customer_Aggrement_Zypay.html"
+//     : "helium_agreement.html";
+
+//   const html = fillTemplate(loadTemplate(template), loanData);
+//   const pdfName = `AGREEMENT_${lan}.pdf`;
+
+//   await generatePdfFromHtml(html, pdfName);
+//   return { pdfName };
+// };
+/////////////////////////////////////////////////
 const fs = require("fs");
 const path = require("path");
 const db = require("../config/db");
 const dayjs = require("dayjs");
 const puppeteer = require("puppeteer");
-
-/* ======================================================
-   LAN HELPER
-====================================================== */
-function isCustomerLan(lan = "") {
-  const s = String(lan).toUpperCase();
-  return s.startsWith("ZypF") || s.startsWith("HEL");
-}
+const { getLoanContext } = require("../utils/lanHelper");
 
 /* ======================================================
    TEMPLATE LOADER
@@ -198,93 +564,78 @@ function fillTemplate(html, data) {
 ====================================================== */
 function numberToWords(num) {
   if (!num || num === 0) return "Zero Rupees Only";
-  const a = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine",
-    "Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen",
-    "Seventeen","Eighteen","Nineteen"];
-  const b = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+
+  const a = [
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
+    "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen",
+    "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"
+  ];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
 
   const convert = (n) => {
     if (n < 20) return a[n];
-    if (n < 100) return b[Math.floor(n/10)] + (n%10 ? " " + a[n%10] : "");
-    if (n < 1000) return a[Math.floor(n/100)] + " Hundred" + (n%100 ? " " + convert(n%100) : "");
-    if (n < 100000) return convert(Math.floor(n/1000)) + " Thousand" + (n%1000 ? " " + convert(n%1000) : "");
-    if (n < 10000000) return convert(Math.floor(n/100000)) + " Lakh" + (n%100000 ? " " + convert(n%100000) : "");
-    return convert(Math.floor(n/10000000)) + " Crore";
+    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 ? " " + a[n % 10] : "");
+    if (n < 1000) return a[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + convert(n % 100) : "");
+    if (n < 100000) return convert(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + convert(n % 1000) : "");
+    if (n < 10000000) return convert(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + convert(n % 100000) : "");
+    return convert(Math.floor(n / 10000000)) + " Crore";
   };
+
   return convert(Number(num));
 }
 
 /* ======================================================
-   BUILD RPS TABLE
-====================================================== */
-function buildRpsTableRows(RPS = []) {
-  return RPS.map(r => `
-    <tr>
-      <td>${r.id}</td>
-      <td>${r.opening}</td>
-      <td>${r.principal}</td>
-      <td>${r.interest}</td>
-      <td>${r.emi}</td>
-      <td>${r.closing}</td>
-    </tr>
-  `).join("");
-}
-
-async function waitForLoanSummary(lan, retries = 5, delayMs = 2000) {
-  for (let i = 1; i <= retries; i++) {
-    const data = await getLoanData(lan);
-    if (data) return data;
-
-    console.log(
-      `⏳ Loan summary not ready for ${lan}, retry ${i}/${retries}`
-    );
-    await new Promise((r) => setTimeout(r, delayMs));
-  }
-  return null;
-}
-
-
-/* ======================================================
-   FETCH LOAN DATA (CUSTOMER / HELIUM)
+   FETCH LOAN DATA
 ====================================================== */
 async function getLoanData(lan) {
-  const customer = isCustomerLan(lan);
-
-  const summaryTable = customer
-    ? "customer_loan_summary"
-    : "helium_loan_summary";
-
-  const rpsTable = customer
-    ? "loan_rps_customer"
-    : "loan_rps_helium";
+  const { summaryTable, rpsTable } = getLoanContext(lan);
 
   const [summaryRows] = await db.promise().query(
-    `SELECT
-      lan, C_N, cur_add, per_add, L_A, I_R, L_T,
+    `
+    SELECT
+      lan, C_N, cur_add, per_add,
+      L_A, I_R, L_T,
       B_Na, A_no, ifsc,
       DATE_FORMAT(L_date,'%d-%m-%Y') AS L_date,
       E_S, I_S, P_S, T_E, L_P
-     FROM ${summaryTable}
-     WHERE lan=?`,
+    FROM ${summaryTable}
+    WHERE lan = ?
+    `,
     [lan]
   );
 
   if (!summaryRows.length) return null;
 
   const [rpsRows] = await db.promise().query(
-    `SELECT id, emi, interest, principal, opening, closing
-     FROM ${rpsTable}
-     WHERE lan=? ORDER BY id ASC`,
+    `
+    SELECT id, emi, interest, principal, opening, closing
+    FROM ${rpsTable}
+    WHERE lan = ?
+    ORDER BY id ASC
+    `,
     [lan]
   );
 
   return {
     ...summaryRows[0],
     RPS: rpsRows,
-    RPS_ROWS: buildRpsTableRows(rpsRows),
     L_A_W: numberToWords(summaryRows[0].L_A),
-    CU_date: dayjs().format("DD-MM-YYYY")
+    CU_date: dayjs().format("DD-MM-YYYY"),
   };
+}
+
+/* ======================================================
+   WAIT FOR SUMMARY (CRITICAL FIX)
+====================================================== */
+async function waitForLoanSummary(lan, retries = 6, delay = 2000) {
+  for (let i = 1; i <= retries; i++) {
+    const data = await getLoanData(lan);
+    if (data) return data;
+
+    console.log(`⏳ Waiting for loan summary ${lan} (${i}/${retries})`);
+    await new Promise((r) => setTimeout(r, delay));
+  }
+  return null;
 }
 
 /* ======================================================
@@ -298,7 +649,7 @@ async function generatePdfFromHtml(html, fileName) {
 
   const browser = await puppeteer.launch({
     headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
   const page = await browser.newPage();
@@ -308,15 +659,10 @@ async function generatePdfFromHtml(html, fileName) {
     path: outputPath,
     format: "A4",
     printBackground: true,
-    margin: { top: "20mm", bottom: "20mm", left: "15mm", right: "15mm" }
+    margin: { top: "20mm", bottom: "20mm", left: "15mm", right: "15mm" },
   });
 
   await browser.close();
-
-  if (!fs.existsSync(outputPath)) {
-    throw new Error("PDF not created on disk");
-  }
-
   return fileName;
 }
 
@@ -324,11 +670,8 @@ async function generatePdfFromHtml(html, fileName) {
    SANCTION PDF
 ====================================================== */
 exports.generateSanctionLetterPdf = async (lan) => {
- const loanData = await waitForLoanSummary(lan);
-if (!loanData) {
-  throw new Error("Loan summary not available after retries");
-}
-
+  const loanData = await waitForLoanSummary(lan);
+  if (!loanData) throw new Error("Loan summary not available");
 
   const html = fillTemplate(loadTemplate("sanction_letter.html"), loanData);
   const pdfName = `SANCTION_${lan}.pdf`;
@@ -338,20 +681,17 @@ if (!loanData) {
 };
 
 /* ======================================================
-   AGREEMENT PDF (FIXED)
+   AGREEMENT PDF
 ====================================================== */
 exports.generateAgreementPdf = async (lan) => {
-  const loanData = await getLoanData(lan);
-  if (!loanData) throw new Error("Loan data not found");
+  const loanData = await waitForLoanSummary(lan);
+  if (!loanData) throw new Error("Loan summary not available");
 
-  const template = isCustomerLan(lan)
-    ? "Customer_Aggrement_Zypay.html"
-    : "helium_agreement.html";
+  const { agreementTemplate } = getLoanContext(lan);
 
-  const html = fillTemplate(loadTemplate(template), loanData);
+  const html = fillTemplate(loadTemplate(agreementTemplate), loanData);
   const pdfName = `AGREEMENT_${lan}.pdf`;
 
   await generatePdfFromHtml(html, pdfName);
-
-  return { pdfName }; // ✅ IMPORTANT
+  return { pdfName };
 };

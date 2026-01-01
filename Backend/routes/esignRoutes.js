@@ -822,6 +822,329 @@
 
 
 
+// const express = require("express");
+// const db = require("../config/db");
+// const dayjs = require("dayjs");
+// const puppeteer = require("puppeteer");
+// const authenticateUser = require("../middleware/verifyToken");
+// const fs = require("fs");
+// const path = require("path");
+// const {
+//   generateSanctionLetterPdf,
+//   generateAgreementPdf
+// } = require("../services/pdfGenerationService");
+// const { initEsign } = require("../services/esignService");
+// const { isCustomerLan } = require("../utils/lanHelper");
+// const { getLoanContext } = require("../utils/lanHelper");
+
+// const { bookingTable } = getLoanContext(lan);
+
+
+// const router = express.Router();
+
+// /* ======================================================
+//    LAN TYPE HELPER (single source of truth)
+// ====================================================== */
+// function isCustomerLan(lan = "") {
+//   const s = String(lan).trim().toUpperCase();
+//   // Support both legacy "CUST..." and Zypay format "ZypF1..."
+//   return s.startsWith("CUST") || s.startsWith("ZYPF1") || s.startsWith("ZypF");
+// }
+
+// /* ======================================================
+//    TEMPLATE LOADER
+// ====================================================== */
+// function loadAgreementTemplate(lan) {
+//   const templateFile = isCustomerLan(lan)
+//     ? "Customer_Aggrement_Zypay.html"
+//     : "helium_agreement.html";
+
+//   const templatePath = path.join(__dirname, "../templates", templateFile);
+
+//   // Make template errors very obvious
+//   if (!fs.existsSync(templatePath)) {
+//     throw new Error(`Agreement template not found: ${templatePath}`);
+//   }
+
+//   return fs.readFileSync(templatePath, "utf-8");
+// }
+
+// /* ======================================================
+//    TABLE RESOLVER
+// ====================================================== */
+// // function getLoanContext(lan) {
+// //   if (isCustomerLan(lan)) {
+// //     return {
+// //       summaryTable: "customer_loan_summary",
+// //       rpsTable: "loan_rps_customer",
+// //       bookingTable: "loan_booking_zypay_customer"
+// //     };
+// //   }
+
+// //   return {
+// //     summaryTable: "helium_loan_summary",
+// //     rpsTable: "loan_rps_helium",
+// //     bookingTable: "loan_booking_helium"
+// //   };
+// // }
+
+// /* ======================================================
+//    HELPERS
+// ====================================================== */
+// function fillTemplate(html, data) {
+//   let out = html;
+//   for (const [key, value] of Object.entries(data)) {
+//     const safe = value == null ? "" : String(value);
+//     out = out.replace(new RegExp(`{{\\s*${key}\\s*}}`, "g"), safe);
+//   }
+//   return out;
+// }
+
+// function numberToWords(num) {
+//   if (!num || num === 0) return "Zero Rupees Only";
+
+//   const a = [
+//     "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+//     "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+//     "Seventeen", "Eighteen", "Nineteen"
+//   ];
+//   const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+//   const convert = (n) => {
+//     if (n < 20) return a[n];
+//     if (n < 100) return b[Math.floor(n / 10)] + (n % 10 ? " " + a[n % 10] : "");
+//     if (n < 1000) return a[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + convert(n % 100) : "");
+//     if (n < 100000) return convert(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + convert(n % 1000) : "");
+//     if (n < 10000000) return convert(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + convert(n % 100000) : "");
+//     return convert(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 ? " " + convert(n % 10000000) : "");
+//   };
+
+//   return convert(Number(num));
+// }
+
+// /* ======================================================
+//    FETCH ALL LOANS
+// ====================================================== */
+// router.get("/api/loans", async (req, res) => {
+//   try {
+//     const [rows] = await db.promise().query(`
+//       SELECT lan, C_N, L_A FROM helium_loan_summary
+//       UNION ALL
+//       SELECT lan, C_N, L_A FROM customer_loan_summary
+//       ORDER BY lan DESC
+//     `);
+//     res.json(rows);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// });
+
+// /* ======================================================
+//    PDF GENERATION (HTML TEMPLATE + PUPPETEER)
+// ====================================================== */
+// router.get("/:lan/pdf", async (req, res) => {
+//   const { lan } = req.params;
+//   const { summaryTable, rpsTable } = getLoanContext(lan);
+
+//   try {
+//     const rawTemplateHtml = loadAgreementTemplate(lan);
+
+//     const [summaryRows] = await db.promise().query(
+//       `
+//       SELECT
+//         lan, C_N, cur_add, per_add, L_A, I_R, L_T,
+//         B_Na, A_no, ifsc,
+//         DATE_FORMAT(L_date,'%d-%m-%Y') AS L_date,
+//         E_S, I_S, P_S, T_E, L_P
+//       FROM ${summaryTable}
+//       WHERE lan=?
+//       `,
+//       [lan]
+//     );
+
+//     if (!summaryRows.length) {
+//       return res.status(404).json({ message: "Loan not found" });
+//     }
+
+//     const summary = summaryRows[0];
+
+//     const [rpsRows] = await db.promise().query(
+//       `
+//       SELECT
+//         id, emi, interest, principal,
+//         opening, closing,
+//         remaining_emi, remaining_interest, remaining_principal
+//       FROM ${rpsTable}
+//       WHERE lan=?
+//       ORDER BY id ASC
+//       `,
+//       [lan]
+//     );
+
+//     // rps can be empty for brand-new loans; avoid crash
+//     const firstRps = rpsRows && rpsRows.length ? rpsRows[0] : {};
+
+//     const data = {
+//       ...summary,
+//       ...firstRps,
+//       CU_date: dayjs().format("DD-MM-YYYY"),
+//       L_A_W: numberToWords(summary.L_A)
+//     };
+
+//     const html = fillTemplate(rawTemplateHtml, data);
+
+//     const browser = await puppeteer.launch({
+//       headless: "new",
+//       args: ["--no-sandbox"]
+//     });
+
+//     const page = await browser.newPage();
+//     await page.setContent(html, { waitUntil: "networkidle0" });
+
+//     const pdf = await page.pdf({
+//       format: "A4",
+//       printBackground: true,
+//       margin: { top: "20mm", bottom: "20mm", left: "15mm", right: "15mm" }
+//     });
+
+//     await browser.close();
+
+//     res.setHeader("Content-Type", "application/pdf");
+//     res.setHeader("Content-Disposition", `attachment; filename="Agreement_${lan}.pdf"`);
+//     res.send(pdf);
+//   } catch (err) {
+//     console.error("PDF generation failed:", err);
+//     res.status(500).json({ message: "PDF generation failed", error: err.message });
+//   }
+// });
+
+// /* ======================================================
+//    ESIGN ROUTES
+// ====================================================== */
+// router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
+//   const { lan, type } = req.params;
+//   const { bookingTable } = getLoanContext(lan);
+
+//   try {
+//     if (type === "agreement") {
+//       const [rows] = await db.promise().query(
+//         `SELECT sanction_esign_status FROM ${bookingTable} WHERE lan=?`,
+//         [lan]
+//       );
+//       if (rows[0]?.sanction_esign_status !== "SIGNED") {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Sanction letter must be signed first"
+//         });
+//       }
+//     }
+
+//     const out = await initEsign(lan, type.toUpperCase());
+//     res.json(out);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ success: false, error: err.message });
+//   }
+// });
+
+// /* ======================================================
+//    DIGIO WEBHOOK
+// ====================================================== */
+// router.post("/v1/digio-esign-webhook", async (req, res) => {
+//   try {
+//     const event = req.body;
+//     const docId = event.id;
+//     const status = event.state;
+
+//     const [rows] = await db.promise().query(
+//       "SELECT lan, document_type FROM esign_documents WHERE document_id=?",
+//       [docId]
+//     );
+//     if (!rows.length) return res.send("ignored");
+
+//     const { lan, document_type } = rows[0];
+//     const { bookingTable } = getLoanContext(lan);
+
+//     await db.promise().query(
+//       "UPDATE esign_documents SET status=?, raw_response=? WHERE document_id=?",
+//       [status, JSON.stringify(event), docId]
+//     );
+
+//     const col =
+//       document_type === "SANCTION"
+//         ? "sanction_esign_status"
+//         : "agreement_esign_status";
+
+//     await db.promise().query(
+//       `UPDATE ${bookingTable} SET ${col}=? WHERE lan=?`,
+//       [status === "signed" ? "SIGNED" : status, lan]
+//     );
+
+//     res.send("ok");
+//   } catch (err) {
+//     console.error("Webhook error:", err);
+//     res.status(500).send("error");
+//   }
+// });
+
+// /* ======================================================
+//    SANCTION & AGREEMENT GENERATION
+// ====================================================== */
+// router.get("/:lan/generate-sanction", async (req, res) => {
+//   const { lan } = req.params;
+//   const { bookingTable } = getLoanContext(lan);
+
+//   try {
+//     const [rows] = await db.promise().query(
+//       `SELECT * FROM ${bookingTable} WHERE lan=?`,
+//       [lan]
+//     );
+//     if (!rows.length) return res.status(404).json({ message: "Loan not found" });
+
+//     const pdfName = await generateSanctionLetterPdf(lan);
+//     res.json({ success: true, pdfName, url: `/generated/${pdfName}` });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ success: false, message: "Sanction generation failed", error: err.message });
+//   }
+// });
+
+// router.get("/:lan/generate-agreement", async (req, res) => {
+//   const { lan } = req.params;
+//   const { bookingTable } = getLoanContext(lan);
+
+//   try {
+//     const [rows] = await db.promise().query(
+//       `SELECT * FROM ${bookingTable} WHERE lan=?`,
+//       [lan]
+//     );
+//     if (!rows.length) return res.status(404).json({ message: "Loan not found" });
+
+//     const result = await generateAgreementPdf(lan, rows[0]);
+
+//     if (!result || !result.pdfName) {
+//       return res.status(500).json({
+//         success: false,
+//         message: "Agreement PDF generation returned empty result",
+//         result
+//       });
+//     }
+
+//     const { pdfName } = result;
+//     res.json({ success: true, pdfName, url: `/uploads/${pdfName}` });
+//   } catch (err) {
+//     console.error("Generate agreement failed:", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "Generate agreement failed",
+//       error: err.message
+//     });
+//   }
+// });
+
+// module.exports = router;
+///////////////////////////////////////////////////
 const express = require("express");
 const db = require("../config/db");
 const dayjs = require("dayjs");
@@ -829,34 +1152,23 @@ const puppeteer = require("puppeteer");
 const authenticateUser = require("../middleware/verifyToken");
 const fs = require("fs");
 const path = require("path");
+
 const {
   generateSanctionLetterPdf,
   generateAgreementPdf
 } = require("../services/pdfGenerationService");
+
 const { initEsign } = require("../services/esignService");
+const { getLoanContext } = require("../utils/lanHelper");
 
 const router = express.Router();
 
 /* ======================================================
-   LAN TYPE HELPER (single source of truth)
-====================================================== */
-function isCustomerLan(lan = "") {
-  const s = String(lan).trim().toUpperCase();
-  // Support both legacy "CUST..." and Zypay format "ZypF1..."
-  return s.startsWith("CUST") || s.startsWith("ZYPF1") || s.startsWith("ZypF");
-}
-
-/* ======================================================
    TEMPLATE LOADER
 ====================================================== */
-function loadAgreementTemplate(lan) {
-  const templateFile = isCustomerLan(lan)
-    ? "Customer_Aggrement_Zypay.html"
-    : "helium_agreement.html";
-
+function loadAgreementTemplate(templateFile) {
   const templatePath = path.join(__dirname, "../templates", templateFile);
 
-  // Make template errors very obvious
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Agreement template not found: ${templatePath}`);
   }
@@ -865,32 +1177,15 @@ function loadAgreementTemplate(lan) {
 }
 
 /* ======================================================
-   TABLE RESOLVER
-====================================================== */
-function getLoanContext(lan) {
-  if (isCustomerLan(lan)) {
-    return {
-      summaryTable: "customer_loan_summary",
-      rpsTable: "loan_rps_customer",
-      bookingTable: "loan_booking_zypay_customer"
-    };
-  }
-
-  return {
-    summaryTable: "helium_loan_summary",
-    rpsTable: "loan_rps_helium",
-    bookingTable: "loan_booking_helium"
-  };
-}
-
-/* ======================================================
    HELPERS
 ====================================================== */
 function fillTemplate(html, data) {
   let out = html;
   for (const [key, value] of Object.entries(data)) {
-    const safe = value == null ? "" : String(value);
-    out = out.replace(new RegExp(`{{\\s*${key}\\s*}}`, "g"), safe);
+    out = out.replace(
+      new RegExp(`{{\\s*${key}\\s*}}`, "g"),
+      value == null ? "" : String(value)
+    );
   }
   return out;
 }
@@ -911,7 +1206,7 @@ function numberToWords(num) {
     if (n < 1000) return a[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + convert(n % 100) : "");
     if (n < 100000) return convert(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + convert(n % 1000) : "");
     if (n < 10000000) return convert(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + convert(n % 100000) : "");
-    return convert(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 ? " " + convert(n % 10000000) : "");
+    return convert(Math.floor(n / 10000000)) + " Crore";
   };
 
   return convert(Number(num));
@@ -936,14 +1231,14 @@ router.get("/api/loans", async (req, res) => {
 });
 
 /* ======================================================
-   PDF GENERATION (HTML TEMPLATE + PUPPETEER)
+   PDF PREVIEW (HTML → PDF)
 ====================================================== */
 router.get("/:lan/pdf", async (req, res) => {
   const { lan } = req.params;
-  const { summaryTable, rpsTable } = getLoanContext(lan);
+  const { summaryTable, rpsTable, agreementTemplate } = getLoanContext(lan);
 
   try {
-    const rawTemplateHtml = loadAgreementTemplate(lan);
+    const templateHtml = loadAgreementTemplate(agreementTemplate);
 
     const [summaryRows] = await db.promise().query(
       `
@@ -962,14 +1257,9 @@ router.get("/:lan/pdf", async (req, res) => {
       return res.status(404).json({ message: "Loan not found" });
     }
 
-    const summary = summaryRows[0];
-
     const [rpsRows] = await db.promise().query(
       `
-      SELECT
-        id, emi, interest, principal,
-        opening, closing,
-        remaining_emi, remaining_interest, remaining_principal
+      SELECT id, emi, interest, principal, opening, closing
       FROM ${rpsTable}
       WHERE lan=?
       ORDER BY id ASC
@@ -977,8 +1267,8 @@ router.get("/:lan/pdf", async (req, res) => {
       [lan]
     );
 
-    // rps can be empty for brand-new loans; avoid crash
-    const firstRps = rpsRows && rpsRows.length ? rpsRows[0] : {};
+    const summary = summaryRows[0];
+    const firstRps = rpsRows.length ? rpsRows[0] : {};
 
     const data = {
       ...summary,
@@ -987,7 +1277,7 @@ router.get("/:lan/pdf", async (req, res) => {
       L_A_W: numberToWords(summary.L_A)
     };
 
-    const html = fillTemplate(rawTemplateHtml, data);
+    const html = fillTemplate(templateHtml, data);
 
     const browser = await puppeteer.launch({
       headless: "new",
@@ -1015,7 +1305,7 @@ router.get("/:lan/pdf", async (req, res) => {
 });
 
 /* ======================================================
-   ESIGN ROUTES
+   ESIGN INIT
 ====================================================== */
 router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
   const { lan, type } = req.params;
@@ -1027,6 +1317,7 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
         `SELECT sanction_esign_status FROM ${bookingTable} WHERE lan=?`,
         [lan]
       );
+
       if (rows[0]?.sanction_esign_status !== "SIGNED") {
         return res.status(400).json({
           success: false,
@@ -1098,36 +1389,35 @@ router.get("/:lan/generate-sanction", async (req, res) => {
     if (!rows.length) return res.status(404).json({ message: "Loan not found" });
 
     const pdfName = await generateSanctionLetterPdf(lan);
-    res.json({ success: true, pdfName, url: `/generated/${pdfName}` });
+    res.json({ success: true, pdfName, url: `/uploads/${pdfName}` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Sanction generation failed", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Sanction generation failed",
+      error: err.message
+    });
   }
 });
 
 router.get("/:lan/generate-agreement", async (req, res) => {
   const { lan } = req.params;
-  const { bookingTable } = getLoanContext(lan);
 
   try {
-    const [rows] = await db.promise().query(
-      `SELECT * FROM ${bookingTable} WHERE lan=?`,
-      [lan]
-    );
-    if (!rows.length) return res.status(404).json({ message: "Loan not found" });
-
-    const result = await generateAgreementPdf(lan, rows[0]);
+    const result = await generateAgreementPdf(lan);
 
     if (!result || !result.pdfName) {
       return res.status(500).json({
         success: false,
-        message: "Agreement PDF generation returned empty result",
-        result
+        message: "Agreement PDF generation returned empty result"
       });
     }
 
-    const { pdfName } = result;
-    res.json({ success: true, pdfName, url: `/uploads/${pdfName}` });
+    res.json({
+      success: true,
+      pdfName: result.pdfName,
+      url: `/uploads/${result.pdfName}`
+    });
   } catch (err) {
     console.error("Generate agreement failed:", err);
     res.status(500).json({
