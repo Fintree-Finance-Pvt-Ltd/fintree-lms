@@ -1,58 +1,57 @@
-// // services/esignService.js
+// services/esignService.js
 const fs = require("fs");
 const path = require("path");
 const db = require("../config/db");
 const digioEsign = require("./digioEsignClient");
-const authenticateUser = require("../middleware/verifyToken");
+const { getLoanContext } = require("../utils/lanHelper");
 const {
   generateSanctionLetterPdf,
   generateAgreementPdf
-} = require("./pdfGenerationService");  // YOU WILL CREATE/UPDATE THIS
+} = require("./pdfGenerationService");
 
 exports.initEsign = async (lan, type) => {
   try {
     console.log("🚀 INITIATING DIGIO ESIGN FOR:", lan, type);
 
-    // --------------------- VALIDATION ---------------------
-    if (!["AGREEMENT"].includes(type)) {
+    /* --------------------- VALIDATION --------------------- */
+    if (!["AGREEMENT", "SANCTION"].includes(type)) {
       throw new Error("Invalid eSign type");
     }
 
-    // Fetch loan details
+    /* --------------------- RESOLVE TABLE --------------------- */
+    const { bookingTable } = getLoanContext(lan);
+
+    /* --------------------- FETCH LOAN --------------------- */
     const [loanRows] = await db.promise().query(
-  `
-  SELECT mobile_number, email_id
-  FROM loan_booking_helium
-  WHERE lan = ?
+      `SELECT * FROM ${bookingTable} WHERE lan = ?`,
+      [lan]
+    );
 
-  UNION ALL
+    if (!loanRows.length) throw new Error("Loan not found");
 
-  SELECT mobile_number, email_id
-  FROM loan_booking_zypay_customer
-  WHERE lan = ?
+    const loan = loanRows[0];
 
-  LIMIT 1
-  `,
-  [lan, lan]
-);
+    const identifier = loan.mobile_number || loan.email_id;
+    if (!identifier) throw new Error("No customer mobile/email found");
 
-if (!loanRows.length) throw new Error("Loan not found");
+    console.log("➡ Using Identifier:", identifier);
 
-const loan = loanRows[0];
-const identifier = loan.mobile_number || loan.email_id;
+    /* --------------------- GENERATE PDF --------------------- */
+    let pdfResult;
 
-if (!identifier) throw new Error("No customer mobile/email found");
+    if (type === "SANCTION") {
+      const pdfName = await generateSanctionLetterPdf(lan);
+      pdfResult = { pdfName };
+    } else {
+      pdfResult = await generateAgreementPdf(lan);
+    }
 
-console.log("➡ Using Identifier:", identifier);
+    const fileName = pdfResult.pdfName;
+    if (!fileName || typeof fileName !== "string") {
+      throw new Error("Invalid PDF name returned");
+    }
 
-
-    // --------------------- GENERATE PDF ---------------------
-    let fileName =
-      type === "SANCTION"
-        ? await generateSanctionLetterPdf(lan, loan)
-        : await generateAgreementPdf(lan, loan);
-
-    const filePath = path.join(__dirname, "../generated", fileName);
+    const filePath = path.join(__dirname, "../uploads", fileName);
 
     console.log("📄 Using PDF:", filePath);
 
@@ -62,7 +61,7 @@ console.log("➡ Using Identifier:", identifier);
 
     const pdfBase64 = fs.readFileSync(filePath).toString("base64");
 
-    // --------------------- PREPARE PAYLOAD ---------------------
+    /* --------------------- DIGIO PAYLOAD --------------------- */
     const payload = {
       file_name: fileName,
       expire_in_days: 10,
@@ -76,44 +75,39 @@ console.log("➡ Using Identifier:", identifier);
           identifier,
           name: loan.customer_name,
           sign_type: "aadhaar",
-          reason: `${type} Signing`,
-        },
+          reason: `${type} Signing`
+        }
       ],
 
       reference_id: `${lan}_${type}_${Date.now()}`,
-      file_data: pdfBase64,
+      file_data: pdfBase64
     };
 
-    console.log("📤 SENT PAYLOAD TO DIGIO:");
-    console.dir(payload, { depth: null });
+    console.log("📤 SENT PAYLOAD TO DIGIO");
 
-    // --------------------- DIGIO API CALL ---------------------
+    /* --------------------- DIGIO API CALL --------------------- */
     let resp;
     try {
       resp = await digioEsign.post("/v2/client/document/uploadpdf", payload);
     } catch (err) {
-      console.log("❌ DIGIO ERROR RAW:", err);
-      console.log("❌ DIGIO ERROR RESPONSE:", err.response?.data);
-      console.log("❌ DIGIO ERROR STATUS:", err.response?.status);
-
+      console.error("❌ DIGIO ERROR RESPONSE:", err.response?.data);
       throw new Error(
         "DIGIO API ERROR: " +
           JSON.stringify(err.response?.data || err.message)
       );
     }
 
-    console.log("✅ DIGIO UPLOAD RESPONSE:");
-    console.dir(resp.data, { depth: null });
-
     const docId = resp.data.id;
     const authUrl = resp.data.authentication_url || null;
 
-    // --------------------- SAVE TO DB ---------------------
+    console.log("✅ DIGIO DOCUMENT CREATED:", docId);
+
+    /* --------------------- SAVE DOCUMENT --------------------- */
     await db.promise().query(
       `
-        INSERT INTO esign_documents 
+      INSERT INTO esign_documents
         (lan, document_id, document_type, status, signer_identifier, raw_request, raw_response)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
       [
         lan,
@@ -122,45 +116,45 @@ console.log("➡ Using Identifier:", identifier);
         "INITIATED",
         identifier,
         JSON.stringify(payload),
-        JSON.stringify(resp.data),
+        JSON.stringify(resp.data)
       ]
     );
 
-    // Update loan table
+    /* --------------------- UPDATE BOOKING TABLE --------------------- */
     if (type === "SANCTION") {
-      await db
-        .promise()
-        .query(
-          `UPDATE loan_booking_helium 
-           SET sanction_esign_status='INITIATED', sanction_esign_document_id=? 
-           WHERE lan=?`,
-          [docId, lan]
-        );
+      await db.promise().query(
+        `
+        UPDATE ${bookingTable}
+        SET sanction_esign_status='INITIATED',
+            sanction_esign_document_id=?
+        WHERE lan=?
+        `,
+        [docId, lan]
+      );
     } else {
-      await db
-        .promise()
-        .query(
-          `UPDATE loan_booking_helium 
-           SET agreement_esign_status='INITIATED', agreement_esign_document_id=? 
-           WHERE lan=?`,
-          [docId, lan]
-        );
+      await db.promise().query(
+        `
+        UPDATE ${bookingTable}
+        SET agreement_esign_status='INITIATED',
+            agreement_esign_document_id=?
+        WHERE lan=?
+        `,
+        [docId, lan]
+      );
     }
 
-    // --------------------- RETURN TO FRONTEND ---------------------
+    /* --------------------- RETURN --------------------- */
     return {
       success: true,
       lan,
       docId,
-      authentication_url: authUrl, // You can choose to open in frontend
+      authentication_url: authUrl
     };
   } catch (err) {
     console.error("❌ FINAL ESIGN ERROR:", err);
     throw err;
   }
 };
-
-
 
 
 
