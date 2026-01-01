@@ -354,7 +354,7 @@ const generateLoanIdentifiers = async (lender) => {
     throw new Error("Invalid lender type");
   }
 
-  const prefixLan = "ZypF1000";
+  const prefixLan = "ZYPF10";
 
   // NOTE: FOR UPDATE works reliably only inside a transaction.
   const [rows] = await db
