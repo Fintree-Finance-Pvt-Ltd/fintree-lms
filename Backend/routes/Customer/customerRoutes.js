@@ -589,7 +589,7 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
     ];
 
     // ✅ count check (must match placeholders)
-    if (values.length !== 46) {
+    if (values.length !== 45) {
       throw new Error(`SQL values mismatch: ${values.length} (expected 46)`);
     }
 
