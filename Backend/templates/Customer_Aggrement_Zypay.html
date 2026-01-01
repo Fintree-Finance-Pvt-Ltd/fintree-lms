@@ -4,7 +4,10 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Sanction Letter + Loan Agreement</title>
-/* Embed Unicode font for English + Hindi */
+<style>
+/* ===============================
+   EMBED UNICODE FONT (CRITICAL)
+   =============================== */
 @font-face {
   font-family: 'NotoSansDeva';
   src: url('https://fonts.gstatic.com/s/notosansdevanagari/v25/TuGoUUFzXI5FBtUq5a8bjKYTZjtRU6Sgvw.ttf')
@@ -13,38 +16,47 @@
   font-style: normal;
 }
 
-/* Global typography */
-body {
+/* ===============================
+   BASE TYPOGRAPHY
+   =============================== */
+body{
   font-family: 'NotoSansDeva', Arial, sans-serif;
   font-size: 11pt;
   line-height: 1.5;
-  color: #111;
-}
-
-<style>
-/* Base typography */
-body{
-  font-family: "Times New Roman", Times, serif;
-  font-size: 11pt;
-  line-height: 1.4;
   color:#111;
   margin:0;
   padding:24px;
   background:#fff;
 }
-.page{max-width: 800px; margin:0 auto;}
+
+.page{
+  max-width:800px;
+  margin:0 auto;
+}
+
 p{margin:0 0 8px 0;}
-h1,h2,h3,h4,h5,h6{font-family: Arial, sans-serif; margin:16px 0 8px;}
-img{max-width:100%; height:auto;}
 
-/* Tables */
-table{border-collapse:collapse; width:100%;}
-td,th{border:1px solid #999; padding:6px; vertical-align:top;}
+h1,h2,h3,h4,h5,h6{
+  font-family: Arial, sans-serif;
+  margin:16px 0 8px;
+}
 
-/* Links */
-a{color:#1a4a8a; text-decoration:underline;}
+/* ===============================
+   TABLES
+   =============================== */
+table{
+  border-collapse:collapse;
+  width:100%;
+}
+td,th{
+  border:1px solid #999;
+  padding:6px;
+  vertical-align:top;
+}
 
-/* Sanction letter layout helpers */
+/* ===============================
+   HEADERS & SECTIONS
+   =============================== */
 .header{
   display:flex;
   flex-direction:column;
@@ -54,13 +66,22 @@ a{color:#1a4a8a; text-decoration:underline;}
   border-bottom:1px solid #999;
   margin-bottom:10px;
 }
-.company-name{font-family: Arial, sans-serif; font-weight:700; font-size:14pt;}
-.title{font-family: Arial, sans-serif; font-weight:700; font-size:13pt; letter-spacing:0.5px;}
+
+.company-name{
+  font-family: Arial, sans-serif;
+  font-weight:700;
+  font-size:14pt;
+}
+
+.title{
+  font-family: Arial, sans-serif;
+  font-weight:700;
+  font-size:13pt;
+}
 
 .meta-row{
   display:flex;
   justify-content:space-between;
-  gap:16px;
   margin:10px 0 12px;
   font-family: Arial, sans-serif;
   font-size:10.5pt;
@@ -72,30 +93,17 @@ a{color:#1a4a8a; text-decoration:underline;}
   margin:14px 0 6px;
   text-transform:uppercase;
   font-size:10.5pt;
-  letter-spacing:0.3px;
 }
 
 .small-text{font-size:10pt;}
-.no-border-table td, .no-border-table th{border:none; padding:2px 0;}
 
-.page-signature{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-end;
-  gap:24px;
-  margin-top:28px;
+.no-border-table td{
+  border:none;
+  padding:4px 0;
 }
-.page-signature .left, .page-signature .right{width:48%;}
-.small-note{font-size:10.5pt; margin-top:4px;}
 
-/* Print */
-@media print{
-  body{padding:0;}
-  .page{max-width:none; page-break-after:always; break-after:page; padding:18mm 14mm;}
-  .page:last-child{page-break-after:auto; break-after:auto;}
-}
-</style>
-</head>
+/* ===============================
+   SIGNATURE
 <body>
 <div class="page">
 
