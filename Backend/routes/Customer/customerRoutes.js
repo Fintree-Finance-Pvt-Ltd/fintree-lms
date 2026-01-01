@@ -486,48 +486,49 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
     const agreement_date = data.login_date;
 
     // 📝 INSERT SQL
-    const insertSql = `
-      INSERT INTO loan_booking_zypay_customer (
-        customer_id,
-        first_name, last_name, customer_name, login_date,
-        lan,
+     const insertSql = `
+  INSERT INTO loan_booking_zypay_customer (
+    customer_id,
+    first_name, last_name, customer_name, login_date,
+    lan,
 
-        gender, dob, father_name, mobile_number, email_id,
-        pan_number, aadhar_number,
+    gender, dob, father_name, mobile_number,email_id,
+    pan_number, aadhar_number,
 
-        current_address, current_village_city, current_district, current_state, current_pincode,
-        permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
+    current_address, current_village_city, current_district, current_state, current_pincode,
+    permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
 
-        loan_amount, interest_rate, loan_tenure,
+    loan_amount, interest_rate, loan_tenure,
 
-        customer_type, employment_type, net_monthly_income, residence_type,
+    customer_type, employment_type, net_monthly_income, residence_type,
 
-        bank_name, name_in_bank, account_number, ifsc,
+    bank_name, name_in_bank, account_number, ifsc,
 
-        brand_name, model_name, storage, color, mrp, dp_amount, buero_score,
+    brand_name, model_name, storage, color, mrp, dp_amount, buero_score,
 
-        product, lender, status, agreement_date
-      ) VALUES (
-        ?, ?, ?, ?, ?,            -- 5
-        ?,                        -- 6
+    product, lender, status, agreement_date
+  ) VALUES (
+    ?, ?, ?, ?, ?,          -- 5
+    ?,                      -- 6
 
-        ?, ?, ?, ?, ?,            -- 11
-        ?, ?,                     -- 13
+    ?, ?, ?, ?,             -- 10
+    ?, ?,                   -- 12
 
-        ?, ?, ?, ?, ?,            -- 18
-        ?, ?, ?, ?, ?,            -- 23
+    ?, ?, ?, ?, ?,          -- 17
+    ?, ?, ?, ?, ?,          -- 22
 
-        ?, ?, ?,                  -- 26
+    ?, ?, ?,                -- 25
 
-        ?, ?, ?, ?,               -- 30
+    ?, ?, ?, ?,             -- 29
 
-        ?, ?, ?, ?,               -- 34
+    ?, ?, ?, ?,             -- 33
 
-        ?, ?, ?, ?, ?, ?, ?,      -- 41
+    ?, ?, ?, ?, ?, ?, ?,    -- 40
 
-        ?, ?, ?, ?, ?             -- 46
-      );
-    `;
+    ?, ?, ?, ?, ?              -- ✅ 45 (FIXED)
+  );
+`;
+
 
     const values = [
       data.customer_id,
@@ -542,7 +543,7 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
       data.dob,
       data.father_name,
       data.mobile_number,
-      data.email_id,
+      data.email_id ,
 
       data.pan_number,
       data.aadhar_number,
