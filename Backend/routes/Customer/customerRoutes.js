@@ -504,7 +504,10 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
 
     bank_name, name_in_bank, account_number, ifsc,
 
-    brand_name, model_name, storage, color, mrp, dp_amount, buero_score,
+    brand_name, model_name, storage, color, mrp, dp_amount, buero_score,    Adv_Amount,
+    Dealers_ID, Dealers_Address, Dealers_Pincode,
+    Dealer_city, Dealers_state,
+    Dealers_Gst_number, Dealers_Pan_Number,
 
     product, lender, status, agreement_date
   ) VALUES (
@@ -526,6 +529,10 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
     ?, ?, ?, ?, ?, ?, ?,    -- 40
 
     ?, ?, ?, ?, ?              -- ✅ 45 (FIXED)
+      ?, ?,                   -- 47 city/state
+    ?, ?,                   -- 49 GST / PAN
+
+    ?, ?, ?, ?              -- 53
   );
 `;
 
@@ -582,6 +589,16 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
       data.dp_amount,
       data.buero_score,
 
+       // ✅ Dealer fields
+  data.Adv_Amount,
+  data.Dealers_ID,
+  data.Dealers_Address,
+  data.Dealers_Pincode,
+  data.Dealer_city,
+  data.Dealers_state,
+  data.Dealers_Gst_number,
+  data.Dealers_Pan_Number,
+
       "Monthly Loan",
       "ZYPAY",
       "Login",
@@ -589,7 +606,7 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
     ];
 
     // ✅ count check (must match placeholders)
-    if (values.length !== 45) {
+    if (values.length !== 53) {
       throw new Error(`SQL values mismatch: ${values.length} (expected 46)`);
     }
 
