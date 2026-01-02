@@ -156,19 +156,25 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
   );
 });
 ///////////////////////ZYPAY CUSTOMER ///////////////////////////////
-const ALLOWED_DOC_NAMES = [
-  "AADHAR",
-  "PAN",
-  "CUSTOMER_PHOTO",
-  "INVOICE",
-  "INSTALLED_APP_PHOTO",
-  "DEALER_WITH_CUSTOMER",
-  "CUSTOMER_PHONE_BOX_PIC",
-  "OPEN_BOX_PIC",
-  "BUREAU_PDF",
-  "IMEI_NUMBER_PHOTO",
-  "OTHER"
-];
+// const ALLOWED_DOC_NAMES = [
+//   "AADHAR",
+//   "PAN",
+//   "CUSTOMER_PHOTO",
+//   "INVOICE",
+//   "INSTALLED_APP_PHOTO",
+//   "DEALER_WITH_CUSTOMER",
+//   "CUSTOMER_PHONE_BOX_PIC",
+//   "OPEN_BOX_PIC",
+//   "BUREAU_PDF",
+//   "IMEI_NUMBER_PHOTO",
+//   "OTHER"
+// ];
+
+const normalizeDocName = (name) =>
+  name
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
 
 router.post(
   "/zypay/upload-documents",
@@ -176,7 +182,7 @@ router.post(
   upload.array("documents", 10),
   async (req, res) => {
     try {
-      const { lan, doc_name, doc_password } = req.body;
+      let { lan, doc_name, doc_password } = req.body;
 
       if (!lan || !doc_name || !req.files || req.files.length === 0) {
         return res.status(400).json({
@@ -184,19 +190,15 @@ router.post(
         });
       }
 
-      // ✅ Validate doc_name
-      if (!ALLOWED_DOC_NAMES.includes(doc_name)) {
-        return res.status(400).json({
-          error: `Invalid doc_name. Allowed values: ${ALLOWED_DOC_NAMES.join(", ")}`
-        });
-      }
+      // ✅ Normalize doc_name (NO validation)
+      const normalizedDocName = normalizeDocName(doc_name);
 
       const values = req.files.map((file) => [
         lan.trim(),
         file.filename,
         file.originalname.trim(),
         doc_password || null,
-        doc_name,
+        normalizedDocName,
         new Date()
       ]);
 
@@ -224,7 +226,7 @@ router.post(
         return res.status(200).json({
           message: "✅ Documents uploaded successfully",
           lan,
-          doc_name,
+          doc_name: normalizedDocName,
           files: req.files.map((f) => f.originalname)
         });
       });
@@ -234,7 +236,6 @@ router.post(
     }
   }
 );
-
 
 
 
