@@ -64,6 +64,7 @@ const LAN_TABLE_MAP = {
   FINS: { table: "loan_booking_finso",    statusCol: "status" },
   HEL: { table: "loan_booking_helium",   statusCol: "status" },
   DLR: { table: "dealer_onboarding",   statusCol: "status" },
+  ZYPF: { table: "loan_booking_zypay_customer",   statusCol: "status" },
 };
 
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing
@@ -122,7 +123,7 @@ router.post("/upload", upload.single("document"), (req, res) => {
     }
   );
 });
-
+////////////////////// API to upload multiple files ///////////////////////
 router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, res) => {
   const { lan } = req.body;
 
@@ -154,6 +155,89 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
     }
   );
 });
+///////////////////////ZYPAY CUSTOMER ///////////////////////////////
+const ALLOWED_DOC_NAMES = [
+  "AADHAR",
+  "PAN",
+  "CUSTOMER_PHOTO",
+  "INVOICE",
+  "INSTALLED_APP_PHOTO",
+  "DEALER_WITH_CUSTOMER",
+  "CUSTOMER_PHONE_BOX_PIC",
+  "OPEN_BOX_PIC",
+  "BUREAU_PDF",
+  "IMEI_NUMBER_PHOTO",
+  "OTHER"
+];
+
+router.post(
+  "/zypay/upload-documents",
+  verifyApiKey,
+  upload.array("documents", 10),
+  async (req, res) => {
+    try {
+      const { lan, doc_name, doc_password } = req.body;
+
+      if (!lan || !doc_name || !req.files || req.files.length === 0) {
+        return res.status(400).json({
+          error: "LAN, doc_name, and documents are required"
+        });
+      }
+
+      // ✅ Validate doc_name
+      if (!ALLOWED_DOC_NAMES.includes(doc_name)) {
+        return res.status(400).json({
+          error: `Invalid doc_name. Allowed values: ${ALLOWED_DOC_NAMES.join(", ")}`
+        });
+      }
+
+      const values = req.files.map((file) => [
+        lan.trim(),
+        file.filename,
+        file.originalname.trim(),
+        doc_password || null,
+        doc_name,
+        new Date()
+      ]);
+
+      const sql = `
+        INSERT INTO loan_documents
+        (
+          lan,
+          file_name,
+          original_name,
+          doc_password,
+          doc_name,
+          uploaded_at
+        )
+        VALUES ?
+      `;
+
+      db.query(sql, [values], (err) => {
+        if (err) {
+          console.error("❌ Document Insert Error:", err);
+          return res.status(500).json({
+            error: "Database insert failed"
+          });
+        }
+
+        return res.status(200).json({
+          message: "✅ Documents uploaded successfully",
+          lan,
+          doc_name,
+          files: req.files.map((f) => f.originalname)
+        });
+      });
+    } catch (error) {
+      console.error("❌ Upload Error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+
+
+
 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API /////////////////
 /* ============================== Helpers ============================== */
@@ -855,6 +939,12 @@ router.post("/generate-soa", async (req, res) => {
   else if (lan.startsWith("E1")) {
     loanTable = "loan_booking_embifi";
     rpsTable = "manual_rps_embifi_loan";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
+    }
+  else if (lan.startsWith("ZYPF")) {
+    loanTable = "loan_booking_zypay_customer";
+    rpsTable = "manual_rps_zypay_customer";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
   } else if (lan.startsWith("BL")) {
