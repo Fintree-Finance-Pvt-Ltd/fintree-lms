@@ -102,49 +102,57 @@ async function performFuzzyMatch({ lan, sourceText, targetText }) {
 async function createMandate(input) {
   const {
     lan,
-    customer_identifier,
-    mandate_data = {},
+    customer_identifier, // PAN number
+    amount,
+    account_no,
+    ifsc,
+    customer_name,
+    bank_name,
   } = input;
 
-  if (!customer_identifier) {
-    throw new Error("customer_identifier is required");
+  // ---- validations ----
+  if (!lan || !customer_identifier || !amount || !account_no || !ifsc) {
+    throw new Error("Missing required fields");
   }
 
   if (!process.env.DIGIO_CORPORATE_CONFIG_ID) {
     throw new Error("DIGIO_CORPORATE_CONFIG_ID missing in env");
   }
 
+  // ---- business rules ----
+  const start_date = new Date();
+  const end_date = new Date();
+  end_date.setMonth(end_date.getMonth() + 6);
+
+  const formatDate = (d) => d.toISOString().slice(0, 10);
+
+  // ---- payload ----
   const payload = {
-    customer_identifier, // MUST be email or phone
+    customer_identifier, // PAN number
     auth_mode: "api",
     mandate_type: "create",
     corporate_config_id: process.env.DIGIO_CORPORATE_CONFIG_ID,
     notify_customer: true,
     include_authentication_url: true,
     mandate_data: {
-      collection_amount: Number(mandate_data.collection_amount),
+      collection_amount: Number(amount),
       instrument_type: "debit",
-      first_collection_date:
-        mandate_data.first_collection_date ||
-        new Date().toISOString().slice(0, 10),
+      first_collection_date: formatDate(start_date),
+      final_collection_date: formatDate(end_date),
       is_recurring: true,
-      frequency: mandate_data.frequency || "Monthly",
+      frequency: "Monthly", // enforced
       management_category: "L001",
-      customer_name: mandate_data.customer_name,
-      customer_account_number: mandate_data.customer_account_number,
-      customer_account_type:
-        mandate_data.customer_account_type || "savings",
-      destination_bank_id: mandate_data.destination_bank_id,
-      destination_bank_name: mandate_data.destination_bank_name,
+      customer_name,
+      customer_account_number: account_number,
+      customer_account_type: "savings", // enforced
+      destination_bank_id: ifsc,
+      destination_bank_name: bank_name,
       customer_ref_number: lan,
       scheme_ref_number: lan,
     },
   };
 
-  Object.keys(payload.mandate_data).forEach(
-    (k) => payload.mandate_data[k] === undefined && delete payload.mandate_data[k]
-  );
-
+  // ---- Digio API call ----
   const resp = await digio.post(
     "/v3/client/mandate/create_form",
     payload
