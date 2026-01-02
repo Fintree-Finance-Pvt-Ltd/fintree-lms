@@ -169,7 +169,6 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
 //   "IMEI_NUMBER_PHOTO",
 //   "OTHER"
 // ];
-
 const normalizeDocName = (name) => {
   if (!name) return null;
 
@@ -239,16 +238,6 @@ router.post(
         if (err) {
           console.error("❌ Document Insert Error:", err);
 
-          // 🔁 Duplicate doc_name per LAN
-          if (err.code === "ER_DUP_ENTRY") {
-            return res.status(409).json({
-              success: false,
-              statusCode: 409,
-              message: "Document with this doc_name already exists for this LAN"
-            });
-          }
-
-          // 🔥 DB error
           return res.status(500).json({
             success: false,
             statusCode: 500,
@@ -281,6 +270,7 @@ router.post(
     }
   }
 );
+
 
 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API /////////////////
