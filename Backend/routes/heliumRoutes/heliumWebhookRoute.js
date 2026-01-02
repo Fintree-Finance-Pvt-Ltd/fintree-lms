@@ -357,7 +357,7 @@ router.post("/esign-webhook", async (req, res) => {
 
     const doc = body?.payload?.document;
     const documentId = doc?.id;
-
+console.log(doc)
     if (!documentId) return res.status(200).send("ignored");
 
     // Get LAN & type
@@ -456,7 +456,7 @@ router.post("/esign-webhook", async (req, res) => {
       );
     }
 
-
+console.log(doc);
 
     // 🔁 Auto-trigger eNACH after agreement signed
     await verifyBank({
