@@ -170,6 +170,25 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
 //   "OTHER"
 // ];
 
+const normalizeDocName = (name) => {
+  if (!name) return null;
+
+  // If multiple doc_name values sent, take the LAST one
+  if (Array.isArray(name)) {
+    name = name[name.length - 1];
+  }
+
+  if (typeof name !== "string") {
+    return null;
+  }
+
+  return name
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+};
+
+
 router.post(
   "/zypay/upload-documents",
   verifyApiKey,
