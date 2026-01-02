@@ -678,7 +678,7 @@ router.post("/esign-webhook", async (req, res) => {
 
        await createMandate({
   lan,
-  customer_identifier: customer.pan_number, // PAN only
+  customer_identifier: customer.mobile_number, // PAN only
   amount: customer.loan_amount,
   account_no: customer.account_number,
   ifsc: customer.ifsc,
