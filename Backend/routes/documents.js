@@ -170,14 +170,7 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
 //   "OTHER"
 // ];
 const normalizeDocName = (name) => {
-  if (!name) return null;
-
-  // If multiple doc_name values sent, take the LAST one
-  if (Array.isArray(name)) {
-    name = name[name.length - 1];
-  }
-
-  if (typeof name !== "string") return null;
+  if (!name || typeof name !== "string") return null;
 
   return name
     .trim()
@@ -202,9 +195,12 @@ router.post(
         });
       }
 
-      const normalizedDocName = normalizeDocName(doc_name);
+      // 🧠 Normalize doc_name(s)
+      const docNames = Array.isArray(doc_name)
+        ? doc_name.map(normalizeDocName)
+        : [normalizeDocName(doc_name)];
 
-      if (!normalizedDocName) {
+      if (docNames.some((d) => !d)) {
         return res.status(400).json({
           success: false,
           statusCode: 400,
@@ -212,12 +208,20 @@ router.post(
         });
       }
 
-      const values = req.files.map((file) => [
+      if (docNames.length !== req.files.length) {
+        return res.status(400).json({
+          success: false,
+          statusCode: 400,
+          message: "doc_name count must match number of uploaded files"
+        });
+      }
+
+      const values = req.files.map((file, index) => [
         lan.trim(),
         file.filename,
         file.originalname.trim(),
         doc_password || null,
-        normalizedDocName,
+        docNames[index], // ✅ different per file
         new Date()
       ]);
 
@@ -246,15 +250,16 @@ router.post(
           });
         }
 
-        // ✅ Success
         return res.status(200).json({
           success: true,
           statusCode: 200,
           message: "Documents uploaded successfully",
           data: {
             lan: lan.trim(),
-            doc_name: normalizedDocName,
-            files: req.files.map((f) => f.originalname)
+            files: req.files.map((f, i) => ({
+              original_name: f.originalname,
+              doc_name: docNames[i]
+            }))
           }
         });
       });
@@ -270,6 +275,7 @@ router.post(
     }
   }
 );
+
 
 
 
