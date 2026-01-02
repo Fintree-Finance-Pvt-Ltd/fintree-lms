@@ -486,110 +486,94 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
     const agreement_date = data.login_date;
 
     // 📝 INSERT SQL
-     const insertSql = `
-  INSERT INTO loan_booking_zypay_customer (
-    customer_id,
-    first_name, last_name, customer_name, login_date,
-    lan,
-
-    gender, dob, father_name, mobile_number,email_id,
-    pan_number, aadhar_number,
-
-    current_address, current_village_city, current_district, current_state, current_pincode,
-    permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
-
-    loan_amount, interest_rate, loan_tenure,
-
-    customer_type, employment_type, net_monthly_income, residence_type,
-
-    bank_name, name_in_bank, account_number, ifsc,
-
-    brand_name, model_name, storage, color, mrp, dp_amount, buero_score,    Adv_Amount,
-    Dealers_ID, Dealers_Address, Dealers_Pincode,
-    Dealer_city, Dealers_state,
-    Dealers_Gst_number, Dealers_Pan_Number,
-
-    product, lender, status, agreement_date
-  ) VALUES (
-    ?, ?, ?, ?, ?,          -- 5
-    ?,                      -- 6
-
-    ?, ?, ?, ?,             -- 10
-    ?, ?,                   -- 12
-
-    ?, ?, ?, ?, ?,          -- 17
-    ?, ?, ?, ?, ?,          -- 22
-
-    ?, ?, ?,                -- 25
-
-    ?, ?, ?, ?,             -- 29
-
-    ?, ?, ?, ?,             -- 33
-
-    ?, ?, ?, ?, ?, ?, ?,    -- 40
-
-    ?, ?, ?, ?, ?              -- ✅ 45 (FIXED)
-      ?, ?,                   -- 47 city/state
-    ?, ?,                   -- 49 GST / PAN
-
-    ?, ?, ?, ?              -- 53
-  );
+     const insertSql = ` INSERT INTO loan_booking_zypay_customer (
+  customer_id,
+  first_name, last_name, customer_name, login_date,
+  lan,
+  gender, dob, father_name, mobile_number, email_id,
+  pan_number, aadhar_number,
+  current_address, current_village_city, current_district, current_state, current_pincode,
+  permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
+  loan_amount, interest_rate, loan_tenure,
+  customer_type, employment_type, net_monthly_income, residence_type,
+  bank_name, name_in_bank, account_number, ifsc,
+  brand_name, model_name, storage, color, mrp, dp_amount, buero_score,
+  Adv_Amount,
+  Dealers_ID, Dealers_Address, Dealers_Pincode,
+  Dealer_city, Dealers_state,
+  Dealers_Gst_number, Dealers_Pan_Number,
+  product, lender, status, agreement_date
+) VALUES (
+  ?, ?, ?, ?, ?,
+  ?,
+  ?, ?, ?, ?, ?,
+  ?, ?,
+  ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?,
+  ?, ?, ?,
+  ?, ?, ?, ?,
+  ?, ?, ?, ?,
+  ?, ?, ?, ?, ?, ?, ?,
+  ?,
+  ?, ?, ?,
+  ?, ?,
+  ?, ?,
+  ?, ?, ?, ?
+);
 `;
 
+const values = [
+  data.customer_id,
+  data.first_name,
+  data.last_name,
+  customer_name,
+  data.login_date,
 
-    const values = [
-      data.customer_id,
-      data.first_name,
-      data.last_name,
-      customer_name,
-      data.login_date,
+  lan,
 
-      lan,
+  data.gender,
+  data.dob,
+  data.father_name,
+  data.mobile_number,
+  data.email_id,
 
-      data.gender,
-      data.dob,
-      data.father_name,
-      data.mobile_number,
-      data.email_id ,
+  data.pan_number,
+  data.aadhar_number,
 
-      data.pan_number,
-      data.aadhar_number,
+  data.current_address,
+  data.current_village_city,
+  data.current_district,
+  data.current_state,
+  data.current_pincode,
 
-      data.current_address,
-      data.current_village_city,
-      data.current_district,
-      data.current_state,
-      data.current_pincode,
+  data.permanent_address,
+  data.permanent_village_city,
+  data.permanent_district,
+  data.permanent_state,
+  data.permanent_pincode,
 
-      data.permanent_address,
-      data.permanent_village_city,
-      data.permanent_district,
-      data.permanent_state,
-      data.permanent_pincode,
+  data.loan_amount,
+  data.interest_rate,
+  data.loan_tenure,
 
-      data.loan_amount,
-      data.interest_rate,
-      data.loan_tenure,
+  data.customer_type,
+  data.employment_type,
+  data.net_monthly_income,
+  data.residence_type,
 
-      data.customer_type,
-      data.employment_type,
-      data.net_monthly_income,
-      data.residence_type,
+  data.bank_name,
+  data.name_in_bank,
+  data.account_number,
+  data.ifsc,
 
-      data.bank_name,
-      data.name_in_bank,
-      data.account_number,
-      data.ifsc,
+  data.brand_name,
+  data.model_name,
+  data.storage,
+  data.color,
+  data.mrp,
+  data.dp_amount,
+  data.buero_score,
 
-      data.brand_name,
-      data.model_name,
-      data.storage,
-      data.color,
-      data.mrp,
-      data.dp_amount,
-      data.buero_score,
-
-       // ✅ Dealer fields
   data.Adv_Amount,
   data.Dealers_ID,
   data.Dealers_Address,
@@ -599,15 +583,16 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
   data.Dealers_Gst_number,
   data.Dealers_Pan_Number,
 
-      "Monthly Loan",
-      "ZYPAY",
-      "Login",
-      agreement_date,
-    ];
+  "Monthly Loan",
+  "ZYPAY",
+  "Login",
+  agreement_date
+];
+
 
     // ✅ count check (must match placeholders)
     if (values.length !== 53) {
-      throw new Error(`SQL values mismatch: ${values.length} (expected 46)`);
+      throw new Error(`SQL values mismatch: ${values.length} (expected 53)`);
     }
 
     await db.promise().query(insertSql, values);
