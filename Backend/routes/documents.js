@@ -234,27 +234,37 @@ router.post(
       `;
 
       db.query(sql, [values], (err) => {
-        if (err) {
-          console.error("❌ Document Insert Error:", err);
-          return res.status(500).json({
-            error: "Database insert failed"
-          });
-        }
+  if (err) {
+    console.error("❌ Document Insert Error:", err);
 
-        return res.status(200).json({
-          message: "✅ Documents uploaded successfully",
-          lan,
-          doc_name: normalizedDocName,
-          files: req.files.map((f) => f.originalname)
-        });
+    // Duplicate entry error (MySQL)
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({
+        success: false,
+        statusCode: 409,
+        message: "Document with this doc_name already exists for this LAN"
       });
-    } catch (error) {
-      console.error("❌ Upload Error:", error);
-      res.status(500).json({ error: "Internal server error" });
     }
-  }
-);
 
+    return res.status(500).json({
+      success: false,
+      statusCode: 500,
+      message: "Database insert failed",
+      error: err.message
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    statusCode: 200,
+    message: "✅ Documents uploaded successfully",
+    data: {
+      lan,
+      doc_name: normalizedDocName,
+      files: req.files.map((f) => f.originalname)
+    }
+  });
+});
 
 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API /////////////////
