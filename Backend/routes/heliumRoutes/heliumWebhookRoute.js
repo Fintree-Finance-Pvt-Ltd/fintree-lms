@@ -474,7 +474,7 @@ router.post("/esign-webhook", async (req, res) => {
       sourceText: doc.customer_name,
       targetText: doc.bank_beneficiary_name,
     });
-
+console.log(doc);
     await createMandate({
       customer_identifier: lan,
       mandate_data: {
