@@ -99,36 +99,58 @@ async function performFuzzyMatch({ lan, sourceText, targetText }) {
 /**
  * STEP 3: Create Mandate
  */
-async function createMandate(payload) {
-  const resp = await digio.post("/v3/client/mandate/create_form", payload);
-  const data = resp.data;
+async function createMandate(input) {
+  const {
+    lan,
+    customer_identifier,
+    mandate_data = {},
+  } = input;
 
-  await db.promise().query(
-    `INSERT INTO enach_mandates
-     (lan, document_id, customer_identifier, status, mandate_amount,
-      account_no, ifsc, account_type, bank_name, auth_url, raw_response)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      payload.mandate_data.customer_ref_number,
-      data.id,
-      payload.customer_identifier,
-      data.state,
-      payload.mandate_data.collection_amount,
-      payload.mandate_data.customer_account_number,
-      payload.mandate_data.destination_bank_id,
-      payload.mandate_data.customer_account_type,
-      payload.mandate_data.destination_bank_name,
-      data.authentication_url,
-      JSON.stringify(data),
-    ]
+  if (!customer_identifier) {
+    throw new Error("customer_identifier is required");
+  }
+
+  if (!process.env.DIGIO_CORPORATE_CONFIG_ID) {
+    throw new Error("DIGIO_CORPORATE_CONFIG_ID missing in env");
+  }
+
+  const payload = {
+    customer_identifier, // MUST be email or phone
+    auth_mode: "api",
+    mandate_type: "create",
+    corporate_config_id: process.env.DIGIO_CORPORATE_CONFIG_ID,
+    notify_customer: true,
+    include_authentication_url: true,
+    mandate_data: {
+      collection_amount: Number(mandate_data.collection_amount),
+      instrument_type: "debit",
+      first_collection_date:
+        mandate_data.first_collection_date ||
+        new Date().toISOString().slice(0, 10),
+      is_recurring: true,
+      frequency: mandate_data.frequency || "Monthly",
+      management_category: "L001",
+      customer_name: mandate_data.customer_name,
+      customer_account_number: mandate_data.customer_account_number,
+      customer_account_type:
+        mandate_data.customer_account_type || "savings",
+      destination_bank_id: mandate_data.destination_bank_id,
+      destination_bank_name: mandate_data.destination_bank_name,
+      customer_ref_number: lan,
+      scheme_ref_number: lan,
+    },
+  };
+
+  Object.keys(payload.mandate_data).forEach(
+    (k) => payload.mandate_data[k] === undefined && delete payload.mandate_data[k]
   );
 
-  await updateLoanTables(
-    `UPDATE __TABLE__ SET bank_status='MANDATE_CREATED' WHERE lan=?`,
-    [payload.mandate_data.customer_ref_number]
+  const resp = await digio.post(
+    "/v3/client/mandate/create_form",
+    payload
   );
 
-  return data;
+  return resp.data;
 }
 
 module.exports = {
