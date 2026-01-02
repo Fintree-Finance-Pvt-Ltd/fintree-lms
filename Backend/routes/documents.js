@@ -170,12 +170,6 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
 //   "OTHER"
 // ];
 
-const normalizeDocName = (name) =>
-  name
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "_");
-
 router.post(
   "/zypay/upload-documents",
   verifyApiKey,
@@ -190,8 +184,13 @@ router.post(
         });
       }
 
-      // ✅ Normalize doc_name (NO validation)
       const normalizedDocName = normalizeDocName(doc_name);
+
+      if (!normalizedDocName) {
+        return res.status(400).json({
+          error: "Invalid doc_name format"
+        });
+      }
 
       const values = req.files.map((file) => [
         lan.trim(),
@@ -236,7 +235,6 @@ router.post(
     }
   }
 );
-
 
 
 
