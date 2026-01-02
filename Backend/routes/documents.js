@@ -178,9 +178,7 @@ const normalizeDocName = (name) => {
     name = name[name.length - 1];
   }
 
-  if (typeof name !== "string") {
-    return null;
-  }
+  if (typeof name !== "string") return null;
 
   return name
     .trim()
@@ -188,18 +186,20 @@ const normalizeDocName = (name) => {
     .replace(/\s+/g, "_");
 };
 
-
 router.post(
   "/zypay/upload-documents",
   verifyApiKey,
   upload.array("documents", 10),
   async (req, res) => {
     try {
-      let { lan, doc_name, doc_password } = req.body;
+      const { lan, doc_name, doc_password } = req.body;
 
+      // 🔴 Validation
       if (!lan || !doc_name || !req.files || req.files.length === 0) {
         return res.status(400).json({
-          error: "LAN, doc_name, and documents are required"
+          success: false,
+          statusCode: 400,
+          message: "LAN, doc_name, and documents are required"
         });
       }
 
@@ -207,7 +207,9 @@ router.post(
 
       if (!normalizedDocName) {
         return res.status(400).json({
-          error: "Invalid doc_name format"
+          success: false,
+          statusCode: 400,
+          message: "Invalid doc_name format"
         });
       }
 
@@ -234,37 +236,51 @@ router.post(
       `;
 
       db.query(sql, [values], (err) => {
-  if (err) {
-    console.error("❌ Document Insert Error:", err);
+        if (err) {
+          console.error("❌ Document Insert Error:", err);
 
-    // Duplicate entry error (MySQL)
-    if (err.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({
+          // 🔁 Duplicate doc_name per LAN
+          if (err.code === "ER_DUP_ENTRY") {
+            return res.status(409).json({
+              success: false,
+              statusCode: 409,
+              message: "Document with this doc_name already exists for this LAN"
+            });
+          }
+
+          // 🔥 DB error
+          return res.status(500).json({
+            success: false,
+            statusCode: 500,
+            message: "Database insert failed",
+            error: err.message
+          });
+        }
+
+        // ✅ Success
+        return res.status(200).json({
+          success: true,
+          statusCode: 200,
+          message: "Documents uploaded successfully",
+          data: {
+            lan: lan.trim(),
+            doc_name: normalizedDocName,
+            files: req.files.map((f) => f.originalname)
+          }
+        });
+      });
+    } catch (error) {
+      console.error("❌ Upload Error:", error);
+
+      return res.status(500).json({
         success: false,
-        statusCode: 409,
-        message: "Document with this doc_name already exists for this LAN"
+        statusCode: 500,
+        message: "Internal server error",
+        error: error.message
       });
     }
-
-    return res.status(500).json({
-      success: false,
-      statusCode: 500,
-      message: "Database insert failed",
-      error: err.message
-    });
   }
-
-  return res.status(200).json({
-    success: true,
-    statusCode: 200,
-    message: "✅ Documents uploaded successfully",
-    data: {
-      lan,
-      doc_name: normalizedDocName,
-      files: req.files.map((f) => f.originalname)
-    }
-  });
-});
+);
 
 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API /////////////////
