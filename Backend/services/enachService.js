@@ -100,9 +100,10 @@ async function performFuzzyMatch({ lan, sourceText, targetText }) {
  * STEP 3: Create Mandate
  */
 async function createMandate(input) {
+     try {
   const {
     lan,
-    customer_identifier, // PAN number
+    customer_identifier, // Mobile number
     amount,
     account_no,
     ifsc,
@@ -158,8 +159,52 @@ async function createMandate(input) {
     payload
   );
 
-  return resp.data;
-}
+  const data = resp.data;
+
+    await db.promise().query(
+      `INSERT INTO enach_mandates
+       (lan, document_id, customer_identifier, status, mandate_amount,
+        account_no, ifsc, account_type, bank_name, auth_url, raw_response)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         status = VALUES(status),
+         auth_url = VALUES(auth_url),
+         raw_response = VALUES(raw_response)`,
+      [
+        lan,
+        data.id,
+        customer_identifier,
+        data.state || "partial",
+        amount,
+        account_no,
+        ifsc,
+        account_type,
+        bank_name,
+        data.authentication_url || data.url || null,
+        JSON.stringify(data),
+      ]
+    );
+
+    await updateLoanTables(
+      `UPDATE __TABLE__ SET bank_status='MANDATE_CREATED' WHERE lan=?`,
+      [lan]
+    );
+
+    return {
+      success: true,
+      lan,
+      documentId: data.id,
+      status: data.state,
+      auth_url: data.authentication_url || data.url,
+    };
+  } catch (err) {
+    console.error("❌ Mandate error:", err);
+    res.status(500).json({
+      success: false,
+      error: err.response?.data || err.message,
+    });
+  }
+};
 
 module.exports = {
   verifyBank,
