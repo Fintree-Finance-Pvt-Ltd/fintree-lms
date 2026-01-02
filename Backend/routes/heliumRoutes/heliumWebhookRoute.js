@@ -4,7 +4,11 @@ const path = require("path");
 const axios = require("axios");
 const fs = require("fs");
 require("dotenv").config();
-
+const {
+  verifyBank,
+  performFuzzyMatch,
+  createMandate,
+} = require("../../services/enachService");
 const router = express.Router();
 
 const uploadPath = path.join(__dirname, "../../uploads");
@@ -137,12 +141,11 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
 
     const addr = data.address || {};
     const aadhaarAddressStr = addr
-      ? `${addr.house || ""}, ${addr.street || ""}, ${addr.loc || ""}, ${
-          addr.dist || ""
+      ? `${addr.house || ""}, ${addr.street || ""}, ${addr.loc || ""}, ${addr.dist || ""
         }, ${addr.state || ""} - ${addr.pc || ""}`
-          .replace(/,\s*,/g, ",")
-          .replace(/^,\s*/g, "")
-          .trim()
+        .replace(/,\s*,/g, ",")
+        .replace(/^,\s*/g, "")
+        .trim()
       : null;
 
     // Update KYC table with webhook JSON + paths + fields
@@ -392,6 +395,7 @@ router.post("/esign-webhook", async (req, res) => {
 
     console.log("✅ Document SIGNED. Fetching signed PDF…");
 
+
     // 🔥 Download signed PDF from Digio API
     const pdfBinary = await downloadSignedPdfFromDigio(documentId);
 
@@ -425,25 +429,77 @@ router.post("/esign-webhook", async (req, res) => {
     if (type === "SANCTION") {
       await db.promise().query(
         `UPDATE loan_booking_helium 
-         SET sanction_esign_status='SIGNED' WHERE lan=?`,
+     SET sanction_esign_status = 'SIGNED' 
+     WHERE lan = ?`,
+        [lan]
+      );
+
+      await db.promise().query(
+        `UPDATE loan_booking_zypay_customer 
+     SET sanction_esign_status = 'SIGNED' 
+     WHERE lan = ?`,
         [lan]
       );
     } else {
       await db.promise().query(
         `UPDATE loan_booking_helium 
-         SET agreement_esign_status='SIGNED' WHERE lan=?`,
+     SET agreement_esign_status = 'SIGNED' 
+     WHERE lan = ?`,
+        [lan]
+      );
+
+      await db.promise().query(
+        `UPDATE loan_booking_zypay_customer 
+     SET agreement_esign_status = 'SIGNED' 
+     WHERE lan = ?`,
         [lan]
       );
     }
 
+
+
+    // 🔁 Auto-trigger eNACH after agreement signed
+    await verifyBank({
+      lan,
+      account_no: doc.account_no,
+      ifsc: doc.ifsc,
+      name: doc.customer_name,
+      bank_name: doc.bank_name,
+      account_type: "savings",
+      mandate_amount: doc.mandate_amount,
+    });
+
+    await performFuzzyMatch({
+      lan,
+      sourceText: doc.customer_name,
+      targetText: doc.bank_beneficiary_name,
+    });
+
+    await createMandate({
+      customer_identifier: lan,
+      mandate_data: {
+        customer_ref_number: lan,
+        customer_account_number: doc.account_no,
+        destination_bank_id: doc.ifsc,
+        destination_bank_name: doc.bank_name,
+        customer_name: doc.customer_name,
+        collection_amount: doc.mandate_amount,
+        frequency: "Monthly",
+        instrument_type: "debit",
+        is_recurring: true,
+      },
+    });
+
+
+
     return res.status(200).send("ok");
   } catch (err) {
-  const digioError = parseDigioError(err);
+    const digioError = parseDigioError(err);
 
-  console.error("❌ Webhook Processing Error:", digioError);
+    console.error("❌ Webhook Processing Error:", digioError);
 
-  return res.status(200).send("error-logged");
-}
+    return res.status(200).send("error-logged");
+  }
 });
 
 
@@ -501,10 +557,18 @@ router.post("/enach-webhook", async (req, res) => {
 
     await db.promise().query(
       `UPDATE loan_booking_helium 
-       SET bank_status=?, enach_umrn=? 
-       WHERE lan=?`,
+   SET bank_status = ?, enach_umrn = ? 
+   WHERE lan = ?`,
       [bankStatus, umrn, lan]
     );
+
+    await db.promise().query(
+      `UPDATE loan_booking_zypay_customer 
+   SET bank_status = ?, enach_umrn = ? 
+   WHERE lan = ?`,
+      [bankStatus, umrn, lan]
+    );
+
 
     console.log("✅ Loan updated =>", lan, bankStatus);
 
