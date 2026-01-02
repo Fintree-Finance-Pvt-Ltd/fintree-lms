@@ -348,32 +348,210 @@ function parseDigioError(err) {
 //   }
 // });
 
+// router.post("/esign-webhook", async (req, res) => {
+//   try {
+//     const body = req.body;
+//     const event = body.event;
+
+//     console.log("📥 Digio Webhook Received:", event);
+
+//     const doc = body?.payload?.document;
+//     const documentId = doc?.id;
+// console.log(doc)
+//     if (!documentId) return res.status(200).send("ignored");
+
+//     // Get LAN & type
+//     const [rows] = await db.promise().query(
+//       `SELECT lan, document_type FROM esign_documents WHERE document_id = ? LIMIT 1`,
+//       [documentId]
+//     );
+
+
+
+//     if (!rows.length) return res.status(200).send("ignored");
+
+//     const lan = rows[0].lan;
+//     const type = rows[0].document_type;
+
+//     // Store webhook JSON
+//     await db.promise().query(
+//       `INSERT INTO esign_webhooks(document_id, lan, event, raw_payload, digio_timestamp)
+//        VALUES (?, ?, ?, ?, ?)`,
+//       [
+//         documentId,
+//         lan,
+//         event,
+//         JSON.stringify(body),
+//         body.created_at || null,
+//       ]
+//     );
+
+//     // If not signed: update DB
+//     if (event !== "doc.signed") {
+//       await db.promise().query(
+//         `UPDATE esign_documents SET status='FAILED' WHERE document_id=?`,
+//         [documentId]
+//       );
+//       return res.status(200).send("failed-event-processed");
+//     }
+
+//     console.log("✅ Document SIGNED. Fetching signed PDF…");
+
+
+//     // 🔥 Download signed PDF from Digio API
+//     const pdfBinary = await downloadSignedPdfFromDigio(documentId);
+
+//     // Save locally
+//     const folderPath = path.join(__dirname, "../../uploads");
+//     if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+
+//     const fileName = `signed_${lan}_${type}_${Date.now()}.pdf`;
+//     const savePath = path.join(folderPath, fileName);
+
+//     fs.writeFileSync(savePath, pdfBinary);
+
+//     console.log("📄 Signed PDF saved:", savePath);
+
+//     // Update Document Table
+//     await db.promise().query(
+//       `UPDATE esign_documents 
+//        SET status='SIGNED', signed_file_path=? 
+//        WHERE document_id=?`,
+//       [savePath, documentId]
+//     );
+
+//     // Insert into loan_documents
+//     await db.promise().query(
+//       `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
+//        VALUES (?, ?, ?, NOW())`,
+//       [lan, fileName, `${type}_SIGNED`]
+//     );
+
+//     // Update loan status
+//     if (type === "SANCTION") {
+//       await db.promise().query(
+//         `UPDATE loan_booking_helium 
+//      SET sanction_esign_status = 'SIGNED' 
+//      WHERE lan = ?`,
+//         [lan]
+//       );
+
+//       await db.promise().query(
+//         `UPDATE loan_booking_zypay_customer 
+//      SET sanction_esign_status = 'SIGNED' 
+//      WHERE lan = ?`,
+//         [lan]
+//       );
+//     } else {
+//       await db.promise().query(
+//         `UPDATE loan_booking_helium 
+//      SET agreement_esign_status = 'SIGNED' 
+//      WHERE lan = ?`,
+//         [lan]
+//       );
+
+//       await db.promise().query(
+//         `UPDATE loan_booking_zypay_customer 
+//      SET agreement_esign_status = 'SIGNED' 
+//      WHERE lan = ?`,
+//         [lan]
+//       );
+//     }
+
+//     await db.promise().query(
+//       'Select * from loan_booking_zypay_customer where lan=?',
+//       [lan]
+//     ).then(([rows]) => {
+//       if (rows.length > 0) {
+//         doc.account_no = rows[0].account_no;
+//         doc.ifsc = rows[0].ifsc;
+//         doc.customer_name = rows[0].customer_name;
+//         doc.bank_name = rows[0].bank_name;
+//         doc.bank_beneficiary_name = rows[0].name_in_bank;
+//         doc.mandate_amount = rows[0].loan_amount;
+//       }
+
+
+// console.log(doc);
+
+//     // 🔁 Auto-trigger eNACH after agreement signed
+//     await verifyBank({
+//       lan,
+//       account_no: doc.account_no,
+//       ifsc: doc.ifsc,
+//       name: doc.customer_name,
+//       bank_name: doc.bank_name,
+//       account_type: "savings",
+//       mandate_amount: doc.mandate_amount,
+//     });
+
+//     await performFuzzyMatch({
+//       lan,
+//       sourceText: doc.customer_name,
+//       targetText: doc.bank_beneficiary_name,
+//     });
+// console.log(doc);
+//     await createMandate({
+//       customer_identifier: lan,
+//       mandate_data: {
+//         customer_ref_number: lan,
+//         customer_account_number: doc.account_no,
+//         destination_bank_id: doc.ifsc,
+//         destination_bank_name: doc.bank_name,
+//         customer_name: doc.customer_name,
+//         collection_amount: doc.mandate_amount,
+//         frequency: "Monthly",
+//         instrument_type: "debit",
+//         is_recurring: true,
+//       },
+//     });
+
+
+
+//     return res.status(200).send("ok");
+//   } catch (err) {
+//     const digioError = parseDigioError(err);
+
+//     console.error("❌ Webhook Processing Error:", digioError);
+
+//     return res.status(200).send("error-logged");
+//   }
+// });
 router.post("/esign-webhook", async (req, res) => {
   try {
     const body = req.body;
-    const event = body.event;
+    const event = body?.event;
 
     console.log("📥 Digio Webhook Received:", event);
 
     const doc = body?.payload?.document;
     const documentId = doc?.id;
-console.log(doc)
-    if (!documentId) return res.status(200).send("ignored");
 
-    // Get LAN & type
-    const [rows] = await db.promise().query(
-      `SELECT lan, document_type FROM esign_documents WHERE document_id = ? LIMIT 1`,
+    if (!documentId) {
+      console.log("⚠️ No document ID, ignoring");
+      return res.status(200).send("ignored");
+    }
+
+    // Fetch LAN & document type
+    const [docs] = await db.promise().query(
+      `SELECT lan, document_type 
+       FROM esign_documents 
+       WHERE document_id = ? 
+       LIMIT 1`,
       [documentId]
     );
 
-    if (!rows.length) return res.status(200).send("ignored");
+    if (!docs.length) {
+      console.log("⚠️ Document not found, ignoring");
+      return res.status(200).send("ignored");
+    }
 
-    const lan = rows[0].lan;
-    const type = rows[0].document_type;
+    const { lan, document_type: type } = docs[0];
 
-    // Store webhook JSON
+    // Store webhook payload
     await db.promise().query(
-      `INSERT INTO esign_webhooks(document_id, lan, event, raw_payload, digio_timestamp)
+      `INSERT INTO esign_webhooks
+       (document_id, lan, event, raw_payload, digio_timestamp)
        VALUES (?, ?, ?, ?, ?)`,
       [
         documentId,
@@ -384,123 +562,150 @@ console.log(doc)
       ]
     );
 
-    // If not signed: update DB
+    /**
+     * Ignore non-terminal events
+     */
     if (event !== "doc.signed") {
-      await db.promise().query(
-        `UPDATE esign_documents SET status='FAILED' WHERE document_id=?`,
-        [documentId]
-      );
-      return res.status(200).send("failed-event-processed");
+      console.log("ℹ️ Non signed event, skipping:", event);
+      return res.status(200).send("event-logged");
     }
 
-    console.log("✅ Document SIGNED. Fetching signed PDF…");
+    console.log("✅ Document SIGNED. Downloading PDF...");
 
-
-    // 🔥 Download signed PDF from Digio API
+    /**
+     * Download signed PDF
+     */
     const pdfBinary = await downloadSignedPdfFromDigio(documentId);
 
-    // Save locally
     const folderPath = path.join(__dirname, "../../uploads");
-    if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
 
     const fileName = `signed_${lan}_${type}_${Date.now()}.pdf`;
     const savePath = path.join(folderPath, fileName);
 
     fs.writeFileSync(savePath, pdfBinary);
 
-    console.log("📄 Signed PDF saved:", savePath);
+    console.log("📄 PDF saved:", savePath);
 
-    // Update Document Table
-    await db.promise().query(
-      `UPDATE esign_documents 
-       SET status='SIGNED', signed_file_path=? 
-       WHERE document_id=?`,
-      [savePath, documentId]
-    );
+    /**
+     * DB updates (transaction safe)
+     */
+    const connection = await db.promise().getConnection();
+    try {
+      await connection.beginTransaction();
 
-    // Insert into loan_documents
-    await db.promise().query(
-      `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
-       VALUES (?, ?, ?, NOW())`,
-      [lan, fileName, `${type}_SIGNED`]
-    );
+      await connection.query(
+        `UPDATE esign_documents
+         SET status='SIGNED', signed_file_path=?
+         WHERE document_id=?`,
+        [savePath, documentId]
+      );
 
-    // Update loan status
-    if (type === "SANCTION") {
-      await db.promise().query(
-        `UPDATE loan_booking_helium 
-     SET sanction_esign_status = 'SIGNED' 
-     WHERE lan = ?`,
+      await connection.query(
+        `INSERT INTO loan_documents
+         (lan, file_name, original_name, uploaded_at)
+         VALUES (?, ?, ?, NOW())`,
+        [lan, fileName, `${type}_SIGNED`]
+      );
+
+      if (type === "SANCTION") {
+        await connection.query(
+          `UPDATE loan_booking_helium
+           SET sanction_esign_status='SIGNED'
+           WHERE lan=?`,
+          [lan]
+        );
+
+        await connection.query(
+          `UPDATE loan_booking_zypay_customer
+           SET sanction_esign_status='SIGNED'
+           WHERE lan=?`,
+          [lan]
+        );
+      } else {
+        await connection.query(
+          `UPDATE loan_booking_helium
+           SET agreement_esign_status='SIGNED'
+           WHERE lan=?`,
+          [lan]
+        );
+
+        await connection.query(
+          `UPDATE loan_booking_zypay_customer
+           SET agreement_esign_status='SIGNED'
+           WHERE lan=?`,
+          [lan]
+        );
+      }
+
+      /**
+       * Fetch bank details
+       */
+      const [customers] = await connection.query(
+        `SELECT * FROM loan_booking_zypay_customer WHERE lan=?`,
         [lan]
       );
 
-      await db.promise().query(
-        `UPDATE loan_booking_zypay_customer 
-     SET sanction_esign_status = 'SIGNED' 
-     WHERE lan = ?`,
-        [lan]
-      );
-    } else {
-      await db.promise().query(
-        `UPDATE loan_booking_helium 
-     SET agreement_esign_status = 'SIGNED' 
-     WHERE lan = ?`,
-        [lan]
-      );
+      if (!customers.length) {
+        throw new Error("Customer data missing");
+      }
 
-      await db.promise().query(
-        `UPDATE loan_booking_zypay_customer 
-     SET agreement_esign_status = 'SIGNED' 
-     WHERE lan = ?`,
-        [lan]
-      );
+      const customer = customers[0];
+
+      await connection.commit();
+
+      /**
+       * 🔁 Trigger eNACH ONLY after agreement
+       */
+      if (type !== "SANCTION") {
+        await verifyBank({
+          lan,
+          account_no: customer.account_no,
+          ifsc: customer.ifsc,
+          name: customer.customer_name,
+          bank_name: customer.bank_name,
+          account_type: "savings",
+          mandate_amount: customer.loan_amount,
+        });
+
+        await performFuzzyMatch({
+          lan,
+          sourceText: customer.customer_name,
+          targetText: customer.name_in_bank,
+        });
+
+        await createMandate({
+          customer_identifier: lan,
+          mandate_data: {
+            customer_ref_number: lan,
+            customer_account_number: customer.account_no,
+            destination_bank_id: customer.ifsc,
+            destination_bank_name: customer.bank_name,
+            customer_name: customer.customer_name,
+            collection_amount: customer.loan_amount,
+            frequency: "Monthly",
+            instrument_type: "debit",
+            is_recurring: true,
+          },
+        });
+      }
+    } catch (dbErr) {
+      await connection.rollback();
+      throw dbErr;
+    } finally {
+      connection.release();
     }
-
-console.log(doc);
-
-    // 🔁 Auto-trigger eNACH after agreement signed
-    await verifyBank({
-      lan,
-      account_no: doc.account_no,
-      ifsc: doc.ifsc,
-      name: doc.customer_name,
-      bank_name: doc.bank_name,
-      account_type: "savings",
-      mandate_amount: doc.mandate_amount,
-    });
-
-    await performFuzzyMatch({
-      lan,
-      sourceText: doc.customer_name,
-      targetText: doc.bank_beneficiary_name,
-    });
-console.log(doc);
-    await createMandate({
-      customer_identifier: lan,
-      mandate_data: {
-        customer_ref_number: lan,
-        customer_account_number: doc.account_no,
-        destination_bank_id: doc.ifsc,
-        destination_bank_name: doc.bank_name,
-        customer_name: doc.customer_name,
-        collection_amount: doc.mandate_amount,
-        frequency: "Monthly",
-        instrument_type: "debit",
-        is_recurring: true,
-      },
-    });
-
-
 
     return res.status(200).send("ok");
   } catch (err) {
     const digioError = parseDigioError(err);
-
     console.error("❌ Webhook Processing Error:", digioError);
-
     return res.status(200).send("error-logged");
   }
 });
+
 
 
 router.post("/enach-webhook", async (req, res) => {
