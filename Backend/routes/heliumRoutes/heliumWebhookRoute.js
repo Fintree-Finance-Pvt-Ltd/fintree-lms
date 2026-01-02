@@ -662,7 +662,7 @@ router.post("/esign-webhook", async (req, res) => {
       if (type !== "SANCTION") {
         await verifyBank({
           lan,
-          account_no: customer.account_no,
+          account_no: customer.account_number,
           ifsc: customer.ifsc,
           name: customer.customer_name,
           bank_name: customer.bank_name,
@@ -680,7 +680,7 @@ router.post("/esign-webhook", async (req, res) => {
           customer_identifier: lan,
           mandate_data: {
             customer_ref_number: lan,
-            customer_account_number: customer.account_no,
+            customer_account_number: customer.account_number,
             destination_bank_id: customer.ifsc,
             destination_bank_name: customer.bank_name,
             customer_name: customer.customer_name,
