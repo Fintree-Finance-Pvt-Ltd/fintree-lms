@@ -143,7 +143,7 @@ async function createMandate(input) {
       frequency: "Monthly", // enforced
       management_category: "L001",
       customer_name,
-      customer_account_number: account_number,
+      customer_account_number: account_no,
       customer_account_type: "savings", // enforced
       destination_bank_id: ifsc,
       destination_bank_name: bank_name,
