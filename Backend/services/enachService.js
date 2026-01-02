@@ -109,6 +109,7 @@ async function createMandate(input) {
     ifsc,
     customer_name,
     bank_name,
+     account_type = "savings", // ✅ FIX
   } = input;
 
   // ---- validations ----
@@ -145,7 +146,7 @@ async function createMandate(input) {
       management_category: "L001",
       customer_name,
       customer_account_number: account_no,
-      customer_account_type: "savings", // enforced
+      customer_account_type: account_type, // enforced
       destination_bank_id: ifsc,
       destination_bank_name: bank_name,
       customer_ref_number: lan,
