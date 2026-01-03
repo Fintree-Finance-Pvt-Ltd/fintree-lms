@@ -26,6 +26,8 @@ const { generateForReport, generateAllPending } = require('./jobs/cibilPdfServic
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require('./jobs/smsSchedulerRaw');
+const webhookRoutes = require("./routes/webhook.routes");
+
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex"); 
 //   // 32 bytes = 64 characters hex string
@@ -112,7 +114,7 @@ app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ R
 
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
-
+app.use("/webhook", webhookRoutes);
 app.post('/api/cibil/:id/pdf', async (req, res) => {
   try {
     const doc = await generateForReport(req.params.id);
