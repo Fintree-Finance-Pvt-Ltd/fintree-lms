@@ -1,5 +1,5 @@
-const db = require("../db/mysql");
-const { verifyEasebuzzWebhookHash } = require("../utils/easebuzzWebhookHash.util");
+const db = require("../config/db");
+const { verifyEasebuzzWebhookHash } = require("../utils/easebuzzHash.util");
 
 const FINAL_STATES = ["SUCCESS", "FAILED", "REVERSED"];
 
