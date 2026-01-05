@@ -33,7 +33,7 @@ function q(sql, params = []) {
 // ---------- LOCK / STATUS logic (ONLY change you needed) ----------
 
 // Canonical statuses that allow edit
-const ALLOWED_STATUSES = new Set(["login", "disburse-initiate"]);
+const ALLOWED_STATUSES = new Set(["login", "disburse-initiate", "disbursed"]);
 
 // Normalize DB variations -> canonical
 function normalizeStatus(s) {
