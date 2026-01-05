@@ -616,9 +616,26 @@ async function getLoanData(lan) {
     [lan]
   );
 
+   /* ===============================
+     BUILD RPS_ROWS (CRITICAL FIX)
+  =============================== */
+  const RPS_ROWS = rpsRows
+    .map((row, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td>${Number(row.opening).toFixed(2)}</td>
+        <td>${Number(row.principal).toFixed(2)}</td>
+        <td>${Number(row.interest).toFixed(2)}</td>
+        <td>${Number(row.emi).toFixed(2)}</td>
+        <td>${Number(row.closing).toFixed(2)}</td>
+      </tr>
+    `)
+    .join("");
+
   return {
     ...summaryRows[0],
     RPS: rpsRows,
+    RPS_ROWS, // ✅ THIS WAS MISSING
     L_A_W: numberToWords(summaryRows[0].L_A),
     CU_date: dayjs().format("DD-MM-YYYY"),
   };
