@@ -112,6 +112,14 @@ import HEYEVBatteryApprovedLoans from "./components/HEYEVBatteryApprovedLoans";
 import EmbifiCustomerRemarks from "./components/EmbifiCustomerRemarks";
 import DealerOnboardingAllLoans from "./components/DealerOnbordingAllLoans";
 import DealerOnboardingLoginActions from "./components/DealerOnbordingActionScreen";
+import ZypayActionScreen from "./components/ZypayActionScreen";
+import ZypayLoginLoans from "./components/ZypayLoginLoans";
+import ZypayApproveInitiateScreen from "./components/ZypayApproveInitiateScreen";
+import ZypayApprovedLoans from "./components/ZypayApprovedLoans";
+import ZypayDisbursedLoans from "./components/ZypayDisbursedLoans";
+import ZypayAllLoans from "./components/ZypayAllLoans";
+
+
 function App() {
   return (
     <Router>
@@ -564,6 +572,58 @@ function App() {
             element={
               <PermissionRoute pageName="EmiClub Disburse Initiated">
                 <EmiClubApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+          {/* ///////////////    ZYPAY LOAN */}
+<Route
+            path="/zypay-loans/approved"
+            element={
+              <PermissionRoute pageName="Zypay Approved Loans">
+                <ZypayApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/zypay-loans/disbursed"
+            element={
+              <PermissionRoute pageName="Zypay Disbursed Loans">
+                <ZypayDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/zypay-loans/all"
+            element={
+              <PermissionRoute pageName="Zypay All Loans">
+                <ZypayAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/zypay-loans/login-cases"
+            element={
+              <PermissionRoute pageName="Zypay Login Loans">
+                <ZypayLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/zypay-loans/login-actions"
+            element={
+              <PermissionRoute pageName="Zypay Login Actions">
+                <ZypayActionScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/zypay-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="Zypay Disburse Initiated">
+                <ZypayApproveInitiateScreen />
               </PermissionRoute>
             }
           />

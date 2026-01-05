@@ -172,6 +172,27 @@ if (lender === "EMICLUB" && product === "Monthly Loan") {
   );
   return dueDate;
 }
+///////////////////////ZYPAY FIRST EMI DATE /////////////////////////
+if (lender === "ZYPAY" && product === "Monthly Loan") {
+  const dueDate = new Date(disbDate);
+  const disbDay = dueDate.getDate();
+
+  if (disbDay <= 25) {
+    // Disbursed between 1st–25th → Next month 5th
+    dueDate.setMonth(dueDate.getMonth() + 1);
+  } else {
+    // Disbursed after 25th → Next-to-next month 5th
+    dueDate.setMonth(dueDate.getMonth() + 2);
+  }
+
+  dueDate.setDate(5);
+  console.log(
+    `[EmiClub Monthly Loan] Disbursement Day: ${disbDay}, EMI Due: ${dueDate
+      .toISOString()
+      .split("T")[0]}`
+  );
+  return dueDate;
+}
 
 
 ///////////////////// ADIKOSH /////////////////

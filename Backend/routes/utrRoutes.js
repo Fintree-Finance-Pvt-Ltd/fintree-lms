@@ -123,6 +123,14 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
             [lan]
           );
         }
+        ///////   this is for ZYPAY ////
+          else if (lan.startsWith("ZYPF")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_zypay_customer WHERE lan = ?`,
+            [lan]
+          );
+        }
         ////// this for EMI CLUB ////////
         else if (lan.startsWith("FINE")) {
           [loanRes] = await db.promise().query(
@@ -299,6 +307,12 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
           } else if (lan.startsWith("FINS")) {
             await conn.query(
               "UPDATE loan_booking_finso SET status = 'Disbursed' WHERE lan = ?",
+              [lan]
+            );
+          }
+           else if (lan.startsWith("ZYPF")) {
+            await conn.query(
+              "UPDATE loan_booking_zypay_customer SET status = 'Disbursed' WHERE lan = ?",
               [lan]
             );
           }
