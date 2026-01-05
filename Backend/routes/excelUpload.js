@@ -10,6 +10,7 @@ const authenticateUser = require("../middleware/verifyToken")
 const { XMLParser } = require("fast-xml-parser");
 // const verifyApiKey = require("../middleware/authMiddleware");
 const verifyApiKey = require("../middleware/apiKeyAuth");
+const { approveAndInitiatePayout } = require("../services/payout.service");
 const { sendLoanStatusMail } = require("../jobs/mailer");
 // const { pullCIBILReport }=  require("../jobs/experianService");
 
@@ -2411,14 +2412,14 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
-    loan_booking_emiclub: true,
+    loan_booking_emiclub: true, // 🔥 payout table
     loan_bookings_wctl: true,
     loan_booking_ev: true,
-    loan_booking_hey_ev:true,
+    loan_booking_hey_ev: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
-    loan_booking_hey_ev_battery:true,
-    loan_booking_zypay_customer:true,
+    loan_booking_hey_ev_battery: true,
+    loan_booking_zypay_customer: true,
   };
 
   if (!allowedTables[table]) {
@@ -2429,63 +2430,89 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
-  const query = `UPDATE ?? SET status = ? WHERE lan = ?`;
-  const values = [table, status, lan];
+  const updateQuery = `UPDATE ?? SET status = ? WHERE lan = ?`;
 
-  db.query(query, values, async (err, result) => {
+  db.query(updateQuery, [table, status, lan], async (err, result) => {
     if (err) {
       console.error("Error updating loan status:", err);
-      return res.status(500).json({ message: "Database error", error: err });
+      return res.status(500).json({ message: "Database error" });
     }
+
     if (result.affectedRows === 0) {
       return res
         .status(404)
         .json({ message: "Loan not found with LAN " + lan });
     }
 
-    // // ✅ Fetch loan amount for email
-    // db.query(
-    //   `SELECT customer_name, loan_amount, batch_id FROM ?? WHERE lan = ?`,
-    //   [table, lan],
-    //   async (fetchErr, rows) => {
-    //     if (fetchErr) {
-    //       console.error("Error fetching loan details:", fetchErr);
-    //     } else if (rows.length > 0) {
-    //       const {
-    //         loan_amount: loanAmount,
-    //         customer_name: customerName,
-    //         batch_id: batchId,
-    //       } = rows[0];
+    /* ======================================================
+       🔥 PAYOUT TRIGGER (ONLY EMICLUB + APPROVED)
+    ====================================================== */
+    let payoutTriggered = false;
 
-    //       // ✅ Only trigger email if LAN starts with "ADK"
-    //       if (lan.startsWith("ADK")) {
-    //         try {
-    //           await sendLoanStatusMail({
-    //             to: [
-    //               "abhishek@getkosh.com",
-    //               "ravikumar@nfcpl.in",
-    //               "vineet.ranjan@getkosh.com",
-    //               "rajeev@nfcpl.in",
-    //             ],
-    //             customerName,
-    //             batchId,
-    //             loanAmount,
-    //             status,
-    //           });
-    //           console.log(`Email sent for ${lan} (${status})`);
-    //         } catch (mailErr) {
-    //           console.error("Error sending email:", mailErr);
-    //         }
-    //       }
-    //     }
-    //   }
-    // );
+    if (table === "loan_booking_emiclub" && status === "approved") {
+      payoutTriggered = true;
+      try {
+        const { approveAndInitiatePayout } =
+          require("../services/payout.service");
 
-    res.json({
-      message: `Loan with LAN ${lan} updated to ${status} in ${table}`,
+        // 🔁 fire-and-forget (do not block response)
+        approveAndInitiatePayout({ lan, table }).catch((payoutErr) => {
+          console.error(
+            "Payout initiation failed for LAN:",
+            lan,
+            payoutErr
+          );
+        });
+      } catch (err) {
+        console.error("Error loading payout service:", err);
+      }
+    }
+
+    /* ======================================================
+       📧 OPTIONAL EMAIL LOGIC (kept async, non-blocking)
+    ====================================================== */
+    /*
+    if (lan.startsWith("ADK")) {
+      db.query(
+        `SELECT customer_name, loan_amount, batch_id FROM ?? WHERE lan = ?`,
+        [table, lan],
+        async (fetchErr, rows) => {
+          if (!fetchErr && rows.length > 0) {
+            const { customer_name, loan_amount, batch_id } = rows[0];
+            try {
+              await sendLoanStatusMail({
+                to: [...],
+                customerName: customer_name,
+                batchId: batch_id,
+                loanAmount: loan_amount,
+                status,
+              });
+            } catch (mailErr) {
+              console.error("Email error:", mailErr);
+            }
+          }
+        }
+      );
+    }
+    */
+
+    /* ======================================================
+       ✅ SINGLE RESPONSE (ONLY ONCE)
+    ====================================================== */
+    return res.json({
+      success: true,
+      lan,
+      table,
+      status,
+      payoutTriggered,
+      message:
+        table === "loan_booking_emiclub" && status === "approved"
+          ? "Loan approved and payout initiated"
+          : `Loan ${status} successfully`,
     });
   });
 });
+
 
 router.post("/hc-upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });

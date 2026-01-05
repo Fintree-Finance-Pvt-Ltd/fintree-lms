@@ -1,54 +1,65 @@
 const axios = require("axios");
 const crypto = require("crypto");
-const db = require("../db");
+const db = require("../config/db");
 
 /**
- * STEP 1: Approve loan
- * STEP 2: Initiate Easebuzz Quick Transfer
- * STEP 3: Save unique_request_number
+ * Service function
+ * ❌ NO req, res
+ * ✅ Only plain arguments
  */
-exports.approveAndInitiatePayout = async (req, res) => {
-  const { lan } = req.params;
-  const { table } = req.body;
-
+exports.approveAndInitiatePayout = async ({ lan, table }) => {
   try {
-    // 1️⃣ Fetch loan + beneficiary details
+    /* =====================================================
+       1️⃣ Fetch loan + beneficiary details
+    ===================================================== */
     const [[loan]] = await db.query(
-      `SELECT customer_name, amount, account_number, ifsc, upi_handle, beneficiary_type
-       FROM ${table}
-       WHERE lan = ?`,
-      [lan]
+      `
+      SELECT 
+        customer_name,
+        loan_amount,
+        account_number,
+        ifsc,
+        email_id,
+        account_type
+      FROM ?? 
+      WHERE lan = ?
+      `,
+      [table, lan]
     );
 
     if (!loan) {
-      return res.status(404).json({ message: "Loan not found" });
+      throw new Error(`Loan not found for LAN ${lan}`);
     }
 
-    // 2️⃣ Update loan status to APPROVED
-    await db.query(
-      `UPDATE ${table} SET status = 'approved' WHERE lan = ?`,
-      [lan]
-    );
-
-    // 3️⃣ Generate unique_request_number
+    /* =====================================================
+       2️⃣ Generate unique_request_number
+    ===================================================== */
     const unique_request_number = `LAN_${lan}_${Date.now()}`;
 
-    // 4️⃣ Save initial payout record
+    /* =====================================================
+       3️⃣ Insert initial payout record
+    ===================================================== */
     await db.query(
-      `INSERT INTO quick_transfers
-       (unique_request_number, amount, status)
-       VALUES (?, ?, ?)`,
+      `
+      INSERT INTO quick_transfers
+      (unique_request_number, amount, status)
+      VALUES (?, ?, ?)
+      `,
       [unique_request_number, loan.amount, "INITIATED"]
     );
 
-    // 5️⃣ Generate Authorization Hash
+    /* =====================================================
+       4️⃣ Generate Easebuzz Authorization hash
+       Format:
+       key|account_number|ifsc|upi_handle|unique_request_number|amount|salt
+    ===================================================== */
     const raw = [
       process.env.EASEBUZZ_KEY,
       loan.account_number || "",
       loan.ifsc || "",
-      loan.upi_handle || "",
+      loan.email_id || "",
       unique_request_number,
-      loan.amount,
+      loan.loan_amount,
       process.env.EASEBUZZ_SALT,
     ].join("|");
 
@@ -57,7 +68,9 @@ exports.approveAndInitiatePayout = async (req, res) => {
       .update(raw)
       .digest("hex");
 
-    // 6️⃣ Call Easebuzz Initiate Quick Transfer
+    /* =====================================================
+       5️⃣ Call Easebuzz Initiate Quick Transfer API
+    ===================================================== */
     const response = await axios.post(
       "https://wire.easebuzz.in/api/v1/quick_transfers/initiate/",
       {
@@ -66,10 +79,10 @@ exports.approveAndInitiatePayout = async (req, res) => {
         beneficiary_name: loan.customer_name,
         account_number: loan.account_number,
         ifsc: loan.ifsc,
-        upi_handle: loan.upi_handle,
+        upi_handle: loan.email_id,
         unique_request_number,
         payment_mode: "NEFT",
-        amount: loan.amount,
+        amount: loan.loan_amount,
       },
       {
         headers: {
@@ -77,34 +90,37 @@ exports.approveAndInitiatePayout = async (req, res) => {
           "WIRE-API-KEY": process.env.EASEBUZZ_WIRE_API_KEY,
           "Content-Type": "application/json",
         },
+        timeout: 15000,
       }
     );
 
-    /**
-     * IMPORTANT:
-     * HTTP 200 ≠ success payout
-     * success=true ≠ payout success
-     */
-    if (response.data.success === false) {
+    /* =====================================================
+       6️⃣ Handle application-level failure
+       HTTP 200 ≠ payout success
+    ===================================================== */
+    if (response.data?.success === false) {
       await db.query(
-        `UPDATE quick_transfers
-         SET status='FAILED', failure_reason=?
-         WHERE unique_request_number=?`,
+        `
+        UPDATE quick_transfers
+        SET status = 'FAILED',
+            failure_reason = ?
+        WHERE unique_request_number = ?
+        `,
         [response.data.message, unique_request_number]
       );
     }
 
-    return res.json({
+    /* =====================================================
+       7️⃣ RETURN RESULT (NO res.json HERE)
+    ===================================================== */
+    return {
       success: true,
-      message: "Loan approved & payout initiated",
       unique_request_number,
-    });
+      easebuzz_acknowledged: response.data?.success === true,
+    };
 
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({
-      success: false,
-      message: "Approval or payout initiation failed",
-    });
+  } catch (error) {
+    console.error("approveAndInitiatePayout error:", error);
+    throw error; // let controller decide response
   }
 };
