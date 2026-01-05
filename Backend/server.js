@@ -92,6 +92,9 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
 app.use("/api/helium-webhook", heliumWebhookRoutes);
+
+app.use("/api/webhooks/easebuzz", require("../Backend/routes/easebuzz.webhooks.routes")); // ✅ Register Easebuzz Webhook Route
+
 // app.use("/api/courses", courseRoutes);
 app.use("/api/loan", loanRoutes); //  routes chanegd
 app.use("/api/repayments", repaymentRoutes);
