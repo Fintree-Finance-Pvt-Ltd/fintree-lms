@@ -203,6 +203,7 @@ const Sidebar = () => {
     'CirclePe Loans': allowedPages.filter(p => p.path.includes('/circlepe-loans')),
     'Elysium Loans': allowedPages.filter(p => p.path.includes('/elysium-loans')),
     'EMI Club Loans': allowedPages.filter(p => p.path.includes('/emiclub-loans')),
+    'Zypay Loans': allowedPages.filter(p => p.path.includes('/zypay-loans')),
     'Finso Loans': allowedPages.filter(p => p.path.includes('/finso-loans')),
     'HEY EV Loans': allowedPages.filter(p => p.path.includes('/hey-ev-loans')),
     'HEY EV Battery Loans': allowedPages.filter(p => p.path.includes('/hey-ev-battery-loans')),
