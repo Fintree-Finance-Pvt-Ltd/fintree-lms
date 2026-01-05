@@ -181,6 +181,7 @@ const Sidebar = () => {
           '/business-loans',
           '/embifi-loans',
           '/emiclub-loans',
+          '/zypay-loans',
           '/finso-loans',
           '/hey-ev-loans',
           '/hey-ev-battery-loans', /////sajag
