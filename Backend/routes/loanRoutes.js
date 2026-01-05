@@ -69,6 +69,9 @@ router.get("/loan-booking/:lan", (req, res) => {
   }else if (lan.startsWith("HEL")) {
     table = "loan_booking_helium";
     posTable = "manual_rps_helium";
+    }else if (lan.startsWith("ZYPF")) {
+    table = "loan_booking_zypay_customer";
+    posTable = "manual_rps_zypay";
     }else if (lan.startsWith("DLR")) {
     table = "dealer_onboarding";
    
