@@ -58,6 +58,15 @@ a{color:#1a4a8a; text-decoration:underline;}
   letter-spacing:0.3px;
 }
 
+.doc-title {
+  font-weight: bold;
+  text-align: center;
+  margin: 16px 0;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+
 .small-text{font-size:10pt;}
 .no-border-table td, .no-border-table th{border:none; padding:2px 0;}
 
@@ -2084,20 +2093,22 @@ Agreement the day and year first above written</p>
 <p style="text-align:center; text-align:center"><b><span style="font-size:10.0pt; line-height:115%"> </span></b></p>
 <p style="text-align:center; text-align:center"><b><span style="font-size:10.0pt; line-height:115%"> </span></b></p>
 
-<div class="doc-title" style="margin-right:1.75pt; margin-bottom:0in; margin-left:250.0pt;">REPAYMENT SCHEDULE</div>
+<!-- <div class="doc-title" style="margin-right:1.75pt; margin-bottom:0in; margin-left:250.0pt;">REPAYMENT SCHEDULE</div> -->
+<div class="doc-title">REPAYMENT SCHEDULE</div>
 
-    <table>
-      <tr>
-        <th>Instalment No.</th>
-        <th>Opening Balance</th>
-        <th>Principal</th>
-        <th>Interest</th>
-        <th>EMI</th>
-        <th>Closing Balance</th>
-      </tr>
+<table>
+  <tr>
+    <th>Instalment No.</th>
+    <th>Opening Balance</th>
+    <th>Principal</th>
+    <th>Interest</th>
+    <th>EMI</th>
+    <th>Closing Balance</th>
+  </tr>
 
-      {{RPS_ROWS}}
-    </table>
+  {{RPS_ROWS}}
+</table>
+
 <p><b><span style="font-size:11.0pt"> </span></b></p>
 <p style="margin-top:3.5pt"><b> </b></p>
 <p style="text-align:center; text-align:center"><b><span style="font-size:10.0pt; line-height:115%"> </span></b></p>
