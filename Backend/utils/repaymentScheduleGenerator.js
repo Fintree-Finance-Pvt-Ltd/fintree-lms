@@ -3638,6 +3638,17 @@ const generateRepaymentSchedule = async (
       product,
       lender
     );
+      } else if (lender === "ZYPAY" && product === "Monthly Loan") {
+    await generateRepaymentScheduleZypay(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender
+    );
   }
     else if (lender === "Circlepe" ) {
     await generateRepaymentScheduleCirclePE(
@@ -3853,6 +3864,7 @@ module.exports = {
   generateRepaymentSchedule,
   generateRepaymentScheduleEmbifi,
   generateRepaymentScheduleEmiclub,
+  generateRepaymentScheduleZypay,
   generateRepaymentScheduleCirclePE,
   generateRepaymentScheduleHelium,
   excelSerialDateToJS,
