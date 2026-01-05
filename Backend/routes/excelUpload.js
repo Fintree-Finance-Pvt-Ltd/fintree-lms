@@ -1999,6 +1999,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
+    loan_booking_zypay_customer: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery:true,
@@ -2033,6 +2034,7 @@ router.get("/approve-initiate-loans", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
+    loan_booking_zypay_customer: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery:true,
@@ -2067,6 +2069,7 @@ router.get("/all-loans", (req, res) => {
     loan_bookings_wctl: true,
     loan_booking_hey_ev:true,
     loan_booking_emiclub: true,
+    loan_booking_zypay_customer: true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
@@ -2105,6 +2108,7 @@ router.get("/approved-loans", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
+    loan_booking_zypay_customer: true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
@@ -2137,6 +2141,7 @@ router.get("/disbursed-loans", (req, res) => {
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
     loan_booking_emiclub: true,
+    loan_booking_zypay_customer: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
     loan_booking_hey_ev:true,
@@ -2218,6 +2223,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_ev: true,
     loan_booking_hey_ev:true,
     loan_booking_emiclub: true,
+    loan_booking_zypay_customer: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery:true,
@@ -2412,6 +2418,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery:true,
+    loan_booking_zypay_customer:true,
   };
 
   if (!allowedTables[table]) {
@@ -7790,6 +7797,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_embifi_loan";
   } else if (lan.startsWith("FINE")) {
     tableName = "manual_rps_emiclub";
+    } else if (lan.startsWith("ZYPF")) {
+    tableName = "manual_rps_zypay";
   }
     else if (lan.startsWith("HEL")) {
     tableName = "manual_rps_helium";
