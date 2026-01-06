@@ -17,7 +17,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     const [[loan]] = await db.promise().query(
       `
       SELECT 
-        customer_name,
+        name_in_bank,
         loan_amount,
         account_number,
         ifsc,
@@ -81,13 +81,15 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       "https://wire.easebuzz.in/api/v1/quick_transfers/initiate/",
       {
         key: process.env.EASEBUZZ_KEY,
+          account_number: loan.account_number,
         beneficiary_type: "bank_account",
         beneficiary_name: loan.name_in_bank,
-        account_number: loan.account_number,
-        ifsc: loan.ifsc,
+       upi_handle:"",
         unique_request_number,
+        ifsc: loan.ifsc,
         payment_mode: "IMPS",
-        amount: loan.loan_amount,
+       amount: loan.loan_amount,
+       udf1: loan.lan
       },
       {
         headers: {
