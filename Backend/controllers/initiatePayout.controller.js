@@ -4,7 +4,7 @@ const { generateInitiateAuth } = require("../utils/payoutAuth");
 
 exports.initiateQuickTransfer = async (req, res) => {
   const payload = req.body;
- const amount = Number(payload.amount).toFixed(2);
+ const amount = Number(payload.amount);
   const unique_request_number = `URN_${Date.now()}`;
 
   // 1️⃣ Save transaction BEFORE API call
