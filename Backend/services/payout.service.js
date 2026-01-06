@@ -125,7 +125,7 @@ const db = require("../config/db");
 
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
   try {
-    console.log("PAYOUT INIT:", lan, table);
+    console.log("PAYOUT INIT By Sajag:", lan, table);
 
     const [[loan]] = await db.promise().query(
       `
@@ -163,6 +163,9 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       amount,
       process.env.EASEBUZZ_SALT,
     ].join("|");
+
+
+console.log("raw data sss",raw);
 
     const authorization = crypto
       .createHash("sha512")
@@ -206,6 +209,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       );
     }
 
+    console.log("response data sajag", response.data);
     return {
       success: true,
       unique_request_number,
