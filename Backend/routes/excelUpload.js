@@ -12,6 +12,8 @@ const { XMLParser } = require("fast-xml-parser");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { approveAndInitiatePayout } = require("../services/payout.service");
 const { sendLoanStatusMail } = require("../jobs/mailer");
+const { approveAndInitiatePayout } =
+          require("../services/payout.service");
 // const { pullCIBILReport }=  require("../jobs/experianService");
 
 dotenv.config();
@@ -2452,9 +2454,6 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     if (table === "loan_booking_emiclub" && status === "approved") {
       payoutTriggered = true;
       try {
-        const { approveAndInitiatePayout } =
-          require("../services/payout.service");
-
         // 🔁 fire-and-forget (do not block response)
         approveAndInitiatePayout({ lan, table }).catch((payoutErr) => {
           console.error(

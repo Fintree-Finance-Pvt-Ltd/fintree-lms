@@ -9,10 +9,12 @@ const db = require("../config/db");
  */
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
   try {
+
+    console.log("table and lan picked", lan, table);
     /* =====================================================
        1️⃣ Fetch loan + beneficiary details
     ===================================================== */
-    const [[loan]] = await db.query(
+    const [[loan]] = await db.promise().query(
       `
       SELECT 
         customer_name,
@@ -39,7 +41,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     /* =====================================================
        3️⃣ Insert initial payout record
     ===================================================== */
-    await db.query(
+    await db.promise().query(
       `
       INSERT INTO quick_transfers
       (unique_request_number, amount, status)
@@ -63,10 +65,14 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       process.env.EASEBUZZ_SALT,
     ].join("|");
 
+    console.log("raw payload", raw);
+
     const authorization = crypto
       .createHash("sha512")
       .update(raw)
       .digest("hex");
+
+      console.log("Authorixation", authorization);
 
     /* =====================================================
        5️⃣ Call Easebuzz Initiate Quick Transfer API
@@ -99,7 +105,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
        HTTP 200 ≠ payout success
     ===================================================== */
     if (response.data?.success === false) {
-      await db.query(
+      await db.promise().query(
         `
         UPDATE quick_transfers
         SET status = 'FAILED',

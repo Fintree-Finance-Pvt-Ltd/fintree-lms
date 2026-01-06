@@ -1,5 +1,5 @@
 const axios = require("axios");
-const db = require("../db");
+const db = require("../config/db");
 const { generateInitiateAuth } = require("../utils/payoutAuth");
 
 exports.initiateQuickTransfer = async (req, res) => {
@@ -8,7 +8,7 @@ exports.initiateQuickTransfer = async (req, res) => {
   const unique_request_number = `URN_${Date.now()}`;
 
   // 1️⃣ Save transaction BEFORE API call
-  await db.query(
+  await db.promise().query(
     `INSERT INTO quick_transfers (unique_request_number, amount, status)
      VALUES (?, ?, ?)`,
     [unique_request_number, payload.amount, "INITIATED"]
@@ -46,7 +46,7 @@ exports.initiateQuickTransfer = async (req, res) => {
      * success=true does NOT mean payout success
      */
     if (response.data.success === false) {
-      await db.query(
+  await db.promise().query(
         `UPDATE quick_transfers
          SET status='FAILED', failure_reason=?
          WHERE unique_request_number=?`,

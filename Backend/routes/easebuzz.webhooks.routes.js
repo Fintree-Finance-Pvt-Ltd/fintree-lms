@@ -15,7 +15,7 @@ router.post("/payout", async (req, res) => {
    * TRANSFER_INITIATED (once)
    * TRANSFER_STATUS_UPDATE (multiple times)
    */
-  await db.query(
+  await db.promise().query(
     `UPDATE quick_transfers
      SET status=?, failure_reason=?, utr=?, raw_response=?, updated_at=NOW()
      WHERE unique_request_number=?`,
