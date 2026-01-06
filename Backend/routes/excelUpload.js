@@ -12,8 +12,7 @@ const { XMLParser } = require("fast-xml-parser");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { approveAndInitiatePayout } = require("../services/payout.service");
 const { sendLoanStatusMail } = require("../jobs/mailer");
-const { approveAndInitiatePayout } =
-          require("../services/payout.service");
+
 // const { pullCIBILReport }=  require("../jobs/experianService");
 
 dotenv.config();
