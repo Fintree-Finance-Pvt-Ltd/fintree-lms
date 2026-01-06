@@ -20,9 +20,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         name_in_bank,
         loan_amount,
         account_number,
-        ifsc,
-        email_id,
-        account_type
+        ifsc
       FROM ?? 
       WHERE lan = ?
       `,
