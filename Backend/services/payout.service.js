@@ -15,7 +15,8 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         name_in_bank,
         loan_amount,
         account_number,
-        ifsc
+        ifsc,
+        lan
       FROM ?? 
       WHERE lan = ?
       `,
@@ -75,7 +76,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         unique_request_number,
         payment_mode: "IMPS",
         amount,
-        udf1: lan,
+        udf1: loan.lan,
       },
       {
         headers: {
