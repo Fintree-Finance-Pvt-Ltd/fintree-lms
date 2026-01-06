@@ -85,7 +85,6 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         beneficiary_name: loan.name_in_bank,
         account_number: loan.account_number,
         ifsc: loan.ifsc,
-        upi_handle: "",
         unique_request_number,
         payment_mode: "IMPS",
         amount: loan.loan_amount,
