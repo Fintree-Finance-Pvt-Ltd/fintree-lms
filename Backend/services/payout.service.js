@@ -182,7 +182,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         ifsc: loan.ifsc,
         upi_handle: "",
         unique_request_number,
-        payment_mode: "NEFT", // ✅ IMPORTANT
+        payment_mode: "IMPS", // ✅ IMPORTANT
         amount,               // ✅ NUMBER
       },
       {
