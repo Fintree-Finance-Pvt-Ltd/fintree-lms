@@ -154,6 +154,10 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       [lan, unique_request_number, amount]
     );
 
+    /* ============================
+       3️⃣ Generate HASH
+       key|account|ifsc|upi|urn|amount|salt
+    ============================ */
     const raw = [
       process.env.EASEBUZZ_KEY,
       loan.account_number,
@@ -172,6 +176,10 @@ console.log("raw data sss",raw);
       .update(raw)
       .digest("hex");
 
+
+         /* ============================
+       4️⃣ Call Easebuzz API
+    ============================ */
     const response = await axios.post(
       "https://wire.easebuzz.in/api/v1/quick_transfers/initiate/",
       {
@@ -198,29 +206,45 @@ console.log("raw data sss",raw);
       }
     );
 
-    if (response.data?.success === false) {
-      await db.promise().query(
-        `
-        UPDATE quick_transfers
-        SET status='FAILED', failure_reason=?
-        WHERE unique_request_number=?
-        `,
-        [response.data.message, unique_request_number]
-      );
-    }
 
-    console.log("response data sajag", response.data);
+    console.log("Easebuzz API Response:", response.data);
+  
+    const tr = response.data?.data?.transfer_request;
+
+    /* =================================================
+       5️⃣ SAVE FULL RESPONSE (IMPORTANT PART)
+    ================================================= */
+    await db.promise().query(
+      `
+      UPDATE quick_transfers
+      SET
+        status = ?,
+        failure_reason = ?,
+        easebuzz_transfer_id = ?,
+        queue_on_low_balance = ?,
+        transfer_date = ?,
+        raw_api_response = ?
+      WHERE unique_request_number = ?
+      `,
+      [
+        tr?.status || "unknown",
+        tr?.failure_reason || null,
+        tr?.id || null,
+        tr?.queue_on_low_balance ?? false,
+        tr?.transfer_date ? new Date(tr.transfer_date) : null,
+        JSON.stringify(response.data),
+        unique_request_number,
+      ]
+    );
+
     return {
       success: true,
       unique_request_number,
       acknowledged: response.data?.success === true,
+      payout_status: tr?.status,
     };
-
   } catch (err) {
     console.error("approveAndInitiatePayout error:", err);
     throw err;
   }
 };
-
-
-
