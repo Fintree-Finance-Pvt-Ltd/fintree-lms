@@ -2996,11 +2996,11 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
             loan_tenure_months, emi_amount, interest_rate,
             status, product, lender, loan_admin_status,
             first_emi_date, last_emi_date, disbursement_date, disbursement_utr,
-            applicant_address, applicant_state, applicant_city, applicant_pin_code,
+            applicant_address, applicant_state, applicant_pin_code,
             coapplicant_address, coapplicant_state, coapplicant_pin_code,
             bureau_score, monthly_income, account_no, ifsc_code,
             gps_device_cost, gst_on_gps_device, total_gps_device_cost, new_interest
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         `;
 
         await db
@@ -3038,7 +3038,6 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
             disbursement_utr,
             applicant_address,
             applicant_state,
-            applicant_city,
             applicant_pin_code,
             coapplicant_address,
             coapplicant_state,
