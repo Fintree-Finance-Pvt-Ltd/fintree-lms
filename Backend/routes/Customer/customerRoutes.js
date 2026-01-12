@@ -176,7 +176,7 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
   pan_number, aadhar_number,
   current_address, current_village_city, current_district, current_state, current_pincode,
   permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
-  loan_amount, interest_rate, loan_tenure,
+  loan_amount, interest_rate, loan_tenure,processing_fee,
   customer_type, employment_type, net_monthly_income, residence_type,
   bank_name, name_in_bank, account_number, ifsc,
   brand_name, model_name, storage, color, mrp, dp_amount, buero_score,
@@ -187,7 +187,7 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
   product, lender, status, agreement_date
 ) VALUES (
   ?, ?, ?, ?, ?,
-  ?,
+  ?,?,
   ?, ?, ?, ?, ?,
   ?, ?,
   ?, ?, ?, ?, ?,
@@ -237,6 +237,7 @@ const values = [
   data.loan_amount,
   data.interest_rate,
   data.loan_tenure,
+  data.processing_fee,
 
   data.customer_type,
   data.employment_type,
