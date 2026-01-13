@@ -15,9 +15,12 @@
     "axios": "^1.10.0",
     "html2pdf.js": "^0.10.3",
     "react": "^19.1.0",
+    "react-datepicker": "^9.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.3",
-    "recharts": "^3.0.2"
+    "react-select": "^5.10.2",
+    "recharts": "^3.0.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
