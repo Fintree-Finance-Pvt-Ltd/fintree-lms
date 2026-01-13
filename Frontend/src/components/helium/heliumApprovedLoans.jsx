@@ -394,7 +394,7 @@
 //         type: "error",
 //         msg:
 //           err.response?.data?.message ||
-//           "Failed to start agreement eSign. Try again.",
+//           " Try again.",
 //       });
 //       resetToastAfterDelay();
 //     } finally {

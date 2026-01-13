@@ -1317,13 +1317,6 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
         `SELECT sanction_esign_status FROM ${bookingTable} WHERE lan=?`,
         [lan]
       );
-
-      if (rows[0]?.sanction_esign_status !== "SIGNED") {
-        return res.status(400).json({
-          success: false,
-          message: "Sanction letter must be signed first"
-        });
-      }
     }
 
     const out = await initEsign(lan, type.toUpperCase());
