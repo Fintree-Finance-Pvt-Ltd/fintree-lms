@@ -274,8 +274,8 @@ const values = [
 
 
     // ✅ count check (must match placeholders)
-    if (values.length !== 53) {
-      throw new Error(`SQL values mismatch: ${values.length} (expected 53)`);
+    if (values.length !== 54) {
+      throw new Error(`SQL values mismatch: ${values.length} (expected 54)`);
     }
 
     await db.promise().query(insertSql, values);
