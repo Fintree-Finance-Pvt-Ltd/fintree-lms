@@ -1330,42 +1330,111 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
 /* ======================================================
    DIGIO WEBHOOK
 ====================================================== */
+// router.post("/v1/digio-esign-webhook", async (req, res) => {
+//   try {
+//     const event = req.body;
+//      console.log("[Webhook] Raw event body:", JSON.stringify(event));
+
+//     const docId = event.id;
+//     const status = event.state;
+
+//     const [rows] = await db.promise().query(
+//       "SELECT lan, document_type FROM esign_documents WHERE document_id=?",
+//       [docId]
+//     );
+//     if (!rows.length) return res.send("ignored");
+
+//     const { lan, document_type } = rows[0];
+//     const { bookingTable } = getLoanContext(lan);
+
+//     await db.promise().query(
+//       "UPDATE esign_documents SET status=?, raw_response=? WHERE document_id=?",
+//       [status, JSON.stringify(event), docId]
+//     );
+
+//     const col =
+//       document_type === "SANCTION"
+//         ? "sanction_esign_status"
+//         : "agreement_esign_status";
+
+//     await db.promise().query(
+//       `UPDATE ${bookingTable} SET ${col}=? WHERE lan=?`,
+//       [status === "signed" ? "SIGNED" : status, lan]
+//     );
+
+//     res.send("ok");
+//   } catch (err) {
+//     console.error("Webhook error:", err);
+//     res.status(500).send("error");
+//   }
+// });
 router.post("/v1/digio-esign-webhook", async (req, res) => {
+  console.log("[Webhook] Received Digio eSign webhook");
+
   try {
     const event = req.body;
+    console.log("[Webhook] Raw event body:", JSON.stringify(event));
+
     const docId = event.id;
     const status = event.state;
 
+    console.log("[Webhook] Extracted docId:", docId);
+    console.log("[Webhook] Extracted status:", status);
+
+    console.log("[DB] Fetching document details from esign_documents");
     const [rows] = await db.promise().query(
       "SELECT lan, document_type FROM esign_documents WHERE document_id=?",
       [docId]
     );
-    if (!rows.length) return res.send("ignored");
+
+    console.log("[DB] Query result:", rows);
+
+    if (!rows.length) {
+      console.log("[Webhook] No matching document found. Ignoring webhook.");
+      return res.send("ignored");
+    }
 
     const { lan, document_type } = rows[0];
-    const { bookingTable } = getLoanContext(lan);
+    console.log("[Webhook] LAN:", lan);
+    console.log("[Webhook] Document Type:", document_type);
 
+    const { bookingTable } = getLoanContext(lan);
+    console.log("[Webhook] Resolved booking table:", bookingTable);
+
+    console.log("[DB] Updating esign_documents status and raw_response");
     await db.promise().query(
       "UPDATE esign_documents SET status=?, raw_response=? WHERE document_id=?",
       [status, JSON.stringify(event), docId]
     );
+
+    console.log("[DB] esign_documents updated successfully");
 
     const col =
       document_type === "SANCTION"
         ? "sanction_esign_status"
         : "agreement_esign_status";
 
+    console.log("[Webhook] Target booking table column:", col);
+
+    const finalStatus = status === "signed" ? "SIGNED" : status;
+    console.log("[Webhook] Final status to be stored:", finalStatus);
+
+    console.log("[DB] Updating booking table eSign status");
     await db.promise().query(
       `UPDATE ${bookingTable} SET ${col}=? WHERE lan=?`,
-      [status === "signed" ? "SIGNED" : status, lan]
+      [finalStatus, lan]
     );
+
+    console.log("[DB] Booking table updated successfully");
+    console.log("[Webhook] Processing completed successfully");
 
     res.send("ok");
   } catch (err) {
-    console.error("Webhook error:", err);
+    console.error("[Webhook] Error occurred:", err);
     res.status(500).send("error");
   }
 });
+
 
 /* ======================================================
    SANCTION & AGREEMENT GENERATION
