@@ -287,7 +287,7 @@ router.post(
   "/zypay/upload-documents",
   verifyApiKey,
   (req, res, next) => {
-    upload.array("documents", 10)(req, res, (err) => {
+    upload.array("documents", 20)(req, res, (err) => {
       if (err) {
         if (err instanceof multer.MulterError) {
           return res.status(400).json({
