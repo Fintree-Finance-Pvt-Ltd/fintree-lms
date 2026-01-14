@@ -200,7 +200,7 @@ router.post("/v1/zypay-customer-lb", verifyApiKey, async (req, res) => {
   ?, ?, ?,
   ?, ?,
   ?, ?,
-  ?, ?, ?, ?,?
+  ?, ?, ?, ?
 );
 `;
 
