@@ -358,7 +358,7 @@ const fileFilter = (req, file, cb) => {
 router.post(
   "/zypay/upload-documents",
   verifyApiKey,
-  upload.array("documents", 10),
+  upload.array("documents", 30),
   async (req, res) => {
     try {
       const { lan, doc_name, doc_password } = req.body;
