@@ -275,55 +275,109 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
 //     }
 //   }
 // );
+/**********************************************************
+ * CONSTANTS
+ **********************************************************/
+const ALLOWED_DOC_NAMES = [
+  "AADHAR",
+  "PAN",
+  "CUSTOMER_PHOTO",
+  "INVOICE",
+  "INSTALLED_APP_PHOTO",
+  "DEALER_WITH_CUSTOMER",
+  "CUSTOMER_PHONE_BOX_PIC",
+  "OPEN_BOX_PIC",
+  "BUREAU_PDF",
+  "IMEI_NUMBER_PHOTO",
+  "OTHER"
+];
 
+const ERROR_CODES = {
+  MISSING_FIELDS: "ERR_400_MISSING_FIELDS",
+  INVALID_DOC_NAME: "ERR_400_INVALID_DOC_NAME",
+  DOC_NAME_NOT_ALLOWED: "ERR_400_DOC_NAME_NOT_ALLOWED",
+  FILE_COUNT_MISMATCH: "ERR_400_FILE_COUNT_MISMATCH",
+  FILE_LIMIT_EXCEEDED: "ERR_400_FILE_LIMIT_EXCEEDED",
+  INVALID_FILE_TYPE: "ERR_400_INVALID_FILE_TYPE",
+  DB_INSERT_FAILED: "ERR_500_DB_INSERT_FAILED",
+  INTERNAL_ERROR: "ERR_500_INTERNAL_ERROR"
+};
 
+/**********************************************************
+ * HELPERS
+ **********************************************************/
 const normalizeDocName = (name) => {
   if (!name || typeof name !== "string") return null;
 
-  return name.trim().toUpperCase().replace(/\s+/g, "_");
+  return name
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
 };
 
+/**********************************************************
+ * MULTER CONFIGURATION
+ **********************************************************/
+// const storage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     cb(null, "uploads/zypay/");
+//   },
+//   filename: (req, file, cb) => {
+//     const uniqueName =
+//       Date.now() + "-" + Math.round(Math.random() * 1e9);
+//     cb(null, `${uniqueName}${path.extname(file.originalname)}`);
+//   }
+// });
+
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "application/pdf"
+  ];
+
+  if (!allowedTypes.includes(file.mimetype)) {
+    return cb(
+      new Error("Invalid file type"),
+      false
+    );
+  }
+
+  cb(null, true);
+};
+
+// const upload = multer({
+//   storage,
+//   limits: { files: 10, fileSize: 5 * 1024 * 1024 }, // 5MB
+//   fileFilter
+// });
+
+/**********************************************************
+ * ROUTE
+ **********************************************************/
 router.post(
   "/zypay/upload-documents",
   verifyApiKey,
-  (req, res, next) => {
-    upload.array("documents", 20)(req, res, (err) => {
-      if (err) {
-        if (err instanceof multer.MulterError) {
-          return res.status(400).json({
-            success: false,
-            statusCode: 400,
-            message: err.message,
-            code: err.code
-          });
-        }
-        return next(err);
-      }
-      next();
-    });
-  },
+  upload.array("documents", 10),
   async (req, res) => {
     try {
       const { lan, doc_name, doc_password } = req.body;
 
-      // 🔴 Validation
-      if (!lan || !doc_name) {
+      /***********************
+       * BASIC VALIDATION
+       ***********************/
+      if (!lan || !doc_name || !req.files || req.files.length === 0) {
         return res.status(400).json({
           success: false,
           statusCode: 400,
-          message: "LAN and doc_name are required"
+          errorCode: ERROR_CODES.MISSING_FIELDS,
+          message: "LAN, doc_name, and documents are required"
         });
       }
 
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({
-          success: false,
-          statusCode: 400,
-          message: "No documents uploaded"
-        });
-      }
-
-      // 🧠 Normalize doc_name(s)
+      /***********************
+       * NORMALIZE doc_name(s)
+       ***********************/
       const docNames = Array.isArray(doc_name)
         ? doc_name.map(normalizeDocName)
         : [normalizeDocName(doc_name)];
@@ -332,18 +386,44 @@ router.post(
         return res.status(400).json({
           success: false,
           statusCode: 400,
+          errorCode: ERROR_CODES.INVALID_DOC_NAME,
           message: "Invalid doc_name format"
         });
       }
 
+      /***********************
+       * ALLOWED DOC NAME CHECK
+       ***********************/
+      const invalidDocNames = docNames.filter(
+        (d) => !ALLOWED_DOC_NAMES.includes(d)
+      );
+
+      if (invalidDocNames.length > 0) {
+        return res.status(400).json({
+          success: false,
+          statusCode: 400,
+          errorCode: ERROR_CODES.DOC_NAME_NOT_ALLOWED,
+          message: "One or more doc_name values are not allowed",
+          allowedDocNames: ALLOWED_DOC_NAMES,
+          invalidDocNames
+        });
+      }
+
+      /***********************
+       * FILE COUNT CHECK
+       ***********************/
       if (docNames.length !== req.files.length) {
         return res.status(400).json({
           success: false,
           statusCode: 400,
+          errorCode: ERROR_CODES.FILE_COUNT_MISMATCH,
           message: "doc_name count must match number of uploaded files"
         });
       }
 
+      /***********************
+       * DB INSERT
+       ***********************/
       const values = req.files.map((file, index) => [
         lan.trim(),
         file.filename,
@@ -369,10 +449,13 @@ router.post(
       db.query(sql, [values], (err) => {
         if (err) {
           console.error("❌ Document Insert Error:", err);
+
           return res.status(500).json({
             success: false,
             statusCode: 500,
-            message: "Database insert failed"
+            errorCode: ERROR_CODES.DB_INSERT_FAILED,
+            message: "Database insert failed",
+            error: err.message
           });
         }
 
@@ -391,16 +474,17 @@ router.post(
       });
     } catch (error) {
       console.error("❌ Upload Error:", error);
+
       return res.status(500).json({
         success: false,
         statusCode: 500,
-        message: "Internal server error"
+        errorCode: ERROR_CODES.INTERNAL_ERROR,
+        message: "Internal server error",
+        error: error.message
       });
     }
   }
 );
-
-
 
 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API /////////////////
