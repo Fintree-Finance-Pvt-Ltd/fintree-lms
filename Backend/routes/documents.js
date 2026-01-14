@@ -169,29 +169,157 @@ router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, 
 //   "IMEI_NUMBER_PHOTO",
 //   "OTHER"
 // ];
+// const normalizeDocName = (name) => {
+//   if (!name || typeof name !== "string") return null;
+
+//   return name
+//     .trim()
+//     .toUpperCase()
+//     .replace(/\s+/g, "_");
+// };
+
+// router.post(
+//   "/zypay/upload-documents",
+//   verifyApiKey,
+//   upload.array("documents", 10),
+//   async (req, res) => {
+//     try {
+//       const { lan, doc_name, doc_password } = req.body;
+
+//       // 🔴 Validation
+//       if (!lan || !doc_name || !req.files || req.files.length === 0) {
+//         return res.status(400).json({
+//           success: false,
+//           statusCode: 400,
+//           message: "LAN, doc_name, and documents are required"
+//         });
+//       }
+
+//       // 🧠 Normalize doc_name(s)
+//       const docNames = Array.isArray(doc_name)
+//         ? doc_name.map(normalizeDocName)
+//         : [normalizeDocName(doc_name)];
+
+//       if (docNames.some((d) => !d)) {
+//         return res.status(400).json({
+//           success: false,
+//           statusCode: 400,
+//           message: "Invalid doc_name format"
+//         });
+//       }
+
+//       if (docNames.length !== req.files.length) {
+//         return res.status(400).json({
+//           success: false,
+//           statusCode: 400,
+//           message: "doc_name count must match number of uploaded files"
+//         });
+//       }
+
+//       const values = req.files.map((file, index) => [
+//         lan.trim(),
+//         file.filename,
+//         file.originalname.trim(),
+//         doc_password || null,
+//         docNames[index], // ✅ different per file
+//         new Date()
+//       ]);
+
+//       const sql = `
+//         INSERT INTO loan_documents
+//         (
+//           lan,
+//           file_name,
+//           original_name,
+//           doc_password,
+//           doc_name,
+//           uploaded_at
+//         )
+//         VALUES ?
+//       `;
+
+//       db.query(sql, [values], (err) => {
+//         if (err) {
+//           console.error("❌ Document Insert Error:", err);
+
+//           return res.status(500).json({
+//             success: false,
+//             statusCode: 500,
+//             message: "Database insert failed",
+//             error: err.message
+//           });
+//         }
+
+//         return res.status(200).json({
+//           success: true,
+//           statusCode: 200,
+//           message: "Documents uploaded successfully",
+//           data: {
+//             lan: lan.trim(),
+//             files: req.files.map((f, i) => ({
+//               original_name: f.originalname,
+//               doc_name: docNames[i]
+//             }))
+//           }
+//         });
+//       });
+//     } catch (error) {
+//       console.error("❌ Upload Error:", error);
+
+//       return res.status(500).json({
+//         success: false,
+//         statusCode: 500,
+//         message: "Internal server error",
+//         error: error.message
+//       });
+//     }
+//   }
+// );
+
+
 const normalizeDocName = (name) => {
   if (!name || typeof name !== "string") return null;
 
-  return name
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "_");
+  return name.trim().toUpperCase().replace(/\s+/g, "_");
 };
 
 router.post(
   "/zypay/upload-documents",
   verifyApiKey,
-  upload.array("documents", 10),
+  (req, res, next) => {
+    upload.array("documents", 10)(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          return res.status(400).json({
+            success: false,
+            statusCode: 400,
+            message: err.message,
+            code: err.code
+          });
+        }
+        return next(err);
+      }
+      next();
+    });
+  },
   async (req, res) => {
     try {
       const { lan, doc_name, doc_password } = req.body;
 
       // 🔴 Validation
-      if (!lan || !doc_name || !req.files || req.files.length === 0) {
+      if (!lan || !doc_name) {
         return res.status(400).json({
           success: false,
           statusCode: 400,
-          message: "LAN, doc_name, and documents are required"
+          message: "LAN and doc_name are required"
+        });
+      }
+
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          statusCode: 400,
+          message: "No documents uploaded"
         });
       }
 
@@ -221,7 +349,7 @@ router.post(
         file.filename,
         file.originalname.trim(),
         doc_password || null,
-        docNames[index], // ✅ different per file
+        docNames[index],
         new Date()
       ]);
 
@@ -241,12 +369,10 @@ router.post(
       db.query(sql, [values], (err) => {
         if (err) {
           console.error("❌ Document Insert Error:", err);
-
           return res.status(500).json({
             success: false,
             statusCode: 500,
-            message: "Database insert failed",
-            error: err.message
+            message: "Database insert failed"
           });
         }
 
@@ -265,12 +391,10 @@ router.post(
       });
     } catch (error) {
       console.error("❌ Upload Error:", error);
-
       return res.status(500).json({
         success: false,
         statusCode: 500,
-        message: "Internal server error",
-        error: error.message
+        message: "Internal server error"
       });
     }
   }
