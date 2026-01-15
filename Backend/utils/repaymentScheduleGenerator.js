@@ -1041,85 +1041,183 @@ const generateRepaymentScheduleHEYEVBattery = async (
 };
 ///////////////////////////////////////
 ///////////////////////// ZYPAY LOAN RPS /////////////////////////
+// const generateRepaymentScheduleZypay = async (
+//   conn,           // Transaction connection
+//   lan,
+//   loanAmount,
+//   interestRate,   // Annual % e.g. 45
+//   tenure,         // in months
+//   disbursementDate,
+//   product,
+//   lender
+// ) => {
+//   // 1️⃣ Convert annual → monthly rate
+//   const monthlyRate = (interestRate / 100) / 12;
+
+//   // 2️⃣ Compute EMI using PMT formula
+//   const emi = Math.round(
+//     (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
+//       (Math.pow(1 + monthlyRate, tenure) - 1)
+//   );
+
+//   console.log(`✅ EMI (calculated for ${lan}):`, emi);
+
+//   // 3️⃣ Get first due date
+//   const firstDueRaw = getFirstEmiDate(disbursementDate, null, lender, product);
+//   const firstDueDate = new Date(firstDueRaw);
+//   if (Number.isNaN(firstDueDate.getTime())) {
+//     throw new Error(`Invalid first due date from getFirstEmiDate: ${firstDueRaw}`);
+//   }
+
+//   // 4️⃣ Generate RPS using PMT/IPMT logic
+//   let openingPrincipal = loanAmount;
+//   let dueDate = new Date(firstDueDate);
+//   const rpsData = [];
+
+//   for (let i = 1; i <= tenure; i++) {
+//     const interest = Math.round(openingPrincipal * monthlyRate);
+//     let principal = emi - interest;
+
+//     // ✅ Final month adjustment to close the loan cleanly
+//     if (i === tenure) {
+//       principal = openingPrincipal;
+//     }
+
+//     const closingPrincipal = Math.max(0, openingPrincipal - principal);
+//     const actualEmi = Math.round(principal + interest);
+
+//     // ✅ Remaining fields same as this installment’s EMI, interest & principal
+//     const remainingPrincipal = principal;
+//     const remainingInterest = interest;
+//     const remainingEmi = actualEmi;
+
+//     // Push full RPS data row
+//     rpsData.push([
+//       lan,
+//       dueDate.toISOString().split("T")[0], // due_date
+//       actualEmi,                           // emi
+//       interest,                            // interest
+//       principal,                           // principal
+//       remainingPrincipal,                  // remaining_principal = principal
+//       remainingInterest,                   // remaining_interest = interest
+//       remainingEmi,                        // remaining_emi = emi
+//       openingPrincipal,                    // opening
+//       closingPrincipal,                    // closing
+//       "Pending",                           // status
+//     ]);
+
+//     // Prepare next iteration
+//     openingPrincipal = closingPrincipal;
+//     dueDate.setMonth(dueDate.getMonth() + 1);
+//   }
+
+//   // 5️⃣ Insert into manual_rps_zypay (include all required fields)
+//   await conn.query(
+//     `INSERT INTO manual_rps_zypay
+//      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
+//      VALUES ?`,
+//     [rpsData]
+//   );
+
+//   // 6️⃣ Update EMI in loan_booking_zypay_customer
+//   await conn.query(
+//     `UPDATE loan_booking_zypay_customer
+//      SET emi_amount = ?
+//      WHERE lan = ?`,
+//     [emi, lan]
+//   );
+
+//   console.log(`✅ ZYPAY RPS generated  for ${lan}`);
+// };
+
 const generateRepaymentScheduleZypay = async (
-  conn,           // Transaction connection
+  conn,
   lan,
   loanAmount,
-  interestRate,   // Annual % e.g. 45
-  tenure,         // in months
+  interestRate,   // Annual % e.g. 36
+  tenure,         // months
   disbursementDate,
   product,
   lender
 ) => {
-  // 1️⃣ Convert annual → monthly rate
-  const monthlyRate = (interestRate / 100) / 12;
+  const annualRate = interestRate / 100;
 
-  // 2️⃣ Compute EMI using PMT formula
+  // EMI (PMT formula, rounded)
+  const monthlyRate = annualRate / 12;
   const emi = Math.round(
     (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
-      (Math.pow(1 + monthlyRate, tenure) - 1)
+    (Math.pow(1 + monthlyRate, tenure) - 1)
   );
 
-  console.log(`✅ EMI (calculated for ${lan}):`, emi);
-
-  // 3️⃣ Get first due date
+  // First EMI date
   const firstDueRaw = getFirstEmiDate(disbursementDate, null, lender, product);
   const firstDueDate = new Date(firstDueRaw);
   if (Number.isNaN(firstDueDate.getTime())) {
-    throw new Error(`Invalid first due date from getFirstEmiDate: ${firstDueRaw}`);
+    throw new Error(`Invalid first due date: ${firstDueRaw}`);
   }
 
-  // 4️⃣ Generate RPS using PMT/IPMT logic
+  const disbDate = new Date(disbursementDate);
+
+  const diffDays = (from, to) =>
+    Math.max(0, Math.ceil((to - from) / (1000 * 60 * 60 * 24)));
+
   let openingPrincipal = loanAmount;
   let dueDate = new Date(firstDueDate);
+  let periodStart = new Date(disbDate);
+
   const rpsData = [];
 
   for (let i = 1; i <= tenure; i++) {
-    const interest = Math.round(openingPrincipal * monthlyRate);
-    let principal = emi - interest;
+    // ✅ Interest on ACTUAL DAYS / 365
+    const days = diffDays(periodStart, dueDate);
 
-    // ✅ Final month adjustment to close the loan cleanly
+    const interest = Math.round(
+      openingPrincipal * annualRate * (days / 365)
+    );
+
+    let principal = Math.round(emi - interest);
+
+    // ✅ Last EMI adjustment
     if (i === tenure) {
-      principal = openingPrincipal;
+      principal = Math.round(openingPrincipal);
     }
 
-    const closingPrincipal = Math.max(0, openingPrincipal - principal);
+    const closingPrincipal = Math.max(
+      0,
+      Math.round(openingPrincipal - principal)
+    );
+
     const actualEmi = Math.round(principal + interest);
 
-    // ✅ Remaining fields same as this installment’s EMI, interest & principal
-    const remainingPrincipal = principal;
-    const remainingInterest = interest;
-    const remainingEmi = actualEmi;
-
-    // Push full RPS data row
     rpsData.push([
       lan,
-      dueDate.toISOString().split("T")[0], // due_date
-      actualEmi,                           // emi
-      interest,                            // interest
-      principal,                           // principal
-      remainingPrincipal,                  // remaining_principal = principal
-      remainingInterest,                   // remaining_interest = interest
-      remainingEmi,                        // remaining_emi = emi
-      openingPrincipal,                    // opening
-      closingPrincipal,                    // closing
-      "Pending",                           // status
+      dueDate.toISOString().split("T")[0],
+      actualEmi,
+      interest,
+      principal,
+      principal,
+      interest,
+      actualEmi,
+      openingPrincipal,
+      closingPrincipal,
+      "Pending",
     ]);
 
-    // Prepare next iteration
+    // Move to next period
     openingPrincipal = closingPrincipal;
+    periodStart = new Date(dueDate);
     dueDate.setMonth(dueDate.getMonth() + 1);
   }
 
-  // 5️⃣ Insert into manual_rps_zypay (include all required fields)
   await conn.query(
     `INSERT INTO manual_rps_zypay
-     (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
+     (lan, due_date, emi, interest, principal,
+      remaining_principal, remaining_interest, remaining_emi,
+      opening, closing, status)
      VALUES ?`,
     [rpsData]
   );
 
-  // 6️⃣ Update EMI in loan_booking_zypay_customer
   await conn.query(
     `UPDATE loan_booking_zypay_customer
      SET emi_amount = ?
@@ -1127,7 +1225,7 @@ const generateRepaymentScheduleZypay = async (
     [emi, lan]
   );
 
-  console.log(`✅ ZYPAY RPS generated  for ${lan}`);
+  console.log(`✅ ZYPAY RPS generated (365 basis) for ${lan}`);
 };
 
 
