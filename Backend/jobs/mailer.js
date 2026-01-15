@@ -1,4 +1,6 @@
 const nodemailer = require("nodemailer");
+const fs = require("fs");
+const path = require("path");
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -95,9 +97,59 @@ Fintree Finance Pvt Ltd`;
   return transporter.sendMail(mailOptions);
 }
 
+async function sendWelcomeKitMail({
+  to,
+  customerName,
+  lan,
+  accountNumber,
+  pdfPath,
+}) {
+  if (!to) throw new Error("Missing recipient email");
+  if (!pdfPath || !fs.existsSync(pdfPath)) {
+    throw new Error("Signed PDF not found for Welcome Kit mail");
+  }
+
+  const subject = `Welcome to Fintree Finance – Loan Account ${accountNumber || lan}`;
+
+  const text = `
+Dear Customer,
+
+Greeting from Fintree Finance Private Limited.
+
+We thank you for choosing Fintree Finance Private Limited to serve your financial needs.
+We are happy to have you as our valued customer.
+
+We are enclosing herewith Welcome Kit for your Loan Account - ${accountNumber || "XXXXXXXXXXXX"}.
+
+We value your relationship with us and assure you of the best services always.
+
+Your Sincerely,
+
+For Fintree Finance Private Limited
+`.trim();
+
+  const mailOptions = {
+    from: process.env.FROM_EMAIL,
+    to,
+    subject,
+    text,
+    attachments: [
+      {
+        filename: path.basename(pdfPath),
+        path: pdfPath,
+        contentType: "application/pdf",
+      },
+    ],
+  };
+
+  return transporter.sendMail(mailOptions);
+}
+
+
 module.exports = { 
   sendLoanStatusMail,
   sendAadhaarKycMail,
   sendEnachMandateMail,
+  sendWelcomeKitMail,
 };
 
