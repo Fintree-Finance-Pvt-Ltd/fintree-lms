@@ -9,6 +9,7 @@ const {
   performFuzzyMatch,
   createMandate,
 } = require("../../services/enachService");
+const { sendWelcomeKitMail} = require("../../jobs/mailer");
 const router = express.Router();
 
 const uploadPath = path.join(__dirname, "../../uploads");
@@ -517,6 +518,8 @@ function parseDigioError(err) {
 //     return res.status(200).send("error-logged");
 //   }
 // });
+
+
 router.post("/esign-webhook", async (req, res) => {
   try {
     const body = req.body;
@@ -655,6 +658,22 @@ router.post("/esign-webhook", async (req, res) => {
       const customer = customers[0];
 
       await connection.commit();
+
+      if (type === "AGREEMENT" && lan.startsWith("ZYP")) {
+  sendWelcomeKitMail({
+    to: customer.email_id,
+    customerName: customer.customer_name,
+    lan,
+    accountNumber: customer.lan,
+    pdfPath: savePath,
+  })
+    .then(() =>
+      console.log("📨 Welcome Kit email sent:", customer.email_id)
+    )
+    .catch(err =>
+      console.error("⚠️ Welcome Kit mail failed:", err.message)
+    );
+}
 
       /**
        * 🔁 Trigger eNACH ONLY after agreement
