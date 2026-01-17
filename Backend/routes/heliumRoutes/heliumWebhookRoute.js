@@ -683,7 +683,7 @@ router.post("/esign-webhook", async (req, res) => {
   account_no: customer.account_number,
   ifsc: customer.ifsc,
   bank_name: customer.bank_name,
-  customer_name: customer.customer_name,
+  customer_name: customer.name_in_bank,
 });
 
       }

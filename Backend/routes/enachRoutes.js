@@ -593,7 +593,7 @@ router.post("/create-mandate", authenticateUser, async (req, res) => {
       account_no,
       ifsc,
       account_type,
-      customer_name,
+      name_in_bank,
       bank_name,
     } = req.body;
 
@@ -617,7 +617,7 @@ router.post("/create-mandate", authenticateUser, async (req, res) => {
         is_recurring: true,
         frequency: frequency || "Monthly",
         management_category: "L001",
-        customer_name,
+        name_in_bank,
         customer_account_number: account_no,
         customer_account_type: account_type || "savings",
         destination_bank_id: ifsc,
