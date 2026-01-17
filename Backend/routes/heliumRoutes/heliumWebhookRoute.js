@@ -905,15 +905,16 @@ router.post("/esign-webhook", async (req, res) => {
           targetText: customer.name_in_bank,
         });
 
-        await createMandate({
-          lan,
-          customer_identifier: customer.mobile_number,
-          amount: customer.loan_amount,
-          account_no: customer.account_number,
-          ifsc: customer.ifsc,
-          bank_name: customer.bank_name,
-          customer_name: customer.customer_name,
-        });
+       await createMandate({
+  lan,
+  customer_identifier: customer.mobile_number, // PAN only
+  amount: customer.loan_amount,
+  account_no: customer.account_number,
+  ifsc: customer.ifsc,
+  bank_name: customer.bank_name,
+  customer_name: customer.name_in_bank,
+});
+
       }
 
     } catch (dbErr) {

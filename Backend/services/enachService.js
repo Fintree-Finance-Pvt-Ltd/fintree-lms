@@ -107,7 +107,7 @@ async function createMandate(input) {
     amount,
     account_no,
     ifsc,
-    customer_name,
+    name_in_bank,
     bank_name,
      account_type = "SAVINGS", // ✅ FIX
   } = input;
@@ -144,7 +144,7 @@ async function createMandate(input) {
       is_recurring: true,
       frequency: "Monthly", // enforced
       management_category: "L001",
-      customer_name,
+      name_in_bank,
       customer_account_number: account_no,
       customer_account_type: account_type, // enforced
       destination_bank_id: ifsc,
