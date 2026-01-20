@@ -130,6 +130,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     const [[loan]] = await db.promise().query(
       `
       SELECT 
+        bank_name,
         name_in_bank,
         loan_amount,
         account_number,
@@ -222,24 +223,59 @@ console.log("raw data sss",raw);
         UPDATE quick_transfers
         SET
           status = 'FAILED',
+          payout_status = 'FAILED',
           failure_reason = ?,
           raw_api_response = ?,
           updated_at = NOW()
         WHERE unique_request_number = ?
         `,
         [
-          response.data.message || "API_FAILURE",
+          response.data?.message || "API_FAILURE",
           JSON.stringify(response.data),
           unique_request_number,
         ]
       );
 
-      return { success: false, unique_request_number };
+      return {
+        success: false,
+        unique_request_number,
+        payout_status: "FAILED",
+      };
     }
 
-    /* 6️⃣ ACCEPTED / PENDING */
-     const tr = response.data.data.transfer_request;
+     /* =================================================
+       6️⃣ HANDLE QUEUED / PENDING PAYOUT
+    ================================================= */
+    const tr = response.data?.data?.transfer_request;
 
+    if (!tr) {
+      await db.promise().query(
+        `
+        UPDATE quick_transfers
+        SET
+          status = 'PENDING',
+          payout_status = 'PENDING',
+          raw_api_response = ?,
+          updated_at = NOW()
+        WHERE unique_request_number = ?
+        `,
+        [
+          JSON.stringify(response.data),
+          unique_request_number,
+        ]
+      );
+
+      return {
+        success: true,
+        unique_request_number,
+        payout_status: "PENDING",
+        message: response.data?.data?.message || "PAYOUT_QUEUED",
+      };
+    }
+
+    /* =================================================
+       7️⃣ HANDLE ACCEPTED PAYOUT
+    ================================================= */
     await db.promise().query(
       `
       UPDATE quick_transfers
@@ -269,6 +305,7 @@ console.log("raw data sss",raw);
       unique_request_number,
       payout_status: tr.status,
     };
+
   } catch (err) {
     console.error("approveAndInitiatePayout error:", err);
     throw err;
