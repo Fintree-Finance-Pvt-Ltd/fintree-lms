@@ -185,7 +185,7 @@ console.log("raw data sss",raw);
       {
         key: process.env.EASEBUZZ_KEY,
         beneficiary_type: "bank_account",
-        beneficiary_name: loan.name_in_bank
+        beneficiary_bank_name: loan.name_in_bank
           .trim()
           .replace(/\s+/g, " ")
           .toUpperCase(),
