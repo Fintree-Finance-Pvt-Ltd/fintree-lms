@@ -1100,7 +1100,6 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
       "lender",
       "Agreement Date",
       "CIBIL Score",
-      "GURANTOR CIBIL Score",
       "Relationship with Borrower",
       "Battery Name",
       "Battery Type",
