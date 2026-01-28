@@ -259,7 +259,7 @@ console.log("raw data sss",raw);
     tr.status,                                 // payout_status
     tr.id,                                     // easebuzz_transfer_id
     tr.queue_on_low_balance ?? 0,               // queue_on_low_balance
-    tr.transfer_date ? new Date(tr.transfer_date) : null, // transfer_date
+    tr.transfer_date ? tr.transfer_date.split('T')[0] : null, // ✅ DATE ONLY
     JSON.stringify(response.data),              // raw_api_response
     tr.unique_transaction_reference || null,    // utr
     unique_request_number                       // WHERE condition
