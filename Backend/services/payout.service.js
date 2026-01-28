@@ -242,6 +242,13 @@ console.log("raw data sss",raw);
     /* 6️⃣ ACCEPTED / PENDING */
      const tr = response.data.data.transfer_request;
 
+     console.log("✅ Easebuzz transfer accepted", {
+      lan,
+      status: tr.status,
+      utr: tr.unique_transaction_reference,
+      transfer_date: tr.transfer_date,
+    });
+
     await db.promise().query(
       `
   UPDATE quick_transfers
@@ -267,21 +274,48 @@ console.log("raw data sss",raw);
     unique_request_number                       // WHERE condition
   ]
 );
-  /* =================================================
+
+ console.log("💾 quick_transfers UPDATED", {
+      lan,
+      unique_request_number,
+      payout_status: tr.status,
+    });
+ /* =================================================
        🔥 AUTO DISBURSEMENT – EMI CLUB ONLY
     ================================================= */
-    if (
-      lan.startsWith("FINE") &&
-      tr.status === "SUCCESS" &&
-      tr.unique_transaction_reference &&
-      tr.transfer_date
-    ) {
+    if (!lan.startsWith("FINE")) {
+      console.log("⏭️ Skipping auto-disbursement (not EMI CLUB)", { lan });
+    } else if (tr.status !== "SUCCESS") {
+      console.log("⏭️ Skipping auto-disbursement (status not SUCCESS)", {
+        lan,
+        status: tr.status,
+      });
+    } else if (!tr.unique_transaction_reference || !tr.transfer_date) {
+      console.warn("⚠️ Missing UTR or transfer date", {
+        lan,
+        utr: tr.unique_transaction_reference,
+        transfer_date: tr.transfer_date,
+      });
+    } else {
+      console.log("🔥 EMI CLUB auto-disbursement START", {
+        lan,
+        utr: tr.unique_transaction_reference,
+      });
+
       await processEmiClubDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
+
+      console.log("✅ EMI CLUB auto-disbursement DONE", { lan });
     }
+
+    console.log("🎉 PAYOUT FLOW COMPLETE", {
+      lan,
+      unique_request_number,
+      payout_status: tr.status,
+    });
 
     return {
       success: true,
@@ -289,7 +323,11 @@ console.log("raw data sss",raw);
       payout_status: tr.status,
     };
   } catch (err) {
-    console.error("approveAndInitiatePayout error:", err);
+    console.error("🔥 approveAndInitiatePayout ERROR", {
+      lan,
+      error: err.message,
+      stack: err.stack,
+    });
     throw err;
   }
 };
