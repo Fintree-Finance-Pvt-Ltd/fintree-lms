@@ -122,6 +122,8 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const db = require("../config/db");
+const { processEmiClubDisbursement } = require("../services/processEmiClubDisbursement");
+
 
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
   try {
@@ -265,6 +267,21 @@ console.log("raw data sss",raw);
     unique_request_number                       // WHERE condition
   ]
 );
+  /* =================================================
+       🔥 AUTO DISBURSEMENT – EMI CLUB ONLY
+    ================================================= */
+    if (
+      lan.startsWith("FINE") &&
+      tr.status === "SUCCESS" &&
+      tr.unique_transaction_reference &&
+      tr.transfer_date
+    ) {
+      await processEmiClubDisbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
+    }
 
     return {
       success: true,
