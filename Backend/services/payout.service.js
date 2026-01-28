@@ -242,15 +242,19 @@ console.log("raw data sss",raw);
     /* 6️⃣ ACCEPTED / PENDING */
      const tr = response.data.data.transfer_request;
 
-     console.log("✅ Easebuzz transfer accepted", {
-      lan,
-      status: tr.status,
-      utr: tr.unique_transaction_reference,
-      transfer_date: tr.transfer_date,
-    });
+// 🔥 FIX
+const normalizedStatus = String(tr.status).toUpperCase();
 
-    await db.promise().query(
-      `
+console.log("✅ Easebuzz transfer accepted", {
+  lan,
+  raw_status: tr.status,
+  normalized_status: normalizedStatus,
+  utr: tr.unique_transaction_reference,
+  transfer_date: tr.transfer_date,
+});
+
+await db.promise().query(
+  `
   UPDATE quick_transfers
   SET
     status = ?,
@@ -264,58 +268,59 @@ console.log("raw data sss",raw);
   WHERE unique_request_number = ?
   `,
   [
-    tr.status,                                 // status
-    tr.status,                                 // payout_status
-    tr.id,                                     // easebuzz_transfer_id
-    tr.queue_on_low_balance ?? 0,               // queue_on_low_balance
-    tr.transfer_date ? tr.transfer_date.split('T')[0] : null, // ✅ DATE ONLY
-    JSON.stringify(response.data),              // raw_api_response
-    tr.unique_transaction_reference || null,    // utr
-    unique_request_number                       // WHERE condition
+    normalizedStatus,
+    normalizedStatus,
+    tr.id,
+    tr.queue_on_low_balance ?? 0,
+    tr.transfer_date ? tr.transfer_date.split("T")[0] : null,
+    JSON.stringify(response.data),
+    tr.unique_transaction_reference || null,
+    unique_request_number,
   ]
 );
 
- console.log("💾 quick_transfers UPDATED", {
-      lan,
-      unique_request_number,
-      payout_status: tr.status,
-    });
- /* =================================================
-       🔥 AUTO DISBURSEMENT – EMI CLUB ONLY
-    ================================================= */
-    if (!lan.startsWith("FINE")) {
-      console.log("⏭️ Skipping auto-disbursement (not EMI CLUB)", { lan });
-    } else if (tr.status !== "SUCCESS") {
-      console.log("⏭️ Skipping auto-disbursement (status not SUCCESS)", {
-        lan,
-        status: tr.status,
-      });
-    } else if (!tr.unique_transaction_reference || !tr.transfer_date) {
-      console.warn("⚠️ Missing UTR or transfer date", {
-        lan,
-        utr: tr.unique_transaction_reference,
-        transfer_date: tr.transfer_date,
-      });
-    } else {
-      console.log("🔥 EMI CLUB auto-disbursement START", {
-        lan,
-        utr: tr.unique_transaction_reference,
-      });
+console.log("💾 quick_transfers UPDATED", {
+  lan,
+  unique_request_number,
+  payout_status: normalizedStatus,
+});
 
-      await processEmiClubDisbursement({
-        lan,
-        disbursementUTR: tr.unique_transaction_reference,
-        disbursementDate: new Date(tr.transfer_date),
-      });
+/* =================================================
+   🔥 AUTO DISBURSEMENT – EMI CLUB ONLY
+================================================= */
+if (!lan.startsWith("FINE")) {
+  console.log("⏭️ Skipping auto-disbursement (not EMI CLUB)", { lan });
+} else if (normalizedStatus !== "SUCCESS") {
+  console.log("⏭️ Skipping auto-disbursement (status not SUCCESS)", {
+    lan,
+    normalizedStatus,
+  });
+} else if (!tr.unique_transaction_reference || !tr.transfer_date) {
+  console.warn("⚠️ Missing UTR or transfer date", {
+    lan,
+    utr: tr.unique_transaction_reference,
+    transfer_date: tr.transfer_date,
+  });
+} else {
+  console.log("🔥 EMI CLUB auto-disbursement START", {
+    lan,
+    utr: tr.unique_transaction_reference,
+  });
 
-      console.log("✅ EMI CLUB auto-disbursement DONE", { lan });
-    }
+  await processEmiClubDisbursement({
+    lan,
+    disbursementUTR: tr.unique_transaction_reference,
+    disbursementDate: new Date(tr.transfer_date),
+  });
 
-    console.log("🎉 PAYOUT FLOW COMPLETE", {
-      lan,
-      unique_request_number,
-      payout_status: tr.status,
-    });
+  console.log("✅ EMI CLUB auto-disbursement DONE", { lan });
+}
+
+console.log("🎉 PAYOUT FLOW COMPLETE", {
+  lan,
+  unique_request_number,
+  payout_status: normalizedStatus,
+});
 
     return {
       success: true,
