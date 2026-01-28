@@ -61,6 +61,10 @@ router.post("/payout", async (req, res) => {
   try {
     const { event, data } = req.body;
 
+    console.log("Received Payout Webhook:", req.body);
+
+
+
     /* ==============================
        1️⃣ Verify webhook signature
     ============================== */

@@ -13,6 +13,10 @@ exports.verifyWebhookHash = (data) => {
     process.env.EASEBUZZ_SALT,
   ].join("|");
 
+  console.log("Raw String for Hashing:", raw);
+
   const hash = crypto.createHash("sha512").update(raw).digest("hex");
+  console.log("Computed Hash:", hash);
+  console.log("Received Hash:", data.Authorization);
   return hash === data.Authorization;
 };
