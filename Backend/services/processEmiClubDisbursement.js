@@ -66,9 +66,13 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
       conn,
       lan,
       loan.loan_amount,
+      null,
       loan.interest_rate,
       loan.loan_tenure,
       disbursementDate,
+      null,
+      null,
+      null,
       loan.product,
       loan.lender
     );
