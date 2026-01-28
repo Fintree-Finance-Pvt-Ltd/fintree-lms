@@ -260,9 +260,9 @@ console.log("raw data sss",raw);
         tr.id,
         tr.queue_on_low_balance ?? 0,
         tr.transfer_date ? new Date(tr.transfer_date) : null,
-        tr.unique_transaction_reference || null,
         JSON.stringify(response.data),
         unique_request_number,
+         tr.unique_transaction_reference || null
       ]
     );
 
