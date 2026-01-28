@@ -66,13 +66,9 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
       conn,
       lan,
       loan.loan_amount,
-      loan.emi_day,
       loan.interest_rate,
       loan.loan_tenure,
       disbursementDate,
-      null, // subvention_amount
-      null, // no_of_advance_emis
-      null, // salary_day
       loan.product,
       loan.lender
     );
