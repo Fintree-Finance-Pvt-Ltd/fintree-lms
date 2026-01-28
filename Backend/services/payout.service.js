@@ -242,29 +242,29 @@ console.log("raw data sss",raw);
 
     await db.promise().query(
       `
-      UPDATE quick_transfers
-      SET
-        status = ?,
-        payout_status = ?,
-        easebuzz_transfer_id = ?,
-        queue_on_low_balance = ?,
-        transfer_date = ?,
-        raw_api_response = ?,
-        utr = ?,
-        updated_at = NOW()
-      WHERE unique_request_number = ?
-      `,
-      [
-        tr.status,
-        tr.status,
-        tr.id,
-        tr.queue_on_low_balance ?? 0,
-        tr.transfer_date ? new Date(tr.transfer_date) : null,
-        JSON.stringify(response.data),
-        unique_request_number,
-         tr.unique_transaction_reference || null
-      ]
-    );
+  UPDATE quick_transfers
+  SET
+    status = ?,
+    payout_status = ?,
+    easebuzz_transfer_id = ?,
+    queue_on_low_balance = ?,
+    transfer_date = ?,
+    raw_api_response = ?,
+    utr = ?,
+    updated_at = NOW()
+  WHERE unique_request_number = ?
+  `,
+  [
+    tr.status,                                 // status
+    tr.status,                                 // payout_status
+    tr.id,                                     // easebuzz_transfer_id
+    tr.queue_on_low_balance ?? 0,               // queue_on_low_balance
+    tr.transfer_date ? new Date(tr.transfer_date) : null, // transfer_date
+    JSON.stringify(response.data),              // raw_api_response
+    tr.unique_transaction_reference || null,    // utr
+    unique_request_number                       // WHERE condition
+  ]
+);
 
     return {
       success: true,
