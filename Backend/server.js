@@ -22,6 +22,7 @@ const enachRoutes = require("./routes/enachRoutes");
 const esignRoutes = require("./routes/esignRoutes");
 const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute")
 const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
+const autoApproveIfAllVerified = require("./services/heliumValidationEngine");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
@@ -134,6 +135,26 @@ app.post('/api/cibil/generate-pending', async (req, res) => {
     res.status(500).json({ ok: false, error: e.message });
   }
 });
+
+app.post("/api/runheliumvalidations", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+
+    await autoApproveIfAllVerified(lan);
+
+    res.json({
+      ok: true,
+      message: `Helium validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 
 app.get("/api/test-sms", async (req, res) => {
   try {
