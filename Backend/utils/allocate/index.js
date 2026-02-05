@@ -75,9 +75,10 @@ const mergeAllocations = (a, b) => {
 const allocateRepaymentByLAN = async (lan, payment) => {
   if (lan.startsWith("EV") || lan.startsWith("WCTL")) {
     return allocateEV(lan, payment);
-  }else if (lan.startsWith("HEYEV")) {
+  }else if (lan.startsWith("HEYEV") || lan.startsWith("HEYBF") ) {
     return allocateHEYEV(lan, payment);
-  }else if (lan.startsWith("FINS")) {
+  }
+  else if (lan.startsWith("FINS")) {
     return allocateFinso(lan, payment);
   } else if (lan.startsWith("BL")) {
     return allocateBL(lan, payment);

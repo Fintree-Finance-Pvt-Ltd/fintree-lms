@@ -24,10 +24,9 @@ const allocateHEYEV = async (lan, payment) => {
   const lanKey = String(lan || "").trim().toUpperCase();
 
   let emiTable, loanTable;
-  if (lanKey.startsWith("WCTL")) {
-    emiTable = "manual_rps_wctl";
-    loanTable = "loan_bookings_wctl";
-  
+  if (lanKey.startsWith("HEYBF")) {
+    emiTable = "manual_rps_hey_ev_battery";
+    loanTable = "loan_booking_hey_ev_battery";
   } else {
     // default EV loans
     emiTable = "manual_rps_hey_ev";
