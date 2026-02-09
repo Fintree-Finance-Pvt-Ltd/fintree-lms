@@ -38,6 +38,7 @@ const allocateFinso = require("./allocateFinso");
 const allocateHEYEV = require("./allocateHeyEV");
 const allocateCirclePE = require("./allocateCirclePE");
 const allocateEmiClub = require ("./allocateEmiClub");
+const allocateHelium = require ("./allocateHelium");
 const allocateGQFSFFintree = require("./allocateGQFSFFintree");
 
 
@@ -80,6 +81,10 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   }
   else if (lan.startsWith("FINS")) {
     return allocateFinso(lan, payment);
+  }
+    else if (lan.startsWith("HEL")) {
+    return allocateHelium(lan, payment);
+
   } else if (lan.startsWith("BL")) {
     return allocateBL(lan, payment);
     } else if (lan.startsWith("FINE")) {
