@@ -3219,6 +3219,61 @@ const db = require("../config/db");
 const router = express.Router();
 const nodemailer = require("nodemailer");
 const XLSX = require("xlsx");
+// Redis cache setup
+const redis = require("redis");
+const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+const REDIS_TTL = Number(process.env.REDIS_CACHE_TTL) || 60; // seconds
+let redisClient;
+(async () => {
+  try {
+    redisClient = redis.createClient({ url: REDIS_URL });
+    redisClient.on("error", (e) => console.error("Redis Client Error", e));
+    await redisClient.connect();
+    console.log("Redis connected");
+  } catch (e) {
+    console.error("Redis connection failed:", e);
+  }
+})();
+
+// Simple cache middleware: key = dashboard|METHOD|baseUrl|path|body-or-query
+function cacheMiddleware(ttl = REDIS_TTL) {
+  return async (req, res, next) => {
+    if (!redisClient) return next();
+    const keyParts = ["dashboard", req.method, req.baseUrl || "", req.path || ""];
+    if (req.method === "GET") keyParts.push(JSON.stringify(req.query || {}));
+    else keyParts.push(JSON.stringify(req.body || {}));
+    const key = keyParts.join("|");
+    try {
+      const cached = await redisClient.get(key);
+      if (cached) {
+        res.setHeader("X-Cache", "HIT");
+        return res.json(JSON.parse(cached));
+      }
+
+      const origJson = res.json.bind(res);
+      let sent = false;
+      res.json = (body) => {
+        if (!sent) {
+          try {
+            // set asynchronously, don't await to avoid delaying response
+            redisClient.setEx(key, ttl, JSON.stringify(body)).catch((e) => console.error("Redis setEx error", e));
+          } catch (e) {
+            console.error("Redis setEx sync error", e);
+          }
+          res.setHeader("X-Cache", "MISS");
+          sent = true;
+        }
+        return origJson(body);
+      };
+    } catch (e) {
+      console.error("Redis cache middleware error", e);
+    }
+    next();
+  };
+}
+
+// Enable caching for all routes in this router (adjust TTL via REDIS_CACHE_TTL)
+router.use(cacheMiddleware());
 
 /* ============================ Settings ============================ */
 
