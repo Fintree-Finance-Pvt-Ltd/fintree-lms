@@ -3,16 +3,31 @@ const { generateRepaymentSchedule } = require("../utils/repaymentScheduleGenerat
 const { sendLoanWebhook } = require("../utils/webhook");
 
 async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDate }) {
+   console.log("[EMICLUB][START] Processing disbursement", {
+    lan,
+    disbursementUTR,
+    disbursementDate,
+  });
   // ✅ Only EMI CLUB
   if (!lan || !lan.startsWith("FINE")) return { skipped: true, reason: "NOT_EMICLUB" };
+   console.log("[EMICLUB][SKIP] Not an EMI CLUB loan", { lan });
 
   // ✅ Basic validation
   if (!disbursementUTR || !disbursementDate) {
+
+     console.log("[EMICLUB][SKIP] Missing UTR or Disbursement Date", {
+      disbursementUTR,
+      disbursementDate,
+    });
+
     return { skipped: true, reason: "MISSING_UTR_OR_DATE" };
   }
 
   let conn;
   try {
+
+       console.log("[EMICLUB][DB] Getting DB connection");
+
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
@@ -54,6 +69,14 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
        3) Generate Repayment Schedule (RPS)
        IMPORTANT: pass conn (transaction connection)
     ================================================= */
+ console.log("[EMICLUB][STEP 3] Generating repayment schedule", {
+      lan,
+      amount: loan.loan_amount,
+      interest_rate: loan.interest_rate,
+      tenure: loan.loan_tenure,
+      disbursementDate,
+    });
+
     await generateRepaymentSchedule(
       conn,
       lan,
@@ -72,6 +95,8 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
     /* =================================================
        4) Insert into ev_disbursement_utr
     ================================================= */
+
+      console.log("[EMICLUB][STEP 4] Inserting disbursement UTR");
     await conn.query(
       `
       INSERT INTO ev_disbursement_utr
@@ -81,19 +106,30 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
       [disbursementUTR, disbursementDate, lan]
     );
 
+  console.log("[EMICLUB][STEP 4] Disbursement UTR inserted");
+
     /* =================================================
        5) Update EMI CLUB loan status to Disbursed
     ================================================= */
+
+    console.log("[EMICLUB][STEP 5] Updating loan status to Disbursed", { lan });
     await conn.query(
       `UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?`,
       [lan]
     );
 
+
+        console.log("[EMICLUB][DB] Committing transaction");
     await conn.commit();
 
     /* =================================================
        6) Webhook (do AFTER commit)
     ================================================= */
+      console.log("[EMICLUB][STEP 6] Sending disbursement webhook", {
+      lan,
+      utr: disbursementUTR,
+    });
+
     await sendLoanWebhook({
       external_ref_no: loan.partner_loan_id || null,
       utr: disbursementUTR,
@@ -102,6 +138,8 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
       status: "DISBURSED",
       reject_reason: null,
     });
+
+ console.log("[EMICLUB][SUCCESS] Disbursement completed successfully", { lan });
 
     return { success: true };
   } catch (err) {
