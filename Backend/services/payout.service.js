@@ -299,6 +299,22 @@ await db.promise().query(
   ]
 );
 
+ /* =================================================
+       5) Update EMI CLUB loan status to Disbursed
+    ================================================= */
+
+    console.log("[EMICLUB][STEP 5] Updating loan status to API Approved", { lan });
+    await conn.query(
+      `UPDATE loan_booking_emiclub SET status = 'API_APPROVED' WHERE lan = ?`,
+      [lan]
+    );
+
+
+        console.log("[EMICLUB][DB] Committing transaction");
+    await conn.commit();
+
+
+
 console.log("💾 quick_transfers UPDATED", {
   lan,
   unique_request_number,
