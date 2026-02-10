@@ -325,6 +325,8 @@ if (!lan.startsWith("FINE")) {
   console.log("🔥 EMI CLUB auto-disbursement START", {
     lan,
     utr: tr.unique_transaction_reference,
+    disbursementDate: new Date(tr.transfer_date),
+
   });
 
   await processEmiClubDisbursement({
