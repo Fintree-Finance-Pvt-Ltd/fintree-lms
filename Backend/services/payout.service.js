@@ -305,7 +305,7 @@ await db.promise().query(
 
     console.log("[EMICLUB][STEP 5] Updating loan status to API Approved", { lan });
    await db.promise().query(
-      `UPDATE loan_booking_emiclub SET status = 'API_APPROVED' WHERE lan = ?`,
+      `UPDATE loan_booking_emiclub SET status = 'API Approved' WHERE lan = ?`,
       [lan]
     );
 
