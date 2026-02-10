@@ -129,6 +129,26 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
   try {
     console.log("PAYOUT INIT By Sajag:", lan, table);
 
+    // 0️⃣ Check if LAN already exists in quick_transfers
+const [[existingTransfer]] = await db.promise().query(
+  `
+  SELECT lan
+  FROM quick_transfers
+  WHERE lan = ?
+  LIMIT 1
+  `,
+  [lan]
+);
+
+if (existingTransfer) {
+  console.log(`⛔ Payout already initiated earlier for LAN: ${lan}`);
+  return {
+    success: false,
+    message: "Payout already exists for this LAN",
+  };
+}
+
+
     const [[loan]] = await db.promise().query(
       `
       SELECT 
