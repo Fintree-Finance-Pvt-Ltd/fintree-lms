@@ -263,7 +263,7 @@ console.log("raw data sss",raw);
      const tr = response.data.data.transfer_request;
 
 // 🔥 FIX
-const normalizedStatus = String(tr.status).toUpperCase();
+const normalizedStatus = String(tr.status).toLowerCase();
 
 console.log("✅ Easebuzz transfer accepted", {
   lan,
