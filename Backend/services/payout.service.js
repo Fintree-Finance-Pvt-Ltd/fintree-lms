@@ -238,26 +238,26 @@ console.log("raw data sss",raw);
        5️⃣ SAVE FULL RESPONSE (IMPORTANT PART)
     ================================================= */
      /* 5️⃣ API-LEVEL FAILURE */
-    // if (response.data?.success === false) {
-    //   await db.promise().query(
-    //     `
-    //     UPDATE quick_transfers
-    //     SET
-    //       status = 'FAILED',
-    //       failure_reason = ?,
-    //       raw_api_response = ?,
-    //       updated_at = NOW()
-    //     WHERE unique_request_number = ?
-    //     `,
-    //     [
-    //       response.data.message || "API_FAILURE",
-    //       JSON.stringify(response.data),
-    //       unique_request_number,
-    //     ]
-    //   );
+    if (response.data?.success === false) {
+      await db.promise().query(
+        `
+        UPDATE quick_transfers
+        SET
+          status = 'FAILED',
+          failure_reason = ?,
+          raw_api_response = ?,
+          updated_at = NOW()
+        WHERE unique_request_number = ?
+        `,
+        [
+          response.data.message || "API_FAILURE",
+          JSON.stringify(response.data),
+          unique_request_number,
+        ]
+      );
 
-    //   return { success: false, unique_request_number };
-    // }
+      return { success: false, unique_request_number };
+    }
 
     /* 6️⃣ ACCEPTED / PENDING */
      const tr = response.data.data.transfer_request;
