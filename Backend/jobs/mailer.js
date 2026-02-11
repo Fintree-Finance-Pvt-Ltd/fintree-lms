@@ -170,7 +170,7 @@ Threshold Amount: ₹${thresholdAmount}
 Kindly add funds from a whitelisted account to avoid service disruption.
 
 Regards,
-Fintree Finance System
+Fintree Finance LMS System
   `.trim();
 
   const mailOptions = {
