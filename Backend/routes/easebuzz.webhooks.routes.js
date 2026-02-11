@@ -131,6 +131,7 @@ router.post("/payout", async (req, res) => {
 router.post("/low-balance", async (req, res) => {
   try {
     const { event, data } = req.body;
+    console.log("Received Low Balance Webhook:", req.body);
 
     if (event !== "LOW_BALANCE_ALERT") {
       return res.status(400).json({ message: "Invalid event type" });
