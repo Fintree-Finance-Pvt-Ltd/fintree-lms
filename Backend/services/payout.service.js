@@ -311,7 +311,7 @@ await db.promise().query(
 
 
         console.log("[EMICLUB][DB] Committing transaction");
-    await conn.commit();
+    // await conn.commit();
 
 
 
