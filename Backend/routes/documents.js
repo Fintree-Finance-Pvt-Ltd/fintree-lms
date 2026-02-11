@@ -1190,6 +1190,18 @@ router.post("/generate-soa", async (req, res) => {
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
     }
+    else if (lan.startsWith("FINE")) {
+    loanTable = "loan_booking_emiclub";
+    rpsTable = "manual_rps_emiclub";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
+    }
+    else if (lan.startsWith("WCTL")) {
+    loanTable = "loan_bookings_wctl";
+    rpsTable = "manual_rps_wctl";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
+    }
   else if (lan.startsWith("ZYPF")) {
     loanTable = "loan_booking_zypay_customer";
     rpsTable = "manual_rps_zypay_customer";
