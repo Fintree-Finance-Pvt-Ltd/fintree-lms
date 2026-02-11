@@ -326,7 +326,7 @@ console.log("💾 quick_transfers UPDATED", {
 ================================================= */
 if (!lan.startsWith("FINE")) {
   console.log("⏭️ Skipping auto-disbursement (not EMI CLUB)", { lan });
-} else if (normalizedStatus !== "SUCCESS") {
+} else if (normalizedStatus !== "success") {
   console.log("⏭️ Skipping auto-disbursement (status not SUCCESS)", {
     lan,
     normalizedStatus,
