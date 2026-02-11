@@ -54,6 +54,7 @@
 const express = require("express");
 const db = require("../config/db");
 const { verifyWebhookHash } = require("../utils/webhookHashVerify");
+const { sendLowBalanceAlertMail } = require("../jobs/mailer");
 
 const router = express.Router();
 
@@ -124,6 +125,40 @@ router.post("/payout", async (req, res) => {
   } catch (err) {
     console.error("Webhook processing error:", err);
     return res.sendStatus(500);
+  }
+});
+
+router.post("/low-balance", async (req, res) => {
+  try {
+    const { event, data } = req.body;
+
+    if (event !== "LOW_BALANCE_ALERT") {
+      return res.status(400).json({ message: "Invalid event type" });
+    }
+
+    const {
+      balance_amount,
+      threshold_amount,
+      virtual_account_number,
+      virtual_ifsc_number,
+    } = data;
+
+    // ✅ Send email
+    await sendLowBalanceAlertMail({
+      to: process.env.LOW_BALANCE_ALERT_EMAILS, // comma-separated
+      balanceAmount: balance_amount,
+      thresholdAmount: threshold_amount,
+      virtualAccountNumber: virtual_account_number,
+      virtualIfscNumber: virtual_ifsc_number,
+    });
+
+    // ✅ (Recommended) Save webhook log in DB
+    // await saveWebhookLogToDB(req.body);
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Low balance webhook error:", error);
+    return res.status(500).json({ success: false });
   }
 });
 

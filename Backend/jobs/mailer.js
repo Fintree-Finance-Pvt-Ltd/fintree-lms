@@ -145,11 +145,51 @@ For Fintree Finance Private Limited
   return transporter.sendMail(mailOptions);
 }
 
+async function sendLowBalanceAlertMail({
+  to,
+  balanceAmount,
+  thresholdAmount,
+  virtualAccountNumber,
+  virtualIfscNumber,
+}) {
+  if (!to) throw new Error("Missing recipient email for low balance alert");
+
+  const subject = `⚠️ Low Balance Alert – Virtual Account ${virtualAccountNumber}`;
+
+  const text = `
+Dear Team,
+
+This is to inform you that the balance of the following virtual account has fallen below the configured threshold.
+
+Virtual Account Number: ${virtualAccountNumber}
+Virtual IFSC: ${virtualIfscNumber}
+
+Current Balance: ₹${balanceAmount}
+Threshold Amount: ₹${thresholdAmount}
+
+Kindly add funds from a whitelisted account to avoid service disruption.
+
+Regards,
+Fintree Finance System
+  `.trim();
+
+  const mailOptions = {
+    from: process.env.FROM_EMAIL,
+    to,
+    subject,
+    text,
+  };
+
+  return transporter.sendMail(mailOptions);
+}
+
+
 
 module.exports = { 
   sendLoanStatusMail,
   sendAadhaarKycMail,
   sendEnachMandateMail,
   sendWelcomeKitMail,
+  sendLowBalanceAlertMail,
 };
 
