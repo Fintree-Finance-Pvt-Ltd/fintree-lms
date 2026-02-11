@@ -62,6 +62,7 @@ const FINSO_WEBHOOK_PASSWORD = process.env.FINSO_WEBHOOK_PASSWORD;
 async function sendLoanWebhook(data) {
   const { external_ref_no, utr, disbursement_date, reference_number, status, reject_reason } = data;
 
+  console.log("sending webhook to emiclub");
   if (!reference_number) {
     console.error("❌ Missing reference_number in webhook data");
     return;

@@ -36,7 +36,7 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
     ================================================= */
     const [[loan]] = await conn.query(
       `
-      SELECT loan_amount, roi_apr AS interest_rate, loan_tenure, product, lender 
+      SELECT partner_loan_id, loan_amount, roi_apr AS interest_rate, loan_tenure, product, lender 
       FROM loan_booking_emiclub
       WHERE lan = ?
       FOR UPDATE
