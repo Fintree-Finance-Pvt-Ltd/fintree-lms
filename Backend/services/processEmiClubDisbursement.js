@@ -113,7 +113,7 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
     ================================================= */
 
     console.log("[EMICLUB][STEP 5] Updating loan status to Disbursed", { lan });
-    await db.promise().query(
+    await conn.query(
       `UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?`,
       [lan]
     );
