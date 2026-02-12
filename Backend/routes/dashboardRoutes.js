@@ -3223,6 +3223,7 @@ const XLSX = require("xlsx");
 const redis = require("redis");
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 const REDIS_TTL = Number(process.env.REDIS_CACHE_TTL) || 60; // seconds
+const CACHE_NAMESPACE = process.env.CACHE_NAMESPACE || "default";
 let redisClient;
 (async () => {
   try {
@@ -3239,7 +3240,7 @@ let redisClient;
 function cacheMiddleware(ttl = REDIS_TTL) {
   return async (req, res, next) => {
     if (!redisClient) return next();
-    const keyParts = ["dashboard", req.method, req.baseUrl || "", req.path || ""];
+    const keyParts = [CACHE_NAMESPACE, "dashboard", req.method, req.baseUrl || "", req.path || ""];
     if (req.method === "GET") keyParts.push(JSON.stringify(req.query || {}));
     else keyParts.push(JSON.stringify(req.body || {}));
     const key = keyParts.join("|");
