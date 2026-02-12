@@ -2445,25 +2445,25 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     }
 
     /* ======================================================
-       🔥 PAYOUT TRIGGER (ONLY EMICLUB + APPROVED)
+       🔥 PAYOUT TRIGGER (ONLY EMICLUB + APPROVED) EMICLUB API DISBURSED
     ====================================================== */
-    let payoutTriggered = false;
+    // let payoutTriggered = false;
 
-    if (table === "loan_booking_emiclub" && status === "approved") {
-      payoutTriggered = true;
-      try {
-        // 🔁 fire-and-forget (do not block response)
-        approveAndInitiatePayout({ lan, table }).catch((payoutErr) => {
-          console.error(
-            "Payout initiation failed for LAN:",
-            lan,
-            payoutErr
-          );
-        });
-      } catch (err) {
-        console.error("Error loading payout service:", err);
-      }
-    }
+    // if (table === "loan_booking_emiclub" && status === "approved") {
+    //   payoutTriggered = true;
+    //   try {
+    //     // 🔁 fire-and-forget (do not block response)
+    //     approveAndInitiatePayout({ lan, table }).catch((payoutErr) => {
+    //       console.error(
+    //         "Payout initiation failed for LAN:",
+    //         lan,
+    //         payoutErr
+    //       );
+    //     });
+    //   } catch (err) {
+    //     console.error("Error loading payout service:", err);
+    //   }
+    // }
 
     /* ======================================================
        📧 OPTIONAL EMAIL LOGIC (kept async, non-blocking)
@@ -2501,11 +2501,8 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
       lan,
       table,
       status,
-      payoutTriggered,
-      message:
-        table === "loan_booking_emiclub" && status === "approved"
-          ? "Loan approved and payout initiated"
-          : `Loan ${status} successfully`,
+      // payoutTriggered,
+      message:`Loan ${status} successfully`,
     });
   });
 });
