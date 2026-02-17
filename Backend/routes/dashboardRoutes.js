@@ -4696,221 +4696,268 @@ router.post("/product-distribution", async (req, res) => {
 //   }
 // });
 ////////////////////////////////////////////////
-/** -------------------- Metric Cards -------------------- */
+/** -------------------- Metric Cards old sajag-------------------- */
+// router.post("/metric-cards", async (req, res) => {
+//   try {
+//     const { product, from, to } = req.body || {};
+//     const prod = normalizeProduct(product);
+//     const { start, end } = dayRange(from, to); // ← use this `end` below; don't redeclare
+
+//     const disburseQueries = [];
+//     const disburseParams = [];
+//     const collectQueries = [];
+//     const collectParams = [];
+//     const pniRangeQueries = [];
+//     const pniRangeParams = [];
+//     const pToDateQueries = [];
+//     const pToDateParams = [];
+
+//     const pclR = buildDateRangeClause("r.payment_date", start, end);
+//     const pclA = buildDateRangeClause("payment_date", start, end);
+//     const jsToday = new Date().toISOString().slice(0, 10);
+//     const cutoff = end || jsToday;
+
+//     const USE_COLLATE_IN_JOINS = true;
+//     const JOIN_COLLATE = "utf8mb4_general_ci";
+
+//     /** 🔹 Centralized Product Map */
+//     const productMap = {
+//       BL: {
+//         disbTable: "loan_bookings", disbField: "loan_amount",
+//         collType: "join", collBooking: "loan_bookings",
+//         allocTable: "allocation", allocLike: "BL%",
+//         rpsTable: "manual_rps_bl_loan",
+//       },
+//       EV: {
+//         disbTable: "loan_booking_ev", disbField: "loan_amount",
+//         collType: "join", collBooking: "loan_booking_ev",
+//         allocTable: "allocation", allocLike: "EV%",
+//         rpsTable: "manual_rps_ev_loan",
+//       },
+//       Adikosh: {
+//         disbTable: "loan_booking_adikosh", disbField: "net_disbursement",
+//         collType: "direct", collBooking: "repayments_upload_adikosh",
+//         allocTable: "allocation_adikosh", allocLike: "ADK%",
+//         rpsTable: "manual_rps_adikosh",
+//       },
+//       "GQ Non-FSF": {
+//         disbTable: "loan_booking_gq_non_fsf", disbField: "disbursal_amount",
+//         collType: "subquery",
+//         allocTable: "allocation", allocLike: "%GQN%",
+//         rpsTable: "manual_rps_gq_non_fsf",
+//       },
+//       "GQ FSF": {
+//         disbTable: "loan_booking_gq_fsf", disbField: "disbursal_amount",
+//         collType: "subquery",
+//         allocTable: "allocation", allocLike: "%GQF%",
+//         rpsTable: "manual_rps_gq_fsf",
+//       },
+//       Embifi: {
+//         disbTable: "loan_booking_embifi", disbField: "approved_loan_amount",
+//         collType: "join", collBooking: "loan_booking_embifi",
+//         allocTable: "allocation", allocLike: "E1%",
+//         rpsTable: "manual_rps_embifi_loan",
+//       },
+//       WCTL: {
+//         disbTable: "loan_bookings_wctl", disbField: "loan_amount",
+//         collType: "join", collBooking: "loan_bookings_wctl",
+//         allocTable: "allocation", allocLike: "WCTL%",
+//         rpsTable: "manual_rps_wctl",
+//       },
+//       EMICLUB: {
+//         disbTable: "loan_booking_emiclub", disbField: "loan_amount",
+//         collType: "subquery",
+//         allocTable: "allocation", allocLike: "%FINE%",
+//         rpsTable: "manual_rps_emiclub",
+//       },
+//       Finso: {
+//         disbTable: "loan_booking_finso", disbField: "disbursal_amount",
+//         collType: "subquery",
+//         allocTable: "allocation", allocLike: "%FINS%",
+//         rpsTable: "manual_rps_finso_loan",
+//       },
+//       "Hey EV": {
+//         disbTable: "loan_booking_hey_ev", disbField: "loan_amount",
+//         collType: "subquery",
+//         allocTable: "allocation", allocLike: "%HEY%",
+//         rpsTable: "manual_rps_hey_ev",
+//       },
+//       "Circle Pe": {
+//         disbTable: "loan_booking_circle_pe", disbField: "loan_amount",
+//         collType: "subquery",
+//         allocTable: "allocation", allocLike: "%CIR%",
+//         rpsTable: "manual_rps_circlepe",
+//       },
+//     };
+
+//     /** 🔹 Helper Functions */
+//     const addDisburseQuery = (table, field) => {
+//       const dcl = buildDateRangeClause("agreement_date", start, end);
+//       disburseQueries.push(`
+//         SELECT IFNULL(SUM(${field}), 0) AS amount
+//         FROM ${table} where status
+//  in ('Disbursed',
+// 'Cancelled',
+// 'Fully Paid',
+// 'Foreclosed',
+// 'Settled')
+
+//         ${dcl.clause}
+//       `);
+//       disburseParams.push(...dcl.params);
+//     };
+
+//     const addCollectQuery = ({ collType, collBooking, disbTable }) => {
+//       if (collType === "join") {
+//         collectQueries.push(`
+//           SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
+//           FROM repayments_upload r
+//           JOIN ${collBooking} b ON ${eqLan("b.lan", "r.lan")}
+//           WHERE r.payment_date IS NOT NULL ${pclR.clause}
+//         `);
+//         collectParams.push(...pclR.params);
+//       } else if (collType === "direct") {
+//         collectQueries.push(`
+//           SELECT IFNULL(SUM(transfer_amount), 0) AS amount
+//           FROM ${collBooking}
+//           WHERE payment_date IS NOT NULL ${pclA.clause}
+//         `);
+//         collectParams.push(...pclA.params);
+//       } else if (collType === "subquery") {
+//         collectQueries.push(`
+//           SELECT IFNULL(SUM(transfer_amount), 0) AS amount
+//           FROM repayments_upload
+//           WHERE payment_date IS NOT NULL
+//             AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
+//               SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} 
+//               FROM ${disbTable}
+//             )
+//             ${pclA.clause}
+//         `);
+//         collectParams.push(...pclA.params);
+//       }
+//     };
+
+//     const addPniRangeQuery = (allocTable, likeClause) => {
+//       const r = buildDateRangeClause("bank_date_allocation", start, end);
+//       pniRangeQueries.push(`
+//         SELECT 
+//           IFNULL(SUM(CASE WHEN charge_type='Principal' THEN allocated_amount ELSE 0 END),0) AS principal,
+//           IFNULL(SUM(CASE WHEN charge_type='Interest' THEN allocated_amount ELSE 0 END),0) AS interest
+//         FROM ${allocTable}
+//         WHERE allocation_date IS NOT NULL ${r.clause}
+//           AND lan LIKE '${likeClause}'
+//       `);
+//       pniRangeParams.push(...r.params);
+//     };
+
+//     // ✅ POS / Principal Outstanding from DB (remaining_principal)
+//     const addPToDateQuery = (rpsTable, bookingTable) => {
+//       const br = buildDateRangeClause("b.agreement_date", start, end);
+//       pToDateQueries.push(`
+//         SELECT IFNULL(SUM(rps.remaining_principal),0) AS principal
+//         FROM ${rpsTable} rps
+//         JOIN ${bookingTable} b ON ${eqLan("b.lan", "rps.lan")}
+//         WHERE 1=1 ${br.clause}
+//       `);
+//       pToDateParams.push(...br.params);
+//     };
+
+//     /** 🔹 Build all queries dynamically */
+//     for (const [key, cfg] of Object.entries(productMap)) {
+//       if (prod === "ALL" || prod === key) {
+//         addDisburseQuery(cfg.disbTable, cfg.disbField);
+//         addCollectQuery(cfg);
+//         addPniRangeQuery(cfg.allocTable, cfg.allocLike);
+//         addPToDateQuery(cfg.rpsTable, cfg.disbTable);
+//       }
+//     }
+
+//     /** 🔹 Execute in parallel */
+//     const [[disbRows], [collRows], [pniRangeRows], [pToDateRows]] =
+//       await Promise.all([
+//         db.promise().query(disburseQueries.join(" UNION ALL "), disburseParams),
+//         db.promise().query(collectQueries.join(" UNION ALL "), collectParams),
+//         db.promise().query(pniRangeQueries.join(" UNION ALL "), pniRangeParams),
+//         db.promise().query(pToDateQueries.join(" UNION ALL "), pToDateParams),
+//       ]);
+
+//     /** 🔹 Aggregate results */
+//     const totalDisbursed = disbRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+//     const totalCollected = collRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+//     const totalPrincipal = pniRangeRows.reduce((s, r) => s + Number(r.principal || 0), 0);
+//     const totalInterest = pniRangeRows.reduce((s, r) => s + Number(r.interest || 0), 0);
+//     const posOutstanding = pToDateRows.reduce((s, r) => s + Number(r.principal || 0), 0); // ✅ POS from SQL
+
+//     /** 🔹 Derived Metrics */
+//     const collectionRate = totalDisbursed
+//       ? (totalCollected / totalDisbursed) * 100
+//       : 0;
+
+//     /** 🔹 Final JSON Response */
+//     res.json({
+//       totalDisbursed,
+//       totalCollected,
+//       collectionRate,
+//       totalPrincipal,
+//       totalInterest,
+//       principalOutstanding: posOutstanding, // renamed for clarity
+//       interestOutstanding: 0,
+//       posOutstanding, // ✅ pulled directly from DB (remaining_principal)
+//     });
+
+//   } catch (err) {
+//     console.error("❌ Metric Card Fetch Error:", err);
+//     res.status(500).json({ error: "Failed to fetch metrics" });
+//   }
+// });
+
+
+/** -------------------- Metric Cards old above sajag-------------------- */
+
+
 router.post("/metric-cards", async (req, res) => {
   try {
     const { product, from, to } = req.body || {};
     const prod = normalizeProduct(product);
-    const { start, end } = dayRange(from, to); // ← use this `end` below; don't redeclare
 
-    const disburseQueries = [];
-    const disburseParams = [];
-    const collectQueries = [];
-    const collectParams = [];
-    const pniRangeQueries = [];
-    const pniRangeParams = [];
-    const pToDateQueries = [];
-    const pToDateParams = [];
+    if (!from || !to) return res.status(400).json({ error: "from and to required" });
 
-    const pclR = buildDateRangeClause("r.payment_date", start, end);
-    const pclA = buildDateRangeClause("payment_date", start, end);
-    const jsToday = new Date().toISOString().slice(0, 10);
-    const cutoff = end || jsToday;
+    const start = String(from).slice(0, 10);
+    const end   = String(to).slice(0, 10);
 
-    const USE_COLLATE_IN_JOINS = true;
-    const JOIN_COLLATE = "utf8mb4_general_ci";
+    const [result] = await db.promise().query("CALL sp_metric_cards(?, ?, ?)", [prod, start, end]);
+    const r = result?.[0]?.[0] || {};
 
-    /** 🔹 Centralized Product Map */
-    const productMap = {
-      BL: {
-        disbTable: "loan_bookings", disbField: "loan_amount",
-        collType: "join", collBooking: "loan_bookings",
-        allocTable: "allocation", allocLike: "BL%",
-        rpsTable: "manual_rps_bl_loan",
-      },
-      EV: {
-        disbTable: "loan_booking_ev", disbField: "loan_amount",
-        collType: "join", collBooking: "loan_booking_ev",
-        allocTable: "allocation", allocLike: "EV%",
-        rpsTable: "manual_rps_ev_loan",
-      },
-      Adikosh: {
-        disbTable: "loan_booking_adikosh", disbField: "net_disbursement",
-        collType: "direct", collBooking: "repayments_upload_adikosh",
-        allocTable: "allocation_adikosh", allocLike: "ADK%",
-        rpsTable: "manual_rps_adikosh",
-      },
-      "GQ Non-FSF": {
-        disbTable: "loan_booking_gq_non_fsf", disbField: "disbursal_amount",
-        collType: "subquery",
-        allocTable: "allocation", allocLike: "%GQN%",
-        rpsTable: "manual_rps_gq_non_fsf",
-      },
-      "GQ FSF": {
-        disbTable: "loan_booking_gq_fsf", disbField: "disbursal_amount",
-        collType: "subquery",
-        allocTable: "allocation", allocLike: "%GQF%",
-        rpsTable: "manual_rps_gq_fsf",
-      },
-      Embifi: {
-        disbTable: "loan_booking_embifi", disbField: "approved_loan_amount",
-        collType: "join", collBooking: "loan_booking_embifi",
-        allocTable: "allocation", allocLike: "E1%",
-        rpsTable: "manual_rps_embifi_loan",
-      },
-      WCTL: {
-        disbTable: "loan_bookings_wctl", disbField: "loan_amount",
-        collType: "join", collBooking: "loan_bookings_wctl",
-        allocTable: "allocation", allocLike: "WCTL%",
-        rpsTable: "manual_rps_wctl",
-      },
-      EMICLUB: {
-        disbTable: "loan_booking_emiclub", disbField: "loan_amount",
-        collType: "subquery",
-        allocTable: "allocation", allocLike: "%FINE%",
-        rpsTable: "manual_rps_emiclub",
-      },
-      Finso: {
-        disbTable: "loan_booking_finso", disbField: "disbursal_amount",
-        collType: "subquery",
-        allocTable: "allocation", allocLike: "%FINS%",
-        rpsTable: "manual_rps_finso_loan",
-      },
-      "Hey EV": {
-        disbTable: "loan_booking_hey_ev", disbField: "loan_amount",
-        collType: "subquery",
-        allocTable: "allocation", allocLike: "%HEY%",
-        rpsTable: "manual_rps_hey_ev",
-      },
-      "Circle Pe": {
-        disbTable: "loan_booking_circle_pe", disbField: "loan_amount",
-        collType: "subquery",
-        allocTable: "allocation", allocLike: "%CIR%",
-        rpsTable: "manual_rps_circlepe",
-      },
-    };
+    const totalDisbursed = Number(r.totalDisbursed || 0);
+    const totalCollected = Number(r.totalCollected || 0);
+    const totalPrincipal = Number(r.totalPrincipal || 0);
+    const totalInterest  = Number(r.totalInterest || 0);
+    const posOutstanding = Number(r.posOutstanding || 0);
 
-    /** 🔹 Helper Functions */
-    const addDisburseQuery = (table, field) => {
-      const dcl = buildDateRangeClause("agreement_date", start, end);
-      disburseQueries.push(`
-        SELECT IFNULL(SUM(${field}), 0) AS amount
-        FROM ${table} where status
- in ('Disbursed',
-'Cancelled',
-'Fully Paid',
-'Foreclosed',
-'Settled')
+    const collectionRate = totalDisbursed ? (totalCollected / totalDisbursed) * 100 : 0;
 
-        ${dcl.clause}
-      `);
-      disburseParams.push(...dcl.params);
-    };
-
-    const addCollectQuery = ({ collType, collBooking, disbTable }) => {
-      if (collType === "join") {
-        collectQueries.push(`
-          SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
-          FROM repayments_upload r
-          JOIN ${collBooking} b ON ${eqLan("b.lan", "r.lan")}
-          WHERE r.payment_date IS NOT NULL ${pclR.clause}
-        `);
-        collectParams.push(...pclR.params);
-      } else if (collType === "direct") {
-        collectQueries.push(`
-          SELECT IFNULL(SUM(transfer_amount), 0) AS amount
-          FROM ${collBooking}
-          WHERE payment_date IS NOT NULL ${pclA.clause}
-        `);
-        collectParams.push(...pclA.params);
-      } else if (collType === "subquery") {
-        collectQueries.push(`
-          SELECT IFNULL(SUM(transfer_amount), 0) AS amount
-          FROM repayments_upload
-          WHERE payment_date IS NOT NULL
-            AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
-              SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} 
-              FROM ${disbTable}
-            )
-            ${pclA.clause}
-        `);
-        collectParams.push(...pclA.params);
-      }
-    };
-
-    const addPniRangeQuery = (allocTable, likeClause) => {
-      const r = buildDateRangeClause("bank_date_allocation", start, end);
-      pniRangeQueries.push(`
-        SELECT 
-          IFNULL(SUM(CASE WHEN charge_type='Principal' THEN allocated_amount ELSE 0 END),0) AS principal,
-          IFNULL(SUM(CASE WHEN charge_type='Interest' THEN allocated_amount ELSE 0 END),0) AS interest
-        FROM ${allocTable}
-        WHERE allocation_date IS NOT NULL ${r.clause}
-          AND lan LIKE '${likeClause}'
-      `);
-      pniRangeParams.push(...r.params);
-    };
-
-    // ✅ POS / Principal Outstanding from DB (remaining_principal)
-    const addPToDateQuery = (rpsTable, bookingTable) => {
-      const br = buildDateRangeClause("b.agreement_date", start, end);
-      pToDateQueries.push(`
-        SELECT IFNULL(SUM(rps.remaining_principal),0) AS principal
-        FROM ${rpsTable} rps
-        JOIN ${bookingTable} b ON ${eqLan("b.lan", "rps.lan")}
-        WHERE 1=1 ${br.clause}
-      `);
-      pToDateParams.push(...br.params);
-    };
-
-    /** 🔹 Build all queries dynamically */
-    for (const [key, cfg] of Object.entries(productMap)) {
-      if (prod === "ALL" || prod === key) {
-        addDisburseQuery(cfg.disbTable, cfg.disbField);
-        addCollectQuery(cfg);
-        addPniRangeQuery(cfg.allocTable, cfg.allocLike);
-        addPToDateQuery(cfg.rpsTable, cfg.disbTable);
-      }
-    }
-
-    /** 🔹 Execute in parallel */
-    const [[disbRows], [collRows], [pniRangeRows], [pToDateRows]] =
-      await Promise.all([
-        db.promise().query(disburseQueries.join(" UNION ALL "), disburseParams),
-        db.promise().query(collectQueries.join(" UNION ALL "), collectParams),
-        db.promise().query(pniRangeQueries.join(" UNION ALL "), pniRangeParams),
-        db.promise().query(pToDateQueries.join(" UNION ALL "), pToDateParams),
-      ]);
-
-    /** 🔹 Aggregate results */
-    const totalDisbursed = disbRows.reduce((s, r) => s + Number(r.amount || 0), 0);
-    const totalCollected = collRows.reduce((s, r) => s + Number(r.amount || 0), 0);
-    const totalPrincipal = pniRangeRows.reduce((s, r) => s + Number(r.principal || 0), 0);
-    const totalInterest = pniRangeRows.reduce((s, r) => s + Number(r.interest || 0), 0);
-    const posOutstanding = pToDateRows.reduce((s, r) => s + Number(r.principal || 0), 0); // ✅ POS from SQL
-
-    /** 🔹 Derived Metrics */
-    const collectionRate = totalDisbursed
-      ? (totalCollected / totalDisbursed) * 100
-      : 0;
-
-    /** 🔹 Final JSON Response */
     res.json({
       totalDisbursed,
       totalCollected,
       collectionRate,
       totalPrincipal,
       totalInterest,
-      principalOutstanding: posOutstanding, // renamed for clarity
+      principalOutstanding: posOutstanding,
       interestOutstanding: 0,
-      posOutstanding, // ✅ pulled directly from DB (remaining_principal)
+      posOutstanding,
     });
-
   } catch (err) {
-    console.error("❌ Metric Card Fetch Error:", err);
+    console.error("metric-cards summary error:", err);
     res.status(500).json({ error: "Failed to fetch metrics" });
   }
 });
+
+
+
+
+
+
 ///////////////////////////////////////////////
 // -------------------- DPD BUCKETS --------------------
 router.post("/dpd-buckets", async (req, res) => {
