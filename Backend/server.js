@@ -27,7 +27,6 @@ const { generateForReport, generateAllPending } = require('./jobs/cibilPdfServic
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require('./jobs/smsSchedulerRaw');
-const { loadSchema } = require("./utils/schemaCache"); ///// Dashboard needs this to check if 'loan_applications' table has 'source' column before querying it
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex"); 
 //   // 32 bytes = 64 characters hex string
@@ -168,20 +167,5 @@ app.get("/api/test-sms", async (req, res) => {
 // app.get('*', (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
 //   });
-
-
-await loadSchema(db, [
-  "loan_bookings",
-  "loan_booking_ev",
-  "loan_booking_adikosh",
-  "loan_booking_gq_non_fsf",
-  "loan_booking_gq_fsf",
-  "loan_booking_embifi",
-  "loan_bookings_wctl",
-  "loan_booking_emiclub",
-  "loan_booking_finso",
-  "loan_booking_hey_ev",
-  "loan_booking_circle_pe"
-]);
 
 app.listen( PORT || 5000, () => console.log(`✅ Backend server running on ${PORT}`));
