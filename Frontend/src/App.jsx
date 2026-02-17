@@ -6,7 +6,7 @@ import {
 } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PermissionRoute from "./components/PermissionRoute";
-import Layout from "./components/layout";
+
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
