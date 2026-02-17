@@ -4937,16 +4937,17 @@ router.post("/metric-cards", async (req, res) => {
 
     const collectionRate = totalDisbursed ? (totalCollected / totalDisbursed) * 100 : 0;
 
-    res.json({
-      totalDisbursed,
-      totalCollected,
-      collectionRate,
-      totalPrincipal,
-      totalInterest,
-      principalOutstanding: posOutstanding,
-      interestOutstanding: 0,
-      posOutstanding,
-    });
+   res.json({
+  totalDisbursed: Number(r.totalDisbursed) || 0,
+  totalCollected: Number(r.totalCollected) || 0,
+  collectionRate: Number(collectionRate) || 0,
+  totalPrincipal: Number(r.totalPrincipal) || 0,
+  totalInterest: Number(r.totalInterest) || 0,
+  principalOutstanding: Number(posOutstanding) || 0,
+  interestOutstanding: 0,
+  posOutstanding: Number(posOutstanding) || 0,
+});
+
   } catch (err) {
     console.error("metric-cards summary error:", err);
     res.status(500).json({ error: "Failed to fetch metrics" });
