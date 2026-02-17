@@ -1,0 +1,143 @@
+/* SupplyChainSidebar.css */
+.supplychain-sidebar {
+  width: 260px;
+  background: #f7f8fa;
+  border-right: 1px solid #e0e3e8;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.5rem;
+  font-family: 'Inter', Arial, sans-serif;
+}
+
+.sidebar-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  padding: 1.5rem 1rem 1rem 1rem;
+  color: #222;
+  letter-spacing: 0.02em;
+}
+
+.dropdown {
+  position: relative;
+  margin: 0 1rem 1rem 1rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.dropdown-label {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1rem;
+  color: #333;
+  transition: border 0.2s;
+}
+
+.dropdown.open .dropdown-label {
+  border-color: #0077ff;
+}
+
+.dropdown-arrow {
+  margin-left: 0.5rem;
+  font-size: 0.9em;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  margin-top: 0.25rem;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  list-style: none;
+  padding: 0;
+}
+
+.dropdown.open .dropdown-menu {
+  display: block;
+}
+
+.dropdown-item {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  color: #333;
+  transition: background 0.15s;
+}
+
+.dropdown-item:hover,
+.dropdown-item.active {
+  background: #e6f0ff;
+  color: #0077ff;
+}
+
+.sidebar-menu {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 0.5rem;
+  padding-bottom: 1rem;
+}
+
+.sidebar-menu ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menu-item {
+  padding: 0.9rem 1.5rem;
+  font-size: 1rem;
+  color: #444;
+  cursor: pointer;
+  border-radius: 5px;
+  margin: 0.1rem 0;
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+}
+
+.menu-item.active,
+.menu-item:focus {
+  background: #0077ff;
+  color: #fff;
+  outline: none;
+}
+
+.menu-item:hover {
+  background: #e6f0ff;
+  color: #0077ff;
+}
+
+@media (max-width: 900px) {
+  .supplychain-sidebar {
+    width: 200px;
+    font-size: 0.95rem;
+  }
+  .sidebar-title {
+    font-size: 1rem;
+    padding: 1rem 0.5rem 0.5rem 0.5rem;
+  }
+  .menu-item {
+    padding: 0.7rem 1rem;
+  }
+}
+
+/* Scrollbar styling */
+.sidebar-menu::-webkit-scrollbar {
+  width: 8px;
+}
+.sidebar-menu::-webkit-scrollbar-thumb {
+  background: #e0e3e8;
+  border-radius: 4px;
+}
+.sidebar-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
