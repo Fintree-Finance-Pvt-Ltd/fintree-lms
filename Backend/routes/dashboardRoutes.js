@@ -4803,6 +4803,7 @@ router.post("/metric-cards", async (req, res) => {
 'Settled')
 
 <<<<<<< HEAD
+<<<<<<< HEAD
    res.json({
   totalDisbursed: Number(r.totalDisbursed) || 0,
   totalCollected: Number(r.totalCollected) || 0,
@@ -4907,18 +4908,27 @@ router.post("/metric-cards", async (req, res) => {
       : 0;
 
     /** 🔹 Final JSON Response */
+=======
+>>>>>>> parent of 11a7b3b (SA)
     res.json({
       totalDisbursed,
       totalCollected,
       collectionRate,
       totalPrincipal,
       totalInterest,
+<<<<<<< HEAD
       principalOutstanding: posOutstanding, // renamed for clarity
       interestOutstanding: 0,
       posOutstanding, // ✅ pulled directly from DB (remaining_principal)
     });
 >>>>>>> parent of 27205b0 (New add)
 
+=======
+      principalOutstanding: posOutstanding,
+      interestOutstanding: 0,
+      posOutstanding,
+    });
+>>>>>>> parent of 11a7b3b (SA)
   } catch (err) {
     console.error("❌ Metric Card Fetch Error:", err);
     res.status(500).json({ error: "Failed to fetch metrics" });
