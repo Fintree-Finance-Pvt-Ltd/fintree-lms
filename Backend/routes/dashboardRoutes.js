@@ -3219,62 +3219,6 @@ const db = require("../config/db");
 const router = express.Router();
 const nodemailer = require("nodemailer");
 const XLSX = require("xlsx");
-// Redis cache setup
-const redis = require("redis");
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-const REDIS_TTL = Number(process.env.REDIS_CACHE_TTL) || 60; // seconds
-const CACHE_NAMESPACE = process.env.CACHE_NAMESPACE || "default";
-let redisClient;
-(async () => {
-  try {
-    redisClient = redis.createClient({ url: REDIS_URL });
-    redisClient.on("error", (e) => console.error("Redis Client Error", e));
-    await redisClient.connect();
-    console.log("Redis connected");
-  } catch (e) {
-    console.error("Redis connection failed:", e);
-  }
-})();
-
-// Simple cache middleware: key = dashboard|METHOD|baseUrl|path|body-or-query
-function cacheMiddleware(ttl = REDIS_TTL) {
-  return async (req, res, next) => {
-    if (!redisClient) return next();
-    const keyParts = [CACHE_NAMESPACE, "dashboard", req.method, req.baseUrl || "", req.path || ""];
-    if (req.method === "GET") keyParts.push(JSON.stringify(req.query || {}));
-    else keyParts.push(JSON.stringify(req.body || {}));
-    const key = keyParts.join("|");
-    try {
-      const cached = await redisClient.get(key);
-      if (cached) {
-        res.setHeader("X-Cache", "HIT");
-        return res.json(JSON.parse(cached));
-      }
-
-      const origJson = res.json.bind(res);
-      let sent = false;
-      res.json = (body) => {
-        if (!sent) {
-          try {
-            // set asynchronously, don't await to avoid delaying response
-            redisClient.setEx(key, ttl, JSON.stringify(body)).catch((e) => console.error("Redis setEx error", e));
-          } catch (e) {
-            console.error("Redis setEx sync error", e);
-          }
-          res.setHeader("X-Cache", "MISS");
-          sent = true;
-        }
-        return origJson(body);
-      };
-    } catch (e) {
-      console.error("Redis cache middleware error", e);
-    }
-    next();
-  };
-}
-
-// Enable caching for all routes in this router (adjust TTL via REDIS_CACHE_TTL)
-router.use(cacheMiddleware());
 
 /* ============================ Settings ============================ */
 
@@ -4802,19 +4746,6 @@ router.post("/metric-cards", async (req, res) => {
 'Foreclosed',
 'Settled')
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-   res.json({
-  totalDisbursed: Number(r.totalDisbursed) || 0,
-  totalCollected: Number(r.totalCollected) || 0,
-  collectionRate: Number(collectionRate) || 0,
-  totalPrincipal: Number(r.totalPrincipal) || 0,
-  totalInterest: Number(r.totalInterest) || 0,
-  principalOutstanding: Number(posOutstanding) || 0,
-  interestOutstanding: 0,
-  posOutstanding: Number(posOutstanding) || 0,
-});
-=======
         ${dcl.clause}
       `);
       disburseParams.push(...dcl.params);
@@ -4908,27 +4839,17 @@ router.post("/metric-cards", async (req, res) => {
       : 0;
 
     /** 🔹 Final JSON Response */
-=======
->>>>>>> parent of 11a7b3b (SA)
     res.json({
       totalDisbursed,
       totalCollected,
       collectionRate,
       totalPrincipal,
       totalInterest,
-<<<<<<< HEAD
       principalOutstanding: posOutstanding, // renamed for clarity
       interestOutstanding: 0,
       posOutstanding, // ✅ pulled directly from DB (remaining_principal)
     });
->>>>>>> parent of 27205b0 (New add)
 
-=======
-      principalOutstanding: posOutstanding,
-      interestOutstanding: 0,
-      posOutstanding,
-    });
->>>>>>> parent of 11a7b3b (SA)
   } catch (err) {
     console.error("❌ Metric Card Fetch Error:", err);
     res.status(500).json({ error: "Failed to fetch metrics" });
