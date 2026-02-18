@@ -6,7 +6,7 @@ import {
 } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PermissionRoute from "./components/PermissionRoute";
-
+import Layout from "./components/layout";
 import Login from "./components/Login";
 import Dashboard from "./components/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
@@ -118,6 +118,9 @@ import ZypayApproveInitiateScreen from "./components/ZypayApproveInitiateScreen"
 import ZypayApprovedLoans from "./components/ZypayApprovedLoans";
 import ZypayDisbursedLoans from "./components/ZypayDisbursedLoans";
 import ZypayAllLoans from "./components/ZypayAllLoans";
+import SCApprovedLoans from "./components/SCApprovedLoans"; // Supply Chain Approved Loans
+import SCDisbursedLoans from "./components/SCDisbursedLoans";// Supply Chain Disbursed Loans
+import SCAllLoans from "./components/SCAllLoans";// Supply Chain All Loans
 
 
 function App() {
@@ -687,6 +690,34 @@ function App() {
               </PermissionRoute>
             }
           />
+{/* ✅ SUPPLY CHAIN LOAN ROUTES */}
+
+<Route
+  path="/supply-chain-loans/approved"
+  element={
+    <PermissionRoute pageName="Supply Chain Approved Loans">
+      <SCApprovedLoans />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/supply-chain-loans/disbursed"
+  element={
+    <PermissionRoute pageName="Supply Chain Disbursed Loans">
+      <SCDisbursedLoans />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/supply-chain-loans/all"
+  element={
+    <PermissionRoute pageName="Supply Chain All Loans">
+      <SCAllLoans />
+    </PermissionRoute>
+  }
+/>
 
           <Route
             path="/gq-fsf-loans/approved"
