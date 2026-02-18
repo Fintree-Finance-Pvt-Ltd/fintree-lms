@@ -146,7 +146,7 @@ cron.schedule("*/2 * * * *", async () => {
     THEN 'Part Paid'
 
     WHEN due_date < CURDATE() 
-         AND (remaining_principal > 0 OR remaining_interest > 0)
+         AND (remaining_principal > 0 and remaining_interest > 0)
     THEN 'Late'
 
     WHEN due_date = CURDATE() 
