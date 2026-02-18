@@ -141,9 +141,11 @@ cron.schedule("*/2 * * * *", async () => {
          AND remaining_interest = 0 
     THEN 'Paid'
 
-    WHEN emi > 0 
-         AND remaining_emi > 0 
-    THEN 'Part Paid'
+   WHEN emi > 0
+     AND remaining_emi > 0
+     AND remaining_emi < emi
+THEN 'Part Paid'
+
 
     WHEN due_date < CURDATE() 
          AND (remaining_principal > 0 and remaining_interest > 0)
