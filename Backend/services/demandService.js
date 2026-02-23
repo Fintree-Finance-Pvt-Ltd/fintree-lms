@@ -1,5 +1,5 @@
-const db = require("../config/db");
-
+const db = require("../config/db"); 
+const { allocateSupplyChainRepayment } = require("../services/supplyChainAllocation.service"); // Supply chain repayment allocation logic moved to separate service for better modularity and maintainability 
 function toYMD(d) {
   return new Date(d).toISOString().split("T")[0];
 }
@@ -394,13 +394,49 @@ const generateDemandFromInvoiceDisbursement = async (invoiceNumber) => {
 
     const today = toYMD(new Date());
 
+     // 🔥 Generate Demand
     await generateDailySupplyChainDemand(conn, invoice, today);
 
-    console.log(`${ctx} ✅ Success`);
+    console.log(`${ctx} ✅ Demand Generated`);
+
+    /* =====================================================
+       🔥 ALLOCATION CALL (ONLY IF EXCESS PAYMENT EXISTS)
+    ===================================================== */
+
+    const [excessRows] = await conn.query(
+      `SELECT
+         lan,
+         collection_date,
+         collection_utr,
+         excess_payment AS collection_amount
+       FROM supply_chain_allocation
+       WHERE lan = ?
+         AND excess_payment > 0`,
+      [invoice.lan]
+    );
+
+    if (!excessRows.length) {
+      console.log(`${ctx} ℹ No excess payment found`);
+      return { success: true };
+    }
+
+    console.log(`${ctx} 🔄 Allocating ${excessRows.length} excess payments`);
+
+    for (const r of excessRows) {
+      await allocateSupplyChainRepayment(db, {
+        lan: r.lan,
+        collection_date: r.collection_date,
+        collection_utr: r.collection_utr,
+        collection_amount: r.collection_amount
+      });
+    }
+
+    console.log(`${ctx} ✅ Allocation completed`);
     return { success: true };
+
   } catch (err) {
     console.error(`${ctx} ❌ Failed`, err);
-    throw err; // propagate to controller / cron / queue
+    throw err;
   }
 };
 

@@ -15,8 +15,8 @@ const { sendLoanStatusMail } = require("../jobs/mailer");
 const { generateDailySupplyChainDemand } =  require("../services/demandService");// moved from Supply chain controller for better modularity
 const { generateDemandFromInvoiceDisbursement } = require("../services/demandService"); // moved from Supply chain controller for better modularity  
 const {
-  allocateSupplyChainRepayment,
-} = require("../services/supplyChainAllocation.service"); // Supply chain repayment allocation logic moved to separate service for better modularity and maintainability
+  allocateSupplyChainRepayment
+} = require("../services/supplyChainAllocation.service");
 
 // const { pullCIBILReport }=  require("../jobs/experianService");
 

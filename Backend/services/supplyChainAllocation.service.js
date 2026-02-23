@@ -1197,23 +1197,34 @@ async function allocateSupplyChainRepayment(db, repayment) {
     }
 
     /* 8️⃣ Excess collection (unmapped) */
-    if (remainingAmount > 0) {
-      await conn.query(
-        `
-        INSERT INTO supply_chain_allocation (
-          lan,
-          invoice_number,
-          collection_date,
-          collection_utr,
-          total_collected,
-          allocated_principal,
-          allocated_interest,
-          allocated_penal_interest
-        ) VALUES (?,?,?,?,?,?,?,?)
-        `,
-        [lan, null, collection_date, collection_utr, remainingAmount, 0, 0, 0]
-      );
-    }
+if (remainingAmount > 0) {
+  await conn.query(
+    `
+    INSERT INTO supply_chain_allocation (
+      lan,
+      invoice_number,
+      collection_date,
+      collection_utr,
+      total_collected,
+      allocated_principal,
+      allocated_interest,
+      allocated_penal_interest,
+      excess_payment
+    ) VALUES (?,?,?,?,?,?,?,?,?)
+    `,
+    [
+      lan,
+      null,
+      collection_date,
+      collection_utr,
+      remainingAmount,
+      0,
+      0,
+      0,
+      remainingAmount
+    ]
+  );
+}
 
     /* 9️⃣ Regenerate demand (date-aware) */
     for (const invoiceNo of affectedInvoices) {
@@ -1244,24 +1255,29 @@ async function allocateSupplyChainRepayment(db, repayment) {
   /* 🔟 SANCTION UPDATE — FINAL & CORRECT (PER COLLECTION) */
     await conn.query(
       `
-      UPDATE supply_chain_sanctions s
-      JOIN (
-        SELECT
-          a.lan COLLATE utf8mb4_unicode_ci AS lan,
-          COALESCE(SUM(a.allocated_principal), 0) AS alloc_principal_txn
-        FROM supply_chain_allocation a
-        WHERE a.lan COLLATE utf8mb4_unicode_ci = ?
-          AND a.collection_date = ?
-          AND a.collection_utr = ?
-        GROUP BY a.lan
-      ) x
-        ON x.lan COLLATE utf8mb4_unicode_ci
-           = s.lan COLLATE utf8mb4_unicode_ci
-      SET
-        s.utilized_sanction_limit =
-          GREATEST(s.utilized_sanction_limit - x.alloc_principal_txn, 0),
-        s.unutilization_sanction_limit =
-          s.unutilization_sanction_limit + x.alloc_principal_txn
+     UPDATE supply_chain_sanctions s
+JOIN (
+    SELECT
+        a.lan COLLATE utf8mb4_unicode_ci AS lan,
+        COALESCE(SUM(a.allocated_principal), 0) AS alloc_principal_txn
+    FROM supply_chain_allocation a
+    WHERE a.lan COLLATE utf8mb4_unicode_ci = ?
+      AND a.collection_date = ?
+      AND a.collection_utr = ?
+    GROUP BY a.lan
+) x
+ON x.lan COLLATE utf8mb4_unicode_ci = s.lan COLLATE utf8mb4_unicode_ci
+SET
+    s.utilized_sanction_limit =
+        GREATEST(
+            s.utilized_sanction_limit - x.alloc_principal_txn,
+            0
+        ),
+    s.unutilization_sanction_limit =
+        LEAST(
+            s.unutilization_sanction_limit + x.alloc_principal_txn,
+            s.sanction_amount
+        );
       `,
       [lan, collection_date, collection_utr]
     );
