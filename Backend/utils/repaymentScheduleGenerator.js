@@ -2886,6 +2886,32 @@ const generateRepaymentScheduleGQFSF = async (
 /////////////////////////// GQ FSF FINTREE RPS Sajag New Start  ////////////////////////////
 
 const r2local = (n) => +(+n).toFixed(2);
+const calculateIRR = (cashflows, guess = 0.02) => {
+  let rate = guess;
+  const maxIter = 1000;
+  const precision = 1e-7;
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    let npv = 0;
+    let dnpv = 0;
+
+    for (let t = 0; t < cashflows.length; t++) {
+      npv += cashflows[t] / Math.pow(1 + rate, t);
+      dnpv -= (t * cashflows[t]) / Math.pow(1 + rate, t + 1);
+    }
+
+    const newRate = rate - npv / dnpv;
+
+    if (Math.abs(newRate - rate) < precision) {
+      return newRate;
+    }
+
+    rate = newRate;
+  }
+
+  // fallback — still return something
+  return rate;
+};
 
 //////////////////////////////////////////////////////////
 // MAIN FUNCTION — FINAL & LOCKED
