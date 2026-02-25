@@ -75,7 +75,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
           );
         } else if (lan.startsWith("GQF")) {
           [loanRes] = await db.promise().query(
-            `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
+            `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis,retention_percentage, product, lender 
              FROM loan_booking_gq_fsf WHERE lan = ?`,
             [lan]
           );

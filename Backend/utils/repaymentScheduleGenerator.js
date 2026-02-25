@@ -4135,7 +4135,8 @@ const generateRepaymentSchedule = async (
       subventionAmount,    // subventionAmount
       product,             // product
       lender,              // lender
-      noOfAdvanceNum       // no_of_advance_emis
+      noOfAdvanceNum,      // no_of_advance_emis
+      retentionPercent     // retention_percentage
     );
 
     console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
