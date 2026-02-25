@@ -3886,19 +3886,7 @@ const generateRepaymentScheduleAdikosh = async (
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const generateRepaymentSchedule = async (
-  conn,
-  lan,
-  loanAmount,
-  emiDate,
-  interestRate,
-  tenure,
-  disbursementDate,
-  subventionAmount,
-  no_of_advance_emis,
-   retention_percentage,   // value from DB
-  salary_day,
-  product,
-  lender
+  conn, lan, loan_amount, emi_date, interest_rate, loan_tenure, disbursementDate, subvention_amount, no_of_advance_emis, retention_percentage, salary_day, product, lender
 ) => {
   console.log("lender testing", lender);
  const retentionPercent = retention_percentage ?? 0;
