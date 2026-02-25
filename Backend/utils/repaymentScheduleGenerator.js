@@ -2888,16 +2888,12 @@ const generateRepaymentScheduleGQFSF = async (
 const r2local = (n) => +(+n).toFixed(2);
 
 /**
- * Robust IRR (monthly) using:
- * 1) scan to find a bracket [low, high] where NPV changes sign
- * 2) bisection to solve NPV(rate)=0
- *
- * This avoids Newton–Raphson landing on a wrong root when there are
- * multiple sign changes (like your structured cashflows).
+ * Robust monthly IRR:
+ * - Bracket search + bisection to avoid Newton landing on wrong root
+ *   when there are multiple sign changes (your case).
  */
 const calculateIRR = (cashflows) => {
   const npv = (rate) => {
-    // rate must be > -1
     if (rate <= -0.999999999) return Number.POSITIVE_INFINITY;
     let total = 0;
     for (let t = 0; t < cashflows.length; t++) {
@@ -2906,96 +2902,58 @@ const calculateIRR = (cashflows) => {
     return total;
   };
 
-  // 1) Find a bracket where NPV changes sign
-  // scan rates from -0.9 up to 5.0 (500% monthly) in small steps
+  // Find sign-change bracket
   const minRate = -0.9;
   const maxRate = 5.0;
-  const step = 0.001; // 0.1% step
+  const step = 0.001;
 
-  let low = null;
-  let high = null;
-
-  let prevRate = minRate;
-  let prevVal = npv(prevRate);
+  let low = null, high = null;
+  let prevR = minRate;
+  let prevV = npv(prevR);
 
   for (let r = minRate + step; r <= maxRate; r += step) {
-    const curVal = npv(r);
+    const v = npv(r);
+    if (Number.isFinite(prevV) && Number.isFinite(v)) {
+      if (prevV === 0) return prevR;
+      if (v === 0) return r;
 
-    if (Number.isFinite(prevVal) && Number.isFinite(curVal)) {
-      if (prevVal === 0) return prevRate;
-      if (curVal === 0) return r;
-
-      // sign change => bracket found
-      if ((prevVal > 0 && curVal < 0) || (prevVal < 0 && curVal > 0)) {
-        low = prevRate;
+      if ((prevV > 0 && v < 0) || (prevV < 0 && v > 0)) {
+        low = prevR;
         high = r;
         break;
       }
     }
-
-    prevRate = r;
-    prevVal = curVal;
+    prevR = r;
+    prevV = v;
   }
 
-  // If no bracket found, fallback to a mild Newton attempt (rare)
-  if (low == null || high == null) {
-    let rate = 0.02;
-    const maxIter = 200;
-    const precision = 1e-9;
+  // If no bracket found, fallback (rare)
+  if (low == null || high == null) return 0.02;
 
-    for (let iter = 0; iter < maxIter; iter++) {
-      let f = 0;
-      let df = 0;
-      for (let t = 0; t < cashflows.length; t++) {
-        f += cashflows[t] / Math.pow(1 + rate, t);
-        df -= (t * cashflows[t]) / Math.pow(1 + rate, t + 1);
-      }
-      if (!Number.isFinite(df) || Math.abs(df) < 1e-12) break;
-
-      const newRate = rate - f / df;
-      if (!Number.isFinite(newRate)) break;
-      if (Math.abs(newRate - rate) < precision) return newRate;
-      rate = newRate;
-    }
-
-    return rate;
-  }
-
-  // 2) Bisection on the bracket
-  const maxBisectIter = 500;
-  const tol = 1e-9;
-
+  // Bisection solve
   let fLow = npv(low);
-  let fHigh = npv(high);
-
-  for (let i = 0; i < maxBisectIter; i++) {
+  for (let i = 0; i < 600; i++) {
     const mid = (low + high) / 2;
     const fMid = npv(mid);
 
     if (!Number.isFinite(fMid)) {
-      // shrink interval if numerical blowup
       high = mid;
-      fHigh = fMid;
       continue;
     }
+    if (Math.abs(fMid) < 1e-9) return mid;
 
-    if (Math.abs(fMid) < tol) return mid;
-
-    // keep the side that preserves sign change
     if ((fLow > 0 && fMid < 0) || (fLow < 0 && fMid > 0)) {
       high = mid;
-      fHigh = fMid;
     } else {
       low = mid;
       fLow = fMid;
     }
   }
-
   return (low + high) / 2;
 };
 
 //////////////////////////////////////////////////////////
-// MAIN FUNCTION — FINAL & LOCKED (STRUCTURED LOAN LOGIC)
+// MAIN FUNCTION — FINAL & LOCKED (FIXED)
 //////////////////////////////////////////////////////////
 const generateRepaymentScheduleGQFSF_Fintree = async (
   lan,
@@ -3018,7 +2976,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const subvention = r2local(subventionAmount || 0);
     const netLoanForLender = r2local(approvedAmount - subvention);
 
-    // Normalize retention (30 or 0.30 both valid)
+    // ✅ Normalize retentionPercent: accept 30 or 0.30
     const retentionRate =
       retentionPercent != null && retentionPercent !== ""
         ? (Number(retentionPercent) > 1
@@ -3051,7 +3009,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const netPrincipalOS = r2local(netDisbursement - emiAmount);
 
     //-----------------------------------------------------
-    // 4️⃣ IRR CASHFLOWS (STRUCTURED)
+    // 4️⃣ BUILD IRR CASHFLOWS (MUST MATCH RPS)
     //-----------------------------------------------------
     const irrCashflows = [];
     irrCashflows.push(-netPrincipalOS);
@@ -3060,8 +3018,9 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       irrCashflows.push(emiAmount);
     }
 
-    // Final retention-adjusted negative cashflow
-    irrCashflows.push(-r2local(Math.abs(emiAmount - retentionAmount)));
+    // Final cashflow rule
+    const lastCashflow = r2local(Math.abs(emiAmount - retentionAmount));
+    irrCashflows.push(-lastCashflow);
 
     //-----------------------------------------------------
     // 5️⃣ IRR (NOMINAL ANNUAL)
@@ -3070,12 +3029,12 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const irrNominalAnnual = r2local(monthlyIRR * 12 * 100);
 
     //-----------------------------------------------------
-    // 6️⃣ REPAYMENT SCHEDULE (MATCHES IRR LOGIC)
+    // 6️⃣ RPS (MUST USE SAME FINAL RULE)
     //-----------------------------------------------------
     let openingBal = netPrincipalOS;
     const rpsData = [];
 
-    // Advance EMI (display row)
+    // Row 0 — Advance EMI display
     rpsData.push([
       lan,
       disbursementDate,
@@ -3101,7 +3060,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       emiDueDate.setMonth(emiDueDate.getMonth() + i);
       emiDueDate.setDate(emiDate);
 
-      // FINAL EMI — APPLY RETENTION DIFFERENCE (can be negative)
+      // ✅ FINAL EMI MUST BE (EMI - retentionAmount) (can be negative)
       if (i === totalEmis - 1) {
         emi = r2local(emiAmount - retentionAmount);
         interest = r2local(openingBal * monthlyIRR);
@@ -3140,9 +3099,6 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       await db.promise().query(sql, [rpsData]);
     }
 
-    //-----------------------------------------------------
-    // 8️⃣ RETURN
-    //-----------------------------------------------------
     return {
       lan,
       emiAmount,
