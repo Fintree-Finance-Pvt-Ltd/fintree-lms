@@ -181,6 +181,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         loan_tenure,
         subvention_amount,
         no_of_advance_emis,
+        retention_percentage,
         salary_day,
         product,
         lender,
@@ -235,6 +236,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
               disbursementDate,
               subvention_amount,
               no_of_advance_emis,
+              retention_percentage,
               salary_day,
               product,
               lender
