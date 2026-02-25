@@ -2956,17 +2956,18 @@ const calculateIRR = (cashflows) => {
 // MAIN FUNCTION — FINAL & LOCKED (FIXED)
 //////////////////////////////////////////////////////////
 const generateRepaymentScheduleGQFSF_Fintree = async (
+  conn,                  // ✅ ADD THIS
   lan,
   approvedAmount,
   emiDate,
-  interestRate,        // flat %
+  interestRate,
   tenure,
   disbursementDate,
   subventionAmount,
   product,
   lender,
-  no_of_advanced_emis, // assumed = 1
-  retentionPercent,    // can be 30 or 0.30
+  no_of_advanced_emis,   // keep name consistent (see fix 3)
+  retentionPercent,
   manualRetentionAmount
 ) => {
   try {
@@ -3894,12 +3895,13 @@ const generateRepaymentSchedule = async (
   disbursementDate,
   subventionAmount,
   no_of_advance_emis,
+   retention_percentage,   // value from DB
   salary_day,
   product,
   lender
 ) => {
   console.log("lender testing", lender);
-
+ const retentionPercent = retention_percentage ?? 0;
   if (lender === "BL Loan") {
     await generateRepaymentScheduleBL(
       lan,
@@ -4127,17 +4129,19 @@ const generateRepaymentSchedule = async (
 
     await generateRepaymentScheduleGQFSF_Fintree(
       lan,
-      approvedAmountNum,   // approvedAmount
-      emiDate,             // emiDate (day)
-      interestRateNum,     // interestRate (annual %)
-      tenureNum,           // tenure (months)
-      disbursementDate,    // disbursementDate ("YYYY-MM-DD")
-      subventionAmount,    // subventionAmount
-      product,             // product
-      lender,              // lender
-      noOfAdvanceNum,      // no_of_advance_emis
-      retentionPercent     // retention_percentage
+      approvedAmount,
+      emiDate,
+      interestRate,
+      tenure,
+      disbursementDate,
+      subventionAmount,
+      product,
+      lender,
+      no_of_advance_emis,
+      retentionPercent,
+      manualRetentionAmount
     );
+  
 
     console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
   } catch (err) {
