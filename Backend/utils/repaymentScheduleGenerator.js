@@ -2886,6 +2886,7 @@ const generateRepaymentScheduleGQFSF = async (
 /////////////////////////// GQ FSF FINTREE RPS Sajag New Start  ////////////////////////////
 
 const r2local = (n) => +(+n).toFixed(2);
+
 const calculateIRR = (cashflows, guess = 0.02) => {
   let rate = guess;
   const maxIter = 1000;
@@ -2900,11 +2901,13 @@ const calculateIRR = (cashflows, guess = 0.02) => {
       dnpv -= (t * cashflows[t]) / Math.pow(1 + rate, t + 1);
     }
 
+    // avoid division-by-zero / blowups
+    if (!Number.isFinite(dnpv) || Math.abs(dnpv) < 1e-12) break;
+
     const newRate = rate - npv / dnpv;
 
-    if (Math.abs(newRate - rate) < precision) {
-      return newRate;
-    }
+    if (!Number.isFinite(newRate)) break;
+    if (Math.abs(newRate - rate) < precision) return newRate;
 
     rate = newRate;
   }
@@ -2914,7 +2917,7 @@ const calculateIRR = (cashflows, guess = 0.02) => {
 };
 
 //////////////////////////////////////////////////////////
-// MAIN FUNCTION — FINAL & LOCKED
+// MAIN FUNCTION — FINAL & LOCKED (UPDATED)
 //////////////////////////////////////////////////////////
 const generateRepaymentScheduleGQFSF_Fintree = async (
   lan,
@@ -2927,7 +2930,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
   product,
   lender,
   no_of_advanced_emis, // assumed = 1
-  retentionPercent,
+  retentionPercent,    // can be 30 or 0.30
   manualRetentionAmount
 ) => {
   try {
@@ -2937,10 +2940,18 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const subvention = r2local(subventionAmount || 0);
     const netLoanForLender = r2local(approvedAmount - subvention);
 
-    const retentionAmount = manualRetentionAmount
+    // ✅ Normalize retentionPercent: accept 30 or 0.30
+    const retentionRate =
+      retentionPercent != null && retentionPercent !== ""
+        ? (Number(retentionPercent) > 1
+            ? Number(retentionPercent) / 100
+            : Number(retentionPercent))
+        : null;
+
+    const retentionAmount = manualRetentionAmount != null && manualRetentionAmount !== ""
       ? r2local(manualRetentionAmount)
-      : retentionPercent
-      ? r2local(netLoanForLender * retentionPercent)
+      : retentionRate != null
+      ? r2local(netLoanForLender * retentionRate)
       : 0;
 
     const netDisbursement = r2local(netLoanForLender - retentionAmount);
@@ -2958,6 +2969,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
     //-----------------------------------------------------
     // 3️⃣ NET PRINCIPAL O/S (AFTER ADVANCE EMI)
+    // NOTE: advEmiCount currently assumed = 1 as per your rule
     //-----------------------------------------------------
     const netPrincipalOS = r2local(netDisbursement - rawEmi);
 
@@ -3064,7 +3076,8 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       emiAmount,
       netDisbursement,
       netPrincipalOS,
-      irr: irrNominalAnnual
+      irr: irrNominalAnnual,
+      retentionAmount
     };
 
   } catch (err) {
