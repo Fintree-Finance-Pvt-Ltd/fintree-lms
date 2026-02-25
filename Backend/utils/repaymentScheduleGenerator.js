@@ -2887,86 +2887,20 @@ const generateRepaymentScheduleGQFSF = async (
 
 const r2local = (n) => +(+n).toFixed(2);
 
-/**
- * Robust monthly IRR:
- * - Bracket search + bisection to avoid Newton landing on wrong root
- *   when there are multiple sign changes (your case).
- */
-const calculateIRR = (cashflows) => {
-  const npv = (rate) => {
-    if (rate <= -0.999999999) return Number.POSITIVE_INFINITY;
-    let total = 0;
-    for (let t = 0; t < cashflows.length; t++) {
-      total += cashflows[t] / Math.pow(1 + rate, t);
-    }
-    return total;
-  };
-
-  // Find sign-change bracket
-  const minRate = -0.9;
-  const maxRate = 5.0;
-  const step = 0.001;
-
-  let low = null, high = null;
-  let prevR = minRate;
-  let prevV = npv(prevR);
-
-  for (let r = minRate + step; r <= maxRate; r += step) {
-    const v = npv(r);
-    if (Number.isFinite(prevV) && Number.isFinite(v)) {
-      if (prevV === 0) return prevR;
-      if (v === 0) return r;
-
-      if ((prevV > 0 && v < 0) || (prevV < 0 && v > 0)) {
-        low = prevR;
-        high = r;
-        break;
-      }
-    }
-    prevR = r;
-    prevV = v;
-  }
-
-  // If no bracket found, fallback (rare)
-  if (low == null || high == null) return 0.02;
-
-  // Bisection solve
-  let fLow = npv(low);
-  for (let i = 0; i < 600; i++) {
-    const mid = (low + high) / 2;
-    const fMid = npv(mid);
-
-    if (!Number.isFinite(fMid)) {
-      high = mid;
-      continue;
-    }
-    if (Math.abs(fMid) < 1e-9) return mid;
-
-    if ((fLow > 0 && fMid < 0) || (fLow < 0 && fMid > 0)) {
-      high = mid;
-    } else {
-      low = mid;
-      fLow = fMid;
-    }
-  }
-  return (low + high) / 2;
-};
-
 //////////////////////////////////////////////////////////
-// MAIN FUNCTION — FINAL & LOCKED (FIXED)
+// MAIN FUNCTION — FINAL & LOCKED
 //////////////////////////////////////////////////////////
 const generateRepaymentScheduleGQFSF_Fintree = async (
-  conn,                  // ✅ ADD THIS
   lan,
   approvedAmount,
   emiDate,
-  interestRate,
+  interestRate,        // flat %
   tenure,
   disbursementDate,
   subventionAmount,
   product,
   lender,
-  no_of_advanced_emis,   // keep name consistent (see fix 3)
+  no_of_advanced_emis, // assumed = 1
   retentionPercent,
   manualRetentionAmount
 ) => {
@@ -2977,26 +2911,18 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const subvention = r2local(subventionAmount || 0);
     const netLoanForLender = r2local(approvedAmount - subvention);
 
-    // ✅ Normalize retentionPercent: accept 30 or 0.30
-    const retentionRate =
-      retentionPercent != null && retentionPercent !== ""
-        ? (Number(retentionPercent) > 1
-            ? Number(retentionPercent) / 100
-            : Number(retentionPercent))
-        : null;
-
-    const retentionAmount =
-      manualRetentionAmount != null && manualRetentionAmount !== ""
-        ? r2local(manualRetentionAmount)
-        : retentionRate != null
-        ? r2local(netLoanForLender * retentionRate)
-        : 0;
+    const retentionAmount = manualRetentionAmount
+      ? r2local(manualRetentionAmount)
+      : retentionPercent
+      ? r2local(netLoanForLender * retentionPercent)
+      : 0;
 
     const netDisbursement = r2local(netLoanForLender - retentionAmount);
+    const advEmiCount = Number(no_of_advanced_emis || 1);
     const totalEmis = Number(tenure);
 
     //-----------------------------------------------------
-    // 2️⃣ EMI (FLAT)
+    // 2️⃣ EMI (FLAT — EXCEL FORMULA)
     //-----------------------------------------------------
     const rawEmi =
       (approvedAmount / totalEmis) +
@@ -3007,30 +2933,34 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     //-----------------------------------------------------
     // 3️⃣ NET PRINCIPAL O/S (AFTER ADVANCE EMI)
     //-----------------------------------------------------
-    const netPrincipalOS = r2local(netDisbursement - emiAmount);
+    const netPrincipalOS = r2local(netDisbursement - rawEmi);
 
     //-----------------------------------------------------
-    // 4️⃣ BUILD IRR CASHFLOWS (MUST MATCH RPS)
+    // 4️⃣ BUILD IRR CASHFLOWS (FINAL RULE)
     //-----------------------------------------------------
+    const positiveCount = totalEmis - 2;
     const irrCashflows = [];
+
+    // t0: net principal outstanding (outflow)
     irrCashflows.push(-netPrincipalOS);
 
-    for (let i = 0; i < totalEmis - 2; i++) {
+    // t1..t(n-2): EMIs (inflows)
+    for (let i = 0; i < positiveCount; i++) {
       irrCashflows.push(emiAmount);
     }
 
-    // Final cashflow rule
+    // 🔒 FINAL CASHFLOW — ALWAYS NEGATIVE
     const lastCashflow = r2local(Math.abs(emiAmount - retentionAmount));
     irrCashflows.push(-lastCashflow);
 
     //-----------------------------------------------------
-    // 5️⃣ IRR (NOMINAL ANNUAL)
+    // 5️⃣ IRR CALCULATION (NOMINAL ANNUAL)
     //-----------------------------------------------------
     const monthlyIRR = calculateIRR(irrCashflows);
     const irrNominalAnnual = r2local(monthlyIRR * 12 * 100);
 
     //-----------------------------------------------------
-    // 6️⃣ RPS (MUST USE SAME FINAL RULE)
+    // 6️⃣ REPAYMENT SCHEDULE (IRR-DRIVEN)
     //-----------------------------------------------------
     let openingBal = netPrincipalOS;
     const rpsData = [];
@@ -3052,20 +2982,20 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     ]);
 
     for (let i = 1; i < totalEmis; i++) {
-      let emi = emiAmount;
       let interest = r2local(openingBal * monthlyIRR);
-      let principal = r2local(emi - interest);
+      let principal = r2local(emiAmount - interest);
       let closing = r2local(openingBal - principal);
+      let emi = emiAmount;
 
       const emiDueDate = new Date(disbursementDate);
       emiDueDate.setMonth(emiDueDate.getMonth() + i);
       emiDueDate.setDate(emiDate);
 
-      // ✅ FINAL EMI MUST BE (EMI - retentionAmount) (can be negative)
+      // 🔒 FORCE FINAL EMI TO CLOSE BALANCE
       if (i === totalEmis - 1) {
-        emi = r2local(emiAmount - retentionAmount);
-        interest = r2local(openingBal * monthlyIRR);
-        principal = r2local(emi - interest);
+        principal = r2local(openingBal);
+        interest = r2local(principal * monthlyIRR);
+        emi = r2local(principal + interest);
         closing = 0;
       }
 
@@ -3100,19 +3030,21 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       await db.promise().query(sql, [rpsData]);
     }
 
+    //-----------------------------------------------------
+    // 8️⃣ RETURN SUMMARY
+    //-----------------------------------------------------
     return {
       lan,
       emiAmount,
       netDisbursement,
       netPrincipalOS,
-      retentionAmount,
       irr: irrNominalAnnual
     };
+
   } catch (err) {
     console.error(`❌ RPS Error for ${lan}:`, err);
   }
 };
-
 
 
 /////////////////////////// GQ FSF FINTREE RPS Sajag New End ////////////////////////////
@@ -3886,10 +3818,21 @@ const generateRepaymentScheduleAdikosh = async (
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const generateRepaymentSchedule = async (
-  conn, lan, loan_amount, emi_date, interest_rate, loan_tenure, disbursementDate, subvention_amount, no_of_advance_emis, retention_percentage, salary_day, product, lender
+  conn,
+  lan,
+  loanAmount,
+  emiDate,
+  interestRate,
+  tenure,
+  disbursementDate,
+  subventionAmount,
+  no_of_advance_emis,
+  salary_day,
+  product,
+  lender
 ) => {
   console.log("lender testing", lender);
- const retentionPercent = retention_percentage ?? 0;
+
   if (lender === "BL Loan") {
     await generateRepaymentScheduleBL(
       lan,
@@ -4117,19 +4060,16 @@ const generateRepaymentSchedule = async (
 
     await generateRepaymentScheduleGQFSF_Fintree(
       lan,
-      approvedAmount,
-      emiDate,
-      interestRate,
-      tenure,
-      disbursementDate,
-      subventionAmount,
-      product,
-      lender,
-      no_of_advance_emis,
-      retentionPercent,
-      manualRetentionAmount
+      approvedAmountNum,   // approvedAmount
+      emiDate,             // emiDate (day)
+      interestRateNum,     // interestRate (annual %)
+      tenureNum,           // tenure (months)
+      disbursementDate,    // disbursementDate ("YYYY-MM-DD")
+      subventionAmount,    // subventionAmount
+      product,             // product
+      lender,              // lender
+      noOfAdvanceNum       // no_of_advance_emis
     );
-  
 
     console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
   } catch (err) {
