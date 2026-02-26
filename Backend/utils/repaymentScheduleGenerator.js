@@ -4036,6 +4036,8 @@ const generateRepaymentSchedule = async (
       product,
       lender,
       no_of_advance_emis: noOfAdvanceNum,
+      retentionPercent,         // ✅ pass this
+      manualRetentionAmount     // ✅ if you have it
     });
 
     await generateRepaymentScheduleGQFSF(
@@ -4048,7 +4050,9 @@ const generateRepaymentSchedule = async (
       subventionAmount,
       product,
       lender,
-      noOfAdvanceNum
+      noOfAdvanceNum,
+      retentionPercent,         // ✅ pass this
+      manualRetentionAmount     // ✅ if you have it
     );
 
     console.log("✅ generateRepaymentScheduleGQFSF completed");
@@ -4076,6 +4080,8 @@ const generateRepaymentSchedule = async (
       product,
       lender,
       no_of_advance_emis: noOfAdvanceNum,
+      retentionPercent,         // ✅ pass this
+      manualRetentionAmount     // ✅ if you have it
     });
 
     await generateRepaymentScheduleGQFSF_Fintree(
