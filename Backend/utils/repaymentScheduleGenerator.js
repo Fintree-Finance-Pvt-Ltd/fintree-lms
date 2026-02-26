@@ -4131,21 +4131,20 @@ const generateRepaymentSchedule = async (
         manualRetentionAmount: safeManualRetentionAmount,    // ✅
     });
 
-    await generateRepaymentScheduleGQFSF_Fintree(
-      lan,
-      approvedAmountNum,   // approvedAmount
-      emiDate,             // emiDate (day)
-      interestRateNum,     // interestRate (annual %)
-      tenureNum,           // tenure (months)
-      disbursementDate,    // disbursementDate ("YYYY-MM-DD")
-      subventionAmount,    // subventionAmount
-      product,             // product
-      lender,              // lender
-      noOfAdvanceNum,      // no_of_advance_emis
-        safeRetentionPercent = safeRetentionPercent, 
-  safeManualRetentionAmount= safeManualRetentionAmount 
-     
-    );
+await generateRepaymentScheduleGQFSF_Fintree(
+  lan,
+  approvedAmountNum,
+  emiDate,
+  interestRateNum,
+  tenureNum,
+  disbursementDate,
+  subventionAmount,
+  product,
+  lender,
+  noOfAdvanceNum,
+  safeRetentionPercent,
+  safeManualRetentionAmount
+);
 
     console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
   } catch (err) {
