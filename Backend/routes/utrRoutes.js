@@ -721,7 +721,7 @@ WHERE lan = ?`,
   product,
   lender,
   retention_percentage,
-  retention_amount,   // ✅ correct
+  manual_retention_amount,   // ✅ correct
 } = loanRes[0];
 
       // Duplicate UTR check
@@ -763,22 +763,22 @@ WHERE lan = ?`,
         try {
           if (!insertedLANs.has(lan)) {
             // 🔴 IMPORTANT: pass `conn` (transaction) into the RPS generator.
-            await generateRepaymentSchedule(
-              conn,
-              lan,
-              loan_amount,
-              emi_date,
-              interest_rate,
-              loan_tenure,
-              disbursementDate,
-              subvention_amount,
-              no_of_advance_emis,
-              salary_day,
-              product,
-              lender,
-                retention_percentage,          // ✅ new
-  retention_amount      // ✅ new
-            );
+           await generateRepaymentSchedule(
+  conn,
+  lan,
+  loan_amount,
+  emi_date,
+  interest_rate,
+  loan_tenure,
+  disbursementDate,
+  subvention_amount,
+  no_of_advance_emis,
+  salary_day,
+  product,
+  lender,
+  retention_percentage,
+   manual_retention_amount // ✅ pass correct value
+);
             insertedLANs.add(lan);
           }
         } catch (rpsErr) {
