@@ -3904,6 +3904,7 @@ const generateRepaymentSchedule = async (
       tenureNum,           // tenure (months)
       disbursementDate,    // disbursementDate ("YYYY-MM-DD")
       subventionAmount,    // subventionAmount
+      retentionPercent,    // retentionPercent 
       product,             // product
       lender,              // lender
       noOfAdvanceNum       // no_of_advance_emis
