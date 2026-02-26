@@ -2689,364 +2689,202 @@ const generateRepaymentScheduleGQFSF = async (
   }
 };
 
-// /////////////////////////// GQ FSF FINTREE RPS SAjag ////////////////////////////
-// //////////////////////////////////////////////////////////
-// //////////////////////////////////////////////////////////
-// // GQ FSF Loan Calculation - Fintree (Dynamic EMI + IRR)
-// //////////////////////////////////////////////////////////
+/////////////////////////// GQ FSF FINTREE RPS SAjag ////////////////////////////
+//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
+// GQ FSF Loan Calculation - Fintree (Dynamic EMI + IRR)
+//////////////////////////////////////////////////////////
 
-// // --- IRR Helper ---
-// function calculateIRR(cashflows, guess = 0.01) {
-//   const maxIter = 1000;
-//   const precision = 1e-7;
-//   let rate = guess;
-//   for (let i = 0; i < maxIter; i++) {
-//     let npv = 0, dnpv = 0;
-//     for (let t = 0; t < cashflows.length; t++) {
-//       npv += cashflows[t] / Math.pow(1 + rate, t);
-//       dnpv -= (t * cashflows[t]) / Math.pow(1 + rate, t + 1);
-//     }
-//     const newRate = rate - npv / dnpv;
-//     if (Math.abs(newRate - rate) < precision) return rate;
-//     rate = newRate;
-//   }
-//   return rate;
-// }
+// --- IRR Helper ---
+function calculateIRR(cashflows, guess = 0.01) {
+  const maxIter = 1000;
+  const precision = 1e-7;
+  let rate = guess;
+  for (let i = 0; i < maxIter; i++) {
+    let npv = 0, dnpv = 0;
+    for (let t = 0; t < cashflows.length; t++) {
+      npv += cashflows[t] / Math.pow(1 + rate, t);
+      dnpv -= (t * cashflows[t]) / Math.pow(1 + rate, t + 1);
+    }
+    const newRate = rate - npv / dnpv;
+    if (Math.abs(newRate - rate) < precision) return rate;
+    rate = newRate;
+  }
+  return rate;
+}
 
-// // --- EMI Helper ---
-// function calculateEMI(principal, monthlyRate, tenure) {
-//   if (monthlyRate === 0) return principal / tenure;
-//   const factor = Math.pow(1 + monthlyRate, tenure);
-//   return +(principal * monthlyRate * factor / (factor - 1)).toFixed(2);
-// }
-
-// //////////////////////////////////////////////////////////
-// // MAIN FUNCTION (Dynamic)
-// //////////////////////////////////////////////////////////
-// const generateRepaymentScheduleGQFSF_Fintree = async (
-//   lan,
-//   approvedAmount,      // from DB or input
-//   emiDate,             // e.g. 10
-//   interestRate,        // if 0, we derive via IRR or APR
-//   tenure,              // months
-//   disbursementDate,    // e.g. '2025-08-26'
-//   subventionAmount,    // from DB
-//   product,
-//   lender,
-//   no_of_advance_emis,  // from DB
-//   retentionPercent,    // from DB (or null)
-//   manualRetentionAmount // optional
-// ) => {
-//   try {
-//     console.log(`\n🚀 Generating Fintree RPS for LAN: ${lan}`);
-
-//     //---------------------------------------------------------
-//     // 1️⃣ INPUT PREP
-//     //---------------------------------------------------------
-//     const subvention = Number(subventionAmount || 0);
-//     const netLoanForLender = Number(approvedAmount) - subvention;
-//     const retentionAmount =
-//       manualRetentionAmount
-//         ? Number(manualRetentionAmount)
-//         : retentionPercent
-//         ? +(netLoanForLender * retentionPercent).toFixed(2)
-//         : 0;
-//     const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
-//     const advEmiCount = Number(no_of_advance_emis || 0);
-//     const totalEmis = Number(tenure);
-
-//     console.log(`💵 Approved Amount: ₹${approvedAmount}`);
-//     console.log(`💸 Subvention: ₹${subvention}`);
-//     console.log(`🏦 Retention: ₹${retentionAmount}`);
-//     console.log(`💰 Net Disbursement: ₹${netDisbursement}`);
-
-//     //---------------------------------------------------------
-//     // 2️⃣ ESTIMATE RATE & EMI (Dynamic)
-//     //---------------------------------------------------------
-//     // If interestRate = 0, assume effective APR ≈ 10.56%
-//     const annualRate = interestRate && interestRate > 0 ? interestRate : 10.56;
-//     const monthlyRate = +(annualRate / 12 / 100).toFixed(6);
-
-//     // EMI from lender’s principal (netLoanForLender)
-//     const emiAmount = calculateEMI(netLoanForLender, monthlyRate, totalEmis);
-//     console.log(`📆 EMI Calculated: ₹${emiAmount} (Rate: ${annualRate}% p.a.)`);
-
-//     //---------------------------------------------------------
-//     // 3️⃣ GENERATE RPS
-//     //---------------------------------------------------------
-//     let openingBal = netLoanForLender;
-//     const rpsData = [];
-//     const cashflows = [-netDisbursement];
-//     let remainingEmi = totalEmis;
-
-//     // Advance EMI (deducted on disbursement)
-//     if (advEmiCount > 0) {
-//       const advInterest = +(openingBal * monthlyRate).toFixed(2);
-//       const advPrincipal = +(emiAmount - advInterest).toFixed(2);
-//       const advClosing = +(openingBal - advPrincipal).toFixed(2);
-//       const advDueDate = new Date(disbursementDate);
-
-//       rpsData.push([
-//         lan,
-//         advDueDate.toISOString().split("T")[0],
-//         "Pending",
-//         emiAmount,
-//         advInterest,
-//         advPrincipal,
-//         openingBal,
-//         advClosing,
-//         emiAmount,
-//         advInterest,
-//         advPrincipal,
-//         emiAmount
-        
-//       ]);
-
-//       cashflows.push(emiAmount);
-//       openingBal = advClosing;
-//     }
-
-//     // Regular EMIs
-//     const normalEmiCount = totalEmis - advEmiCount;
-//     for (let i = 1; i <= normalEmiCount; i++) {
-//       const interest = +(openingBal * monthlyRate).toFixed(2);
-//       const principal = +(emiAmount - interest).toFixed(2);
-//       const closingBal = +(openingBal - principal).toFixed(2);
-//       const emiDueDate = new Date(disbursementDate);
-//       emiDueDate.setMonth(emiDueDate.getMonth() + i);
-//       emiDueDate.setDate(emiDate);
-
-//       const remainingInterest = +(closingBal * monthlyRate).toFixed(2);
-
-//       rpsData.push([
-//         lan,
-//         emiDueDate.toISOString().split("T")[0],
-//         "Pending",
-//         emiAmount,
-//         interest,
-//         principal,
-//         openingBal,
-//         closingBal,
-//         emiAmount,
-//         interest,
-//         principal,
-//         emiAmount
-
-        
-//       ]);
-
-//       cashflows.push(emiAmount);
-//       openingBal = closingBal;
-//     }
-
-//     //---------------------------------------------------------
-//     // 4️⃣ DERIVE EFFECTIVE IRR / APR
-//     //---------------------------------------------------------
-//     const monthlyIRR = calculateIRR(cashflows);
-//     const apr = ((1 + monthlyIRR) ** 12 - 1) * 100;
-//     console.log(`📊 Derived APR = ${apr.toFixed(2)}%`);
-
-//     //---------------------------------------------------------
-//     // 5️⃣ INSERT TO DB
-//     //---------------------------------------------------------
-//     if (rpsData.length > 0) {
-//       const sql = `
-//         INSERT INTO manual_rps_gq_fsf_fintree
-//         (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi,
-//          remaining_interest, remaining_principal,remaining_amount)
-//         VALUES ?
-//       `;
-//       await db.promise().query(sql, [rpsData]);
-//       console.log(`✅ Inserted ${rpsData.length} rows for ${lan}`);
-//     } else {
-//       console.warn("⚠️ No rows generated — nothing inserted");
-//     }
-
-//     //---------------------------------------------------------
-//     // 6️⃣ RETURN SUMMARY
-//     //---------------------------------------------------------
-//     return {
-//       lan,
-//       totalEmis,
-//       advEmiCount,
-//       emiAmount,
-//       subventionAmount: subvention,
-//       netLoanForLender,
-//       retentionAmount,
-//       netDisbursement,
-//       apr: +apr.toFixed(2)
-//     };
-//   } catch (err) {
-//     console.error(`❌ GQ FSF RPS Error for ${lan}:`, err);
-//   }
-// };
-
-
-/////////////////////////// GQ FSF FINTREE RPS SAjag End////////////////////////////
-/////////////////////////// GQ FSF FINTREE RPS Sajag New Start  ////////////////////////////
-
-const r2local = (n) => +(+n).toFixed(2);
+// --- EMI Helper ---
+function calculateEMI(principal, monthlyRate, tenure) {
+  if (monthlyRate === 0) return principal / tenure;
+  const factor = Math.pow(1 + monthlyRate, tenure);
+  return +(principal * monthlyRate * factor / (factor - 1)).toFixed(2);
+}
 
 //////////////////////////////////////////////////////////
-// MAIN FUNCTION — FINAL & LOCKED
+// MAIN FUNCTION (Dynamic)
 //////////////////////////////////////////////////////////
 const generateRepaymentScheduleGQFSF_Fintree = async (
   lan,
-  approvedAmount,
-  emiDate,
-  interestRate,        // flat %
-  tenure,
-  disbursementDate,
-  subventionAmount,
+  approvedAmount,      // from DB or input
+  emiDate,             // e.g. 10
+  interestRate,        // if 0, we derive via IRR or APR
+  tenure,              // months
+  disbursementDate,    // e.g. '2025-08-26'
+  subventionAmount,    // from DB
   product,
   lender,
-  no_of_advanced_emis, // assumed = 1
-  retentionPercent,
-  manualRetentionAmount
+  no_of_advance_emis,  // from DB
+  retentionPercent,    // from DB (or null)
+  manualRetentionAmount // optional
 ) => {
   try {
-    //-----------------------------------------------------
-    // 1️⃣ BASIC DERIVATIONS
-    //-----------------------------------------------------
-    const subvention = r2local(subventionAmount || 0);
-    const netLoanForLender = r2local(approvedAmount - subvention);
+    console.log(`\n🚀 Generating Fintree RPS for LAN: ${lan}`);
 
-    const retentionAmount = manualRetentionAmount
-      ? r2local(manualRetentionAmount)
-      : retentionPercent
-      ? r2local(netLoanForLender * retentionPercent)
-      : 0;
-
-    const netDisbursement = r2local(netLoanForLender - retentionAmount);
-    const advEmiCount = Number(no_of_advanced_emis || 1);
+    //---------------------------------------------------------
+    // 1️⃣ INPUT PREP
+    //---------------------------------------------------------
+    const subvention = Number(subventionAmount || 0);
+    const netLoanForLender = Number(approvedAmount) - subvention;
+    const retentionAmount =
+      manualRetentionAmount
+        ? Number(manualRetentionAmount)
+        : retentionPercent
+        ? +(netLoanForLender * retentionPercent).toFixed(2)
+        : 0;
+    const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
+    const advEmiCount = Number(no_of_advance_emis || 0);
     const totalEmis = Number(tenure);
 
-    //-----------------------------------------------------
-    // 2️⃣ EMI (FLAT — EXCEL FORMULA)
-    //-----------------------------------------------------
-    const rawEmi =
-      (approvedAmount / totalEmis) +
-      ((approvedAmount * (interestRate || 0) / 100) / totalEmis);
+    console.log(`💵 Approved Amount: ₹${approvedAmount}`);
+    console.log(`💸 Subvention: ₹${subvention}`);
+    console.log(`🏦 Retention: ₹${retentionAmount}`);
+    console.log(`💰 Net Disbursement: ₹${netDisbursement}`);
 
-    const emiAmount = r2local(rawEmi);
+    //---------------------------------------------------------
+    // 2️⃣ ESTIMATE RATE & EMI (Dynamic)
+    //---------------------------------------------------------
+    // If interestRate = 0, assume effective APR ≈ 10.56%
+    const annualRate = interestRate && interestRate > 0 ? interestRate : 10.56;
+    const monthlyRate = +(annualRate / 12 / 100).toFixed(6);
 
-    //-----------------------------------------------------
-    // 3️⃣ NET PRINCIPAL O/S (AFTER ADVANCE EMI)
-    //-----------------------------------------------------
-    const netPrincipalOS = r2local(netDisbursement - rawEmi);
+    // EMI from lender’s principal (netLoanForLender)
+    const emiAmount = calculateEMI(netLoanForLender, monthlyRate, totalEmis);
+    console.log(`📆 EMI Calculated: ₹${emiAmount} (Rate: ${annualRate}% p.a.)`);
 
-    //-----------------------------------------------------
-    // 4️⃣ BUILD IRR CASHFLOWS (FINAL RULE)
-    //-----------------------------------------------------
-    const positiveCount = totalEmis - 2;
-    const irrCashflows = [];
+    //---------------------------------------------------------
+    // 3️⃣ GENERATE RPS
+    //---------------------------------------------------------
+    let openingBal = netLoanForLender;
+    const rpsData = [];
+    const cashflows = [-netDisbursement];
+    let remainingEmi = totalEmis;
 
-    // t0: net principal outstanding (outflow)
-    irrCashflows.push(-netPrincipalOS);
+    // Advance EMI (deducted on disbursement)
+    if (advEmiCount > 0) {
+      const advInterest = +(openingBal * monthlyRate).toFixed(2);
+      const advPrincipal = +(emiAmount - advInterest).toFixed(2);
+      const advClosing = +(openingBal - advPrincipal).toFixed(2);
+      const advDueDate = new Date(disbursementDate);
 
-    // t1..t(n-2): EMIs (inflows)
-    for (let i = 0; i < positiveCount; i++) {
-      irrCashflows.push(emiAmount);
+      rpsData.push([
+        lan,
+        advDueDate.toISOString().split("T")[0],
+        "Pending",
+        emiAmount,
+        advInterest,
+        advPrincipal,
+        openingBal,
+        advClosing,
+        emiAmount,
+        advInterest,
+        advPrincipal,
+        emiAmount
+        
+      ]);
+
+      cashflows.push(emiAmount);
+      openingBal = advClosing;
     }
 
-    // 🔒 FINAL CASHFLOW — ALWAYS NEGATIVE
-    const lastCashflow = r2local(Math.abs(emiAmount - retentionAmount));
-    irrCashflows.push(-lastCashflow);
-
-    //-----------------------------------------------------
-    // 5️⃣ IRR CALCULATION (NOMINAL ANNUAL)
-    //-----------------------------------------------------
-    const monthlyIRR = calculateIRR(irrCashflows);
-    const irrNominalAnnual = r2local(monthlyIRR * 12 * 100);
-
-    //-----------------------------------------------------
-    // 6️⃣ REPAYMENT SCHEDULE (IRR-DRIVEN)
-    //-----------------------------------------------------
-    let openingBal = netPrincipalOS;
-    const rpsData = [];
-
-    // Row 0 — Advance EMI display
-    rpsData.push([
-      lan,
-      disbursementDate,
-      "Pending",
-      emiAmount,
-      null,
-      r2local(emiAmount),
-      openingBal,
-      openingBal,
-      emiAmount,
-      null,
-      r2local(emiAmount),
-      emiAmount
-    ]);
-
-    for (let i = 1; i < totalEmis; i++) {
-      let interest = r2local(openingBal * monthlyIRR);
-      let principal = r2local(emiAmount - interest);
-      let closing = r2local(openingBal - principal);
-      let emi = emiAmount;
-
+    // Regular EMIs
+    const normalEmiCount = totalEmis - advEmiCount;
+    for (let i = 1; i <= normalEmiCount; i++) {
+      const interest = +(openingBal * monthlyRate).toFixed(2);
+      const principal = +(emiAmount - interest).toFixed(2);
+      const closingBal = +(openingBal - principal).toFixed(2);
       const emiDueDate = new Date(disbursementDate);
       emiDueDate.setMonth(emiDueDate.getMonth() + i);
       emiDueDate.setDate(emiDate);
 
-      // 🔒 FORCE FINAL EMI TO CLOSE BALANCE
-      if (i === totalEmis - 1) {
-        principal = r2local(openingBal);
-        interest = r2local(principal * monthlyIRR);
-        emi = r2local(principal + interest);
-        closing = 0;
-      }
+      const remainingInterest = +(closingBal * monthlyRate).toFixed(2);
 
       rpsData.push([
         lan,
         emiDueDate.toISOString().split("T")[0],
         "Pending",
-        emi,
+        emiAmount,
         interest,
         principal,
         openingBal,
-        closing,
-        emi,
+        closingBal,
+        emiAmount,
         interest,
         principal,
-        emi
+        emiAmount
+
+        
       ]);
 
-      openingBal = closing;
+      cashflows.push(emiAmount);
+      openingBal = closingBal;
     }
 
-    //-----------------------------------------------------
-    // 7️⃣ DB INSERT
-    //-----------------------------------------------------
-    if (rpsData.length) {
+    //---------------------------------------------------------
+    // 4️⃣ DERIVE EFFECTIVE IRR / APR
+    //---------------------------------------------------------
+    const monthlyIRR = calculateIRR(cashflows);
+    const apr = ((1 + monthlyIRR) ** 12 - 1) * 100;
+    console.log(`📊 Derived APR = ${apr.toFixed(2)}%`);
+
+    //---------------------------------------------------------
+    // 5️⃣ INSERT TO DB
+    //---------------------------------------------------------
+    if (rpsData.length > 0) {
       const sql = `
         INSERT INTO manual_rps_gq_fsf_fintree
-        (lan, due_date, status, emi, interest, principal, opening, closing,
-         remaining_emi, remaining_interest, remaining_principal, remaining_amount)
+        (lan, due_date, status, emi, interest, principal, opening, closing, remaining_emi,
+         remaining_interest, remaining_principal,remaining_amount)
         VALUES ?
       `;
       await db.promise().query(sql, [rpsData]);
+      console.log(`✅ Inserted ${rpsData.length} rows for ${lan}`);
+    } else {
+      console.warn("⚠️ No rows generated — nothing inserted");
     }
 
-    //-----------------------------------------------------
-    // 8️⃣ RETURN SUMMARY
-    //-----------------------------------------------------
+    //---------------------------------------------------------
+    // 6️⃣ RETURN SUMMARY
+    //---------------------------------------------------------
     return {
       lan,
+      totalEmis,
+      advEmiCount,
       emiAmount,
+      subventionAmount: subvention,
+      netLoanForLender,
+      retentionAmount,
       netDisbursement,
-      netPrincipalOS,
-      irr: irrNominalAnnual
+      apr: +apr.toFixed(2)
     };
-
   } catch (err) {
-    console.error(`❌ RPS Error for ${lan}:`, err);
+    console.error(`❌ GQ FSF RPS Error for ${lan}:`, err);
   }
 };
 
 
+/////////////////////////// GQ FSF FINTREE RPS SAjag End////////////////////////////
+/////////////////////////// GQ FSF FINTREE RPS Sajag New Start  ////////////////////////////
+////SAJAG jain by FSFS
 /////////////////////////// GQ FSF FINTREE RPS Sajag New End ////////////////////////////
 ///////////////////////////// ADIKOSH LOAN CALCULATION /////////////////////////////////////////
 /////// Without PRE EMI /////////////
