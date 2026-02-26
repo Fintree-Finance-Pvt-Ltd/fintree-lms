@@ -4098,7 +4098,9 @@ const generateRepaymentSchedule = async (
       subventionAmount,
       product,
       lender,
-      noOfAdvanceNum
+      noOfAdvanceNum,
+       safeRetentionPercent,
+  safeManualRetentionAmount
        
     );
 
