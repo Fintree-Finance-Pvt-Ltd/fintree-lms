@@ -4087,8 +4087,8 @@ const generateRepaymentSchedule = async (
       product,             // product
       lender,              // lender
       noOfAdvanceNum,      // no_of_advance_emis
-      null,                // retentionPercent (null since not provided)
-      null                 // manualRetentionAmount (null since not provided)
+      retentionPercent,         // ✅ pass this
+  manualRetentionAmount     // ✅ if you have it
     );
 
     console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
