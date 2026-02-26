@@ -3848,10 +3848,14 @@ const generateRepaymentSchedule = async (
   salary_day,
   product,
   lender,
-  retentionPercent = 0,          // ✅ REQUIRED
-  manualRetentionAmount = 0      // ✅ REQUIRED
+  retentionPercent = 0,
+  manualRetentionAmount = 0
 ) => {
   console.log("lender testing", lender);
+
+  // 🛡 HARD SAFETY (prevents ALL ReferenceErrors)
+  const safeRetentionPercent = Number(retentionPercent || 0);
+  const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
 
   if (lender === "BL Loan") {
     await generateRepaymentScheduleBL(
@@ -4036,8 +4040,9 @@ const generateRepaymentSchedule = async (
       product,
       lender,
       no_of_advance_emis: noOfAdvanceNum,
-      retentionPercent,         // ✅ pass this
-      manualRetentionAmount     // ✅ if you have it
+        retentionPercent: safeRetentionPercent,         // ✅ pass this
+        manualRetentionAmount: safeManualRetentionAmount  // ✅ if you have it
+     
     });
 
     await generateRepaymentScheduleGQFSF(
@@ -4050,9 +4055,7 @@ const generateRepaymentSchedule = async (
       subventionAmount,
       product,
       lender,
-      noOfAdvanceNum,
-      retentionPercent,         // ✅ pass this
-      manualRetentionAmount     // ✅ if you have it
+      noOfAdvanceNum
     );
 
     console.log("✅ generateRepaymentScheduleGQFSF completed");
@@ -4095,8 +4098,8 @@ const generateRepaymentSchedule = async (
       product,             // product
       lender,              // lender
       noOfAdvanceNum,      // no_of_advance_emis
-      retentionPercent,         // ✅ pass this
-  manualRetentionAmount     // ✅ if you have it
+        safeRetentionPercent,
+      safeManualRetentionAmount
     );
 
     console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
