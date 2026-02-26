@@ -3834,7 +3834,7 @@ const generateRepaymentSchedule = async (
   //     lender,
   //     no_of_advance_emis
   //   );
-} else if (lender === "GQ FSF") {
+} else if (lender === "GQ FSF" || lender === "FSF") {
   // === run generic GQ FSF generator ===
   try {
     // coerce numeric-ish inputs and log
@@ -3904,7 +3904,7 @@ const generateRepaymentSchedule = async (
       tenureNum,           // tenure (months)
       disbursementDate,    // disbursementDate ("YYYY-MM-DD")
       subventionAmount,    // subventionAmount
-      retentionPercent,    // retentionPercent 
+      retentionPercentage,  // retentionPercentage (fixed variable name)
       product,             // product
       lender,              // lender
       noOfAdvanceNum       // no_of_advance_emis
