@@ -3847,7 +3847,9 @@ const generateRepaymentSchedule = async (
   no_of_advance_emis,
   salary_day,
   product,
-  lender
+  lender,
+    retentionPercent = 0,          // ✅ new default
+  manualRetentionAmount = 0      // ✅ new default
 ) => {
   console.log("lender testing", lender);
 
