@@ -2587,7 +2587,10 @@ const generateRepaymentScheduleGQFSF = async (
   subventionAmount,
   product,
   lender,
-  no_of_advance_emis
+  no_of_advance_emis,
+    retentionPercent = 0,         // ✅ add
+  manualRetentionAmount = 0     // ✅ add
+  
 ) => {
   try {
     console.log(`\n🚀 Generating GQ FSF RPS for LAN: ${lan}`);
@@ -2887,6 +2890,7 @@ const generateRepaymentScheduleGQFSF = async (
 /////////////////////////// GQ FSF FINTREE RPS Sajag New Start  ////////////////////////////
 
 // ================= IRR HELPER =================
+// ================= IRR HELPER =================
 function calculateIRR(cashflows, guess = 0.01) {
   const MAX_ITER = 1000;
   const PRECISION = 1e-8;
@@ -2912,11 +2916,28 @@ function calculateIRR(cashflows, guess = 0.01) {
 }
 
 // ================= DATE HELPERS =================
-const toISO = d => d.toISOString().split("T")[0];
+const toISO = (d, label = "date") => {
+  if (!d) throw new Error(`toISO() received ${label}=undefined/null`);
+  const dt = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(dt.getTime())) {
+    throw new Error(`toISO() received invalid ${label}: ${JSON.stringify(d)}`);
+  }
+  return dt.toISOString().split("T")[0];
+};
+
 const addMonthsWithEmiDate = (base, m, emiDate) => {
-  const d = new Date(base);
+  const b = base instanceof Date ? base : new Date(base);
+  if (!b || Number.isNaN(b.getTime())) return null;
+
+  const d = new Date(b);
   d.setMonth(d.getMonth() + m);
-  d.setDate(emiDate);
+
+  // If emiDate is missing/invalid, keep the day from base date
+  const day = Number(emiDate);
+  if (day && day >= 1 && day <= 31) d.setDate(day);
+
+  // If date overflowed (e.g., Feb 31), JS auto-rolls; if you want clamp behavior,
+  // we can implement it — but this keeps your current behavior.
   return d;
 };
 
@@ -2943,13 +2964,21 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const advEmiCount = Number(no_of_advance_emis || 0);
     const subvention = Number(subventionAmount || 0);
 
+    const disb = disbursementDate instanceof Date ? disbursementDate : new Date(disbursementDate);
+    if (!disb || Number.isNaN(disb.getTime())) {
+      throw new Error(`Invalid disbursementDate for LAN=${lan}: ${JSON.stringify(disbursementDate)}`);
+    }
+
+    const safeRetentionPercent = Number(retentionPercent || 0);
+    const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
+
     // ---------- NET VALUES ----------
     const netLoanForLender = approved - subvention;
 
-    const retentionAmount = manualRetentionAmount
-      ? Number(manualRetentionAmount)
-      : retentionPercent
-      ? +(netLoanForLender * retentionPercent).toFixed(2)
+    const retentionAmount = safeManualRetentionAmount
+      ? +safeManualRetentionAmount.toFixed(2)
+      : safeRetentionPercent
+      ? +(netLoanForLender * safeRetentionPercent).toFixed(2)
       : 0;
 
     const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
@@ -2957,7 +2986,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     // ---------- EMI (FLAT) ----------
     const emiAmount = +(
       approved / tenureMonths +
-      (approved * (interestRate / 100)) / tenureMonths
+      (approved * (Number(interestRate || 0) / 100)) / tenureMonths
     ).toFixed(2);
 
     // ---------- NET PRINCIPAL O/S ----------
@@ -2965,6 +2994,10 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
     // ---------- CASHFLOWS ----------
     const normalEmis = tenureMonths - advEmiCount;
+    if (normalEmis <= 0) {
+      throw new Error(`Invalid normalEmis=${normalEmis} for LAN=${lan}. tenure=${tenureMonths}, adv=${advEmiCount}`);
+    }
+
     const lastEmi = +(emiAmount - retentionAmount).toFixed(2);
 
     const cashflows = [-netPrincipalOS];
@@ -2972,8 +3005,8 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     cashflows.push(lastEmi);
 
     // ---------- IRR ----------
-    const monthlyIRR = calculateIRR(cashflows); // NUMBER (e.g. 0.02)
-    const annualIRR = +(monthlyIRR * 12 * 100).toFixed(2); // NUMBER (e.g. 20.03)
+    const monthlyIRR = calculateIRR(cashflows);
+    const annualIRR = +(monthlyIRR * 12 * 100).toFixed(2);
 
     // ---------- RPS ----------
     let openingBal = netPrincipalOS;
@@ -2983,7 +3016,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     if (advEmiCount > 0) {
       rpsData.push([
         lan,
-        toISO(new Date(disbursementDate)),
+        toISO(disb, "disbursementDate"),
         "Pending",
         emiAmount,
         0,
@@ -3003,11 +3036,12 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       const principal = +(emiAmount - interest).toFixed(2);
       const closingBal = +(openingBal - principal).toFixed(2);
 
-      const dueDate = addMonthsWithEmiDate(disbursementDate, i, emiDate);
+      const dueDate = addMonthsWithEmiDate(disb, i, emiDate);
+      if (!dueDate) throw new Error(`Could not compute dueDate for LAN=${lan}, i=${i}`);
 
       rpsData.push([
         lan,
-        toISO(dueDate),
+        toISO(dueDate, "dueDate"),
         "Pending",
         emiAmount,
         interest,
@@ -3028,15 +3062,12 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const lastPrincipal = +(lastEmi - lastInterest).toFixed(2);
     const lastClosing = +(openingBal - lastPrincipal).toFixed(2);
 
-    const lastDueDate = addMonthsWithEmiDate(
-      disbursementDate,
-      normalEmis,
-      emiDate
-    );
+    const lastDueDate = addMonthsWithEmiDate(disb, normalEmis, emiDate);
+    if (!lastDueDate) throw new Error(`Could not compute lastDueDate for LAN=${lan}`);
 
     rpsData.push([
       lan,
-      toISO(lastDueDate),
+      toISO(lastDueDate, "lastDueDate"),
       "Pending",
       lastEmi,
       lastInterest,
@@ -3054,12 +3085,14 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       emiAmount,
       netDisbursement,
       netPrincipalOS,
-      monthlyIRR,   // e.g. 0.02
-      annualIRR,    // e.g. 20.03
-      cashflows
+      retentionAmount,
+      monthlyIRR,
+      annualIRR,
+      cashflows,
+      rpsData, // ✅ include schedule if you need DB inserts
     };
   } catch (err) {
-    console.error("❌ RPS ERROR:", err);
+    console.error("❌ RPS ERROR (GQFSF_Fintree):", err);
     throw err;
   }
 };
@@ -3856,6 +3889,15 @@ const generateRepaymentSchedule = async (
   // 🛡 HARD SAFETY (prevents ALL ReferenceErrors)
   const safeRetentionPercent = Number(retentionPercent || 0);
   const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
+  // ✅ Ensure disbursementDate is a valid Date object
+  const disbDateObj =
+    disbursementDate instanceof Date ? disbursementDate : new Date(disbursementDate);
+
+  if (!disbDateObj || Number.isNaN(disbDateObj.getTime())) {
+    throw new Error(
+      `Invalid disbursementDate for LAN=${lan}. Received: ${JSON.stringify(disbursementDate)}`
+    );
+  }
 
   if (lender === "BL Loan") {
     await generateRepaymentScheduleBL(
@@ -4044,7 +4086,8 @@ const generateRepaymentSchedule = async (
         manualRetentionAmount: safeManualRetentionAmount  // ✅ if you have it
      
     });
-
+   // ✅ If your generateRepaymentScheduleGQFSF supports retention, pass it.
+      // If it doesn't, keep the function signature aligned (recommended to add params).
     await generateRepaymentScheduleGQFSF(
       lan,
       approvedAmountNum,
@@ -4055,7 +4098,9 @@ const generateRepaymentSchedule = async (
       subventionAmount,
       product,
       lender,
-      noOfAdvanceNum
+      noOfAdvanceNum,
+       safeRetentionPercent,           // ✅ add to signature
+        safeManualRetentionAmount       // ✅ add to signature
     );
 
     console.log("✅ generateRepaymentScheduleGQFSF completed");
@@ -4083,8 +4128,8 @@ const generateRepaymentSchedule = async (
       product,
       lender,
       no_of_advance_emis: noOfAdvanceNum,
-      retentionPercent,         // ✅ pass this
-      manualRetentionAmount     // ✅ if you have it
+      retentionPercent: safeRetentionPercent,              // ✅
+        manualRetentionAmount: safeManualRetentionAmount,    // ✅
     });
 
     await generateRepaymentScheduleGQFSF_Fintree(

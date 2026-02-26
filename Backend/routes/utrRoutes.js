@@ -721,11 +721,11 @@ WHERE lan = ?`,
   product,
   lender,
   retention_percentage,
-  retention_amount,   // ✅ correct
+  manual_retention_amount,   // ✅ correct
 } = loanRes[0];
 
 const retentionPercent = Number(retention_percentage || 0);
-const manualRetentionAmount = Number(retention_amount || 0);
+const manualRetentionAmount = Number(manual_retention_amount || 0);
       // Duplicate UTR check
       try {
         const [utrExists] = await db
