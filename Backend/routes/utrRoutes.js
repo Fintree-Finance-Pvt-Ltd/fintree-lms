@@ -610,7 +610,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
   product,
   lender,
   retention_percentage ,
-  manual_retention_amount AS retention_amount
+  retention_amount AS manual_retention_amount
 FROM loan_booking_gq_fsf
 WHERE lan = ?`,
             [lan]
