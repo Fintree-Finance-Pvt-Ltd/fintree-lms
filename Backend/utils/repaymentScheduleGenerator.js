@@ -4098,9 +4098,8 @@ const generateRepaymentSchedule = async (
       subventionAmount,
       product,
       lender,
-      noOfAdvanceNum,
-       safeRetentionPercent,           // ✅ add to signature
-        safeManualRetentionAmount       // ✅ add to signature
+      noOfAdvanceNum
+       
     );
 
     console.log("✅ generateRepaymentScheduleGQFSF completed");
