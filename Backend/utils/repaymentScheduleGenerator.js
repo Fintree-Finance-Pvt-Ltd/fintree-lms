@@ -4142,7 +4142,7 @@ const generateRepaymentSchedule = async (
       product,             // product
       lender,              // lender
       noOfAdvanceNum,      // no_of_advance_emis
-      retention_percentage = safeRetentionPercent, 
+        safeRetentionPercent = safeRetentionPercent, 
   safeManualRetentionAmount= safeManualRetentionAmount 
      
     );
