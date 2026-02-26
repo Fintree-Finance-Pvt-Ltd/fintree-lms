@@ -609,7 +609,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
   no_of_advance_emis,
   product,
   lender,
-  retention_percentage ,
+  retention_percentage as retention_percent ,
   retention_amount AS manual_retention_amount
 FROM loan_booking_gq_fsf
 WHERE lan = ?`,
