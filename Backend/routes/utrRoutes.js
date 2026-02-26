@@ -600,8 +600,19 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
           );
         } else if (lan.startsWith("GQF")) {
           [loanRes] = await db.promise().query(
-            `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender ,retention_percent, ,manual_retention_amount AS retention_amount
-             FROM loan_booking_gq_fsf WHERE lan = ?`,
+            `SELECT 
+  loan_amount_sanctioned AS loan_amount,
+  emi_day AS emi_date,
+  interest_percent AS interest_rate,
+  loan_tenure_months AS loan_tenure,
+  subvention_amount,
+  no_of_advance_emis,
+  product,
+  lender,
+  retention_percent,
+  manual_retention_amount AS retention_amount
+FROM loan_booking_gq_fsf
+WHERE lan = ?`,
             [lan]
           );
         } else if (lan.startsWith("E10")) {
@@ -714,7 +725,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       } = loanRes[0];
 
 const retentionPercent = Number(retention_percent || 0);
-const manualRetentionAmount = Number(manual_retention_amount || 0);
+const manualRetentionAmount = Number(retention_amount || 0);
       // Duplicate UTR check
       try {
         const [utrExists] = await db
