@@ -3881,14 +3881,14 @@ const generateRepaymentSchedule = async (
   salary_day,
   product,
   lender,
-  retentionPercentage  = 0,
-  manualRetentionAmount = 0
+  retention_percentage,
+  retention_amount
 ) => {
   console.log("lender testing", lender);
 
   // 🛡 HARD SAFETY (prevents ALL ReferenceErrors)
-  const safeRetentionPercent = Number(retentionPercentage || 0);
-  const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
+  const safeRetentionPercent = Number(retention_percentage || 0);
+  const safeManualRetentionAmount = Number(retention_amount || 0);
   // ✅ Ensure disbursementDate is a valid Date object
   const disbDateObj =
     disbursementDate instanceof Date ? disbursementDate : new Date(disbursementDate);
@@ -4143,8 +4143,9 @@ const generateRepaymentSchedule = async (
       product,             // product
       lender,              // lender
       noOfAdvanceNum,      // no_of_advance_emis
-      retentionPercent = safeRetentionPercent,         // ✅ pass this
-      manualRetentionAmount = safeManualRetentionAmount  // ✅ pass this 
+      retention_percentage = safeRetentionPercent, 
+  safeManualRetentionAmount= safeManualRetentionAmount 
+     
     );
 
     console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");

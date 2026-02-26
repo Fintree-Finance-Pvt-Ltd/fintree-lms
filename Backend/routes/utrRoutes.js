@@ -609,7 +609,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
   no_of_advance_emis,
   product,
   lender,
-  retention_percentage as retention_percent ,
+  retention_percentage ,
   retention_amount AS manual_retention_amount
 FROM loan_booking_gq_fsf
 WHERE lan = ?`,
@@ -721,11 +721,9 @@ WHERE lan = ?`,
   product,
   lender,
   retention_percentage,
-  manual_retention_amount,   // ✅ correct
+  retention_amount,   // ✅ correct
 } = loanRes[0];
 
-const retentionPercent = Number(retention_percentage || 0);
-const manualRetentionAmount = Number(manual_retention_amount || 0);
       // Duplicate UTR check
       try {
         const [utrExists] = await db
@@ -778,8 +776,8 @@ const manualRetentionAmount = Number(manual_retention_amount || 0);
               salary_day,
               product,
               lender,
-                retentionPercent,          // ✅ new
-  manualRetentionAmount      // ✅ new
+                retention_percentage,          // ✅ new
+  retention_amount      // ✅ new
             );
             insertedLANs.add(lan);
           }
