@@ -3904,10 +3904,11 @@ const generateRepaymentSchedule = async (
       tenureNum,           // tenure (months)
       disbursementDate,    // disbursementDate ("YYYY-MM-DD")
       subventionAmount,    // subventionAmount
-      retentionPercentage,  // retentionPercentage (fixed variable name)
       product,             // product
       lender,              // lender
-      noOfAdvanceNum       // no_of_advance_emis
+      noOfAdvanceNum,      // no_of_advance_emis
+      null,                // retentionPercent (null since not provided)
+      null                 // manualRetentionAmount (null since not provided)
     );
 
     console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
