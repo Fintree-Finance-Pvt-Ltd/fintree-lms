@@ -3848,8 +3848,8 @@ const generateRepaymentSchedule = async (
   salary_day,
   product,
   lender,
-    retentionPercent = 0,          // ✅ new default
-  manualRetentionAmount = 0      // ✅ new default
+  retentionPercent = 0,          // ✅ REQUIRED
+  manualRetentionAmount = 0      // ✅ REQUIRED
 ) => {
   console.log("lender testing", lender);
 

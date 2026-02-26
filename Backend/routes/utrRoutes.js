@@ -711,18 +711,18 @@ WHERE lan = ?`,
       }
 
       const {
-        loan_amount,
-        emi_date,
-        interest_rate,
-        loan_tenure,
-        subvention_amount,
-        no_of_advance_emis,
-        salary_day,
-        product,
-        lender,
-        retention_percent,
-  manual_retention_amount,
-      } = loanRes[0];
+  loan_amount,
+  emi_date,
+  interest_rate,
+  loan_tenure,
+  subvention_amount,
+  no_of_advance_emis,
+  salary_day,
+  product,
+  lender,
+  retention_percent,
+  retention_amount,   // ✅ correct
+} = loanRes[0];
 
 const retentionPercent = Number(retention_percent || 0);
 const manualRetentionAmount = Number(retention_amount || 0);
