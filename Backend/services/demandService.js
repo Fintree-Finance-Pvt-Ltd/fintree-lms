@@ -182,11 +182,12 @@ const generateDailySupplyChainDemand = async (conn, invoice, tillDate) => {
       current.setDate(current.getDate() + 1)
     ) {
       diffDays++;
-        // ✅ 1st row: count 2 days interest, rest: 1 day interest
-  const interestToAdd = diffDays === 1 ? dailyInterest * 2 : dailyInterest;
-  cumulativeInterest += interestToAdd;
-
-
+      // 1st row → 2 days interest, rest → 1 day interest
+if (diffDays === 1) {
+  cumulativeInterest += dailyInterest * 2;
+} else {
+  cumulativeInterest += dailyInterest;
+}
       const overdueAmount = principal + cumulativeInterest;
 
       let penalInterest = 0;
