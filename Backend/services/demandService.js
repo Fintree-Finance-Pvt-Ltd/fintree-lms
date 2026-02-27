@@ -172,7 +172,7 @@ const generateDailySupplyChainDemand = async (conn, invoice, tillDate) => {
 
     let cumulativeInterest = 0;
     let cumulativePenalInterest = 0;
-    let diffDays = 0;
+    let diffDays = 1;
 
     const rows = [];
 
