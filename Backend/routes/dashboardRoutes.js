@@ -186,6 +186,23 @@ router.post("/repayment-trend", async (req, res) => {
       params.push(...dateR.params);
     }
 
+    if (prod === "ALL" || prod === "HELIUM") {
+  queries.push(`
+    SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
+           'HELIUM' AS product,
+           SUM(transfer_amount) AS total_collected
+    FROM repayments_upload
+    WHERE payment_date IS NOT NULL
+      AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
+        SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""}
+        FROM loan_booking_helium
+      )
+      ${dateA.clause}
+    GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
+  `);
+  params.push(...dateA.params);
+}
+
     if (prod === "ALL" || prod === "EV") {
       queries.push(`
         SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
@@ -365,6 +382,19 @@ router.post("/collection-vs-due", async (req, res) => {
       `);
       params.push(...dueR.params);
     }
+if (prod === "ALL" || prod === "HELIUM") {
+  queries.push(`
+    SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
+           'HELIUM' AS product,
+           SUM(emi) AS total_due,
+           0 AS total_collected
+    FROM manual_rps_helium
+    WHERE due_date < CURDATE() ${dueR.clause}
+    GROUP BY DATE_FORMAT(due_date, '%Y-%m-%d')
+  `);
+  params.push(...dueR.params);
+}
+
     if (prod === "ALL" || prod === "BL") {
       queries.push(`
         SELECT DATE_FORMAT(due_date, '%Y-%m-%d') AS month,
@@ -510,6 +540,25 @@ router.post("/collection-vs-due", async (req, res) => {
       `);
       params.push(...buildDateRangeClause("r.payment_date", start, end).params);
     }
+if (prod === "ALL" || prod === "HELIUM") {
+  queries.push(`
+    SELECT DATE_FORMAT(payment_date, '%Y-%m-%d') AS month,
+           'HELIUM' AS product,
+           0 AS total_due,
+           SUM(transfer_amount) AS total_collected
+    FROM repayments_upload
+    WHERE payment_date IS NOT NULL
+      AND payment_date < CURDATE()
+      AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
+        SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""}
+        FROM loan_booking_helium
+      )
+      ${payR.clause}
+    GROUP BY DATE_FORMAT(payment_date, '%Y-%m-%d')
+  `);
+  params.push(...payR.params);
+}
+
     if (prod === "ALL" || prod === "EV") {
       queries.push(`
         SELECT DATE_FORMAT(r.payment_date, '%Y-%m-%d') AS month,
@@ -697,6 +746,7 @@ router.post("/product-distribution", async (req, res) => {
     const wcHeyev = buildDateRangeClause("agreement_date", start, end);
     const wcCirclepe = buildDateRangeClause("agreement_date", start, end);
     const wcWCTL = buildDateRangeClause("agreement_date", start, end);
+    const wcHelium = buildDateRangeClause("agreement_date", start, end);
 
     const sql = `
       SELECT 'BL Loan' AS product, COUNT(*) AS value
@@ -708,6 +758,11 @@ router.post("/product-distribution", async (req, res) => {
       SELECT 'EV Loan' AS product, COUNT(*) AS value
       FROM loan_booking_ev
       WHERE 1=1 ${wcEV.clause}
+
+      UNION ALL
+SELECT 'HELIUM' AS product, COUNT(*) AS value
+FROM loan_booking_helium
+WHERE 1=1 ${wcHelium.clause}
 
       UNION ALL
 
@@ -776,6 +831,7 @@ router.post("/product-distribution", async (req, res) => {
       ...wcCirclepe.params,
       ...wcFinso.params,
       ...wcHeyev.params,
+      ...wcHelium.params,
     ];
     const [rows] = await db.promise().query(sql, params);
 
@@ -828,6 +884,15 @@ router.post("/metric-cards", async (req, res) => {
         allocTable: "allocation", allocLike: "BL%",
         rpsTable: "manual_rps_bl_loan",
       },
+HELIUM: {
+  disbTable: "loan_booking_helium",
+  disbField: "loan_amount",              // adjust if different
+  collType: "subquery",
+  allocTable: "allocation",
+  allocLike: "%HEL%",
+  rpsTable: "manual_rps_helium",
+},
+
       EV: {
         disbTable: "loan_booking_ev", disbField: "loan_amount",
         collType: "join", collBooking: "loan_booking_ev",
@@ -1048,6 +1113,8 @@ router.post("/dpd-buckets", async (req, res) => {
         case "heyev":
         case "hey_ev":
           return "Hey EV";
+          case "helium":
+            return "HELIUM";
         default:
           return p;
       }
@@ -1140,6 +1207,13 @@ router.post("/dpd-buckets", async (req, res) => {
       unions.push(branchClosed("manual_rps_bl_loan", "loan_bookings"));
       unions.push(branchActive("manual_rps_bl_loan", "loan_bookings"));
     }
+
+    if (prod === "ALL" || prod === "HELIUM") {
+  unions.push(branch("manual_rps_helium", "loan_booking_helium"));
+  unions.push(branchAll("manual_rps_helium", "loan_booking_helium"));
+  unions.push(branchClosed("manual_rps_helium", "loan_booking_helium"));
+  unions.push(branchActive("manual_rps_helium", "loan_booking_helium"));
+}
     if (prod === "ALL" || prod === "EV") {
       unions.push(branch("manual_rps_ev_loan", "loan_booking_ev"));
       unions.push(branchAll("manual_rps_ev_loan", "loan_booking_ev"));
@@ -1314,6 +1388,8 @@ router.post("/dpd-list", async (req, res) => {
         case "heyev":
         case "hey_ev":
           return "Hey EV";
+          case "helium":
+            return "HELIUM";
         default:
           return p;
       }
@@ -1462,6 +1538,13 @@ router.post("/dpd-list", async (req, res) => {
       rpsTable: "manual_rps_bl_loan",
       bookTable: "loan_bookings",
     });
+
+    await addBranchIfNeeded({
+  label: "HELIUM",
+  key: "HELIUM",
+  rpsTable: "manual_rps_helium",
+  bookTable: "loan_booking_helium",
+});
     await addBranchIfNeeded({
       label: "EV",
       key: "EV",
