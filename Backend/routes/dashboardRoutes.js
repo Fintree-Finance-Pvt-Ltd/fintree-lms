@@ -83,6 +83,8 @@ function normalizeProduct(p) {
     case "heyev":
     case "hey_ev":
       return "Hey EV";
+    case "helium":
+      return "HELIUM";
     default:
       return p;
   }
@@ -134,6 +136,7 @@ router.post("/disbursal-trend", async (req, res) => {
       Finso:     { rps: "manual_rps_finso_loan",    booking: "loan_booking_finso",      label: "Finso" },
       "Hey EV":  { rps: "manual_rps_hey_ev",        booking: "loan_booking_hey_ev",     label: "Hey EV" },
       "Circle Pe": { rps: "manual_rps_circlepe",    booking: "loan_booking_circle_pe",  label: "Circle Pe" },
+      "HELIUM":  { rps: "manual_rps_helium",       booking: "loan_booking_helium",     label: "Helium" },
     };
 
     // 🔹 Add relevant queries
