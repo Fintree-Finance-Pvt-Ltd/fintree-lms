@@ -1329,6 +1329,7 @@
 // module.exports = { allocateSupplyChainRepayment };
 
 
+///////////////////////////
 const {
   updateDemandFromCollectionDate,
 } = require("../services/supplyChain/updateDemandFromCollectionDate");
@@ -1346,10 +1347,43 @@ async function allocateSupplyChainRepayment(db, repayment) {
   try {
     await conn.beginTransaction();
 
-    let remainingAmount = Number(collection_amount);
+    /* =====================================================
+       0️⃣ FETCH & LOCK EXISTING EXCESS (VERY IMPORTANT)
+       ===================================================== */
+    const [[excessRow]] = await conn.query(
+      `
+      SELECT COALESCE(SUM(excess_payment), 0) AS excess_amount
+      FROM supply_chain_allocation
+      WHERE lan = ?
+        AND excess_payment > 0
+      FOR UPDATE
+      `,
+      [lan]
+    );
+
+    const parkedExcess = Number(excessRow.excess_amount || 0);
+
+    /* 👉 TOTAL MONEY AVAILABLE = OLD EXCESS + NEW COLLECTION */
+    let remainingAmount =
+      parkedExcess + Number(collection_amount);
+
+    /* 🧹 DELETE OLD EXCESS (IT WILL BE RE-ALLOCATED NOW) */
+    if (parkedExcess > 0) {
+      await conn.query(
+        `
+        DELETE FROM supply_chain_allocation
+        WHERE lan = ?
+          AND excess_payment > 0
+        `,
+        [lan]
+      );
+    }
+
     const affectedInvoices = new Set();
 
-    /* 1️⃣ FIFO Active Invoices */
+    /* =====================================================
+       1️⃣ FIFO ACTIVE INVOICES
+       ===================================================== */
     const [invoices] = await conn.query(
       `
       SELECT invoice_number
@@ -1364,7 +1398,9 @@ async function allocateSupplyChainRepayment(db, repayment) {
     for (const inv of invoices) {
       if (remainingAmount <= 0) break;
 
-      /* 2️⃣ Demand row on collection date (LOCKED) */
+      /* =====================================================
+         2️⃣ LOCK DEMAND ROW ON COLLECTION DATE
+         ===================================================== */
       const [[demand]] = await conn.query(
         `
         SELECT *
@@ -1383,27 +1419,44 @@ async function allocateSupplyChainRepayment(db, repayment) {
       let allocInterest = 0;
       let allocPenal = 0;
 
-      /* 3️⃣ Principal → Interest → Penal */
+      /* =====================================================
+         3️⃣ PRINCIPAL → INTEREST → PENAL
+         ===================================================== */
       if (remainingAmount > 0 && demand.remaining_principal > 0) {
-        allocPrincipal = Math.min(demand.remaining_principal, remainingAmount);
+        allocPrincipal = Math.min(
+          demand.remaining_principal,
+          remainingAmount
+        );
         remainingAmount -= allocPrincipal;
       }
 
       if (remainingAmount > 0 && demand.remaining_interest > 0) {
-        allocInterest = Math.min(demand.remaining_interest, remainingAmount);
+        allocInterest = Math.min(
+          demand.remaining_interest,
+          remainingAmount
+        );
         remainingAmount -= allocInterest;
       }
 
-      if (remainingAmount > 0 && demand.remaining_penal_interest > 0) {
-        allocPenal = Math.min(demand.remaining_penal_interest, remainingAmount);
+      if (
+        remainingAmount > 0 &&
+        demand.remaining_penal_interest > 0
+      ) {
+        allocPenal = Math.min(
+          demand.remaining_penal_interest,
+          remainingAmount
+        );
         remainingAmount -= allocPenal;
       }
 
-      if (allocPrincipal + allocInterest + allocPenal === 0) continue;
+      if (allocPrincipal + allocInterest + allocPenal === 0)
+        continue;
 
       affectedInvoices.add(inv.invoice_number);
 
-      /* 4️⃣ Allocation Ledger */
+      /* =====================================================
+         4️⃣ ALLOCATION LEDGER
+         ===================================================== */
       await conn.query(
         `
         INSERT INTO supply_chain_allocation (
@@ -1429,9 +1482,11 @@ async function allocateSupplyChainRepayment(db, repayment) {
         ]
       );
 
-      /* 5️⃣ DEMAND HEALING */
+      /* =====================================================
+         5️⃣ DEMAND UPDATES
+         ===================================================== */
 
-      /* A️⃣ Zero rows before collection date */
+      /* A️⃣ ZERO OUT PAST DATES */
       await conn.query(
         `
         UPDATE supply_chain_daily_demand
@@ -1448,36 +1503,39 @@ async function allocateSupplyChainRepayment(db, repayment) {
         [lan, inv.invoice_number, collection_date]
       );
 
-      const newP = demand.remaining_principal - allocPrincipal;
-      const newI = demand.remaining_interest - allocInterest;
-      const newPe = demand.remaining_penal_interest - allocPenal;
+      const newRemainingPrincipal =
+        demand.remaining_principal - allocPrincipal;
+      const newRemainingInterest =
+        demand.remaining_interest - allocInterest;
+      const newRemainingPenal =
+        demand.remaining_penal_interest - allocPenal;
 
-      /* B️⃣ Collection date row */
+      /* B️⃣ COLLECTION DATE */
       await conn.query(
         `
         UPDATE supply_chain_daily_demand
         SET
-          remaining_principal = GREATEST(?, 0),
-          remaining_interest = GREATEST(?, 0),
-          remaining_penal_interest = GREATEST(?, 0),
-          remaining_disbursement_amount = GREATEST(?, 0),
+          remaining_principal = GREATEST(?,0),
+          remaining_interest = GREATEST(?,0),
+          remaining_penal_interest = GREATEST(?,0),
+          remaining_disbursement_amount = GREATEST(?,0),
           total_remaining =
-            GREATEST(?, 0)
-            + GREATEST(?, 0)
-            + GREATEST(?, 0),
+            GREATEST(?,0)
+            + GREATEST(?,0)
+            + GREATEST(?,0),
           collection_date = ?
         WHERE lan = ?
           AND invoice_number = ?
           AND daily_date = ?
         `,
         [
-          newP,
-          newI,
-          newPe,
-          newP,
-          newP,
-          newI,
-          newPe,
+          newRemainingPrincipal,
+          newRemainingInterest,
+          newRemainingPenal,
+          newRemainingPrincipal,
+          newRemainingPrincipal,
+          newRemainingInterest,
+          newRemainingPenal,
           collection_date,
           lan,
           inv.invoice_number,
@@ -1485,31 +1543,31 @@ async function allocateSupplyChainRepayment(db, repayment) {
         ]
       );
 
-      /* C️⃣ Rows after collection date */
+      /* C️⃣ FUTURE DATES */
       await conn.query(
         `
         UPDATE supply_chain_daily_demand
         SET
-          remaining_principal = GREATEST(?, 0),
-          remaining_interest = GREATEST(?, 0),
-          remaining_penal_interest = GREATEST(?, 0),
-          remaining_disbursement_amount = GREATEST(?, 0),
+          remaining_principal = GREATEST(?,0),
+          remaining_interest = GREATEST(?,0),
+          remaining_penal_interest = GREATEST(?,0),
+          remaining_disbursement_amount = GREATEST(?,0),
           total_remaining =
-            GREATEST(?, 0)
-            + GREATEST(?, 0)
-            + GREATEST(?, 0)
+            GREATEST(?,0)
+            + GREATEST(?,0)
+            + GREATEST(?,0)
         WHERE lan = ?
           AND invoice_number = ?
           AND daily_date > ?
         `,
         [
-          newP,
-          newI,
-          newPe,
-          newP,
-          newP,
-          newI,
-          newPe,
+          newRemainingPrincipal,
+          newRemainingInterest,
+          newRemainingPenal,
+          newRemainingPrincipal,
+          newRemainingPrincipal,
+          newRemainingInterest,
+          newRemainingPenal,
           lan,
           inv.invoice_number,
           collection_date,
@@ -1517,51 +1575,41 @@ async function allocateSupplyChainRepayment(db, repayment) {
       );
     }
 
-    /* 6️⃣ EXCESS PAYMENT — IDEMPOTENT (FIXED) */
+    /* =====================================================
+       6️⃣ PARK ONLY NEW EXCESS (ONCE)
+       ===================================================== */
     if (remainingAmount > 0) {
-      const [[existingExcess]] = await conn.query(
+      await conn.query(
         `
-        SELECT id
-        FROM supply_chain_allocation
-        WHERE lan = ?
-          AND collection_utr = ?
-          AND invoice_number IS NULL
-        LIMIT 1
+        INSERT INTO supply_chain_allocation (
+          lan,
+          invoice_number,
+          collection_date,
+          collection_utr,
+          total_collected,
+          allocated_principal,
+          allocated_interest,
+          allocated_penal_interest,
+          excess_payment
+        ) VALUES (?,?,?,?,?,?,?,?,?)
         `,
-        [lan, collection_utr]
+        [
+          lan,
+          null,
+          collection_date,
+          collection_utr,
+          remainingAmount,
+          0,
+          0,
+          0,
+          remainingAmount,
+        ]
       );
-
-      if (!existingExcess) {
-        await conn.query(
-          `
-          INSERT INTO supply_chain_allocation (
-            lan,
-            invoice_number,
-            collection_date,
-            collection_utr,
-            total_collected,
-            allocated_principal,
-            allocated_interest,
-            allocated_penal_interest,
-            excess_payment
-          ) VALUES (?,?,?,?,?,?,?,?,?)
-          `,
-          [
-            lan,
-            null,
-            collection_date,
-            collection_utr,
-            remainingAmount,
-            0,
-            0,
-            0,
-            remainingAmount,
-          ]
-        );
-      }
     }
 
-    /* 7️⃣ Demand regeneration */
+    /* =====================================================
+       7️⃣ DEMAND REGENERATION
+       ===================================================== */
     for (const invoiceNo of affectedInvoices) {
       await updateDemandFromCollectionDate(
         conn,
@@ -1570,20 +1618,23 @@ async function allocateSupplyChainRepayment(db, repayment) {
       );
     }
 
-    /* 8️⃣ Sanction update (per transaction) */
+    /* =====================================================
+       8️⃣ SANCTION UPDATE (PER COLLECTION)
+       ===================================================== */
     await conn.query(
       `
       UPDATE supply_chain_sanctions s
       JOIN (
         SELECT
-          lan,
-          SUM(allocated_principal) AS alloc_principal_txn
-        FROM supply_chain_allocation
-        WHERE lan = ?
-          AND collection_date = ?
-          AND collection_utr = ?
-        GROUP BY lan
-      ) x ON x.lan = s.lan
+          a.lan COLLATE utf8mb4_unicode_ci AS lan,
+          COALESCE(SUM(a.allocated_principal),0) AS alloc_principal_txn
+        FROM supply_chain_allocation a
+        WHERE a.lan COLLATE utf8mb4_unicode_ci = ?
+          AND a.collection_date = ?
+          AND a.collection_utr = ?
+        GROUP BY a.lan
+      ) x
+      ON x.lan COLLATE utf8mb4_unicode_ci = s.lan COLLATE utf8mb4_unicode_ci
       SET
         s.utilized_sanction_limit =
           GREATEST(s.utilized_sanction_limit - x.alloc_principal_txn, 0),
@@ -1596,7 +1647,9 @@ async function allocateSupplyChainRepayment(db, repayment) {
       [lan, collection_date, collection_utr]
     );
 
-    /* 9️⃣ Close fully paid invoices */
+    /* =====================================================
+       9️⃣ CLOSE FULLY PAID INVOICES
+       ===================================================== */
     for (const invoiceNo of affectedInvoices) {
       const [pending] = await conn.query(
         `
@@ -1628,7 +1681,7 @@ async function allocateSupplyChainRepayment(db, repayment) {
     }
 
     await conn.commit();
-    console.log(`✅ Allocation completed for ${lan}`);
+    console.log(`✅ Allocation completed for LAN=${lan}`);
   } catch (err) {
     await conn.rollback();
     console.error("❌ Allocation failed:", err);
