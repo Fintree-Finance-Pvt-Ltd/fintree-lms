@@ -990,7 +990,344 @@
 
 
 
-// ///////////////////   SAJAG NEW CODE IS FINAL shjhds////
+// ///////////////////   SAJAG NEW CODE IS FINA old////
+
+// const {
+//   updateDemandFromCollectionDate,
+// } = require("../services/supplyChain/updateDemandFromCollectionDate");
+
+// async function allocateSupplyChainRepayment(db, repayment) {
+//   const {
+//     lan,
+//     collection_date,
+//     collection_utr,
+//     collection_amount,
+//   } = repayment;
+
+//   const conn = await db.promise().getConnection();
+
+//   try {
+//     await conn.beginTransaction();
+
+//     let remainingAmount = Number(collection_amount);
+//     const affectedInvoices = new Set();
+
+//     /* 1️⃣ FIFO Active Invoices */
+//     const [invoices] = await conn.query(
+//       `
+//       SELECT invoice_number
+//       FROM invoice_disbursements
+//       WHERE lan = ?
+//         AND status = 'Active'
+//       ORDER BY disbursement_date ASC, invoice_number ASC
+//       `,
+//       [lan]
+//     );
+
+//     for (const inv of invoices) {
+//       if (remainingAmount <= 0) break;
+
+//       /* 2️⃣ Demand row on collection date (LOCKED) */
+//       const [[demand]] = await conn.query(
+//         `
+//         SELECT *
+//         FROM supply_chain_daily_demand
+//         WHERE lan = ?
+//           AND invoice_number = ?
+//           AND daily_date = ?
+//         FOR UPDATE
+//         `,
+//         [lan, inv.invoice_number, collection_date]
+//       );
+
+//       if (!demand) continue;
+
+//       let allocPrincipal = 0;
+//       let allocInterest = 0;
+//       let allocPenal = 0;
+
+//       /* 3️⃣ Principal first */
+//       if (remainingAmount > 0 && demand.remaining_principal > 0) {
+//         allocPrincipal = Math.min(
+//           demand.remaining_principal,
+//           remainingAmount
+//         );
+//         remainingAmount -= allocPrincipal;
+//       }
+
+//       /* 4️⃣ Interest second */
+//       if (remainingAmount > 0 && demand.remaining_interest > 0) {
+//         allocInterest = Math.min(
+//           demand.remaining_interest,
+//           remainingAmount
+//         );
+//         remainingAmount -= allocInterest;
+//       }
+
+//       /* 5️⃣ Penal last */
+//       if (remainingAmount > 0 && demand.remaining_penal_interest > 0) {
+//         allocPenal = Math.min(
+//           demand.remaining_penal_interest,
+//           remainingAmount
+//         );
+//         remainingAmount -= allocPenal;
+//       }
+
+//       if (allocPrincipal + allocInterest + allocPenal === 0) continue;
+
+//       affectedInvoices.add(inv.invoice_number);
+
+//       /* 6️⃣ Allocation Ledger */
+//       await conn.query(
+//         `
+//         INSERT INTO supply_chain_allocation (
+//           lan,
+//           invoice_number,
+//           collection_date,
+//           collection_utr,
+//           total_collected,
+//           allocated_principal,
+//           allocated_interest,
+//           allocated_penal_interest
+//         ) VALUES (?,?,?,?,?,?,?,?)
+//         `,
+//         [
+//           lan,
+//           inv.invoice_number,
+//           collection_date,
+//           collection_utr,
+//           allocPrincipal + allocInterest + allocPenal,
+//           allocPrincipal,
+//           allocInterest,
+//           allocPenal,
+//         ]
+//       );
+
+//       /* =========================
+//          UPDATED DEMAND LOGIC
+//          ========================= */
+
+//       /* A️⃣ Zero out rows BEFORE collection date */
+//       await conn.query(
+//         `
+//         UPDATE supply_chain_daily_demand
+//         SET
+//           remaining_principal = 0,
+//           remaining_interest = 0,
+//           remaining_penal_interest = 0,
+//           remaining_disbursement_amount = 0,
+//           total_remaining = 0
+//         WHERE lan = ?
+//           AND invoice_number = ?
+//           AND daily_date < ?
+//         `,
+//         [lan, inv.invoice_number, collection_date]
+//       );
+
+//       const newRemainingPrincipal =
+//         demand.remaining_principal - allocPrincipal;
+//       const newRemainingInterest =
+//         demand.remaining_interest - allocInterest;
+//       const newRemainingPenal =
+//         demand.remaining_penal_interest - allocPenal;
+
+//       /* B️⃣ Update COLLECTION DATE row */
+//       await conn.query(
+//         `
+//         UPDATE supply_chain_daily_demand
+//         SET
+//           remaining_principal = GREATEST(?, 0),
+//           remaining_interest = GREATEST(?, 0),
+//           remaining_penal_interest = GREATEST(?, 0),
+//           remaining_disbursement_amount = GREATEST(?, 0),
+//           total_remaining =
+//             GREATEST(?, 0)
+//             + GREATEST(?, 0)
+//             + GREATEST(?, 0),
+//           collection_date = ?
+//         WHERE lan = ?
+//           AND invoice_number = ?
+//           AND daily_date = ?
+//         `,
+//         [
+//           newRemainingPrincipal,
+//           newRemainingInterest,
+//           newRemainingPenal,
+//           newRemainingPrincipal,
+//           newRemainingPrincipal,
+//           newRemainingInterest,
+//           newRemainingPenal,
+//           collection_date,
+//           lan,
+//           inv.invoice_number,
+//           collection_date,
+//         ]
+//       );
+
+//       /* C️⃣ Update ALL rows AFTER collection date */
+//       await conn.query(
+//         `
+//         UPDATE supply_chain_daily_demand
+//         SET
+//           remaining_principal = GREATEST(?, 0),
+//           remaining_interest = GREATEST(?, 0),
+//           remaining_penal_interest = GREATEST(?, 0),
+//           remaining_disbursement_amount = GREATEST(?, 0),
+//           total_remaining =
+//             GREATEST(?, 0)
+//             + GREATEST(?, 0)
+//             + GREATEST(?, 0)
+//         WHERE lan = ?
+//           AND invoice_number = ?
+//           AND daily_date > ?
+//         `,
+//         [
+//           newRemainingPrincipal,
+//           newRemainingInterest,
+//           newRemainingPenal,
+//           newRemainingPrincipal,
+//           newRemainingPrincipal,
+//           newRemainingInterest,
+//           newRemainingPenal,
+//           lan,
+//           inv.invoice_number,
+//           collection_date,
+//         ]
+//       );
+//     }
+
+//     /* 8️⃣ Excess collection (unmapped) */
+// if (remainingAmount > 0) {
+//   await conn.query(
+//     `
+//     INSERT INTO supply_chain_allocation (
+//       lan,
+//       invoice_number,
+//       collection_date,
+//       collection_utr,
+//       total_collected,
+//       allocated_principal,
+//       allocated_interest,
+//       allocated_penal_interest,
+//       excess_payment
+//     ) VALUES (?,?,?,?,?,?,?,?,?)
+//     `,
+//     [
+//       lan,
+//       null,
+//       collection_date,
+//       collection_utr,
+//       remainingAmount,
+//       0,
+//       0,
+//       0,
+//       remainingAmount
+//     ]
+//   );
+// }
+
+//     /* 9️⃣ Regenerate demand (date-aware) */
+//     for (const invoiceNo of affectedInvoices) {
+//   try {
+//     console.log(`[Demand Regen] Processing invoiceNo=${invoiceNo}`);
+
+//     await updateDemandFromCollectionDate(
+//       conn,
+//       invoiceNo,
+//       collection_date
+//     );
+
+//     console.log(`[Demand Regen] Completed invoiceNo=${invoiceNo}`);
+//   } catch (err) {
+//     console.error(
+//       `[Demand Regen] Failed for invoiceNo=${invoiceNo}`,
+//       err
+//     );
+//     throw err; // or continue; depending on your business rule
+//   }
+// }
+
+
+// /* 🔟 SANCTION UPDATE — COLLATION FIX (FINAL) */
+// /* 🔟 SANCTION UPDATE — CORRECT & SAFE */
+// /* 🔟 SANCTION UPDATE — FINAL & CORRECT */
+// /* 🔟 SANCTION UPDATE — FIXED (PER COLLECTION, NOT CUMULATIVE) */
+//   /* 🔟 SANCTION UPDATE — FINAL & CORRECT (PER COLLECTION) */
+//     await conn.query(
+//       `
+//      UPDATE supply_chain_sanctions s
+// JOIN (
+//     SELECT
+//         a.lan COLLATE utf8mb4_unicode_ci AS lan,
+//         COALESCE(SUM(a.allocated_principal), 0) AS alloc_principal_txn
+//     FROM supply_chain_allocation a
+//     WHERE a.lan COLLATE utf8mb4_unicode_ci = ?
+//       AND a.collection_date = ?
+//       AND a.collection_utr = ?
+//     GROUP BY a.lan
+// ) x
+// ON x.lan COLLATE utf8mb4_unicode_ci = s.lan COLLATE utf8mb4_unicode_ci
+// SET
+//     s.utilized_sanction_limit =
+//         GREATEST(
+//             s.utilized_sanction_limit - x.alloc_principal_txn,
+//             0
+//         ),
+//     s.unutilization_sanction_limit =
+//         LEAST(
+//             s.unutilization_sanction_limit + x.alloc_principal_txn,
+//             s.sanction_amount
+//         );
+//       `,
+//       [lan, collection_date, collection_utr]
+//     );
+
+// /* 1️⃣1️⃣ Close fully paid invoices */
+// for (const invoiceNo of affectedInvoices) {
+//   const [pending] = await conn.query(
+//     `
+//     SELECT 1
+//     FROM supply_chain_daily_demand
+//     WHERE lan = ?
+//       AND invoice_number = ?
+//       AND (
+//         remaining_principal > 0
+//         OR remaining_interest > 0
+//         OR remaining_penal_interest > 0
+//       )
+//     LIMIT 1
+//     `,
+//     [lan, invoiceNo]
+//   );
+
+//   if (pending.length === 0) {
+//     await conn.query(
+//       `
+//       UPDATE invoice_disbursements
+//       SET status = 'CLOSED'
+//       WHERE lan = ?
+//         AND invoice_number = ?
+//       `,
+//       [lan, invoiceNo]
+//     );
+
+//     console.log(`✅ Invoice CLOSED → ${invoiceNo}`);
+//   }
+// }
+
+//     await conn.commit();
+//     console.log(`✅ Allocation completed for ${lan}`);
+//   } catch (err) {
+//     await conn.rollback();
+//     console.error("❌ Allocation failed:", err);
+//     throw err;
+//   } finally {
+//     conn.release();
+//   }
+// }
+
+// module.exports = { allocateSupplyChainRepayment };
+
 
 const {
   updateDemandFromCollectionDate,
@@ -1046,30 +1383,19 @@ async function allocateSupplyChainRepayment(db, repayment) {
       let allocInterest = 0;
       let allocPenal = 0;
 
-      /* 3️⃣ Principal first */
+      /* 3️⃣ Principal → Interest → Penal */
       if (remainingAmount > 0 && demand.remaining_principal > 0) {
-        allocPrincipal = Math.min(
-          demand.remaining_principal,
-          remainingAmount
-        );
+        allocPrincipal = Math.min(demand.remaining_principal, remainingAmount);
         remainingAmount -= allocPrincipal;
       }
 
-      /* 4️⃣ Interest second */
       if (remainingAmount > 0 && demand.remaining_interest > 0) {
-        allocInterest = Math.min(
-          demand.remaining_interest,
-          remainingAmount
-        );
+        allocInterest = Math.min(demand.remaining_interest, remainingAmount);
         remainingAmount -= allocInterest;
       }
 
-      /* 5️⃣ Penal last */
       if (remainingAmount > 0 && demand.remaining_penal_interest > 0) {
-        allocPenal = Math.min(
-          demand.remaining_penal_interest,
-          remainingAmount
-        );
+        allocPenal = Math.min(demand.remaining_penal_interest, remainingAmount);
         remainingAmount -= allocPenal;
       }
 
@@ -1077,7 +1403,7 @@ async function allocateSupplyChainRepayment(db, repayment) {
 
       affectedInvoices.add(inv.invoice_number);
 
-      /* 6️⃣ Allocation Ledger */
+      /* 4️⃣ Allocation Ledger */
       await conn.query(
         `
         INSERT INTO supply_chain_allocation (
@@ -1103,11 +1429,9 @@ async function allocateSupplyChainRepayment(db, repayment) {
         ]
       );
 
-      /* =========================
-         UPDATED DEMAND LOGIC
-         ========================= */
+      /* 5️⃣ DEMAND HEALING */
 
-      /* A️⃣ Zero out rows BEFORE collection date */
+      /* A️⃣ Zero rows before collection date */
       await conn.query(
         `
         UPDATE supply_chain_daily_demand
@@ -1124,14 +1448,11 @@ async function allocateSupplyChainRepayment(db, repayment) {
         [lan, inv.invoice_number, collection_date]
       );
 
-      const newRemainingPrincipal =
-        demand.remaining_principal - allocPrincipal;
-      const newRemainingInterest =
-        demand.remaining_interest - allocInterest;
-      const newRemainingPenal =
-        demand.remaining_penal_interest - allocPenal;
+      const newP = demand.remaining_principal - allocPrincipal;
+      const newI = demand.remaining_interest - allocInterest;
+      const newPe = demand.remaining_penal_interest - allocPenal;
 
-      /* B️⃣ Update COLLECTION DATE row */
+      /* B️⃣ Collection date row */
       await conn.query(
         `
         UPDATE supply_chain_daily_demand
@@ -1150,13 +1471,13 @@ async function allocateSupplyChainRepayment(db, repayment) {
           AND daily_date = ?
         `,
         [
-          newRemainingPrincipal,
-          newRemainingInterest,
-          newRemainingPenal,
-          newRemainingPrincipal,
-          newRemainingPrincipal,
-          newRemainingInterest,
-          newRemainingPenal,
+          newP,
+          newI,
+          newPe,
+          newP,
+          newP,
+          newI,
+          newPe,
           collection_date,
           lan,
           inv.invoice_number,
@@ -1164,7 +1485,7 @@ async function allocateSupplyChainRepayment(db, repayment) {
         ]
       );
 
-      /* C️⃣ Update ALL rows AFTER collection date */
+      /* C️⃣ Rows after collection date */
       await conn.query(
         `
         UPDATE supply_chain_daily_demand
@@ -1182,13 +1503,13 @@ async function allocateSupplyChainRepayment(db, repayment) {
           AND daily_date > ?
         `,
         [
-          newRemainingPrincipal,
-          newRemainingInterest,
-          newRemainingPenal,
-          newRemainingPrincipal,
-          newRemainingPrincipal,
-          newRemainingInterest,
-          newRemainingPenal,
+          newP,
+          newI,
+          newPe,
+          newP,
+          newP,
+          newI,
+          newPe,
           lan,
           inv.invoice_number,
           collection_date,
@@ -1196,124 +1517,115 @@ async function allocateSupplyChainRepayment(db, repayment) {
       );
     }
 
-    /* 8️⃣ Excess collection (unmapped) */
-if (remainingAmount > 0) {
-  await conn.query(
-    `
-    INSERT INTO supply_chain_allocation (
-      lan,
-      invoice_number,
-      collection_date,
-      collection_utr,
-      total_collected,
-      allocated_principal,
-      allocated_interest,
-      allocated_penal_interest,
-      excess_payment
-    ) VALUES (?,?,?,?,?,?,?,?,?)
-    `,
-    [
-      lan,
-      null,
-      collection_date,
-      collection_utr,
-      remainingAmount,
-      0,
-      0,
-      0,
-      remainingAmount
-    ]
-  );
-}
+    /* 6️⃣ EXCESS PAYMENT — IDEMPOTENT (FIXED) */
+    if (remainingAmount > 0) {
+      const [[existingExcess]] = await conn.query(
+        `
+        SELECT id
+        FROM supply_chain_allocation
+        WHERE lan = ?
+          AND collection_utr = ?
+          AND invoice_number IS NULL
+        LIMIT 1
+        `,
+        [lan, collection_utr]
+      );
 
-    /* 9️⃣ Regenerate demand (date-aware) */
+      if (!existingExcess) {
+        await conn.query(
+          `
+          INSERT INTO supply_chain_allocation (
+            lan,
+            invoice_number,
+            collection_date,
+            collection_utr,
+            total_collected,
+            allocated_principal,
+            allocated_interest,
+            allocated_penal_interest,
+            excess_payment
+          ) VALUES (?,?,?,?,?,?,?,?,?)
+          `,
+          [
+            lan,
+            null,
+            collection_date,
+            collection_utr,
+            remainingAmount,
+            0,
+            0,
+            0,
+            remainingAmount,
+          ]
+        );
+      }
+    }
+
+    /* 7️⃣ Demand regeneration */
     for (const invoiceNo of affectedInvoices) {
-  try {
-    console.log(`[Demand Regen] Processing invoiceNo=${invoiceNo}`);
+      await updateDemandFromCollectionDate(
+        conn,
+        invoiceNo,
+        collection_date
+      );
+    }
 
-    await updateDemandFromCollectionDate(
-      conn,
-      invoiceNo,
-      collection_date
-    );
-
-    console.log(`[Demand Regen] Completed invoiceNo=${invoiceNo}`);
-  } catch (err) {
-    console.error(
-      `[Demand Regen] Failed for invoiceNo=${invoiceNo}`,
-      err
-    );
-    throw err; // or continue; depending on your business rule
-  }
-}
-
-
-/* 🔟 SANCTION UPDATE — COLLATION FIX (FINAL) */
-/* 🔟 SANCTION UPDATE — CORRECT & SAFE */
-/* 🔟 SANCTION UPDATE — FINAL & CORRECT */
-/* 🔟 SANCTION UPDATE — FIXED (PER COLLECTION, NOT CUMULATIVE) */
-  /* 🔟 SANCTION UPDATE — FINAL & CORRECT (PER COLLECTION) */
+    /* 8️⃣ Sanction update (per transaction) */
     await conn.query(
       `
-     UPDATE supply_chain_sanctions s
-JOIN (
-    SELECT
-        a.lan COLLATE utf8mb4_unicode_ci AS lan,
-        COALESCE(SUM(a.allocated_principal), 0) AS alloc_principal_txn
-    FROM supply_chain_allocation a
-    WHERE a.lan COLLATE utf8mb4_unicode_ci = ?
-      AND a.collection_date = ?
-      AND a.collection_utr = ?
-    GROUP BY a.lan
-) x
-ON x.lan COLLATE utf8mb4_unicode_ci = s.lan COLLATE utf8mb4_unicode_ci
-SET
-    s.utilized_sanction_limit =
-        GREATEST(
-            s.utilized_sanction_limit - x.alloc_principal_txn,
-            0
-        ),
-    s.unutilization_sanction_limit =
-        LEAST(
+      UPDATE supply_chain_sanctions s
+      JOIN (
+        SELECT
+          lan,
+          SUM(allocated_principal) AS alloc_principal_txn
+        FROM supply_chain_allocation
+        WHERE lan = ?
+          AND collection_date = ?
+          AND collection_utr = ?
+        GROUP BY lan
+      ) x ON x.lan = s.lan
+      SET
+        s.utilized_sanction_limit =
+          GREATEST(s.utilized_sanction_limit - x.alloc_principal_txn, 0),
+        s.unutilization_sanction_limit =
+          LEAST(
             s.unutilization_sanction_limit + x.alloc_principal_txn,
             s.sanction_amount
-        );
+          )
       `,
       [lan, collection_date, collection_utr]
     );
 
-/* 1️⃣1️⃣ Close fully paid invoices */
-for (const invoiceNo of affectedInvoices) {
-  const [pending] = await conn.query(
-    `
-    SELECT 1
-    FROM supply_chain_daily_demand
-    WHERE lan = ?
-      AND invoice_number = ?
-      AND (
-        remaining_principal > 0
-        OR remaining_interest > 0
-        OR remaining_penal_interest > 0
-      )
-    LIMIT 1
-    `,
-    [lan, invoiceNo]
-  );
+    /* 9️⃣ Close fully paid invoices */
+    for (const invoiceNo of affectedInvoices) {
+      const [pending] = await conn.query(
+        `
+        SELECT 1
+        FROM supply_chain_daily_demand
+        WHERE lan = ?
+          AND invoice_number = ?
+          AND (
+            remaining_principal > 0
+            OR remaining_interest > 0
+            OR remaining_penal_interest > 0
+          )
+        LIMIT 1
+        `,
+        [lan, invoiceNo]
+      );
 
-  if (pending.length === 0) {
-    await conn.query(
-      `
-      UPDATE invoice_disbursements
-      SET status = 'CLOSED'
-      WHERE lan = ?
-        AND invoice_number = ?
-      `,
-      [lan, invoiceNo]
-    );
-
-    console.log(`✅ Invoice CLOSED → ${invoiceNo}`);
-  }
-}
+      if (pending.length === 0) {
+        await conn.query(
+          `
+          UPDATE invoice_disbursements
+          SET status = 'CLOSED'
+          WHERE lan = ?
+            AND invoice_number = ?
+          `,
+          [lan, invoiceNo]
+        );
+      }
+    }
 
     await conn.commit();
     console.log(`✅ Allocation completed for ${lan}`);
