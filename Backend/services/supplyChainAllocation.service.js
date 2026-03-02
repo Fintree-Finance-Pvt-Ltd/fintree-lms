@@ -1004,13 +1004,37 @@ async function allocateSupplyChainRepayment(db, repayment) {
     collection_amount,
   } = repayment;
 
-  const conn = await db.promise().getConnection();
 
   try {
     await conn.beginTransaction();
 
     let remainingAmount = Number(collection_amount);
     const affectedInvoices = new Set();
+
+  const conn = await db.promise().getConnection();
+/* 🔁 STEP 0: Fetch existing excess (LOCKED) */
+const [[existingExcess]] = await conn.query(
+  `
+  SELECT id, excess_payment
+  FROM supply_chain_allocation
+  WHERE lan = ?
+    AND excess_payment > 0
+  ORDER BY created_at ASC
+  LIMIT 1
+  FOR UPDATE
+  `,
+  [lan]
+);
+
+if (existingExcess) {
+  console.log(
+    `♻️ Using previous excess = ${existingExcess.excess_payment}`
+  );
+
+  remainingAmount += Number(existingExcess.excess_payment);
+}
+
+
 
     /* 1️⃣ FIFO Active Invoices */
     const [invoices] = await conn.query(
@@ -1225,55 +1249,52 @@ async function allocateSupplyChainRepayment(db, repayment) {
 //     ]
 //   );
 // }
-/* 8️⃣ Excess collection (ONLY ONCE PER COLLECTION) */
-if (remainingAmount > 0) {
-  const [[existingExcess]] = await conn.query(
+/* /* 8️⃣ Excess handling — DELETE old, INSERT new if needed */
+
+/* 🧹 Delete old excess if it existed */
+if (existingExcess) {
+  await conn.query(
     `
-    SELECT 1
-    FROM supply_chain_allocation
-    WHERE lan = ?
-      AND collection_date = ?
-      AND collection_utr = ?
-      AND excess_payment > 0
-    LIMIT 1
+    DELETE FROM supply_chain_allocation
+    WHERE id = ?
     `,
-    [lan, collection_date, collection_utr]
+    [existingExcess.id]
   );
 
-  if (!existingExcess) {
-    await conn.query(
-      `
-      INSERT INTO supply_chain_allocation (
-        lan,
-        invoice_number,
-        collection_date,
-        collection_utr,
-        total_collected,
-        allocated_principal,
-        allocated_interest,
-        allocated_penal_interest,
-        excess_payment
-      ) VALUES (?,?,?,?,?,?,?,?,?)
-      `,
-      [
-        lan,
-        null,
-        collection_date,
-        collection_utr,
-        remainingAmount,
-        0,
-        0,
-        0,
-        remainingAmount
-      ]
-    );
-  } else {
-    console.log(
-      `⚠️ Excess already recorded for UTR=${collection_utr}, skipping insert`
-    );
-  }
+  console.log("🧹 Old excess cleared");
 }
 
+/* 🅿️ Park new excess if any */
+if (remainingAmount > 0) {
+  await conn.query(
+    `
+    INSERT INTO supply_chain_allocation (
+      lan,
+      invoice_number,
+      collection_date,
+      collection_utr,
+      total_collected,
+      allocated_principal,
+      allocated_interest,
+      allocated_penal_interest,
+      excess_payment
+    ) VALUES (?,?,?,?,?,?,?,?,?)
+    `,
+    [
+      lan,
+      null,
+      collection_date,
+      collection_utr,
+      remainingAmount,
+      0,
+      0,
+      0,
+      remainingAmount
+    ]
+  );
+
+  console.log(`🅿️ New excess parked = ${remainingAmount}`);
+}
 
 
     /* 9️⃣ Regenerate demand (date-aware) */
