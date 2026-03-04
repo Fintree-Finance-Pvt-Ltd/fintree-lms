@@ -1004,9 +1004,16 @@ async function allocateSupplyChainRepayment(db, repayment) {
     collection_amount,
   } = repayment;
 
-  const conn = await db.promise().getConnection();   // ✅ declare first
+ async function allocateSupplyChainRepayment(db, repayment) {
+  const { lan, collection_date, collection_utr, collection_amount } = repayment;
+
+  let conn;
 
   try {
+    // ✅ Get connection ONCE
+    conn = await db.promise().getConnection();
+
+    // ✅ Start TXN
     await conn.beginTransaction();
 
     let remainingAmount = Number(collection_amount);
