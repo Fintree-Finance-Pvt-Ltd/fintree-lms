@@ -996,13 +996,13 @@ const {
   updateDemandFromCollectionDate,
 } = require("../services/supplyChain/updateDemandFromCollectionDate");
 
-async function allocateSupplyChainRepayment(db, repayment) {
-  const {
-    lan,
-    collection_date,
-    collection_utr,
-    collection_amount,
-  } = repayment;
+// async function allocateSupplyChainRepayment(db, repayment) {
+//   const {
+//     lan,
+//     collection_date,
+//     collection_utr,
+//     collection_amount,
+//   } = repayment;
 
  async function allocateSupplyChainRepayment(db, repayment) {
   const { lan, collection_date, collection_utr, collection_amount } = repayment;
