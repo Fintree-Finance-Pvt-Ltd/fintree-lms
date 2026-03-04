@@ -1004,6 +1004,7 @@ async function allocateSupplyChainRepayment(db, repayment) {
     collection_amount,
   } = repayment;
 
+  const conn = await db.promise().getConnection();   // ✅ declare first
 
   try {
     await conn.beginTransaction();
