@@ -422,15 +422,29 @@ const generateDemandFromInvoiceDisbursement = async (invoiceNumber) => {
 
     console.log(`${ctx} 🔄 Allocating ${excessRows.length} excess payments`);
 
-    for (const r of excessRows) {
-      await allocateSupplyChainRepayment(db, {
-        lan: r.lan,
-        collection_date: r.collection_date,
-        collection_utr: r.collection_utr,
-        collection_amount: r.collection_amount
-      });
-    }
+    // for (const r of excessRows) {
+    //   await allocateSupplyChainRepayment(db, {
+    //     lan: r.lan,
+    //     collection_date: r.collection_date,
+    //     collection_utr: r.collection_utr,
+    //     collection_amount: r.collection_amount
+    //   });
+    // }
+const invDisbDate = toYMD(new Date(invoice.disbursement_date));
 
+for (const r of excessRows) {
+  const excessDate = toYMD(new Date(r.collection_date));
+
+  // ✅ allocate on a date where invoice demand exists
+  const effectiveDate = (invDisbDate > excessDate) ? invDisbDate : excessDate;
+
+  await allocateSupplyChainRepayment(db, {
+    lan: r.lan,
+    collection_date: effectiveDate,
+    collection_utr: r.collection_utr,
+    collection_amount: r.collection_amount
+  });
+}
     console.log(`${ctx} ✅ Allocation completed`);
     return { success: true };
 
