@@ -867,6 +867,8 @@ router.post("/metric-cards", async (req, res) => {
     const pniRangeParams = [];
     const pToDateQueries = [];
     const pToDateParams = [];
+    const dpdQueries = [];
+const dpdParams = [];
 
     const pclR = buildDateRangeClause("r.payment_date", start, end);
     const pclA = buildDateRangeClause("payment_date", start, end);
@@ -961,11 +963,7 @@ HELIUM: {
       disburseQueries.push(`
         SELECT IFNULL(SUM(${field}), 0) AS amount
         FROM ${table} where status
- in ('Disbursed',
-'Cancelled',
-'Fully Paid',
-'Foreclosed',
-'Settled')
+ in ('Disbursed')
 
         ${dcl.clause}
       `);
@@ -974,12 +972,14 @@ HELIUM: {
 
     const addCollectQuery = ({ collType, collBooking, disbTable }) => {
       if (collType === "join") {
-        collectQueries.push(`
-          SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
-          FROM repayments_upload r
-          JOIN ${collBooking} b ON ${eqLan("b.lan", "r.lan")}
-          WHERE r.payment_date IS NOT NULL ${pclR.clause}
-        `);
+       collectQueries.push(`
+  SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
+  FROM repayments_upload r
+  JOIN ${collBooking} b ON ${eqLan("b.lan", "r.lan")}
+  WHERE r.payment_date IS NOT NULL
+  AND b.status = 'Disbursed'
+  ${pclR.clause}
+`);
         collectParams.push(...pclR.params);
       } else if (collType === "direct") {
         collectQueries.push(`
@@ -995,7 +995,7 @@ HELIUM: {
           WHERE payment_date IS NOT NULL
             AND lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} IN (
               SELECT lan ${USE_COLLATE_IN_JOINS ? `COLLATE ${JOIN_COLLATE}` : ""} 
-              FROM ${disbTable}
+              FROM ${disbTable}  WHERE status='Disbursed'
             )
             ${pclA.clause}
         `);
@@ -1023,10 +1023,33 @@ HELIUM: {
         SELECT IFNULL(SUM(rps.remaining_principal),0) AS principal
         FROM ${rpsTable} rps
         JOIN ${bookingTable} b ON ${eqLan("b.lan", "rps.lan")}
-        WHERE 1=1 ${br.clause}
+       WHERE b.status = 'Disbursed'
+${br.clause}
       `);
       pToDateParams.push(...br.params);
     };
+
+
+    /// DPD ////
+  const addDpdQuery = (rpsTable, bookingTable, lender) => {
+  const br = buildDateRangeClause("b.agreement_date", start, end);
+
+  dpdQueries.push(`
+    SELECT 
+      '${lender}' AS lender,
+      COUNT(DISTINCT CASE WHEN rps.dpd BETWEEN 0 AND 30 THEN rps.lan END) AS dpd_0_30,
+      COUNT(DISTINCT CASE WHEN rps.dpd BETWEEN 31 AND 60 THEN rps.lan END) AS dpd_31_60,
+      COUNT(DISTINCT CASE WHEN rps.dpd BETWEEN 61 AND 90 THEN rps.lan END) AS dpd_61_90,
+      COUNT(DISTINCT CASE WHEN rps.dpd > 90 THEN rps.lan END) AS dpd_91_plus,
+      IFNULL(SUM(rps.remaining_principal),0) AS remaining_principal
+    FROM ${rpsTable} rps
+    JOIN ${bookingTable} b ON ${eqLan("b.lan", "rps.lan")}
+    WHERE b.status = 'Disbursed'
+${br.clause}
+  `);
+
+  dpdParams.push(...br.params);
+};
 
     /** 🔹 Build all queries dynamically */
     for (const [key, cfg] of Object.entries(productMap)) {
@@ -1035,17 +1058,25 @@ HELIUM: {
         addCollectQuery(cfg);
         addPniRangeQuery(cfg.allocTable, cfg.allocLike);
         addPToDateQuery(cfg.rpsTable, cfg.disbTable);
+          // ✅ DPD + Remaining Principal
+    addDpdQuery(cfg.rpsTable, cfg.disbTable, key);
       }
     }
 
     /** 🔹 Execute in parallel */
-    const [[disbRows], [collRows], [pniRangeRows], [pToDateRows]] =
-      await Promise.all([
-        db.promise().query(disburseQueries.join(" UNION ALL "), disburseParams),
-        db.promise().query(collectQueries.join(" UNION ALL "), collectParams),
-        db.promise().query(pniRangeQueries.join(" UNION ALL "), pniRangeParams),
-        db.promise().query(pToDateQueries.join(" UNION ALL "), pToDateParams),
-      ]);
+   const [
+  [disbRows],
+  [collRows],
+  [pniRangeRows],
+  [pToDateRows],
+  [dpdRows]
+] = await Promise.all([
+  db.promise().query(disburseQueries.join(" UNION ALL "), disburseParams),
+  db.promise().query(collectQueries.join(" UNION ALL "), collectParams),
+  db.promise().query(pniRangeQueries.join(" UNION ALL "), pniRangeParams),
+  db.promise().query(pToDateQueries.join(" UNION ALL "), pToDateParams),
+  db.promise().query(dpdQueries.join(" UNION ALL "), dpdParams) // ✅ ADD THIS
+]);
 
     /** 🔹 Aggregate results */
     const totalDisbursed = disbRows.reduce((s, r) => s + Number(r.amount || 0), 0);
@@ -1053,6 +1084,22 @@ HELIUM: {
     const totalPrincipal = pniRangeRows.reduce((s, r) => s + Number(r.principal || 0), 0);
     const totalInterest = pniRangeRows.reduce((s, r) => s + Number(r.interest || 0), 0);
     const posOutstanding = pToDateRows.reduce((s, r) => s + Number(r.principal || 0), 0); // ✅ POS from SQL
+    const dpd_0_30 = dpdRows.reduce((s, r) => s + Number(r.dpd_0_30 || 0), 0);
+const dpd_31_60 = dpdRows.reduce((s, r) => s + Number(r.dpd_31_60 || 0), 0);
+const dpd_61_90 = dpdRows.reduce((s, r) => s + Number(r.dpd_61_90 || 0), 0);
+const dpd_91_plus = dpdRows.reduce((s, r) => s + Number(r.dpd_91_plus || 0), 0);
+const totalRemainingPrincipal = dpdRows.reduce(
+  (s, r) => s + Number(r.remaining_principal || 0),
+  0
+);
+const lenderWiseDPD = dpdRows.map((row) => ({
+  lender: row.lender,
+  dpd_0_30: Number(row.dpd_0_30 || 0),
+  dpd_31_60: Number(row.dpd_31_60 || 0),
+  dpd_61_90: Number(row.dpd_61_90 || 0),
+  dpd_91_plus: Number(row.dpd_91_plus || 0),
+  remainingPrincipal: Number(row.remaining_principal || 0),
+}));
 
     /** 🔹 Derived Metrics */
     const collectionRate = totalDisbursed
@@ -1068,7 +1115,15 @@ HELIUM: {
       totalInterest,
       principalOutstanding: posOutstanding, // renamed for clarity
       interestOutstanding: 0,
-      posOutstanding, // ✅ pulled directly from DB (remaining_principal)
+       posOutstanding: totalRemainingPrincipal,
+
+       dpdCases: {
+    dpd_0_30,
+    dpd_31_60,
+    dpd_61_90,
+    dpd_91_plus
+  },
+   lenderWiseDPD
     });
 
   } catch (err) {

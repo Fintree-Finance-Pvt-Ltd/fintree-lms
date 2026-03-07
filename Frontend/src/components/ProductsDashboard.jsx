@@ -92,6 +92,26 @@ const [metrics, setMetrics] = useState({
   </div>
 </div>
 
+<div className="metric-card">
+  <div className="metric-title">DPD 0-30</div>
+  <div className="metric-value">{metrics?.dpdCases?.dpd_0_30 || 0}</div>
+</div>
+
+<div className="metric-card">
+  <div className="metric-title">DPD 31-60</div>
+  <div className="metric-value">{metrics?.dpdCases?.dpd_31_60 || 0}</div>
+</div>
+
+<div className="metric-card">
+  <div className="metric-title">DPD 61-90</div>
+  <div className="metric-value">{metrics?.dpdCases?.dpd_61_90 || 0}</div>
+</div>
+
+<div className="metric-card">
+  <div className="metric-title">DPD 91+</div>
+  <div className="metric-value">{metrics?.dpdCases?.dpd_91_plus || 0}</div>
+</div>
+
       </div>
 
       <ProductDistributionChart filters={filters} />
