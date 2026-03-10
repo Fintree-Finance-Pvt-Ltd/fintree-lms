@@ -158,20 +158,22 @@ module.exports = async function allocateGQFSFFintree(lan, payment) {
 
         const alloc = Math.min(Math.abs(interest), remaining);
 
+        const signedAlloc = interest < 0 ? -alloc : alloc;
+
         remaining -= alloc;
 
-        if (interest > 0) interest -= alloc;
-        else interest += alloc;
+        interest -= signedAlloc;
 
         const insertRes = await queryDB(
           `INSERT INTO allocation_fintree_fsf
           (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
           VALUES (?, ?, ?, ?, 'Interest', ?)`,
-          [lan, emi.due_date, payment_date, alloc, payment_id]
+          [lan, emi.due_date, payment_date, signedAlloc, payment_id]
         );
 
         console.log("✅ Interest allocated:", {
           alloc,
+          signedAlloc,
           remaining,
           newInterest: interest,
           insertRes
@@ -185,20 +187,22 @@ module.exports = async function allocateGQFSFFintree(lan, payment) {
 
         const alloc = Math.min(Math.abs(principal), remaining);
 
+        const signedAlloc = principal < 0 ? -alloc : alloc;
+
         remaining -= alloc;
 
-        if (principal > 0) principal -= alloc;
-        else principal += alloc;
+        principal -= signedAlloc;
 
         const insertRes = await queryDB(
           `INSERT INTO allocation_fintree_fsf
           (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
           VALUES (?, ?, ?, ?, 'Principal', ?)`,
-          [lan, emi.due_date, payment_date, alloc, payment_id]
+          [lan, emi.due_date, payment_date, signedAlloc, payment_id]
         );
 
         console.log("✅ Principal allocated:", {
           alloc,
+          signedAlloc,
           remaining,
           newPrincipal: principal,
           insertRes
