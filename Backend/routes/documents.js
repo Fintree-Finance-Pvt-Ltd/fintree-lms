@@ -1168,6 +1168,13 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_gq_non_fsf";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
+  }
+    else if (lan.startsWith("CIRF")) {
+  loanTable = "loan_booking_circle_pe";
+  rpsTable = "manual_rps_circlepe";
+  paymentsTable = "repayments_upload";
+  chargesTable = "loan_charges";
+
   } else if (lan.startsWith("GQF")) {
     loanTable = "loan_booking_gq_fsf";
     rpsTable = "manual_rps_gq_fsf";
