@@ -7043,7 +7043,7 @@ router.post("/v1/invoice-disbursement/validate", verifyApiKey, async (req, res) 
     }
 
     const dbRoi = Number(sanctionRows[0].interest_rate);
-    const dbTenureDays = Number(sanctionRows[0].tenure_months) * 30;
+    const dbTenureDays = Number(sanctionRows[0].tenure_months);
 
     /* =====================================================
        STEP 2: TENURE CHECK
