@@ -7029,13 +7029,12 @@ router.post("/v1/invoice-disbursement/validate", verifyApiKey, async (req, res) 
     ===================================================== */
 
     const [sanctionRows] = await db.promise().query(
-      `SELECT interest_rate, tenure_months
-       FROM supply_chain_sanctions
-       WHERE partner_loan_id = ?
-       AND lan = ?`,
-      [data.partner_loan_id, data.lan]
-    );
-
+  `SELECT interest_rate, tenure_months
+   FROM supply_chain_sanctions
+   WHERE partner_loan_id = ?
+   AND lan = ?`,
+  [String(data.partner_loan_id), String(data.lan)]
+);
     if (sanctionRows.length === 0) {
       return res.status(400).json({
         message: "Sanction not found"
