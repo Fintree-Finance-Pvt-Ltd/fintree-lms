@@ -6719,12 +6719,13 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 //       /* =====================================================
 //          STEP 1: TENURE CHECK (FIXED = 90 DAYS)
 //       ===================================================== */
-//       if (Number(data.tenure_days) !== 90) {
-//         return res.status(400).json({
-//           message: "Tenure mismatch. Only 90 days allowed"
-//         });
-//       }
+//       const tenure = parseInt(data.tenure_days);
 
+// if (tenure !== 90) {
+//   return res.status(400).json({
+//     message: "Tenure mismatch. Only 90 days allowed"
+//   });
+// }
 //       /* =====================================================
 //          STEP 2: INVOICE DUE DATE CHECK (DISB + 90 DAYS)
 //       ===================================================== */
@@ -7016,262 +7017,389 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 //   }
 // );
 
+
 router.post("/v1/invoice-disbursement/validate", verifyApiKey, async (req, res) => {
+  const payload = req.body;
 
-  let conn;
-
-  try {
-
-    const data = req.body;
-
-    /* =====================================================
-       STEP 1: FETCH SANCTION (ROI + TENURE)
-    ===================================================== */
-
-    const [sanctionRows] = await db.promise().query(
-  `SELECT interest_rate, tenure_months
-   FROM supply_chain_sanctions
-   WHERE partner_loan_id = ?
-   AND lan = ?`,
-  [String(data.partner_loan_id), String(data.lan)]
-);
-    if (sanctionRows.length === 0) {
-      return res.status(400).json({
-        message: "Sanction not found"
-      });
-    }
-
-    const dbRoi = Number(sanctionRows[0].interest_rate);
-    const dbTenureDays = Number(sanctionRows[0].tenure_months);
-
-    /* =====================================================
-       STEP 2: TENURE CHECK
-    ===================================================== */
-
-    if (Number(data.tenure_days) !== dbTenureDays) {
-      return res.status(400).json({
-        message: "Tenure mismatch",
-        expected: dbTenureDays,
-        received: data.tenure_days
-      });
-    }
-
-    /* =====================================================
-       STEP 3: DISBURSEMENT DATE VALIDATION
-    ===================================================== */
-
-    const disbDate = new Date(data.disbursement_date);
-
-    if (isNaN(disbDate.getTime())) {
-      return res.status(400).json({
-        message: "Invalid disbursement_date"
-      });
-    }
-
-    const expectedDueDate = new Date(disbDate);
-    expectedDueDate.setDate(expectedDueDate.getDate() + dbTenureDays);
-
-    const formatDate = (d) =>
-      d.getFullYear() +
-      "-" +
-      String(d.getMonth() + 1).padStart(2, "0") +
-      "-" +
-      String(d.getDate()).padStart(2, "0");
-
-    if (data.invoice_due_date !== formatDate(expectedDueDate)) {
-      return res.status(400).json({
-        message: "Invoice due date mismatch",
-        expected: formatDate(expectedDueDate),
-        received: data.invoice_due_date
-      });
-    }
-
-    /* =====================================================
-       STEP 4: ROI MATCH
-    ===================================================== */
-
-    if (Number(data.roi_percentage) !== dbRoi) {
-      return res.status(400).json({
-        message: "ROI percentage mismatch",
-        expected: dbRoi,
-        received: data.roi_percentage
-      });
-    }
-
-    /* =====================================================
-       STEP 5: LOAN CHECK
-    ===================================================== */
-
-    const [loanRows] = await db.promise().query(
-      `SELECT id
-       FROM supply_chain_loans
-       WHERE partner_loan_id = ?
-       AND status = 'Login'`,
-      [data.partner_loan_id]
-    );
-
-    if (loanRows.length === 0) {
-      return res.status(400).json({
-        message: "Loan not found or not in Login status"
-      });
-    }
-
-    /* =====================================================
-       STEP 6: SUPPLIER VALIDATION
-    ===================================================== */
-
-    const [supplierRows] = await db.promise().query(
-      `SELECT *
-       FROM supplier_onboarding
-       WHERE partner_loan_id = ?
-       AND supplier_name = ?
-       AND status = 'Active'`,
-      [data.partner_loan_id, data.supplier_name]
-    );
-
-    if (supplierRows.length === 0) {
-      return res.status(400).json({
-        message: "Supplier not found or inactive"
-      });
-    }
-
-    const s = supplierRows[0];
-
-    if (
-      s.bank_account_number !== data.supplier_bank_details.bank_account_number ||
-      s.ifsc_code !== data.supplier_bank_details.ifsc_code ||
-      s.bank_name !== data.supplier_bank_details.bank_name ||
-      s.account_holder_name !== data.supplier_bank_details.account_holder_name
-    ) {
-      return res.status(400).json({
-        message: "Supplier bank details mismatch"
-      });
-    }
-
-    /* =====================================================
-       STEP 7: ROI CALCULATION VALIDATION
-    ===================================================== */
-
-    const invoiceAmount = Number(data.invoice_amount);
-    const disbursementAmount = Number(data.disbursement_amount);
-    const tenureDays = Number(data.tenure_days);
-
-    if ([invoiceAmount, disbursementAmount].some(Number.isNaN)) {
-      return res.status(400).json({
-        message: "Invalid numeric input"
-      });
-    }
-
-    if (disbursementAmount > invoiceAmount) {
-      return res.status(400).json({
-        message: "Disbursement cannot exceed invoice amount"
-      });
-    }
-
-    const expectedRoi =
-      (disbursementAmount * dbRoi * tenureDays) / 365;
-
-    const expectedEmi = disbursementAmount + expectedRoi;
-
-    const round = (v) => Number(Number(v).toFixed(2));
-
-    if (round(data.total_roi_amount) !== round(expectedRoi)) {
-      return res.status(400).json({
-        message: "ROI amount mismatch",
-        expected: round(expectedRoi),
-        received: data.total_roi_amount
-      });
-    }
-
-    if (round(data.emi_amount) !== round(expectedEmi)) {
-      return res.status(400).json({
-        message: "EMI mismatch",
-        expected: round(expectedEmi),
-        received: data.emi_amount
-      });
-    }
-
-    /* =====================================================
-       STEP 8: TRANSACTION
-    ===================================================== */
-
-    conn = await db.promise().getConnection();
-    await conn.beginTransaction();
-
-    const remainingInvoiceAmount =
-      invoiceAmount - disbursementAmount;
-
-    await conn.query(
-      `INSERT INTO invoice_disbursements (
-        partner_loan_id,
-        lan,
-        invoice_number,
-        invoice_date,
-        invoice_amount,
-        remaining_invoice_amount,
-        tenure_days,
-        supplier_name,
-        bank_account_number,
-        ifsc_code,
-        bank_name,
-        account_holder_name,
-        disbursement_amount,
-        remaining_disbursement_amount,
-        disbursement_date,
-        invoice_due_date,
-        disbursement_utr,
-        roi_percentage,
-        total_roi_amount,
-        emi_amount
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [
-        data.partner_loan_id,
-        data.lan,
-        data.invoice_number,
-        data.invoice_date,
-        invoiceAmount,
-        remainingInvoiceAmount,
-        tenureDays,
-        data.supplier_name,
-        data.supplier_bank_details.bank_account_number,
-        data.supplier_bank_details.ifsc_code,
-        data.supplier_bank_details.bank_name,
-        data.supplier_bank_details.account_holder_name,
-        disbursementAmount,
-        disbursementAmount,
-        data.disbursement_date,
-        data.invoice_due_date,
-        data.disbursement_utr,
-        data.roi_percentage,
-        data.total_roi_amount,
-        data.emi_amount
-      ]
-    );
-
-    await conn.commit();
-    conn.release();
-
-    return res.json({
-      message: "Invoice validated and saved successfully"
+  if (!Array.isArray(payload) || payload.length === 0) {
+    return res.status(400).json({
+      message: "Request body must be a non-empty array"
     });
-
-  } catch (err) {
-
-    if (conn) {
-      await conn.rollback();
-      conn.release();
-    }
-
-    console.error(err);
-
-    return res.status(500).json({
-      message: "Validation failed",
-      error: err.message
-    });
-
   }
-});
 
+  const results = [];
+
+  const formatDate = (d) => d.toISOString().split("T")[0];
+  const round = (v) => Number(Number(v).toFixed(2));
+
+  for (const data of payload) {
+    let conn;
+
+    try {
+      /* =====================================================
+         STEP 1: BASIC STRUCTURE CHECK
+      ===================================================== */
+      if (!data || typeof data !== "object") {
+        results.push({
+          invoice_number: null,
+          status: "failed",
+          message: "Invalid invoice payload"
+        });
+        continue;
+      }
+
+      /* =====================================================
+         STEP 2: TENURE CHECK (FIXED = 90 DAYS)
+      ===================================================== */
+      const tenureDays = Number(data.tenure_days);
+
+      if (!Number.isFinite(tenureDays) || tenureDays !== 90) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "Tenure mismatch. Only 90 days allowed",
+          received: data.tenure_days
+        });
+        continue;
+      }
+
+      /* =====================================================
+         STEP 3: INVOICE DUE DATE CHECK
+      ===================================================== */
+      const disbDate = new Date(data.disbursement_date);
+
+      if (isNaN(disbDate.getTime())) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "Invalid disbursement_date"
+        });
+        continue;
+      }
+
+      const expectedDueDate = new Date(disbDate);
+      expectedDueDate.setDate(expectedDueDate.getDate() + 90);
+
+      if (data.invoice_due_date !== formatDate(expectedDueDate)) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "Invoice due date mismatch",
+          expected: formatDate(expectedDueDate),
+          received: data.invoice_due_date
+        });
+        continue;
+      }
+
+      /* =====================================================
+         STEP 4: FETCH SANCTION
+      ===================================================== */
+      const [sanctionRows] = await db.promise().query(
+        `SELECT interest_rate, sanction_amount, utilized_sanction_limit
+         FROM supply_chain_sanctions
+         WHERE partner_loan_id = ?
+           AND lan = ?`,
+        [data.partner_loan_id, data.lan]
+      );
+
+      if (sanctionRows.length === 0) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "Sanction not found for given partner_loan_id and LAN"
+        });
+        continue;
+      }
+
+      const dbRoi = Number(sanctionRows[0].interest_rate);
+
+      if (Number.isNaN(dbRoi)) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "Invalid ROI in sanction record"
+        });
+        continue;
+      }
+
+      /* =====================================================
+         STEP 5: ROI MATCH
+      ===================================================== */
+      if (Number(data.roi_percentage) !== dbRoi) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "ROI percentage mismatch",
+          expected: dbRoi,
+          received: data.roi_percentage
+        });
+        continue;
+      }
+
+      /* =====================================================
+         STEP 6: LOAN MASTER CHECK
+      ===================================================== */
+      const [loanRows] = await db.promise().query(
+        `SELECT id
+         FROM supply_chain_loans
+         WHERE partner_loan_id = ?
+           AND status = 'Login'`,
+        [data.partner_loan_id]
+      );
+
+      if (loanRows.length === 0) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "Loan not found or not in Login status"
+        });
+        continue;
+      }
+
+      /* =====================================================
+         STEP 7: SUPPLIER & BANK VALIDATION
+      ===================================================== */
+      // const [supplierRows] = await db.promise().query(
+      //   `SELECT
+      //      supplier_name,
+      //      bank_account_number,
+      //      ifsc_code,
+      //      bank_name,
+      //      account_holder_name
+      //    FROM supplier_onboarding
+      //    WHERE partner_loan_id = ?
+      //      AND supplier_name = ?
+      //      AND status = 'Active'`,
+      //   [data.partner_loan_id, data.supplier_name]
+      // );
+
+      // if (supplierRows.length === 0) {
+      //   results.push({
+      //     invoice_number: data.invoice_number || null,
+      //     status: "failed",
+      //     message: "Supplier not found or inactive"
+      //   });
+      //   continue;
+      // }
+
+      // if (!data.supplier_bank_details) {
+      //   results.push({
+      //     invoice_number: data.invoice_number || null,
+      //     status: "failed",
+      //     message: "Supplier bank details missing"
+      //   });
+      //   continue;
+      // }
+
+      // const s = supplierRows[0];
+
+      // if (
+      //   s.bank_account_number !== data.supplier_bank_details.bank_account_number ||
+      //   s.ifsc_code !== data.supplier_bank_details.ifsc_code ||
+      //   s.bank_name !== data.supplier_bank_details.bank_name ||
+      //   s.account_holder_name !== data.supplier_bank_details.account_holder_name
+      // ) {
+      //   results.push({
+      //     invoice_number: data.invoice_number || null,
+      //     status: "failed",
+      //     message: "Supplier bank details mismatch"
+      //   });
+      //   continue;
+      // }
+
+      /* =====================================================
+         STEP 8: ROI & EMI CALC VALIDATION
+      ===================================================== */
+      const invoiceAmount = Number(data.invoice_amount);
+      const disbursementAmount = Number(data.disbursement_amount);
+
+      if ([invoiceAmount, disbursementAmount].some(Number.isNaN)) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "Invalid numeric input"
+        });
+        continue;
+      }
+
+      if (disbursementAmount > invoiceAmount) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "Disbursement amount cannot be greater than invoice amount"
+        });
+        continue;
+      }
+
+      const expectedRoiAmount =
+        (disbursementAmount * dbRoi * tenureDays) / (365);
+
+      const expectedEmi = disbursementAmount + expectedRoiAmount;
+      const remainingInvoiceAmount = invoiceAmount - disbursementAmount;
+
+      if (round(data.total_roi_amount) !== round(expectedRoiAmount)) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "Total ROI amount mismatch",
+          expected: round(expectedRoiAmount),
+          received: data.total_roi_amount
+        });
+        continue;
+      }
+
+      if (round(data.emi_amount) !== round(expectedEmi)) {
+        results.push({
+          invoice_number: data.invoice_number || null,
+          status: "failed",
+          message: "EMI amount mismatch",
+          expected: round(expectedEmi),
+          received: data.emi_amount
+        });
+        continue;
+      }
+
+      /* =====================================================
+         STEP 9: INSERT + SANCTION UPDATE
+      ===================================================== */
+      conn = await db.promise().getConnection();
+      await conn.beginTransaction();
+
+      const [existingInvoice] = await conn.query(
+        `SELECT id
+         FROM invoice_disbursements
+         WHERE invoice_number = ?`,
+        [data.invoice_number]
+      );
+
+      if (existingInvoice.length > 0) {
+        throw new Error("Invoice already exists");
+      }
+
+      const [sanctionData] = await conn.query(
+        `SELECT sanction_amount, utilized_sanction_limit
+         FROM supply_chain_sanctions
+         WHERE partner_loan_id = ?
+           AND lan = ?
+         FOR UPDATE`,
+        [data.partner_loan_id, data.lan]
+      );
+
+      if (sanctionData.length === 0) {
+        throw new Error("Sanction record not found");
+      }
+
+      const sanctionLimit = Number(sanctionData[0].sanction_amount);
+      const utilized = Number(sanctionData[0].utilized_sanction_limit);
+
+      if ([sanctionLimit, utilized].some(Number.isNaN)) {
+        throw new Error("Invalid sanction numeric data");
+      }
+
+      const newUtilized = utilized + disbursementAmount;
+      const newUnutilized = sanctionLimit - newUtilized;
+
+      if (newUtilized > sanctionLimit) {
+        throw new Error("Sanction limit exceeded");
+      }
+
+      await conn.query(
+        `INSERT INTO invoice_disbursements (
+          partner_loan_id,
+          lan,
+          invoice_number,
+          invoice_date,
+          invoice_amount,
+          remaining_invoice_amount,
+          tenure_days,
+          supplier_name,
+          bank_account_number,
+          ifsc_code,
+          bank_name,
+          account_holder_name,
+          disbursement_amount,
+          remaining_disbursement_amount,
+          disbursement_date,
+          invoice_due_date,
+          disbursement_utr,
+          roi_percentage,
+          total_roi_amount,
+          emi_amount
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          data.partner_loan_id,
+          data.lan,
+          data.invoice_number,
+          data.invoice_date,
+          invoiceAmount,
+          remainingInvoiceAmount,
+          tenureDays,
+          data.supplier_name,
+          data.supplier_bank_details.bank_account_number,
+          data.supplier_bank_details.ifsc_code,
+          data.supplier_bank_details.bank_name,
+          data.supplier_bank_details.account_holder_name,
+          disbursementAmount,
+          disbursementAmount,
+          data.disbursement_date,
+          data.invoice_due_date,
+          data.disbursement_utr,
+          data.roi_percentage,
+          data.total_roi_amount,
+          data.emi_amount
+        ]
+      );
+
+      await conn.query(
+        `UPDATE supply_chain_sanctions
+         SET utilized_sanction_limit = ?,
+             unutilization_sanction_limit = ?
+         WHERE partner_loan_id = ?
+           AND lan = ?`,
+        [newUtilized, newUnutilized, data.partner_loan_id, data.lan]
+      );
+
+      await conn.commit();
+      conn.release();
+      conn = null;
+
+      setImmediate(async () => {
+        try {
+          await generateDemandFromInvoiceDisbursement(data.invoice_number);
+        } catch (e) {
+          console.error(`Demand generation failed for ${data.invoice_number}:`, e);
+        }
+      });
+
+      results.push({
+        invoice_number: data.invoice_number,
+        status: "success",
+        message: "Invoice validated, saved, and sanction updated successfully"
+      });
+
+    } catch (err) {
+      if (conn) {
+        await conn.rollback();
+        conn.release();
+        conn = null;
+      }
+
+      results.push({
+        invoice_number: data?.invoice_number || null,
+        status: "failed",
+        message: err.message || "Validation failed"
+      });
+    }
+  }
+
+  return res.json({
+    message: "Bulk invoice validation completed",
+    total: payload.length,
+    success_count: results.filter(x => x.status === "success").length,
+    failed_count: results.filter(x => x.status === "failed").length,
+    results
+  });
+});
 
 ///////////////////////// SUPPLY CHAIN Invoice Upload & Disbursement END //////////////////////
 
