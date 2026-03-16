@@ -119,9 +119,10 @@ import ZypayApprovedLoans from "./components/ZypayApprovedLoans";
 import ZypayDisbursedLoans from "./components/ZypayDisbursedLoans";
 import ZypayAllLoans from "./components/ZypayAllLoans";
 import SCApprovedLoans from "./components/SCApprovedLoans"; // Supply Chain Approved Loans
-import SCDisbursedLoans from "./components/SCDisbursedLoans";// Supply Chain Disbursed Loans
-import SCAllLoans from "./components/SCAllLoans";// Supply Chain All Loans
-
+import SCDisbursedLoans from "./components/SCDisbursedLoans"; // Supply Chain Disbursed Loans
+import SCAllLoans from "./components/SCAllLoans"; // Supply Chain All Loans
+import ClayooManualEntry from "./components/Clayoo/ClayooLoanBooking";
+import LoanDigit from "./components/Loan Digit/LoanDigit";
 
 function App() {
   return (
@@ -139,9 +140,8 @@ function App() {
             </ProtectedRoute>
           }
         >
-
           <Route path="/esign/success" element={<EsignSuccess />} />
-<Route path="/esign/error" element={<EsignError />} />
+          <Route path="/esign/error" element={<EsignError />} />
 
           {/* ✅ All pages go INSIDE this layout block */}
 
@@ -180,8 +180,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
-          
 
           <Route
             path="/ev-manual-entry"
@@ -275,56 +273,56 @@ function App() {
 
           {/* WCTL CCOD LOAN ROUTES */}
 
-          <Route 
+          <Route
             path="/wctl-ccod/loan-booking-wctl-ccod"
-            element= {
+            element={
               <PermissionRoute pageName="WCTL CCOD Loan Book">
                 <LoanBookingWctlCcOd />
               </PermissionRoute>
             }
           />
 
-          <Route 
+          <Route
             path="/wctl-ccod/all-loans"
-            element= {
+            element={
               <PermissionRoute pageName="WCTL CCOD ALL Loans">
-                <WCTLCCODAllLoans/>
+                <WCTLCCODAllLoans />
               </PermissionRoute>
             }
           />
 
-          <Route 
+          <Route
             path="/wctl-ccod/add-inventory/:lan"
-            element= {
+            element={
               <PermissionRoute pageName="WCTL CCOD Add Inventory">
-                <WCTLInventoryAdd/>
+                <WCTLInventoryAdd />
               </PermissionRoute>
             }
           />
 
-          <Route 
+          <Route
             path="/wctl-ccod/add-invoice/:lan"
-            element= {
+            element={
               <PermissionRoute pageName="WCTL CCOD Add Invoice">
-                <InvoiceAdd/>
+                <InvoiceAdd />
               </PermissionRoute>
             }
           />
 
-          <Route 
+          <Route
             path="/wctl-ccod/repayment/:lan"
-            element= {
+            element={
               <PermissionRoute pageName="Repayment Add">
-                <RepaymentAdd/>
+                <RepaymentAdd />
               </PermissionRoute>
             }
           />
 
-          <Route 
+          <Route
             path="/wctl-ccod/interest-ledger/:lan"
-            element= {
+            element={
               <PermissionRoute pageName="Interest ledger">
-                <InterestLedger/>
+                <InterestLedger />
               </PermissionRoute>
             }
           />
@@ -363,6 +361,25 @@ function App() {
             element={
               <PermissionRoute pageName="Approved Loan Details">
                 <HeliumApprovedLoanDetails />
+              </PermissionRoute>
+            }
+          />
+          {/* Clyoo Loan Route */}
+          <Route
+            path="/clayoo/loan-booking"
+            element={
+              <PermissionRoute pageName="Clyoo Loan Booking">
+                <ClayooManualEntry />
+              </PermissionRoute>
+            }
+          />
+
+          {/* Loan Digit */}
+          <Route
+            path="/loan-digit/cases"
+            element={
+              <PermissionRoute pageName="Loan Digit">
+                <LoanDigit />
               </PermissionRoute>
             }
           />
@@ -473,7 +490,7 @@ function App() {
             }
           />
 
-            {/* ✅ Loan routes */}
+          {/* ✅ Loan routes */}
 
           <Route
             path="/finso-loans/approved"
@@ -580,7 +597,7 @@ function App() {
           />
 
           {/* ///////////////    ZYPAY LOAN */}
-<Route
+          <Route
             path="/zypay-loans/approved"
             element={
               <PermissionRoute pageName="Zypay Approved Loans">
@@ -690,34 +707,34 @@ function App() {
               </PermissionRoute>
             }
           />
-{/* ✅ SUPPLY CHAIN LOAN ROUTES */}
+          {/* ✅ SUPPLY CHAIN LOAN ROUTES */}
 
-<Route
-  path="/supply-chain-loans/approved"
-  element={
-    <PermissionRoute pageName="Supply Chain Approved Loans">
-      <SCApprovedLoans />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/supply-chain-loans/approved"
+            element={
+              <PermissionRoute pageName="Supply Chain Approved Loans">
+                <SCApprovedLoans />
+              </PermissionRoute>
+            }
+          />
 
-<Route
-  path="/supply-chain-loans/disbursed"
-  element={
-    <PermissionRoute pageName="Supply Chain Disbursed Loans">
-      <SCDisbursedLoans />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/supply-chain-loans/disbursed"
+            element={
+              <PermissionRoute pageName="Supply Chain Disbursed Loans">
+                <SCDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
 
-<Route
-  path="/supply-chain-loans/all"
-  element={
-    <PermissionRoute pageName="Supply Chain All Loans">
-      <SCAllLoans />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/supply-chain-loans/all"
+            element={
+              <PermissionRoute pageName="Supply Chain All Loans">
+                <SCAllLoans />
+              </PermissionRoute>
+            }
+          />
 
           <Route
             path="/gq-fsf-loans/approved"
@@ -924,7 +941,6 @@ function App() {
             }
           />
 
-
           <Route
             path="/elysium-loans/approved"
             element={
@@ -1041,8 +1057,8 @@ function App() {
               </PermissionRoute>
             }
           />
-     
-                  {/* ✅ Hey EV Battery Loan routes */}
+
+          {/* ✅ Hey EV Battery Loan routes */}
 
           <Route
             path="/hey-ev-battery-loans/approved"
@@ -1069,8 +1085,8 @@ function App() {
                 <HEYEVBatteryAllLoans />
               </PermissionRoute>
             }
- />
-            <Route
+          />
+          <Route
             path="/dealer-onboarding/all"
             element={
               <PermissionRoute pageName="Dealer Onboarding All Loans">
@@ -1096,7 +1112,7 @@ function App() {
               </PermissionRoute>
             }
           />
-           <Route
+          <Route
             path="/dealer-onboarding/login-actions"
             element={
               <PermissionRoute pageName="Dealer Onboarding Login Actions">
@@ -1113,8 +1129,7 @@ function App() {
               </PermissionRoute>
             }
           />
-       </Route>
-
+        </Route>
       </Routes>
     </Router>
   );
