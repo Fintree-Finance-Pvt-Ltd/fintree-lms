@@ -609,7 +609,7 @@ router.post("/create-mandate", authenticateUser, async (req, res) => {
       notify_customer: true,
       include_authentication_url: true,
       mandate_data: {
-        collection_amount: Number(amount),
+        maximum_amount: Number(amount),
         instrument_type: "debit",
         first_collection_date:
           start_date || new Date().toISOString().slice(0, 10),
