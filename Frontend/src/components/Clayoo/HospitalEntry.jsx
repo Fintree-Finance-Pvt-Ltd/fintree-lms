@@ -56,12 +56,6 @@ const HospitalEntry = () => {
       data.append(key, formData[key]);
     });
 
-    Object.keys(documents).forEach((key) => {
-      if (documents[key]) {
-        data.append(key, documents[key]);
-      }
-    });
-
     try {
       const res = await api.post("hospitals/create", data, {
         headers: { "Content-Type": "multipart/form-data" },
