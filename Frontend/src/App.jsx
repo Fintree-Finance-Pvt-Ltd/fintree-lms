@@ -123,6 +123,7 @@ import SCDisbursedLoans from "./components/SCDisbursedLoans"; // Supply Chain Di
 import SCAllLoans from "./components/SCAllLoans"; // Supply Chain All Loans
 import ClayooManualEntry from "./components/Clayoo/ClayooLoanBooking";
 import LoanDigit from "./components/Loan Digit/LoanDigit";
+import HospitalEntry from "./components/Clayoo/HospitalEntry";
 
 function App() {
   return (
@@ -366,10 +367,19 @@ function App() {
           />
           {/* Clyoo Loan Route */}
           <Route
-            path="/clayoo/loan-booking"
+            path="/clayoo-loans/loan-booking"
             element={
-              <PermissionRoute pageName="Clyoo Loan Booking">
+              <PermissionRoute pageName="Clayoo Loan Booking">
                 <ClayooManualEntry />
+              </PermissionRoute>
+            }
+          />
+
+             <Route
+            path="/clayoo-loans/hospital-entry"
+            element={
+              <PermissionRoute pageName="Clayoo Hospital Entry">
+                <HospitalEntry />
               </PermissionRoute>
             }
           />

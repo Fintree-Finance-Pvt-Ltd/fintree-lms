@@ -10,6 +10,7 @@ const getTodayDateString = () => {
 const ClayooManualEntry = () => {
   const [hospitals, setHospitals] = useState([]);
   const [sameAddress, setSameAddress] = useState(false);
+  const [ageError, setAgeError] = useState("");
 
   const [formData, setFormData] = useState({
     login_date: getTodayDateString(),
@@ -19,47 +20,30 @@ const ClayooManualEntry = () => {
     gender: "",
     dob: "",
     age: "",
-   
-
     mobile_number: "",
     email_id: "",
     pan_number: "",
-
-
     current_address: "",
     current_village_city: "",
     current_district: "",
     current_state: "",
     current_pincode: "",
-
     permanent_address: "",
     permanent_village_city: "",
     permanent_district: "",
     permanent_state: "",
     permanent_pincode: "",
-
-
-  
-
-
-
-
-
-    
     policy_type: "",
     employment_type: "",
     net_monthly_income: "",
-
     bank_name: "",
     name_in_bank: "",
     account_number: "",
     ifsc: "",
-
+    insurance_company_name: "",
+    insurance_policy_holder_name: "",
+    insurance_policy_number: "",
     loan_amount: "",
-   
-
-    
-
     product: "CLAYOO",
     lender: "CLAYOO",
     status: "Login",
@@ -87,18 +71,18 @@ const ClayooManualEntry = () => {
 
     try {
       const res = await axios.get(
-        `https://api.postalpincode.in/pincode/${pin}`,
+        `https://api.postalpincode.in/pincode/${pin}`
       );
       const data = res.data[0];
 
-      if (data.Status === "Success") {
+      if (data.Status === "Success" && data.PostOffice?.length > 0) {
         const office = data.PostOffice[0];
         const prefix = type === "current" ? "current" : "permanent";
 
         setFormData((prev) => ({
           ...prev,
-          [`${prefix}_district`]: office.District,
-          [`${prefix}_state`]: office.State,
+          [`${prefix}_district`]: office.District || "",
+          [`${prefix}_state`]: office.State || "",
         }));
       }
     } catch (err) {
@@ -107,52 +91,99 @@ const ClayooManualEntry = () => {
   };
 
   useEffect(() => {
-    if (formData.current_pincode.length === 6)
+    if (formData.current_pincode.length === 6) {
       handlePincodeLookup(formData.current_pincode, "current");
+    }
   }, [formData.current_pincode]);
 
   useEffect(() => {
-    if (formData.permanent_pincode.length === 6)
+    if (formData.permanent_pincode.length === 6) {
       handlePincodeLookup(formData.permanent_pincode, "permanent");
+    }
   }, [formData.permanent_pincode]);
 
-   const handleSameAddress = (e) => {
-      const checked = e.target.checked;
-      setSameAddress(checked);
+  // Keep permanent address synced when checkbox is checked
+  useEffect(() => {
+    if (sameAddress) {
+      setFormData((prev) => ({
+        ...prev,
+        permanent_address: prev.current_address,
+        permanent_village_city: prev.current_village_city,
+        permanent_district: prev.current_district,
+        permanent_state: prev.current_state,
+        permanent_pincode: prev.current_pincode,
+      }));
+    }
+  }, [
+    sameAddress,
+    formData.current_address,
+    formData.current_village_city,
+    formData.current_district,
+    formData.current_state,
+    formData.current_pincode,
+  ]);
 
-      if (checked) {
-        setFormData((prev) => ({
-          ...prev,
-          permanent_address: prev.current_address,
-          permanent_village_city: prev.current_village_city,
-          permanent_district: prev.current_district,
-          permanent_state: prev.current_state,
-          permanent_pincode: prev.current_pincode,
-        }));
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          permanent_address: "",
-          permanent_village_city: "",
-          permanent_district: "",
-          permanent_state: "",
-          permanent_pincode: "",
-        }));
-      }
-    };
+  const validateAge = (age, policyType) => {
+    if (!age) return "";
+
+    if (age < 25) {
+      return "Minimum age is 25";
+    }
+
+    if (age >= 22 && age < 25 && policyType !== "Corporate Policy") {
+      return "Age 22–25 allowed only for Corporate Policy";
+    }
+
+    if (age > 60) {
+      return "Maximum age is 60";
+    }
+
+    return "";
+  };
+
+  const handleSameAddress = (e) => {
+    const checked = e.target.checked;
+    setSameAddress(checked);
+
+    if (checked) {
+      setFormData((prev) => ({
+        ...prev,
+        permanent_address: prev.current_address,
+        permanent_village_city: prev.current_village_city,
+        permanent_district: prev.current_district,
+        permanent_state: prev.current_state,
+        permanent_pincode: prev.current_pincode,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        permanent_address: "",
+        permanent_village_city: "",
+        permanent_district: "",
+        permanent_state: "",
+        permanent_pincode: "",
+      }));
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
 
-    if (name === "mobile_number")
+    if (name === "mobile_number") {
       newValue = value.replace(/\D/g, "").slice(0, 10);
+    }
 
-
-    if (name === "pan_number") newValue = value.toUpperCase().slice(0, 10);
+    if (name === "pan_number") {
+      newValue = value.toUpperCase().slice(0, 10);
+    }
 
     if (name === "email_id") {
       newValue = value.toLowerCase().replace(/\s/g, "");
+    }
+
+    if (name === "current_pincode" || name === "permanent_pincode") {
+      newValue = value.replace(/\D/g, "").slice(0, 6);
     }
 
     if (name === "dob") {
@@ -166,6 +197,9 @@ const ClayooManualEntry = () => {
         age--;
       }
 
+      const error = validateAge(age, formData.policy_type);
+      setAgeError(error);
+
       setFormData((prev) => ({
         ...prev,
         dob: value,
@@ -175,8 +209,11 @@ const ClayooManualEntry = () => {
       return;
     }
 
-    if (name === "current_pincode" || name === "permanent_pincode")
-      newValue = value.replace(/\D/g, "").slice(0, 6);
+    // Revalidate when policy type changes
+    if (name === "policy_type") {
+      const error = validateAge(Number(formData.age), newValue);
+      setAgeError(error);
+    }
 
     setFormData((prev) => {
       const updated = { ...prev, [name]: newValue };
@@ -193,10 +230,20 @@ const ClayooManualEntry = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setMessage("");
+
+    const age = Number(formData.age);
+    const policyType = formData.policy_type;
+    const currentAgeError = validateAge(age, policyType);
+
+    if (currentAgeError) {
+      setAgeError(currentAgeError);
+      setMessage(`❌ ${currentAgeError}`);
+      setLoading(false);
+      return;
+    }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-   
 
     if (formData.email_id && !emailRegex.test(formData.email_id)) {
       setMessage("❌ Invalid email format");
@@ -208,26 +255,25 @@ const ClayooManualEntry = () => {
       const res = await api.post("clayoo-loans/manual-entry", formData);
       setMessage(`✅ ${res.data.message} | LAN: ${res.data.lan}`);
     } catch (err) {
-      setMessage("❌ Something went wrong");
+      setMessage(err.response?.data?.message || "❌ Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
- const renderInput = (label, name, type = "text") => (
-  <div className="form-group">
-    <label>{label}</label>
+  const renderInput = (label, name, type = "text") => (
+    <div className="form-group">
+      <label>{label}</label>
 
-    <input
-      type={type}
-      name={name}
-      value={formData[name]}
-      onChange={handleChange}
-      disabled={sameAddress && name.startsWith("permanent")}
-    />
-
-  </div>
-);
+      <input
+        type={type}
+        name={name}
+        value={formData[name]}
+        onChange={handleChange}
+        disabled={sameAddress && name.startsWith("permanent")}
+      />
+    </div>
+  );
 
   const renderSelect = (label, name, options) => (
     <div className="form-group">
@@ -249,8 +295,6 @@ const ClayooManualEntry = () => {
 
       <form onSubmit={handleSubmit}>
         <fieldset>
-          <legend>Borrower Details</legend>
-
           <div className="form-group">
             <label>Login Date</label>
             <input
@@ -278,6 +322,35 @@ const ClayooManualEntry = () => {
             </select>
           </div>
 
+          <legend>Policy Details</legend>
+          {renderSelect("Policy Type", "policy_type", [
+            "Corporate Policy",
+            "Individual Policy",
+          ])}
+          {renderSelect("Employment Type", "employment_type", [
+            "Salaried",
+            "Self-Employed",
+            "Others",
+          ])}
+          {renderInput("Net Monthly Income", "net_monthly_income", "number")}
+          {renderInput(
+            "Insurance Card / Company Name ",
+            "insurance_company_name"
+          )}
+          {renderInput(
+            "Insurance Policy Number ",
+            "insurance_policy_number",
+            "number"
+          )}
+          {renderInput(
+            "Insurance Policy Holder Name ",
+            "insurance_policy_holder_name"
+          )}
+        </fieldset>
+
+        <fieldset>
+          <legend>Borrower Details</legend>
+
           {renderInput("First Name", "first_name")}
           {renderInput("Last Name", "last_name")}
           {renderSelect("Gender", "gender", ["Male", "Female"])}
@@ -285,8 +358,16 @@ const ClayooManualEntry = () => {
 
           <div className="form-group">
             <label>Age</label>
-            <input type="number" name="age" value={formData.age} readOnly />
+            <input
+              type="number"
+              name="age"
+              value={formData.age}
+              readOnly
+              style={{ border: ageError ? "1px solid red" : "1px solid #ccc" }}
+            />
+            {ageError && <span className="inline-error">{ageError}</span>}
           </div>
+
           {renderInput("Mobile Number", "mobile_number")}
           <div className="form-group">
             <label>Email ID</label>
@@ -311,8 +392,7 @@ const ClayooManualEntry = () => {
           {renderInput("State", "current_state")}
         </fieldset>
 
-            <fieldset>
-
+        <fieldset>
           <legend>Permanent Address</legend>
 
           <div className="checkbox-row">
@@ -324,39 +404,11 @@ const ClayooManualEntry = () => {
             <label>Same as Current Address</label>
           </div>
 
-          {renderInput("Address","permanent_address")}
-          {renderInput("Village / City","permanent_village_city")}
-          {renderInput("Pincode","permanent_pincode")}
-          {renderInput("District","permanent_district")}
-          {renderInput("State","permanent_state")}
-
-        </fieldset>
-
-        
-
-        {/* <fieldset>
-          <legend>Loan Details</legend>
-          {renderInput("Loan Limit", "loan_limit", "number")}
-          {renderInput("Interest Rate", "interest_rate", "number")}
-          {renderInput("Loan Tenure", "loan_tenure", "number")}
-          {renderInput("CIBIL Score", "cibil_score", "number")}
-        </fieldset> */}
-
-        
-
-        <fieldset>
-          <legend>Policy Details</legend>
-          {renderSelect("Policy Type", "policy_type", [
-            "Corporate Policy",
-            "Individual Policy",
-          ])}
-          {renderSelect("Employment Type", "employment_type", [
-            "Salaried",
-            "Business",
-            "Others",
-          ])}
-          {renderInput("Net Monthly Income", "net_monthly_income", "number")}
-         
+          {renderInput("Address", "permanent_address")}
+          {renderInput("Village / City", "permanent_village_city")}
+          {renderInput("Pincode", "permanent_pincode")}
+          {renderInput("District", "permanent_district")}
+          {renderInput("State", "permanent_state")}
         </fieldset>
 
         <fieldset>
@@ -368,11 +420,8 @@ const ClayooManualEntry = () => {
         </fieldset>
 
         <fieldset>
-          <legend>Disbursement</legend>
-          {renderInput("Loan Amount", "loan_amount", "number")}
-        
-          
-         
+          <legend>Loan Amount</legend>
+          {renderInput("Loan Amount Requested", "loan_amount", "number")}
         </fieldset>
 
         <button type="submit" disabled={loading}>
@@ -424,6 +473,23 @@ const ClayooManualEntry = () => {
           padding: 8px;
           border: 1px solid #ccc;
           border-radius: 4px;
+        }
+
+        .checkbox-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 0.8rem;
+        }
+
+        .checkbox-row input {
+          width: auto;
+        }
+
+        .inline-error {
+          color: red;
+          font-size: 12px;
+          margin-top: 4px;
         }
 
         button {

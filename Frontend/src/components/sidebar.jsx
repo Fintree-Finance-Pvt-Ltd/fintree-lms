@@ -212,7 +212,7 @@ const Sidebar = () => {
     'HEY EV Loans': allowedPages.filter(p => p.path.includes('/hey-ev-loans')),
     'HEY EV Battery Loans': allowedPages.filter(p => p.path.includes('/hey-ev-battery-loans')),
     'Helium Loans': allowedPages.filter(p => p.path.includes('/helium-loans')),
-    'Clayoo Loans': allowedPages.filter(p => p.path.includes('/clayoo/loan-booking')), // ✅ NEW
+    'Clayoo Loans': allowedPages.filter(p => p.path.includes('/clayoo-loans')), // ✅ NEW
     'Loan Digit': allowedPages.filter(p => p.path.includes('/loan-digit/cases')), // ✅ NEW
     'Supply Chain Loans': allowedPages.filter(p => p.path.includes('/supply-chain-loans')), // New group for Supply Chain Loans
     'Dealer ALL': allowedPages.filter(p => p.path.includes('/dealer-onboarding')),
