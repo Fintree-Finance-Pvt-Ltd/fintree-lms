@@ -122,8 +122,13 @@ import SCApprovedLoans from "./components/SCApprovedLoans"; // Supply Chain Appr
 import SCDisbursedLoans from "./components/SCDisbursedLoans"; // Supply Chain Disbursed Loans
 import SCAllLoans from "./components/SCAllLoans"; // Supply Chain All Loans
 import ClayooManualEntry from "./components/Clayoo/ClayooLoanBooking";
+import ClayooDiburseInitiateScreen from "./components/Clayoo/ClayooDiburseInitiateScreen";
 import LoanDigit from "./components/Loan Digit/LoanDigit";
 import HospitalEntry from "./components/Clayoo/HospitalEntry";
+import ClayyoApprovedLoanDetails from "./components/Clayoo/clayooApprovedLoanDetails";
+import ClayooLoginLoans from "./components/Clayoo/ClayooLoginLoans";
+import HospitalList from "./components/Clayoo/ClayooHospitalLists";
+import HospitalLoginActions from "./components/Clayoo/ClayooHospitalLoginActions";
 
 function App() {
   return (
@@ -380,6 +385,51 @@ function App() {
             element={
               <PermissionRoute pageName="Clayoo Hospital Entry">
                 <HospitalEntry />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/clayoo-loans/login-actions"
+            element={
+              <PermissionRoute pageName="Clayoo Login Action">
+                <ClayooDiburseInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/approved-loan-details-clayoo/:lan"
+            element={
+              <PermissionRoute pageName="Approved Loan Details">
+                <ClayyoApprovedLoanDetails />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/clayoo-loans/login-cases"
+            element={
+              <PermissionRoute pageName="Clayoo Login Loans">
+                <ClayooLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/clayoo-loans/hospital-lists"
+            element={
+              <PermissionRoute pageName="Clayoo Hospital Lists">
+                <HospitalList />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/clayoo-loans/hospital-login-actions"
+            element={
+              <PermissionRoute pageName="Clayoo Hospital Login Actions">
+                <HospitalLoginActions />
               </PermissionRoute>
             }
           />

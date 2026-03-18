@@ -25,7 +25,7 @@ const HospitalEntry = () => {
     hospital_phone: "",
     owner_email: "",
     owner_phone: "",
-    owner_name:""
+    owner_name: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -46,24 +46,47 @@ const HospitalEntry = () => {
     }));
   };
 
+  // ✅ UPDATED SUBMIT (JSON instead of FormData)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
-    const data = new FormData();
-
-    Object.keys(formData).forEach((key) => {
-      data.append(key, formData[key]);
-    });
+    setMessage("");
 
     try {
-      const res = await api.post("hospitals/create", data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.post("/clayyo-loans/hospitals/create", formData);
 
       setMessage(`✅ ${res.data.message}`);
+
+      // ✅ Optional: Reset form after success
+      setFormData({
+        hospital_legal_name: "",
+        brand_name: "",
+        branch_locations: "",
+        hospital_registration_number: "",
+        year_of_establishment: "",
+        hospital_type: "",
+        bed_capacity: "",
+        key_specialties: "",
+        registered_address: "",
+        registered_city: "",
+        registered_district: "",
+        registered_state: "",
+        registered_pincode: "",
+        avg_monthly_patient_footfall: "",
+        avg_ticket_size: "",
+        major_procedures: "",
+        departments: "",
+        hospital_email: "",
+        hospital_phone: "",
+        owner_email: "",
+        owner_phone: "",
+        owner_name: "",
+      });
+
     } catch (err) {
-      setMessage("❌ Something went wrong");
+      setMessage(
+        err?.response?.data?.message || "❌ Something went wrong"
+      );
     } finally {
       setLoading(false);
     }
@@ -87,7 +110,7 @@ const HospitalEntry = () => {
 
     try {
       const res = await axios.get(
-        `https://api.postalpincode.in/pincode/${pin}`,
+        `https://api.postalpincode.in/pincode/${pin}`
       );
 
       const data = res.data[0];
@@ -143,50 +166,34 @@ const HospitalEntry = () => {
           {renderInput("Address", "registered_address")}
           {renderInput("Pincode", "registered_pincode")}
           {renderInput("City", "registered_city")}
-          
           {renderInput("District", "registered_district")}
           {renderInput("State", "registered_state")}
-          {renderInput(
-            "Branch Locations (if multi-branch)",
-            "branch_locations",
-          )}
-          {renderInput(
-            "Hospital Registration Number",
-            "hospital_registration_number",
-          )}
-          {renderInput(
-            "Year of Establishment",
-            "year_of_establishment",
-            "number",
-          )}
+
+          {renderInput("Branch Locations", "branch_locations")}
+          {renderInput("Registration Number", "hospital_registration_number")}
+          {renderInput("Year of Establishment", "year_of_establishment", "number")}
+
           {renderSelect("Type of Hospital", "hospital_type", [
             "Multi-speciality",
             "Single speciality",
             "Clinic",
             "Nursing home",
           ])}
+
           {renderInput("Bed Capacity", "bed_capacity", "number")}
-          {renderInput("Key Specialties Offered", "key_specialties")}
-          {renderInput(
-            "Average Monthly Patient Footfall",
-            "avg_monthly_patient_footfall",
-            "number",
-          )}
-          {renderInput(
-            "Average Ticket Size (Treatment Cost)",
-            "avg_ticket_size",
-            "number",
-          )}
-          {renderInput("Major Procedures Offered", "major_procedures")}
-          {renderInput("Departments / Specialties", "departments")}
+          {renderInput("Key Specialties", "key_specialties")}
+          {renderInput("Monthly Footfall", "avg_monthly_patient_footfall", "number")}
+          {renderInput("Avg Ticket Size", "avg_ticket_size", "number")}
+          {renderInput("Major Procedures", "major_procedures")}
+          {renderInput("Departments", "departments")}
         </fieldset>
 
         <fieldset>
           <legend>Contact Details</legend>
 
-          {renderInput("Hospital Email ID", "hospital_email", "email")}
+          {renderInput("Hospital Email", "hospital_email", "email")}
           {renderInput("Hospital Phone", "hospital_phone")}
-          {renderInput("Owner Email ID", "owner_email", "email")}
+          {renderInput("Owner Email", "owner_email", "email")}
           {renderInput("Owner Phone", "owner_phone")}
           {renderInput("Owner Name", "owner_name")}
         </fieldset>
@@ -199,7 +206,6 @@ const HospitalEntry = () => {
       {message && <div className="message">{message}</div>}
 
       <style>{`
-
 .manual-entry-container{
   max-width:900px;
   margin:2rem auto;
@@ -208,41 +214,34 @@ const HospitalEntry = () => {
   border-radius:10px;
   box-shadow:0 0 10px rgba(0,0,0,0.1);
 }
-
 h2{
   text-align:center;
   margin-bottom:1.5rem;
 }
-
 fieldset{
   border:1px solid #ddd;
   border-radius:8px;
   padding:1rem 1.5rem;
   margin-bottom:1.5rem;
 }
-
 legend{
   padding:0 10px;
   font-weight:bold;
 }
-
 .form-group{
   display:flex;
   flex-direction:column;
   margin-bottom:0.8rem;
 }
-
 label{
   font-weight:600;
   margin-bottom:4px;
 }
-
 input,select{
   padding:8px;
   border:1px solid #ccc;
   border-radius:4px;
 }
-
 button{
   background-color:#007bff;
   color:white;
@@ -252,11 +251,9 @@ button{
   cursor:pointer;
   border-radius:6px;
 }
-
 button:disabled{
   background-color:#999;
 }
-
 .message{
   margin-top:1rem;
   padding:0.8rem;
@@ -265,7 +262,6 @@ button:disabled{
   font-weight:600;
   text-align:center;
 }
-
 `}</style>
     </div>
   );

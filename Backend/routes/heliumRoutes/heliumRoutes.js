@@ -3,6 +3,7 @@ const db = require("../../config/db");
 const authenticateUser = require("../../middleware/verifyToken");
 const { runAllValidations } = require("../../services/heliumValidationEngine");
 const { autoApproveIfAllVerified } = require("../../services/heliumValidationEngine");
+const autoApproveClayyoIfAllVerified = require("../clyooRoutes/clayyoBreEngine");
 const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
@@ -1227,7 +1228,15 @@ if (xmlLink) {
     console.log("✅ Aadhaar VERIFIED via webhook for LAN:", lan);
 
     // Optionally run auto-approval if all checks done
-    await autoApproveIfAllVerified(lan);
+    if (lan.startsWith("HEL")){
+      await autoApproveIfAllVerified(lan);
+    }
+    else if(lan.startsWith("CLY")){
+      await autoApproveClayyoIfAllVerified(lan);
+    }
+    else {
+      console.log("⚠️ LAN does not start with HEL, skipping auto-approval:", lan);
+    }
 
     return res.status(200).send("ok");
   } catch (err) {
