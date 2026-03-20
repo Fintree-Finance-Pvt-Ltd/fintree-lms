@@ -19,10 +19,21 @@ const PermissionRoute = ({ children }) => {
   const hasAccess = allowedPages.some((p) => {
     const topLevel = `/${p.path.split('/')[1]}`;
 
+    console.log("PATH:", currentPath);
+console.log("PAGES:", allowedPages);
+
+    if (currentPath.startsWith('/approved-loan-details')) {
+  return allowedPages.some(p =>
+    p.path.toLowerCase().includes('approved')
+  );
+}
+
     // ✅ Exception for approved-loan-details
     if (currentPath.startsWith('/approved-loan-details')) {
       return p.path.includes('/approved');
     }
+
+
 
     // ✅ ✅ FIXED: Exception for loan-details
    // ✅ Allow loan-details if user has any loans-related access
