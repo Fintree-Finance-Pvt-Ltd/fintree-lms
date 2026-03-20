@@ -23,6 +23,7 @@ const esignRoutes = require("./routes/esignRoutes");
 const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute")
 const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
 const { autoApproveIfAllVerified } = require("./services/heliumValidationEngine");
+const { autoApproveClayyoIfAllVerified } = require("./routes/clyooRoutes/clayyoBreEngine");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
@@ -87,6 +88,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/loan-booking', excelUploadRoutes);
 app.use('/api/wctl-ccod', require('./routes/wctlCCODRoutes/wctlRoutes')); // ✅ Register WCTL-CC-OD Routes
 app.use('/api/helium-loans', require('./routes/heliumRoutes/heliumRoutes')); // ✅ Register Helium Loan Routes
+app.use('/api/clayyo-loans', require('./routes/clyooRoutes/clyooRoutes')); // ✅ Register Clayyo Routes
 app.use('/api/utr', require('./routes/utrRoutes')); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
@@ -144,6 +146,25 @@ app.post("/api/runheliumvalidations", async (req, res) => {
     }
 
     await autoApproveIfAllVerified(lan);
+
+    res.json({
+      ok: true,
+      message: `Helium validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/runclayyovalidations", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+
+    await autoApproveClayyoIfAllVerified(lan);
 
     res.json({
       ok: true,

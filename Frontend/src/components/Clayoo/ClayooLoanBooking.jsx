@@ -14,7 +14,7 @@ const ClayooManualEntry = () => {
 
   const [formData, setFormData] = useState({
     login_date: getTodayDateString(),
-    hospital_name: "",
+    hospital_id: "",
     first_name: "",
     middle_name: "",
     last_name: "",
@@ -62,7 +62,7 @@ const ClayooManualEntry = () => {
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const res = await api.get("hospitals");
+        const res = await api.get("clayyo-loans/hospitals-list");
         setHospitals(res.data);
       } catch (err) {
         console.log(err);
@@ -234,6 +234,10 @@ const ClayooManualEntry = () => {
     const { name, value } = e.target;
     let newValue = value;
 
+    if (name === "hospital_id") {
+  newValue = Number(value); // ✅ convert to number
+}
+
     if (name === "mobile_number") {
       newValue = value.replace(/\D/g, "").slice(0, 10);
     }
@@ -325,7 +329,7 @@ const ClayooManualEntry = () => {
     }
 
     try {
-      const res = await api.post("clayoo-loans/manual-entry", formData);
+      const res = await api.post("clayyo-loans/manual-entry", formData);
       setMessage(`✅ ${res.data.message} | LAN: ${res.data.lan}`);
     } catch (err) {
       setMessage(err.response?.data?.message || "❌ Something went wrong");
@@ -364,7 +368,7 @@ const ClayooManualEntry = () => {
 
   return (
     <div className="manual-entry-container">
-      <h2>Clayoo Loan Manual Entry</h2>
+      <h2>CLAYYO Loan Manual Entry</h2>
 
       <form onSubmit={handleSubmit}>
         <fieldset>
@@ -382,13 +386,13 @@ const ClayooManualEntry = () => {
           <div className="form-group">
             <label>Hospital</label>
             <select
-              name="hospital_name"
-              value={formData.hospital_name}
+              name="hospital_id"
+              value={formData.hospital_id}
               onChange={handleChange}
             >
               <option value="">Select Hospital</option>
               {hospitals.map((h) => (
-                <option key={h.id} value={h.name}>
+                <option key={h.id} value={h.id}>
                   {h.name}
                 </option>
               ))}

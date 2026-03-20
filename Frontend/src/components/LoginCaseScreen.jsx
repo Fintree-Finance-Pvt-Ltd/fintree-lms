@@ -151,6 +151,7 @@ const LoginCaseScreen = ({
   const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
   const hasGQFSF = rows.some((r) => typeof r?.lan === "string" && /^GQFSF/i.test(r.lan));
   const hasGQNonFSF = rows.some((r) => typeof r?.lan === "string" && /^GQNONFSF/i.test(r.lan));
+  const hasclyoo = rows.some((r) => typeof r?.lan === "string" && /^CLY/i.test(r.lan));
 
   const statusPillStyle = (status) => {
     const map = {
@@ -233,6 +234,21 @@ const LoginCaseScreen = ({
             sortAccessor: (r) =>
               /^ADK/i.test(r?.lan) ? String(r?.batch_id || "").toLowerCase() : "",
             csvAccessor: (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "") : ""),
+            width: 140,
+          },
+        ]
+      : []),
+
+      ...(hasclyoo
+      ? [
+          {
+            key: "application_id",
+            header: "APPLICATION ID",
+            sortable: true,
+            render: (r) => (/^CLY/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
+            sortAccessor: (r) =>
+              /^CLY/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : "",
+            csvAccessor: (r) => (/^CLY/i.test(r?.lan) ? (r.app_id ?? "") : ""),
             width: 140,
           },
         ]
