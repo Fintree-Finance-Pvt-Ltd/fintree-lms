@@ -40,6 +40,10 @@ const HospitalEntry = () => {
       newValue = value.replace(/\D/g, "").slice(0, 6);
     }
 
+    if (name === "hospital_phone" || name === "owner_phone") {
+  newValue = value.replace(/\D/g, "").slice(0, 10);
+}
+
     setFormData((prev) => ({
       ...prev,
       [name]: newValue,
@@ -120,7 +124,7 @@ const HospitalEntry = () => {
 
         setFormData((prev) => ({
           ...prev,
-          registered_city: office.Block || office.Name,
+          registered_city: office.Name || office.Block ,
           registered_district: office.District,
           registered_state: office.State,
         }));
@@ -182,11 +186,6 @@ const HospitalEntry = () => {
 
           {renderInput("Bed Capacity", "bed_capacity", "number")}
           {renderInput("Key Specialties Offered", "key_specialties")}
-          {/* {renderInput(
-            "Average Monthly Patient Footfall",
-            "avg_monthly_patient_footfall",
-            "number",
-          )} */}
           {renderInput(
             "Average Ticket Size (Treatment Cost)",
             "avg_ticket_size",
@@ -194,11 +193,7 @@ const HospitalEntry = () => {
           )}
           {renderInput("Major Procedures Offered", "major_procedures")}
           {renderInput("Departments / Specialties", "departments")}
-          {renderInput("Key Specialties", "key_specialties")}
           {renderInput("Monthly Footfall", "avg_monthly_patient_footfall", "number")}
-          {renderInput("Avg Ticket Size", "avg_ticket_size", "number")}
-          {renderInput("Major Procedures", "major_procedures")}
-          {renderInput("Departments", "departments")}
         </fieldset>
 
         <fieldset>

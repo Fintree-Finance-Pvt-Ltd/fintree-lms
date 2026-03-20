@@ -353,6 +353,12 @@ router.post("/manual-entry", async (req, res) => {
       mobile_number: data.mobile_number,
       email_id: data.email_id || null,
       pan_number: data.pan_number,
+      middle_name: data.middle_name || null,
+father_name: data.father_name || null,
+mother_name: data.mother_name || null,
+patient_name: data.patient_name || null,
+bank_branch: data.bank_branch || null,
+subvention_percent: data.subvention_percent || null,
 
       current_address: data.current_address,
       current_village_city: data.current_village_city,

@@ -394,7 +394,7 @@ function App() {
           <Route
             path="/clayoo-loans/login-actions"
             element={
-              <PermissionRoute pageName="Clayoo Login Action">
+              <PermissionRoute pageName="Clayoo Credit Approval Loans">
                 <ClayooDiburseInitiateScreen />
               </PermissionRoute>
             }
@@ -430,7 +430,7 @@ function App() {
           <Route
             path="/clayoo-loans/hospital-login-actions"
             element={
-              <PermissionRoute pageName="Clayoo Hospital Login Actions">
+              <PermissionRoute pageName="Clayoo Hospital Credit Approval List">
                 <HospitalLoginActions />
               </PermissionRoute>
             }
@@ -439,7 +439,7 @@ function App() {
           <Route
             path="/clayoo-loans/approved-loans"
             element={
-              <PermissionRoute pageName="Clayoo Approved Loans">
+              <PermissionRoute pageName="Clayyo Operation Approval Loans">
                 <ClayooApprovedLoans />
               </PermissionRoute>
             }
@@ -448,7 +448,7 @@ function App() {
           <Route
             path="/clayoo-loans/credit-approved-loans"
             element={
-              <PermissionRoute pageName="Clayoo Credit Approved Loans">
+              <PermissionRoute pageName="Clayoo Limit Approval">
                 <ClayooLimitEntry />
               </PermissionRoute>
             }

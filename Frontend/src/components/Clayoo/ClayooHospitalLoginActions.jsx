@@ -209,7 +209,7 @@ const statusPillStyle = (status) => {
 
   return (
     <DataTable
-      title="Hospital List"
+      title="Clayyo Hospital Credit Approval Lists"
       rows={rows}
       columns={columns}
       globalSearchKeys={[

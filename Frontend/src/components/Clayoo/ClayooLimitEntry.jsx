@@ -7,7 +7,7 @@ import LoaderOverlay from "../ui/LoaderOverlay";
 
 const ClayooLimitEntry = ({
   apiUrl = `/clayyo-loans/credit-approved-loans?table=loan_booking_clayyo&prefix=CLY`,
-  title = "Credit Approved Stage Loans",
+  title = "Credit Limit Approval And Disburse Loans",
   lenderName = "CLAYOO",
   tableName = "loan_booking_clayyo",
 }) => {

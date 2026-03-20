@@ -45,7 +45,7 @@ const ClayooManualEntry = () => {
     patient_name: "",
     father_name: "",
     mother_name: "",
-    subvention_amount: "",
+    subvention_percent: "",
     insurance_company_name: "",
     insurance_policy_holder_name: "",
     insurance_policy_number: "",
@@ -424,7 +424,7 @@ const ClayooManualEntry = () => {
           )}
           {renderInput("Patient Name", "patient_name")}
           {renderInput("Father's Name", "father_name")}
-          {renderInput("Mather's Name", "mother_name")}
+          {renderInput("Mother's Name", "mother_name")}
         </fieldset>
 
         <fieldset>
@@ -519,7 +519,7 @@ const ClayooManualEntry = () => {
         <fieldset>
           <legend>Loan Amount</legend>
           {renderInput("Loan Amount Requested", "loan_amount", "number")}
-          {renderInput("Subvention (in %)", "subvention_amount", "number")}
+          {renderInput("Subvention (in %)", "subvention_percent", "number")}
         </fieldset>
 
         <button type="submit" disabled={loading}>
