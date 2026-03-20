@@ -156,7 +156,6 @@ const handleOpenBank = (r) => {
       csvAccessor: () => lenderName,
       width: 120,
     },
-    { key: "partner_loan_id", header: "Partner Loan ID", sortable: true, width: 160 },
     {
       key: "lan",
       header: "LAN",
