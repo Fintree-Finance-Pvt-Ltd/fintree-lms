@@ -1,10 +1,12 @@
 const db = require('../config/db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const { sendResetOtp } = require('../jobs/mailer');
 
 // ✅ LOGIN — sign token with .env secret
 exports.login = (req, res) => {
-console.log("��� Login route hit with body:", req.body);
+console.log("🔥 Login route hit with body:", req.body);
  const { email, password } = req.body;
 
   db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
@@ -65,10 +67,6 @@ exports.me = (req, res) => {
   });
 };
 
-// 🔐 NEW FORGOT PASSWORD ENDPOINTS
-const crypto = require('crypto');
-const { sendResetOtp } = require('../jobs/mailer');
-
 // 🔐 FORGOT PASSWORD - Send OTP
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body;
@@ -82,7 +80,7 @@ exports.forgotPassword = async (req, res) => {
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
-    // Delete old OTPs for user
+    // Delete old OTPS for user
     await new Promise((resolve, reject) => {
       db.query('DELETE FROM reset_otps WHERE user_id = ?', [userId], (err) => {
         if (err) reject(err);
@@ -102,7 +100,7 @@ exports.forgotPassword = async (req, res) => {
           res.json({ message: 'OTP sent to your email' });
         } catch (mailErr) {
           console.error('Mail error:', mailErr);
-          res.status(500).json({ message: 'OTP generated but mail failed. Check your inbox.' });
+          res.status(500).json({ message: 'OTP sent, but mail delivery failed' });
         }
       }
     );
@@ -122,7 +120,7 @@ exports.verifyOtp = (req, res) => {
       if (err) return res.status(500).json({ message: 'Database error' });
       if (!results.length) return res.status(400).json({ message: 'Invalid or expired OTP' });
 
-      res.json({ message: 'OTP verified successfully', userId: results[0].user_id });
+      res.json({ message: 'OTP verified', userId: results[0].user_id });
     }
   );
 };
@@ -130,9 +128,7 @@ exports.verifyOtp = (req, res) => {
 // 🔐 RESET PASSWORD
 exports.resetPassword = async (req, res) => {
   const { email, otp, newPassword } = req.body;
-  if (!email || !otp || !newPassword || newPassword.length < 6) {
-    return res.status(400).json({ message: 'Valid email, OTP, and password (min 6 chars) required' });
-  }
+  if (!email || !otp || !newPassword) return res.status(400).json({ message: 'Email, OTP, and new password required' });
 
   const now = new Date();
   db.query(
@@ -145,17 +141,21 @@ exports.resetPassword = async (req, res) => {
       const userId = results[0].user_id;
       const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-      // Update password
-      db.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, userId], (err) => {
-        if (err) return res.status(500).json({ message: 'Failed to update password' });
+      db.query(
+        'UPDATE users SET password = ? WHERE id = ?',
+        [hashedPassword, userId],
+        (err) => {
+          if (err) return res.status(500).json({ message: 'Failed to update password' });
 
-        // Mark OTP used
-        db.query('UPDATE reset_otps SET used = TRUE WHERE user_id = ? AND otp = ?', [userId, otp], (err) => {
-          if (err) console.error('Failed to mark OTP used:', err);
-        });
+          // Mark OTP used
+          db.query('UPDATE reset_otps SET used = TRUE WHERE user_id = ? AND otp = ?', [userId, otp], (err) => {
+            if (err) console.error('Failed to mark OTP used:', err);
+          });
 
-        res.json({ message: 'Password reset successful. You can now login.' });
-      });
+          res.json({ message: 'Password reset successful' });
+        }
+      );
     }
   );
 };
+

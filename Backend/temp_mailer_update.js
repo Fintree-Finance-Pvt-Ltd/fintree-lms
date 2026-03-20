@@ -2,7 +2,7 @@ const nodemailer = require("nodemailer");
 const fs = require("fs");
 const path = require("path");
 
-const transporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransporter({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
   secure: process.env.SMTP_SECURE === "true", // STARTTLS when false
@@ -22,10 +22,7 @@ async function sendLoanStatusMail({ to, customerName, batchId, loanAmount, statu
     subject = `Loan Rejected - Batch ID ${batchId}`;
     text = `Dear Team,\n\nThe case for ${customerName} with Batch ID ${batchId} has been rejected.\nLoan Amount: ₹${loanAmount}\n\nRegards,\nFintree Finance`;
   } else {
-    // return or throw error if status is not valid
     throw new Error(`Invalid loan status: ${status}`);
-    // OR if you prefer not to throw:
-    // return { success: false, message: `Invalid loan status: ${status}` };
   }
 
   const mailOptions = {
@@ -37,7 +34,6 @@ async function sendLoanStatusMail({ to, customerName, batchId, loanAmount, statu
 
   return transporter.sendMail(mailOptions);
 }
-
 
 async function sendAadhaarKycMail({ to, customerName, lan, kycUrl }) {
   if (!to) throw new Error("Missing email address for Aadhaar KYC mail");
@@ -182,8 +178,6 @@ Fintree Finance LMS System
 
   return transporter.sendMail(mailOptions);
 }
-
-
 
 // 🔐 NEW: Send Reset Password OTP
 async function sendResetOtp({ to, otp }) {
