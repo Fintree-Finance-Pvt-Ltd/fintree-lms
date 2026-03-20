@@ -125,7 +125,7 @@ import ClayooManualEntry from "./components/Clayoo/ClayooLoanBooking";
 import ClayooDiburseInitiateScreen from "./components/Clayoo/ClayooDiburseInitiateScreen";
 import LoanDigit from "./components/Loan Digit/LoanDigit";
 import HospitalEntry from "./components/Clayoo/HospitalEntry";
-import ClayyoApprovedLoanDetails from "./components/Clayoo/clayooApprovedLoanDetails";
+import ClayyoApprovedLoanDetails from "./components/Clayoo/ClayooApprovedLoanDetails";
 import ClayooLoginLoans from "./components/Clayoo/ClayooLoginLoans";
 import HospitalList from "./components/Clayoo/ClayooHospitalLists";
 import HospitalLoginActions from "./components/Clayoo/ClayooHospitalLoginActions";
