@@ -16,6 +16,7 @@ const ClayooManualEntry = () => {
     login_date: getTodayDateString(),
     hospital_name: "",
     first_name: "",
+    middle_name: "",
     last_name: "",
     gender: "",
     dob: "",
@@ -37,9 +38,14 @@ const ClayooManualEntry = () => {
     employment_type: "",
     net_monthly_income: "",
     bank_name: "",
+    bank_branch: "",
     name_in_bank: "",
     account_number: "",
     ifsc: "",
+    patient_name: "",
+    father_name: "",
+    mother_name: "",
+    subvention_amount: "",
     insurance_company_name: "",
     insurance_policy_holder_name: "",
     insurance_policy_number: "",
@@ -71,7 +77,7 @@ const ClayooManualEntry = () => {
 
     try {
       const res = await axios.get(
-        `https://api.postalpincode.in/pincode/${pin}`
+        `https://api.postalpincode.in/pincode/${pin}`,
       );
       const data = res.data[0];
 
@@ -126,16 +132,12 @@ const ClayooManualEntry = () => {
   const validateAge = (age, policyType) => {
     if (!age) return "";
 
-    if (age < 25) {
-      return "Minimum age is 25";
-    }
+    if (age > 60) return "Maximum age is 60";
 
-    if (age >= 22 && age < 25 && policyType !== "Corporate Policy") {
-      return "Age 22–25 allowed only for Corporate Policy";
-    }
-
-    if (age > 60) {
-      return "Maximum age is 60";
+    if (policyType === "Corporate Policy") {
+      if (age < 22) return "Minimum age is 22 for Corporate Policy";
+    } else {
+      if (age < 25) return "Minimum age is 25 for Individual Policy";
     }
 
     return "";
@@ -166,6 +168,68 @@ const ClayooManualEntry = () => {
     }
   };
 
+  // const fetchBankFromIFSC = async (ifsc) => {
+  //   if (ifsc.length !== 11) return;
+
+  //   try {
+  //     const res = await axios.get(`https://ifsc.razorpay.com/${ifsc}`);
+  //     const data = res.data;
+
+  //     setFormData((prev) => ({
+  //       ...prev,
+  //       bank_name: data.BANK || "",
+  //       bank_branch: data.BRANCH || "",
+  //     }));
+  //   } catch (err) {
+  //     console.log(err);
+  //     setFormData((prev) => ({
+  //       ...prev,
+  //       bank_name: "",
+  //       bank_branch: "",
+  //     }));
+  //   }
+  // };
+
+  const fetchBankFromIFSC = async (ifsc) => {
+  if (ifsc.length !== 11) return;
+
+  try {
+    // 🔹 Try Razorpay first
+    const res = await axios.get(`https://ifsc.razorpay.com/${ifsc}`);
+    const data = res.data;
+
+    setFormData((prev) => ({
+      ...prev,
+      bank_name: data.BANK || "",
+      bank_branch: data.BRANCH || "",
+    }));
+
+  } catch (err) {
+    try {
+      // 🔹 Fallback API
+      const res2 = await axios.get(
+        `https://ifsc.bankifsccode.com/${ifsc}`
+      );
+
+      const data2 = res2.data;
+
+      setFormData((prev) => ({
+        ...prev,
+        bank_name: data2.BANK || "",
+        bank_branch: data2.BRANCH || "",
+      }));
+
+    } catch (err2) {
+      console.log("Both IFSC APIs failed");
+
+      setFormData((prev) => ({
+        ...prev,
+        bank_name: "",
+        bank_branch: "",
+      }));
+    }
+  }
+};
   const handleChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
@@ -207,6 +271,15 @@ const ClayooManualEntry = () => {
       }));
 
       return;
+    }
+
+    if (name === "ifsc") {
+      newValue = value.toUpperCase().replace(/\s/g, "").slice(0, 11);
+
+      // Call API when IFSC is complete
+      if (newValue.length === 11) {
+        fetchBankFromIFSC(newValue);
+      }
     }
 
     // Revalidate when policy type changes
@@ -330,28 +403,31 @@ const ClayooManualEntry = () => {
           {renderSelect("Employment Type", "employment_type", [
             "Salaried",
             "Self-Employed",
-            "Others",
           ])}
           {renderInput("Net Monthly Income", "net_monthly_income", "number")}
           {renderInput(
             "Insurance Card / Company Name ",
-            "insurance_company_name"
+            "insurance_company_name",
           )}
           {renderInput(
             "Insurance Policy Number ",
             "insurance_policy_number",
-            "number"
+            "number",
           )}
           {renderInput(
             "Insurance Policy Holder Name ",
-            "insurance_policy_holder_name"
+            "insurance_policy_holder_name",
           )}
+          {renderInput("Patient Name", "patient_name")}
+          {renderInput("Father's Name", "father_name")}
+          {renderInput("Mather's Name", "mother_name")}
         </fieldset>
 
         <fieldset>
           <legend>Borrower Details</legend>
 
           {renderInput("First Name", "first_name")}
+          {renderInput("Middle Name", "middle_name")}
           {renderInput("Last Name", "last_name")}
           {renderSelect("Gender", "gender", ["Male", "Female"])}
           {renderInput("DOB", "dob", "date")}
@@ -368,7 +444,7 @@ const ClayooManualEntry = () => {
             {ageError && <span className="inline-error">{ageError}</span>}
           </div>
 
-          {renderInput("Mobile Number", "mobile_number")}
+          {renderInput("Mobile Number (linked to aadhaar)", "mobile_number")}
           <div className="form-group">
             <label>Email ID</label>
             <input
@@ -413,15 +489,33 @@ const ClayooManualEntry = () => {
 
         <fieldset>
           <legend>Bank Details</legend>
-          {renderInput("Bank Name", "bank_name")}
+          {renderInput("IFSC", "ifsc")}
+          <div className="form-group">
+            <label>Bank Name</label>
+            <input
+              type="text"
+              name="bank_name"
+              value={formData.bank_name}
+              onChange={handleChange}  
+            />
+          </div>
+          <div className="form-group">
+            <label>Branch Name</label>
+            <input
+              type="text"
+              name="bank_branch"
+              value={formData.bank_branch}
+              onChange={handleChange}  
+            />
+          </div>
           {renderInput("Name in Bank", "name_in_bank")}
           {renderInput("Account Number", "account_number")}
-          {renderInput("IFSC", "ifsc")}
         </fieldset>
 
         <fieldset>
           <legend>Loan Amount</legend>
           {renderInput("Loan Amount Requested", "loan_amount", "number")}
+          {renderInput("Subvention (in %)", "subvention_amount", "number")}
         </fieldset>
 
         <button type="submit" disabled={loading}>

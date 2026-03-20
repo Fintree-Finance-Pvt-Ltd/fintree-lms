@@ -72,6 +72,9 @@ const generateLoanIdentifiers = async (lender) => {
     prefixLan = "FCCOD1";
   } else if (lender === "Finso") {
     prefixLan = "FINS1";
+  }else if (lender === "loan_digit") {
+    // prefixPartnerLoan = "FCIR1";
+    prefixLan = "LNDIGF1";
   } else {
     return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
   }
@@ -6289,6 +6292,166 @@ router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
     return res.status(500).json({
       message: "Failed to create supply chain loan",
       error: error.message,
+    });
+  }
+});
+
+router.post("/v1/loan-digit", async (req, res) => {
+  try {
+    const data = req.body;
+
+    // ✅ Partner validation
+    // if (req.partner.name !== "loan digit") {
+    //   return res.status(403).json({
+    //     status: "Failed",
+    //     message: "Unauthorized partner",
+    //   });
+    // }
+
+    // ✅ Required fields
+    const requiredFields = [
+      "login_date",
+      "partner_loan_id",
+      "first_name",
+      "last_name",
+      "mobile_number",
+      "pan_number",
+      "dob",
+      "gender",
+      "current_address",
+      "current_village_city",
+      "current_district",
+      "current_state",
+      "current_pincode",
+      "permanent_address",
+      "permanent_state",
+      "permanent_pincode",
+      "employment",
+      "mode_of_salary",
+      "monthly_salary",
+      "current_emi",
+      "marital_status",
+      "residential_status",
+      "company_name",
+      "company_address",
+      "loan_amount",
+      "loan_tenure",
+    ];
+
+    for (const field of requiredFields) {
+      if (
+        data[field] === undefined ||
+        data[field] === null ||
+        data[field] === ""
+      ) {
+        return res.status(400).json({
+          status: "Failed",
+          message: `${field} is required`,
+        });
+      }
+    }
+
+    // ✅ Duplicate check (partner loan id)
+    const [existing] = await db.promise().query(
+      `SELECT lan FROM loan_booking_loan_digit WHERE partner_loan_id = ?`,
+      [data.partner_loan_id]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({
+        status: "Failed",
+        message: "Duplicate partner_loan_id",
+        lan: existing[0].lan,
+      });
+    }
+
+    // ✅ PAN duplicate check
+    const [panRecords] = await db.promise().query(
+      `SELECT status FROM loan_booking_loan_digit WHERE pan_number = ?`,
+      [data.pan_number]
+    );
+
+    const allowedStatuses = ["cancelled", "rejected", "foreclosed"];
+
+    const hasActiveLoan = panRecords.some(
+      (r) => !allowedStatuses.includes((r.status || "").toLowerCase())
+    );
+
+    if (hasActiveLoan) {
+      return res.status(400).json({
+        status: "Failed",
+        message: "Active loan already exists for this PAN",
+      });
+    }
+
+    // ✅ Generate LAN
+    const { lan } = await generateLoanIdentifiers("loan_digit");
+
+    const customer_name = `${data.first_name} ${data.last_name}`;
+
+    // ✅ Insert (SAFE METHOD)
+    const payload = {
+      lan,
+      partner_loan_id: data.partner_loan_id,
+      login_date: data.login_date,
+
+      first_name: data.first_name,
+      middle_name: data.middle_name || null,
+      last_name: data.last_name,
+      customer_name,
+
+      mobile_number: data.mobile_number,
+      pan_number: data.pan_number,
+      dob: data.dob,
+      gender: data.gender,
+
+      current_address: data.current_address,
+      current_village_city: data.current_village_city,
+      current_district: data.current_district,
+      current_state: data.current_state,
+      current_pincode: data.current_pincode,
+
+      permanent_address: data.permanent_address,
+      permanent_state: data.permanent_state,
+      permanent_pincode: data.permanent_pincode,
+
+      employment: data.employment,
+      mode_of_salary: data.mode_of_salary,
+      monthly_salary: data.monthly_salary,
+      current_emi: data.current_emi,
+      marital_status: data.marital_status,
+      residential_status: data.residential_status,
+
+      company_name: data.company_name,
+      company_address: data.company_address,
+
+      loan_amount: data.loan_amount,
+      loan_tenure: data.loan_tenure,
+
+      lender: "Loan Digit",
+      product: "Bullet Loan",
+      loan_type: "Insurance Loan",
+      status: "Login",
+      agreement_date: data.login_date,
+    };
+
+    await db.promise().query(
+      `INSERT INTO loan_booking_loan_digit SET ?`,
+      payload
+    );
+
+    // ✅ Response (FAST)
+    return res.status(200).json({
+      status: "Success",
+      message: "Loan saved successfully",
+      lan,
+    });
+
+  } catch (error) {
+    console.error("API Error:", error);
+    return res.status(500).json({
+      status: "Failed",
+      message: "Internal server error",
     });
   }
 });

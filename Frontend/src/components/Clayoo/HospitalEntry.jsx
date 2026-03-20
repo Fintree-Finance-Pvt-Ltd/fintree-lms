@@ -167,11 +167,11 @@ const HospitalEntry = () => {
           ])}
           {renderInput("Bed Capacity", "bed_capacity", "number")}
           {renderInput("Key Specialties Offered", "key_specialties")}
-          {renderInput(
+          {/* {renderInput(
             "Average Monthly Patient Footfall",
             "avg_monthly_patient_footfall",
             "number",
-          )}
+          )} */}
           {renderInput(
             "Average Ticket Size (Treatment Cost)",
             "avg_ticket_size",
