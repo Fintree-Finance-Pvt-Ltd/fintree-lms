@@ -1,121 +1,116 @@
-/* 🔹 Page Layout */
+/* ============================================================
+   FINTREE LMS — LOAN DETAILS PAGE (with sidebar)
+   ============================================================ */
+
 .loan-details-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    background-color: #f4f6f9;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--bg-page);
 }
 
-/* 🔹 Customer Info (Full Width) */
 .loan-customer-info {
-    background: white;
-    padding: 20px;
-    text-align: left;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-    margin-bottom: 10px;
-    border-radius: 5px;
-    width: 95%;
-    max-width: 1200px;
-    margin: 10px auto;
+  background: var(--bg-card);
+  padding: 20px 24px;
+  text-align: left;
+  box-shadow: var(--shadow-sm);
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  width: 97%;
+  max-width: 1200px;
+  margin: 12px auto;
 }
 
 .loan-customer-info h2 {
-    font-size: 22px;
-    color: #2C3E50;
-    margin-bottom: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
 }
 
 .loan-customer-info p {
-    font-size: 16px;
-    color: #555;
-    margin: 5px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 4px 0;
 }
 
-/* 🔹 Sidebar + Content Section */
+/* Sidebar + content layout */
 .loan-content-layout {
-    display: flex;
-    flex-grow: 1;
-    overflow: hidden;
+  display: flex;
+  flex-grow: 1;
+  overflow: hidden;
 }
 
-/* 🔹 Sidebar */
+/* Inner sidebar */
 .loan-sidebar {
-    width: 250px;
-    background-color: #2C3E50;
-    color: white;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+  width: 240px;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
 }
 
 .loan-sidebar h3 {
-    margin-bottom: 15px;
-    font-size: 18px;
-    font-weight: bold;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--sidebar-text-dim);
 }
 
 .loan-sidebar ul {
-    list-style: none;
-    padding: 0;
-    width: 100%;
+  list-style: none;
+  padding: 0;
+  width: 100%;
 }
 
 .loan-sidebar li {
-    padding: 12px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: 0.3s;
-    border-radius: 5px;
-    text-align: left;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  color: var(--sidebar-text);
+  border-left: 2px solid transparent;
 }
 
 .loan-sidebar li:hover {
-    background-color: #1A252F;
+  background: var(--sidebar-hover);
+  color: #fff;
+  border-left-color: var(--primary);
 }
 
-/* ✅ Active State */
 .loan-sidebar li.active {
-    background-color: #18BC9C;
-    color: white;
-    font-weight: bold;
+  background: var(--sidebar-active);
+  color: #fca5a5;
+  font-weight: 600;
+  border-left-color: var(--primary);
 }
 
-/* 🔹 Dynamic Content */
+/* Dynamic content area */
 .loan-dynamic-section {
-    flex-grow: 1;
-    padding: 20px;
-    overflow-y: auto;
-    background: white;
-    border-radius: 5px;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+  flex-grow: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background: var(--bg-page);
 }
 
-/* 🔹 Loading Text */
 .loan-loading-text {
-    font-size: 18px;
-    color: #888;
-    text-align: center;
-    margin-top: 50px;
+  font-size: 16px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 50px;
 }
 
-/* 🔹 Responsive Design */
 @media (max-width: 768px) {
-    .loan-content-layout {
-        flex-direction: column;
-    }
-
-    .loan-sidebar {
-        width: 100%;
-        padding: 15px;
-    }
-
-    .loan-dynamic-section {
-        padding: 10px;
-    }
-
-    .loan-customer-info {
-        padding: 15px;
-        width: 90%;
-    }
+  .loan-content-layout { flex-direction: column; }
+  .loan-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 12px; }
+  .loan-sidebar li { padding: 7px 10px; font-size: 13px; }
+  .loan-dynamic-section { padding: 16px; }
+  .loan-customer-info { width: 95%; padding: 14px; }
 }

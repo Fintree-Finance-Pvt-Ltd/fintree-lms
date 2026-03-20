@@ -1,91 +1,211 @@
-/* Background */
+/* ============================================================
+   FINTREE LMS — LOGIN PAGE
+   ============================================================ */
+
+/* ── Page Wrapper ── */
 .login-page {
   min-height: 100vh;
-  background: url('../assets/background_login.jpg') no-repeat center center;
-background-size: cover;
-background-position: center;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
+  position: relative;
 }
 
-.logo {
-    width: 190px;
-    height: 100px;
-    margin-bottom: 15px;
+/* Overlay for readability */
+.login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.35); /* Bright overlay instead of dark */
+  backdrop-filter: blur(4px);
+  z-index: 0;
 }
 
-/* Card */
+/* ── Login Card ── */
 .login-card {
-  /* background: rgba(255, 255, 255, 0.95); */
-  background: transparent;
-  padding: 40px 30px;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(32, 32, 32, 0.5);
+  position: relative;
+  z-index: 1;
   width: 100%;
-  max-width: 350px;
+  max-width: 400px;
+  padding: 44px 40px;
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.97); /* Solid white, slightly translucent */
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
   text-align: center;
 }
 
-/* Heading */
-.login-card h2 {
-  margin-bottom: 25px;
-  font-size: 28px;
-  color: #333;
+/* ── Logo ── */
+.login-card .logo {
+  width: 160px;
+  height: auto;
+  margin-bottom: 24px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
 }
 
-/* Inputs */
+/* ── Headings ── */
+.login-card h2 {
+  margin-bottom: 24px;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.login-card h3 {
+  margin-bottom: 16px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.login-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+/* ── Inputs ── */
 .login-card input {
   width: 100%;
-  padding: 12px 14px;
-  margin-bottom: 15px;
-  border: none;
-  border-radius: 30px;
-  background: #f5f5f5;
+  padding: 13px 18px;
+  margin-bottom: 16px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border);
+  outline: none;
+  background: var(--bg-input);
   font-size: 14px;
-  transition: box-shadow 0.3s;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  transition: var(--transition);
+}
+
+.login-card input::placeholder {
+  color: var(--text-muted);
 }
 
 .login-card input:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px #e74c3c;
+  background: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
-/* Error Message */
-.login-card p {
-  color: #e74c3c;
-  font-size: 13px;
-  margin-bottom: 10px;
-}
-
-/* Button */
-.login-card button {
+/* ── Submit Button ── */
+.login-card button[type="submit"],
+.login-card form button {
   width: 100%;
-  padding: 12px 0;
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  color: white;
+  padding: 13px;
+  border-radius: var(--radius-pill);
   border: none;
-  border-radius: 30px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  font-weight: 700;
   font-size: 15px;
+  font-family: 'Inter', sans-serif;
   cursor: pointer;
-  transition: opacity 0.3s;
+  transition: var(--transition);
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 16px var(--primary-ring);
 }
 
-.login-card button:hover {
-  opacity: 0.85;
+.login-card button[type="submit"]:hover,
+.login-card form button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
 }
 
-/* Links */
+.login-card button[type="submit"]:active,
+.login-card form button:active {
+  transform: translateY(0);
+}
+
+/* ── Forgot Password Link ── */
+.login-card .forgot-link,
+.forgot-link {
+  display: inline-block;
+  background: none !important;
+  border: none !important;
+  color: var(--text-secondary) !important;
+  font-size: 13px;
+  margin-top: 16px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: 'Inter', sans-serif;
+  text-decoration: none;
+  box-shadow: none !important;
+  padding: 4px 0 !important;
+}
+
+.login-card .forgot-link:hover,
+.forgot-link:hover {
+  color: var(--primary) !important;
+  text-decoration: underline;
+  transform: none !important;
+}
+
+/* ── Forgot Password Container ── */
+.forgot-container {
+  position: relative;
+  margin-top: 8px;
+}
+
+/* ── Close Button ── */
+.close-btn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 30px !important;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary) !important;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  padding: 0 !important;
+  width: fit-content !important;
+  transition: var(--transition);
+}
+
+.close-btn:hover {
+  background: var(--primary-dark) !important;
+  transform: none !important;
+}
+
+/* ── Messages ── */
+.success-msg {
+  color: #6ee7b7;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.error-msg {
+  color: #fca5a5;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ── Small Helper Links ── */
 .login-card .small-link {
   display: block;
   margin-top: 12px;
   font-size: 12px;
-  color: #555;
+  color: var(--text-secondary);
   text-decoration: underline;
   cursor: pointer;
+  font-family: 'Inter', sans-serif;
 }
 
 .login-card .small-link:hover {
-  color: #e74c3c;
+  color: var(--primary);
 }

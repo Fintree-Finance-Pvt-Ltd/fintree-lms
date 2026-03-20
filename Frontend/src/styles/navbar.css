@@ -1,14 +1,40 @@
-.fin-logo{
-    color: white !important;
+/* ============================================================
+   FINTREE LMS — NAVBAR
+   ============================================================ */
+
+.fin-logo {
+  color: white !important;
 }
 
-.action-buttons{
-    background-color: #E74C3C;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    margin-right: 10px;
+.navbar img {
+  width: 130px !important;
+  height: 52px !important;
+  object-fit: contain;
+}
+
+/* ── Action Buttons (header-level) ── */
+.action-buttons {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  margin-right: 8px;
+  transition: var(--transition);
+  box-shadow: 0 2px 8px var(--primary-ring);
+  letter-spacing: 0.02em;
+}
+
+.action-buttons:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px var(--primary-ring);
+}
+
+.action-buttons:active {
+  transform: translateY(0);
 }

@@ -1,139 +1,129 @@
-/* 🔹 Container */
+/* ============================================================
+   FINTREE LMS — SCHEDULE TABLE
+   ============================================================ */
+
 .schedule-page-container {
-    width: 100%;
-    padding: 20px;
-    background: #f4f6f9;
-    border-radius: 8px;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  padding: 24px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
 }
 
-/* 🔹 Table Styling */
 .schedule-table-container {
-    overflow-x: auto;
-    max-width: 100%;
+  overflow-x: auto;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  margin-top: 16px;
 }
 
 .schedule-table-container table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-    min-width: 900px; /* Prevent table from shrinking */
-    border: 1px solid #ddd; /* ✅ Add table borders */
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  min-width: 900px;
+  font-size: 14px;
 }
 
-/* 🔹 Table Header */
 .schedule-table-container thead {
-    background: #2C3E50;
-    color: white;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+  background: var(--table-head-bg);
+  color: var(--table-head-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .schedule-table-container th {
-    padding: 12px;
-    text-align: left;
-    font-size: 16px;
-    border: 1px solid black; /* ✅ Add column borders */
+  padding: 13px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
-/* 🔹 Table Body */
 .schedule-table-container td {
-    padding: 10px;
-    border: 1px solid black; /* ✅ Add row borders */
-    font-size: 16px;
-    color: #555;
-    white-space: nowrap;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--table-border);
+  font-size: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
-/* 🔹 Hover Effect */
-.schedule-table-container tbody tr:hover {
-    background: #f1f1f1;
+.schedule-table-container tbody tr:nth-child(even) td {
+  background: var(--table-stripe);
 }
 
-/* 🔹 Status Styling */
-.due-status {
-    color: red;
-    font-weight: bold;
+.schedule-table-container tbody tr:hover td {
+  background: #f0f4ff;
+  transition: background 0.15s;
 }
 
-.paid-status {
-    color: green;
-    font-weight: bold;
-}
-
-/* 🔹 Responsive Design */
-@media (max-width: 768px) {
-    .schedule-table-container {
-        overflow-x: auto;
-        width: 100%;
-    }
-
-    .schedule-table-container th,
-    .schedule-table-container td {
-        font-size: 14px;
-        padding: 8px;
-    }
-}
-
+/* ── Status Labels (pill badges) ── */
 .status-label {
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-weight: bold;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
 }
 
 .due-status {
-    background-color: #FFC107; /* Yellow */
-    color: #000;
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
 }
 
 .paid-status {
-    background-color: #28A745; /* Green */
-    color: #fff;
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
 }
 
 .part-paid-status {
-    background-color: #FF9800; /* Orange */
-    color: #fff;
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
 }
 
 .late-status {
-    background-color: #DC3545; /* Red */
-    color: #fff;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
 }
 
 .not-set-status {
-    background-color: #6C757D; /* Gray */
-    color: #fff;
+  background: var(--neutral-bg);
+  color: var(--neutral);
+  border: 1px solid var(--neutral-border);
 }
 
-
-
+/* ── DPD Labels ── */
 .dpd-label {
-    padding:0;
-    margin: 10px; 
-    font-weight: bold;
-    border-radius: 5px;
+  padding: 0;
+  margin: 0 10px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
 }
 
-.dpd-red {
-    
-    color: #DC3545 !important;
-}
+.dpd-red { color: var(--danger) !important; }
+.dpd-orange { color: #ea580c; }
+.dpd-yellow { color: var(--warning); }
 
-.dpd-orange {
-    
-    color: #FF9800;
-}
-
-.dpd-yellow {
-  
-    color: #FFC107;
+@media (max-width: 768px) {
+  .schedule-table-container {
+    overflow-x: auto;
+    width: 100%;
+  }
+  .schedule-table-container th,
+  .schedule-table-container td {
+    font-size: 13px;
+    padding: 9px 12px;
+  }
 }

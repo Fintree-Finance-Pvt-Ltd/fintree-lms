@@ -44,7 +44,7 @@ const LoanDetailsPage = () => {
     }, [lan]);
 
 
-    if (!loanData) return <p className="loading-text">Loading...</p>;
+    if (!loanData) return <div className="spinner-container"><div className="spinner"></div></div>;
 
     return (
         <div className="loan-details-container">

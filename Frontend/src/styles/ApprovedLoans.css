@@ -1,203 +1,193 @@
-/* .approved-loans-container {
-    padding: 20px;
-    font-family: Arial, sans-serif;
-}
+/* ============================================================
+   FINTREE LMS — APPROVED LOANS TABLE
+   ============================================================ */
 
-h2 {
-    color: #333;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-}
-
-th, td {
-    padding: 12px;
-    border: 1px solid #ddd;
-    text-align: left;
-}
-
-th {
-    background-color: #f4f4f4;
-}
-
-.loan-name {
-    font-weight: bold;
-    color: #3b5998;
-    cursor: pointer;
-}
-
-.phone-number {
-    color: blue;
-    text-decoration: none;
-}
-
-.status-approved {
-    background-color: orange;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 10px;
-}
-
-.audit-trail-btn {
-    background: none;
-    border: none;
-    font-size: 18px;
-    cursor: pointer;
-} */
-
-
-
-/* General Container Styling */
 .approved-loans-container {
-    max-width: 95%;
-    margin: 20px auto;
-    padding: 20px;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-    overflow-x: auto; /* Allow horizontal scrolling on small screens */
+  max-width: 98%;
+  margin: 20px auto;
+  padding: 24px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  overflow-x: auto;
 }
 
-/* Heading */
 .approved-loans-container h2 {
-    text-align: center;
-    color: #2C3E50;
-    margin-bottom: 20px;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
 }
 
-/* Table Styling */
+/* ── Table ── */
 table {
-    width: 100%;
-    border-collapse: collapse;
-    background: #f8f9fa;
-    overflow: hidden;
-    border-radius: 10px;
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  font-size: 14px;
 }
 
-/* Table Header */
 thead {
-    background-color: #2C3E50;
-    color: white;
+  background: var(--table-head-bg);
+  color: var(--table-head-color);
 }
 
 th {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 2px solid #ddd;
+  padding: 13px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  border-bottom: none;
 }
 
-/* Table Body */
 td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-    text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--table-border);
+  text-align: left;
+  color: var(--text-secondary);
+  vertical-align: middle;
 }
 
-/* Zebra Striping for Rows */
-tbody tr:nth-child(odd) {
-    background-color: #f4f6f7;
+tbody tr:nth-child(odd) td {
+  background: var(--bg-card);
 }
 
-/* Hover Effect */
-tbody tr:hover {
-    background-color: #e2e6ea;
-    transition: 0.3s;
+tbody tr:nth-child(even) td {
+  background: var(--table-stripe);
 }
 
-/* Loan Name */
+tbody tr:hover td {
+  background: #f0f4ff;
+  transition: background 0.15s ease;
+}
+
+/* ── Loan Name ── */
 .loan-name {
-    font-weight: bold;
-    color: #2980b9;
+  font-weight: 600;
+  color: var(--info);
+  cursor: pointer;
+}
+.loan-name:hover {
+  text-decoration: underline;
 }
 
-/* Status Tag */
-.status-approved {
-    background-color: #27ae60;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 14px;
-    font-weight: bold;
-}
-
-/* Phone Number Styling */
+/* ── Phone ── */
 .phone-number {
-    color: #3498db;
-    text-decoration: none;
-    font-weight: bold;
+  color: var(--info);
+  text-decoration: none;
+  font-weight: 500;
 }
-
 .phone-number:hover {
-    text-decoration: underline;
+  text-decoration: underline;
 }
 
-/* Audit Trail Button */
-.audit-trail-btn {
-    background: #2c3e50;
-    color: white;
-    border: none;
-    padding: 8px 12px;
-    cursor: pointer;
-    border-radius: 5px;
-    font-size: 16px;
-}
-
-.audit-trail-btn:hover {
-    background: #34495e;
-}
-
-.approve-btn {
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  padding: 6px 10px;
-  margin: 2px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
-.reject-btn {
-  background-color: #f44336;
-  color: white;
-  border: none;
-  padding: 6px 10px;
-  margin: 2px;
-  cursor: pointer;
-  border-radius: 4px;
-}
-
+/* ── Status Badges ── */
 .status-approved {
-  color: green;
-  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
 }
 
 .status-rejected {
-  color: red;
-  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
 }
 
 .status-pending {
-  color: gray;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--neutral-bg);
+  color: var(--neutral);
+  border: 1px solid var(--neutral-border);
 }
 
+/* ── Action Buttons ── */
+.audit-trail-btn {
+  background: var(--sidebar-bg);
+  color: white;
+  border: none;
+  padding: 7px 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  transition: var(--transition);
+}
+.audit-trail-btn:hover {
+  background: #1e293b;
+  transform: translateY(-1px);
+}
 
-/* Responsive Design */
+.approve-btn {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+  border: none;
+  padding: 7px 13px;
+  margin: 2px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  transition: var(--transition);
+}
+.approve-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.reject-btn {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border: none;
+  padding: 7px 13px;
+  margin: 2px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  transition: var(--transition);
+}
+.reject-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 768px) {
-    table {
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
-    }
-
-    th, td {
-        padding: 8px;
-        font-size: 14px;
-    }
-
-    .approved-loans-container {
-        padding: 10px;
-    }
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  th, td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .approved-loans-container {
+    padding: 14px;
+  }
 }

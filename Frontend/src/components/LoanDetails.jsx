@@ -171,7 +171,7 @@ export default LoanDetails;
 //         fetchLoanDetails();
 //     }, [lan]);
 
-//     if (loading) return <p>Loading...</p>;
+//     if (loading) return <div className="spinner-container"><div className="spinner"></div></div>;
 //     if (error) return <p>{error}</p>;
 
 //     return (

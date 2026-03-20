@@ -1,16 +1,40 @@
+/* ============================================================
+   FINTREE LMS — APP LAYOUT SHELL
+   ============================================================ */
+
 .app-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
+  background: var(--bg-page);
 }
 
 .layout-body {
   display: flex;
   flex: 1;
+  margin-top: var(--navbar-height);
+  height: calc(100vh - var(--navbar-height));
 }
 
 .layout-content {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 24px;
+  background: var(--bg-page);
+  min-width: 0;
+}
+
+/* ── Scrollbar on content area ── */
+.layout-content::-webkit-scrollbar {
+  width: 6px;
+}
+.layout-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 99px;
+}
+
+@media (max-width: 768px) {
+  .layout-content {
+    padding: 16px 12px;
+  }
 }

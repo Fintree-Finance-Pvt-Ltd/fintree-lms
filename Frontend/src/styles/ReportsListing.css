@@ -1,99 +1,103 @@
-/* Container styling */
+/* ============================================================
+   FINTREE LMS — REPORTS LISTING
+   ============================================================ */
+
 .container {
-  padding: 30px 40px;
-  max-width: 1200px;
+  padding: 24px 28px;
+  max-width: 1100px;
   margin: auto;
   font-family: 'Inter', sans-serif;
 }
 
-/* Heading */
 .container h3 {
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 20px;
-  color: #000000;
+  color: var(--text-primary);
 }
 
-/* Search input */
 .container input.form-control {
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
   padding: 10px 14px;
   font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  outline: none;
+  width: 100%;
+  max-width: 400px;
+  transition: var(--transition);
+}
+.container input.form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+  background: var(--bg-card);
 }
 
-/* List group wrapper */
+/* ── List ── */
 .list-group {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 16px 0 0;
 }
 
-/* Each report row card */
 .list-group-item {
-  background-color: #f9fafb;
-  padding: 18px 24px;
-  border-radius: 12px;
-  margin-bottom: 14px;
+  background: var(--bg-card);
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: background-color 0.3s ease;
-  border: 1px solid #e5e7eb;
+  transition: var(--transition);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
 .list-group-item:hover {
-  background-color: #f3f4f6;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+  border-color: #cbd5e1;
 }
-
-
 
 .list-group-item a {
-  background-color: #ffffff;
-  color: #000000; /* 🔥 Fully black text */
-  border: 1px solid #56abc5;
-  border-radius: 999px;
-  padding: 10px 24px;
-  font-size: 14px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 8px 20px;
+  font-size: 13px;
   font-weight: 600;
+  font-family: 'Inter', sans-serif;
   text-decoration: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  box-shadow: 0 2px 8px var(--primary-ring);
+  transition: var(--transition);
 }
-
-
-
 
 .list-group-item a:hover {
-  background-color: #2046c5;
-  color: #31d3a2;
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px var(--primary-ring);
 }
 
-/* (Optional) Audit icon style */
 .audit-icon {
   font-size: 18px;
-  color: #6b7280;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
 }
 
 .audit-icon:hover {
-  background-color: #e5e7eb;
+  background: var(--bg-input);
+  color: var(--text-primary);
 }
 
-/* Responsive adjustments */
 @media screen and (max-width: 768px) {
-  .list-group-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .audit-icon {
-    align-self: flex-end;
-  }
+  .list-group-item { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .audit-icon { align-self: flex-end; }
 }

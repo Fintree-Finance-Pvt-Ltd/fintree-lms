@@ -1,31 +1,57 @@
-/* styles/Reports.css */
+/* ============================================================
+   FINTREE LMS — REPORTS
+   ============================================================ */
 
 .report-container {
-    padding: 2rem;
-    background-color: #f9f9f9;
-  }
-  
-  .report-container h3 {
-    font-weight: 600;
-    margin-bottom: 20px;
-  }
-  
-  .report-search {
-    margin-bottom: 20px;
-  }
-  
-  .report-btn {
-    background-color: #f4f7ff;
-    border: 1px solid #cbd5e0;
-    padding: 10px 15px;
-    border-radius: 5px;
-    color: #2a4365;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-  
-  .report-btn:hover {
-    background-color: #e2e8f0;
-  }
-  
+  padding: 24px 28px;
+  background: var(--bg-page);
+  min-height: 100%;
+}
+
+.report-container h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+}
+
+.report-search {
+  margin-bottom: 20px;
+}
+
+.report-search input {
+  width: 100%;
+  max-width: 400px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  outline: none;
+  transition: var(--transition);
+}
+.report-search input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+  background: var(--bg-card);
+}
+
+.report-btn {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.report-btn:hover {
+  background: var(--bg-input);
+  border-color: var(--primary);
+  color: var(--primary);
+}

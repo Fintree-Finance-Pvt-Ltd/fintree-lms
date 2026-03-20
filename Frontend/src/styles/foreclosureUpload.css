@@ -1,71 +1,109 @@
+/* ============================================================
+   FINTREE LMS — FORECLOSUER UPLOAD
+   ============================================================ */
+
 .forecloser-upload-container {
-    max-width: 900px;
-    margin: 30px auto;
-    padding: 20px;
-    font-family: Arial, sans-serif;
-    background-color: #fff;
-  }
-  
-  .forecloser-upload-title {
-    text-align: center;
-    margin-bottom: 25px;
-    color: #2c3e50;
-    font-weight: 600;
-  }
-  
-  .forecloser-upload-input {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 20px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-  }
-  
-  .forecloser-upload-button {
-    display: block;
-    margin: 0 auto 25px auto;
-    padding: 12px 24px;
-    background-color: #28a745;
-    color: #fff;
-    font-weight: bold;
-    font-size: 16px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-  
-  .forecloser-upload-button:hover {
-    background-color: #218838;
-  }
-  
-  .forecloser-table-wrapper {
-    overflow-x: auto;
-  }
-  
-  .forecloser-preview-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-  }
-  
-  .forecloser-preview-table thead {
-    background-color: #343a40;
-    color: #fff;
-  }
-  
-  .forecloser-preview-table th,
-  .forecloser-preview-table td {
-    padding: 10px;
-    border: 1px solid #dee2e6;
-    text-align: left;
-  }
-  
-  .forecloser-preview-table tbody tr:nth-child(even) {
-    background-color: #f9f9f9;
-  }
-  
-  .forecloser-preview-table tbody tr:hover {
-    background-color: #f1f1f1;
-  }
-  
+  max-width: 960px;
+  margin: 28px auto;
+  padding: 24px;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+}
+
+.forecloser-upload-title {
+  text-align: center;
+  margin-bottom: 24px;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+}
+
+.forecloser-upload-input {
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.forecloser-upload-input:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.forecloser-upload-button {
+  display: block;
+  margin: 0 auto 24px auto;
+  padding: 11px 28px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  font-weight: 700;
+  font-size: 15px;
+  font-family: 'Inter', sans-serif;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: 0 2px 8px var(--primary-ring);
+}
+.forecloser-upload-button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px var(--primary-ring);
+}
+.forecloser-upload-button:active { transform: translateY(0); }
+
+.forecloser-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.forecloser-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+}
+
+.forecloser-preview-table thead {
+  background: var(--table-head-bg);
+  color: var(--table-head-color);
+}
+
+.forecloser-preview-table th,
+.forecloser-preview-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--table-border);
+  text-align: left;
+}
+
+.forecloser-preview-table th {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border-bottom: none;
+}
+
+.forecloser-preview-table td {
+  color: var(--text-secondary);
+}
+
+.forecloser-preview-table tbody tr:nth-child(even) td {
+  background: var(--table-stripe);
+}
+
+.forecloser-preview-table tbody tr:hover td {
+  background: #f0f4ff;
+  transition: background 0.15s;
+}

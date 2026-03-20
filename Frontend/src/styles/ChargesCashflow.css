@@ -1,70 +1,76 @@
-/* 🔹 Container */
+/* ============================================================
+   FINTREE LMS — CHARGES CASHFLOW TABLE
+   ============================================================ */
+
 .charges-cashflow-container {
-    width: 100%;
-    padding: 20px;
-    background: #f4f6f9;
-    border-radius: 8px;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  padding: 24px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
 }
 
-/* 🔹 Table Container (Scrollable) */
+.charges-cashflow-container h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+}
+
 .charges-table-container {
-    overflow-x: auto;
-    max-width: 100%;
+  overflow-x: auto;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
 }
 
-/* 🔹 Table Styling */
 .charges-table-container table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-    min-width: 900px; /* Prevent table from shrinking */
-    border: 1px solid #ddd; /* ✅ Add table borders */
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  min-width: 900px;
+  font-size: 14px;
 }
 
-/* 🔹 Table Header */
 .charges-table-container thead {
-    background: #2C3E50;
-    color: white;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+  background: var(--table-head-bg);
+  color: var(--table-head-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .charges-table-container th {
-    padding: 12px;
-    text-align: left;
-    font-size: 16px;
-    border: 1px solid black; /* ✅ Add column borders */
+  padding: 13px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
-/* 🔹 Table Body */
 .charges-table-container td {
-    padding: 10px;
-    border: 1px solid black; /* ✅ Add row borders */
-    font-size: 16px;
-    color: #555;
-    white-space: nowrap;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--table-border);
+  font-size: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
-/* 🔹 Hover Effect */
-.charges-table-container tbody tr:hover {
-    background: #f1f1f1;
+.charges-table-container tbody tr:nth-child(even) td {
+  background: var(--table-stripe);
 }
 
-/* 🔹 Responsive Design */
+.charges-table-container tbody tr:hover td {
+  background: #f0f4ff;
+  transition: background 0.15s;
+}
+
 @media (max-width: 768px) {
-    .charges-table-container {
-        overflow-x: auto;
-        width: 100%;
-    }
-
-    .charges-table-container th,
-    .charges-table-container td {
-        font-size: 14px;
-        padding: 8px;
-    }
+  .charges-table-container { overflow-x: auto; width: 100%; }
+  .charges-table-container th,
+  .charges-table-container td { font-size: 13px; padding: 9px 12px; }
 }

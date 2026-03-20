@@ -252,13 +252,13 @@
 
 // export default Login;
 
-
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api/api.js';
 import YourImage from '../assets/background_login.jpg';
-import logo from "../assets/fintree_logo.png"; 
+import logo from "../assets/fintree_logo.png";
+import "../styles/Login.css";
 
 const Login = () => {
   const { login } = useContext(AuthContext);
@@ -459,128 +459,6 @@ const Login = () => {
           </div>
         )}
 
-        {/* STYLES */}
-        <style jsx>{`
-          .login-page {
-            height: 100vh;
-            background-size: cover;
-            background-position: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-
-          .login-card {
-            width: 360px;
-            padding: 30px 25px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.12);
-            backdrop-filter: blur(12px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
-            text-align: center;
-          }
-
-          .logo {
-            width: 140px;
-            margin-bottom: 15px;
-          }
-
-          h2, h3 {
-            margin-bottom: 10px;
-            color: #111;
-          }
-
-          p {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 15px;
-          }
-
-          input {
-            width: 100%;
-            padding: 12px 15px;
-            margin-bottom: 15px;
-            border-radius: 25px;
-            border: none;
-            outline: none;
-            background: #f3f4f6;
-            font-size: 14px;
-          }
-
-          input:focus {
-            background: #fff;
-            box-shadow: 0 0 0 2px #ef4444;
-          }
-
-          button {
-            width: 100%;
-            padding: 12px;
-            border-radius: 25px;
-            border: none;
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.3s;
-          }
-
-          button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-          }
-
-          .forgot-link {
-            background: none !important;
-            border: none !important;
-            color: #ef4444;
-            font-size: 14px;
-            margin-top: 10px;
-            cursor: pointer;
-          }
-
-          .forgot-link:hover {
-            text-decoration: underline;
-          }
-
-          .forgot-container {
-            position: relative;
-            margin-top: 10px;
-          }
-
-          .close-btn {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: #ef4444;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            cursor: pointer;
-            border: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-          }
-
-          .close-btn:hover {
-            background: #dc2626;
-          }
-
-          .success-msg {
-            color: #10b981;
-            margin-top: 10px;
-            font-size: 13px;
-          }
-
-          .error-msg {
-            color: #ef4444;
-            margin-top: 10px;
-            font-size: 13px;
-          }
-        `}</style>
       </div>
     </div>
   );

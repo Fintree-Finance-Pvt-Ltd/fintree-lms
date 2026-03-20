@@ -1,74 +1,259 @@
+/* ============================================================
+   FINTREE LMS — REPORT DETAIL / TRIGGER FORM
+   ============================================================ */
+
+/* ─ Report Detail (ReportDetail.css) ─ */
 .report-detail-container {
-  margin-top: 20px;
-  gap: 140px;
-    display: flex;
-    height: auto;
-  }
-
- .report-name{
-  font-size: 24px;
-    text-align: center;
-    margin-bottom: 20px;
-  }
-  
-  
-  .back-arrow {
-    font-size: 1.5rem;          /* Size of arrow */
-    cursor: pointer;           /* Show pointer on hover */
-    color: #007bff; 
-    margin-left: 20px;           /* Bootstrap blue or your theme color */
-    margin-bottom: 1rem;       /* Space below the arrow */
-    display: inline-block;     /* Keeps it inline if needed */
-    transition: transform 0.2s ease, color 0.2s ease;
-  }
-  
-  .back-arrow:hover {
-    transform: translateX(-4px); /* Slight left movement on hover */
-    color: #0056b3;              /* Darker shade on hover */
-  }
-  
-  
-  .report-content {
-    flex: 1;
-    background-color: #fff;
-  }
-  
-
-
-
-
-
-
-
-  .options-list {
-    list-style: none;
-    width: 180px;
-    background-color: #2c3e50;
-    color: white;
-    height: 100vh;
-    padding: 15px;
-    position: fixed;
+  display: flex;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 24px;
+  background: var(--bg-page);
 }
 
-.options-list ul {
-    list-style: none;
-    padding: 0;
+/* Sidebar Options for Reports */
+.sidebar-options {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px 16px;
+  box-shadow: var(--shadow-sm);
 }
 
-.options-list li {
-  margin: 1rem 0;
-  font-weight: 500;
+.back-arrow {
   cursor: pointer;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  transition: var(--transition);
+}
+.back-arrow:hover {
+  color: var(--primary);
+  transform: translateX(-2px);
+}
+
+.options-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
 .options-list li {
-    color: white;
-    text-decoration: none;
-    display: block;
-    padding: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  transition: var(--transition);
+  border-left: 3px solid transparent;
 }
 
-.options-list li:hover, .active-link {
-    background-color: #1a252f;
-    border-left: 4px solid #f39c12;
+.options-list li:hover {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.options-list li.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-left-color: var(--primary);
+}
+
+.report-content {
+  flex-grow: 1;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+}
+
+.report-name {
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.report-detail-container table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.report-detail-container thead {
+  background: var(--table-head-bg);
+  color: var(--table-head-color);
+}
+.report-detail-container th {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  letter-spacing: 0.03em;
+}
+.report-detail-container td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--table-border);
+  color: var(--text-secondary);
+}
+.report-detail-container tbody tr:nth-child(even) td { background: var(--table-stripe); }
+.report-detail-container tbody tr:hover td { background: #f0f4ff; }
+
+.report-detail-container button {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  box-shadow: 0 2px 8px var(--primary-ring);
+}
+.report-detail-container button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* ─ Reports Download ─ */
+.reports-download-container {
+  max-width: 700px;
+  margin: 24px auto;
+  padding: 24px 28px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+}
+
+.reports-download-container h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+}
+
+.reports-download-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: 0 2px 8px var(--primary-ring);
+}
+.reports-download-link:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* ─ Trigger Report Form ─ */
+.trigger-report-form {
+  max-width: 640px;
+  margin: 24px auto;
+  padding: 28px 32px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+}
+
+.trigger-report-form h2,
+.trigger-report-form h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+}
+
+.trigger-report-form label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-label);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trigger-report-form input,
+.trigger-report-form select {
+  width: 100%;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  outline: none;
+  transition: var(--transition);
+}
+.trigger-report-form input:focus,
+.trigger-report-form select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+  background: var(--bg-card);
+}
+
+.trigger-report-form button {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border: none;
+  padding: 11px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  box-shadow: 0 2px 8px var(--primary-ring);
+  width: 100%;
+  margin-top: 4px;
+}
+.trigger-report-form button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+/* ─ Report Details (the table details page) ─ */
+.report-details-page {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 24px 28px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.report-details-page h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
 }

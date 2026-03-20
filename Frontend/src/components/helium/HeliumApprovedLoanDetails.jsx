@@ -30,7 +30,7 @@ const HeliumApprovedLoanDetails = () => {
     fetchDetails();
   }, [lan]);
 
-  if (loading) return <p style={{ padding: 16 }}>Loading...</p>;
+  if (loading) return <div className="spinner-container"><div className="spinner"></div></div>;
   if (err) return <p style={{ padding: 16, color: "#b91c1c" }}>{err}</p>;
   if (!details) return <p style={{ padding: 16 }}>No data found.</p>;
 

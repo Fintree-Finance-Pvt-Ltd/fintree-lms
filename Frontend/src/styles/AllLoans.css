@@ -1,67 +1,88 @@
-/* 🔹 Page Container */
+/* ============================================================
+   FINTREE LMS — ALL LOANS TABLE
+   ============================================================ */
+
 .all-loans-container {
-    background: #f4f6f9;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-    width: 95%;
-    max-width: 1000px;
-    margin: 20px auto;
-    text-align: left;
+  background: var(--bg-card);
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  width: 98%;
+  max-width: 1200px;
+  margin: 20px auto;
+  overflow-x: auto;
 }
 
-/* 🔹 Page Title */
 .all-loans-container h2 {
-    font-size: 22px;
-    color: #2C3E50;
-    margin-bottom: 15px;
-    text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* 🔹 Table Styling */
+/* Table wrapper to handle overflow */
+.all-loans-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
 .all-loans-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  min-width: 600px;
+  font-size: 14px;
 }
 
-/* 🔹 Table Header */
 .all-loans-table thead {
-    background: #2C3E50;
-    color: white;
+  background: var(--table-head-bg);
+  color: var(--table-head-color);
 }
 
 .all-loans-table th {
-    padding: 12px;
-    text-align: left;
-    font-size: 16px;
+  padding: 13px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
-/* 🔹 Table Rows */
 .all-loans-table td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-    font-size: 16px;
-    color: #555;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--table-border);
+  color: var(--text-secondary);
+  vertical-align: middle;
+  font-size: 14px;
 }
 
-/* 🔹 Hover Effect */
-.all-loans-table tbody tr:hover {
-    background: #f1f1f1;
+.all-loans-table tbody tr:nth-child(even) td {
+  background: var(--table-stripe);
 }
 
-/* 🔹 Responsive Design */
+.all-loans-table tbody tr:hover td {
+  background: #f0f4ff;
+  transition: background 0.15s ease;
+}
+
+.all-loans-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 @media (max-width: 768px) {
-    .all-loans-container {
-        padding: 15px;
-    }
-
-    .all-loans-table th,
-    .all-loans-table td {
-        font-size: 14px;
-        padding: 8px;
-    }
+  .all-loans-container {
+    padding: 16px;
+  }
+  .all-loans-table th,
+  .all-loans-table td {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
 }

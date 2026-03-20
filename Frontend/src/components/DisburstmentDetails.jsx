@@ -23,7 +23,7 @@ const DisbursementDetails = () => {
   }, [lan]);
 
   if (error) return <p>{error}</p>;
-  if (!disbursalData) return <p>Loading...</p>;
+  if (!disbursalData) return <div className="spinner-container"><div className="spinner"></div></div>;
 
   return (
     <div className="disbursement-details">

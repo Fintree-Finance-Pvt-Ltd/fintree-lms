@@ -19,7 +19,7 @@
 //     fetchData();
 //   }, [lan]);
 
-//   if (!data) return <p>Loading...</p>;
+//   if (!data) return <div className="spinner-container"><div className="spinner"></div></div>;
 
 //   const { loanDetails, repaymentSchedule, paymentHistory, extraCharges } = data ;
 //  // console.log("✅ Data Fetched:", data);
@@ -133,7 +133,7 @@ const SOA = () => {
     fetchData();
   }, [lan]);
 
-  if (!data) return <p>Loading...</p>;
+  if (!data) return <div className="spinner-container"><div className="spinner"></div></div>;
 
   const { loanDetails, repaymentSchedule, paymentHistory, extraCharges } = data;
 //   const loan = loanDetails[0] || {};

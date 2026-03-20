@@ -25,7 +25,7 @@ const ApprovedCaseDetails = () => {
         fetchLoanDetails();
     }, [lan]);
 
-    if (!data) return <p>Loading...</p>;
+    if (!data) return <div className="spinner-container"><div className="spinner"></div></div>;
 
     return (
         <div className="loan-details-content">

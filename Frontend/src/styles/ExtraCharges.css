@@ -1,85 +1,85 @@
-/* ✅ Main Container */
+/* ============================================================
+   FINTREE LMS — EXTRA CHARGES
+   ============================================================ */
+
 .extra-charges-container {
-    width: 100%;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    text-align: center;
+  width: 100%;
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 24px 28px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  text-align: center;
 }
 
-/* ✅ Title */
 .extra-charges-container h2 {
-    font-size: 22px;
-    color: #2C3E50;
-    margin-bottom: 15px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
 }
 
-/* ✅ Table Container (Scrollable) */
-.extra-charges-container {
-    overflow-x: auto;
-    max-width: 100%;
+/* Table */
+.extra-charges-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
 }
 
-/* ✅ Table Styling */
 .extra-charges-container table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
-    min-width: 900px; /* ✅ Prevents table from shrinking */
-    border: 1px solid #ddd; /* ✅ Adds border to table */
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-card);
+  min-width: 900px;
+  font-size: 14px;
 }
 
-/* ✅ Table Header */
 .extra-charges-container thead {
-    background: #2C3E50;
-    color: white;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+  background: var(--table-head-bg);
+  color: var(--table-head-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-/* ✅ Table Header Cells */
 .extra-charges-container th {
-    padding: 12px;
-    text-align: left;
-    font-size: 16px;
-    border: 1px solid black; /* ✅ Adds column borders */
+  padding: 13px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
-/* ✅ Table Body Cells */
 .extra-charges-container td {
-    padding: 10px;
-    border: 1px solid black; /* ✅ Adds row borders */
-    font-size: 16px;
-    color: #555;
-    white-space: nowrap;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--table-border);
+  font-size: 14px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
-/* ✅ Hover Effect */
-.extra-charges-container tbody tr:hover {
-    background: #f1f1f1;
+.extra-charges-container tbody tr:nth-child(even) td {
+  background: var(--table-stripe);
 }
 
-/* ✅ Error Message */
+.extra-charges-container tbody tr:hover td {
+  background: #f0f4ff;
+  transition: background 0.15s;
+}
+
 .error {
-    color: red;
-    font-weight: bold;
+  color: var(--danger);
+  font-weight: 600;
+  font-size: 14px;
 }
 
-/* ✅ Responsive Design */
 @media (max-width: 768px) {
-    .extra-charges-container {
-        overflow-x: auto;
-        width: 100%;
-    }
-
-    .extra-charges-container th,
-    .extra-charges-container td {
-        font-size: 14px;
-        padding: 8px;
-    }
+  .extra-charges-container { padding: 16px; }
+  .extra-charges-container th,
+  .extra-charges-container td { font-size: 13px; padding: 9px 12px; }
 }

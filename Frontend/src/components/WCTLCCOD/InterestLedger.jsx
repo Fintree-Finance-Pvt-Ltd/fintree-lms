@@ -43,7 +43,7 @@ const InterestLedger = () => {
     <div className="ledger-container">
       <h2>Interest Ledger — LAN: {lan}</h2>
 
-      {loading && <p>Loading...</p>}
+      {loading && <div className="spinner-container"><div className="spinner"></div></div>}
       {message && <div className="message">{message}</div>}
 
       {loan && (
