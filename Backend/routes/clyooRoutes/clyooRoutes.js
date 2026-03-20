@@ -169,7 +169,7 @@ router.get("/hospitals-list", async (req, res) => {
         registered_city,
         registered_district
       FROM clayyo_hospital_booking
-      WHERE status = 'ACTIVE'
+      WHERE status = 'APPROVED'
       ORDER BY hospital_legal_name ASC
     `);
 
@@ -422,13 +422,11 @@ router.post("/manual-entry", async (req, res) => {
 });
 
 router.get("/approve-initiate-loans", async (req, res) => {
-  console.log(" inside")
   const { table = "loan_booking_clayyo", prefix = "CLY" } = req.query;
 
   const allowedTables = {
     loan_booking_clayyo:true,
   };
-console.log("Received request for approve-initiate-loans with table:", table, "and prefix:", prefix);
   if (!allowedTables[table]) {
     return res.status(400).json({ message: "Invalid table name" });
   }
@@ -445,6 +443,65 @@ console.log("Received request for approve-initiate-loans with table:", table, "a
   });
 });
 
+router.get("/credit-approved-loans", async (req, res) => {
+  const { table = "loan_booking_clayyo", prefix = "CLY" } = req.query;
+
+  const allowedTables = {
+    loan_booking_clayyo:true,
+  };
+  if (!allowedTables[table]) {
+    return res.status(400).json({ message: "Invalid table name" });
+  }
+
+  const query = `SELECT * FROM ?? WHERE status in ('LIMIT_REQUESTED', 'CREDIT_APPROVED', 'OPS_APPROVED') AND LAN LIKE ?`;
+  const values = [table, `${prefix}%`];
+
+   db.query(query, values, (err, results) => {
+    if (err) {
+      console.error("Error fetching login stage loans:", err);
+      return res.status(500).json({ message: "Database error" });
+    }
+    res.json(results);
+  });
+});
+
+router.put("/set-limit/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+    const { limit, status, table } = req.body;
+
+    await db.promise().query(
+      `UPDATE ${table}
+       SET final_limit = ?, status = ?
+       WHERE lan = ?`,
+      [limit, status, lan]
+    );
+
+    res.json({ message: "Limit assigned successfully" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to assign limit" });
+  }
+});
+
+router.put("/ops-approve/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+    const { approved_limit, pf_percent, status, table } = req.body;
+
+    await db.promise().query(
+      `UPDATE ${table}
+       SET approved_limit = ?, pf_percent = ?, status = ?
+       WHERE lan = ?`,
+      [approved_limit, pf_percent, status, lan]
+    );
+
+    res.json({ message: "Ops approved successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Ops approval failed" });
+  }
+});
 
 router.put("/approve-initiated-loans/:lan", (req, res) => {
   const lan = req.params.lan;
@@ -458,7 +515,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  if (!["disburse-initiate", "rejected"].includes(status)) {
+  if (!["credit_approved", "rejected"].includes(status)) {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
@@ -483,6 +540,56 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
       message:`Loan ${status} successfully`,
     });
   });
+});
+
+router.get("/approved-loans", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT
+        lan,
+        customer_name,
+        app_id,
+        mobile_number,
+
+        -- amounts
+        loan_amount,
+        final_limit,
+        approved_limit,
+        pf_percent,
+        subvention_percent,
+
+        -- agreement & bank
+        agreement_esign_status,
+        bank_status,
+
+        -- bank details
+        bank_name,
+        account_number,
+        ifsc,
+
+        -- status
+        status,
+
+        -- optional useful fields
+        emi_amount,
+        loan_tenure,
+        login_date
+
+      FROM loan_booking_clayyo
+      WHERE status IN ('LIMIT_REQUESTED', 'OPS_APPROVED')
+      ORDER BY login_date DESC, lan DESC
+    `);
+
+    return res.json(rows);
+
+  } catch (err) {
+    console.error("❌ Error fetching approved loans:", err);
+
+    return res.status(500).json({
+      message: "Failed to fetch approved loans",
+      error: err.sqlMessage || err.message,
+    });
+  }
 });
 
 router.get("/loan-info/:lan", async (req, res) => {

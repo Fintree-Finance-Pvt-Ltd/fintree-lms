@@ -193,9 +193,10 @@ const TABLES = {
     wctl:   { bookings: "loan_bookings_wctl",   rps: "manual_rps_wctl" },
     embifi: { bookings: "loan_booking_embifi",  rps: "manual_rps_embifi_loan" },
     bl:     { bookings: "loan_bookings",        rps: "manual_rps_bl_loan" }, // default / EV/BL
+    circlepe: { bookings: "loan_booking_circle_pe",  rps: "manual_rps_circlepe" },
 };
 // Priority when a LAN could exist in multiple places (adjust if needed)
-const CATEGORY_ORDER = ["bl", "wctl", "embifi"];
+const CATEGORY_ORDER = ["bl", "wctl", "embifi", "circlepe"];
 
 // Small promisified query helper
 const queryAsync = (sql, params = []) =>
@@ -281,6 +282,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         let dataToInsertWCTL = [];
         let dataToInsertEV   = [];     // BL / default
         let dataToInsertEMB  = [];     // Embifi
+        let dataToInsertCIRCLEPE = []; // CirclePe
         let skippedEntries   = [];
 
         for (const row of sheetData) {
@@ -334,6 +336,9 @@ router.post("/upload", upload.single("file"), async (req, res) => {
                 dataToInsertWCTL.push(dataRow);
             } else if (category === "embifi") {
                 dataToInsertEMB.push(dataRow);
+            }
+            else if (category === "circlepe"){
+                dataToInsertCIRCLEPE.push(dataRow);
             } else  {
                 dataToInsertEV.push(dataRow); // default / BL
             }
@@ -352,9 +357,10 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         await batchInsert(TABLES.wctl.rps,   dataToInsertWCTL);
         await batchInsert(TABLES.embifi.rps, dataToInsertEMB);
         await batchInsert(TABLES.bl.rps,     dataToInsertEV);
+        await batchInsert(TABLES.circlepe.rps, dataToInsertCIRCLEPE);
 
         const totalInserted =
-            dataToInsertWCTL.length + dataToInsertEMB.length + dataToInsertEV.length;
+            dataToInsertWCTL.length + dataToInsertEMB.length + dataToInsertEV.length + dataToInsertCIRCLEPE.length;
 
         // ✅ Return response
         if (skippedEntries.length > 0) {

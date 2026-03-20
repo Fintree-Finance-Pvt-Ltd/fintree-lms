@@ -103,7 +103,6 @@ const ClayooDiburseInitiateScreen = ({
       csvAccessor: () => lenderName,
       width: 120,
     },
-    { key: "partner_loan_id", header: "Partner Loan ID", sortable: true, width: 160 },
     {
       key: "lan",
       header: "LAN",
@@ -173,7 +172,7 @@ const ClayooDiburseInitiateScreen = ({
         <div style={{ display: "flex", gap: 8 }}>
           <button
             style={actionBtn("approve")}
-            onClick={() => handleStatusChange(r.lan, "disburse-initiate", tableName)}
+            onClick={() => handleStatusChange(r.lan, "credit_approved", tableName)}
           >
             ✅ Approve
           </button>

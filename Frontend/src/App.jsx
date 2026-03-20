@@ -129,6 +129,8 @@ import ClayyoApprovedLoanDetails from "./components/Clayoo/clayooApprovedLoanDet
 import ClayooLoginLoans from "./components/Clayoo/ClayooLoginLoans";
 import HospitalList from "./components/Clayoo/ClayooHospitalLists";
 import HospitalLoginActions from "./components/Clayoo/ClayooHospitalLoginActions";
+import ClayooApprovedLoans from "./components/Clayoo/ClayooApprovedLoans";
+import ClayooLimitEntry from "./components/Clayoo/ClayooLimitEntry";
 
 function App() {
   return (
@@ -430,6 +432,24 @@ function App() {
             element={
               <PermissionRoute pageName="Clayoo Hospital Login Actions">
                 <HospitalLoginActions />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/clayoo-loans/approved-loans"
+            element={
+              <PermissionRoute pageName="Clayoo Approved Loans">
+                <ClayooApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/clayoo-loans/credit-approved-loans"
+            element={
+              <PermissionRoute pageName="Clayoo Credit Approved Loans">
+                <ClayooLimitEntry />
               </PermissionRoute>
             }
           />

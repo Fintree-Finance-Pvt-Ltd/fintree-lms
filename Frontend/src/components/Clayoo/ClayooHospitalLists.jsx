@@ -32,7 +32,8 @@ const HospitalList = () => {
 
   const statusPillStyle = (status) => {
     const map = {
-      ACTIVE: { bg: "rgba(16,185,129,.12)", fg: "#065f46" },
+      APPROVED: { bg: "rgba(16,185,129,.12)", fg: "#065f46" },
+      ACTIVE: { bg: "rgba(107,114,128,.12)", fg: "#374151" },
       INACTIVE: { bg: "rgba(239,68,68,.12)", fg: "#7f1d1d" },
     };
 
