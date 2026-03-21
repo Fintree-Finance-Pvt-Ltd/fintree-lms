@@ -6251,12 +6251,12 @@ router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
       ];
 
       for (const f of sanctionFields) {
-        if (!s[f]) {
-          return res.status(400).json({
-            message: `Missing ${f} for lender ${s.lender}`,
-          });
-        }
-      }
+  if (s[f] === undefined || s[f] === null || s[f] === "") {
+    return res.status(400).json({
+      message: `Missing ${f} for lender ${s.lender}`,
+    });
+  }
+}
 
       await db.promise().query(
         `INSERT INTO supply_chain_sanctions (
