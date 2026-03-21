@@ -229,6 +229,60 @@ router.get("/hospitals", async (req, res) => {
     });
   }
 });
+
+router.get("/clayyo-hospital-booking-details/:lan", async (req, res) => {
+  const { lan } = req.params;
+
+  try {
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        id,
+        application_id,
+        lan,
+        hospital_legal_name,
+        brand_name,
+        branch_locations,
+        hospital_registration_number,
+        year_of_establishment,
+        hospital_type,
+        bed_capacity,
+        key_specialties,
+        major_procedures,
+        departments,
+        registered_address,
+        registered_city,
+        registered_district,
+        registered_state,
+        registered_pincode,
+        avg_monthly_patient_footfall,
+        avg_ticket_size,
+        hospital_email,
+        hospital_phone,
+        owner_name,
+        owner_email,
+        owner_phone,
+        status,
+        created_at
+      FROM clayyo_hospital_booking
+      WHERE lan = ?
+      ORDER BY created_at DESC
+      `,
+      [lan]
+    );
+
+    // return single record (latest)
+    res.json(rows[0] || null);
+
+  } catch (err) {
+    console.error("Hospital fetch error:", err);
+
+    res.status(500).json({
+      message: "Failed to fetch hospital details",
+      error: err.message,
+    });
+  }
+});
 // hospitals-login-loans
 
 router.get("/hospitals-login-loans", async (req, res) => {
