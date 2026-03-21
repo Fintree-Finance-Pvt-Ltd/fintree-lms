@@ -316,11 +316,11 @@ router.post("/upload-20percent", upload.single("file"), async (req, res) => {
       }
 
       // Duplicate check
-      const exists = await query(`SELECT 1 FROM ${targetTable} WHERE lan = ? AND app_id = ? LIMIT 1`, [lan, appId]);
-      if (exists.length > 0) {
-        console.log(`⏩ Row ${index + 1}: Duplicate skipped → LAN=${lan}, App_id=${appId}`);
-        continue;
-      }
+      // const exists = await query(`SELECT 1 FROM ${targetTable} WHERE lan = ? AND app_id = ? LIMIT 1`, [lan, appId]);
+      // if (exists.length > 0) {
+      //   console.log(`⏩ Row ${index + 1}: Duplicate skipped → LAN=${lan}, App_id=${appId}`);
+      //   continue;
+      // }
 
       // Insert
       await query(
