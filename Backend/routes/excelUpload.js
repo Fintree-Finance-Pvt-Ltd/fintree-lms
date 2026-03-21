@@ -6184,7 +6184,8 @@ router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
 
     for (const field of requiredFields) {
       const value = field.split(".").reduce((o, i) => o?.[i], data);
-      if (!value) {
+      if (value === undefined || value === null || value === "")
+ {
         return res.status(400).json({ message: `${field} is required` });
       }
     }
