@@ -143,6 +143,58 @@ const ClayooManualEntry = () => {
     return "";
   };
 
+const handleChequeUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  try {
+    const uploadData = new FormData();
+
+    uploadData.append("imageUrl", file);
+    uploadData.append("clientRefId", "CLAYOO_" + Date.now());
+    uploadData.append("accountHolderName", "CLAYOO_");
+
+    const res = await axios.post(
+      "https://sandbox.fintreelms.com/ocr/v1/cheque",
+      uploadData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "X-API-Key": "Fintree@2026",
+        },
+      }
+    );
+
+    // correct extraction path
+    const result = res.data.data.result?.[0]?.details;
+
+    if (!result) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      account_number:
+        result.account_number?.value || prev.account_number,
+
+      ifsc:
+        result.ifsc_code?.value || prev.ifsc,
+
+      name_in_bank:
+        result.name?.value || prev.name_in_bank,
+
+      bank_name:
+        result.bank_name?.value || prev.bank_name,
+    }));
+
+    // trigger IFSC lookup after OCR
+    if (result.ifsc_code?.value) {
+      fetchBankFromIFSC(result.ifsc_code.value);
+    }
+
+  } catch (err) {
+    console.log("Cheque OCR failed:", err);
+  }
+};
+
   const handleSameAddress = (e) => {
     const checked = e.target.checked;
     setSameAddress(checked);
@@ -191,52 +243,48 @@ const ClayooManualEntry = () => {
   // };
 
   const fetchBankFromIFSC = async (ifsc) => {
-  if (ifsc.length !== 11) return;
+    if (ifsc.length !== 11) return;
 
-  try {
-    // 🔹 Try Razorpay first
-    const res = await axios.get(`https://ifsc.razorpay.com/${ifsc}`);
-    const data = res.data;
-
-    setFormData((prev) => ({
-      ...prev,
-      bank_name: data.BANK || "",
-      bank_branch: data.BRANCH || "",
-    }));
-
-  } catch (err) {
     try {
-      // 🔹 Fallback API
-      const res2 = await axios.get(
-        `https://ifsc.bankifsccode.com/${ifsc}`
-      );
-
-      const data2 = res2.data;
+      // 🔹 Try Razorpay first
+      const res = await axios.get(`https://ifsc.razorpay.com/${ifsc}`);
+      const data = res.data;
 
       setFormData((prev) => ({
         ...prev,
-        bank_name: data2.BANK || "",
-        bank_branch: data2.BRANCH || "",
+        bank_name: data.BANK || "",
+        bank_branch: data.BRANCH || "",
       }));
+    } catch (err) {
+      try {
+        // 🔹 Fallback API
+        const res2 = await axios.get(`https://ifsc.bankifsccode.com/${ifsc}`);
 
-    } catch (err2) {
-      console.log("Both IFSC APIs failed");
+        const data2 = res2.data;
 
-      setFormData((prev) => ({
-        ...prev,
-        bank_name: "",
-        bank_branch: "",
-      }));
+        setFormData((prev) => ({
+          ...prev,
+          bank_name: data2.BANK || "",
+          bank_branch: data2.BRANCH || "",
+        }));
+      } catch (err2) {
+        console.log("Both IFSC APIs failed");
+
+        setFormData((prev) => ({
+          ...prev,
+          bank_name: "",
+          bank_branch: "",
+        }));
+      }
     }
-  }
-};
+  };
   const handleChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
 
     if (name === "hospital_id") {
-  newValue = Number(value); // ✅ convert to number
-}
+      newValue = Number(value); // ✅ convert to number
+    }
 
     if (name === "mobile_number") {
       newValue = value.replace(/\D/g, "").slice(0, 10);
@@ -338,19 +386,19 @@ const ClayooManualEntry = () => {
     }
   };
 
-  const renderInput = (label, name, type = "text") => (
-    <div className="form-group">
-      <label>{label}</label>
+const renderInput = (label, name, type = "text") => (
+  <div className="form-group">
+    <label>{label}</label>
 
-      <input
-        type={type}
-        name={name}
-        value={formData[name]}
-        onChange={handleChange}
-        disabled={sameAddress && name.startsWith("permanent")}
-      />
-    </div>
-  );
+    <input
+      type={type}
+      name={name}
+      value={type !== "file" ? formData[name] : undefined}
+      onChange={type === "file" ? handleChequeUpload : handleChange}
+      disabled={sameAddress && name.startsWith("permanent")}
+    />
+  </div>
+);
 
   const renderSelect = (label, name, options) => (
     <div className="form-group">
@@ -493,6 +541,7 @@ const ClayooManualEntry = () => {
 
         <fieldset>
           <legend>Bank Details</legend>
+          {renderInput("Upload Cheque", "cheque_ocr", "file")}
           {renderInput("IFSC", "ifsc")}
           <div className="form-group">
             <label>Bank Name</label>
@@ -500,7 +549,7 @@ const ClayooManualEntry = () => {
               type="text"
               name="bank_name"
               value={formData.bank_name}
-              onChange={handleChange}  
+              onChange={handleChange}
             />
           </div>
           <div className="form-group">
@@ -509,7 +558,7 @@ const ClayooManualEntry = () => {
               type="text"
               name="bank_branch"
               value={formData.bank_branch}
-              onChange={handleChange}  
+              onChange={handleChange}
             />
           </div>
           {renderInput("Name in Bank", "name_in_bank")}
