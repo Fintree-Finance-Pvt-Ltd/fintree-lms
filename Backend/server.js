@@ -22,7 +22,7 @@ const enachRoutes = require("./routes/enachRoutes");
 const esignRoutes = require("./routes/esignRoutes");
 const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute")
 const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
-const { autoApproveIfAllVerified } = require("./services/heliumValidationEngine");
+const { retryPendingValidations } = require("./services/heliumValidationEngine");
 const { autoApproveClayyoIfAllVerified } = require("./routes/clyooRoutes/clayyoBreEngine");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 //const crypto = require("crypto");
@@ -52,7 +52,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cors({
   origin: '*', // <-- Your frontend GitHub Pages URL
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ['Content-Type', 'Authorization','X-API-Key'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   credentials: true
 }));
 
@@ -80,7 +80,7 @@ if (!fs.existsSync(reportsPath)) {
 app.use(
   "/agreements",
   express.static(path.join(process.cwd(), "uploads", "agreements"))
-); 
+);
 app.use("/generated", express.static(path.join(__dirname, "generated")));
 app.use("/reports", express.static(reportsPath));
 app.use('/api/auth', authRoutes);
@@ -110,7 +110,7 @@ app.use("/api/delete-cashflow", deleteCashflowRoutes);
 app.use("/api/allocate", allocationRoutes);//  routes chanegd
 app.use("/api/forecloser-collection", forecloserRoutes); // NOT foreclose-collection
 app.use("/api/forecloser", forecloserUploadRoutes); // ✅ Register Route for Forecloser Upload FC Upload
- app.use("/reports", express.static(path.join(__dirname, "/reports")));
+app.use("/reports", express.static(path.join(__dirname, "/reports")));
 app.use("/api/reports", reportsRoutes);// ✅ Register Route for Reports
 app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
 app.use("/api/dealer-onboarding", dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
@@ -147,7 +147,7 @@ app.post("/api/runheliumvalidations", async (req, res) => {
       return res.status(400).json({ ok: false, message: "LAN is required" });
     }
 
-    await autoApproveIfAllVerified(lan);
+    await retryPendingValidations(lan);
 
     res.json({
       ok: true,
@@ -191,4 +191,4 @@ app.get("/api/test-sms", async (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
 //   });
 
-app.listen( PORT || 5000, () => console.log(`✅ Backend server running on ${PORT}`));
+app.listen(PORT || 5000, () => console.log(`✅ Backend server running on ${PORT}`));

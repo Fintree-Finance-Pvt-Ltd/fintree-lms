@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import DisbursalTrendChart from "../components/charts/DisbursalTrendChart";
-import RepaymentTrendChart from "../components/charts/RepaymentTrendChart";
-import CollectionVsDueChart from "../components/charts/CollectionVsDueChart";
+// import DisbursalTrendChart from "../components/charts/DisbursalTrendChart";
+// import RepaymentTrendChart from "../components/charts/RepaymentTrendChart";
+// import CollectionVsDueChart from "../components/charts/CollectionVsDueChart";
 import ChartFilter from "../components/charts/ChartFilter";
-import ProductDistributionChart from "../components/charts/ProductDistributionChart";
+// import ProductDistributionChart from "../components/charts/ProductDistributionChart";
 import DpdBuckets from "../components/charts/DpdBuckets";
 import LoaderOverlay from "../components/ui/LoaderOverlay"
 import "../styles/Dashboard.css";
@@ -14,7 +14,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState({
     product: "ALL",
-    from: "",
+    from: "", 
     to: "",
   });
 const [metrics, setMetrics] = useState({
@@ -114,10 +114,10 @@ const [metrics, setMetrics] = useState({
 
       </div>
 
-      <ProductDistributionChart filters={filters} />
+      {/* <ProductDistributionChart filters={filters} /> */}
       <div className="chart-tabs">
         <div className="tab-buttons">
-          <button
+          {/* <button
             className={activeTab === "disbursal" ? "active" : ""}
             onClick={() => setActiveTab("disbursal")}
           >
@@ -134,13 +134,13 @@ const [metrics, setMetrics] = useState({
             onClick={() => setActiveTab("collection")}
           >
             Collection vs Due
-          </button>
+          </button> */}
            <button className={activeTab === "dpd" ? "active" : ""} onClick={() => setActiveTab("dpd")}>DPD Buckets</button>
 
         </div>
 
         <div className="tab-content">
-          {activeTab === "disbursal" && (
+          {/* {activeTab === "disbursal" && (
             <DisbursalTrendChart filters={filters} />
           )}
           {activeTab === "repayment" && (
@@ -148,7 +148,7 @@ const [metrics, setMetrics] = useState({
           )}
           {activeTab === "collection" && (
             <CollectionVsDueChart filters={filters} />
-          )}
+          )} */}
           {activeTab === "dpd" && <DpdBuckets filters={filters} />}
         </div>
       </div>

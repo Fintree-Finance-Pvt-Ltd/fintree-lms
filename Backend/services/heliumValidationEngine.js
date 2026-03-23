@@ -491,15 +491,15 @@ exports.runAllValidations = async (lan) => {
     );
 
     await pool.query(
-  `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+      `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
    VALUES (?,?,?,?, NOW())`,
-  [
-    lan,
-    loan.pan_number,
-    bureauResult.score,
-    bureauResult.response ? String(bureauResult.response) : null,
-  ]
-);
+      [
+        lan,
+        loan.pan_number,
+        bureauResult.score,
+        bureauResult.response ? String(bureauResult.response) : null,
+      ]
+    );
 
     console.log(
       `📌 Bureau Status for ${lan}:`,
@@ -516,6 +516,210 @@ exports.runAllValidations = async (lan) => {
 
   } catch (err) {
     console.error("❌ Validation Engine Failed:", err);
+  }
+};
+
+exports.retryPendingValidations = async (lan) => {
+  try {
+    console.log(`🔁 Retrying pending validations for LAN: ${lan}`);
+
+    const pool = db.promise();
+
+    // Fetch loan details
+    const [loanRows] = await pool.query(
+      "SELECT * FROM loan_booking_helium WHERE lan = ?",
+      [lan]
+    );
+
+    if (!loanRows.length) {
+      console.log("❌ Loan not found");
+      return;
+    }
+
+    const loan = loanRows[0];
+
+    // Fetch existing KYC status
+    const [kycRows] = await pool.query(
+      "SELECT * FROM kyc_verification_status WHERE lan=?",
+      [lan]
+    );
+
+    if (!kycRows.length) {
+      console.log("⚠️ No KYC status row found. Creating one...");
+      await pool.query(
+        "INSERT INTO kyc_verification_status (lan) VALUES (?)",
+        [lan]
+      );
+    }
+
+    const kyc = kycRows[0] || {};
+
+    /*
+    =========================
+    1️⃣ PAN VALIDATION
+    =========================
+    */
+
+    if (kyc.pan_status !== "VERIFIED") {
+      console.log("🔍 Retrying PAN verification...");
+
+      await pool.query(
+        "UPDATE kyc_verification_status SET pan_status='INITIATED' WHERE lan=?",
+        [lan]
+      );
+
+      let panResult = await getPanCardDetails(
+        loan.pan_number,
+        loan.customer_name
+      ).catch((err) => {
+        console.error("❌ PAN Error:", err);
+        return {
+          success: false,
+          response: err?.response?.data || err,
+        };
+      });
+
+      await pool.query(
+        "UPDATE kyc_verification_status SET pan_status=?, pan_api_response=? WHERE lan=?",
+        [
+          panResult.success ? "VERIFIED" : "FAILED",
+          JSON.stringify(panResult.response || {}),
+          lan,
+        ]
+      );
+
+      console.log("📌 PAN Retry Complete:", panResult.success);
+    } else {
+      console.log("✅ PAN already verified — skipping");
+    }
+
+    /*
+    =========================
+    2️⃣ AADHAAR VALIDATION
+    =========================
+    */
+
+    if (kyc.aadhaar_status !== "VERIFIED") {
+      console.log("🔍 Retrying Aadhaar verification...");
+
+      await pool.query(
+        "UPDATE kyc_verification_status SET aadhaar_status='INITIATED' WHERE lan=?",
+        [lan]
+      );
+
+      const aadhaarInit = await initAadhaarKyc(
+        lan,
+        loan.mobile_number,
+        loan.email_id,
+        loan.customer_name
+      );
+
+      if (aadhaarInit.success) {
+        await pool.query(
+          `UPDATE kyc_verification_status 
+           SET aadhaar_transaction_id=?, aadhaar_kyc_url=?, aadhaar_unique_id=? 
+           WHERE lan=?`,
+          [
+            aadhaarInit.unifiedTransactionId,
+            aadhaarInit.kycUrl,
+            aadhaarInit.uniqueId,
+            lan,
+          ]
+        );
+
+        console.log("📨 Aadhaar retry INIT success");
+      } else {
+        await pool.query(
+          "UPDATE kyc_verification_status SET aadhaar_status='FAILED' WHERE lan=?",
+          [lan]
+        );
+
+        console.log("❌ Aadhaar retry failed");
+      }
+    } else {
+      console.log("✅ Aadhaar already verified — skipping");
+    }
+
+    /*
+    =========================
+    3️⃣ BUREAU VALIDATION
+    =========================
+    */
+
+    if (kyc.bureau_status !== "VERIFIED") {
+      console.log("🔍 Retrying Bureau verification...");
+
+      await pool.query(
+        "UPDATE kyc_verification_status SET bureau_status='INITIATED' WHERE lan=?",
+        [lan]
+      );
+
+      let dobStr = loan.dob;
+
+      if (loan.dob instanceof Date) {
+        dobStr = loan.dob.toISOString().split("T")[0];
+      }
+
+      let bureauResult = await runBureau({
+        customer_name: loan.customer_name,
+        first_name: loan.first_name,
+        last_name: loan.last_name,
+        dob: dobStr,
+        gender: loan.gender,
+        pan_number: loan.pan_number,
+        mobile_number: loan.mobile_number,
+        current_address: loan.permanent_address,
+        current_village_city: loan.permanent_village_city,
+        current_state: loan.permanent_state,
+        current_pincode: loan.permanent_pincode,
+        loan_amount: loan.loan_amount,
+        loan_tenure: loan.loan_tenure,
+      }).catch((err) => {
+        console.error("❌ Bureau Retry Error:", err);
+        return {
+          success: false,
+          score: null,
+          response: err.message,
+        };
+      });
+
+      await pool.query(
+        "UPDATE kyc_verification_status SET bureau_status=?, bureau_api_response=? WHERE lan=?",
+        [
+          bureauResult.success ? "VERIFIED" : "FAILED",
+          JSON.stringify(bureauResult.response || {}),
+          lan,
+        ]
+      );
+
+      if (bureauResult.score != null) {
+        await pool.query(
+          "UPDATE loan_booking_helium SET cibil_score=? WHERE lan=?",
+          [bureauResult.score, lan]
+        );
+
+        await pool.query(
+          `INSERT INTO loan_cibil_reports 
+           (lan, pan_number, score, report_xml, created_at)
+           VALUES (?, ?, ?, ?, NOW())`,
+          [
+            lan,
+            loan.pan_number,
+            bureauResult.score,
+            String(bureauResult.response || ""),
+          ]
+        );
+      }
+
+      console.log("📌 Bureau retry complete:", bureauResult.success);
+    } else {
+      console.log("✅ Bureau already verified — skipping");
+    }
+
+    console.log("🎯 Retry validation flow completed");
+
+  } catch (err) {
+    console.error("❌ Retry validation engine failed:", err);
   }
 };
 
