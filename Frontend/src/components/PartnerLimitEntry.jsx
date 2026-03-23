@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import api from "../api/api";
 import '../styles/PartnerLimitEntry.css';
 
 const API_BASE = process.env.VITE_API_BASE_URL
@@ -19,7 +20,7 @@ const PartnerLimitEntry = () => {
   const fetchPartners = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/partners/partners`, {
+      const res = await api.get(`partners/partners`, {
         params: { month: monthFilter, year: yearFilter }
       });
       setPartners(res.data.partners || []);
@@ -35,13 +36,13 @@ const PartnerLimitEntry = () => {
     e.preventDefault();
     try {
       if (form.partner_name) {
-        await axios.post(`${API_BASE}/partners/partners`, {
+        await api.post(`partners/partners`, {
           partner_name: form.partner_name,
           status: 'active'
         });
       }
 
-      await axios.post(`${API_BASE}/partners/partners/${form.partner_name || 'default'}/limits`, {
+      await api.post(`partners/partners/${form.partner_name || 'default'}/limits`, {
         month: form.month,
         year: form.year,
         assigned_limit: parseFloat(form.assigned_limit)
