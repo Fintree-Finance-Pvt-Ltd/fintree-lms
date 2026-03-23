@@ -1,51 +1,63 @@
 const fs = require('fs');
 const path = require('path');
 
-function walk(dir) {
-  let results = [];
-  const list = fs.readdirSync(dir);
-  list.forEach((file) => {
-    file = path.join(dir, file);
-    const stat = fs.statSync(file);
-    if (stat && stat.isDirectory()) {
-      results = results.concat(walk(file));
-    } else {
-      if (file.endsWith('.jsx') || file.endsWith('.js')) results.push(file);
+const targetPath = path.join(__dirname, 'Backend', 'routes', 'dashboardRoutes.js');
+let content = fs.readFileSync(targetPath, 'utf8');
+
+// List of endpoints to wrap
+const endpoints = [
+    { name: 'disbursal-trend', params: ['product', 'from', 'to'] },
+    { name: 'repayment-trend', params: ['product', 'from', 'to'] },
+    { name: 'collection-vs-due', params: ['product', 'from', 'to'] },
+    { name: 'product-distribution', params: ['from', 'to'] }
+];
+
+endpoints.forEach(ep => {
+    // Regex to match the route start
+    const startRegex = new RegExp(`router\\.post\\("/${ep.name}",\\s*async\\s*\\(req,\\s*res\\)\\s*=>\\s*\\{`, 'g');
+    
+    // Replacement for start
+    const startReplace = (match) => {
+        let cacheKeyParts = [`'${ep.name}'`];
+        ep.params.forEach(p => cacheKeyParts.push(`${p} || ''`));
+        const cacheKey = `\`${ep.name}:\${${ep.params.map(p => `${p} || ''`).join('}:\${')}}\``;
+        
+        return `router.post("/${ep.name}", async (req, res) => {
+  try {
+    const { ${ep.params.join(', ')} } = req.body || {};
+    const cacheKey = ${cacheKey};
+    const result = await withCache(cacheKey, 300, async () => {`;
+    };
+
+    if (startRegex.test(content)) {
+        content = content.replace(startRegex, startReplace);
+        
+        // Now find the corresponding end and replace res.json with return
+        // This is tricky because of nested blocks, but for these simple union routes, 
+        // they usually end with res.json(rows) or similar.
+        
+        const resJsonRegex = new RegExp(`res\\.json\\(rows\\);[\\s\\S]*?\\}\\s*catch`, 'm');
+        if (resJsonRegex.test(content)) {
+            content = content.replace(resJsonRegex, (match) => {
+                return `return rows;\n    });\n    res.json(result);\n  } catch`;
+            });
+        }
+        
+        // Special case for product-distribution which has a bit more logic
+        if (ep.name === 'product-distribution') {
+             const pdResRegex = /res\.json\([\s\S]*?Object\.entries\(productMap\)[\s\S]*?\}\);/;
+             if (pdResRegex.test(content)) {
+                 content = content.replace(pdResRegex, (match) => {
+                     return `return Object.entries(productMap).map(([product, value]) => ({ product, value }));\n    });\n    res.json(result);`;
+                 });
+             }
+        }
     }
-  });
-  return results;
-}
-
-const files = walk('d:/Documents/fintreelmsgitcode/fintree-lms/Frontend/src/components');
-let count = 0;
-
-files.forEach(file => {
-  let content = fs.readFileSync(file, 'utf8');
-  let replaced = false;
-  const target = '<div className="spinner-container"><div className="spinner"></div></div>';
-  
-  if (content.includes('<p>Loading...</p>')) {
-    content = content.split('<p>Loading...</p>').join(target);
-    replaced = true;
-  }
-  if (content.includes('<p className="loading-text">Loading...</p>')) {
-    content = content.split('<p className="loading-text">Loading...</p>').join(target);
-    replaced = true;
-  }
-  if (content.includes('<p style={{ padding: 16 }}>Loading...</p>')) {
-    content = content.split('<p style={{ padding: 16 }}>Loading...</p>').join(target);
-    replaced = true;
-  }
-  if (content.includes('<div>Loading...</div>')) {
-    content = content.split('<div>Loading...</div>').join(target);
-    replaced = true;
-  }
-
-  if (replaced) {
-    fs.writeFileSync(file, content);
-    console.log('Updated: ' + file);
-    count++;
-  }
 });
 
-console.log('Total files updated: ' + count);
+// Remove some redundant try { const { ... } = req.body || {}; } that might have been duplicated by the replacement
+const doubleTryRegex = /try \{\s*const \{ product, from, to \} = req\.body \|\| \{\};\s*try \{\s*const \{ product, from, to \} = req\.body \|\| \{\};/g;
+content = content.replace(doubleTryRegex, 'try {\n    const { product, from, to } = req.body || {};');
+
+fs.writeFileSync(targetPath, content, 'utf8');
+console.log('Successfully updated all dashboard chart routes.');

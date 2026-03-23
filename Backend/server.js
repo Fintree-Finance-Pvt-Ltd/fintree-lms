@@ -17,6 +17,7 @@ const forecloserRoutes = require("./routes/forecloserRoutes");
 const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const { initColumnSchemaCache } = require("./services/dashboardService");
 const collectionApiRoutes = require("./routes/collectionApi");
 const enachRoutes = require("./routes/enachRoutes");
 const esignRoutes = require("./routes/esignRoutes");
@@ -191,4 +192,11 @@ app.get("/api/test-sms", async (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
 //   });
 
-app.listen(PORT || 5000, () => console.log(`✅ Backend server running on ${PORT}`));
+app.listen(PORT || 5000, () => {
+  console.log(`✅ Backend server running on ${PORT}`);
+  // Pre-warm dashboard column schema cache (eliminates per-request SHOW COLUMNS queries)
+  const db = require('./config/db');
+  initColumnSchemaCache(db).catch(err =>
+    console.error('[server] Dashboard schema cache init error:', err.message)
+  );
+});
