@@ -8,6 +8,10 @@ const {
   generateRepaymentSchedule,
 } = require("../utils/repaymentScheduleGenerator");
 
+const partnerLimitService = require('../services/partnerLimitService');
+const { extractPartnerName, getMonthYear, validatePartnerName } = require('../utils/partnerHelpers');
+
+
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -141,79 +145,148 @@ router.post("/upload", verifyApiKey, partnerApiLimiter, upload.single("file"), a
       return res.status(400).json({ message: "Invalid lender type." });
     }
 
+    let success = 0, rejectedLimit = 0, rejectedValidation = 0;
+
     for (const row of sheetData) {
-      const pan = row["Pan Card"];
-      const aadhar = row["Aadhar Number"];
-      if (!pan || !aadhar) continue;
+      try {
+        const pan = row["Pan Card"];
+        const aadhar = row["Aadhar Number"];
+        if (!pan || !aadhar) {
+          rejectedValidation++;
+          continue;
+        }
 
-      const [existing] = await db.promise().query(
-        `SELECT lan FROM loan_bookings WHERE pan_card = ? OR aadhar_number = ?`,
-        [pan, aadhar]
-      );
-      if (existing.length > 0) {
-        return res.status(409).json({ message: `Duplicate PAN/Aadhar: ${pan} / ${aadhar}` });
+        // NEW: Partner limit validation
+        const partnerName = extractPartnerName(row, lenderType);
+        if (!validatePartnerName(partnerName)) {
+          console.warn(`Invalid partner name for row: ${JSON.stringify(row)}`);
+          rejectedValidation++;
+          continue;
+        }
+
+        const loginDate = excelDateToJSDate(row["LOGIN DATE"]);
+        const { month, year } = getMonthYear(loginDate);
+        const loanAmount = parseFloat(row["Loan Amount"] || 0);
+
+        if (loanAmount <= 0) {
+          rejectedValidation++;
+          continue;
+        }
+
+        const conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        try {
+          const partner = await partnerLimitService.getOrCreatePartner(conn, partnerName);
+          const limitCheck = await partnerLimitService.validatePartnerLimit(conn, partner.partner_id, loanAmount, month, year);
+
+          if (!limitCheck.valid) {
+            rejectedLimit++;
+            await conn.rollback();
+            conn.release();
+            continue;
+          }
+
+          // Existing dupe check
+          const [existing] = await conn.query(
+            `SELECT lan FROM loan_bookings WHERE pan_card = ? OR aadhar_number = ?`,
+            [pan, aadhar]
+          );
+          if (existing.length > 0) {
+            rejectedValidation++;
+            await conn.rollback();
+            conn.release();
+            continue;
+          }
+
+          const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+          await conn.query(
+            `INSERT INTO loan_bookings (
+              partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+              address_line_1, address_line_2, village, district, state, pincode,
+              mobile_number, email, occupation, relationship_with_borrower, cibil_score,
+              guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
+              guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
+              account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant, guarantor_co_applicant_dob,
+              product, lender, agreement_date, status
+            ) VALUES (${new Array(38).fill("?").join(", ")})`,
+            [
+              partnerLoanId,
+              lan,
+              loginDate,
+              row["Customer Name"],
+              excelDateToJSDate(row["Borrower DOB"]),
+              row["Father Name"],
+              row["Address Line 1"],
+              row["Address Line 2"],
+              row["Village"],
+              row["District"],
+              row["State"],
+              row["Pincode"],
+              row["Mobile Number"],
+              row["Email"],
+              row["Occupation"],
+              row["Relationship with Borrower"],
+              row["CIBIL Score"],
+              row["GURANTOR/Co-Applicant CIBIL Score"],
+              loanAmount,
+              row["Tenure"],
+              row["Interest Rate"],
+              row["EMI Amount"],
+              row["GURANTOR/Co-Applicant ADHAR"],
+              row["GURANTOR/Co-Applicant PAN"],
+              row["DEALER NAME"],
+              row["Name in Bank"],
+              row["Bank name"],
+              row["Account Number"],
+              row["IFSC"],
+              aadhar,
+              pan,
+              row["GURANTOR/Co-Applicant"],
+              excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"]),
+              row["Product"],
+              lenderType,
+              excelDateToJSDate(row["Agreement Date"]),
+              "Approved"
+            ]
+          );
+
+          // NEW: Update partner limit & audit
+          await partnerLimitService.updateUsedLimit(conn, limitCheck.limitId, loanAmount, 'BOOKED', lan);
+          await conn.commit();
+          conn.release();
+          success++;
+
+        } catch (limitErr) {
+          await conn.rollback();
+          conn.release();
+          if (limitErr.message.includes('limit exceeded') || limitErr.message.includes('No limit record')) {
+            rejectedLimit++;
+          } else {
+            rejectedValidation++;
+          }
+        }
+
+      } catch (rowErr) {
+        rejectedValidation++;
+        console.error("Row processing error:", rowErr);
       }
-
-      const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
-
-      await db.promise().query(
-        `INSERT INTO loan_bookings (
-          partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
-          address_line_1, address_line_2, village, district, state, pincode,
-          mobile_number, email, occupation, relationship_with_borrower, cibil_score,
-          guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
-          guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
-          account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant, guarantor_co_applicant_dob,
-          product, lender, agreement_date, status
-        ) VALUES (${new Array(38).fill("?").join(", ")})`,
-        [
-          partnerLoanId,
-          lan,
-          excelDateToJSDate(row["LOGIN DATE"]),
-          row["Customer Name"],
-          excelDateToJSDate(row["Borrower DOB"]),
-          row["Father Name"],
-          row["Address Line 1"],
-          row["Address Line 2"],
-          row["Village"],
-          row["District"],
-          row["State"],
-          row["Pincode"],
-          row["Mobile Number"],
-          row["Email"],
-          row["Occupation"],
-          row["Relationship with Borrower"],
-          row["CIBIL Score"],
-          row["GURANTOR/Co-Applicant CIBIL Score"],
-          row["Loan Amount"],
-          row["Tenure"],
-          row["Interest Rate"],
-          row["EMI Amount"],
-          row["GURANTOR/Co-Applicant ADHAR"],
-          row["GURANTOR/Co-Applicant PAN"],
-          row["DEALER NAME"],
-          row["Name in Bank"],
-          row["Bank name"],
-          row["Account Number"],
-          row["IFSC"],
-          aadhar,
-          pan,
-          row["GURANTOR/Co-Applicant"],
-          excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"]),
-          row["Product"],
-          lenderType,
-          excelDateToJSDate(row["Agreement Date"]),
-          "Approved"
-        ]
-      );
     }
 
-    res.status(200).json({ message: "✅ Upload successful for " + lenderType });
+    res.status(200).json({ 
+      message: `✅ Processing complete for ${lenderType}`,
+      total: sheetData.length,
+      success,
+      rejected_limit_exceeded: rejectedLimit,
+      rejected_validation: rejectedValidation 
+    });
   } catch (error) {
     console.error("❌ Upload error:", error);
     res.status(500).json({ message: "Upload failed", error: error.message });
   }
 });
+
 
 router.post("/bl-upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
@@ -654,77 +727,143 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
       return res.status(400).json({ message: "Excel file is empty." });
     }
 
+    let success = 0, rejectedLimit = 0, rejectedValidation = 0;
+
     for (const row of sheetData) {
-      const pan = row["Pan Card"];
-      const aadhar = row["Aadhar Number"];
-      if (!pan || !aadhar) continue;
+      try {
+        const pan = row["Pan Card"];
+        const aadhar = row["Aadhar Number"];
+        if (!pan || !aadhar) {
+          rejectedValidation++;
+          continue;
+        }
 
-      const [existing] = await db.promise().query(
-        "SELECT lan FROM loan_booking_adikosh WHERE pan_card = ? OR aadhar_number = ?",
-        [pan, aadhar]
-      );
-      if (existing.length > 0) {
-        return res.status(409).json({
-          message: `Duplicate PAN or Aadhaar found: ${pan} / ${aadhar}`,
-        });
+        // NEW: Partner limit validation
+        const partnerName = extractPartnerName(row, lenderType);
+        if (!validatePartnerName(partnerName)) {
+          console.warn(`Invalid partner name for row: ${JSON.stringify(row)}`);
+          rejectedValidation++;
+          continue;
+        }
+
+        const loginDate = excelDateToJSDate(row["LOGIN DATE"]);
+        const { month, year } = getMonthYear(loginDate);
+        const loanAmount = parseFloat(row["Loan Amount"] || 0);
+
+        if (loanAmount <= 0) {
+          rejectedValidation++;
+          continue;
+        }
+
+        const conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        try {
+          const partner = await partnerLimitService.getOrCreatePartner(conn, partnerName);
+          const limitCheck = await partnerLimitService.validatePartnerLimit(conn, partner.partner_id, loanAmount, month, year);
+
+          if (!limitCheck.valid) {
+            rejectedLimit++;
+            await conn.rollback();
+            conn.release();
+            continue;
+          }
+
+          // Existing dupe check
+          const [existing] = await conn.query(
+            "SELECT lan FROM loan_booking_adikosh WHERE pan_card = ? OR aadhar_number = ?",
+            [pan, aadhar]
+          );
+          if (existing.length > 0) {
+            rejectedValidation++;
+            await conn.rollback();
+            conn.release();
+            continue;
+          }
+
+          const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+          await conn.query(
+            `INSERT INTO loan_booking_adikosh (
+              partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
+              address_line_1, address_line_2, village, district, state, pincode,
+              mobile_number, email, occupation, relationship_with_borrower, cibil_score,
+              guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
+              guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
+              account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant,
+              guarantor_co_applicant_dob, product, lender, agreement_date, status, salary_day
+            ) VALUES (${new Array(39).fill("?").join(",")})`,
+            [
+              partnerLoanId,
+              lan,
+              loginDate,
+              row["Customer Name"],
+              excelDateToJSDate(row["Borrower DOB"]),
+              row["Father Name"],
+              row["Address Line 1"],
+              row["Address Line 2"],
+              row["Village"],
+              row["District"],
+              row["State"],
+              row["Pincode"],
+              row["Mobile Number"],
+              row["Email"],
+              row["Occupation"],
+              row["Relationship with Borrower"],
+              row["CIBIL Score"],
+              row["GURANTOR/Co-Applicant CIBIL Score"],
+              loanAmount,
+              row["Tenure"],
+              row["Interest Rate"],
+              row["EMI Amount"],
+              row["GURANTOR/Co-Applicant ADHAR"],
+              row["GURANTOR/Co-Applicant PAN"],
+              row["DEALER NAME"],
+              row["Name in Bank"],
+              row["Bank name"],
+              row["Account Number"],
+              row["IFSC"],
+              aadhar,
+              pan,
+              row["GURANTOR/Co-Applicant"],
+              excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"]),
+              row["Product"],
+              lenderType,
+              excelDateToJSDate(row["Agreement Date"]),
+              "Approved",
+              row["Salary Day"]
+            ]
+          );
+
+          // NEW: Update partner limit & audit
+          await partnerLimitService.updateUsedLimit(conn, limitCheck.limitId, loanAmount, 'BOOKED', lan);
+          await conn.commit();
+          conn.release();
+          success++;
+
+        } catch (limitErr) {
+          await conn.rollback();
+          conn.release();
+          if (limitErr.message.includes('limit exceeded') || limitErr.message.includes('No limit record')) {
+            rejectedLimit++;
+          } else {
+            rejectedValidation++;
+          }
+        }
+
+      } catch (rowErr) {
+        rejectedValidation++;
+        console.error("Row processing error:", rowErr);
       }
-
-      const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
-
-      await db.promise().query(
-        `INSERT INTO loan_booking_adikosh (
-          partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
-          address_line_1, address_line_2, village, district, state, pincode,
-          mobile_number, email, occupation, relationship_with_borrower, cibil_score,
-          guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
-          guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
-          account_number, ifsc, aadhar_number, pan_card, guarantor_co_applicant,
-          guarantor_co_applicant_dob, product, lender, agreement_date, status, salary_day
-        ) VALUES (${new Array(39).fill("?").join(",")})`,
-        [
-          partnerLoanId,
-          lan,
-          excelDateToJSDate(row["LOGIN DATE"]),
-          row["Customer Name"],
-          excelDateToJSDate(row["Borrower DOB"]),
-          row["Father Name"],
-          row["Address Line 1"],
-          row["Address Line 2"],
-          row["Village"],
-          row["District"],
-          row["State"],
-          row["Pincode"],
-          row["Mobile Number"],
-          row["Email"],
-          row["Occupation"],
-          row["Relationship with Borrower"],
-          row["CIBIL Score"],
-          row["GURANTOR/Co-Applicant CIBIL Score"],
-          row["Loan Amount"],
-          row["Tenure"],
-          row["Interest Rate"],
-          row["EMI Amount"],
-          row["GURANTOR/Co-Applicant ADHAR"],
-          row["GURANTOR/Co-Applicant PAN"],
-          row["DEALER NAME"],
-          row["Name in Bank"],
-          row["Bank name"],
-          row["Account Number"],
-          row["IFSC"],
-          aadhar,
-          pan,
-          row["GURANTOR/Co-Applicant"],
-          excelDateToJSDate(row["GURANTOR/Co-Applicant DOB"]),
-          row["Product"],
-          lenderType,
-          excelDateToJSDate(row["Agreement Date"]),
-          "Approved",
-          row["Salary Day"]
-        ]
-      );
     }
 
-    res.status(200).json({ message: "✅ Adikosh loans uploaded successfully." });
+    res.status(200).json({ 
+      message: `✅ Adikosh processing complete`,
+      total: sheetData.length,
+      success,
+      rejected_limit_exceeded: rejectedLimit,
+      rejected_validation: rejectedValidation 
+    });
   } catch (err) {
     console.error("❌ Upload Error:", err);
     res.status(500).json({ message: "Upload failed", error: err.message });

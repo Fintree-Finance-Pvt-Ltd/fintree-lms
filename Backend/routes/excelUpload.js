@@ -17,6 +17,8 @@ const { generateDemandFromInvoiceDisbursement } = require("../services/demandSer
 const {
   allocateSupplyChainRepayment
 } = require("../services/supplyChainAllocation.service");
+const partnerLimitService = require('../services/partnerLimitService');
+const { extractPartnerName, getMonthYear, validatePartnerName } = require('../utils/partnerHelpers');
 
 // const { pullCIBILReport }=  require("../jobs/experianService");
 
@@ -866,6 +868,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
 
 router.post("/upload/ev-manual", async (req, res) => {
+  let conn;
+
   try {
     const data = req.body;
 
@@ -947,7 +951,53 @@ router.post("/upload/ev-manual", async (req, res) => {
     }
 
     // Generate IDs
-    const { partnerLoanId, lan } = await generateLoanIdentifiers(data.lender);
+    // const { partnerLoanId, lan } = await generateLoanIdentifiers(data.lender);
+
+    conn = await db.promise().getConnection();
+await conn.beginTransaction();
+
+  const partnerName = "EV Loan";
+
+  // Extract month/year from login date
+  const today = new Date();
+  const { month, year } = getMonthYear(today);
+
+  const loanAmount = parseFloat(data.Loan_Amount || 0);
+
+  if (loanAmount <= 0) {
+    throw new Error("Invalid loan amount");
+  }
+
+  // Get or create partner
+  const partner = await partnerLimitService.getOrCreatePartner(
+    conn,
+    partnerName
+  );
+
+  // Validate monthly limit
+  const limitCheck =
+    await partnerLimitService.validatePartnerLimit(
+      conn,
+      partner.partner_id,
+      loanAmount,
+      month,
+      year
+    );
+
+  if (!limitCheck.valid) {
+    await conn.rollback();
+    conn.release();
+
+    return res.status(403).json({
+      message: `Limit exceeded for ${partnerName}`,
+      remaining_limit: limitCheck.remaining,
+      required: loanAmount,
+    });
+  }
+
+  // Generate IDs AFTER limit validation passes
+  const { partnerLoanId, lan } =
+    await generateLoanIdentifiers(data.lender);
 
     // ✅ Insert into DB
     const query = `
@@ -967,7 +1017,7 @@ router.post("/upload/ev-manual", async (req, res) => {
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?)
     `;
 
-    await db.promise().query(query, [
+    await conn.query(query, [
       partnerLoanId,
       lan,
       data.LOGIN_DATE || null,
@@ -1030,20 +1080,37 @@ router.post("/upload/ev-manual", async (req, res) => {
 
     console.log(`✅ Manual EV Loan inserted | LAN: ${lan} | PAN: ${data.Pan_Card}`);
 
+    // Update partner used limit + audit
+await partnerLimitService.updateUsedLimit(
+  conn,
+  limitCheck.limitId,
+  loanAmount,
+  "BOOKED",
+  lan
+);
+
+await conn.commit();
+conn.release();
+
     return res.json({
       message: "EV Loan manually inserted successfully.",
       lan,
       partnerLoanId,
     });
   } catch (err) {
+  if (conn) {
+      await conn.rollback();
+      conn.release();
+    }
+
     console.error("❌ Manual entry failed:", err);
+
     return res.status(500).json({
       message: "Manual entry failed.",
-      error: err.sqlMessage || err.message,
+      error: err.sqlMessage || err.message
     });
   }
 });
-
 
 /////////////////////////// NEW CODE FOR HEY EV LOAN DATA CROOS CHECK AND INSERTION //////////////////////
 
@@ -1126,6 +1193,7 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
     for (let i = 0; i < sheetData.length; i++) {
       const row = sheetData[i];
       const R = i + 2;
+      let conn;
 
       try {
         // ✅ Check if *any required field* is missing
@@ -1182,9 +1250,54 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
         }
 
         // Generate IDs
-        const { partnerLoanId, lan } = await generateLoanIdentifiers(
-          lenderType
-        );
+        // const { partnerLoanId, lan } = await generateLoanIdentifiers(
+        //   lenderType
+        // );
+
+        conn = await db.promise().getConnection();
+await conn.beginTransaction();
+
+  const partnerName = "Hey EV Loan";
+
+  const loginDate = excelDateToJSDate(row["LOGIN DATE"]);
+  const today = new Date();
+  const { month, year } = getMonthYear(today);
+
+  const loanAmount = Number(row["Loan Amount"]) || 0;
+
+  if (loanAmount <= 0) {
+    throw new Error("Invalid loan amount");
+  }
+
+  const partner = await partnerLimitService.getOrCreatePartner(
+    conn,
+    partnerName
+  );
+
+  const limitCheck =
+    await partnerLimitService.validatePartnerLimit(
+      conn,
+      partner.partner_id,
+      loanAmount,
+      month,
+      year
+    );
+
+  if (!limitCheck.valid) {
+    await conn.rollback();
+    conn.release();
+
+    row_errors.push({
+      row: R,
+      stage: "limit-check",
+      reason: `Limit exceeded. Remaining: ${limitCheck.remaining}, Required: ${loanAmount}`,
+    });
+
+    continue;
+  }
+
+  const { partnerLoanId, lan } =
+    await generateLoanIdentifiers(lenderType);
 
 const loanAmt = Number(row["Loan Amount"]) || 0;
 const fldgPercent = Number(row["FLDG"]) || 0;   // e.g., 5 = 5%
@@ -1224,9 +1337,7 @@ const disbursementAmount = loanAmt - (fldgValue + processFeeValue + gstValue);
           )
         `;
 
-        await db
-          .promise()
-          .query(query, [
+        await conn.query(query, [
             partnerLoanId,
             lan,
             row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
@@ -1289,9 +1400,24 @@ const disbursementAmount = loanAmt - (fldgValue + processFeeValue + gstValue);
             row["Bank IFSC Code"],
           ]);
 
+          await partnerLimitService.updateUsedLimit(
+  conn,
+  limitCheck.limitId,
+  loanAmount,
+  "BOOKED",
+  lan
+);
+
+await conn.commit();
+conn.release();
+
         success_rows.push({ row: R, lan, partnerLoanId, interestRate });
         console.log(`✅ Inserted row ${R} | PAN: ${panCard} | LAN: ${lan}`);
       } catch (err) {
+        if (conn) {
+          await conn.rollback();
+          conn.release();
+        }
         row_errors.push({
           row: R,
           stage: "insert",
@@ -1649,6 +1775,7 @@ router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) =>
       for (let i = 0; i < sheetData.length; i++) {
         const row = sheetData[i];
         const R = i + 2;
+        let conn;
 
         try {
           // Validate required fields
@@ -1702,9 +1829,45 @@ router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) =>
           }
 
           // Generate IDs
-          const { partnerLoanId, lan } = await generateLoanIdentifiers(
-            lenderType
+          conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        const partnerName = "HeyEV Battery";
+
+        const loginDate = excelDateToJSDate(row["LOGIN DATE"]);
+        const today = new Date();
+        const { month, year } = getMonthYear(today);
+
+        const partner =
+          await partnerLimitService.getOrCreatePartner(
+            conn,
+            partnerName
           );
+
+        const limitCheck =
+          await partnerLimitService.validatePartnerLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year
+          );
+
+        if (!limitCheck.valid) {
+
+          await conn.rollback();
+          conn.release();
+
+          row_errors.push({
+            row: R,
+            reason: `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`
+          });
+
+          continue;
+        }
+
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(lenderType);
 
           // -------------------------------
           // Auto Calculations
@@ -1751,7 +1914,7 @@ router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) =>
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           `;
 
-          await db.promise().query(q, [
+          await conn.query(q, [
             partnerLoanId,
             lan,
             excelDateToJSDate(row["LOGIN DATE"]),
@@ -1802,8 +1965,24 @@ router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) =>
             "Login",
           ]);
 
+          await partnerLimitService.updateUsedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          "BOOKED",
+          lan
+        );
+
+        await conn.commit();
+        conn.release();
+
           success_rows.push({ row: R, lan, partnerLoanId });
         } catch (err) {
+          if (conn) {
+          await conn.rollback();
+          conn.release();
+        }
+
           row_errors.push({
             row: R,
             reason: err.message,
@@ -3090,98 +3269,220 @@ router.post("/upload-embifi", upload.single("file"), async (req, res) => {
 
 ////////////////// BL Loan........./////////////////////////////////
 router.post("/bl-upload", upload.single("file"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+  if (!req.file)
+    return res.status(400).json({ message: "No file uploaded" });
+
   if (!req.body.lenderType)
     return res.status(400).json({ message: "Lender type is required." });
 
   try {
-    const lenderType = req.body.lenderType; // ✅ Ensure this is received
 
-    // ✅ Read Excel File Correctly
+    const lenderType = req.body.lenderType.trim();
+
+    if (lenderType !== "BL Loan") {
+      return res.status(400).json({
+        message: "Invalid lender type. Only BL Loan supported."
+      });
+    }
+
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
-    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]); // ✅ Ensure sheetData is defined
+    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    if (!sheetData || sheetData.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "Uploaded Excel file is empty or invalid." });
+    if (!sheetData.length) {
+      return res.status(400).json({
+        message: "Uploaded Excel file is empty or invalid."
+      });
     }
 
-    // ✅ Generate new loan identifiers
-    const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+    const success_rows = [];
+    const row_errors = [];
 
-    // ✅ Insert Each Row into MySQL
-    for (const row of sheetData) {
-      // ✅ Generate new loan identifiers
-      const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
-      // ✅ Log specific fields
+    for (let i = 0; i < sheetData.length; i++) {
 
-      const borrowerDOB = row["BORROWER DOB"]
-        ? excelDateToJSDate(row["BORROWER DOB"])
-        : null;
+      const row = sheetData[i];
+      const R = i + 2;
+      let conn;
 
-      const query = `
-      INSERT INTO loan_bookings (
-        partner_loan_id, lan, login_date, customer_name, borrower_dob, father_name,
-        address_line_1, address_line_2, village, district, state, pincode,
-        mobile_number, email, occupation, relationship_with_borrower, cibil_score,
-        guarantor_co_cibil_score, loan_amount, loan_tenure, interest_rate, emi_amount,
-        guarantor_aadhar, guarantor_pan, dealer_name, name_in_bank, bank_name,
-        account_number, ifsc, aadhar_number, pan_card, product, lender,
-        agreement_date, status,loan_account_no, speridian_loan_account_no
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+      try {
 
-      await db.promise().query(query, [
-        partnerLoanId,
-        lan,
-        row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-        row["Customer Name"],
-        row["BORROWER DOB"] ? excelDateToJSDate(row["BORROWER DOB"]) : null,
-        row["Father Name"],
-        row["Address Line 1"],
-        row["Address Line 2"],
-        row["Village"],
-        row["District"],
-        row["State"],
-        row["Pincode"],
-        row["Mobile Number"],
-        row["Email"],
-        row["Occupation"],
-        row["Relationship with Borrower"],
-        row["CIBIL Score"],
-        row["GURANTOR/Co-Applicant CIBIL Score"], // ✅ New field
-        row["Loan Amount"],
-        row["Tenure"],
-        row["Interest Rate"],
-        row["EMI Amount"],
-        row["GURANTOR/Co-Applicant ADHAR"],
-        row["GURANTOR/Co-Applicant PAN"],
-        row["DEALER NAME"],
-        row["Name in Bank"],
-        row["Bank name"],
-        row["Account Number"],
-        row["IFSC"],
-        row["Aadhar Number"],
-        row["Pan Card"],
-        row["Product"],
-        lenderType,
-        row["Agreement Date"] ? excelDateToJSDate(row["Agreement Date"]) : null,
-        "Approved",
-        row["Loan Account No"], // ✅ New Column
-        row["Speridian loan account no"], // ✅ New Column
-      ]);
+        const pan = row["Pan Card"];
+
+        if (!pan) {
+          row_errors.push({
+            row: R,
+            reason: "Missing PAN"
+          });
+          continue;
+        }
+
+        const [dup] = await db.promise().query(
+          `SELECT lan FROM loan_bookings WHERE pan_card = ?`,
+          [pan]
+        );
+
+        if (dup.length) {
+          row_errors.push({
+            row: R,
+            reason: `Duplicate PAN: ${pan}`
+          });
+          continue;
+        }
+
+        const loanAmount = Number(row["Loan Amount"]) || 0;
+
+        if (loanAmount <= 0) {
+          row_errors.push({
+            row: R,
+            reason: "Invalid loan amount"
+          });
+          continue;
+        }
+
+        conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        const partnerName = "BL Loan";
+
+        const loginDate = excelDateToJSDate(row["LOGIN DATE"]);
+        const today = new Date();
+        const { month, year } = getMonthYear(today);
+
+        const partner =
+          await partnerLimitService.getOrCreatePartner(
+            conn,
+            partnerName
+          );
+
+        const limitCheck =
+          await partnerLimitService.validatePartnerLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year
+          );
+
+        if (!limitCheck.valid) {
+
+          await conn.rollback();
+          conn.release();
+
+          row_errors.push({
+            row: R,
+            reason: `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`
+          });
+
+          continue;
+        }
+
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(lenderType);
+
+        const query = `
+          INSERT INTO loan_bookings (
+            partner_loan_id, lan, login_date, customer_name, borrower_dob,
+            father_name, address_line_1, address_line_2, village, district,
+            state, pincode, mobile_number, email, occupation,
+            relationship_with_borrower, cibil_score,
+            guarantor_co_cibil_score, loan_amount, loan_tenure,
+            interest_rate, emi_amount, guarantor_aadhar,
+            guarantor_pan, dealer_name, name_in_bank,
+            bank_name, account_number, ifsc,
+            aadhar_number, pan_card, product, lender,
+            agreement_date, status,
+            loan_account_no, speridian_loan_account_no
+          )
+          VALUES (${new Array(37).fill("?").join(",")})
+        `;
+
+        await conn.query(query, [
+          partnerLoanId,
+          lan,
+          loginDate,
+          row["Customer Name"],
+          excelDateToJSDate(row["BORROWER DOB"]),
+          row["Father Name"],
+          row["Address Line 1"],
+          row["Address Line 2"],
+          row["Village"],
+          row["District"],
+          row["State"],
+          row["Pincode"],
+          row["Mobile Number"],
+          row["Email"],
+          row["Occupation"],
+          row["Relationship with Borrower"],
+          row["CIBIL Score"],
+          row["GURANTOR/Co-Applicant CIBIL Score"],
+          loanAmount,
+          row["Tenure"],
+          row["Interest Rate"],
+          row["EMI Amount"],
+          row["GURANTOR/Co-Applicant ADHAR"],
+          row["GURANTOR/Co-Applicant PAN"],
+          row["DEALER NAME"],
+          row["Name in Bank"],
+          row["Bank name"],
+          row["Account Number"],
+          row["IFSC"],
+          row["Aadhar Number"],
+          pan,
+          row["Product"],
+          lenderType,
+          excelDateToJSDate(row["Agreement Date"]),
+          "Approved",
+          row["Loan Account No"],
+          row["Speridian loan account no"]
+        ]);
+
+        await partnerLimitService.updateUsedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          "BOOKED",
+          lan
+        );
+
+        await conn.commit();
+        conn.release();
+
+        success_rows.push({ row: R, lan, partnerLoanId });
+
+      } catch (err) {
+
+        if (conn) {
+          await conn.rollback();
+          conn.release();
+        }
+
+        row_errors.push({
+          row: R,
+          reason: err.sqlMessage || err.message
+        });
+
+        console.error(`Row ${R} failed:`, err);
+      }
     }
 
-    res.json({
-      message: "File uploaded and data saved successfully",
-      partnerLoanId,
-      lan,
+    return res.json({
+      message: "BL upload processed.",
+      total_rows: sheetData.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors
     });
+
   } catch (error) {
-    console.error("Error processing file:", error);
-    res.status(500).json({ message: "Error processing file" });
+
+    console.error("BL upload error:", error);
+
+    return res.status(500).json({
+      message: "Error processing file",
+      error: error.sqlMessage || error.message
+    });
   }
 });
 
@@ -3663,6 +3964,7 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
 
     for (const row of sheetData) {
       const R = row.__row;
+      let conn;
 
       try {
         const panCard = row["PAN Number"];
@@ -3711,23 +4013,61 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
         }
 
         // Generate IDs
-        let partnerLoanId, lan;
-        try {
-          const ids = await generateLoanIdentifiers(lenderType);
-          partnerLoanId = ids.partnerLoanId;
-          lan = ids.lan;
-        } catch (idErr) {
+        conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        const partnerName = "GQ FSF";
+
+        const loginDate =
+          row["Agreement Date (DD-MMM-YYYY)"]
+            ? excelDateToJSDate(
+                row["Agreement Date (DD-MMM-YYYY)"]
+              )
+            : excelDateToJSDate(
+                row["Loan Application Date"]
+              );
+
+              const today = new Date();
+
+        const { month, year } =
+          getMonthYear(today);
+
+        const partner =
+          await partnerLimitService.getOrCreatePartner(
+            conn,
+            partnerName
+          );
+
+        const limitCheck =
+          await partnerLimitService.validatePartnerLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year
+          );
+
+        if (!limitCheck.valid) {
+
+          await conn.rollback();
+          conn.release();
+
           row_errors.push({
             row: R,
-            stage: "id-gen",
-            reason: toClientError(idErr).message,
+            stage: "limit-check",
+            reason: `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`
           });
+
           continue;
+
         }
+
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(lenderType);
 
         // Insert
         try {
-          await db.promise().query(
+          await conn.query(
             `INSERT INTO loan_booking_gq_fsf (
                 partner_loan_id, lan, app_id, product, customer_type, residence_type, loan_type, disbursal_type,
                 institute_account_number, beneficiary_name, ifsc_code, bank_name, aadhaar_number,
@@ -3834,8 +4174,23 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
             ]
           );
 
+          await partnerLimitService.updateUsedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          "BOOKED",
+          lan
+        );
+
+        await conn.commit();
+        conn.release();
+
           success_rows.push(R);
         } catch (insErr) {
+          if (conn) {
+          await conn.rollback();
+          conn.release();
+        }
           row_errors.push({
             row: R,
             stage: "insert",
@@ -3901,6 +4256,7 @@ router.get("/gq-fsf-disbursed", (req, res) => {
 
 // ✅ JSON Upload Route
 router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
+  let conn;
   try {
     if (
       !req.partner ||
@@ -3987,13 +4343,53 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
     }
 
     // ��� Generate Loan IDs
-    const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    const partnerName = "Adikosh";
+
+    const agreement_date = excelDateToJSDate(data.sanctionDate);
+
+    const today = new Date();
+    const { month, year } = getMonthYear(today);
+
+    const partner =
+      await partnerLimitService.getOrCreatePartner(
+        conn,
+        partnerName
+      );
+
+    const limitCheck =
+      await partnerLimitService.validatePartnerLimit(
+        conn,
+        partner.partner_id,
+        loanAmount,
+        month,
+        year
+      );
+
+    if (!limitCheck.valid) {
+
+      await conn.rollback();
+      conn.release();
+
+      return res.status(403).json({
+        message: "Monthly limit exceeded",
+        remaining_limit: limitCheck.remaining,
+        required: loanAmount
+      });
+
+    }
+
+    const { partnerLoanId, lan } =
+      await generateLoanIdentifiers(lenderType);
+
     const customerName = `${data.firstName || ""} ${
       data.lastName || ""
     }`.trim();
-    const agreement_date = excelDateToJSDate(data.sanctionDate);
+    // const agreement_date = excelDateToJSDate(data.sanctionDate);
     // ��� Insert into DB
-    await db.promise().query(
+    await conn.query(
       `INSERT INTO loan_booking_adikosh (
     lan, partner_loan_id, login_date, batch_id,
     first_name, middle_name, last_name, gender, dob,
@@ -4054,12 +4450,27 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
       ]
     );
 
+    await partnerLimitService.updateUsedLimit(
+      conn,
+      limitCheck.limitId,
+      loanAmount,
+      "BOOKED",
+      lan
+    );
+
+    await conn.commit();
+    conn.release();
+
     res.json({
       message: "Adikosh loan saved successfully.",
       partnerLoanId,
       lan,
     });
   } catch (error) {
+     if (conn) {
+      await conn.rollback();
+      conn.release();
+    }
     console.error("❌ Error in JSON Upload:", error);
     res.status(500).json({
       message: "Upload failed. Please try again.",
@@ -4185,6 +4596,8 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     const results = [];
 
     for (const raw of records) {
+      let conn;
+
       try {
         // ✅ Normalize aliases just in case upstream uses different keys
         const data = {
@@ -4224,7 +4637,47 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
         // --- Generate loan code ---
 
-        const { lan } = await generateLoanIdentifiers(lenderType);
+         conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        const partnerName = "Finso";
+
+        const today = new Date();
+        const { month, year } =
+          getMonthYear(today);
+
+        const partner =
+          await partnerLimitService.getOrCreatePartner(
+            conn,
+            partnerName
+          );
+
+        const limitCheck =
+          await partnerLimitService.validatePartnerLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year
+          );
+
+        if (!limitCheck.valid) {
+
+          await conn.rollback();
+          conn.release();
+
+          results.push({
+            error: "Monthly limit exceeded",
+            remaining_limit: limitCheck.remaining,
+            required: loanAmount
+          });
+
+          continue;
+
+        }
+
+        const { lan } =
+          await generateLoanIdentifiers(lenderType);
         
         const agreementDate = data.login_date;
         // ✅ Build values in the exact same order as COLS
@@ -4297,7 +4750,18 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         }
 
         // ✅ Insert record
-        await db.promise().query(INSERT_SQL, values);
+        await conn.query(INSERT_SQL, values);
+
+        await partnerLimitService.updateUsedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          "BOOKED",
+          lan
+        );
+
+        await conn.commit();
+        conn.release();
  //////////////////////////////////////////
         //        🔍 BEURO SCORE START          //
         //////////////////////////////////////////
@@ -4509,6 +4973,10 @@ console.log("📨 Sending SOAP request (Finso)...");
         });
 
       } catch (e) {
+         if (conn) {
+          await conn.rollback();
+          conn.release();
+        }
         // Granular DB errors
         if (e?.code === "ER_DUP_ENTRY") {
           results.push({
@@ -5286,20 +5754,11 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
 
 // ---------- ROUTE ----------
 router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
+  let conn;
   try {
     console.log(
       "================= 📦 NEW EMICLUB REQUEST START ================="
     );
-    // console.log("🔹 Timestamp:", new Date().toISOString());
-
-    // // --- Log all ENV variables used ---
-    // console.log("🔧 ENV:: EXPERIAN_URL =", process.env.EXPERIAN_URL);
-    // console.log("🔧 ENV:: EXPERIAN_USER =", process.env.EXPERIAN_USER);
-    // console.log("🔧 ENV:: EXPERIAN_PASSWORD =", process.env.EXPERIAN_PASSWORD);
-    // console.log("🔧 ENV:: DB_CONNECTED =", !!db ? "✅ Yes" : "❌ No");
-
-    // --- Partner validation ---
-    //console.log("👥 Partner received:", req.partner);
     if (
       !req.partner ||
       (req.partner.name || "").toLowerCase().trim() !== "emiclub"
@@ -5423,14 +5882,62 @@ if (panRecords.length > 0) {
   );
 }
 
-/* =====================================================
-   🔴 END CHANGE
-   ===================================================== */
+const loanAmount = Number(data.loan_amount);
+
+if (!loanAmount || loanAmount <= 0) {
+  return res.status(400).json({
+    message: "Invalid loan_amount"
+  });
+}
+
+
 
 
     // --- Generate loan code ---
     //console.log("⚙️ Generating LAN for lender:", lenderType);
-    const { lan } = await generateLoanIdentifiers(lenderType);
+     conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    const partnerName = "EMICLUB";
+
+    if (!data.login_date) {
+  return res.status(400).json({
+    message: "login_date is required for limit validation"
+  });
+}
+const today = new Date();
+const { month, year } = getMonthYear(today);
+
+    const partner =
+      await partnerLimitService.getOrCreatePartner(
+        conn,
+        partnerName
+      );
+
+    const limitCheck =
+      await partnerLimitService.validatePartnerLimit(
+        conn,
+        partner.partner_id,
+        loanAmount,
+        month,
+        year
+      );
+
+    if (!limitCheck.valid) {
+
+      await conn.rollback();
+      conn.release();
+
+      return res.status(403).json({
+        message: "Monthly partner limit exceeded",
+        remaining_limit: limitCheck.remaining,
+        required: loanAmount
+      });
+
+    }
+
+    const { lan } =
+      await generateLoanIdentifiers(lenderType);
     console.log("✅ Generated LAN:", lan);
 
     const customer_name = `${data.first_name || ""} ${
@@ -5444,7 +5951,7 @@ if (panRecords.length > 0) {
 
     // --- Insert into DB ---
   //  console.log("💾 Inserting customer record into loan_booking_emiclub...");
-    await db.promise().query(
+    await conn.query(
       `INSERT INTO loan_booking_emiclub (
         lan, partner_loan_id, login_date, first_name, middle_name, last_name, gender, dob,
         father_name, mother_name, mobile_number, email_id,
@@ -5511,31 +6018,19 @@ if (panRecords.length > 0) {
       ]
     );
 
+    await partnerLimitService.updateUsedLimit(
+      conn,
+      limitCheck.limitId,
+      loanAmount,
+      "BOOKED",
+      lan
+    );
+
+    await conn.commit();
+    conn.release();
+
     ////  BEURO SCORE  CODE START/////
     console.log("✅ Customer record inserted successfully.");
-    // console.log(
-    //   "cibil request data",
-    //   "pan number :",
-    //   data.pan_number,
-    //   "loan amount :",
-    //   data.loan_amount,
-    //   "loan tenure :",
-    //   data.loan_tenure,
-    //   "first name :",
-    //   data.first_name,
-    //   "last name :",
-    //   data.last_name,
-    //   "mobile number :",
-    //   data.mobile_number,
-    //   "current address :",
-    //   data.current_address,
-    //   "current city :",
-    //   data.current_village_city,
-    //   "current state :",
-    //   data.current_state,
-    //   "current pincode :",
-    //   data.current_pincode
-    // );
     // --- Build SOAP XML ---
     console.log("🧩 Building SOAP request body for Experian...");
     const dobFormatted = data.dob.replace(/-/g, "");
@@ -5590,7 +6085,7 @@ if (panRecords.length > 0) {
   TELANGANA: "36",
 };
 
-    const state = data.state ?? "MAHARASHTRA"; // default to Maharashtra
+    const state = data.current_state ?? "MAHARASHTRA"; // default to Maharashtra
     const state_code = stateCodes[state.toUpperCase()] ?? null;
 
     const firstName = data.first_name.toUpperCase();
@@ -5684,13 +6179,6 @@ if (panRecords.length > 0) {
 </soapenv:Envelope>`;
 
 
-//console.log(data.loanAmount, data.tenure, firstName, lastName, gender_code, data.pan_number, state_code, data.current_pincode)
-
-    // console.log(
-    //   "🧾 SOAP XML Preview (first 500 chars):",
-    //   soapBody.substring(0, 7000)
-    // );
-
     // --- Send SOAP request ---
     console.log("🌐 Sending SOAP request to Experian...");
     let score = null;
@@ -5778,6 +6266,10 @@ if (panRecords.length > 0) {
       cibilScore: score || "Not Found",
     });
   } catch (error) {
+    if (conn) {
+      await conn.rollback();
+      conn.release();
+    }
     console.error("❌ Unhandled Error in EMICLUB Upload:", error);
     res.status(500).json({
       message: "Upload failed. Please try again.",
@@ -7703,6 +8195,7 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
 
     for (const [i, row] of rawData.entries()) {
       const R = i + 2;
+      let conn;
 
       try {
         const panCard = row["pan_number"];
@@ -7729,17 +8222,56 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
         }
 
         // Generate partnerLoanId + LAN
-        let partnerLoanId, lan;
-        try {
-          const ids = await generateLoanIdentifiers(lenderType);
-          partnerLoanId = ids.partnerLoanId;
-          lan = ids.lan;
-        } catch (err) {
-          row_errors.push({ row: R, stage: "id-gen", reason: toClientError(err).message });
+        conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        const partnerName = "Circle PE";
+
+        const loginDate =
+          row["loan_application_date"]
+            ? excelDateToJSDate(
+                row["loan_application_date"]
+              )
+            : null;
+
+            const today = new Date();
+        const { month, year } =
+          getMonthYear(today);
+
+        const partner =
+          await partnerLimitService.getOrCreatePartner(
+            conn,
+            partnerName
+          );
+
+        const limitCheck =
+          await partnerLimitService.validatePartnerLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year
+          );
+
+        if (!limitCheck.valid) {
+
+          await conn.rollback();
+          conn.release();
+
+          row_errors.push({
+            row: R,
+            stage: "limit-check",
+            reason: `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`
+          });
+
           continue;
+
         }
 
-       await db.promise().query(
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(lenderType);
+
+       await conn.query(
   `INSERT INTO loan_booking_circle_pe (
     login_date, lan, partner_loan_id, app_id, customer_name, gender, dob,
     father_name, mobile_number, email_id, pan_number, aadhar_number,
@@ -7789,8 +8321,23 @@ console.log( parse(row["loan amount sanctioned"]),
             parse(row["monthly emi"]),)
 
 
+            await partnerLimitService.updateUsedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          "BOOKED",
+          lan
+        );
+
+        await conn.commit();
+        conn.release();
+
         success_rows.push(R);
       } catch (err) {
+        if (conn) {
+          await conn.rollback();
+          conn.release();
+        }
         row_errors.push({ row: R, stage: "insert", reason: toClientError(err).message });
         continue;
       }
@@ -8030,8 +8577,79 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
         .json({ message: "Uploaded Excel file is empty or invalid." });
     }
 
+    let success = 0;
+    let rejectedLimit = 0;
+    let rejectedValidation = 0;
+
     for (const row of sheetData) {
-      const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+    let conn;
+
+    try {
+
+      const loanAmount =
+          parseFloat(row["Loan Amount"]) || 0;
+
+        if (loanAmount <= 0) {
+
+          rejectedValidation++;
+          continue;
+
+        }
+
+        const disbursementDate =
+          row["Disbursement Date"]
+            ? excelDateToJSDate(
+                row["Disbursement Date"]
+              )
+            : null;
+
+        if (!disbursementDate) {
+
+          rejectedValidation++;
+          continue;
+
+        }
+
+        conn =
+          await db.promise().getConnection();
+
+        await conn.beginTransaction();
+
+        const partnerName = "WCTL";
+
+        const today = new Date();
+
+        const { month, year } =
+          getMonthYear(today);
+
+        const partner =
+          await partnerLimitService.getOrCreatePartner(
+            conn,
+            partnerName
+          );
+
+        const limitCheck =
+          await partnerLimitService.validatePartnerLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year
+          );
+
+        if (!limitCheck.valid) {
+
+          rejectedLimit++;
+
+          await conn.rollback();
+          conn.release();
+
+          continue;
+
+        }
+
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(lenderType);
 
       const query = `
   INSERT INTO loan_bookings_wctl (
@@ -8042,9 +8660,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
-      await db
-        .promise()
-        .query(query, [
+      await conn.query(query, [
           row["Category"],
           row["Product Short Name"],
           row["Customer Name"],
@@ -8069,9 +8685,40 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
           lenderType,
           "Approved",
         ]);
-    }
 
-    res.json({ message: "✅ WCTL Upload successful" });
+        await partnerLimitService.updateUsedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          "BOOKED",
+          lan
+        );
+
+        await conn.commit();
+        conn.release();
+
+        success++;
+    } catch (err) {
+
+        if (conn) {
+
+          await conn.rollback();
+          conn.release();
+
+        }
+
+        rejectedValidation++;
+        console.error("Row insert error:", err);
+
+      }
+    }
+   return res.json({
+      message: "✅ WCTL Upload processed",
+      total_rows: sheetData.length,
+      success,
+      rejected_limit_exceeded: rejectedLimit,
+      rejected_validation: rejectedValidation
+    });
   } catch (error) {
     console.error("❌ Error processing WCTL upload:", error);
     res
@@ -8462,6 +9109,7 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
 
     for (const row of sheetData) {
       const R = row.__row;
+      let conn;
 
       try {
         // 1) validation (add more fields here if you want to be strict)
@@ -8507,20 +9155,91 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        // 3) generate loan identifiers
-        let partnerLoanId, lan;
-        try {
-          const ids = await generateLoanIdentifiers(lenderType);
-          partnerLoanId = ids.partnerLoanId;
-          lan = ids.lan;
-        } catch (idErr) {
+        // ✅ FIXED: define loanAmount BEFORE limit check
+        const loanAmount =
+          n(row["Loan Amount Sanctioned"]);
+
+        if (!loanAmount || loanAmount <= 0) {
+
           row_errors.push({
             row: R,
-            stage: "id-gen",
-            reason: toClientError(idErr).message,
+            stage: "validation",
+            reason: "Invalid loan amount"
           });
+
           continue;
+
         }
+
+        const loginDate =
+          row["Loan Application Date"]
+            ? excelDateToJSDate(
+                row["Loan Application Date"]
+              )
+            : null;
+
+        if (!loginDate) {
+
+          row_errors.push({
+            row: R,
+            stage: "validation",
+            reason: "Missing Loan Application Date"
+          });
+
+          continue;
+
+        }
+
+        // 3) generate loan identifiers
+        conn =
+          await db.promise().getConnection();
+
+        await conn.beginTransaction();
+
+        const partnerName =
+          "GQ NON FSF";
+
+          const today = new Date();
+
+        const { month, year } =
+          getMonthYear(today);
+
+        const partner =
+          await partnerLimitService.getOrCreatePartner(
+            conn,
+            partnerName
+          );
+
+        const limitCheck =
+          await partnerLimitService.validatePartnerLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year
+          );
+
+        if (!limitCheck.valid) {
+
+          await conn.rollback();
+          conn.release();
+
+          row_errors.push({
+            row: R,
+            stage: "limit-check",
+            reason:
+              `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`
+          });
+
+          continue;
+
+        }
+
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(
+            lenderType
+          );
+
 
         // 4) build values & insert
         const insertQuery = `
@@ -8543,7 +9262,6 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         `;
 
         // mirror your custom mapping
-        const loanAmount = row["Loan Amount Sanctioned"];
         const interestrate = row["Interest %"];
         const loantenure = row["Loan Tenure (Months)"];
 
@@ -8630,9 +9348,27 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         ];
 
         try {
-          await db.promise().query(insertQuery, values);
+          await conn.query(insertQuery, values);
+
+           await partnerLimitService.updateUsedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          "BOOKED",
+          lan
+        );
+
+        await conn.commit();
+        conn.release();
+        
           success_rows.push(R);
         } catch (insErr) {
+          if (conn) {
+
+          await conn.rollback();
+          conn.release();
+
+        }
           row_errors.push({
             row: R,
             stage: "insert",

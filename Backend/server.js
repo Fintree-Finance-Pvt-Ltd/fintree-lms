@@ -116,6 +116,8 @@ app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register
 app.use("/api/dealer-onboarding", dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
 app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers  
 
+app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
+
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 

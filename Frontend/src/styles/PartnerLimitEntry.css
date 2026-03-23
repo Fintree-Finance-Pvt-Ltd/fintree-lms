@@ -1,0 +1,296 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f4f7fb;
+  color: #1f2937;
+}
+
+.partner-page {
+  min-height: 100vh;
+  padding: 24px;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef3f9 100%);
+}
+
+.partner-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: #14213d;
+}
+
+.page-header p {
+  margin: 8px 0 0;
+  color: #5b6472;
+  font-size: 14px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #dde5ee;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  margin-bottom: 24px;
+  padding: 22px;
+}
+
+.card-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: #1e293b;
+}
+
+.filter-grid,
+.form-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.filter-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.form-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.field label {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f2937;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.button-field {
+  justify-content: flex-end;
+}
+
+.form-actions {
+  margin-top: 18px;
+}
+
+.btn {
+  height: 44px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.btn-primary {
+  background: #2563eb;
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-success {
+  background: #16a34a;
+  color: #fff;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.partner-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+}
+
+.partner-table thead tr {
+  background: #f8fafc;
+}
+
+.partner-table th,
+.partner-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.partner-table th {
+  text-align: left;
+  color: #64748b;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.partner-table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.partner-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.status-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.used-value {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.remaining-value {
+  font-weight: 700;
+}
+
+.remaining-positive {
+  color: #16a34a;
+}
+
+.remaining-negative {
+  color: #dc2626;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.link-btn:hover {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.secondary-link {
+  color: #7c3aed;
+}
+
+.secondary-link:hover {
+  color: #6d28d9;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 24px 10px 8px;
+  color: #64748b;
+  font-size: 15px;
+}
+
+@media (max-width: 992px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .partner-page {
+    padding: 14px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .page-header h1 {
+    font-size: 26px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .action-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

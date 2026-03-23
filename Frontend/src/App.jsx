@@ -132,6 +132,7 @@ import HospitalLoginActions from "./components/Clayoo/ClayooHospitalLoginActions
 import ClayooApprovedLoans from "./components/Clayoo/ClayooApprovedLoans";
 import ClayooLimitEntry from "./components/Clayoo/ClayooLimitEntry";
 import ClayyoHospitalDetails from "./components/Clayoo/ClayyoHospitalDetails";
+import PartnerLimitEntry from "./components/PartnerLimitEntry";
 
 function App() {
   return (
@@ -1218,6 +1219,17 @@ function App() {
               </PermissionRoute>
             }
           />
+          
+          {/* Partner Limit Management */}
+          <Route
+            path="/partners/limits"
+            element={
+              <PermissionRoute pageName="Partner Limits">
+                <PartnerLimitEntry />
+              </PermissionRoute>
+            }
+          />
+
         </Route>
       </Routes>
     </Router>
