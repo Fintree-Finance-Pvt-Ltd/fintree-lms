@@ -3,7 +3,6 @@ import axios from 'axios';
 import api from "../api/api";
 import '../styles/PartnerLimitEntry.css';
 
-const API_BASE = process.env.VITE_API_BASE_URL
 
 const PartnerLimitEntry = () => {
   const [partners, setPartners] = useState([]);
@@ -88,11 +87,19 @@ const PartnerLimitEntry = () => {
                 value={monthFilter}
                 onChange={(e) => setMonthFilter(parseInt(e.target.value))}
               >
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
+                {/* {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
                   <option key={m} value={m}>
                     Month {m}
                   </option>
-                ))}
+                ))} */}
+                {[
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
+].map((name, index) => (
+  <option key={index + 1} value={index + 1}>
+    {name}
+  </option>
+))}
               </select>
             </div>
 
@@ -101,8 +108,9 @@ const PartnerLimitEntry = () => {
               <input
                 type="number"
                 value={yearFilter}
-                onChange={(e) => setYearFilter(parseInt(e.target.value))}
+                // onChange={(e) => setYearFilter(parseInt(e.target.value))}
                 placeholder="Year"
+                readOnly
               />
             </div>
 
@@ -137,7 +145,7 @@ const PartnerLimitEntry = () => {
 
             <div className="field">
               <label>Month</label>
-              <input
+              {/* <input
                 type="number"
                 placeholder="Month (1-12)"
                 value={form.month}
@@ -145,7 +153,23 @@ const PartnerLimitEntry = () => {
                 min="1"
                 max="12"
                 required
-              />
+              /> */}
+              <select
+  value={form.month}
+  onChange={(e) =>
+    setForm({ ...form, month: parseInt(e.target.value) })
+  }
+  required
+>
+  {[
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December"
+  ].map((name, index) => (
+    <option key={index + 1} value={index + 1}>
+      {name}
+    </option>
+  ))}
+</select>
             </div>
 
             <div className="field">
@@ -154,8 +178,8 @@ const PartnerLimitEntry = () => {
                 type="number"
                 placeholder="Year"
                 value={form.year}
-                onChange={(e) => setForm({ ...form, year: parseInt(e.target.value) })}
-                required
+                // onChange={(e) => setForm({ ...form, year: parseInt(e.target.value) })}
+                readOnly
               />
             </div>
 
