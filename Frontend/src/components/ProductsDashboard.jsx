@@ -17,7 +17,7 @@ const DEFAULT_METRICS = {
   posOutstanding:  0,
   totalPrincipal:  0,
   totalInterest:   0,
-  dpdCases:        { dpd_0_30: 0, dpd_31_60: 0, dpd_61_90: 0, dpd_91_plus: 0 },
+  dpdCases:        { dpd_0: 0, dpd_0_30: 0, dpd_31_60: 0, dpd_61_90: 0, dpd_91_plus: 0 },
   lenderWiseDPD:   [],
 };
 
@@ -68,8 +68,16 @@ function buildCards(m) {
       accent: "#f59e0b",
     },
     {
+      id: "dpd0",
+      label: "DPD 0 (On-Time)",
+      value: num(dpd.dpd_0),
+      icon: "✅",
+      accent: "#10b981",
+      subtitle: "active loans",
+    },
+    {
       id: "dpd030",
-      label: "DPD 0–30",
+      label: "DPD 1–30",
       value: num(dpd.dpd_0_30),
       icon: "🟢",
       accent: "#22c55e",
@@ -128,7 +136,8 @@ function LenderWiseDPD({ data }) {
           <thead>
             <tr>
               <th>Lender</th>
-              <th>DPD 0–30</th>
+              <th>DPD 0 (On-Time)</th>
+              <th>DPD 1–30</th>
               <th>DPD 31–60</th>
               <th>DPD 61–90</th>
               <th>DPD 91+</th>
@@ -139,6 +148,7 @@ function LenderWiseDPD({ data }) {
             {data.map((r) => (
               <tr key={r.lender}>
                 <td>{r.lender}</td>
+                <td>{num(r.dpd_0)}</td>
                 <td>{num(r.dpd_0_30)}</td>
                 <td>{num(r.dpd_31_60)}</td>
                 <td>{num(r.dpd_61_90)}</td>

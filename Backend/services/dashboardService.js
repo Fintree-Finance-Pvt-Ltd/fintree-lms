@@ -423,6 +423,7 @@ async function buildMetricCards(prod, start, end, db) {
     dpdQueries.push(`
       SELECT
         '${key}' AS lender,
+        COUNT(DISTINCT CASE WHEN rps.dpd = 0              THEN rps.lan END) AS dpd_0,
         COUNT(DISTINCT CASE WHEN rps.dpd BETWEEN 0 AND 30  THEN rps.lan END) AS dpd_0_30,
         COUNT(DISTINCT CASE WHEN rps.dpd BETWEEN 31 AND 60 THEN rps.lan END) AS dpd_31_60,
         COUNT(DISTINCT CASE WHEN rps.dpd BETWEEN 61 AND 90 THEN rps.lan END) AS dpd_61_90,
@@ -451,6 +452,7 @@ async function buildMetricCards(prod, start, end, db) {
   const totalCollected  = collRows.reduce((s, r) => s + Number(r.amount || 0), 0);
   const totalPrincipal  = pniRows.reduce((s, r) => s + Number(r.principal || 0), 0);
   const totalInterest   = pniRows.reduce((s, r) => s + Number(r.interest || 0), 0);
+  const dpd_0           = dpdRows.reduce((s, r) => s + Number(r.dpd_0 || 0), 0);
   const dpd_0_30        = dpdRows.reduce((s, r) => s + Number(r.dpd_0_30 || 0), 0);
   const dpd_31_60       = dpdRows.reduce((s, r) => s + Number(r.dpd_31_60 || 0), 0);
   const dpd_61_90       = dpdRows.reduce((s, r) => s + Number(r.dpd_61_90 || 0), 0);
@@ -460,6 +462,7 @@ async function buildMetricCards(prod, start, end, db) {
 
   const lenderWiseDPD = dpdRows.map(row => ({
     lender:             row.lender,
+    dpd_0:              Number(row.dpd_0 || 0),
     dpd_0_30:           Number(row.dpd_0_30 || 0),
     dpd_31_60:          Number(row.dpd_31_60 || 0),
     dpd_61_90:          Number(row.dpd_61_90 || 0),
@@ -476,7 +479,7 @@ async function buildMetricCards(prod, start, end, db) {
     principalOutstanding: totalRemainingPrincipal,
     interestOutstanding:  0,
     posOutstanding:       totalRemainingPrincipal,
-    dpdCases:             { dpd_0_30, dpd_31_60, dpd_61_90, dpd_91_plus },
+    dpdCases:             { dpd_0, dpd_0_30, dpd_31_60, dpd_61_90, dpd_91_plus },
     lenderWiseDPD,
   };
 }
