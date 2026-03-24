@@ -676,54 +676,43 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
           SELECT lan COLLATE ${JOIN_COLLATE} AS lan_utr, MIN(Disbursement_Date) AS disb_dt
           FROM ev_disbursement_utr
           GROUP BY lan
-        ) utr ON utr.lan_utr = p.lan COLLATE ${JOIN_COLLATE}`;
-      disbDateExpr = "utr.disb_dt";
+        ) utr ON utr.lan_utr = rps.lan COLLATE ${JOIN_COLLATE}`;
+      disbDateExpr = "MIN(utr.disb_dt)";
     } else {
       // Adikosh: use agreement_date from its booking table
-      disbDateExpr = `b.${cfg.disbDateField || "agreement_date"}`;
+      disbDateExpr = `MAX(b.${cfg.disbDateField || "agreement_date"})`;
     }
 
-    // Safely replacing MAX(b.foo) with b.foo for non-grouped fields
-    const safeDealer   = dealerExpr.replace(/MAX\(b\.([^)]+)\)/g, "b.$1");
-    const safeDistrict = districtExpr.replace(/MAX\(b\.([^)]+)\)/g, "b.$1").replace(/COALESCE\(b\.([^,]+), b\.([^)]+)\)/g, "COALESCE(b.$1, b.$2)");
-
     return `
-      SELECT
-        '${cfg.label}'           AS product,
-        p.lan,
-        b.customer_name          AS customer_name,
-        ${safeDealer}            AS dealer_name,
-        ${safeDistrict}          AS district,
-        b.status                 AS status,
-        CASE
-          WHEN LOWER(b.status) = 'disbursed' THEN 'Active'
-          WHEN LOWER(b.status) IN ('fully paid','settled & closed','closed','completed','settled','closed & reopen') THEN 'Closed'
-          ELSE 'Unknown'
-        END                      AS loan_status,
-        p.max_dpd,
-        p.overdue_emi,
-        p.overdue_principal,
-        p.overdue_interest,
-        p.last_due_date,
-        p.pos_principal,
-        ${disbDateExpr}          AS disbursement_date,
-        DATEDIFF(CURDATE(), ${disbDateExpr}) AS ageing_days
-      FROM (
-        SELECT lan,
-               MAX(CASE WHEN status <> 'Paid' AND due_date < CURDATE() THEN IFNULL(dpd, DATEDIFF(CURDATE(), due_date)) ELSE 0 END) AS max_dpd,
-               SUM(CASE WHEN status <> 'Paid' AND due_date < CURDATE() THEN IFNULL(emi, 0)       ELSE 0 END) AS overdue_emi,
-               SUM(CASE WHEN status <> 'Paid' AND due_date < CURDATE() THEN IFNULL(principal, 0) ELSE 0 END) AS overdue_principal,
-               SUM(CASE WHEN status <> 'Paid' AND due_date < CURDATE() THEN IFNULL(interest, 0)  ELSE 0 END) AS overdue_interest,
-               MAX(CASE WHEN status <> 'Paid' AND due_date < CURDATE() THEN due_date END)         AS last_due_date,
-               SUM(IFNULL(remaining_principal, 0))                                                AS pos_principal
-        FROM ${cfg.rpsTable}
-        GROUP BY lan
+      SELECT * FROM (
+        SELECT
+          '${cfg.label}'           AS product,
+          rps.lan,
+          MAX(b.customer_name)     AS customer_name,
+          ${dealerExpr}            AS dealer_name,
+          ${districtExpr}          AS district,
+          MAX(b.status)            AS status,
+          CASE
+            WHEN LOWER(MAX(b.status)) = 'disbursed' THEN 'Active'
+            WHEN LOWER(MAX(b.status)) IN ('fully paid','settled & closed','closed','completed','settled','closed & reopen') THEN 'Closed'
+            ELSE 'Unknown'
+          END                      AS loan_status,
+          MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+          SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi, 0)       ELSE 0 END) AS overdue_emi,
+          SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.principal, 0) ELSE 0 END) AS overdue_principal,
+          SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest, 0)  ELSE 0 END) AS overdue_interest,
+          MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN rps.due_date END)         AS last_due_date,
+          SUM(IFNULL(rps.remaining_principal, 0))                                                        AS pos_principal,
+          ${disbDateExpr}          AS disbursement_date,
+          DATEDIFF(CURDATE(), ${disbDateExpr}) AS ageing_days
+        FROM ${cfg.rpsTable} rps
+        JOIN ${cfg.bookTable} b
+          ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+        ${disbJoin}
+        ${whereClause}
+        GROUP BY rps.lan
       ) p
-      JOIN ${cfg.bookTable} b
-        ON b.lan COLLATE ${JOIN_COLLATE} = p.lan COLLATE ${JOIN_COLLATE}
-      ${disbJoin}
-      ${whereClause}
-      ${appliedBucketWhere}
+      WHERE 1=1 ${appliedBucketWhere}
     `;
   });
 
@@ -746,17 +735,16 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
       : `WHERE LOWER(b.status) = 'disbursed'`;
 
     return `
-      SELECT p.lan
-      FROM (
-        SELECT lan,
-               MAX(CASE WHEN status <> 'Paid' AND due_date < CURDATE() THEN IFNULL(dpd, DATEDIFF(CURDATE(), due_date)) ELSE 0 END) AS max_dpd
-        FROM ${cfg.rpsTable}
-        GROUP BY lan
+      SELECT p.lan FROM (
+        SELECT rps.lan,
+               MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd
+        FROM ${cfg.rpsTable} rps
+        JOIN ${cfg.bookTable} b
+          ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+        ${whereClause}
+        GROUP BY rps.lan
       ) p
-      JOIN ${cfg.bookTable} b
-        ON b.lan COLLATE ${JOIN_COLLATE} = p.lan COLLATE ${JOIN_COLLATE}
-      ${whereClause}
-      ${appliedBucketWhere}
+      WHERE 1=1 ${appliedBucketWhere}
     `;
   });
 
