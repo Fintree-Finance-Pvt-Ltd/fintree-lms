@@ -197,14 +197,4 @@ function pagerBtnStyle(disabled) {
 }
 
 
-function pagerBtnStyle(disabled) {
-  return {
-    padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db",
-    background: disabled ? "#f3f4f6" : "#fff",
-    color:      disabled ? "#9ca3af" : "#1f2937",
-    cursor: disabled ? "default" : "pointer",
-    fontSize: 13, fontWeight: 600,
-  };
-}
-
 export default ApprovedLoansTable;
