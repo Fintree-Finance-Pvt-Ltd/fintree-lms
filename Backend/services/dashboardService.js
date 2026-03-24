@@ -667,6 +667,7 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
 
     const appliedBucketWhere = (isActive || isClosed) ? "" : bucketWhere;
 
+    let disbDateExpr;
     if (cfg.disbDateSource === "utr") {
       // UTR is joined on the outer query, so we pass NULL here
       disbDateExpr = "NULL";
