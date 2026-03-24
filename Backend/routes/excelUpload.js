@@ -4032,6 +4032,8 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
         const { month, year } =
           getMonthYear(today);
 
+          const loanAmount = parse(row["Loan Amount Sanctioned"]);
+
         const partner =
           await partnerLimitService.getOrCreatePartner(
             conn,
