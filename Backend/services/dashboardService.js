@@ -631,6 +631,8 @@ const SORT_MAP = {
 async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, db) {
   const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
   let bucketWhere = "";
+  let isClosed    = false;
+  let isActive    = false;
 
   if (bucket === "0")          bucketWhere = `AND p.max_dpd = 0`;
   else if (bucket === "90+")   bucketWhere = `AND p.max_dpd >= 91`;
