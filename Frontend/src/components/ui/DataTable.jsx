@@ -330,12 +330,20 @@ const DataTable = ({
   searchPlaceholder = "Search…",
   // optional: cap unique filter options to avoid huge dropdowns
   filterOptionCap = 1000,
+  // ── Server-side pagination props ───────────────────────────────
+  serverPagination = false,   // set true to hand off pagination to parent
+  totalRows: totalRowsProp = 0, // total record count from backend
+  currentPage = 1,            // current page (controlled by parent)
+  onPageChange = null,        // (newPage: number) => void
+  onPageSizeChange = null,    // (newSize: number) => void
 }) => {
+
   // ---------- state ----------
   const [search, setSearch] = useState("");
-  const [pageSize, setPageSize] = useState(initialPageSize);
-  const [page, setPage] = useState(1);
+  const [_pageSize, setPageSize] = useState(initialPageSize);
+  const [_page, setPage] = useState(1);
   const [sort, setSort] = useState(initialSort); // { key, dir }
+
 
   // filters: { [colKey]: Set<string> } - stores normalized string values selected for that column
   const [filters, setFilters] = useState({});
@@ -430,14 +438,17 @@ const DataTable = ({
   }, [filtered, sort, columns]);
 
   // pagination
-  const total = sorted.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const pageSafe = Math.min(page, totalPages) || 1;
-  const start = (pageSafe - 1) * pageSize;
-  const visible = sorted.slice(start, start + pageSize);
+  const total     = serverPagination ? totalRowsProp : sorted.length;
+  const pageSize  = serverPagination ? (onPageSizeChange ? initialPageSize : initialPageSize) : _pageSize;
+  const totalPages = Math.max(1, Math.ceil(total / (serverPagination ? initialPageSize : _pageSize)));
+  const pageSafe  = serverPagination ? currentPage : (Math.min(_page, Math.max(1, Math.ceil(sorted.length / _pageSize))) || 1);
+  const start     = serverPagination ? 0 : (pageSafe - 1) * _pageSize;
+  const visible   = serverPagination ? rows : sorted.slice(start, start + _pageSize);
 
-  // keep page in bounds when search/pageSize/sort/filters change
-  useEffect(() => setPage(1), [search, pageSize, sort, filters]);
+
+  // keep internal page in bounds when search/pageSize/sort/filters change (client mode only)
+  useEffect(() => { if (!serverPagination) setPage(1); }, [search, _pageSize, sort, filters, serverPagination]);
+
 
   const onSort = (key) => {
     setSort((s) =>
@@ -860,7 +871,10 @@ const clearFilter = (colKey) => {
         <div style={s.pager}>
           <button
             style={s.pagerBtn}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => serverPagination
+              ? onPageChange && onPageChange(Math.max(1, currentPage - 1))
+              : setPage((p) => Math.max(1, p - 1))
+            }
             disabled={pageSafe === 1}
           >
             ‹ Prev
@@ -870,15 +884,25 @@ const clearFilter = (colKey) => {
           </span>
           <button
             style={s.pagerBtn}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={pageSafe === totalPages}
+            onClick={() => serverPagination
+              ? onPageChange && onPageChange(Math.min(totalPages, currentPage + 1))
+              : setPage((p) => Math.min(totalPages, p + 1))
+            }
+            disabled={pageSafe >= totalPages}
           >
             Next ›
           </button>
 
           <select
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
+            value={serverPagination ? initialPageSize : _pageSize}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (serverPagination) {
+                onPageSizeChange && onPageSizeChange(n);
+              } else {
+                setPageSize(n);
+              }
+            }}
             style={s.select}
             title="Rows per page"
           >
@@ -895,3 +919,4 @@ const clearFilter = (colKey) => {
 };
 
 export default DataTable;
+

@@ -372,7 +372,7 @@ async function buildMetricCards(prod, start, end, db) {
     disburseQueries.push(`
       SELECT IFNULL(SUM(${cfg.disbField}), 0) AS amount
       FROM ${cfg.bookTable}
-      WHERE status IN ('Disbursed') ${dcl.clause}
+      WHERE status IN ('Disbursed', 'Foreclosed', 'Fully Paid', 'Settled & Closed') ${dcl.clause}
     `);
     disburseParams.push(...dcl.params);
 
@@ -423,14 +423,20 @@ async function buildMetricCards(prod, start, end, db) {
     dpdQueries.push(`
       SELECT
         '${key}' AS lender,
-        COUNT(DISTINCT CASE WHEN rps.dpd = 0              THEN rps.lan END) AS dpd_0,
-        COUNT(DISTINCT CASE WHEN rps.dpd BETWEEN 0 AND 30  THEN rps.lan END) AS dpd_0_30,
-        COUNT(DISTINCT CASE WHEN rps.dpd BETWEEN 31 AND 60 THEN rps.lan END) AS dpd_31_60,
-        COUNT(DISTINCT CASE WHEN rps.dpd BETWEEN 61 AND 90 THEN rps.lan END) AS dpd_61_90,
-        COUNT(DISTINCT CASE WHEN rps.dpd > 90             THEN rps.lan END) AS dpd_91_plus,
-        IFNULL(SUM(rps.remaining_principal), 0) AS remaining_principal
-      FROM ${cfg.rpsTable} rps
-      JOIN ${cfg.bookTable} b ON ${eqLan("b.lan", "rps.lan")}
+        COUNT(CASE WHEN p.max_dpd = 0              THEN p.lan END) AS dpd_0,
+        COUNT(CASE WHEN p.max_dpd BETWEEN 0 AND 30  THEN p.lan END) AS dpd_0_30,
+        COUNT(CASE WHEN p.max_dpd BETWEEN 31 AND 60 THEN p.lan END) AS dpd_31_60,
+        COUNT(CASE WHEN p.max_dpd BETWEEN 61 AND 90 THEN p.lan END) AS dpd_61_90,
+        COUNT(CASE WHEN p.max_dpd > 90             THEN p.lan END) AS dpd_91_plus,
+        IFNULL(SUM(p.lan_pos), 0) AS remaining_principal
+      FROM (
+        SELECT lan,
+               MAX(CASE WHEN status <> 'Paid' AND due_date < CURDATE() THEN IFNULL(dpd, DATEDIFF(CURDATE(), due_date)) ELSE 0 END) AS max_dpd,
+               SUM(IFNULL(remaining_principal, 0)) AS lan_pos
+        FROM ${cfg.rpsTable}
+        GROUP BY lan
+      ) p
+      JOIN ${cfg.bookTable} b ON ${eqLan("b.lan", "p.lan")}
       WHERE b.status = 'Disbursed' ${br.clause}
     `);
     dpdParams.push(...br.params);
@@ -624,15 +630,15 @@ const SORT_MAP = {
 
 async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, db) {
   const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
-  let havingStr = "";
-  let isClosed  = false;
-  let isActive  = false;
+  let bucketWhere = "";
+  let isClosed    = false;
+  let isActive    = false;
 
-  if (bucket === "0")          havingStr = "HAVING max_dpd = 0";
-  else if (bucket === "90+")   havingStr = "HAVING max_dpd >= 91";
+  if (bucket === "0")          bucketWhere = `AND p.max_dpd = 0`;
+  else if (bucket === "90+")   bucketWhere = `AND p.max_dpd >= 91`;
   else if (ranges[bucket]) {
     const [mn, mx] = ranges[bucket];
-    havingStr = `HAVING max_dpd BETWEEN ${mn} AND ${mx}`;
+    bucketWhere = `AND p.max_dpd BETWEEN ${mn} AND ${mx}`;
   }
   else if (bucket === "closed") isClosed = true;
   else if (bucket === "active") isActive = true;
@@ -659,55 +665,45 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
       ? `WHERE LOWER(b.status) NOT IN ('disbursed', 'login', 'disburse initiate')`
       : `WHERE LOWER(b.status) = 'disbursed'`;
 
-    // HAVING: applied only for DPD bands; NOT for active or closed buckets
-    const havingClause = (isActive || isClosed) ? "" : havingStr;
+    const appliedBucketWhere = (isActive || isClosed) ? "" : bucketWhere;
 
-    // ── Ageing / disbursement_date source ───────────────────────
-    // FIX: joined INSIDE the branch, not after UNION ALL
     let disbDateExpr;
-    let disbJoin = "";
-
     if (cfg.disbDateSource === "utr") {
-      // Join ev_disbursement_utr inside branch to get per-LAN disbursement date
-      disbJoin = `LEFT JOIN (
-          SELECT lan COLLATE ${JOIN_COLLATE} AS lan_utr, MIN(Disbursement_Date) AS disb_dt
-          FROM ev_disbursement_utr
-          GROUP BY lan
-        ) utr ON utr.lan_utr = rps.lan COLLATE ${JOIN_COLLATE}`;
-      disbDateExpr = "MIN(utr.disb_dt)";
+      // UTR is joined on the outer query, so we pass NULL here
+      disbDateExpr = "NULL";
     } else {
       // Adikosh: use agreement_date from its booking table
       disbDateExpr = `MAX(b.${cfg.disbDateField || "agreement_date"})`;
     }
 
     return `
-      SELECT
-        '${cfg.label}'           AS product,
-        rps.lan,
-        MAX(b.customer_name)     AS customer_name,
-        ${dealerExpr}            AS dealer_name,
-        ${districtExpr}          AS district,
-        MAX(b.status)            AS status,
-        CASE
-          WHEN LOWER(MAX(b.status)) = 'disbursed' THEN 'Active'
-          WHEN LOWER(MAX(b.status)) IN ('fully paid','settled & closed','closed','completed','settled','closed & reopen') THEN 'Closed'
-          ELSE 'Unknown'
-        END                      AS loan_status,
-        MAX(IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date))) AS max_dpd,
-        SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi, 0)       ELSE 0 END) AS overdue_emi,
-        SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.principal, 0) ELSE 0 END) AS overdue_principal,
-        SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest, 0)  ELSE 0 END) AS overdue_interest,
-        MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN rps.due_date END)         AS last_due_date,
-        SUM(IFNULL(rps.remaining_principal, 0))                                                        AS pos_principal,
-        ${disbDateExpr}          AS disbursement_date,
-        DATEDIFF(CURDATE(), ${disbDateExpr}) AS ageing_days
-      FROM ${cfg.rpsTable} rps
-      JOIN ${cfg.bookTable} b
-        ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-      ${disbJoin}
-      ${whereClause}
-      GROUP BY rps.lan
-      ${havingClause}
+      SELECT * FROM (
+        SELECT
+          '${cfg.label}'           AS product,
+          rps.lan,
+          MAX(b.customer_name)     AS customer_name,
+          ${dealerExpr}            AS dealer_name,
+          ${districtExpr}          AS district,
+          MAX(b.status)            AS status,
+          CASE
+            WHEN LOWER(MAX(b.status)) = 'disbursed' THEN 'Active'
+            WHEN LOWER(MAX(b.status)) IN ('fully paid','settled & closed','closed','completed','settled','closed & reopen') THEN 'Closed'
+            ELSE 'Unknown'
+          END                      AS loan_status,
+          MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd,
+          SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.emi, 0)       ELSE 0 END) AS overdue_emi,
+          SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.principal, 0) ELSE 0 END) AS overdue_principal,
+          SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest, 0)  ELSE 0 END) AS overdue_interest,
+          MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN rps.due_date END)         AS last_due_date,
+          SUM(IFNULL(rps.remaining_principal, 0))                                                        AS pos_principal,
+          ${disbDateExpr}          AS inner_disb_date
+        FROM ${cfg.rpsTable} rps
+        JOIN ${cfg.bookTable} b
+          ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+        ${whereClause}
+        GROUP BY rps.lan
+      ) p
+      WHERE 1=1 ${appliedBucketWhere}
     `;
   });
 
@@ -715,30 +711,78 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
     return { rows: [], pagination: { page, pageSize, total: 0 } };
   }
 
-  const sortKey    = typeof sortBy === "string" ? sortBy.toLowerCase() : "dpd";
-  const sortCol    = SORT_MAP[sortKey] || SORT_MAP.dpd;
+  const sortKey     = typeof sortBy === "string" ? sortBy.toLowerCase() : "dpd";
+  const sortCol     = SORT_MAP[sortKey] || SORT_MAP.dpd;
   const sortDirSafe = String(sortDir || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
-  const offset     = (page - 1) * pageSize;
+  const offset      = (page - 1) * pageSize;
 
-  // ageing_days NULL-safe sort: NULLs go to end regardless of direction
+  // ── Split query: COUNT runs separately (no UTR join, no ordering)
+  // This eliminates the COUNT(*) OVER() window function that forced full
+  // materialization of the UNION ALL before LIMIT — root cause of the timeout.
+  const countBranches = products.map(([, cfg]) => {
+    const appliedBucketWhere = (isActive || isClosed) ? "" : bucketWhere;
+    const whereClause  = isClosed
+      ? `WHERE LOWER(b.status) NOT IN ('disbursed', 'login', 'disburse initiate')`
+      : `WHERE LOWER(b.status) = 'disbursed'`;
+
+    return `
+      SELECT p.lan FROM (
+        SELECT rps.lan,
+               MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END) AS max_dpd
+        FROM ${cfg.rpsTable} rps
+        JOIN ${cfg.bookTable} b
+          ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+        ${whereClause}
+        GROUP BY rps.lan
+      ) p
+      WHERE 1=1 ${appliedBucketWhere}
+    `;
+  });
+
+  const countSql = `SELECT COUNT(*) AS total FROM (${countBranches.join(" UNION ALL ")}) t`;
+
+  // ── ageing_days NULL-safe sort: NULLs always go to end
   const orderClause = sortCol === "ageing_days"
-    ? `ORDER BY ${sortCol} IS NULL ASC, ${sortCol} ${sortDirSafe}, lan ASC`
+    ? `ORDER BY ageing_days IS NULL ASC, ageing_days ${sortDirSafe}, lan ASC`
     : `ORDER BY ${sortCol} ${sortDirSafe}, lan ASC`;
 
-  const sql = `
-    SELECT base.*, COUNT(*) OVER() AS total_rows
+  const dataSql = `
+    SELECT
+      t.product,
+      t.lan,
+      t.customer_name,
+      t.dealer_name,
+      t.district,
+      t.status,
+      t.loan_status,
+      t.max_dpd,
+      t.overdue_emi,
+      t.overdue_principal,
+      t.overdue_interest,
+      t.last_due_date,
+      t.pos_principal,
+      COALESCE(t.inner_disb_date, utr.disb_dt) AS disbursement_date,
+      DATEDIFF(CURDATE(), COALESCE(t.inner_disb_date, utr.disb_dt)) AS ageing_days
     FROM (
       ${branches.join(" UNION ALL ")}
-    ) base
+    ) t
+    LEFT JOIN (
+      SELECT lan COLLATE ${JOIN_COLLATE} AS lan_utr, MIN(Disbursement_Date) AS disb_dt
+      FROM ev_disbursement_utr
+      GROUP BY lan
+    ) utr ON utr.lan_utr = t.lan COLLATE ${JOIN_COLLATE}
     ${orderClause}
     LIMIT ? OFFSET ?
   `;
 
-  const [pageRows] = await db.promise().query(sql, [pageSize, offset]);
-  const total = pageRows.length ? Number(pageRows[0].total_rows) : 0;
-  const rows  = pageRows.map(({ total_rows, ...r }) => r);
+  // Run count and first page in parallel — each is independently fast
+  const [[countRows], [pageRows]] = await Promise.all([
+    db.promise().query(countSql),
+    db.promise().query(dataSql, [pageSize, offset]),
+  ]);
 
-  return { rows, pagination: { page, pageSize, total } };
+  const total = Number(countRows[0]?.total || 0);
+  return { rows: pageRows, pagination: { page, pageSize, total } };
 }
 
 /* ================================================================

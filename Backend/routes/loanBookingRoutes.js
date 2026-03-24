@@ -69,61 +69,100 @@ const generateLoanIdentifiers = async (lender) => {
 };
 
 
-router.get("/approved-loans", (req, res) => {
-  const { table = "loan_bookings", prefix = "EV" } = req.query;
+router.get("/approved-loans", async (req, res) => {
+  const {
+    table   = "loan_bookings",
+    prefix  = "EV",
+    page    = "1",
+    pageSize = "25",
+    search  = "",
+    sortBy  = "LAN",
+    sortDir = "desc",
+  } = req.query;
 
   const allowedTables = {
-    "loan_bookings": true,
-    "loan_booking_adikosh": true,
-    "loan_booking_gq_non_fsf": true,
-    "loan_booking_gq_fsf": true,
-    "loan_bookings_wctl": true,
+    "loan_bookings": true, "loan_booking_adikosh": true,
+    "loan_booking_gq_non_fsf": true, "loan_booking_gq_fsf": true, "loan_bookings_wctl": true,
   };
+  if (!allowedTables[table]) return res.status(400).json({ message: "Invalid table name" });
 
-  if (!allowedTables[table]) {
-    return res.status(400).json({ message: "Invalid table name" });
+  const pg    = Math.max(1, parseInt(page,     10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 25));
+  const offset = (pg - 1) * limit;
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+  const allowedSort = ["LAN", "customer_name", "mobile_number", "agreement_date", "loan_amount"];
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "LAN";
+
+  try {
+    const likeVal = `${prefix}%`;
+    const searchClause = search
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      : "";
+    const searchParams = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
+
+    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.status = 'Approved' AND lb.LAN LIKE ?${searchClause}`;
+    const dataSql  = `SELECT lb.* FROM ?? lb WHERE lb.status = 'Approved' AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+      db.promise().query(dataSql,  [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    res.json({ rows, pagination: { page: pg, pageSize: limit, total: Number(countRows[0]?.total || 0) } });
+  } catch (err) {
+    console.error("Error fetching approved loans:", err);
+    res.status(500).json({ message: "Database error" });
   }
-
-  const query = `SELECT * FROM ?? WHERE status = 'Approved' AND LAN LIKE ?`;
-  const values = [table, `${prefix}%`];
-
-  db.query(query, values, (err, results) => {
-    if (err) {
-      console.error("Error fetching approved loans:", err);
-      return res.status(500).json({ message: "Database error" });
-    }
-    res.json(results);
-  });
 });
 
 
-router.get("/disbursed-loans", (req, res) => {
-  const { table = "loan_bookings", prefix = "EV" } = req.query;
+
+router.get("/disbursed-loans", async (req, res) => {
+  const {
+    table   = "loan_bookings",
+    prefix  = "EV",
+    page    = "1",
+    pageSize = "25",
+    search  = "",
+    sortBy  = "LAN",
+    sortDir = "desc",
+  } = req.query;
 
   const allowedTables = {
-    "loan_bookings": true,
-    "loan_booking_adikosh": true,
-    "loan_booking_gq_non_fsf": true,
-    "loan_booking_gq_fsf": true,
-    "loan_bookings_wctl": true,
-
+    "loan_bookings": true, "loan_booking_adikosh": true,
+    "loan_booking_gq_non_fsf": true, "loan_booking_gq_fsf": true, "loan_bookings_wctl": true,
   };
+  if (!allowedTables[table]) return res.status(400).json({ message: "Invalid table name" });
 
-  if (!allowedTables[table]) {
-    return res.status(400).json({ message: "Invalid table name" });
+  const pg    = Math.max(1, parseInt(page,     10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 25));
+  const offset = (pg - 1) * limit;
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+  const allowedSort = ["LAN", "customer_name", "mobile_number", "agreement_date", "loan_amount"];
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "LAN";
+
+  try {
+    const likeVal = `${prefix}%`;
+    const searchClause = search
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      : "";
+    const searchParams = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
+
+    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?${searchClause}`;
+    const dataSql  = `SELECT lb.* FROM ?? lb WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+      db.promise().query(dataSql,  [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    res.json({ rows, pagination: { page: pg, pageSize: limit, total: Number(countRows[0]?.total || 0) } });
+  } catch (err) {
+    console.error("Error fetching disbursed loans:", err);
+    res.status(500).json({ message: "Database error" });
   }
-
-  const query = `SELECT * FROM ?? WHERE status = 'Disbursed' AND LAN LIKE ?`;
-  const values = [table, `${prefix}%`];
-
-  db.query(query, values, (err, results) => {
-    if (err) {
-      console.error("Error fetching approved loans:", err);
-      return res.status(500).json({ message: "Database error" });
-    }
-    res.json(results);
-  });
 });
+
 
 
 router.post("/upload", verifyApiKey, partnerApiLimiter, upload.single("file"), async (req, res) => {

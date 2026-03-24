@@ -1429,6 +1429,29 @@ const totalOverdue    = totalEmiOverdue + otherOverdues;
 // principal outstanding is your running outstanding
 const principalOutstanding = safeNum(outstanding);
 
+function getPartnerLoanIdByTable(loan, loanTable) {
+  const FIELD_MAP = {
+    loan_booking_ev: "partner_loan_id",
+    loan_booking_gq_non_fsf: "app_id",
+    loan_booking_gq_fsf: "app_id",
+    loan_booking_adikosh: "partner_loan_id",
+    loan_booking_circle_pe: "app_id",
+    loan_booking_embifi: "partner_loan_id",
+    loan_booking_emiclub: "partner_loan_id",
+    loan_booking_finso: "partner_loan_id",
+    loan_booking_hey_ev: "partner_loan_id",
+    loan_bookings_wctl: "partner_loan_id",
+    loan_bookings: "partner_loan_id"
+  };
+
+  const field = FIELD_MAP[loanTable];
+
+  return field && loan[field]
+    ? loan[field]
+    : loan.lan || "-";
+}
+
+const partnerLoanId = getPartnerLoanIdByTable(loan, loanTable);
 
     // -------- PDF: stable multi-page layout --------
     const MARGINS = { top: 40, left: 40, right: 40, bottom: 40 };
@@ -1469,7 +1492,8 @@ const drawLine = (x, label, value) => {
 
 doc.text(`Customer Name: ${loan.customer_name || "-"}`)
       .text(`Loan Account No: ${loan.lan || "-"}`)
-      .text(`Partner Loan ID: ${loan.app_id || "-"}`)
+      // .text(`Partner Loan ID: ${loan.app_id || "-"}`)
+      .text(`Partner Loan ID: ${partnerLoanId}`)
 drawLine(leftX,  "Loan Amount (Rs)",            inr(loanAmt));
 drawLine(leftX,  "Rate of Interest (%)",        roi);
 drawLine(leftX,  "EMI Start Date",              fmtDDMMMYYYY(emiStart));

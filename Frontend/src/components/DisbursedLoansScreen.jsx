@@ -1,72 +1,11 @@
-// // components/DisbursedLoansTable.jsx
-// import React, { useEffect, useState } from "react";
-// import { useNavigate } from "react-router-dom";
-// import api from "../api/api";
-// import "../styles/DisbursedLoans.css";
-
-// const DisbursedLoansTable = ({ apiEndpoint, title = "Disbursed Loans", amountField = "disbursement_amount" }) => {
-//     const [disbursedLoans, setDisbursedLoans] = useState([]);
-//     const navigate = useNavigate();
-
-//     useEffect(() => {
-//         const fetchDisbursedLoans = async () => {
-//             try {
-//                 const response = await api.get(apiEndpoint);
-//                 const sortedLoans = response.data.sort((a, b) => b.lan.localeCompare(a.lan));
-//                 setDisbursedLoans(sortedLoans);
-//             } catch (err) {
-//                 console.error(`Failed to fetch disbursed loans from ${apiEndpoint}`);
-//             }
-//         };
-
-//         fetchDisbursedLoans();
-//     }, [apiEndpoint]);
-
-//     return (
-//         <div className="disbursed-loans-container">
-//             <h2>{title}</h2>
-//             <table>
-//                 <thead>
-//                     <tr>
-//                         <th>Customer Name</th>
-//                         <th>LAN</th>
-//                         <th>Disbursement Amount</th>
-//                         <th>Disbursement Date</th>
-//                         <th>Status</th>
-//                     </tr>
-//                 </thead>
-//                 <tbody>
-//                     {disbursedLoans.map((loan) => (
-//                         <tr key={loan.lan}>
-//                             <td>
-//                                 <span className="clickable" onClick={() => navigate(`/loan-details/${loan.lan}`)}>
-//                                     {loan.customer_name}
-//                                 </span>
-//                             </td>
-//                             <td>
-//                                 <span className="clickable" onClick={() => navigate(`/loan-details/${loan.lan}`)}>
-//                                     {loan.lan}
-//                                 </span>
-//                             </td>
-//                             <td>{loan.loan_amount}</td>
-//                             <td>{loan.disbursement_date}</td>
-//                             <td>{loan.status}</td>
-//                         </tr>
-//                     ))}
-//                 </tbody>
-//             </table>
-//         </div>
-//     );
-// };
-
-// export default DisbursedLoansTable;
-
-// components/DisbursedLoansScreen.jsx
-import React, { useEffect, useMemo, useState } from "react";
+// components/DisbursedLoansScreen.jsx — server-side paginated
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import DataTable from "./ui/DataTable";
 import LoaderOverlay from "./ui/LoaderOverlay";
+
+const DEFAULT_PAGE_SIZE = 25;
 
 const DisbursedLoansTable = ({
   apiEndpoint,
@@ -74,260 +13,199 @@ const DisbursedLoansTable = ({
   amountField = "disbursement_amount",
   currency = "INR",
 }) => {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [rows,      setRows]      = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [err,       setErr]       = useState("");
+  const [page,      setPage]      = useState(1);
+  const [pageSize,  setPageSize]  = useState(DEFAULT_PAGE_SIZE);
+  const [totalRows, setTotalRows] = useState(0);
+  const [search,    setSearch]    = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const navigate = useNavigate();
+  const abortRef = useRef(null);
 
-  // Fetch
   useEffect(() => {
-    let off = false;
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => { setPage(1); }, [debouncedSearch, pageSize]);
+
+  const fetchPage = useCallback(() => {
+    if (abortRef.current) abortRef.current.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     setLoading(true);
-    setErr(""); 
-    api
-      .get(apiEndpoint)
+    setErr("");
+
+    api.get(apiEndpoint, {
+      params: { page, pageSize, search: debouncedSearch || undefined },
+      signal: ctrl.signal,
+    })
       .then((res) => {
-        if (off) return;
-        const data = Array.isArray(res.data) ? res.data : [];
-        // original behavior: sort by LAN desc
-        const sorted = [...data].sort((a, b) =>
-          String(b?.lan ?? "").localeCompare(String(a?.lan ?? ""))
-        );
-        setRows(sorted);
-        setErr("");
+        const data = res.data;
+        if (data && Array.isArray(data.rows)) {
+          setRows(data.rows);
+          setTotalRows(data.pagination?.total ?? data.rows.length);
+        } else if (Array.isArray(data)) {
+          // legacy fallback
+          setRows(data);
+          setTotalRows(data.length);
+        } else {
+          setRows([]);
+          setTotalRows(0);
+        }
       })
       .catch((e) => {
+        if (e?.code === "ERR_CANCELED") return;
         console.error(`Failed to fetch disbursed loans from ${apiEndpoint}`, e);
-        if (!off) setErr("Failed to fetch data.");
+        setErr("Failed to fetch data.");
       })
-      .finally(() => !off && setLoading(false));
-    return () => {
-      off = true;
-    };
-  }, [apiEndpoint]);
+      .finally(() => setLoading(false));
+  }, [apiEndpoint, page, pageSize, debouncedSearch]);
 
-  const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
-  const hasEV = rows.some((r) => typeof r?.lan === "string" && /^EV/i.test(r.lan));
-  const hasGQFSF = rows.some((r) => typeof r?.lan === "string" && /^GQFSF/i.test(r.lan));
-  const hasGQNonFSF = rows.some((r) => typeof r?.lan === "string" && /^GQNONFSF/i.test(r.lan));
+  useEffect(() => { fetchPage(); }, [fetchPage]);
 
-  // Status options
-  const statuses = useMemo(
-    () => ["all", ...Array.from(new Set(rows.map((r) => r.status).filter(Boolean)))],
-    [rows]
-  );
+  const hasADK    = rows.some((r) => /^ADK/i.test(r?.lan));
+  const hasEV     = rows.some((r) => /^EV/i.test(r?.lan));
+  const hasGQFSF  = rows.some((r) => /^GQFSF/i.test(r?.lan));
+  const hasGQNonF = rows.some((r) => /^GQNONFSF/i.test(r?.lan));
 
-  // Apply status filter before sending to DataTable
-  const filteredRows = useMemo(() => {
-    if (statusFilter === "all") return rows;
-    return rows.filter((r) => r.status === statusFilter);
-  }, [rows, statusFilter]);
-
-  // Formatters
-  const nf = useMemo(
-    () =>
-      new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency,
-        maximumFractionDigits: 2,
-      }),
+  const nf = useMemo(() =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 2 }),
     [currency]
   );
   const formatAmount = (r) => {
-    const raw = r?.[amountField] ?? r?.loan_amount;
-    const n = Number(raw);
+    const n = Number(r?.[amountField] ?? r?.loan_amount);
     return Number.isFinite(n) ? nf.format(n) : "—";
   };
 
-  // Column defs
   const columns = [
     {
-      key: "customer_name",
-      header: "Customer Name",
-      sortable: true,
+      key: "customer_name", header: "Customer Name", sortable: true,
       render: (r) => (
-        <span
-          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/loan-details/${r.lan}`)}
-          title="View loan details"
-        >
+        <span style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+              onClick={() => navigate(`/loan-details/${r.lan}`)} title="View loan details">
           {r.customer_name ?? "—"}
         </span>
       ),
-      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
-      width: 220,
+      sortAccessor: (r) => (r.customer_name || "").toLowerCase(), width: 220,
     },
     {
-      key: "lan",
-      header: "LAN",
-      sortable: true,
+      key: "lan", header: "LAN", sortable: true,
       render: (r) => (
-        <span
-          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/loan-details/${r.lan}`)}
-          title="View loan details"
-        >
+        <span style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+              onClick={() => navigate(`/loan-details/${r.lan}`)}>
           {r.lan ?? "—"}
         </span>
       ),
-      sortAccessor: (r) => (r.lan || "").toLowerCase(),
-      width: 150,
+      sortAccessor: (r) => (r.lan || "").toLowerCase(), width: 150,
     },
-    // Batch ID column (only for ADK LANs; non-ADK shows —)
-    ...(hasADK
-      ? [
-          {
-            key: "batch_id",
-            header: "Batch ID",
-            sortable: true,
-            render: (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "—") : "—"),
-            sortAccessor: (r) =>
-              /^ADK/i.test(r?.lan) ? String(r?.batch_id || "").toLowerCase() : "",
-            csvAccessor: (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "") : ""),
-            width: 140,
-          },
-        ]
-      : []),
-
-      // Batch ID column (only for GQFSF LANs; non-GQFSF shows —)
-    ...(hasGQFSF
-      ? [
-          {
-            key: "app_id",
-            header: "APP ID",
-            sortable: true,
-            render: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
-            sortAccessor: (r) =>
-              /^GQFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : "",
-            csvAccessor: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""),
-            width: 140,
-          },
-        ]
-      : []),
-
-    ...(hasGQNonFSF
-      ? [
-          {
-            key: "app_id",
-            header: "APP ID",
-            sortable: true,
-            render: (r) => (/^GQNonFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
-            sortAccessor: (r) =>
-              /^GQNonFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : "",
-            csvAccessor: (r) => (/^GQNonFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""),
-            width: 140,
-          },
-        ]
-      : []),
-
-      ...(hasEV
-      ? [
-          {
-            key: "partner_loan_id",
-            header: "Partner Loan ID",
-            sortable: true,
-            render: (r) => (/^EV/i.test(r?.lan) ? (r.partner_loan_id ?? "—") : "—"),
-            sortAccessor: (r) =>
-              /^EV/i.test(r?.lan) ? String(r?.partner_loan_id || "").toLowerCase() : "",
-            csvAccessor: (r) => (/^EV/i.test(r?.lan) ? (r.partner_loan_id ?? "") : ""),
-            width: 140,
-          },
-        ]
-      : []),
-
-      
+    ...(hasADK ? [{
+      key: "batch_id", header: "Batch ID", sortable: true,
+      render:       (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "—") : "—"),
+      sortAccessor: (r) => (/^ADK/i.test(r?.lan) ? String(r?.batch_id || "").toLowerCase() : ""),
+      csvAccessor:  (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "") : ""), width: 140,
+    }] : []),
+    ...(hasGQFSF ? [{
+      key: "app_id", header: "APP ID (FSF)", sortable: true,
+      render:       (r) => (/^GQFSF/i.test(r?.lan)  ? (r.app_id ?? "—") : "—"),
+      sortAccessor: (r) => (/^GQFSF/i.test(r?.lan)  ? String(r?.app_id || "").toLowerCase() : ""),
+      csvAccessor:  (r) => (/^GQFSF/i.test(r?.lan)  ? (r.app_id ?? "") : ""), width: 140,
+    }] : []),
+    ...(hasGQNonF ? [{
+      key: "app_id", header: "APP ID (Non-FSF)", sortable: true,
+      render:       (r) => (/^GQNONFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
+      sortAccessor: (r) => (/^GQNONFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : ""),
+      csvAccessor:  (r) => (/^GQNONFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""), width: 140,
+    }] : []),
     {
-      key: amountField,
-      header: "Disbursement Amount",
-      sortable: true,
-      render: (r) => formatAmount(r),
-      sortAccessor: (r) => {
-        const v = Number(r?.[amountField] ?? r?.loan_amount ?? 0);
-        return Number.isFinite(v) ? v : 0;
-      },
+  key: "partner_loan_id",
+  header: "Partner Loan ID",
+  sortable: true,
+  render: (r) => r.partner_loan_id ?? "—",
+  sortAccessor: (r) => String(r?.partner_loan_id || "").toLowerCase(),
+  csvAccessor: (r) => r.partner_loan_id ?? "",
+  width: 160,
+},
+    {
+      key: amountField, header: "Disbursement Amount", sortable: true,
+      render:       (r) => formatAmount(r),
+      sortAccessor: (r) => { const v = Number(r?.[amountField] ?? r?.loan_amount ?? 0); return Number.isFinite(v) ? v : 0; },
       width: 190,
     },
     {
-      key: "disbursement_date",
-      header: "Disbursement Date",
-      sortable: true,
-      sortAccessor: (r) => (r.disbursement_date ? Date.parse(r.disbursement_date) : 0),
-      width: 170,
+      key: "disbursement_date", header: "Disbursement Date", sortable: true,
+      sortAccessor: (r) => (r.disbursement_date ? Date.parse(r.disbursement_date) : 0), width: 170,
     },
     {
-      key: "status",
-      header: "Status",
-      sortable: true,
+      key: "status", header: "Status", sortable: true,
       render: (r) => {
         const map = {
           Disbursed: { bg: "rgba(16,185,129,.12)", bd: "rgba(16,185,129,.35)", fg: "#065f46" },
-          Settled: { bg: "rgba(59,130,246,.12)", bd: "rgba(59,130,246,.35)", fg: "#1e3a8a" },
-          Pending: { bg: "rgba(234,179,8,.12)", bd: "rgba(234,179,8,.35)", fg: "#713f12" },
-          Failed: { bg: "rgba(239,68,68,.12)", bd: "rgba(239,68,68,.35)", fg: "#7f1d1d" },
+          Settled:   { bg: "rgba(59,130,246,.12)", bd: "rgba(59,130,246,.35)", fg: "#1e3a8a" },
+          Pending:   { bg: "rgba(234,179,8,.12)",  bd: "rgba(234,179,8,.35)",  fg: "#713f12" },
+          Failed:    { bg: "rgba(239,68,68,.12)",  bd: "rgba(239,68,68,.35)",  fg: "#7f1d1d" },
         };
         const c = map[r.status] || { bg: "rgba(107,114,128,.12)", bd: "rgba(107,114,128,.35)", fg: "#374151" };
         return (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 10px",
-              borderRadius: 999,
-              fontSize: 12,
-              fontWeight: 700,
-              background: c.bg,
-              color: c.fg,
-              border: `1px solid ${c.bd}`,
-            }}
-          >
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px",
+            borderRadius: 999, fontSize: 12, fontWeight: 700, background: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>
             {r.status ?? "—"}
           </span>
         );
       },
-      sortAccessor: (r) => (r.status || "").toLowerCase(),
-      width: 140,
+      sortAccessor: (r) => (r.status || "").toLowerCase(), width: 140,
     },
   ];
 
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
 
   return (
     <>
-    <LoaderOverlay show={loading} label="Fetching data…" />
+      <LoaderOverlay show={loading} label="Fetching data…" />
       {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
-    <DataTable
-      title={title}
-      rows={filteredRows}
-      columns={columns}
-      globalSearchKeys={["customer_name", "lan","app_id", "batch_id", "partner_loan_id", "status", amountField, "disbursement_date"]}
-      initialSort={{ key: "disbursement_date", dir: "desc" }}
-      exportFileName="disbursed_loans"
-      // right-side toolbar content (status filter)
-      // renderTopRight={
-      //   <select
-      //     value={statusFilter}
-      //     onChange={(e) => setStatusFilter(e.target.value)}
-      //     style={{
-      //       padding: "10px 12px",
-      //       borderRadius: 10,
-      //       border: "1px solid #d1d5db",
-      //       background: "#fff",
-      //       fontSize: 14,
-      //       minWidth: 160,
-      //       outline: "none",
-      //     }}
-      //   >
-      //     {statuses.map((st) => (
-      //       <option key={st} value={st}>
-      //         {st === "all" ? "All statuses" : st}
-      //       </option>
-      //     ))}
-      //   </select>
-      // }
-    />
+
+      <DataTable
+        title={title}
+        rows={rows}
+        columns={columns}
+        globalSearchKeys={[]}
+        initialSort={{ key: "disbursement_date", dir: "desc" }}
+        exportFileName="disbursed_loans"
+        initialPageSize={pageSize}
+        pageSizeOptions={[10, 25, 50, 100]}
+        serverPagination={true}
+        totalRows={totalRows}
+        currentPage={page}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => setPageSize(n)}
+        renderTopRight={
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              placeholder="Search LAN, name, mobile…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 14, minWidth: 260, outline: "none" }}
+            />
+            <span style={{ color: "#6b7280", fontSize: 13 }}>
+              {totalRows.toLocaleString()} record{totalRows !== 1 ? "s" : ""}
+            </span>
+          </div>
+        }
+      />
     </>
   );
 };
+
+function pagerBtnStyle(disabled) {
+  return {
+    padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db",
+    background: disabled ? "#f3f4f6" : "#fff",
+    color:      disabled ? "#9ca3af" : "#1f2937",
+    cursor:     disabled ? "default" : "pointer",
+    fontSize: 13, fontWeight: 600,
+  };
+}
 
 export default DisbursedLoansTable;
