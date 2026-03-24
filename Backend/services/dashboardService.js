@@ -372,7 +372,7 @@ async function buildMetricCards(prod, start, end, db) {
     disburseQueries.push(`
       SELECT IFNULL(SUM(${cfg.disbField}), 0) AS amount
       FROM ${cfg.bookTable}
-      WHERE status IN ('Disbursed') ${dcl.clause}
+      WHERE status IN ('Disbursed', 'Foreclosed', 'Fully Paid', 'Settled & Closed',  ) ${dcl.clause}
     `);
     disburseParams.push(...dcl.params);
 
