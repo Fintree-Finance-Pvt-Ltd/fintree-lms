@@ -126,13 +126,15 @@ router.post("/dpd-list", async (req, res) => {
     const sortBy   = typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd";
     const sortDir  = String(sortDirRaw || "desc").toLowerCase() === "asc" ? "asc" : "desc";
 
-    // Validate bucket early (before cache key construction)
-    const validBuckets = ["0", "0-30", "30-60", "60-90", "90+", "closed", "active", "ALL"];
+    // Valid buckets for dpd-list (NOTE: "ALL" is NOT a valid dpd-list bucket —
+    // it is only used as a product filter, not a DPD band selector)
+    const validBuckets = ["0", "0-30", "30-60", "60-90", "90+", "closed", "active"];
     if (!validBuckets.includes(bucket)) {
-      return res.status(400).json({ error: "Invalid bucket" });
+      return res.status(400).json({ error: `Invalid bucket: "${bucket}". Valid values: ${validBuckets.join(", ")}` });
     }
 
     // dpd-list is paginated — shorter TTL (120s) to keep data fresh
+    // Use normalized `prod` in key to avoid cache splits on raw product string variants
     const cacheKey = `dash:dpdlist:${prod}:${bucket}:${page}:${pageSize}:${sortBy}:${sortDir}`;
 
     const result = await withCache(cacheKey, 120, async () =>
