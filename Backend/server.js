@@ -119,6 +119,8 @@ app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ R
 
 app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 
+app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
+
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 

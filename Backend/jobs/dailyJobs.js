@@ -207,6 +207,34 @@ cron.schedule("*/2 * * * *", async () => {
     console.error("❌ Risk cron failed:", e.message);
   }
 });
+
+// 4️⃣ WhatsApp Due Date Reminder Cron
+// Runs every day at 9:00 AM server time
+cron.schedule(
+  "0 9 * * *",
+  async () => {
+    console.log("📱 Running WhatsApp Due Date Reminder Service...");
+    try {
+      const { triggerReminderService } = require("../services/WhatsAppDueDateReminderService");
+
+      const result = await triggerReminderService();
+
+      if (result.success) {
+        console.log("✅ WhatsApp reminder job completed:", result);
+      } else {
+        console.error("❌ WhatsApp reminder job failed:", result.message);
+      }
+    } catch (e) {
+      console.error("❌ WhatsApp reminder cron failed:", e.message);
+    }
+  },
+  {
+    timezone: "Asia/Kolkata",
+  }
+);
+
+
+
 ///////////////////// EMI CLUB CRON JOB /////////////////////
 // cron.schedule("*/2 * * * *", async () => {
 //   console.log("⏰ Document validation cron started");
