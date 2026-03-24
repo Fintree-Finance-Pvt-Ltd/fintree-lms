@@ -12,7 +12,7 @@ const { XMLParser } = require("fast-xml-parser");
 const verifyApiKey = require("../middleware/apiKeyAuth");
 const { approveAndInitiatePayout } = require("../services/payout.service");
 const { sendLoanStatusMail } = require("../jobs/mailer");
-const { generateDailySupplyChainDemand } =  require("../services/demandService");// moved from Supply chain controller for better modularity
+const { generateDailySupplyChainDemand } = require("../services/demandService");// moved from Supply chain controller for better modularity
 const { generateDemandFromInvoiceDisbursement } = require("../services/demandService"); // moved from Supply chain controller for better modularity  
 const {
   allocateSupplyChainRepayment
@@ -42,7 +42,7 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "HEY EV Loan") {
     prefixPartnerLoan = "HEYEV1";
     prefixLan = "HEYEV1";
-    } else if (lender === "HeyEV Battery") {
+  } else if (lender === "HeyEV Battery") {
     prefixPartnerLoan = "HEYB1";
     prefixLan = "HEYBF1";
   } else if (lender === "HC") {
@@ -51,7 +51,7 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "BL Loan") {
     prefixPartnerLoan = "BLIN1";
     prefixLan = "BL1";
-  }else if (lender === "WCTL") {
+  } else if (lender === "WCTL") {
     prefixPartnerLoan = "WCTL1";
     prefixLan = "WCTL1";
   } else if (lender === "GQ FSF") {
@@ -63,7 +63,7 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "Adikosh") {
     prefixPartnerLoan = "ADK1";
     prefixLan = "ADKF1";
-    } else if (lender === "circlepe") {
+  } else if (lender === "circlepe") {
     prefixPartnerLoan = "FCIR1";
     prefixLan = "CIRF1";
   } else if (lender === "emiclub") {
@@ -74,7 +74,7 @@ const generateLoanIdentifiers = async (lender) => {
     prefixLan = "FCCOD1";
   } else if (lender === "Finso") {
     prefixLan = "FINS1";
-  }else if (lender === "loan_digit") {
+  } else if (lender === "loan_digit") {
     // prefixPartnerLoan = "FCIR1";
     prefixLan = "LNDIGF1";
   } else {
@@ -882,43 +882,43 @@ router.post("/upload/ev-manual", async (req, res) => {
 
     // ✅ Required fields same as Excel upload
     const requiredFields = [
-     "LOGIN_DATE",
-    "Customer_Name",
-    "Borrower_DOB",
-    "Father_Name",
-    "Mobile_Number",
-    "Address_Line_1",
-    "Village",
-    "District",
-    "State",
-    "Pincode",
-    "Loan_Amount",
-    "Interest_Rate",
-    "Tenure",
-    "dealer_name",
-    "GURANTOR",
-    "GURANTOR_DOB",
-    "GURANTOR_ADHAR",
-    "GURANTOR_PAN",
-    "name_in_bank",
-    "bank_name",
-    "account_number",
-    "ifsc",
-    "gst_no",
-    "Aadhar_Number",
-    "Pan_Card",
-    "CIBIL_Score",
-    "GURANTOR_CIBIL_Score",
-    "Relationship_with_Borrower",
-    "Battery_Name",
-    "Battery_Type",
-    "Battery_Serial_no_1",
-    "E_Rikshaw_model",
-    "Chassis_no",
-    "customer_name_as_per_bank",
-    "customer_bank_name",
-    "customer_account_number",
-    "bank_ifsc_code",
+      "LOGIN_DATE",
+      "Customer_Name",
+      "Borrower_DOB",
+      "Father_Name",
+      "Mobile_Number",
+      "Address_Line_1",
+      "Village",
+      "District",
+      "State",
+      "Pincode",
+      "Loan_Amount",
+      "Interest_Rate",
+      "Tenure",
+      "dealer_name",
+      "GURANTOR",
+      "GURANTOR_DOB",
+      "GURANTOR_ADHAR",
+      "GURANTOR_PAN",
+      "name_in_bank",
+      "bank_name",
+      "account_number",
+      "ifsc",
+      "gst_no",
+      "Aadhar_Number",
+      "Pan_Card",
+      "CIBIL_Score",
+      "GURANTOR_CIBIL_Score",
+      "Relationship_with_Borrower",
+      "Battery_Name",
+      "Battery_Type",
+      "Battery_Serial_no_1",
+      "E_Rikshaw_model",
+      "Chassis_no",
+      "customer_name_as_per_bank",
+      "customer_bank_name",
+      "customer_account_number",
+      "bank_ifsc_code",
     ];
 
     const missingFields = requiredFields.filter(
@@ -954,50 +954,50 @@ router.post("/upload/ev-manual", async (req, res) => {
     // const { partnerLoanId, lan } = await generateLoanIdentifiers(data.lender);
 
     conn = await db.promise().getConnection();
-await conn.beginTransaction();
+    await conn.beginTransaction();
 
-  const partnerName = "EV Loan";
+    const partnerName = "EV Loan";
 
-  // Extract month/year from login date
-  const today = new Date();
-  const { month, year } = getMonthYear(today);
+    // Extract month/year from login date
+    const today = new Date();
+    const { month, year } = getMonthYear(today);
 
-  const loanAmount = parseFloat(data.Loan_Amount || 0);
+    const loanAmount = parseFloat(data.Loan_Amount || 0);
 
-  if (loanAmount <= 0) {
-    throw new Error("Invalid loan amount");
-  }
+    if (loanAmount <= 0) {
+      throw new Error("Invalid loan amount");
+    }
 
-  // Get or create partner
-  const partner = await partnerLimitService.getOrCreatePartner(
-    conn,
-    partnerName
-  );
-
-  // Validate monthly limit
-  const limitCheck =
-    await partnerLimitService.validatePartnerLimit(
+    // Get or create partner
+    const partner = await partnerLimitService.getOrCreatePartner(
       conn,
-      partner.partner_id,
-      loanAmount,
-      month,
-      year
+      partnerName
     );
 
-  if (!limitCheck.valid) {
-    await conn.rollback();
-    conn.release();
+    // Validate monthly limit
+    const limitCheck =
+      await partnerLimitService.validatePartnerLimit(
+        conn,
+        partner.partner_id,
+        loanAmount,
+        month,
+        year
+      );
 
-    return res.status(403).json({
-      message: `Limit exceeded for ${partnerName}`,
-      remaining_limit: limitCheck.remaining,
-      required: loanAmount,
-    });
-  }
+    if (!limitCheck.valid) {
+      await conn.rollback();
+      conn.release();
 
-  // Generate IDs AFTER limit validation passes
-  const { partnerLoanId, lan } =
-    await generateLoanIdentifiers(data.lender);
+      return res.status(403).json({
+        message: `Limit exceeded for ${partnerName}`,
+        remaining_limit: limitCheck.remaining,
+        required: loanAmount,
+      });
+    }
+
+    // Generate IDs AFTER limit validation passes
+    const { partnerLoanId, lan } =
+      await generateLoanIdentifiers(data.lender);
 
     // ✅ Insert into DB
     const query = `
@@ -1081,16 +1081,16 @@ await conn.beginTransaction();
     console.log(`✅ Manual EV Loan inserted | LAN: ${lan} | PAN: ${data.Pan_Card}`);
 
     // Update partner used limit + audit
-await partnerLimitService.updateUsedLimit(
-  conn,
-  limitCheck.limitId,
-  loanAmount,
-  "BOOKED",
-  lan
-);
+    await partnerLimitService.updateUsedLimit(
+      conn,
+      limitCheck.limitId,
+      loanAmount,
+      "BOOKED",
+      lan
+    );
 
-await conn.commit();
-conn.release();
+    await conn.commit();
+    conn.release();
 
     return res.json({
       message: "EV Loan manually inserted successfully.",
@@ -1098,7 +1098,7 @@ conn.release();
       partnerLoanId,
     });
   } catch (err) {
-  if (conn) {
+    if (conn) {
       await conn.rollback();
       conn.release();
     }
@@ -1255,63 +1255,63 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
         // );
 
         conn = await db.promise().getConnection();
-await conn.beginTransaction();
+        await conn.beginTransaction();
 
-  const partnerName = "Hey EV Loan";
+        const partnerName = "Hey EV Loan";
 
-  const loginDate = excelDateToJSDate(row["LOGIN DATE"]);
-  const today = new Date();
-  const { month, year } = getMonthYear(today);
+        const loginDate = excelDateToJSDate(row["LOGIN DATE"]);
+        const today = new Date();
+        const { month, year } = getMonthYear(today);
 
-  const loanAmount = Number(row["Loan Amount"]) || 0;
+        const loanAmount = Number(row["Loan Amount"]) || 0;
 
-  if (loanAmount <= 0) {
-    throw new Error("Invalid loan amount");
-  }
+        if (loanAmount <= 0) {
+          throw new Error("Invalid loan amount");
+        }
 
-  const partner = await partnerLimitService.getOrCreatePartner(
-    conn,
-    partnerName
-  );
+        const partner = await partnerLimitService.getOrCreatePartner(
+          conn,
+          partnerName
+        );
 
-  const limitCheck =
-    await partnerLimitService.validatePartnerLimit(
-      conn,
-      partner.partner_id,
-      loanAmount,
-      month,
-      year
-    );
+        const limitCheck =
+          await partnerLimitService.validatePartnerLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year
+          );
 
-  if (!limitCheck.valid) {
-    await conn.rollback();
-    conn.release();
+        if (!limitCheck.valid) {
+          await conn.rollback();
+          conn.release();
 
-    row_errors.push({
-      row: R,
-      stage: "limit-check",
-      reason: `Limit exceeded. Remaining: ${limitCheck.remaining}, Required: ${loanAmount}`,
-    });
+          row_errors.push({
+            row: R,
+            stage: "limit-check",
+            reason: `Limit exceeded. Remaining: ${limitCheck.remaining}, Required: ${loanAmount}`,
+          });
 
-    continue;
-  }
+          continue;
+        }
 
-  const { partnerLoanId, lan } =
-    await generateLoanIdentifiers(lenderType);
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(lenderType);
 
-const loanAmt = Number(row["Loan Amount"]) || 0;
-const fldgPercent = Number(row["FLDG"]) || 0;   // e.g., 5 = 5%
-const processPercent = Number(row["PROCESS FEE"]) || 0; // e.g., 2 = 2%
+        const loanAmt = Number(row["Loan Amount"]) || 0;
+        const fldgPercent = Number(row["FLDG"]) || 0;   // e.g., 5 = 5%
+        const processPercent = Number(row["PROCESS FEE"]) || 0; // e.g., 2 = 2%
 
-// Convert percentages to amounts
-const fldgValue = loanAmt * (fldgPercent / 100);
-const processFeeValue = loanAmt * (processPercent / 100);
+        // Convert percentages to amounts
+        const fldgValue = loanAmt * (fldgPercent / 100);
+        const processFeeValue = loanAmt * (processPercent / 100);
 
-// GST on process fee
-const gstValue = processFeeValue * 0.18;
+        // GST on process fee
+        const gstValue = processFeeValue * 0.18;
 
-// Final disbursement amount
-const disbursementAmount = loanAmt - (fldgValue + processFeeValue + gstValue);
+        // Final disbursement amount
+        const disbursementAmount = loanAmt - (fldgValue + processFeeValue + gstValue);
 
 
 
@@ -1338,78 +1338,78 @@ const disbursementAmount = loanAmt - (fldgValue + processFeeValue + gstValue);
         `;
 
         await conn.query(query, [
-            partnerLoanId,
-            lan,
-            row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
-            row["Customer Name"],
-            row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
-            row["Father Name"],
-            row["Address Line 1"],
-            row["Address Line 2"],
-            row["Village"],
-            row["District"],
-            row["State"],
-            row["Pincode"],
-            row["Mobile Number"],
-            row["Email"],
-            row["Loan Amount"],
-            row[" Interest Rate "],
-            row["Tenure"],
-            row["FLDG"],
-            row["PROCESS FEE"],
-            row["EMI Amount"],
-            row["GURANTOR"],
-            row["GURANTOR DOB"] ? excelDateToJSDate(row["GURANTOR DOB"]) : null,
-            row["GURANTOR ADHAR"],
-            row["GURANTOR PAN"],
-            row["DEALER NAME"],
-            row["Name in Bank"],
-            row["Bank name"],
-            row["Account Number"],
-            row["IFSC"],
-            row["Aadhar Number"],
-            row["Pan Card"],
-            row["Product"],
-            row["lender"] || "EV Loan",
-            row["Agreement Date"]
-              ? excelDateToJSDate(row["Agreement Date"])
-              : null,
-            row["status"] || "Login",
-             disbursementAmount,
-            row["Processing Fee"] || 0.0,
-            row["CIBIL Score"],
-            row["GURANTOR CIBIL Score"],
-            row["Relationship with Borrower"],
-            row["Co-Applicant"],
-            row["Co-Applicant DOB"]
-              ? excelDateToJSDate(row["Co-Applicant DOB"])
-              : null,
-            row["Co-Applicant AADHAR"],
-            row["Co-Applicant PAN"],
-            row["Co-Applicant CIBIL Score"],
-            row["APR"],
-            row["Battery Name"],
-            row["Battery Type"],
-            row["Battery Serial no 1"],
-            row["Battery Serial no 2"],
-            row["E-Rikshaw model"],
-            row["Chassis no"],
-            row["Customer Name as per bank"],
-            row["Customer Bank name"],
-            row["Customer Account Number"],
-            row["Bank IFSC Code"],
-          ]);
+          partnerLoanId,
+          lan,
+          row["LOGIN DATE"] ? excelDateToJSDate(row["LOGIN DATE"]) : null,
+          row["Customer Name"],
+          row["Borrower DOB"] ? excelDateToJSDate(row["Borrower DOB"]) : null,
+          row["Father Name"],
+          row["Address Line 1"],
+          row["Address Line 2"],
+          row["Village"],
+          row["District"],
+          row["State"],
+          row["Pincode"],
+          row["Mobile Number"],
+          row["Email"],
+          row["Loan Amount"],
+          row[" Interest Rate "],
+          row["Tenure"],
+          row["FLDG"],
+          row["PROCESS FEE"],
+          row["EMI Amount"],
+          row["GURANTOR"],
+          row["GURANTOR DOB"] ? excelDateToJSDate(row["GURANTOR DOB"]) : null,
+          row["GURANTOR ADHAR"],
+          row["GURANTOR PAN"],
+          row["DEALER NAME"],
+          row["Name in Bank"],
+          row["Bank name"],
+          row["Account Number"],
+          row["IFSC"],
+          row["Aadhar Number"],
+          row["Pan Card"],
+          row["Product"],
+          row["lender"] || "EV Loan",
+          row["Agreement Date"]
+            ? excelDateToJSDate(row["Agreement Date"])
+            : null,
+          row["status"] || "Login",
+          disbursementAmount,
+          row["Processing Fee"] || 0.0,
+          row["CIBIL Score"],
+          row["GURANTOR CIBIL Score"],
+          row["Relationship with Borrower"],
+          row["Co-Applicant"],
+          row["Co-Applicant DOB"]
+            ? excelDateToJSDate(row["Co-Applicant DOB"])
+            : null,
+          row["Co-Applicant AADHAR"],
+          row["Co-Applicant PAN"],
+          row["Co-Applicant CIBIL Score"],
+          row["APR"],
+          row["Battery Name"],
+          row["Battery Type"],
+          row["Battery Serial no 1"],
+          row["Battery Serial no 2"],
+          row["E-Rikshaw model"],
+          row["Chassis no"],
+          row["Customer Name as per bank"],
+          row["Customer Bank name"],
+          row["Customer Account Number"],
+          row["Bank IFSC Code"],
+        ]);
 
-          await partnerLimitService.updateUsedLimit(
-  conn,
-  limitCheck.limitId,
-  loanAmount,
-  "BOOKED",
-  lan
-);
+        await partnerLimitService.updateUsedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          "BOOKED",
+          lan
+        );
 
-await conn.commit();
-conn.release();
+        await conn.commit();
+        conn.release();
 
         success_rows.push({ row: R, lan, partnerLoanId, interestRate });
         console.log(`✅ Inserted row ${R} | PAN: ${panCard} | LAN: ${lan}`);
@@ -1704,132 +1704,132 @@ conn.release();
 
 router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) => {
   console.log("Inside battery upload route");
-    if (!req.file)
-      return res.status(400).json({ message: "No file uploaded." });
+  if (!req.file)
+    return res.status(400).json({ message: "No file uploaded." });
 
-    if (!req.body.lenderType)
-      return res.status(400).json({ message: "Lender type is required." });
+  if (!req.body.lenderType)
+    return res.status(400).json({ message: "Lender type is required." });
 
-    try {
-      const lenderType = req.body.lenderType.trim();
-      if (lenderType !== "HeyEV Battery") {
-        return res.status(400).json({
-          message: "Invalid lender type. Only HeyEV Battery allowed.",
-        });
-      }
+  try {
+    const lenderType = req.body.lenderType.trim();
+    if (lenderType !== "HeyEV Battery") {
+      return res.status(400).json({
+        message: "Invalid lender type. Only HeyEV Battery allowed.",
+      });
+    }
 
-      const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-      const sheet = workbook.SheetNames[0];
-      const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet]);
+    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheet = workbook.SheetNames[0];
+    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheet]);
 
-      if (!sheetData.length)
-        return res.status(400).json({ message: "Empty Excel file." });
+    if (!sheetData.length)
+      return res.status(400).json({ message: "Empty Excel file." });
 
-      const requiredFields = [
-        "LOGIN DATE",
-        "Customer Name",
-        "Borrower DOB",
-        "Father Name",
-        "Address Line 1",
-        "Address Line 2",
-        "Village",
-        "District",
-        "State",
-        "Pincode",
-        "Mobile Number",
-        "Invoice Amount",
-        "LTV",
-        "Loan Amount",
-        " Interest Rate ",
-        "Tenure",
-        "FLDG",
-        "Process Fee",
-        "DEALER NAME",
-        "Name in Bank",
-        "Bank name",
-        "Account Number",
-        "IFSC",
-        "Borrower Aadhar Number",
-        "Borrower Pan Card",
-        "Product",
-        "lender",
-        "Agreement Date",
-        "CIBIL Score",
-        "APR",
-        "Customer Name as per bank",
-        "Customer Bank name",
-        "Customer Account Number",
-        "Bank IFSC Code",
-        "Battery Name",
-        "Battery Type",
-        "Battery Serial no 1",
-        "Charger Serial no",
-        "E-Rikshaw model",
-        "Chassis no",
-        "E-Rickshaw No.",
-      ];
+    const requiredFields = [
+      "LOGIN DATE",
+      "Customer Name",
+      "Borrower DOB",
+      "Father Name",
+      "Address Line 1",
+      "Address Line 2",
+      "Village",
+      "District",
+      "State",
+      "Pincode",
+      "Mobile Number",
+      "Invoice Amount",
+      "LTV",
+      "Loan Amount",
+      " Interest Rate ",
+      "Tenure",
+      "FLDG",
+      "Process Fee",
+      "DEALER NAME",
+      "Name in Bank",
+      "Bank name",
+      "Account Number",
+      "IFSC",
+      "Borrower Aadhar Number",
+      "Borrower Pan Card",
+      "Product",
+      "lender",
+      "Agreement Date",
+      "CIBIL Score",
+      "APR",
+      "Customer Name as per bank",
+      "Customer Bank name",
+      "Customer Account Number",
+      "Bank IFSC Code",
+      "Battery Name",
+      "Battery Type",
+      "Battery Serial no 1",
+      "Charger Serial no",
+      "E-Rikshaw model",
+      "Chassis no",
+      "E-Rickshaw No.",
+    ];
 
-      const success_rows = [];
-      const row_errors = [];
+    const success_rows = [];
+    const row_errors = [];
 
-      for (let i = 0; i < sheetData.length; i++) {
-        const row = sheetData[i];
-        const R = i + 2;
-        let conn;
+    for (let i = 0; i < sheetData.length; i++) {
+      const row = sheetData[i];
+      const R = i + 2;
+      let conn;
 
-        try {
-          // Validate required fields
-          const missing = requiredFields.filter(
-            (field) => !row[field] || String(row[field]).trim() === ""
+      try {
+        // Validate required fields
+        const missing = requiredFields.filter(
+          (field) => !row[field] || String(row[field]).trim() === ""
+        );
+
+        if (missing.length) {
+          row_errors.push({
+            row: R,
+            reason: `Missing: ${missing.join(", ")}`,
+          });
+          continue;
+        }
+
+        // Validate lender
+        if (String(row["lender"]).trim() !== "HeyEV Battery") {
+          row_errors.push({
+            row: R,
+            reason: "Invalid lender value in row.",
+          });
+          continue;
+        }
+
+        // Validate interest
+        const interestRate = Number(row[" Interest Rate "]);
+        if (isNaN(interestRate) || interestRate <= 0) {
+          row_errors.push({
+            row: R,
+            reason: "Invalid interest rate.",
+          });
+          continue;
+        }
+
+        const pan = row["Borrower Pan Card"].trim();
+
+        // Duplicate check
+        const [exists] = await db
+          .promise()
+          .query(
+            "SELECT lan FROM loan_booking_hey_ev_battery WHERE borrower_pan_card = ?",
+            [pan]
           );
 
-          if (missing.length) {
-            row_errors.push({
-              row: R,
-              reason: `Missing: ${missing.join(", ")}`,
-            });
-            continue;
-          }
+        if (exists.length) {
+          row_errors.push({
+            row: R,
+            reason: `Duplicate PAN: ${pan}`,
+          });
+          continue;
+        }
 
-          // Validate lender
-          if (String(row["lender"]).trim() !== "HeyEV Battery") {
-            row_errors.push({
-              row: R,
-              reason: "Invalid lender value in row.",
-            });
-            continue;
-          }
-
-          // Validate interest
-          const interestRate = Number(row[" Interest Rate "]);
-          if (isNaN(interestRate) || interestRate <= 0) {
-            row_errors.push({
-              row: R,
-              reason: "Invalid interest rate.",
-            });
-            continue;
-          }
-
-          const pan = row["Borrower Pan Card"].trim();
-
-          // Duplicate check
-          const [exists] = await db
-            .promise()
-            .query(
-              "SELECT lan FROM loan_booking_hey_ev_battery WHERE borrower_pan_card = ?",
-              [pan]
-            );
-
-          if (exists.length) {
-            row_errors.push({
-              row: R,
-              reason: `Duplicate PAN: ${pan}`,
-            });
-            continue;
-          }
-
-          // Generate IDs
-          conn = await db.promise().getConnection();
+        // Generate IDs
+        conn = await db.promise().getConnection();
         await conn.beginTransaction();
 
         const partnerName = "HeyEV Battery";
@@ -1869,36 +1869,36 @@ router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) =>
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
 
-          // -------------------------------
-          // Auto Calculations
-          // -------------------------------
+        // -------------------------------
+        // Auto Calculations
+        // -------------------------------
 
-          const invoiceAmount = Number(row["Invoice Amount"]) || 0;
+        const invoiceAmount = Number(row["Invoice Amount"]) || 0;
 
-          // LTV may contain %, remove it
-          const ltvRaw = String(row["LTV"]).replace("%", "");
-          const ltvPercent = Number(ltvRaw) || 0;
+        // LTV may contain %, remove it
+        const ltvRaw = String(row["LTV"]).replace("%", "");
+        const ltvPercent = Number(ltvRaw) || 0;
 
-          const eligibleLoanAmount = invoiceAmount * (ltvPercent / 100);
+        const eligibleLoanAmount = invoiceAmount * (ltvPercent / 100);
 
-          const loanAmount = Number(row["Loan Amount"]) || 0;
+        const loanAmount = Number(row["Loan Amount"]) || 0;
 
-          // Fees
-          const fldgPercent = Number(row["FLDG"]) || 0;
-          const processPercent = Number(row["Process Fee"]) || 0;
+        // Fees
+        const fldgPercent = Number(row["FLDG"]) || 0;
+        const processPercent = Number(row["Process Fee"]) || 0;
 
-          const fldgValue = loanAmount * (fldgPercent / 100);
-          const processFeeValue = loanAmount * (processPercent / 100);
-          const gstValue = processFeeValue * 0.18;
+        const fldgValue = loanAmount * (fldgPercent / 100);
+        const processFeeValue = loanAmount * (processPercent / 100);
+        const gstValue = processFeeValue * 0.18;
 
-          const disbursementAmount =
-            loanAmount - (fldgValue + processFeeValue + gstValue);
+        const disbursementAmount =
+          loanAmount - (fldgValue + processFeeValue + gstValue);
 
-          // -------------------------------
-          // INSERT QUERY — EXACT MATCH TO DB STRUCTURE
-          // -------------------------------
+        // -------------------------------
+        // INSERT QUERY — EXACT MATCH TO DB STRUCTURE
+        // -------------------------------
 
-          const q = `
+        const q = `
             INSERT INTO loan_booking_hey_ev_battery (
               partner_loan_id, lan, login_date, customer_name, borrower_dob,
               father_name, address_line_1, address_line_2, village, district,
@@ -1914,58 +1914,58 @@ router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) =>
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           `;
 
-          await conn.query(q, [
-            partnerLoanId,
-            lan,
-            excelDateToJSDate(row["LOGIN DATE"]),
-            row["Customer Name"],
-            excelDateToJSDate(row["Borrower DOB"]),
-            row["Father Name"],
-            row["Address Line 1"],
-            row["Address Line 2"],
-            row["Village"],
-            row["District"],
-            row["State"],
-            row["Pincode"],
-            row["Mobile Number"],
-            invoiceAmount,
-            ltvPercent,
-            eligibleLoanAmount,
-            loanAmount,
-            interestRate,
-            row["Tenure"],
-            row["DEALER NAME"],
-            row["Name in Bank"],
-            row["Bank name"],
-            row["Account Number"],
-            row["IFSC"],
-            row["Borrower Aadhar Number"],
-            pan,
-            row["Product"],
-            row["lender"],
-            excelDateToJSDate(row["Agreement Date"]),
-            row["CIBIL Score"],
-            row["APR"],
-            row["Customer Name as per bank"],
-            row["Customer Bank name"],
-            row["Customer Account Number"],
-            row["Bank IFSC Code"],
-            row["Battery Name"],
-            row["Battery Type"],
-            row["Battery Serial no 1"],
-            row["Charger Serial no"],
-            row["E-Rikshaw model"],
-            row["Chassis no"],
-            row["CKYC NO"] || null,
-            row["E-Rickshaw No."],
-            fldgValue,
-            processFeeValue,
-            gstValue,
-            disbursementAmount,
-            "Login",
-          ]);
+        await conn.query(q, [
+          partnerLoanId,
+          lan,
+          excelDateToJSDate(row["LOGIN DATE"]),
+          row["Customer Name"],
+          excelDateToJSDate(row["Borrower DOB"]),
+          row["Father Name"],
+          row["Address Line 1"],
+          row["Address Line 2"],
+          row["Village"],
+          row["District"],
+          row["State"],
+          row["Pincode"],
+          row["Mobile Number"],
+          invoiceAmount,
+          ltvPercent,
+          eligibleLoanAmount,
+          loanAmount,
+          interestRate,
+          row["Tenure"],
+          row["DEALER NAME"],
+          row["Name in Bank"],
+          row["Bank name"],
+          row["Account Number"],
+          row["IFSC"],
+          row["Borrower Aadhar Number"],
+          pan,
+          row["Product"],
+          row["lender"],
+          excelDateToJSDate(row["Agreement Date"]),
+          row["CIBIL Score"],
+          row["APR"],
+          row["Customer Name as per bank"],
+          row["Customer Bank name"],
+          row["Customer Account Number"],
+          row["Bank IFSC Code"],
+          row["Battery Name"],
+          row["Battery Type"],
+          row["Battery Serial no 1"],
+          row["Charger Serial no"],
+          row["E-Rikshaw model"],
+          row["Chassis no"],
+          row["CKYC NO"] || null,
+          row["E-Rickshaw No."],
+          fldgValue,
+          processFeeValue,
+          gstValue,
+          disbursementAmount,
+          "Login",
+        ]);
 
-          await partnerLimitService.updateUsedLimit(
+        await partnerLimitService.updateUsedLimit(
           conn,
           limitCheck.limitId,
           loanAmount,
@@ -1976,36 +1976,36 @@ router.post("/hey-ev-battery-upload", upload.single("file"), async (req, res) =>
         await conn.commit();
         conn.release();
 
-          success_rows.push({ row: R, lan, partnerLoanId });
-        } catch (err) {
-          if (conn) {
+        success_rows.push({ row: R, lan, partnerLoanId });
+      } catch (err) {
+        if (conn) {
           await conn.rollback();
           conn.release();
         }
 
-          row_errors.push({
-            row: R,
-            reason: err.message,
-          });
-        }
+        row_errors.push({
+          row: R,
+          reason: err.message,
+        });
       }
-
-             return res.json({
-        message: "HeyEV Battery file processed.",
-        total_rows: sheetData.length,
-        inserted_rows: success_rows.length,
-        failed_rows: row_errors.length,
-        success_rows,
-        row_errors,
-      });
-    } catch (error) {
-      console.error("❌ Error in HeyEV Battery Upload Process:", error);
-      return res.status(500).json({
-        message: "Battery upload failed. Please try again.",
-        error: error.sqlMessage || error.message,
-      });
     }
+
+    return res.json({
+      message: "HeyEV Battery file processed.",
+      total_rows: sheetData.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+    });
+  } catch (error) {
+    console.error("❌ Error in HeyEV Battery Upload Process:", error);
+    return res.status(500).json({
+      message: "Battery upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
   }
+}
 );
 
 
@@ -2181,7 +2181,7 @@ router.get("/login-loans", (req, res) => {
   const allowedTables = {
     loan_bookings: true,
     loan_booking_ev: true,
-    loan_booking_hey_ev:true,
+    loan_booking_hey_ev: true,
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
@@ -2189,9 +2189,9 @@ router.get("/login-loans", (req, res) => {
     loan_booking_emiclub: true,
     loan_booking_zypay_customer: true,
     loan_booking_finso: true,
-    loan_booking_clayyo:true,
+    loan_booking_clayyo: true,
     loan_booking_circle_pe: true,
-    loan_booking_hey_ev_battery:true,
+    loan_booking_hey_ev_battery: true,
     dealer_onboarding: true,
   };
 
@@ -2211,154 +2211,233 @@ router.get("/login-loans", (req, res) => {
   });
 });
 
-router.get("/approve-initiate-loans", (req, res) => {
-  const { table = "loan_booking_ev", prefix = "EV" } = req.query;
+router.get("/approve-initiate-loans", async (req, res) => {
+  const {
+    table = "loan_booking_ev",
+    prefix = "EV",
+    page = "1",
+    pageSize = "25",
+    search = "",
+    sortBy = "LAN",
+    sortDir = "desc",
+  } = req.query;
 
   const allowedTables = {
-    loan_bookings: true,
-    loan_booking_ev: true,
-    loan_booking_hey_ev:true,
-    loan_booking_adikosh: true,
-    loan_booking_gq_non_fsf: true,
-    loan_booking_gq_fsf: true,
-    loan_bookings_wctl: true,
-    loan_booking_emiclub: true,
-    loan_booking_zypay_customer: true,
-    loan_booking_finso: true,
-    loan_booking_circle_pe: true,
-    loan_booking_hey_ev_battery:true,
-    
+    loan_bookings: true, loan_booking_ev: true, loan_booking_hey_ev: true,
+    loan_booking_adikosh: true, loan_booking_gq_non_fsf: true, loan_booking_gq_fsf: true,
+    loan_bookings_wctl: true, loan_booking_emiclub: true, loan_booking_zypay_customer: true,
+    loan_booking_finso: true, loan_booking_circle_pe: true, loan_booking_hey_ev_battery: true,
   };
+  if (!allowedTables[table]) return res.status(400).json({ message: "Invalid table name" });
 
-  if (!allowedTables[table]) {
-    return res.status(400).json({ message: "Invalid table name" });
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 25));
+  const offset = (pg - 1) * limit;
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+  // Only allow whitelisted sort columns to prevent SQL injection
+  const allowedSort = ["LAN", "customer_name", "mobile_number", "agreement_date", "loan_amount"];
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "LAN";
+
+  try {
+    const likeVal = `${prefix}%`;
+    const searchClause = search
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      : "";
+    const searchParams = search
+      ? [`%${search}%`, `%${search}%`, `%${search}%`]
+      : [];
+
+    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.status = 'Disburse initiate' AND lb.LAN LIKE ?${searchClause}`;
+    const dataSql = `SELECT lb.* FROM ?? lb WHERE lb.status = 'Disburse initiate' AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+      db.promise().query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    res.json({
+      rows,
+      pagination: { page: pg, pageSize: limit, total: Number(countRows[0]?.total || 0) },
+    });
+  } catch (err) {
+    console.error("Error fetching approve-initiate loans:", err);
+    res.status(500).json({ message: "Database error" });
   }
-
-  const query = `SELECT * FROM ?? WHERE status = 'Disburse initiate' AND LAN LIKE ?`;
-  const values = [table, `${prefix}%`];
-
-  db.query(query, values, (err, results) => {
-    if (err) {
-      console.error("Error fetching login stage loans:", err);
-      return res.status(500).json({ message: "Database error" });
-    }
-    res.json(results);
-  });
 });
 
-router.get("/all-loans", (req, res) => {
-  const { table = "loan_bookings", prefix = "BL" } = req.query;
+
+router.get("/all-loans", async (req, res) => {
+  const {
+    table = "loan_bookings",
+    prefix = "BL",
+    page = "1",
+    pageSize = "25",
+    search = "",
+    sortBy = "LAN",
+    sortDir = "desc",
+  } = req.query;
 
   const allowedTables = {
-    loan_bookings: true,
-    loan_booking_ev: true,
-    loan_booking_adikosh: true,
-    loan_booking_gq_non_fsf: true,
-    loan_booking_gq_fsf: true,
-    loan_bookings_wctl: true,
-    loan_booking_hey_ev:true,
-    loan_booking_emiclub: true,
-    loan_booking_zypay_customer: true,
-    loan_booking_embifi: true,
-    loan_booking_finso: true,
-    loan_booking_circle_pe: true,
-    loan_booking_hey_ev_battery:true,
-    dealer_onboarding: true,
+    loan_bookings: true, loan_booking_ev: true, loan_booking_adikosh: true,
+    loan_booking_gq_non_fsf: true, loan_booking_gq_fsf: true, loan_bookings_wctl: true,
+    loan_booking_hey_ev: true, loan_booking_emiclub: true, loan_booking_zypay_customer: true,
+    loan_booking_embifi: true, loan_booking_finso: true, loan_booking_circle_pe: true,
+    loan_booking_hey_ev_battery: true, dealer_onboarding: true,
   };
+  if (!allowedTables[table]) return res.status(400).json({ message: "Invalid table name" });
 
-  if (!allowedTables[table]) {
-    return res.status(400).json({ message: "Invalid table name" });
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 25));
+  const offset = (pg - 1) * limit;
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+  const allowedSort = ["LAN", "customer_name", "mobile_number", "agreement_date", "loan_amount", "status"];
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "LAN";
+
+  try {
+    const likeVal = `${prefix}%`;
+    const searchClause = search
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      : "";
+    const searchParams = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
+
+    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.LAN LIKE ?${searchClause}`;
+    const dataSql = `
+      SELECT lb.*, DATE_FORMAT(CONVERT_TZ(edu.disbursement_date, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS disbursement_date
+      FROM ?? AS lb
+      LEFT JOIN ev_disbursement_utr AS edu ON edu.LAN = lb.LAN
+      WHERE lb.LAN LIKE ?${searchClause}
+      ORDER BY lb.${sortCol} ${safeSortDir}
+      LIMIT ? OFFSET ?
+    `;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+      db.promise().query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    res.json({
+      rows,
+      pagination: { page: pg, pageSize: limit, total: Number(countRows[0]?.total || 0) },
+    });
+  } catch (err) {
+    console.error("Error fetching all loans:", err);
+    res.status(500).json({ message: "Database error" });
   }
-
-  const query = `SELECT lb.*, DATE_FORMAT(CONVERT_TZ(edu.disbursement_date, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS disbursement_date
-FROM ?? AS lb
-LEFT JOIN ev_disbursement_utr AS edu ON edu.LAN = lb.LAN
-WHERE lb.LAN LIKE ?`;
-  const values = [table, `${prefix}%`];
-
-  db.query(query, values, (err, results) => {
-    if (err) {
-      console.error("Error fetching approved loans:", err);
-      return res.status(500).json({ message: "Database error" });
-    }
-    res.json(results);
-  });
 });
 
-router.get("/approved-loans", (req, res) => {
-  const { table = "loan_booking_ev", prefix = "EV" } = req.query;
+
+router.get("/approved-loans", async (req, res) => {
+  const {
+    table = "loan_booking_ev",
+    prefix = "EV",
+    page = "1",
+    pageSize = "25",
+    search = "",
+    sortBy = "LAN",
+    sortDir = "desc",
+  } = req.query;
 
   const allowedTables = {
-    loan_bookings: true,
-    loan_booking_ev: true,
-    loan_booking_hey_ev:true,
-    loan_booking_adikosh: true,
-    loan_booking_gq_non_fsf: true,
-    loan_booking_gq_fsf: true,
-    loan_bookings_wctl: true,
-    loan_booking_emiclub: true,
-    loan_booking_zypay_customer: true,
-    loan_booking_embifi: true,
-    loan_booking_finso: true,
-    loan_booking_circle_pe: true,
-    loan_booking_hey_ev_battery:true,
-    dealer_onboarding: true,
+    loan_bookings: true, loan_booking_ev: true, loan_booking_hey_ev: true,
+    loan_booking_adikosh: true, loan_booking_gq_non_fsf: true, loan_booking_gq_fsf: true,
+    loan_bookings_wctl: true, loan_booking_emiclub: true, loan_booking_zypay_customer: true,
+    loan_booking_embifi: true, loan_booking_finso: true, loan_booking_circle_pe: true,
+    loan_booking_hey_ev_battery: true, dealer_onboarding: true,
   };
+  if (!allowedTables[table]) return res.status(400).json({ message: "Invalid table name" });
 
-  if (!allowedTables[table]) {
-    return res.status(400).json({ message: "Invalid table name" });
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 25));
+  const offset = (pg - 1) * limit;
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+  const allowedSort = ["LAN", "customer_name", "mobile_number", "agreement_date", "loan_amount"];
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "LAN";
+
+  try {
+    const likeVal = `${prefix}%`;
+    const searchClause = search
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      : "";
+    const searchParams = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
+
+    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.status = 'Approved' AND lb.LAN LIKE ?${searchClause}`;
+    const dataSql = `SELECT lb.* FROM ?? lb WHERE lb.status = 'Approved' AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+      db.promise().query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    res.json({
+      rows,
+      pagination: { page: pg, pageSize: limit, total: Number(countRows[0]?.total || 0) },
+    });
+  } catch (err) {
+    console.error("Error fetching approved loans:", err);
+    res.status(500).json({ message: "Database error" });
   }
-
-  const query = `SELECT * FROM ?? WHERE status = 'Approved' AND LAN LIKE ?`;
-  const values = [table, `${prefix}%`];
-
-  db.query(query, values, (err, results) => {
-    if (err) {
-      console.error("Error fetching approved loans:", err);
-      return res.status(500).json({ message: "Database error" });
-    }
-    res.json(results);
-  });
 });
 
-router.get("/disbursed-loans", (req, res) => {
-  const { table = "loan_booking_ev", prefix = "EV" } = req.query;
+
+router.get("/disbursed-loans", async (req, res) => {
+  const {
+    table = "loan_booking_ev",
+    prefix = "EV",
+    page = "1",
+    pageSize = "25",
+    search = "",
+    sortBy = "LAN",
+    sortDir = "desc",
+  } = req.query;
 
   const allowedTables = {
-    loan_bookings: true,
-    loan_booking_adikosh: true,
-    loan_booking_gq_non_fsf: true,
-    loan_booking_gq_fsf: true,
-    loan_booking_emiclub: true,
-    loan_booking_zypay_customer: true,
-    loan_bookings_wctl: true,
-    loan_booking_ev: true,
-    loan_booking_hey_ev:true,
-    loan_booking_embifi: true,
-    loan_booking_finso: true,
-    loan_booking_circle_pe: true,
-    loan_booking_hey_ev_battery:true,
+    loan_bookings: true, loan_booking_adikosh: true, loan_booking_gq_non_fsf: true,
+    loan_booking_gq_fsf: true, loan_booking_emiclub: true, loan_booking_zypay_customer: true,
+    loan_bookings_wctl: true, loan_booking_ev: true, loan_booking_hey_ev: true,
+    loan_booking_embifi: true, loan_booking_finso: true, loan_booking_circle_pe: true,
+    loan_booking_hey_ev_battery: true,
   };
+  if (!allowedTables[table]) return res.status(400).json({ message: "Invalid table name" });
 
-  if (!allowedTables[table]) {
-    return res.status(400).json({ message: "Invalid table name" });
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 25));
+  const offset = (pg - 1) * limit;
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+  const allowedSort = ["LAN", "customer_name", "mobile_number", "agreement_date", "loan_amount"];
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "LAN";
+
+  try {
+    const likeVal = `${prefix}%`;
+    const searchClause = search
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      : "";
+    const searchParams = search ? [`%${search}%`, `%${search}%`, `%${search}%`] : [];
+
+    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?${searchClause}`;
+    const dataSql = `
+      SELECT lb.*, DATE_FORMAT(CONVERT_TZ(edu.disbursement_date, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS disbursement_date
+      FROM ?? AS lb
+      LEFT JOIN ev_disbursement_utr AS edu ON edu.LAN = lb.LAN
+      WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?${searchClause}
+      ORDER BY lb.${sortCol} ${safeSortDir}
+      LIMIT ? OFFSET ?
+    `;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+      db.promise().query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    res.json({
+      rows,
+      pagination: { page: pg, pageSize: limit, total: Number(countRows[0]?.total || 0) },
+    });
+  } catch (err) {
+    console.error("Error fetching disbursed loans:", err);
+    res.status(500).json({ message: "Database error" });
   }
-
-  const query = `SELECT lb.*, DATE_FORMAT(CONVERT_TZ(edu.disbursement_date, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS disbursement_date
-FROM ?? AS lb
-LEFT JOIN ev_disbursement_utr AS edu ON edu.LAN = lb.LAN
-WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?
-`;
-  const values = [table, `${prefix}%`];
-
-  db.query(query, values, (err, results) => {
-    if (err) {
-      console.error("Error fetching disbursed loans:", err);
-      return res.status(500).json({ message: "Database error" });
-    }
-    res.json(results);
-  });
 });
+
 
 // router.put("/login-loans/:lan", (req, res) => {
 //   const lan = req.params.lan;
@@ -2410,12 +2489,12 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
-    loan_booking_hey_ev:true,
+    loan_booking_hey_ev: true,
     loan_booking_emiclub: true,
     loan_booking_zypay_customer: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
-    loan_booking_hey_ev_battery:true,
+    loan_booking_hey_ev_battery: true,
     dealer_onboarding: true,
 
   };
@@ -2480,11 +2559,11 @@ router.put("/login-loans/:lan", (req, res) => {
             }
           }
 
-          console.log(lan, "lan", status, "status", partnerLoanId, "partner loan id", customerName , "customer name");
+          console.log(lan, "lan", status, "status", partnerLoanId, "partner loan id", customerName, "customer name");
 
           // ✅ WEBHOOK — for FINS loans only
           if (lan.startsWith("FINS")) {
-            const webhookUrl =process.env.FINS_DISBINITIATE_WEBHOOK_URL;
+            const webhookUrl = process.env.FINS_DISBINITIATE_WEBHOOK_URL;
             const payload = {
               lan,
               status,
@@ -2492,17 +2571,17 @@ router.put("/login-loans/:lan", (req, res) => {
               customer_name: customerName,
             };
 
-             const username = process.env.FINSO_WEBHOOK_USERNAME;
-             const password = process.env.FINSO_WEBHOOK_PASSWORD;
+            const username = process.env.FINSO_WEBHOOK_USERNAME;
+            const password = process.env.FINSO_WEBHOOK_PASSWORD;
 
             try {
               await axios.post(webhookUrl, payload, {
-                auth:{
+                auth: {
                   username,
                   password,
                 },
-                headers:{
-                  "Content-Type":"application/json",
+                headers: {
+                  "Content-Type": "application/json",
                 },
               });
               console.log(`✅ Webhook sent for ${lan} (${status})`);
@@ -2690,7 +2769,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
       table,
       status,
       // payoutTriggered,
-      message:`Loan ${status} successfully`,
+      message: `Loan ${status} successfully`,
     });
   });
 });
@@ -2803,7 +2882,7 @@ const parseDate = (v) => {
   try {
     const d = excelDateToJSDate(v);
     if (d) return d; // already YYYY-MM-DD string
-  } catch (_) {}
+  } catch (_) { }
 
   // 2) ISO or date-like strings
   if (typeof v === "string") {
@@ -4021,18 +4100,18 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
         const loginDate =
           row["Agreement Date (DD-MMM-YYYY)"]
             ? excelDateToJSDate(
-                row["Agreement Date (DD-MMM-YYYY)"]
-              )
+              row["Agreement Date (DD-MMM-YYYY)"]
+            )
             : excelDateToJSDate(
-                row["Loan Application Date"]
-              );
+              row["Loan Application Date"]
+            );
 
-              const today = new Date();
+        const today = new Date();
 
         const { month, year } =
           getMonthYear(today);
 
-          const loanAmount = parse(row["Loan Amount Sanctioned"]);
+        const loanAmount = parse(row["Loan Amount Sanctioned"]);
 
         const partner =
           await partnerLimitService.getOrCreatePartner(
@@ -4177,22 +4256,22 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
           );
 
           await partnerLimitService.updateUsedLimit(
-          conn,
-          limitCheck.limitId,
-          loanAmount,
-          "BOOKED",
-          lan
-        );
+            conn,
+            limitCheck.limitId,
+            loanAmount,
+            "BOOKED",
+            lan
+          );
 
-        await conn.commit();
-        conn.release();
+          await conn.commit();
+          conn.release();
 
           success_rows.push(R);
         } catch (insErr) {
           if (conn) {
-          await conn.rollback();
-          conn.release();
-        }
+            await conn.rollback();
+            conn.release();
+          }
           row_errors.push({
             row: R,
             stage: "insert",
@@ -4386,9 +4465,8 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
     const { partnerLoanId, lan } =
       await generateLoanIdentifiers(lenderType);
 
-    const customerName = `${data.firstName || ""} ${
-      data.lastName || ""
-    }`.trim();
+    const customerName = `${data.firstName || ""} ${data.lastName || ""
+      }`.trim();
     // const agreement_date = excelDateToJSDate(data.sanctionDate);
     // ��� Insert into DB
     await conn.query(
@@ -4469,7 +4547,7 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
       lan,
     });
   } catch (error) {
-     if (conn) {
+    if (conn) {
       await conn.rollback();
       conn.release();
     }
@@ -4618,9 +4696,8 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           results.push({ error: `${missingField} is required.`, data });
           continue;
         }
-        const customerName = `${data.first_name || ""} ${
-          data.last_name || ""
-        }`.trim();
+        const customerName = `${data.first_name || ""} ${data.last_name || ""
+          }`.trim();
 
         // ✅ Duplicate check on PAN or Aadhar
         const [existing] = await db
@@ -4639,7 +4716,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
         // --- Generate loan code ---
 
-         conn = await db.promise().getConnection();
+        conn = await db.promise().getConnection();
         await conn.beginTransaction();
 
         const partnerName = "Finso";
@@ -4680,7 +4757,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
         const { lan } =
           await generateLoanIdentifiers(lenderType);
-        
+
         const agreementDate = data.login_date;
         // ✅ Build values in the exact same order as COLS
         const values = [
@@ -4764,7 +4841,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
         await conn.commit();
         conn.release();
- //////////////////////////////////////////
+        //////////////////////////////////////////
         //        🔍 BEURO SCORE START          //
         //////////////////////////////////////////
 
@@ -4818,7 +4895,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         const lastName = (data.last_name || "").toUpperCase();
         const genderCode = data.gender === "Female" ? 2 : 1;
 
- const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+        const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
    <soapenv:Header/>
    <soapenv:Body>
       <urn:process>
@@ -4905,7 +4982,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
    </soapenv:Body>
 </soapenv:Envelope>`;
 
-console.log("📨 Sending SOAP request (Finso)...");
+        console.log("📨 Sending SOAP request (Finso)...");
 
         let score = null;
         let parsedXmlToStore = null;
@@ -4975,7 +5052,7 @@ console.log("📨 Sending SOAP request (Finso)...");
         });
 
       } catch (e) {
-         if (conn) {
+        if (conn) {
           await conn.rollback();
           conn.release();
         }
@@ -5827,88 +5904,88 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         return res.status(400).json({ message: `${field} is required.` });
       }
     }
-//    console.log("✅ All required fields present.");
+    //    console.log("✅ All required fields present.");
 
     // --- Duplicate TECH LOAN ID check ---
-// --- Duplicate TECH LOAN ID check ---
-console.log("🔍 Checking existing TECH LOAN ID:", data.partner_loan_id);
-const [existing] = await db
-  .promise()
-  .query(
-    `SELECT lan, partner_loan_id, customer_name 
+    // --- Duplicate TECH LOAN ID check ---
+    console.log("🔍 Checking existing TECH LOAN ID:", data.partner_loan_id);
+    const [existing] = await db
+      .promise()
+      .query(
+        `SELECT lan, partner_loan_id, customer_name 
      FROM loan_booking_emiclub 
      WHERE partner_loan_id = ?`,
-    [data.partner_loan_id]
-  );
+        [data.partner_loan_id]
+      );
 
-if (existing.length > 0) {
-  return res.status(400).json({
-    status: "Failed",
-    message: "Duplicate Partner Loan ID",
-    existingLan: existing[0].lan,
-  });
-}
+    if (existing.length > 0) {
+      return res.status(400).json({
+        status: "Failed",
+        message: "Duplicate Partner Loan ID",
+        existingLan: existing[0].lan,
+      });
+    }
 
-/* =====================================================
-   🔴 START CHANGE: PAN + STATUS DUPLICATE CHECK
-   ===================================================== */
+    /* =====================================================
+       🔴 START CHANGE: PAN + STATUS DUPLICATE CHECK
+       ===================================================== */
 
-console.log("🔍 Checking PAN duplication:", data.pan_number);
+    console.log("🔍 Checking PAN duplication:", data.pan_number);
 
-const [panRecords] = await db.promise().query(
-  `SELECT status 
+    const [panRecords] = await db.promise().query(
+      `SELECT status 
    FROM loan_booking_emiclub 
    WHERE pan_number = ?`,
-  [data.pan_number]
-);
+      [data.pan_number]
+    );
 
-// Allowed statuses for re-insert
-const allowedStatuses = ["Cancelled", "Foreclosed", "Fully Paid", "Rejected"];
+    // Allowed statuses for re-insert
+    const allowedStatuses = ["Cancelled", "Foreclosed", "Fully Paid", "Rejected"];
 
-if (panRecords.length > 0) {
-  const hasActiveCase = panRecords.some(
-    (row) => !allowedStatuses.includes(row.status)
-  );
+    if (panRecords.length > 0) {
+      const hasActiveCase = panRecords.some(
+        (row) => !allowedStatuses.includes(row.status)
+      );
 
-  if (hasActiveCase) {
-    console.error("❌ Active case exists for PAN:", data.pan_number);
-    return res.status(400).json({
-      status: "Failed",
-      message:
-        "PAN already exists with an active loan. New loan not allowed.",
-    });
-  }
+      if (hasActiveCase) {
+        console.error("❌ Active case exists for PAN:", data.pan_number);
+        return res.status(400).json({
+          status: "Failed",
+          message:
+            "PAN already exists with an active loan. New loan not allowed.",
+        });
+      }
 
-  console.log(
-    "✅ PAN exists but all cases are closed. Proceeding with insert."
-  );
-}
+      console.log(
+        "✅ PAN exists but all cases are closed. Proceeding with insert."
+      );
+    }
 
-const loanAmount = Number(data.loan_amount);
+    const loanAmount = Number(data.loan_amount);
 
-if (!loanAmount || loanAmount <= 0) {
-  return res.status(400).json({
-    message: "Invalid loan_amount"
-  });
-}
+    if (!loanAmount || loanAmount <= 0) {
+      return res.status(400).json({
+        message: "Invalid loan_amount"
+      });
+    }
 
 
 
 
     // --- Generate loan code ---
     //console.log("⚙️ Generating LAN for lender:", lenderType);
-     conn = await db.promise().getConnection();
+    conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
     const partnerName = "EMICLUB";
 
     if (!data.login_date) {
-  return res.status(400).json({
-    message: "login_date is required for limit validation"
-  });
-}
-const today = new Date();
-const { month, year } = getMonthYear(today);
+      return res.status(400).json({
+        message: "login_date is required for limit validation"
+      });
+    }
+    const today = new Date();
+    const { month, year } = getMonthYear(today);
 
     const partner =
       await partnerLimitService.getOrCreatePartner(
@@ -5942,17 +6019,16 @@ const { month, year } = getMonthYear(today);
       await generateLoanIdentifiers(lenderType);
     console.log("✅ Generated LAN:", lan);
 
-    const customer_name = `${data.first_name || ""} ${
-      data.last_name || ""
-    }`.trim();
+    const customer_name = `${data.first_name || ""} ${data.last_name || ""
+      }`.trim();
     const agreement_date = data.login_date;
 
     // --- Determine interest rate ---
     const interest_rate = data.roi_apr / 12;
-//    console.log("📈 Using interest rate:", interest_rate);
+    //    console.log("📈 Using interest rate:", interest_rate);
 
     // --- Insert into DB ---
-  //  console.log("💾 Inserting customer record into loan_booking_emiclub...");
+    //  console.log("💾 Inserting customer record into loan_booking_emiclub...");
     await conn.query(
       `INSERT INTO loan_booking_emiclub (
         lan, partner_loan_id, login_date, first_name, middle_name, last_name, gender, dob,
@@ -6049,43 +6125,43 @@ const { month, year } = getMonthYear(today);
     console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
     const stateCodes = {
-  "JAMMU and KASHMIR": "01",
-  "HIMACHAL PRADESH": "02",
-  PUNJAB: "03",
-  CHANDIGARH: "04",
-  UTTRANCHAL: "05",
-  HARAYANA: "06",
-  DELHI: "07",
-  RAJASTHAN: "08",
-  "UTTAR PRADESH": "09",
-  BIHAR: "10",
-  SIKKIM: "11",
-  "ARUNACHAL PRADESH": "12",
-  NAGALAND: "13",
-  MANIPUR: "14",
-  MIZORAM: "15",
-  TRIPURA: "16",
-  MEGHALAYA: "17",
-  ASSAM: "18",
-  "WEST BENGAL": "19",
-  JHARKHAND: "20",
-  ORRISA: "21",
-  CHHATTISGARH: "22",
-  "MADHYA PRADESH": "23",
-  GUJRAT: "24",
-  "DAMAN and DIU": "25",
-  "DADARA and NAGAR HAVELI": "26",
-  MAHARASHTRA: "27",
-  "ANDHRA PRADESH": "28",
-  KARNATAKA: "29",
-  GOA: "30",
-  LAKSHADWEEP: "31",
-  KERALA: "32",
-  "TAMIL NADU": "33",
-  PONDICHERRY: "34",
-  "ANDAMAN and NICOBAR ISLANDS": "35",
-  TELANGANA: "36",
-};
+      "JAMMU and KASHMIR": "01",
+      "HIMACHAL PRADESH": "02",
+      PUNJAB: "03",
+      CHANDIGARH: "04",
+      UTTRANCHAL: "05",
+      HARAYANA: "06",
+      DELHI: "07",
+      RAJASTHAN: "08",
+      "UTTAR PRADESH": "09",
+      BIHAR: "10",
+      SIKKIM: "11",
+      "ARUNACHAL PRADESH": "12",
+      NAGALAND: "13",
+      MANIPUR: "14",
+      MIZORAM: "15",
+      TRIPURA: "16",
+      MEGHALAYA: "17",
+      ASSAM: "18",
+      "WEST BENGAL": "19",
+      JHARKHAND: "20",
+      ORRISA: "21",
+      CHHATTISGARH: "22",
+      "MADHYA PRADESH": "23",
+      GUJRAT: "24",
+      "DAMAN and DIU": "25",
+      "DADARA and NAGAR HAVELI": "26",
+      MAHARASHTRA: "27",
+      "ANDHRA PRADESH": "28",
+      KARNATAKA: "29",
+      GOA: "30",
+      LAKSHADWEEP: "31",
+      KERALA: "32",
+      "TAMIL NADU": "33",
+      PONDICHERRY: "34",
+      "ANDAMAN and NICOBAR ISLANDS": "35",
+      TELANGANA: "36",
+    };
 
     const state = data.current_state ?? "MAHARASHTRA"; // default to Maharashtra
     const state_code = stateCodes[state.toUpperCase()] ?? null;
@@ -6205,8 +6281,8 @@ const { month, year } = getMonthYear(today);
 
       if (response.status !== 200)
         throw new Error(`Experian returned HTTP ${response.status}`);
-//////////////////// new addd.//////////
- // --- Parse SOAP XML ---
+      //////////////////// new addd.//////////
+      // --- Parse SOAP XML ---
       const parser = new XMLParser({ ignoreAttributes: false });
       const soapParsed = parser.parse(response.data);
       const encodedInnerXml =
@@ -6224,13 +6300,13 @@ const { month, year } = getMonthYear(today);
       //const userMsg = innerParsed?.INProfileResponse?.UserMessage?.UserMessageText ?? "";
       console.log(scoreStr, "score str");
 
-     if (scoreStr) {
+      if (scoreStr) {
         score = Number(scoreStr);
       } else {
         score = null;
       }
 
-///////////////////// end  ////////////////
+      ///////////////////// end  ////////////////
       console.log("✅ Parsed CIBIL Score:", score);
       // console.log(
       //   "🧾 Normalized INProfileResponse (first 500 chars):",
@@ -6251,13 +6327,13 @@ const { month, year } = getMonthYear(today);
         );
 
       console.log("✅ CIBIL report (parsed XML) saved successfully.");
-} catch (err) {
-  console.error("⚠️ CIBIL Pull Failed:", err.message);
-  console.error("➡️ Response status:", err.response?.status);
-  console.error("➡️ Response data:", err.response?.data);
-  console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
-  console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
-}
+    } catch (err) {
+      console.error("⚠️ CIBIL Pull Failed:", err.message);
+      console.error("➡️ Response status:", err.response?.status);
+      console.error("➡️ Response data:", err.response?.data);
+      console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
+      console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
+    }
     console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
     console.log("================= 📦 EMICLUB REQUEST END =================\n");
 
@@ -6301,43 +6377,43 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
     console.log(`🔍 Found ${rows.length} pending cases.`);
 
     const stateCodes = {
-  "JAMMU and KASHMIR": "01",
-  "HIMACHAL PRADESH": "02",
-  PUNJAB: "03",
-  CHANDIGARH: "04",
-  UTTRANCHAL: "05",
-  HARAYANA: "06",
-  DELHI: "07",
-  RAJASTHAN: "08",
-  "UTTAR PRADESH": "09",
-  BIHAR: "10",
-  SIKKIM: "11",
-  "ARUNACHAL PRADESH": "12",
-  NAGALAND: "13",
-  MANIPUR: "14",
-  MIZORAM: "15",
-  TRIPURA: "16",
-  MEGHALAYA: "17",
-  ASSAM: "18",
-  "WEST BENGAL": "19",
-  JHARKHAND: "20",
-  ORRISA: "21",
-  CHHATTISGARH: "22",
-  "MADHYA PRADESH": "23",
-  GUJRAT: "24",
-  "DAMAN and DIU": "25",
-  "DADARA and NAGAR HAVELI": "26",
-  MAHARASHTRA: "27",
-  "ANDHRA PRADESH": "28",
-  KARNATAKA: "29",
-  GOA: "30",
-  LAKSHADWEEP: "31",
-  KERALA: "32",
-  "TAMIL NADU": "33",
-  PONDICHERRY: "34",
-  "ANDAMAN and NICOBAR ISLANDS": "35",
-  TELANGANA: "36",
-};
+      "JAMMU and KASHMIR": "01",
+      "HIMACHAL PRADESH": "02",
+      PUNJAB: "03",
+      CHANDIGARH: "04",
+      UTTRANCHAL: "05",
+      HARAYANA: "06",
+      DELHI: "07",
+      RAJASTHAN: "08",
+      "UTTAR PRADESH": "09",
+      BIHAR: "10",
+      SIKKIM: "11",
+      "ARUNACHAL PRADESH": "12",
+      NAGALAND: "13",
+      MANIPUR: "14",
+      MIZORAM: "15",
+      TRIPURA: "16",
+      MEGHALAYA: "17",
+      ASSAM: "18",
+      "WEST BENGAL": "19",
+      JHARKHAND: "20",
+      ORRISA: "21",
+      CHHATTISGARH: "22",
+      "MADHYA PRADESH": "23",
+      GUJRAT: "24",
+      "DAMAN and DIU": "25",
+      "DADARA and NAGAR HAVELI": "26",
+      MAHARASHTRA: "27",
+      "ANDHRA PRADESH": "28",
+      KARNATAKA: "29",
+      GOA: "30",
+      LAKSHADWEEP: "31",
+      KERALA: "32",
+      "TAMIL NADU": "33",
+      PONDICHERRY: "34",
+      "ANDAMAN and NICOBAR ISLANDS": "35",
+      TELANGANA: "36",
+    };
 
 
     const results = [];
@@ -6366,33 +6442,33 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
       const state_code = stateCodes[state.toUpperCase()] ?? null;
       console.log("state code", state_code)
       const gender_code = (gender ?? "Male").toLowerCase() === "female" ? 2 : 1;
-     // --- Normalize and validate DOB ---
-let dobFormatted = null;
-if (dob) {
-  if (dob instanceof Date) {
-    // Convert Date object to YYYYMMDD
-    const yyyy = dob.getFullYear();
-    const mm = String(dob.getMonth() + 1).padStart(2, "0");
-    const dd = String(dob.getDate()).padStart(2, "0");
-    dobFormatted = `${yyyy}${mm}${dd}`;
-  } else if (typeof dob === "string") {
-    // Clean string and remove hyphens
-    dobFormatted = dob.replace(/[^0-9]/g, "");
-  } else {
-    console.warn(`⚠️ Invalid DOB format for LAN ${lan}:`, dob);
-  }
-}
+      // --- Normalize and validate DOB ---
+      let dobFormatted = null;
+      if (dob) {
+        if (dob instanceof Date) {
+          // Convert Date object to YYYYMMDD
+          const yyyy = dob.getFullYear();
+          const mm = String(dob.getMonth() + 1).padStart(2, "0");
+          const dd = String(dob.getDate()).padStart(2, "0");
+          dobFormatted = `${yyyy}${mm}${dd}`;
+        } else if (typeof dob === "string") {
+          // Clean string and remove hyphens
+          dobFormatted = dob.replace(/[^0-9]/g, "");
+        } else {
+          console.warn(`⚠️ Invalid DOB format for LAN ${lan}:`, dob);
+        }
+      }
 
-if (!dobFormatted || dobFormatted.length !== 8) {
-  console.warn(`⚠️ Skipping LAN ${lan}: Invalid or missing DOB.`);
-  results.push({
-    lan,
-    pan_number,
-    status: "skipped",
-    reason: "Invalid or missing DOB",
-  });
-  continue; // move to next case
-}
+      if (!dobFormatted || dobFormatted.length !== 8) {
+        console.warn(`⚠️ Skipping LAN ${lan}: Invalid or missing DOB.`);
+        results.push({
+          lan,
+          pan_number,
+          status: "skipped",
+          reason: "Invalid or missing DOB",
+        });
+        continue; // move to next case
+      }
 
 
       const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
@@ -6678,8 +6754,7 @@ router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
 
     for (const field of requiredFields) {
       const value = field.split(".").reduce((o, i) => o?.[i], data);
-      if (value === undefined || value === null || value === "")
- {
+      if (value === undefined || value === null || value === "") {
         return res.status(400).json({ message: `${field} is required` });
       }
     }
@@ -6745,12 +6820,12 @@ router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
       ];
 
       for (const f of sanctionFields) {
-  if (s[f] === undefined || s[f] === null || s[f] === "") {
-    return res.status(400).json({
-      message: `Missing ${f} for lender ${s.lender}`,
-    });
-  }
-}
+        if (s[f] === undefined || s[f] === null || s[f] === "") {
+          return res.status(400).json({
+            message: `Missing ${f} for lender ${s.lender}`,
+          });
+        }
+      }
 
       await db.promise().query(
         `INSERT INTO supply_chain_sanctions (
@@ -6776,13 +6851,13 @@ router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
       });
     }
 
-    
+
     return res.json({
       message: "Supply Chain loan saved successfully",
       partner_loan_id: data.partner_loan_id,
       sanctions: created,
     });
-    
+
   } catch (error) {
     console.error("❌ SUPPLY CHAIN ERROR:", error);
     return res.status(500).json({
@@ -7373,7 +7448,7 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 //     try {
 //       const data = req.body;
 
-      
+
 
 //       /* =====================================================
 //          STEP 1: TENURE CHECK (FIXED = 90 DAYS)
@@ -8064,64 +8139,64 @@ router.post("/v1/invoice-disbursement/validate", verifyApiKey, async (req, res) 
 
 //////////////////////// Supply chain Collection Upload API START ////////////////////////
 
-router.post("/v1/supplychain/repayment-upload",verifyApiKey,async (req, res) => {
-    try {
-      console.log("💰 SUPPLY CHAIN REPAYMENT UPLOAD START");
+router.post("/v1/supplychain/repayment-upload", verifyApiKey, async (req, res) => {
+  try {
+    console.log("💰 SUPPLY CHAIN REPAYMENT UPLOAD START");
 
-      /* ---------- Partner Validation ---------- */
-      if (
-        !req.partner ||
-        (req.partner.name || "").toLowerCase().trim() !== "supplychain"
-      ) {
-        return res.status(403).json({
-          message: "This route is only for Supply Chain partner",
-        });
-      }
+    /* ---------- Partner Validation ---------- */
+    if (
+      !req.partner ||
+      (req.partner.name || "").toLowerCase().trim() !== "supplychain"
+    ) {
+      return res.status(403).json({
+        message: "This route is only for Supply Chain partner",
+      });
+    }
 
-      const data = req.body;
+    const data = req.body;
 
-      /* ---------- Basic Validation ---------- */
-      if (!Array.isArray(data.repayments) || data.repayments.length === 0) {
-        return res.status(400).json({
-          message: "At least one repayment record is required",
-        });
-      }
+    /* ---------- Basic Validation ---------- */
+    if (!Array.isArray(data.repayments) || data.repayments.length === 0) {
+      return res.status(400).json({
+        message: "At least one repayment record is required",
+      });
+    }
 
-      const insertedRepayments = [];
+    const insertedRepayments = [];
 
-      for (const r of data.repayments) {
-        const requiredFields = [
-          "lan",
-          "collection_date",
-          "collection_utr",
-          "collection_amount",
-        ];
+    for (const r of data.repayments) {
+      const requiredFields = [
+        "lan",
+        "collection_date",
+        "collection_utr",
+        "collection_amount",
+      ];
 
-        for (const f of requiredFields) {
-          if (!r[f]) {
-            return res.status(400).json({
-              message: `Missing ${f} for LAN ${r.lan || ""}`,
-            });
-          }
-        }
-
-        /* ---------- 🔒 CHECK: LAN Must Exist ---------- */
-        const [lanExists] = await db.promise().query(
-          `SELECT id 
-           FROM supply_chain_sanctions 
-           WHERE lan = ?`,
-          [r.lan]
-        );
-
-        if (lanExists.length === 0) {
+      for (const f of requiredFields) {
+        if (!r[f]) {
           return res.status(400).json({
-            message: `Invalid LAN ${r.lan}. Loan does not exist.`,
+            message: `Missing ${f} for LAN ${r.lan || ""}`,
           });
         }
+      }
 
-         /* ---------- Insert Repayment ---------- */
-        await db.promise().query(
-          `
+      /* ---------- 🔒 CHECK: LAN Must Exist ---------- */
+      const [lanExists] = await db.promise().query(
+        `SELECT id 
+           FROM supply_chain_sanctions 
+           WHERE lan = ?`,
+        [r.lan]
+      );
+
+      if (lanExists.length === 0) {
+        return res.status(400).json({
+          message: `Invalid LAN ${r.lan}. Loan does not exist.`,
+        });
+      }
+
+      /* ---------- Insert Repayment ---------- */
+      await db.promise().query(
+        `
           INSERT INTO supply_chain_repayments (
             lan,
             collection_date,
@@ -8129,42 +8204,42 @@ router.post("/v1/supplychain/repayment-upload",verifyApiKey,async (req, res) => 
             collection_amount
           ) VALUES (?,?,?,?)
           `,
-          [
-            r.lan,
-            r.collection_date,
-            r.collection_utr,
-            r.collection_amount,
-          ]
-        );
+        [
+          r.lan,
+          r.collection_date,
+          r.collection_utr,
+          r.collection_amount,
+        ]
+      );
 
-        /* ---------- 🔥 ALLOCATION CALL ---------- */
-        await allocateSupplyChainRepayment(db, {
-          lan: r.lan,
-          collection_date: r.collection_date,
-          collection_utr: r.collection_utr,
-          collection_amount: r.collection_amount,
-        });
-
-        insertedRepayments.push({
-          lan: r.lan,
-          collection_utr: r.collection_utr,
-          collection_amount: r.collection_amount,
-        });
-      }
-
-      return res.json({
-        message: "Repayment data uploaded successfully",
-        total_records: insertedRepayments.length,
-        repayments: insertedRepayments,
+      /* ---------- 🔥 ALLOCATION CALL ---------- */
+      await allocateSupplyChainRepayment(db, {
+        lan: r.lan,
+        collection_date: r.collection_date,
+        collection_utr: r.collection_utr,
+        collection_amount: r.collection_amount,
       });
-    } catch (error) {
-      console.error("❌ SUPPLY CHAIN REPAYMENT UPLOAD ERROR:", error);
-      return res.status(500).json({
-        message: "Failed to upload repayment data",
-        error: error.message,
+
+      insertedRepayments.push({
+        lan: r.lan,
+        collection_utr: r.collection_utr,
+        collection_amount: r.collection_amount,
       });
     }
+
+    return res.json({
+      message: "Repayment data uploaded successfully",
+      total_records: insertedRepayments.length,
+      repayments: insertedRepayments,
+    });
+  } catch (error) {
+    console.error("❌ SUPPLY CHAIN REPAYMENT UPLOAD ERROR:", error);
+    return res.status(500).json({
+      message: "Failed to upload repayment data",
+      error: error.message,
+    });
   }
+}
 );
 //////////////////////////// Supply chain Collection Upload API END ////////////////////////
 
@@ -8233,11 +8308,11 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
         const loginDate =
           row["loan_application_date"]
             ? excelDateToJSDate(
-                row["loan_application_date"]
-              )
+              row["loan_application_date"]
+            )
             : null;
 
-            const today = new Date();
+        const today = new Date();
         const { month, year } =
           getMonthYear(today);
 
@@ -8274,8 +8349,8 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
 
-       await conn.query(
-  `INSERT INTO loan_booking_circle_pe (
+        await conn.query(
+          `INSERT INTO loan_booking_circle_pe (
     login_date, lan, partner_loan_id, app_id, customer_name, gender, dob,
     father_name, mobile_number, email_id, pan_number, aadhar_number,
     current_address, current_pincode, loan_amount, interest_rate,
@@ -8283,48 +8358,48 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
     customer_type, bank_name, name_in_bank, account_number, ifsc,
     net_disbursement, agreement_date, status
   ) VALUES (${new Array(30).fill("?").join(",")})`,
-  [
-    row["loan_application_date"] ? excelDateToJSDate (row["loan_application_date"]) :null,
-    lan,
-    partnerLoanId,
-    row["App_Id"] || row["app_id"],
-    row["customer_name"],
-    row["gender"],
-    row["date_of_birth"] ? excelDateToJSDate (row["date_of_birth"]) : null,
-    row["fathers_name"],
-    row["mobile_number"],
-    row["email_id"],
-    row["pan_number"],
-    row["aadhaar_number"],
-    row["current_address_line1"],
-    row["current_address_pincode"],
-    parse(row["loan amount sanctioned"] || row["loan_amount_sanctioned"]),
-    parse(row["interest_percent"]),
-    parse(row["loan_tenure_months"]),
-    parse(row["monthly emi"] || row["monthly_emi"]),
-    parseInt(row["credit_score"]),
-    row["product"],
-    row["LenderType"] || lenderType,
-    row["residence_type"],
-    row["customer_type"],
-    row["bank_name"],
-    row["beneficiary_name"],
-    row["institute_account_number"],
-    row["ifsc_code"],
-    parse(row["loan amount sanctioned"] || row["loan_amount_sanctioned"]), // net_disbursement
-     row["loan_application_date"] ? excelDateToJSDate (row["loan_application_date"]) :null, // agreement date
-    "Login",
-  ]
-);
+          [
+            row["loan_application_date"] ? excelDateToJSDate(row["loan_application_date"]) : null,
+            lan,
+            partnerLoanId,
+            row["App_Id"] || row["app_id"],
+            row["customer_name"],
+            row["gender"],
+            row["date_of_birth"] ? excelDateToJSDate(row["date_of_birth"]) : null,
+            row["fathers_name"],
+            row["mobile_number"],
+            row["email_id"],
+            row["pan_number"],
+            row["aadhaar_number"],
+            row["current_address_line1"],
+            row["current_address_pincode"],
+            parse(row["loan amount sanctioned"] || row["loan_amount_sanctioned"]),
+            parse(row["interest_percent"]),
+            parse(row["loan_tenure_months"]),
+            parse(row["monthly emi"] || row["monthly_emi"]),
+            parseInt(row["credit_score"]),
+            row["product"],
+            row["LenderType"] || lenderType,
+            row["residence_type"],
+            row["customer_type"],
+            row["bank_name"],
+            row["beneficiary_name"],
+            row["institute_account_number"],
+            row["ifsc_code"],
+            parse(row["loan amount sanctioned"] || row["loan_amount_sanctioned"]), // net_disbursement
+            row["loan_application_date"] ? excelDateToJSDate(row["loan_application_date"]) : null, // agreement date
+            "Login",
+          ]
+        );
 
 
-console.log( parse(row["loan amount sanctioned"]),
-            row["interest_percent"],
-            row["loan_tenure_months"],
-            parse(row["monthly emi"]),)
+        console.log(parse(row["loan amount sanctioned"]),
+          row["interest_percent"],
+          row["loan_tenure_months"],
+          parse(row["monthly emi"]),)
 
 
-            await partnerLimitService.updateUsedLimit(
+        await partnerLimitService.updateUsedLimit(
           conn,
           limitCheck.limitId,
           loanAmount,
@@ -8427,7 +8502,7 @@ router.post("/v1/circlepe-lb", verifyApiKey, async (req, res) => {
       "ifsc_code",
     ];
 
-   for (const f of requiredFields) {
+    for (const f of requiredFields) {
       if (!data[f] && data[f] !== 0) {
         console.error(`❌ Missing field detected: ${f}`);
         return res.status(400).json({ message: `${f} is required.` });
@@ -8491,15 +8566,15 @@ router.post("/v1/circlepe-lb", verifyApiKey, async (req, res) => {
         partnerLoanId,
         data.App_Id,
         data.customer_name,
-        data.gender ,
-        data.date_of_birth ,
-        data.fathers_name ,
+        data.gender,
+        data.date_of_birth,
+        data.fathers_name,
         data.mobile_number,
-        data.email_id ,
+        data.email_id,
         data.pan_number,
         data.aadhaar_number,
-        data.current_address_line1 ,
-        data.current_address_pincode ,
+        data.current_address_line1,
+        data.current_address_pincode,
         parseNum(data.loan_amount_sanctioned),
         parseNum(data.interest_percent),
         parseNum(data.loan_tenure_months),
@@ -8507,30 +8582,30 @@ router.post("/v1/circlepe-lb", verifyApiKey, async (req, res) => {
         cibilScore,
         data.product || "Mobile Finance",
         lenderType,
-        data.residence_type ,
-        data.customer_type ,
+        data.residence_type,
+        data.customer_type,
         data.bank_name,
         data.beneficiary_name,
         data.institute_account_number,
         data.ifsc_code,
         parseNum(data.loan_amount_sanctioned),
-        data.loan_application_date ,
+        data.loan_application_date,
         "Login",
       ]
     );
 
     console.log("✅ Record inserted successfully for LAN:", lan);
 
-return res.status(200).json({
-  message: "Circle Pe upload completed.",
-  results: [
-    {
-      message: "Circle Pe loan saved successfully.",
-      app_id: data.App_Id,
-      lan: lan,
-    },
-  ],
-});
+    return res.status(200).json({
+      message: "Circle Pe upload completed.",
+      results: [
+        {
+          message: "Circle Pe loan saved successfully.",
+          app_id: data.App_Id,
+          lan: lan,
+        },
+      ],
+    });
 
   } catch (error) {
     console.error("❌ Unhandled Error in Circle Pe Upload:", error);
@@ -8585,11 +8660,11 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
     let rejectedValidation = 0;
 
     for (const row of sheetData) {
-    let conn;
+      let conn;
 
-    try {
+      try {
 
-      const loanAmount =
+        const loanAmount =
           parseFloat(row["Loan Amount"]) || 0;
 
         if (loanAmount <= 0) {
@@ -8602,8 +8677,8 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
         const disbursementDate =
           row["Disbursement Date"]
             ? excelDateToJSDate(
-                row["Disbursement Date"]
-              )
+              row["Disbursement Date"]
+            )
             : null;
 
         if (!disbursementDate) {
@@ -8654,7 +8729,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
 
-      const query = `
+        const query = `
   INSERT INTO loan_bookings_wctl (
     category, product_short_name, customer_name, loan_account_number,
     lan, loan_amount, interest_rate, loan_tenure, agreement_date,
@@ -8663,7 +8738,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `;
 
-      await conn.query(query, [
+        await conn.query(query, [
           row["Category"],
           row["Product Short Name"],
           row["Customer Name"],
@@ -8701,7 +8776,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
         conn.release();
 
         success++;
-    } catch (err) {
+      } catch (err) {
 
         if (conn) {
 
@@ -8715,7 +8790,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
 
       }
     }
-   return res.json({
+    return res.json({
       message: "✅ WCTL Upload processed",
       total_rows: sheetData.length,
       success,
@@ -9177,8 +9252,8 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         const loginDate =
           row["Loan Application Date"]
             ? excelDateToJSDate(
-                row["Loan Application Date"]
-              )
+              row["Loan Application Date"]
+            )
             : null;
 
         if (!loginDate) {
@@ -9202,7 +9277,7 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         const partnerName =
           "GQ NON FSF";
 
-          const today = new Date();
+        const today = new Date();
 
         const { month, year } =
           getMonthYear(today);
@@ -9353,25 +9428,25 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         try {
           await conn.query(insertQuery, values);
 
-           await partnerLimitService.updateUsedLimit(
-          conn,
-          limitCheck.limitId,
-          loanAmount,
-          "BOOKED",
-          lan
-        );
+          await partnerLimitService.updateUsedLimit(
+            conn,
+            limitCheck.limitId,
+            loanAmount,
+            "BOOKED",
+            lan
+          );
 
-        await conn.commit();
-        conn.release();
-        
+          await conn.commit();
+          conn.release();
+
           success_rows.push(R);
         } catch (insErr) {
           if (conn) {
 
-          await conn.rollback();
-          conn.release();
+            await conn.rollback();
+            conn.release();
 
-        }
+          }
           row_errors.push({
             row: R,
             stage: "insert",
@@ -10242,18 +10317,18 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_embifi_loan";
   } else if (lan.startsWith("FINE")) {
     tableName = "manual_rps_emiclub";
-    } else if (lan.startsWith("ZYPF")) {
+  } else if (lan.startsWith("ZYPF")) {
     tableName = "manual_rps_zypay";
   }
-    else if (lan.startsWith("HEL")) {
+  else if (lan.startsWith("HEL")) {
     tableName = "manual_rps_helium";
-    } else if (lan.startsWith("CIRF")) {
+  } else if (lan.startsWith("CIRF")) {
     tableName = "manual_rps_circlepe";
   } else if (lan.startsWith("FINS")) {
     tableName = "manual_rps_finso_loan";
-  }else if (lan.startsWith("HEYEV")) {
+  } else if (lan.startsWith("HEYEV")) {
     tableName = "manual_rps_hey_ev";
-     }else if (lan.startsWith("HEYBF")) {
+  } else if (lan.startsWith("HEYBF")) {
     tableName = "manual_rps_hey_ev_battery";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
