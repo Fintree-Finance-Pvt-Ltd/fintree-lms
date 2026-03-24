@@ -105,12 +105,15 @@ const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbu
       sortAccessor: (r) => (/^GQNONFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : ""),
       csvAccessor:  (r) => (/^GQNONFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""), width: 140,
     }] : []),
-    ...(hasEV ? [{
-      key: "partner_loan_id", header: "Partner Loan ID", sortable: true,
-      render:       (r) => (/^EV/i.test(r?.lan) ? (r.partner_loan_id ?? "—") : "—"),
-      sortAccessor: (r) => (/^EV/i.test(r?.lan) ? String(r?.partner_loan_id || "").toLowerCase() : ""),
-      csvAccessor:  (r) => (/^EV/i.test(r?.lan) ? (r.partner_loan_id ?? "") : ""), width: 140,
-    }] : []),
+    {
+  key: "partner_loan_id",
+  header: "Partner Loan ID",
+  sortable: true,
+  render: (r) => r.partner_loan_id ?? "—",
+  sortAccessor: (r) => String(r?.partner_loan_id || "").toLowerCase(),
+  csvAccessor: (r) => r.partner_loan_id ?? "",
+  width: 160,
+},
     {
       key: amountField, header: "Disbursement Amount", sortable: true,
       render: (r) => { const n = Number(r?.[amountField] ?? r?.loan_amount); return Number.isFinite(n) ? nf.format(n) : "—"; },
