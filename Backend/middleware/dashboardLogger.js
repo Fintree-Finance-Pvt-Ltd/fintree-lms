@@ -16,9 +16,7 @@ function dashboardLogger(req, res, next) {
     const durationNs = process.hrtime.bigint() - startAt;
     const durationMs = Number(durationNs / 1_000_000n);
 
-    // Attach timing header (visible on second call when cached)
-    res.setHeader("X-Response-Time", `${durationMs}ms`);
-
+    // Removed attach timing header inside `finish` because headers are already sent
     const label = `[Dashboard] ${req.method} ${req.path}`;
 
     if (durationMs > SLOW_THRESHOLD_MS) {

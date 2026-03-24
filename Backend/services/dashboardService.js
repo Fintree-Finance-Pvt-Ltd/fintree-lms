@@ -628,11 +628,13 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
   let isClosed  = false;
   let isActive  = false;
 
-  if (bucket === "0")          havingStr = "HAVING max_dpd = 0";
-  else if (bucket === "90+")   havingStr = "HAVING max_dpd >= 91";
+  const maxDpdExpr = `MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.dpd, DATEDIFF(CURDATE(), rps.due_date)) ELSE 0 END)`;
+
+  if (bucket === "0")          havingStr = `HAVING ${maxDpdExpr} = 0`;
+  else if (bucket === "90+")   havingStr = `HAVING ${maxDpdExpr} >= 91`;
   else if (ranges[bucket]) {
     const [mn, mx] = ranges[bucket];
-    havingStr = `HAVING max_dpd BETWEEN ${mn} AND ${mx}`;
+    havingStr = `HAVING ${maxDpdExpr} BETWEEN ${mn} AND ${mx}`;
   }
   else if (bucket === "closed") isClosed = true;
   else if (bucket === "active") isActive = true;
