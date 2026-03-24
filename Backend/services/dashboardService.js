@@ -667,19 +667,9 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
 
     const appliedBucketWhere = (isActive || isClosed) ? "" : bucketWhere;
 
-    // ── Ageing / disbursement_date source ───────────────────────
-    // FIX: joined INSIDE the branch, not after UNION ALL
-    let disbDateExpr;
-    let disbJoin = "";
-
     if (cfg.disbDateSource === "utr") {
-      // Join ev_disbursement_utr inside branch to get per-LAN disbursement date
-      disbJoin = `LEFT JOIN (
-          SELECT lan COLLATE ${JOIN_COLLATE} AS lan_utr, MIN(Disbursement_Date) AS disb_dt
-          FROM ev_disbursement_utr
-          GROUP BY lan
-        ) utr ON utr.lan_utr = rps.lan COLLATE ${JOIN_COLLATE}`;
-      disbDateExpr = "MIN(utr.disb_dt)";
+      // UTR is joined on the outer query, so we pass NULL here
+      disbDateExpr = "NULL";
     } else {
       // Adikosh: use agreement_date from its booking table
       disbDateExpr = `MAX(b.${cfg.disbDateField || "agreement_date"})`;
@@ -705,12 +695,10 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
           SUM(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN IFNULL(rps.interest, 0)  ELSE 0 END) AS overdue_interest,
           MAX(CASE WHEN rps.status <> 'Paid' AND rps.due_date < CURDATE() THEN rps.due_date END)         AS last_due_date,
           SUM(IFNULL(rps.remaining_principal, 0))                                                        AS pos_principal,
-          ${disbDateExpr}          AS disbursement_date,
-          DATEDIFF(CURDATE(), ${disbDateExpr}) AS ageing_days
+          ${disbDateExpr}          AS inner_disb_date
         FROM ${cfg.rpsTable} rps
         JOIN ${cfg.bookTable} b
           ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
-        ${disbJoin}
         ${whereClause}
         GROUP BY rps.lan
       ) p
@@ -754,14 +742,34 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
 
   // ── ageing_days NULL-safe sort: NULLs always go to end
   const orderClause = sortCol === "ageing_days"
-    ? `ORDER BY ${sortCol} IS NULL ASC, ${sortCol} ${sortDirSafe}, lan ASC`
+    ? `ORDER BY ageing_days IS NULL ASC, ageing_days ${sortDirSafe}, lan ASC`
     : `ORDER BY ${sortCol} ${sortDirSafe}, lan ASC`;
 
   const dataSql = `
-    SELECT base.*
+    SELECT
+      t.product,
+      t.lan,
+      t.customer_name,
+      t.dealer_name,
+      t.district,
+      t.status,
+      t.loan_status,
+      t.max_dpd,
+      t.overdue_emi,
+      t.overdue_principal,
+      t.overdue_interest,
+      t.last_due_date,
+      t.pos_principal,
+      COALESCE(t.inner_disb_date, utr.disb_dt) AS disbursement_date,
+      DATEDIFF(CURDATE(), COALESCE(t.inner_disb_date, utr.disb_dt)) AS ageing_days
     FROM (
       ${branches.join(" UNION ALL ")}
-    ) base
+    ) t
+    LEFT JOIN (
+      SELECT lan COLLATE ${JOIN_COLLATE} AS lan_utr, MIN(Disbursement_Date) AS disb_dt
+      FROM ev_disbursement_utr
+      GROUP BY lan
+    ) utr ON utr.lan_utr = t.lan COLLATE ${JOIN_COLLATE}
     ${orderClause}
     LIMIT ? OFFSET ?
   `;
