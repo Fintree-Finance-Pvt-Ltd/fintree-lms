@@ -715,18 +715,41 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
     return { rows: [], pagination: { page, pageSize, total: 0 } };
   }
 
-  const sortKey    = typeof sortBy === "string" ? sortBy.toLowerCase() : "dpd";
-  const sortCol    = SORT_MAP[sortKey] || SORT_MAP.dpd;
+  const sortKey     = typeof sortBy === "string" ? sortBy.toLowerCase() : "dpd";
+  const sortCol     = SORT_MAP[sortKey] || SORT_MAP.dpd;
   const sortDirSafe = String(sortDir || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
-  const offset     = (page - 1) * pageSize;
+  const offset      = (page - 1) * pageSize;
 
-  // ageing_days NULL-safe sort: NULLs go to end regardless of direction
+  // ── Split query: COUNT runs separately (no UTR join, no ordering)
+  // This eliminates the COUNT(*) OVER() window function that forced full
+  // materialization of the UNION ALL before LIMIT — root cause of the timeout.
+  const countBranches = products.map(([, cfg]) => {
+    // Inline same HAVING / WHERE logic as the full data branches above
+    const havingClause = (isActive || isClosed) ? "" : havingStr;
+    const whereClause  = isClosed
+      ? `WHERE LOWER(b.status) NOT IN ('disbursed', 'login', 'disburse initiate')`
+      : `WHERE LOWER(b.status) = 'disbursed'`;
+
+    return `
+      SELECT rps.lan
+      FROM ${cfg.rpsTable} rps
+      JOIN ${cfg.bookTable} b
+        ON b.lan COLLATE ${JOIN_COLLATE} = rps.lan COLLATE ${JOIN_COLLATE}
+      ${whereClause}
+      GROUP BY rps.lan
+      ${havingClause}
+    `;
+  });
+
+  const countSql = `SELECT COUNT(*) AS total FROM (${countBranches.join(" UNION ALL ")}) t`;
+
+  // ── ageing_days NULL-safe sort: NULLs always go to end
   const orderClause = sortCol === "ageing_days"
     ? `ORDER BY ${sortCol} IS NULL ASC, ${sortCol} ${sortDirSafe}, lan ASC`
     : `ORDER BY ${sortCol} ${sortDirSafe}, lan ASC`;
 
-  const sql = `
-    SELECT base.*, COUNT(*) OVER() AS total_rows
+  const dataSql = `
+    SELECT base.*
     FROM (
       ${branches.join(" UNION ALL ")}
     ) base
@@ -734,11 +757,14 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
     LIMIT ? OFFSET ?
   `;
 
-  const [pageRows] = await db.promise().query(sql, [pageSize, offset]);
-  const total = pageRows.length ? Number(pageRows[0].total_rows) : 0;
-  const rows  = pageRows.map(({ total_rows, ...r }) => r);
+  // Run count and first page in parallel — each is independently fast
+  const [[countRows], [pageRows]] = await Promise.all([
+    db.promise().query(countSql),
+    db.promise().query(dataSql, [pageSize, offset]),
+  ]);
 
-  return { rows, pagination: { page, pageSize, total } };
+  const total = Number(countRows[0]?.total || 0);
+  return { rows: pageRows, pagination: { page, pageSize, total } };
 }
 
 /* ================================================================

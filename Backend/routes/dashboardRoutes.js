@@ -122,7 +122,7 @@ router.post("/dpd-list", async (req, res) => {
 
     const prod     = normalizeProduct(product);
     const page     = Math.max(1, parseInt(pageRaw || 1, 10));
-    const pageSize = Math.min(1000, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
+    const pageSize = Math.min(100, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
     const sortBy   = typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd";
     const sortDir  = String(sortDirRaw || "desc").toLowerCase() === "asc" ? "asc" : "desc";
 
@@ -133,11 +133,11 @@ router.post("/dpd-list", async (req, res) => {
       return res.status(400).json({ error: `Invalid bucket: "${bucket}". Valid values: ${validBuckets.join(", ")}` });
     }
 
-    // dpd-list is paginated — shorter TTL (120s) to keep data fresh
+    // dpd-list paginated — longer TTL (600s) reduces repeated heavy UNION ALL on shared-host MySQL
     // Use normalized `prod` in key to avoid cache splits on raw product string variants
     const cacheKey = `dash:dpdlist:${prod}:${bucket}:${page}:${pageSize}:${sortBy}:${sortDir}`;
 
-    const result = await withCache(cacheKey, 120, async () =>
+    const result = await withCache(cacheKey, 600, async () =>
       buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, db)
     );
 
