@@ -153,74 +153,49 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
       <LoaderOverlay show={loading} label="Fetching data…" />
       {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
 
-      {/* ── Server-side search bar ───────────────────────────────── */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <input
-          placeholder="Search LAN, name, mobile…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "10px 14px", borderRadius: 10, border: "1px solid #d1d5db",
-            fontSize: 14, minWidth: 260, outline: "none",
-          }}
-        />
-        <span style={{ color: "#6b7280", fontSize: 13 }}>
-          {totalRows.toLocaleString()} record{totalRows !== 1 ? "s" : ""}
-        </span>
-      </div>
-
-      {/* ── DataTable (client-side sort only on current page) ────── */}
+      {/* ── DataTable with server-side pagination ───────────────── */}
       <DataTable
         title={title}
         rows={rows}
         columns={columns}
-        globalSearchKeys={[]}          /* search is server-side — disable DataTable's client search */
+        globalSearchKeys={[]}          /* search is server-side */
         initialSort={{ key: "lan", dir: "asc" }}
         exportFileName="approved_loans"
+        initialPageSize={pageSize}
+        pageSizeOptions={[10, 25, 50, 100]}
+        serverPagination={true}
+        totalRows={totalRows}
+        currentPage={page}
+        onPageChange={setPage}
+        onPageSizeChange={(n) => setPageSize(n)}
+        renderTopRight={
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              placeholder="Search LAN, name, mobile…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 14, minWidth: 240, outline: "none" }}
+            />
+            <span style={{ color: "#6b7280", fontSize: 13 }}>
+              {totalRows.toLocaleString()} record{totalRows !== 1 ? "s" : ""}
+            </span>
+          </div>
+        }
       />
-
-      {/* ── Server-side pagination controls ─────────────────────── */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginTop: 12, gap: 8, flexWrap: "wrap",
-      }}>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            style={pagerBtnStyle(page === 1)}
-          >‹ Prev</button>
-
-          <span style={{ color: "#6b7280", fontSize: 13 }}>
-            Page <b>{page}</b> / <b>{totalPages}</b>
-          </span>
-
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages}
-            style={pagerBtnStyle(page >= totalPages)}
-          >Next ›</button>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <label style={{ fontSize: 13, color: "#6b7280" }}>Rows / page</label>
-          <select
-            value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value))}
-            style={{
-              padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db",
-              fontSize: 13, outline: "none",
-            }}
-          >
-            {[10, 25, 50, 100].map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-        </div>
-      </div>
     </>
   );
 };
+
+function pagerBtnStyle(disabled) {
+  return {
+    padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db",
+    background: disabled ? "#f3f4f6" : "#fff",
+    color:      disabled ? "#9ca3af" : "#1f2937",
+    cursor: disabled ? "default" : "pointer",
+    fontSize: 13, fontWeight: 600,
+  };
+}
+
 
 function pagerBtnStyle(disabled) {
   return {
