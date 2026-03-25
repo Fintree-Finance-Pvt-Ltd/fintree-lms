@@ -83,6 +83,7 @@ const statusPillStyle = (status) => {
     {
       key: "hospital_legal_name",
       header: "Hospital Name",
+      
       sortable: true,
       render: (r) => (
           <span
