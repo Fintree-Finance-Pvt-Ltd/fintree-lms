@@ -94,20 +94,19 @@ function getLoanTableByLAN(lan) {
  */
 async function getLenderByLAN(lan) {
   const loanTable = getLoanTableByLAN(lan);
-  
+
   try {
     // Try to get lender from loan_booking tables
     const [rows] = await db
       .promise()
-      .query(
-        `SELECT lender FROM \`${loanTable}\` WHERE lan = ? LIMIT 1`,
-        [lan],
-      );
-    
+      .query(`SELECT lender FROM \`${loanTable}\` WHERE lan = ? LIMIT 1`, [
+        lan,
+      ]);
+
     if (rows.length > 0 && rows[0].lender) {
       return rows[0].lender;
     }
-    
+
     return "Fintree Finance Pvt Ltd"; // Default fallback
   } catch (error) {
     console.error(
@@ -218,7 +217,10 @@ function formatDateForMessage(date) {
  * @param {Object} emiRecord - EMI record with lan, emi, dpd, due_date
  * @param {string} lender - Lender name from loan_booking table
  */
-function generateReminderMessage(emiRecord, lender = "Fintree Finance Pvt Ltd") {
+function generateReminderMessage(
+  emiRecord,
+  lender = "Fintree Finance Pvt Ltd",
+) {
   const { lan, emi, dpd, due_date } = emiRecord;
   const formattedDueDate = formatDateForMessage(due_date);
 
@@ -244,7 +246,7 @@ async function sendWhatsAppMessage(mobile, message, retryCount = 0) {
   formData.append("channelId", RAPBOOSTER_CHANNEL_ID);
   formData.append("mobile", cleanedMobile);
   formData.append("msg", message);
-   if (!RAPBOOSTER_AUTH_KEY || !RAPBOOSTER_CHANNEL_ID) {
+  if (!RAPBOOSTER_AUTH_KEY || !RAPBOOSTER_CHANNEL_ID) {
     throw new Error("RapBooster API authKey or channelId is not configured");
   }
   try {
@@ -295,15 +297,18 @@ async function checkDuplicateReminder(lan, tableName, dueDate) {
   try {
     const [rows] = await db.promise().query(
       `SELECT id FROM whatsapp_logs 
-       WHERE lan = ? AND source_table = ? AND DATE(sent_at) = ? 
+       WHERE lan = ?
+       AND source_table = ?
+       AND message LIKE ?
+       AND DATE(sent_at) = ?
        LIMIT 1`,
-      [lan, tableName, today],
+      [lan, tableName, `%${formatDateForMessage(dueDate)}%`, today],
     );
 
     return rows.length > 0;
   } catch (error) {
     console.error("Error checking duplicate:", error.message);
-    return false; // If error, allow sending
+    return false;
   }
 }
 
@@ -382,10 +387,10 @@ async function processEMIRecord(emiRecord, tableName) {
 
   // Get customer mobile number
   const mobile = await getCustomerMobileByLAN(lan);
-  
+
   // Get lender name from loan_booking table
   const lender = await getLenderByLAN(lan);
-  
+
   if (!mobile) {
     console.log(`No mobile number found for LAN ${lan}`);
     await logWhatsAppMessage(
@@ -445,7 +450,7 @@ async function processAllOverdueEMIs() {
     console.log(`\nProcessing table: ${tableName}`);
 
     const overdueEMIs = await fetchOverdueEMIs(tableName);
-    console.log("overdueEMIs",overdueEMIs)
+    console.log("overdueEMIs", overdueEMIs);
     if (overdueEMIs.length === 0) {
       console.log(`No overdue EMIs found in ${tableName}`);
       continue;
