@@ -33,6 +33,7 @@ const HospitalLoginActions = () => {
   const handleStatusChange = async (lan, status) => {
   try {
     await api.patch(`/clayyo-loans/hospitals/status/${lan}`, {
+      
       status: status.toUpperCase(),
     });
 
