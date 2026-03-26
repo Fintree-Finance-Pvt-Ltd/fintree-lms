@@ -33,6 +33,7 @@ const HospitalLoginActions = () => {
   const handleStatusChange = async (lan, status) => {
   try {
     await api.patch(`/clayyo-loans/hospitals/status/${lan}`, {
+      
       status: status.toUpperCase(),
     });
 
@@ -83,10 +84,15 @@ const statusPillStyle = (status) => {
     {
       key: "hospital_legal_name",
       header: "Hospital Name",
+      
       sortable: true,
       render: (r) => (
-        <span style={{ fontWeight: 600 }}>
-          {r.hospital_legal_name}
+          <span
+          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+          onClick={() => navigate(`/approved-loan-details-clayoo-hospital/${r.lan}`)}
+          title="View loan details"
+        > 
+         {r.hospital_legal_name}
         </span>
       ),
       width: 220,

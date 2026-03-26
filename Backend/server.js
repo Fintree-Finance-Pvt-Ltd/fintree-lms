@@ -1,9 +1,9 @@
-require('dotenv').config({ path: __dirname + '/.env' });
-const express = require('express');
-const cors = require('cors');
-const authRoutes = require('./routes/authRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const excelUploadRoutes = require('./routes/excelUpload');
+require("dotenv").config({ path: __dirname + "/.env" });
+const express = require("express");
+const cors = require("cors");
+const authRoutes = require("./routes/authRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const excelUploadRoutes = require("./routes/excelUpload");
 const loanRoutes = require("./routes/loanRoutes");
 const repaymentRoutes = require("./routes/repaymentsRoutes");
 const loanChargesRoutes = require("./routes/loanChargesRoutes");
@@ -21,16 +21,16 @@ const { initColumnSchemaCache } = require("./services/dashboardService");
 const collectionApiRoutes = require("./routes/collectionApi");
 const enachRoutes = require("./routes/enachRoutes");
 const esignRoutes = require("./routes/esignRoutes");
-const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute")
+const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute");
 const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
 const { retryPendingValidations } = require("./services/heliumValidationEngine");
 const { autoApproveClayyoIfAllVerified } = require("./routes/clyooRoutes/clayyoBreEngine");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
-const { initScheduler, runOnce } = require('./jobs/smsSchedulerRaw');
+const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
 // function generateApiKey() {
-//   return crypto.randomBytes(32).toString("hex"); 
+//   return crypto.randomBytes(32).toString("hex");
 //   // 32 bytes = 64 characters hex string
 // }
 
@@ -43,7 +43,6 @@ const PORT = process.env.PORT;
 
 // ✅ Import jobs
 require("./jobs/dailyJobs");
-
 
 const fs = require("fs");
 const path = require("path");
@@ -84,20 +83,24 @@ app.use(
 );
 app.use("/generated", express.static(path.join(__dirname, "generated")));
 app.use("/reports", express.static(reportsPath));
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/loan-booking', excelUploadRoutes);
-app.use('/api/wctl-ccod', require('./routes/wctlCCODRoutes/wctlRoutes')); // ✅ Register WCTL-CC-OD Routes
-app.use('/api/helium-loans', require('./routes/heliumRoutes/heliumRoutes')); // ✅ Register Helium Loan Routes
-app.use('/api/clayyo-loans', require('./routes/clyooRoutes/clyooRoutes')); // ✅ Register Clayyo Routes
-app.use('/api/utr', require('./routes/utrRoutes')); // ✅ Register UTR Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/loan-booking", excelUploadRoutes);
+app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅ Register WCTL-CC-OD Routes
+app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
+app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // ✅ Register Clayyo Routes
+app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
 app.use("/api/helium-webhook", heliumWebhookRoutes);
 app.use("/api/switch-my-loan", require("./routes/switchMyLoan/switchMyLoanRotues")); // ✅ Register Switch My Loan Routes
+app.use("/api/loan-digit", require("./routes/loanDigit/loanDigitRoutes"))
 
-app.use("/api/webhooks/easebuzz", require("../Backend/routes/easebuzz.webhooks.routes")); // ✅ Register Easebuzz Webhook Route
+app.use(
+  "/api/webhooks/easebuzz",
+  require("../Backend/routes/easebuzz.webhooks.routes"),
+); // ✅ Register Easebuzz Webhook Route
 
 // app.use("/api/courses", courseRoutes);
 app.use("/api/loan", loanRoutes); //  routes chanegd
@@ -107,23 +110,25 @@ app.use("/api/loan-charges", loanChargesRoutes);
 app.use("/api/manual-rps", manualRPSRoutes);
 app.use("/api/disbursal", DisbursalRoutes);
 app.use("/api/application-form", applicationFormRoutes);
-app.use("/api/charges", chargesRoutes);//  routes chanegd
+app.use("/api/charges", chargesRoutes); //  routes chanegd
 app.use("/api/delete-cashflow", deleteCashflowRoutes);
-app.use("/api/allocate", allocationRoutes);//  routes chanegd
+app.use("/api/allocate", allocationRoutes); //  routes chanegd
 app.use("/api/forecloser-collection", forecloserRoutes); // NOT foreclose-collection
 app.use("/api/forecloser", forecloserUploadRoutes); // ✅ Register Route for Forecloser Upload FC Upload
 app.use("/reports", express.static(path.join(__dirname, "/reports")));
 app.use("/api/reports", reportsRoutes);// ✅ Register Route for Reports
 app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
 app.use("/api/dealer-onboarding", dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
-app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers  
+app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers
 
 app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
+
+app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
 
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 
-app.post('/api/cibil/:id/pdf', async (req, res) => {
+app.post("/api/cibil/:id/pdf", async (req, res) => {
   try {
     const doc = await generateForReport(req.params.id);
     res.json({ ok: true, document: doc });
@@ -132,7 +137,7 @@ app.post('/api/cibil/:id/pdf', async (req, res) => {
   }
 });
 
-app.post('/api/cibil/generate-pending', async (req, res) => {
+app.post("/api/cibil/generate-pending", async (req, res) => {
   try {
     const results = await generateAllPending(200);
     res.json({ ok: true, results });
@@ -178,7 +183,6 @@ app.post("/api/runclayyovalidations", async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
-
 
 app.get("/api/test-sms", async (req, res) => {
   try {
