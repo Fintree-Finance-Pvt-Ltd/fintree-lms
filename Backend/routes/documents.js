@@ -615,6 +615,186 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
   }
 });
 
+
+router.post(
+  "/v1/upload-files",
+  verifyApiKey,
+  upload.any(), // accepts multiple uploaded files
+  async (req, res) => {
+    try {
+      const { lan: bodyLan, documents } = req.body;
+
+      const lan = String(bodyLan || "").trim();
+      if (!lan)
+        return res.status(400).json({ error: "lan is required" });
+
+      // Check if LAN exists in loan_booking_switch_my_loan table
+const lanExists = await new Promise((resolve, reject) => {
+  const checkSql = `
+    SELECT 1
+    FROM loan_booking_switch_my_loan
+    WHERE lan = ?
+    LIMIT 1
+  `;
+
+  db.query(checkSql, [lan], (err, result) => {
+    if (err) return reject(err);
+    resolve(result.length > 0);
+  });
+});
+
+if (!lanExists) {
+  return res.status(404).json({
+    error: "Invalid LAN",
+    message: "LAN not exists in our records. Please verify and try again.",
+  });
+}
+
+      let parsedDocs = documents;
+
+      // If documents arrives as string (multipart form-data case)
+      if (typeof documents === "string") {
+        parsedDocs = JSON.parse(documents);
+      }
+
+      if (!Array.isArray(parsedDocs) || parsedDocs.length === 0)
+        return res
+          .status(400)
+          .json({ error: "documents[] is required" });
+
+      const errors = [];
+      const cleaned = [];
+      const now = new Date();
+
+      for (let i = 0; i < parsedDocs.length; i++) {
+        const d = parsedDocs[i] || {};
+        const doc_name = String(d.doc_name || "").trim();
+        const url = String(d.documet_url || "").trim();
+        const doc_password = (d.doc_password ?? "")
+          .toString()
+          .trim();
+
+        if (!doc_name || !ALLOWED_DOCS.has(doc_name)) {
+          errors.push({
+            index: i,
+            field: "doc_name",
+            reason: "Invalid doc_name",
+          });
+          continue;
+        }
+
+        let file_name = null;
+        let original_name = null;
+        let source_url = null;
+
+        /**
+         * CASE 1: FILE UPLOAD EXISTS
+         */
+        const uploadedFile = Array.isArray(req.files)
+  ? req.files.find(
+      (f) => f.fieldname === `documents[${i}][file]`
+    )
+  : null;
+
+        if (uploadedFile) {
+          file_name = uploadedFile.filename;
+          original_name = uploadedFile.originalname;
+        }
+
+        /**
+         * CASE 2: DOWNLOAD FROM URL
+         */
+        else if (url) {
+          try {
+            const resp = await axios.get(url, {
+              responseType: "arraybuffer",
+            });
+
+            original_name =
+              path.basename(url.split("?")[0]) ||
+              `${doc_name}.pdf`;
+
+            const ext =
+              path.extname(original_name) || ".bin";
+
+            file_name = `${Date.now()}_${doc_name}${ext}`;
+
+            const fullPath = path.join(
+              uploadPath,
+              file_name
+            );
+
+            fs.writeFileSync(fullPath, resp.data);
+
+            source_url = url;
+          } catch (err) {
+            errors.push({
+              index: i,
+              field: "documet_url",
+              reason:
+                "Failed to download remote file: " +
+                err.message,
+            });
+            continue;
+          }
+        } else {
+          errors.push({
+            index: i,
+            reason:
+              "Either file upload or documet_url required",
+          });
+          continue;
+        }
+
+        cleaned.push([
+          lan,
+          doc_name,
+          file_name,
+          source_url,
+          doc_password || null,
+          original_name,
+          now,
+        ]);
+      }
+
+      if (!cleaned.length) {
+        return res.status(400).json({
+          error: "No valid documents to insert",
+          details: errors,
+        });
+      }
+
+      const sql = `
+        INSERT INTO loan_documents
+        (lan, doc_name, file_name, source_url, doc_password, original_name, uploaded_at)
+        VALUES ?
+      `;
+
+      await new Promise((resolve, reject) => {
+        db.query(sql, [cleaned], (err, result) =>
+          err ? reject(err) : resolve(result)
+        );
+      });
+
+      return res.status(200).json({
+        message:
+          "✅ Documents uploaded Successfully",
+        lan,
+        inserted_count: cleaned.length,
+        skipped_or_errors: errors,
+      });
+    } catch (err) {
+      console.error(
+        "❌ /upload-files error:",
+        err
+      );
+      return res
+        .status(500)
+        .json({ error: "Internal server error" });
+    }
+  }
+);
+
 ///////////////// DEALER API DOC UPLOAD START /////////////////////
 /* ===========================
    Dealer Allowed Docs

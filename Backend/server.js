@@ -95,6 +95,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
 app.use("/api/helium-webhook", heliumWebhookRoutes);
+app.use("/api/switch-my-loan", require("./routes/switchMyLoan/switchMyLoanRotues")); // ✅ Register Switch My Loan Routes
 
 app.use("/api/webhooks/easebuzz", require("../Backend/routes/easebuzz.webhooks.routes")); // ✅ Register Easebuzz Webhook Route
 
