@@ -7,10 +7,15 @@ const { clayooRunAllValidations } = require("./clyooValidationEngine");
 // const path = require("path");
 // const fs = require("fs");
 // const verifyApiKey = require("../../middleware/apiKeyAuth");
+const puppeteer = require("puppeteer");
+const fs = require("fs");
+const path = require("path");
+const dayjs = require("dayjs");
 
 const router = express.Router();
 
 const generateLoanIdentifiers = async (lender) => {
+  console.log("✅ Clayyo routes loaded");
   lender = lender.trim(); // normalize input
 
   let application_id;
@@ -801,6 +806,93 @@ router.get("/loan-info/:lan", async (req, res) => {
   }
 });
 
+router.get("/:lan/pdf", async (req, res) => {
+  const { lan } = req.params;
+
+  try {
+
+    const templatePath = path.join(
+      __dirname,
+      "../../templates/Clayyo_Agreement.html"
+    );
+
+    if (!fs.existsSync(templatePath)) {
+      return res.status(500).json({
+        message: "Clayyo agreement template not found"
+      });
+    }
+
+    let html = fs.readFileSync(templatePath, "utf-8");
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        FINAL_LIMIT,
+        PER_ADD,
+        CUST_NAME,
+        CUST_PAN,
+        CUST_AGE,
+        CUR_DATE,
+        LAN,
+        CUST_BANK,
+        CUST_ACC_NO
+      FROM clayyo_loan_summary
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        message: "Clayyo summary not found"
+      });
+    }
+
+    const summary = rows[0];
+
+    // Replace placeholders automatically
+    html = html.replace(/{{(.*?)}}/g, (_, key) =>
+      summary[key.trim()] ?? ""
+    );
+
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: ["--no-sandbox"]
+    });
+
+    const page = await browser.newPage();
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0"
+    });
+
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true
+    });
+
+    await browser.close();
+
+    res.setHeader("Content-Type", "application/pdf");
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Clayyo_Agreement_${lan}.pdf"`
+    );
+
+    res.send(pdfBuffer);
+
+  } catch (err) {
+
+    console.error("Clayyo agreement error:", err);
+
+    res.status(500).json({
+      message: "Agreement generation failed",
+      error: err.message
+    });
+
+  }
+});
 
 
 module.exports = router;

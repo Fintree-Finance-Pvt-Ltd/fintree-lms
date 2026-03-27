@@ -1221,6 +1221,8 @@ router.get("/api/loans", async (req, res) => {
       SELECT lan, C_N, L_A FROM helium_loan_summary
       UNION ALL
       SELECT lan, C_N, L_A FROM customer_loan_summary
+      UNION ALL
+      SELECT lan, CUST_NAME AS C_N, FINAL_LIMIT AS L_A FROM clayyo_loan_summary
       ORDER BY lan DESC
     `);
     res.json(rows);
@@ -1235,46 +1237,124 @@ router.get("/api/loans", async (req, res) => {
 ====================================================== */
 router.get("/:lan/pdf", async (req, res) => {
   const { lan } = req.params;
-  const { summaryTable, rpsTable, agreementTemplate } = getLoanContext(lan);
+
+  const {
+    summaryTable,
+    rpsTable,
+    agreementTemplate,
+    type
+  } = getLoanContext(lan);
 
   try {
-    const templateHtml = loadAgreementTemplate(agreementTemplate);
 
-    const [summaryRows] = await db.promise().query(
-      `
-      SELECT
-        lan, C_N, cur_add, per_add, L_A, I_R, L_T,
-        B_Na, A_no, ifsc,
-        DATE_FORMAT(L_date,'%d-%m-%Y') AS L_date,
-        E_S, I_S, P_S, T_E, L_P
-      FROM ${summaryTable}
-      WHERE lan=?
-      `,
+    if (summaryTable === "clayyo_loan_summary") {
+    await db.promise().query(
+      "CALL sp_generate_clayyo_summary(?)",
       [lan]
     );
+  }
+    const templateHtml = loadAgreementTemplate(agreementTemplate);
+
+    let summaryRows;
+
+    /* ======================================================
+       CLAYYO AGREEMENT DATA
+    ====================================================== */
+    if (type === "CLAYYO") {
+
+      [summaryRows] = await db.promise().query(
+        `
+        SELECT
+          FINAL_LIMIT,
+          PER_ADD,
+          CUST_NAME,
+          CUST_PAN,
+          CUST_AGE,
+          CUR_DATE,
+          LAN,
+          CUST_BANK,
+          CUST_ACC_NO
+        FROM ${summaryTable}
+        WHERE lan = ?
+        `,
+        [lan]
+      );
+
+    }
+
+    /* ======================================================
+       HELIUM / CUSTOMER AGREEMENT DATA
+    ====================================================== */
+    else {
+
+      [summaryRows] = await db.promise().query(
+        `
+        SELECT
+          lan,
+          C_N,
+          cur_add,
+          per_add,
+          L_A,
+          I_R,
+          L_T,
+          B_Na,
+          A_no,
+          ifsc,
+          DATE_FORMAT(L_date,'%d-%m-%Y') AS L_date,
+          E_S,
+          I_S,
+          P_S,
+          T_E,
+          L_P
+        FROM ${summaryTable}
+        WHERE lan = ?
+        `,
+        [lan]
+      );
+
+    }
 
     if (!summaryRows.length) {
       return res.status(404).json({ message: "Loan not found" });
     }
 
-    const [rpsRows] = await db.promise().query(
-      `
-      SELECT id, emi, interest, principal, opening, closing
-      FROM ${rpsTable}
-      WHERE lan=?
-      ORDER BY id ASC
-      `,
-      [lan]
-    );
-
     const summary = summaryRows[0];
-    const firstRps = rpsRows.length ? rpsRows[0] : {};
+
+    /* ======================================================
+       RPS DATA (NOT REQUIRED FOR CLAYYO)
+    ====================================================== */
+
+    let firstRps = {};
+
+    if (type !== "CLAYYO") {
+      const [rpsRows] = await db.promise().query(
+        `
+        SELECT
+          id,
+          emi,
+          interest,
+          principal,
+          opening,
+          closing
+        FROM ${rpsTable}
+        WHERE lan = ?
+        ORDER BY id ASC
+        `,
+        [lan]
+      );
+
+      firstRps = rpsRows.length ? rpsRows[0] : {};
+    }
+
+    /* ======================================================
+       TEMPLATE DATA OBJECT
+    ====================================================== */
 
     const data = {
       ...summary,
       ...firstRps,
       CU_date: dayjs().format("DD-MM-YYYY"),
-      L_A_W: numberToWords(summary.L_A)
+      L_A_W: summary.L_A ? numberToWords(summary.L_A) : ""
     };
 
     const html = fillTemplate(templateHtml, data);
@@ -1285,22 +1365,42 @@ router.get("/:lan/pdf", async (req, res) => {
     });
 
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+
+    await page.setContent(html, {
+      waitUntil: "networkidle0"
+    });
 
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
-      margin: { top: "20mm", bottom: "20mm", left: "15mm", right: "15mm" }
+      margin: {
+        top: "20mm",
+        bottom: "20mm",
+        left: "15mm",
+        right: "15mm"
+      }
     });
 
     await browser.close();
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="Agreement_${lan}.pdf"`);
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Agreement_${lan}.pdf`
+    );
+
     res.send(pdf);
+
   } catch (err) {
+
     console.error("PDF generation failed:", err);
-    res.status(500).json({ message: "PDF generation failed", error: err.message });
+
+    res.status(500).json({
+      message: "PDF generation failed",
+      error: err.message
+    });
+
   }
 });
 

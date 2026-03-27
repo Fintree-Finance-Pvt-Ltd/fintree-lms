@@ -587,38 +587,127 @@ function numberToWords(num) {
 /* ======================================================
    FETCH LOAN DATA
 ====================================================== */
+// async function getLoanData(lan) {
+//   const { summaryTable, rpsTable } = getLoanContext(lan);
+
+//   const [summaryRows] = await db.promise().query(
+//     `
+//     SELECT
+//       lan, C_N, cur_add, per_add,
+//       L_A, I_R, L_T,
+//       B_Na, A_no, ifsc,
+//       DATE_FORMAT(L_date,'%d-%m-%Y') AS L_date,
+//       E_S, I_S, P_S, T_E, L_P
+//     FROM ${summaryTable}
+//     WHERE lan = ?
+//     `,
+//     [lan]
+//   );
+
+//   if (!summaryRows.length) return null;
+
+//   const [rpsRows] = await db.promise().query(
+//     `
+//     SELECT id, emi, interest, principal, opening, closing
+//     FROM ${rpsTable}
+//     WHERE lan = ?
+//     ORDER BY id ASC
+//     `,
+//     [lan]
+//   );
+
+//    /* ===============================
+//      BUILD RPS_ROWS (CRITICAL FIX)
+//   =============================== */
+//   const RPS_ROWS = rpsRows
+//     .map((row, index) => `
+//       <tr>
+//         <td>${index + 1}</td>
+//         <td>${Number(row.opening).toFixed(2)}</td>
+//         <td>${Number(row.principal).toFixed(2)}</td>
+//         <td>${Number(row.interest).toFixed(2)}</td>
+//         <td>${Number(row.emi).toFixed(2)}</td>
+//         <td>${Number(row.closing).toFixed(2)}</td>
+//       </tr>
+//     `)
+//     .join("");
+
+//   return {
+//     ...summaryRows[0],
+//     RPS: rpsRows,
+//     RPS_ROWS, // ✅ THIS WAS MISSING
+//     L_A_W: numberToWords(summaryRows[0].L_A),
+//     CU_date: dayjs().format("DD-MM-YYYY"),
+//   };
+// }
+
+
 async function getLoanData(lan) {
   const { summaryTable, rpsTable } = getLoanContext(lan);
 
-  const [summaryRows] = await db.promise().query(
-    `
-    SELECT
-      lan, C_N, cur_add, per_add,
-      L_A, I_R, L_T,
-      B_Na, A_no, ifsc,
-      DATE_FORMAT(L_date,'%d-%m-%Y') AS L_date,
-      E_S, I_S, P_S, T_E, L_P
-    FROM ${summaryTable}
-    WHERE lan = ?
-    `,
-    [lan]
-  );
+  let summaryRows = [];
+  let rpsRows = [];
+
+  // ===============================
+  // CLAYYO SUMMARY
+  // ===============================
+  if (summaryTable === "clayyo_loan_summary") {
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        LAN,
+        CUST_NAME,
+        PER_ADD,
+        FINAL_LIMIT,
+        CUST_PAN,
+        CUST_AGE,
+        CUST_BANK,
+        CUST_ACC_NO,
+        DATE_FORMAT(CUR_DATE,'%d-%m-%Y') AS CUR_DATE
+      FROM clayyo_loan_summary
+      WHERE LAN = ?
+      `,
+      [lan]
+    );
+
+    summaryRows = rows;
+
+  } else {
+    // ===============================
+    // EXISTING CLIENTS (UNCHANGED)
+    // ===============================
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        lan, C_N, cur_add, per_add,
+        L_A, I_R, L_T,
+        B_Na, A_no, ifsc,
+        DATE_FORMAT(L_date,'%d-%m-%Y') AS L_date,
+        E_S, I_S, P_S, T_E, L_P
+      FROM ${summaryTable}
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    summaryRows = rows;
+
+    if (rpsTable) {
+      const [rps] = await db.promise().query(
+        `
+        SELECT id, emi, interest, principal, opening, closing
+        FROM ${rpsTable}
+        WHERE lan = ?
+        ORDER BY id ASC
+        `,
+        [lan]
+      );
+      rpsRows = rps;
+    }
+  }
 
   if (!summaryRows.length) return null;
 
-  const [rpsRows] = await db.promise().query(
-    `
-    SELECT id, emi, interest, principal, opening, closing
-    FROM ${rpsTable}
-    WHERE lan = ?
-    ORDER BY id ASC
-    `,
-    [lan]
-  );
-
-   /* ===============================
-     BUILD RPS_ROWS (CRITICAL FIX)
-  =============================== */
   const RPS_ROWS = rpsRows
     .map((row, index) => `
       <tr>
@@ -635,12 +724,11 @@ async function getLoanData(lan) {
   return {
     ...summaryRows[0],
     RPS: rpsRows,
-    RPS_ROWS, // ✅ THIS WAS MISSING
-    L_A_W: numberToWords(summaryRows[0].L_A),
-    CU_date: dayjs().format("DD-MM-YYYY"),
+    RPS_ROWS,
+    L_A_W: summaryRows[0].L_A ? numberToWords(summaryRows[0].L_A) : "",
+    CU_date: dayjs().format("DD-MM-YYYY")
   };
 }
-
 /* ======================================================
    WAIT FOR SUMMARY (CRITICAL FIX)
 ====================================================== */
@@ -700,15 +788,44 @@ exports.generateSanctionLetterPdf = async (lan) => {
 /* ======================================================
    AGREEMENT PDF
 ====================================================== */
+// exports.generateAgreementPdf = async (lan) => {
+//   const loanData = await waitForLoanSummary(lan);
+//   if (!loanData) throw new Error("Loan summary not available");
+
+//   const { agreementTemplate } = getLoanContext(lan);
+
+//   const html = fillTemplate(loadTemplate(agreementTemplate), loanData);
+//   const pdfName = `AGREEMENT_${lan}.pdf`;
+
+//   await generatePdfFromHtml(html, pdfName);
+//   return { pdfName };
+// };
+
 exports.generateAgreementPdf = async (lan) => {
+
+  const { summaryTable, agreementTemplate } = getLoanContext(lan);
+
+  // ✅ ensure Clayyo summary exists before fetch
+  if (summaryTable === "clayyo_loan_summary") {
+    await db.promise().query(
+      "CALL sp_generate_clayyo_summary(?)",
+      [lan]
+    );
+  }
+
   const loanData = await waitForLoanSummary(lan);
-  if (!loanData) throw new Error("Loan summary not available");
 
-  const { agreementTemplate } = getLoanContext(lan);
+  if (!loanData)
+    throw new Error("Loan summary not available");
 
-  const html = fillTemplate(loadTemplate(agreementTemplate), loanData);
+  const html = fillTemplate(
+    loadTemplate(agreementTemplate),
+    loanData
+  );
+
   const pdfName = `AGREEMENT_${lan}.pdf`;
 
   await generatePdfFromHtml(html, pdfName);
+
   return { pdfName };
 };

@@ -69,56 +69,56 @@
 //       try {
 //         if (lan.startsWith("GQN")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
+//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender
 //              FROM loan_booking_gq_non_fsf WHERE lan = ?`,
 //             [lan]
 //           );
 //         } else if (lan.startsWith("GQF")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis,retention_percentageage, product, lender 
+//             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis,retention_percentageage, product, lender
 //              FROM loan_booking_gq_fsf WHERE lan = ?`,
 //             [lan]
 //           );
 //         } else if (lan.startsWith("E10")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender 
+//             `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender
 //              FROM loan_booking_embifi WHERE lan = ?`,
 //             [lan]
 //           );
 //         } else if (lan.startsWith("ADK")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender
 //              FROM loan_booking_adikosh WHERE lan = ?`,
 //             [lan]
 //           );
 //         } else if (lan.startsWith("EV")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
 //              FROM loan_booking_ev WHERE lan = ?`,
 //             [lan]
 //           );
 //         } else if (lan.startsWith("HEYEV")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
 //              FROM loan_booking_hey_ev WHERE lan = ?`,
 //             [lan]
 //           );
 //         } else if (lan.startsWith("HEYBF1")) {
 //           // 🔋 HeyEV Battery loans
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, tenure AS loan_tenure, product, lender 
+//             `SELECT loan_amount, interest_rate, tenure AS loan_tenure, product, lender
 //              FROM loan_booking_hey_ev_battery WHERE lan = ?`,
 //             [lan]
 //           );
 //         } else if (lan.startsWith("FINS")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
 //              FROM loan_booking_finso WHERE lan = ?`,
 //             [lan]
 //           );
 //         } else if (lan.startsWith("CIRF")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
 //              FROM loan_booking_circle_pe WHERE lan = ?`,
 //             [lan]
 //           );
@@ -126,7 +126,7 @@
 //         ///////   this is for ZYPAY ////
 //           else if (lan.startsWith("ZYPF")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
 //              FROM loan_booking_zypay_customer WHERE lan = ?`,
 //             [lan]
 //           );
@@ -134,7 +134,7 @@
 //         ////// this for EMI CLUB ////////
 //         else if (lan.startsWith("FINE")) {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, roi_apr AS interest_rate, loan_tenure, product, lender 
+//             `SELECT loan_amount, roi_apr AS interest_rate, loan_tenure, product, lender
 //              FROM loan_booking_emiclub WHERE lan = ?`,
 //             [lan]
 //           );
@@ -147,7 +147,7 @@
 //           );
 //         } else {
 //           [loanRes] = await db.promise().query(
-//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+//             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
 //              FROM loan_bookings WHERE lan = ?`,
 //             [lan]
 //           );
@@ -336,12 +336,12 @@
 //             // 2️⃣ Fetch ALL required data using JOIN
 //             const [[loan]] = await conn.query(
 //               `
-//     SELECT 
+//     SELECT
 //       lb.loan_amount,
 //       lb.interest_rate,
 //       eu.disbursement_date
 //     FROM loan_booking_helium lb
-//     JOIN ev_disbursement_utr eu 
+//     JOIN ev_disbursement_utr eu
 //       ON eu.lan = lb.lan
 //     WHERE lb.lan = ?
 //     `,
@@ -384,7 +384,7 @@
 //             await conn.query(
 //               `
 //     UPDATE loan_booking_helium
-//     SET 
+//     SET
 //       pre_emi_days = ?,
 //       pre_emi = ?,
 //       net_disbursement = ?
@@ -521,7 +521,6 @@
 
 // module.exports = router;
 
-
 //////////////////
 const express = require("express");
 const router = express.Router();
@@ -542,7 +541,7 @@ function excelDateToJSDate(serial) {
   return new Date(
     date_info.getFullYear(),
     date_info.getMonth(),
-    date_info.getDate()
+    date_info.getDate(),
   );
 }
 
@@ -559,7 +558,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
   try {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetData = xlsx.utils.sheet_to_json(
-      workbook.Sheets[workbook.SheetNames[0]]
+      workbook.Sheets[workbook.SheetNames[0]],
     );
 
     let processedCount = 0;
@@ -573,13 +572,15 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       const lan = row["LAN"];
 
       console.log(
-        `Processing row: LAN=${lan}, UTR=${disbursementUTR}, Date=${disbursementDate}`
+        `Processing row: LAN=${lan}, UTR=${disbursementUTR}, Date=${disbursementDate}`,
       );
 
       if (!disbursementUTR || !disbursementDate || !lan) {
-        const reason = `Missing required fields: ${!disbursementUTR ? "Disbursement UTR " : ""
-          }${!disbursementDate ? "Disbursement Date " : ""}${!lan ? "LAN" : ""
-          }`.trim();
+        const reason = `Missing required fields: ${
+          !disbursementUTR ? "Disbursement UTR " : ""
+        }${!disbursementDate ? "Disbursement Date " : ""}${
+          !lan ? "LAN" : ""
+        }`.trim();
         rowErrors.push({
           lan: lan || null,
           utr: disbursementUTR || null,
@@ -596,7 +597,7 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount_sanctioned AS loan_amount, emi_day AS emi_date, interest_percent AS interest_rate, loan_tenure_months AS loan_tenure, subvention_amount, no_of_advance_emis, product, lender 
              FROM loan_booking_gq_non_fsf WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         } else if (lan.startsWith("GQF")) {
           [loanRes] = await db.promise().query(
@@ -613,58 +614,64 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
   retention_amount AS manual_retention_amount
 FROM loan_booking_gq_fsf
 WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         } else if (lan.startsWith("E10")) {
           [loanRes] = await db.promise().query(
             `SELECT approved_loan_amount AS loan_amount, new_interest AS interest_rate, loan_tenure_months AS loan_tenure, product, lender 
              FROM loan_booking_embifi WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         } else if (lan.startsWith("ADK")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
              FROM loan_booking_adikosh WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         } else if (lan.startsWith("EV")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_ev WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         } else if (lan.startsWith("HEYEV")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_hey_ev WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         } else if (lan.startsWith("HEYBF1")) {
           // 🔋 HeyEV Battery loans
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, tenure AS loan_tenure, product, lender 
              FROM loan_booking_hey_ev_battery WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         } else if (lan.startsWith("FINS")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_finso WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         } else if (lan.startsWith("CIRF")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_circle_pe WHERE lan = ?`,
-            [lan]
+            [lan],
+          );
+        } else if (lan.startsWith("CLYO")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_clayyo WHERE lan = ?`,
+            [lan],
           );
         }
         ///////   this is for ZYPAY ////
-          else if (lan.startsWith("ZYPF")) {
+        else if (lan.startsWith("ZYPF")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_zypay_customer WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         }
         ////// this for EMI CLUB ////////
@@ -672,20 +679,20 @@ WHERE lan = ?`,
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, roi_apr AS interest_rate, loan_tenure, product, lender 
              FROM loan_booking_emiclub WHERE lan = ?`,
-            [lan]
+            [lan],
           );
-        }
-        else if (lan.startsWith("HEL")) {   // You can change prefix to whatever you use for Helium
+        } else if (lan.startsWith("HEL")) {
+          // You can change prefix to whatever you use for Helium
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender
      FROM loan_booking_helium WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         } else {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_bookings WHERE lan = ?`,
-            [lan]
+            [lan],
           );
         }
       } catch (err) {
@@ -711,18 +718,18 @@ WHERE lan = ?`,
       }
 
       const {
-  loan_amount,
-  emi_date,
-  interest_rate,
-  loan_tenure,
-  subvention_amount,
-  no_of_advance_emis,
-  salary_day,
-  product,
-  lender,
-  retention_percentage,
-  manual_retention_amount,   // ✅ correct
-} = loanRes[0];
+        loan_amount,
+        emi_date,
+        interest_rate,
+        loan_tenure,
+        subvention_amount,
+        no_of_advance_emis,
+        salary_day,
+        product,
+        lender,
+        retention_percentage,
+        manual_retention_amount, // ✅ correct
+      } = loanRes[0];
 
       // Duplicate UTR check
       try {
@@ -730,7 +737,7 @@ WHERE lan = ?`,
           .promise()
           .query(
             "SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ?",
-            [disbursementUTR]
+            [disbursementUTR],
           );
 
         if (utrExists.length > 0) {
@@ -763,22 +770,22 @@ WHERE lan = ?`,
         try {
           if (!insertedLANs.has(lan)) {
             // 🔴 IMPORTANT: pass `conn` (transaction) into the RPS generator.
-           await generateRepaymentSchedule(
-  conn,
-  lan,
-  loan_amount,
-  emi_date,
-  interest_rate,
-  loan_tenure,
-  disbursementDate,
-  subvention_amount,
-  no_of_advance_emis,
-  salary_day,
-  product,
-  lender,
-  retention_percentage,
-   manual_retention_amount // ✅ pass correct value
-);
+            await generateRepaymentSchedule(
+              conn,
+              lan,
+              loan_amount,
+              emi_date,
+              interest_rate,
+              loan_tenure,
+              disbursementDate,
+              subvention_amount,
+              no_of_advance_emis,
+              salary_day,
+              product,
+              lender,
+              retention_percentage,
+              manual_retention_amount, // ✅ pass correct value
+            );
             insertedLANs.add(lan);
           }
         } catch (rpsErr) {
@@ -795,7 +802,7 @@ WHERE lan = ?`,
         try {
           await conn.query(
             "INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)",
-            [disbursementUTR, disbursementDate, lan]
+            [disbursementUTR, disbursementDate, lan],
           );
         } catch (insertErr) {
           rowErrors.push({
@@ -812,63 +819,65 @@ WHERE lan = ?`,
           if (lan.startsWith("GQN")) {
             await conn.query(
               "UPDATE loan_booking_gq_non_fsf SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
           } else if (lan.startsWith("GQF")) {
             await conn.query(
               "UPDATE loan_booking_gq_fsf SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
           } else if (lan.startsWith("E10")) {
             await conn.query(
               "UPDATE loan_booking_embifi SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
           } else if (lan.startsWith("EV")) {
             await conn.query(
               "UPDATE loan_booking_ev SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
           } else if (lan.startsWith("CIRF")) {
             await conn.query(
               "UPDATE loan_booking_circle_pe SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
           } else if (lan.startsWith("HEYEV")) {
             await conn.query(
               "UPDATE loan_booking_hey_ev SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
           } else if (lan.startsWith("HEYBF1")) {
             await conn.query(
               "UPDATE loan_booking_hey_ev_battery SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
+            );
+          } else if (lan.startsWith("CLYO")) {
+            await conn.query(
+              "UPDATE loan_booking_clayyo SET status = 'Disbursed' WHERE lan = ?",
+              [lan],
             );
           } else if (lan.startsWith("FINS")) {
             await conn.query(
               "UPDATE loan_booking_finso SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
-          }
-           else if (lan.startsWith("ZYPF")) {
+          } else if (lan.startsWith("ZYPF")) {
             await conn.query(
               "UPDATE loan_booking_zypay_customer SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
           }
           ///// this for EMI CLUB /////
           else if (lan.startsWith("FINE")) {
             await conn.query(
               "UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
-          }
-          else if (lan.startsWith("HEL")) {
-
+          } else if (lan.startsWith("HEL")) {
             // 1️⃣ Mark loan as Disbursed
             await conn.query(
               "UPDATE loan_booking_helium SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
 
             // 2️⃣ Fetch ALL required data using JOIN
@@ -883,7 +892,7 @@ WHERE lan = ?`,
       ON eu.lan = lb.lan
     WHERE lb.lan = ?
     `,
-              [lan]
+              [lan],
             );
 
             if (!loan) {
@@ -897,7 +906,7 @@ WHERE lan = ?`,
             const firstEmiDate = new Date(
               disbDate.getFullYear(),
               disbDate.getMonth() + 1, // next month
-              5
+              5,
             );
 
             // 5️⃣ PRE-EMI DAYS
@@ -915,7 +924,7 @@ WHERE lan = ?`,
 
             // 7️⃣ NET DISBURSEMENT
             const netDisbursement = Number(
-              (loanAmount - preEmiAmount).toFixed(2)
+              (loanAmount - preEmiAmount).toFixed(2),
             );
 
             // 8️⃣ UPDATE ONLY FINANCIALS (NO EMI DATE)
@@ -928,12 +937,12 @@ WHERE lan = ?`,
       net_disbursement = ?
     WHERE lan = ?
     `,
-              [preEmiDays, preEmiAmount, netDisbursement, lan]
+              [preEmiDays, preEmiAmount, netDisbursement, lan],
             );
           } else {
             await conn.query(
               "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",
-              [lan]
+              [lan],
             );
           }
         } catch (statusErr) {
@@ -958,7 +967,7 @@ WHERE lan = ?`,
               .promise()
               .query(
                 "SELECT partner_loan_id FROM loan_booking_emiclub WHERE lan = ?",
-                [lan]
+                [lan],
               );
 
             const partnerLoanId =
@@ -975,7 +984,7 @@ WHERE lan = ?`,
           } catch (webhookErr) {
             console.error(
               `⚠️ Webhook failed for ${partnerLoanId}:`,
-              webhookErr.message
+              webhookErr.message,
             );
             rowErrors.push({
               partnerLoanId,
@@ -995,7 +1004,7 @@ WHERE lan = ?`,
               .promise()
               .query(
                 "SELECT partner_loan_id FROM loan_booking_finso WHERE lan = ?",
-                [lan]
+                [lan],
               );
 
             const partnerLoanId =
@@ -1012,7 +1021,7 @@ WHERE lan = ?`,
           } catch (webhookErr) {
             console.error(
               `⚠️ Webhook failed for ${partnerLoanId}:`,
-              webhookErr.message
+              webhookErr.message,
             );
             rowErrors.push({
               partnerLoanId,
@@ -1032,11 +1041,11 @@ WHERE lan = ?`,
         });
         try {
           if (conn) await conn.rollback();
-        } catch (_) { }
+        } catch (_) {}
       } finally {
         try {
           if (conn) conn.release();
-        } catch (_) { }
+        } catch (_) {}
       }
     }
 
