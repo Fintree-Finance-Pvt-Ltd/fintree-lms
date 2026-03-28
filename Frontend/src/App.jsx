@@ -133,6 +133,9 @@ import ClayooApprovedLoans from "./components/Clayoo/ClayooApprovedLoans";
 import ClayooLimitEntry from "./components/Clayoo/ClayooLimitEntry";
 import ClayyoHospitalDetails from "./components/Clayoo/ClayyoHospitalDetails";
 import PartnerLimitEntry from "./components/PartnerLimitEntry";
+import FldgEntryPage from "./components/FldgEntryPage";
+import FldgSummaryPage from "./components/FldgSummaryPage";
+import FldgLedgerPage from "./components/FldgLedgerPage";
 
 function App() {
   return (
@@ -1229,6 +1232,35 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          <Route
+            path="/fldg-entry"
+            element={
+              <PermissionRoute pageName="FLDG Entry">
+                <FldgEntryPage />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/fldg-summary"
+            element={
+              <PermissionRoute pageName="FLDG Summary">
+                <FldgSummaryPage />
+              </PermissionRoute>
+            }
+          />
+
+          {/* <Route
+            path="/fldg-ledger/:partnerId"
+            element={
+              <PermissionRoute pageName="FLDG Summary">
+                <FldgSummaryPage />
+              </PermissionRoute>
+            }
+          /> */}
+
+          <Route path="/fldg-ledger/:partnerId" 
+          element={<FldgLedgerPage />} />
 
         </Route>
       </Routes>

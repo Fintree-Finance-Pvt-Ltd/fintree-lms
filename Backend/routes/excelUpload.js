@@ -20,6 +20,7 @@ const {
   allocateSupplyChainRepayment,
 } = require("../services/supplyChainAllocation.service");
 const partnerLimitService = require("../services/partnerLimitService");
+const partnerFldgService = require("../services/partnerFldgService");
 const {
   extractPartnerName,
   getMonthYear,
@@ -993,6 +994,49 @@ router.post("/upload/ev-manual", async (req, res) => {
       });
     }
 
+    // Fetch FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercent) / 100).toFixed(2)
+);
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    return res.status(403).json({
+      message: `Insufficient FLDG balance for ${partnerName}`,
+      available_fldg: fldgCheck.available,
+      required_fldg: requiredFldg
+    });
+
+  }
+
+}
+
+    
+
     // Generate IDs AFTER limit validation passes
     const { partnerLoanId, lan } = await generateLoanIdentifiers(data.lender);
 
@@ -1087,6 +1131,19 @@ router.post("/upload/ev-manual", async (req, res) => {
       "BOOKED",
       lan,
     );
+
+    // Reserve FLDG after successful booking
+if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `EV Loan booking reservation | Amount: ${loanAmount}`
+  );
+
+}
 
     await conn.commit();
     conn.release();
@@ -1283,17 +1340,64 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
         );
 
         if (!limitCheck.valid) {
-          await conn.rollback();
-          conn.release();
 
-          row_errors.push({
-            row: R,
-            stage: "limit-check",
-            reason: `Limit exceeded. Remaining: ${limitCheck.remaining}, Required: ${loanAmount}`,
-          });
+  await conn.rollback();
+  conn.release();
 
-          continue;
-        }
+  row_errors.push({
+    row: R,
+    stage: "limit-check",
+    reason: `Limit exceeded. Remaining: ${limitCheck.remaining}, Required: ${loanAmount}`,
+  });
+
+  continue;
+
+}
+
+
+// Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercentage = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercentage) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    row_errors.push({
+      row: R,
+      stage: "fldg-check",
+      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+    continue;
+
+  }
+
+}
 
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
@@ -1405,6 +1509,19 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
           "BOOKED",
           lan,
         );
+
+        // Reserve FLDG after successful booking
+if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `HEY EV Loan reservation | Amount: ${loanAmount}`
+  );
+
+}
 
         await conn.commit();
         conn.release();
@@ -1835,6 +1952,7 @@ router.post(
           const partnerName = "HeyEV Battery";
 
           const loginDate = excelDateToJSDate(row["LOGIN DATE"]);
+          const loanAmount = Number(row["Loan Amount"]) || 0;
           const today = new Date();
           const { month, year } = getMonthYear(today);
 
@@ -1863,6 +1981,50 @@ router.post(
             continue;
           }
 
+          // Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercentage = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercentage) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    row_errors.push({
+      row: R,
+      stage: "fldg-check",
+      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+    continue;
+
+  }
+
+}
+
           const { partnerLoanId, lan } =
             await generateLoanIdentifiers(lenderType);
 
@@ -1877,8 +2039,6 @@ router.post(
           const ltvPercent = Number(ltvRaw) || 0;
 
           const eligibleLoanAmount = invoiceAmount * (ltvPercent / 100);
-
-          const loanAmount = Number(row["Loan Amount"]) || 0;
 
           // Fees
           const fldgPercent = Number(row["FLDG"]) || 0;
@@ -1969,6 +2129,18 @@ router.post(
             "BOOKED",
             lan,
           );
+
+          if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `HEY EV Battery Loan reservation | Amount: ${loanAmount}`
+  );
+
+}
 
           await conn.commit();
           conn.release();
@@ -3535,6 +3707,50 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
+        // Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercent) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    row_errors.push({
+      row: R,
+      stage: "fldg-check",
+      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+    continue;
+
+  }
+
+}
+
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
 
@@ -3602,6 +3818,18 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
           "BOOKED",
           lan,
         );
+
+        if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `BL Loan reservation | Amount: ${loanAmount}`
+  );
+
+}
 
         await conn.commit();
         conn.release();
@@ -4208,6 +4436,50 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
+        // Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercent) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    row_errors.push({
+      row: R,
+      stage: "fldg-check",
+      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+    continue;
+
+  }
+
+}
+
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
 
@@ -4327,6 +4599,18 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
             "BOOKED",
             lan,
           );
+
+          if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `GQ FSF Loan reservation | Amount: ${loanAmount}`
+  );
+
+}
 
           await conn.commit();
           conn.release();
@@ -4495,6 +4779,7 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
     const partnerName = "Adikosh";
 
     const agreement_date = excelDateToJSDate(data.sanctionDate);
+    const loanAmount = Number(data.loan_amount);
 
     const today = new Date();
     const { month, year } = getMonthYear(today);
@@ -4522,6 +4807,48 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
         required: loanAmount,
       });
     }
+
+    // Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercent) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    return res.status(403).json({
+      message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+  }
+
+}
+
+    
 
     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
 
@@ -4598,6 +4925,18 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
       "BOOKED",
       lan,
     );
+
+    if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `Adikosh Loan reservation | Amount: ${loanAmount}`
+  );
+
+}
 
     await conn.commit();
     conn.release();
@@ -4781,6 +5120,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         await conn.beginTransaction();
 
         const partnerName = "Finso";
+        const loanAmount = Number(data.loan_amount);
 
         const today = new Date();
         const { month, year } = getMonthYear(today);
@@ -4810,6 +5150,50 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
           continue;
         }
+
+        // Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercent) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    row_errors.push({
+      row: R,
+      stage: "fldg-check",
+      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+    continue;
+
+  }
+
+}
 
         const { lan } = await generateLoanIdentifiers(lenderType);
 
@@ -4893,6 +5277,18 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           "BOOKED",
           lan,
         );
+
+        if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `Finso Loan reservation | Amount: ${loanAmount}`
+  );
+
+}
 
         await conn.commit();
         conn.release();
@@ -6082,6 +6478,46 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       });
     }
 
+    // Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercent) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    return res.status(403).json({
+      message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+  }
+
+}
+
     const { lan } = await generateLoanIdentifiers(lenderType);
     console.log("✅ Generated LAN:", lan);
 
@@ -6170,6 +6606,18 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       "BOOKED",
       lan,
     );
+
+    if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `EMICLUB reservation | Amount: ${loanAmount}`
+  );
+
+}
 
     await conn.commit();
     conn.release();
@@ -8395,6 +8843,7 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
           : null;
 
         const today = new Date();
+        const loanAmount = parse(row["loan amount sanctioned"]);
         const { month, year } = getMonthYear(today);
 
         const partner = await partnerLimitService.getOrCreatePartner(
@@ -8422,6 +8871,50 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
 
           continue;
         }
+
+        // Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercent) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    row_errors.push({
+      row: R,
+      stage: "fldg-check",
+      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+    continue;
+
+  }
+
+}
 
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
@@ -8493,6 +8986,18 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
           "BOOKED",
           lan,
         );
+
+        if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `Circle PE Loan reservation | Amount: ${loanAmount}`
+  );
+
+}
 
         await conn.commit();
         conn.release();
@@ -8800,6 +9305,50 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
+        // Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercent) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    row_errors.push({
+      row: R,
+      stage: "fldg-check",
+      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+    continue;
+
+  }
+
+}
+
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
 
@@ -8845,6 +9394,18 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
           "BOOKED",
           lan,
         );
+
+        if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `WCTL Loan reservation | Amount: ${loanAmount}`
+  );
+
+}
 
         await conn.commit();
         conn.release();
@@ -9365,6 +9926,50 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
+        // Fetch partner FLDG percent
+const [[partnerConfig]] = await conn.query(
+  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  [partner.partner_id]
+);
+
+if (!partnerConfig) {
+  throw new Error("Partner configuration not found");
+}
+
+const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+
+// Calculate required FLDG
+const requiredFldg = Number(
+  ((loanAmount * fldgPercent) / 100).toFixed(2)
+);
+
+
+// Validate FLDG availability
+if (requiredFldg > 0) {
+
+  const fldgCheck = await partnerFldgService.validateFldgAvailability(
+    conn,
+    partner.partner_id,
+    requiredFldg
+  );
+
+  if (!fldgCheck.valid) {
+
+    await conn.rollback();
+    conn.release();
+
+    row_errors.push({
+      row: R,
+      stage: "fldg-check",
+      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
+    });
+
+    continue;
+
+  }
+
+}
+
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
 
@@ -9484,6 +10089,18 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
             "BOOKED",
             lan,
           );
+
+          if (requiredFldg > 0) {
+
+  await partnerFldgService.reserveFldg(
+    conn,
+    partner.partner_id,
+    lan,
+    requiredFldg,
+    `GO-Non FSF reservation | Amount: ${loanAmount}`
+  );
+
+}
 
           await conn.commit();
           conn.release();
