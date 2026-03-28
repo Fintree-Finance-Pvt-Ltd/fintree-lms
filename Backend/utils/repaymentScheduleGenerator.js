@@ -595,7 +595,6 @@ const excelSerialDateToJS = (value) => {
 //////////////////////////// PRE EMI LOAN CALCULATION /////////////////////////////////////////
 // Calculate adjusted Pre-EMI gap days (subtract disb month days)
 
-
 /////////////////////////////working ev of 20-09-2025//////////////////////////
 // const generateRepaymentScheduleEV = async (
 //   lan,
@@ -692,14 +691,14 @@ const excelSerialDateToJS = (value) => {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const generateRepaymentScheduleEV = async (
-  conn,           // <<<<<<<<<< ACCEPT TRANSACTION CONNECTION
+  conn, // <<<<<<<<<< ACCEPT TRANSACTION CONNECTION
   lan,
   loanAmount,
   interestRate,
   tenure,
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   // ❗ No outer try/catch here that swallows errors. Let them bubble to caller.
 
@@ -709,16 +708,11 @@ const generateRepaymentScheduleEV = async (
   // Calculate EMI
   const emi = Math.round(
     (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-      (Math.pow(1 + annualRate / 12, tenure) - 1)
+      (Math.pow(1 + annualRate / 12, tenure) - 1),
   );
 
   // Set RPS start date to same day of next month from disbursement
-  const firstDueRaw = getFirstEmiDate(
-    disbursementDate,
-    null,
-    lender,
-    product
-  );
+  const firstDueRaw = getFirstEmiDate(disbursementDate, null, lender, product);
 
   console.log("Calling getFirstEmiDate (EV) with:", {
     disbursementDate,
@@ -732,7 +726,7 @@ const generateRepaymentScheduleEV = async (
 
   if (Number.isNaN(firstDueDate.getTime())) {
     throw new Error(
-      `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`
+      `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`,
     );
   }
 
@@ -769,7 +763,7 @@ const generateRepaymentScheduleEV = async (
     `INSERT INTO manual_rps_ev_loan
      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
      VALUES ?`,
-    [rpsData]
+    [rpsData],
   );
 
   // ➕ Update emi_amount in loan_bookings (EV) within the same tx
@@ -777,7 +771,7 @@ const generateRepaymentScheduleEV = async (
     `UPDATE loan_booking_ev
      SET emi_amount = ?
      WHERE lan = ?`,
-    [emi, lan]
+    [emi, lan],
   );
 
   console.log(`✅ EV RPS generated from next month for ${lan}`);
@@ -785,28 +779,37 @@ const generateRepaymentScheduleEV = async (
 ////////////////////// HELIUM  RPS ////////////////////////
 
 const generateRepaymentScheduleHelium = async (
-  conn,              // transaction connection
+  conn, // transaction connection
   lan,
   loanAmount,
-  interestRate,      // annual rate e.g. 18
-  tenure,            // in months
+  interestRate, // annual rate e.g. 18
+  tenure, // in months
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
-
   // 1️⃣ Convert annual → monthly interest
-  const monthlyRate = (interestRate / 100) / 12;
+  const monthlyRate = interestRate / 100 / 12;
 
   // 2️⃣ First EMI date from rule = always 5th
-  const firstDueRaw = getFirstEmiDate(disbursementDate, null, "HELIUM", product);
+  const firstDueRaw = getFirstEmiDate(
+    disbursementDate,
+    null,
+    "HELIUM",
+    product,
+  );
   const firstDueDate = new Date(firstDueRaw);
 
   if (Number.isNaN(firstDueDate.getTime())) {
-    throw new Error(`Invalid first EMI date returned for HELIUM: ${firstDueRaw}`);
+    throw new Error(
+      `Invalid first EMI date returned for HELIUM: ${firstDueRaw}`,
+    );
   }
 
-  console.log(`💠 HELIUM first EMI date →`, firstDueDate.toISOString().split("T")[0]);
+  console.log(
+    `💠 HELIUM first EMI date →`,
+    firstDueDate.toISOString().split("T")[0],
+  );
 
   let openingPrincipal = loanAmount;
   let dueDate = new Date(firstDueDate);
@@ -814,7 +817,6 @@ const generateRepaymentScheduleHelium = async (
   const rpsData = [];
 
   for (let i = 1; i <= tenure; i++) {
-
     // 3️⃣ Interest-only EMI (no principal until last EMI)
     const interest = Math.round(openingPrincipal * monthlyRate);
     let principal = 0;
@@ -832,15 +834,15 @@ const generateRepaymentScheduleHelium = async (
     // push row like EMICLUB style
     rpsData.push([
       lan,
-      dueDate.toISOString().split("T")[0],  // due_date
-      emiAmount,                            // emi
-      interest,                             // interest
-      principal,                            // principal
-      principal,                            // remaining_principal (same as principal paid)
-      interest,                             // remaining_interest
-      emiAmount,                            // remaining_emi
-      openingPrincipal,                     // opening balance
-      closingPrincipal,                     // closing balance
+      dueDate.toISOString().split("T")[0], // due_date
+      emiAmount, // emi
+      interest, // interest
+      principal, // principal
+      principal, // remaining_principal (same as principal paid)
+      interest, // remaining_interest
+      emiAmount, // remaining_emi
+      openingPrincipal, // opening balance
+      closingPrincipal, // closing balance
       "Pending",
     ]);
 
@@ -853,15 +855,13 @@ const generateRepaymentScheduleHelium = async (
     `INSERT INTO manual_rps_helium
      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
      VALUES ?`,
-    [rpsData]
+    [rpsData],
   );
 
   console.log(`📌 HELIUM RPS generated for ${lan}`);
 };
 
-
-
-////////////////// HEY EV RPS GENERATE START ////////////// 
+////////////////// HEY EV RPS GENERATE START //////////////
 
 const generateRepaymentScheduleHEYEV = async (
   conn,
@@ -871,7 +871,7 @@ const generateRepaymentScheduleHEYEV = async (
   tenure,
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   // ❗ No outer try/catch here that swallows errors. Let them bubble to caller.
 
@@ -881,16 +881,11 @@ const generateRepaymentScheduleHEYEV = async (
   // Calculate EMI
   const emi = Math.round(
     (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-      (Math.pow(1 + annualRate / 12, tenure) - 1)
+      (Math.pow(1 + annualRate / 12, tenure) - 1),
   );
 
   // Set RPS start date to same day of next month from disbursement
-  const firstDueRaw = getFirstEmiDate(
-    disbursementDate,
-    null,
-    lender,
-    product
-  );
+  const firstDueRaw = getFirstEmiDate(disbursementDate, null, lender, product);
 
   console.log("Calling getFirstEmiDate (HEY EV) with:", {
     disbursementDate,
@@ -904,7 +899,7 @@ const generateRepaymentScheduleHEYEV = async (
 
   if (Number.isNaN(firstDueDate.getTime())) {
     throw new Error(
-      `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`
+      `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`,
     );
   }
 
@@ -941,7 +936,7 @@ const generateRepaymentScheduleHEYEV = async (
     `INSERT INTO manual_rps_hey_ev
      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
      VALUES ?`,
-    [rpsData]
+    [rpsData],
   );
 
   // ➕ Update emi_amount in loan_bookings (HEY EV) within the same tx
@@ -949,7 +944,7 @@ const generateRepaymentScheduleHEYEV = async (
     `UPDATE loan_booking_hey_ev
      SET emi_amount = ?
      WHERE lan = ?`,
-    [emi, lan]
+    [emi, lan],
   );
 
   console.log(`✅ EV RPS generated from next month for ${lan}`);
@@ -964,7 +959,7 @@ const generateRepaymentScheduleHEYEVBattery = async (
   tenure,
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   const annualRate = interestRate / 100;
   let remainingPrincipal = loanAmount;
@@ -972,16 +967,11 @@ const generateRepaymentScheduleHEYEVBattery = async (
   // EMI
   const emi = Math.round(
     (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-      (Math.pow(1 + annualRate / 12, tenure) - 1)
+      (Math.pow(1 + annualRate / 12, tenure) - 1),
   );
 
   // First EMI date
-  const firstDueRaw = getFirstEmiDate(
-    disbursementDate,
-    null,
-    lender,
-    product
-  );
+  const firstDueRaw = getFirstEmiDate(disbursementDate, null, lender, product);
 
   console.log("Calling getFirstEmiDate (HEY EV Battery) with:", {
     disbursementDate,
@@ -993,7 +983,7 @@ const generateRepaymentScheduleHEYEVBattery = async (
   const firstDueDate = new Date(firstDueRaw);
   if (Number.isNaN(firstDueDate.getTime())) {
     throw new Error(
-      `Invalid first due date from getFirstEmiDate (Battery): ${firstDueRaw}`
+      `Invalid first due date from getFirstEmiDate (Battery): ${firstDueRaw}`,
     );
   }
 
@@ -1026,7 +1016,7 @@ const generateRepaymentScheduleHEYEVBattery = async (
     `INSERT INTO manual_rps_hey_ev_battery
      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
      VALUES ?`,
-    [rpsData]
+    [rpsData],
   );
 
   // Update emi_amount in battery loan table
@@ -1034,7 +1024,7 @@ const generateRepaymentScheduleHEYEVBattery = async (
     `UPDATE loan_booking_hey_ev_battery
      SET emi_amount = ?
      WHERE lan = ?`,
-    [emi, lan]
+    [emi, lan],
   );
 
   console.log(`✅ HEY EV Battery RPS generated from next month for ${lan}`);
@@ -1134,11 +1124,11 @@ const generateRepaymentScheduleZypay = async (
   conn,
   lan,
   loanAmount,
-  interestRate,   // Annual % e.g. 36
-  tenure,         // months
+  interestRate, // Annual % e.g. 36
+  tenure, // months
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   const annualRate = interestRate / 100;
 
@@ -1146,7 +1136,7 @@ const generateRepaymentScheduleZypay = async (
   const monthlyRate = annualRate / 12;
   const emi = Math.round(
     (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
-    (Math.pow(1 + monthlyRate, tenure) - 1)
+      (Math.pow(1 + monthlyRate, tenure) - 1),
   );
 
   // First EMI date
@@ -1171,9 +1161,7 @@ const generateRepaymentScheduleZypay = async (
     // ✅ Interest on ACTUAL DAYS / 365
     const days = diffDays(periodStart, dueDate);
 
-    const interest = Math.round(
-      openingPrincipal * annualRate * (days / 365)
-    );
+    const interest = Math.round(openingPrincipal * annualRate * (days / 365));
 
     let principal = Math.round(emi - interest);
 
@@ -1184,7 +1172,7 @@ const generateRepaymentScheduleZypay = async (
 
     const closingPrincipal = Math.max(
       0,
-      Math.round(openingPrincipal - principal)
+      Math.round(openingPrincipal - principal),
     );
 
     const actualEmi = Math.round(principal + interest);
@@ -1215,40 +1203,38 @@ const generateRepaymentScheduleZypay = async (
       remaining_principal, remaining_interest, remaining_emi,
       opening, closing, status)
      VALUES ?`,
-    [rpsData]
+    [rpsData],
   );
 
   await conn.query(
     `UPDATE loan_booking_zypay_customer
      SET emi_amount = ?
      WHERE lan = ?`,
-    [emi, lan]
+    [emi, lan],
   );
 
   console.log(`✅ ZYPAY RPS generated (365 basis) for ${lan}`);
 };
 
-
-
 ///////////////////////////////////////////////////////////////////
 /////////////////// EMI CLUB RPS ///////////////////////
 const generateRepaymentScheduleEmiclub = async (
-  conn,           // Transaction connection
+  conn, // Transaction connection
   lan,
   loanAmount,
-  interestRate,   // Annual % e.g. 45
-  tenure,         // in months
+  interestRate, // Annual % e.g. 45
+  tenure, // in months
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   // 1️⃣ Convert annual → monthly rate
-  const monthlyRate = (interestRate / 100) / 12;
+  const monthlyRate = interestRate / 100 / 12;
 
   // 2️⃣ Compute EMI using PMT formula
   const emi = Math.round(
     (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
-      (Math.pow(1 + monthlyRate, tenure) - 1)
+      (Math.pow(1 + monthlyRate, tenure) - 1),
   );
 
   console.log(`✅ EMI (calculated for ${lan}):`, emi);
@@ -1257,7 +1243,9 @@ const generateRepaymentScheduleEmiclub = async (
   const firstDueRaw = getFirstEmiDate(disbursementDate, null, lender, product);
   const firstDueDate = new Date(firstDueRaw);
   if (Number.isNaN(firstDueDate.getTime())) {
-    throw new Error(`Invalid first due date from getFirstEmiDate: ${firstDueRaw}`);
+    throw new Error(
+      `Invalid first due date from getFirstEmiDate: ${firstDueRaw}`,
+    );
   }
 
   // 4️⃣ Generate RPS using PMT/IPMT logic
@@ -1286,15 +1274,15 @@ const generateRepaymentScheduleEmiclub = async (
     rpsData.push([
       lan,
       dueDate.toISOString().split("T")[0], // due_date
-      actualEmi,                           // emi
-      interest,                            // interest
-      principal,                           // principal
-      remainingPrincipal,                  // remaining_principal = principal
-      remainingInterest,                   // remaining_interest = interest
-      remainingEmi,                        // remaining_emi = emi
-      openingPrincipal,                    // opening
-      closingPrincipal,                    // closing
-      "Pending",                           // status
+      actualEmi, // emi
+      interest, // interest
+      principal, // principal
+      remainingPrincipal, // remaining_principal = principal
+      remainingInterest, // remaining_interest = interest
+      remainingEmi, // remaining_emi = emi
+      openingPrincipal, // opening
+      closingPrincipal, // closing
+      "Pending", // status
     ]);
 
     // Prepare next iteration
@@ -1307,7 +1295,7 @@ const generateRepaymentScheduleEmiclub = async (
     `INSERT INTO manual_rps_emiclub
      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
      VALUES ?`,
-    [rpsData]
+    [rpsData],
   );
 
   // 6️⃣ Update EMI in loan_booking_emiclub
@@ -1315,7 +1303,7 @@ const generateRepaymentScheduleEmiclub = async (
     `UPDATE loan_booking_emiclub
      SET emi_amount = ?
      WHERE lan = ?`,
-    [emi, lan]
+    [emi, lan],
   );
 
   console.log(`✅ EMICLUB RPS generated  for ${lan}`);
@@ -1323,14 +1311,14 @@ const generateRepaymentScheduleEmiclub = async (
 ////////////////////////////// RPS FOR CIRCLE PE START ///////////////////////////////////
 
 const generateRepaymentScheduleCirclePE = async (
-  conn,             // Transaction connection
+  conn, // Transaction connection
   lan,
   loanAmount,
-  interestRate,     // Annual % e.g. 20.5
-  tenure,           // in months (for Monthly Loan)
+  interestRate, // Annual % e.g. 20.5
+  tenure, // in months (for Monthly Loan)
   disbursementDate, // e.g. "2025-10-14"
   product,
-  lender
+  lender,
 ) => {
   // 🧠 Determine repayment type
   const isBullet = product?.toLowerCase() === "bullet loan";
@@ -1340,16 +1328,18 @@ const generateRepaymentScheduleCirclePE = async (
     throw new Error(`❌ Unknown product type: ${product}`);
   }
 
-  console.log(`🔍 Generating ${isBullet ? "Bullet" : "EMI"} repayment schedule for ${lan}`);
+  console.log(
+    `🔍 Generating ${isBullet ? "Bullet" : "EMI"} repayment schedule for ${lan}`,
+  );
 
   // 🧮 Convert annual → monthly rate
-  const monthlyRate = (interestRate / 100) / 12;
+  const monthlyRate = interestRate / 100 / 12;
 
   // 🧾 Compute EMI (only for Monthly Loan)
   const emi = isEMI
     ? Math.round(
         (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
-          (Math.pow(1 + monthlyRate, tenure) - 1)
+          (Math.pow(1 + monthlyRate, tenure) - 1),
       )
     : 0;
 
@@ -1380,7 +1370,7 @@ const generateRepaymentScheduleCirclePE = async (
   }
 
   console.log(
-    `[Circlepe] Disbursed: ${disbursementDate} | First Due: ${firstDueDate.toISOString().split("T")[0]}`
+    `[Circlepe] Disbursed: ${disbursementDate} | First Due: ${firstDueDate.toISOString().split("T")[0]}`,
   );
 
   // ===================================================
@@ -1404,15 +1394,15 @@ const generateRepaymentScheduleCirclePE = async (
       rpsData.push([
         lan,
         dueDate.toISOString().split("T")[0],
-        actualEmi,               // emi
-        interest,                // interest
-        principal,               // principal
-        principal,               // remaining_principal
-        interest,                // remaining_interest
-        actualEmi,               // remaining_emi
-        openingPrincipal,        // opening
-        closingPrincipal,        // closing
-        "Pending",               // status
+        actualEmi, // emi
+        interest, // interest
+        principal, // principal
+        principal, // remaining_principal
+        interest, // remaining_interest
+        actualEmi, // remaining_emi
+        openingPrincipal, // opening
+        closingPrincipal, // closing
+        "Pending", // status
       ]);
 
       openingPrincipal = closingPrincipal;
@@ -1423,7 +1413,9 @@ const generateRepaymentScheduleCirclePE = async (
   // ============ BULLET LOAN (Single Payment) ============
   if (isBullet) {
     const bulletTenure = 12; // Always 12 months
-    const totalInterest = Math.round(loanAmount * (interestRate / 100) * (bulletTenure / 12));
+    const totalInterest = Math.round(
+      loanAmount * (interestRate / 100) * (bulletTenure / 12),
+    );
     const totalPayable = loanAmount + totalInterest;
 
     // Final due date = firstDueDate + 11 months (1st due based on rule)
@@ -1434,15 +1426,15 @@ const generateRepaymentScheduleCirclePE = async (
       lan,
       finalDue.toISOString().split("T")[0],
       Number(totalInterest) + Number(loanAmount),
-             // emi (single payment)
-      totalInterest,            // interest
-      loanAmount,               // principal
-      loanAmount,               // remaining_principal
-      totalInterest,            // remaining_interest
-      Number(totalInterest) + Number(loanAmount),             // remaining_emi
-      openingPrincipal,         // opening
-      0,                        // closing
-      "Pending",                // status
+      // emi (single payment)
+      totalInterest, // interest
+      loanAmount, // principal
+      loanAmount, // remaining_principal
+      totalInterest, // remaining_interest
+      Number(totalInterest) + Number(loanAmount), // remaining_emi
+      openingPrincipal, // opening
+      0, // closing
+      "Pending", // status
     ]);
   }
 
@@ -1453,7 +1445,7 @@ const generateRepaymentScheduleCirclePE = async (
     `INSERT INTO manual_rps_circlepe
      (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
      VALUES ?`,
-    [rpsData]
+    [rpsData],
   );
 
   // ===================================================
@@ -1464,13 +1456,13 @@ const generateRepaymentScheduleCirclePE = async (
     `UPDATE loan_booking_circle_pe
      SET emi_amount = ?
      WHERE lan = ?`,
-    [updateEmiValue, lan]
+    [updateEmiValue, lan],
   );
 
-  console.log(`✅ Circlepe RPS generated for ${lan} (${isBullet ? "Bullet (one-time)" : "Monthly Loan"})`);
+  console.log(
+    `✅ Circlepe RPS generated for ${lan} (${isBullet ? "Bullet (one-time)" : "Monthly Loan"})`,
+  );
 };
-
-
 
 //////////////////////////////////// RPS END OF CIRCLE PE /////////////////////////////////////
 
@@ -1563,7 +1555,7 @@ const generateRepaymentScheduleBL = async (
   tenure,
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   try {
     const annualRate = interestRate / 100;
@@ -1609,7 +1601,7 @@ const generateRepaymentScheduleBL = async (
       // Monthly Loan
       const emi = Math.round(
         (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
-          (Math.pow(1 + monthlyRate, tenure) - 1)
+          (Math.pow(1 + monthlyRate, tenure) - 1),
       );
 
       let outstandingPrincipal = loanAmount;
@@ -1617,7 +1609,7 @@ const generateRepaymentScheduleBL = async (
       // Calculate gap days from disbursement date to first EMI date
       const disbDate = new Date(disbursementDate);
       const gapDays = Math.ceil(
-        (new Date(firstDueDate) - disbDate) / (1000 * 60 * 60 * 24)
+        (new Date(firstDueDate) - disbDate) / (1000 * 60 * 60 * 24),
       );
 
       for (let i = 1; i <= tenure; i++) {
@@ -1626,12 +1618,12 @@ const generateRepaymentScheduleBL = async (
         if (i === 1) {
           // First EMI interest for gap days
           interest = parseFloat(
-            ((outstandingPrincipal * annualRate * gapDays) / 360).toFixed(2)
+            ((outstandingPrincipal * annualRate * gapDays) / 360).toFixed(2),
           );
           principal = parseFloat((emi - interest).toFixed(2));
         } else {
           interest = parseFloat(
-            (outstandingPrincipal * monthlyRate).toFixed(2)
+            (outstandingPrincipal * monthlyRate).toFixed(2),
           );
           principal = parseFloat((emi - interest).toFixed(2));
         }
@@ -1665,7 +1657,7 @@ const generateRepaymentScheduleBL = async (
         `UPDATE loan_bookings
          SET emi_amount = ?
          WHERE lan = ?`,
-        [emi, lan]
+        [emi, lan],
       );
     }
 
@@ -1674,7 +1666,7 @@ const generateRepaymentScheduleBL = async (
       `INSERT INTO manual_rps_ev_loan
        (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
        VALUES ?`,
-      [rpsData]
+      [rpsData],
     );
 
     console.log(`✅ BL RPS (${product}) generated for ${lan}`);
@@ -2083,7 +2075,7 @@ const generateRepaymentScheduleBL = async (
 //   approvedAmount,
 //   emiDate,
 //   interestRate,
-//   tenure, 
+//   tenure,
 //   disbursementDate,
 //   subventionAmount,
 //   product,
@@ -2099,7 +2091,7 @@ const generateRepaymentScheduleBL = async (
 //   approvedAmount,
 //   emiDate,
 //   interestRate,
-//   tenure, 
+//   tenure,
 //   disbursementDate,
 //   subventionAmount,
 //   product,
@@ -2244,11 +2236,11 @@ const generateRepaymentScheduleGQNonFSF = async (
   subventionAmount,
   product,
   lender,
-  no_of_advance_emis = 1
+  no_of_advance_emis = 1,
 ) => {
   try {
     console.log(
-      `\n🚀 Generating GQ NON-FSF RPS (flat-advance EMI, reducing thereafter) for LAN: ${lan} disbdate : ${disbursementDate}`
+      `\n🚀 Generating GQ NON-FSF RPS (flat-advance EMI, reducing thereafter) for LAN: ${lan} disbdate : ${disbursementDate}`,
     );
 
     // --- inputs ---
@@ -2282,7 +2274,6 @@ const generateRepaymentScheduleGQNonFSF = async (
           principal: r2(principal),
           closing: r2(closing),
         });
-        
 
         opening = closing;
       }
@@ -2318,7 +2309,7 @@ const generateRepaymentScheduleGQNonFSF = async (
         emiDate,
         lender,
         product,
-        i - 1
+        i - 1,
       );
 
       rows.push({
@@ -2361,7 +2352,7 @@ const generateRepaymentScheduleGQNonFSF = async (
       `INSERT INTO manual_rps_gq_non_fsf
        (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
        VALUES ?`,
-      [rpsData]
+      [rpsData],
     );
 
     console.log(`✅ RPS generated successfully for ${lan}\n`);
@@ -2370,24 +2361,25 @@ const generateRepaymentScheduleGQNonFSF = async (
   }
 };
 
-
 /////////////////////// Fintree Schedule Generation ////////////
 //const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 
 function computeEmiSimpleInterest(loanAmount, annualPercent, tenureMonths) {
   const interestFee = loanAmount * (annualPercent / 100); // loanAmount * interestRate
-  const emi = (loanAmount / tenureMonths) + (interestFee / tenureMonths);
+  const emi = loanAmount / tenureMonths + interestFee / tenureMonths;
   return r2(emi);
 }
 
 // solve for implied monthly rate given prem, emi, m (bisection)
 function solveMonthlyRate(prem, emi, m) {
-  let lo = 0, hi = 0.05;
+  let lo = 0,
+    hi = 0.05;
   for (let t = 0; t < 120; t++) {
     const r = (lo + hi) / 2;
     const pow = Math.pow(1 + r, -m);
     const pv = (emi * (1 - pow)) / (r || 1e-12);
-    if (pv > prem) lo = r; else hi = r;
+    if (pv > prem) lo = r;
+    else hi = r;
   }
   return (lo + hi) / 2;
 }
@@ -2402,11 +2394,22 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
   subventionAmount,
   product,
   lender,
-  no_of_advance_emis = 1
+  no_of_advance_emis = 1,
 ) {
-  console.log(`\n--- generateRepaymentScheduleGQNonFSF_Fintree START for LAN=${lan} ---`);
-  console.log("Inputs:",
-    { approvedAmount, emiDate, interestRate, tenure, disbursementDate, subventionAmount, product, lender, no_of_advance_emis });
+  console.log(
+    `\n--- generateRepaymentScheduleGQNonFSF_Fintree START for LAN=${lan} ---`,
+  );
+  console.log("Inputs:", {
+    approvedAmount,
+    emiDate,
+    interestRate,
+    tenure,
+    disbursementDate,
+    subventionAmount,
+    product,
+    lender,
+    no_of_advance_emis,
+  });
 
   try {
     const P = Math.abs(Number(approvedAmount || 0)); // treat negative as positive
@@ -2415,14 +2418,18 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
     console.log(`Parsed values -> P: ${P}, n: ${n}, k: ${k}`);
 
     if (n <= 0 || P <= 0) {
-      console.error("Validation failed: Invalid principal or tenure. Aborting schedule generation.");
+      console.error(
+        "Validation failed: Invalid principal or tenure. Aborting schedule generation.",
+      );
       throw new Error("Invalid principal/tenure");
     }
 
     const subAmt = Number(subventionAmount || 0);
     const retentionAmount = 0;
     let opening = r2(P - subAmt - retentionAmount);
-    console.log(`Subvention: ${subAmt}, Retention: ${retentionAmount}, Net opening: ${opening}`);
+    console.log(
+      `Subvention: ${subAmt}, Retention: ${retentionAmount}, Net opening: ${opening}`,
+    );
 
     if (opening <= 0) {
       console.error("Net disbursal to lender is zero or negative. Aborting.");
@@ -2431,7 +2438,9 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
 
     // --- compute EMI using the simple-interest rule on the approved amount ---
     const EMI = computeEmiSimpleInterest(P, Number(interestRate || 0), n);
-    console.log(`Computed EMI using simple-interest rule on approvedAmount: EMI = ₹${EMI} (interestRate ${interestRate}%, tenure ${n})`);
+    console.log(
+      `Computed EMI using simple-interest rule on approvedAmount: EMI = ₹${EMI} (interestRate ${interestRate}%, tenure ${n})`,
+    );
 
     const rows = [];
 
@@ -2442,18 +2451,20 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
       const beforeOpening = opening;
       opening = r2(opening - advPrincipal);
 
-      const usingGetFirst = (typeof getFirstEmiDate === "function");
+      const usingGetFirst = typeof getFirstEmiDate === "function";
       // ✅ FIX: Advance EMI uses disbursement date directly
 
       const advDate = new Date(disbursementDate);
 
       advDate.setHours(12, 0, 0, 0);
 
-      console.log(`ADV-${a}: date=${advDate.toISOString().split('T')[0]}, advPrincipal=${advPrincipal}, opening(before)=${beforeOpening} -> opening(after)=${opening}, usedGetFirstEmiDate=${usingGetFirst}`);
+      console.log(
+        `ADV-${a}: date=${advDate.toISOString().split("T")[0]}, advPrincipal=${advPrincipal}, opening(before)=${beforeOpening} -> opening(after)=${opening}, usedGetFirstEmiDate=${usingGetFirst}`,
+      );
 
       rows.push({
         seq: `ADV-${a}`,
-        dueDate: advDate.toISOString().split('T')[0],
+        dueDate: advDate.toISOString().split("T")[0],
         emi: EMI,
         interest: 0,
         principal: advPrincipal,
@@ -2461,31 +2472,42 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
       });
 
       if (opening <= 0) {
-        console.log("Opening reached zero after advances; stopping advance application.");
+        console.log(
+          "Opening reached zero after advances; stopping advance application.",
+        );
         break;
       }
     }
 
     // 2) infer implied monthly r so same EMI amortizes remaining opening in m months
     const m = Math.max(0, n - k);
-    console.log(`Remaining months after advances: m = ${m}, opening = ${opening}`);
+    console.log(
+      `Remaining months after advances: m = ${m}, opening = ${opening}`,
+    );
     let r = 0;
     if (m > 0 && opening > 0) {
-      console.log(`Solving implied monthly rate for prem=${opening}, emi=${EMI}, m=${m} ...`);
+      console.log(
+        `Solving implied monthly rate for prem=${opening}, emi=${EMI}, m=${m} ...`,
+      );
       r = solveMonthlyRate(opening, EMI, m);
-      console.log(`Solved implied monthly r = ${(r * 100).toFixed(6)}% (approx annual simple ${(r * 12 * 100).toFixed(6)}%)`);
+      console.log(
+        `Solved implied monthly r = ${(r * 100).toFixed(6)}% (approx annual simple ${(r * 12 * 100).toFixed(6)}%)`,
+      );
     } else {
-      console.log("No remaining months or opening <= 0 => skipping rate solve.");
+      console.log(
+        "No remaining months or opening <= 0 => skipping rate solve.",
+      );
     }
 
     // 3) build remaining schedule using implied r
     console.log("Building amortization rows...");
     for (let i = 1; i <= m && opening > 0; i++) {
       const beforeOpening = opening;
-      let interest = 0, principal = 0;
+      let interest = 0,
+        principal = 0;
       if (r === 0) {
         interest = 0;
-        principal = (i < m) ? EMI : opening;
+        principal = i < m ? EMI : opening;
       } else {
         interest = r2(opening * r);
         principal = r2(EMI - interest);
@@ -2494,22 +2516,27 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
       // last EMI: absorb rounding to make closing exactly zero
       if (i === m) {
         principal = r2(opening);
-        interest  = r2(EMI - principal);
+        interest = r2(EMI - principal);
       }
 
       const closing = r2(opening - principal);
 
-     // const usingGetFirst = (typeof getFirstEmiDate === "function");
-      const dueDate = getFirstEmiDate(disbursementDate, emiDate, lender, product, i - 1 )
-       
+      // const usingGetFirst = (typeof getFirstEmiDate === "function");
+      const dueDate = getFirstEmiDate(
+        disbursementDate,
+        emiDate,
+        lender,
+        product,
+        i - 1,
+      );
 
       rows.push({
         seq: i,
-        dueDate: dueDate.toISOString().split('T')[0],
+        dueDate: dueDate.toISOString().split("T")[0],
         emi: EMI,
         interest,
         principal,
-        closing
+        closing,
       });
 
       opening = closing;
@@ -2517,9 +2544,13 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
 
     // 4) running totals & log summary
     console.log("Computing running totals...");
-    let remEmi = 0, remInterest = 0, totalEmi = 0, totalInterest = 0, totalPrincipal = 0;
+    let remEmi = 0,
+      remInterest = 0,
+      totalEmi = 0,
+      totalInterest = 0,
+      totalPrincipal = 0;
     for (let i = rows.length - 1; i >= 0; i--) {
-      remEmi      = r2(remEmi + rows[i].emi);
+      remEmi = r2(remEmi + rows[i].emi);
       remInterest = r2(remInterest + rows[i].interest);
       rows[i].remaining_emi = remEmi;
       rows[i].remaining_interest = remInterest;
@@ -2534,14 +2565,26 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
     totalPrincipal = r2(totalPrincipal);
 
     console.log(`Rows built: ${rows.length}`);
-    console.log(`Totals -> totalEmi: ₹${totalEmi}, totalInterest: ₹${totalInterest}, totalPrincipal: ₹${totalPrincipal}`);
+    console.log(
+      `Totals -> totalEmi: ₹${totalEmi}, totalInterest: ₹${totalInterest}, totalPrincipal: ₹${totalPrincipal}`,
+    );
     console.log(`First 3 rows preview:`, rows.slice(0, 3));
-    console.log(`Last 3 rows preview:`, rows.slice(Math.max(0, rows.length - 3)));
+    console.log(
+      `Last 3 rows preview:`,
+      rows.slice(Math.max(0, rows.length - 3)),
+    );
 
     // 5) persist to DB
-    const rpsData = rows.map(rw => [
-      lan, rw.dueDate, rw.emi, rw.interest, rw.principal,
-      rw.principal, rw.interest, rw.emi, "Pending"
+    const rpsData = rows.map((rw) => [
+      lan,
+      rw.dueDate,
+      rw.emi,
+      rw.interest,
+      rw.principal,
+      rw.principal,
+      rw.interest,
+      rw.emi,
+      "Pending",
     ]);
 
     console.log(`Attempting DB insert. rpsData.length = ${rpsData.length}`);
@@ -2551,11 +2594,17 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
           `INSERT INTO manual_rps_gq_non_fsf_fintree
            (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
            VALUES ?`,
-          [rpsData]
+          [rpsData],
         );
-        console.log("DB insert success. result:", result && typeof result === "object" ? {
-          affectedRows: result.affectedRows, insertId: result.insertId
-        } : result);
+        console.log(
+          "DB insert success. result:",
+          result && typeof result === "object"
+            ? {
+                affectedRows: result.affectedRows,
+                insertId: result.insertId,
+              }
+            : result,
+        );
       } catch (dbErr) {
         console.error("DB insert failed:", dbErr);
         throw dbErr;
@@ -2564,17 +2613,21 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
       console.warn("No rows to insert. Skipping DB insert.");
     }
 
-    console.log(`✅ RPS saved for ${lan}. EMI ₹${EMI}. Implied monthly r ${(r*100).toFixed(6)}%`);
-    console.log(`--- generateRepaymentScheduleGQNonFSF_Fintree END for LAN=${lan} ---\n`);
+    console.log(
+      `✅ RPS saved for ${lan}. EMI ₹${EMI}. Implied monthly r ${(r * 100).toFixed(6)}%`,
+    );
+    console.log(
+      `--- generateRepaymentScheduleGQNonFSF_Fintree END for LAN=${lan} ---\n`,
+    );
     return rows;
   } catch (err) {
     console.error(`❌ RPS Error for ${lan}:`, err);
-    console.log(`--- generateRepaymentScheduleGQNonFSF_Fintree ABORT for LAN=${lan} ---\n`);
+    console.log(
+      `--- generateRepaymentScheduleGQNonFSF_Fintree ABORT for LAN=${lan} ---\n`,
+    );
     throw err;
   }
 }
-
-
 
 //////////GQ FSF LOAN CALCULATION /////////////////////////////////////////
 const generateRepaymentScheduleGQFSF = async (
@@ -2588,14 +2641,13 @@ const generateRepaymentScheduleGQFSF = async (
   product,
   lender,
   no_of_advance_emis,
-    retentionPercent = 0,         // ✅ add
-  manualRetentionAmount = 0     // ✅ add
-  
+  retentionPercent = 0, // ✅ add
+  manualRetentionAmount = 0, // ✅ add
 ) => {
   try {
     console.log(`\n🚀 Generating GQ FSF RPS for LAN: ${lan}`);
     console.log(
-      `📝 Inputs → ApprovedAmount: ₹${approvedAmount}, InterestRate: ${interestRate}%, Tenure: ${tenure}, DisbursementDate: ${disbursementDate}, SubventionAmount: ₹${subventionAmount}, Product: ${product}, Lender: ${lender}, AdvanceEMIs: ${no_of_advance_emis}`
+      `📝 Inputs → ApprovedAmount: ₹${approvedAmount}, InterestRate: ${interestRate}%, Tenure: ${tenure}, DisbursementDate: ${disbursementDate}, SubventionAmount: ₹${subventionAmount}, Product: ${product}, Lender: ${lender}, AdvanceEMIs: ${no_of_advance_emis}`,
     );
 
     const annualRate = interestRate / 100;
@@ -2612,12 +2664,11 @@ const generateRepaymentScheduleGQFSF = async (
       console.log("💡 Interest-free loan — EMI = Principal only");
     } else {
       console.log(
-        `💰 EMI Breakdown → Principal: ₹${emiPrincipal}, Interest: ₹${emiInterest}, Total: ₹${emiTotal}`
+        `💰 EMI Breakdown → Principal: ₹${emiPrincipal}, Interest: ₹${emiInterest}, Total: ₹${emiTotal}`,
       );
     }
 
     const rpsData = [];
-
 
     for (let i = 1; i <= tenure; i++) {
       let principal = emiPrincipal;
@@ -2627,14 +2678,14 @@ const generateRepaymentScheduleGQFSF = async (
         principal = remainingPrincipal;
         emiTotal = principal + interest;
         console.log(
-          `🔧 Adjusted Final EMI (Month ${i}): ₹${emiTotal} (P: ₹${principal}, I: ₹${interest})`
+          `🔧 Adjusted Final EMI (Month ${i}): ₹${emiTotal} (P: ₹${principal}, I: ₹${interest})`,
         );
       }
 
       // ✅ Calculate due date
       let dueDate;
       console.log(
-        `💰 Month ${i} breakdown — Principal: ₹${principal}, Interest: ₹${interest}, Total: ₹${emiTotal}`
+        `💰 Month ${i} breakdown — Principal: ₹${principal}, Interest: ₹${interest}, Total: ₹${emiTotal}`,
       );
       console.log(`no of advance emis`, no_of_advance_emis);
       if (no_of_advance_emis > 0 && i === 1) {
@@ -2648,7 +2699,7 @@ const generateRepaymentScheduleGQFSF = async (
           emiDate,
           lender,
           product,
-          offset
+          offset,
         );
       }
 
@@ -2667,7 +2718,7 @@ const generateRepaymentScheduleGQFSF = async (
       console.log(
         `📌 Month ${i}: DueDate=${
           dueDate.toISOString().split("T")[0]
-        }, EMI=₹${emiTotal}`
+        }, EMI=₹${emiTotal}`,
       );
       remainingPrincipal -= principal;
     }
@@ -2676,7 +2727,7 @@ const generateRepaymentScheduleGQFSF = async (
       `INSERT INTO manual_rps_gq_fsf
       (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
       VALUES ?`,
-      [rpsData]
+      [rpsData],
     );
 
     // ➕ Update emi_amount in loan_bookings
@@ -2803,7 +2854,7 @@ const generateRepaymentScheduleGQFSF = async (
 //         advInterest,
 //         advPrincipal,
 //         emiAmount
-        
+
 //       ]);
 
 //       cashflows.push(emiAmount);
@@ -2836,7 +2887,6 @@ const generateRepaymentScheduleGQFSF = async (
 //         principal,
 //         emiAmount
 
-        
 //       ]);
 
 //       cashflows.push(emiAmount);
@@ -2884,7 +2934,6 @@ const generateRepaymentScheduleGQFSF = async (
 //     console.error(`❌ GQ FSF RPS Error for ${lan}:`, err);
 //   }
 // };
-
 
 /////////////////////////// GQ FSF FINTREE RPS SAjag End////////////////////////////
 /////////////////////////// GQ FSF FINTREE RPS Sajag New Start  ////////////////////////////
@@ -3100,7 +3149,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
   lan,
   approvedAmount,
   emiDate,
-  interestRate,        // flat % p.a. (EMI calc only)
+  interestRate, // flat % p.a. (EMI calc only)
   tenure,
   disbursementDate,
   subventionAmount,
@@ -3108,7 +3157,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
   lender,
   no_of_advance_emis,
   retentionPercent,
-  manualRetentionAmount
+  manualRetentionAmount,
 ) => {
   try {
     const approved = Number(approvedAmount);
@@ -3123,7 +3172,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
     if (!disb || Number.isNaN(disb.getTime())) {
       throw new Error(
-        `Invalid disbursementDate for LAN=${lan}: ${JSON.stringify(disbursementDate)}`
+        `Invalid disbursementDate for LAN=${lan}: ${JSON.stringify(disbursementDate)}`,
       );
     }
 
@@ -3136,8 +3185,8 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const retentionAmount = safeManualRetentionAmount
       ? +safeManualRetentionAmount.toFixed(2)
       : safeRetentionPercent
-      ? +(netLoanForLender * safeRetentionPercent).toFixed(2)
-      : 0;
+        ? +(netLoanForLender * safeRetentionPercent).toFixed(2)
+        : 0;
 
     const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
 
@@ -3154,7 +3203,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const normalEmis = tenureMonths - advEmiCount;
     if (normalEmis <= 0) {
       throw new Error(
-        `Invalid normalEmis=${normalEmis} for LAN=${lan}. tenure=${tenureMonths}, adv=${advEmiCount}`
+        `Invalid normalEmis=${normalEmis} for LAN=${lan}. tenure=${tenureMonths}, adv=${advEmiCount}`,
       );
     }
 
@@ -3186,7 +3235,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
         emiAmount,
         0,
         emiAmount,
-        emiAmount
+        emiAmount,
       ]);
     }
 
@@ -3213,7 +3262,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
         emiAmount,
         interest,
         principal,
-        emiAmount
+        emiAmount,
       ]);
 
       openingBal = closingBal;
@@ -3241,16 +3290,15 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       0,
       0,
       0,
-      0
+      0,
     ]);
 
     // ---------- DB INSERT ----------
     if (rpsData.length > 0) {
       // Optional safety: remove old schedule
-      await db.promise().query(
-        "DELETE FROM manual_rps_gq_fsf_fintree WHERE lan = ?",
-        [lan]
-      );
+      await db
+        .promise()
+        .query("DELETE FROM manual_rps_gq_fsf_fintree WHERE lan = ?", [lan]);
 
       const insertSql = `
         INSERT INTO manual_rps_gq_fsf_fintree
@@ -3283,12 +3331,120 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       retentionAmount,
       monthlyIRR,
       annualIRR,
-      cashflows
+      cashflows,
     };
   } catch (err) {
     console.error("❌ RPS ERROR (GQFSF_Fintree):", err);
     throw err;
   }
+};
+
+const generateRepaymentScheduleClayoo = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  disbursementDate,
+  paymentDate
+) => {
+
+  // Convert interest rate to decimal
+  const annualRate = interestRate / 100;
+
+  // Convert input dates
+  const disbDate = new Date(disbursementDate);
+  const payDate = new Date(paymentDate);
+
+  // Validate dates
+  if (
+    Number.isNaN(disbDate.getTime()) ||
+    Number.isNaN(payDate.getTime())
+  ) {
+    throw new Error("Invalid disbursementDate or paymentDate");
+  }
+
+  /**
+   * STEP 1: Calculate total loan usage days
+   */
+  const totalDays = Math.ceil(
+    (payDate - disbDate) / (1000 * 60 * 60 * 24)
+  );
+
+  /**
+   * STEP 2: Apply 90-day grace period
+   * Interest starts only AFTER 90 days
+   */
+  const graceEndDate = new Date(disbDate);
+  graceEndDate.setDate(graceEndDate.getDate() + 90);
+
+  /**
+   * STEP 3: Calculate interest-bearing days
+   */
+  const interestDays = Math.max(
+    0,
+    Math.ceil((payDate - graceEndDate) / (1000 * 60 * 60 * 24))
+  );
+
+  console.log("Total loan usage days:", totalDays);
+  console.log("Interest-bearing days after 90-day grace:", interestDays);
+
+  /**
+   * STEP 4: Interest calculation (365-day basis)
+   */
+  const totalInterest = Math.ceil(
+    (loanAmount * annualRate * interestDays) / 365
+  );
+
+  /**
+   * STEP 5: Bullet repayment amount
+   */
+  const emi = loanAmount + totalInterest;
+
+  /**
+   * STEP 6: Prepare RPS row
+   * Single repayment entry (bullet loan structure)
+   */
+  const rpsData = [[
+    lan,
+    payDate.toISOString().split("T")[0], // due_date
+    emi,
+    totalInterest,
+    loanAmount,
+    loanAmount,
+    totalInterest,
+    emi,
+    "Pending"
+  ]];
+
+  /**
+   * STEP 7: Insert into Clayoo RPS table
+   */
+  await conn.query(
+    `INSERT INTO manual_rps_clayoo
+     (lan, due_date, emi, interest, principal,
+      remaining_principal, remaining_interest,
+      remaining_emi, status)
+     VALUES ?`,
+    [rpsData]
+  );
+
+  /**
+   * STEP 8: Update EMI amount in Clayoo loan booking table
+   */
+  await conn.query(
+    `UPDATE loan_booking_clayyo
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [emi, lan]
+  );
+
+  console.log(
+    `✅ Clayoo RPS generated successfully for ${lan}
+     Total Days: ${totalDays},
+     Interest Days: ${interestDays},
+     Interest: ${totalInterest},
+     Payable Amount: ${emi}`
+  );
 };
 
 /////////////////////////// GQ FSF FINTREE RPS Sajag New End ////////////////////////////
@@ -3438,7 +3594,7 @@ const generateRepaymentScheduleEmbifi = async (
   tenure,
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   try {
     const annualRate = interestRate / 100;
@@ -3446,7 +3602,7 @@ const generateRepaymentScheduleEmbifi = async (
 
     const emi = Math.round(
       (loanAmount * (annualRate / 12) * Math.pow(1 + annualRate / 12, tenure)) /
-        (Math.pow(1 + annualRate / 12, tenure) - 1)
+        (Math.pow(1 + annualRate / 12, tenure) - 1),
     );
 
     const disbDate = new Date(disbursementDate);
@@ -3483,14 +3639,14 @@ const generateRepaymentScheduleEmbifi = async (
         (lan, due_date, emi, interest, principal,
          remaining_principal, remaining_interest, remaining_emi, status)
        VALUES ?`,
-      [rpsData]
+      [rpsData],
     );
 
     await db.promise().query(
       `UPDATE loan_booking_embifi
          SET emi_amount = ?
        WHERE lan = ?`,
-      [emi, lan]
+      [emi, lan],
     );
 
     console.log(`✅ Embifi RPS generated from next month for ${lan}`);
@@ -3498,7 +3654,6 @@ const generateRepaymentScheduleEmbifi = async (
     console.error(`❌ Embifi RPS Error for ${lan}:`, err);
   }
 };
-
 
 const generateRepaymentScheduleFinso360 = async (
   conn,
@@ -3508,7 +3663,7 @@ const generateRepaymentScheduleFinso360 = async (
   tenure,
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   try {
     // validate / normalize
@@ -3550,13 +3705,17 @@ const generateRepaymentScheduleFinso360 = async (
 
     for (let i = 1; i <= n; i++) {
       // interest per-day (360), rounded up
-      const interest = Math.ceil((remainingPrincipal * annualRate * 1) / dayCount) || 0;
+      const interest =
+        Math.ceil((remainingPrincipal * annualRate * 1) / dayCount) || 0;
       let principal = dailyEmi - interest;
 
       // last installment: flush remainder
       if (i === n) principal = remainingPrincipal;
 
-      const nextRemainingPrincipal = Math.max(remainingPrincipal - principal, 0);
+      const nextRemainingPrincipal = Math.max(
+        remainingPrincipal - principal,
+        0,
+      );
       const remainingInterest = Math.max(interest * (n - i), 0);
 
       rows.push([
@@ -3587,18 +3746,21 @@ const generateRepaymentScheduleFinso360 = async (
           (lan, due_date, emi, interest, principal,
            remaining_principal, remaining_interest, remaining_emi, status)
          VALUES ?`,
-        [chunk]
+        [chunk],
       );
     }
 
     // update loan_booking_finso with computed daily EMI
     try {
-      await conn.query(`UPDATE loan_booking_finso SET emi_amount = ? WHERE lan = ?`, [
-        dailyEmi,
-        lan,
-      ]);
+      await conn.query(
+        `UPDATE loan_booking_finso SET emi_amount = ? WHERE lan = ?`,
+        [dailyEmi, lan],
+      );
     } catch (updErr) {
-      console.warn("Warning updating loan_booking_finso:", updErr.message || updErr);
+      console.warn(
+        "Warning updating loan_booking_finso:",
+        updErr.message || updErr,
+      );
     }
 
     await conn.commit();
@@ -3633,7 +3795,7 @@ const generateRepaymentScheduleFinso365 = async (
   tenure,
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   try {
     // validate / normalize
@@ -3675,15 +3837,18 @@ const generateRepaymentScheduleFinso365 = async (
 
     for (let i = 1; i <= n; i++) {
       // interest per-day (365), rounded up
-      const interest = Math.ceil((remainingPrincipal * annualRate * 1) / dayCount) || 0;
+      const interest =
+        Math.ceil((remainingPrincipal * annualRate * 1) / dayCount) || 0;
       let principal = dailyEmi - interest;
 
       // last installment: flush remainder
       if (i === n) principal = remainingPrincipal;
 
-      const nextRemainingPrincipal = Math.max(remainingPrincipal - principal, 0);
+      const nextRemainingPrincipal = Math.max(
+        remainingPrincipal - principal,
+        0,
+      );
       const remainingInterest = Math.max(interest * (n - i), 0);
-
 
       rows.push([
         lan,
@@ -3713,18 +3878,21 @@ const generateRepaymentScheduleFinso365 = async (
           (lan, due_date, emi, interest, principal,
            remaining_principal, remaining_interest, remaining_emi, status)
          VALUES ?`,
-        [chunk]
+        [chunk],
       );
     }
 
     // update loan_booking_finso with computed daily EMI
     try {
-      await conn.query(`UPDATE loan_booking_finso SET emi_amount = ? WHERE lan = ?`, [
-        dailyEmi,
-        lan,
-      ]);
+      await conn.query(
+        `UPDATE loan_booking_finso SET emi_amount = ? WHERE lan = ?`,
+        [dailyEmi, lan],
+      );
     } catch (updErr) {
-      console.warn("Warning updating loan_booking_finso:", updErr.message || updErr);
+      console.warn(
+        "Warning updating loan_booking_finso:",
+        updErr.message || updErr,
+      );
     }
 
     await conn.commit();
@@ -3765,7 +3933,7 @@ const generateRepaymentScheduleAdikosh = async (
   interestRate, // annual % (e.g., 24 => 24% p.a.)
   tenure, // months
   disbursementDate, // "YYYY-MM-DD"
-  salaryDay // integer day-of-month for first EMI alignment
+  salaryDay, // integer day-of-month for first EMI alignment
 ) => {
   try {
     const firstDueDate = getFirstEmiDate(
@@ -3774,7 +3942,7 @@ const generateRepaymentScheduleAdikosh = async (
       "Adikosh",
       "Adikosh",
       0,
-      salaryDay
+      salaryDay,
     );
 
     console.log({
@@ -3819,7 +3987,7 @@ const generateRepaymentScheduleAdikosh = async (
       // EMI is fixed for all periods
       const baseEmi = Math.ceil(
         (baseAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
-          (Math.pow(1 + monthlyRate, tenure) - 1)
+          (Math.pow(1 + monthlyRate, tenure) - 1),
       );
 
       for (let i = 1; i <= tenure; i++) {
@@ -3891,7 +4059,7 @@ const generateRepaymentScheduleAdikosh = async (
            (lan, due_date, emi, interest, principal, opening, closing,
             remaining_emi, remaining_amount, remaining_principal, remaining_interest, status)
            VALUES ?`,
-          [rpsData]
+          [rpsData],
         );
       } else {
         await db.promise().query(
@@ -3899,7 +4067,7 @@ const generateRepaymentScheduleAdikosh = async (
            (lan, due_date, emi, interest, principal,
             remaining_principal, remaining_interest, remaining_emi, status)
            VALUES ?`,
-          [rpsData]
+          [rpsData],
         );
       }
 
@@ -3912,7 +4080,7 @@ const generateRepaymentScheduleAdikosh = async (
          FROM manual_rps_adikosh
         WHERE lan = ?
         ORDER BY due_date ASC`,
-      [lan]
+      [lan],
     );
 
     const fintreeRoiData = [];
@@ -3938,7 +4106,7 @@ const generateRepaymentScheduleAdikosh = async (
       `INSERT INTO manual_rps_adikosh_fintree_roi
        (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, status)
        VALUES ?`,
-      [fintreeRoiData]
+      [fintreeRoiData],
     );
 
     console.log(`✅ manual_rps_adikosh_fintree_roi generated for ${lan}`);
@@ -4075,7 +4243,7 @@ const generateRepaymentSchedule = async (
   product,
   lender,
   retention_percentage,
-  retention_amount
+  retention_amount,
 ) => {
   console.log("lender testing", lender);
 
@@ -4084,11 +4252,13 @@ const generateRepaymentSchedule = async (
   const safeManualRetentionAmount = Number(retention_amount || 0);
   // ✅ Ensure disbursementDate is a valid Date object
   const disbDateObj =
-    disbursementDate instanceof Date ? disbursementDate : new Date(disbursementDate);
+    disbursementDate instanceof Date
+      ? disbursementDate
+      : new Date(disbursementDate);
 
   if (!disbDateObj || Number.isNaN(disbDateObj.getTime())) {
     throw new Error(
-      `Invalid disbursementDate for LAN=${lan}. Received: ${JSON.stringify(disbursementDate)}`
+      `Invalid disbursementDate for LAN=${lan}. Received: ${JSON.stringify(disbursementDate)}`,
     );
   }
 
@@ -4100,7 +4270,7 @@ const generateRepaymentSchedule = async (
       tenure,
       disbursementDate,
       product,
-      lender
+      lender,
     );
   } else if (lender === "EV Loan" && product.toLowerCase() === "monthly loan") {
     await generateRepaymentScheduleEV(
@@ -4111,9 +4281,9 @@ const generateRepaymentSchedule = async (
       tenure,
       disbursementDate,
       product,
-      lender
+      lender,
     );
-  }else if (lender === "HEY EV Loan") {
+  } else if (lender === "HEY EV Loan") {
     await generateRepaymentScheduleHEYEV(
       conn,
       lan,
@@ -4122,23 +4292,20 @@ const generateRepaymentSchedule = async (
       tenure,
       disbursementDate,
       product,
-      lender
+      lender,
     );
-  
-    } else if (lender === "HeyEV Battery") {
-  await generateRepaymentScheduleHEYEVBattery(
-    conn,
-    lan,
-    loanAmount,
-    interestRate,
-    tenure,
-    disbursementDate,
-    product,
-    lender
-  );
-
-
-  }  else if (lender === "Finso") {
+  } else if (lender === "HeyEV Battery") {
+    await generateRepaymentScheduleHEYEVBattery(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    );
+  } else if (lender === "Finso") {
     await generateRepaymentScheduleFinso365(
       conn,
       lan,
@@ -4147,7 +4314,7 @@ const generateRepaymentSchedule = async (
       tenure,
       disbursementDate,
       product,
-      lender
+      lender,
     );
   } else if (lender === "EMICLUB" && product === "Monthly Loan") {
     await generateRepaymentScheduleEmiclub(
@@ -4158,9 +4325,9 @@ const generateRepaymentSchedule = async (
       tenure,
       disbursementDate,
       product,
-      lender
+      lender,
     );
-      } else if (lender === "ZYPAY" && product === "Monthly Loan") {
+  } else if (lender === "ZYPAY" && product === "Monthly Loan") {
     await generateRepaymentScheduleZypay(
       conn,
       lan,
@@ -4169,10 +4336,9 @@ const generateRepaymentSchedule = async (
       tenure,
       disbursementDate,
       product,
-      lender
+      lender,
     );
-  }
-    else if (lender === "Circlepe" ) {
+  } else if (lender === "Circlepe") {
     await generateRepaymentScheduleCirclePE(
       conn,
       lan,
@@ -4181,9 +4347,20 @@ const generateRepaymentSchedule = async (
       tenure,
       disbursementDate,
       product,
-      lender
+      lender,
     );
-    } else if (lender === "GQ Non-FSF") {
+  } else if (lender === "CLAYYO") {
+    await generateRepaymentScheduleClayoo(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    );
+  } else if (lender === "GQ Non-FSF") {
     // === run generic GQ Non-FSF generator ===
     try {
       // coerce numeric-ish inputs and log
@@ -4191,8 +4368,18 @@ const generateRepaymentSchedule = async (
       const interestRateNum = Number(interestRate);
       const tenureNum = Number(tenure);
       const noOfAdvanceNum = Number(no_of_advance_emis || 0);
-      console.log("Calling generateRepaymentScheduleGQNonFSF with:",
-        { lan, approvedAmount: approvedAmountNum, emiDate, interestRate: interestRateNum, tenure: tenureNum, disbursementDate, subventionAmount, product, lender, no_of_advance_emis: noOfAdvanceNum });
+      console.log("Calling generateRepaymentScheduleGQNonFSF with:", {
+        lan,
+        approvedAmount: approvedAmountNum,
+        emiDate,
+        interestRate: interestRateNum,
+        tenure: tenureNum,
+        disbursementDate,
+        subventionAmount,
+        product,
+        lender,
+        no_of_advance_emis: noOfAdvanceNum,
+      });
 
       await generateRepaymentScheduleGQNonFSF(
         lan,
@@ -4204,7 +4391,7 @@ const generateRepaymentSchedule = async (
         subventionAmount,
         product,
         lender,
-        noOfAdvanceNum
+        noOfAdvanceNum,
       );
       console.log("✅ generateRepaymentScheduleGQNonFSF completed");
     } catch (err) {
@@ -4220,134 +4407,141 @@ const generateRepaymentSchedule = async (
       const tenureNum = Number(tenure);
       const noOfAdvanceNum = Number(no_of_advance_emis || 0);
 
-      console.log("Calling generateRepaymentScheduleGQNonFSF_Fintree with:",
-        { lan, approvedAmount: approvedAmountNum, emiDate, interestRate: interestRateNum, tenure: tenureNum, disbursementDate, subventionAmount, product, lender, no_of_advance_emis: noOfAdvanceNum });
+      console.log("Calling generateRepaymentScheduleGQNonFSF_Fintree with:", {
+        lan,
+        approvedAmount: approvedAmountNum,
+        emiDate,
+        interestRate: interestRateNum,
+        tenure: tenureNum,
+        disbursementDate,
+        subventionAmount,
+        product,
+        lender,
+        no_of_advance_emis: noOfAdvanceNum,
+      });
 
       await generateRepaymentScheduleGQNonFSF_Fintree(
         lan,
-        approvedAmountNum,   // approvedAmount
-        emiDate,             // emiDate (day)
-        interestRateNum,     // interestRate (annual %)
-        tenureNum,           // tenure (months)
-        disbursementDate,    // disbursementDate ("YYYY-MM-DD")
-        subventionAmount,    // subventionAmount
-        product,             // product
-        lender,              // lender
-        noOfAdvanceNum       // no_of_advance_emis
+        approvedAmountNum, // approvedAmount
+        emiDate, // emiDate (day)
+        interestRateNum, // interestRate (annual %)
+        tenureNum, // tenure (months)
+        disbursementDate, // disbursementDate ("YYYY-MM-DD")
+        subventionAmount, // subventionAmount
+        product, // product
+        lender, // lender
+        noOfAdvanceNum, // no_of_advance_emis
       );
 
       console.log("✅ generateRepaymentScheduleGQNonFSF_Fintree completed");
     } catch (err) {
-      console.error("❌ generateRepaymentScheduleGQNonFSF_Fintree failed:", err);
+      console.error(
+        "❌ generateRepaymentScheduleGQNonFSF_Fintree failed:",
+        err,
+      );
     }
-  
 
-  // } else if (lender === "GQ FSF") {
-  //   await generateRepaymentScheduleGQFSF(
-  //     lan,
-  //     loanAmount,
-  //     emiDate,
-  //     interestRate,
-  //     tenure,
-  //     disbursementDate,
-  //     subventionAmount,
-  //     product,
-  //     lender,
-  //     no_of_advance_emis
-  //   );
-} else if (lender === "GQ FSF" || lender === "FSF") {
-  // === run generic GQ FSF generator ===
-  try {
-    // coerce numeric-ish inputs and log
-    const approvedAmountNum = Number(loanAmount);
-    const interestRateNum = Number(interestRate);
-    const tenureNum = Number(tenure);
-    const noOfAdvanceNum = Number(no_of_advance_emis || 0);
+    // } else if (lender === "GQ FSF") {
+    //   await generateRepaymentScheduleGQFSF(
+    //     lan,
+    //     loanAmount,
+    //     emiDate,
+    //     interestRate,
+    //     tenure,
+    //     disbursementDate,
+    //     subventionAmount,
+    //     product,
+    //     lender,
+    //     no_of_advance_emis
+    //   );
+  } else if (lender === "GQ FSF" || lender === "FSF") {
+    // === run generic GQ FSF generator ===
+    try {
+      // coerce numeric-ish inputs and log
+      const approvedAmountNum = Number(loanAmount);
+      const interestRateNum = Number(interestRate);
+      const tenureNum = Number(tenure);
+      const noOfAdvanceNum = Number(no_of_advance_emis || 0);
 
-    console.log("Calling generateRepaymentScheduleGQFSF with:", {
-      lan,
-      approvedAmount: approvedAmountNum,
-      emiDate,
-      interestRate: interestRateNum,
-      tenure: tenureNum,
-      disbursementDate,
-      subventionAmount,
-      product,
-      lender,
-      no_of_advance_emis: noOfAdvanceNum,
-        retentionPercentage: safeRetentionPercent,         // ✅ pass this
-        manualRetentionAmount: safeManualRetentionAmount  // ✅ if you have it
-     
-    });
-   // ✅ If your generateRepaymentScheduleGQFSF supports retention, pass it.
+      console.log("Calling generateRepaymentScheduleGQFSF with:", {
+        lan,
+        approvedAmount: approvedAmountNum,
+        emiDate,
+        interestRate: interestRateNum,
+        tenure: tenureNum,
+        disbursementDate,
+        subventionAmount,
+        product,
+        lender,
+        no_of_advance_emis: noOfAdvanceNum,
+        retentionPercentage: safeRetentionPercent, // ✅ pass this
+        manualRetentionAmount: safeManualRetentionAmount, // ✅ if you have it
+      });
+      // ✅ If your generateRepaymentScheduleGQFSF supports retention, pass it.
       // If it doesn't, keep the function signature aligned (recommended to add params).
-    await generateRepaymentScheduleGQFSF(
-      lan,
-      approvedAmountNum,
-      emiDate,
-      interestRateNum,
-      tenureNum,
-      disbursementDate,
-      subventionAmount,
-      product,
-      lender,
-      noOfAdvanceNum,
-       safeRetentionPercent,
-  safeManualRetentionAmount
-       
-    );
+      await generateRepaymentScheduleGQFSF(
+        lan,
+        approvedAmountNum,
+        emiDate,
+        interestRateNum,
+        tenureNum,
+        disbursementDate,
+        subventionAmount,
+        product,
+        lender,
+        noOfAdvanceNum,
+        safeRetentionPercent,
+        safeManualRetentionAmount,
+      );
 
-    console.log("✅ generateRepaymentScheduleGQFSF completed");
-  } catch (err) {
-    console.error("❌ generateRepaymentScheduleGQFSF failed:", err);
-  }
+      console.log("✅ generateRepaymentScheduleGQFSF completed");
+    } catch (err) {
+      console.error("❌ generateRepaymentScheduleGQFSF failed:", err);
+    }
 
-  // === run Fintree variant ===
-  try {
-    // IMPORTANT: match the exact signature of generateRepaymentScheduleGQFSF_Fintree:
-    // (lan, approvedAmount, emiDate, interestRate, tenure, disbursementDate, subventionAmount, product, lender, no_of_advance_emis)
-    const approvedAmountNum = Number(loanAmount);
-    const interestRateNum = Number(interestRate);
-    const tenureNum = Number(tenure);
-    const noOfAdvanceNum = Number(no_of_advance_emis || 0);
+    // === run Fintree variant ===
+    try {
+      // IMPORTANT: match the exact signature of generateRepaymentScheduleGQFSF_Fintree:
+      // (lan, approvedAmount, emiDate, interestRate, tenure, disbursementDate, subventionAmount, product, lender, no_of_advance_emis)
+      const approvedAmountNum = Number(loanAmount);
+      const interestRateNum = Number(interestRate);
+      const tenureNum = Number(tenure);
+      const noOfAdvanceNum = Number(no_of_advance_emis || 0);
 
-    console.log("Calling generateRepaymentScheduleGQFSF_Fintree with:", {
-      lan,
-      approvedAmount: approvedAmountNum,
-      emiDate,
-      interestRate: interestRateNum,
-      tenure: tenureNum,
-      disbursementDate,
-      subventionAmount,
-      product,
-      lender,
-      no_of_advance_emis: noOfAdvanceNum,
-      retentionPercent: safeRetentionPercent,              // ✅
-        manualRetentionAmount: safeManualRetentionAmount,    // ✅
-    });
+      console.log("Calling generateRepaymentScheduleGQFSF_Fintree with:", {
+        lan,
+        approvedAmount: approvedAmountNum,
+        emiDate,
+        interestRate: interestRateNum,
+        tenure: tenureNum,
+        disbursementDate,
+        subventionAmount,
+        product,
+        lender,
+        no_of_advance_emis: noOfAdvanceNum,
+        retentionPercent: safeRetentionPercent, // ✅
+        manualRetentionAmount: safeManualRetentionAmount, // ✅
+      });
 
-await generateRepaymentScheduleGQFSF_Fintree(
-  lan,
-  approvedAmountNum,
-  emiDate,
-  interestRateNum,
-  tenureNum,
-  disbursementDate,
-  subventionAmount,
-  product,
-  lender,
-  noOfAdvanceNum,
-  safeRetentionPercent,
-  safeManualRetentionAmount
-);
+      await generateRepaymentScheduleGQFSF_Fintree(
+        lan,
+        approvedAmountNum,
+        emiDate,
+        interestRateNum,
+        tenureNum,
+        disbursementDate,
+        subventionAmount,
+        product,
+        lender,
+        noOfAdvanceNum,
+        safeRetentionPercent,
+        safeManualRetentionAmount,
+      );
 
-    console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
-  } catch (err) {
-    console.error("❌ generateRepaymentScheduleGQFSF_Fintree failed:", err);
-  }
-
-
-
+      console.log("✅ generateRepaymentScheduleGQFSF_Fintree completed");
+    } catch (err) {
+      console.error("❌ generateRepaymentScheduleGQFSF_Fintree failed:", err);
+    }
   } else if (lender === "Adikosh") {
     await generateRepaymentScheduleAdikosh(
       lan,
@@ -4355,7 +4549,7 @@ await generateRepaymentScheduleGQFSF_Fintree(
       interestRate,
       tenure,
       disbursementDate,
-      salary_day
+      salary_day,
     );
   } else if (lender === "Embifi") {
     await generateRepaymentScheduleEmbifi(
@@ -4365,9 +4559,9 @@ await generateRepaymentScheduleGQFSF_Fintree(
       tenure,
       disbursementDate,
       product,
-      lender
+      lender,
     );
-    } else if (lender === "HELIUM") {
+  } else if (lender === "HELIUM") {
     await generateRepaymentScheduleHelium(
       conn,
       lan,
@@ -4376,7 +4570,7 @@ await generateRepaymentScheduleGQFSF_Fintree(
       tenure,
       disbursementDate,
       product,
-      lender
+      lender,
     );
   } else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);

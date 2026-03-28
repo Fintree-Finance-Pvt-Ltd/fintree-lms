@@ -36,6 +36,18 @@ function isCustomerLan(lan = "") {
  * @param {string} lan
  * @returns {boolean}
  */
+
+function isClayyoLan(lan = "") {
+  const s = normalizeLan(lan);
+  return s.startsWith("CLY") || s.startsWith("CLAY") || s.startsWith("CLO");
+}
+
+/**
+ * Check if LAN belongs to Helium flow
+ *
+ * @param {string} lan
+ * @returns {boolean}
+ */
 function isHeliumLan(lan = "") {
   const s = normalizeLan(lan);
   return s.startsWith("HEL");
@@ -57,6 +69,15 @@ function getLoanContext(lan = "") {
     };
   }
 
+if (isClayyoLan(lan)) {
+  return {
+    type: "CLAYYO",
+    summaryTable: "clayyo_loan_summary",
+    rpsTable: "loan_rps_clayyo",
+    bookingTable: "loan_booking_clayyo",
+    agreementTemplate: "Clayyo_Agreement.html"
+  };
+}
   if (isHeliumLan(lan)) {
     return {
       type: "HELIUM",
@@ -73,6 +94,7 @@ function getLoanContext(lan = "") {
 module.exports = {
   normalizeLan,
   isCustomerLan,
+  isClayyoLan,
   isHeliumLan,
-  getLoanContext
+  getLoanContext,
 };
