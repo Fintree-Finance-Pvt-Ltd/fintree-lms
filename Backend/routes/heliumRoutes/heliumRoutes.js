@@ -3,7 +3,7 @@ const db = require("../../config/db");
 const authenticateUser = require("../../middleware/verifyToken");
 const { runAllValidations } = require("../../services/heliumValidationEngine");
 const { autoApproveIfAllVerified } = require("../../services/heliumValidationEngine");
-const autoApproveClayyoIfAllVerified = require("../clyooRoutes/clayyoBreEngine");
+const { autoApproveClayyoIfAllVerified } = require("../clyooRoutes/clayyoBreEngine");
 const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
@@ -1088,8 +1088,8 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     const [rows] = await db
       .promise()
       .query(
-        `SELECT lan FROM kyc_verification_status WHERE aadhaar_unique_id = ?`,
-        [uniqueId]
+        `SELECT lan FROM kyc_verification_status WHERE aadhaar_transaction_id = ? OR aadhaar_unique_id = ?`,
+        [transactionId, uniqueId]
       );
 
     if (!rows.length) {
@@ -1229,9 +1229,11 @@ if (xmlLink) {
 
     // Optionally run auto-approval if all checks done
     if (lan.startsWith("HEL")){
+      console.log("Triggering Helium auto-approval check for LAN:", lan);
       await autoApproveIfAllVerified(lan);
     }
     else if(lan.startsWith("CLY")){
+      console.log("Triggering CLAYYO auto-approval check for LAN:", lan);
       await autoApproveClayyoIfAllVerified(lan);
     }
     else {

@@ -2474,6 +2474,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_zypay_customer: true,
     loan_booking_embifi: true,
     loan_booking_finso: true,
+    loan_booking_clayyo: true,
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery: true,
     dealer_onboarding: true,
