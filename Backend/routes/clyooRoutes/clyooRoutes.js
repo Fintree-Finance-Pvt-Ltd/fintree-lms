@@ -1,6 +1,5 @@
 const express = require("express");
 const db = require("../../config/db");
-// const authenticateUser = require("../../middleware/verifyToken");
 const { clayooRunAllValidations } = require("./clyooValidationEngine");
 const partnerBookingWrapper =
   require("../../services/partnerBookingWrapper");
@@ -13,6 +12,7 @@ const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
 const dayjs = require("dayjs");
+const axios = require("axios");
 
 const router = express.Router();
 
@@ -26,22 +26,20 @@ const generateLoanIdentifiers = async (lender) => {
   if (lender === "CLAYYO") {
     prefixLan = "CLYO10";
     application_id = "CLY0001";
-  }
-else if (lender === "CLAYYO-HOSPITAL") {
+  } else if (lender === "CLAYYO-HOSPITAL") {
     prefixLan = "CLYHOS10";
     application_id = "CLYHOS0001";
-  }
-  else {
+  } else {
     return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
   }
 
-     console.log("prefixLan:", prefixLan);
+  console.log("prefixLan:", prefixLan);
 
   const [rows] = await db
     .promise()
     .query(
       "SELECT last_sequence FROM loan_sequences WHERE lender_name = ? FOR UPDATE",
-      [lender]
+      [lender],
     );
 
   let newSequence;
@@ -52,7 +50,7 @@ else if (lender === "CLAYYO-HOSPITAL") {
       .promise()
       .query(
         "UPDATE loan_sequences SET last_sequence = ? WHERE lender_name = ?",
-        [newSequence, lender]
+        [newSequence, lender],
       );
   } else {
     newSequence = 11000;
@@ -60,7 +58,7 @@ else if (lender === "CLAYYO-HOSPITAL") {
       .promise()
       .query(
         "INSERT INTO loan_sequences (lender_name, last_sequence) VALUES (?, ?)",
-        [lender, newSequence]
+        [lender, newSequence],
       );
   }
 
@@ -84,21 +82,22 @@ router.post("/hospitals/create", async (req, res) => {
       "registered_pincode",
       "hospital_phone",
       "owner_name",
-      "owner_phone"
+      "owner_phone",
     ];
 
     const missing = requiredFields.filter(
-      (field) => !data[field] || String(data[field]).trim() === ""
+      (field) => !data[field] || String(data[field]).trim() === "",
     );
 
     if (missing.length) {
       return res.status(400).json({
-        message: `Missing fields: ${missing.join(", ")}`
+        message: `Missing fields: ${missing.join(", ")}`,
       });
     }
 
     // ✅ Generate IDs
-    const { lan, application_id } = await generateLoanIdentifiers("CLAYYO-HOSPITAL");
+    const { lan, application_id } =
+      await generateLoanIdentifiers("CLAYYO-HOSPITAL");
 
     // ✅ Map fields
     const fields = {
@@ -109,8 +108,7 @@ router.post("/hospitals/create", async (req, res) => {
       brand_name: data.brand_name || null,
       branch_locations: data.branch_locations || null,
 
-      hospital_registration_number:
-        data.hospital_registration_number || null,
+      hospital_registration_number: data.hospital_registration_number || null,
 
       year_of_establishment: data.year_of_establishment || null,
       hospital_type: data.hospital_type || null,
@@ -126,8 +124,7 @@ router.post("/hospitals/create", async (req, res) => {
       registered_state: data.registered_state,
       registered_pincode: data.registered_pincode,
 
-      avg_monthly_patient_footfall:
-        data.avg_monthly_patient_footfall || null,
+      avg_monthly_patient_footfall: data.avg_monthly_patient_footfall || null,
       avg_ticket_size: data.avg_ticket_size || null,
 
       hospital_email: data.hospital_email || null,
@@ -138,31 +135,34 @@ router.post("/hospitals/create", async (req, res) => {
       owner_phone: data.owner_phone,
 
       status: "ACTIVE",
-      created_at: new Date()
+      created_at: new Date(),
     };
 
     const columns = Object.keys(fields).join(", ");
-    const placeholders = Object.keys(fields).map(() => "?").join(", ");
+    const placeholders = Object.keys(fields)
+      .map(() => "?")
+      .join(", ");
     const values = Object.values(fields);
 
     // ✅ Insert into hospital table
-    await db.promise().query(
-      `INSERT INTO clayyo_hospital_booking (${columns}) VALUES (${placeholders})`,
-      values
-    );
+    await db
+      .promise()
+      .query(
+        `INSERT INTO clayyo_hospital_booking (${columns}) VALUES (${placeholders})`,
+        values,
+      );
 
     res.json({
       message: "Hospital created successfully",
       lan,
-      application_id
+      application_id,
     });
-
   } catch (err) {
     console.error("Hospital creation error:", err);
 
     res.status(500).json({
       message: "Hospital creation failed",
-      error: err.sqlMessage || err.message
+      error: err.sqlMessage || err.message,
     });
   }
 });
@@ -193,7 +193,6 @@ router.get("/hospitals-list", async (req, res) => {
     }));
 
     res.json(formatted);
-
   } catch (err) {
     console.error("Hospital list error:", err);
 
@@ -226,7 +225,6 @@ router.get("/hospitals", async (req, res) => {
     `);
 
     res.json(rows);
-
   } catch (err) {
     console.error("Hospital fetch error:", err);
 
@@ -275,12 +273,11 @@ router.get("/clayyo-hospital-booking-details/:lan", async (req, res) => {
       WHERE lan = ?
       ORDER BY created_at DESC
       `,
-      [lan]
+      [lan],
     );
 
     // return single record (latest)
     res.json(rows[0] || null);
-
   } catch (err) {
     console.error("Hospital fetch error:", err);
 
@@ -315,7 +312,6 @@ router.get("/hospitals-login-loans", async (req, res) => {
     `);
 
     res.json(rows);
-
   } catch (err) {
     console.error("Hospital fetch error:", err);
 
@@ -339,17 +335,259 @@ router.patch("/hospitals/status/:lan", async (req, res) => {
       `UPDATE clayyo_hospital_booking 
        SET status = ? 
        WHERE lan = ?`,
-      [status, lan]
+      [status, lan],
     );
 
     res.json({ message: "Status updated successfully" });
-
   } catch (err) {
     console.error("Status update error:", err);
     res.status(500).json({ message: "Failed to update status" });
   }
 });
 
+const OTP_EXPIRY_SECONDS = 300;
+
+// router.post("/send-otp", async (req, res) => {
+//   try {
+//     console.log("Incoming body:", req.body);
+
+//     const { mobile } = req.body;
+
+//     if (!mobile)
+//       return res.status(400).json({ message: "Mobile required" });
+
+//     const cleanedMobile = mobile.replace(/\D/g, "");
+
+//     /** STEP 1: CHECK EXISTING OTP SESSION */
+//     const [existing] = await db
+//       .promise()
+//       .query(
+//        `SELECT * FROM otp_sessions_clayyo
+// WHERE mobile_number = ?
+// ORDER BY id DESC
+// LIMIT 1`,
+//         [cleanedMobile]
+//       );
+
+//     /** STEP 2: APPLY RESEND LOCK (60 seconds) */
+//     if (existing.length) {
+//       const lastSent = new Date(existing[0].last_sent_at);
+
+//       const diffSeconds =
+//         (Date.now() - lastSent.getTime()) / 1000;
+
+//       if (diffSeconds < 60) {
+//         return res.status(429).json({
+//           message: `Wait ${Math.ceil(
+//             60 - diffSeconds
+//           )} seconds before retry`,
+//         });
+//       }
+//     }
+
+//     /** STEP 3: GENERATE OTP */
+//     const otp = Math.floor(100000 + Math.random() * 900000);
+
+//     const expiresAt = new Date(
+//       Date.now() + OTP_EXPIRY_SECONDS * 1000
+//     );
+
+//     /** STEP 4: SEND SMS */
+   
+
+//     console.log("Sending SMS with:", smsParams);
+
+//     const response = await axios.get(
+//       process.env.ALOT_API_URL,
+//       { params: smsParams }
+//     );
+
+//     console.log("ALOT RESPONSE:", response.data);
+
+//     /** STEP 5: SAVE OTP SESSION */
+//     if (existing.length) {
+//       await db.promise().query(
+//         `UPDATE otp_sessions_clayyo
+//          SET otp=?, expires_at=?, attempts=0,
+//              verified=0, last_sent_at=NOW()
+//          WHERE mobile_number=?`,
+//         [otp, expiresAt, cleanedMobile]
+//       );
+//     } else {
+//       await db.promise().query(
+//   `INSERT INTO otp_sessions_clayyo
+//    (mobile_number, otp, expires_at, last_sent_at, verified)
+//    VALUES (?, ?, ?, NOW(), 0)`,
+//   [cleanedMobile, otp, expiresAt]
+// );
+//     }
+
+//     return res.json({
+//       success: true,
+//       message: "OTP sent successfully",
+//       otp, // remove in production
+//     });
+
+//   } catch (err) {
+//     console.error("SMS error:", err.message);
+
+//     res.status(500).json({
+//       message: "OTP send failed",
+//     });
+//   }
+// });
+
+router.post("/send-otp", async (req, res) => {
+  try {
+    console.log("Incoming body:", req.body);
+
+    const { mobile } = req.body;
+
+    if (!mobile)
+      return res.status(400).json({
+        message: "Mobile required",
+      });
+
+    const cleanedMobile = mobile.replace(/\D/g, "");
+
+    /** STEP 1: CHECK LAST OTP SESSION ONLY */
+    const [existing] = await db.promise().query(
+      `SELECT * FROM otp_sessions_clayyo
+       WHERE mobile_number = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [cleanedMobile]
+    );
+
+    /** STEP 2: APPLY RESEND LOCK */
+    if (existing.length) {
+      const lastSent = new Date(existing[0].last_sent_at);
+
+      const diffSeconds =
+        (Date.now() - lastSent.getTime()) / 1000;
+
+      if (diffSeconds < 60) {
+        return res.status(429).json({
+          message: `Wait ${Math.ceil(
+            60 - diffSeconds
+          )} seconds before retry`,
+        });
+      }
+    }
+
+    /** STEP 3: GENERATE OTP */
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    );
+
+    const expiresAt = new Date(
+      Date.now() + OTP_EXPIRY_SECONDS * 1000
+    );
+
+    /** STEP 4: SEND SMS */
+    const smsParams = {
+      user: process.env.ALOT_USER,
+      password: process.env.ALOT_PASSWORD,
+      senderid: process.env.SENDER_ID,
+      channel: "TRANS",
+      DCS: "0",
+      flashsms: "0",
+      number: cleanedMobile,
+      text: `OTP for mobile number verification is ${otp}. Do not share this OTP with anyone. Thanks & Regards Fintree Finance Private Limited:`,
+      route: "5",
+      DLTTemplateId:
+        process.env.MOBILE_OTP_TEMPLATE_ID.trim(),
+      PEID: process.env.DLT_PEID,
+    };
+
+    console.log("Sending SMS with:", smsParams);
+
+    await axios.get(
+      process.env.ALOT_API_URL,
+      { params: smsParams }
+    );
+
+    /** STEP 5: ALWAYS INSERT NEW SESSION */
+    await db.promise().query(
+      `INSERT INTO otp_sessions_clayyo
+       (mobile_number, otp, expires_at, last_sent_at, verified)
+       VALUES (?, ?, ?, NOW(), 0)`,
+      [cleanedMobile, otp, expiresAt]
+    );
+
+    return res.json({
+      success: true,
+      message: "OTP sent successfully",
+      otp, // remove in production
+    });
+
+  } catch (err) {
+    console.error("SMS error:", err.message);
+
+    res.status(500).json({
+      message: "OTP send failed",
+    });
+  }
+});
+
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { mobile, otp, consentText } = req.body;
+
+    if (!mobile || !otp || !consentText)
+      return res.status(400).json({
+        message: "Mobile, OTP and consentText required",
+      });
+
+    const cleanedMobile = mobile.replace(/\D/g, "");
+
+    const [rows] = await db.promise().query(
+      `SELECT * FROM otp_sessions_clayyo
+       WHERE mobile_number=?  AND otp=?
+ORDER BY id DESC
+LIMIT 1`,
+      [cleanedMobile , otp],
+    );
+
+    if (!rows.length)
+      return res.status(400).json({
+        message: "OTP session not found",
+      });
+
+    const record = rows[0];
+
+    if (new Date() > record.expires_at)
+      return res.status(400).json({
+        message: "OTP expired",
+      });
+
+    if (String(record.otp) !== String(otp))
+      return res.status(400).json({
+        message: "Invalid OTP",
+      });
+
+    const [result] = await db.promise().query(
+  `UPDATE otp_sessions_clayyo
+   SET verified=1,
+       consent_given=1,
+       consent_text=?,
+       consent_at=NOW()
+    WHERE id=?`,
+  [consentText.trim(), record.id]
+);
+
+console.log("Rows updated:", result.affectedRows);
+    res.json({
+      success: true,
+      message: "Mobile verified + consent saved",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "OTP verification failed",
+    });
+  }
+});
 
 router.post("/manual-entry", async (req, res) => {
   let conn;
@@ -376,22 +614,22 @@ router.post("/manual-entry", async (req, res) => {
       "current_pincode",
       "loan_amount",
       "employment_type",
-      "net_monthly_income"
+      "net_monthly_income",
     ];
 
     const missing = requiredFields.filter((field) => {
-  const value = data[field];
+      const value = data[field];
 
-  return (
-    value === undefined ||
-    value === null ||
-    (typeof value === "string" && value.trim() === "")
-  );
-});
+      return (
+        value === undefined ||
+        value === null ||
+        (typeof value === "string" && value.trim() === "")
+      );
+    });
 
     if (missing.length) {
       return res.status(400).json({
-        message: `Missing fields: ${missing.join(", ")}`
+        message: `Missing fields: ${missing.join(", ")}`,
       });
     }
 
@@ -430,11 +668,11 @@ router.post("/manual-entry", async (req, res) => {
       email_id: data.email_id || null,
       pan_number: data.pan_number,
       middle_name: data.middle_name || null,
-father_name: data.father_name || null,
-mother_name: data.mother_name || null,
-patient_name: data.patient_name || null,
-bank_branch: data.bank_branch || null,
-subvention_percent: data.subvention_percent || null,
+      father_name: data.father_name || null,
+      mother_name: data.mother_name || null,
+      patient_name: data.patient_name || null,
+      bank_branch: data.bank_branch || null,
+      subvention_percent: data.subvention_percent || null,
 
       current_address: data.current_address,
       current_village_city: data.current_village_city,
@@ -457,9 +695,8 @@ subvention_percent: data.subvention_percent || null,
       employment_type: data.employment_type,
       net_monthly_income: data.net_monthly_income,
 
-       insurance_company_name: data.insurance_company_name || null,
-      insurance_policy_holder_name:
-        data.insurance_policy_holder_name || null,
+      insurance_company_name: data.insurance_company_name || null,
+      insurance_policy_holder_name: data.insurance_policy_holder_name || null,
       insurance_policy_number: data.insurance_policy_number || null,
 
       bank_name: data.bank_name || null,
@@ -471,7 +708,9 @@ subvention_percent: data.subvention_percent || null,
     };
 
     const columns = Object.keys(fields).join(", ");
-    const placeholders = Object.keys(fields).map(() => "?").join(", ");
+    const placeholders = Object.keys(fields)
+      .map(() => "?")
+      .join(", ");
     const values = Object.values(fields);
 
     await conn.query(
@@ -498,12 +737,11 @@ subvention_percent: data.subvention_percent || null,
     res.json({
       message: "Clayyo loan created successfully",
       lan,
-      application_id
+      application_id,
     });
 
     // 🔥 Trigger async validations (non-blocking)
     clayooRunAllValidations(lan);
-
   } catch (err) {
 
     if (conn) {
@@ -538,7 +776,7 @@ subvention_percent: data.subvention_percent || null,
 
     res.status(500).json({
       message: "Loan creation failed",
-      error: err.sqlMessage || err.message
+      error: err.sqlMessage || err.message,
     });
   }
 });
@@ -547,7 +785,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
   const { table = "loan_booking_clayyo", prefix = "CLY" } = req.query;
 
   const allowedTables = {
-    loan_booking_clayyo:true,
+    loan_booking_clayyo: true,
   };
   if (!allowedTables[table]) {
     return res.status(400).json({ message: "Invalid table name" });
@@ -556,7 +794,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
   const query = `SELECT * FROM ?? WHERE status = 'Approved' AND LAN LIKE ?`;
   const values = [table, `${prefix}%`];
 
-   db.query(query, values, (err, results) => {
+  db.query(query, values, (err, results) => {
     if (err) {
       console.error("Error fetching login stage loans:", err);
       return res.status(500).json({ message: "Database error" });
@@ -569,7 +807,7 @@ router.get("/credit-approved-loans", async (req, res) => {
   const { table = "loan_booking_clayyo", prefix = "CLY" } = req.query;
 
   const allowedTables = {
-    loan_booking_clayyo:true,
+    loan_booking_clayyo: true,
   };
   if (!allowedTables[table]) {
     return res.status(400).json({ message: "Invalid table name" });
@@ -578,7 +816,7 @@ router.get("/credit-approved-loans", async (req, res) => {
   const query = `SELECT * FROM ?? WHERE status in ('LIMIT_REQUESTED', 'CREDIT_APPROVED', 'OPS_APPROVED') AND LAN LIKE ?`;
   const values = [table, `${prefix}%`];
 
-   db.query(query, values, (err, results) => {
+  db.query(query, values, (err, results) => {
     if (err) {
       console.error("Error fetching login stage loans:", err);
       return res.status(500).json({ message: "Database error" });
@@ -596,11 +834,10 @@ router.put("/set-limit/:lan", async (req, res) => {
       `UPDATE ${table}
        SET final_limit = ?, status = ?
        WHERE lan = ?`,
-      [limit, status, lan]
+      [limit, status, lan],
     );
 
     res.json({ message: "Limit assigned successfully" });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to assign limit" });
@@ -616,7 +853,7 @@ router.put("/ops-approve/:lan", async (req, res) => {
       `UPDATE ${table}
        SET approved_limit = ?, pf_percent = ?, status = ?
        WHERE lan = ?`,
-      [approved_limit, pf_percent, status, lan]
+      [approved_limit, pf_percent, status, lan],
     );
 
     res.json({ message: "Ops approved successfully" });
@@ -659,7 +896,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
       lan,
       table,
       status,
-      message:`Loan ${status} successfully`,
+      message: `Loan ${status} successfully`,
     });
   });
 });
@@ -703,7 +940,6 @@ router.get("/approved-loans", async (req, res) => {
     `);
 
     return res.json(rows);
-
   } catch (err) {
     console.error("❌ Error fetching approved loans:", err);
 
@@ -782,7 +1018,7 @@ router.get("/loan-info/:lan", async (req, res) => {
         ON k.lan = lb.lan
       WHERE lb.lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -853,7 +1089,6 @@ router.get("/loan-info/:lan", async (req, res) => {
     };
 
     return res.json({ loan, kyc });
-
   } catch (err) {
     console.error("❌ Error fetching Clayyo loan details:", err);
     return res.status(500).json({
@@ -867,15 +1102,14 @@ router.get("/:lan/pdf", async (req, res) => {
   const { lan } = req.params;
 
   try {
-
     const templatePath = path.join(
       __dirname,
-      "../../templates/Clayyo_Agreement.html"
+      "../../templates/Clayyo_Agreement.html",
     );
 
     if (!fs.existsSync(templatePath)) {
       return res.status(500).json({
-        message: "Clayyo agreement template not found"
+        message: "Clayyo agreement template not found",
       });
     }
 
@@ -896,36 +1130,34 @@ router.get("/:lan/pdf", async (req, res) => {
       FROM clayyo_loan_summary
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
       return res.status(404).json({
-        message: "Clayyo summary not found"
+        message: "Clayyo summary not found",
       });
     }
 
     const summary = rows[0];
 
     // Replace placeholders automatically
-    html = html.replace(/{{(.*?)}}/g, (_, key) =>
-      summary[key.trim()] ?? ""
-    );
+    html = html.replace(/{{(.*?)}}/g, (_, key) => summary[key.trim()] ?? "");
 
     const browser = await puppeteer.launch({
       headless: "new",
-      args: ["--no-sandbox"]
+      args: ["--no-sandbox"],
     });
 
     const page = await browser.newPage();
 
     await page.setContent(html, {
-      waitUntil: "networkidle0"
+      waitUntil: "networkidle0",
     });
 
     const pdfBuffer = await page.pdf({
       format: "A4",
-      printBackground: true
+      printBackground: true,
     });
 
     await browser.close();
@@ -934,22 +1166,18 @@ router.get("/:lan/pdf", async (req, res) => {
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="Clayyo_Agreement_${lan}.pdf"`
+      `attachment; filename="Clayyo_Agreement_${lan}.pdf"`,
     );
 
     res.send(pdfBuffer);
-
   } catch (err) {
-
     console.error("Clayyo agreement error:", err);
 
     res.status(500).json({
       message: "Agreement generation failed",
-      error: err.message
+      error: err.message,
     });
-
   }
 });
-
 
 module.exports = router;

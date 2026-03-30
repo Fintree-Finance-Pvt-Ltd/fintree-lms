@@ -11,6 +11,29 @@ const ClayooManualEntry = () => {
   const [hospitals, setHospitals] = useState([]);
   const [sameAddress, setSameAddress] = useState(false);
   const [ageError, setAgeError] = useState("");
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const CONSENT_TEXT = `I/We hereby authorise Fintree Finance Private Limited(FFPL) (hereinafter referred to as “Lender”) or its associates/subsidiaries/affiliates to obtain, verify, exchange, share or part with all the information or otherwise, regarding my/our office/ residence and/or contact me/us or my/our family/ employer/Banker/Credit Bureau/ RBI or any third parties as deemed necessary and/or do any such acts till such period as they deem necessary and/or disclose to Reserve bank of India, Credit Information Companies, Banks/NBFCs, or any other authority and institution, including but not limited to current balance, payment history, default, if any, etc.
+ 
+I/We hereby authorise Lender’s employees/agents to access my/our premises during normal office hours for carrying out any verification/investigation which includes taking photographs and post disbursement scrutiny.
+ 
+I/We hereby authorise Lender to approach my/our existing bankers or any other prospective lender for any relevant information for consideration of loan and thereafter.
+ 
+I/We hereby provide my/our consent to receive information/services etc for marketing purpose through telephone/mobile/SMS/Email.
+ 
+I/We hereby authorise Lender to market/sell/promote/endorse any other product or service beneficial to me/us.
+ 
+I/We hereby authorise Lender to purge the documents submitted by me/us, if the case is not disbursed/approved for whatever reason within 3 months of application.
+ 
+I/We hereby provide my/our consent to avail information on products and services of other Companies and authorise to cross sell other company’s product and services.
+ 
+I/We hereby authorise Fintree Finance Private Limited(FFPL) or its associates/subsidiaries/affiliates to obtain, verify, exchange, share or part with all the information or otherwise, regarding my/our office/ residence and/or contact me/us or my/our family/ employer/Banker/Credit Bureau/ RBI or any third parties as deemed necessary and/or do any such acts till such period as they deem necessary and/or disclose to Reserve bank of India, Credit Information Companies, Banks/NBFCs, or any other authority and institution, including but not limited to  current balance, payment history, default, if any, etc.
+ 
+I/We hereby agree to give my/our express consent to Lender to disclose all the information and data furnished by me/us and/or to receive information from Central KYC Registry/third parties including but not limited to vendors, outsourcing agencies, business correspondents for analysing, processing, report generation, storing, record keeping or to various credit information companies/ credit bureaus e.g. Credit Information Bureaus (India) Limited (CIBIL), or to information utilities under the Insolvency Bankruptcy Code 2016 through physical or SMS or email or any other mode.`;
 
   const [formData, setFormData] = useState({
     login_date: getTodayDateString(),
@@ -89,6 +112,7 @@ const ClayooManualEntry = () => {
           ...prev,
           [`${prefix}_district`]: office.District || "",
           [`${prefix}_state`]: office.State || "",
+          [`${prefix}_registered_city`]: office.Name || office.Block || "",
         }));
       }
     } catch (err) {
@@ -143,57 +167,52 @@ const ClayooManualEntry = () => {
     return "";
   };
 
-const handleChequeUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+  const handleChequeUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  try {
-    const uploadData = new FormData();
+    try {
+      const uploadData = new FormData();
 
-    uploadData.append("imageUrl", file);
-    uploadData.append("clientRefId", "CLAYOO_" + Date.now());
-    uploadData.append("accountHolderName", "CLAYOO_");
+      uploadData.append("imageUrl", file);
+      uploadData.append("clientRefId", "CLAYOO_" + Date.now());
+      uploadData.append("accountHolderName", "CLAYOO_");
 
-    const res = await axios.post(
-      "https://sandbox.fintreelms.com/ocr/v1/cheque",
-      uploadData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          "X-API-Key": "Fintree@2026",
+      const res = await axios.post(
+        "https://sandbox.fintreelms.com/ocr/v1/cheque",
+        uploadData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "X-API-Key": "Fintree@2026",
+          },
         },
+      );
+
+      // correct extraction path
+      const result = res.data.data.result?.[0]?.details;
+
+      if (!result) return;
+
+      setFormData((prev) => ({
+        ...prev,
+        account_number: result.account_number?.value || prev.account_number,
+
+        ifsc: result.ifsc_code?.value || prev.ifsc,
+
+        name_in_bank: result.name?.value || prev.name_in_bank,
+
+        bank_name: result.bank_name?.value || prev.bank_name,
+      }));
+
+      // trigger IFSC lookup after OCR
+      if (result.ifsc_code?.value) {
+        fetchBankFromIFSC(result.ifsc_code.value);
       }
-    );
-
-    // correct extraction path
-    const result = res.data.data.result?.[0]?.details;
-
-    if (!result) return;
-
-    setFormData((prev) => ({
-      ...prev,
-      account_number:
-        result.account_number?.value || prev.account_number,
-
-      ifsc:
-        result.ifsc_code?.value || prev.ifsc,
-
-      name_in_bank:
-        result.name?.value || prev.name_in_bank,
-
-      bank_name:
-        result.bank_name?.value || prev.bank_name,
-    }));
-
-    // trigger IFSC lookup after OCR
-    if (result.ifsc_code?.value) {
-      fetchBankFromIFSC(result.ifsc_code.value);
+    } catch (err) {
+      console.log("Cheque OCR failed:", err);
     }
-
-  } catch (err) {
-    console.log("Cheque OCR failed:", err);
-  }
-};
+  };
 
   const handleSameAddress = (e) => {
     const checked = e.target.checked;
@@ -220,27 +239,75 @@ const handleChequeUpload = async (e) => {
     }
   };
 
-  // const fetchBankFromIFSC = async (ifsc) => {
-  //   if (ifsc.length !== 11) return;
+  const sendOtp = async () => {
+    try {
+      setOtpLoading(true);
 
-  //   try {
-  //     const res = await axios.get(`https://ifsc.razorpay.com/${ifsc}`);
-  //     const data = res.data;
+      const res = await api.post("clayyo-loans/send-otp", {
+        mobile: formData.mobile_number,
+      });
 
-  //     setFormData((prev) => ({
-  //       ...prev,
-  //       bank_name: data.BANK || "",
-  //       bank_branch: data.BRANCH || "",
-  //     }));
-  //   } catch (err) {
-  //     console.log(err);
-  //     setFormData((prev) => ({
-  //       ...prev,
-  //       bank_name: "",
-  //       bank_branch: "",
-  //     }));
-  //   }
-  // };
+      if (res.data.success) {
+        setResendTimer(60);
+
+        const timer = setInterval(() => {
+          setResendTimer((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+
+            return prev - 1;
+          });
+        }, 1000);
+      }
+    } catch (err) {
+      alert("Failed to send OTP");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const verifyOtpHandler = async () => {
+    if (!otp) {
+      alert("Enter OTP");
+      return;
+    }
+
+    if (!consentChecked) {
+      alert("Please accept consent");
+      return;
+    }
+
+    try {
+      setOtpLoading(true);
+
+      const res = await api.post("clayyo-loans/verify-otp", {
+        mobile: formData.mobile_number,
+        otp,
+        consentText: CONSENT_TEXT,
+      });
+
+      if (res.data.success) {
+        setOtpVerified(true);
+        setShowConsentDialog(false);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Invalid OTP");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleOpenConsentDialog = async () => {
+    if (!formData.mobile_number || formData.mobile_number.length !== 10) {
+      alert("Enter valid mobile number");
+      return;
+    }
+
+    setShowConsentDialog(true);
+    sendOtp();
+  };
 
   const fetchBankFromIFSC = async (ifsc) => {
     if (ifsc.length !== 11) return;
@@ -354,6 +421,13 @@ const handleChequeUpload = async (e) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!otpVerified) {
+      setMessage("❌ Please verify mobile number first");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
@@ -386,19 +460,19 @@ const handleChequeUpload = async (e) => {
     }
   };
 
-const renderInput = (label, name, type = "text") => (
-  <div className="form-group">
-    <label>{label}</label>
+  const renderInput = (label, name, type = "text") => (
+    <div className="form-group">
+      <label>{label}</label>
 
-    <input
-      type={type}
-      name={name}
-      value={type !== "file" ? formData[name] : undefined}
-      onChange={type === "file" ? handleChequeUpload : handleChange}
-      disabled={sameAddress && name.startsWith("permanent")}
-    />
-  </div>
-);
+      <input
+        type={type}
+        name={name}
+        value={type !== "file" ? formData[name] : undefined}
+        onChange={type === "file" ? handleChequeUpload : handleChange}
+        disabled={sameAddress && name.startsWith("permanent")}
+      />
+    </div>
+  );
 
   const renderSelect = (label, name, options) => (
     <div className="form-group">
@@ -496,7 +570,29 @@ const renderInput = (label, name, type = "text") => (
             {ageError && <span className="inline-error">{ageError}</span>}
           </div>
 
-          {renderInput("Mobile Number (linked to aadhaar)", "mobile_number")}
+          <div className="form-group">
+            <label>Mobile Number (linked to Aadhaar)</label>
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <input
+                type="text"
+                name="mobile_number"
+                value={formData.mobile_number}
+                onChange={handleChange}
+                disabled={otpVerified}
+              />
+
+              {!otpVerified ? (
+                <button type="button" onClick={handleOpenConsentDialog}>
+                  Send OTP
+                </button>
+              ) : (
+                <button type="button" style={{ background: "green" }}>
+                  Verified ✅
+                </button>
+              )}
+            </div>
+          </div>
           <div className="form-group">
             <label>Email ID</label>
             <input
@@ -514,8 +610,8 @@ const renderInput = (label, name, type = "text") => (
           <legend>Current Address</legend>
 
           {renderInput("Address", "current_address")}
-          {renderInput("Village / City", "current_village_city")}
           {renderInput("Pincode", "current_pincode")}
+          {renderInput("Village / City", "current_village_city")}
           {renderInput("District", "current_district")}
           {renderInput("State", "current_state")}
         </fieldset>
@@ -533,8 +629,8 @@ const renderInput = (label, name, type = "text") => (
           </div>
 
           {renderInput("Address", "permanent_address")}
-          {renderInput("Village / City", "permanent_village_city")}
           {renderInput("Pincode", "permanent_pincode")}
+          {renderInput("Village / City", "permanent_village_city")}
           {renderInput("District", "permanent_district")}
           {renderInput("State", "permanent_state")}
         </fieldset>
@@ -577,6 +673,64 @@ const renderInput = (label, name, type = "text") => (
       </form>
 
       {message && <div className="message">{message}</div>}
+
+      {showConsentDialog && (
+        <div className="dialog-overlay">
+          <div className="dialog-box">
+            <h3>Consent Agreement</h3>
+
+            <div className="consent-scroll">{CONSENT_TEXT}</div>
+
+            <div className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={consentChecked}
+                onChange={(e) => setConsentChecked(e.target.checked)}
+              />
+
+              <label>
+                I have read, understood and agree to the above terms & consent
+              </label>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Enter OTP"
+              value={otp}
+              onChange={(e) =>
+                setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              disabled={!consentChecked}
+            />
+
+            <div style={{ marginTop: "15px" }}>
+              <button
+                disabled={!consentChecked || otpLoading}
+                onClick={verifyOtpHandler}
+              >
+                {otpLoading ? "Verifying..." : "Verify OTP"}
+              </button>
+
+              {resendTimer > 0 ? (
+                <span style={{ marginLeft: "15px" }}>
+                  Resend OTP in {resendTimer}s
+                </span>
+              ) : (
+                <button style={{ marginLeft: "15px" }} onClick={sendOtp}>
+                  Resend OTP
+                </button>
+              )}
+
+              <button
+                style={{ marginLeft: "15px", background: "#999" }}
+                onClick={() => setShowConsentDialog(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .manual-entry-container {
@@ -661,6 +815,39 @@ const renderInput = (label, name, type = "text") => (
           font-weight: 600;
           text-align: center;
         }
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;              /* replaces top/left/width/height */
+  background: rgba(0,0,0,0.5);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 9999;         /* ensures it floats above sidebar */
+  padding: 15px;
+}
+
+.dialog-box {
+  background: white;
+  padding: 20px;
+  width: 100%;
+  max-width: 600px;
+
+  max-height: 90vh;
+  overflow-y: auto;
+
+  border-radius: 8px;
+}
+
+.consent-scroll {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 10px;
+}
       `}</style>
     </div>
   );
