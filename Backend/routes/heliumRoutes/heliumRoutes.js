@@ -8,6 +8,8 @@ const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
 const verifyApiKey = require("../../middleware/apiKeyAuth");
+const partnerBookingWrapper =
+  require("../../services/partnerBookingWrapper");
 
 const router = express.Router();
 

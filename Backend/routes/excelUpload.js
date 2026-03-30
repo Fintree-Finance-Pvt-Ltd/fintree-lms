@@ -996,7 +996,7 @@ router.post("/upload/ev-manual", async (req, res) => {
 
     // Fetch FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -1004,12 +1004,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercent) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercent) / 100).toFixed(2)
+  );
+
+}
 
 // Validate FLDG availability
 if (requiredFldg > 0) {
@@ -1357,7 +1362,7 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
 
 // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -1365,12 +1370,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercentage = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercentage) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercentage = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercentage) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
@@ -1983,7 +1993,7 @@ router.post(
 
           // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -1991,12 +2001,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercentage = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercentage) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercentage = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercentage) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
@@ -2411,6 +2426,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
   // Only allow whitelisted sort columns to prevent SQL injection
   const allowedSort = [
     "LAN",
+    "partner_loan_id",
     "customer_name",
     "mobile_number",
     "agreement_date",
@@ -2421,7 +2437,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
     const searchClause = search
-      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? )`
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.partner_loan_id LIKE ?)`
       : "";
     const searchParams = search
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
@@ -2488,6 +2504,7 @@ router.get("/all-loans", async (req, res) => {
   const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
   const allowedSort = [
     "LAN",
+    "partner_loan_id",
     "customer_name",
     "mobile_number",
     "agreement_date",
@@ -2499,7 +2516,7 @@ router.get("/all-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
     const searchClause = search
-      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? )`
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.partner_loan_id LIKE ?)`
       : "";
     const searchParams = search
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
@@ -2572,6 +2589,7 @@ router.get("/approved-loans", async (req, res) => {
   const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
   const allowedSort = [
     "LAN",
+    "partner_loan_id",
     "customer_name",
     "mobile_number",
     "agreement_date",
@@ -2582,7 +2600,7 @@ router.get("/approved-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
     const searchClause = search
-      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? )`
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.partner_loan_id LIKE ?)`
       : "";
     const searchParams = search
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
@@ -2647,6 +2665,7 @@ router.get("/disbursed-loans", async (req, res) => {
   const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
   const allowedSort = [
     "LAN",
+    "partner_loan_id",
     "customer_name",
     "mobile_number",
     "agreement_date",
@@ -2657,7 +2676,7 @@ router.get("/disbursed-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
     const searchClause = search
-      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? )`
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.partner_loan_id LIKE ?)`
       : "";
     const searchParams = search
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
@@ -3710,7 +3729,7 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
 
         // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -3718,12 +3737,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercent) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercent) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
@@ -4439,7 +4463,7 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
 
         // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -4447,12 +4471,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercent) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercent) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
@@ -4811,7 +4840,7 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
 
     // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -4819,12 +4848,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercent) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercent) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
@@ -5154,7 +5188,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
         // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -5162,12 +5196,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercent) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercent) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
@@ -6481,7 +6520,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -6489,12 +6528,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercent) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercent) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
@@ -8875,7 +8919,7 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
 
         // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -8883,12 +8927,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercent) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercent) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
@@ -9308,7 +9357,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
 
         // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -9316,12 +9365,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercent) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercent) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
@@ -9929,7 +9983,7 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
 
         // Fetch partner FLDG percent
 const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent FROM partner_master WHERE partner_id = ?`,
+  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
   [partner.partner_id]
 );
 
@@ -9937,12 +9991,17 @@ if (!partnerConfig) {
   throw new Error("Partner configuration not found");
 }
 
-const fldgPercent = Number(partnerConfig.fldg_percent || 0);
+let requiredFldg = 0;
 
-// Calculate required FLDG
-const requiredFldg = Number(
-  ((loanAmount * fldgPercent) / 100).toFixed(2)
-);
+if (partnerConfig?.fldg_status === 1) {
+
+  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+  requiredFldg = Number(
+    ((loanAmount * fldgPercent) / 100).toFixed(2)
+  );
+
+}
 
 
 // Validate FLDG availability
