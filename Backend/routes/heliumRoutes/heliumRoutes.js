@@ -110,6 +110,7 @@ const generateLoanIdentifiers = async (lender) => {
 
 
 router.post("/manual-entry", async (req, res) => {
+  let conn;
   try {
     const data = req.body;
 
@@ -161,6 +162,19 @@ router.post("/manual-entry", async (req, res) => {
         message: `Missing fields: ${missing.join(", ")}`,
       });
     }
+
+    const loanAmount = Number(data.loan_amount || 0);
+
+    conn = await db.promise().getConnection();
+await conn.beginTransaction();
+
+    const validation =
+  await partnerBookingWrapper
+    .validateBookingOrThrow(
+      conn,
+      "HELIUM",
+      loanAmount
+    );
 
     // 🎫 generate LAN + PLID
     const { lan, application_id } = await generateLoanIdentifiers("HELIUM");
@@ -222,7 +236,7 @@ router.post("/manual-entry", async (req, res) => {
       )
     `;
 
-    await db.promise().query(insertLoan, [
+    await conn.query(insertLoan, [
       // 1–5
       data.first_name || null,
       data.last_name || null,
@@ -288,23 +302,30 @@ router.post("/manual-entry", async (req, res) => {
     ]);
 
     // 🧮 Call both procedures based on LAN
-    await db
-      .promise()
-      .query("CALL sp_generate_helium_rps(?)", [lan])
+    await conn.query("CALL sp_generate_helium_rps(?)", [lan])
       .catch((err) => console.error("Error in sp_generate_helium_rps:", err));
 
     // KYC verification row
-    await db
-      .promise()
-      .query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [lan]);
+    await conn.query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [lan]);
 
     // Build loan summary
-    await db
-      .promise()
-      .query("CALL sp_build_helium_loan_summary(?)", [lan])
+    await conn.query("CALL sp_build_helium_loan_summary(?)", [lan])
       .catch((err) =>
         console.error("Error in sp_build_helium_loan_summary:", err)
       );
+
+      await partnerBookingWrapper.finalizeBooking(
+  conn,
+  validation.partnerId,
+  validation.limitId,
+  lan,
+  loanAmount,
+  validation.requiredFldg,
+  `HELIUM booking reservation`
+);
+
+await conn.commit();
+conn.release();
 
     res.json({
       message: "Helium loan created successfully",
@@ -315,6 +336,30 @@ router.post("/manual-entry", async (req, res) => {
     // 🔥 Trigger async validations (non-blocking)
     runAllValidations(lan);
   } catch (err) {
+    if (conn) {
+    await conn.rollback();
+    conn.release();
+  }
+    if (err.message === "LIMIT_EXCEEDED") {
+
+  return res.status(403).json({
+    message: `Limit exceeded for ${err.meta.partnerName}`,
+    remaining_limit: err.meta.remaining,
+    required: err.meta.required
+  });
+
+}
+
+if (err.message === "FLDG_INSUFFICIENT") {
+
+  return res.status(403).json({
+    message:
+      `Insufficient FLDG balance for ${err.meta.partnerName}`,
+    available_fldg: err.meta.available,
+    required_fldg: err.meta.required
+  });
+
+}
     console.error("Error creating helium loan:", err);
     res.status(500).json({
       message: "Failed to create loan",

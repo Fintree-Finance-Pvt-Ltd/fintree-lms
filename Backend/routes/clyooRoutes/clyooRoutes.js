@@ -2,6 +2,8 @@ const express = require("express");
 const db = require("../../config/db");
 // const authenticateUser = require("../../middleware/verifyToken");
 const { clayooRunAllValidations } = require("./clyooValidationEngine");
+const partnerBookingWrapper =
+  require("../../services/partnerBookingWrapper");
 // const { autoApproveIfAllVerified } = require("../../services/heliumValidationEngine");
 // const axios = require("axios");
 // const path = require("path");
@@ -350,6 +352,7 @@ router.patch("/hospitals/status/:lan", async (req, res) => {
 
 
 router.post("/manual-entry", async (req, res) => {
+  let conn;
   try {
     const data = req.body;
 
@@ -391,6 +394,20 @@ router.post("/manual-entry", async (req, res) => {
         message: `Missing fields: ${missing.join(", ")}`
       });
     }
+
+    const loanAmount = Number(data.loan_amount || 0);
+
+     // ✅ start transaction
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    // ✅ validate limit + fldg
+    const validation =
+      await partnerBookingWrapper.validateBookingOrThrow(
+        conn,
+        "CLAYOO",
+        loanAmount
+      );
 
     // ✅ Generate LAN + Application ID
     const { lan, application_id } = await generateLoanIdentifiers("CLAYYO");
@@ -457,15 +474,26 @@ subvention_percent: data.subvention_percent || null,
     const placeholders = Object.keys(fields).map(() => "?").join(", ");
     const values = Object.values(fields);
 
-    await db.promise().query(
+    await conn.query(
       `INSERT INTO loan_booking_clayyo (${columns}) VALUES (${placeholders})`,
       values
     );
 
     // ✅ create KYC row
-    await db
-      .promise()
-      .query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [lan]);
+    await conn.query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [lan]);
+
+    await partnerBookingWrapper.finalizeBooking(
+      conn,
+      validation.partnerId,
+      validation.limitId,
+      lan,
+      loanAmount,
+      validation.requiredFldg,
+      `CLAYOO booking reservation`
+    );
+
+    await conn.commit();
+    conn.release();
 
     res.json({
       message: "Clayyo loan created successfully",
@@ -477,6 +505,35 @@ subvention_percent: data.subvention_percent || null,
     clayooRunAllValidations(lan);
 
   } catch (err) {
+
+    if (conn) {
+      await conn.rollback();
+      conn.release();
+    }
+
+     if (err.message === "LIMIT_EXCEEDED") {
+
+      return res.status(403).json({
+        message:
+          `Limit exceeded for ${err.meta.partnerName}`,
+        remaining_limit: err.meta.remaining,
+        required: err.meta.required
+      });
+
+    }
+
+    if (err.message === "FLDG_INSUFFICIENT") {
+
+      return res.status(403).json({
+        message:
+          `Insufficient FLDG balance for ${err.meta.partnerName}`,
+        available_fldg: err.meta.available,
+        required_fldg: err.meta.required
+      });
+
+    }
+
+
     console.error("Clayyo manual entry error:", err);
 
     res.status(500).json({
