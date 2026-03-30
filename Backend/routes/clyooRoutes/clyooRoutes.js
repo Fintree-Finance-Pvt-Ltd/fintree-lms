@@ -698,6 +698,7 @@ router.post("/manual-entry", async (req, res) => {
       insurance_company_name: data.insurance_company_name || null,
       insurance_policy_holder_name: data.insurance_policy_holder_name || null,
       insurance_policy_number: data.insurance_policy_number || null,
+      relation_with_policy_holder: data.relation_with_policy_holder || null,
 
       bank_name: data.bank_name || null,
       name_in_bank: data.name_in_bank || null,
@@ -990,6 +991,31 @@ router.get("/loan-info/:lan", async (req, res) => {
         lb.cibil_score,
         lb.status,
 
+         lb.bank_name,
+  lb.name_in_bank,
+  lb.account_number,
+  lb.ifsc,
+  lb.bank_branch,
+  lb.bank_status,
+  lb.enach_umrn,
+
+  lb.insurance_company_name,
+  lb.insurance_policy_holder_name,
+  lb.insurance_policy_number,
+  lb.relation_with_policy_holder,
+
+  lb.final_limit,
+  lb.approved_limit,
+  lb.pf_percent,
+  lb.subvention_percent,
+  lb.limit_assigned_at,
+  lb.limit_assigned_by,
+  lb.ops_approved_at,
+  lb.ops_approved_by,
+
+  lb.hospital_name,
+  lb.hospital_id,
+
         -- 🔥 Clayyo BRE fields
         lb.clayyo_bre_status,
         lb.clayyo_bre_reason,
@@ -1061,6 +1087,29 @@ router.get("/loan-info/:lan", async (req, res) => {
       emi_amount: row.emi_amount,
       cibil_score: row.cibil_score,
       status: row.status,
+
+      bank_name: row.bank_name,
+name_in_bank: row.name_in_bank,
+account_number: row.account_number,
+ifsc: row.ifsc,
+bank_branch: row.bank_branch,
+
+
+insurance_company_name: row.insurance_company_name,
+insurance_policy_holder_name: row.insurance_policy_holder_name,
+insurance_policy_number: row.insurance_policy_number,
+relation_with_policy_holder:row.relation_with_policy_holder,
+
+final_limit: row.final_limit,
+approved_limit: row.approved_limit,
+pf_percent: row.pf_percent,
+subvention_percent: row.subvention_percent,
+limit_assigned_at: row.limit_assigned_at,
+limit_assigned_by: row.limit_assigned_by,
+
+
+hospital_name: row.hospital_name,
+hospital_id: row.hospital_id,
 
       // 🔥 Clayyo BRE
       clayyo_bre_status: row.clayyo_bre_status,

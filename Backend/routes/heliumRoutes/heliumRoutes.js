@@ -35,7 +35,7 @@ async function downloadAndSaveFile(url, baseName) {
   }
 }
 
-const saveBase64ToFile = async (base64Str, fileName, subFolder = "aadhaar") => {
+const saveBase64ToFile = async (base64Str, fileName) => {
   if (!base64Str) return null;
 
   // Remove possible data URI prefix & whitespace/newlines
@@ -46,7 +46,7 @@ const saveBase64ToFile = async (base64Str, fileName, subFolder = "aadhaar") => {
   const buffer = Buffer.from(cleaned, "base64");
 
   const uploadRoot = path.join(__dirname,  "../../uploads"); // adjust to your uploads dir
-  const folderPath = path.join(uploadRoot, subFolder);
+  const folderPath = path.join(uploadRoot);
 
   await fs.promises.mkdir(folderPath, { recursive: true });
 
@@ -1180,8 +1180,7 @@ if (pdfLink) {
     // base64 → file
     pdfFilePath = await saveBase64ToFile(
       pdfLink,
-      `aadhaar_${lan}_${Date.now()}.pdf`,
-      "aadhaar"
+      `aadhaar_${lan}_${Date.now()}.pdf`
     );
   }
 }
@@ -1196,8 +1195,7 @@ if (xmlLink) {
   } else {
     xmlFilePath = await saveBase64ToFile(
       xmlLink,
-      `aadhaar_${lan}_${Date.now()}.xml`,
-      "aadhaar"
+      `aadhaar_${lan}_${Date.now()}.xml`
     );
   }
 }

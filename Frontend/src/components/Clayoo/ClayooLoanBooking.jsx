@@ -41,6 +41,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     first_name: "",
     middle_name: "",
     last_name: "",
+    customer_name: "",
     gender: "",
     dob: "",
     age: "",
@@ -72,6 +73,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     insurance_company_name: "",
     insurance_policy_holder_name: "",
     insurance_policy_number: "",
+    relation_with_policy_holder:"",
     loan_amount: "",
     product: "CLAYOO",
     lender: "CLAYOO",
@@ -112,7 +114,6 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
           ...prev,
           [`${prefix}_district`]: office.District || "",
           [`${prefix}_state`]: office.State || "",
-          [`${prefix}_registered_city`]: office.Name || office.Block || "",
         }));
       }
     } catch (err) {
@@ -442,6 +443,14 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
       return;
     }
 
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+if (formData.pan_number && !panRegex.test(formData.pan_number)) {
+  setMessage("❌ Invalid PAN format");
+  setLoading(false);
+  return;
+}
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (formData.email_id && !emailRegex.test(formData.email_id)) {
@@ -538,12 +547,31 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
           {renderInput(
             "Insurance Policy Number ",
             "insurance_policy_number",
-            "number",
           )}
           {renderInput(
             "Insurance Policy Holder Name ",
             "insurance_policy_holder_name",
           )}
+          {renderSelect(
+  "Relation with Policy Holder Person",
+  "relation_with_policy_holder",
+ [
+  "Self",
+  "Spouse",
+  "Father",
+  "Mother",
+  "Son",
+  "Daughter",
+  "Brother",
+  "Sister",
+  "Father-in-law",
+  "Mother-in-law",
+  "Grandfather",
+  "Grandmother",
+  "Guardian",
+  "Other",
+]
+)}
           {renderInput("Patient Name", "patient_name")}
           {renderInput("Father's Name", "father_name")}
           {renderInput("Mother's Name", "mother_name")}
