@@ -2421,7 +2421,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
     const searchClause = search
-      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? )`
       : "";
     const searchParams = search
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
@@ -2499,7 +2499,7 @@ router.get("/all-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
     const searchClause = search
-      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? )`
       : "";
     const searchParams = search
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
@@ -2582,7 +2582,7 @@ router.get("/approved-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
     const searchClause = search
-      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? )`
       : "";
     const searchParams = search
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
@@ -2657,7 +2657,7 @@ router.get("/disbursed-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
     const searchClause = search
-      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.mobile_number LIKE ?)`
+      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? )`
       : "";
     const searchParams = search
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
