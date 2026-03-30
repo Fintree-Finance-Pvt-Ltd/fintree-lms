@@ -7391,6 +7391,8 @@ router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
   }
 });
 
+///   Loan Booking Loan Digit  Pratik ////
+
 router.post("/v1/loan-digit", async (req, res) => {
   try {
     const data = req.body;
@@ -8271,10 +8273,10 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 //   }
 // );
 
-router.post(
-  "/v1/invoice-disbursement/validate",
-  verifyApiKey,
-  async (req, res) => {
+
+// SUpply Chain Disbursment UTR ///
+
+router.post("/v1/invoice-disbursement/validate",verifyApiKey,async (req, res) => {
     const payload = req.body;
 
     if (!Array.isArray(payload) || payload.length === 0) {
@@ -8620,16 +8622,19 @@ router.post(
         conn.release();
         conn = null;
 
-        setImmediate(async () => {
-          try {
-            await generateDemandFromInvoiceDisbursement(data.invoice_number);
-          } catch (e) {
-            console.error(
-              `Demand generation failed for ${data.invoice_number}:`,
-              e,
-            );
-          }
-        });
+       setImmediate(async () => {
+  try {
+    await generateDemandFromInvoiceDisbursement(
+      data.invoice_number,
+      data.lan
+    );
+  } catch (e) {
+    console.error(
+      `Demand generation failed for ${data.invoice_number}, LAN ${data.lan}:`,
+      e,
+    );
+  }
+});
 
         results.push({
           invoice_number: data.invoice_number,
