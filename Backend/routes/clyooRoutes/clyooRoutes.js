@@ -1,8 +1,7 @@
 const express = require("express");
 const db = require("../../config/db");
 const { clayooRunAllValidations } = require("./clyooValidationEngine");
-const partnerBookingWrapper =
-  require("../../services/partnerBookingWrapper");
+const partnerBookingWrapper = require("../../services/partnerBookingWrapper");
 // const { autoApproveIfAllVerified } = require("../../services/heliumValidationEngine");
 // const axios = require("axios");
 // const path = require("path");
@@ -393,7 +392,6 @@ const OTP_EXPIRY_SECONDS = 300;
 //     );
 
 //     /** STEP 4: SEND SMS */
-   
 
 //     console.log("Sending SMS with:", smsParams);
 
@@ -456,33 +454,26 @@ router.post("/send-otp", async (req, res) => {
        WHERE mobile_number = ?
        ORDER BY id DESC
        LIMIT 1`,
-      [cleanedMobile]
+      [cleanedMobile],
     );
 
     /** STEP 2: APPLY RESEND LOCK */
     if (existing.length) {
       const lastSent = new Date(existing[0].last_sent_at);
 
-      const diffSeconds =
-        (Date.now() - lastSent.getTime()) / 1000;
+      const diffSeconds = (Date.now() - lastSent.getTime()) / 1000;
 
       if (diffSeconds < 60) {
         return res.status(429).json({
-          message: `Wait ${Math.ceil(
-            60 - diffSeconds
-          )} seconds before retry`,
+          message: `Wait ${Math.ceil(60 - diffSeconds)} seconds before retry`,
         });
       }
     }
 
     /** STEP 3: GENERATE OTP */
-    const otp = Math.floor(
-      100000 + Math.random() * 900000
-    );
+    const otp = Math.floor(100000 + Math.random() * 900000);
 
-    const expiresAt = new Date(
-      Date.now() + OTP_EXPIRY_SECONDS * 1000
-    );
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
 
     /** STEP 4: SEND SMS */
     const smsParams = {
@@ -495,24 +486,20 @@ router.post("/send-otp", async (req, res) => {
       number: cleanedMobile,
       text: `OTP for mobile number verification is ${otp}. Do not share this OTP with anyone. Thanks & Regards Fintree Finance Private Limited:`,
       route: "5",
-      DLTTemplateId:
-        process.env.MOBILE_OTP_TEMPLATE_ID.trim(),
+      DLTTemplateId: process.env.MOBILE_OTP_TEMPLATE_ID.trim(),
       PEID: process.env.DLT_PEID,
     };
 
     console.log("Sending SMS with:", smsParams);
 
-    await axios.get(
-      process.env.ALOT_API_URL,
-      { params: smsParams }
-    );
+    await axios.get(process.env.ALOT_API_URL, { params: smsParams });
 
     /** STEP 5: ALWAYS INSERT NEW SESSION */
     await db.promise().query(
       `INSERT INTO otp_sessions_clayyo
        (mobile_number, otp, expires_at, last_sent_at, verified)
        VALUES (?, ?, ?, NOW(), 0)`,
-      [cleanedMobile, otp, expiresAt]
+      [cleanedMobile, otp, expiresAt],
     );
 
     return res.json({
@@ -520,7 +507,6 @@ router.post("/send-otp", async (req, res) => {
       message: "OTP sent successfully",
       otp, // remove in production
     });
-
   } catch (err) {
     console.error("SMS error:", err.message);
 
@@ -546,7 +532,7 @@ router.post("/verify-otp", async (req, res) => {
        WHERE mobile_number=?  AND otp=?
 ORDER BY id DESC
 LIMIT 1`,
-      [cleanedMobile , otp],
+      [cleanedMobile, otp],
     );
 
     if (!rows.length)
@@ -567,16 +553,16 @@ LIMIT 1`,
       });
 
     const [result] = await db.promise().query(
-  `UPDATE otp_sessions_clayyo
+      `UPDATE otp_sessions_clayyo
    SET verified=1,
        consent_given=1,
        consent_text=?,
        consent_at=NOW()
     WHERE id=?`,
-  [consentText.trim(), record.id]
-);
+      [consentText.trim(), record.id],
+    );
 
-console.log("Rows updated:", result.affectedRows);
+    console.log("Rows updated:", result.affectedRows);
     res.json({
       success: true,
       message: "Mobile verified + consent saved",
@@ -635,17 +621,16 @@ router.post("/manual-entry", async (req, res) => {
 
     const loanAmount = Number(data.loan_amount || 0);
 
-     // ✅ start transaction
+    // ✅ start transaction
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
     // ✅ validate limit + fldg
-    const validation =
-      await partnerBookingWrapper.validateBookingOrThrow(
-        conn,
-        "CLAYOO",
-        loanAmount
-      );
+    const validation = await partnerBookingWrapper.validateBookingOrThrow(
+      conn,
+      "CLAYOO",
+      loanAmount,
+    );
 
     // ✅ Generate LAN + Application ID
     const { lan, application_id } = await generateLoanIdentifiers("CLAYYO");
@@ -716,11 +701,13 @@ router.post("/manual-entry", async (req, res) => {
 
     await conn.query(
       `INSERT INTO loan_booking_clayyo (${columns}) VALUES (${placeholders})`,
-      values
+      values,
     );
 
     // ✅ create KYC row
-    await conn.query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [lan]);
+    await conn.query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [
+      lan,
+    ]);
 
     await partnerBookingWrapper.finalizeBooking(
       conn,
@@ -729,7 +716,7 @@ router.post("/manual-entry", async (req, res) => {
       lan,
       loanAmount,
       validation.requiredFldg,
-      `CLAYOO booking reservation`
+      `CLAYOO booking reservation`,
     );
 
     await conn.commit();
@@ -744,34 +731,26 @@ router.post("/manual-entry", async (req, res) => {
     // 🔥 Trigger async validations (non-blocking)
     clayooRunAllValidations(lan);
   } catch (err) {
-
     if (conn) {
       await conn.rollback();
       conn.release();
     }
 
-     if (err.message === "LIMIT_EXCEEDED") {
-
+    if (err.message === "LIMIT_EXCEEDED") {
       return res.status(403).json({
-        message:
-          `Limit exceeded for ${err.meta.partnerName}`,
+        message: `Limit exceeded for ${err.meta.partnerName}`,
         remaining_limit: err.meta.remaining,
-        required: err.meta.required
+        required: err.meta.required,
       });
-
     }
 
     if (err.message === "FLDG_INSUFFICIENT") {
-
       return res.status(403).json({
-        message:
-          `Insufficient FLDG balance for ${err.meta.partnerName}`,
+        message: `Insufficient FLDG balance for ${err.meta.partnerName}`,
         available_fldg: err.meta.available,
-        required_fldg: err.meta.required
+        required_fldg: err.meta.required,
       });
-
     }
-
 
     console.error("Clayyo manual entry error:", err);
 
@@ -1013,7 +992,7 @@ router.get("/loan-info/:lan", async (req, res) => {
   lb.ops_approved_at,
   lb.ops_approved_by,
 
-  lb.hospital_name,
+  ch.hospital_legal_name AS hospital_legal_name,
   lb.hospital_id,
 
         -- 🔥 Clayyo BRE fields
@@ -1034,6 +1013,8 @@ router.get("/loan-info/:lan", async (req, res) => {
         lb.clayyo_moratorium_flag,
         lb.clayyo_restructured_flag,
 
+        
+
         -- KYC
         k.pan_status      AS kyc_pan_status,
         k.aadhaar_status  AS kyc_aadhaar_status,
@@ -1042,6 +1023,8 @@ router.get("/loan-info/:lan", async (req, res) => {
       FROM loan_booking_clayyo lb
       LEFT JOIN kyc_verification_status k
         ON k.lan = lb.lan
+        LEFT JOIN clayyo_hospital_booking ch
+        ON ch.id = lb.hospital_id
       WHERE lb.lan = ?
       `,
       [lan],
@@ -1089,27 +1072,25 @@ router.get("/loan-info/:lan", async (req, res) => {
       status: row.status,
 
       bank_name: row.bank_name,
-name_in_bank: row.name_in_bank,
-account_number: row.account_number,
-ifsc: row.ifsc,
-bank_branch: row.bank_branch,
+      name_in_bank: row.name_in_bank,
+      account_number: row.account_number,
+      ifsc: row.ifsc,
+      bank_branch: row.bank_branch,
 
+      insurance_company_name: row.insurance_company_name,
+      insurance_policy_holder_name: row.insurance_policy_holder_name,
+      insurance_policy_number: row.insurance_policy_number,
+      relation_with_policy_holder: row.relation_with_policy_holder,
 
-insurance_company_name: row.insurance_company_name,
-insurance_policy_holder_name: row.insurance_policy_holder_name,
-insurance_policy_number: row.insurance_policy_number,
-relation_with_policy_holder:row.relation_with_policy_holder,
+      final_limit: row.final_limit,
+      approved_limit: row.approved_limit,
+      pf_percent: row.pf_percent,
+      subvention_percent: row.subvention_percent,
+      limit_assigned_at: row.limit_assigned_at,
+      limit_assigned_by: row.limit_assigned_by,
 
-final_limit: row.final_limit,
-approved_limit: row.approved_limit,
-pf_percent: row.pf_percent,
-subvention_percent: row.subvention_percent,
-limit_assigned_at: row.limit_assigned_at,
-limit_assigned_by: row.limit_assigned_by,
-
-
-hospital_name: row.hospital_name,
-hospital_id: row.hospital_id,
+      hospital_name: row.hospital_legal_name,
+      hospital_id: row.hospital_id,
 
       // 🔥 Clayyo BRE
       clayyo_bre_status: row.clayyo_bre_status,

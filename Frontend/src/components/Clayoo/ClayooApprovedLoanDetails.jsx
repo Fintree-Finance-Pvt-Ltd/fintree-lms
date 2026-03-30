@@ -122,6 +122,8 @@ const ClayyoApprovedLoanDetails = () => {
               <Grid>
                 <Field label="LAN" value={loan.lan} />
                 <Field label="Application ID" value={loan.app_id} />
+                <Field label="Hospital Name" value={loan.hospital_name} />
+
                 <Field label="Login Date" value={formatDate(loan.login_date)} />
                 <Field label="Status" value={loan.status} />
                 <Field label="Customer Name" value={loan.customer_name} />
