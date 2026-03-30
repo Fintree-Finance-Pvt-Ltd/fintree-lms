@@ -136,6 +136,7 @@ import PartnerLimitEntry from "./components/PartnerLimitEntry";
 import FldgEntryPage from "./components/FldgEntryPage";
 import FldgSummaryPage from "./components/FldgSummaryPage";
 import FldgLedgerPage from "./components/FldgLedgerPage";
+import PartnerFldgManager from "./components/PartnerFldgManager";
 
 function App() {
   return (
@@ -1246,6 +1247,15 @@ function App() {
             element={
               <PermissionRoute pageName="FLDG Summary">
                 <FldgSummaryPage />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/partners-master"
+            element={
+              <PermissionRoute pageName="Partners Master">
+                <PartnerFldgManager />
               </PermissionRoute>
             }
           />

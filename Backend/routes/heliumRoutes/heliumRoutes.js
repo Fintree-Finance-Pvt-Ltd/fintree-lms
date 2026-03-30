@@ -3,11 +3,13 @@ const db = require("../../config/db");
 const authenticateUser = require("../../middleware/verifyToken");
 const { runAllValidations } = require("../../services/heliumValidationEngine");
 const { autoApproveIfAllVerified } = require("../../services/heliumValidationEngine");
-const autoApproveClayyoIfAllVerified = require("../clyooRoutes/clayyoBreEngine");
+const { autoApproveClayyoIfAllVerified } = require("../clyooRoutes/clayyoBreEngine");
 const axios = require("axios");
 const path = require("path");
 const fs = require("fs");
 const verifyApiKey = require("../../middleware/apiKeyAuth");
+const partnerBookingWrapper =
+  require("../../services/partnerBookingWrapper");
 
 const router = express.Router();
 
@@ -108,6 +110,7 @@ const generateLoanIdentifiers = async (lender) => {
 
 
 router.post("/manual-entry", async (req, res) => {
+  let conn;
   try {
     const data = req.body;
 
@@ -159,6 +162,19 @@ router.post("/manual-entry", async (req, res) => {
         message: `Missing fields: ${missing.join(", ")}`,
       });
     }
+
+    const loanAmount = Number(data.loan_amount || 0);
+
+    conn = await db.promise().getConnection();
+await conn.beginTransaction();
+
+    const validation =
+  await partnerBookingWrapper
+    .validateBookingOrThrow(
+      conn,
+      "HELIUM",
+      loanAmount
+    );
 
     // 🎫 generate LAN + PLID
     const { lan, application_id } = await generateLoanIdentifiers("HELIUM");
@@ -220,7 +236,7 @@ router.post("/manual-entry", async (req, res) => {
       )
     `;
 
-    await db.promise().query(insertLoan, [
+    await conn.query(insertLoan, [
       // 1–5
       data.first_name || null,
       data.last_name || null,
@@ -286,23 +302,30 @@ router.post("/manual-entry", async (req, res) => {
     ]);
 
     // 🧮 Call both procedures based on LAN
-    await db
-      .promise()
-      .query("CALL sp_generate_helium_rps(?)", [lan])
+    await conn.query("CALL sp_generate_helium_rps(?)", [lan])
       .catch((err) => console.error("Error in sp_generate_helium_rps:", err));
 
     // KYC verification row
-    await db
-      .promise()
-      .query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [lan]);
+    await conn.query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [lan]);
 
     // Build loan summary
-    await db
-      .promise()
-      .query("CALL sp_build_helium_loan_summary(?)", [lan])
+    await conn.query("CALL sp_build_helium_loan_summary(?)", [lan])
       .catch((err) =>
         console.error("Error in sp_build_helium_loan_summary:", err)
       );
+
+      await partnerBookingWrapper.finalizeBooking(
+  conn,
+  validation.partnerId,
+  validation.limitId,
+  lan,
+  loanAmount,
+  validation.requiredFldg,
+  `HELIUM booking reservation`
+);
+
+await conn.commit();
+conn.release();
 
     res.json({
       message: "Helium loan created successfully",
@@ -313,6 +336,30 @@ router.post("/manual-entry", async (req, res) => {
     // 🔥 Trigger async validations (non-blocking)
     runAllValidations(lan);
   } catch (err) {
+    if (conn) {
+    await conn.rollback();
+    conn.release();
+  }
+    if (err.message === "LIMIT_EXCEEDED") {
+
+  return res.status(403).json({
+    message: `Limit exceeded for ${err.meta.partnerName}`,
+    remaining_limit: err.meta.remaining,
+    required: err.meta.required
+  });
+
+}
+
+if (err.message === "FLDG_INSUFFICIENT") {
+
+  return res.status(403).json({
+    message:
+      `Insufficient FLDG balance for ${err.meta.partnerName}`,
+    available_fldg: err.meta.available,
+    required_fldg: err.meta.required
+  });
+
+}
     console.error("Error creating helium loan:", err);
     res.status(500).json({
       message: "Failed to create loan",
@@ -1088,8 +1135,8 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     const [rows] = await db
       .promise()
       .query(
-        `SELECT lan FROM kyc_verification_status WHERE aadhaar_unique_id = ?`,
-        [uniqueId]
+        `SELECT lan FROM kyc_verification_status WHERE aadhaar_transaction_id = ? OR aadhaar_unique_id = ?`,
+        [transactionId, uniqueId]
       );
 
     if (!rows.length) {
@@ -1229,9 +1276,11 @@ if (xmlLink) {
 
     // Optionally run auto-approval if all checks done
     if (lan.startsWith("HEL")){
+      console.log("Triggering Helium auto-approval check for LAN:", lan);
       await autoApproveIfAllVerified(lan);
     }
     else if(lan.startsWith("CLY")){
+      console.log("Triggering CLAYYO auto-approval check for LAN:", lan);
       await autoApproveClayyoIfAllVerified(lan);
     }
     else {
