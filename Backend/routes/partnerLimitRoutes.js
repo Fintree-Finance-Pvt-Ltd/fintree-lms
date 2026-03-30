@@ -4,6 +4,105 @@ const partnerLimitService = require('../services/partnerLimitService');
 
 const router = express.Router();
 
+router.get("/partners-list", async (req, res) => {
+
+  try {
+
+    const [rows] = await db.promise().query(`
+      SELECT
+        partner_id,
+        partner_name,
+        status,
+        fldg_percent,
+        fldg_status
+      FROM partner_master
+      ORDER BY partner_name
+    `);
+
+    res.json(rows);
+
+  } catch (err) {
+
+    res.status(500).json({
+      message: "Failed to fetch partners",
+      error: err.message
+    });
+
+  }
+
+});
+
+
+router.put("/:partnerId/fldg", async (req, res) => {
+
+  try {
+
+    const { partnerId } = req.params;
+
+    const {
+      fldg_percent,
+      fldg_status
+    } = req.body;
+
+    await db.promise().query(
+      `
+      UPDATE partner_master
+      SET
+        fldg_percent = ?,
+        fldg_status = ?
+      WHERE partner_id = ?
+      `,
+      [fldg_percent, fldg_status, partnerId]
+    );
+
+    res.json({
+      message: "FLDG updated successfully"
+    });
+
+  } catch (err) {
+
+    res.status(500).json({
+      message: "Update failed",
+      error: err.message
+    });
+
+  }
+
+});
+
+
+router.put("/:partnerId/status", async (req, res) => {
+
+  try {
+
+    const { partnerId } = req.params;
+
+    const { status } = req.body;
+
+    await db.promise().query(
+      `
+      UPDATE partner_master
+      SET status = ?
+      WHERE partner_id = ?
+      `,
+      [status, partnerId]
+    );
+
+    res.json({
+      message: "Partner status updated"
+    });
+
+  } catch (err) {
+
+    res.status(500).json({
+      message: "Status update failed",
+      error: err.message
+    });
+
+  }
+
+});
+
 // GET /api/partners - List all partners with current monthly limits
 router.get('/partners', async (req, res) => {
   try {
