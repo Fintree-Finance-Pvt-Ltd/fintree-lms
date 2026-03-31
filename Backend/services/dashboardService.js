@@ -110,7 +110,7 @@ const PRODUCT_MAP = {
   EMICLUB: {
     rpsTable:      "manual_rps_emiclub",
     bookTable:     "loan_booking_emiclub",
-    disbField:     "loan_amount",
+    disbField:     "net_disbursement",
     collType:      "subquery",
     allocTable:    "allocation",
     allocLike:     "%FINE%",

@@ -843,7 +843,7 @@ router.post("/esign-webhook", async (req, res) => {
             [lan]
           );
         }
-      } else {
+      } else if (lan.startsWith("HEL")) {
         // HELIUM
         if (type === "SANCTION") {
           await connection.query(
@@ -860,6 +860,27 @@ router.post("/esign-webhook", async (req, res) => {
             [lan]
           );
         }
+      }
+      else if (lan.startsWith("CLY")) {
+        // CLAYYO
+        if (type === "SANCTION") {
+          await connection.query(
+            `UPDATE loan_booking_clayyo
+             SET sanction_esign_status='SIGNED'
+              WHERE lan=?`,
+            [lan]
+          );
+        } else {
+          await connection.query(
+            `UPDATE loan_booking_clayyo
+              SET agreement_esign_status='SIGNED'
+              WHERE lan=?`,
+            [lan]
+          );
+        }
+      }
+       else {
+        console.log("⚠️ LAN prefix not recognized for status update:", lan);
       }
 
       /**
@@ -995,19 +1016,36 @@ router.post("/enach-webhook", async (req, res) => {
     if (event === "mandate.register_success") bankStatus = "ACTIVE";
     if (event === "mandate.auth_fail" || event === "mandate.register_failed") bankStatus = "FAILED";
 
-    await db.promise().query(
+    
+
+    if (lan.startsWith("HEL")) {
+      await db.promise().query(
       `UPDATE loan_booking_helium 
    SET bank_status = ?, enach_umrn = ? 
    WHERE lan = ?`,
       [bankStatus, umrn, lan]
     );
-
-    await db.promise().query(
+    }
+    else if (lan.startsWith("ZYP")) {
+      await db.promise().query(
       `UPDATE loan_booking_zypay_customer 
    SET bank_status = ?, enach_umrn = ? 
    WHERE lan = ?`,
       [bankStatus, umrn, lan]
     );
+    }
+    else if (lan.startsWith("CLY")) {
+      await db.promise().query(
+      `UPDATE loan_booking_clayyo 
+   SET bank_status = ?, enach_umrn = ? 
+   WHERE lan = ?`,
+      [bankStatus, umrn, lan]
+    );
+    }
+
+    else {
+      console.log("⚠️ LAN prefix not recognized for bank status update:", lan);
+    }
 
 
     console.log("✅ Loan updated =>", lan, bankStatus);
