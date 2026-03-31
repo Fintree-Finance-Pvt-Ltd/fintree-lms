@@ -142,7 +142,7 @@ const openBankModal = (loanRow) => {
     account_type: "SAVINGS",
     bank_name: loanRow.bank_name || "",
     account_holder_name: loanRow.customer_name || "",
-    mandate_amount: loanRow.emi_amount || loanRow.loan_amount || "",
+    mandate_amount: loanRow.final_limit || loanRow.loan_amount || "",
     mandate_start_date: new Date().toISOString().slice(0, 10),
     mandate_end_date: "",
     mandate_frequency: "monthly",

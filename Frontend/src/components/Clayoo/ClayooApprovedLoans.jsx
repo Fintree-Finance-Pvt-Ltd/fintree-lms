@@ -115,7 +115,7 @@ const handleOpsSubmit = async (r) => {
   const data = opsData[lan] || {};
 
   const approved_limit = Number(data.approved_limit || r.final_limit);
-  const pf_percent = Number(data.pf_percent);
+  const pf_percent = "0.00";
 
   if (!approved_limit || approved_limit <= 0) {
     alert("Enter valid approved limit");
@@ -170,7 +170,7 @@ const openBankModal = (loanRow) => {
       ? addMonths(startDate, loanRow.loan_tenure)
       : "";
 
-  const defaultAmount = loanRow.emi_amount || loanRow.loan_amount || "";
+  const defaultAmount = loanRow.final_limit || loanRow.loan_amount || "";
 
   setSelectedLoan(loanRow);
   setBankError("");
