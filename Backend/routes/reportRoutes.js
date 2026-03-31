@@ -162,7 +162,13 @@ function resolveProcedure(rawReportId, rawLender) {
     // CCOD LOAN DATA REPORT
     "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
 
-    "pay-out-report": () => "sp_emiclub_payout_report_emiclub",
+    //// PAYOUT REPORT
+  "pay-out-report": () =>
+  lender?.toLowerCase() === "fsf"
+    ? "sp_payout_gq_fsf"
+    : lender?.toLowerCase() === "emiclub"
+    ? "sp_emiclub_payout_report_emiclub"
+    : null,
 
         // Bank Payment File Report (for EmiClub)
     "bank-payment-file-report": () => "sp_bank_payment_file",
