@@ -18,7 +18,7 @@ const ALLClayyoCaseScreen = ({
     setLoading(true);
     api
       .get(apiUrl)
-      .then((res) => !off && setRows(Array.isArray(res.data) ? res.data : []))
+      .then((res) => !off && setRows(res.data?.rows || []))
       .catch(() => !off && setErr("Failed to fetch data."))
       .finally(() => !off && setLoading(false));
     return () => (off = true);
@@ -74,6 +74,22 @@ const ALLClayyoCaseScreen = ({
         </span>
       ),
       sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
+      width: 220,
+    },
+    {
+      key: "hospital_name",
+      header: "Hospital Name",
+      
+      sortable: true,
+      render: (r) => (
+          <span
+          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+          onClick={() => navigate(`/approved-loan-details-clayoo-hospital/${r.lan}`)}
+          title="View loan details"
+        > 
+         {r.hospital_name}
+        </span>
+      ),
       width: 220,
     },
     {
