@@ -122,10 +122,10 @@ const handleOpsSubmit = async (r) => {
     return;
   }
 
-  if (pf_percent === null || pf_percent === undefined || isNaN(pf_percent)) {
-  alert("Enter valid PF%");
-  return;
-}
+//   if (pf_percent === null || pf_percent === undefined || isNaN(pf_percent)) {
+//   alert("Enter valid PF%");
+//   return;
+// }
 
   try {
     setOpsLoading((prev) => ({ ...prev, [lan]: true }));
