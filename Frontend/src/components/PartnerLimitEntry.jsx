@@ -31,6 +31,24 @@ const PartnerLimitEntry = () => {
     }
   };
 
+  const toggleFldgStatus = async (partner_id, currentStatus, fldg_percent) => {
+  try {
+
+    await api.put(`partners/${partner_id}/fldg`, {
+      fldg_percent: Number(fldg_percent || 0),
+      fldg_status: currentStatus === 1 ? 0 : 1
+    });
+
+    fetchPartners();
+
+  } catch (err) {
+
+    console.error("FLDG toggle error:", err);
+    alert("Failed to update FLDG status");
+
+  }
+};
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -210,6 +228,8 @@ const PartnerLimitEntry = () => {
                 <tr>
                   <th>Partner</th>
                   <th>Status</th>
+                  <th>FLDG %</th>
+                  <th>FLDG</th>
                   <th className="text-right">Assigned</th>
                   <th className="text-right">Used</th>
                   <th className="text-right">Remaining</th>
@@ -231,6 +251,19 @@ const PartnerLimitEntry = () => {
                         {p.status}
                       </span>
                     </td>
+                    <td>{Number(p.fldg_percent || 0)}%</td>
+                    <td>
+  <label className="switch">
+    <input
+      type="checkbox"
+      checked={p.fldg_status === 1}
+      onChange={() =>
+        toggleFldgStatus(p.partner_id, p.fldg_status)
+      }
+    />
+    <span className="slider round"></span>
+  </label>
+</td>
                     <td className="text-right">{formatCurrency(p.assigned_limit)}</td>
                     <td className="text-right used-value">{formatCurrency(p.used_limit)}</td>
                     <td

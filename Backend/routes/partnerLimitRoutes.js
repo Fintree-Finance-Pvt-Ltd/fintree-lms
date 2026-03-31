@@ -48,11 +48,10 @@ router.put("/:partnerId/fldg", async (req, res) => {
       `
       UPDATE partner_master
       SET
-        fldg_percent = ?,
         fldg_status = ?
       WHERE partner_id = ?
       `,
-      [fldg_percent, fldg_status, partnerId]
+      [fldg_status, partnerId]
     );
 
     res.json({
@@ -115,6 +114,8 @@ router.get('/partners', async (req, res) => {
         pm.partner_id, 
         pm.partner_name, 
         pm.status,
+        pm.fldg_percent,
+  pm.fldg_status,
         pml.id as limit_id,
         pml.assigned_limit,
         pml.used_limit, 
