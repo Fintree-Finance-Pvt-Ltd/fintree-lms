@@ -1,28 +1,11 @@
-// import React from 'react'
-// import LoginCaseScreen from '../LoginCaseScreen';
-
-
-// const ClayooLoginLoans = () => {
-//   return (
-//     <LoginCaseScreen
-//       apiUrl={`/loan-booking/login-loans?table=loan_booking_clayyo&prefix=CLY`}
-//       title="CLAYYO Login Stage Loans"
-//       tableName="loan_booking_clayyo"
-//       lenderName="CLAYOO"
-//     />
-//   );
-// };
-
-// export default ClayooLoginLoans
-
 import React, { useEffect, useState } from "react";
 import api from "../../api/api";
 import { useNavigate } from "react-router-dom";
 import DataTable from "../ui/DataTable";
 
-const LoginCaseScreen = ({
-  apiUrl = `/loan-booking/login-loans?table=loan_booking_clayyo&prefix=CLY`,
-  title = " CLAYYO Login Stage Loans",
+const ALLClayyoCaseScreen = ({
+  apiUrl = `/loan-booking/all-loans?table=loan_booking_clayyo&prefix=CLY`,
+  title = " CLAYYO All Loans Screen",
   lenderName = "CLAYYO",
 }) => {
   const [rows, setRows] = useState([]);
@@ -91,22 +74,6 @@ const LoginCaseScreen = ({
         </span>
       ),
       sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
-      width: 220,
-    },
-    {
-      key: "hospital_legal_name",
-      header: "Hospital Name",
-      
-      sortable: true,
-      render: (r) => (
-          <span
-          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details-clayoo-hospital/${r.lan}`)}
-          title="View loan details"
-        > 
-         {r.hospital_legal_name}
-        </span>
-      ),
       width: 220,
     },
     {
@@ -222,4 +189,4 @@ const LoginCaseScreen = ({
   );
 };
 
-export default LoginCaseScreen;
+export default ALLClayyoCaseScreen;

@@ -137,6 +137,7 @@ import FldgEntryPage from "./components/FldgEntryPage";
 import FldgSummaryPage from "./components/FldgSummaryPage";
 import FldgLedgerPage from "./components/FldgLedgerPage";
 import PartnerFldgManager from "./components/PartnerFldgManager";
+import ALLClayyoCaseScreen from "./components/Clayoo/ClayooAllLoansScreen";
 
 function App() {
   return (
@@ -464,6 +465,14 @@ function App() {
             element={
               <PermissionRoute pageName="Clayoo Limit Approval">
                 <ClayooLimitEntry />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/clayoo-loans/all-clayyo-loans-screen"
+            element={
+              <PermissionRoute pageName="Clayoo All Loans Screen">
+                <ALLClayyoCaseScreen />
               </PermissionRoute>
             }
           />

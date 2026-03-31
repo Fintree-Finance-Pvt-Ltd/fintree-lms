@@ -2355,6 +2355,42 @@ const toClientError = (err) => {
 //   return Number.isNaN(dt.getTime()) ? null : dt.toISOString().split("T")[0];
 // }
 
+// router.get("/login-loans", (req, res) => {
+//   const { table = "loan_booking_ev", prefix = "EV" } = req.query;
+
+//   const allowedTables = {
+//     loan_bookings: true,
+//     loan_booking_ev: true,
+//     loan_booking_hey_ev: true,
+//     loan_booking_adikosh: true,
+//     loan_booking_gq_non_fsf: true,
+//     loan_booking_gq_fsf: true,
+//     loan_bookings_wctl: true,
+//     loan_booking_emiclub: true,
+//     loan_booking_zypay_customer: true,
+//     loan_booking_finso: true,
+//     loan_booking_clayyo: true,
+//     loan_booking_circle_pe: true,
+//     loan_booking_hey_ev_battery: true,
+//     dealer_onboarding: true,
+//   };
+
+//   if (!allowedTables[table]) {
+//     return res.status(400).json({ message: "Invalid table name" });
+//   }
+
+//   const query = `SELECT * FROM ?? WHERE status = 'Login' AND LAN LIKE ?`;
+//   const values = [table, `${prefix}%`];
+
+//   db.query(query, values, (err, results) => {
+//     if (err) {
+//       console.error("Error fetching login stage loans:", err);
+//       return res.status(500).json({ message: "Database error" });
+//     }
+//     res.json(results);
+//   });
+// });
+
 router.get("/login-loans", (req, res) => {
   const { table = "loan_booking_ev", prefix = "EV" } = req.query;
 
@@ -2379,7 +2415,30 @@ router.get("/login-loans", (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  const query = `SELECT * FROM ?? WHERE status = 'Login' AND LAN LIKE ?`;
+  let query;
+
+  if (table === "loan_booking_clayyo") {
+    // ✅ Only Clayyo needs hospital join
+    query = `
+      SELECT
+        lb.*,
+        ch.hospital_legal_name
+      FROM ?? lb
+      LEFT JOIN clayyo_hospital_booking ch
+        ON ch.id = lb.hospital_id
+      WHERE lb.status = 'Login'
+        AND lb.LAN LIKE ?
+    `;
+  } else {
+    // ✅ Other lenders unchanged
+    query = `
+      SELECT *
+      FROM ??
+      WHERE status = 'Login'
+        AND LAN LIKE ?
+    `;
+  }
+
   const values = [table, `${prefix}%`];
 
   db.query(query, values, (err, results) => {
@@ -2387,6 +2446,7 @@ router.get("/login-loans", (req, res) => {
       console.error("Error fetching login stage loans:", err);
       return res.status(500).json({ message: "Database error" });
     }
+
     res.json(results);
   });
 });
@@ -7436,6 +7496,8 @@ router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
   }
 });
 
+///   Loan Booking Loan Digit  Pratik ////
+
 router.post("/v1/loan-digit", async (req, res) => {
   try {
     const data = req.body;
@@ -8316,10 +8378,10 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 //   }
 // );
 
-router.post(
-  "/v1/invoice-disbursement/validate",
-  verifyApiKey,
-  async (req, res) => {
+
+// SUpply Chain Disbursment UTR ///
+
+router.post("/v1/invoice-disbursement/validate",verifyApiKey,async (req, res) => {
     const payload = req.body;
 
     if (!Array.isArray(payload) || payload.length === 0) {
@@ -8665,16 +8727,19 @@ router.post(
         conn.release();
         conn = null;
 
-        setImmediate(async () => {
-          try {
-            await generateDemandFromInvoiceDisbursement(data.invoice_number);
-          } catch (e) {
-            console.error(
-              `Demand generation failed for ${data.invoice_number}:`,
-              e,
-            );
-          }
-        });
+       setImmediate(async () => {
+  try {
+    await generateDemandFromInvoiceDisbursement(
+      data.invoice_number,
+      data.lan
+    );
+  } catch (e) {
+    console.error(
+      `Demand generation failed for ${data.invoice_number}, LAN ${data.lan}:`,
+      e,
+    );
+  }
+});
 
         results.push({
           invoice_number: data.invoice_number,

@@ -393,7 +393,7 @@ const openBankModal = (loanRow) => {
     setActionLan(lan);
 
     try {
-      const res = await api.post(`/esign/${lan}/esign/agreement`);
+      const res = await api.post(`esign/${lan}/esign/agreement`);
       setToast({
         type: "success",
         msg: "Agreement eSign initiated.",
