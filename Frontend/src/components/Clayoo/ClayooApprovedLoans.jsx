@@ -122,7 +122,7 @@ const handleOpsSubmit = async (r) => {
     return;
   }
 
-  if (!pf_percent || pf_percent < 0) {
+  if (!pf_percent) {
     alert("Enter valid PF%");
     return;
   }
@@ -498,13 +498,18 @@ const openBankModal = (loanRow) => {
         {/* PF % */}
         <input
           type="number"
-          placeholder="PF %"
-          value={opsData[r.lan]?.pf_percent ?? r.pf_percent ?? ""}
-          onChange={(e) =>
-            handleOpsChange(r.lan, "pf_percent", e.target.value)
-          }
-          disabled={isApproved || loading}
-          style={inputStyle(isApproved)}
+          // placeholder="PF %"
+          value={opsData[r.lan]?.pf_percent ?? r.pf_percent ?? 0}
+          // onChange={(e) =>
+          //   handleOpsChange(r.lan, "pf_percent", e.target.value)
+          // }
+          // disabled={isApproved || loading}
+          readOnly
+          // style={inputStyle(isApproved)}
+          style={{
+    ...inputStyle(true),
+    background: "#f9fafb",
+  }}
         />
 
         <button
