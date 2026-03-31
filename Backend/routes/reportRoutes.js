@@ -164,7 +164,7 @@ function resolveProcedure(rawReportId, rawLender) {
 
     //// PAYOUT REPORT
   "pay-out-report": () =>
-  lender?.toLowerCase() === "fsf"
+  lender?.toLowerCase() === "gq fsf"
     ? "sp_payout_gq_fsf"
     : lender?.toLowerCase() === "emiclub"
     ? "sp_emiclub_payout_report_emiclub"
