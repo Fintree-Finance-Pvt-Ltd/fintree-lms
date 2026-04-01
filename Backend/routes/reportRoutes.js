@@ -43,6 +43,8 @@ function resolveProcedure(rawReportId, rawLender) {
       "due-demand-vs-collection-report(all-products)",
       "due-demand-vs-collection-report(FINTREE)":
       "due-demand-vs-collection-report(FINTREE)",
+      "Due Demand vs Collection Report(Fintree)":
+      "due-demand-vs-collection-report(FINTREE)",
     "consolidated-mis": "consolidated-mis",
     "consolidated mis": "consolidated-mis",
     "delayed-interest-report": "delayed-interest-report",
