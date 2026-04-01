@@ -42,9 +42,10 @@ function resolveProcedure(rawReportId, rawLender) {
     "due-demand-vs-collection-report":
       "due-demand-vs-collection-report(all-products)",
       "due-demand-vs-collection-report(FINTREE)":
-      "due-demand-vs-collection-report(FINTREE)",
+      "due-demand-vs-collection-report(fintree)",
       "Due Demand vs Collection Report(Fintree)":
-      "due-demand-vs-collection-report(FINTREE)",
+      
+      "due-demand-vs-collection-report(fintree)",
     "consolidated-mis": "consolidated-mis",
     "consolidated mis": "consolidated-mis",
     "delayed-interest-report": "delayed-interest-report",
@@ -97,10 +98,14 @@ function resolveProcedure(rawReportId, rawLender) {
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
 
- "due-demand-vs-collection-report(FINTREE)": () =>
+ "due-demand-vs-collection-report(fintree)": () =>
       lender  === "gq non-fsf"
         ? "sp_due_collection_all_report_gq_non_fsf_fintree"
         : "sp_due_collection_all_report_gq_fsf_fintree",
+
+
+
+        
 
     "due-demand-vs-collection-report(all-products)": () =>
       lender === "adikosh"
