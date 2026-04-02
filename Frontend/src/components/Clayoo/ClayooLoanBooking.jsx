@@ -294,7 +294,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
         setShowConsentDialog(false);
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Invalid OTP");
+      alert("Invalid OTP");
     } finally {
       setOtpLoading(false);
     }
