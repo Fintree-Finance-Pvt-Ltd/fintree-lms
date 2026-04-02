@@ -46,28 +46,6 @@ const ClayyoApprovedLoanDetails = () => {
     return dt.toISOString().slice(0, 10);
   };
 
-  const pillForStatus = (status) => {
-    const s = status || "PENDING";
-    const colors = {
-      VERIFIED: "#16a34a",
-      FAILED: "#dc2626",
-      INITIATED: "#2563eb",
-      PENDING: "#ca8a04",
-    };
-
-    return (
-      <span style={{ color: colors[s] || colors.PENDING, fontWeight: 600 }}>
-        {s}
-      </span>
-    );
-  };
-
-  const pillForFlag = (flag) => {
-    if (flag === 1) return <span style={{ color: "#16a34a" }}>✅ Yes</span>;
-    if (flag === 0) return <span style={{ color: "#dc2626" }}>❌ No</span>;
-    return <span>N/A</span>;
-  };
-
   return (
     <div
       style={{

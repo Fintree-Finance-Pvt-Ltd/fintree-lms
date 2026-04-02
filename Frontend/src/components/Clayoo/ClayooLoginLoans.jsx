@@ -77,7 +77,7 @@ const LoginCaseScreen = ({
       width: 220,
     },
     {
-      key: "hospital_legal_name",
+      key: "hospital_name",
       header: "Hospital Name",
       
       sortable: true,
@@ -87,7 +87,7 @@ const LoginCaseScreen = ({
           onClick={() => navigate(`/approved-loan-details-clayoo-hospital/${r.lan}`)}
           title="View loan details"
         > 
-         {r.hospital_legal_name}
+         {r.hospital_name}
         </span>
       ),
       width: 220,

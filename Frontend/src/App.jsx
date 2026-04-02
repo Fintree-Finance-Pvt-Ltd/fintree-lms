@@ -478,7 +478,7 @@ function App() {
           <Route
             path="/clayoo-loans/all-clayyo-loans-screen"
             element={
-              <PermissionRoute pageName="Clayoo All Loans Screen">
+              <PermissionRoute pageName="Clayoo All Loans">
                 <ALLClayyoCaseScreen />
               </PermissionRoute>
             }

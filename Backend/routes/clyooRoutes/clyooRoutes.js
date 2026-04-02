@@ -2,22 +2,27 @@ const express = require("express");
 const db = require("../../config/db");
 const { clayooRunAllValidations } = require("./clyooValidationEngine");
 const partnerBookingWrapper = require("../../services/partnerBookingWrapper");
-// const { autoApproveIfAllVerified } = require("../../services/heliumValidationEngine");
-// const axios = require("axios");
-// const path = require("path");
-// const fs = require("fs");
-// const verifyApiKey = require("../../middleware/apiKeyAuth");
 const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
-const dayjs = require("dayjs");
 const axios = require("axios");
 
 const router = express.Router();
 
+const LOAN_STATUS = {
+  LOGIN: "Login",
+  BRE_APPROVED: "BRE APPROVED",
+  BRE_REJECTED: "BRE FAILED",
+  CREDIT_APPROVED: "CREDIT APPROVED",
+  CREDIT_REJECTED: "REJECTED",
+  LIMIT_REQUESTED: "LIMIT REQUESTED",
+  OPS_APPROVED: "OPS APPROVED",
+  DISBURSED: "DISBURSED",
+};
+
 const generateLoanIdentifiers = async (lender) => {
   console.log("✅ Clayyo routes loaded");
-  lender = lender.trim(); // normalize input
+  lender = String(lender || "").trim();
 
   let application_id;
   let prefixLan;
@@ -29,7 +34,7 @@ const generateLoanIdentifiers = async (lender) => {
     prefixLan = "CLYHOS10";
     application_id = "CLYHOS0001";
   } else {
-    return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
+    throw new Error(`Invalid lender type: ${lender}`);
   }
 
   console.log("prefixLan:", prefixLan);
@@ -71,7 +76,6 @@ router.post("/hospitals/create", async (req, res) => {
   try {
     const data = req.body;
 
-    // ✅ Required fields (based on your React form)
     const requiredFields = [
       "hospital_legal_name",
       "registered_address",
@@ -94,11 +98,9 @@ router.post("/hospitals/create", async (req, res) => {
       });
     }
 
-    // ✅ Generate IDs
     const { lan, application_id } =
       await generateLoanIdentifiers("CLAYYO-HOSPITAL");
 
-    // ✅ Map fields
     const fields = {
       application_id,
       lan,
@@ -143,7 +145,6 @@ router.post("/hospitals/create", async (req, res) => {
       .join(", ");
     const values = Object.values(fields);
 
-    // ✅ Insert into hospital table
     await db
       .promise()
       .query(
@@ -181,11 +182,7 @@ router.get("/hospitals-list", async (req, res) => {
 
     const formatted = rows.map((h) => ({
       id: h.id,
-
-      // ✅ This is what will show in dropdown
       name: `${h.hospital_legal_name} (${h.registered_city}, ${h.registered_district})`,
-
-      // optional raw fields if needed later
       hospital_legal_name: h.hospital_legal_name,
       city: h.registered_city,
       district: h.registered_district,
@@ -275,7 +272,6 @@ router.get("/clayyo-hospital-booking-details/:lan", async (req, res) => {
       [lan],
     );
 
-    // return single record (latest)
     res.json(rows[0] || null);
   } catch (err) {
     console.error("Hospital fetch error:", err);
@@ -286,7 +282,6 @@ router.get("/clayyo-hospital-booking-details/:lan", async (req, res) => {
     });
   }
 });
-// hospitals-login-loans
 
 router.get("/hospitals-login-loans", async (req, res) => {
   try {
@@ -306,7 +301,7 @@ router.get("/hospitals-login-loans", async (req, res) => {
         status,
         created_at
       FROM clayyo_hospital_booking
-      WHERE status = 'Active'
+      WHERE status = 'ACTIVE'
       ORDER BY created_at DESC
     `);
 
@@ -346,95 +341,6 @@ router.patch("/hospitals/status/:lan", async (req, res) => {
 
 const OTP_EXPIRY_SECONDS = 300;
 
-// router.post("/send-otp", async (req, res) => {
-//   try {
-//     console.log("Incoming body:", req.body);
-
-//     const { mobile } = req.body;
-
-//     if (!mobile)
-//       return res.status(400).json({ message: "Mobile required" });
-
-//     const cleanedMobile = mobile.replace(/\D/g, "");
-
-//     /** STEP 1: CHECK EXISTING OTP SESSION */
-//     const [existing] = await db
-//       .promise()
-//       .query(
-//        `SELECT * FROM otp_sessions_clayyo
-// WHERE mobile_number = ?
-// ORDER BY id DESC
-// LIMIT 1`,
-//         [cleanedMobile]
-//       );
-
-//     /** STEP 2: APPLY RESEND LOCK (60 seconds) */
-//     if (existing.length) {
-//       const lastSent = new Date(existing[0].last_sent_at);
-
-//       const diffSeconds =
-//         (Date.now() - lastSent.getTime()) / 1000;
-
-//       if (diffSeconds < 60) {
-//         return res.status(429).json({
-//           message: `Wait ${Math.ceil(
-//             60 - diffSeconds
-//           )} seconds before retry`,
-//         });
-//       }
-//     }
-
-//     /** STEP 3: GENERATE OTP */
-//     const otp = Math.floor(100000 + Math.random() * 900000);
-
-//     const expiresAt = new Date(
-//       Date.now() + OTP_EXPIRY_SECONDS * 1000
-//     );
-
-//     /** STEP 4: SEND SMS */
-
-//     console.log("Sending SMS with:", smsParams);
-
-//     const response = await axios.get(
-//       process.env.ALOT_API_URL,
-//       { params: smsParams }
-//     );
-
-//     console.log("ALOT RESPONSE:", response.data);
-
-//     /** STEP 5: SAVE OTP SESSION */
-//     if (existing.length) {
-//       await db.promise().query(
-//         `UPDATE otp_sessions_clayyo
-//          SET otp=?, expires_at=?, attempts=0,
-//              verified=0, last_sent_at=NOW()
-//          WHERE mobile_number=?`,
-//         [otp, expiresAt, cleanedMobile]
-//       );
-//     } else {
-//       await db.promise().query(
-//   `INSERT INTO otp_sessions_clayyo
-//    (mobile_number, otp, expires_at, last_sent_at, verified)
-//    VALUES (?, ?, ?, NOW(), 0)`,
-//   [cleanedMobile, otp, expiresAt]
-// );
-//     }
-
-//     return res.json({
-//       success: true,
-//       message: "OTP sent successfully",
-//       otp, // remove in production
-//     });
-
-//   } catch (err) {
-//     console.error("SMS error:", err.message);
-
-//     res.status(500).json({
-//       message: "OTP send failed",
-//     });
-//   }
-// });
-
 router.post("/send-otp", async (req, res) => {
   try {
     console.log("Incoming body:", req.body);
@@ -448,7 +354,6 @@ router.post("/send-otp", async (req, res) => {
 
     const cleanedMobile = mobile.replace(/\D/g, "");
 
-    /** STEP 1: CHECK LAST OTP SESSION ONLY */
     const [existing] = await db.promise().query(
       `SELECT * FROM otp_sessions_clayyo
        WHERE mobile_number = ?
@@ -457,10 +362,8 @@ router.post("/send-otp", async (req, res) => {
       [cleanedMobile],
     );
 
-    /** STEP 2: APPLY RESEND LOCK */
     if (existing.length) {
       const lastSent = new Date(existing[0].last_sent_at);
-
       const diffSeconds = (Date.now() - lastSent.getTime()) / 1000;
 
       if (diffSeconds < 60) {
@@ -470,12 +373,9 @@ router.post("/send-otp", async (req, res) => {
       }
     }
 
-    /** STEP 3: GENERATE OTP */
     const otp = Math.floor(100000 + Math.random() * 900000);
-
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
 
-    /** STEP 4: SEND SMS */
     const smsParams = {
       user: process.env.ALOT_USER,
       password: process.env.ALOT_PASSWORD,
@@ -494,7 +394,6 @@ router.post("/send-otp", async (req, res) => {
 
     await axios.get(process.env.ALOT_API_URL, { params: smsParams });
 
-    /** STEP 5: ALWAYS INSERT NEW SESSION */
     await db.promise().query(
       `INSERT INTO otp_sessions_clayyo
        (mobile_number, otp, expires_at, last_sent_at, verified)
@@ -505,7 +404,7 @@ router.post("/send-otp", async (req, res) => {
     return res.json({
       success: true,
       message: "OTP sent successfully",
-      otp, // remove in production
+      otp,
     });
   } catch (err) {
     console.error("SMS error:", err.message);
@@ -529,9 +428,9 @@ router.post("/verify-otp", async (req, res) => {
 
     const [rows] = await db.promise().query(
       `SELECT * FROM otp_sessions_clayyo
-       WHERE mobile_number=?  AND otp=?
-ORDER BY id DESC
-LIMIT 1`,
+       WHERE mobile_number=? AND otp=?
+       ORDER BY id DESC
+       LIMIT 1`,
       [cleanedMobile, otp],
     );
 
@@ -554,11 +453,11 @@ LIMIT 1`,
 
     const [result] = await db.promise().query(
       `UPDATE otp_sessions_clayyo
-   SET verified=1,
-       consent_given=1,
-       consent_text=?,
-       consent_at=NOW()
-    WHERE id=?`,
+       SET verified=1,
+           consent_given=1,
+           consent_text=?,
+           consent_at=NOW()
+       WHERE id=?`,
       [consentText.trim(), record.id],
     );
 
@@ -582,7 +481,6 @@ router.post("/manual-entry", async (req, res) => {
 
     console.log("Payload:", req.body);
 
-    // ✅ Required fields (based on your React form)
     const requiredFields = [
       "login_date",
       "first_name",
@@ -621,24 +519,31 @@ router.post("/manual-entry", async (req, res) => {
 
     const loanAmount = Number(data.loan_amount || 0);
 
-    // ✅ start transaction
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
-    // ✅ validate limit + fldg
     const validation = await partnerBookingWrapper.validateBookingOrThrow(
       conn,
       "CLAYOO",
       loanAmount,
     );
 
-    // ✅ Generate LAN + Application ID
     const { lan, application_id } = await generateLoanIdentifiers("CLAYYO");
 
-    // Auto customer name
-    const customer_name = `${data.first_name} ${data.last_name}`;
+    const customer_name = `${data.first_name} ${data.last_name}`.trim();
 
-    // Fields mapping
+    let hospitalName = data.hospital_name || null;
+    if (!hospitalName && data.hospital_id) {
+      const [hospitalRows] = await conn.query(
+        `SELECT hospital_legal_name
+         FROM clayyo_hospital_booking
+         WHERE id = ?
+         LIMIT 1`,
+        [data.hospital_id],
+      );
+      hospitalName = hospitalRows?.[0]?.hospital_legal_name || null;
+    }
+
     const fields = {
       first_name: data.first_name,
       last_name: data.last_name,
@@ -675,7 +580,8 @@ router.post("/manual-entry", async (req, res) => {
 
       product: "CLAYOO",
       lender: "CLAYOO",
-      status: "Login",
+      status: LOAN_STATUS.LOGIN,
+      stage: "LOGIN",
 
       employment_type: data.employment_type,
       net_monthly_income: data.net_monthly_income,
@@ -690,6 +596,7 @@ router.post("/manual-entry", async (req, res) => {
       account_number: data.account_number || null,
       ifsc: data.ifsc || null,
       hospital_id: data.hospital_id,
+      hospital_name: hospitalName,
       policy_type: data.policy_type || null,
     };
 
@@ -704,7 +611,6 @@ router.post("/manual-entry", async (req, res) => {
       values,
     );
 
-    // ✅ create KYC row
     await conn.query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [
       lan,
     ]);
@@ -728,7 +634,6 @@ router.post("/manual-entry", async (req, res) => {
       application_id,
     });
 
-    // 🔥 Trigger async validations (non-blocking)
     clayooRunAllValidations(lan);
   } catch (err) {
     if (conn) {
@@ -761,6 +666,25 @@ router.post("/manual-entry", async (req, res) => {
   }
 });
 
+// router.get("/login-loans", async (req, res) => {
+//   try {
+//     const [rows] = await db.promise().query(`
+//       SELECT
+//         lb.*,
+//         COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_name
+//       FROM loan_booking_clayyo lb
+//       LEFT JOIN clayyo_hospital_booking ch
+//         ON ch.id = lb.hospital_id
+//       WHERE lb.status = 'Auto Bre Approved'
+//       ORDER BY lb.created_at DESC, lb.lan DESC
+//     `);
+//     res.json(rows);
+//   } catch (err) {
+//     console.error("Error fetching login loans:", err);
+//     res.status(500).json({ message: "Failed to fetch login loans" });
+//   }
+// });
+
 router.get("/approve-initiate-loans", async (req, res) => {
   const { table = "loan_booking_clayyo", prefix = "CLY" } = req.query;
 
@@ -771,8 +695,17 @@ router.get("/approve-initiate-loans", async (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  const query = `SELECT * FROM ?? WHERE status = 'Approved' AND LAN LIKE ?`;
-  const values = [table, `${prefix}%`];
+  const query = `
+    SELECT
+      lb.*,
+      COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_name
+    FROM ?? lb
+    LEFT JOIN clayyo_hospital_booking ch
+      ON ch.id = lb.hospital_id
+    WHERE lb.status IN (?, ?) AND lb.lan LIKE ?
+    ORDER BY lb.created_at DESC, lb.lan DESC
+  `;
+  const values = [table, LOAN_STATUS.BRE_APPROVED,  "Credit Recheck", `${prefix}%`];
 
   db.query(query, values, (err, results) => {
     if (err) {
@@ -793,12 +726,28 @@ router.get("/credit-approved-loans", async (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  const query = `SELECT * FROM ?? WHERE status in ('LIMIT_REQUESTED', 'CREDIT_APPROVED', 'OPS_APPROVED') AND LAN LIKE ?`;
-  const values = [table, `${prefix}%`];
+  const query = `
+    SELECT
+      lb.*,
+      COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_name
+    FROM ?? lb
+    LEFT JOIN clayyo_hospital_booking ch
+      ON ch.id = lb.hospital_id
+    WHERE lb.status IN (?, ?, ?)
+      AND lb.lan LIKE ?
+    ORDER BY lb.login_date DESC, lb.lan DESC
+  `;
+  const values = [
+    table,
+    LOAN_STATUS.LIMIT_REQUESTED,
+    LOAN_STATUS.CREDIT_APPROVED,
+    LOAN_STATUS.OPS_APPROVED,
+    `${prefix}%`,
+  ];
 
   db.query(query, values, (err, results) => {
     if (err) {
-      console.error("Error fetching login stage loans:", err);
+      console.error("Error fetching credit-approved loans:", err);
       return res.status(500).json({ message: "Database error" });
     }
     res.json(results);
@@ -808,16 +757,80 @@ router.get("/credit-approved-loans", async (req, res) => {
 router.put("/set-limit/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
-    const { limit, status, table } = req.body;
+    const { limit, table, limit_assigned_by } = req.body;
 
-    await db.promise().query(
-      `UPDATE ${table}
-       SET final_limit = ?, status = ?
-       WHERE lan = ?`,
-      [limit, status, lan],
+    const safeTable = table || "loan_booking_clayyo";
+
+    if (safeTable !== "loan_booking_clayyo") {
+      return res.status(400).json({ message: "Invalid table name" });
+    }
+
+    // 🔹 Fetch requested loan amount
+    const [[loan]] = await db.promise().query(
+      `SELECT loan_amount FROM ${safeTable} WHERE lan = ?`,
+      [lan]
     );
 
-    res.json({ message: "Limit assigned successfully" });
+    if (!loan) {
+      return res.status(404).json({ message: "Loan not found" });
+    }
+
+    const requestedAmount = Number(loan.loan_amount || 0);
+    const assignedLimit = Number(limit || 0);
+
+    let newStatus;
+    let newStage;
+    let limitReworkRequired = 0;
+    let limitReworkReason = null;
+
+    // 🔹 Condition logic
+    if (requestedAmount < assignedLimit) {
+      newStatus = "Credit Recheck";
+      newStage = "CREDIT_REWORK";
+
+      limitReworkRequired = 1;
+      limitReworkReason =
+        `Requested amount ${requestedAmount} exceeds assigned limit ${assignedLimit}`;
+    } else {
+      newStatus = LOAN_STATUS.LIMIT_REQUESTED;
+      newStage = "OPS_INITIATED";
+    }
+
+    const [result] = await db.promise().query(
+      `UPDATE ${safeTable}
+       SET final_limit = ?,
+           status = ?,
+           stage = ?,
+           limit_assigned_at = NOW(),
+           limit_assigned_by = COALESCE(?, limit_assigned_by),
+           limit_rework_required = ?,
+           limit_rework_reason = ?
+       WHERE lan = ?`,
+      [
+        assignedLimit,
+        newStatus,
+        newStage,
+        limit_assigned_by || null,
+        limitReworkRequired,
+        limitReworkReason,
+        lan,
+      ]
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Loan not found" });
+    }
+
+    res.json({
+      message: "Limit assigned successfully",
+      lan,
+      requested_amount: requestedAmount,
+      final_limit: assignedLimit,
+      status: newStatus,
+      stage: newStage,
+      moved_to:
+        newStage === "CREDIT_REWORK" ? "Credit Screen" : "Ops Screen",
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to assign limit" });
@@ -827,21 +840,40 @@ router.put("/set-limit/:lan", async (req, res) => {
 router.put("/ops-approve/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
-    const { approved_limit, pf_percent, status, table } = req.body;
+    const { approved_limit, pf_percent, status, table, ops_approved_by } =
+      req.body;
 
-    await db.promise().query(
-      `UPDATE ${table}
-       SET approved_limit = ?, pf_percent = ?, status = ?
+    const safeTable = table || "loan_booking_clayyo";
+    if (safeTable !== "loan_booking_clayyo") {
+      return res.status(400).json({ message: "Invalid table name" });
+    }
+
+    const finalStatus = status || LOAN_STATUS.OPS_APPROVED;
+
+    const [result] = await db.promise().query(
+      `UPDATE ${safeTable}
+       SET approved_limit = ?,
+           pf_percent = ?,
+           status = ?,
+           stage = 'OPS_APPROVED',
+           ops_approved_at = NOW(),
+           ops_approved_by = COALESCE(?, ops_approved_by)
        WHERE lan = ?`,
-      [approved_limit, pf_percent, status, lan],
+      [approved_limit, "0.00" , finalStatus, ops_approved_by || null, lan],
     );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: "Loan not found" });
+    }
 
     res.json({ message: "Ops approved successfully" });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Ops approval failed" });
   }
 });
 
+// Credit Screen Status Change Approve Reject
 router.put("/approve-initiated-loans/:lan", (req, res) => {
   const lan = req.params.lan;
   const { status, table } = req.body;
@@ -854,13 +886,23 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  if (!["credit_approved", "rejected"].includes(status)) {
+  if (![LOAN_STATUS.CREDIT_APPROVED, LOAN_STATUS.CREDIT_REJECTED].includes(status)) {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
-  const updateQuery = `UPDATE ?? SET status = ? WHERE lan = ?`;
+  // const updateQuery = `UPDATE ?? SET status = ? WHERE lan = ?`;
+  const newStage =
+  status === LOAN_STATUS.CREDIT_APPROVED
+    ? "LIMIT_APPROVAL_PENDING"
+    : "CREDIT_REJECTED";
 
-  db.query(updateQuery, [table, status, lan], async (err, result) => {
+const updateQuery = `
+UPDATE ??
+SET status = ?, stage = ?
+WHERE lan = ?
+`;
+
+  db.query(updateQuery, [table, status, newStage ,lan], async (err, result) => {
     if (err) {
       console.error("Error updating loan status:", err);
       return res.status(500).json({ message: "Database error" });
@@ -881,43 +923,92 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
   });
 });
 
+// router.patch("/disburse/:lan", async (req, res) => {
+//   try {
+//     const { lan } = req.params;
+
+//     const [rows] = await db.promise().query(
+//       `SELECT status, agreement_esign_status, bank_status
+//        FROM loan_booking_clayyo WHERE lan = ?`,
+//       [lan],
+//     );
+
+//     if (!rows.length) {
+//       return res.status(404).json({ message: "Loan not found" });
+//     }
+
+//     const loan = rows[0];
+
+//     if (loan.status !== LOAN_STATUS.OPS_APPROVED) {
+//       return res.status(400).json({ message: "Ops approval required first" });
+//     }
+
+//     if (loan.agreement_esign_status !== "SIGNED") {
+//       return res.status(400).json({ message: "Agreement must be signed first" });
+//     }
+
+//     if (loan.bank_status !== "MANDATE_CREATED") {
+//       return res.status(400).json({ message: "Mandate must be created first" });
+//     }
+
+//     await db.promise().query(
+//       `UPDATE loan_booking_clayyo
+//        SET status = ?, stage = 'DISBURSED',disbursed_at = NOW()
+//        WHERE lan = ?`,
+//       [LOAN_STATUS.DISBURSED, lan],
+//     );
+
+//     res.json({ message: "Loan disbursed successfully", lan });
+//   } catch (err) {
+//     console.error("Disburse error:", err);
+//     res.status(500).json({
+//       message: "Disbursement failed",
+//       error: err.message,
+//     });
+//   }
+// });
+
+// 
 router.get("/approved-loans", async (req, res) => {
   try {
     const [rows] = await db.promise().query(`
       SELECT
-        lan,
-        customer_name,
-        app_id,
-        mobile_number,
+        lb.lan,
+        lb.customer_name,
+        lb.app_id,
+        lb.mobile_number,
 
-        -- amounts
-        loan_amount,
-        final_limit,
-        approved_limit,
-        pf_percent,
-        subvention_percent,
+        lb.loan_amount,
+        lb.final_limit,
+        lb.approved_limit,
+        lb.pf_percent,
+        lb.subvention_percent,
 
-        -- agreement & bank
-        agreement_esign_status,
-        bank_status,
+        lb.agreement_esign_status,
+        lb.bank_status,
 
-        -- bank details
-        bank_name,
-        account_number,
-        ifsc,
+        lb.bank_name,
+        lb.account_number,
+        lb.ifsc,
 
-        -- status
-        status,
+        lb.status,
+        lb.emi_amount,
+        lb.loan_tenure,
+        lb.login_date,
+        lb.disbursed_at,
 
-        -- optional useful fields
-        emi_amount,
-        loan_tenure,
-        login_date
+        COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_name
 
-      FROM loan_booking_clayyo
-      WHERE status IN ('LIMIT_REQUESTED', 'OPS_APPROVED')
-      ORDER BY login_date DESC, lan DESC
-    `);
+      FROM loan_booking_clayyo lb
+      LEFT JOIN clayyo_hospital_booking ch
+        ON ch.id = lb.hospital_id
+      WHERE lb.status IN (?, ?, ?)
+      ORDER BY lb.login_date DESC, lb.lan DESC
+    `, [
+      LOAN_STATUS.LIMIT_REQUESTED,
+      LOAN_STATUS.CREDIT_APPROVED,
+      LOAN_STATUS.OPS_APPROVED
+    ]);
 
     return res.json(rows);
   } catch (err) {
@@ -927,6 +1018,62 @@ router.get("/approved-loans", async (req, res) => {
       message: "Failed to fetch approved loans",
       error: err.sqlMessage || err.message,
     });
+  }
+});
+
+router.get("/all-loans", async (req, res) => {
+  try {
+    const page = Number(req.query.page || 1);
+    const pageSize = Number(req.query.pageSize || 25);
+    const offset = (page - 1) * pageSize;
+
+    const [[{ total }]] = await db.promise().query(`
+      SELECT COUNT(*) AS total
+      FROM loan_booking_clayyo
+    `);
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        lb.id,
+        lb.lan,
+        lb.app_id,
+        lb.login_date,
+        lb.customer_name,
+        lb.mobile_number,
+        lb.loan_amount,
+        lb.final_limit,
+        lb.approved_limit,
+        lb.status,
+        lb.hospital_id,
+        lb.disbursed_at,
+        lb.stage,
+lb.limit_rework_required,
+lb.limit_rework_reason,
+        lb.clayyo_bre_status,
+        lb.clayyo_bre_reason,
+        lb.clayyo_bre_checked_at,
+        COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_name
+      FROM loan_booking_clayyo lb
+      LEFT JOIN clayyo_hospital_booking ch
+        ON ch.id = lb.hospital_id
+      ORDER BY lb.login_date DESC, lb.lan DESC
+      LIMIT ? OFFSET ?
+      `,
+      [pageSize, offset],
+    );
+
+    res.json({
+      pagination: {
+        page,
+        pageSize,
+        total,
+      },
+      rows,
+    });
+  } catch (err) {
+    console.error("Error fetching all loans:", err);
+    res.status(500).json({ message: "Database error" });
   }
 });
 
@@ -969,33 +1116,36 @@ router.get("/loan-info/:lan", async (req, res) => {
         lb.emi_amount,
         lb.cibil_score,
         lb.status,
+        lb.disbursed_at,
 
-         lb.bank_name,
-  lb.name_in_bank,
-  lb.account_number,
-  lb.ifsc,
-  lb.bank_branch,
-  lb.bank_status,
-  lb.enach_umrn,
+        lb.bank_name,
+        lb.name_in_bank,
+        lb.account_number,
+        lb.ifsc,
+        lb.bank_branch,
+        lb.bank_status,
+        lb.enach_umrn,
 
-  lb.insurance_company_name,
-  lb.insurance_policy_holder_name,
-  lb.insurance_policy_number,
-  lb.relation_with_policy_holder,
+        lb.insurance_company_name,
+        lb.insurance_policy_holder_name,
+        lb.insurance_policy_number,
+        lb.relation_with_policy_holder,
 
-  lb.final_limit,
-  lb.approved_limit,
-  lb.pf_percent,
-  lb.subvention_percent,
-  lb.limit_assigned_at,
-  lb.limit_assigned_by,
-  lb.ops_approved_at,
-  lb.ops_approved_by,
+        lb.final_limit,
+        lb.approved_limit,
+        lb.pf_percent,
+        lb.subvention_percent,
+        lb.limit_assigned_at,
+        lb.limit_assigned_by,
+        lb.stage,
+lb.limit_rework_required,
+lb.limit_rework_reason,
+        lb.ops_approved_at,
+        lb.ops_approved_by,
 
-  ch.hospital_legal_name AS hospital_legal_name,
-  lb.hospital_id,
+        COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_legal_name,
+        lb.hospital_id,
 
-        -- 🔥 Clayyo BRE fields
         lb.clayyo_bre_status,
         lb.clayyo_bre_reason,
         lb.clayyo_bre_checked_at,
@@ -1013,9 +1163,6 @@ router.get("/loan-info/:lan", async (req, res) => {
         lb.clayyo_moratorium_flag,
         lb.clayyo_restructured_flag,
 
-        
-
-        -- KYC
         k.pan_status      AS kyc_pan_status,
         k.aadhaar_status  AS kyc_aadhaar_status,
         k.bureau_status   AS kyc_bureau_status
@@ -1023,7 +1170,7 @@ router.get("/loan-info/:lan", async (req, res) => {
       FROM loan_booking_clayyo lb
       LEFT JOIN kyc_verification_status k
         ON k.lan = lb.lan
-        LEFT JOIN clayyo_hospital_booking ch
+      LEFT JOIN clayyo_hospital_booking ch
         ON ch.id = lb.hospital_id
       WHERE lb.lan = ?
       `,
@@ -1036,7 +1183,6 @@ router.get("/loan-info/:lan", async (req, res) => {
 
     const row = rows[0];
 
-    // 🔹 Loan object (matches frontend)
     const loan = {
       lan: row.lan,
       app_id: row.app_id,
@@ -1070,6 +1216,7 @@ router.get("/loan-info/:lan", async (req, res) => {
       emi_amount: row.emi_amount,
       cibil_score: row.cibil_score,
       status: row.status,
+      disbursed_at: row.disbursed_at,
 
       bank_name: row.bank_name,
       name_in_bank: row.name_in_bank,
@@ -1088,11 +1235,12 @@ router.get("/loan-info/:lan", async (req, res) => {
       subvention_percent: row.subvention_percent,
       limit_assigned_at: row.limit_assigned_at,
       limit_assigned_by: row.limit_assigned_by,
+      ops_approved_at: row.ops_approved_at,
+      ops_approved_by: row.ops_approved_by,
 
       hospital_name: row.hospital_legal_name,
       hospital_id: row.hospital_id,
 
-      // 🔥 Clayyo BRE
       clayyo_bre_status: row.clayyo_bre_status,
       clayyo_bre_reason: row.clayyo_bre_reason,
       clayyo_bre_checked_at: row.clayyo_bre_checked_at,
@@ -1111,7 +1259,6 @@ router.get("/loan-info/:lan", async (req, res) => {
       clayyo_restructured_flag: row.clayyo_restructured_flag,
     };
 
-    // 🔹 KYC object (same as Helium → reusable frontend)
     const kyc = {
       pan_status: row.kyc_pan_status || "PENDING",
       aadhaar_status: row.kyc_aadhaar_status || "PENDING",
@@ -1171,7 +1318,6 @@ router.get("/:lan/pdf", async (req, res) => {
 
     const summary = rows[0];
 
-    // Replace placeholders automatically
     html = html.replace(/{{(.*?)}}/g, (_, key) => summary[key.trim()] ?? "");
 
     const browser = await puppeteer.launch({

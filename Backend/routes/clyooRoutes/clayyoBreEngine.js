@@ -71,11 +71,12 @@ const extractClayyoBureauFacts = (reportXml) => {
   const json = parser.parse(reportXml);
   const profile = json?.INProfileResponse || {};
 
-  const score =
-    toNumber(profile?.SCORE?.BureauScore, null);
+  const score = toNumber(profile?.SCORE?.BureauScore, null);
 
-  const enquiries30d =
-    toNumber(profile?.TotalCAPS_Summary?.TotalCAPSLast30Days, null);
+  const enquiries30d = toNumber(
+    profile?.TotalCAPS_Summary?.TotalCAPSLast30Days,
+    null,
+  );
 
   const accounts = toArray(profile?.CAIS_Account?.CAIS_Account_DETAILS);
 
@@ -96,7 +97,7 @@ const extractClayyoBureauFacts = (reportXml) => {
     enquiries30d,
     accountsAnalyzed: accounts.length,
     details: [],
-    flags: {}
+    flags: {},
   };
 
   for (const acc of accounts) {
@@ -110,16 +111,20 @@ const extractClayyoBureauFacts = (reportXml) => {
     const amountPastDue = toNumber(acc?.Amount_Past_Due, 0);
 
     const specialComment = String(acc?.Special_Comment || "").toUpperCase();
-    const suitFiled = String(acc?.SuitFiledWillfulDefaultWrittenOffStatus || "").toUpperCase();
-    const wilfulDefault = String(acc?.SuitFiled_WilfulDefault || "").toUpperCase();
-    const writtenOffSettled = String(acc?.Written_off_Settled_Status || "").toUpperCase();
+    const suitFiled = String(
+      acc?.SuitFiledWillfulDefaultWrittenOffStatus || "",
+    ).toUpperCase();
+    const wilfulDefault = String(
+      acc?.SuitFiled_WilfulDefault || "",
+    ).toUpperCase();
+    const writtenOffSettled = String(
+      acc?.Written_off_Settled_Status || "",
+    ).toUpperCase();
 
     const writtenOffAmtTotal = toNumber(acc?.Written_Off_Amt_Total, 0);
     const writtenOffAmtPrincipal = toNumber(acc?.Written_Off_Amt_Principal, 0);
 
-
-
-     // 🔥 ACCOUNT DEBUG
+    // 🔥 ACCOUNT DEBUG
     const accountDebug = {
       accountNumber: acc?.Account_Number || "NA",
       dateReported: acc?.Date_Reported,
@@ -130,15 +135,14 @@ const extractClayyoBureauFacts = (reportXml) => {
       suitFiled,
       wilfulDefault,
       writtenOffSettled,
-      dpdHistory: []
+      dpdHistory: [],
     };
 
-
-
-
-
-
-    if (dateReported && monthsDiff(dateReported, now) <= 12 && amountPastDue > 0) {
+    if (
+      dateReported &&
+      monthsDiff(dateReported, now) <= 12 &&
+      amountPastDue > 0
+    ) {
       hasOverdueLast1Y = true;
     }
 
@@ -180,20 +184,13 @@ const extractClayyoBureauFacts = (reportXml) => {
 
       if (diff === null || diff < 0) continue;
 
-
-
-
       // Store raw DPD values
       accountDebug.dpdHistory.push({
         year,
         month,
         dpd,
-        monthsAgo: diff
+        monthsAgo: diff,
       });
-
-
-
-
 
       if (diff < 3 && dpd > 0) {
         hasDpdIn3M = true;
@@ -213,8 +210,6 @@ const extractClayyoBureauFacts = (reportXml) => {
     }
 
     debug.details.push(accountDebug);
-
-
   }
 
   // Final flags
@@ -235,7 +230,7 @@ const extractClayyoBureauFacts = (reportXml) => {
     console.dir(debug, { depth: null });
   }
 
-//   console.log(`Extracted Clayyo Bureau Facts: score=${score}, enquiries30d=${enquiries30d}, hasDpdIn3M=${hasDpdIn3M}, count30Dpd12M=${count30Dpd12M}, has60PlusDpd24M=${has60PlusDpd24M}, has90PlusDpd36M=${has90PlusDpd36M}, hasOverdueLast1Y=${hasOverdueLast1Y}, hasWrittenOffLast3Y=${hasWrittenOffLast3Y}, hasMoratorium=${hasMoratorium}, hasRestructured=${hasRestructured}`);
+  //   console.log(`Extracted Clayyo Bureau Facts: score=${score}, enquiries30d=${enquiries30d}, hasDpdIn3M=${hasDpdIn3M}, count30Dpd12M=${count30Dpd12M}, has60PlusDpd24M=${has60PlusDpd24M}, has90PlusDpd36M=${has90PlusDpd36M}, hasOverdueLast1Y=${hasOverdueLast1Y}, hasWrittenOffLast3Y=${hasWrittenOffLast3Y}, hasMoratorium=${hasMoratorium}, hasRestructured=${hasRestructured}`);
   return {
     score,
     enquiries30d,
@@ -256,7 +251,10 @@ const evaluateClayyoPolicy = ({ loan, bureauFacts }) => {
   const age = calculateAge(loan.dob);
   const income = toNumber(loan.net_monthly_income, 0);
   const loanAmount = toNumber(loan.loan_amount, 0);
-  const isCorporate = String(loan.policy_type || "").trim().toLowerCase() === "corporate policy";
+  const isCorporate =
+    String(loan.policy_type || "")
+      .trim()
+      .toLowerCase() === "corporate policy";
 
   const bureauScore =
     toNumber(loan.cibil_score, null) ?? toNumber(bureauFacts.score, null);
@@ -266,7 +264,8 @@ const evaluateClayyoPolicy = ({ loan, bureauFacts }) => {
     reasons.push("AGE_MISSING");
   } else {
     if (age < 22) reasons.push("AGE_BELOW_MIN");
-    if (age >= 22 && age < 25 && !isCorporate) reasons.push("AGE_EXCEPTION_ONLY_CORPORATE");
+    if (age >= 22 && age < 25 && !isCorporate)
+      reasons.push("AGE_EXCEPTION_ONLY_CORPORATE");
     if (age > 60) reasons.push("AGE_ABOVE_MAX");
   }
 
@@ -332,7 +331,7 @@ const evaluateClayyoPolicy = ({ loan, bureauFacts }) => {
   }
 
   return {
-    status: reasons.length ? "Rejected" : "Approved",
+    status: reasons.length ? "BRE FAILED" : "BRE APPROVED",
     reasons,
     bureauScore,
   };
@@ -346,7 +345,7 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
     `SELECT pan_status, aadhaar_status, bureau_status
      FROM kyc_verification_status
      WHERE lan = ?`,
-    [lan]
+    [lan],
   );
 
   if (!kycRows.length) {
@@ -372,7 +371,7 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
         "Pending",
         `PAN=${kyc.pan_status || "NA"}, AADHAAR=${kyc.aadhaar_status || "NA"}, BUREAU=${kyc.bureau_status || "NA"}`,
         lan,
-      ]
+      ],
     );
     return;
   }
@@ -382,7 +381,7 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
     `SELECT lan, dob, policy_type, net_monthly_income, loan_amount, cibil_score
      FROM loan_booking_clayyo
      WHERE lan = ?`,
-    [lan]
+    [lan],
   );
 
   if (!loanRows.length) {
@@ -399,7 +398,7 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
      WHERE lan = ?
      ORDER BY created_at DESC, id DESC
      LIMIT 1`,
-    [lan]
+    [lan],
   );
 
   if (!cibilRows.length || !cibilRows[0].report_xml) {
@@ -409,7 +408,7 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
            clayyo_bre_reason = ?,
            clayyo_bre_checked_at = NOW()
        WHERE lan = ?`,
-      ["Pending", "BUREAU_REPORT_MISSING", lan]
+      ["Pending", "BUREAU_REPORT_MISSING", lan],
     );
     return;
   }
@@ -421,6 +420,53 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
   const reasonText = decision.reasons.length
     ? decision.reasons.join(", ")
     : "ELIGIBLE";
+
+  const finalStage =
+    decision.status === "Auto Bre Approved"
+      ? "CREDIT_INITIATED"
+      : "BRE_REJECTED";
+
+  await pool.query(
+    `UPDATE loan_booking_clayyo
+   SET
+     clayyo_bre_status = ?,
+     clayyo_bre_reason = ?,
+     clayyo_bre_checked_at = NOW(),
+
+     clayyo_bureau_score = ?,
+     clayyo_enquiries_30d = ?,
+     clayyo_dpd_3m_flag = ?,
+     clayyo_dpd_12m_count = ?,
+     clayyo_dpd_24m_60_flag = ?,
+     clayyo_dpd_36m_90_flag = ?,
+     clayyo_overdue_flag = ?,
+     clayyo_writtenoff_flag = ?,
+     clayyo_moratorium_flag = ?,
+     clayyo_restructured_flag = ?,
+
+     status = ?,
+     stage = ?
+   WHERE lan = ?`,
+    [
+      decision.status,
+      reasonText,
+
+      decision.bureauScore,
+      bureauFacts.enquiries30d,
+      bureauFacts.hasDpdIn3M ? 1 : 0,
+      bureauFacts.count30Dpd12M,
+      bureauFacts.has60PlusDpd24M ? 1 : 0,
+      bureauFacts.has90PlusDpd36M ? 1 : 0,
+      bureauFacts.hasOverdueLast1Y ? 1 : 0,
+      bureauFacts.hasWrittenOffLast3Y ? 1 : 0,
+      bureauFacts.hasMoratorium ? 1 : 0,
+      bureauFacts.hasRestructured ? 1 : 0,
+
+      decision.status,
+      finalStage,
+      lan,
+    ],
+  );
 
   await pool.query(
     `UPDATE loan_booking_clayyo
@@ -439,7 +485,7 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
        clayyo_writtenoff_flag = ?,
        clayyo_moratorium_flag = ?,
        clayyo_restructured_flag = ?,
-
+      stage = ?,
        status = ?
      WHERE lan = ?`,
     [
@@ -459,11 +505,11 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
 
       decision.status,
       lan,
-    ]
+    ],
   );
 
   console.log(
-    `Clayyo BRE completed for ${lan}: ${decision.status} | ${reasonText}`
+    `Clayyo BRE completed for ${lan}: ${decision.status} | ${reasonText}`,
   );
 };
 

@@ -164,7 +164,7 @@ exports.clayooRunAllValidations = async (lan) => {
 
     if (bureauResult.score != null) {
       await pool.query(
-        "UPDATE loan_booking_clayoo SET cibil_score=? WHERE lan=?",
+        "UPDATE loan_booking_clayyo SET cibil_score=? WHERE lan=?",
         [bureauResult.score, lan]
       );
     }

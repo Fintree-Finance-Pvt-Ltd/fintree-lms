@@ -122,18 +122,22 @@ const handleOpsSubmit = async (r) => {
     return;
   }
 
-//   if (pf_percent === null || pf_percent === undefined || isNaN(pf_percent)) {
-//   alert("Enter valid PF%");
-//   return;
-// }
+ if (pf_percent == null || pf_percent < 0) {
+  alert("Invalid PF%");
+  return;
+}
 
   try {
     setOpsLoading((prev) => ({ ...prev, [lan]: true }));
 
+    if (approved_limit > r.final_limit) {
+  alert("Approved limit cannot exceed requested final limit");
+  return;
+}
+
     await api.put(`/clayyo-loans/ops-approve/${lan}`, {
       approved_limit,
       pf_percent,
-      status: "OPS_APPROVED",
       table: "loan_booking_clayyo",
     });
 
@@ -145,7 +149,7 @@ const handleOpsSubmit = async (r) => {
               ...row,
               approved_limit,
               pf_percent,
-              status: "OPS_APPROVED",
+              status: "OPS APPROVED",
             }
           : row
       )
@@ -461,7 +465,7 @@ const openBankModal = (loanRow) => {
   header: "Ops Approval",
   width: 320,
   render: (r) => {
-    const isApproved = r.status === "OPS_APPROVED";
+    const isApproved = r.status === "OPS APPROVED";
     const loading = opsLoading[r.lan];
 
     return (
@@ -473,7 +477,7 @@ const openBankModal = (loanRow) => {
         </div>
 
         {/* APPROVED LIMIT */}
-        <input
+        {/* <input
           type="number"
           placeholder="Approved Limit"
           value={opsData[r.lan]?.approved_limit ?? r.final_limit ?? ""}
@@ -482,10 +486,10 @@ const openBankModal = (loanRow) => {
           }
           disabled={isApproved || loading}
           style={inputStyle(isApproved)}
-        />
+        /> */}
 
         {/* SUBVENTION % (READ ONLY) */}
-        <input
+        {/* <input
           type="number"
           value={r.subvention_percent || ""}
           readOnly
@@ -493,24 +497,53 @@ const openBankModal = (loanRow) => {
             ...inputStyle(true),
             background: "#f9fafb",
           }}
-        />
+        /> */}
 
         {/* PF % */}
-        <input
+        {/* <input
           type="number"
-          // placeholder="PF %"
-          value={opsData[r.lan]?.pf_percent ?? r.pf_percent ?? 0}
-          // onChange={(e) =>
-          //   handleOpsChange(r.lan, "pf_percent", e.target.value)
-          // }
-          // disabled={isApproved || loading}
-          readOnly
-          // style={inputStyle(isApproved)}
-          style={{
+          placeholder="PF %"
+          value={opsData[r.lan]?.pf_percent ?? r.pf_percent ?? ""}
+          onChange={(e) =>
+            handleOpsChange(r.lan, "pf_percent", e.target.value)
+          }
+          disabled={isApproved || loading}
+          style={inputStyle(isApproved)}
+        /> */}
+
+
+        {/* APPROVED LIMIT */}
+<input
+  type="number"
+  value={r.final_limit || ""}
+  readOnly
+  style={{
     ...inputStyle(true),
     background: "#f9fafb",
   }}
-        />
+/>
+
+{/* SUBVENTION % */}
+<input
+  type="number"
+  value={r.subvention_percent || ""}
+  readOnly
+  style={{
+    ...inputStyle(true),
+    background: "#f9fafb",
+  }}
+/>
+
+{/* PF % */}
+<input
+  type="number"
+  value={r.pf_percent || ""}
+  readOnly
+  style={{
+    ...inputStyle(true),
+    background: "#f9fafb",
+  }}
+/>
 
         <button
           onClick={() => handleOpsSubmit(r)}

@@ -45,12 +45,33 @@ const ClayooDiburseInitiateScreen = ({
 
   // styles
   const pill = (status) => {
-    const map = {
-      approved: { bg: "rgba(16,185,129,.12)", bd: "rgba(16,185,129,.35)", fg: "#065f46" },
-      rejected: { bg: "rgba(239,68,68,.12)", bd: "rgba(239,68,68,.35)", fg: "#7f1d1d" },
-      pending: { bg: "rgba(234,179,8,.12)", bd: "rgba(234,179,8,.35)", fg: "#713f12" },
-      login: { bg: "rgba(107,114,128,.12)", bd: "rgba(107,114,128,.35)", fg: "#374151" },
-    };
+   const map = {
+  "bre approved": {
+    bg:"rgba(59,130,246,.12)",
+    bd:"rgba(59,130,246,.35)",
+    fg:"#1d4ed8"
+  },
+  "credit approved": {
+    bg:"rgba(16,185,129,.12)",
+    bd:"rgba(16,185,129,.35)",
+    fg:"#065f46"
+  },
+  rejected: {
+    bg:"rgba(239,68,68,.12)",
+    bd:"rgba(239,68,68,.35)",
+    fg:"#7f1d1d"
+  },
+  "credit recheck": {
+    bg:"rgba(249,115,22,.12)",
+    bd:"rgba(249,115,22,.35)",
+    fg:"#9a3412"
+  },
+  login: {
+    bg:"rgba(107,114,128,.12)",
+    bd:"rgba(107,114,128,.35)",
+    fg:"#374151"
+  }
+};
     const key = (status || "pending").toLowerCase();
     const c = map[key] || map.login;
     return {
@@ -142,6 +163,13 @@ const ClayooDiburseInitiateScreen = ({
       width: 140,
     },
     {
+  key: "stage",
+  header: "Stage",
+  sortable: true,
+  render: (r) => r.stage || "—",
+  width: 160
+},
+    {
       key: "docs",
       header: "Documents",
       render: (r) => (
@@ -172,13 +200,13 @@ const ClayooDiburseInitiateScreen = ({
         <div style={{ display: "flex", gap: 8 }}>
           <button
             style={actionBtn("approve")}
-            onClick={() => handleStatusChange(r.lan, "credit_approved", tableName)}
+            onClick={() => handleStatusChange(r.lan, "CREDIT APPROVED", tableName)}
           >
             ✅ Approve
           </button>
           <button
             style={actionBtn("reject")}
-            onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
+            onClick={() => handleStatusChange(r.lan, "REJECTED", tableName)}
           >
             ❌ Reject
           </button>
