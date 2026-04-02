@@ -176,8 +176,8 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
       const uploadData = new FormData();
 
       uploadData.append("imageUrl", file);
-      uploadData.append("clientRefId", "CLAYOO_" + Date.now());
-      uploadData.append("accountHolderName", "CLAYOO_");
+      // uploadData.append("clientRefId", "CLAYOO_" + Date.now());
+      // uploadData.append("accountHolderName", "CLAYOO_");
 
       const res = await axios.post(
         "https://sandbox.fintreelms.com/ocr/v1/cheque",
