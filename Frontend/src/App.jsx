@@ -1291,7 +1291,7 @@ function App() {
           {/* supply chain rotues */}
 
           <Route
-            path="/customers-list"
+            path="/supply-chain-loans/customers-list"
             element={
               <PermissionRoute pageName="All Customers">
                 <CustomerListScreen />
