@@ -995,52 +995,42 @@ router.post("/upload/ev-manual", async (req, res) => {
     }
 
     // Fetch FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+    const [[partnerConfig]] = await conn.query(
+      `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+      [partner.partner_id],
+    );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+    if (!partnerConfig) {
+      throw new Error("Partner configuration not found");
+    }
 
-let requiredFldg = 0;
+    let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+    if (partnerConfig?.fldg_status === 1) {
+      const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+      requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+    }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercent) / 100).toFixed(2)
-  );
+    // Validate FLDG availability
+    if (requiredFldg > 0) {
+      const fldgCheck = await partnerFldgService.validateFldgAvailability(
+        conn,
+        partner.partner_id,
+        requiredFldg,
+      );
 
-}
+      if (!fldgCheck.valid) {
+        await conn.rollback();
+        conn.release();
 
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    return res.status(403).json({
-      message: `Insufficient FLDG balance for ${partnerName}`,
-      available_fldg: fldgCheck.available,
-      required_fldg: requiredFldg
-    });
-
-  }
-
-}
-
-    
+        return res.status(403).json({
+          message: `Insufficient FLDG balance for ${partnerName}`,
+          available_fldg: fldgCheck.available,
+          required_fldg: requiredFldg,
+        });
+      }
+    }
 
     // Generate IDs AFTER limit validation passes
     const { partnerLoanId, lan } = await generateLoanIdentifiers(data.lender);
@@ -1138,17 +1128,15 @@ if (requiredFldg > 0) {
     );
 
     // Reserve FLDG after successful booking
-if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `EV Loan booking reservation | Amount: ${loanAmount}`
-  );
-
-}
+    if (requiredFldg > 0) {
+      await partnerFldgService.reserveFldg(
+        conn,
+        partner.partner_id,
+        lan,
+        requiredFldg,
+        `EV Loan booking reservation | Amount: ${loanAmount}`,
+      );
+    }
 
     await conn.commit();
     conn.release();
@@ -1345,69 +1333,59 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
         );
 
         if (!limitCheck.valid) {
+          await conn.rollback();
+          conn.release();
 
-  await conn.rollback();
-  conn.release();
+          row_errors.push({
+            row: R,
+            stage: "limit-check",
+            reason: `Limit exceeded. Remaining: ${limitCheck.remaining}, Required: ${loanAmount}`,
+          });
 
-  row_errors.push({
-    row: R,
-    stage: "limit-check",
-    reason: `Limit exceeded. Remaining: ${limitCheck.remaining}, Required: ${loanAmount}`,
-  });
+          continue;
+        }
 
-  continue;
+        // Fetch partner FLDG percent
+        const [[partnerConfig]] = await conn.query(
+          `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+          [partner.partner_id],
+        );
 
-}
+        if (!partnerConfig) {
+          throw new Error("Partner configuration not found");
+        }
 
+        let requiredFldg = 0;
 
-// Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+        if (partnerConfig?.fldg_status === 1) {
+          const fldgPercentage = Number(partnerConfig?.fldg_percent || 0);
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+          requiredFldg = Number(
+            ((loanAmount * fldgPercentage) / 100).toFixed(2),
+          );
+        }
 
-let requiredFldg = 0;
+        // Validate FLDG availability
+        if (requiredFldg > 0) {
+          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+            conn,
+            partner.partner_id,
+            requiredFldg,
+          );
 
-if (partnerConfig?.fldg_status === 1) {
+          if (!fldgCheck.valid) {
+            await conn.rollback();
+            conn.release();
 
-  const fldgPercentage = Number(partnerConfig?.fldg_percent || 0);
+            row_errors.push({
+              row: R,
+              stage: "fldg-check",
+              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+            });
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercentage) / 100).toFixed(2)
-  );
-
-}
-
-
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    row_errors.push({
-      row: R,
-      stage: "fldg-check",
-      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-    continue;
-
-  }
-
-}
+            continue;
+          }
+        }
 
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
@@ -1521,17 +1499,15 @@ if (requiredFldg > 0) {
         );
 
         // Reserve FLDG after successful booking
-if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `HEY EV Loan reservation | Amount: ${loanAmount}`
-  );
-
-}
+        if (requiredFldg > 0) {
+          await partnerFldgService.reserveFldg(
+            conn,
+            partner.partner_id,
+            lan,
+            requiredFldg,
+            `HEY EV Loan reservation | Amount: ${loanAmount}`,
+          );
+        }
 
         await conn.commit();
         conn.release();
@@ -1992,53 +1968,46 @@ router.post(
           }
 
           // Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+          const [[partnerConfig]] = await conn.query(
+            `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+            [partner.partner_id],
+          );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+          if (!partnerConfig) {
+            throw new Error("Partner configuration not found");
+          }
 
-let requiredFldg = 0;
+          let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+          if (partnerConfig?.fldg_status === 1) {
+            const fldgPercentage = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercentage = Number(partnerConfig?.fldg_percent || 0);
+            requiredFldg = Number(
+              ((loanAmount * fldgPercentage) / 100).toFixed(2),
+            );
+          }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercentage) / 100).toFixed(2)
-  );
+          // Validate FLDG availability
+          if (requiredFldg > 0) {
+            const fldgCheck = await partnerFldgService.validateFldgAvailability(
+              conn,
+              partner.partner_id,
+              requiredFldg,
+            );
 
-}
+            if (!fldgCheck.valid) {
+              await conn.rollback();
+              conn.release();
 
+              row_errors.push({
+                row: R,
+                stage: "fldg-check",
+                reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+              });
 
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    row_errors.push({
-      row: R,
-      stage: "fldg-check",
-      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-    continue;
-
-  }
-
-}
+              continue;
+            }
+          }
 
           const { partnerLoanId, lan } =
             await generateLoanIdentifiers(lenderType);
@@ -2146,16 +2115,14 @@ if (requiredFldg > 0) {
           );
 
           if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `HEY EV Battery Loan reservation | Amount: ${loanAmount}`
-  );
-
-}
+            await partnerFldgService.reserveFldg(
+              conn,
+              partner.partner_id,
+              lan,
+              requiredFldg,
+              `HEY EV Battery Loan reservation | Amount: ${loanAmount}`,
+            );
+          }
 
           await conn.commit();
           conn.release();
@@ -3788,53 +3755,44 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
         }
 
         // Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+        const [[partnerConfig]] = await conn.query(
+          `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+          [partner.partner_id],
+        );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+        if (!partnerConfig) {
+          throw new Error("Partner configuration not found");
+        }
 
-let requiredFldg = 0;
+        let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+        if (partnerConfig?.fldg_status === 1) {
+          const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+          requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+        }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercent) / 100).toFixed(2)
-  );
+        // Validate FLDG availability
+        if (requiredFldg > 0) {
+          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+            conn,
+            partner.partner_id,
+            requiredFldg,
+          );
 
-}
+          if (!fldgCheck.valid) {
+            await conn.rollback();
+            conn.release();
 
+            row_errors.push({
+              row: R,
+              stage: "fldg-check",
+              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+            });
 
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    row_errors.push({
-      row: R,
-      stage: "fldg-check",
-      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-    continue;
-
-  }
-
-}
+            continue;
+          }
+        }
 
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
@@ -3905,16 +3863,14 @@ if (requiredFldg > 0) {
         );
 
         if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `BL Loan reservation | Amount: ${loanAmount}`
-  );
-
-}
+          await partnerFldgService.reserveFldg(
+            conn,
+            partner.partner_id,
+            lan,
+            requiredFldg,
+            `BL Loan reservation | Amount: ${loanAmount}`,
+          );
+        }
 
         await conn.commit();
         conn.release();
@@ -4522,53 +4478,44 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
         }
 
         // Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+        const [[partnerConfig]] = await conn.query(
+          `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+          [partner.partner_id],
+        );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+        if (!partnerConfig) {
+          throw new Error("Partner configuration not found");
+        }
 
-let requiredFldg = 0;
+        let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+        if (partnerConfig?.fldg_status === 1) {
+          const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+          requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+        }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercent) / 100).toFixed(2)
-  );
+        // Validate FLDG availability
+        if (requiredFldg > 0) {
+          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+            conn,
+            partner.partner_id,
+            requiredFldg,
+          );
 
-}
+          if (!fldgCheck.valid) {
+            await conn.rollback();
+            conn.release();
 
+            row_errors.push({
+              row: R,
+              stage: "fldg-check",
+              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+            });
 
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    row_errors.push({
-      row: R,
-      stage: "fldg-check",
-      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-    continue;
-
-  }
-
-}
+            continue;
+          }
+        }
 
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
@@ -4691,16 +4638,14 @@ if (requiredFldg > 0) {
           );
 
           if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `GQ FSF Loan reservation | Amount: ${loanAmount}`
-  );
-
-}
+            await partnerFldgService.reserveFldg(
+              conn,
+              partner.partner_id,
+              lan,
+              requiredFldg,
+              `GQ FSF Loan reservation | Amount: ${loanAmount}`,
+            );
+          }
 
           await conn.commit();
           conn.release();
@@ -4899,51 +4844,40 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
     }
 
     // Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+    const [[partnerConfig]] = await conn.query(
+      `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+      [partner.partner_id],
+    );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+    if (!partnerConfig) {
+      throw new Error("Partner configuration not found");
+    }
 
-let requiredFldg = 0;
+    let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+    if (partnerConfig?.fldg_status === 1) {
+      const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+      requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+    }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercent) / 100).toFixed(2)
-  );
+    // Validate FLDG availability
+    if (requiredFldg > 0) {
+      const fldgCheck = await partnerFldgService.validateFldgAvailability(
+        conn,
+        partner.partner_id,
+        requiredFldg,
+      );
 
-}
+      if (!fldgCheck.valid) {
+        await conn.rollback();
+        conn.release();
 
-
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    return res.status(403).json({
-      message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-  }
-
-}
-
-    
+        return res.status(403).json({
+          message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+        });
+      }
+    }
 
     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
 
@@ -5022,16 +4956,14 @@ if (requiredFldg > 0) {
     );
 
     if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `Adikosh Loan reservation | Amount: ${loanAmount}`
-  );
-
-}
+      await partnerFldgService.reserveFldg(
+        conn,
+        partner.partner_id,
+        lan,
+        requiredFldg,
+        `Adikosh Loan reservation | Amount: ${loanAmount}`,
+      );
+    }
 
     await conn.commit();
     conn.release();
@@ -5247,53 +5179,44 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         }
 
         // Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+        const [[partnerConfig]] = await conn.query(
+          `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+          [partner.partner_id],
+        );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+        if (!partnerConfig) {
+          throw new Error("Partner configuration not found");
+        }
 
-let requiredFldg = 0;
+        let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+        if (partnerConfig?.fldg_status === 1) {
+          const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+          requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+        }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercent) / 100).toFixed(2)
-  );
+        // Validate FLDG availability
+        if (requiredFldg > 0) {
+          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+            conn,
+            partner.partner_id,
+            requiredFldg,
+          );
 
-}
+          if (!fldgCheck.valid) {
+            await conn.rollback();
+            conn.release();
 
+            row_errors.push({
+              row: R,
+              stage: "fldg-check",
+              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+            });
 
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    row_errors.push({
-      row: R,
-      stage: "fldg-check",
-      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-    continue;
-
-  }
-
-}
+            continue;
+          }
+        }
 
         const { lan } = await generateLoanIdentifiers(lenderType);
 
@@ -5379,16 +5302,14 @@ if (requiredFldg > 0) {
         );
 
         if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `Finso Loan reservation | Amount: ${loanAmount}`
-  );
-
-}
+          await partnerFldgService.reserveFldg(
+            conn,
+            partner.partner_id,
+            lan,
+            requiredFldg,
+            `Finso Loan reservation | Amount: ${loanAmount}`,
+          );
+        }
 
         await conn.commit();
         conn.release();
@@ -6579,49 +6500,40 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     }
 
     // Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+    const [[partnerConfig]] = await conn.query(
+      `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+      [partner.partner_id],
+    );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+    if (!partnerConfig) {
+      throw new Error("Partner configuration not found");
+    }
 
-let requiredFldg = 0;
+    let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+    if (partnerConfig?.fldg_status === 1) {
+      const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+      requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+    }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercent) / 100).toFixed(2)
-  );
+    // Validate FLDG availability
+    if (requiredFldg > 0) {
+      const fldgCheck = await partnerFldgService.validateFldgAvailability(
+        conn,
+        partner.partner_id,
+        requiredFldg,
+      );
 
-}
+      if (!fldgCheck.valid) {
+        await conn.rollback();
+        conn.release();
 
-
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    return res.status(403).json({
-      message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-  }
-
-}
+        return res.status(403).json({
+          message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+        });
+      }
+    }
 
     const { lan } = await generateLoanIdentifiers(lenderType);
     console.log("✅ Generated LAN:", lan);
@@ -6713,16 +6625,14 @@ if (requiredFldg > 0) {
     );
 
     if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `EMICLUB reservation | Amount: ${loanAmount}`
-  );
-
-}
+      await partnerFldgService.reserveFldg(
+        conn,
+        partner.partner_id,
+        lan,
+        requiredFldg,
+        `EMICLUB reservation | Amount: ${loanAmount}`,
+      );
+    }
 
     await conn.commit();
     conn.release();
@@ -8378,10 +8288,12 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 //   }
 // );
 
-
 // SUpply Chain Disbursment UTR ///
 
-router.post("/v1/invoice-disbursement/validate",verifyApiKey,async (req, res) => {
+router.post(
+  "/v1/invoice-disbursement/validate",
+  verifyApiKey,
+  async (req, res) => {
     const payload = req.body;
 
     if (!Array.isArray(payload) || payload.length === 0) {
@@ -8727,19 +8639,19 @@ router.post("/v1/invoice-disbursement/validate",verifyApiKey,async (req, res) =>
         conn.release();
         conn = null;
 
-       setImmediate(async () => {
-  try {
-    await generateDemandFromInvoiceDisbursement(
-      data.invoice_number,
-      data.lan
-    );
-  } catch (e) {
-    console.error(
-      `Demand generation failed for ${data.invoice_number}, LAN ${data.lan}:`,
-      e,
-    );
-  }
-});
+        setImmediate(async () => {
+          try {
+            await generateDemandFromInvoiceDisbursement(
+              data.invoice_number,
+              data.lan,
+            );
+          } catch (e) {
+            console.error(
+              `Demand generation failed for ${data.invoice_number}, LAN ${data.lan}:`,
+              e,
+            );
+          }
+        });
 
         results.push({
           invoice_number: data.invoice_number,
@@ -8983,53 +8895,44 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
         }
 
         // Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+        const [[partnerConfig]] = await conn.query(
+          `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+          [partner.partner_id],
+        );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+        if (!partnerConfig) {
+          throw new Error("Partner configuration not found");
+        }
 
-let requiredFldg = 0;
+        let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+        if (partnerConfig?.fldg_status === 1) {
+          const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+          requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+        }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercent) / 100).toFixed(2)
-  );
+        // Validate FLDG availability
+        if (requiredFldg > 0) {
+          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+            conn,
+            partner.partner_id,
+            requiredFldg,
+          );
 
-}
+          if (!fldgCheck.valid) {
+            await conn.rollback();
+            conn.release();
 
+            row_errors.push({
+              row: R,
+              stage: "fldg-check",
+              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+            });
 
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    row_errors.push({
-      row: R,
-      stage: "fldg-check",
-      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-    continue;
-
-  }
-
-}
+            continue;
+          }
+        }
 
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
@@ -9103,16 +9006,14 @@ if (requiredFldg > 0) {
         );
 
         if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `Circle PE Loan reservation | Amount: ${loanAmount}`
-  );
-
-}
+          await partnerFldgService.reserveFldg(
+            conn,
+            partner.partner_id,
+            lan,
+            requiredFldg,
+            `Circle PE Loan reservation | Amount: ${loanAmount}`,
+          );
+        }
 
         await conn.commit();
         conn.release();
@@ -9421,53 +9322,44 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
         }
 
         // Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+        const [[partnerConfig]] = await conn.query(
+          `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+          [partner.partner_id],
+        );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+        if (!partnerConfig) {
+          throw new Error("Partner configuration not found");
+        }
 
-let requiredFldg = 0;
+        let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+        if (partnerConfig?.fldg_status === 1) {
+          const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+          requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+        }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercent) / 100).toFixed(2)
-  );
+        // Validate FLDG availability
+        if (requiredFldg > 0) {
+          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+            conn,
+            partner.partner_id,
+            requiredFldg,
+          );
 
-}
+          if (!fldgCheck.valid) {
+            await conn.rollback();
+            conn.release();
 
+            row_errors.push({
+              row: R,
+              stage: "fldg-check",
+              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+            });
 
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    row_errors.push({
-      row: R,
-      stage: "fldg-check",
-      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-    continue;
-
-  }
-
-}
+            continue;
+          }
+        }
 
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
@@ -9516,16 +9408,14 @@ if (requiredFldg > 0) {
         );
 
         if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `WCTL Loan reservation | Amount: ${loanAmount}`
-  );
-
-}
+          await partnerFldgService.reserveFldg(
+            conn,
+            partner.partner_id,
+            lan,
+            requiredFldg,
+            `WCTL Loan reservation | Amount: ${loanAmount}`,
+          );
+        }
 
         await conn.commit();
         conn.release();
@@ -10047,53 +9937,44 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
         }
 
         // Fetch partner FLDG percent
-const [[partnerConfig]] = await conn.query(
-  `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-  [partner.partner_id]
-);
+        const [[partnerConfig]] = await conn.query(
+          `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+          [partner.partner_id],
+        );
 
-if (!partnerConfig) {
-  throw new Error("Partner configuration not found");
-}
+        if (!partnerConfig) {
+          throw new Error("Partner configuration not found");
+        }
 
-let requiredFldg = 0;
+        let requiredFldg = 0;
 
-if (partnerConfig?.fldg_status === 1) {
+        if (partnerConfig?.fldg_status === 1) {
+          const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-  const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+          requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+        }
 
-  requiredFldg = Number(
-    ((loanAmount * fldgPercent) / 100).toFixed(2)
-  );
+        // Validate FLDG availability
+        if (requiredFldg > 0) {
+          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+            conn,
+            partner.partner_id,
+            requiredFldg,
+          );
 
-}
+          if (!fldgCheck.valid) {
+            await conn.rollback();
+            conn.release();
 
+            row_errors.push({
+              row: R,
+              stage: "fldg-check",
+              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+            });
 
-// Validate FLDG availability
-if (requiredFldg > 0) {
-
-  const fldgCheck = await partnerFldgService.validateFldgAvailability(
-    conn,
-    partner.partner_id,
-    requiredFldg
-  );
-
-  if (!fldgCheck.valid) {
-
-    await conn.rollback();
-    conn.release();
-
-    row_errors.push({
-      row: R,
-      stage: "fldg-check",
-      reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`
-    });
-
-    continue;
-
-  }
-
-}
+            continue;
+          }
+        }
 
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(lenderType);
@@ -10216,16 +10097,14 @@ if (requiredFldg > 0) {
           );
 
           if (requiredFldg > 0) {
-
-  await partnerFldgService.reserveFldg(
-    conn,
-    partner.partner_id,
-    lan,
-    requiredFldg,
-    `GO-Non FSF reservation | Amount: ${loanAmount}`
-  );
-
-}
+            await partnerFldgService.reserveFldg(
+              conn,
+              partner.partner_id,
+              lan,
+              requiredFldg,
+              `GO-Non FSF reservation | Amount: ${loanAmount}`,
+            );
+          }
 
           await conn.commit();
           conn.release();

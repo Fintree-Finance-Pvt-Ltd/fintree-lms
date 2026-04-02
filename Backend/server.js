@@ -129,6 +129,7 @@ app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); /
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 
+app.use("/api/supply-chain", require("./routes/supplyChainRoutes/supplyChainRoutes")); // ✅ Register Routes for Supply Chain Loans
 app.post("/api/cibil/:id/pdf", async (req, res) => {
   try {
     const doc = await generateForReport(req.params.id);

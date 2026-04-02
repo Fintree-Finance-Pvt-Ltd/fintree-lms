@@ -138,6 +138,13 @@ import FldgSummaryPage from "./components/FldgSummaryPage";
 import FldgLedgerPage from "./components/FldgLedgerPage";
 import PartnerFldgManager from "./components/PartnerFldgManager";
 import ALLClayyoCaseScreen from "./components/Clayoo/ClayooAllLoansScreen";
+import CustomerListScreen from "./components/Supply Chain/CustomerListScreen";
+import InvoiceListScreen from "./components/Supply Chain/InvoiceListScreen";
+import InvoiceDetailsScreen from "./components/Supply Chain/InvoiceDetailsScreen";
+import RepaymentListScreen from "./components/Supply Chain/RepaymentListScreen";
+import SupplierListScreen from "./components/Supply Chain/SupplierListScreen";
+import AllocationListScreen from "./components/Supply Chain/AllocationListScreen";
+import CustomerDetailsScreen from "./components/Supply Chain/CustomerDetailsScreen";
 
 function App() {
   return (
@@ -1281,6 +1288,44 @@ function App() {
           <Route path="/fldg-ledger/:partnerId" 
           element={<FldgLedgerPage />} />
 
+          {/* supply chain rotues */}
+
+          <Route
+            path="/customers-list"
+            element={
+              <PermissionRoute pageName="All Customers">
+                <CustomerListScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route path="/customers/:lan/invoices" 
+          element={<InvoiceListScreen />} />
+
+<Route
+  path="/invoices/:invoice_number"
+  element={<InvoiceDetailsScreen />}
+/>
+
+<Route
+  path="/customers/:lan/repayments"
+  element={<RepaymentListScreen />}
+/>
+
+<Route
+  path="/customers/:partner_loan_id/suppliers"
+  element={<SupplierListScreen />}
+/>
+
+        <Route
+  path="/customers/:lan/allocation"
+  element={<AllocationListScreen />}
+/> 
+
+<Route
+  path="/customers/:partner_loan_id"
+  element={<CustomerDetailsScreen />}
+/>
         </Route>
       </Routes>
     </Router>
