@@ -17,6 +17,7 @@ const dummyReports = [
    { id: 11, name: "Bank Payment File Report" }, // ✅ New report added here
    {id: 12, name: "Consumer Bureau Report"} , //Consumer Bureau Report
    {id: 13, name: "Pay Out Report"} , //Consumer Bureau Report
+    { id: 14, name: "Due Demand vs Collection Report(Fintree)" } // Fintree DUE VS Collection
 
 
 ];
