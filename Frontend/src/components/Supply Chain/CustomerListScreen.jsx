@@ -149,6 +149,13 @@ const CustomerListScreen = ({
     },
 
     {
+      key: "partner_loan_id",
+      header: "Partner LAN Id",
+      sortable: true,
+      width: 160,
+    },
+
+    {
       key: "sanction_amount",
       header: "Sanction Amount",
       sortable: true,

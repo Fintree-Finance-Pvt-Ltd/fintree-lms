@@ -94,26 +94,34 @@ const InvoiceListScreen = ({
     },
 
     {
-      key: "disbursement_date",
-      header: "Disbursement Date",
-      sortable: true,
-      sortAccessor: (r) =>
-        r.disbursement_date
-          ? Date.parse(r.disbursement_date)
-          : 0,
-      width: 170,
-    },
+  key: "disbursement_date",
+  header: "Disbursement Date",
+  sortable: true,
+  render: (r) =>
+    r.disbursement_date
+      ? new Date(r.disbursement_date).toLocaleDateString("en-IN")
+      : "—",
+  sortAccessor: (r) =>
+    r.disbursement_date
+      ? Date.parse(r.disbursement_date)
+      : 0,
+  width: 170,
+},
 
     {
-      key: "due_date",
-      header: "Due Date",
-      sortable: true,
-      sortAccessor: (r) =>
-        r.due_date
-          ? Date.parse(r.due_date)
-          : 0,
-      width: 150,
-    },
+  key: "due_date",
+  header: "Due Date",
+  sortable: true,
+  render: (r) =>
+    r.due_date
+      ? new Date(r.due_date).toLocaleDateString("en-IN")
+      : "—",
+  sortAccessor: (r) =>
+    r.due_date
+      ? Date.parse(r.due_date)
+      : 0,
+  width: 150,
+},
 
     {
       key: "disbursement_amount",

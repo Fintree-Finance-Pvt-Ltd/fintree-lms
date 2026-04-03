@@ -54,15 +54,19 @@ const RepaymentListScreen = ({ title = "Repayments" }) => {
   const columns = [
 
     {
-      key: "collection_date",
-      header: "Collection Date",
-      sortable: true,
-      sortAccessor: (r) =>
-        r.collection_date
-          ? Date.parse(r.collection_date)
-          : 0,
-      width: 160,
-    },
+  key: "collection_date",
+  header: "Collection Date",
+  sortable: true,
+  render: (r) =>
+    r.collection_date
+      ? new Date(r.collection_date).toLocaleDateString("en-IN")
+      : "—",
+  sortAccessor: (r) =>
+    r.collection_date
+      ? Date.parse(r.collection_date)
+      : 0,
+  width: 160,
+},
 
     {
       key: "collection_utr",
@@ -87,15 +91,19 @@ const RepaymentListScreen = ({ title = "Repayments" }) => {
     },
 
     {
-      key: "created_at",
-      header: "Created At",
-      sortable: true,
-      sortAccessor: (r) =>
-        r.created_at
-          ? Date.parse(r.created_at)
-          : 0,
-      width: 180,
-    },
+  key: "created_at",
+  header: "Created At",
+  sortable: true,
+  render: (r) =>
+    r.created_at
+      ? new Date(r.created_at).toLocaleDateString("en-IN")
+      : "—",
+  sortAccessor: (r) =>
+    r.created_at
+      ? Date.parse(r.created_at)
+      : 0,
+  width: 180,
+},
 
   ];
 

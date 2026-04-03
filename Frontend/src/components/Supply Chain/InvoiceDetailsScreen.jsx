@@ -90,13 +90,17 @@ api.get("/supply-chain/invoices/rps", {
   const columns = [
 
     {
-      key: "daily_date",
-      header: "Date",
-      sortable: true,
-      sortAccessor: (r) =>
-        r.daily_date ? Date.parse(r.daily_date) : 0,
-      width: 150,
-    },
+  key: "daily_date",
+  header: "Date",
+  sortable: true,
+  render: (r) =>
+    r.daily_date
+      ? new Date(r.daily_date).toLocaleDateString("en-GB")
+      : "—",
+  sortAccessor: (r) =>
+    r.daily_date ? Date.parse(r.daily_date) : 0,
+  width: 150,
+},
 
     {
       key: "remaining_principal",
@@ -233,7 +237,15 @@ api.get("/supply-chain/invoices/rps", {
               fontSize: 14,
             }}
           >
-            <Info label="Collection Date" value={rps.collection_date} />
+            {/* <Info label="Collection Date" value={rps.collection_date} /> */}
+            <Info
+  label="Collection Date"
+  value={
+    rps.collection_date
+      ? new Date(rps.collection_date).toLocaleDateString("en-IN")
+      : "—"
+  }
+/>
             <Info label="Collection UTR" value={rps.collection_utr} />
             <Info label="Total Collected" value={formatCurrency(rps.total_collected)} />
             <Info label="Allocated Principal" value={formatCurrency(rps.allocated_principal)} />

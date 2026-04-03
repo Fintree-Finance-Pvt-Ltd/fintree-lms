@@ -59,13 +59,17 @@ const AllocationListScreen = ({ title = "Allocation Ledger" }) => {
     },
 
     {
-      key: "collection_date",
-      header: "Collection Date",
-      sortable: true,
-      sortAccessor: (r) =>
-        r.collection_date ? Date.parse(r.collection_date) : 0,
-      width: 160,
-    },
+  key: "collection_date",
+  header: "Collection Date",
+  sortable: true,
+  render: (r) =>
+    r.collection_date
+      ? new Date(r.collection_date).toLocaleDateString("en-IN")
+      : "—",
+  sortAccessor: (r) =>
+    r.collection_date ? Date.parse(r.collection_date) : 0,
+  width: 160,
+},
 
     {
       key: "collection_utr",
