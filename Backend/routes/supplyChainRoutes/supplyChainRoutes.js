@@ -124,30 +124,66 @@ router.get("/customers/:lan/invoices", async (req, res) => {
 
 //GET DAILY DEMAND PER INVOICE
 
-router.get("/invoices/:invoice_number/daily-demand", async (req, res) => {
-  const invoice_number = decodeURIComponent(req.params.invoice_number);
+router.get("/invoices/daily-demand", async (req, res) => {
+  try {
+    const invoice_number = decodeURIComponent(req.query.invoice_number);
 
-  const query = `
-    SELECT
-      daily_date,
-      remaining_principal,
-      remaining_interest,
-      remaining_penal_interest,
-      total_amount_demand,
-      status
-    FROM supply_chain_daily_demand
-    WHERE invoice_number = ?
-    ORDER BY daily_date ASC
-  `;
+    const { page = 1, pageSize = 25 } = req.query;
 
-  db.query(query, [invoice_number], (err, results) => {
-    if (err) {
-      console.error("Error fetching daily demand:", err);
-      return res.status(500).json({ message: "Database error" });
-    }
+    const offset = (page - 1) * pageSize;
 
-    res.json(results);
-  });
+    const dataQuery = `
+      SELECT
+        daily_date,
+        remaining_principal,
+        remaining_interest,
+        remaining_penal_interest,
+        total_amount_demand,
+        status
+      FROM supply_chain_daily_demand
+      WHERE invoice_number = ?
+      ORDER BY daily_date ASC
+      LIMIT ? OFFSET ?
+    `;
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM supply_chain_daily_demand
+      WHERE invoice_number = ?
+    `;
+
+    db.query(countQuery, [invoice_number], (err, countResult) => {
+      if (err) {
+        console.error("Count error:", err);
+        return res.status(500).json({ message: "Database error" });
+      }
+
+      const total = countResult[0].total;
+
+      db.query(
+        dataQuery,
+        [invoice_number, Number(pageSize), Number(offset)],
+        (err, results) => {
+          if (err) {
+            console.error("Daily demand fetch error:", err);
+            return res.status(500).json({ message: "Database error" });
+          }
+
+          res.json({
+            rows: results,
+            pagination: {
+              total,
+              page: Number(page),
+              pageSize: Number(pageSize),
+            },
+          });
+        }
+      );
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 

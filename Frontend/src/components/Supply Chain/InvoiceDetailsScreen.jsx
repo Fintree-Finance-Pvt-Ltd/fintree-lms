@@ -38,10 +38,14 @@ const InvoiceDetailsScreen = ({ title = "Invoice Details" }) => {
 
       const [dailyRes, rpsRes] = await Promise.all([
 
-        api.get(`/supply-chain/invoices/${encodeURIComponent(decodedInvoiceNumber)}/daily-demand`, {
-          params: { page, pageSize },
-          signal: ctrl.signal,
-        }),
+        api.get("/supply-chain/invoices/daily-demand", {
+  params: {
+    invoice_number: decodedInvoiceNumber,
+    page,
+    pageSize,
+  },
+  signal: ctrl.signal,
+}),
 
         api.get(`/supply-chain/invoices/${encodeURIComponent(decodedInvoiceNumber)}/rps`, {
           signal: ctrl.signal,
