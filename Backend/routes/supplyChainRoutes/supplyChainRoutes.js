@@ -189,31 +189,37 @@ router.get("/invoices/daily-demand", async (req, res) => {
 
 //GET RPS SUMMARY (SINGLE ROW)
 
-router.get("/invoices/:invoice_number/rps", async (req, res) => {
-   const invoice_number = decodeURIComponent(req.params.invoice_number);
+router.get("/invoices/rps", async (req, res) => {
+  try {
+    const invoice_number = decodeURIComponent(req.query.invoice_number);
 
-  const query = `
-    SELECT
-      collection_date,
-      collection_utr,
-      total_collected,
-      allocated_principal,
-      allocated_interest,
-      allocated_penal_interest,
-      excess_payment
-    FROM supply_chain_allocation
-    WHERE invoice_number = ?
-    LIMIT 1
-  `;
+    const query = `
+      SELECT
+        collection_date,
+        collection_utr,
+        total_collected,
+        allocated_principal,
+        allocated_interest,
+        allocated_penal_interest,
+        excess_payment
+      FROM supply_chain_allocation
+      WHERE invoice_number = ?
+      LIMIT 1
+    `;
 
-  db.query(query, [invoice_number], (err, results) => {
-    if (err) {
-      console.error("Error fetching RPS summary:", err);
-      return res.status(500).json({ message: "Database error" });
-    }
+    db.query(query, [invoice_number], (err, results) => {
+      if (err) {
+        console.error("Error fetching RPS summary:", err);
+        return res.status(500).json({ message: "Database error" });
+      }
 
-    res.json(results[0] || {});
-  });
+      res.json(results[0] || {});
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 // CUSTOMER SUMMARY DASHBOARD API 

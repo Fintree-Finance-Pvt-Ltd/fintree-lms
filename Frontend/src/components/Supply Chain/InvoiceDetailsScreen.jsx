@@ -47,9 +47,12 @@ const InvoiceDetailsScreen = ({ title = "Invoice Details" }) => {
   signal: ctrl.signal,
 }),
 
-        api.get(`/supply-chain/invoices/${encodeURIComponent(decodedInvoiceNumber)}/rps`, {
-          signal: ctrl.signal,
-        }),
+api.get("/supply-chain/invoices/rps", {
+  params: {
+    invoice_number: decodedInvoiceNumber,
+  },
+  signal: ctrl.signal,
+}),
 
       ]);
 
