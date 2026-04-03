@@ -1115,6 +1115,11 @@ const ClayooLimitEntry = ({
         bd: "rgba(239,68,68,.35)",
         fg: "#7f1d1d",
       },
+      "disbursement initiated": {
+        bg: "rgba(34,197,94,.12)",
+        bd: "rgba(34,197,94,.35)",
+        fg: "#166534",
+      },
     };
 
     const key = (status || "pending").toLowerCase().trim();
@@ -1159,13 +1164,13 @@ const ClayooLimitEntry = ({
       sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
       width: 220,
     },
-    {
-      key: "lender",
-      header: "Lender",
-      render: () => lenderName,
-      csvAccessor: () => lenderName,
-      width: 120,
-    },
+    // {
+    //   key: "lender",
+    //   header: "Lender",
+    //   render: () => lenderName,
+    //   csvAccessor: () => lenderName,
+    //   width: 120,
+    // },
     {
       key: "lan",
       header: "LAN",
@@ -1173,7 +1178,7 @@ const ClayooLimitEntry = ({
       render: (r) => (
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
+          onClick={() => navigate(`/approved-loan-details-clayoo/${r.lan}`)}
         >
           {r.lan ?? "—"}
         </span>
@@ -1195,12 +1200,12 @@ const ClayooLimitEntry = ({
         ),
       width: 160,
     },
-    {
-      key: "limit_rework_required",
-      header: "Deviation",
-      render: (r) => (r.limit_rework_required ? "Returned to Credit" : "—"),
-      width: 160,
-    },
+    // {
+    //   key: "limit_rework_required",
+    //   header: "Deviation",
+    //   render: (r) => (r.limit_rework_required ? "Returned to Credit" : "—"),
+    //   width: 160,
+    // },
     {
       key: "status",
       header: "Status",
@@ -1309,51 +1314,202 @@ const ClayooLimitEntry = ({
       csvAccessor: (r) => r.final_limit || "",
       width: 220,
     },
-    {
-      key: "post_limit_actions",
-      header: "Agreement & Mandate",
-      render: (r) => {
-        const opsApproved = isOpsApproved(r);
+ {
+  key: "subvention_entry",
+  header: "Updated Subvention & Disbursement",
+  render: (r) => {
+    const isSubventionSaved = !!r.updated_subvention;
+    const canEditSubvention = r.status === "OPS APPROVED";
+    const isDisbursementInitiated =
+      r.status === "DISBURSEMENT INITIATED";
 
-        const disableBank =
-          !opsApproved ||
-          r.bank_status === "VERIFIED" ||
-          r.bank_status === "MANDATE_CREATED";
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
 
-        const isAgreementDisabled =
-          !opsApproved ||
-          actionLan === r.lan ||
-          r.agreement_esign_status === "INITIATED" ||
-          r.agreement_esign_status === "SIGNED";
+        {/* Updated Subvention Input */}
+        <input
+          type="number"
+          placeholder="Update subvention"
+          value={
+            limits[`subvention_${r.lan}`] ??
+            r.updated_subvention ??
+            ""
+          }
+          onChange={(e) =>
+            setLimits((prev) => ({
+              ...prev,
+              [`subvention_${r.lan}`]: e.target.value,
+            }))
+          }
+          disabled={!canEditSubvention || isDisbursementInitiated || isSubventionSaved
+          }
+          style={{
+            width: 150,
+            padding: "6px 8px",
+            borderRadius: 6,
+            border: "1px solid #d1d5db",
+            fontSize: 13,
+          }}
+        />
 
-        return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <EsignChip status={r.agreement_esign_status} />
+        {/* Save Updated Subvention */}
+        <button
+          onClick={async () => {
+            try {
+              const value =
+                limits[`subvention_${r.lan}`];
 
-            <button
-              onClick={() => handleAgreementEsign(r)}
-              disabled={isAgreementDisabled}
-            >
-              {r.agreement_esign_status === "SIGNED"
-                ? "Already Signed"
-                : r.agreement_esign_status === "INITIATED"
-                  ? "Pending Signature…"
-                  : actionLan === r.lan
-                    ? "Processing..."
-                    : "Send Agreement"}
-            </button>
+              if (!value) {
+                alert("Enter updated subvention amount");
+                return;
+              }
 
-            <button onClick={() => handleOpenBank(r)} disabled={disableBank}>
-              {r.bank_status === "MANDATE_CREATED"
-                ? "Mandate Created"
-                : r.bank_status === "VERIFIED"
-                  ? "Verified"
-                  : "Add Bank / Mandate"}
-            </button>
-          </div>
-        );
-      },
-    },
+              await api.put(
+                `/clayyo-loans/update-subvention/${r.lan}`,
+                {
+                  updated_subvention: value,
+                  table: tableName,
+                }
+              );
+
+              setRows((prev) =>
+                prev.map((row) =>
+                  row.lan === r.lan
+                    ? {
+                        ...row,
+                        updated_subvention: value,
+                      }
+                    : row
+                )
+              );
+
+              alert("Updated subvention saved successfully");
+            } catch (err) {
+              console.error(err);
+              alert("Failed to update subvention");
+            }
+          }}
+          disabled={!canEditSubvention || isDisbursementInitiated}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 6,
+            background: "#2563eb",
+            color: "#fff",
+            border: "none",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Save Subvention
+        </button>
+
+        {/* Initiate Disbursement */}
+        <button
+          onClick={async () => {
+            if (
+              !window.confirm(
+                `Initiate disbursement for ${r.lan}?`
+              )
+            )
+              return;
+
+            try {
+              await api.post(
+                `/clayyo-loans/initiate-disbursement/${r.lan}`,
+                {
+                  table: tableName,
+                }
+              );
+
+              setRows((prev) =>
+                prev.map((row) =>
+                  row.lan === r.lan
+                    ? {
+                        ...row,
+                        status: "DISBURSEMENT INITIATED",
+                        stage: "DISBURSEMENT_INITIATED",
+                      }
+                    : row
+                )
+              );
+
+              alert("Disbursement initiated successfully");
+            } catch (err) {
+              console.error(err);
+              alert("Failed to initiate disbursement");
+            }
+          }}
+          disabled={!canEditSubvention || isDisbursementInitiated}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 6,
+            background: isDisbursementInitiated
+              ? "#9ca3af"
+              : "#16a34a",
+            color: "#fff",
+            border: "none",
+            fontWeight: 600,
+            cursor: isDisbursementInitiated
+              ? "not-allowed"
+              : "pointer",
+          }}
+        >
+          {isDisbursementInitiated
+            ? "Disbursement Initiated"
+            : "Initiate Disbursement"}
+        </button>
+
+      </div>
+    );
+  },
+  width: 200,
+}
+    
+    // {
+    //   key: "post_limit_actions",
+    //   header: "Agreement & Mandate",
+    //   render: (r) => {
+    //     const opsApproved = isOpsApproved(r);
+
+    //     const disableBank =
+    //       !opsApproved ||
+    //       r.bank_status === "VERIFIED" ||
+    //       r.bank_status === "MANDATE_CREATED";
+
+    //     const isAgreementDisabled =
+    //       !opsApproved ||
+    //       actionLan === r.lan ||
+    //       r.agreement_esign_status === "INITIATED" ||
+    //       r.agreement_esign_status === "SIGNED";
+
+    //     return (
+    //       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    //         <EsignChip status={r.agreement_esign_status} />
+
+    //         <button
+    //           onClick={() => handleAgreementEsign(r)}
+    //           disabled={isAgreementDisabled}
+    //         >
+    //           {r.agreement_esign_status === "SIGNED"
+    //             ? "Already Signed"
+    //             : r.agreement_esign_status === "INITIATED"
+    //               ? "Pending Signature…"
+    //               : actionLan === r.lan
+    //                 ? "Processing..."
+    //                 : "Send Agreement"}
+    //         </button>
+
+    //         <button onClick={() => handleOpenBank(r)} disabled={disableBank}>
+    //           {r.bank_status === "MANDATE_CREATED"
+    //             ? "Mandate Created"
+    //             : r.bank_status === "VERIFIED"
+    //               ? "Verified"
+    //               : "Add Bank / Mandate"}
+    //         </button>
+    //       </div>
+    //     );
+    //   },
+    // },
   ];
 
   const globalSearchKeys = [

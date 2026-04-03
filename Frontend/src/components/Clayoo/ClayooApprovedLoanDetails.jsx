@@ -209,6 +209,8 @@ const ClayyoApprovedLoanDetails = () => {
                 <StatusField label="PAN" value={kyc.pan_status} />
                 <StatusField label="Aadhaar" value={kyc.aadhaar_status} />
                 <StatusField label="Bureau" value={kyc.bureau_status} />
+                <StatusField label="Agreement Signing" value={kyc.agreement_esign_status} />
+                <StatusField label="E-NACH" value={kyc.bank_status} />
               </Grid>
             ),
           },

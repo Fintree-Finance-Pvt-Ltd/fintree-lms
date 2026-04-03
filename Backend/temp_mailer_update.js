@@ -12,7 +12,13 @@ const transporter = nodemailer.createTransporter({
   },
 });
 
-async function sendLoanStatusMail({ to, customerName, batchId, loanAmount, status }) {
+async function sendLoanStatusMail({
+  to,
+  customerName,
+  batchId,
+  loanAmount,
+  status,
+}) {
   let subject, text;
 
   if (status === "Disburse initiate") {
@@ -64,7 +70,13 @@ Fintree Finance
   return transporter.sendMail(mailOptions);
 }
 
-async function sendEnachMandateMail({ to, customerName, lan, mandateUrl, amount }) {
+async function sendEnachMandateMail({
+  to,
+  customerName,
+  lan,
+  mandateUrl,
+  amount,
+}) {
   if (!to || !mandateUrl) {
     throw new Error("Missing to or mandateUrl for eNACH mail");
   }
@@ -203,7 +215,7 @@ Fintree Finance`;
   return transporter.sendMail(mailOptions);
 }
 
-module.exports = { 
+module.exports = {
   sendLoanStatusMail,
   sendAadhaarKycMail,
   sendEnachMandateMail,
@@ -211,4 +223,3 @@ module.exports = {
   sendLowBalanceAlertMail,
   sendResetOtp, // 🔐 NEW
 };
-

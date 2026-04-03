@@ -437,7 +437,7 @@ const openBankModal = (loanRow) => {
       ),
     },
 
-    { key: "partner_loan_id", header: "Partner Loan ID" },
+    // { key: "partner_loan_id", header: "Partner Loan ID" },
     { key: "lan", header: "LAN" },
     { key: "mobile_number", header: "Mobile" },
 

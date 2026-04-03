@@ -6,6 +6,7 @@ const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
+const nodemailer = require("nodemailer");
 
 const router = express.Router();
 
@@ -17,6 +18,7 @@ const LOAN_STATUS = {
   CREDIT_REJECTED: "REJECTED",
   LIMIT_REQUESTED: "LIMIT REQUESTED",
   OPS_APPROVED: "OPS APPROVED",
+  DISBURSEMENT_INITIATED: "DISBURSEMENT INITIATED",
   DISBURSED: "DISBURSED",
 };
 
@@ -754,6 +756,7 @@ router.get("/credit-approved-loans", async (req, res) => {
   });
 });
 
+// Clayyo Limit Route
 router.put("/set-limit/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
@@ -834,6 +837,165 @@ router.put("/set-limit/:lan", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to assign limit" });
+  }
+});
+
+// initiate disbursement + send email
+router.post("/initiate-disbursement/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    const [[loan]] = await db.promise().query(
+      `
+      SELECT customer_name, approved_limit
+      FROM loan_booking_clayyo
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    if (!loan) {
+      return res.status(404).json({
+        message: "Loan not found",
+      });
+    }
+
+    await db.promise().query(
+      `
+      UPDATE loan_booking_clayyo
+      SET status = ?,
+          stage = 'DISBURSEMENT_INITIATED'
+      WHERE lan = ?
+      `,
+      [LOAN_STATUS.DISBURSEMENT_INITIATED, lan]
+    );
+
+    // EMAIL SEND
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.office365.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: process.env.SMTP_USER,
+      to: process.env.OPS_DISBURSEMENT_MAIL.split(","),
+      subject: `Disbursement Initiation Request ${lan}`,
+      html: `
+        <h3>Disbursement Initiation Required</h3>
+
+        <p><strong>Customer:</strong> ${loan.customer_name}</p>
+        <p><strong>LAN:</strong> ${lan}</p>
+        <p><strong>Approved Limit:</strong> ₹${loan.approved_limit}</p>
+        <p><strong>Product : CLAYYO</strong></p>
+
+        <br/>
+
+        <small>Auto-generated notification from LMS</small>
+      `,
+    });
+    console.log(transporter)
+
+    res.json({
+      message: "Disbursement initiated and mail sent",
+      lan,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      message: "Failed to initiate disbursement",
+    });
+  }
+
+  
+});
+
+// final disbursement
+router.patch("/disburse/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    const [[loan]] = await db.promise().query(
+      `
+      SELECT status
+      FROM loan_booking_clayyo
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    if (!loan) {
+      return res.status(404).json({
+        message: "Loan not found",
+      });
+    }
+
+    if (loan.status !== LOAN_STATUS.DISBURSEMENT_INITIATED) {
+      return res.status(400).json({
+        message: "Disbursement not initiated yet",
+      });
+    }
+
+    await db.promise().query(
+      `
+      UPDATE loan_booking_clayyo
+      SET status = ?,
+          stage = 'DISBURSED',
+          disbursed_at = NOW()
+      WHERE lan = ?
+      `,
+      [LOAN_STATUS.DISBURSED, lan]
+    );
+
+    res.json({
+      message: "Loan disbursed successfully",
+      lan,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      message: "Disbursement failed",
+    });
+  }
+});
+
+router.put("/update-subvention/:lan", async (req, res) => {
+  const { lan } = req.params;
+  const { updated_subvention } = req.body;
+
+  try {
+    if (!updated_subvention) {
+      return res
+        .status(400)
+        .json({ message: "Updated subvention required" });
+    }
+
+    await db.promise().query(
+      `
+      UPDATE loan_booking_clayyo
+      SET updated_subvention = ?
+      WHERE lan = ?
+      `,
+      [updated_subvention, lan]
+    );
+
+    res.json({
+      success: true,
+      message: "Updated subvention saved successfully",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update subvention",
+    });
   }
 });
 
@@ -1162,6 +1324,8 @@ lb.limit_rework_reason,
         lb.clayyo_writtenoff_flag,
         lb.clayyo_moratorium_flag,
         lb.clayyo_restructured_flag,
+        lb.agreement_esign_status,
+        lb.bank_status,
 
         k.pan_status      AS kyc_pan_status,
         k.aadhaar_status  AS kyc_aadhaar_status,
@@ -1263,6 +1427,9 @@ lb.limit_rework_reason,
       pan_status: row.kyc_pan_status || "PENDING",
       aadhaar_status: row.kyc_aadhaar_status || "PENDING",
       bureau_status: row.kyc_bureau_status || "PENDING",
+      agreement_esign_status: row.agreement_esign_status || "PENDING",
+      bank_status: row.bank_status || "PENDING",
+
     };
 
     return res.json({ loan, kyc });

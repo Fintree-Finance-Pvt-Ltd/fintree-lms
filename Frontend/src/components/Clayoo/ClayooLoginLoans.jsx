@@ -106,7 +106,7 @@ const LoginCaseScreen = ({
       render: (r) => (
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
+          onClick={() => navigate(`/approved-loan-details-clayoo/${r.lan}`)}
         >
           {r.lan ?? "—"}
         </span>
