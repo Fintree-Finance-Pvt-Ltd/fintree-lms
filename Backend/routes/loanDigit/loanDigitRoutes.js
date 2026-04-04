@@ -1,11 +1,13 @@
 const express = require("express");
 const db = require("../../config/db");
+const verifyApiKey = require("../../middleware/apiKeyAuth");
 
 const router = express.Router();
 
 /**
  * Generate LAN
  */
+
 const generateLoanDigitLan = async (lender) => {
   lender = lender.trim();
 
@@ -43,7 +45,7 @@ const generateLoanDigitLan = async (lender) => {
 /**
  * Upload Loan Digit Loan
  */
-router.post("/upload-loan-digit", async (req, res) => {
+router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
   try {
 
     const requiredFields = [
@@ -98,14 +100,7 @@ router.post("/upload-loan-digit", async (req, res) => {
       }
     }
 
-    const lender = "LOAN-DIGIT";
-    const product = "Loan Digit";
-    const loan_type = "Monthly";
-    const status = "Login";
-
-    // Generate LAN
-    const lan = await generateLoanDigitLan(lender);
-
+    
     const {
       partner_loan_id,
       first_name,
@@ -151,6 +146,77 @@ router.post("/upload-loan-digit", async (req, res) => {
       pre_emi,
       net_disbursement_amount
     } = req.body;
+
+
+     /*
+     ===============================
+     PAN FORMAT VALIDATION
+     ===============================
+    */
+    const normalizedPan = pan_number.toUpperCase().trim();
+
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+    if (!panRegex.test(normalizedPan)) {
+      return res.status(400).json({
+        status: "Failed",
+        message: "Invalid PAN format"
+      });
+    }
+
+
+    /*
+     ===============================
+     PAN DUPLICATION CHECK
+     ===============================
+    */
+
+    console.log("🔍 Checking PAN duplication:", normalizedPan);
+
+    const [panRecords] = await db.promise().query(
+      `
+      SELECT pan_status
+      FROM loan_booking_loan_digit
+      WHERE UPPER(pan_number) = ?
+      `,
+      [normalizedPan]
+    );
+
+    const allowedStatuses = [
+      "Cancelled",
+      "Foreclosed",
+      "Fully Paid",
+      "Rejected"
+    ];
+
+    if (panRecords.length > 0) {
+
+      const hasActiveLoan = panRecords.some(
+        row => !allowedStatuses.includes(row.pan_status?.trim())
+      );
+
+      if (hasActiveLoan) {
+        console.error("❌ Active case exists for PAN:", normalizedPan);
+
+        return res.status(400).json({
+          status: "Failed",
+          message:
+            "PAN already exists with an active loan. New loan not allowed."
+        });
+      }
+
+      console.log(
+        "✅ PAN exists but previous loans are closed. Proceeding."
+      );
+    }
+
+    const lender = "LOAN-DIGIT";
+    const product = "Loan Digit";
+    const loan_type = "Monthly";
+    const status = "Login";
+
+    // Generate LAN
+    const lan = await generateLoanDigitLan(lender);
 
     const customer_name =
       `${first_name} ${middle_name || ""} ${last_name}`.trim();
@@ -299,5 +365,6 @@ router.post("/upload-loan-digit", async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;

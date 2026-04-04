@@ -116,7 +116,196 @@
 
 const { queryDB } = require("../helpers");
 
+
+
+// module.exports = async function allocateGQFSFFintree(lan, payment) {
+//   let remaining = parseFloat(payment.transfer_amount);
+//   const { payment_date, payment_id } = payment;
+
+//   console.log("🚀 allocateGQFSFFintree called with:", { lan, payment });
+
+//   if (!payment_id) throw new Error("❌ payment_id missing");
+
+//   try {
+
+//     // 1️⃣ Allocate to EMIs
+//     while (remaining > 0) {
+
+//       const [emi] = await queryDB(
+//         `SELECT *
+//          FROM manual_rps_gq_fsf_fintree
+//          WHERE lan = ?
+//          AND (remaining_interest != 0 OR remaining_principal != 0)
+//          ORDER BY due_date ASC
+//          LIMIT 1`,
+//         [lan]
+//       );
+
+//       if (!emi) break;
+
+//       let interest = parseFloat(emi.remaining_interest || 0);
+//       let principal = parseFloat(emi.remaining_principal || 0);
+
+//       console.log("📄 EMI fetched:", {
+//         emiId: emi.id,
+//         interest,
+//         principal,
+//         remaining
+//       });
+
+//       // --------------------------
+//       // Interest Allocation
+//       // --------------------------
+//       if (interest !== 0 && remaining > 0) {
+
+//         const alloc = Math.min(Math.abs(interest), remaining);
+
+//         const signedAlloc = interest < 0 ? -alloc : alloc;
+
+//         remaining -= alloc;
+
+//         interest -= signedAlloc;
+
+//         const insertRes = await queryDB(
+//           `INSERT INTO allocation_fintree_fsf
+//           (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+//           VALUES (?, ?, ?, ?, 'Interest', ?)`,
+//           [lan, emi.due_date, payment_date, signedAlloc, payment_id]
+//         );
+
+//         console.log("✅ Interest allocated:", {
+//           alloc,
+//           signedAlloc,
+//           remaining,
+//           newInterest: interest,
+//           insertRes
+//         });
+//       }
+
+//       // --------------------------
+//       // Principal Allocation
+//       // --------------------------
+//       if (principal !== 0 && remaining > 0) {
+
+//         const alloc = Math.min(Math.abs(principal), remaining);
+
+//         const signedAlloc = principal < 0 ? -alloc : alloc;
+
+//         remaining -= alloc;
+
+//         principal -= signedAlloc;
+
+//         const insertRes = await queryDB(
+//           `INSERT INTO allocation_fintree_fsf
+//           (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+//           VALUES (?, ?, ?, ?, 'Principal', ?)`,
+//           [lan, emi.due_date, payment_date, signedAlloc, payment_id]
+//         );
+
+//         console.log("✅ Principal allocated:", {
+//           alloc,
+//           signedAlloc,
+//           remaining,
+//           newPrincipal: principal,
+//           insertRes
+//         });
+//       }
+
+//       // --------------------------
+//       // Update EMI Row
+//       // --------------------------
+//       const updateRes = await queryDB(
+//         `UPDATE manual_rps_gq_fsf_fintree
+//          SET remaining_interest = ?,
+//              remaining_principal = ?,
+//              remaining_emi = ?,
+//              remaining_amount = ?,
+//              payment_date = ?
+//          WHERE id = ?`,
+//         [
+//           interest,
+//           principal,
+//           interest + principal,
+//           interest + principal,
+//           payment_date,
+//           emi.id
+//         ]
+//       );
+
+//       console.log("📝 EMI updated:", {
+//         emiId: emi.id,
+//         interest,
+//         principal,
+//         updateRes
+//       });
+
+//       if (remaining <= 0) break;
+//     }
+
+//     // --------------------------
+//     // 2️⃣ Park Excess Payment
+//     // --------------------------
+//     if (remaining > 0) {
+
+//       const insertLoanCharge = await queryDB(
+//         `INSERT INTO loan_charges_fintree_fsf
+//         (lan, charge_type, amount, charge_date, due_date, paid_status, created_at)
+//         VALUES (?, 'Excess Payment', ?, ?, ?, 'Not Paid', NOW())`,
+//         [lan, remaining, payment_date, payment_date]
+//       );
+
+//       console.log("💰 Excess charge created:", insertLoanCharge);
+
+//       const insertAllocation = await queryDB(
+//         `INSERT INTO allocation_fintree_fsf
+//         (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+//         VALUES (?, ?, ?, ?, 'Excess Payment', ?)`,
+//         [lan, payment_date, payment_date, remaining, payment_id]
+//       );
+
+//       console.log("💰 Excess allocation inserted:", insertAllocation);
+
+//       remaining = 0;
+//     }
+
+//     // --------------------------
+//     // 3️⃣ Auto Close Loan
+//     // --------------------------
+//     const [pending] = await queryDB(
+//       `SELECT SUM(remaining_principal + remaining_interest) AS pending
+//        FROM manual_rps_gq_fsf_fintree
+//        WHERE lan = ?`,
+//       [lan]
+//     );
+
+//     const hasPending = parseFloat(pending.pending || 0);
+
+//     if (hasPending === 0) {
+
+//       const closeRes = await queryDB(
+//         `UPDATE loan_booking_gq_fsf
+//          SET status = 'Fully Paid'
+//          WHERE lan = ?`,
+//         [lan]
+//       );
+
+//       console.log("🏁 Loan closed:", closeRes);
+//     }
+
+//     return { ok: true, remaining };
+
+//   } catch (err) {
+
+//     console.error("❌ allocateGQFSFFintree failed:", err);
+//     throw err;
+//   }
+// };
+
+
+//////////////////
+
 module.exports = async function allocateGQFSFFintree(lan, payment) {
+
   let remaining = parseFloat(payment.transfer_amount);
   const { payment_date, payment_id } = payment;
 
@@ -126,7 +315,9 @@ module.exports = async function allocateGQFSFFintree(lan, payment) {
 
   try {
 
-    // 1️⃣ Allocate to EMIs
+    // --------------------------
+    // 1️⃣ Allocate EMI sequentially
+    // --------------------------
     while (remaining > 0) {
 
       const [emi] = await queryDB(
@@ -152,67 +343,93 @@ module.exports = async function allocateGQFSFFintree(lan, payment) {
       });
 
       // --------------------------
-      // Interest Allocation
+      // 2️⃣ Interest Allocation (fixed logic)
       // --------------------------
       if (interest !== 0 && remaining > 0) {
 
         const alloc = Math.min(Math.abs(interest), remaining);
 
-        const signedAlloc = interest < 0 ? -alloc : alloc;
+        if (interest < 0) {
+
+          // Negative interest adjustment
+          interest += alloc;
+
+          await queryDB(
+            `INSERT INTO allocation_fintree_fsf
+             (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+             VALUES (?, ?, ?, ?, 'Interest', ?)`,
+            [lan, emi.due_date, payment_date, -alloc, payment_id]
+          );
+
+        } else {
+
+          // Normal interest clearing
+          interest -= alloc;
+
+          await queryDB(
+            `INSERT INTO allocation_fintree_fsf
+             (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+             VALUES (?, ?, ?, ?, 'Interest', ?)`,
+            [lan, emi.due_date, payment_date, alloc, payment_id]
+          );
+        }
 
         remaining -= alloc;
 
-        interest -= signedAlloc;
-
-        const insertRes = await queryDB(
-          `INSERT INTO allocation_fintree_fsf
-          (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
-          VALUES (?, ?, ?, ?, 'Interest', ?)`,
-          [lan, emi.due_date, payment_date, signedAlloc, payment_id]
-        );
-
         console.log("✅ Interest allocated:", {
           alloc,
-          signedAlloc,
           remaining,
-          newInterest: interest,
-          insertRes
+          newInterest: interest
         });
       }
 
+
       // --------------------------
-      // Principal Allocation
+      // 3️⃣ Principal Allocation (fixed logic)
       // --------------------------
       if (principal !== 0 && remaining > 0) {
 
         const alloc = Math.min(Math.abs(principal), remaining);
 
-        const signedAlloc = principal < 0 ? -alloc : alloc;
+        if (principal < 0) {
+
+          // Negative principal adjustment
+          principal += alloc;
+
+          await queryDB(
+            `INSERT INTO allocation_fintree_fsf
+             (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+             VALUES (?, ?, ?, ?, 'Principal', ?)`,
+            [lan, emi.due_date, payment_date, -alloc, payment_id]
+          );
+
+        } else {
+
+          // Normal principal clearing
+          principal -= alloc;
+
+          await queryDB(
+            `INSERT INTO allocation_fintree_fsf
+             (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+             VALUES (?, ?, ?, ?, 'Principal', ?)`,
+            [lan, emi.due_date, payment_date, alloc, payment_id]
+          );
+        }
 
         remaining -= alloc;
 
-        principal -= signedAlloc;
-
-        const insertRes = await queryDB(
-          `INSERT INTO allocation_fintree_fsf
-          (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
-          VALUES (?, ?, ?, ?, 'Principal', ?)`,
-          [lan, emi.due_date, payment_date, signedAlloc, payment_id]
-        );
-
         console.log("✅ Principal allocated:", {
           alloc,
-          signedAlloc,
           remaining,
-          newPrincipal: principal,
-          insertRes
+          newPrincipal: principal
         });
       }
 
+
       // --------------------------
-      // Update EMI Row
+      // 4️⃣ Update EMI row
       // --------------------------
-      const updateRes = await queryDB(
+      await queryDB(
         `UPDATE manual_rps_gq_fsf_fintree
          SET remaining_interest = ?,
              remaining_principal = ?,
@@ -233,41 +450,40 @@ module.exports = async function allocateGQFSFFintree(lan, payment) {
       console.log("📝 EMI updated:", {
         emiId: emi.id,
         interest,
-        principal,
-        updateRes
+        principal
       });
 
       if (remaining <= 0) break;
     }
 
+
     // --------------------------
-    // 2️⃣ Park Excess Payment
+    // 5️⃣ Park Excess Payment
     // --------------------------
     if (remaining > 0) {
 
-      const insertLoanCharge = await queryDB(
+      console.log("💰 Excess detected:", remaining);
+
+      await queryDB(
         `INSERT INTO loan_charges_fintree_fsf
-        (lan, charge_type, amount, charge_date, due_date, paid_status, created_at)
-        VALUES (?, 'Excess Payment', ?, ?, ?, 'Not Paid', NOW())`,
+         (lan, charge_type, amount, charge_date, due_date, paid_status, created_at)
+         VALUES (?, 'Excess Payment', ?, ?, ?, 'Not Paid', NOW())`,
         [lan, remaining, payment_date, payment_date]
       );
 
-      console.log("💰 Excess charge created:", insertLoanCharge);
-
-      const insertAllocation = await queryDB(
+      await queryDB(
         `INSERT INTO allocation_fintree_fsf
-        (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
-        VALUES (?, ?, ?, ?, 'Excess Payment', ?)`,
+         (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+         VALUES (?, ?, ?, ?, 'Excess Payment', ?)`,
         [lan, payment_date, payment_date, remaining, payment_id]
       );
-
-      console.log("💰 Excess allocation inserted:", insertAllocation);
 
       remaining = 0;
     }
 
+
     // --------------------------
-    // 3️⃣ Auto Close Loan
+    // 6️⃣ Auto Close Loan
     // --------------------------
     const [pending] = await queryDB(
       `SELECT SUM(remaining_principal + remaining_interest) AS pending
@@ -278,16 +494,18 @@ module.exports = async function allocateGQFSFFintree(lan, payment) {
 
     const hasPending = parseFloat(pending.pending || 0);
 
+    console.log("📊 Pending balance:", hasPending);
+
     if (hasPending === 0) {
 
-      const closeRes = await queryDB(
+      await queryDB(
         `UPDATE loan_booking_gq_fsf
          SET status = 'Fully Paid'
          WHERE lan = ?`,
         [lan]
       );
 
-      console.log("🏁 Loan closed:", closeRes);
+      console.log("🏁 Loan closed");
     }
 
     return { ok: true, remaining };
