@@ -628,11 +628,25 @@ router.post(
       if (!lan)
         return res.status(400).json({ error: "lan is required" });
 
-      // Check if LAN exists in loan_booking_switch_my_loan table
+let tableName = null;
+
+// Detect table based on LAN prefix
+if (lan.startsWith("SML")) {
+  tableName = "loan_booking_switch_my_loan";
+} else if (lan.startsWith("LDF")) {
+  tableName = "loan_booking_loan_digit";
+} else {
+  return res.status(400).json({
+    error: "Invalid LAN format",
+    message: "LAN must start with SML or LDF",
+  });
+}
+
+// Check if LAN exists in the correct table
 const lanExists = await new Promise((resolve, reject) => {
   const checkSql = `
     SELECT 1
-    FROM loan_booking_switch_my_loan
+    FROM ${tableName}
     WHERE lan = ?
     LIMIT 1
   `;
@@ -646,7 +660,7 @@ const lanExists = await new Promise((resolve, reject) => {
 if (!lanExists) {
   return res.status(404).json({
     error: "Invalid LAN",
-    message: "LAN not exists in our records. Please verify and try again.",
+    message: `LAN not found in ${tableName}`,
   });
 }
 
@@ -669,7 +683,7 @@ if (!lanExists) {
       for (let i = 0; i < parsedDocs.length; i++) {
         const d = parsedDocs[i] || {};
         const doc_name = String(d.doc_name || "").trim();
-        const url = String(d.documet_url || "").trim();
+        const url = String(d.document_url || "").trim();
         const doc_password = (d.doc_password ?? "")
           .toString()
           .trim();
@@ -730,7 +744,7 @@ if (!lanExists) {
           } catch (err) {
             errors.push({
               index: i,
-              field: "documet_url",
+              field: "document_url",
               reason:
                 "Failed to download remote file: " +
                 err.message,
