@@ -2522,13 +2522,16 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_hey_ev_battery: true,
     dealer_onboarding: true,
   };
-  if (!allowedTables[table])
+
+  if (!allowedTables[table]) {
     return res.status(400).json({ message: "Invalid table name" });
+  }
 
   const pg = Math.max(1, parseInt(page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 25));
   const offset = (pg - 1) * limit;
   const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+
   const allowedSort = [
     "LAN",
     "partner_loan_id",
@@ -2542,16 +2545,44 @@ router.get("/all-loans", async (req, res) => {
 
   try {
     const likeVal = `${prefix}%`;
+
+    const isGqTable =
+      table === "loan_booking_gq_non_fsf" || table === "loan_booking_gq_fsf";
+
     const searchClause = search
-      ? ` AND (lb.LAN LIKE ? OR lb.customer_name LIKE ? OR lb.partner_loan_id LIKE ?)`
+      ? isGqTable
+        ? ` AND (
+            lb.LAN LIKE ?
+            OR lb.customer_name LIKE ?
+            OR lb.partner_loan_id LIKE ?
+            OR lb.app_id LIKE ?
+          )`
+        : ` AND (
+            lb.LAN LIKE ?
+            OR lb.customer_name LIKE ?
+            OR lb.partner_loan_id LIKE ?
+          )`
       : "";
+
     const searchParams = search
-      ? [`%${search}%`, `%${search}%`, `%${search}%`]
+      ? isGqTable
+        ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+        : [`%${search}%`, `%${search}%`, `%${search}%`]
       : [];
 
-    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.LAN LIKE ?${searchClause}`;
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM ?? lb
+      WHERE lb.LAN LIKE ?${searchClause}
+    `;
+
     const dataSql = `
-      SELECT lb.*, DATE_FORMAT(CONVERT_TZ(edu.disbursement_date, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS disbursement_date
+      SELECT
+        lb.*,
+        DATE_FORMAT(
+          CONVERT_TZ(edu.disbursement_date, '+00:00', '+05:30'),
+          '%Y-%m-%d %H:%i:%s'
+        ) AS disbursement_date
       FROM ?? AS lb
       LEFT JOIN ev_disbursement_utr AS edu ON edu.LAN = lb.LAN
       WHERE lb.LAN LIKE ?${searchClause}
@@ -2561,9 +2592,7 @@ router.get("/all-loans", async (req, res) => {
 
     const [[countRows], [rows]] = await Promise.all([
       db.promise().query(countSql, [table, likeVal, ...searchParams]),
-      db
-        .promise()
-        .query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+      db.promise().query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
     ]);
 
     res.json({
