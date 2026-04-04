@@ -2374,6 +2374,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_finso: true,
     loan_booking_clayyo: true,
     loan_booking_circle_pe: true,
+    loan_booking_loan_digit: true,
     loan_booking_hey_ev_battery: true,
     dealer_onboarding: true,
   };
