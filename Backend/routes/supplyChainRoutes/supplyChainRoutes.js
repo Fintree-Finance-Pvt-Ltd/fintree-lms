@@ -59,6 +59,36 @@ router.get("/customers/:partner_loan_id", async (req, res) => {
     }
 
     res.json(results[0]);
+    // res.json(results);
+  });
+});
+
+
+//Get Lan from id for inovoice screen
+router.get("/customers-lan/:partner_loan_id", async (req, res) => {
+  const { partner_loan_id } = req.params;
+
+  const query = `
+    SELECT
+      lan,
+      lender,
+      sanction_amount,
+      utilized_sanction_limit,
+      unutilization_sanction_limit,
+      interest_rate,
+      penal_rate
+    FROM supply_chain_sanctions
+    WHERE partner_loan_id = ?
+    ORDER BY created_at DESC
+  `;
+
+  db.query(query, [partner_loan_id], (err, results) => {
+    if (err) {
+      console.error("Error fetching customer details:", err);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    res.json(results);
   });
 });
 
