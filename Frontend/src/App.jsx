@@ -145,6 +145,8 @@ import RepaymentListScreen from "./components/Supply Chain/RepaymentListScreen";
 import SupplierListScreen from "./components/Supply Chain/SupplierListScreen";
 import AllocationListScreen from "./components/Supply Chain/AllocationListScreen";
 import CustomerDetailsScreen from "./components/Supply Chain/CustomerDetailsScreen";
+import SupplyChainInvoiceEntry from "./components/Supply Chain/SupplyChainInvoiceEntry";
+import SupplyChainCollectionEntry from "./components/Supply Chain/SupplyChainCollectionEntry";
 
 function App() {
   return (
@@ -1298,6 +1300,16 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          <Route path="/supply-chain-loans/invoice-entry" 
+          element={ <PermissionRoute pageName="SC Invoice Entry">
+            <SupplyChainInvoiceEntry />
+          </PermissionRoute>} />
+
+          <Route path="/supply-chain-loans/collection-entry" 
+          element={<PermissionRoute pageName="SC Collection Entry">
+            <SupplyChainCollectionEntry />
+          </PermissionRoute>} />
 
           <Route path="/customers/:lan/invoices" 
           element={<InvoiceListScreen />} />

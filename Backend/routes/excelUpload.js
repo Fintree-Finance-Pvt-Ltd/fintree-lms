@@ -8322,7 +8322,6 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 
 router.post(
   "/v1/invoice-disbursement/validate",
-  verifyApiKey,
   async (req, res) => {
     const payload = req.body;
 
@@ -8538,7 +8537,10 @@ router.post(
         }
 
         const expectedRoiAmount =
-          (disbursementAmount * dbRoi * tenureDays) / 365;
+          (disbursementAmount * (dbRoi / 100) * tenureDays) / 365;
+
+          console.log("expectedroi", expectedRoiAmount);
+          console.log("frontedna kmount", data.total_roi_amount);
 
         const expectedEmi = disbursementAmount + expectedRoiAmount;
         const remainingInvoiceAmount = invoiceAmount - disbursementAmount;
@@ -8720,20 +8722,19 @@ router.post(
 
 router.post(
   "/v1/supplychain/repayment-upload",
-  verifyApiKey,
   async (req, res) => {
     try {
       console.log("💰 SUPPLY CHAIN REPAYMENT UPLOAD START");
 
       /* ---------- Partner Validation ---------- */
-      if (
-        !req.partner ||
-        (req.partner.name || "").toLowerCase().trim() !== "supplychain"
-      ) {
-        return res.status(403).json({
-          message: "This route is only for Supply Chain partner",
-        });
-      }
+      // if (
+      //   !req.partner ||
+      //   (req.partner.name || "").toLowerCase().trim() !== "supplychain"
+      // ) {
+      //   return res.status(403).json({
+      //     message: "This route is only for Supply Chain partner",
+      //   });
+      // }
 
       const data = req.body;
 
