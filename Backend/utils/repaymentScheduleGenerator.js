@@ -3344,16 +3344,23 @@ const generateRepaymentScheduleClayoo = async (
   lan,
   loanAmount,
   interestRate,
+  tenure,
   disbursementDate,
-  paymentDate
 ) => {
+
+
 
   // Convert interest rate to decimal
   const annualRate = interestRate / 100;
 
+
+console.log("disbursement dtae", disbursementDate);
   // Convert input dates
   const disbDate = new Date(disbursementDate);
-  const payDate = new Date(paymentDate);
+  console.log("Parsed disbursementDate:", disbDate);
+  const payDate = new Date(disbDate);
+  payDate.setDate(payDate.getDate() + tenure); // paymentDate is disbursementDate + 90 days
+  console.log("paydate means duedate", payDate);
 
   // Validate dates
   if (
@@ -4349,7 +4356,7 @@ const generateRepaymentSchedule = async (
       product,
       lender,
     );
-  } else if (lender === "CLAYYO") {
+  } else if (lender === "CLAYOO") {
     await generateRepaymentScheduleClayoo(
       conn,
       lan,

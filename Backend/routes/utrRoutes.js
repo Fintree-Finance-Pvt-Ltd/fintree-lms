@@ -661,7 +661,7 @@ WHERE lan = ?`,
           );
         } else if (lan.startsWith("CLYO")) {
           [loanRes] = await db.promise().query(
-            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+            `SELECT final_limit AS loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_clayyo WHERE lan = ?`,
             [lan],
           );

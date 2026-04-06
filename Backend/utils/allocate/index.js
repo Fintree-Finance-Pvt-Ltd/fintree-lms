@@ -29,7 +29,6 @@
 const allocateEV = require("./allocateEV");
 const allocateGQFSF = require("./allocateGQFSF");
 const allocateGQNonFSF = require("./allocateGQNonFSF");
-// <-- new import: adjust filename if yours is different
 const allocateGQNonFSFFintree = require("./allocateGQNonFSFFintree");
 const allocateAdikosh = require("./allocateAdikosh");
 const allocateBL = require("./allocateBL");
@@ -39,6 +38,7 @@ const allocateHEYEV = require("./allocateHeyEV");
 const allocateCirclePE = require("./allocateCirclePE");
 const allocateEmiClub = require ("./allocateEmiClub");
 const allocateHelium = require ("./allocateHelium");
+const allocateClayoo = require("./allocateClayoo");
 const allocateGQFSFFintree = require("./allocateGQFSFFintree");
 
 
@@ -91,6 +91,9 @@ const allocateRepaymentByLAN = async (lan, payment) => {
     return allocateEmiClub(lan, payment);
      } else if (lan.startsWith("CIRF")) {
     return allocateCirclePE(lan, payment);
+  }
+  else if (lan.startsWith("CLY")) {
+return allocateClayoo(lan, payment);
   } else if (lan.startsWith("GQN")) {
     const promises = [
       allocateGQNonFSF(lan, payment),

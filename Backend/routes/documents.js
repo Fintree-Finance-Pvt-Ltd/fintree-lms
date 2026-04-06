@@ -65,6 +65,7 @@ const LAN_TABLE_MAP = {
   HEL: { table: "loan_booking_helium",   statusCol: "status" },
   DLR: { table: "dealer_onboarding",   statusCol: "status" },
   ZYPF: { table: "loan_booking_zypay_customer",   statusCol: "status" },
+  Cl: { table: "loan_booking_clayyo",   statusCol: "status" },
 };
 
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing
