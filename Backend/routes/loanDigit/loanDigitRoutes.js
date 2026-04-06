@@ -51,7 +51,6 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     const requiredFields = [
       "partner_loan_id",
       "first_name",
-      "last_name",
       "mobile_number",
       "pan_number",
       "dob",
@@ -59,7 +58,6 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
       "gender",
       "current_address",
       "current_village_city",
-      "current_district",
       "current_state",
       "current_pincode",
       "permanent_address",
@@ -93,7 +91,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 
     // Validate required fields
     for (let field of requiredFields) {
-      if (!req.body[field]) {
+      if (req.body[field] === undefined || req.body[field] === null) {
         return res.status(400).json({
           message: `❌ Missing required field: ${field}`,
         });
@@ -104,8 +102,8 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     const {
       partner_loan_id,
       first_name,
-      middle_name,
-      last_name,
+      middle_name = null,
+      last_name = null,
       mobile_number,
       pan_number,
       dob,
@@ -113,12 +111,12 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
       gender,
       current_address,
       current_village_city,
-      current_district,
+      current_district = null,
       current_state,
       current_pincode,
       permanent_address,
       permanent_village_city,
-      permanent_district,
+      permanent_district = null,
       permanent_state,
       permanent_pincode,
       employment,
@@ -352,7 +350,6 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     return res.json({
       message: "✅ Loan Digit loan saved successfully.",
       lan,
-      cibilScore: cibil_score
     });
 
   } catch (error) {
@@ -360,7 +357,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     console.error("❌ Unhandled Error:", error);
 
     res.status(500).json({
-      message: "Upload failed. Please try again.",
+      message: "Upload failed on Loan Digit. Please try again.",
       error: error.sqlMessage || error.message
     });
   }
