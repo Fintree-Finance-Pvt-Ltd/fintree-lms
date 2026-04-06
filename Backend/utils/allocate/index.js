@@ -40,6 +40,7 @@ const allocateEmiClub = require ("./allocateEmiClub");
 const allocateHelium = require ("./allocateHelium");
 const allocateClayoo = require("./allocateClayoo");
 const allocateGQFSFFintree = require("./allocateGQFSFFintree");
+const allocateLoanDigit = require( "./allocateLoanDigit" );
 
 
 /**
@@ -94,6 +95,10 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   }
   else if (lan.startsWith("CLY")) {
 return allocateClayoo(lan, payment);
+  } else if (lan.startsWith("GQN")) {
+  }
+  else if (lan.startsWith("LDF")) {
+return allocateLoanDigit(lan, payment);
   } else if (lan.startsWith("GQN")) {
     const promises = [
       allocateGQNonFSF(lan, payment),
