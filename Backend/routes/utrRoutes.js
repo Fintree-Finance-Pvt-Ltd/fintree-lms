@@ -634,6 +634,12 @@ WHERE lan = ?`,
              FROM loan_booking_ev WHERE lan = ?`,
             [lan],
           );
+        }else if (lan.startsWith("LDF")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_loan_digit WHERE lan = ?`,
+            [lan],
+          );
         } else if (lan.startsWith("HEYEV")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
@@ -856,6 +862,11 @@ WHERE lan = ?`,
               "UPDATE loan_booking_clayyo SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
+          } else if (lan.startsWith("LDF")) {
+            await conn.query(
+              "UPDATE loan_booking_loan_digit SET status = 'Disbursed' WHERE lan = ?",
+              [lan],
+            );
           } else if (lan.startsWith("FINS")) {
             await conn.query(
               "UPDATE loan_booking_finso SET status = 'Disbursed' WHERE lan = ?",
@@ -988,6 +999,52 @@ WHERE lan = ?`,
             );
             rowErrors.push({
               partnerLoanId,
+              lan,
+              utr: disbursementUTR,
+              reason: `Webhook failed: ${webhookErr.message}`,
+              stage: "webhook",
+            });
+          }
+        }
+
+        // ✅ Call webhook for LOANDIGIT loans only
+        if (
+          lan.startsWith("LDF") ||
+          lan.startsWith("LDG") ||
+          lan.startsWith("LDD")
+        ) {
+          try {
+            // Fetch partner_loan_id for external_ref_no
+            const [partnerData] = await db
+              .promise()
+              .query(
+                "SELECT partner_loan_id FROM loan_booking_loan_digit WHERE lan = ?",
+                [lan],
+              );
+
+            const partnerLoanId =
+              partnerData.length > 0 ? partnerData[0].partner_loan_id : null;
+
+            if (!partnerLoanId) {
+              throw new Error("partner_loan_id not found");
+            }
+
+            await sendLoanWebhook({
+              external_ref_no: partnerLoanId,
+              utr: disbursementUTR,
+              disbursement_date: disbursementDate.toISOString().split("T")[0],
+              reference_number: lan,
+              status: "DISBURSED",
+              reject_reason: null,
+            });
+          } catch (webhookErr) {
+            console.error(
+              `⚠️ LoanDigit webhook failed for ${lan}:`,
+              webhookErr.message,
+            );
+
+            rowErrors.push({
+              partnerLoanId: partnerLoanId || null,
               lan,
               utr: disbursementUTR,
               reason: `Webhook failed: ${webhookErr.message}`,
