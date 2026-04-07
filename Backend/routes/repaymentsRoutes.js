@@ -607,6 +607,8 @@ async function processRows(sheetData, res) {
       "Transfer Amount",
     ];
 
+    console.log(required)
+
     const missingHeaders = required.filter(
       (h) => !(h in sheetData[0])
     );
@@ -665,10 +667,16 @@ async function processRows(sheetData, res) {
       const lan = row["LAN"];
       const utr = row["UTR"];
 
+      console.log(lan)
+
+      console.log(utr)
+
       const bank_date =
   typeof row["Bank Date"] === "string"
     ? row["Bank Date"]
     : excelSerialDateToJS(row["Bank Date"]);
+
+    console.log(bank_date)
 
 const payment_date =
   typeof row["Payment Date"] === "string"
@@ -678,7 +686,10 @@ const payment_date =
       const payment_mode = row["Payment Mode"];
       const transfer_amount = row["Transfer Amount"];
 
-
+      console.log(payment_date)
+      console.log(payment_id)
+      console.log(payment_mode)
+      console.log(transfer_amount)
       /**
        * Validation
        */
