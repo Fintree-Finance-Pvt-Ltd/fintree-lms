@@ -28,6 +28,7 @@ const SupplyChainInvoiceEntry = () => {
 
   const [lanList, setLanList] = useState([]);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("info");
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
@@ -188,17 +189,19 @@ useEffect(() => {
   };
 
   const handleSupplierSelect = (e) => {
-    const supplierName = e.target.value;
+    const accountNumber = e.target.value;
 
-    const supplier = suppliers.find((s) => s.supplier_name === supplierName);
+    const supplier = suppliers.find((s) => s.bank_account_number === accountNumber);
+
+    if (!supplier) return;
 
     setFormData((prev) => ({
       ...prev,
-      supplier_name: supplierName,
-      bank_account_number: supplier?.bank_account_number || "",
-      ifsc_code: supplier?.ifsc_code || "",
-      bank_name: supplier?.bank_name || "",
-      account_holder_name: supplier?.account_holder_name || "",
+    supplier_name: supplier.supplier_name,
+    bank_account_number: supplier.bank_account_number,
+    ifsc_code: supplier.ifsc_code,
+    bank_name: supplier.bank_name,
+    account_holder_name: supplier.account_holder_name,
     }));
   };
 
@@ -265,7 +268,40 @@ useEffect(() => {
       payload
     );
 
-    setMessage(res.data.message || "✅ Success");
+    const results = res.data.results || [];
+
+    const failed = results.filter(r => r.status === "failed");
+    const success = results.filter(r => r.status === "success");
+
+     /* ---------- HANDLE FAILED CASE ---------- */
+
+    if (failed.length > 0 && success.length === 0) {
+        setMessageType("error");
+      setMessage(
+        `❌ ${failed
+          .map(f => `${f.invoice_number}: ${f.message}`)
+          .join(", ")}`
+      );
+      return;
+    }
+
+    /* ---------- HANDLE PARTIAL SUCCESS ---------- */
+
+    if (failed.length > 0 && success.length > 0) {
+        setMessageType("warning");
+      setMessage(
+        `⚠️ ${success.length} success, ${failed.length} failed → ` +
+        failed.map(f => `${f.invoice_number}: ${f.message}`).join(", ")
+      );
+    }
+
+    /* ---------- HANDLE FULL SUCCESS ---------- */
+
+    if (success.length > 0 && failed.length === 0) {
+        setMessageType("success");
+      setMessage(`✅ ${success.length} invoice uploaded successfully`);
+    }
+
 
 /* RESET ONLY INVOICE FIELDS */
 
@@ -283,6 +319,7 @@ setFormData((prev) => ({
 }));
 
   } catch (err) {
+    setMessageType("error");
     setMessage(
       err.response?.data?.message ||
         "❌ Invoice submission failed"
@@ -393,13 +430,13 @@ const validateForm = () => {
             <label>Select Supplier</label>
 
             <select
-              value={formData.supplier_name}
+              value={formData.bank_account_number}
               onChange={handleSupplierSelect}
             >
               <option value="">-- Select Supplier --</option>
 
               {suppliers.map((s) => (
-                <option key={s.bank_account_number} value={s.supplier_name}>
+                <option key={s.bank_account_number} value={s.bank_account_number}>
                   {s.supplier_name} — {s.bank_account_number}
                 </option>
               ))}
@@ -472,7 +509,11 @@ const validateForm = () => {
         
       )}
 
-      {message && <div className="message">{message}</div>}
+      {message && (
+  <div className={`message ${messageType}`}>
+    {message}
+  </div>
+)}
 
       {/* Same styling as your Helium screen */}
       <style>{`
@@ -526,13 +567,36 @@ const validateForm = () => {
         }
 
         .message {
-          margin-top: 1rem;
-          padding: 0.8rem;
-          border-radius: 6px;
-          background: #f0f0f0;
-          font-weight: 600;
-          text-align: center;
-        }
+  margin-top: 1rem;
+  padding: 0.9rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.message.success {
+  background: #e6f9ed;
+  color: #1b7f3a;
+  border: 1px solid #b7ebc6;
+}
+
+.message.error {
+  background: #fdecea;
+  color: #b42318;
+  border: 1px solid #f5c2c0;
+}
+
+.message.warning {
+  background: #fff4e5;
+  color: #b26a00;
+  border: 1px solid #ffd8a8;
+}
+
+.message.info {
+  background: #eef6ff;
+  color: #1e60c2;
+  border: 1px solid #c7ddff;
+}
       `}</style>
     </div>
   );
