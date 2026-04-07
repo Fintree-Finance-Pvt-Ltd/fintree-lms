@@ -86,6 +86,13 @@ api.get("/supply-chain/invoices/rps", {
     fetchData();
   }, [fetchData]);
 
+  const formatDateSafe = (dateStr) => {
+  if (!dateStr) return "—";
+
+  const [y, m, d] = dateStr.split("-");
+  return `${d}-${m}-${y}`;
+};
+
 
   const columns = [
 
@@ -94,9 +101,9 @@ api.get("/supply-chain/invoices/rps", {
   header: "Date",
   sortable: true,
   render: (r) =>
-    r.daily_date
-      ? new Date(r.daily_date).toLocaleDateString("en-GB")
-      : "—",
+  r.daily_date
+    ? formatDateSafe(r.daily_date)
+    : "—",
   sortAccessor: (r) =>
     r.daily_date ? Date.parse(r.daily_date) : 0,
   width: 150,
@@ -241,10 +248,10 @@ api.get("/supply-chain/invoices/rps", {
             <Info
   label="Collection Date"
   value={
-    rps.collection_date
-      ? new Date(rps.collection_date).toLocaleDateString("en-IN")
-      : "—"
-  }
+  rps.collection_date
+    ? formatDateSafe(rps.collection_date)
+    : "—"
+}
 />
             <Info label="Collection UTR" value={rps.collection_utr} />
             <Info label="Total Collected" value={formatCurrency(rps.total_collected)} />
