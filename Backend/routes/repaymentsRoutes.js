@@ -540,6 +540,11 @@ const parseApiDate = (value) => {
     return `${y}-${m}-${d}`;
   }
 
+   // YYYY/MM/DD  ✅ add this
+    if (/^\d{4}\/\d{2}\/\d{2}$/.test(value)) {
+      return value.replace(/\//g, "-");
+    }
+
   return null;
 };
 
@@ -671,17 +676,26 @@ async function processRows(sheetData, res) {
 
       console.log(utr)
 
-      const bank_date =
-  typeof row["Bank Date"] === "string"
-    ? row["Bank Date"]
-    : excelSerialDateToJS(row["Bank Date"]);
+  //     const bank_date =
+  // typeof row["Bank Date"] === "string"
+  //   ? row["Bank Date"]
+  //   : excelSerialDateToJS(row["Bank Date"]);
+
+  const bank_date =
+  parseApiDate(row["Bank Date"]) ||
+  excelSerialDateToJS(row["Bank Date"]);
 
     console.log(bank_date)
 
+// const payment_date =
+//   typeof row["Payment Date"] === "string"
+//     ? row["Payment Date"]
+//     : excelSerialDateToJS(row["Payment Date"]);
+
 const payment_date =
-  typeof row["Payment Date"] === "string"
-    ? row["Payment Date"]
-    : excelSerialDateToJS(row["Payment Date"]);
+  parseApiDate(row["Payment Date"]) ||
+  excelSerialDateToJS(row["Payment Date"]);
+
       const payment_id = row["Payment Id"];
       const payment_mode = row["Payment Mode"];
       const transfer_amount = row["Transfer Amount"];
