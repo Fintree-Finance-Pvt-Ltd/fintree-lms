@@ -58,7 +58,7 @@
 // //         queryDB(`SELECT lan FROM loan_booking_finso WHERE lan IN (?)`, [uniqueLANs]),
 // //         queryDB(`SELECT lan FROM loan_booking_emiclub WHERE lan IN (?)`, [uniqueLANs]),
 // //         queryDB(`SELECT lan FROM loan_booking_circle_pe WHERE lan IN (?)`, [uniqueLANs]),
-        
+
 // //       ]);
 // //       validLANs = new Set(results.flat().map((r) => r.lan));
 // //     }
@@ -167,7 +167,6 @@
 
 // // module.exports = router;
 
-
 // const express = require("express");
 // const multer = require("multer");
 // const xlsx = require("xlsx");
@@ -212,7 +211,6 @@
 
 //   return null;
 // };
-
 
 // const router = express.Router();
 // const upload = multer({ storage: multer.memoryStorage() });
@@ -297,11 +295,10 @@
 //         queryDB(`SELECT lan FROM loan_booking_helium WHERE lan IN (?)`, [uniqueLANs]),
 //        // queryDB(`SELECT lan FROM loan_booking_hey_ev_battery WHERE lan IN (?)`, [uniqueLANs]),
 //         queryDB(`SELECT lan FROM loan_booking_zypay_customer WHERE lan IN (?)`, [uniqueLANs]),
-//         queryDB(`SELECT lan FROM loan_booking_clayyo WHERE lan IN (?)`, [uniqueLANs]), 
-//         queryDB(`SELECT lan FROM loan_booking_loan_digit WHERE lan IN (?)`, [uniqueLANs]), 
+//         queryDB(`SELECT lan FROM loan_booking_clayyo WHERE lan IN (?)`, [uniqueLANs]),
+//         queryDB(`SELECT lan FROM loan_booking_loan_digit WHERE lan IN (?)`, [uniqueLANs]),
 //       ]);
 
-     
 //       validLANs = new Set(results.flat().map((r) => r.lan));
 //     }
 
@@ -504,7 +501,6 @@
 
 // module.exports = router;
 
-
 const express = require("express");
 const multer = require("multer");
 const xlsx = require("xlsx");
@@ -549,19 +545,16 @@ const toClientError = (err) => {
   return { message: sqlMessage || message || "Error", code, errno, sqlState };
 };
 
-
 /**
  * COMMON PROCESSOR FOR BOTH EXCEL + JSON
  */
 async function processRows(sheetData, res) {
-
   const successRows = [];
   const rowErrors = [];
   const missingLANs = [];
   const duplicateUTRs = [];
 
   try {
-
     if (!sheetData.length) {
       return res.status(400).json({ message: "Empty or invalid data" });
     }
@@ -573,8 +566,7 @@ async function processRows(sheetData, res) {
       LAN: row.LAN || row.lan,
       UTR: row.UTR || row.utr,
 
-      "Payment Date":
-        row["Payment Date"] || row.payment_date,
+      "Payment Date": row["Payment Date"] || row.payment_date,
 
       "Bank Date":
         row["Bank Date"] ||
@@ -582,18 +574,14 @@ async function processRows(sheetData, res) {
         row["Payment Date"] ||
         row.payment_date,
 
-      "Payment Id":
-        row["Payment Id"] || row.payment_id,
+      "Payment Id": row["Payment Id"] || row.payment_id,
 
-      "Payment Mode":
-        row["Payment Mode"] || row.payment_mode,
+      "Payment Mode": row["Payment Mode"] || row.payment_mode,
 
-      "Transfer Amount":
-        row["Transfer Amount"] || row.transfer_amount,
+      "Transfer Amount": row["Transfer Amount"] || row.transfer_amount,
 
       __row: row.__row,
     }));
-
 
     /**
      * Validate required columns
@@ -607,9 +595,7 @@ async function processRows(sheetData, res) {
       "Transfer Amount",
     ];
 
-    const missingHeaders = required.filter(
-      (h) => !(h in sheetData[0])
-    );
+    const missingHeaders = required.filter((h) => !(h in sheetData[0]));
 
     if (missingHeaders.length) {
       return res.status(400).json({
@@ -617,7 +603,6 @@ async function processRows(sheetData, res) {
         details: { missing_headers: missingHeaders },
       });
     }
-
 
     /**
      * Fetch valid LANs
@@ -629,55 +614,79 @@ async function processRows(sheetData, res) {
     let validLANs = new Set();
 
     if (uniqueLANs.length) {
-
       const results = await Promise.all([
-        queryDB(`SELECT lan FROM loan_booking_gq_non_fsf WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_gq_fsf WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_adikosh WHERE lan IN (?)`, [uniqueLANs]),
+        queryDB(`SELECT lan FROM loan_booking_gq_non_fsf WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_gq_fsf WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_adikosh WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
         queryDB(`SELECT lan FROM loan_bookings WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_ev WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_hey_ev WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_bookings_wctl WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_embifi WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_finso WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_emiclub WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_circle_pe WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_helium WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_zypay_customer WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_clayyo WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_loan_digit WHERE lan IN (?)`, [uniqueLANs]),
+        queryDB(`SELECT lan FROM loan_booking_ev WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_hey_ev WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_bookings_wctl WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_embifi WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_finso WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_emiclub WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_circle_pe WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_helium WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(
+          `SELECT lan FROM loan_booking_zypay_customer WHERE lan IN (?)`,
+          [uniqueLANs],
+        ),
+        queryDB(`SELECT lan FROM loan_booking_clayyo WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_loan_digit WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
         // queryDB(`SELECT lan FROM loan_booking_hey_ev_battery WHERE lan IN (?)`, [uniqueLANs]),
-          
-          
       ]);
 
       validLANs = new Set(results.flat().map((r) => r.lan));
     }
 
-
     /**
      * Process each row
      */
     for (const row of sheetData) {
-
       const rowNumber = row.__row || 1;
 
       const lan = row["LAN"];
       const utr = row["UTR"];
 
       const bank_date =
-  typeof row["Bank Date"] === "string"
-    ? row["Bank Date"]
-    : excelSerialDateToJS(row["Bank Date"]);
+        typeof row["Bank Date"] === "string"
+          ? row["Bank Date"]
+          : excelSerialDateToJS(row["Bank Date"]);
 
-const payment_date =
-  typeof row["Payment Date"] === "string"
-    ? row["Payment Date"]
-    : excelSerialDateToJS(row["Payment Date"]);
+      const payment_date =
+        typeof row["Payment Date"] === "string"
+          ? row["Payment Date"]
+          : excelSerialDateToJS(row["Payment Date"]);
+          
       const payment_id = row["Payment Id"];
       const payment_mode = row["Payment Mode"];
       const transfer_amount = row["Transfer Amount"];
-
 
       /**
        * Validation
@@ -706,12 +715,10 @@ const payment_date =
         continue;
       }
 
-
       /**
        * LAN existence check
        */
       if (!validLANs.has(lan)) {
-
         if (!missingLANs.includes(lan)) {
           missingLANs.push(lan);
         }
@@ -727,7 +734,6 @@ const payment_date =
         continue;
       }
 
-
       /**
        * Select upload table
        */
@@ -737,17 +743,15 @@ const payment_date =
         table = "repayments_upload_adikosh";
       }
 
-
       /**
        * Duplicate UTR check
        */
       const [dup] = await queryDB(
         `SELECT COUNT(*) AS cnt FROM ${table} WHERE utr = ?`,
-        [utr]
+        [utr],
       );
 
       if (dup.cnt > 0) {
-
         if (!duplicateUTRs.includes(utr)) {
           duplicateUTRs.push(utr);
         }
@@ -763,15 +767,10 @@ const payment_date =
         continue;
       }
 
-
       /**
        * Penal charge SP
        */
-      await queryDB(
-        `CALL sp_generate_penal_charge(?)`,
-        [lan]
-      );
-
+      await queryDB(`CALL sp_generate_penal_charge(?)`, [lan]);
 
       /**
        * Insert repayment
@@ -788,9 +787,8 @@ const payment_date =
           payment_id,
           payment_mode,
           transfer_amount,
-        ]
+        ],
       );
-
 
       /**
        * Allocation
@@ -805,10 +803,8 @@ const payment_date =
         transfer_amount,
       });
 
-
       successRows.push(rowNumber);
     }
-
 
     return res.json({
       message: `Upload completed. ${successRows.length} row(s) processed successfully.`,
@@ -820,9 +816,7 @@ const payment_date =
       missing_lans: missingLANs,
       duplicate_utrs: duplicateUTRs,
     });
-
   } catch (err) {
-
     console.error("Processor error:", err);
 
     return res.status(500).json({
@@ -832,12 +826,10 @@ const payment_date =
   }
 }
 
-
 /**
  * EXCEL UPLOAD ROUTE
  */
 router.post("/upload", upload.single("file"), async (req, res) => {
-
   if (!req.file) {
     return res.status(400).json({
       message: "No file uploaded",
@@ -845,26 +837,21 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   }
 
   try {
-
     const workbook = xlsx.read(req.file.buffer, {
       type: "buffer",
     });
 
-    const sheet =
-      xlsx.utils.sheet_to_json(
-        workbook.Sheets[workbook.SheetNames[0]]
-      );
+    const sheet = xlsx.utils.sheet_to_json(
+      workbook.Sheets[workbook.SheetNames[0]],
+    );
 
-    const sheetData =
-      sheet.map((row, i) => ({
-        ...row,
-        __row: i + 2,
-      }));
+    const sheetData = sheet.map((row, i) => ({
+      ...row,
+      __row: i + 2,
+    }));
 
     return await processRows(sheetData, res);
-
   } catch (err) {
-
     console.error("Excel upload error:", err);
 
     return res.status(500).json({
@@ -874,12 +861,10 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
-
 /**
  * JSON API UPLOAD ROUTE
  */
 router.post("/upload-json", async (req, res) => {
-
   let rows = req.body?.rows || req.body;
 
   if (!Array.isArray(rows)) {
@@ -893,37 +878,29 @@ router.post("/upload-json", async (req, res) => {
   }
 
   try {
+    const sheetData = rows.map((row, i) => {
+      const paymentDate =
+        parseApiDate(row.payment_date) || parseApiDate(row["Payment Date"]);
 
-    const sheetData =
-      rows.map((row, i) => {
+      const bankDate =
+        parseApiDate(row.bank_date) ||
+        parseApiDate(row["Bank Date"]) ||
+        paymentDate;
 
-        const paymentDate =
-          parseApiDate(row.payment_date) ||
-          parseApiDate(row["Payment Date"]);
-
-        const bankDate =
-          parseApiDate(row.bank_date) ||
-          parseApiDate(row["Bank Date"]) ||
-          paymentDate;
-
-        return {
-          LAN: row["LAN"] || row.lan,
-          UTR: row["UTR"] || row.utr,
-          "Payment Date": paymentDate,
-          "Bank Date": bankDate,
-          "Payment Id": row["Payment Id"] || row.payment_id,
-          "Payment Mode": row["Payment Mode"] || row.payment_mode,
-          "Transfer Amount":
-            row["Transfer Amount"] ||
-            row.transfer_amount,
-          __row: i + 1,
-        };
-      });
+      return {
+        LAN: row["LAN"] || row.lan,
+        UTR: row["UTR"] || row.utr,
+        "Payment Date": paymentDate,
+        "Bank Date": bankDate,
+        "Payment Id": row["Payment Id"] || row.payment_id,
+        "Payment Mode": row["Payment Mode"] || row.payment_mode,
+        "Transfer Amount": row["Transfer Amount"] || row.transfer_amount,
+        __row: i + 1,
+      };
+    });
 
     return await processRows(sheetData, res);
-
   } catch (err) {
-
     console.error("JSON upload error:", err);
 
     return res.status(500).json({
@@ -932,6 +909,5 @@ router.post("/upload-json", async (req, res) => {
     });
   }
 });
-
 
 module.exports = router;
