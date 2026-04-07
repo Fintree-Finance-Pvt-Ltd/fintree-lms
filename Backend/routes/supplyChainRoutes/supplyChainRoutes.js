@@ -128,18 +128,27 @@ router.get("/customers/:lan/invoices", async (req, res) => {
 
   const query = `
     SELECT
-      invoice_number,
-      MIN(invoice_due_date) AS due_date,
-      MAX(disbursement_date) AS disbursement_date,
-      SUM(disbursement_amount) AS disbursement_amount,
-      SUM(remaining_principal) AS remaining_principal,
-      SUM(remaining_interest) AS remaining_interest,
-      SUM(remaining_penal_interest) AS remaining_penal_interest,
-      MAX(status) AS status
-    FROM supply_chain_daily_demand
-    WHERE lan = ?
-    GROUP BY invoice_number
-    ORDER BY disbursement_date DESC
+      d.invoice_number,
+      d.invoice_due_date AS due_date,
+      d.disbursement_date,
+      d.disbursement_amount,
+      d.remaining_principal,
+      d.remaining_interest,
+      d.remaining_penal_interest,
+      d.status
+    FROM supply_chain_daily_demand d
+    INNER JOIN (
+      SELECT
+        invoice_number,
+        MAX(daily_date) AS latest_daily_date
+      FROM supply_chain_daily_demand
+      WHERE lan = ?
+      GROUP BY invoice_number
+    ) x
+      ON d.invoice_number = x.invoice_number
+     AND d.daily_date = x.latest_daily_date
+    WHERE d.lan = ?
+    ORDER BY d.disbursement_date DESC
   `;
 
   db.query(query, [lan], (err, results) => {
