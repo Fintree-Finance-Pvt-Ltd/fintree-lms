@@ -189,17 +189,19 @@ useEffect(() => {
   };
 
   const handleSupplierSelect = (e) => {
-    const supplierName = e.target.value;
+    const accountNumber = e.target.value;
 
-    const supplier = suppliers.find((s) => s.supplier_name === supplierName);
+    const supplier = suppliers.find((s) => s.bank_account_number === accountNumber);
+
+    if (!supplier) return;
 
     setFormData((prev) => ({
       ...prev,
-      supplier_name: supplierName,
-      bank_account_number: supplier?.bank_account_number || "",
-      ifsc_code: supplier?.ifsc_code || "",
-      bank_name: supplier?.bank_name || "",
-      account_holder_name: supplier?.account_holder_name || "",
+    supplier_name: supplier.supplier_name,
+    bank_account_number: supplier.bank_account_number,
+    ifsc_code: supplier.ifsc_code,
+    bank_name: supplier.bank_name,
+    account_holder_name: supplier.account_holder_name,
     }));
   };
 
@@ -428,13 +430,13 @@ const validateForm = () => {
             <label>Select Supplier</label>
 
             <select
-              value={formData.supplier_name}
+              value={formData.bank_account_number}
               onChange={handleSupplierSelect}
             >
               <option value="">-- Select Supplier --</option>
 
               {suppliers.map((s) => (
-                <option key={s.bank_account_number} value={s.supplier_name}>
+                <option key={s.bank_account_number} value={s.bank_account_number}>
                   {s.supplier_name} — {s.bank_account_number}
                 </option>
               ))}
