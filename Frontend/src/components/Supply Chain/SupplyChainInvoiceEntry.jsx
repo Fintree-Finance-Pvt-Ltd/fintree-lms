@@ -89,9 +89,11 @@ useEffect(() => {
     }));
     return;
   }
+  // ✅ FIX: timezone-safe parsing
+  const [year, month, day] =
+    formData.disbursement_date.split("-").map(Number);
 
-  // due date = disbursement_date + 90 days
-  const disbDate = new Date(formData.disbursement_date);
+  const disbDate = new Date(year, month - 1, day);
   if (isNaN(disbDate.getTime())) return;
 
   const dueDate = new Date(disbDate);
