@@ -1,12 +1,17 @@
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 const PermissionRoute = ({ children }) => {
   const { user } = useContext(AuthContext);
   const location = useLocation();
+  const token = localStorage.getItem('token');
 
-  if (!user) return null;
+  if (user === undefined && token) return null;
+
+  if (!token || !user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
   const allowedPages = user.pages || [];
   const currentPath = location.pathname;

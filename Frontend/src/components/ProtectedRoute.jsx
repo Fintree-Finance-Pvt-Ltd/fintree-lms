@@ -6,12 +6,13 @@ import { AuthContext } from '../context/AuthContext';
 const ProtectedRoute = ({ children }) => {
   const { user } = useContext(AuthContext);
   const location = useLocation();
+  const token = localStorage.getItem('token');
 
-  // ✅ Handle case where user is still loading
-  if (user === undefined) return null;
+  // ✅ Handle case where session is still loading
+  if (user === undefined && token) return null;
 
-  // ❌ If not logged in
-  if (!user) {
+  // ❌ If token/user is missing, send back to login
+  if (!token || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
