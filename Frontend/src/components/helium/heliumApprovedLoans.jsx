@@ -522,7 +522,7 @@ const disabled =
   ? "Processing..."
   : status === "SIGNED"
   ? "Already Signed"
-  : ["FAILED", "PENDING", "INITIATED"].includes(status)
+  : ["FAILED", "INITIATED"].includes(status)
   ? "Retry Agreement eSign"
   : "Send Agreement eSign"}
             </button>
