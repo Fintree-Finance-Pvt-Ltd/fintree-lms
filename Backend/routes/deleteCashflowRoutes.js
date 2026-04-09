@@ -2,6 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const xlsx = require("xlsx");
 const db = require("../config/db");
+const authenticateUser = require("../middleware/verifyToken");
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -36,13 +37,8 @@ const excelDateToJSDate = (value) => {
 const normalizePaymentId = (id) => id ? id.trim().toLowerCase() : "";
 
 const queryDB = async (sql, params) => {
-  try {
-    const [rows] = await db.promise().query(sql, params);
-    return Array.isArray(rows) ? rows : [];
-  } catch (err) {
-    console.error("❌ DB Query Error:", err);
-    return [];
-  }
+  const [result] = await db.promise().query(sql, params);
+  return result;
 };
 
 // ✅ Upload Delete Cashflow
@@ -116,5 +112,80 @@ router.post("/upload-delete-cashflow", upload.single("file"), async (req, res) =
     res.status(500).json({ message: "Internal server error during Excel processing." });
   }
 });
+
+router.post("/reverse-repayment", authenticateUser, async (req, res) => {
+  const { lan, payment_id } = req.body;
+
+  const userId = req.user?.id || req.user?.userid || req.user?.name ||  null;
+  console.log("req.user =>", req.user);
+console.log("userId =>", userId);
+
+  if (!lan || !String(lan).trim()) {
+    return res.status(400).json({ message: "LAN is required." });
+  }
+
+  if (!payment_id || !String(payment_id).trim() || String(payment_id).trim() === "0") {
+    return res.status(400).json({ message: "Payment ID is invalid." });
+  }
+
+  if (!userId || Number(userId) <= 0) {
+    return res.status(401).json({ message: "Logged in user not found." });
+  }
+
+  const cleanLan = String(lan).trim();
+  const cleanPaymentId = String(payment_id).trim();
+
+  let logId = null;
+
+  try {
+    const logResult = await queryDB(
+      `
+      INSERT INTO repayment_reversal_request_log
+        (lan, payment_id, user_id, status, message)
+      VALUES (?, ?, ?, 'INITIATED', 'Reversal request created')
+      `,
+      [cleanLan, cleanPaymentId, Number(userId)]
+    );
+
+    logId = logResult.insertId;
+
+    await queryDB(
+      `CALL sp_universal_reverse_repayment_schedule(?, ?)`,
+      [cleanLan, cleanPaymentId]
+    );
+
+    await queryDB(
+      `
+      UPDATE repayment_reversal_request_log
+      SET status = 'SUCCESS',
+          message = 'Reversal executed successfully'
+      WHERE id = ?
+      `,
+      [logId]
+    );
+
+    return res.json({
+      message: "Reversal executed successfully.",
+    });
+  } catch (error) {
+    if (logId) {
+      await queryDB(
+        `
+        UPDATE repayment_reversal_request_log
+        SET status = 'FAILED',
+            message = ?
+        WHERE id = ?
+        `,
+        [error?.sqlMessage || error?.message || "Reversal failed", logId]
+      );
+    }
+
+    return res.status(500).json({
+      message: error?.sqlMessage || error?.message || "Reversal failed",
+    });
+  }
+});
+
+
 
 module.exports = router;

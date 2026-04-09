@@ -147,6 +147,7 @@ import AllocationListScreen from "./components/Supply Chain/AllocationListScreen
 import CustomerDetailsScreen from "./components/Supply Chain/CustomerDetailsScreen";
 import SupplyChainInvoiceEntry from "./components/Supply Chain/SupplyChainInvoiceEntry";
 import SupplyChainCollectionEntry from "./components/Supply Chain/SupplyChainCollectionEntry";
+import ReverseRepayment from "./components/ReverseRepayment";
 
 function App() {
   return (
@@ -245,7 +246,7 @@ function App() {
             path="/delete-cashflow"
             element={
               <PermissionRoute pageName="Delete Cashflow">
-                <DeleteCashflow />
+                <ReverseRepayment />
               </PermissionRoute>
             }
           />
