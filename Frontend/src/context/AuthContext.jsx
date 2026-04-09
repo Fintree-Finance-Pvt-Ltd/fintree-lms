@@ -39,12 +39,25 @@ const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    const syncAuthFromStorage = () => {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
 
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else if (token) {
+      if (!token) {
+        setUser(null);
+        return;
+      }
+
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+          return;
+        } catch (err) {
+          console.error('❌ Failed to parse stored user:', err);
+          localStorage.removeItem('user');
+        }
+      }
+
       api
         .get('/auth/me', {
           headers: {
@@ -53,7 +66,7 @@ const AuthProvider = ({ children }) => {
         })
         .then((res) => {
           const userObj = {
-            userId: res.data.userId,    
+            userId: res.data.userId,
             role: res.data.role,
             name: res.data.name,
             pages: res.data.pages,
@@ -67,9 +80,20 @@ const AuthProvider = ({ children }) => {
           localStorage.removeItem('user');
           setUser(null);
         });
-    } else {
-      console.log('👉 No token found — skipping /me check');
-    }
+    };
+
+    const handleStorageChange = (event) => {
+      if (event.key === 'token' || event.key === 'user') {
+        syncAuthFromStorage();
+      }
+    };
+
+    syncAuthFromStorage();
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   return (

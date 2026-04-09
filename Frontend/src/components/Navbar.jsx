@@ -5,12 +5,11 @@ import logo from "../assets/fintree_logo.png"; // Adjust the path as necessary
 
 const Navbar = () => {
     const navigate = useNavigate();
-    const { user } = useContext(AuthContext);
+    const { user, logout } = useContext(AuthContext);
 
     const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem('user'); 
-        navigate("/");
+        logout();
+        navigate("/login");
     };
 
      return (
