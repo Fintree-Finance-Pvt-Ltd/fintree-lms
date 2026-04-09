@@ -3287,10 +3287,10 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       lastPrincipal,
       openingBal,
       lastClosing,
-      0,
-      0,
-      0,
-      0,
+       lastEmi,
+  lastInterest,
+  lastPrincipal,
+  lastEmi,
     ]);
 
     // ---------- DB INSERT ----------
