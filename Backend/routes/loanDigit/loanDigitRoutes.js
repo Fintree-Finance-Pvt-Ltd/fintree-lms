@@ -314,7 +314,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
      * Partner limit logic
      * EMI Club does this before insert; same applied here.
      */
-    const partnerName = "LOAN_DIGIT";
+    const partnerName = "Loan Digit";
     const today = new Date();
     const month = today.getMonth() + 1;
     const year = today.getFullYear();
