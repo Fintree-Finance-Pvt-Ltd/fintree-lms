@@ -481,9 +481,18 @@ module.exports = async function allocateGQFSFFintree(lan, payment) {
       remaining = 0;
     }
 
+     // --------------------------
+    // 6️⃣ Allocate Excess Payment
+    // --------------------------
+    await queryDB(
+      `CALL allocate_excess_payment_lan(?)`,
+      [lan]
+    );
+
+
 
     // --------------------------
-    // 6️⃣ Auto Close Loan
+    // 7️⃣ Auto Close Loan
     // --------------------------
     const [pending] = await queryDB(
       `SELECT SUM(remaining_principal + remaining_interest) AS pending
