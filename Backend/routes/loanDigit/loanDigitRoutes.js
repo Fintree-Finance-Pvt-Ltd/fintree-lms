@@ -390,7 +390,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     const lender = "LOAN-DIGIT";
     const product = "Loan Digit";
     const loan_type = "Monthly";
-    const loan_status = "Login";
+    const status = "Login";
 
     // Generate LAN
     const lan = await generateLoanDigitLan(conn, lender);
@@ -458,7 +458,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
         lender,
         product,
         loan_type,
-        loan_status
+        status
       )
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `,
@@ -520,7 +520,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
         lender,
         product,
         loan_type,
-        loan_status,
+        status,
       ],
     );
 
