@@ -118,7 +118,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 // 👇 Your logo import
 import logo from "../assets/logo-removebg-preview.png";
-import "../styles/Navbar.css";
+import '../styles/navbar.css'
  
 const Navbar = () => {
     const navigate = useNavigate();
