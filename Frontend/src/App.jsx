@@ -148,6 +148,7 @@ import CustomerDetailsScreen from "./components/Supply Chain/CustomerDetailsScre
 import SupplyChainInvoiceEntry from "./components/Supply Chain/SupplyChainInvoiceEntry";
 import SupplyChainCollectionEntry from "./components/Supply Chain/SupplyChainCollectionEntry";
 import ReverseRepayment from "./components/ReverseRepayment";
+import ClayooFintreeScreen from "./components/Clayoo/ClayooFintreeScreen";
 
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
@@ -484,6 +485,14 @@ function App() {
             element={
               <PermissionRoute pageName="Clayyo Operation Approval Loans">
                 <ClayooApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/clayoo-loans/fintree-operation"
+            element={
+              <PermissionRoute pageName="Clayyo Operation All Loans">
+                <ClayooFintreeScreen/>
               </PermissionRoute>
             }
           />

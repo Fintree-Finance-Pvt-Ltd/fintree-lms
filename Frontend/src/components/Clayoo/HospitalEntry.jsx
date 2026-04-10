@@ -303,6 +303,11 @@ const HospitalEntry = () => {
     avg_ticket_size: "",
     major_procedures: "",
     departments: "",
+    ifsc: "",
+    bank_name: "",
+    bank_branch: "",
+    account_number: "",
+    name_in_bank: "",
     hospital_email: "",
     hospital_phone: "",
     owner_email: "",
@@ -359,6 +364,11 @@ const HospitalEntry = () => {
         avg_ticket_size: "",
         major_procedures: "",
         departments: "",
+        ifsc: "",
+        bank_name: "",
+        bank_branch: "",
+        account_number: "",
+        name_in_bank: "",
         hospital_email: "",
         hospital_phone: "",
         owner_email: "",
@@ -367,9 +377,7 @@ const HospitalEntry = () => {
       });
  
     } catch (err) {
-      setMessage(
-        err?.response?.data?.message || "❌ Something went wrong"
-      );
+      setMessage(err?.response?.data?.message || "❌ Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -393,7 +401,7 @@ const HospitalEntry = () => {
  
     try {
       const res = await axios.get(
-        `https://api.postalpincode.in/pincode/${pin}`
+        `https://api.postalpincode.in/pincode/${pin}`,
       );
  
       const data = res.data[0];

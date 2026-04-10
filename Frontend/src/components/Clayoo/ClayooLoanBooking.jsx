@@ -958,7 +958,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     insurance_company_name: "",
     insurance_policy_holder_name: "",
     insurance_policy_number: "",
-    relation_with_policy_holder:"",
+    relation_with_policy_holder: "",
     loan_amount: "",
     product: "CLAYOO",
     lender: "CLAYOO",

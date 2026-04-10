@@ -11028,6 +11028,10 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_hey_ev";
   } else if (lan.startsWith("HEYBF")) {
     tableName = "manual_rps_hey_ev_battery";
+  } else if (lan.startsWith("CLY")) {
+    tableName = "manual_rps_clayoo";
+  } else if (lan.startsWith("LDF")) {
+    tableName = "manual_rps_loan_digit";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
     // ✅ Only fetch Main Adikosh RPS - Specify columns for ADK

@@ -51,6 +51,7 @@
 const axios = require("axios");
 
 const WEBHOOK_URL = process.env.UTR_WEBHOOK_URL_EMICLUB;
+const LOAN_DIGIT_WEBHOOK_URL = process.env.LOAN_DIGIT_WEBHOOK_URL;
 const FINSO_WEBHOOK_URL = process.env.FINSO_WEBHOOK_URL;
 const FINSO_WEBHOOK_USERNAME = process.env.FINSO_WEBHOOK_USERNAME;
 const FINSO_WEBHOOK_PASSWORD = process.env.FINSO_WEBHOOK_PASSWORD;
@@ -86,6 +87,8 @@ async function sendLoanWebhook(data) {
 
     if (ref.startsWith("FINE")) {
       url = WEBHOOK_URL;
+    } else if (ref.startsWith("LDF")) {
+      url = LOAN_DIGIT_WEBHOOK_URL;
     } else if (ref.startsWith("FINS")) {
       url = FINSO_WEBHOOK_URL;
       config.auth = {

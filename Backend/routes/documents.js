@@ -39,7 +39,10 @@ const ALLOWED_STATUSES = new Set(["login", "disburse-initiate", "disbursed"]);
 function normalizeStatus(s) {
   if (!s) return "";
   // lower, trim, replace spaces/underscores with hyphen
-  let v = String(s).trim().toLowerCase().replace(/[\s_]+/g, "-");
+  let v = String(s)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
   // handle any "disburse/disbursal/disbuse ... initiate" variants
   if (v.includes("disb") && v.includes("initiat")) v = "disburse-initiate";
   return v;
@@ -47,25 +50,28 @@ function normalizeStatus(s) {
 
 // Extract alphabetic prefix from LAN (EV111155 -> EV, GQN0001 -> GQN)
 function getLanPrefix(lan) {
-  const m = String(lan || "").trim().match(/^[A-Za-z]+/);
+  const m = String(lan || "")
+    .trim()
+    .match(/^[A-Za-z]+/);
   return m ? m[0].toUpperCase() : "";
 }
 
 // Map prefix -> booking table + status column
 const LAN_TABLE_MAP = {
-  BL:  { table: "loan_bookings",           statusCol: "status" },
-  EV:  { table: "loan_booking_ev",         statusCol: "status" },
-  GQNONFSF: { table: "loan_booking_gq_fsf",     statusCol: "status" },
-  GQFSF:  { table: "loan_booking_gq_non_fsf", statusCol: "status" },
-  ADKF:  { table: "loan_booking_adikosh",    statusCol: "status" },
-  WCTL: { table: "loan_bookings_wctl",      statusCol: "status" },
-  E1:  { table: "loan_booking_embifi",     statusCol: "status" },
-  FINE: { table: "loan_booking_emiclub",   statusCol: "status" },
-  FINS: { table: "loan_booking_finso",    statusCol: "status" },
-  HEL: { table: "loan_booking_helium",   statusCol: "status" },
-  DLR: { table: "dealer_onboarding",   statusCol: "status" },
-  ZYPF: { table: "loan_booking_zypay_customer",   statusCol: "status" },
-  Cl: { table: "loan_booking_clayyo",   statusCol: "status" },
+  BL: { table: "loan_bookings", statusCol: "status" },
+  EV: { table: "loan_booking_ev", statusCol: "status" },
+  GQNONFSF: { table: "loan_booking_gq_fsf", statusCol: "status" },
+  GQFSF: { table: "loan_booking_gq_non_fsf", statusCol: "status" },
+  ADKF: { table: "loan_booking_adikosh", statusCol: "status" },
+  WCTL: { table: "loan_bookings_wctl", statusCol: "status" },
+  E1: { table: "loan_booking_embifi", statusCol: "status" },
+  FINE: { table: "loan_booking_emiclub", statusCol: "status" },
+  FINS: { table: "loan_booking_finso", statusCol: "status" },
+  HEL: { table: "loan_booking_helium", statusCol: "status" },
+  DLR: { table: "dealer_onboarding", statusCol: "status" },
+  ZYPF: { table: "loan_booking_zypay_customer", statusCol: "status" },
+  Cl: { table: "loan_booking_clayyo", statusCol: "status" },
+  LDF: { table: "loan_booking_loan_digit", statusCol: "status" },
 };
 
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing
@@ -76,27 +82,45 @@ async function getLockState(lan) {
 
   if (!map) {
     console.warn("[lock] unknown prefix", { lan, prefix });
-    return { status: "unknown", canEdit: false, _dbg: { lan, prefix, table: null, statusCol: null } };
+    return {
+      status: "unknown",
+      canEdit: false,
+      _dbg: { lan, prefix, table: null, statusCol: null },
+    };
   }
 
   // Try both `LAN` and `lan` column names (handles schemas using uppercase)
   const rows = await q(
     "SELECT ?? AS status FROM ?? WHERE `LAN` = ? OR `lan` = ? LIMIT 1",
-    [map.statusCol, map.table, lan, lan]
+    [map.statusCol, map.table, lan, lan],
   );
 
   const statusRaw = (rows?.[0]?.status ?? "").toString().trim();
   const statusNormalized = normalizeStatus(statusRaw);
-  const canEdit = statusNormalized ? ALLOWED_STATUSES.has(statusNormalized) : false;
+  const canEdit = statusNormalized
+    ? ALLOWED_STATUSES.has(statusNormalized)
+    : false;
 
-  const dbg = { lan, prefix, table: map.table, statusCol: map.statusCol, statusRaw, statusNormalized, canEdit };
+  const dbg = {
+    lan,
+    prefix,
+    table: map.table,
+    statusCol: map.statusCol,
+    statusRaw,
+    statusNormalized,
+    canEdit,
+  };
 
   // keep response shape that your UI expects, but add _dbg for quick troubleshooting
   return { status: statusRaw || "unknown", canEdit, _dbg: dbg };
 }
 
 function safeUnlink(fp) {
-  try { fs.unlinkSync(fp); } catch (e) { if (e.code !== "ENOENT") console.error("unlink error:", e); }
+  try {
+    fs.unlinkSync(fp);
+  } catch (e) {
+    if (e.code !== "ENOENT") console.error("unlink error:", e);
+  }
 }
 
 // ---------------------------- Routes (unchanged) ----------------------------
@@ -121,41 +145,307 @@ router.post("/upload", upload.single("document"), (req, res) => {
         return res.status(500).json({ error: "Database insert failed" });
       }
       res.status(200).json({ message: "✅ Document uploaded successfully" });
-    }
+    },
   );
 });
 ////////////////////// API to upload multiple files ///////////////////////
-router.post("/upload-files", verifyApiKey, upload.array("documents", 10), (req, res) => {
-  const { lan } = req.body;
+router.post(
+  "/upload-files",
+  verifyApiKey,
+  upload.array("documents", 10),
+  (req, res) => {
+    const { lan } = req.body;
 
-  if (!req.files || req.files.length === 0 || !lan) {
-    return res.status(400).json({ error: "LAN and files are required." });
-  }
+    if (!req.files || req.files.length === 0 || !lan) {
+      return res.status(400).json({ error: "LAN and files are required." });
+    }
 
-  // Build values for bulk insert
-  const values = req.files.map((file) => [
-    lan.trim(),
-    file.filename, // stored name generated by multer
-    file.originalname.trim(),
-    new Date(),
-  ]);
+    // Build values for bulk insert
+    const values = req.files.map((file) => [
+      lan.trim(),
+      file.filename, // stored name generated by multer
+      file.originalname.trim(),
+      new Date(),
+    ]);
 
-  db.query(
-    `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at) VALUES ?`,
-    [values],
-    (err) => {
-      if (err) {
-        console.error("❌ DB Insert Error:", err);
-        return res.status(500).json({ error: "Database insert failed" });
+    db.query(
+      `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at) VALUES ?`,
+      [values],
+      (err) => {
+        if (err) {
+          console.error("❌ DB Insert Error:", err);
+          return res.status(500).json({ error: "Database insert failed" });
+        }
+        res.status(200).json({
+          message: "✅ Documents uploaded successfully",
+          lan,
+          files: req.files.map((f) => f.originalname),
+        });
+      },
+    );
+  },
+);
+
+
+
+/////////////////////// LOAN DIGIT DOCUMENT ROUTE ////////////////////////////////////////////////////
+const ALLOWED_LOAN_DIGIT_DOCS = new Set([
+  "pan_card",
+  "aadhaar_json",
+  "salary_slip",
+  "bureau_report",
+  "selfies",
+  "bank_statement",
+  "loan_agreement",
+  "additional_document",
+]);
+
+const SINGLE_LOAN_DIGIT_DOCS = new Set([
+  "pan_card",
+  "aadhaar_json",
+  "salary_slip",
+  "bureau_report",
+  "selfies",
+  "bank_statement",
+  "loan_agreement",
+]);
+
+function normalizeLoanDigitDocName(name) {
+  if (!name || typeof name !== "string") return null;
+  return name.trim().toLowerCase();
+}
+
+router.post(
+  "/upload-documents",
+  verifyApiKey,
+  upload.any(),
+  async (req, res) => {
+    try {
+      const { lan: bodyLan, documents } = req.body || {};
+
+      const lan = String(bodyLan || "").trim();
+
+      if (!lan) {
+        return res.status(400).json({
+          status: "FAILED",
+          message: "lan is required",
+        });
       }
-      res.status(200).json({
-        message: "✅ Documents uploaded successfully",
+
+      if (!lan.startsWith("LDF")) {
+        return res.status(400).json({
+          status: "FAILED",
+          message: "Invalid LAN format. LAN must start with LDF",
+        });
+      }
+
+      // Validate LAN in loan_booking_loan_digit
+      const lanExists = await new Promise((resolve, reject) => {
+        db.query(
+          `SELECT 1 FROM loan_booking_loan_digit WHERE lan = ? LIMIT 1`,
+          [lan],
+          (err, result) => {
+            if (err) return reject(err);
+            resolve(result.length > 0);
+          },
+        );
+      });
+
+      if (!lanExists) {
+        return res.status(404).json({
+          status: "FAILED",
+          message: "Invalid LAN",
+        });
+      }
+
+      let parsedDocs = documents;
+
+      // for multipart form-data, documents may come as string
+      if (typeof parsedDocs === "string") {
+        try {
+          parsedDocs = JSON.parse(parsedDocs);
+        } catch (err) {
+          return res.status(400).json({
+            status: "FAILED",
+            message: "documents must be valid JSON",
+          });
+        }
+      }
+
+      if (!Array.isArray(parsedDocs) || parsedDocs.length === 0) {
+        return res.status(400).json({
+          status: "FAILED",
+          message: "documents[] is required",
+        });
+      }
+
+      const errors = [];
+      const cleaned = [];
+      const now = new Date();
+
+      for (let i = 0; i < parsedDocs.length; i++) {
+        const d = parsedDocs[i] || {};
+
+        const doc_name = normalizeLoanDigitDocName(d.doc_name);
+        const document_url = String(d.document_url || d.url || "").trim();
+        const doc_password = String(d.doc_password || "").trim() || null;
+        const sub_type = String(d.sub_type || "").trim() || null;
+
+        if (!doc_name || !ALLOWED_LOAN_DIGIT_DOCS.has(doc_name)) {
+          errors.push({
+            index: i,
+            field: "doc_name",
+            reason: "Invalid doc_name",
+            allowed_doc_names: Array.from(ALLOWED_LOAN_DIGIT_DOCS),
+          });
+          continue;
+        }
+
+        let file_name = null;
+        let original_name = null;
+        let source_url = null;
+
+        // CASE 1: uploaded file
+        const uploadedFile = Array.isArray(req.files)
+          ? req.files.find((f) => f.fieldname === `documents[${i}][file]`)
+          : null;
+
+        if (uploadedFile) {
+          file_name = uploadedFile.filename;
+          original_name = uploadedFile.originalname;
+        } else if (document_url) {
+          // CASE 2: remote file URL (presigned S3 URL)
+          try {
+            const resp = await axios.get(document_url, {
+              responseType: "arraybuffer",
+              timeout: 30000,
+              validateStatus: () => true,
+            });
+
+            if (resp.status !== 200) {
+              errors.push({
+                index: i,
+                field: "document_url",
+                reason: `Failed to download remote file. HTTP ${resp.status}`,
+              });
+              continue;
+            }
+
+            original_name =
+              String(d.file_name || "").trim() ||
+              path.basename(document_url.split("?")[0]) ||
+              `${doc_name}.bin`;
+
+            const ext = path.extname(original_name) || ".bin";
+            file_name = `${Date.now()}_${doc_name}_${Math.round(Math.random() * 1e9)}${ext}`;
+
+            const fullPath = path.join(uploadPath, file_name);
+            fs.writeFileSync(fullPath, resp.data);
+
+            source_url = document_url;
+          } catch (err) {
+            errors.push({
+              index: i,
+              field: "document_url",
+              reason: "Failed to download remote file: " + err.message,
+            });
+            continue;
+          }
+        } else {
+          errors.push({
+            index: i,
+            reason: "Either uploaded file or document_url is required",
+          });
+          continue;
+        }
+
+        // block duplicate only for single-doc types
+        if (SINGLE_LOAN_DIGIT_DOCS.has(doc_name)) {
+          const existing = await new Promise((resolve, reject) => {
+            db.query(
+              `SELECT id, doc_name
+               FROM loan_documents
+               WHERE lan = ? AND doc_name = ?
+               LIMIT 1`,
+              [lan, doc_name],
+              (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows);
+              },
+            );
+          });
+
+          if (existing.length > 0) {
+            // if file was downloaded from URL and DB insert is skipped, remove saved file
+            if (file_name && !uploadedFile) {
+              try {
+                fs.unlinkSync(path.join(uploadPath, file_name));
+              } catch (_) {}
+            }
+
+            errors.push({
+              index: i,
+              field: "doc_name",
+              reason: `Document already exists for doc_name: ${doc_name}`,
+            });
+            continue;
+          }
+        }
+
+        cleaned.push([
+          lan,
+          doc_name,
+          sub_type,
+          file_name,
+          source_url,
+          doc_password,
+          original_name,
+          now,
+        ]);
+      }
+
+      if (!cleaned.length) {
+        return res.status(400).json({
+          status: "FAILED",
+          message: "No valid documents to insert",
+          details: errors,
+        });
+      }
+
+      const sql = `
+        INSERT INTO loan_documents
+        (lan, doc_name, sub_type, file_name, source_url, doc_password, original_name, uploaded_at)
+        VALUES ?
+      `;
+
+      await new Promise((resolve, reject) => {
+        db.query(sql, [cleaned], (err, result) =>
+          err ? reject(err) : resolve(result),
+        );
+      });
+
+      return res.status(200).json({
+        status: "SUCCESS",
+        message: "Loan Digit documents uploaded successfully",
         lan,
-        files: req.files.map((f) => f.originalname),
+        inserted_count: cleaned.length,
+        skipped_or_errors: errors,
+      });
+    } catch (err) {
+      console.error("❌ Loan digit upload failed", err);
+
+      return res.status(500).json({
+        status: "FAILED",
+        message: "Internal server error",
+        error: err.message,
       });
     }
-  );
-});
+  },
+);
+
+
+
+
 ///////////////////////ZYPAY CUSTOMER ///////////////////////////////
 // const ALLOWED_DOC_NAMES = [
 //   "AADHAR",
@@ -290,7 +580,7 @@ const ALLOWED_DOC_NAMES = [
   "OPEN_BOX_PIC",
   "BUREAU_PDF",
   "IMEI_NUMBER_PHOTO",
-  "OTHER"
+  "OTHER",
 ];
 
 const ERROR_CODES = {
@@ -301,7 +591,7 @@ const ERROR_CODES = {
   FILE_LIMIT_EXCEEDED: "ERR_400_FILE_LIMIT_EXCEEDED",
   INVALID_FILE_TYPE: "ERR_400_INVALID_FILE_TYPE",
   DB_INSERT_FAILED: "ERR_500_DB_INSERT_FAILED",
-  INTERNAL_ERROR: "ERR_500_INTERNAL_ERROR"
+  INTERNAL_ERROR: "ERR_500_INTERNAL_ERROR",
 };
 
 /**********************************************************
@@ -310,10 +600,7 @@ const ERROR_CODES = {
 const normalizeDocName = (name) => {
   if (!name || typeof name !== "string") return null;
 
-  return name
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, "_");
+  return name.trim().toUpperCase().replace(/\s+/g, "_");
 };
 
 /**********************************************************
@@ -331,17 +618,10 @@ const normalizeDocName = (name) => {
 // });
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "application/pdf"
-  ];
+  const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
 
   if (!allowedTypes.includes(file.mimetype)) {
-    return cb(
-      new Error("Invalid file type"),
-      false
-    );
+    return cb(new Error("Invalid file type"), false);
   }
 
   cb(null, true);
@@ -372,7 +652,7 @@ router.post(
           success: false,
           statusCode: 400,
           errorCode: ERROR_CODES.MISSING_FIELDS,
-          message: "LAN, doc_name, and documents are required"
+          message: "LAN, doc_name, and documents are required",
         });
       }
 
@@ -388,7 +668,7 @@ router.post(
           success: false,
           statusCode: 400,
           errorCode: ERROR_CODES.INVALID_DOC_NAME,
-          message: "Invalid doc_name format"
+          message: "Invalid doc_name format",
         });
       }
 
@@ -396,7 +676,7 @@ router.post(
        * ALLOWED DOC NAME CHECK
        ***********************/
       const invalidDocNames = docNames.filter(
-        (d) => !ALLOWED_DOC_NAMES.includes(d)
+        (d) => !ALLOWED_DOC_NAMES.includes(d),
       );
 
       if (invalidDocNames.length > 0) {
@@ -406,7 +686,7 @@ router.post(
           errorCode: ERROR_CODES.DOC_NAME_NOT_ALLOWED,
           message: "One or more doc_name values are not allowed",
           allowedDocNames: ALLOWED_DOC_NAMES,
-          invalidDocNames
+          invalidDocNames,
         });
       }
 
@@ -418,7 +698,7 @@ router.post(
           success: false,
           statusCode: 400,
           errorCode: ERROR_CODES.FILE_COUNT_MISMATCH,
-          message: "doc_name count must match number of uploaded files"
+          message: "doc_name count must match number of uploaded files",
         });
       }
 
@@ -431,7 +711,7 @@ router.post(
         file.originalname.trim(),
         doc_password || null,
         docNames[index],
-        new Date()
+        new Date(),
       ]);
 
       const sql = `
@@ -456,7 +736,7 @@ router.post(
             statusCode: 500,
             errorCode: ERROR_CODES.DB_INSERT_FAILED,
             message: "Database insert failed",
-            error: err.message
+            error: err.message,
           });
         }
 
@@ -468,9 +748,9 @@ router.post(
             lan: lan.trim(),
             files: req.files.map((f, i) => ({
               original_name: f.originalname,
-              doc_name: docNames[i]
-            }))
-          }
+              doc_name: docNames[i],
+            })),
+          },
         });
       });
     } catch (error) {
@@ -481,12 +761,11 @@ router.post(
         statusCode: 500,
         errorCode: ERROR_CODES.INTERNAL_ERROR,
         message: "Internal server error",
-        error: error.message
+        error: error.message,
       });
     }
-  }
+  },
 );
-
 
 ///////////////// NEW CODE for EMICLUB DOC UPLOAD API /////////////////
 /* ============================== Helpers ============================== */
@@ -505,7 +784,12 @@ const ALLOWED_DOCS = new Set([
 ]);
 
 function isValidUrl(u) {
-  try { new URL(u); return true; } catch { return false; }
+  try {
+    new URL(u);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function inferOriginalNameFromUrl(url) {
@@ -513,7 +797,9 @@ function inferOriginalNameFromUrl(url) {
     const p = new URL(url).pathname || "";
     const base = p.split("/").pop() || "";
     return base.trim() || null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
@@ -537,7 +823,11 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
       const doc_password = (d.doc_password ?? "").toString().trim();
 
       if (!doc_name || !ALLOWED_DOCS.has(doc_name)) {
-        errors.push({ index: i, field: "doc_name", reason: "Invalid doc_name" });
+        errors.push({
+          index: i,
+          field: "doc_name",
+          reason: "Invalid doc_name",
+        });
         continue;
       }
       if (!isValidUrl(url)) {
@@ -574,7 +864,9 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
     }
 
     if (cleaned.length === 0)
-      return res.status(400).json({ error: "No valid documents to insert", details: errors });
+      return res
+        .status(400)
+        .json({ error: "No valid documents to insert", details: errors });
 
     const now = new Date();
     const values = cleaned.map((row) => [
@@ -594,7 +886,9 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
     `;
 
     await new Promise((resolve, reject) => {
-      db.query(sql, [values], (err, result) => (err ? reject(err) : resolve(result)));
+      db.query(sql, [values], (err, result) =>
+        err ? reject(err) : resolve(result),
+      );
     });
 
     return res.status(200).json({
@@ -616,7 +910,6 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
   }
 });
 
-
 router.post(
   "/v1/upload-files",
   verifyApiKey,
@@ -626,44 +919,43 @@ router.post(
       const { lan: bodyLan, documents } = req.body;
 
       const lan = String(bodyLan || "").trim();
-      if (!lan)
-        return res.status(400).json({ error: "lan is required" });
+      if (!lan) return res.status(400).json({ error: "lan is required" });
 
-let tableName = null;
+      let tableName = null;
 
-// Detect table based on LAN prefix
-if (lan.startsWith("SML")) {
-  tableName = "loan_booking_switch_my_loan";
-} else if (lan.startsWith("LDF")) {
-  tableName = "loan_booking_loan_digit";
-} else {
-  return res.status(400).json({
-    error: "Invalid LAN format",
-    message: "LAN must start with SML or LDF",
-  });
-}
+      // Detect table based on LAN prefix
+      if (lan.startsWith("SML")) {
+        tableName = "loan_booking_switch_my_loan";
+      } else if (lan.startsWith("LDF")) {
+        tableName = "loan_booking_loan_digit";
+      } else {
+        return res.status(400).json({
+          error: "Invalid LAN format",
+          message: "LAN must start with SML or LDF",
+        });
+      }
 
-// Check if LAN exists in the correct table
-const lanExists = await new Promise((resolve, reject) => {
-  const checkSql = `
+      // Check if LAN exists in the correct table
+      const lanExists = await new Promise((resolve, reject) => {
+        const checkSql = `
     SELECT 1
     FROM ${tableName}
     WHERE lan = ?
     LIMIT 1
   `;
 
-  db.query(checkSql, [lan], (err, result) => {
-    if (err) return reject(err);
-    resolve(result.length > 0);
-  });
-});
+        db.query(checkSql, [lan], (err, result) => {
+          if (err) return reject(err);
+          resolve(result.length > 0);
+        });
+      });
 
-if (!lanExists) {
-  return res.status(404).json({
-    error: "Invalid LAN",
-    message: `LAN not found in ${tableName}`,
-  });
-}
+      if (!lanExists) {
+        return res.status(404).json({
+          error: "Invalid LAN",
+          message: `LAN not found in ${tableName}`,
+        });
+      }
 
       let parsedDocs = documents;
 
@@ -673,9 +965,7 @@ if (!lanExists) {
       }
 
       if (!Array.isArray(parsedDocs) || parsedDocs.length === 0)
-        return res
-          .status(400)
-          .json({ error: "documents[] is required" });
+        return res.status(400).json({ error: "documents[] is required" });
 
       const errors = [];
       const cleaned = [];
@@ -685,9 +975,7 @@ if (!lanExists) {
         const d = parsedDocs[i] || {};
         const doc_name = String(d.doc_name || "").trim();
         const url = String(d.document_url || "").trim();
-        const doc_password = (d.doc_password ?? "")
-          .toString()
-          .trim();
+        const doc_password = (d.doc_password ?? "").toString().trim();
 
         if (!doc_name || !ALLOWED_DOCS.has(doc_name)) {
           errors.push({
@@ -706,38 +994,30 @@ if (!lanExists) {
          * CASE 1: FILE UPLOAD EXISTS
          */
         const uploadedFile = Array.isArray(req.files)
-  ? req.files.find(
-      (f) => f.fieldname === `documents[${i}][file]`
-    )
-  : null;
+          ? req.files.find((f) => f.fieldname === `documents[${i}][file]`)
+          : null;
 
         if (uploadedFile) {
           file_name = uploadedFile.filename;
           original_name = uploadedFile.originalname;
-        }
+        } else if (url) {
 
         /**
          * CASE 2: DOWNLOAD FROM URL
          */
-        else if (url) {
           try {
             const resp = await axios.get(url, {
               responseType: "arraybuffer",
             });
 
             original_name =
-              path.basename(url.split("?")[0]) ||
-              `${doc_name}.pdf`;
+              path.basename(url.split("?")[0]) || `${doc_name}.pdf`;
 
-            const ext =
-              path.extname(original_name) || ".bin";
+            const ext = path.extname(original_name) || ".bin";
 
             file_name = `${Date.now()}_${doc_name}${ext}`;
 
-            const fullPath = path.join(
-              uploadPath,
-              file_name
-            );
+            const fullPath = path.join(uploadPath, file_name);
 
             fs.writeFileSync(fullPath, resp.data);
 
@@ -746,17 +1026,14 @@ if (!lanExists) {
             errors.push({
               index: i,
               field: "document_url",
-              reason:
-                "Failed to download remote file: " +
-                err.message,
+              reason: "Failed to download remote file: " + err.message,
             });
             continue;
           }
         } else {
           errors.push({
             index: i,
-            reason:
-              "Either file upload or documet_url required",
+            reason: "Either file upload or documet_url required",
           });
           continue;
         }
@@ -787,27 +1064,21 @@ if (!lanExists) {
 
       await new Promise((resolve, reject) => {
         db.query(sql, [cleaned], (err, result) =>
-          err ? reject(err) : resolve(result)
+          err ? reject(err) : resolve(result),
         );
       });
 
       return res.status(200).json({
-        message:
-          "✅ Documents uploaded Successfully",
+        message: "✅ Documents uploaded Successfully",
         lan,
         inserted_count: cleaned.length,
         skipped_or_errors: errors,
       });
     } catch (err) {
-      console.error(
-        "❌ /upload-files error:",
-        err
-      );
-      return res
-        .status(500)
-        .json({ error: "Internal server error" });
+      console.error("❌ /upload-files error:", err);
+      return res.status(500).json({ error: "Internal server error" });
     }
-  }
+  },
 );
 
 ///////////////// DEALER API DOC UPLOAD START /////////////////////
@@ -881,8 +1152,7 @@ router.post(
       const files = req.files || [];
 
       const lan = String(bodyLan || "").trim();
-      if (!lan)
-        return res.status(400).json({ error: "lan is required" });
+      if (!lan) return res.status(400).json({ error: "lan is required" });
 
       if (!files.length)
         return res.status(400).json({ error: "documents[] is required" });
@@ -938,7 +1208,7 @@ router.post(
         `INSERT INTO loan_documents
          (lan, doc_name, file_name, source_url, doc_password, original_name, uploaded_at)
          VALUES ?`,
-        [values]
+        [values],
       );
 
       res.status(200).json({
@@ -951,15 +1221,10 @@ router.post(
       console.error("❌ /upload-files-dealer error:", err);
       res.status(500).json({ error: "Internal server error" });
     }
-  }
+  },
 );
 
-
-
-
-
 ///////////////// DEALER API DOC UPLOAD END /////////////////////
-
 
 router.get("/lock-state/:lan", async (req, res) => {
   try {
@@ -973,14 +1238,13 @@ router.get("/lock-state/:lan", async (req, res) => {
   }
 });
 
-
 // List by LAN
 router.get("/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
     const docs = await q(
       "SELECT id, lan, file_name, original_name, uploaded_at FROM loan_documents WHERE lan = ? ORDER BY uploaded_at DESC",
-      [lan]
+      [lan],
     );
     res.json(docs);
   } catch (err) {
@@ -993,12 +1257,19 @@ router.get("/:lan", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const rows = await q("SELECT id, lan, file_name FROM loan_documents WHERE id = ? LIMIT 1", [id]);
-    if (rows.length === 0) return res.status(404).json({ error: "Document not found" });
+    const rows = await q(
+      "SELECT id, lan, file_name FROM loan_documents WHERE id = ? LIMIT 1",
+      [id],
+    );
+    if (rows.length === 0)
+      return res.status(404).json({ error: "Document not found" });
 
     const doc = rows[0];
     const { status, canEdit } = await getLockState(doc.lan);
-    if (!canEdit) return res.status(403).json({ error: `Documents locked for status '${status}'` });
+    if (!canEdit)
+      return res
+        .status(403)
+        .json({ error: `Documents locked for status '${status}'` });
 
     await q("DELETE FROM loan_documents WHERE id = ? LIMIT 1", [id]);
     safeUnlink(path.join(uploadPath, doc.file_name || ""));
@@ -1014,11 +1285,12 @@ router.delete("/:id", async (req, res) => {
 router.put("/:id/replace", upload.single("document"), async (req, res) => {
   try {
     const { id } = req.params;
-    if (!req.file) return res.status(400).json({ error: "New file is required" });
+    if (!req.file)
+      return res.status(400).json({ error: "New file is required" });
 
     const rows = await q(
       "SELECT id, lan, file_name, original_name FROM loan_documents WHERE id = ? LIMIT 1",
-      [id]
+      [id],
     );
     if (rows.length === 0) {
       safeUnlink(path.join(uploadPath, req.file.filename));
@@ -1029,16 +1301,22 @@ router.put("/:id/replace", upload.single("document"), async (req, res) => {
     const { status, canEdit } = await getLockState(oldDoc.lan);
     if (!canEdit) {
       safeUnlink(path.join(uploadPath, req.file.filename));
-      return res.status(403).json({ error: `Documents locked for status '${status}'` });
+      return res
+        .status(403)
+        .json({ error: `Documents locked for status '${status}'` });
     }
 
     await q(
       "UPDATE loan_documents SET file_name = ?, original_name = ?, uploaded_at = NOW() WHERE id = ?",
-      [req.file.filename, req.file.originalname, id]
+      [req.file.filename, req.file.originalname, id],
     );
 
     safeUnlink(path.join(uploadPath, oldDoc.file_name || ""));
-    res.json({ message: "✅ Document replaced", id, newFile: req.file.originalname });
+    res.json({
+      message: "✅ Document replaced",
+      id,
+      newFile: req.file.originalname,
+    });
   } catch (err) {
     console.error("❌ Replace doc error:", err);
     res.status(500).json({ error: "Failed to replace document" });
@@ -1298,37 +1576,48 @@ const formatDate = (d) => {
 //   }
 // });
 
-
 // ---------- helpers ----------
-const fmtDate = d => {
+const fmtDate = (d) => {
   if (!d) return "-";
   const t = new Date(d);
   return isNaN(t) ? String(d) : t.toISOString().slice(0, 10);
 };
 
-const inr = n => (Number(n) || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const inr = (n) =>
+  (Number(n) || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const fmtDDMMMYYYY = (d) => {
   if (!d) return "-";
   const dt = new Date(d);
   if (isNaN(dt)) return String(d);
-  return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
+  return dt
+    .toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
+    .toUpperCase();
 };
-
 
 // single-line cell (no wrap) trimmed with ellipsis
 function cellText(doc, text, x, y, w, h, align = "left") {
   const pad = 3;
   const innerW = w - pad * 2;
-  let s = (text === null || text === undefined || text === "") ? "-" : String(text);
+  let s =
+    text === null || text === undefined || text === "" ? "-" : String(text);
 
   if (doc.widthOfString(s) > innerW) {
     const ell = "…";
-    let lo = 0, hi = s.length;
+    let lo = 0,
+      hi = s.length;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
       const candidate = s.slice(0, mid) + ell;
-      if (doc.widthOfString(candidate) <= innerW) lo = mid + 1; else hi = mid;
+      if (doc.widthOfString(candidate) <= innerW) lo = mid + 1;
+      else hi = mid;
     }
     s = s.slice(0, Math.max(0, lo - 1)) + ell;
   }
@@ -1344,7 +1633,8 @@ function cellText(doc, text, x, y, w, h, align = "left") {
 function drawHeaderAbs(doc, y, colX, colW, headers, rowH) {
   doc.font("Helvetica-Bold").fontSize(9);
   for (let i = 0; i < headers.length; i++) {
-    const x = colX[i], w = colW[i];
+    const x = colX[i],
+      w = colW[i];
     doc.rect(x, y, w, rowH).stroke();
     cellText(doc, headers[i], x, y, w, rowH, "left");
   }
@@ -1357,19 +1647,20 @@ router.post("/generate-soa", async (req, res) => {
   if (!lan) return res.status(400).json({ error: "lan required" });
 
   // pick tables
-  let loanTable = "", rpsTable = "", paymentsTable = "", chargesTable = "";
+  let loanTable = "",
+    rpsTable = "",
+    paymentsTable = "",
+    chargesTable = "";
   if (lan.startsWith("GQN")) {
     loanTable = "loan_booking_gq_non_fsf";
     rpsTable = "manual_rps_gq_non_fsf";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
-  }
-    else if (lan.startsWith("CIRF")) {
-  loanTable = "loan_booking_circle_pe";
-  rpsTable = "manual_rps_circlepe";
-  paymentsTable = "repayments_upload";
-  chargesTable = "loan_charges";
-
+  } else if (lan.startsWith("CIRF")) {
+    loanTable = "loan_booking_circle_pe";
+    rpsTable = "manual_rps_circlepe";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
   } else if (lan.startsWith("GQF")) {
     loanTable = "loan_booking_gq_fsf";
     rpsTable = "manual_rps_gq_fsf";
@@ -1385,26 +1676,22 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_ev_loan";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
-  }
-  else if (lan.startsWith("E1")) {
+  } else if (lan.startsWith("E1")) {
     loanTable = "loan_booking_embifi";
     rpsTable = "manual_rps_embifi_loan";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
-    }
-    else if (lan.startsWith("FINE")) {
+  } else if (lan.startsWith("FINE")) {
     loanTable = "loan_booking_emiclub";
     rpsTable = "manual_rps_emiclub";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
-    }
-    else if (lan.startsWith("WCTL")) {
+  } else if (lan.startsWith("WCTL")) {
     loanTable = "loan_bookings_wctl";
     rpsTable = "manual_rps_wctl";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
-    }
-  else if (lan.startsWith("ZYPF")) {
+  } else if (lan.startsWith("ZYPF")) {
     loanTable = "loan_booking_zypay_customer";
     rpsTable = "manual_rps_zypay_customer";
     paymentsTable = "repayments_upload";
@@ -1418,12 +1705,16 @@ router.post("/generate-soa", async (req, res) => {
 
   try {
     // -------- fetch from DB --------
-    const [loanRows] = await db.promise().query(
-      `SELECT * FROM ${loanTable} WHERE lan = ? LIMIT 1`, [lan]
-    );
+    const [loanRows] = await db
+      .promise()
+      .query(`SELECT * FROM ${loanTable} WHERE lan = ? LIMIT 1`, [lan]);
     const loan = loanRows[0] || {};
     const baseLoanAmt = safeNum(
-      loan.loan_amount || loan.disbursed_amount || loan.disbursal_amount || loan.sanction_amount || 0
+      loan.loan_amount ||
+        loan.disbursed_amount ||
+        loan.disbursal_amount ||
+        loan.sanction_amount ||
+        0,
     );
 
     const [rpsRows] = await db.promise().query(
@@ -1431,7 +1722,8 @@ router.post("/generate-soa", async (req, res) => {
          FROM ${rpsTable}
         WHERE lan = ?
           AND due_date <= CURDATE()
-        ORDER BY due_date`, [lan]
+        ORDER BY due_date`,
+      [lan],
     );
 
     const [chargesRows] = await db.promise().query(
@@ -1439,7 +1731,8 @@ router.post("/generate-soa", async (req, res) => {
          FROM ${chargesTable}
         WHERE lan = ?
           AND (due_date <= CURDATE() OR charge_date <= CURDATE())
-        ORDER BY COALESCE(due_date, charge_date)`, [lan]
+        ORDER BY COALESCE(due_date, charge_date)`,
+      [lan],
     );
 
     const [paymentRows] = await db.promise().query(
@@ -1447,55 +1740,56 @@ router.post("/generate-soa", async (req, res) => {
          FROM ${paymentsTable}
         WHERE lan = ?
           AND (bank_date <= CURDATE() OR payment_date <= CURDATE())
-        ORDER BY COALESCE(bank_date, payment_date)`, [lan]
+        ORDER BY COALESCE(bank_date, payment_date)`,
+      [lan],
     );
 
     const [allocationRows] = await db.promise().query(
       `SELECT id, due_date, allocation_date, allocated_amount, charge_type, payment_id, bank_date_allocation
          FROM allocation
         WHERE lan = ?
-        ORDER BY COALESCE(allocation_date, bank_date_allocation), id`, [lan]
+        ORDER BY COALESCE(allocation_date, bank_date_allocation), id`,
+      [lan],
     );
 
     // Aggregate tenure / start / end / emi for the full schedule (no date filter)
-const [[tenureAgg]] = await db.promise().query(
-  `SELECT MIN(due_date) AS start_date,
+    const [[tenureAgg]] = await db.promise().query(
+      `SELECT MIN(due_date) AS start_date,
           MAX(due_date) AS end_date,
           COUNT(*)       AS total_instalments,
           MAX(emi)       AS emi_any
      FROM ${rpsTable}
     WHERE lan = ?`,
-  [lan]
-);
+      [lan],
+    );
 
-// EMI/PEMI overdue = sum of EMIs with due_date <= today and status <> 'Paid'
-const [[overdueAgg]] = await db.promise().query(
-  `SELECT COALESCE(SUM(CASE WHEN status <> 'Paid' AND due_date <= CURDATE() THEN emi ELSE 0 END),0) AS total_emi_overdue
+    // EMI/PEMI overdue = sum of EMIs with due_date <= today and status <> 'Paid'
+    const [[overdueAgg]] = await db.promise().query(
+      `SELECT COALESCE(SUM(CASE WHEN status <> 'Paid' AND due_date <= CURDATE() THEN emi ELSE 0 END),0) AS total_emi_overdue
      FROM ${rpsTable}
     WHERE lan = ?`,
-  [lan]
-);
+      [lan],
+    );
 
-// Other overdues = unpaid loan_charges with due_date/charge_date <= today
-const [[otherDueAgg]] = await db.promise().query(
-  `SELECT COALESCE(SUM(amount - COALESCE(waived_amount,0) - COALESCE(paid_amount,0)),0) AS other_due
+    // Other overdues = unpaid loan_charges with due_date/charge_date <= today
+    const [[otherDueAgg]] = await db.promise().query(
+      `SELECT COALESCE(SUM(amount - COALESCE(waived_amount,0) - COALESCE(paid_amount,0)),0) AS other_due
      FROM ${chargesTable}
     WHERE lan = ?
       AND (COALESCE(due_date, charge_date) <= CURDATE())
       AND (LOWER(COALESCE(paid_status,'')) <> 'paid')`,
-  [lan]
-);
-
+      [lan],
+    );
 
     // -------- starting outstanding = Loan Amount (no Advance/Pre-EMI deduction) --------
     let outstanding = baseLoanAmt;
 
     // -------- build timeline --------
-    const payMap = new Map((paymentRows || []).map(p => [p.payment_id, p]));
+    const payMap = new Map((paymentRows || []).map((p) => [p.payment_id, p]));
 
     // Debits: EMIs + charges (do NOT change outstanding)
     const debits = [];
-    (rpsRows || []).forEach(r => {
+    (rpsRows || []).forEach((r) => {
       debits.push({
         type: "DEBIT",
         date: r.due_date,
@@ -1504,7 +1798,7 @@ const [[otherDueAgg]] = await db.promise().query(
         debit: safeNum(r.emi),
       });
     });
-    (chargesRows || []).forEach(c => {
+    (chargesRows || []).forEach((c) => {
       debits.push({
         type: "DEBIT",
         date: c.due_date || c.charge_date || null,
@@ -1516,7 +1810,7 @@ const [[otherDueAgg]] = await db.promise().query(
 
     // Credits: allocations by component
     const credits = [];
-    (allocationRows || []).forEach(a => {
+    (allocationRows || []).forEach((a) => {
       const allocDate = a.allocation_date || a.bank_date_allocation || null;
       const p = payMap.get(a.payment_id) || null;
       const payment_date = p ? p.payment_date || null : null; // shown in last column
@@ -1529,16 +1823,18 @@ const [[otherDueAgg]] = await db.promise().query(
         description: `Allocation - ${a.charge_type || "Allocation"}`,
         charge_type: a.charge_type,
         principal: ct === "principal" ? amt : 0,
-        interest:  ct === "interest"  ? amt : 0,
-        other: (ct !== "principal" && ct !== "interest") ? amt : 0,
+        interest: ct === "interest" ? amt : 0,
+        other: ct !== "principal" && ct !== "interest" ? amt : 0,
         total: amt,
         payment_date,
       });
     });
 
     // Any unallocated payments → show as "other"
-    const allocatedIds = new Set((allocationRows || []).map(a => a.payment_id).filter(Boolean));
-    (paymentRows || []).forEach(p => {
+    const allocatedIds = new Set(
+      (allocationRows || []).map((a) => a.payment_id).filter(Boolean),
+    );
+    (paymentRows || []).forEach((p) => {
       if (!allocatedIds.has(p.payment_id)) {
         credits.push({
           type: "CREDIT",
@@ -1546,7 +1842,7 @@ const [[otherDueAgg]] = await db.promise().query(
           description: "Repayment (unallocated)",
           charge_type: p.payment_mode,
           principal: 0,
-          interest:  0,
+          interest: 0,
           other: safeNum(p.transfer_amount),
           total: safeNum(p.transfer_amount),
           payment_date: p.payment_date,
@@ -1556,7 +1852,8 @@ const [[otherDueAgg]] = await db.promise().query(
 
     // Merge + sort (DEBIT before CREDIT on same date)
     const all = [...debits, ...credits].sort((a, b) => {
-      const ta = new Date(a.date).getTime(), tb = new Date(b.date).getTime();
+      const ta = new Date(a.date).getTime(),
+        tb = new Date(b.date).getTime();
       if (ta !== tb) return ta - tb;
       if (a.type === "DEBIT" && b.type === "CREDIT") return -1;
       if (a.type === "CREDIT" && b.type === "DEBIT") return 1;
@@ -1582,8 +1879,8 @@ const [[otherDueAgg]] = await db.promise().query(
         });
       } else {
         const p = safeNum(it.principal || 0);
-        const i = safeNum(it.interest  || 0);
-        const o = safeNum(it.other     || 0);
+        const i = safeNum(it.interest || 0);
+        const o = safeNum(it.other || 0);
         const tot = p + i + o;
         outstanding = Math.max(0, opening - p); // principal only
         rows.push({
@@ -1602,51 +1899,50 @@ const [[otherDueAgg]] = await db.promise().query(
     }
 
     // ------------ summary header fields ------------
-const productName = loan.lender || "BL Loan";
-const loanAmt = baseLoanAmt;
-const roi = loan.interest_rate || "-";
+    const productName = loan.lender || "BL Loan";
+    const loanAmt = baseLoanAmt;
+    const roi = loan.interest_rate || "-";
 
-// start / end dates
-const emiStart = tenureAgg?.start_date || null;
-const emiLast  = tenureAgg?.end_date   || null;
+    // start / end dates
+    const emiStart = tenureAgg?.start_date || null;
+    const emiLast = tenureAgg?.end_date || null;
 
-// tenure months: from DB if present, else count of instalments
-const tenureMonths = loan.loan_tenure || tenureAgg?.total_instalments || "-";
+    // tenure months: from DB if present, else count of instalments
+    const tenureMonths =
+      loan.loan_tenure || tenureAgg?.total_instalments || "-";
 
-// emi amount: prefer loan.emi_amount then any schedule EMI
-const emiAmt = safeNum(loan.emi_amount || tenureAgg?.emi_any || 0);
+    // emi amount: prefer loan.emi_amount then any schedule EMI
+    const emiAmt = safeNum(loan.emi_amount || tenureAgg?.emi_any || 0);
 
-// overdue sums
-const totalEmiOverdue = safeNum(overdueAgg?.total_emi_overdue || 0);
-const otherOverdues   = safeNum(otherDueAgg?.other_due || 0);
-const totalOverdue    = totalEmiOverdue + otherOverdues;
+    // overdue sums
+    const totalEmiOverdue = safeNum(overdueAgg?.total_emi_overdue || 0);
+    const otherOverdues = safeNum(otherDueAgg?.other_due || 0);
+    const totalOverdue = totalEmiOverdue + otherOverdues;
 
-// principal outstanding is your running outstanding
-const principalOutstanding = safeNum(outstanding);
+    // principal outstanding is your running outstanding
+    const principalOutstanding = safeNum(outstanding);
 
-function getPartnerLoanIdByTable(loan, loanTable) {
-  const FIELD_MAP = {
-    loan_booking_ev: "partner_loan_id",
-    loan_booking_gq_non_fsf: "app_id",
-    loan_booking_gq_fsf: "app_id",
-    loan_booking_adikosh: "partner_loan_id",
-    loan_booking_circle_pe: "app_id",
-    loan_booking_embifi: "partner_loan_id",
-    loan_booking_emiclub: "partner_loan_id",
-    loan_booking_finso: "partner_loan_id",
-    loan_booking_hey_ev: "partner_loan_id",
-    loan_bookings_wctl: "partner_loan_id",
-    loan_bookings: "partner_loan_id"
-  };
+    function getPartnerLoanIdByTable(loan, loanTable) {
+      const FIELD_MAP = {
+        loan_booking_ev: "partner_loan_id",
+        loan_booking_gq_non_fsf: "app_id",
+        loan_booking_gq_fsf: "app_id",
+        loan_booking_adikosh: "partner_loan_id",
+        loan_booking_circle_pe: "app_id",
+        loan_booking_embifi: "partner_loan_id",
+        loan_booking_emiclub: "partner_loan_id",
+        loan_booking_finso: "partner_loan_id",
+        loan_booking_hey_ev: "partner_loan_id",
+        loan_bookings_wctl: "partner_loan_id",
+        loan_bookings: "partner_loan_id",
+      };
 
-  const field = FIELD_MAP[loanTable];
+      const field = FIELD_MAP[loanTable];
 
-  return field && loan[field]
-    ? loan[field]
-    : loan.lan || "-";
-}
+      return field && loan[field] ? loan[field] : loan.lan || "-";
+    }
 
-const partnerLoanId = getPartnerLoanIdByTable(loan, loanTable);
+    const partnerLoanId = getPartnerLoanIdByTable(loan, loanTable);
 
     // -------- PDF: stable multi-page layout --------
     const MARGINS = { top: 40, left: 40, right: 40, bottom: 40 };
@@ -1664,61 +1960,77 @@ const partnerLoanId = getPartnerLoanIdByTable(loan, loanTable);
     doc.pipe(ws);
 
     // --- Logo + Title ---
-doc.image(path.join(__dirname, "../public/fintree-logo.png"), { fit: [100, 100], align: "center" })
-  .moveDown(0.5);
+    doc
+      .image(path.join(__dirname, "../public/fintree-logo.png"), {
+        fit: [100, 100],
+        align: "center",
+      })
+      .moveDown(0.5);
 
-doc.font("Helvetica-Bold").fontSize(16)
-  .text("Statement Of Account", { align: "center" })
-  .moveDown(0.6);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(16)
+      .text("Statement Of Account", { align: "center" })
+      .moveDown(0.6);
 
-// --- Body (regular font) ---
-doc.font("Helvetica").fontSize(11);
+    // --- Body (regular font) ---
+    doc.font("Helvetica").fontSize(11);
 
-// Left column
+    // Left column
 
-const leftX  = doc.page.margins.left;
-// const leftX   = leftX + 360; // second column start (tweak if needed)
+    const leftX = doc.page.margins.left;
+    // const leftX   = leftX + 360; // second column start (tweak if needed)
 
+    const drawLine = (x, label, value) => {
+      doc.text(`${label}: ${value}`, x);
+      doc.moveDown(0.1);
+    };
 
-const drawLine = (x, label, value) => {
-  doc.text(`${label}: ${value}`, x);
-  doc.moveDown(0.1);
-};
-
-doc.text(`Customer Name: ${loan.customer_name || "-"}`)
+    doc
+      .text(`Customer Name: ${loan.customer_name || "-"}`)
       .text(`Loan Account No: ${loan.lan || "-"}`)
       // .text(`Partner Loan ID: ${loan.app_id || "-"}`)
-      .text(`Partner Loan ID: ${partnerLoanId}`)
-drawLine(leftX,  "Loan Amount (Rs)",            inr(loanAmt));
-drawLine(leftX,  "Rate of Interest (%)",        roi);
-drawLine(leftX,  "EMI Start Date",              fmtDDMMMYYYY(emiStart));
-drawLine(leftX,  "Loan Tenure",                 `${tenureMonths} Months`);
+      .text(`Partner Loan ID: ${partnerLoanId}`);
+    drawLine(leftX, "Loan Amount (Rs)", inr(loanAmt));
+    drawLine(leftX, "Rate of Interest (%)", roi);
+    drawLine(leftX, "EMI Start Date", fmtDDMMMYYYY(emiStart));
+    drawLine(leftX, "Loan Tenure", `${tenureMonths} Months`);
 
-// Right column lines
-// doc.y = startY; // align top of right column with left
-drawLine(leftX,   "EMI Last Date",               fmtDDMMMYYYY(emiLast));
-drawLine(leftX,   "EMI (Rs)",                    inr(emiAmt));
-drawLine(leftX,   "Total EMI Overdue",     inr(totalEmiOverdue));
-drawLine(leftX,   "Principal Outstanding",       inr(principalOutstanding));
-drawLine(leftX, "Report Date", new Date().toLocaleDateString("en-IN"));
+    // Right column lines
+    // doc.y = startY; // align top of right column with left
+    drawLine(leftX, "EMI Last Date", fmtDDMMMYYYY(emiLast));
+    drawLine(leftX, "EMI (Rs)", inr(emiAmt));
+    drawLine(leftX, "Total EMI Overdue", inr(totalEmiOverdue));
+    drawLine(leftX, "Principal Outstanding", inr(principalOutstanding));
+    drawLine(leftX, "Report Date", new Date().toLocaleDateString("en-IN"));
 
-doc.moveDown(0.6);
-
+    doc.moveDown(0.6);
 
     // column widths (edit here only)
     const colW = [
-      60,  // Date
-      95,  // Description
-      70,  // Charge
-      70,  // Debit
-      70,  // Principal
-      70,  // Interest
-      70,  // Total Credit
-      80,  // Opening
-      80,  // Closing
-      90   // Payment Date
+      60, // Date
+      95, // Description
+      70, // Charge
+      70, // Debit
+      70, // Principal
+      70, // Interest
+      70, // Total Credit
+      80, // Opening
+      80, // Closing
+      90, // Payment Date
     ];
-    const headers = ["Date","Description","Charge","Debit","Principal","Interest","Total Credit","Opening","Closing","Payment Date"];
+    const headers = [
+      "Date",
+      "Description",
+      "Charge",
+      "Debit",
+      "Principal",
+      "Interest",
+      "Total Credit",
+      "Opening",
+      "Closing",
+      "Payment Date",
+    ];
 
     // absolute X positions from the left margin
     const colX = new Array(colW.length);
@@ -1747,41 +2059,68 @@ doc.moveDown(0.6);
       }
 
       const vals = [
-        r.date, r.description, r.charge, r.debit,
-        r.principal, r.interest, r.total_credit,
-        r.opening, r.closing, r.paydate
+        r.date,
+        r.description,
+        r.charge,
+        r.debit,
+        r.principal,
+        r.interest,
+        r.total_credit,
+        r.opening,
+        r.closing,
+        r.paydate,
       ];
       for (let i = 0; i < colW.length; i++) {
         const right = i >= 3 && i <= 8; // numeric columns
-        cellText(doc, vals[i], colX[i], y, colW[i], rowH, right ? "right" : "left");
+        cellText(
+          doc,
+          vals[i],
+          colX[i],
+          y,
+          colW[i],
+          rowH,
+          right ? "right" : "left",
+        );
       }
       y += rowH;
     }
 
     // footer
-    doc.moveDown(1).fontSize(9)
-      .text("***This is a system generated document and does not require a signature***",
-            MARGINS.left, y + 6);
+    doc
+      .moveDown(1)
+      .fontSize(9)
+      .text(
+        "***This is a system generated document and does not require a signature***",
+        MARGINS.left,
+        y + 6,
+      );
 
     doc.end();
 
     ws.on("finish", async () => {
       try {
-        await db.promise().query(
-          `INSERT INTO loan_documents (lan, file_name, original_name) VALUES (?, ?, ?)`,
-          [lan, filename, `SOA - ${lan}`]
-        );
+        await db
+          .promise()
+          .query(
+            `INSERT INTO loan_documents (lan, file_name, original_name) VALUES (?, ?, ?)`,
+            [lan, filename, `SOA - ${lan}`],
+          );
       } catch {}
       const protocol = req.protocol || "http";
       const host = req.get("host") || "localhost:5000";
       res.json({ fileUrl: `${protocol}://${host}/uploads/${filename}` });
     });
 
-    ws.on("error", err => res.status(500).json({ error: "Failed to write PDF", details: err.message }));
-
+    ws.on("error", (err) =>
+      res
+        .status(500)
+        .json({ error: "Failed to write PDF", details: err.message }),
+    );
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "SOA generation failed", details: err.message });
+    res
+      .status(500)
+      .json({ error: "SOA generation failed", details: err.message });
   }
 });
 
@@ -1791,19 +2130,17 @@ router.post("/generate-noc", async (req, res) => {
 
   // pick loan table same as SOA
   let loanTable = "";
-  if (lan.startsWith("GQN"))      loanTable = "loan_booking_gq_non_fsf";
+  if (lan.startsWith("GQN")) loanTable = "loan_booking_gq_non_fsf";
   else if (lan.startsWith("GQF")) loanTable = "loan_booking_gq_fsf";
   else if (lan.startsWith("ADK")) loanTable = "loan_booking_adikosh";
-  else if (lan.startsWith("EV"))  loanTable = "loan_booking_ev";
-  else if (lan.startsWith("BL"))  loanTable = "loan_bookings";
-  else if (lan.startsWith("E1"))  loanTable = "loan_booking_embifi";
-  else if (lan.startsWith("FINE"))  loanTable = "loan_booking_emiclub";
-  else if (lan.startsWith("HEYBF"))  loanTable = "loan_booking_hey_ev_battery";
-  else if (lan.startsWith("HEY"))  loanTable = "loan_booking_hey_ev";
-  else if (lan.startsWith("HEL"))  loanTable = "loan_booking_helium";
-  else if (lan.startsWith("FINS"))  loanTable = "loan_booking_finso";
-
-
+  else if (lan.startsWith("EV")) loanTable = "loan_booking_ev";
+  else if (lan.startsWith("BL")) loanTable = "loan_bookings";
+  else if (lan.startsWith("E1")) loanTable = "loan_booking_embifi";
+  else if (lan.startsWith("FINE")) loanTable = "loan_booking_emiclub";
+  else if (lan.startsWith("HEYBF")) loanTable = "loan_booking_hey_ev_battery";
+  else if (lan.startsWith("HEY")) loanTable = "loan_booking_hey_ev";
+  else if (lan.startsWith("HEL")) loanTable = "loan_booking_helium";
+  else if (lan.startsWith("FINS")) loanTable = "loan_booking_finso";
 
   try {
     const [loanRows] = await db
@@ -1818,14 +2155,16 @@ router.post("/generate-noc", async (req, res) => {
     // ✅ simple gate: ONLY when status === 'Fully Paid'
     const allowedStatuses = ["fully paid", "foreclosed", "settled"];
 
-const statusNorm = String(loan.status || "").trim().toLowerCase();
+    const statusNorm = String(loan.status || "")
+      .trim()
+      .toLowerCase();
 
-if (!allowedStatuses.includes(statusNorm)) {
-  return res.status(400).json({
-    error: "NOC can be generated only when the loan is Fully Paid.",
-    currentStatus: loan.status || "-"
-  });
-}
+    if (!allowedStatuses.includes(statusNorm)) {
+      return res.status(400).json({
+        error: "NOC can be generated only when the loan is Fully Paid.",
+        currentStatus: loan.status || "-",
+      });
+    }
 
     // Create PDF
     const filename = `NOC_${lan}_${Date.now()}.pdf`;
@@ -1840,18 +2179,25 @@ if (!allowedStatuses.includes(statusNorm)) {
     if (fs.existsSync(logoPath)) {
       doc.image(logoPath, { fit: [120, 120], align: "center" }).moveDown(0.5);
     }
-    doc.font("Helvetica-Bold").fontSize(16)
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(16)
       .text("No Dues Certificate", { align: "center" })
       .moveDown(0.8);
 
     // Body
-    const fmtDate = (d) =>
-      new Date(d).toLocaleDateString("en-IN");
+    const fmtDate = (d) => new Date(d).toLocaleDateString("en-IN");
 
     const address = [
-      loan.address_line_1, loan.address_line_2, loan.village,
-      loan.district, loan.state, loan.pincode
-    ].filter(Boolean).join(", ");
+      loan.address_line_1,
+      loan.address_line_2,
+      loan.village,
+      loan.district,
+      loan.state,
+      loan.pincode,
+    ]
+      .filter(Boolean)
+      .join(", ");
 
     doc.font("Helvetica").fontSize(11);
     doc.text(`Date: ${fmtDate(new Date())}`).moveDown(0.5);
@@ -1863,45 +2209,60 @@ if (!allowedStatuses.includes(statusNorm)) {
 
     doc.text("Dear Sir/Madam,").moveDown(0.8);
     const para = (t) => doc.text(t, { align: "justify" }).moveDown(0.8);
-    para("We would like to thank you for your patronage, and we hope your experience with us has been a rewarding one.");
-    para("We are pleased to confirm that there are no outstanding dues towards the captioned loan and the amount disbursed under the said loan account number has been closed in our books. The agreement signed by you in this regard stands terminated.");
-    para("We will be happy to welcome you back! Fintree Finance Pvt. Ltd. is a one-stop solution for all financial needs. Our offerings include Consumer Durable Loans, Personal Loans, Vehicle Loans, Business Loans, and Mortgage Loans.");
-    para("Thank you once again for selecting Fintree Finance Pvt. Ltd. as your preferred partner in helping you accomplish your financial goals.");
+    para(
+      "We would like to thank you for your patronage, and we hope your experience with us has been a rewarding one.",
+    );
+    para(
+      "We are pleased to confirm that there are no outstanding dues towards the captioned loan and the amount disbursed under the said loan account number has been closed in our books. The agreement signed by you in this regard stands terminated.",
+    );
+    para(
+      "We will be happy to welcome you back! Fintree Finance Pvt. Ltd. is a one-stop solution for all financial needs. Our offerings include Consumer Durable Loans, Personal Loans, Vehicle Loans, Business Loans, and Mortgage Loans.",
+    );
+    para(
+      "Thank you once again for selecting Fintree Finance Pvt. Ltd. as your preferred partner in helping you accomplish your financial goals.",
+    );
 
     doc.moveDown(1.2);
     doc.text("For and on behalf of Fintree Finance Pvt. Ltd.");
     doc.moveDown(2);
-    doc.fontSize(9).text("***This is a system generated letter and does not require a signature***", { align: "center" });
+    doc
+      .fontSize(9)
+      .text(
+        "***This is a system generated letter and does not require a signature***",
+        { align: "center" },
+      );
 
     doc.end();
 
     writeStream.on("finish", async () => {
-  try {
-    // store just the filename (not /uploads/filename)
-    await db.promise().query(
-      `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
+      try {
+        // store just the filename (not /uploads/filename)
+        await db.promise().query(
+          `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
        VALUES (?, ?, ?, NOW())`,
-      [lan, filename, `NOC - ${lan}`]
-    );
-  } catch (e) {
-    console.error("loan_documents insert failed:", e.message);
-    // non-fatal
-  }
+          [lan, filename, `NOC - ${lan}`],
+        );
+      } catch (e) {
+        console.error("loan_documents insert failed:", e.message);
+        // non-fatal
+      }
 
-  // return absolute URL that matches your server's static mount
-  const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${filename}`;
-  res.status(200).json({ message: "Generated", fileUrl });
-});
-
+      // return absolute URL that matches your server's static mount
+      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${filename}`;
+      res.status(200).json({ message: "Generated", fileUrl });
+    });
 
     writeStream.on("error", (err) => {
       console.error("PDF write error:", err);
-      res.status(500).json({ error: "Failed to write NOC PDF", details: err.message });
+      res
+        .status(500)
+        .json({ error: "Failed to write NOC PDF", details: err.message });
     });
-
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "NOC generation failed", details: err.message });
+    res
+      .status(500)
+      .json({ error: "NOC generation failed", details: err.message });
   }
 });
 
@@ -1911,22 +2272,29 @@ router.post("/generate-foreclosure", async (req, res) => {
 
   // 1) Select borrower table (same rules as your NOC)
   let bookingTable = "";
-  if (lan.startsWith("GQN"))       bookingTable = "loan_booking_gq_non_fsf";
-  else if (lan.startsWith("GQF"))  bookingTable = "loan_booking_gq_fsf";
-  else if (lan.startsWith("ADK"))  bookingTable = "loan_booking_adikosh";
-  else if (lan.startsWith("EV"))   bookingTable = "loan_booking_ev";
-  else if (lan.startsWith("E1"))   bookingTable = "loan_booking_embifi";
+  if (lan.startsWith("GQN")) bookingTable = "loan_booking_gq_non_fsf";
+  else if (lan.startsWith("GQF")) bookingTable = "loan_booking_gq_fsf";
+  else if (lan.startsWith("ADK")) bookingTable = "loan_booking_adikosh";
+  else if (lan.startsWith("EV")) bookingTable = "loan_booking_ev";
+  else if (lan.startsWith("E1")) bookingTable = "loan_booking_embifi";
   else if (lan.startsWith("WCTL")) bookingTable = "loan_bookings_wctl";
-  else if (lan.startsWith("BL"))   bookingTable = "loan_bookings";
+  else if (lan.startsWith("BL")) bookingTable = "loan_bookings";
   else if (lan.startsWith("FINE")) bookingTable = "loan_booking_emiclub";
 
   // Helpers
   const fmtDateLong = (d) =>
-    new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+    new Date(d).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
 
   // Format numbers like 1,23,456 (no currency sign)
   const fmtAmt = (n) =>
-    Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    Number(n || 0).toLocaleString("en-IN", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    });
 
   // Keep 1pt strokes aligned on device pixels to avoid fuzzy/vanishing lines
   const crisp = (v) => Math.round(v) + 0.5;
@@ -1938,46 +2306,57 @@ router.post("/generate-foreclosure", async (req, res) => {
               address_line_1, address_line_2, village, district, state, pincode
          FROM ${bookingTable}
         WHERE lan = ? LIMIT 1`,
-      [lan]
+      [lan],
     );
     if (!loanRows.length) {
-      return res.status(404).json({ error: `Borrower not found in ${bookingTable}` });
+      return res
+        .status(404)
+        .json({ error: `Borrower not found in ${bookingTable}` });
     }
     const loan = loanRows[0];
 
     // 3) Run foreclosure procedure FIRST
-    const [procRes] = await db.promise().query("CALL sp_calculate_forecloser_collection(?)", [lan]);
-    const fcRows = Array.isArray(procRes) && Array.isArray(procRes[0]) ? procRes[0] : procRes;
+    const [procRes] = await db
+      .promise()
+      .query("CALL sp_calculate_forecloser_collection(?)", [lan]);
+    const fcRows =
+      Array.isArray(procRes) && Array.isArray(procRes[0])
+        ? procRes[0]
+        : procRes;
     if (!fcRows || !fcRows.length) {
-      return res.status(404).json({ error: "No foreclosure data produced by procedure" });
+      return res
+        .status(404)
+        .json({ error: "No foreclosure data produced by procedure" });
     }
     const fc = fcRows[0];
 
     // Values
     const forecloserDate = fc.forecloser_date || new Date();
-    const principalOS    = Number(fc.total_remaining_principal || 0);
-    const overduePnI     = Number(fc.total_remaining_interest  || 0);
-    const preClosureChg  = Number(fc.foreclosure_fee           || 0);
-    const gstTotal       = Number(fc.foreclosure_tax           || 0);
-    const cgst           = gstTotal / 2;
-    const sgst           = gstTotal / 2;
-    const netReceivable  = Number(fc.total_fc_amount           || 0);
-    const penalty        = Number(fc.penalty || 0);
-    const bounce         = Number(fc.bounce  || 0);
-    const excess         = Number(fc.excess  || 0);
+    const principalOS = Number(fc.total_remaining_principal || 0);
+    const overduePnI = Number(fc.total_remaining_interest || 0);
+    const preClosureChg = Number(fc.foreclosure_fee || 0);
+    const gstTotal = Number(fc.foreclosure_tax || 0);
+    const cgst = gstTotal / 2;
+    const sgst = gstTotal / 2;
+    const netReceivable = Number(fc.total_fc_amount || 0);
+    const penalty = Number(fc.penalty || 0);
+    const bounce = Number(fc.bounce || 0);
+    const excess = Number(fc.excess || 0);
 
     // 4) PDF
     const filename = `Foreclosure_${lan}_${Date.now()}.pdf`;
     const filePath = path.join(uploadPath, filename);
-    try { fs.mkdirSync(uploadPath, { recursive: true }); } catch {}
+    try {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    } catch {}
 
     const doc = new PDFDocument({ margin: 48 });
-    const ws  = fs.createWriteStream(filePath);
+    const ws = fs.createWriteStream(filePath);
     doc.pipe(ws);
 
     // Fonts: use core fonts (no external files)
     const FONT_REGULAR = "Helvetica";
-    const FONT_BOLD    = "Helvetica-Bold";
+    const FONT_BOLD = "Helvetica-Bold";
     doc.fillColor("#000");
 
     // --- Logo top-right (fixed position)
@@ -1985,15 +2364,22 @@ router.post("/generate-foreclosure", async (req, res) => {
     const topY = 44; // consistent top padding
     if (fs.existsSync(logoPath)) {
       const imgW = 120;
-      doc.image(logoPath,
-        doc.page.width - doc.page.margins.right - imgW, topY,
-        { width: imgW }
+      doc.image(
+        logoPath,
+        doc.page.width - doc.page.margins.right - imgW,
+        topY,
+        { width: imgW },
       );
     }
 
     // --- Date + name (top-left)
-    doc.font(FONT_BOLD).fontSize(11).text("Date", doc.page.margins.left, topY + 6);
-    doc.font(FONT_REGULAR).text(fmtDateLong(forecloserDate), doc.page.margins.left + 50, topY + 6);
+    doc
+      .font(FONT_BOLD)
+      .fontSize(11)
+      .text("Date", doc.page.margins.left, topY + 6);
+    doc
+      .font(FONT_REGULAR)
+      .text(fmtDateLong(forecloserDate), doc.page.margins.left + 50, topY + 6);
     doc.moveDown(0.6);
 
     if (loan.customer_name) {
@@ -2002,9 +2388,10 @@ router.post("/generate-foreclosure", async (req, res) => {
 
     // Optional: address block if you want it
     const addressLines = [
-      loan.address_line_1, loan.address_line_2,
+      loan.address_line_1,
+      loan.address_line_2,
       [loan.village, loan.district].filter(Boolean).join(", "),
-      [loan.state, loan.pincode].filter(Boolean).join(" - ")
+      [loan.state, loan.pincode].filter(Boolean).join(" - "),
     ].filter(Boolean);
     if (addressLines.length) {
       doc.moveDown(0.2);
@@ -2018,41 +2405,56 @@ router.post("/generate-foreclosure", async (req, res) => {
     const xR = doc.page.width - doc.page.margins.right;
 
     const yRule1 = crisp(doc.y);
-    doc.save().lineWidth(1).strokeColor("#000")
-       .moveTo(xL, yRule1).lineTo(xR, yRule1).stroke().restore();
+    doc
+      .save()
+      .lineWidth(1)
+      .strokeColor("#000")
+      .moveTo(xL, yRule1)
+      .lineTo(xR, yRule1)
+      .stroke()
+      .restore();
 
     doc.moveDown(0.35);
     doc.font(FONT_BOLD).fontSize(14).text(title, { align: "center" });
     doc.moveDown(0.35);
 
     const yRule2 = crisp(doc.y);
-    doc.save().lineWidth(1).strokeColor("#000")
-       .moveTo(xL, yRule2).lineTo(xR, yRule2).stroke().restore();
+    doc
+      .save()
+      .lineWidth(1)
+      .strokeColor("#000")
+      .moveTo(xL, yRule2)
+      .lineTo(xR, yRule2)
+      .stroke()
+      .restore();
     doc.moveDown(0.6);
 
     // --- Greeting & intro
     doc.font(FONT_BOLD).fontSize(11).text("Dear Customer,");
     doc.moveDown(0.15);
-    doc.font(FONT_REGULAR).fontSize(11).text(
-      "We value your relationship with Fintree. As per request for Closure of your above mentioned loan account, " +
-      "Please find below the amount payable:"
-    );
+    doc
+      .font(FONT_REGULAR)
+      .fontSize(11)
+      .text(
+        "We value your relationship with Fintree. As per request for Closure of your above mentioned loan account, " +
+          "Please find below the amount payable:",
+      );
     doc.moveDown(0.5);
 
     // --- Structured 3-column table
     // Columns: [Particulars | Sub | Amount (Rs.)]
     const tableX = doc.page.margins.left;
-    let   tableY = doc.y;
-    const usableW = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    let tableY = doc.y;
+    const usableW =
+      doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const colW = [usableW - 120 - 140, 120, 140]; // big label, sublabel, amount
     const rowH = 24;
     const border = 0.8;
 
-    const drawRow = (cells, {
-      bold = false,
-      shaded = false,
-      align = ["left","left","right"]
-    } = {}) => {
+    const drawRow = (
+      cells,
+      { bold = false, shaded = false, align = ["left", "left", "right"] } = {},
+    ) => {
       const y = tableY;
 
       // shaded background (do it first, isolate state)
@@ -2063,67 +2465,110 @@ router.post("/generate-foreclosure", async (req, res) => {
       }
 
       // top border (crisp)
-      doc.save().lineWidth(border).strokeColor("#000")
-         .moveTo(tableX, crisp(y)).lineTo(tableX + usableW, crisp(y)).stroke().restore();
+      doc
+        .save()
+        .lineWidth(border)
+        .strokeColor("#000")
+        .moveTo(tableX, crisp(y))
+        .lineTo(tableX + usableW, crisp(y))
+        .stroke()
+        .restore();
 
       // vertical lines and text
       let cx = tableX;
       for (let i = 0; i < colW.length; i++) {
-        doc.save().lineWidth(border).strokeColor("#000")
-           .moveTo(crisp(cx), y).lineTo(crisp(cx), y + rowH).stroke().restore();
+        doc
+          .save()
+          .lineWidth(border)
+          .strokeColor("#000")
+          .moveTo(crisp(cx), y)
+          .lineTo(crisp(cx), y + rowH)
+          .stroke()
+          .restore();
 
-        doc.font(bold ? FONT_BOLD : FONT_REGULAR).fontSize(11)
-           .fillColor("#000")
-           .text(cells[i] ?? "", cx + 8, y + 6, { width: colW[i] - 16, align: align[i] });
+        doc
+          .font(bold ? FONT_BOLD : FONT_REGULAR)
+          .fontSize(11)
+          .fillColor("#000")
+          .text(cells[i] ?? "", cx + 8, y + 6, {
+            width: colW[i] - 16,
+            align: align[i],
+          });
 
         cx += colW[i];
       }
       // right edge
-      doc.save().lineWidth(border).strokeColor("#000")
-         .moveTo(crisp(tableX + usableW), y).lineTo(crisp(tableX + usableW), y + rowH).stroke().restore();
+      doc
+        .save()
+        .lineWidth(border)
+        .strokeColor("#000")
+        .moveTo(crisp(tableX + usableW), y)
+        .lineTo(crisp(tableX + usableW), y + rowH)
+        .stroke()
+        .restore();
 
       // bottom border
-      doc.save().lineWidth(border).strokeColor("#000")
-         .moveTo(tableX, crisp(y + rowH)).lineTo(tableX + usableW, crisp(y + rowH)).stroke().restore();
+      doc
+        .save()
+        .lineWidth(border)
+        .strokeColor("#000")
+        .moveTo(tableX, crisp(y + rowH))
+        .lineTo(tableX + usableW, crisp(y + rowH))
+        .stroke()
+        .restore();
 
       tableY += rowH;
     };
 
     // Header
-    drawRow(["Particulars", " ", "Amount (Rs.)"], { bold: true, shaded: true, align: ["left","left","right"] });
+    drawRow(["Particulars", " ", "Amount (Rs.)"], {
+      bold: true,
+      shaded: true,
+      align: ["left", "left", "right"],
+    });
 
     // Detail rows (amount column only numbers; no ₹ prefix)
-    drawRow(["Principal O/s",                  "", fmtAmt(principalOS)]);
+    drawRow(["Principal O/s", "", fmtAmt(principalOS)]);
     drawRow(["Overdue Principal and Interest", "", fmtAmt(overduePnI)]);
-    drawRow(["Penalty",                        "", fmtAmt(penalty)]);
-    drawRow(["Bounce",                         "", fmtAmt(bounce)]);
-    drawRow(["Excess Amount",                  "", fmtAmt(excess)]);
-    drawRow(["Pre-Closure Charge*",            "", fmtAmt(preClosureChg)]);
-    drawRow(["",                             "CGST", fmtAmt(cgst)]);
-    drawRow(["",                             "SGST", fmtAmt(sgst)]);
+    drawRow(["Penalty", "", fmtAmt(penalty)]);
+    drawRow(["Bounce", "", fmtAmt(bounce)]);
+    drawRow(["Excess Amount", "", fmtAmt(excess)]);
+    drawRow(["Pre-Closure Charge*", "", fmtAmt(preClosureChg)]);
+    drawRow(["", "CGST", fmtAmt(cgst)]);
+    drawRow(["", "SGST", fmtAmt(sgst)]);
 
     // Separator band
     drawRow(["", "", ""], { shaded: true });
 
     // Total row (bold)
-    drawRow(["Net Receivable / (Refund)", "", fmtAmt(netReceivable)], { bold: true });
+    drawRow(["Net Receivable / (Refund)", "", fmtAmt(netReceivable)], {
+      bold: true,
+    });
 
     // --- Notes (below table)
     doc.y = tableY + 12;
     doc.moveDown(1.0);
     doc.font(FONT_BOLD).fontSize(11).text("Kindly note that:");
     doc.moveDown(0.2);
-    doc.font(FONT_REGULAR).fontSize(11).text(`We have taken the date of the Pre-Closure as ${fmtDateLong(forecloserDate)}`);
+    doc
+      .font(FONT_REGULAR)
+      .fontSize(11)
+      .text(
+        `We have taken the date of the Pre-Closure as ${fmtDateLong(forecloserDate)}`,
+      );
     doc.moveDown(0.6);
     doc.text("* GST applicable on Charges.");
 
     // --- Footer (bottom-center, with safe spacing)
     const footerMinTop = doc.page.height - doc.page.margins.bottom - 60; // cushion
     if (doc.y < footerMinTop) doc.y = footerMinTop;
-    doc.fontSize(9).fillColor("#000").text(
-      "This is a system generated letter and does not require a signature",
-      { align: "center" }
-    );
+    doc
+      .fontSize(9)
+      .fillColor("#000")
+      .text(
+        "This is a system generated letter and does not require a signature",
+        { align: "center" },
+      );
 
     doc.end();
 
@@ -2133,7 +2578,7 @@ router.post("/generate-foreclosure", async (req, res) => {
         await db.promise().query(
           `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
            VALUES (?, ?, ?, NOW())`,
-          [lan, filename, `Foreclosure - ${lan}`]
+          [lan, filename, `Foreclosure - ${lan}`],
         );
       } catch (e) {
         console.error("loan_documents insert failed:", e.message);
@@ -2144,18 +2589,19 @@ router.post("/generate-foreclosure", async (req, res) => {
 
     ws.on("error", (err) => {
       console.error("PDF write error:", err);
-      res.status(500).json({ error: "Failed to write Foreclosure PDF", details: err.message });
+      res
+        .status(500)
+        .json({
+          error: "Failed to write Foreclosure PDF",
+          details: err.message,
+        });
     });
-
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Foreclosure generation failed", details: err.message });
+    res
+      .status(500)
+      .json({ error: "Foreclosure generation failed", details: err.message });
   }
 });
-
-
-
-
-
 
 module.exports = router;

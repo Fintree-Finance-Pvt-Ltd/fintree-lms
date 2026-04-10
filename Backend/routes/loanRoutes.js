@@ -27,7 +27,7 @@ const router = express.Router();
 
 // ✅ Fetch Loan Details by LAN
 router.get("/loan-booking/:lan", (req, res) => {
-    const { lan } = req.params;
+  const { lan } = req.params;
 
   // Determine which table to use
   let table = "loan_bookings"; // Default
@@ -42,53 +42,58 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("GQF")) {
     table = "loan_booking_gq_fsf";
     posTable = "manual_rps_gq_fsf";
-  }else if (lan.startsWith("EV")) {
+  } else if (lan.startsWith("EV")) {
     table = "loan_booking_ev";
     posTable = "manual_rps_ev_loan";
-  }else if (lan.startsWith("HEYEV")) {
+  } else if (lan.startsWith("HEYEV")) {
     table = "loan_booking_hey_ev";
     posTable = "manual_rps_hey_ev";
-  }else if (lan.startsWith("HEYBF")) {
+  } else if (lan.startsWith("HEYBF")) {
     table = "loan_booking_hey_ev_battery";
     posTable = "manual_rps_hey_ev_battery";
-  }else if (lan.startsWith("E10")) {
+  } else if (lan.startsWith("E10")) {
     table = "loan_booking_embifi";
     posTable = "manual_rps_embifi_loan";
-  }else if (lan.startsWith("FINE")) {
+  } else if (lan.startsWith("FINE")) {
     table = "loan_booking_emiclub";
     posTable = "manual_rps_emiclub";
-  }else if (lan.startsWith("FINS")) {
+  } else if (lan.startsWith("FINS")) {
     table = "loan_booking_finso";
     posTable = "manual_rps_finso_loan";
-  }else if (lan.startsWith("WCTL")) {
+  } else if (lan.startsWith("WCTL")) {
     table = "loan_bookings_wctl";
     posTable = "manual_rps_wctl";
-  }else if (lan.startsWith("CIRF")) {
+  } else if (lan.startsWith("CIRF")) {
     table = "loan_booking_circle_pe";
     posTable = "manual_rps_circlepe";
-  }else if (lan.startsWith("HEL")) {
+  } else if (lan.startsWith("HEL")) {
     table = "loan_booking_helium";
     posTable = "manual_rps_helium";
-    }else if (lan.startsWith("ZYPF")) {
+  } else if (lan.startsWith("ZYPF")) {
     table = "loan_booking_zypay_customer";
     posTable = "manual_rps_zypay";
-    }else if (lan.startsWith("DLR")) {
+  } else if (lan.startsWith("DLR")) {
     table = "dealer_onboarding";
-   
-  }else if (lan.startsWith("FCCOD")) {
+  } else if (lan.startsWith("CLY")) {
+    table = "loan_booking_clayyo";
+    posTable = "manual_rps_clayoo";
+  } else if (lan.startsWith("LDF")) {
+    table = "loan_booking_loan_digit";
+    posTable = "manual_rps_loan_digit";
+  } else if (lan.startsWith("FCCOD")) {
     table = "loan_booking_wctl_cc_od";
   }
 
-    const query = `SELECT * FROM ${table} WHERE lan = ?`;
+  const query = `SELECT * FROM ${table} WHERE lan = ?`;
 
-    db.query(query, [lan], (err, results) => {
-        if (err) {
-            console.error("❌ Database Error:", err);
-            return res.status(500).json({ message: "Database error" });
-        }
-        if (results.length === 0) {
-            return res.status(404).json({ message: "Loan not found" });
-        }
+  db.query(query, [lan], (err, results) => {
+    if (err) {
+      console.error("❌ Database Error:", err);
+      return res.status(500).json({ message: "Database error" });
+    }
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Loan not found" });
+    }
     // Now add the POS query
     const posQuery = `
       SELECT COALESCE(SUM(remaining_principal), 0) AS pos
@@ -115,4 +120,3 @@ router.get("/loan-booking/:lan", (req, res) => {
 });
 
 module.exports = router;
-
