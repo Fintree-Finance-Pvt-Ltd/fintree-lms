@@ -1116,14 +1116,6 @@ const DocumentsPage = () => {
       marginBottom: 18,
     },
 
-    hiddenFileInput: {
-      position: "absolute",
-      left: "-9999px",
-      width: 1,
-      height: 1,
-      opacity: 0,
-    },
-
     fileUploadBox: {
       display: "flex",
       alignItems: "center",
@@ -1159,14 +1151,6 @@ const DocumentsPage = () => {
       background: "#ffffff",
       color: "#475569",
       fontSize: 14,
-    },
-
-    hiddenFileInput: {
-      position: "absolute",
-      opacity: 0,
-      pointerEvents: "none",
-      width: 1,
-      height: 1,
     },
   };
 
