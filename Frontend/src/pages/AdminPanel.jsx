@@ -64,34 +64,70 @@ const AdminPanel = () => {
 
   // -------- inline styles --------
   const styles = {
+    // wrap: {
+    //   minHeight: '100vh',
+    //   background: 'var(--bg-page)',
+    //   padding: '40px 24px',
+    //   color: 'var(--text-primary)',
+    // },
     wrap: {
       minHeight: '100vh',
       background: 'var(--bg-page)',
-      padding: '40px 24px',
-      color: 'var(--text-primary)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+      padding: '10px 24px 24px 24px',
     },
     panel: {
-      maxWidth: 960,
-      margin: '0 auto',
+      width: '100%',
+      maxWidth: 640,
+      // maxWidth: 720,
+      margin: '40px auto',
       background: 'var(--bg-card)',
       borderRadius: 'var(--radius-xl)',
       boxShadow: 'var(--shadow-lg)',
       border: '1px solid var(--border)',
-      padding: 32,
+      padding: 36,
     },
+    // panel: {
+    //   maxWidth: 960,
+    //   margin: '0 auto',
+    //   background: 'var(--bg-card)',
+    //   borderRadius: 'var(--radius-xl)',
+    //   boxShadow: 'var(--shadow-lg)',
+    //   border: '1px solid var(--border)',
+    //   padding: 32,
+    // },
     h2: { margin: 0, marginBottom: 24, fontSize: 24, fontWeight: 700, color: 'var(--text-primary)' },
+    // section: {
+    //   border: '1px solid var(--border)',
+    //   borderRadius: 'var(--radius-lg)',
+    //   padding: 24,
+    //   marginBottom: 24,
+    //   background: 'var(--bg-card)',
+    // },
     section: {
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius-lg)',
-      padding: 24,
-      marginBottom: 24,
+      padding: 28,
+      marginBottom: 22,
       background: 'var(--bg-card)',
+      transition: 'all 0.25s ease',
     },
-    h3: { margin: 0, marginBottom: 20, fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', borderBottom: '2px solid var(--primary)', paddingBottom: '10px' },
+    // h3: { margin: 0, marginBottom: 20, fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', borderBottom: '2px solid var(--primary)', paddingBottom: '10px' },
+    h3: {
+      margin: 0,
+      marginBottom: 22,
+      fontSize: 18,
+      fontWeight: 600,
+      color: 'var(--text-primary)',
+      borderBottom: '2px solid var(--primary)',
+      paddingBottom: '12px'
+    },
     form: {
       display: 'grid',
       gridTemplateColumns: '1fr 1fr',
-      gap: 16,
+      gap: 18,
     },
     input: {
       width: '100%',
@@ -102,7 +138,7 @@ const AdminPanel = () => {
       fontSize: 14,
       outline: 'none',
       color: 'var(--text-primary)',
-      transition: 'var(--transition)'
+      transition: 'all 0.2s ease'
     },
     select: {
       width: '100%',
@@ -116,17 +152,32 @@ const AdminPanel = () => {
       transition: 'var(--transition)'
     },
     btn: {
-      padding: '12px 24px',
-      borderRadius: 'var(--radius-pill)',
+      padding: '14px 32px',
+      borderRadius: '999px',
       border: 'none',
       cursor: 'pointer',
-      fontSize: 14,
+
+      fontSize: 15,
       fontWeight: 600,
       transition: 'var(--transition)',
       userSelect: 'none',
       fontFamily: 'Inter, sans-serif'
     },
-    btnPrimary: { background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))', color: '#fff', boxShadow: '0 4px 12px var(--primary-ring)' },
+    // btn: {
+    //   padding: '12px 24px',
+    //   borderRadius: 'var(--radius-pill)',
+    //   border: 'none',
+    //   cursor: 'pointer',
+    //   fontSize: 14,
+    //   fontWeight: 600,
+    //   transition: 'var(--transition)',
+    //   userSelect: 'none',
+    //   fontFamily: 'Inter, sans-serif'
+    // },
+    btnPrimary: {
+      background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+      color: '#fff', boxShadow: '0 4px 12px var(--primary-ring)'
+    },
     btnGhost: { background: '#fff', color: 'var(--text-primary)', border: '1px solid var(--border)' },
     btnSuccess: { background: 'linear-gradient(135deg, var(--primary), var(--primary-dark))', color: '#fff', boxShadow: '0 4px 12px var(--primary-ring)' }, // Changed to primary red theme for consistency
     full: { gridColumn: '1 / -1' },
@@ -149,7 +200,7 @@ const AdminPanel = () => {
       cursor: 'pointer',
       fontSize: '14px',
       color: 'var(--text-secondary)',
-      transition: 'var(--transition)'
+      transition: 'all 0.2s ease'
     },
     actionsBar: { marginTop: 24, display: 'flex', justifyContent: 'flex-end' },
     muted: { color: 'var(--text-muted)', fontSize: 13 },
@@ -187,6 +238,8 @@ const AdminPanel = () => {
               type="password"
               value={newUser.password}
               onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              onFocus={(e) => e.target.style.boxShadow = '0 0 0 3px var(--primary-ring)'}
+              onBlur={(e) => e.target.style.boxShadow = 'none'}
               required
               style={styles.input}
             />
@@ -214,7 +267,9 @@ const AdminPanel = () => {
         </section>
 
         {/* Assign Pages */}
-        <section style={styles.section}>
+        <section style={styles.section}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0px)'}>
           <h3 style={styles.h3}>Assign Pages to User</h3>
 
           <div style={styles.row}>
@@ -233,7 +288,9 @@ const AdminPanel = () => {
             <>
               <div style={styles.pagesList}>
                 {pages.map((p) => (
-                  <label key={p.id} style={styles.pageLabel}>
+                  <label key={p.id} style={styles.pageLabel}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(15, 23, 42, 0.06)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = '#fafafa'}>
                     <input
                       type="checkbox"
                       checked={selectedPageIds.includes(p.id)}

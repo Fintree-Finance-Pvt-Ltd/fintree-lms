@@ -1,40 +1,262 @@
-/* ============================================================
-   FINTREE LMS — NAVBAR
-   ============================================================ */
+/* ============================
+   NAVBAR CONTAINER
+============================ */
 
-.fin-logo {
-  color: white !important;
+.navbar {
+
+  height: 64px;
+
+  background: #1e293b;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 24px;
+
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-.navbar img {
-  width: 130px !important;
-  height: 52px !important;
-  object-fit: contain;
+
+/* ============================
+   LEFT SIDE
+============================ */
+
+.nav-left {
+
+  display: flex;
+  align-items: end;
+  gap: 54px;
+
 }
 
-/* ── Action Buttons (header-level) ── */
-.action-buttons {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+.logo {
+width: 130px;
+  height: 80px;
+
+
+}
+
+
+/* divider */
+
+.divider {
+
+  width: 1px;
+  height: 26px;
+
+  background: rgba(255,255,255,0.15);
+
+}
+
+
+/* portal title */
+
+.portal-name {
+
+  font-size: 15px;
+  font-weight: 600;
+
+  color: #e2e8f0;
+
+}
+
+
+/* ============================
+   RIGHT SIDE
+============================ */
+
+.nav-right {
+
+  display: flex;
+  align-items: center;
+
+}
+
+
+/* profile section */
+
+.profile-box {
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+}
+
+
+/* avatar */
+
+.profile-avatar {
+
+  width: 34px;
+  height: 34px;
+
+  border-radius: 50%;
+
+  background: #38bdf8;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-weight: 600;
   color: white;
+
+}
+
+
+/* username */
+
+.profile-name {
+
+  font-size: 14px;
+  font-weight: 500;
+
+  color: #e2e8f0;
+
+}
+
+
+/* logout link */
+
+.logout-link {
+
+  background: transparent;
   border: none;
-  padding: 8px 16px;
-  border-radius: var(--radius-pill);
-  cursor: pointer;
+
   font-size: 13px;
   font-weight: 600;
+
+  color: #ef4444;
+
+  cursor: pointer;
+
+}
+
+.logout-link:hover {
+
+  text-decoration: underline;
+
+}
+
+
+
+
+
+:root {
+  --header-bg: #0e234f;
+  --header-border: rgba(255, 255, 255, 0.08);
+  --accent-blue: #6366f1;
+  --header-text: #ffffff;
+  --header-muted: #8b8d98;
+}
+ 
+.header-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  z-index: 1000;
   font-family: 'Inter', sans-serif;
-  margin-right: 8px;
-  transition: var(--transition);
-  box-shadow: 0 2px 8px var(--primary-ring);
-  letter-spacing: 0.02em;
 }
-
-.action-buttons:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px var(--primary-ring);
+ 
+.profile-container {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 6px 6px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--header-border);
 }
-
-.action-buttons:active {
-  transform: translateY(0);
+ 
+.user-greeting {
+  display: flex;
+  flex-direction: column;
+  margin-right: 12px;
+  text-align: right;
 }
+ 
+.greeting-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #10b981; /* Green status color */
+  font-weight: 700;
+}
+ 
+.greeting-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--header-text);
+}
+ 
+.header-avatar {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-blue);
+  color: white;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);
+}
+ 
+.header-avatar svg {
+  width: 18px;
+  height: 18px;
+}
+ 
+.header-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--header-border);
+  margin: 0 12px;
+}
+ 
+.header-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--header-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.logo-container img{
+  width: 160px;
+  height: 100px;
+ 
+}
+.header-logout-btn svg {
+  width: 16px;
+  height: 16px;
+}
+ 
+.header-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.1); /* Soft red hover */
+  color: #ef4444;
+}
+ 
+@media (max-width: 768px) {
+  .user-greeting, .header-divider, .header-logout-btn span {
+    display: none;
+  }
+  .profile-container {
+    padding: 6px;
+  }
+}
+ 

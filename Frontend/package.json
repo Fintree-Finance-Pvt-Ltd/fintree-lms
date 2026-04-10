@@ -14,12 +14,15 @@
     "ag-grid-react": "^34.2.0",
     "axios": "^1.10.0",
     "html2pdf.js": "^0.10.3",
+    "lucide-react": "^1.8.0",
     "react": "^19.1.0",
     "react-datepicker": "^9.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.3",
     "react-select": "^5.10.2",
+    "react-toastify": "^11.0.5",
     "recharts": "^3.0.2",
+    "styled-components": "^6.3.12",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

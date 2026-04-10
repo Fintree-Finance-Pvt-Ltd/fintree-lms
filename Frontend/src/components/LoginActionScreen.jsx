@@ -189,30 +189,82 @@ const LoginActionScreen = ({
     };
     const key = (status || "pending").toLowerCase();
     const c = map[key] || map.login;
-    return {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "6px 10px",
-      borderRadius: 999,
-      fontSize: 12,
-      fontWeight: 700,
-      background: c.bg,
-      color: c.fg,
-      border: `1px solid ${c.bd}`,
-    };
+    // return {
+    //   display: "inline-flex",
+    //   alignItems: "center",
+    //   gap: 6,
+    //   padding: "6px 10px",
+    //   borderRadius: 999,
+    //   fontSize: 12,
+    //   fontWeight: 700,
+    //   background: c.bg,
+    //   color: c.fg,
+    //   border: `1px solid ${c.bd}`,
+    // };
+      return {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "8px 14px",
+    borderRadius: 999,
+    fontSize: 13,
+    fontWeight: 600,
+    background: c.bg,
+    color: c.fg,
+    border: "1px solid transparent",
+    minWidth: 72,
   };
-  const actionBtn = (type) => ({
-    padding: "8px 10px",
-    borderRadius: 8,
+  };
+  const actionBtn = (type) => {
+  const isApprove = type === "approve";
+
+  return {
+    minWidth: isApprove ? "170px" : "110px",
+    height: "44px",
+    padding: "0 16px",
+    borderRadius: "14px",
     border: "1px solid transparent",
     cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 700,
-    background: type === "approve" ? "#10b981" : "#ef4444",
-    borderColor: type === "approve" ? "#059669" : "#dc2626",
-    color: "#fff",
-  });
+    fontSize: "14px",
+    fontWeight: 600,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    whiteSpace: "nowrap",
+    color: isApprove ? "#047857" : "#dc2626",
+    background: isApprove ? "#e8f8f0" : "#fdecec",
+    boxShadow: "none",
+  };
+};
+
+const docsBtn = {
+  minWidth: "88px",
+  height: "38px",
+  padding: "0 12px",
+  borderRadius: "12px",
+  border: "1px solid #dbe5ef",
+  color: "#1d4ed8",
+  background: "#f8fbff",
+  cursor: "pointer",
+  fontSize: "13px",
+  fontWeight: 600,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+};
+  // const actionBtn = (type) => ({
+  //   padding: "8px 10px",
+  //   borderRadius: 8,
+  //   border: "1px solid transparent",
+  //   cursor: "pointer",
+  //   fontSize: 13,
+  //   fontWeight: 700,
+  //   background: type === "approve" ? "#10b981" : "#ef4444",
+  //   borderColor: type === "approve" ? "#059669" : "#dc2626",
+  //   color: "#fff",
+  // });
   const link = { color: "#2563eb", textDecoration: "none", fontWeight: 600 };
 
   // base columns
@@ -299,16 +351,17 @@ const LoginActionScreen = ({
       render: (r) => (
         <button
           onClick={() => navigate(`/documents/${r.lan}`)}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 8,
-            border: "1px solid #93c5fd",
-            color: "#1d4ed8",
-            background: "#fff",
-            cursor: "pointer",
-            fontSize: 13,
-            fontWeight: 600,
-          }}
+          // style={{
+          //   padding: "8px 10px",
+          //   borderRadius: 8,
+          //   border: "1px solid #93c5fd",
+          //   color: "#1d4ed8",
+          //   background: "#fff",
+          //   cursor: "pointer",
+          //   fontSize: 13,
+          //   fontWeight: 600,
+          // }}
+            style={docsBtn}
           title="Open documents"
         >
           📂 Docs
@@ -324,7 +377,14 @@ const LoginActionScreen = ({
     const isDLR = /^DLR/i.test(r.lan);
 
     return (
-      <div style={{ display: "flex", gap: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <button
           style={actionBtn("approve")}
           onClick={() =>
@@ -335,7 +395,7 @@ const LoginActionScreen = ({
             )
           }
         >
-          {isDLR ? "✅ Approve" : "✅ Disburse initiate"}
+          ✅ {isDLR ? "Approve" : "Disburse initiate"}
         </button>
 
         <button
@@ -349,9 +409,42 @@ const LoginActionScreen = ({
   },
   csvAccessor: () => "",
   width: 210,
-}
+},
+//     {
+//   key: "actions",
+//   header: "Actions",
+//   render: (r) => {
+//     const isDLR = /^DLR/i.test(r.lan);
 
-,
+//     return (
+//       <div style={{ display: "flex", gap: 8 }}>
+//         <button
+//           style={actionBtn("approve")}
+//           onClick={() =>
+//             handleStatusChange(
+//               r.lan,
+//               isDLR ? "Approved" : "Disburse initiate",
+//               tableName
+//             )
+//           }
+//         >
+//           {isDLR ? "✅ Approve" : "✅ Disburse initiate"}
+//         </button>
+
+//         <button
+//           style={actionBtn("reject")}
+//           onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
+//         >
+//           ❌ Reject
+//         </button>
+//       </div>
+//     );
+//   },
+//   csvAccessor: () => "",
+//   width: 210,
+// }
+
+
   ];
 
   // include batch_id in search/CSV only when present

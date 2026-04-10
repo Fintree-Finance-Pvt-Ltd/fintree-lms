@@ -438,12 +438,12 @@ const DataTable = ({
   }, [filtered, sort, columns]);
 
   // pagination
-  const total     = serverPagination ? totalRowsProp : sorted.length;
-  const pageSize  = serverPagination ? (onPageSizeChange ? initialPageSize : initialPageSize) : _pageSize;
+  const total = serverPagination ? totalRowsProp : sorted.length;
+  const pageSize = serverPagination ? (onPageSizeChange ? initialPageSize : initialPageSize) : _pageSize;
   const totalPages = Math.max(1, Math.ceil(total / (serverPagination ? initialPageSize : _pageSize)));
-  const pageSafe  = serverPagination ? currentPage : (Math.min(_page, Math.max(1, Math.ceil(sorted.length / _pageSize))) || 1);
-  const start     = serverPagination ? 0 : (pageSafe - 1) * _pageSize;
-  const visible   = serverPagination ? rows : sorted.slice(start, start + _pageSize);
+  const pageSafe = serverPagination ? currentPage : (Math.min(_page, Math.max(1, Math.ceil(sorted.length / _pageSize))) || 1);
+  const start = serverPagination ? 0 : (pageSafe - 1) * _pageSize;
+  const visible = serverPagination ? rows : sorted.slice(start, start + _pageSize);
 
 
   // keep internal page in bounds when search/pageSize/sort/filters change (client mode only)
@@ -512,42 +512,42 @@ const DataTable = ({
   };
 
   // Apply the currently selected filter values
-const applyFilter = () => {
-  if (!openFilterCol) return;
-  const opts = uniqueOptions[openFilterCol] || [];
-  const allValues = new Set(opts.map((o) => o.valueNorm));
+  const applyFilter = () => {
+    if (!openFilterCol) return;
+    const opts = uniqueOptions[openFilterCol] || [];
+    const allValues = new Set(opts.map((o) => o.valueNorm));
 
-  setFilters((prev) => {
-    const copy = { ...prev };
-    // if everything is selected or no selection at all, treat as "no filter"
-    if (
-      tempSelections.size === 0 ||
-      tempSelections.size === allValues.size
-    ) {
-      delete copy[openFilterCol];
-    } else {
-      copy[openFilterCol] = new Set(tempSelections);
+    setFilters((prev) => {
+      const copy = { ...prev };
+      // if everything is selected or no selection at all, treat as "no filter"
+      if (
+        tempSelections.size === 0 ||
+        tempSelections.size === allValues.size
+      ) {
+        delete copy[openFilterCol];
+      } else {
+        copy[openFilterCol] = new Set(tempSelections);
+      }
+      return copy;
+    });
+
+    closeFilter();
+  };
+
+  // Clear the current column's filter entirely
+  const clearFilter = (colKey) => {
+    setFilters((prev) => {
+      const copy = { ...prev };
+      delete copy[colKey];
+      return copy;
+    });
+    if (openFilterCol === colKey) {
+      // reset temp selections when closing
+      setTempSelections(new Set());
+      setFilterSearch("");
+      setOpenFilterCol(null);
     }
-    return copy;
-  });
-
-  closeFilter();
-};
-
-// Clear the current column's filter entirely
-const clearFilter = (colKey) => {
-  setFilters((prev) => {
-    const copy = { ...prev };
-    delete copy[colKey];
-    return copy;
-  });
-  if (openFilterCol === colKey) {
-    // reset temp selections when closing
-    setTempSelections(new Set());
-    setFilterSearch("");
-    setOpenFilterCol(null);
-  }
-};
+  };
 
 
   const selectAllToggle = (colKey, selectAll) => {
@@ -556,153 +556,376 @@ const clearFilter = (colKey) => {
   };
 
   // ---------- styles ----------
+  // const s = {
+  //   wrap: {
+  //     background: "#f6f7fb",
+  //     borderRadius: 14,
+  //     border: "1px solid #e5e7eb",
+  //     boxShadow: "0 8px 24px rgba(16,24,40,0.08)",
+  //     padding: 16,
+  //     fontFamily:
+  //       '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Helvetica Neue",Arial',
+  //     color: "#1f2937",
+  //   },
+  //   header: {
+  //     display: "flex",
+  //     alignItems: "center",
+  //     justifyContent: "space-between",
+  //     gap: 12,
+  //     marginBottom: 12,
+  //     flexWrap: "wrap",
+  //   },
+  //   h2: { margin: 0, fontSize: 20, fontWeight: 800, color: "#111827" },
+  //   toolbar: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
+  //   input: {
+  //     padding: "10px 12px",
+  //     borderRadius: 10,
+  //     border: "1px solid #d1d5db",
+  //     background: "#fff",
+  //     fontSize: 14,
+  //     minWidth: 220,
+  //     outline: "none",
+  //   },
+  //   btn: {
+  //     padding: "10px 14px",
+  //     borderRadius: 10,
+  //     border: "1px solid transparent",
+  //     cursor: "pointer",
+  //     fontSize: 14,
+  //     fontWeight: 600,
+  //     background: "#2563eb",
+  //     color: "#fff",
+  //     borderColor: "#1d4ed8",
+  //   },
+  //   tableWrap: {
+  //     overflow: "auto",
+  //     borderRadius: 12,
+  //     border: "1px solid #e5e7eb",
+  //     background: "#fff",
+  //   },
+  //   table: {
+  //     width: "100%",
+  //     borderCollapse: "separate",
+  //     borderSpacing: 0,
+  //     fontSize: 14,
+  //     minWidth: 700,
+  //   },
+  //   th: {
+  //     position: stickyHeader ? "sticky" : "static",
+  //     top: 0,
+  //     background: "#f9fafb",
+  //     color: "#374151",
+  //     textAlign: "left",
+  //     fontWeight: 700,
+  //     padding: "12px 14px",
+  //     borderBottom: "1px solid #e5e7eb",
+  //     whiteSpace: "nowrap",
+  //     userSelect: "none",
+  //     verticalAlign: "top",
+  //   },
+  //   thClickable: { cursor: "pointer" },
+  //   td: {
+  //     padding: "12px 14px",
+  //     borderBottom: "1px solid #f3f4f6",
+  //     verticalAlign: "middle",
+  //     color: "#111827",
+  //   },
+  //   zebra: { background: "#fcfcfd" },
+  //   footer: {
+  //     display: "flex",
+  //     alignItems: "center",
+  //     justifyContent: "space-between",
+  //     gap: 8,
+  //     paddingTop: 12,
+  //     flexWrap: "wrap",
+  //   },
+  //   muted: { color: "#6b7280", fontSize: 13 },
+  //   pager: { display: "flex", gap: 6, alignItems: "center" },
+  //   pagerBtn: {
+  //     padding: "8px 12px",
+  //     borderRadius: 8,
+  //     border: "1px solid #d1d5db",
+  //     background: "#fff",
+  //     cursor: "pointer",
+  //   },
+  //   select: {
+  //     padding: "10px 12px",
+  //     borderRadius: 10,
+  //     border: "1px solid #d1d5db",
+  //     background: "#fff",
+  //     fontSize: 14,
+  //     minWidth: 110,
+  //     outline: "none",
+  //   },
+  //   rowHover: { transition: "background .12s ease" },
+
+  //   // filter dropdown styles
+  //   filterBtn: {
+  //     marginLeft: 8,
+  //     padding: "4px 6px",
+  //     borderRadius: 6,
+  //     border: "1px solid #e5e7eb",
+  //     background: "#fff",
+  //     cursor: "pointer",
+  //     fontSize: 12,
+  //   },
+  //   filterDropdown: {
+  //     position: "absolute",
+  //     top: "calc(100% + 6px)",
+  //     left: 6,
+  //     zIndex: 2000,
+  //     width: 300,
+  //     maxHeight: 360,
+  //     overflow: "hidden",
+  //     border: "1px solid #e5e7eb",
+  //     background: "#fff",
+  //     borderRadius: 8,
+  //     boxShadow: "0 10px 30px rgba(2,6,23,0.12)",
+  //     display: "flex",
+  //     flexDirection: "column",
+  //   },
+  //   filterHeader: {
+  //     padding: "8px 10px",
+  //     borderBottom: "1px solid #f3f4f6",
+  //     display: "flex",
+  //     gap: 8,
+  //     alignItems: "center",
+  //   },
+  //   filterSearch: {
+  //     padding: "8px 10px",
+  //     border: "none",
+  //     outline: "none",
+  //     flex: 1,
+  //     fontSize: 13,
+  //     background: "#f8fafc",
+  //     borderRadius: 6,
+  //   },
+  //   filterList: { overflow: "auto", padding: 8, flex: 1 },
+  //   filterFooter: { padding: 8, borderTop: "1px solid #f3f4f6", display: "flex", gap: 6, justifyContent: "flex-end" },
+  // };
+
   const s = {
     wrap: {
-      background: "#f6f7fb",
-      borderRadius: 14,
-      border: "1px solid #e5e7eb",
-      boxShadow: "0 8px 24px rgba(16,24,40,0.08)",
-      padding: 16,
+      background: "#ffffff",
+      borderRadius: 24,
+      border: "1px solid #e8eef5",
+      boxShadow: "0 12px 32px rgba(15, 23, 42, 0.06)",
+      padding: 20,
       fontFamily:
         '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Helvetica Neue",Arial',
-      color: "#1f2937",
+      color: "#0f172a",
+      overflow: "hidden",
     },
+
     header: {
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: 12,
-      marginBottom: 12,
+      gap: 14,
+      marginBottom: 16,
       flexWrap: "wrap",
     },
-    h2: { margin: 0, fontSize: 20, fontWeight: 800, color: "#111827" },
-    toolbar: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
-    input: {
-      padding: "10px 12px",
-      borderRadius: 10,
-      border: "1px solid #d1d5db",
-      background: "#fff",
-      fontSize: 14,
-      minWidth: 220,
-      outline: "none",
+
+    h2: {
+      margin: 0,
+      fontSize: 24,
+      fontWeight: 700,
+      color: "#0f2b5b",
+      letterSpacing: "-0.02em",
     },
+
+    toolbar: {
+      display: "flex",
+      gap: 10,
+      alignItems: "center",
+      flexWrap: "wrap",
+    },
+
+    input: {
+      height: 44,
+      padding: "0 14px",
+      borderRadius: 14,
+      border: "1px solid #dbe5ef",
+      background: "#f9fbfd",
+      fontSize: 14,
+      minWidth: 240,
+      outline: "none",
+      color: "#0f172a",
+    },
+
     btn: {
-      padding: "10px 14px",
-      borderRadius: 10,
-      border: "1px solid transparent",
+      height: 44,
+      padding: "0 16px",
+      borderRadius: 14,
+      border: "1px solid #dbe5ef",
       cursor: "pointer",
       fontSize: 14,
       fontWeight: 600,
-      background: "#2563eb",
+      background: "#0f2b5b",
       color: "#fff",
-      borderColor: "#1d4ed8",
+      boxShadow: "0 8px 18px rgba(15, 43, 91, 0.14)",
     },
+
     tableWrap: {
       overflow: "auto",
-      borderRadius: 12,
-      border: "1px solid #e5e7eb",
+      borderRadius: 20,
+      border: "1px solid #edf2f7",
       background: "#fff",
     },
+
     table: {
       width: "100%",
       borderCollapse: "separate",
       borderSpacing: 0,
       fontSize: 14,
-      minWidth: 700,
+      minWidth: 980,
     },
+
     th: {
       position: stickyHeader ? "sticky" : "static",
       top: 0,
-      background: "#f9fafb",
-      color: "#374151",
+      background: "#f8fbff",
+      color: "#56708f",
       textAlign: "left",
       fontWeight: 700,
-      padding: "12px 14px",
-      borderBottom: "1px solid #e5e7eb",
+      padding: "14px 18px",
+      borderBottom: "1px solid #e9eff6",
       whiteSpace: "nowrap",
       userSelect: "none",
-      verticalAlign: "top",
-    },
-    thClickable: { cursor: "pointer" },
-    td: {
-      padding: "12px 14px",
-      borderBottom: "1px solid #f3f4f6",
       verticalAlign: "middle",
-      color: "#111827",
+      fontSize: 12,
+      letterSpacing: "0.06em",
+      textTransform: "uppercase",
     },
-    zebra: { background: "#fcfcfd" },
+
+    thClickable: {
+      cursor: "pointer",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 4,
+    },
+
+    td: {
+      padding: "16px 18px",
+      borderBottom: "1px solid #f1f5f9",
+      verticalAlign: "middle",
+      color: "#1e293b",
+      background: "transparent",
+    },
+
+    zebra: {
+      background: "#fcfdff",
+    },
+
     footer: {
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: 8,
-      paddingTop: 12,
+      gap: 10,
+      paddingTop: 16,
       flexWrap: "wrap",
     },
-    muted: { color: "#6b7280", fontSize: 13 },
-    pager: { display: "flex", gap: 6, alignItems: "center" },
-    pagerBtn: {
-      padding: "8px 12px",
-      borderRadius: 8,
-      border: "1px solid #d1d5db",
-      background: "#fff",
-      cursor: "pointer",
-    },
-    select: {
-      padding: "10px 12px",
-      borderRadius: 10,
-      border: "1px solid #d1d5db",
-      background: "#fff",
-      fontSize: 14,
-      minWidth: 110,
-      outline: "none",
-    },
-    rowHover: { transition: "background .12s ease" },
 
-    // filter dropdown styles
-    filterBtn: {
-      marginLeft: 8,
-      padding: "4px 6px",
-      borderRadius: 6,
-      border: "1px solid #e5e7eb",
-      background: "#fff",
-      cursor: "pointer",
-      fontSize: 12,
+    muted: {
+      color: "#64748b",
+      fontSize: 13,
     },
-    filterDropdown: {
-      position: "absolute",
-      top: "calc(100% + 6px)",
-      left: 6,
-      zIndex: 2000,
-      width: 300,
-      maxHeight: 360,
-      overflow: "hidden",
-      border: "1px solid #e5e7eb",
-      background: "#fff",
-      borderRadius: 8,
-      boxShadow: "0 10px 30px rgba(2,6,23,0.12)",
-      display: "flex",
-      flexDirection: "column",
-    },
-    filterHeader: {
-      padding: "8px 10px",
-      borderBottom: "1px solid #f3f4f6",
+
+    pager: {
       display: "flex",
       gap: 8,
       alignItems: "center",
+      flexWrap: "wrap",
     },
+
+    pagerBtn: {
+      padding: "8px 12px",
+      borderRadius: 10,
+      border: "1px solid #dbe5ef",
+      background: "#fff",
+      cursor: "pointer",
+      fontWeight: 600,
+      color: "#0f172a",
+    },
+
+    select: {
+      padding: "9px 12px",
+      borderRadius: 12,
+      border: "1px solid #dbe5ef",
+      background: "#fff",
+      fontSize: 14,
+      minWidth: 116,
+      outline: "none",
+      color: "#0f172a",
+    },
+
+    rowHover: {
+      transition: "background .16s ease",
+    },
+
+    filterBtn: {
+      marginLeft: 8,
+      padding: "4px 7px",
+      borderRadius: 8,
+      border: "1px solid #e6edf5",
+      background: "#fff",
+      cursor: "pointer",
+      fontSize: 12,
+      color: "#64748b",
+    },
+
+    filterDropdown: {
+      position: "absolute",
+      top: "calc(100% + 8px)",
+      left: 6,
+      zIndex: 2000,
+      width: 310,
+      maxHeight: 380,
+      overflow: "hidden",
+      border: "1px solid #e6edf5",
+      background: "#fff",
+      borderRadius: 16,
+      boxShadow: "0 18px 36px rgba(15, 23, 42, 0.10)",
+      display: "flex",
+      flexDirection: "column",
+    },
+
+    filterHeader: {
+      padding: "10px 12px",
+      borderBottom: "1px solid #f1f5f9",
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      background: "#fcfdff",
+    },
+
     filterSearch: {
-      padding: "8px 10px",
-      border: "none",
+      padding: "9px 10px",
+      border: "1px solid #e2e8f0",
       outline: "none",
       flex: 1,
       fontSize: 13,
-      background: "#f8fafc",
-      borderRadius: 6,
+      background: "#f8fbff",
+      borderRadius: 10,
+      color: "#0f172a",
     },
-    filterList: { overflow: "auto", padding: 8, flex: 1 },
-    filterFooter: { padding: 8, borderTop: "1px solid #f3f4f6", display: "flex", gap: 6, justifyContent: "flex-end" },
+
+    filterList: {
+      overflow: "auto",
+      padding: 8,
+      flex: 1,
+    },
+
+    filterFooter: {
+      padding: 10,
+      borderTop: "1px solid #f1f5f9",
+      display: "flex",
+      gap: 8,
+      justifyContent: "flex-end",
+      background: "#fcfdff",
+    },
   };
+
 
   return (
     <div style={s.wrap}>

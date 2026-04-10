@@ -1,193 +1,211 @@
-/* ============================================================
-   FINTREE LMS — APPROVED LOANS TABLE
-   ============================================================ */
-
-.approved-loans-container {
-  max-width: 98%;
-  margin: 20px auto;
-  padding: 24px;
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border);
-  overflow-x: auto;
+/* Modern UI Variables */
+:root {
+  --primary: #0f172a;
+  --accent: #1a2e4e;
+  --success: #10b981;
+  --bg-app: #f1f5f9;
+  --bg-card: #ffffff;
+  --text-main: #334155;
+  --text-muted: #64748b;
+  --border-light: #e2e8f0;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
 }
 
-.approved-loans-container h2 {
-  text-align: left;
-  color: var(--text-primary);
-  font-size: 20px;
+.approved-layout {
+  padding: 32px;
+  background-color: var(--bg-app);
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+/* Header Redesign */
+.approved-header-modern {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 28px;
+}
+
+.header-titles h1 {
+  font-size: 28px;
   font-weight: 700;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid var(--border);
+        color: #0f2b5b;
+
+  /* color: var(--primary); */
+  letter-spacing: -0.02em;
+  margin: 0 0 4px 0;
 }
 
-/* ── Table ── */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-card);
+.header-subtitle {
+  color: var(--text-muted);
   font-size: 14px;
 }
 
-thead {
-  background: var(--table-head-bg);
-  color: var(--table-head-color);
+/* Search Bar Modernization */
+.header-tools {
+  display: flex;
+  gap: 16px;
+  align-items: center;
 }
 
-th {
-  padding: 13px 16px;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-  border-bottom: none;
+.modern-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-td {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--table-border);
-  text-align: left;
-  color: var(--text-secondary);
-  vertical-align: middle;
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
 }
 
-tbody tr:nth-child(odd) td {
+.modern-search-wrapper input {
+  padding: 10px 16px 10px 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
   background: var(--bg-card);
+  width: 280px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
-tbody tr:nth-child(even) td {
-  background: var(--table-stripe);
+.modern-search-wrapper input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  width: 320px;
 }
 
-tbody tr:hover td {
-  background: #f0f4ff;
-  transition: background 0.15s ease;
+/* Stats Box */
+.stats-indicator {
+  background: var(--primary);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
 }
 
-/* ── Loan Name ── */
-.loan-name {
-  font-weight: 600;
-  color: var(--info);
+.stats-count {
+  font-weight: 800;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.stats-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* Table Container Redesign */
+/* .table-container-modern {
+  background: var(--bg-card);
+  border-radius: 20px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  padding: 8px;
+  /* Adds space around the inner DataTable */
+/* } */ */
+
+/* Cell Specific Styling */
+.modern-cell-customer {
+  display: flex;
+  flex-direction: column;
   cursor: pointer;
 }
-.loan-name:hover {
-  text-decoration: underline;
+
+.customer-primary {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 14px;
 }
 
-/* ── Phone ── */
-.phone-number {
-  color: var(--info);
+.customer-secondary {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mono-text {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.lan-badge {
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--primary);
+}
+
+.contact-link {
+  color: var(--text-main);
   text-decoration: none;
   font-weight: 500;
-}
-.phone-number:hover {
-  text-decoration: underline;
+  transition: color 0.2s;
 }
 
-/* ── Status Badges ── */
+.contact-link:hover {
+  color: var(--accent);
+}
+
+/* Status Pill */
+.status-pill {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-block;
+}
+
 .status-approved {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 12px;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+/* Modern Action Button */
+.btn-modern-action {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  color: var(--primary);
+  padding: 8px 16px;
+  border-radius: 8px;
   font-weight: 600;
-  background: var(--success-bg);
-  color: var(--success);
-  border: 1px solid var(--success-border);
-}
-
-.status-rejected {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--danger-bg);
-  color: var(--danger);
-  border: 1px solid var(--danger-border);
-}
-
-.status-pending {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--neutral-bg);
-  color: var(--neutral);
-  border: 1px solid var(--neutral-border);
-}
-
-/* ── Action Buttons ── */
-.audit-trail-btn {
-  background: var(--sidebar-bg);
-  color: white;
-  border: none;
-  padding: 7px 13px;
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  transition: var(--transition);
-}
-.audit-trail-btn:hover {
-  background: #1e293b;
-  transform: translateY(-1px);
-}
-
-.approve-btn {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  color: white;
-  border: none;
-  padding: 7px 13px;
-  margin: 2px;
-  cursor: pointer;
-  border-radius: var(--radius-sm);
   font-size: 13px;
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  transition: var(--transition);
-}
-.approve-btn:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-}
-
-.reject-btn {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: white;
-  border: none;
-  padding: 7px 13px;
-  margin: 2px;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  transition: var(--transition);
+  transition: all 0.2s ease;
 }
-.reject-btn:hover {
-  filter: brightness(1.1);
+
+.btn-modern-action:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
   transform: translateY(-1px);
 }
 
-@media (max-width: 768px) {
-  table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-  th, td {
-    padding: 10px 12px;
-    font-size: 13px;
-  }
-  .approved-loans-container {
-    padding: 14px;
-  }
+/* Error Toast */
+.modern-error-toast {
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 12px;
+  margin: 16px;
+  border-radius: 10px;
+  border-left: 4px solid #ef4444;
+  font-weight: 500;
 }

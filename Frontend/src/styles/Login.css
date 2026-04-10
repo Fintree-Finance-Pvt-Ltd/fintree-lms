@@ -1,211 +1,320 @@
 /* ============================================================
-   FINTREE LMS — LOGIN PAGE
+   FINTREE — (FIXED VERSION)
    ============================================================ */
-
-/* ── Page Wrapper ── */
+ 
+/* RESET */
+body, html {
+  margin: 0;
+  padding: 0;
+}
+ 
+/* ─────────────────────────────────────────────
+   PAGE BACKGROUND
+───────────────────────────────────────────── */
 .login-page {
   min-height: 100vh;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
+ 
+  background: linear-gradient(135deg, #e0f7ec, #f0fdf4, #ecfdf5);
+}
+.login-card h2 ,h3 {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+ 
+  /* 🔥 Gradient text */
+  background: linear-gradient(135deg, #16a34a, #303190);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+ 
+  letter-spacing: -0.5px;
+  margin: 10px 0 20px;
+ 
   position: relative;
 }
-
-/* Overlay for readability */
-.login-page::before {
-  content: '';
+/* Animated blobs */
+.login-page::before,
+.login-page::after {
+  content: "";
   position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.35); /* Bright overlay instead of dark */
-  backdrop-filter: blur(4px);
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  filter: blur(100px);
   z-index: 0;
+  opacity: 0.6;
+ 
+  /* 🔥 IMPORTANT FIX */
+  pointer-events: none;
 }
-
-/* ── Login Card ── */
+ 
+.login-page::before {
+  background: #22c55e;
+  top: -100px;
+  left: -100px;
+  animation: float1 8s ease-in-out infinite;
+}
+ 
+.login-page::after {
+  background: #6366f1;
+  bottom: -100px;
+  right: -100px;
+  animation: float2 10s ease-in-out infinite;
+}
+ 
+@keyframes float1 {
+  0%, 100% { transform: translate(0,0); }
+  50% { transform: translate(50px, 30px); }
+}
+ 
+@keyframes float2 {
+  0%, 100% { transform: translate(0,0); }
+  50% { transform: translate(-40px, -30px); }
+}
+ 
+/* ─────────────────────────────────────────────
+   LOGIN CARD
+───────────────────────────────────────────── */
+ 
 .login-card {
   position: relative;
-  z-index: 1;
+  z-index: 2;
+ 
   width: 100%;
-  max-width: 400px;
-  padding: 44px 40px;
-  border-radius: var(--radius-xl);
-  background: rgba(255, 255, 255, 0.97); /* Solid white, slightly translucent */
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  max-width: 380px;
+  padding: 45px 35px;
+ 
+  border-radius: 22px;
+  background: linear-gradient(180deg, #ffffff, #f9fafb);
+ 
+  box-shadow:
+    0 25px 70px rgba(0,0,0,0.08),
+    0 5px 20px rgba(0,0,0,0.05);
+ 
+  overflow: hidden;
   text-align: center;
+  transition: 0.3s ease;
 }
-
-/* ── Logo ── */
-.login-card .logo {
-  width: 160px;
-  height: auto;
-  margin-bottom: 24px;
-  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
-}
-
-/* ── Headings ── */
-.login-card h2 {
-  margin-bottom: 24px;
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-}
-
-.login-card h3 {
-  margin-bottom: 16px;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.login-card p {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-bottom: 20px;
-}
-
-/* ── Inputs ── */
-.login-card input {
-  width: 100%;
-  padding: 13px 18px;
-  margin-bottom: 16px;
-  border-radius: var(--radius-pill);
-  border: 1.5px solid var(--border);
-  outline: none;
-  background: var(--bg-input);
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  color: var(--text-primary);
-  transition: var(--transition);
-}
-
-.login-card input::placeholder {
-  color: var(--text-muted);
-}
-
-.login-card input:focus {
-  background: #fff;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-}
-
-/* ── Submit Button ── */
-.login-card button[type="submit"],
-.login-card form button {
-  width: 100%;
-  padding: 13px;
-  border-radius: var(--radius-pill);
-  border: none;
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: white;
-  font-weight: 700;
-  font-size: 15px;
-  font-family: 'Inter', sans-serif;
-  cursor: pointer;
-  transition: var(--transition);
-  letter-spacing: 0.02em;
-  box-shadow: 0 4px 16px var(--primary-ring);
-}
-
-.login-card button[type="submit"]:hover,
-.login-card form button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
-}
-
-.login-card button[type="submit"]:active,
-.login-card form button:active {
-  transform: translateY(0);
-}
-
-/* ── Forgot Password Link ── */
-.login-card .forgot-link,
-.forgot-link {
-  display: inline-block;
-  background: none !important;
-  border: none !important;
-  color: var(--text-secondary) !important;
-  font-size: 13px;
-  margin-top: 16px;
-  cursor: pointer;
-  transition: var(--transition);
-  font-family: 'Inter', sans-serif;
-  text-decoration: none;
-  box-shadow: none !important;
-  padding: 4px 0 !important;
-}
-
-.login-card .forgot-link:hover,
-.forgot-link:hover {
-  color: var(--primary) !important;
-  text-decoration: underline;
-  transform: none !important;
-}
-
-/* ── Forgot Password Container ── */
-.forgot-container {
-  position: relative;
-  margin-top: 8px;
-}
-
-/* ── Close Button ── */
-.close-btn {
+ 
+/* 🔥 MAIN GREEN SHAPE (SMOOTHER) */
+.login-card::before {
+  content: "";
   position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 30px !important;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--primary) !important;
+ 
+  width: 340px;
+  height: 340px;
+ 
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+ 
+  top: -120px;
+  left: -140px;
+ 
+  transform: rotate(45deg);
+  border-radius: 40px;
+ 
+  z-index: 0;
+  opacity: 0.9;
+}
+ 
+/* ✨ SOFT GLOW LAYER */
+.login-card::after {
+  content: "";
+  position: absolute;
+ 
+  width: 280px;
+  height: 280px;
+ 
+  background: radial-gradient(circle, rgba(34,197,94,0.25), transparent);
+ 
+  top: -60px;
+  left: -60px;
+ 
+  z-index: 0;
+}
+ 
+/* KEEP CONTENT ABOVE */
+.login-card > * {
+  position: relative;
+  z-index: 1;
+}
+ 
+/* 🔥 HOVER EFFECT */
+.login-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow:
+    0 35px 90px rgba(0,0,0,0.12),
+    0 10px 30px rgba(34,197,94,0.15);
+}
+/* ─────────────────────────────────────────────
+   INPUTS
+───────────────────────────────────────────── */
+.inputContainer {
+  width: 100%;
+  margin: 15px 0;
+}
+ 
+.inputField {
+  width: 100%;
+  height: 45px;
+  padding: 0 12px;
+ 
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.08);
+ 
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(5px);
+ 
+  font-size: 14px;
+  transition: 0.3s;
+}
+ 
+.inputField:focus {
+  outline: none;
+  border: 1px solid #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+ 
+/* ─────────────────────────────────────────────
+   BUTTON (FIXED)
+───────────────────────────────────────────── */
+.login-card button {
+  width: 100%;
+  height: 45px;
+  border-radius: 12px;
+ 
+  background: linear-gradient(135deg, #22c55e, #5350e6);
   color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  cursor: pointer;
+  font-weight: 600;
+ 
   border: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  padding: 0 !important;
-  width: fit-content !important;
-  transition: var(--transition);
-}
-
-.close-btn:hover {
-  background: var(--primary-dark) !important;
-  transform: none !important;
-}
-
-/* ── Messages ── */
-.success-msg {
-  color: #6ee7b7;
+  cursor: pointer;
   margin-top: 10px;
-  font-size: 13px;
-  font-weight: 500;
+ 
+  transition: 0.3s;
+ 
+  position: relative;
+  z-index: 3; /* 🔥 FIX CLICK */
 }
-
-.error-msg {
-  color: #fca5a5;
-  margin-top: 10px;
-  font-size: 13px;
-  font-weight: 500;
+ 
+.login-card button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(99,102,241,0.4);
 }
-
-/* ── Small Helper Links ── */
-.login-card .small-link {
+ 
+/* ─────────────────────────────────────────────
+   LINKS + STATES
+───────────────────────────────────────────── */
+.forgot-link {
   display: block;
   margin-top: 12px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-decoration: underline;
+  font-size: 13px;
+  color: #4f46e5;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
 }
-
-.login-card .small-link:hover {
-  color: var(--primary);
+ 
+.forgot-link:hover {
+  text-decoration: underline;
 }
+ 
+.error-msg {
+  color: #ef4444;
+  font-size: 13px;
+  margin-top: 5px;
+}
+ 
+.success-msg {
+  color: #10b981;
+  font-size: 13px;
+  margin-top: 5px;
+}
+/* 🔥 CLEAN ICON CLOSE */
+.close-icon {
+  position: absolute;
+  top: -250px;
+  right: 4px;
+ 
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+ 
+  cursor: pointer;
+ 
+  transition: 0.2s ease;
+}
+ 
+/* Hover effect */
+.close-icon:hover {
+  color: #ef4444;
+  transform: scale(1.1);
+}
+ 
+.forgot-container {
+  position: relative;
+  margin-top: 10px;
+ 
+  padding-top: 10px;
+ 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+ 
+.forgot-container h3 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1e293b;
+ 
+  margin: 15px 0 10px;
+}
+.forgot-container .inputField {
+  width: 100%;
+  height: 48px;
+ 
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+ 
+  background: #f9fafb;
+ 
+  padding: 0 16px;
+  font-size: 14px;
+ 
+  transition: 0.25s;
+}
+ 
+.forgot-container .inputField:focus {
+  border: 1px solid #6366f1;
+  background: white;
+ 
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+.forgot-container button {
+  width: 60%;
+  height: 48px;
+ 
+  border-radius: 14px;
+  border: none;
+ 
+  margin-top: 15px;
+ 
+  background: linear-gradient(135deg, #22c55e, #6366f1);
+  color: white;
+ 
+  font-weight: 600;
+  font-size: 14px;
+ 
+  cursor: pointer;
+  transition: 0.3s;
+ 
+  box-shadow: 0 8px 20px rgba(99,102,241,0.2);
+}
+ 
+.forgot-container button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(99,102,241,0.35);
+}
+ 

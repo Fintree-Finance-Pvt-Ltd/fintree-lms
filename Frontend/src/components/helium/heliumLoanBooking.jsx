@@ -871,6 +871,224 @@ const HeliumManualEntry = () => {
 
       {/* Styling same as EV form */}
       <style>{`
+
+.manual-entry-container {
+  max-width: 1100px;
+  margin: 30px auto;
+  background: white;
+  padding: 36px 42px;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(15,23,42,0.08);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+/* HEADER */
+
+h2 {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 700;
+  // color: #0f172a;
+    color: #1e3a8a; /* Fintree logo blue */
+
+  margin-bottom: 30px;
+}
+
+/* FIELDSET CARD STYLE */
+
+fieldset {
+  border: none;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 28px 26px;
+  margin-bottom: 28px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px 24px;
+  position: relative;
+}
+
+/* SECTION TITLE */
+
+legend {
+  position: relative;
+  top: 0;
+  left: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e3a8a; /* Fintree logo blue */
+}
+
+/* FORM GROUP */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* LABEL */
+
+label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 5px;
+}
+
+/* INPUTS */
+
+// input,
+// select {
+//   height: 42px;
+//   border-radius: 8px;
+//   border: 1px solid #cbd5e1;
+//   padding: 0 12px;
+//   font-size: 14px;
+//   background: white;
+//   transition: 0.2s ease;
+// }
+
+// input:focus,
+// select:focus {
+//   outline: none;
+//   border-color: #4f46e5;
+//   box-shadow: 0 0 0 2px rgba(79,70,229,0.12);
+// }
+input,
+select {
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  padding: 0 14px;
+  font-size: 14px;
+  background: #f8fafc;
+  color: #0f172a;
+  transition: all 0.2s ease;
+}
+
+/* Hover effect */
+input:hover,
+select:hover {
+  border-color: #1e3a8a;
+  background: #ffffff;
+}
+
+/* Focus effect (Fintree blue glow) */
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #1e3a8a;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(30,58,138,0.15);
+}
+
+/* Readonly fields */
+input[readonly],
+input:disabled {
+  background: #eef2f7;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+/* Error styling */
+.error-input {
+  border-color: #ef4444;
+  background: #fff1f2;
+}
+
+.error-input:focus {
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.18);
+}
+/* REQUIRED MARK */
+
+.req {
+  color: #ef4444;
+}
+
+/* ERROR INPUT */
+
+.error-input {
+  border-color: #ef4444;
+  background: #fff1f2;
+}
+
+/* ERROR MESSAGE */
+
+.error-text {
+  font-size: 12px;
+  margin-top: 3px;
+  color: #ef4444;
+}
+
+/* SUBMIT BUTTON */
+
+button {
+  margin-top: 10px;
+  width: 220px;
+  height: 46px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg,#16a34a,#22c55e);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(34,197,94,0.35);
+}
+
+button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* SUCCESS MESSAGE */
+
+.message {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #065f46;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* MOBILE RESPONSIVE */
+
+@media (max-width: 768px) {
+
+  fieldset {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-entry-container {
+    padding: 28px 22px;
+  }
+
+  button {
+    width: 100%;
+  }
+
+}
+
+`}</style>
+      {/* <style>{`
         .manual-entry-container {
           max-width: 900px;
           margin: 2rem auto;
@@ -939,7 +1157,7 @@ const HeliumManualEntry = () => {
           font-weight: 600;
           text-align: center;
         }
-      `}</style>
+      `}</style> */}
     </div>
   );
 };

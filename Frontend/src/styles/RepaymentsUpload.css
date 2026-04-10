@@ -111,3 +111,142 @@
   .errors-table th:nth-child(3), .errors-table td:nth-child(3) { width: 100px; }
   .errors-table th:nth-child(4), .errors-table td:nth-child(4) { width: 140px; }
 }
+
+
+/* ================= DROPZONE ================= */
+
+.dropzone {
+  display: block;
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  cursor: pointer;
+  margin-bottom: 18px;
+  transition: var(--transition);
+}
+
+.dropzone:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.dropzone input {
+  display: none;
+}
+
+.dropzone-inner {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.drop-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+
+/* ================= DARK BUTTON ================= */
+
+.upload-button--dark {
+  width: 100%;
+  border-radius: 999px;
+  padding: 12px;
+  font-weight: 700;
+color: #fff;
+  background: linear-gradient(135deg,#0f172a,#1e293b);
+}
+
+.upload-button--dark:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15,23,42,.35);
+}
+
+
+/* ================= MODERN PROGRESS ================= */
+
+.progress-modern {
+  margin-top: 14px;
+  height: 12px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-modern-fill {
+  height: 100%;
+  background: linear-gradient(90deg,#2563eb,#1e40af);
+  transition: width .3s ease;
+}
+
+.progress-modern span {
+  font-size: 12px;
+  margin-top: 6px;
+  display: block;
+  color: var(--text-secondary);
+}
+
+
+/* ================= SUMMARY GRID ================= */
+
+.summary-grid {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.summary-box {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.summary-box strong {
+  display: block;
+  font-size: 22px;
+  margin-top: 4px;
+}
+
+.summary-box.success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.summary-box.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+
+/* ================= FLASH ================= */
+
+.flash-modern {
+  max-width: 560px;
+  margin: 14px auto;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.flash-modern.success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.flash-modern.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+
+/* ================= TABLE UPGRADE ================= */
+
+.table-wrap--modern {
+  margin-top: 10px;
+  box-shadow: var(--shadow-sm);
+  border-radius: 12px;
+}

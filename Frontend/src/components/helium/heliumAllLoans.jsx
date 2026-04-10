@@ -174,23 +174,59 @@ const HeliumAllLoans = ({
             fg: "#374151",
           };
 
-        return (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 10px",
-              borderRadius: 999,
-              fontSize: 12,
-              fontWeight: 700,
-              background: c.bg,
-              color: c.fg,
-              border: `1px solid ${c.bd}`,
-            }}
-          >
-            {status}
-          </span>
+        // return (
+        //   <span
+        //     style={{
+        //       display: "inline-flex",
+        //       alignItems: "center",
+        //       gap: 6,
+        //       padding: "6px 10px",
+        //       borderRadius: 999,
+        //       fontSize: 12,
+        //       fontWeight: 700,
+        //       background: c.bg,
+        //       color: c.fg,
+        //       border: `1px solid ${c.bd}`,
+        //     }}
+        //   >
+        //     {status}
+        //   </span>
+        // );
+
+
+        return(
+<span
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 90,
+    padding: "6px 14px",
+    borderRadius: "20px",
+    fontSize: "12px",
+    fontWeight: "600",
+    letterSpacing: "0.3px",
+
+    background:
+      status === "Approved"
+        ? "#e6f4ea"   // light green background
+        : "#e8f1ff",  // light fintree blue background
+
+    color:
+      status === "Approved"
+        ? "#15803d"   // green text
+        : "#1d4ed8",  // fintree blue text
+
+    border:
+      status === "Approved"
+        ? "1px solid #86efac"
+        : "1px solid #93c5fd",
+
+    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+  }}
+>
+  {status}
+</span>
         );
       },
       sortAccessor: (r) => (r.status || "").toLowerCase(),

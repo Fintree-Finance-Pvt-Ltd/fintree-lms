@@ -1,88 +1,182 @@
 /* ============================================================
-   FINTREE LMS — ALL LOANS TABLE
-   ============================================================ */
+   🚀 FINTREE LMS — PREMIUM MODERN UI
+   Clean • Soft • Glassy • Responsive
+============================================================ */
 
-.all-loans-container {
-  background: var(--bg-card);
-  padding: 24px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border);
-  width: 98%;
-  max-width: 1200px;
-  margin: 20px auto;
-  overflow-x: auto;
+:root {
+  --primary: #4f46e5;
+  --primary-light: #6366f1;
+  --accent: #22c55e;
+
+  --bg-main: #f8fafc;
+  --bg-card: rgba(255, 255, 255, 0.75);
+
+  --text-main: #0f172a;
+  --text-secondary: #64748b;
+
+  --border: rgba(0, 0, 0, 0.06);
+
+  --radius-lg: 20px;
+  --radius-md: 12px;
+
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.08);
 }
 
-.all-loans-container h2 {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid var(--border);
+/* ============================================================
+   🌐 PAGE BACKGROUND
+============================================================ */
+body {
+  background: linear-gradient(135deg, #eef2ff, #f8fafc);
+  font-family: 'Inter', sans-serif;
+}
+
+/* ============================================================
+   📦 MAIN CONTAINER
+============================================================ */
+.all-loans-container {
+  max-width: 1200px;
+  margin: 50px auto;
+  padding: 30px;
+
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+
+  transition: 0.3s ease;
+}
+
+.all-loans-container:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* ============================================================
+   🔝 HEADER SECTION
+============================================================ */
+.header-actions {
   display: flex;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.header-actions h2 {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.3px;
+}
+
+/* ============================================================
+   🔍 SEARCH INPUT
+============================================================ */
+.search-input-modern {
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(6px);
+
+  font-size: 14px;
+  width: 300px;
+
+  transition: all 0.25s ease;
+  outline: none;
+}
+
+.search-input-modern::placeholder {
+  color: var(--text-secondary);
+}
+
+.search-input-modern:hover {
+  border-color: var(--primary-light);
+}
+
+.search-input-modern:focus {
+  background: #fff;
+  border-color: var(--primary);
+
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   🟢 STATUS PILLS
+============================================================ */
+.status-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 90px;
+  transition: 0.2s ease;
+}
+
+/* Status Variants */
+.status-pill.approved {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.status-pill.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.status-pill.rejected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+}
+
+/* ============================================================
+   📐 FLEX UTILITIES
+============================================================ */
+.flex-col {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-/* Table wrapper to handle overflow */
-.all-loans-table-wrapper {
-  overflow-x: auto;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
+/* ============================================================
+   ✨ MICRO INTERACTIONS
+============================================================ */
+button,
+.status-pill,
+.search-input-modern {
+  transition: all 0.2s ease;
 }
 
-.all-loans-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-card);
-  min-width: 600px;
-  font-size: 14px;
-}
-
-.all-loans-table thead {
-  background: var(--table-head-bg);
-  color: var(--table-head-color);
-}
-
-.all-loans-table th {
-  padding: 13px 16px;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-}
-
-.all-loans-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--table-border);
-  color: var(--text-secondary);
-  vertical-align: middle;
-  font-size: 14px;
-}
-
-.all-loans-table tbody tr:nth-child(even) td {
-  background: var(--table-stripe);
-}
-
-.all-loans-table tbody tr:hover td {
-  background: #f0f4ff;
-  transition: background 0.15s ease;
-}
-
-.all-loans-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
+/* ============================================================
+   📱 RESPONSIVE DESIGN
+============================================================ */
 @media (max-width: 768px) {
   .all-loans-container {
-    padding: 16px;
+    padding: 20px;
+    margin: 20px;
   }
-  .all-loans-table th,
-  .all-loans-table td {
-    font-size: 13px;
-    padding: 10px 12px;
+
+  .header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-input-modern {
+    width: 100%;
   }
 }

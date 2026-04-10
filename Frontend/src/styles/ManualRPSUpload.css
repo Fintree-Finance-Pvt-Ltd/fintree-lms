@@ -1,91 +1,148 @@
-/* ============================================================
-   FINTREE LMS — MANUAL RPS UPLOAD
-   ============================================================ */
+/* ================= PAGE LAYOUT ================= */
 
-.manual-rps-container {
-  width: 100%;
-  max-width: 560px;
-  margin: 32px auto;
-  padding: 28px 32px;
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border);
+.rps-page {
+  min-height: calc(100vh - 70px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(180deg,#f8fafc,#eef2f7);
+}
+
+
+/* ================= CARD ================= */
+
+.rps-card {
+  width: 520px;
+  background: #fff;
+  padding: 36px;
+  border-radius: 20px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.08);
+  border: 1px solid #e2e8f0;
   text-align: center;
 }
 
-.manual-rps-container h2 {
-  font-size: 20px;
+
+/* ================= TITLE ================= */
+
+.rps-title {
+  font-size: 22px;
   font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 24px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid var(--border);
+  color: #0f172a;
+  margin-bottom: 26px;
 }
 
-.manual-rps-container input[type="file"] {
-  width: 100%;
-  padding: 10px 14px;
-  margin: 14px 0 20px;
-  border: 1.5px dashed var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
+
+/* ================= FILE UPLOAD BOX ================= */
+
+.upload-box {
+  display: block;
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 28px;
   cursor: pointer;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  transition: var(--transition);
-}
-.manual-rps-container input[type="file"]:hover {
-  border-color: var(--primary);
-  background: var(--primary-light);
+  transition: all .25s ease;
+  margin-bottom: 24px;
 }
 
-.manual-rps-container button {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: #fff;
-  border: none;
-  padding: 11px 22px;
+.upload-box:hover {
+  border-color: #0f172a;
+  background: #f8fafc;
+}
+
+.upload-box input {
+  display: none;
+}
+
+.upload-content {
+  color: #475569;
+  font-size: 14px;
+}
+
+.upload-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+
+/* ================= BUTTON ================= */
+
+.upload-btn {
+  width: 100%;
+  padding: 12px;
   font-size: 15px;
   font-weight: 700;
-  font-family: 'Inter', sans-serif;
+  border-radius: 999px;
+  border: none;
+  color: #fff;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: var(--transition);
-  box-shadow: 0 2px 8px var(--primary-ring);
-  width: 100%;
+
+  background: linear-gradient(135deg,#0f172a,#1e293b);
+
+  transition: all .25s ease;
 }
-.manual-rps-container button:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px var(--primary-ring);
+
+.upload-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15,23,42,.35);
 }
-.manual-rps-container button:active { transform: translateY(0); }
-.manual-rps-container button:disabled {
+
+.upload-btn:disabled {
   background: #94a3b8;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
-.success-message {
-  color: var(--success);
-  background: var(--success-bg);
-  border: 1px solid var(--success-border);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  margin-top: 16px;
-  font-size: 14px;
-  font-weight: 600;
+
+/* ================= PROGRESS BAR ================= */
+
+.progress-wrapper {
+  margin-top: 18px;
+  background: #e2e8f0;
+  border-radius: 10px;
+  height: 12px;
+  position: relative;
+  overflow: hidden;
 }
 
-.error-message {
-  color: var(--danger);
-  background: var(--danger-bg);
-  border: 1px solid var(--danger-border);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  margin-top: 16px;
-  font-size: 14px;
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg,#2563eb,#1e40af);
+  transition: width .35s ease;
+}
+
+.progress-wrapper span {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #475569;
+}
+
+
+/* ================= SUCCESS MESSAGE ================= */
+
+.success-box {
+  margin-top: 18px;
+  padding: 12px;
+  border-radius: 10px;
   font-weight: 600;
+  font-size: 14px;
+
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #10b981;
+}
+
+
+/* ================= ERROR MESSAGE ================= */
+
+.error-box {
+  margin-top: 18px;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #ef4444;
 }

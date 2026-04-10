@@ -100,7 +100,7 @@ const UploadUTR = () => {
   const [isError, setIsError] = useState(false);
   const [uploadPercentage, setUploadPercentage] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const [selectedFileName, setSelectedFileName] = useState("");
   // server payload: { processed_count, duplicate_utr, missing_lans, row_errors, details? }
   const [summary, setSummary] = useState(null);
 
@@ -149,30 +149,199 @@ const UploadUTR = () => {
     }
   };
 
+  // return (
+  //   <div className="utr-upload-container">
+  //     {/* CARD */}
+  //     <div className="upload-card">
+  //       <h2 className="upload-card__title">Upload Disbursement UTRs</h2>
+
+  //       <div className="upload-card__body">
+  //         <input
+  //           type="file"
+  //           accept=".xlsx,.xls,.csv"
+  //           onChange={handleFileChange}
+  //           disabled={isSubmitting}
+  //           className="file-input file-input--full"
+  //         />
+
+  //         <button
+  //           className="upload-button upload-button--primary"
+  //           onClick={handleUpload}
+  //           disabled={isSubmitting}
+  //         >
+  //           {isSubmitting ? "Uploading…" : "Upload"}
+  //         </button>
+  //       </div>
+
+  //       {uploadPercentage > 0 && (
+  //         <div className="progress-bar progress-bar--blue">
+  //           <div
+  //             className="progress-fill"
+  //             style={{ width: `${uploadPercentage}%` }}
+  //           />
+  //         </div>
+  //       )}
+  //     </div>
+
+  //     {/* STATUS MESSAGE */}
+  //     {message && (
+  //       <p className={`upload-message ${isError ? "error" : "success"}`}>
+  //         {message}
+  //       </p>
+  //     )}
+
+  //     {/* SUMMARY / ERRORS */}
+  //     {summary && (
+  //       <div className="upload-summary">
+  //         {"processed_count" in summary && (
+  //           <>
+  //             <div className="summary-row">
+  //               <strong>Processed:</strong> {summary.processed_count}
+  //             </div>
+
+  //             {summary.duplicate_utr?.length > 0 && (
+  //               <div className="summary-list">
+  //                 <strong>Duplicate UTRs:</strong>
+  //                 <ul>
+  //                   {summary.duplicate_utr.map((u) => (
+  //                     <li key={u} className="mono">
+  //                       {u}
+  //                     </li>
+  //                   ))}
+  //                 </ul>
+  //               </div>
+  //             )}
+
+  //             {summary.missing_lans?.length > 0 && (
+  //               <div className="summary-list">
+  //                 <strong>Missing LANs:</strong>
+  //                 <ul>
+  //                   {summary.missing_lans.map((l) => (
+  //                     <li key={l} className="mono">
+  //                       {l}
+  //                     </li>
+  //                   ))}
+  //                 </ul>
+  //               </div>
+  //             )}
+
+  //             {summary.row_errors?.length > 0 && (
+  //               <>
+  //                 <h3 style={{ marginTop: 12 }}>Row Errors</h3>
+  //                 <div className="table-scroll">
+  //                   <table className="error-table">
+  //                     <thead>
+  //                       <tr>
+  //                         <th>#</th>
+  //                         <th>LAN</th>
+  //                         <th>UTR</th>
+  //                         <th>Stage</th>
+  //                         <th>Reason</th>
+  //                       </tr>
+  //                     </thead>
+  //                     <tbody>
+  //                       {summary.row_errors.map((e, idx) => (
+  //                         <tr key={`${e.lan}-${e.utr}-${idx}`}>
+  //                           <td>{idx + 1}</td>
+  //                           <td className="mono">{e.lan || "-"}</td>
+  //                           <td className="mono">{e.utr || "-"}</td>
+  //                           <td>
+  //                             <span className="stage-pill">
+  //                               {e.stage || "-"}
+  //                             </span>
+  //                           </td>
+  //                           <td>{e.reason || "-"}</td>
+  //                         </tr>
+  //                       ))}
+  //                     </tbody>
+  //                   </table>
+  //                 </div>
+  //               </>
+  //             )}
+  //           </>
+  //         )}
+
+  //         {"details" in summary && summary.details && (
+  //           <div className="summary-list">
+  //             <strong>Error Details:</strong>
+  //             <ul>
+  //               <li>
+  //                 <b>Message:</b> {summary.details.message}
+  //               </li>
+  //               {summary.details.code && (
+  //                 <li>
+  //                   <b>Code:</b> {summary.details.code}
+  //                 </li>
+  //               )}
+  //               {summary.details.errno && (
+  //                 <li>
+  //                   <b>Errno:</b> {summary.details.errno}
+  //                 </li>
+  //               )}
+  //               {summary.details.sqlState && (
+  //                 <li>
+  //                   <b>SQL State:</b> {summary.details.sqlState}
+  //                 </li>
+  //               )}
+  //             </ul>
+  //           </div>
+  //         )}
+  //       </div>
+  //     )}
+  //   </div>
+  // );
+
+
   return (
     <div className="utr-upload-container">
+
       {/* CARD */}
       <div className="upload-card">
-        <h2 className="upload-card__title">Upload Disbursement UTRs</h2>
 
-        <div className="upload-card__body">
+        <h2 className="upload-card__title">
+          📊 Upload Disbursement UTRs
+        </h2>
+
+        {/* FILE SELECT BOX */}
+        <label className="file-input file-input--full">
+
           <input
             type="file"
             accept=".xlsx,.xls,.csv"
-            onChange={handleFileChange}
+            onChange={(e) => {
+              handleFileChange(e);
+              setSelectedFileName(e.target.files?.[0]?.name || "");
+            }}
             disabled={isSubmitting}
-            className="file-input file-input--full"
+            hidden
           />
 
-          <button
-            className="upload-button upload-button--primary"
-            onClick={handleUpload}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Uploading…" : "Upload"}
-          </button>
-        </div>
+          {selectedFileName ? (
+            <span>{selectedFileName}</span>
+          ) : (
+            <div className="upload-content">
+              <span style={{ fontSize: "22px", display: "block", marginBottom: "6px" }}>
+                ⬆
+              </span>
+              Drag & drop your UTR file here or <strong>click to browse</strong>
+            </div>
+            // <span>
+            //   Drag & drop your UTR file here or <b>click to browse</b>
+            // </span>
+          )}
 
+        </label>
+
+        {/* BUTTON */}
+        <button
+          className="upload-button upload-button--primary"
+          onClick={handleUpload}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Uploading…" : "Upload File"}
+        </button>
+
+        {/* PROGRESS BAR */}
         {uploadPercentage > 0 && (
           <div className="progress-bar progress-bar--blue">
             <div
@@ -181,6 +350,7 @@ const UploadUTR = () => {
             />
           </div>
         )}
+
       </div>
 
       {/* STATUS MESSAGE */}
@@ -190,106 +360,110 @@ const UploadUTR = () => {
         </p>
       )}
 
-      {/* SUMMARY / ERRORS */}
+      {/* SUMMARY */}
       {summary && (
         <div className="upload-summary">
+
           {"processed_count" in summary && (
-            <>
-              <div className="summary-row">
-                <strong>Processed:</strong> {summary.processed_count}
-              </div>
-
-              {summary.duplicate_utr?.length > 0 && (
-                <div className="summary-list">
-                  <strong>Duplicate UTRs:</strong>
-                  <ul>
-                    {summary.duplicate_utr.map((u) => (
-                      <li key={u} className="mono">
-                        {u}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {summary.missing_lans?.length > 0 && (
-                <div className="summary-list">
-                  <strong>Missing LANs:</strong>
-                  <ul>
-                    {summary.missing_lans.map((l) => (
-                      <li key={l} className="mono">
-                        {l}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {summary.row_errors?.length > 0 && (
-                <>
-                  <h3 style={{ marginTop: 12 }}>Row Errors</h3>
-                  <div className="table-scroll">
-                    <table className="error-table">
-                      <thead>
-                        <tr>
-                          <th>#</th>
-                          <th>LAN</th>
-                          <th>UTR</th>
-                          <th>Stage</th>
-                          <th>Reason</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {summary.row_errors.map((e, idx) => (
-                          <tr key={`${e.lan}-${e.utr}-${idx}`}>
-                            <td>{idx + 1}</td>
-                            <td className="mono">{e.lan || "-"}</td>
-                            <td className="mono">{e.utr || "-"}</td>
-                            <td>
-                              <span className="stage-pill">
-                                {e.stage || "-"}
-                              </span>
-                            </td>
-                            <td>{e.reason || "-"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </>
+            <div className="summary-row">
+              <strong>Processed:</strong> {summary.processed_count}
+            </div>
           )}
 
-          {"details" in summary && summary.details && (
+          {summary.duplicate_utr?.length > 0 && (
             <div className="summary-list">
-              <strong>Error Details:</strong>
+              <strong>Duplicate UTRs:</strong>
               <ul>
-                <li>
-                  <b>Message:</b> {summary.details.message}
-                </li>
-                {summary.details.code && (
-                  <li>
-                    <b>Code:</b> {summary.details.code}
-                  </li>
-                )}
-                {summary.details.errno && (
-                  <li>
-                    <b>Errno:</b> {summary.details.errno}
-                  </li>
-                )}
-                {summary.details.sqlState && (
-                  <li>
-                    <b>SQL State:</b> {summary.details.sqlState}
-                  </li>
-                )}
+                {summary.duplicate_utr.map((u) => (
+                  <li key={u} className="mono">{u}</li>
+                ))}
               </ul>
             </div>
           )}
+{summary.missing_lans?.length > 0 && (
+  <div className="summary-list">
+    <strong>Missing LANs:</strong>
+    <ul>
+      {summary.missing_lans.map((l) => (
+        <li key={l} className="mono">{l}</li>
+      ))}
+    </ul>
+  </div>
+)}
+
+{summary.row_errors?.length > 0 && (
+  <>
+    <h3 style={{ marginTop: 12 }}>Row Errors</h3>
+
+    <div className="table-scroll">
+      <table className="error-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>LAN</th>
+            <th>UTR</th>
+            <th>Stage</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {summary.row_errors.map((e, idx) => (
+            <tr key={`${e.lan}-${e.utr}-${idx}`}>
+              <td>{idx + 1}</td>
+              <td className="mono">{e.lan || "-"}</td>
+              <td className="mono">{e.utr || "-"}</td>
+              <td>
+                <span className="stage-pill">
+                  {e.stage || "-"}
+                </span>
+              </td>
+              <td>{e.reason || "-"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </>
+)}
+
+{"details" in summary && summary.details && (
+  <div className="summary-list">
+    <strong>Error Details:</strong>
+    <ul>
+      <li>
+        <b>Message:</b> {summary.details.message}
+      </li>
+
+      {summary.details.code && (
+        <li>
+          <b>Code:</b> {summary.details.code}
+        </li>
+      )}
+
+      {summary.details.errno && (
+        <li>
+          <b>Errno:</b> {summary.details.errno}
+        </li>
+      )}
+
+      {summary.details.sqlState && (
+        <li>
+          <b>SQL State:</b> {summary.details.sqlState}
+        </li>
+      )}
+    </ul>
+  </div>
+)}
+
+
         </div>
       )}
+
     </div>
   );
+
+
 };
 
 export default UploadUTR;

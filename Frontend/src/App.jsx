@@ -149,10 +149,28 @@ import SupplyChainInvoiceEntry from "./components/Supply Chain/SupplyChainInvoic
 import SupplyChainCollectionEntry from "./components/Supply Chain/SupplyChainCollectionEntry";
 import ReverseRepayment from "./components/ReverseRepayment";
 
+import "react-toastify/dist/ReactToastify.css";
+import { ToastContainer } from "react-toastify";
+ 
 function App() {
   return (
-    <Router>
+    <Router>  
+ 
+<ToastContainer
+        position="top-right"
+        autoClose={3000}
+        theme="colored"
+      />
+ 
       <Routes>
+        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/login" element={<Login />} />
+      </Routes>
+ 
+ 
+      <Routes>
+ 
+
         {/* ✅ Public routes */}
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />

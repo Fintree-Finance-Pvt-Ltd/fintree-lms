@@ -84,54 +84,128 @@ const ForecloserUpload = () => {
   };
 
   return (
-    <div className="loan-booking-container">
-      <h4>📤 Foreclosure & Charge Collection Upload</h4>
+  <div className="forecloser-upload-container">
 
-      <label>Select Excel File</label>
-      <input
-        key={file ? file.name : "empty"} // ✅ reset file input
-        type="file"
-        accept=".xlsx"
-        onChange={handleFile}
-        required
-      />
+    <h4 className="forecloser-upload-title">
+      📤 Foreclosure & Charge Collection Upload
+    </h4>
 
-      <label>Charge Type</label>
-      <select
-        value={uploadType}
-        onChange={(e) => setUploadType(e.target.value)}
-        required
-      >
-        <option value="">Select Type</option>
-        <option value="foreclosure-upload">Foreclosure Upload</option>
-        <option value="20percent-amount">20% Amount Upload</option>
-      </select>
+    <label>Select Excel File</label>
+<label className="forecloser-upload-input upload-dropzone">
+  <input
+    key={file ? file.name : "empty"}
+    type="file"
+    accept=".xlsx"
+    onChange={handleFile}
+    required
+    hidden
+  />
 
-      <button
-        className="submit-btn"
-        onClick={handleUpload}
-        disabled={isUploading}
-      >
-        {isUploading ? "Uploading..." : "Upload"}
-      </button>
+  {/* <div className="upload-placeholder">
+    <br />
+    Drag & drop file here or <strong>browse</strong>
+  </div> */}
+  <div className="upload-placeholder">
+  {file ? (
+    <span className="selected-file-inside">
+      📄 {file.name}
+    </span>
+  ) : (
+    <>
+      Drag & drop file here or <strong>browse</strong>
+    </>
+  )}
+</div>
+</label>
 
-      {uploadPercentage > 0 && (
-        <div className="progress-bar">
-          <div
-            className="progress"
-            style={{ width: `${uploadPercentage}%` }}
-          ></div>
-          <span>{uploadPercentage}%</span>
-        </div>
-      )}
+    <label>Charge Type</label>
 
-      {message && (
-        <p className={isError ? "error-message" : "success-message"}>
-          {message}
-        </p>
-      )}
-    </div>
-  );
+    <select
+      value={uploadType}
+      onChange={(e) => setUploadType(e.target.value)}
+      required
+      className="forecloser-upload-input"
+    >
+      <option value="">Select Type</option>
+      <option value="foreclosure-upload">Foreclosure Upload</option>
+      <option value="20percent-amount">20% Amount Upload</option>
+    </select>
+
+    <button
+      className="forecloser-upload-button"
+      onClick={handleUpload}
+      disabled={isUploading}
+    >
+      {isUploading ? "Uploading..." : "Upload"}
+    </button>
+
+    {uploadPercentage > 0 && (
+      <div className="progress-bar">
+        <div
+          className="progress"
+          style={{ width: `${uploadPercentage}%` }}
+        />
+        <span>{uploadPercentage}%</span>
+      </div>
+    )}
+
+    {message && (
+      <p className={isError ? "error-message" : "success-message"}>
+        {message}
+      </p>
+    )}
+
+  </div>
+);
+  // return (
+  //   <div className="loan-booking-container">
+  //     <h4>📤 Foreclosure & Charge Collection Upload</h4>
+
+  //     <label>Select Excel File</label>
+  //     <input
+  //       key={file ? file.name : "empty"} // ✅ reset file input
+  //       type="file"
+  //       accept=".xlsx"
+  //       onChange={handleFile}
+  //       required
+  //     />
+
+  //     <label>Charge Type</label>
+  //     <select
+  //       value={uploadType}
+  //       onChange={(e) => setUploadType(e.target.value)}
+  //       required
+  //     >
+  //       <option value="">Select Type</option>
+  //       <option value="foreclosure-upload">Foreclosure Upload</option>
+  //       <option value="20percent-amount">20% Amount Upload</option>
+  //     </select>
+
+  //     <button
+  //       className="submit-btn"
+  //       onClick={handleUpload}
+  //       disabled={isUploading}
+  //     >
+  //       {isUploading ? "Uploading..." : "Upload"}
+  //     </button>
+
+  //     {uploadPercentage > 0 && (
+  //       <div className="progress-bar">
+  //         <div
+  //           className="progress"
+  //           style={{ width: `${uploadPercentage}%` }}
+  //         ></div>
+  //         <span>{uploadPercentage}%</span>
+  //       </div>
+  //     )}
+
+  //     {message && (
+  //       <p className={isError ? "error-message" : "success-message"}>
+  //         {message}
+  //       </p>
+  //     )}
+  //   </div>
+  // );
 };
 
 export default ForecloserUpload;

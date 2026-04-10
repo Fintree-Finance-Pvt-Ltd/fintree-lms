@@ -1,38 +1,44 @@
-// components/AllLoansScreen.jsx — server-side paginated
+// 
+
+
+
+
+// components/AllLoansScreen.jsx
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/api";
 import DataTable from "./ui/DataTable";
 import LoaderOverlay from "./ui/LoaderOverlay";
-
+import "../styles/AllLoans.css"; // Apply the CSS above
+ 
 const DEFAULT_PAGE_SIZE = 25;
-
+ 
 const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbursement_amount" }) => {
-  const [rows,      setRows]      = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [err,       setErr]       = useState("");
-  const [page,      setPage]      = useState(1);
-  const [pageSize,  setPageSize]  = useState(DEFAULT_PAGE_SIZE);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [totalRows, setTotalRows] = useState(0);
-  const [search,    setSearch]    = useState("");
+  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const nav = useNavigate();
   const abortRef = useRef(null);
-
+ 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
-
+ 
   useEffect(() => { setPage(1); }, [debouncedSearch, pageSize]);
-
+ 
   const fetchPage = useCallback(() => {
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setLoading(true);
     setErr("");
-
+ 
     api.get(apiEndpoint, {
       params: { page, pageSize, search: debouncedSearch || undefined },
       signal: ctrl.signal,
@@ -56,22 +62,20 @@ const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbu
       })
       .finally(() => setLoading(false));
   }, [apiEndpoint, page, pageSize, debouncedSearch]);
-
+ 
   useEffect(() => { fetchPage(); }, [fetchPage]);
-
-  const hasADK    = rows.some((r) => /^ADK/i.test(r?.lan));
-  const hasEV     = rows.some((r) => /^EV/i.test(r?.lan));
-  const hasGQFSF  = rows.some((r) => /^GQFSF/i.test(r?.lan));
+ 
+  const hasADK = rows.some((r) => /^ADK/i.test(r?.lan));
+  const hasGQFSF = rows.some((r) => /^GQFSF/i.test(r?.lan));
   const hasGQNonF = rows.some((r) => /^GQNONFSF/i.test(r?.lan));
-
+ 
   const nf = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
-
+ 
   const columns = [
     {
       key: "customer_name", header: "Customer Name", sortable: true,
       render: (r) => (
-        <span style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-              onClick={() => nav(`/loan-details/${r.lan}`)}>
+        <span className="customer-name-link" onClick={() => nav(`/loan-details/${r.lan}`)}>
           {r.customer_name ?? r.pan_name ?? "—"}
         </span>
       ),
@@ -80,8 +84,7 @@ const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbu
     {
       key: "lan", header: "LAN", sortable: true,
       render: (r) => (
-        <span style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-              onClick={() => nav(`/loan-details/${r.lan}`)}>
+        <span className="lan-code-badge" onClick={() => nav(`/loan-details/${r.lan}`)} style={{ cursor: 'pointer' }}>
           {r.lan ?? "—"}
         </span>
       ),
@@ -89,39 +92,42 @@ const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbu
     },
     ...(hasADK ? [{
       key: "batch_id", header: "Batch ID", sortable: true,
-      render:       (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "—") : "—"),
+      render: (r) => (/^ADK/i.test(r?.lan) ? <span className="lan-code-badge">{r.batch_id ?? "—"}</span> : "—"),
       sortAccessor: (r) => (/^ADK/i.test(r?.lan) ? String(r?.batch_id || "").toLowerCase() : ""),
-      csvAccessor:  (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "") : ""), width: 140,
+      csvAccessor: (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "") : ""), width: 140,
     }] : []),
     ...(hasGQFSF ? [{
       key: "app_id", header: "APP ID (FSF)", sortable: true,
-      render:       (r) => (/^GQFSF/i.test(r?.lan)  ? (r.app_id ?? "—") : "—"),
-      sortAccessor: (r) => (/^GQFSF/i.test(r?.lan)  ? String(r?.app_id || "").toLowerCase() : ""),
-      csvAccessor:  (r) => (/^GQFSF/i.test(r?.lan)  ? (r.app_id ?? "") : ""), width: 140,
+      render: (r) => (/^GQFSF/i.test(r?.lan) ? <span className="lan-code-badge">{r.app_id ?? "—"}</span> : "—"),
+      sortAccessor: (r) => (/^GQFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : ""),
+      csvAccessor: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""), width: 140,
     }] : []),
     ...(hasGQNonF ? [{
       key: "app_id", header: "APP ID (Non-FSF)", sortable: true,
-      render:       (r) => (/^GQNONFSF/i.test(r?.lan) ? (r.app_id ?? "—") : "—"),
+      render: (r) => (/^GQNONFSF/i.test(r?.lan) ? <span className="lan-code-badge">{r.app_id ?? "—"}</span> : "—"),
       sortAccessor: (r) => (/^GQNONFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : ""),
-      csvAccessor:  (r) => (/^GQNONFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""), width: 140,
+      csvAccessor: (r) => (/^GQNONFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""), width: 140,
     }] : []),
     {
-  key: "partner_loan_id",
-  header: "Partner Loan ID",
-  sortable: true,
-  render: (r) => r.partner_loan_id ?? "—",
-  sortAccessor: (r) => String(r?.partner_loan_id || "").toLowerCase(),
-  csvAccessor: (r) => r.partner_loan_id ?? "",
-  width: 160,
-},
+      key: "partner_loan_id",
+      header: "Partner ID",
+      sortable: true,
+      render: (r) => <span className="lan-code-badge">{r.partner_loan_id ?? "—"}</span>,
+      sortAccessor: (r) => String(r?.partner_loan_id || "").toLowerCase(),
+      csvAccessor: (r) => r.partner_loan_id ?? "",
+      width: 160,
+    },
     {
-      key: amountField, header: "Disbursement Amount", sortable: true,
-      render: (r) => { const n = Number(r?.[amountField] ?? r?.loan_amount); return Number.isFinite(n) ? nf.format(n) : "—"; },
+      key: amountField, header: "Disbursement", sortable: true,
+      render: (r) => {
+        const n = Number(r?.[amountField] ?? r?.loan_amount);
+        return <span className="amount-text-bold">{Number.isFinite(n) ? nf.format(n) : "—"}</span>;
+      },
       sortAccessor: (r) => { const v = Number(r?.[amountField] ?? r?.loan_amount ?? 0); return Number.isFinite(v) ? v : 0; },
       width: 190,
     },
     {
-      key: "disbursement_date", header: "Disbursement Date", sortable: true,
+      key: "disbursement_date", header: "Date", sortable: true,
       sortAccessor: (r) => (r.disbursement_date ? Date.parse(r.disbursement_date) : 0), width: 170,
     },
     {
@@ -135,8 +141,8 @@ const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbu
         };
         const c = map[r.status] || { bg: "rgba(107,114,128,.12)", bd: "rgba(107,114,128,.35)", fg: "#374151" };
         return (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 10px",
-            borderRadius: 999, fontSize: 12, fontWeight: 700, background: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px",
+            borderRadius: 8, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', background: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>
             {r.status ?? "—"}
           </span>
         );
@@ -144,46 +150,47 @@ const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbu
       sortAccessor: (r) => (r.status || "").toLowerCase(), width: 130,
     },
   ];
-
-  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-
+ 
   return (
-    <div>
-      <LoaderOverlay show={loading} label="Fetching data…" />
-      {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
-
-      <DataTable
-        title={title}
-        rows={rows}
-        columns={columns}
-        globalSearchKeys={[]}
-        initialSort={{ key: "disbursement_date", dir: "desc" }}
-        exportFileName="all_loans"
-        initialPageSize={pageSize}
-        pageSizeOptions={[10, 25, 50, 100]}
-        serverPagination={true}
-        totalRows={totalRows}
-        currentPage={page}
-        onPageChange={setPage}
-        onPageSizeChange={(n) => setPageSize(n)}
-        renderTopRight={
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              placeholder="Search LAN, name, mobile…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 14, minWidth: 260, outline: "none" }}
-            />
-            <span style={{ color: "#6b7280", fontSize: 13 }}>
-              {totalRows.toLocaleString()} record{totalRows !== 1 ? "s" : ""}
-            </span>
-          </div>
-        }
-      />
+    <div className="all-loans-page-wrapper">
+      <LoaderOverlay show={loading} label="Accessing Ledger…" />
+     
+      {err && <div className="error-notice">{err}</div>}
+ 
+      <div className="all-loans-table-container">
+        <DataTable
+          title={title}
+          rows={rows}
+          columns={columns}
+          globalSearchKeys={[]}
+          initialSort={{ key: "disbursement_date", dir: "desc" }}
+          exportFileName="all_loans"
+          initialPageSize={pageSize}
+          pageSizeOptions={[10, 25, 50, 100]}
+          serverPagination={true}
+          totalRows={totalRows}
+          currentPage={page}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => setPageSize(n)}
+          renderTopRight={
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                className="search-input-modern"
+                placeholder="Search LAN, name, mobile…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <span className="record-count-badge">
+                {totalRows.toLocaleString()} Records
+              </span>
+            </div>
+          }
+        />
+      </div>
     </div>
   );
 };
-
+ 
 function pagerBtnStyle(disabled) {
   return {
     padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db",
@@ -193,5 +200,6 @@ function pagerBtnStyle(disabled) {
     fontSize: 13, fontWeight: 600,
   };
 }
-
+ 
 export default AllLoansScreen;
+ 

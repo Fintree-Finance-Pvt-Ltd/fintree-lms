@@ -1,103 +1,249 @@
-/* ============================================================
-   FINTREE LMS — REPORTS LISTING
-   ============================================================ */
-
-.container {
-  padding: 24px 28px;
-  max-width: 1100px;
+:root {
+  --primary: #4e46e5e1;
+  --secondary: #22c55ed5;
+  --bg-main: #f1f5f9;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+ 
+  --card-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  --card-hover-shadow: 0 25px 50px rgba(0,0,0,0.12);
+}
+ 
+/* PAGE */
+.reports-container {
+  padding: 40px;
+  max-width: 1200px;
   margin: auto;
-  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #eef2ff, #ecfdf5);
+  min-height: 100vh;
 }
-
-.container h3 {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 20px;
-  color: var(--text-primary);
-}
-
-.container input.form-control {
-  border-radius: var(--radius-sm);
-  border: 1.5px solid var(--border);
-  padding: 10px 14px;
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  color: var(--text-primary);
-  background: var(--bg-input);
-  outline: none;
-  width: 100%;
-  max-width: 400px;
-  transition: var(--transition);
-}
-.container input.form-control:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
-  background: var(--bg-card);
-}
-
-/* ── List ── */
-.list-group {
-  list-style: none;
-  padding: 0;
-  margin: 16px 0 0;
-}
-
-.list-group-item {
-  background: var(--bg-card);
-  padding: 16px 20px;
-  border-radius: var(--radius-md);
-  margin-bottom: 12px;
+ 
+/* HEADER */
+.reports-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: var(--transition);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
+  margin-bottom: 40px;
 }
-
-.list-group-item:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-  border-color: #cbd5e1;
+ 
+.title-section h3 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-main);
 }
-
-.list-group-item a {
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-pill);
-  padding: 8px 20px;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: 'Inter', sans-serif;
-  text-decoration: none;
-  box-shadow: 0 2px 8px var(--primary-ring);
-  transition: var(--transition);
-}
-
-.list-group-item a:hover {
-  filter: brightness(1.08);
-  box-shadow: 0 4px 14px var(--primary-ring);
-}
-
-.audit-icon {
-  font-size: 18px;
+ 
+.subtitle {
+  font-size: 14px;
   color: var(--text-muted);
-  cursor: pointer;
-  padding: 6px;
+}
+ 
+/* ICON */
+.title-icon {
+   background: white;
+  padding: 10px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(79,70,229,0.3);
+}
+ 
+/* SEARCH */
+.search-wrapper {
+  position: relative;
+}
+ 
+.search-input {
+  padding: 12px 16px 12px 40px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  outline: none;
+  width: 260px;
+  transition: 0.3s;
+}
+ 
+.search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+ 
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+ 
+/* GRID */
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+ 
+/* CARD */
+.report-card {
+  position: relative;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(12px);
+ 
+  border-radius: 18px;
+  padding: 24px;
+ 
+  border: 1px solid rgba(255,255,255,0.5);
+ 
+  box-shadow: var(--card-shadow);
+  transition: 0.35s ease;
+ 
+  overflow: hidden;
+}
+ 
+/* 🔥 GRADIENT BORDER GLOW */
+.report-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  padding: 1px;
+  background: linear-gradient(135deg, #4e46e5c8, #22c55ed8);
+ 
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+ 
+/* HOVER */
+.report-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: var(--card-hover-shadow);
+}
+ 
+/* CATEGORY */
+.category-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: white;
+  background: linear-gradient(135deg, #46e551c9, #3522c5c9);
+  padding: 5px 14px;
+  border-radius: 20px;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+ 
+/* TITLE */
+.report-card h4 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.4;
+  margin-bottom: 24px;
+  min-height: 50px;
+}
+ 
+/* 🔥 BUTTON (MAIN UPGRADE) */
+.generate-link {
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  transition: var(--transition);
+  justify-content: space-between;
+ 
+  background: #f8fafc; /* 👈 like old design */
+  color: var(--text-main);
+ 
+  text-decoration: none;
+  padding: 12px 16px;
+ 
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+ 
+  border: 1px solid #e2e8f0;
+ 
+  transition: all 0.25s ease;
+  cursor: pointer;
 }
-
-.audit-icon:hover {
-  background: var(--bg-input);
-  color: var(--text-primary);
+ 
+.report-card::before {
+  pointer-events: none;
 }
-
-@media screen and (max-width: 768px) {
-  .list-group-item { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .audit-icon { align-self: flex-end; }
+ 
+ 
+ 
+.generate-link span,
+.generate-link svg {
+  pointer-events: none;
 }
+ 
+.generate-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 5;
+  justify-content: space-between;
+ 
+  width: 100%;
+  cursor: pointer;
+ 
+  background: #f8fafc;
+  color: var(--text-main);
+ 
+  text-decoration: none;
+  padding: 12px 16px;
+ 
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+ 
+  border: 1px solid #e2e8f0;
+ 
+  transition: all 0.25s ease;
+ 
+}
+ 
+/* 🔥 HOVER LIKE OLD UI */
+.report-card:hover .generate-link {
+  background: linear-gradient(135deg, #4e46e5, #22c55e);
+  color: white;
+  border-color: transparent;
+}
+ 
+/* ICON ANIMATION */
+.arrow-icon {
+  transition: transform 0.25s ease;
+}
+ 
+.report-card:hover .arrow-icon {
+  transform: translateX(5px);
+}
+ 
+/*  CLICK EFFECT */
+.generate-link:active {
+  transform: scale(0.96);
+}
+ 
+/* ICON */
+.arrow-icon {
+  transition: 0.3s;
+}
+ 
+.generate-link:hover .arrow-icon {
+  transform: translateX(5px);
+}
+ 
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+}
+ 
+.reset-btn {
+  margin-top: 15px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary);
+  color: white;
+  cursor: pointer;
+}
+ 
+ 

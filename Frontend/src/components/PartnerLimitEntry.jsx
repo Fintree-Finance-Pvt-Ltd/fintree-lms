@@ -32,22 +32,22 @@ const PartnerLimitEntry = () => {
   };
 
   const toggleFldgStatus = async (partner_id, currentStatus, fldg_percent) => {
-  try {
+    try {
 
-    await api.put(`partners/${partner_id}/fldg`, {
-      fldg_percent: Number(fldg_percent || 0),
-      fldg_status: currentStatus === 1 ? 0 : 1
-    });
+      await api.put(`partners/${partner_id}/fldg`, {
+        fldg_percent: Number(fldg_percent || 0),
+        fldg_status: currentStatus === 1 ? 0 : 1
+      });
 
-    fetchPartners();
+      fetchPartners();
 
-  } catch (err) {
+    } catch (err) {
 
-    console.error("FLDG toggle error:", err);
-    alert("Failed to update FLDG status");
+      console.error("FLDG toggle error:", err);
+      alert("Failed to update FLDG status");
 
-  }
-};
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -91,137 +91,156 @@ const PartnerLimitEntry = () => {
   return (
     <div className="partner-page">
       <div className="partner-container">
+
         <div className="page-header">
-          <h1>Partner Monthly Limits</h1>
-          <p>Manage monthly assigned, used, and remaining limits partner-wise.</p>
+          <div className="page-header-left">
+            <div className="page-badge">Monthly Partner Controls</div>
+            <h1>Partner Monthly Limits</h1>
+            <p>
+              Manage assigned, used, and remaining limits for each partner with a
+              cleaner monthly control panel.
+            </p>
+          </div>
+
+          {/* <div className="page-header-right">
+        <div className="header-stat-card">
+          <span className="header-stat-label">Selected Month</span>
+          <strong>
+            {[
+              "January","February","March","April","May","June",
+              "July","August","September","October","November","December"
+            ][monthFilter - 1]} {yearFilter}
+          </strong>
+        </div>
+      </div> */}
         </div>
 
-        <div className="card filter-card">
-          <div className="card-title">Filters</div>
-          <div className="filter-grid">
-            <div className="field">
-              <label>Month</label>
-              <select
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(parseInt(e.target.value))}
-              >
-                {/* {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
-                  <option key={m} value={m}>
-                    Month {m}
-                  </option>
-                ))} */}
-                {[
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December"
-].map((name, index) => (
-  <option key={index + 1} value={index + 1}>
-    {name}
-  </option>
-))}
-              </select>
+        <div className="top-layout">
+          <div className="card filter-card">
+            <div className="card-title">Filter Limits</div>
+
+            <div className="filter-grid">
+              <div className="field">
+                <label>Month</label>
+                <select
+                  value={monthFilter}
+                  onChange={(e) => setMonthFilter(parseInt(e.target.value))}
+                >
+                  {[
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                  ].map((name, index) => (
+                    <option key={index + 1} value={index + 1}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="field">
+                <label>Year</label>
+                <input
+                  type="number"
+                  value={yearFilter}
+                  placeholder="Year"
+                  readOnly
+                />
+              </div>
+
+              <div className="field button-field">
+                <label>&nbsp;</label>
+                <button
+                  onClick={fetchPartners}
+                  disabled={loading}
+                  className="btn btn-primary refresh-btn"
+                  type="button"
+                >
+                  {loading ? "Loading..." : "Refresh Data"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="card form-card">
+            <div className="card-title">Add Partner Limit</div>
+
+            <div className="form-grid">
+              <div className="field">
+                <label>Partner Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter partner name"
+                  value={form.partner_name}
+                  onChange={(e) =>
+                    setForm({ ...form, partner_name: e.target.value })
+                  }
+                  required
+                />
+              </div>
+
+              <div className="field">
+                <label>Month</label>
+                <select
+                  value={form.month}
+                  onChange={(e) =>
+                    setForm({ ...form, month: parseInt(e.target.value) })
+                  }
+                  required
+                >
+                  {[
+                    "January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"
+                  ].map((name, index) => (
+                    <option key={index + 1} value={index + 1}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="field">
+                <label>Year</label>
+                <input
+                  type="number"
+                  placeholder="Year"
+                  value={form.year}
+                  readOnly
+                />
+              </div>
+
+              <div className="field">
+                <label>Assigned Limit</label>
+                <input
+                  type="number"
+                  placeholder="Assigned Limit (₹)"
+                  value={form.assigned_limit}
+                  onChange={(e) =>
+                    setForm({ ...form, assigned_limit: e.target.value })
+                  }
+                  step="0.01"
+                  required
+                />
+              </div>
             </div>
 
-            <div className="field">
-              <label>Year</label>
-              <input
-                type="number"
-                value={yearFilter}
-                // onChange={(e) => setYearFilter(parseInt(e.target.value))}
-                placeholder="Year"
-                readOnly
-              />
-            </div>
-
-            <div className="field button-field">
-              <label>&nbsp;</label>
-              <button
-                onClick={fetchPartners}
-                disabled={loading}
-                className="btn btn-primary"
-                type="button"
-              >
-                {loading ? 'Loading...' : 'Refresh'}
+            <div className="form-actions">
+              <button type="submit" className="btn btn-success">
+                Save Partner & Limit
               </button>
             </div>
-          </div>
+          </form>
         </div>
 
-        <form onSubmit={handleSubmit} className="card form-card">
-          <div className="card-title">Add Partner / Set Limit</div>
-
-          <div className="form-grid">
-            <div className="field">
-              <label>Partner Name</label>
-              <input
-                type="text"
-                placeholder="Enter partner name"
-                value={form.partner_name}
-                onChange={(e) => setForm({ ...form, partner_name: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="field">
-              <label>Month</label>
-              {/* <input
-                type="number"
-                placeholder="Month (1-12)"
-                value={form.month}
-                onChange={(e) => setForm({ ...form, month: parseInt(e.target.value) })}
-                min="1"
-                max="12"
-                required
-              /> */}
-              <select
-  value={form.month}
-  onChange={(e) =>
-    setForm({ ...form, month: parseInt(e.target.value) })
-  }
-  required
->
-  {[
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December"
-  ].map((name, index) => (
-    <option key={index + 1} value={index + 1}>
-      {name}
-    </option>
-  ))}
-</select>
-            </div>
-
-            <div className="field">
-              <label>Year</label>
-              <input
-                type="number"
-                placeholder="Year"
-                value={form.year}
-                // onChange={(e) => setForm({ ...form, year: parseInt(e.target.value) })}
-                readOnly
-              />
-            </div>
-
-            <div className="field">
-              <label>Assigned Limit</label>
-              <input
-                type="number"
-                placeholder="Assigned Limit (₹)"
-                value={form.assigned_limit}
-                onChange={(e) => setForm({ ...form, assigned_limit: e.target.value })}
-                step="0.01"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-actions">
-            <button type="submit" className="btn btn-success">
-              Save Partner & Limit
-            </button>
-          </div>
-        </form>
-
         <div className="card table-card">
+          <div className="table-header">
+            <div>
+              <div className="card-title">Partner Limit Overview</div>
+              <p className="table-subtitle">
+                Review partner status, FLDG control, assigned usage, and available balance.
+              </p>
+            </div>
+          </div>
+
           <div className="table-wrap">
             <table className="partner-table">
               <thead>
@@ -243,9 +262,9 @@ const PartnerLimitEntry = () => {
                     <td>
                       <span
                         className={
-                          p.status === 'active'
-                            ? 'status-badge status-active'
-                            : 'status-badge status-inactive'
+                          p.status === "active"
+                            ? "status-badge status-active"
+                            : "status-badge status-inactive"
                         }
                       >
                         {p.status}
@@ -253,23 +272,28 @@ const PartnerLimitEntry = () => {
                     </td>
                     <td>{Number(p.fldg_percent || 0)}%</td>
                     <td>
-  <label className="switch">
-    <input
-      type="checkbox"
-      checked={p.fldg_status === 1}
-      onChange={() =>
-        toggleFldgStatus(p.partner_id, p.fldg_status)
-      }
-    />
-    <span className="slider round"></span>
-  </label>
-</td>
-                    <td className="text-right">{formatCurrency(p.assigned_limit)}</td>
-                    <td className="text-right used-value">{formatCurrency(p.used_limit)}</td>
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={p.fldg_status === 1}
+                          onChange={() =>
+                            toggleFldgStatus(p.partner_id, p.fldg_status)
+                          }
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                    </td>
+                    <td className="text-right">
+                      {formatCurrency(p.assigned_limit)}
+                    </td>
+                    <td className="text-right used-value">
+                      {formatCurrency(p.used_limit)}
+                    </td>
                     <td
-                      className={`text-right remaining-value ${
-                        Number(p.remaining_limit) > 0 ? 'remaining-positive' : 'remaining-negative'
-                      }`}
+                      className={`text-right remaining-value ${Number(p.remaining_limit) > 0
+                        ? "remaining-positive"
+                        : "remaining-negative"
+                        }`}
                     >
                       {formatCurrency(p.remaining_limit)}
                     </td>
@@ -283,25 +307,18 @@ const PartnerLimitEntry = () => {
                               partner_name: p.partner_name,
                               month: monthFilter,
                               year: yearFilter,
-                              assigned_limit: p.assigned_limit || ''
+                              assigned_limit: p.assigned_limit || "",
                             });
                           }}
                         >
                           Edit
                         </button>
 
-                        {/* <a
-                          href={`${API_BASE}/partners/${p.partner_name}/limits`}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
                           className="link-btn secondary-link"
                         >
-                          Audits
-                        </a> */}
-                        <button
-                        type="button"
-                        className="link-btn secondary-link">
-                            Audits (In Working)
+                          Audits (In Working)
                         </button>
                       </div>
                     </td>
@@ -312,11 +329,243 @@ const PartnerLimitEntry = () => {
           </div>
 
           {partners.length === 0 && !loading && (
-            <div className="empty-state">No partners found. Create one above.</div>
+            <div className="empty-state">
+              No partners found. Create one above.
+            </div>
           )}
         </div>
       </div>
     </div>
+
+    //     <div className="partner-page">
+    //       <div className="partner-container">
+    //         <div className="page-header">
+    //           <h1>Partner Monthly Limits</h1>
+    //           <p>Manage monthly assigned, used, and remaining limits partner-wise.</p>
+    //         </div>
+
+    //         <div className="card filter-card">
+    //           <div className="card-title">Filters</div>
+    //           <div className="filter-grid">
+    //             <div className="field">
+    //               <label>Month</label>
+    //               <select
+    //                 value={monthFilter}
+    //                 onChange={(e) => setMonthFilter(parseInt(e.target.value))}
+    //               >
+    //                 {/* {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((m) => (
+    //                   <option key={m} value={m}>
+    //                     Month {m}
+    //                   </option>
+    //                 ))} */}
+    //                 {[
+    //   "January","February","March","April","May","June",
+    //   "July","August","September","October","November","December"
+    // ].map((name, index) => (
+    //   <option key={index + 1} value={index + 1}>
+    //     {name}
+    //   </option>
+    // ))}
+    //               </select>
+    //             </div>
+
+    //             <div className="field">
+    //               <label>Year</label>
+    //               <input
+    //                 type="number"
+    //                 value={yearFilter}
+    //                 // onChange={(e) => setYearFilter(parseInt(e.target.value))}
+    //                 placeholder="Year"
+    //                 readOnly
+    //               />
+    //             </div>
+
+    //             <div className="field button-field">
+    //               <label>&nbsp;</label>
+    //               <button
+    //                 onClick={fetchPartners}
+    //                 disabled={loading}
+    //                 className="btn btn-primary refresh-btn"
+    //                 type="button"
+    //               >
+    //                 {loading ? 'Loading...' : 'Refresh'}
+    //               </button>
+    //             </div>
+    //           </div>
+    //         </div>
+
+    //         <form onSubmit={handleSubmit} className="card form-card">
+    //           <div className="card-title">Add Partner / Set Limit</div>
+
+    //           <div className="form-grid">
+    //             <div className="field">
+    //               <label>Partner Name</label>
+    //               <input
+    //                 type="text"
+    //                 placeholder="Enter partner name"
+    //                 value={form.partner_name}
+    //                 onChange={(e) => setForm({ ...form, partner_name: e.target.value })}
+    //                 required
+    //               />
+    //             </div>
+
+    //             <div className="field">
+    //               <label>Month</label>
+    //               {/* <input
+    //                 type="number"
+    //                 placeholder="Month (1-12)"
+    //                 value={form.month}
+    //                 onChange={(e) => setForm({ ...form, month: parseInt(e.target.value) })}
+    //                 min="1"
+    //                 max="12"
+    //                 required
+    //               /> */}
+    //               <select
+    //   value={form.month}
+    //   onChange={(e) =>
+    //     setForm({ ...form, month: parseInt(e.target.value) })
+    //   }
+    //   required
+    // >
+    //   {[
+    //     "January","February","March","April","May","June",
+    //     "July","August","September","October","November","December"
+    //   ].map((name, index) => (
+    //     <option key={index + 1} value={index + 1}>
+    //       {name}
+    //     </option>
+    //   ))}
+    // </select>
+    //             </div>
+
+    //             <div className="field">
+    //               <label>Year</label>
+    //               <input
+    //                 type="number"
+    //                 placeholder="Year"
+    //                 value={form.year}
+    //                 // onChange={(e) => setForm({ ...form, year: parseInt(e.target.value) })}
+    //                 readOnly
+    //               />
+    //             </div>
+
+    //             <div className="field">
+    //               <label>Assigned Limit</label>
+    //               <input
+    //                 type="number"
+    //                 placeholder="Assigned Limit (₹)"
+    //                 value={form.assigned_limit}
+    //                 onChange={(e) => setForm({ ...form, assigned_limit: e.target.value })}
+    //                 step="0.01"
+    //                 required
+    //               />
+    //             </div>
+    //           </div>
+
+    //           <div className="form-actions">
+    //             <button type="submit" className="btn btn-success">
+    //               Save Partner & Limit
+    //             </button>
+    //           </div>
+    //         </form>
+
+    //         <div className="card table-card">
+    //           <div className="table-wrap">
+    //             <table className="partner-table">
+    //               <thead>
+    //                 <tr>
+    //                   <th>Partner</th>
+    //                   <th>Status</th>
+    //                   <th>FLDG %</th>
+    //                   <th>FLDG</th>
+    //                   <th className="text-right">Assigned</th>
+    //                   <th className="text-right">Used</th>
+    //                   <th className="text-right">Remaining</th>
+    //                   <th>Actions</th>
+    //                 </tr>
+    //               </thead>
+    //               <tbody>
+    //                 {partners.map((p, i) => (
+    //                   <tr key={p.partner_id || i}>
+    //                     <td className="partner-name">{p.partner_name}</td>
+    //                     <td>
+    //                       <span
+    //                         className={
+    //                           p.status === 'active'
+    //                             ? 'status-badge status-active'
+    //                             : 'status-badge status-inactive'
+    //                         }
+    //                       >
+    //                         {p.status}
+    //                       </span>
+    //                     </td>
+    //                     <td>{Number(p.fldg_percent || 0)}%</td>
+    //                     <td>
+    //   <label className="switch">
+    //     <input
+    //       type="checkbox"
+    //       checked={p.fldg_status === 1}
+    //       onChange={() =>
+    //         toggleFldgStatus(p.partner_id, p.fldg_status)
+    //       }
+    //     />
+    //     <span className="slider round"></span>
+    //   </label>
+    // </td>
+    //                     <td className="text-right">{formatCurrency(p.assigned_limit)}</td>
+    //                     <td className="text-right used-value">{formatCurrency(p.used_limit)}</td>
+    //                     <td
+    //                       className={`text-right remaining-value ${
+    //                         Number(p.remaining_limit) > 0 ? 'remaining-positive' : 'remaining-negative'
+    //                       }`}
+    //                     >
+    //                       {formatCurrency(p.remaining_limit)}
+    //                     </td>
+    //                     <td>
+    //                       <div className="action-group">
+    //                         <button
+    //                           type="button"
+    //                           className="link-btn"
+    //                           onClick={() => {
+    //                             setForm({
+    //                               partner_name: p.partner_name,
+    //                               month: monthFilter,
+    //                               year: yearFilter,
+    //                               assigned_limit: p.assigned_limit || ''
+    //                             });
+    //                           }}
+    //                         >
+    //                           Edit
+    //                         </button>
+
+    //                         {/* <a
+    //                           href={`${API_BASE}/partners/${p.partner_name}/limits`}
+    //                           target="_blank"
+    //                           rel="noreferrer"
+    //                           className="link-btn secondary-link"
+    //                         >
+    //                           Audits
+    //                         </a> */}
+    //                         <button
+    //                         type="button"
+    //                         className="link-btn secondary-link">
+    //                             Audits (In Working)
+    //                         </button>
+    //                       </div>
+    //                     </td>
+    //                   </tr>
+    //                 ))}
+    //               </tbody>
+    //             </table>
+    //           </div>
+
+    //           {partners.length === 0 && !loading && (
+    //             <div className="empty-state">No partners found. Create one above.</div>
+    //           )}
+    //         </div>
+    //       </div>
+    //     </div>
+    //   
   );
 };
 

@@ -1,0 +1,186 @@
+/* Enhanced Root Variables */
+:root {
+  --primary-blue: #2563eb;
+  --primary-hover: #1d4ed8;
+  --bg-slate: #f8fafc;
+  --surface: #ffffff;
+  --text-main: #0f172a; /* Deeper for better readability */
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 10px 15px -3px rgba(37, 99, 235, 0.1), 0 4px 6px -4px rgba(37, 99, 235, 0.1);
+}
+ 
+/* Base Wrapper with Entrance Animation */
+.login-case-wrapper {
+  padding: 40px;
+  background-color: var(--bg-slate);
+  min-height: 100vh;
+  font-family: 'Inter', system-ui, sans-serif;
+  animation: pageFadeIn 0.6s ease-out;
+}
+ 
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+ 
+/* Dynamic Header Area */
+.case-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32px;
+}
+ 
+.case-header h1 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+ 
+.case-stats {
+  background: var(--surface);
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary-blue);
+  box-shadow: var(--shadow-soft);
+}
+ 
+/* Elevated Table Container */
+/* .table-card {
+  background: var(--surface);
+  border-radius: 20px; 
+  /* Softer corners */
+  /* border: 1px solid var(--border-color);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+} */ */
+ 
+.table-card:hover {
+  box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.05);
+}
+ 
+/* Interactive Case Cell */
+.case-cell {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  padding: 4px 0;
+}
+ 
+.case-primary {
+  color: var(--primary-blue);
+  font-weight: 700;
+  font-size: 14.5px;
+  transition: color 0.2s ease;
+}
+ 
+.case-cell:hover .case-primary {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+ 
+.case-secondary {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+ 
+/* Refined Lender Badge */
+.lender-badge {
+  background: #f1f5f9;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+ 
+/* JetBrains Mono with color intent */
+.mono-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--text-main);
+  background: #f8fafc;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+ 
+/* Animated Contact Link */
+.modern-phone-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+ 
+.modern-phone-link:hover {
+  background: #eff6ff;
+  color: var(--primary-blue);
+  transform: translateX(4px);
+}
+ 
+/* Sophisticated Status Pills with Glass Effect */
+.status-pill {
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: inline-block;
+}
+ 
+.status-approved { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+.status-rejected { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.status-pending { background: #fffbeb; color: #92400e; border: 1px solid #fef3c7; }
+.status-login { background: #f8fafc; color: #334155; border: 1px solid #e2e8f0; }
+ 
+/* Doc Button with Glow Effect */
+.btn-docs-modern {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+ 
+.btn-docs-modern:hover {
+  background: var(--primary-blue);
+  color: white;
+  border-color: var(--primary-blue);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+ 
+/* Spinner with Gradient */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f1f5f9;
+  border-top: 4px solid var(--primary-blue);
+  border-radius: 50%;
+  animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+ 

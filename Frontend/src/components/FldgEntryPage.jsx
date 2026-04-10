@@ -228,52 +228,53 @@ const FldgEntryPage = () => {
             <div className="card-title">
               Previous FLDG Receipts
             </div>
+            <div className="card table-card">
 
-            <table className="partner-table">
+              <table className="partner-table">
 
-              <thead>
-                <tr>
-                  <th>UTR</th>
-                  <th>Amount</th>
-                  <th>Payment Date</th>
-                  <th>Remarks</th>
-                  <th>Created At</th>
-                </tr>
-              </thead>
-
-              <tbody>
-
-                {receipts.map((r) => (
-
-                  <tr key={r.id}>
-
-                    <td>{r.utr_no}</td>
-
-                    <td className="text-right">
-                      {formatCurrency(r.fldg_amount)}
-                    </td>
-
-                    <td>{r.payment_date?.slice(0, 10)}</td>
-
-                    <td>{r.remarks || "-"}</td>
-
-                    <td>{r.created_at?.slice(0, 19)}</td>
-
+                <thead>
+                  <tr>
+                    <th>UTR</th>
+                    <th>Amount</th>
+                    <th>Payment Date</th>
+                    <th>Remarks</th>
+                    <th>Created At</th>
                   </tr>
+                </thead>
 
-                ))}
+                <tbody>
 
-              </tbody>
+                  {receipts.map((r) => (
 
-            </table>
+                    <tr key={r.id}>
+
+                      <td>{r.utr_no}</td>
+
+                      <td className="text-right">
+                        {formatCurrency(r.fldg_amount)}
+                      </td>
+
+                      <td>{r.payment_date?.slice(0, 10)}</td>
+
+                      <td>{r.remarks || "-"}</td>
+
+                      <td>{r.created_at?.slice(0, 19)}</td>
+
+                    </tr>
+
+                  ))}
+
+                </tbody>
+
+              </table>
 
 
-            {receipts.length === 0 && (
-              <div className="empty-state">
-                No FLDG receipts found
-              </div>
-            )}
-
+              {receipts.length === 0 && (
+                <div className="empty-state">
+                  No FLDG receipts found
+                </div>
+              )}
+            </div>
           </div>
 
         )}

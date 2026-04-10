@@ -188,6 +188,7 @@ const CreateLoanBooking = () => {
 
   const [summary, setSummary] = useState(null); // server payload
   const [skippedRows, setSkippedRows] = useState([]); // for GQ FSF CIBIL
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
@@ -205,7 +206,7 @@ const CreateLoanBooking = () => {
         return `/loan-booking/bl-upload`;
       case "HEY EV Loan":
         return `/loan-booking/hey-ev-upload`;
-        case "HeyEV Battery":
+      case "HeyEV Battery":
         return `/loan-booking/hey-ev-battery-upload`;
       case "EV Loan":
         return `/loan-booking/upload`;
@@ -278,13 +279,38 @@ const CreateLoanBooking = () => {
           required
         />
 
-        <label>Select Excel File</label>
+        {/* <label>Select Excel File</label>
         <input
           type="file"
           accept=".xlsx"
           onChange={handleFileChange}
           required
-        />
+        /> */}
+        <label>Select Excel File</label>
+        <div className="file-dropzone">
+          <div className="file-upload-row">
+            <input
+              id="excelUploadInput"
+              className="hidden-file-input"
+              type="file"
+              accept=".xlsx"
+              onChange={handleFileChange}
+              required
+            />
+
+            <button
+              type="button"
+              className="choose-file-btn"
+              onClick={() => document.getElementById("excelUploadInput")?.click()}
+            >
+              Choose File
+            </button>
+
+            <div className="selected-file-box">
+              {selectedFile?.name || "No file selected"}
+            </div>
+          </div>
+        </div>
 
         <label>Loan Type</label>
         <select
