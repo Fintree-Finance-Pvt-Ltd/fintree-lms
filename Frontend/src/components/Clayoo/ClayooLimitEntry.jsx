@@ -1110,7 +1110,7 @@ const ClayooLimitEntry = ({
         bd: "rgba(249,115,22,.35)",
         fg: "#9a3412",
       },
-      rejected: {
+      "rejected": {
         bg: "rgba(239,68,68,.12)",
         bd: "rgba(239,68,68,.35)",
         fg: "#7f1d1d",
