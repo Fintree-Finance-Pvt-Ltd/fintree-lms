@@ -277,13 +277,10 @@
 
 // export default HospitalEntry;
 
-
-
-
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import api from "../../api/api";
- 
+
 const HospitalEntry = () => {
   const [formData, setFormData] = useState({
     hospital_legal_name: "",
@@ -314,38 +311,117 @@ const HospitalEntry = () => {
     owner_phone: "",
     owner_name: "",
   });
- 
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
- 
+
+  const fetchBankFromIFSC = async (ifsc) => {
+    if (ifsc.length !== 11) return;
+
+    try {
+      const res = await axios.get(`https://ifsc.razorpay.com/${ifsc}`);
+      const data = res.data;
+
+      setFormData((prev) => ({
+        ...prev,
+        bank_name: data.BANK || "",
+        bank_branch: data.BRANCH || "",
+      }));
+    } catch (err) {
+      try {
+        const res2 = await axios.get(`https://ifsc.bankifsccode.com/${ifsc}`);
+        const data2 = res2.data;
+
+        setFormData((prev) => ({
+          ...prev,
+          bank_name: data2.BANK || "",
+          bank_branch: data2.BRANCH || "",
+        }));
+      } catch (err2) {
+        console.log("Both IFSC APIs failed");
+        setFormData((prev) => ({
+          ...prev,
+          bank_name: "",
+          bank_branch: "",
+        }));
+      }
+    }
+  };
+
+  const handleChequeUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const uploadData = new FormData();
+      uploadData.append("imageUrl", file);
+
+      const res = await axios.post(
+        "https://sandbox.fintreelms.com/ocr/v1/cheque",
+        uploadData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            "X-API-Key": "Fintree@2026",
+          },
+        },
+      );
+
+      const result = res.data.data.result?.[0]?.details;
+      if (!result) return;
+
+      setFormData((prev) => ({
+        ...prev,
+        account_number: result.account_number?.value || prev.account_number,
+        ifsc: result.ifsc_code?.value || prev.ifsc,
+        name_in_bank: result.name?.value || prev.name_in_bank,
+        bank_name: result.bank_name?.value || prev.bank_name,
+      }));
+
+      if (result.ifsc_code?.value) {
+        fetchBankFromIFSC(result.ifsc_code.value);
+      }
+    } catch (err) {
+      console.log("Cheque OCR failed:", err);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
- 
+
     if (name === "registered_pincode") {
       newValue = value.replace(/\D/g, "").slice(0, 6);
     }
- 
+
     if (name === "hospital_phone" || name === "owner_phone") {
       newValue = value.replace(/\D/g, "").slice(0, 10);
     }
- 
+
+    if (name === "ifsc") {
+      newValue = value.toUpperCase().replace(/\s/g, "").slice(0, 11);
+
+      if (newValue.length === 11) {
+        fetchBankFromIFSC(newValue);
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: newValue,
     }));
   };
- 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage("");
- 
+
     try {
       const res = await api.post("/clayyo-loans/hospitals/create", formData);
- 
+
       setMessage(`✅ ${res.data.message}`);
- 
+
       setFormData({
         hospital_legal_name: "",
         brand_name: "",
@@ -375,14 +451,13 @@ const HospitalEntry = () => {
         owner_phone: "",
         owner_name: "",
       });
- 
     } catch (err) {
       setMessage(err?.response?.data?.message || "❌ Something went wrong");
     } finally {
       setLoading(false);
     }
   };
- 
+
   const renderInput = (label, name, type = "text") => (
     <div className="form-group">
       <label>{label}</label>
@@ -395,20 +470,20 @@ const HospitalEntry = () => {
       />
     </div>
   );
- 
+
   const handleRegisteredPincodeLookup = async (pin) => {
     if (pin.length !== 6) return;
- 
+
     try {
       const res = await axios.get(
         `https://api.postalpincode.in/pincode/${pin}`,
       );
- 
+
       const data = res.data[0];
- 
+
       if (data.Status === "Success") {
         const office = data.PostOffice[0];
- 
+
         setFormData((prev) => ({
           ...prev,
           registered_city: office.Name || office.Block,
@@ -420,20 +495,20 @@ const HospitalEntry = () => {
       console.log(err);
     }
   };
- 
+
   useEffect(() => {
     if (formData.registered_pincode.length === 6) {
       handleRegisteredPincodeLookup(formData.registered_pincode);
     }
   }, [formData.registered_pincode]);
- 
+
   const renderSelect = (label, name, options) => (
     <div className="form-group">
       <label>{label}</label>
- 
+
       <select name={name} value={formData[name]} onChange={handleChange}>
         <option value="">Select</option>
- 
+
         {options.map((opt) => (
           <option key={opt} value={opt}>
             {opt}
@@ -442,7 +517,7 @@ const HospitalEntry = () => {
       </select>
     </div>
   );
- 
+
   return (
     <div className="manual-entry-container">
       <div className="entry-header">
@@ -452,7 +527,7 @@ const HospitalEntry = () => {
           <p>Onboard new medical facilities to the Clayyo Network</p>
         </div>
       </div>
- 
+
       <form onSubmit={handleSubmit} className="modern-form">
         <fieldset>
           <legend>Facility Information</legend>
@@ -460,23 +535,27 @@ const HospitalEntry = () => {
             {renderInput("Hospital Legal Name", "hospital_legal_name")}
             {renderInput("Brand / Trade Name", "brand_name")}
           </div>
- 
+
           <div className="form-grid">
             {renderInput("Registration Number", "hospital_registration_number")}
-            {renderInput("Year of Establishment", "year_of_establishment", "number")}
+            {renderInput(
+              "Year of Establishment",
+              "year_of_establishment",
+              "number",
+            )}
           </div>
-         
+
           <div className="form-grid">
-             {renderSelect("Type of Hospital", "hospital_type", [
-               "Multi-speciality",
-               "Single speciality",
-               "Clinic",
-               "Nursing home",
-             ])}
-             {renderInput("Bed Capacity", "bed_capacity", "number")}
+            {renderSelect("Type of Hospital", "hospital_type", [
+              "Multi-speciality",
+              "Single speciality",
+              "Clinic",
+              "Nursing home",
+            ])}
+            {renderInput("Bed Capacity", "bed_capacity", "number")}
           </div>
         </fieldset>
- 
+
         <fieldset>
           <legend>Location Details</legend>
           {renderInput("Full Registered Address", "registered_address")}
@@ -486,16 +565,20 @@ const HospitalEntry = () => {
             {renderInput("District", "registered_district")}
           </div>
           <div className="form-grid tri">
-             {renderInput("State", "registered_state")}
-             {renderInput("Branch Locations", "branch_locations")}
-             <div className="spacer"></div>
+            {renderInput("State", "registered_state")}
+            {renderInput("Branch Locations", "branch_locations")}
+            <div className="spacer"></div>
           </div>
         </fieldset>
- 
+
         <fieldset>
           <legend>Operational Statistics</legend>
           <div className="form-grid">
-            {renderInput("Avg. Monthly Footfall", "avg_monthly_patient_footfall", "number")}
+            {renderInput(
+              "Avg. Monthly Footfall",
+              "avg_monthly_patient_footfall",
+              "number",
+            )}
             {renderInput("Avg. Treatment Cost", "avg_ticket_size", "number")}
           </div>
           <div className="form-grid">
@@ -504,7 +587,7 @@ const HospitalEntry = () => {
           </div>
           {renderInput("Departments", "departments")}
         </fieldset>
- 
+
         <fieldset>
           <legend>Point of Contact</legend>
           <div className="form-grid">
@@ -517,18 +600,43 @@ const HospitalEntry = () => {
             {renderInput("Owner Email", "owner_email", "email")}
           </div>
         </fieldset>
- 
+
+        <fieldset>
+          <legend>Banking &amp; Financials</legend>
+
+          <div className="form-grid">
+            <div className="form-group">
+              <label>Upload Cheque (OCR)</label>
+              <input type="file" onChange={handleChequeUpload} />
+            </div>
+
+            {renderInput("IFSC Code", "ifsc")}
+          </div>
+
+          <div className="form-grid">
+            {renderInput("Bank Name", "bank_name")}
+            {renderInput("Branch Name", "bank_branch")}
+          </div>
+
+          <div className="form-grid">
+            {renderInput("Account Holder Name", "name_in_bank")}
+            {renderInput("Account Number", "account_number")}
+          </div>
+        </fieldset>
+
         <button type="submit" className="submit-btn" disabled={loading}>
           {loading ? "Registering Facility..." : "Create Hospital Profile"}
         </button>
       </form>
- 
+
       {message && (
-        <div className={`message ${message.includes("✅") ? "success" : "error"}`}>
+        <div
+          className={`message ${message.includes("✅") ? "success" : "error"}`}
+        >
           {message}
         </div>
       )}
- 
+
       <style>{`
         .manual-entry-container {
           max-width: 1000px;
@@ -699,6 +807,5 @@ const HospitalEntry = () => {
     </div>
   );
 };
- 
+
 export default HospitalEntry;
- 
