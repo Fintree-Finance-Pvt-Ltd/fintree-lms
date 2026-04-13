@@ -290,6 +290,25 @@ import api from "../../api/api";
 import { useParams } from "react-router-dom";
 import "../../styles/ReportsDownload.css";
 
+const REPORT_ID_MAP = {
+  "consolidated-mis": "Consolidated MIS",
+  "due-demand-vs-collection-all-products":
+    "Due Demand vs Collection Report(All products)",
+  "cashflow-report": "CashFlow Report",
+  "rps-generate-report": "RPS Generate Report",
+  "delayed-interest-report": "Delayed Interest Report",
+  "irr-report": "IRR Report",
+  "adikosh-cam-report": "Adikosh CAM Report",
+  "adikosh-cam-report-print": "Adikosh CAM Report Print",
+  "cashflow-report-bank-date": "CashFlow Report Bank Date",
+  "ccod-loan-data-report": "CCOD Loan Data Report",
+  "bank-payment-file-report": "Bank Payment File Report",
+  "consumer-bureau-report": "Consumer Bureau Report",
+  "pay-out-report": "Pay Out Report",
+  "due-demand-vs-collection-fintree":
+    "Due Demand vs Collection Report(Fintree)",
+};
+
 const StatusBadge = ({ status }) => {
   const s = String(status || "Unknown");
   const k = s.toLowerCase().replace(/\s+/g, "-");
@@ -375,14 +394,17 @@ const formatDate = (value) => {
 
 const DownloadedReports = ({ reportIdFromParent }) => {
   const { reportId: routeReportId } = useParams();
-  const reportId = reportIdFromParent || routeReportId;
+  const routeOrParentReportId = reportIdFromParent || routeReportId;
+
+  const backendReportId =
+    REPORT_ID_MAP[routeOrParentReportId] || routeOrParentReportId;
 
   const [downloads, setDownloads] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!reportId) {
+    if (!backendReportId) {
       setDownloads([]);
       setError("Report ID is missing.");
       return;
@@ -396,10 +418,12 @@ const DownloadedReports = ({ reportIdFromParent }) => {
         setError("");
 
         const response = await api.get(
-          `/reports/downloads?reportId=${encodeURIComponent(reportId)}`
+          `/reports/downloads?reportId=${encodeURIComponent(backendReportId)}`
         );
 
         console.log("Fetched downloads:", response.data);
+        console.log("Route reportId:", routeOrParentReportId);
+        console.log("Backend reportId:", backendReportId);
 
         if (isMounted) {
           setDownloads(Array.isArray(response.data) ? response.data : []);
@@ -424,7 +448,7 @@ const DownloadedReports = ({ reportIdFromParent }) => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [reportId]);
+  }, [backendReportId, routeOrParentReportId]);
 
   return (
     <div className="downloaded-reports-container">
@@ -520,7 +544,10 @@ const DownloadedReports = ({ reportIdFromParent }) => {
               ))
             ) : (
               <tr>
-                <td colSpan="8" style={{ ...tdStyle, textAlign: "center", padding: "24px" }}>
+                <td
+                  colSpan="8"
+                  style={{ ...tdStyle, textAlign: "center", padding: "24px" }}
+                >
                   No reports found for this report ID.
                 </td>
               </tr>
