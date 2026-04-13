@@ -10,6 +10,10 @@ const products = [
   { key: "adikosh", name: "Adikosh Loan Booking" },
   { key: "utr_upload", name: "UTR Upload" },
   { key: "repayment_upload", name: "Repayment Upload" },
+  { key: "fc_upload", name: "Forecloser Upload" },
+  { key: "fc_upload", name: "Settled Upload" },
+  { key: "fc_upload", name: "GQ 20%  Upload" },
+
 ];
 
 const DownloadTemplatePage = () => {
@@ -305,6 +309,9 @@ const DownloadTemplatePage = () => {
                         cursor: "pointer",
                         transition: "all 0.25s ease"
                       }}
+                      onClick={() =>
+                      handleDownload(product.key)
+                    }
                     >
                       ⬇ Download Format
                     </button>

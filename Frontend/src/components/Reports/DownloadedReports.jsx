@@ -285,11 +285,29 @@
 
 
 ////////////// SAjag Jain //////////
-// src/components/reports/DownloadedReports.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../../api/api";
 import { useParams } from "react-router-dom";
-import DataTable from "../ui/DataTable";
+import "../../styles/ReportsDownload.css";
+
+const REPORT_ID_MAP = {
+  "consolidated-mis": "Consolidated MIS",
+  "due-demand-vs-collection-all-products":
+    "Due Demand vs Collection Report(All products)",
+  "cashflow-report": "CashFlow Report",
+  "rps-generate-report": "RPS Generate Report",
+  "delayed-interest-report": "Delayed Interest Report",
+  "irr-report": "IRR Report",
+  "adikosh-cam-report": "Adikosh CAM Report",
+  "adikosh-cam-report-print": "Adikosh CAM Report Print",
+  "cashflow-report-bank-date": "CashFlow Report Bank Date",
+  "ccod-loan-data-report": "CCOD Loan Data Report",
+  "bank-payment-file-report": "Bank Payment File Report",
+  "consumer-bureau-report": "Consumer Bureau Report",
+  "pay-out-report": "Pay Out Report",
+  "due-demand-vs-collection-fintree":
+    "Due Demand vs Collection Report(Fintree)",
+};
 
 const StatusBadge = ({ status }) => {
   const s = String(status || "Unknown");
@@ -302,10 +320,9 @@ const StatusBadge = ({ status }) => {
     padding: "6px 10px",
     borderRadius: 999,
     fontSize: 12,
-    fontWeight: 800,
-    letterSpacing: ".01em",
+    fontWeight: 700,
     border: "1px solid transparent",
-    userSelect: "none",
+    whiteSpace: "nowrap",
   };
 
   const variants = {
@@ -366,268 +383,202 @@ const StatusBadge = ({ status }) => {
     },
   };
 
-  const style = { ...base, ...(variants[k] || variants.unknown) };
-
-  return (
-    <span style={style}>
-      {/(in-progress|processing|pending|running)/.test(k) && (
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: 999,
-            background: "currentColor",
-            display: "inline-block",
-            animation: "dt-pulse 1.2s ease-in-out infinite",
-          }}
-        />
-      )}
-      {s}
-      <style>{`
-        @keyframes dt-pulse {
-          0%,100% { transform: scale(.9); opacity: .75; }
-          50% { transform: scale(1.25); opacity: 1; }
-        }
-      `}</style>
-    </span>
-  );
+  return <span style={{ ...base, ...(variants[k] || variants.unknown) }}>{s}</span>;
 };
 
-const fmtDate = (value) => {
-  if (!value) return "—";
+const formatDate = (value) => {
+  if (!value) return "-";
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleString();
 };
 
-const normalizeDownloads = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.downloads)) return payload.downloads;
-  if (Array.isArray(payload?.results)) return payload.results;
-  return [];
-};
-
-const normalizeRow = (row, index) => ({
-  _idx: row?.id || row?.report_id || index,
-  ...row,
-  status: row?.status || "Unknown",
-  file_name: row?.file_name || row?.filename || row?.name || "",
-  report_id: row?.report_id || row?.reportId || "",
-  time_taken: row?.time_taken || row?.timeTaken || "",
-  description: row?.description || "",
-  product: row?.product || "",
-  created_by: row?.created_by || row?.createdBy || "",
-  generated_at: row?.generated_at || row?.generatedAt || "",
-  downloadUrl:
-    row?.downloadUrl ||
-    row?.download_url ||
-    row?.file_url ||
-    row?.url ||
-    "",
-});
-
-const DownloadedReports = ({
-  reportIdFromParent,
-  title = "Downloaded Reports",
-}) => {
+const DownloadedReports = ({ reportIdFromParent }) => {
   const { reportId: routeReportId } = useParams();
-  const reportId = reportIdFromParent || routeReportId;
+  const routeOrParentReportId = reportIdFromParent || routeReportId;
+
+  const backendReportId =
+    REPORT_ID_MAP[routeOrParentReportId] || routeOrParentReportId;
 
   const [downloads, setDownloads] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    let cancelled = false;
-    let intervalId;
+    if (!backendReportId) {
+      setDownloads([]);
+      setError("Report ID is missing.");
+      return;
+    }
+
+    let isMounted = true;
 
     const fetchDownloads = async () => {
-      if (!reportId) {
-        if (!cancelled) {
-          setDownloads([]);
-          setErr("Report ID is missing.");
-          setLoading(false);
-        }
-        return;
-      }
-
       try {
-        setErr("");
+        setLoading(true);
+        setError("");
 
-        const res = await api.get("/reports/downloads", {
-          params: { reportId },
-        });
+        const response = await api.get(
+          `/reports/downloads?reportId=${encodeURIComponent(backendReportId)}`
+        );
 
-        console.log("Downloaded reports API response:", res.data);
+        console.log("Fetched downloads:", response.data);
+        console.log("Route reportId:", routeOrParentReportId);
+        console.log("Backend reportId:", backendReportId);
 
-        const normalized = normalizeDownloads(res.data).map(normalizeRow);
-
-        if (!cancelled) {
-          setDownloads(normalized);
-          setLoading(false);
+        if (isMounted) {
+          setDownloads(Array.isArray(response.data) ? response.data : []);
         }
-      } catch (error) {
-        console.error("Failed to fetch downloads:", error);
-
-        if (!cancelled) {
+      } catch (err) {
+        console.error("Failed to fetch downloads:", err);
+        if (isMounted) {
+          setError("Failed to fetch downloads.");
           setDownloads([]);
-          setErr(
-            error?.response?.data?.message ||
-              error?.message ||
-              "Failed to fetch downloads."
-          );
+        }
+      } finally {
+        if (isMounted) {
           setLoading(false);
         }
       }
     };
 
     fetchDownloads();
-    intervalId = setInterval(fetchDownloads, 3000);
+    const interval = setInterval(fetchDownloads, 3000);
 
     return () => {
-      cancelled = true;
-      if (intervalId) clearInterval(intervalId);
+      isMounted = false;
+      clearInterval(interval);
     };
-  }, [reportId]);
-
-  const rows = useMemo(() => downloads.map(normalizeRow), [downloads]);
-
-  const linkStyle = {
-    color: "#1d4ed8",
-    fontWeight: 600,
-    textDecoration: "none",
-    borderBottom: "1px dashed rgba(37,99,235,.35)",
-  };
-
-  const columns = [
-    {
-      key: "file_name",
-      header: "Report",
-      width: 220,
-      sortable: true,
-      render: (r) => {
-        const isCompleted = String(r.status || "")
-          .toLowerCase()
-          .trim() === "completed";
-
-        return isCompleted && r.downloadUrl ? (
-          <a
-            href={r.downloadUrl}
-            target="_blank"
-            rel="noreferrer"
-            style={linkStyle}
-          >
-            {r.file_name || "-"}
-          </a>
-        ) : (
-          r.file_name || "—"
-        );
-      },
-      sortAccessor: (r) => (r.file_name || "").toLowerCase(),
-      csvAccessor: (r) => r.file_name || "",
-    },
-    {
-      key: "report_id",
-      header: "Report ID",
-      width: 180,
-      sortable: true,
-      sortAccessor: (r) => (r.report_id || "").toLowerCase(),
-      render: (r) => (
-        <span
-          style={{
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace',
-            fontSize: 12.5,
-          }}
-        >
-          {r.report_id || "—"}
-        </span>
-      ),
-    },
-    {
-      key: "status",
-      header: "Status",
-      width: 160,
-      sortable: true,
-      render: (r) => <StatusBadge status={r.status} />,
-      sortAccessor: (r) => (r.status || "").toLowerCase(),
-      csvAccessor: (r) => r.status || "",
-    },
-    {
-      key: "time_taken",
-      header: "Time Taken",
-      width: 140,
-      sortable: true,
-      render: (r) => r.time_taken || "In progress",
-      sortAccessor: (r) => r.time_taken || "\uFFFF",
-      csvAccessor: (r) => r.time_taken || "In progress",
-    },
-    {
-      key: "description",
-      header: "Description",
-      width: 260,
-      sortable: true,
-      render: (r) => r.description || "—",
-    },
-    {
-      key: "product",
-      header: "Product",
-      width: 140,
-      sortable: true,
-      render: (r) => r.product || "—",
-    },
-    {
-      key: "created_by",
-      header: "Created By",
-      width: 160,
-      sortable: true,
-      render: (r) => r.created_by || "—",
-    },
-    {
-      key: "generated_at",
-      header: "Generated At",
-      width: 190,
-      sortable: true,
-      render: (r) => (
-        <span
-          style={{
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace',
-            fontSize: 12.5,
-          }}
-        >
-          {fmtDate(r.generated_at)}
-        </span>
-      ),
-      sortAccessor: (r) => Date.parse(r.generated_at) || 0,
-      csvAccessor: (r) =>
-        r.generated_at ? new Date(r.generated_at).toISOString() : "",
-    },
-  ];
-
-  if (loading) return <p>Loading reports...</p>;
-  if (err) return <p style={{ color: "#b91c1c" }}>{err}</p>;
+  }, [backendReportId, routeOrParentReportId]);
 
   return (
-    <DataTable
-      title={title}
-      rows={rows}
-      columns={columns}
-      globalSearchKeys={[
-        "file_name",
-        "report_id",
-        "status",
-        "description",
-        "product",
-        "created_by",
-      ]}
-      initialSort={{ key: "generated_at", dir: "desc" }}
-      exportFileName={`downloads_${reportId || "reports"}`}
-      stickyHeader
-      zebra
-      emptyMessage="No reports found for this report ID."
-    />
+    <div className="downloaded-reports-container">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "16px",
+          flexWrap: "wrap",
+          gap: "12px",
+        }}
+      >
+        <h2 className="downloaded-reports-title" style={{ margin: 0 }}>
+          Downloaded Reports
+        </h2>
+
+        {loading && (
+          <span style={{ fontSize: "14px", color: "#6b7280" }}>
+            Refreshing...
+          </span>
+        )}
+      </div>
+
+      {error ? (
+        <p style={{ color: "#b91c1c", marginBottom: 12 }}>{error}</p>
+      ) : null}
+
+      <div style={{ overflowX: "auto" }}>
+        <table
+          className="download-table"
+          style={{
+            width: "100%",
+            borderCollapse: "separate",
+            borderSpacing: 0,
+            background: "#fff",
+            borderRadius: "12px",
+            overflow: "hidden",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+          }}
+        >
+          <thead>
+            <tr style={{ background: "#f9fafb" }}>
+              <th style={thStyle}>Report</th>
+              <th style={thStyle}>Report ID</th>
+              <th style={thStyle}>Status</th>
+              <th style={thStyle}>Time Taken</th>
+              <th style={thStyle}>Description</th>
+              <th style={thStyle}>Product</th>
+              <th style={thStyle}>Created By</th>
+              <th style={thStyle}>Generated At</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {Array.isArray(downloads) && downloads.length > 0 ? (
+              downloads.map((report, index) => (
+                <tr key={report.report_id || index} style={trStyle}>
+                  <td style={tdStyle}>
+                    {String(report.status || "").toLowerCase() === "completed" &&
+                    report.downloadUrl ? (
+                      <a
+                        href={report.downloadUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          color: "#2563eb",
+                          textDecoration: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {report.file_name || "-"}
+                      </a>
+                    ) : (
+                      report.file_name || "-"
+                    )}
+                  </td>
+
+                  <td style={{ ...tdStyle, fontFamily: "monospace" }}>
+                    {report.report_id || "-"}
+                  </td>
+
+                  <td style={tdStyle}>
+                    <StatusBadge status={report.status} />
+                  </td>
+
+                  <td style={tdStyle}>{report.time_taken || "In progress"}</td>
+                  <td style={tdStyle}>{report.description || "-"}</td>
+                  <td style={tdStyle}>{report.product || "-"}</td>
+                  <td style={tdStyle}>{report.created_by || "-"}</td>
+                  <td style={tdStyle}>{formatDate(report.generated_at)}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan="8"
+                  style={{ ...tdStyle, textAlign: "center", padding: "24px" }}
+                >
+                  No reports found for this report ID.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
+};
+
+const thStyle = {
+  textAlign: "left",
+  padding: "14px 16px",
+  fontSize: "13px",
+  fontWeight: 700,
+  color: "#374151",
+  borderBottom: "1px solid #e5e7eb",
+  whiteSpace: "nowrap",
+};
+
+const tdStyle = {
+  padding: "14px 16px",
+  fontSize: "14px",
+  color: "#111827",
+  borderBottom: "1px solid #f3f4f6",
+  verticalAlign: "top",
+};
+
+const trStyle = {
+  background: "#ffffff",
 };
 
 export default DownloadedReports;
