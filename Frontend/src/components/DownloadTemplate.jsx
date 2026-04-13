@@ -309,6 +309,9 @@ const DownloadTemplatePage = () => {
                         cursor: "pointer",
                         transition: "all 0.25s ease"
                       }}
+                      onClick={() =>
+                      handleDownload(product.key)
+                    }
                     >
                       ⬇ Download Format
                     </button>
