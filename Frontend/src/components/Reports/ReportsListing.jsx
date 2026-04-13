@@ -59,55 +59,205 @@
 // export default ReportsListing;
 
 
+// import React, { useState, useMemo } from "react";
+// import { Link } from "react-router-dom";
+// // import { Search, FileBarChart, ArrowRight, AlertCircle } from "lucide-react";
+// import { Search, FileChartLine, ArrowRight, AlertCircle } from "lucide-react";
+// import "../../styles/ReportsListing.css";
+ 
+// const REPORT_DATA = [
+//   { id: 1, name: "Consolidated MIS", category: "MIS" },
+//   { id: 2, name: "Due Demand vs Collection Report (All products)", category: "Collection" },
+//   { id: 3, name: "CashFlow Report", category: "Finance" },
+//   { id: 4, name: "RPS Generate Report", category: "Operations" },
+//   { id: 5, name: "Delayed Interest Report", category: "Finance" },
+//   { id: 6, name: "IRR Report", category: "Finance" },
+//   { id: 7, name: "Adikosh CAM Report", category: "Credit" },
+//   { id: 8, name: "Adikosh CAM Report Print", category: "Credit" },
+//   { id: 9, name: "CashFlow Report Bank Date", category: "Finance" },
+//   { id: 10, name: "CCOD Loan Data Report", category: "Data" },
+//   { id: 11, name: "Bank Payment File Report", category: "Finance" },
+//   { id: 12, name: "Consumer Bureau Report", category: "Compliance" },
+//   { id: 13, name: "Pay Out Report", category: "Finance" },
+//   { id: 14, name: "Due Demand vs Collection Report (Fintree)", category: "Collection" }
+// ];
+ 
+// const ReportsListing = () => {
+//   const [searchTerm, setSearchTerm] = useState("");
+ 
+//   // Memoized filter for performance and to prevent unnecessary calculations
+//   const filteredReports = useMemo(() => {
+//     return REPORT_DATA.filter((report) =>
+//       report.name.toLowerCase().includes(searchTerm.toLowerCase())
+//     );
+//   }, [searchTerm]);
+ 
+//   // URL-friendly slug generator
+//   const slugify = (text) => text.replace(/\s+/g, "-").toLowerCase();
+ 
+//   return (
+//     <div className="reports-container">
+//       <header className="reports-header">
+//         <div className="title-section">
+//           <div className="title-icon-wrapper">
+//             <FileChartLine  className="title-icon" size={54} />
+//           </div>
+//           <div>
+//             <h3>MIS Report Listing</h3>
+//             <p className="subtitle">Select a report to configure and generate data</p>
+//           </div>
+//         </div>
+ 
+//         <div className="search-wrapper">
+//           <Search className="search-icon" size={18} />
+//           <input
+//             type="text"
+//             className="search-input"
+//             placeholder="Search by report name..."
+//             value={searchTerm}
+//             onChange={(e) => setSearchTerm(e.target.value)}
+//           />
+//         </div>
+//       </header>
+ 
+//       <div className="reports-grid">
+//         {filteredReports.length > 0 ? (
+//           filteredReports.map((report) => (
+//             <div key={report.id} className="report-card">
+//               <div className="report-top">
+//                 <span className="category-tag">{report.category}</span>
+//                 <h4>{report.name}</h4>
+//               </div>
+             
+//               <Link
+//                 to={`/mis-reports/${slugify(report.name)}`}
+//                 className="generate-link"
+//               >
+//                 <span>Generate Report</span>
+//                 <ArrowRight size={18} className="arrow-icon" />
+//               </Link>
+//             </div>
+//           ))
+//         ) : (
+//           <div className="empty-state">
+//             <div className="empty-icon-wrapper">
+//               <AlertCircle size={48} />
+//             </div>
+//             <p>No reports found matching <strong>"{searchTerm}"</strong></p>
+//             <button onClick={() => setSearchTerm("")} className="reset-btn">
+//               Clear Search
+//             </button>
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
+ 
+// export default ReportsListing;
+ 
+
+///////////// SAJAG Jain //////////
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-// import { Search, FileBarChart, ArrowRight, AlertCircle } from "lucide-react";
 import { Search, FileChartLine, ArrowRight, AlertCircle } from "lucide-react";
 import "../../styles/ReportsListing.css";
- 
+
 const REPORT_DATA = [
-  { id: 1, name: "Consolidated MIS", category: "MIS" },
-  { id: 2, name: "Due Demand vs Collection Report (All products)", category: "Collection" },
-  { id: 3, name: "CashFlow Report", category: "Finance" },
-  { id: 4, name: "RPS Generate Report", category: "Operations" },
-  { id: 5, name: "Delayed Interest Report", category: "Finance" },
-  { id: 6, name: "IRR Report", category: "Finance" },
-  { id: 7, name: "Adikosh CAM Report", category: "Credit" },
-  { id: 8, name: "Adikosh CAM Report Print", category: "Credit" },
-  { id: 9, name: "CashFlow Report Bank Date", category: "Finance" },
-  { id: 10, name: "CCOD Loan Data Report", category: "Data" },
-  { id: 11, name: "Bank Payment File Report", category: "Finance" },
-  { id: 12, name: "Consumer Bureau Report", category: "Compliance" },
-  { id: 13, name: "Pay Out Report", category: "Finance" },
-  { id: 14, name: "Due Demand vs Collection Report (Fintree)", category: "Collection" }
+  {
+    id: "consolidated-mis",
+    name: "Consolidated MIS",
+    category: "MIS",
+  },
+  {
+    id: "due-demand-vs-collection-all-products",
+    name: "Due Demand vs Collection Report (All products)",
+    category: "Collection",
+  },
+  {
+    id: "cashflow-report",
+    name: "CashFlow Report",
+    category: "Finance",
+  },
+  {
+    id: "rps-generate-report",
+    name: "RPS Generate Report",
+    category: "Operations",
+  },
+  {
+    id: "delayed-interest-report",
+    name: "Delayed Interest Report",
+    category: "Finance",
+  },
+  {
+    id: "irr-report",
+    name: "IRR Report",
+    category: "Finance",
+  },
+  {
+    id: "adikosh-cam-report",
+    name: "Adikosh CAM Report",
+    category: "Credit",
+  },
+  {
+    id: "adikosh-cam-report-print",
+    name: "Adikosh CAM Report Print",
+    category: "Credit",
+  },
+  {
+    id: "cashflow-report-bank-date",
+    name: "CashFlow Report Bank Date",
+    category: "Finance",
+  },
+  {
+    id: "ccod-loan-data-report",
+    name: "CCOD Loan Data Report",
+    category: "Data",
+  },
+  {
+    id: "bank-payment-file-report",
+    name: "Bank Payment File Report",
+    category: "Finance",
+  },
+  {
+    id: "consumer-bureau-report",
+    name: "Consumer Bureau Report",
+    category: "Compliance",
+  },
+  {
+    id: "pay-out-report",
+    name: "Pay Out Report",
+    category: "Finance",
+  },
+  {
+    id: "due-demand-vs-collection-fintree",
+    name: "Due Demand vs Collection Report (Fintree)",
+    category: "Collection",
+  },
 ];
- 
+
 const ReportsListing = () => {
   const [searchTerm, setSearchTerm] = useState("");
- 
-  // Memoized filter for performance and to prevent unnecessary calculations
+
   const filteredReports = useMemo(() => {
     return REPORT_DATA.filter((report) =>
       report.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm]);
- 
-  // URL-friendly slug generator
-  const slugify = (text) => text.replace(/\s+/g, "-").toLowerCase();
- 
+
   return (
     <div className="reports-container">
       <header className="reports-header">
         <div className="title-section">
           <div className="title-icon-wrapper">
-            <FileChartLine  className="title-icon" size={54} />
+            <FileChartLine className="title-icon" size={54} />
           </div>
           <div>
             <h3>MIS Report Listing</h3>
             <p className="subtitle">Select a report to configure and generate data</p>
           </div>
         </div>
- 
+
         <div className="search-wrapper">
           <Search className="search-icon" size={18} />
           <input
@@ -119,7 +269,7 @@ const ReportsListing = () => {
           />
         </div>
       </header>
- 
+
       <div className="reports-grid">
         {filteredReports.length > 0 ? (
           filteredReports.map((report) => (
@@ -128,9 +278,9 @@ const ReportsListing = () => {
                 <span className="category-tag">{report.category}</span>
                 <h4>{report.name}</h4>
               </div>
-             
+
               <Link
-                to={`/mis-reports/${slugify(report.name)}`}
+                to={`/mis-reports/${report.id}`}
                 className="generate-link"
               >
                 <span>Generate Report</span>
@@ -143,7 +293,9 @@ const ReportsListing = () => {
             <div className="empty-icon-wrapper">
               <AlertCircle size={48} />
             </div>
-            <p>No reports found matching <strong>"{searchTerm}"</strong></p>
+            <p>
+              No reports found matching <strong>"{searchTerm}"</strong>
+            </p>
             <button onClick={() => setSearchTerm("")} className="reset-btn">
               Clear Search
             </button>
@@ -153,6 +305,6 @@ const ReportsListing = () => {
     </div>
   );
 };
- 
+
 export default ReportsListing;
- 
+
