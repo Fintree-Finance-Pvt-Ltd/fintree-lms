@@ -512,13 +512,22 @@ const templateMap = {
   gq_fsf: "GQ_FSF_Loan_Booking.xlsx",
   gq_non_fsf: "gq_non_fsf.xlsx",
   adikosh: "adikosh.xlsx",
-  utr_upload: "UTR_UPLOAD.xlsx",
+   utr_upload: "utr_upload.xlsx",
   repayment_upload: "repayment_upload.xlsx",
   emiclub :"emiclub.xlsx",
+  wctl: "wctl.xlsx",
+  hey_ev: "hey_ev.xlsx",
+  heyev_battery: "heyev_battery.xlsx",
+  helium: "helium.xlsx",
+  circlepe: "circlepe.xlsx",
+  fc_upload: "fc_upload_template.xlsx",
+  settled_upload: "settled_upload_template.xlsx",
+  gq_20_upload: "gq_20_upload.xlsx",
 };
 
 router.get("/download-template/:product", (req, res) => {
   const productKey = req.params.product.toLowerCase();
+  console.log("template name:", productKey);
   const fileName = templateMap[productKey];
 
   if (!fileName) {
