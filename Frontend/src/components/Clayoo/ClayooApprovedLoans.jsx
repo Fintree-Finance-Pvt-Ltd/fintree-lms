@@ -17,7 +17,7 @@ const ClayooApprovedLoans = ({
   const [actionLan, setActionLan] = useState(null);
   const [toast, setToast] = useState(null);
   const [opsData, setOpsData] = useState({});
-const [opsLoading, setOpsLoading] = useState({});
+  const [opsLoading, setOpsLoading] = useState({});
 
   // ---------- Bank / eNACH Modal ----------
   const [showBankModal, setShowBankModal] = useState(false);
@@ -75,144 +75,139 @@ const [opsLoading, setOpsLoading] = useState({});
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const addMonths = (dateStr, months) => {
+  // tenure is in DAYS
+  const addDaysToDate = (dateStr, days) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return "";
-    d.setMonth(d.getMonth() + Number(months || 0));
+    d.setDate(d.getDate() + Number(days || 0));
     return toYMD(d);
   };
 
   const handleOpsChange = (lan, field, value) => {
-  setOpsData((prev) => ({
-    ...prev,
-    [lan]: {
-      ...prev[lan],
-      [field]: value,
-    },
-  }));
-};
+    setOpsData((prev) => ({
+      ...prev,
+      [lan]: {
+        ...prev[lan],
+        [field]: value,
+      },
+    }));
+  };
 
-const inputStyle = (disabled) => ({
-  padding: "6px",
-  borderRadius: 6,
-  border: "1px solid #d1d5db",
-  fontSize: 12,
-  background: disabled ? "#f3f4f6" : "#fff",
-  cursor: disabled ? "not-allowed" : "text",
-});
-
-const isOpsComplete = (r) => {
-  return (
-    Number(r.approved_limit) > 0 &&
-    Number(r.pf_percent) >= 0 &&
-    Number(r.subvention_percent) >= 0
-  );
-};
-
-const handleOpsSubmit = async (r) => {
-  const lan = r.lan;
-  const data = opsData[lan] || {};
-
-  const approved_limit = Number(data.approved_limit || r.final_limit);
-  const pf_percent = "0.00";
-
-  if (!approved_limit || approved_limit <= 0) {
-    alert("Enter valid approved limit");
-    return;
-  }
-
- if (pf_percent == null || pf_percent < 0) {
-  alert("Invalid PF%");
-  return;
-}
-
-  try {
-    setOpsLoading((prev) => ({ ...prev, [lan]: true }));
-
-    if (approved_limit > r.final_limit) {
-  alert("Approved limit cannot exceed requested final limit");
-  return;
-}
-
-    await api.put(`/clayyo-loans/ops-approve/${lan}`, {
-      approved_limit,
-      pf_percent,
-      table: "loan_booking_clayyo",
-    });
-
-    // update UI
-    setRows((prev) =>
-      prev.map((row) =>
-        row.lan === lan
-          ? {
-              ...row,
-              approved_limit,
-              pf_percent,
-              status: "OPS APPROVED",
-            }
-          : row
-      )
-    );
-  } catch (err) {
-    console.error(err);
-    alert("Failed to submit ops approval");
-  } finally {
-    setOpsLoading((prev) => ({ ...prev, [lan]: false }));
-  }
-};
-
-  // ---------- Bank Modal ----------
-const openBankModal = (loanRow) => {
-  console.log("loanRow in openBankModal:", loanRow);
-
-  const startDate =
-    loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
-
-  const endDate =
-    loanRow.loan_tenure && Number(loanRow.loan_tenure) > 0
-      ? addMonths(startDate, loanRow.loan_tenure)
-      : "";
-
-  const defaultAmount = loanRow.final_limit || loanRow.loan_amount || "";
-
-  setSelectedLoan(loanRow);
-  setBankError("");
-  setBankResult(null);
-
-  setBankForm({
-    account_no:
-      loanRow.account_number ||
-      loanRow.account_no ||
-      loanRow.acc_no ||
-      loanRow.bankAccNo ||
-      "",
-    ifsc:
-      loanRow.ifsc ||
-      loanRow.bank_ifsc ||
-      loanRow.bankIfsc ||
-      "",
-    account_type: loanRow.bank_account_type || "SAVINGS",
-    bank_name:
-      loanRow.bank_name ||
-      loanRow.customer_bank_name ||
-      loanRow.bankName ||
-      "",
-    account_holder_name:
-      loanRow.account_holder_name ||
-      loanRow.acc_holder_name ||
-      loanRow.customer_name ||
-      "",
-    mandate_amount: defaultAmount,
-    mandate_start_date: startDate,
-    mandate_end_date: endDate,
-    mandate_frequency: "monthly",
+  const inputStyle = (disabled) => ({
+    padding: "6px",
+    borderRadius: 6,
+    border: "1px solid #d1d5db",
+    fontSize: 12,
+    background: disabled ? "#f3f4f6" : "#fff",
+    cursor: disabled ? "not-allowed" : "text",
   });
 
-  setShowBankModal(true);
-};
+  const isOpsComplete = (r) => {
+    return (
+      Number(r.approved_limit) > 0 &&
+      Number(r.pf_percent) >= 0 &&
+      Number(r.subvention_percent) >= 0
+    );
+  };
 
+  const handleOpsSubmit = async (r) => {
+    const lan = r.lan;
+    const data = opsData[lan] || {};
 
+    const approved_limit = Number(data.approved_limit || r.final_limit);
+    const pf_percent = "0.00";
+
+    if (!approved_limit || approved_limit <= 0) {
+      alert("Enter valid approved limit");
+      return;
+    }
+
+    if (pf_percent == null || pf_percent < 0) {
+      alert("Invalid PF%");
+      return;
+    }
+
+    try {
+      setOpsLoading((prev) => ({ ...prev, [lan]: true }));
+
+      if (approved_limit > r.final_limit) {
+        alert("Approved limit cannot exceed requested final limit");
+        return;
+      }
+
+      await api.put(`/clayyo-loans/ops-approve/${lan}`, {
+        approved_limit,
+        pf_percent,
+        table: "loan_booking_clayyo",
+      });
+
+      // update UI
+      setRows((prev) =>
+        prev.map((row) =>
+          row.lan === lan
+            ? {
+                ...row,
+                approved_limit,
+                pf_percent,
+                status: "OPS APPROVED",
+              }
+            : row,
+        ),
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Failed to submit ops approval");
+    } finally {
+      setOpsLoading((prev) => ({ ...prev, [lan]: false }));
+    }
+  };
+
+  // ---------- Bank Modal ----------
+  const openBankModal = (loanRow) => {
+    console.log("loanRow in openBankModal:", loanRow);
+
+    const startDate =
+      loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
+
+    const endDate =
+      loanRow.loan_tenure && Number(loanRow.loan_tenure) > 0
+        ? addDaysToDate(startDate, loanRow.loan_tenure)
+        : "";
+
+    const defaultAmount = loanRow.final_limit || loanRow.loan_amount || "";
+
+    setSelectedLoan(loanRow);
+    setBankError("");
+    setBankResult(null);
+
+    setBankForm({
+      account_no:
+        loanRow.account_number ||
+        loanRow.account_no ||
+        loanRow.acc_no ||
+        loanRow.bankAccNo ||
+        "",
+      ifsc: loanRow.ifsc || loanRow.bank_ifsc || loanRow.bankIfsc || "",
+      account_type: loanRow.bank_account_type || "SAVINGS",
+      bank_name:
+        loanRow.bank_name ||
+        loanRow.customer_bank_name ||
+        loanRow.bankName ||
+        "",
+      account_holder_name:
+        loanRow.account_holder_name ||
+        loanRow.acc_holder_name ||
+        loanRow.customer_name ||
+        "",
+      mandate_amount: defaultAmount,
+      mandate_start_date: startDate,
+      mandate_end_date: endDate,
+      mandate_frequency: "monthly",
+    });
+
+    setShowBankModal(true);
+  };
 
   const closeBankModal = () => {
     setShowBankModal(false);
@@ -307,7 +302,7 @@ const openBankModal = (loanRow) => {
 
       if (!mandData.success) {
         setBankError(
-          mandData.message || "Mandate creation failed. Please try again."
+          mandData.message || "Mandate creation failed. Please try again.",
         );
         setBankLoading(false);
         return;
@@ -321,7 +316,7 @@ const openBankModal = (loanRow) => {
     } catch (err) {
       setBankError(
         err.response?.data?.message ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       );
     } finally {
       setBankLoading(false);
@@ -406,10 +401,8 @@ const openBankModal = (loanRow) => {
 
       setRows((old) =>
         old.map((r) =>
-          r.lan === lan
-            ? { ...r, agreement_esign_status: "INITIATED" }
-            : r
-        )
+          r.lan === lan ? { ...r, agreement_esign_status: "INITIATED" } : r,
+        ),
       );
     } catch (err) {
       setToast({
@@ -461,23 +454,22 @@ const openBankModal = (loanRow) => {
     },
 
     {
-  key: "ops_entry",
-  header: "Ops Approval",
-  width: 320,
-  render: (r) => {
-    const isApproved = r.status === "OPS APPROVED";
-    const loading = opsLoading[r.lan];
+      key: "ops_entry",
+      header: "Ops Approval",
+      width: 320,
+      render: (r) => {
+        const isApproved = r.status === "OPS APPROVED";
+        const loading = opsLoading[r.lan];
 
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {/* FINAL LIMIT (FROM PREVIOUS STAGE) */}
+            <div style={{ fontSize: 12 }}>
+              Limit: <b>₹{r.final_limit || 0}</b>
+            </div>
 
-        {/* FINAL LIMIT (FROM PREVIOUS STAGE) */}
-        <div style={{ fontSize: 12 }}>
-          Limit: <b>₹{r.final_limit || 0}</b>
-        </div>
-
-        {/* APPROVED LIMIT */}
-        {/* <input
+            {/* APPROVED LIMIT */}
+            {/* <input
           type="number"
           placeholder="Approved Limit"
           value={opsData[r.lan]?.approved_limit ?? r.final_limit ?? ""}
@@ -488,8 +480,8 @@ const openBankModal = (loanRow) => {
           style={inputStyle(isApproved)}
         /> */}
 
-        {/* SUBVENTION % (READ ONLY) */}
-        {/* <input
+            {/* SUBVENTION % (READ ONLY) */}
+            {/* <input
           type="number"
           value={r.subvention_percent || ""}
           readOnly
@@ -499,8 +491,8 @@ const openBankModal = (loanRow) => {
           }}
         /> */}
 
-        {/* PF % */}
-        {/* <input
+            {/* PF % */}
+            {/* <input
           type="number"
           placeholder="PF %"
           value={opsData[r.lan]?.pf_percent ?? r.pf_percent ?? ""}
@@ -511,63 +503,58 @@ const openBankModal = (loanRow) => {
           style={inputStyle(isApproved)}
         /> */}
 
+            {/* APPROVED LIMIT */}
+            <input
+              type="number"
+              value={r.final_limit || ""}
+              readOnly
+              style={{
+                ...inputStyle(true),
+                background: "#f9fafb",
+              }}
+            />
 
-        {/* APPROVED LIMIT */}
-<input
-  type="number"
-  value={r.final_limit || ""}
-  readOnly
-  style={{
-    ...inputStyle(true),
-    background: "#f9fafb",
-  }}
-/>
+            {/* SUBVENTION % */}
+            <input
+              type="number"
+              value={r.subvention_percent || ""}
+              readOnly
+              style={{
+                ...inputStyle(true),
+                background: "#f9fafb",
+              }}
+            />
 
-{/* SUBVENTION % */}
-<input
-  type="number"
-  value={r.subvention_percent || ""}
-  readOnly
-  style={{
-    ...inputStyle(true),
-    background: "#f9fafb",
-  }}
-/>
+            {/* PF % */}
+            <input
+              type="number"
+              value={r.pf_percent || ""}
+              readOnly
+              style={{
+                ...inputStyle(true),
+                background: "#f9fafb",
+              }}
+            />
 
-{/* PF % */}
-<input
-  type="number"
-  value={r.pf_percent || ""}
-  readOnly
-  style={{
-    ...inputStyle(true),
-    background: "#f9fafb",
-  }}
-/>
-
-        <button
-          onClick={() => handleOpsSubmit(r)}
-          disabled={isApproved || loading}
-          style={{
-            padding: "6px",
-            borderRadius: 6,
-            background: isApproved ? "#9ca3af" : "#7c3aed",
-            color: "#fff",
-            border: "none",
-            fontWeight: 600,
-            cursor: isApproved ? "not-allowed" : "pointer",
-          }}
-        >
-          {isApproved
-            ? "Approved"
-            : loading
-            ? "Processing..."
-            : "Approve"}
-        </button>
-      </div>
-    );
-  },
-},
+            <button
+              onClick={() => handleOpsSubmit(r)}
+              disabled={isApproved || loading}
+              style={{
+                padding: "6px",
+                borderRadius: 6,
+                background: isApproved ? "#9ca3af" : "#7c3aed",
+                color: "#fff",
+                border: "none",
+                fontWeight: 600,
+                cursor: isApproved ? "not-allowed" : "pointer",
+              }}
+            >
+              {isApproved ? "Approved" : loading ? "Processing..." : "Approve"}
+            </button>
+          </div>
+        );
+      },
+    },
 
     // 🔹 AGREEMENT eSign
     {
@@ -590,9 +577,7 @@ const openBankModal = (loanRow) => {
               style={{
                 padding: "6px 8px",
                 borderRadius: 6,
-                border: disabled
-                  ? "1px solid #cbd5f5"
-                  : "1px solid #93c5fd",
+                border: disabled ? "1px solid #cbd5f5" : "1px solid #93c5fd",
                 color: disabled ? "#9ca3af" : "#1d4ed8",
                 background: "#fff",
                 cursor: disabled ? "not-allowed" : "pointer",
@@ -602,10 +587,10 @@ const openBankModal = (loanRow) => {
               {actionLan === r.lan
                 ? "Processing..."
                 : r.agreement_esign_status === "INITIATED"
-                ? "Pending Signature…"
-                : r.agreement_esign_status === "SIGNED"
-                ? "Already Signed"
-                : "Send Agreement eSign"}
+                  ? "Pending Signature…"
+                  : r.agreement_esign_status === "SIGNED"
+                    ? "Already Signed"
+                    : "Send Agreement eSign"}
             </button>
           </div>
         );
@@ -613,104 +598,105 @@ const openBankModal = (loanRow) => {
     },
 
     // 🔹 ACTION Buttons
-   {
-  key: "actions",
-  header: "Actions",
-  width: 260,
-  render: (r) => {
-    const bankStatus = (r.bank_status || "PENDING").toUpperCase();
+    {
+      key: "actions",
+      header: "Actions",
+      width: 260,
+      render: (r) => {
+        const bankStatus = (r.bank_status || "PENDING").toUpperCase();
 
-    const disableBankBtn =
-      bankStatus === "VERIFIED" ||
-      bankStatus === "MANDATE_CREATED" ||
-      actionLan === r.lan ||
-  !isOpsComplete(r);
+        const disableBankBtn =
+          bankStatus === "VERIFIED" ||
+          bankStatus === "MANDATE_CREATED" ||
+          actionLan === r.lan ||
+          !isOpsComplete(r);
 
-    const bankChipMap = {
-      PENDING: {
-        bg: "rgba(234,179,8,.12)",
-        bd: "rgba(234,179,8,.35)",
-        fg: "#713f12",
-        label: "Pending Bank",
+        const bankChipMap = {
+          PENDING: {
+            bg: "rgba(234,179,8,.12)",
+            bd: "rgba(234,179,8,.35)",
+            fg: "#713f12",
+            label: "Pending Bank",
+          },
+          VERIFIED: {
+            bg: "rgba(59,130,246,.12)",
+            bd: "rgba(59,130,246,.35)",
+            fg: "#1e3a8a",
+            label: "Verified",
+          },
+          MANDATE_CREATED: {
+            bg: "rgba(16,185,129,.12)",
+            bd: "rgba(16,185,129,.35)",
+            fg: "#065f46",
+            label: "Mandate Created",
+          },
+        };
+
+        const chip = bankChipMap[bankStatus];
+
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* BANK STATUS CHIP */}
+            <span
+              style={{
+                padding: "3px 8px",
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 600,
+                background: chip.bg,
+                color: chip.fg,
+                border: `1px solid ${chip.bd}`,
+                textTransform: "uppercase",
+                width: "fit-content",
+              }}
+            >
+              ● {chip.label}
+            </span>
+
+            {/* DOCS BUTTON */}
+            <button
+              onClick={() => navigate(`/documents/${r.lan}`)}
+              style={{
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid #93c5fd",
+                color: "#1d4ed8",
+                background: "#fff",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              📂 Docs
+            </button>
+
+            {/* ADD BANK BUTTON */}
+            <button
+              onClick={() => !disableBankBtn && openBankModal(r)}
+              disabled={disableBankBtn}
+              style={{
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: disableBankBtn
+                  ? "1px solid #cbd5f5"
+                  : "1px solid #34d399",
+                color: disableBankBtn ? "#9ca3af" : "#047857",
+                background: disableBankBtn ? "#f3f4f6" : "#ecfdf5",
+                cursor: disableBankBtn ? "not-allowed" : "pointer",
+                fontWeight: 600,
+              }}
+            >
+              {!isOpsComplete(r)
+                ? "Complete Ops First"
+                : bankStatus === "PENDING"
+                  ? "🏦 Add Bank"
+                  : bankStatus === "VERIFIED"
+                    ? "Verified"
+                    : "Mandate Created"}
+            </button>
+          </div>
+        );
       },
-      VERIFIED: {
-        bg: "rgba(59,130,246,.12)",
-        bd: "rgba(59,130,246,.35)",
-        fg: "#1e3a8a",
-        label: "Verified",
-      },
-      MANDATE_CREATED: {
-        bg: "rgba(16,185,129,.12)",
-        bd: "rgba(16,185,129,.35)",
-        fg: "#065f46",
-        label: "Mandate Created",
-      },
-    };
-
-    const chip = bankChipMap[bankStatus];
-
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        
-        {/* BANK STATUS CHIP */}
-        <span
-          style={{
-            padding: "3px 8px",
-            borderRadius: 999,
-            fontSize: 11,
-            fontWeight: 600,
-            background: chip.bg,
-            color: chip.fg,
-            border: `1px solid ${chip.bd}`,
-            textTransform: "uppercase",
-            width: "fit-content",
-          }}
-        >
-          ● {chip.label}
-        </span>
-
-        {/* DOCS BUTTON */}
-        <button
-          onClick={() => navigate(`/documents/${r.lan}`)}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 8,
-            border: "1px solid #93c5fd",
-            color: "#1d4ed8",
-            background: "#fff",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          📂 Docs
-        </button>
-
-        {/* ADD BANK BUTTON */}
-        <button
-          onClick={() => !disableBankBtn && openBankModal(r)}
-          disabled={disableBankBtn}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 8,
-            border: disableBankBtn ? "1px solid #cbd5f5" : "1px solid #34d399",
-            color: disableBankBtn ? "#9ca3af" : "#047857",
-            background: disableBankBtn ? "#f3f4f6" : "#ecfdf5",
-            cursor: disableBankBtn ? "not-allowed" : "pointer",
-            fontWeight: 600,
-          }}
-        >
-          {!isOpsComplete(r)
-    ? "Complete Ops First"
-    : bankStatus === "PENDING"
-    ? "🏦 Add Bank"
-    : bankStatus === "VERIFIED"
-    ? "Verified"
-    : "Mandate Created"}
-        </button>
-      </div>
-    );
-  },
-}
+    },
   ];
 
   // ---------- FINAL JSX ----------
@@ -730,20 +716,20 @@ const openBankModal = (loanRow) => {
               toast.type === "error"
                 ? "rgba(248,113,113,.1)"
                 : toast.type === "success"
-                ? "rgba(16,185,129,.08)"
-                : "rgba(59,130,246,.08)",
+                  ? "rgba(16,185,129,.08)"
+                  : "rgba(59,130,246,.08)",
             border:
               toast.type === "error"
                 ? "1px solid rgba(248,113,113,.4)"
                 : toast.type === "success"
-                ? "1px solid rgba(16,185,129,.35)"
-                : "1px solid rgba(59,130,246,.35)",
+                  ? "1px solid rgba(16,185,129,.35)"
+                  : "1px solid rgba(59,130,246,.35)",
             color:
               toast.type === "error"
                 ? "#991b1b"
                 : toast.type === "success"
-                ? "#14532d"
-                : "#1e3a8a",
+                  ? "#14532d"
+                  : "#1e3a8a",
             fontWeight: 500,
           }}
         >
@@ -822,7 +808,6 @@ const openBankModal = (loanRow) => {
                 >
                   <option value="SAVINGS">SAVINGS</option>
                   <option value="CURRENT">CURRENT</option>
-                 
                 </select>
               </div>
 
@@ -835,7 +820,6 @@ const openBankModal = (loanRow) => {
                   name="mandate_amount"
                   value={bankForm.mandate_amount}
                   onChange={handleBankChange}
-                  
                 />
               </div>
 
@@ -846,7 +830,6 @@ const openBankModal = (loanRow) => {
                   name="mandate_start_date"
                   value={bankForm.mandate_start_date}
                   onChange={handleBankChange}
-                  
                 />
               </div>
 
@@ -857,7 +840,6 @@ const openBankModal = (loanRow) => {
                   name="mandate_end_date"
                   value={bankForm.mandate_end_date}
                   onChange={handleBankChange}
-                  
                 />
               </div>
 
@@ -912,41 +894,174 @@ const openBankModal = (loanRow) => {
           </div>
 
           <style>{`
-            .modal-backdrop {
-              position: fixed;
-              inset: 0;
-              background: rgba(15,23,42,.45);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              z-index: 50;
-            }
-            .modal {
-              background: #fff;
-              border-radius: 12px;
-              padding: 20px 24px;
-              width: 480px;
-              max-width: 95vw;
-              box-shadow: 0 20px 40px rgba(15,23,42,.35);
-            }
-            .bank-form .field-row {
-              display: flex;
-              flex-direction: column;
-              margin-bottom: 10px;
-            }
-            .bank-form label {
-              font-size: 13px;
-              font-weight: 600;
-              margin-bottom: 4px;
-            }
-            .bank-form input,
-            .bank-form select {
-              padding: 8px;
-              border-radius: 6px;
-              border: 1px solid #d1d5db;
-              font-size: 14px;
-            }
-          `}</style>
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 999;
+    box-sizing: border-box;
+  }
+
+  .modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    width: min(720px, 100%);
+    max-width: 100%;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+    box-sizing: border-box;
+  }
+
+  .modal h3 {
+    margin: 0 0 16px;
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.3;
+  }
+
+  .bank-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 16px;
+  }
+
+  .bank-form hr {
+    grid-column: 1 / -1;
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 4px 0 2px;
+  }
+
+  .bank-form .field-row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+    min-width: 0;
+  }
+
+  .bank-form .field-row label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #374151;
+  }
+
+  .bank-form input,
+  .bank-form select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    font-size: 14px;
+    background: #fff;
+    color: #111827;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .bank-form input:focus,
+  .bank-form select:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+  }
+
+  .bank-form input[readonly] {
+    background: #f9fafb;
+    color: #6b7280;
+    cursor: not-allowed;
+  }
+
+  .bank-form p {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+
+  .bank-form > div[style*="margin-top: 8px"] {
+    grid-column: 1 / -1;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+  }
+
+  .bank-form > div[style*="margin-top: 16px"] {
+    grid-column: 1 / -1;
+    margin-top: 4px !important;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    padding-top: 12px;
+  }
+
+  .bank-form button {
+    padding: 10px 16px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 42px;
+  }
+
+  .bank-form button[type="button"] {
+    background: #fff;
+    color: #374151;
+  }
+
+  .bank-form button[type="submit"] {
+    background: #7c3aed;
+    color: #fff;
+    border-color: #7c3aed;
+  }
+
+  .bank-form button[type="submit"]:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 768px) {
+    .modal-backdrop {
+      padding: 12px;
+      align-items: flex-end;
+    }
+
+    .modal {
+      width: 100%;
+      max-height: calc(100vh - 24px);
+      border-radius: 16px 16px 12px 12px;
+      padding: 16px;
+    }
+
+    .bank-form {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .modal h3 {
+      font-size: 18px;
+      margin-bottom: 14px;
+    }
+  }
+
+  @media (max-height: 700px) {
+    .modal {
+      max-height: calc(100vh - 16px);
+    }
+  }
+`}</style>
         </div>
       )}
     </>
