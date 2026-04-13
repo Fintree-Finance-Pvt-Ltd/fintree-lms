@@ -158,7 +158,6 @@
  
 
 ///////////// SAJAG Jain //////////
-
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Search, FileChartLine, ArrowRight, AlertCircle } from "lucide-react";
@@ -167,85 +166,85 @@ import "../../styles/ReportsListing.css";
 const REPORT_DATA = [
   {
     id: 1,
-    reportId: "consolidated-mis",
+    slug: "consolidated-mis",
     name: "Consolidated MIS",
     category: "MIS",
   },
   {
     id: 2,
-    reportId: "due-demand-vs-collection-all-products",
+    slug: "due-demand-vs-collection-all-products",
     name: "Due Demand vs Collection Report(All products)",
     category: "Collection",
   },
   {
     id: 3,
-    reportId: "cashflow-report",
+    slug: "cashflow-report",
     name: "CashFlow Report",
     category: "Finance",
   },
   {
     id: 4,
-    reportId: "rps-generate-report",
+    slug: "rps-generate-report",
     name: "RPS Generate Report",
     category: "Operations",
   },
   {
     id: 5,
-    reportId: "delayed-interest-report",
+    slug: "delayed-interest-report",
     name: "Delayed Interest Report",
     category: "Finance",
   },
   {
     id: 6,
-    reportId: "irr-report",
+    slug: "irr-report",
     name: "IRR Report",
     category: "Finance",
   },
   {
     id: 7,
-    reportId: "adikosh-cam-report",
+    slug: "adikosh-cam-report",
     name: "Adikosh CAM Report",
     category: "Credit",
   },
   {
     id: 8,
-    reportId: "adikosh-cam-report-print",
+    slug: "adikosh-cam-report-print",
     name: "Adikosh CAM Report Print",
     category: "Credit",
   },
   {
     id: 9,
-    reportId: "cashflow-report-bank-date",
+    slug: "cashflow-report-bank-date",
     name: "CashFlow Report Bank Date",
     category: "Finance",
   },
   {
     id: 10,
-    reportId: "ccod-loan-data-report",
+    slug: "ccod-loan-data-report",
     name: "CCOD Loan Data Report",
     category: "Data",
   },
   {
     id: 11,
-    reportId: "bank-payment-file-report",
+    slug: "bank-payment-file-report",
     name: "Bank Payment File Report",
     category: "Finance",
   },
   {
     id: 12,
-    reportId: "consumer-bureau-report",
+    slug: "consumer-bureau-report",
     name: "Consumer Bureau Report",
     category: "Compliance",
   },
   {
     id: 13,
-    reportId: "pay-out-report",
+    slug: "pay-out-report",
     name: "Pay Out Report",
     category: "Finance",
   },
   {
     id: 14,
-    reportId: "due-demand-vs-collection-fintree",
+    slug: "due-demand-vs-collection-fintree",
     name: "Due Demand vs Collection Report(Fintree)",
     category: "Collection",
   },
@@ -295,7 +294,7 @@ const ReportsListing = () => {
               </div>
 
               <Link
-                to={`/mis-reports/${report.reportId}`}
+                to={`/mis-reports/${report.slug}`}
                 className="generate-link"
               >
                 <span>Generate Report</span>
