@@ -8551,7 +8551,7 @@ function round(value, decimals) {
 }
 
 // Check if calculated ROI matches received ROI
-        if (round(data.total_roi_amount) !== round(expectedRoiAmount ,5)) {
+        if (round(data.total_roi_amount,5) !== round(expectedRoiAmount ,5)) {
           results.push({
             invoice_number: data.invoice_number || null,
             status: "failed",
