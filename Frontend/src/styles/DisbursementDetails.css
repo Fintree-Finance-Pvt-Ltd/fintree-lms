@@ -1,76 +1,186 @@
 /* ============================================================
-   FINTREE LMS — DISBURSEMENT DETAILS
+   🔥 DISBURSEMENT DETAILS — PREMIUM UI UPGRADE
    ============================================================ */
 
+:root {
+  --primary: #4f46e5;
+  --primary-light: #eef2ff;
+
+  --bg-subtle: #f8fafc;
+  --border-light: #e2e8f0;
+
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+
+  --radius-pro: 14px;
+  --shadow-soft: 0 10px 25px rgba(0,0,0,0.05);
+}
+
+/* MAIN CARD */
 .disbursement-details {
-  background: var(--bg-card);
-  padding: 28px 32px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border);
-  width: 95%;
-  max-width: 860px;
-  margin: 24px auto;
-  text-align: left;
-  transition: var(--transition);
+  background: #ffffff;
+  padding: 32px;
+  border-radius: var(--radius-pro);
+  box-shadow: var(--shadow-soft);
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  animation: fadeIn 0.4s ease-out;
 }
 
-.disbursement-details:hover {
-  box-shadow: var(--shadow-md);
-}
-
+/* ============================================================
+   HEADER (WITH ICON 🔥)
+   ============================================================ */
 .disbursement-details h2 {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 20px;
-  border-bottom: 3px solid var(--primary);
-  padding-bottom: 12px;
+  color: var(--text-main);
+  margin-bottom: 24px;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-light);
 }
 
+/* ICON BOX (🔥 no JSX change trick) */
+.disbursement-details h2::before {
+  content: "💸"; /* change icon here */
+  font-size: 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+
+  background: var(--primary-light);
+  border-radius: 10px;
+}
+
+/* ============================================================
+   GRID
+   ============================================================ */
 .details-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-top: 16px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin-top: 24px;
 }
 
+/* ============================================================
+   FIELD
+   ============================================================ */
 .details-field {
   display: flex;
   flex-direction: column;
+  gap: 6px;
 }
 
+/* LABEL */
 .details-field label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-label);
-  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
+  padding-left: 4px;
 }
 
+/* ============================================================
+   INPUT — PREMIUM TILE STYLE 🔥
+   ============================================================ */
 .details-field input {
-  padding: 10px 14px;
+  all: unset;
+  box-sizing: border-box;
+
+  padding: 14px 14px;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  color: var(--text-secondary);
+  font-weight: 600;
+
+  color: var(--text-main);
+
+  background: #f9fafb;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+
+  transition: all 0.25s ease;
   width: 100%;
-  outline: none;
-  transition: var(--transition);
 }
 
+/* Hover */
+.details-field:hover input {
+  background: #ffffff;
+  border-color: #c7d2fe;
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Focus (if editable in future) */
 .details-field input:focus {
-  background: var(--bg-card);
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-@media (max-width: 768px) {
-  .disbursement-details { padding: 20px 16px; max-width: 95%; }
-  .disbursement-details h2 { font-size: 20px; }
-  .details-grid { grid-template-columns: 1fr; }
-  .details-field input { font-size: 14px; padding: 9px; }
+/* Optional: Readonly styling */
+.details-field input[readonly] {
+  cursor: default;
+}
+
+/* ============================================================
+   ANIMATION
+   ============================================================ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1024px) {
+  .details-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .disbursement-details {
+    padding: 20px;
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .disbursement-details h2 {
+    font-size: 18px;
+  }
+}
+
+/* ============================================================
+   SPINNER
+   ============================================================ */
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  padding: 50px;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--bg-subtle);
+  border-top: 3px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

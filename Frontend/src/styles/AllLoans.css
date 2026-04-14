@@ -1,182 +1,150 @@
 /* ============================================================
-   🚀 FINTREE LMS — PREMIUM MODERN UI
-   Clean • Soft • Glassy • Responsive
+   🚀 FINTREE LMS — ULTRA MODERN UI (V3)
+   Typography: Inter + JetBrains Mono • Professional Fintech
 ============================================================ */
+
+/* Import high-quality fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap');
 
 :root {
-  --primary: #4f46e5;
-  --primary-light: #6366f1;
-  --accent: #22c55e;
+    --primary: #4f46e5;
+    --primary-glow: rgba(79, 70, 229, 0.1);
+    --bg-page: #f8fafc;
+    --bg-card: #ffffff;
+    --text-dark: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --border-color: #e2e8f0;
+    --radius-main: 20px;
+}
 
-  --bg-main: #f8fafc;
-  --bg-card: rgba(255, 255, 255, 0.75);
-
-  --text-main: #0f172a;
-  --text-secondary: #64748b;
-
-  --border: rgba(0, 0, 0, 0.06);
-
-  --radius-lg: 20px;
-  --radius-md: 12px;
-
-  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.05);
-  --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.08);
+.all-loans-page-wrapper {
+    background-color: var(--bg-page);
+    min-height: 100vh;
+    padding: 48px 24px;
+    font-family: 'Inter', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
 }
 
 /* ============================================================
-   🌐 PAGE BACKGROUND
+   🔗 CLICKABLE ELEMENTS & TYPOGRAPHY
 ============================================================ */
-body {
-  background: linear-gradient(135deg, #eef2ff, #f8fafc);
-  font-family: 'Inter', sans-serif;
+
+/* Customer Name: Strong & Professional */
+.customer-name-link {
+    color: var(--text-dark);
+    font-weight: 700;
+    font-size: 14.5px;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    padding: 6px 10px;
+    margin-left: -10px;
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+}
+
+.customer-name-link:hover {
+    color: var(--primary);
+    background: var(--primary-glow);
+    transform: translateX(2px);
+}
+
+/* LAN & Partner Code Badges: Technical Monospace */
+.lan-code-badge {
+    background: #f1f5f9;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', 'SFMono-Regular', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    letter-spacing: -0.02em;
+    transition: all 0.2s ease;
+}
+
+.lan-code-badge:hover {
+    border-color: var(--primary);
+    background: #fff;
+    color: var(--primary);
+}
+
+/* Disbursement Amount: Clean & Bold */
+.amount-text-bold {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    color: var(--text-dark);
+    font-size: 15px;
+    letter-spacing: -0.02em;
 }
 
 /* ============================================================
-   📦 MAIN CONTAINER
+   🔍 SEARCH, HEADERS & TABLES
 ============================================================ */
-.all-loans-container {
-  max-width: 1200px;
-  margin: 50px auto;
-  padding: 30px;
 
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
-
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-soft);
-
-  transition: 0.3s ease;
+h1, h2 {
+    font-weight: 800 !important;
+    color: #0f172a;
+    font-size: 28px !important;
+    letter-spacing: -0.03em !important;
+    margin-bottom: 24px;
 }
 
-.all-loans-container:hover {
-  box-shadow: var(--shadow-hover);
+/* Table Header Labels */
+thead th {
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: var(--text-muted) !important;
+    border-bottom: 2px solid var(--bg-page) !important;
+    padding-bottom: 12px !important;
 }
 
-/* ============================================================
-   🔝 HEADER SECTION
-============================================================ */
-.header-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 28px;
-  flex-wrap: wrap;
-  gap: 15px;
+/* Status Pill Improvements */
+.status-pill-disbursed {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    font-size: 10.5px;
 }
 
-.header-actions h2 {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--text-main);
-  letter-spacing: -0.3px;
-}
-
-/* ============================================================
-   🔍 SEARCH INPUT
-============================================================ */
+/* Custom Search Style */
 .search-input-modern {
-  padding: 12px 18px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(6px);
-
-  font-size: 14px;
-  width: 300px;
-
-  transition: all 0.25s ease;
-  outline: none;
-}
-
-.search-input-modern::placeholder {
-  color: var(--text-secondary);
-}
-
-.search-input-modern:hover {
-  border-color: var(--primary-light);
+    padding: 12px 20px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    width: 300px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    background: #fff;
+    color: var(--text-dark);
 }
 
 .search-input-modern:focus {
-  background: #fff;
-  border-color: var(--primary);
+    width: 360px;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px var(--primary-glow);
+}
 
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
-  transform: translateY(-1px);
+/* Micro-interactions for table rows */
+tr {
+    transition: background 0.15s ease;
+}
+
+tr:hover {
+    background-color: #f8fafc !important;
 }
 
 /* ============================================================
-   🟢 STATUS PILLS
-============================================================ */
-.status-pill {
-  padding: 6px 14px;
-  border-radius: 999px;
-
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-
-  text-transform: uppercase;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  min-width: 90px;
-  transition: 0.2s ease;
-}
-
-/* Status Variants */
-.status-pill.approved {
-  background: rgba(34, 197, 94, 0.1);
-  color: #16a34a;
-}
-
-.status-pill.pending {
-  background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
-}
-
-.status-pill.rejected {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-}
-
-/* ============================================================
-   📐 FLEX UTILITIES
-============================================================ */
-.flex-col {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* ============================================================
-   ✨ MICRO INTERACTIONS
-============================================================ */
-button,
-.status-pill,
-.search-input-modern {
-  transition: all 0.2s ease;
-}
-
-/* ============================================================
-   📱 RESPONSIVE DESIGN
+   📱 RESPONSIVE
 ============================================================ */
 @media (max-width: 768px) {
-  .all-loans-container {
-    padding: 20px;
-    margin: 20px;
-  }
-
-  .header-actions {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .search-input-modern {
-    width: 100%;
-  }
+    .all-loans-page-wrapper { padding: 24px 12px; }
+    .all-loans-table-container { padding: 16px; border-radius: 12px; }
+    .search-input-modern { width: 100%; }
+    .search-input-modern:focus { width: 100%; }
 }
