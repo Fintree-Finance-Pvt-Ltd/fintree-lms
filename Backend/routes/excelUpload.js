@@ -8576,6 +8576,8 @@ router.post(
 
 /* STEP 8: ROI & EMI CALC VALIDATION
     ===================================================== */
+/* STEP 8: ROI & EMI CALC VALIDATION
+    ===================================================== */
 const invoiceAmount = Number(data.invoice_amount);
 const disbursementAmount = Number(data.disbursement_amount);
 
@@ -8630,17 +8632,20 @@ if (truncatedReceivedRoi !== truncatedExpectedRoi) {
 // Calculate expected EMI amount
 const expectedEmi = disbursementAmount + truncatedExpectedRoi;
 
-// Truncate the expected EMI to 3 decimal places
-const truncatedExpectedEmi = truncate(expectedEmi, 3);
+// Truncate the expected EMI to 5 decimal places
+const truncatedExpectedEmi = truncate(expectedEmi, 5);
 
 // Truncate the received EMI (data.emi_amount) to 5 decimals
-const truncatedReceivedEmi = truncate(data.emi_amount, 3);
+const truncatedReceivedEmi = truncate(data.emi_amount, 5);
 
 console.log("Truncated expected EMI:", truncatedExpectedEmi);
 console.log("Truncated received EMI:", truncatedReceivedEmi);
 
-// Check if the truncated EMI values match
-if (truncatedReceivedEmi !== truncatedExpectedEmi) {
+// Define a small threshold to compare floating-point numbers
+const threshold = 0.0001;
+
+// Check if the difference between expected and received EMI is within the threshold
+if (Math.abs(truncatedReceivedEmi - truncatedExpectedEmi) > threshold) {
   results.push({
     invoice_number: data.invoice_number || null,
     status: "failed",
