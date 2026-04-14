@@ -1,116 +1,192 @@
 /* ============================================================
-   FINTREE LMS — LOAN DETAILS PAGE (with sidebar)
+    FINTREE LMS — MODERN UI (CLEAN VERSION)
    ============================================================ */
 
+:root {
+  --primary: #395794;
+  --primary-light: #eef2ff;
+  --accent: #22c55e;
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --text-dark: #0f172a;
+  --text-light: #64748b;
+  --border: #e2e8f0;
+  --shadow: 0 10px 30px rgba(0,0,0,0.05);
+  --radius: 14px;
+}
+
 .loan-details-container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-color: var(--bg-page);
+  background: var(--bg);
+  min-height: 100vh;
+  padding: 20px;
 }
 
 .loan-customer-info {
-  background: var(--bg-card);
-  padding: 20px 24px;
-  text-align: left;
-  box-shadow: var(--shadow-sm);
-  border-bottom: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  width: 97%;
-  max-width: 1200px;
-  margin: 12px auto;
+  background: #0e234f;
+  color: #fff;
+  padding: 24px 28px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
 }
 
 .loan-customer-info h2 {
   font-size: 20px;
   font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  color: white;
 }
 
 .loan-customer-info p {
   font-size: 14px;
-  color: var(--text-secondary);
+  opacity: 0.95;
   margin: 4px 0;
 }
 
-/* Sidebar + content layout */
+/* Layout */
 .loan-content-layout {
   display: flex;
-  flex-grow: 1;
-  overflow: hidden;
+  gap: 20px;
+  height: calc(100vh - 160px);
 }
 
-/* Inner sidebar */
+/* Sidebar Styling - Line Removed */
 .loan-sidebar {
-  width: 240px;
-  background: var(--sidebar-bg);
-  color: var(--sidebar-text);
-  padding: 16px 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  flex-shrink: 0;
+  width: 260px;
+  background: linear-gradient(180deg, #0f172a, #1e293b);
+  backdrop-filter: blur(16px);
+  border-radius: 18px;
+  padding: 20px 14px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.05);
+  overflow-y: auto;
 }
 
 .loan-sidebar h3 {
-  margin-bottom: 14px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--sidebar-text-dim);
+  letter-spacing: 1.6px;
+  color: #94a3b8;
+  margin-bottom: 18px;
+  padding-left: 10px;
 }
 
 .loan-sidebar ul {
   list-style: none;
   padding: 0;
-  width: 100%;
+  margin: 0;
 }
 
 .loan-sidebar li {
-  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: 12px;
   cursor: pointer;
   font-size: 14px;
-  transition: var(--transition);
-  border-radius: var(--radius-sm);
-  text-align: left;
-  color: var(--sidebar-text);
-  border-left: 2px solid transparent;
+  font-weight: 500;
+  color: #cbd5f5;
+  transition: all 0.25s ease;
+  position: relative;
 }
 
 .loan-sidebar li:hover {
-  background: var(--sidebar-hover);
-  color: #fff;
-  border-left-color: var(--primary);
+  background: rgba(255,255,255,0.05);
+  color: #ffffff;
 }
 
 .loan-sidebar li.active {
-  background: var(--sidebar-active);
-  color: #fca5a5;
+  background: linear-gradient(135deg, #395794, #1a148e);
+  color: #ffffff;
   font-weight: 600;
-  border-left-color: var(--primary);
+  box-shadow: 0 8px 20px rgba(37,99,235,0.2);
 }
 
-/* Dynamic content area */
+/* Glow/Line Removed Here */
+.loan-sidebar li.active::after {
+  display: none;
+}
+
+/* Content Area */
 .loan-dynamic-section {
-  flex-grow: 1;
-  padding: 24px;
+  flex: 1;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
   overflow-y: auto;
-  background: var(--bg-page);
 }
 
-.loan-loading-text {
-  font-size: 16px;
-  color: var(--text-muted);
-  text-align: center;
-  margin-top: 50px;
+/* Underline Removed Here */
+.loan-dynamic-section h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 20px;
+  position: relative;
 }
 
+.loan-dynamic-section h2::after {
+  display: none;
+}
+
+/* Inputs & Forms */
+.loan-dynamic-section input,
+.loan-dynamic-section select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  transition: 0.2s;
+}
+
+.loan-dynamic-section input:focus {
+  outline: none;
+  border-color: #395794;
+  background: #fff;
+}
+
+.loan-dynamic-section label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #c7d2fe;
+  border-radius: 10px;
+}
+
+/* Spinner */
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 60vh;
+}
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #17136c;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Responsive */
 @media (max-width: 768px) {
-  .loan-content-layout { flex-direction: column; }
-  .loan-sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; gap: 6px; padding: 12px; }
-  .loan-sidebar li { padding: 7px 10px; font-size: 13px; }
-  .loan-dynamic-section { padding: 16px; }
-  .loan-customer-info { width: 95%; padding: 14px; }
+  .loan-content-layout { flex-direction: column; height: auto; }
+  .loan-sidebar { width: 100%; display: flex; overflow-x: auto; padding: 10px; }
+  .loan-sidebar ul { display: flex; gap: 8px; }
+  .loan-sidebar h3 { display: none; }
 }

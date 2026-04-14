@@ -1,15 +1,17 @@
 /* ============================================================
-   FINTREE — (FIXED VERSION)
+   FINTREE — (ANIMATED & FIXED VERSION)
    ============================================================ */
- 
+
 /* RESET */
 body, html {
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
 }
- 
+
+
 /* ─────────────────────────────────────────────
-   PAGE BACKGROUND
+   PAGE BACKGROUND (COLOR ANIMATED)
 ───────────────────────────────────────────── */
 .login-page {
   min-height: 100vh;
@@ -19,137 +21,160 @@ body, html {
   font-family: 'Inter', sans-serif;
   position: relative;
   overflow: hidden;
- 
-  background: linear-gradient(135deg, #e0f7ec, #f0fdf4, #ecfdf5);
+  
+  /* Moving Gradient Background */
+  background: linear-gradient(-45deg, #e0f7ec, #49b16c, #ecfdf5, #e0e7ff);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
 }
-.login-card h2 ,h3 {
-  font-size: 28px;
-  font-weight: 700;
-  font-family: 'Inter', sans-serif;
- 
-  /* 🔥 Gradient text */
-  background: linear-gradient(135deg, #16a34a, #303190);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
- 
-  letter-spacing: -0.5px;
-  margin: 10px 0 20px;
- 
-  position: relative;
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
-/* Animated blobs */
+
+/* Animated background blobs */
 .login-page::before,
 .login-page::after {
   content: "";
   position: absolute;
-  width: 500px;
-  height: 500px;
+  width: 600px;
+  height: 600px;
   border-radius: 50%;
-  filter: blur(100px);
+  filter: blur(120px);
   z-index: 0;
-  opacity: 0.6;
- 
-  /* 🔥 IMPORTANT FIX */
+  opacity: 0.5;
   pointer-events: none;
+  transition: background 2s ease;
 }
- 
+
 .login-page::before {
   background: #22c55e;
-  top: -100px;
-  left: -100px;
-  animation: float1 8s ease-in-out infinite;
+  top: -150px;
+  left: -150px;
+  animation: float1 10s ease-in-out infinite, colorShift1 20s infinite;
 }
- 
+
 .login-page::after {
   background: #6366f1;
-  bottom: -100px;
-  right: -100px;
-  animation: float2 10s ease-in-out infinite;
+  bottom: -150px;
+  right: -150px;
+  animation: float2 12s ease-in-out infinite, colorShift2 20s infinite;
 }
- 
+
+/* Blob Floating Animations */
 @keyframes float1 {
-  0%, 100% { transform: translate(0,0); }
-  50% { transform: translate(50px, 30px); }
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, 40px) scale(1.1); }
 }
- 
+
 @keyframes float2 {
-  0%, 100% { transform: translate(0,0); }
-  50% { transform: translate(-40px, -30px); }
+  0%, 100% { transform: translate(0, 0) scale(1.1); }
+  50% { transform: translate(-50px, -40px) scale(1); }
 }
- 
+
+/* Blob Color Pulsing Animations */
+@keyframes colorShift1 {
+  0%, 100% { background: #22c55e; }
+  50% { background: #10b981; }
+}
+
+@keyframes colorShift2 {
+  0%, 100% { background: #6366f1; }
+  50% { background: #818cf8; }
+}
 /* ─────────────────────────────────────────────
    LOGIN CARD
 ───────────────────────────────────────────── */
- 
+
 .login-card {
   position: relative;
   z-index: 2;
- 
   width: 100%;
   max-width: 380px;
   padding: 45px 35px;
- 
   border-radius: 22px;
   background: linear-gradient(180deg, #ffffff, #f9fafb);
- 
   box-shadow:
     0 25px 70px rgba(0,0,0,0.08),
     0 5px 20px rgba(0,0,0,0.05);
- 
   overflow: hidden;
   text-align: center;
-  transition: 0.3s ease;
+  transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  
+  /* Entrance Animation */
+  animation: cardPop 0.6s ease-out;
 }
- 
-/* 🔥 MAIN GREEN SHAPE (SMOOTHER) */
+
+@keyframes cardPop {
+  0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* 🔥 MAIN GREEN SHAPE (ANIMATED) */
 .login-card::before {
   content: "";
   position: absolute;
- 
   width: 340px;
   height: 340px;
- 
   background: linear-gradient(135deg, #22c55e, #16a34a);
- 
   top: -120px;
   left: -140px;
- 
   transform: rotate(45deg);
   border-radius: 40px;
- 
   z-index: 0;
   opacity: 0.9;
+  
+  /* Floating animation for the shape */
+  animation: shapeFloat 6s ease-in-out infinite;
 }
- 
+
+@keyframes shapeFloat {
+  0%, 100% { transform: rotate(45deg) translate(0, 0); }
+  50% { transform: rotate(47deg) translate(10px, 10px); }
+}
+
 /* ✨ SOFT GLOW LAYER */
 .login-card::after {
   content: "";
   position: absolute;
- 
   width: 280px;
   height: 280px;
- 
   background: radial-gradient(circle, rgba(34,197,94,0.25), transparent);
- 
   top: -60px;
   left: -60px;
- 
   z-index: 0;
 }
- 
+
 /* KEEP CONTENT ABOVE */
 .login-card > * {
   position: relative;
   z-index: 1;
 }
- 
+
+.login-card h2, .login-card h3 {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #16a34a, #303190);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+  margin: 10px 0 20px;
+}
+.login-card img{
+  width: 250px;
+  height: 150px;
+}
+
 /* 🔥 HOVER EFFECT */
 .login-card:hover {
-  transform: translateY(-6px) scale(1.01);
+  transform: translateY(-8px) scale(1.01);
   box-shadow:
     0 35px 90px rgba(0,0,0,0.12),
     0 10px 30px rgba(34,197,94,0.15);
 }
+
 /* ─────────────────────────────────────────────
    INPUTS
 ───────────────────────────────────────────── */
@@ -157,164 +182,117 @@ body, html {
   width: 100%;
   margin: 15px 0;
 }
- 
+
 .inputField {
   width: 100%;
   height: 45px;
-  padding: 0 12px;
- 
+  padding: 0 14px;
   border-radius: 10px;
   border: 1px solid rgba(0,0,0,0.08);
- 
   background: rgba(255,255,255,0.7);
   backdrop-filter: blur(5px);
- 
   font-size: 14px;
-  transition: 0.3s;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
 }
- 
+
 .inputField:focus {
   outline: none;
-  border: 1px solid #6366f1;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  border: 1px solid #16a34a;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.1);
+  transform: translateY(-2px);
 }
- 
+
 /* ─────────────────────────────────────────────
-   BUTTON (FIXED)
+   BUTTONS
 ───────────────────────────────────────────── */
-.login-card button {
+.login-card button, .otp-btn {
   width: 100%;
   height: 45px;
   border-radius: 12px;
- 
-  background: linear-gradient(135deg, #22c55e, #5350e6);
+  background: linear-gradient(135deg, #22c55e, #303190);
   color: white;
   font-weight: 600;
- 
   border: none;
   cursor: pointer;
   margin-top: 10px;
- 
-  transition: 0.3s;
- 
+  transition: all 0.3s ease;
   position: relative;
-  z-index: 3; /* 🔥 FIX CLICK */
+  z-index: 3;
 }
- 
-.login-card button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(99,102,241,0.4);
+
+.login-card button:hover, .otp-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(48, 49, 144, 0.3);
 }
- 
+
+.login-card button:active, .otp-btn:active {
+  transform: scale(0.97);
+}
+
 /* ─────────────────────────────────────────────
-   LINKS + STATES
+   FORGOT PASSWORD CONTAINER
 ───────────────────────────────────────────── */
-.forgot-link {
-  display: block;
-  margin-top: 12px;
-  font-size: 13px;
-  color: #4f46e5;
-  cursor: pointer;
-}
- 
-.forgot-link:hover {
-  text-decoration: underline;
-}
- 
-.error-msg {
-  color: #ef4444;
-  font-size: 13px;
-  margin-top: 5px;
-}
- 
-.success-msg {
-  color: #10b981;
-  font-size: 13px;
-  margin-top: 5px;
-}
-/* 🔥 CLEAN ICON CLOSE */
-.close-icon {
-  position: absolute;
-  top: -250px;
-  right: 4px;
- 
-  font-size: 18px;
-  font-weight: 600;
-  color: #374151;
- 
-  cursor: pointer;
- 
-  transition: 0.2s ease;
-}
- 
-/* Hover effect */
-.close-icon:hover {
-  color: #ef4444;
-  transform: scale(1.1);
-}
- 
 .forgot-container {
   position: relative;
-  margin-top: 10px;
- 
-  padding-top: 10px;
- 
+  width: 100%;
+  margin-top: 20px;
+  padding: 25px 20px 20px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
+  animation: fadeInUp 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
- 
-.forgot-container h3 {
-  font-size: 22px;
-  font-weight: 600;
-  color: #1e293b;
- 
-  margin: 15px 0 10px;
-}
-.forgot-container .inputField {
-  width: 100%;
-  height: 48px;
- 
-  border-radius: 14px;
-  border: 1px solid #e5e7eb;
- 
-  background: #f9fafb;
- 
-  padding: 0 16px;
-  font-size: 14px;
- 
-  transition: 0.25s;
-}
- 
-.forgot-container .inputField:focus {
-  border: 1px solid #6366f1;
-  background: white;
- 
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
-}
-.forgot-container button {
-  width: 60%;
-  height: 48px;
- 
-  border-radius: 14px;
-  border: none;
- 
-  margin-top: 15px;
- 
-  background: linear-gradient(135deg, #22c55e, #6366f1);
-  color: white;
- 
-  font-weight: 600;
-  font-size: 14px;
- 
+
+.close-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
   cursor: pointer;
-  transition: 0.3s;
- 
-  box-shadow: 0 8px 20px rgba(99,102,241,0.2);
+  transition: all 0.3s ease;
 }
- 
-.forgot-container button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(99,102,241,0.35);
+
+.close-icon:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  transform: rotate(90deg) scale(1.1);
 }
- 
+
+/* Generic Transition for state switching */
+.content-fade {
+  animation: fadeIn 0.4s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Form Helper Spacing */
+.forgot-subtext {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 15px;
+}
+
+.forgot-form {
+  width: 100%;
+}

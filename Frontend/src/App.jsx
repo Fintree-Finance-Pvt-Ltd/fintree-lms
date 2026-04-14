@@ -163,11 +163,11 @@ function App() {
         theme="colored"
       />
  
-      <Routes>
+      {/* <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
       </Routes>
- 
+  */}
  
       <Routes>
  

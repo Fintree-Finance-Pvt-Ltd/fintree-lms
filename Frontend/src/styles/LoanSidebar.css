@@ -1,25 +1,113 @@
+/* ============================================================
+   🔥 MODERN DARK SIDEBAR (NO JSX CHANGE)
+   ============================================================ */
+
 .loan-sidebar {
-    width: 250px;
-    height: 100vh;
-    background: #333;
-    color: white;
-    position: fixed;
-    left: 0;
-    top: 0;
-    padding: 20px;
+  width: 260px;
+  height: 100vh;
+  background: #0f172a; /* premium dark */
+  color: #cbd5f5;
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #1e293b;
 }
 
+/* Title */
+.loan-sidebar h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #64748b;
+  margin-bottom: 18px;
+  padding-left: 12px;
+}
+
+/* List */
 .loan-sidebar ul {
-    list-style: none;
-    padding: 0;
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
+/* Item */
 .loan-sidebar ul li {
-    padding: 12px;
-    cursor: pointer;
-    border-bottom: 1px solid #444;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #94a3b8;
+  transition: all 0.25s ease;
+  position: relative;
 }
 
+/* Remove old border */
+.loan-sidebar ul li {
+  border-bottom: none;
+}
+
+/* ICON */
+.sidebar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: 0.25s;
+}
+
+/* Hover */
 .loan-sidebar ul li:hover {
-    background: #555;
+  background: #1e293b;
+  color: #ffffff;
+  transform: translateX(4px);
+}
+
+.loan-sidebar ul li:hover .sidebar-icon {
+  color: #60a5fa;
+}
+
+/* Active */
+.loan-sidebar ul li.active {
+  background: linear-gradient(90deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Active icon */
+.loan-sidebar ul li.active .sidebar-icon {
+  color: #ffffff;
+}
+
+/* Left indicator bar */
+.loan-sidebar ul li.active::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  background: #60a5fa;
+  border-radius: 6px;
+}
+
+/* Scroll */
+.loan-sidebar {
+  overflow-y: auto;
+}
+
+.loan-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.loan-sidebar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 10px;
 }

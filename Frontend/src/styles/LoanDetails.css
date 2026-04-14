@@ -1,91 +1,157 @@
 /* ============================================================
-   FINTREE LMS — LOAN DETAILS
+   FINTREE LMS — PREMIUM LOAN DETAILS (ULTRA V3)
    ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --accent: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.15);
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --border: #e2e8f0;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --radius: 16px;
+}
 
 .loan-details-content {
   background: var(--bg-card);
-  padding: 28px 32px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  padding: 48px;
+  border-radius: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
   border: 1px solid var(--border);
-  width: 97%;
-  max-width: 860px;
-  margin: 24px auto;
-  transition: var(--transition-slow);
-}
-
-.loan-details-content:hover {
-  box-shadow: var(--shadow-md);
-}
-
-.loan-details-content h2 {
-  font-size: 22px;
-  font-weight: 700;
+  width: 95%;
+  max-width: 1100px;
+  margin: 40px auto;
+  font-family: 'Inter', -apple-system, sans-serif;
+  animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   color: var(--text-primary);
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 3px solid var(--primary);
 }
 
+/* Header Section */
+.loan-details-content h2 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.loan-details-content h2::before {
+  content: "";
+  width: 50px;
+  height: 50px;
+  background: var(--accent-glow) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z'/%3E%3Cpolyline points='14 2 14 8 20 8'/%3E%3Cline x1='16' y1='13' x2='8' y2='13'/%3E%3Cline x1='16' y1='17' x2='8' y2='17'/%3E%3Cline x1='10' y1='9' x2='8' y2='9'/%3E%3C/svg%3E") no-repeat center;
+  border-radius: 14px;
+}
+
+/* Sub-headings */
 .loan-details-content h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-top: 24px;
-  margin-bottom: 14px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin: 40px 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
+.loan-details-content h3::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(to right, var(--border), transparent);
+}
+
+/* Grid Layout */
 .loan-details-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
 }
 
+/* Field Container - Modern "Ghost" Style */
 .loan-details-field {
-  display: flex;
-  flex-direction: column;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+  transition: all 0.3s ease;
+}
+
+.loan-details-field:hover {
+  transform: translateX(4px);
 }
 
 .loan-details-field label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-label);
-  margin-bottom: 5px;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 4px;
 }
 
+/* Input Styling (Reset to Text Look) */
 .loan-details-field input {
-  padding: 10px 14px;
+  all: unset;
+  box-sizing: border-box;
+
+  padding: 14px 14px;
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  color: var(--text-secondary);
+  font-weight: 600;
+
+  color: var(--text-main);
+
+  background: #f9fafb;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+
+  transition: all 0.25s ease;
   width: 100%;
-  outline: none;
-  transition: var(--transition);
 }
 
-.loan-details-field input:focus {
-  background: var(--bg-card);
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-ring);
+/* Highlighted Values (Amounts/Dates) */
+.loan-details-field input[value*="."],
+.loan-details-field input[value*="T"] {
+  font-family: 'JetBrains Mono', 'Inter', monospace;
+  color: var(--accent);
+  letter-spacing: -0.02em;
 }
 
+/* Specific Formatting for Date strings from JSON */
+.loan-details-field input[value*="Z"] {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* Status Badging */
+.loan-details-field input[value="Approved"],
+.loan-details-field input[value="APPROVED"] {
+  color: var(--success);
+  font-weight: 800;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar Tweaks */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-main); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* Mobile */
 @media (max-width: 768px) {
-  .loan-details-content {
-    padding: 20px 16px;
-    max-width: 95%;
-  }
-  .loan-details-content h2 { font-size: 20px; }
-  .loan-details-content h3 { font-size: 14px; }
-  .loan-details-grid { grid-template-columns: 1fr; }
-  .loan-details-field input { font-size: 14px; padding: 9px; }
+  .loan-details-content { padding: 30px 20px; margin: 15px; }
+  .loan-details-grid { grid-template-columns: 1fr; gap: 16px; }
 }
