@@ -8514,147 +8514,65 @@ router.post(
         /* =====================================================
          STEP 8: ROI & EMI CALC VALIDATION
       ===================================================== */
-//         const invoiceAmount = Number(data.invoice_amount);
-//         const disbursementAmount = Number(data.disbursement_amount);
+        const invoiceAmount = Number(data.invoice_amount);
+        const disbursementAmount = Number(data.disbursement_amount);
 
-//         if ([invoiceAmount, disbursementAmount].some(Number.isNaN)) {
-//           results.push({
-//             invoice_number: data.invoice_number || null,
-//             status: "failed",
-//             message: "Invalid numeric input",
-//           });
-//           continue;
-//         }
+        if ([invoiceAmount, disbursementAmount].some(Number.isNaN)) {
+          results.push({
+            invoice_number: data.invoice_number || null,
+            status: "failed",
+            message: "Invalid numeric input",
+          });
+          continue;
+        }
 
-//         if (disbursementAmount > invoiceAmount) {
-//           results.push({
-//             invoice_number: data.invoice_number || null,
-//             status: "failed",
-//             message:
-//               "Disbursement amount cannot be greater than invoice amount",
-//           });
-//           continue;
-//         }
+        if (disbursementAmount > invoiceAmount) {
+          results.push({
+            invoice_number: data.invoice_number || null,
+            status: "failed",
+            message:
+              "Disbursement amount cannot be greater than invoice amount",
+          });
+          continue;
+        }
 
-//         const expectedRoiAmount =
-//           (disbursementAmount * (dbRoi / 100) * tenureDays) / 365;
+        const expectedRoiAmount =
+          (disbursementAmount * (dbRoi / 100) * tenureDays) / 365;
 
-//           console.log("expectedroi", expectedRoiAmount);
-//           console.log("frontedna kmount", data.total_roi_amount);
+          console.log("expectedroi", expectedRoiAmount);
+          console.log("frontedna kmount", data.total_roi_amount);
 
-//         const expectedEmi = disbursementAmount + expectedRoiAmount;
-//         const remainingInvoiceAmount = invoiceAmount - disbursementAmount;
+        const expectedEmi = disbursementAmount + expectedRoiAmount;
+        const remainingInvoiceAmount = invoiceAmount - disbursementAmount;
 
-//         // Function to truncate to a specified number of decimals
-// function truncate(value, decimals) {
-//     const factor = Math.pow(10, decimals);
-//     return Math.floor(value * factor) / factor;
-// }
-
-// // Check if calculated ROI matches received ROI
-//         if (round(data.total_roi_amount,5) !== round(expectedRoiAmount ,5)) {
-//           results.push({
-//             invoice_number: data.invoice_number || null,
-//             status: "failed",
-//             message: "Total ROI amount mismatch",
-//             expected: round(expectedRoiAmount,5),
-//             received: data.total_roi_amount,
-//           });
-//           continue;
-//         }
-
-//         if (round(data.emi_amount,5) !== round(expectedEmi,5)) {
-//           results.push({
-//             invoice_number: data.invoice_number || null,
-//             status: "failed",
-//             message: "EMI amount mismatch",
-//             expected: round(expectedEmi,5),
-//             received: data.emi_amount,
-//           });
-//           continue;
-//         }
-
-/* STEP 8: ROI & EMI CALC VALIDATION
-    ===================================================== */
-/* STEP 8: ROI & EMI CALC VALIDATION
-    ===================================================== */
-const invoiceAmount = Number(data.invoice_amount);
-const disbursementAmount = Number(data.disbursement_amount);
-
-// Check for invalid numeric inputs (NaN)
-if ([invoiceAmount, disbursementAmount].some(Number.isNaN)) {
-  results.push({
-    invoice_number: data.invoice_number || null,
-    status: "failed",
-    message: "Invalid numeric input",
-  });
-  continue;
-}
-
-// Check if the disbursement amount is greater than the invoice amount
-if (disbursementAmount > invoiceAmount) {
-  results.push({
-    invoice_number: data.invoice_number || null,
-    status: "failed",
-    message: "Disbursement amount cannot be greater than invoice amount",
-  });
-  continue;
-}
-
-// Function to truncate to a specified number of decimals
+        // Function to truncate to a specified number of decimals
 function truncate(value, decimals) {
-  const factor = Math.pow(10, decimals);
-  return Math.floor(value * factor) / factor;
+    const factor = Math.pow(10, decimals);
+    return Math.floor(value * factor) / factor;
 }
 
-// Calculate expected ROI amount
-const expectedRoiAmount = (disbursementAmount * (dbRoi / 100) * tenureDays) / 365;
-const truncatedExpectedRoi = truncate(expectedRoiAmount, 5);
+// Check if calculated ROI matches received ROI
+        if (round(data.total_roi_amount,5) !== round(expectedRoiAmount ,5)) {
+          results.push({
+            invoice_number: data.invoice_number || null,
+            status: "failed",
+            message: "Total ROI amount mismatch",
+            expected: round(expectedRoiAmount,5),
+            received: data.total_roi_amount,
+          });
+          continue;
+        }
 
-// Truncate the received ROI (data.total_roi_amount) to 5 decimals
-const truncatedReceivedRoi = truncate(data.total_roi_amount, 5);
-
-console.log("Truncated expected ROI:", truncatedExpectedRoi);
-console.log("Truncated received ROI:", truncatedReceivedRoi);
-
-// Check if the truncated values match
-if (truncatedReceivedRoi !== truncatedExpectedRoi) {
-  results.push({
-    invoice_number: data.invoice_number || null,
-    status: "failed",
-    message: "Total ROI amount mismatch",
-    expected: truncatedExpectedRoi,
-    received: truncatedReceivedRoi,
-  });
-  continue;
-}
-
-// Calculate expected EMI amount
-const expectedEmi = disbursementAmount + truncatedExpectedRoi;
-
-// Truncate the expected EMI to 5 decimal places
-const truncatedExpectedEmi = truncate(expectedEmi, 3);
-
-// Truncate the received EMI (data.emi_amount) to 5 decimals
-const truncatedReceivedEmi = truncate(data.emi_amount, 3);
-
-console.log("Truncated expected EMI:", truncatedExpectedEmi);
-console.log("Truncated received EMI:", truncatedReceivedEmi);
-
-// Define a small threshold to compare floating-point numbers
-const threshold = 0.0001;
-
-// Check if the difference between expected and received EMI is within the threshold
-if (Math.abs(truncatedReceivedEmi - truncatedExpectedEmi) > threshold) {
-  results.push({
-    invoice_number: data.invoice_number || null,
-    status: "failed",
-    message: "EMI amount mismatch",
-    expected: truncatedExpectedEmi,
-    received: truncatedReceivedEmi,
-  });
-  continue;
-}
+        if (round(data.emi_amount,3) !== round(expectedEmi,3)) {
+          results.push({
+            invoice_number: data.invoice_number || null,
+            status: "failed",
+            message: "EMI amount mismatch",
+            expected: round(expectedEmi,5),
+            received: data.emi_amount,
+          });
+          continue;
+        }
 
 
         /* =====================================================
