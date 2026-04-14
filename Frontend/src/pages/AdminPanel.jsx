@@ -83,7 +83,15 @@ toggleGroup: {
   border: "1px solid #e2e8f0",
   gap: 4,
 },
-
+// toggleGroup: {
+//   display: "inline-flex",
+//   alignItems: "center",
+//   padding: 3,
+//   borderRadius: "999px",
+//   background: "#f8fafc",
+//   border: "1px solid #dbe5f0",
+//   gap: 3,
+// },
 toggleBtn: {
   padding: "8px 14px",
   borderRadius: "999px",
@@ -96,6 +104,7 @@ toggleBtn: {
   transition: "all 0.2s ease",
   fontFamily: "Inter, sans-serif",
 },
+
 toggleBtnActive: {
   background: "transparent",
   color: "#02133f",
@@ -104,11 +113,7 @@ toggleBtnActive: {
   // border: "1.5px solid #2563eb",
   boxShadow: "none",
 },
-// toggleBtnActive: {
-//   background: "linear-gradient(90deg, #0f172a, #1e293b)",
-//   color: "#ffffff",
-//   boxShadow: "0 4px 10px rgba(15, 23, 42, 0.14)",
-// },
+
 
 dropdownCard: {
   border: "1px solid var(--border)",
@@ -183,15 +188,7 @@ pageLabelActive: {
 //   border: "1px solid #e2e8f0",
 //   gap: 4,
 // },
-toggleGroup: {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: 3,
-  borderRadius: "999px",
-  background: "#f8fafc",
-  border: "1px solid #dbe5f0",
-  gap: 3,
-},
+
 // toggleBtn: {
 //   padding: "8px 14px",
 //   borderRadius: "999px",
@@ -205,26 +202,9 @@ toggleGroup: {
 //   fontFamily: "Inter, sans-serif",
 // },
 
-toggleBtn: {
-  padding: "7px 14px",
-  borderRadius: "999px",
-  border: "1px solid transparent",
-  background: "transparent",
-  color: "#64748b",
-  cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 600,
-  transition: "all 0.2s ease",
-  fontFamily: "Inter, sans-serif",
-  boxShadow: "none",
-},
 
-toggleBtnActive: {
-  background: "#eff6ff",
-  color: "#02133f",
-  border: "1px solid #bfdbfe",
-  boxShadow: "none",
-},
+
+
 // toggleBtnActive: {
 //     background: "linear-gradient(90deg, #0f172a, #1e293b)",
 
