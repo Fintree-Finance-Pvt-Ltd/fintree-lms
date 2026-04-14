@@ -8630,21 +8630,26 @@ if (truncatedReceivedRoi !== truncatedExpectedRoi) {
 // Calculate expected EMI amount
 const expectedEmi = disbursementAmount + truncatedExpectedRoi;
 
+// Truncate the expected EMI to 5 decimal places
+const truncatedExpectedEmi = truncate(expectedEmi, 5);
+
 // Truncate the received EMI (data.emi_amount) to 5 decimals
 const truncatedReceivedEmi = truncate(data.emi_amount, 5);
 
+console.log("Truncated expected EMI:", truncatedExpectedEmi);
+console.log("Truncated received EMI:", truncatedReceivedEmi);
+
 // Check if the truncated EMI values match
-if (truncatedReceivedEmi !== truncate(expectedEmi, 5)) {
+if (truncatedReceivedEmi !== truncatedExpectedEmi) {
   results.push({
     invoice_number: data.invoice_number || null,
     status: "failed",
     message: "EMI amount mismatch",
-    expected: truncate(expectedEmi, 5),
+    expected: truncatedExpectedEmi,
     received: truncatedReceivedEmi,
   });
   continue;
 }
-
 
 
         /* =====================================================
