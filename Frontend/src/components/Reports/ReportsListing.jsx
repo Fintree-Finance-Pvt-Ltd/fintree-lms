@@ -248,6 +248,12 @@ const REPORT_DATA = [
     name: "Due Demand vs Collection Report(Fintree)",
     category: "Collection",
   },
+  {
+    id: 15,
+    slug: "bank-payment-file-bank-holiday-report",
+    name: "Bank Payment File Bank Holiday Report",
+    category: "Finance",
+  },
 ];
 
 const ReportsListing = () => {

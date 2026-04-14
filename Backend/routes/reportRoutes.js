@@ -187,6 +187,8 @@ function resolveProcedure(rawReportId, rawLender) {
         // Bank Payment File Report (for EmiClub)
     "bank-payment-file-report": () => "sp_bank_payment_file",
 
+    "bank-payment-file-bank-holiday-report": () => "sp_south_indian_bank_payment_file",
+
     // consumer bureau report
 "consumer-bureau-report": () => "sp_consumer_bureau_report_all_products",
 
@@ -269,7 +271,7 @@ router.post("/trigger", authenticateUser, async (req, res) => {
 
   // ✅ File setup
   const usePdf = outputFormat?.toLowerCase() === "pdf" && isPrintReport;
-  const isBankPaymentFile = norm(reportId) === "bank-payment-file-report";
+  const isBankPaymentFile = norm(reportId) === "bank-payment-file-report" || norm(reportId) === "bank-payment-file-bank-holiday-report";
 const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
   const timestamp = Date.now();
   const fileSafeId = normalizedReportId.replace(/[^a-z0-9-]/g, "");
@@ -344,7 +346,7 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
 
         // ✅ Output Handling
         if (ext === "xlsx" || ext === "xls") {
-          if (normalizedReportId === "bank-payment-file-report") {
+          if (normalizedReportId === "bank-payment-file-report" || normalizedReportId === "bank-payment-file-bank-holiday-report") {
             // ⚙️ Use custom helper for bank payment file
             await exportBankPaymentFile(finalRows, filePath);
           } else if (normalizedReportId === "consumer-bureau-report") {
