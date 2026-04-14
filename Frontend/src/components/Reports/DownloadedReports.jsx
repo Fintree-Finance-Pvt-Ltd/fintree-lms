@@ -305,6 +305,7 @@ const REPORT_ID_MAP = {
   "bank-payment-file-report": "Bank Payment File Report",
   "consumer-bureau-report": "Consumer Bureau Report",
   "pay-out-report": "Pay Out Report",
+  "bank-payment-file-bank-holiday-report": "Bank Payment File Bank Holiday Report",
   "due-demand-vs-collection-fintree":
     "Due Demand vs Collection Report(Fintree)",
 };
