@@ -58,6 +58,8 @@ function resolveProcedure(rawReportId, rawLender) {
     "ccod-loan-data-report": "ccod-loan-data-report",
   "bank-payment-file-report": "bank-payment-file-report",
   "bank payment file report": "bank-payment-file-report",
+  "bank-payment-file-bank-holiday-report": "bank-payment-file-bank-holiday-report",
+  "bank payment file bank holiday report": "bank-payment-file-bank-holiday-report",
 "consumer-bureau-report": "consumer-bureau-report",
 "consumer bureau report": "consumer-bureau-report",
 "consumer_bureau_report": "consumer-bureau-report",
