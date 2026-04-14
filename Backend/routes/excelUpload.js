@@ -8545,23 +8545,23 @@ router.post(
         const expectedEmi = disbursementAmount + expectedRoiAmount;
         const remainingInvoiceAmount = invoiceAmount - disbursementAmount;
 
-        if (round(data.total_roi_amount) !== round(expectedRoiAmount)) {
+        if (round(data.total_roi_amount) !== round(expectedRoiAmount ,5)) {
           results.push({
             invoice_number: data.invoice_number || null,
             status: "failed",
             message: "Total ROI amount mismatch",
-            expected: round(expectedRoiAmount),
+            expected: round(expectedRoiAmount,5),
             received: data.total_roi_amount,
           });
           continue;
         }
 
-        if (round(data.emi_amount) !== round(expectedEmi)) {
+        if (round(data.emi_amount) !== round(expectedEmi,5)) {
           results.push({
             invoice_number: data.invoice_number || null,
             status: "failed",
             message: "EMI amount mismatch",
-            expected: round(expectedEmi),
+            expected: round(expectedEmi,5),
             received: data.emi_amount,
           });
           continue;
