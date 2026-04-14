@@ -8551,6 +8551,12 @@ function truncate(value, decimals) {
     return Math.floor(value * factor) / factor;
 }
 
+// Function to round numbers for comparison
+function round(value, decimals) {
+    const factor = Math.pow(10, decimals);
+    return Math.round(value * factor) / factor;
+}
+
 // Check if calculated ROI matches received ROI
         if (round(data.total_roi_amount,5) !== round(expectedRoiAmount ,5)) {
           results.push({
@@ -8558,7 +8564,7 @@ function truncate(value, decimals) {
             status: "failed",
             message: "Total ROI amount mismatch",
             expected: round(expectedRoiAmount,5),
-            received: data.total_roi_amount,
+            received: (data.total_roi_amount,5),
           });
           continue;
         }
@@ -8568,8 +8574,8 @@ function truncate(value, decimals) {
             invoice_number: data.invoice_number || null,
             status: "failed",
             message: "EMI amount mismatch",
-            expected: round(expectedEmi,5),
-            received: data.emi_amount,
+            expected: round(expectedEmi,3),
+            received: round(data.emi_amount,3),
           });
           continue;
         }
