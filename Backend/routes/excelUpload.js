@@ -8545,6 +8545,12 @@ router.post(
         const expectedEmi = disbursementAmount + expectedRoiAmount;
         const remainingInvoiceAmount = invoiceAmount - disbursementAmount;
 
+        // Round function to handle precision
+function round(value, decimals) {
+  return Number(Math.round(value + 'e' + decimals) + 'e' + -decimals);
+}
+
+// Check if calculated ROI matches received ROI
         if (round(data.total_roi_amount) !== round(expectedRoiAmount ,5)) {
           results.push({
             invoice_number: data.invoice_number || null,
@@ -8556,7 +8562,7 @@ router.post(
           continue;
         }
 
-        if (round(data.emi_amount) !== round(expectedEmi,5)) {
+        if (round(data.emi_amount,5) !== round(expectedEmi,5)) {
           results.push({
             invoice_number: data.invoice_number || null,
             status: "failed",
