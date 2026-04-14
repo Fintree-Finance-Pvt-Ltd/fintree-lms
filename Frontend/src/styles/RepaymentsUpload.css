@@ -126,8 +126,10 @@
 }
 
 .dropzone:hover {
-  border-color: var(--primary);
-  background: var(--primary-light);
+    border-color: #0f172a;
+  background: #f8fafc;
+  /* border-color: var(--primary); */
+  /* background: var(--primary-light); */
 }
 
 .dropzone input {

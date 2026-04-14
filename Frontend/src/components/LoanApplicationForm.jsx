@@ -95,15 +95,15 @@ return (
         margin-bottom: 20px;
       }
 
-      .loan-search-card button {
-        padding: 12px 30px;
-        border-radius: 10px;
-        border: none;
-        background: linear-gradient(135deg,#4f46e5,#6366f1);
-        color: white;
-        font-weight: 600;
-        cursor: pointer;
-      }
+      // .loan-search-card button {
+      //   padding: 12px 30px;
+      //   border-radius: 10px;
+      //   border: none;
+      //   background: linear-gradient(135deg,#4f46e5,#6366f1);
+      //   color: white;
+      //   font-weight: 600;
+      //   cursor: pointer;
+      // }
 
       .loan-details-wrapper {
         max-width: 1200px;
@@ -124,17 +124,48 @@ return (
         margin-bottom: 25px;
       }
 
-      .download-btn {
-        padding: 10px 22px;
-        border-radius: 8px;
-        background: #10b981;
-        color: white;
-        border: none;
-        font-weight: 600;
-        cursor: pointer;
-        margin-bottom: 25px;
-      }
+      // .download-btn {
+      //   padding: 10px 22px;
+      //   border-radius: 8px;
+      //   background: #10b981;
+      //   color: white;
+      //   border: none;
+      //   font-weight: 600;
+      //   cursor: pointer;
+      //   margin-bottom: 25px;
+      // }
+.loan-search-card button {
+  padding: 12px 30px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(90deg, #0f172a, #1e293b);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
 
+.loan-search-card button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.25);
+}
+
+.download-btn {
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0f172a, #1e293b);
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 25px;
+  transition: 0.25s ease;
+}
+
+.download-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.25);
+}
       .loan-table {
         width: 100%;
         border-collapse: collapse;

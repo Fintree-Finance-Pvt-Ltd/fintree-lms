@@ -182,7 +182,7 @@ const EmbifiCustomerRemarks = () => {
 
     heading: {
       margin: 0,
-      fontSize: "42px",
+      fontSize: "32px",
       fontWeight: 700,
       color: "#102a56",
       letterSpacing: "-0.02em",
@@ -238,13 +238,13 @@ const EmbifiCustomerRemarks = () => {
       marginBottom: "18px",
     },
 
-    cardTitleAccent: {
-      width: "8px",
-      height: "34px",
-      borderRadius: "999px",
-      background: "linear-gradient(180deg, #38bdf8, #2563eb)",
-      boxShadow: "0 0 0 6px rgba(56,189,248,0.12)",
-    },
+    // cardTitleAccent: {
+    //   width: "8px",
+    //   height: "34px",
+    //   borderRadius: "999px",
+    //   background: "linear-gradient(180deg, #38bdf8, #2563eb)",
+    //   boxShadow: "0 0 0 6px rgba(56,189,248,0.12)",
+    // },
 
     form: {
       display: "grid",
@@ -331,9 +331,12 @@ const EmbifiCustomerRemarks = () => {
       borderSpacing: 0,
     },
 
-    th: {
-      background: "linear-gradient(90deg, #0f172a 0%, #16324f 100%)",
-      color: "#fff",
+    th: {  background: "linear-gradient(90deg, #eef3f8 0%, #dfe8f1 100%)",
+
+        color: "#5f738f",
+
+      // background: "linear-gradient(90deg, #0f172a 0%, #16324f 100%)",
+      // color: "#fff",
       padding: "16px 14px",
       borderRight: "1px solid rgba(255,255,255,0.2)",
       fontSize: "13px",

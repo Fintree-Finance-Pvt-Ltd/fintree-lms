@@ -191,7 +191,11 @@ const CreateLoanBooking = () => {
   const [selectedFile, setSelectedFile] = useState(null);
 
   const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
+  const selected = event.target.files?.[0] || null;
+
+    setFile(selected);
+      setSelectedFile(selected);
+
     setMessage("");
     setError("");
     setUploadPercentage(0);
@@ -305,10 +309,13 @@ const CreateLoanBooking = () => {
             >
               Choose File
             </button>
-
+{/* 
             <div className="selected-file-box">
               {selectedFile?.name || "No file selected"}
-            </div>
+            </div> */}
+               <div className="selected-file-box" title={selectedFile?.name || "No file selected"}>
+      {selectedFile?.name || "No file selected"}
+    </div>
           </div>
         </div>
 

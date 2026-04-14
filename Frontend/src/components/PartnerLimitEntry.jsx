@@ -272,6 +272,19 @@ const PartnerLimitEntry = () => {
                     </td>
                     <td>{Number(p.fldg_percent || 0)}%</td>
                     <td>
+  <label className="switch">
+    <input
+      className="switch-input"
+      type="checkbox"
+      checked={p.fldg_status === 1}
+      onChange={() =>
+        toggleFldgStatus(p.partner_id, p.fldg_status)
+      }
+    />
+    <span className="slider round"></span>
+  </label>
+</td>
+                    {/* <td>
                       <label className="switch">
                         <input
                           type="checkbox"
@@ -282,7 +295,7 @@ const PartnerLimitEntry = () => {
                         />
                         <span className="slider round"></span>
                       </label>
-                    </td>
+                    </td> */}
                     <td className="text-right">
                       {formatCurrency(p.assigned_limit)}
                     </td>

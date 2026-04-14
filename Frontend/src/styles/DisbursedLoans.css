@@ -212,10 +212,16 @@
 }
  
 .id-main {
-  font-family: 'JetBrains Mono', monospace;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+  /* font-weight: 600; */
+  font-size: 15px;
+  line-height: 1.2;
+  color: #0b2f6b;
+  letter-spacing: 0.01em;
+  /* font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-main);
+  color: var(--text-main); */
 }
  
 .id-sub {
@@ -226,10 +232,17 @@
 }
  
 .currency-text {
-  font-family: 'JetBrains Mono', monospace;
+  
+  font-family: 'Inter', 'Segoe UI', sans-serif;
   font-weight: 700;
   font-size: 15px;
-  color: var(--text-main);
+  line-height: 1.2;
+  color: #0b2f6b;
+  letter-spacing: 0.01em;
+  /* font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-main); */
 }
  
 /* Status Pill Variations */
