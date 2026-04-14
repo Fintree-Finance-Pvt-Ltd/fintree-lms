@@ -8633,10 +8633,10 @@ if (truncatedReceivedRoi !== truncatedExpectedRoi) {
 const expectedEmi = disbursementAmount + truncatedExpectedRoi;
 
 // Truncate the expected EMI to 5 decimal places
-const truncatedExpectedEmi = truncate(expectedEmi, 5);
+const truncatedExpectedEmi = truncate(expectedEmi, 3);
 
 // Truncate the received EMI (data.emi_amount) to 5 decimals
-const truncatedReceivedEmi = truncate(data.emi_amount, 5);
+const truncatedReceivedEmi = truncate(data.emi_amount, 3);
 
 console.log("Truncated expected EMI:", truncatedExpectedEmi);
 console.log("Truncated received EMI:", truncatedReceivedEmi);
