@@ -154,6 +154,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_consolidated_mis_report_heyev_battery"
         : lender === "helium"
         ? "sp_consolidated_mis_report_helium"
+        : lender === "CLAYOO"
+        ? "sp_consolidated_mis_report_clayyo"
         : lender === "circlepe"
         ? "sp_consolidated_mis_report_circlepe"
         : "sp_consolidated_mis_report",
