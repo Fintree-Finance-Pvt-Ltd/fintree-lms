@@ -348,7 +348,7 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
 
         // ✅ Output Handling
         if (ext === "xlsx" || ext === "xls") {
-          if (normalizedReportId === "bank-payment-file-report" || normalizedReportId === "bank-payment-file-bank-holiday-report") {
+          if (normalizedReportId === "bank-payment-file-report") {
             // ⚙️ Use custom helper for bank payment file
             await exportBankPaymentFile(finalRows, filePath);
           } else if (normalizedReportId === "consumer-bureau-report") {
