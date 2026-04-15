@@ -131,12 +131,13 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_due_collection_all_report_helium"
         : lender === "emiclub"
         ? "sp_due_collection_all_report_emiclub"
-        : lender === "circlepe" 
-        ? "sp_due_collection_all_report_clayoo"
         : lender === "clayoo"
+        ? "sp_due_collection_all_report_clayoo"
+        : lender === "circlepe"
         ? "sp_due_collection_all_report_circlepe"
         : "sp_due_collection_all_report",
 
+sp_due_collection_all_report_clayoo
 
 
     "consolidated-mis": () =>
