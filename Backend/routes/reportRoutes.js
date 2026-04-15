@@ -137,7 +137,7 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_due_collection_all_report_circlepe"
         : "sp_due_collection_all_report",
 
-sp_due_collection_all_report_clayoo
+
 
 
     "consolidated-mis": () =>
