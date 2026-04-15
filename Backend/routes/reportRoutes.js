@@ -7,6 +7,7 @@ const path = require("path");
 const ExcelJS = require("exceljs");
 const authenticateUser = require("../middleware/verifyToken");
 const exportBankPaymentFile = require("../utils/exportBankPaymentFile");
+const exportBankHolidayReport = require("../utils/exportBankHolidayReport");
 const exportConsumerBureauReport = require("../utils/exportConsumerBureauReport")
 
 
@@ -351,7 +352,10 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
           if (normalizedReportId === "bank-payment-file-report") {
             // ⚙️ Use custom helper for bank payment file
             await exportBankPaymentFile(finalRows, filePath);
-          } else if (normalizedReportId === "consumer-bureau-report") {
+          }else if (normalizedReportId === "bank-payment-file-bank-holiday-report") {
+    // Call your specific holiday utility here
+    await exportBankHolidayReport(finalRows, filePath); 
+} else if (normalizedReportId === "consumer-bureau-report") {
   await exportConsumerBureauReport(finalRows, filePath);
 } else {
             // ✅ Default Excel export
