@@ -18,29 +18,37 @@ async function exportBankHolidayReport(finalRows, filePath) {
   const wb = new xl.Workbook();
   const ws = wb.addWorksheet("Bank Holiday Report");
 
-  // --- Styles ---
+  // --- Normal Professional Styles ---
   const headerStyle = wb.createStyle({
-    font: { bold: true, color: "#FFFFFF" },
-    fill: { type: "pattern", patternType: "solid", fgColor: "#4F81BD" },
+    font: { 
+      bold: true, 
+      color: "#000000", // Black text
+      size: 11 
+    },
     alignment: { horizontal: "center" },
-    border: { bottom: { style: "thin", color: "#000000" } }
+    border: { 
+        bottom: { style: "thin", color: "#000000" } 
+    }
   });
 
   const textStyle = wb.createStyle({
-    numberFormat: "@", // Explicit Text format
+    numberFormat: "@", // Force text format to keep leading zeros in Ref Nos
+    font: { size: 10 }
   });
 
   const amountStyle = wb.createStyle({
-    numberFormat: "#,##0.00", // Standard currency-style formatting
+    // Standard number format without forced currency symbols
+    numberFormat: "#,##0.00", 
     alignment: { horizontal: "right" },
+    font: { size: 10 }
   });
 
   const headers = Object.keys(finalRows[0]);
 
-  // --- Write Headers ---
+  // --- Write Headers (Black & Bold) ---
   headers.forEach((header, i) => {
     ws.cell(1, i + 1)
-      .string(header.toUpperCase())
+      .string(header) // Kept original casing
       .style(headerStyle);
   });
 
@@ -50,14 +58,14 @@ async function exportBankHolidayReport(finalRows, filePath) {
       let val = row[key];
       const lowerKey = key.toLowerCase();
 
-      // 1. Date Formatting
+      // Format Dates
       if (val instanceof Date) {
         val = formatDate(val);
       }
 
       if (val === null || val === undefined) val = "";
       
-      // 2. Amount Logic (Handling strings with commas or raw numbers)
+      // Amount Logic
       if (lowerKey.includes("amount")) {
         const numVal = typeof val === "string" 
           ? parseFloat(val.replace(/,/g, "")) 
@@ -73,7 +81,7 @@ async function exportBankHolidayReport(finalRows, filePath) {
             .style(textStyle);
         }
       } 
-      // 3. Default String/Text Logic
+      // Everything else as Text
       else {
         ws.cell(rowIndex + 2, colIndex + 1)
           .string(String(val).trim())
@@ -92,7 +100,6 @@ async function exportBankHolidayReport(finalRows, filePath) {
     ws.column(i + 1).setWidth(Math.min(maxLen, 50));
   });
 
-  // --- Save File ---
   return new Promise((resolve, reject) => {
     wb.write(filePath, (err) => {
       if (err) reject(err);
