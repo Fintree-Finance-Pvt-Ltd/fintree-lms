@@ -423,51 +423,9 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
     : "ELIGIBLE";
 
   const finalStage =
-    decision.status === "Auto Bre Approved"
+    decision.status === "BRE APPROVED"
       ? "CREDIT_INITIATED"
       : "BRE_REJECTED";
-
-  await pool.query(
-    `UPDATE loan_booking_clayyo
-   SET
-     clayyo_bre_status = ?,
-     clayyo_bre_reason = ?,
-     clayyo_bre_checked_at = NOW(),
-
-     clayyo_bureau_score = ?,
-     clayyo_enquiries_30d = ?,
-     clayyo_dpd_3m_flag = ?,
-     clayyo_dpd_12m_count = ?,
-     clayyo_dpd_24m_60_flag = ?,
-     clayyo_dpd_36m_90_flag = ?,
-     clayyo_overdue_flag = ?,
-     clayyo_writtenoff_flag = ?,
-     clayyo_moratorium_flag = ?,
-     clayyo_restructured_flag = ?,
-
-     status = ?,
-     stage = ?
-   WHERE lan = ?`,
-    [
-      decision.status,
-      reasonText,
-
-      decision.bureauScore,
-      bureauFacts.enquiries30d,
-      bureauFacts.hasDpdIn3M ? 1 : 0,
-      bureauFacts.count30Dpd12M,
-      bureauFacts.has60PlusDpd24M ? 1 : 0,
-      bureauFacts.has90PlusDpd36M ? 1 : 0,
-      bureauFacts.hasOverdueLast1Y ? 1 : 0,
-      bureauFacts.hasWrittenOffLast3Y ? 1 : 0,
-      bureauFacts.hasMoratorium ? 1 : 0,
-      bureauFacts.hasRestructured ? 1 : 0,
-
-      decision.status,
-      finalStage,
-      lan,
-    ],
-  );
 
   await pool.query(
     `UPDATE loan_booking_clayyo
