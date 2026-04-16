@@ -376,8 +376,7 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
     );
     return;
   }
-
-  console.log(first)
+  
   // 2) Loan row
   const [loanRows] = await pool.query(
     `SELECT lan, dob, policy_type, net_monthly_income, loan_amount, cibil_score
