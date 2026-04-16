@@ -198,6 +198,7 @@ const ALLOWED_LOAN_DIGIT_DOCS = new Set([
   "bank_statement",
   "loan_agreement",
   "additional_document",
+  "utility_bill",
 ]);
 
 const SINGLE_LOAN_DIGIT_DOCS = new Set([
@@ -208,6 +209,7 @@ const SINGLE_LOAN_DIGIT_DOCS = new Set([
   "selfies",
   "bank_statement",
   "loan_agreement",
+  "utility_bill",
 ]);
 
 function normalizeLoanDigitDocName(name) {

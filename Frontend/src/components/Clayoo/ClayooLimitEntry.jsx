@@ -1865,11 +1865,11 @@ const ClayooLimitEntry = ({
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const addDaysToDate = (dateStr, days) => {
+  const addMonthsToDate  = (dateStr, months) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return "";
-    d.setDate(d.getDate() + Number(days || 0));
+    d.setMonth(d.getMonth() + Number(months || 0));
     return toYMD(d);
   };
 
@@ -1887,7 +1887,7 @@ const ClayooLimitEntry = ({
         return {
           ...prev,
           mandate_start_date: value,
-          mandate_end_date: addDaysToDate(value, 90),
+          mandate_end_date: addMonthsToDate(value, 24),
         };
       }
 
@@ -1994,7 +1994,7 @@ const ClayooLimitEntry = ({
     const startDate =
       loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
 
-    const endDate = addDaysToDate(startDate, 90);
+    const endDate = addMonthsToDate(startDate, 24);
 
     setSelectedLoan(loanRow);
     setBankError("");
