@@ -74,7 +74,7 @@ const extractClayyoBureauFacts = (reportXml) => {
   const score = toNumber(profile?.SCORE?.BureauScore, null);
 
   const enquiries30d = toNumber(
-    profile?.CAPS_Summary?.CAPSLast30Days,
+    profile?.CAPS?.CAPS_Summary?.CAPSLast30Days,
     null,
   );
 
