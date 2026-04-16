@@ -600,6 +600,7 @@ router.post("/manual-entry", async (req, res) => {
       hospital_id: data.hospital_id,
       hospital_name: hospitalName,
       policy_type: data.policy_type || null,
+      agreement_date:data.login_date || null,
     };
 
     const columns = Object.keys(fields).join(", ");
@@ -707,7 +708,12 @@ router.get("/approve-initiate-loans", async (req, res) => {
     WHERE lb.status IN (?, ?) AND lb.lan LIKE ?
     ORDER BY lb.created_at DESC, lb.lan DESC
   `;
-  const values = [table, LOAN_STATUS.BRE_APPROVED,  "Credit Recheck", `${prefix}%`];
+  const values = [
+    table,
+    LOAN_STATUS.BRE_APPROVED,
+    "Credit Recheck",
+    `${prefix}%`,
+  ];
 
   db.query(query, values, (err, results) => {
     if (err) {
@@ -757,10 +763,109 @@ router.get("/credit-approved-loans", async (req, res) => {
 });
 
 // Clayyo Limit Route
+// router.put("/set-limit/:lan", async (req, res) => {
+//   try {
+//     const { lan } = req.params;
+//     const { limit, table, limit_assigned_by } = req.body;
+
+//     const safeTable = table || "loan_booking_clayyo";
+
+//     if (safeTable !== "loan_booking_clayyo") {
+//       return res.status(400).json({ message: "Invalid table name" });
+//     }
+
+//     // 🔹 Fetch requested loan amount
+//     const [[loan]] = await db.promise().query(
+//       `SELECT loan_amount FROM ${safeTable} WHERE lan = ?`,
+//       [lan]
+//     );
+
+//     if (!loan) {
+//       return res.status(404).json({ message: "Loan not found" });
+//     }
+
+//     const requestedAmount = Number(loan.loan_amount || 0);
+//     const assignedLimit = Number(limit || 0);
+
+//     let newStatus;
+//     let newStage;
+//     let limitReworkRequired = 0;
+//     let limitReworkReason = null;
+
+//     // // 🔹 Condition logic
+//     // if (requestedAmount < assignedLimit) {
+//     //   newStatus = "Credit Recheck";
+//     //   newStage = "CREDIT_REWORK";
+
+//     //   limitReworkRequired = 1;
+//     //   limitReworkReason =
+//     //     `Requested amount ${requestedAmount} exceeds assigned limit ${assignedLimit}`;
+//     // } else {
+//     //   newStatus = LOAN_STATUS.LIMIT_REQUESTED;
+//     //   newStage = "OPS_INITIATED";
+//     // }
+
+//      // 🔹 Condition logic
+//     if (requestedAmount < assignedLimit) {
+//       // When requestedAmount is less than assignedLimit, go directly to OPS APPROVED
+//       newStatus = "OPS APPROVED";
+//       newStage = "OPS_APPROVED";
+//     } else {
+//       // When requestedAmount >= assignedLimit, follow existing flow
+//       newStatus = "Credit Recheck";
+//       newStage = "CREDIT_REWORK";
+
+//       limitReworkRequired = 1;
+//       limitReworkReason =
+//         `Requested amount ${requestedAmount} exceeds assigned limit ${assignedLimit}`;
+//     }
+
+//     const [result] = await db.promise().query(
+//       `UPDATE ${safeTable}
+//        SET final_limit = ?,
+//            status = ?,
+//            stage = ?,
+//            limit_assigned_at = NOW(),
+//            limit_assigned_by = COALESCE(?, limit_assigned_by),
+//            limit_rework_required = ?,
+//            limit_rework_reason = ?
+//        WHERE lan = ?`,
+//       [
+//         assignedLimit,
+//         newStatus,
+//         newStage,
+//         limit_assigned_by || null,
+//         limitReworkRequired,
+//         limitReworkReason,
+//         lan,
+//       ]
+//     );
+
+//     if (!result.affectedRows) {
+//       return res.status(404).json({ message: "Loan not found" });
+//     }
+
+//     res.json({
+//       message: "Limit assigned successfully",
+//       lan,
+//       requested_amount: requestedAmount,
+//       final_limit: assignedLimit,
+//       status: newStatus,
+//       stage: newStage,
+//       moved_to:
+//         newStage === "CREDIT_REWORK" ? "Credit Screen" : "Ops Screen",
+//     });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: "Failed to assign limit" });
+//   }
+// });
+
+
 router.put("/set-limit/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
-    const { limit, table, limit_assigned_by } = req.body;
+    const { inputLimit, table, limit_assigned_by } = req.body;
 
     const safeTable = table || "loan_booking_clayyo";
 
@@ -768,46 +873,48 @@ router.put("/set-limit/:lan", async (req, res) => {
       return res.status(400).json({ message: "Invalid table name" });
     }
 
-    // 🔹 Fetch requested loan amount
-    const [[loan]] = await db.promise().query(
-      `SELECT loan_amount FROM ${safeTable} WHERE lan = ?`,
-      [lan]
-    );
+    const [[loan]] = await db
+      .promise()
+      .query(`SELECT loan_amount FROM ${safeTable} WHERE lan = ?`, [lan]);
 
     if (!loan) {
       return res.status(404).json({ message: "Loan not found" });
     }
 
     const requestedAmount = Number(loan.loan_amount || 0);
-    const assignedLimit = Number(limit || 0);
+    const assignedLimit   = Number(inputLimit || 0);
+
+    console.log(`Requested Amount (loan_amount): ${requestedAmount}`);
+    console.log(`Assigned Limit:                 ${assignedLimit}`);
 
     let newStatus;
     let newStage;
     let limitReworkRequired = 0;
-    let limitReworkReason = null;
+    let limitReworkReason   = null;
 
-    // 🔹 Condition logic
-    if (requestedAmount < assignedLimit) {
-      newStatus = "Credit Recheck";
-      newStage = "CREDIT_REWORK";
-
-      limitReworkRequired = 1;
-      limitReworkReason =
-        `Requested amount ${requestedAmount} exceeds assigned limit ${assignedLimit}`;
+    // ✅ loan_amount > assignedLimit  →  OPS APPROVED
+    // ✅ loan_amount <= assignedLimit →  Credit Recheck
+    if (requestedAmount > assignedLimit) {
+      console.log("✅ Requested amount is greater than assigned limit → OPS APPROVED");
+      newStatus = "OPS APPROVED";
+      newStage  = "OPS_APPROVED";
     } else {
-      newStatus = LOAN_STATUS.LIMIT_REQUESTED;
-      newStage = "OPS_INITIATED";
+      console.log("🔁 Assigned limit exceeds requested amount → Credit Recheck");
+      newStatus          = "Credit Recheck";   // matches your frontend pill + query string exactly
+      newStage           = "CREDIT_REWORK";
+      limitReworkRequired = 1;
+      limitReworkReason  = `Assigned limit ₹${assignedLimit} exceeds requested amount ₹${requestedAmount}`;
     }
 
     const [result] = await db.promise().query(
       `UPDATE ${safeTable}
-       SET final_limit = ?,
-           status = ?,
-           stage = ?,
-           limit_assigned_at = NOW(),
-           limit_assigned_by = COALESCE(?, limit_assigned_by),
+       SET final_limit          = ?,
+           status               = ?,
+           stage                = ?,
+           limit_assigned_at    = NOW(),
+           limit_assigned_by    = COALESCE(?, limit_assigned_by),
            limit_rework_required = ?,
-           limit_rework_reason = ?
+           limit_rework_reason  = ?
        WHERE lan = ?`,
       [
         assignedLimit,
@@ -817,26 +924,25 @@ router.put("/set-limit/:lan", async (req, res) => {
         limitReworkRequired,
         limitReworkReason,
         lan,
-      ]
+      ],
     );
 
     if (!result.affectedRows) {
       return res.status(404).json({ message: "Loan not found" });
     }
 
-    res.json({
-      message: "Limit assigned successfully",
+    return res.json({
+      message:          "Limit assigned successfully",
       lan,
       requested_amount: requestedAmount,
-      final_limit: assignedLimit,
-      status: newStatus,
-      stage: newStage,
-      moved_to:
-        newStage === "CREDIT_REWORK" ? "Credit Screen" : "Ops Screen",
+      final_limit:      assignedLimit,
+      status:           newStatus,
+      stage:            newStage,
+      moved_to:         newStage === "CREDIT_REWORK" ? "Credit Screen" : "Ops Screen",
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Failed to assign limit" });
+    return res.status(500).json({ message: "Failed to assign limit" });
   }
 });
 
@@ -851,7 +957,7 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
       FROM loan_booking_clayyo
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     if (!loan) {
@@ -867,7 +973,7 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
           stage = 'DISBURSEMENT_INITIATED'
       WHERE lan = ?
       `,
-      [LOAN_STATUS.DISBURSEMENT_INITIATED, lan]
+      [LOAN_STATUS.DISBURSEMENT_INITIATED, lan],
     );
 
     // EMAIL SEND
@@ -899,7 +1005,7 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
         <small>Auto-generated notification from LMS</small>
       `,
     });
-    console.log(transporter)
+    console.log(transporter);
 
     res.json({
       message: "Disbursement initiated and mail sent",
@@ -912,8 +1018,6 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
       message: "Failed to initiate disbursement",
     });
   }
-
-  
 });
 
 // final disbursement
@@ -927,7 +1031,7 @@ router.patch("/disburse/:lan", async (req, res) => {
       FROM loan_booking_clayyo
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     if (!loan) {
@@ -950,7 +1054,7 @@ router.patch("/disburse/:lan", async (req, res) => {
           disbursed_at = NOW()
       WHERE lan = ?
       `,
-      [LOAN_STATUS.DISBURSED, lan]
+      [LOAN_STATUS.DISBURSED, lan],
     );
 
     res.json({
@@ -972,9 +1076,7 @@ router.put("/update-subvention/:lan", async (req, res) => {
 
   try {
     if (!updated_subvention) {
-      return res
-        .status(400)
-        .json({ message: "Updated subvention required" });
+      return res.status(400).json({ message: "Updated subvention required" });
     }
 
     await db.promise().query(
@@ -983,7 +1085,7 @@ router.put("/update-subvention/:lan", async (req, res) => {
       SET updated_subvention = ?
       WHERE lan = ?
       `,
-      [updated_subvention, lan]
+      [updated_subvention, lan],
     );
 
     res.json({
@@ -1021,7 +1123,7 @@ router.put("/ops-approve/:lan", async (req, res) => {
            ops_approved_at = NOW(),
            ops_approved_by = COALESCE(?, ops_approved_by)
        WHERE lan = ?`,
-      [approved_limit, "0.00" , finalStatus, ops_approved_by || null, lan],
+      [approved_limit, "0.00", finalStatus, ops_approved_by || null, lan],
     );
 
     if (!result.affectedRows) {
@@ -1048,23 +1150,25 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
-  if (![LOAN_STATUS.CREDIT_APPROVED, LOAN_STATUS.CREDIT_REJECTED].includes(status)) {
+  if (
+    ![LOAN_STATUS.CREDIT_APPROVED, LOAN_STATUS.CREDIT_REJECTED].includes(status)
+  ) {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
   // const updateQuery = `UPDATE ?? SET status = ? WHERE lan = ?`;
   const newStage =
-  status === LOAN_STATUS.CREDIT_APPROVED
-    ? "LIMIT_APPROVAL_PENDING"
-    : "CREDIT_REJECTED";
+    status === LOAN_STATUS.CREDIT_APPROVED
+      ? "LIMIT_APPROVAL_PENDING"
+      : "CREDIT_REJECTED";
 
-const updateQuery = `
+  const updateQuery = `
 UPDATE ??
 SET status = ?, stage = ?
 WHERE lan = ?
 `;
 
-  db.query(updateQuery, [table, status, newStage ,lan], async (err, result) => {
+  db.query(updateQuery, [table, status, newStage, lan], async (err, result) => {
     if (err) {
       console.error("Error updating loan status:", err);
       return res.status(500).json({ message: "Database error" });
@@ -1130,10 +1234,11 @@ WHERE lan = ?
 //   }
 // });
 
-// 
+//
 router.get("/approved-loans", async (req, res) => {
   try {
-    const [rows] = await db.promise().query(`
+    const [rows] = await db.promise().query(
+      `
       SELECT
         lb.lan,
         lb.customer_name,
@@ -1166,11 +1271,13 @@ router.get("/approved-loans", async (req, res) => {
         ON ch.id = lb.hospital_id
       WHERE lb.status IN (?, ?, ?)
       ORDER BY lb.login_date DESC, lb.lan DESC
-    `, [
-      LOAN_STATUS.LIMIT_REQUESTED,
-      LOAN_STATUS.CREDIT_APPROVED,
-      LOAN_STATUS.OPS_APPROVED
-    ]);
+    `,
+      [
+        LOAN_STATUS.LIMIT_REQUESTED,
+        LOAN_STATUS.CREDIT_APPROVED,
+        LOAN_STATUS.OPS_APPROVED,
+      ],
+    );
 
     return res.json(rows);
   } catch (err) {
@@ -1429,7 +1536,6 @@ lb.limit_rework_reason,
       bureau_status: row.kyc_bureau_status || "PENDING",
       agreement_esign_status: row.agreement_esign_status || "PENDING",
       bank_status: row.bank_status || "PENDING",
-
     };
 
     return res.json({ loan, kyc });

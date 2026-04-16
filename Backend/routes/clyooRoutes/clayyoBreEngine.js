@@ -338,6 +338,7 @@ const evaluateClayyoPolicy = ({ loan, bureauFacts }) => {
 };
 
 const autoApproveClayyoIfAllVerified = async (lan) => {
+  console.log("BRE engine inside");
   const pool = db.promise();
 
   // 1) KYC row
@@ -376,6 +377,7 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
     return;
   }
 
+  console.log(first)
   // 2) Loan row
   const [loanRows] = await pool.query(
     `SELECT lan, dob, policy_type, net_monthly_income, loan_amount, cibil_score
@@ -502,7 +504,7 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
       bureauFacts.hasWrittenOffLast3Y ? 1 : 0,
       bureauFacts.hasMoratorium ? 1 : 0,
       bureauFacts.hasRestructured ? 1 : 0,
-
+        finalStage,
       decision.status,
       lan,
     ],

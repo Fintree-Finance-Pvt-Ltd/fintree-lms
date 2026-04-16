@@ -504,7 +504,8 @@ const productOptions = [
   { label: "Embifi", value: "Embifi" },
   { label: "EMICLUB", value: "EMICLUB" },
   { label: "Circle Pe", value: "Circlepe" },
-  { label: "HELIUM", value: "HELIUM" }
+  { label: "HELIUM", value: "HELIUM" },
+  { label: "CLAYOO", value: "CLAYOO" }
 ];
 
 // Route slug -> backend report id/name
