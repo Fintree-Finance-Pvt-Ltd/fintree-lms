@@ -506,9 +506,9 @@ const productOptions = [
   { label: "Circle Pe", value: "Circlepe" },
   { label: "HELIUM", value: "HELIUM" },
   { label: "CLAYOO", value: "CLAYOO" },
-  { label: "CLAYOO", value: "FFPL" },
-  { label: "CLAYOO", value: "KITE" },
-  { label: "CLAYOO", value: "Muthoot" }
+  { label: "Fintree", value: "FFPL" },
+  { label: "KITE", value: "KITE" },
+  { label: "MUTHOOT", value: "Muthoot" }
 
 ];
 
