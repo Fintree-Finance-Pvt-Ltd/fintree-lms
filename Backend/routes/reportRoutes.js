@@ -205,7 +205,19 @@ function resolveProcedure(rawReportId, rawLender) {
     // consumer bureau report
 "consumer-bureau-report": () => "sp_consumer_bureau_report_all_products",
 
-"supply-chain-report": () => "sp_supply_chain_report",
+
+
+
+// NEW IRR Report add
+    "supply-chain-report":  () =>
+      lender === "Muthoot"
+        ? "sp_supply_chain_report"
+         : lender === "Kite"
+        ? "sp_supply_chain_report"
+        : lender === "FFPL"
+        ? "sp_supply_chain_report"
+        : "sp_supply_chain_report",
+
 
   };
 
