@@ -62,10 +62,10 @@ const Dashboard = () => {
 
       {/* Footer */}
       <footer style={styles.footer}>
-        <p style={styles.footerText}>
-          © 2026 Loan Management System | Fintree Finance Pvt Ltd
-        </p>
-      </footer>
+  <p style={{ ...styles.footerText, fontWeight: "bold" }}>
+    © 2026 Loan Management System |@ SAJAG JAIN
+  </p>
+</footer>
     </div>
   );
 };
