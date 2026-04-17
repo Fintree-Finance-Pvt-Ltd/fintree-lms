@@ -254,6 +254,12 @@ const REPORT_DATA = [
     name: "Bank Payment File Bank Holiday Report",
     category: "Finance",
   },
+  {
+    id: 16,
+    slug: "supply-chain-report",
+    name: "Supply Chain Report",
+    category: "Finance",
+  },
 ];
 
 const ReportsListing = () => {

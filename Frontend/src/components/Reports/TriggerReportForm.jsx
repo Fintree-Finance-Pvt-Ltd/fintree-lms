@@ -505,7 +505,11 @@ const productOptions = [
   { label: "EMICLUB", value: "EMICLUB" },
   { label: "Circle Pe", value: "Circlepe" },
   { label: "HELIUM", value: "HELIUM" },
-  { label: "CLAYOO", value: "CLAYOO" }
+  { label: "CLAYOO", value: "CLAYOO" },
+  { label: "CLAYOO", value: "FFPL" },
+  { label: "CLAYOO", value: "KITE" },
+  { label: "CLAYOO", value: "Muthoot" }
+
 ];
 
 // Route slug -> backend report id/name
@@ -524,7 +528,8 @@ const REPORT_ID_MAP = {
   "consumer-bureau-report": "Consumer Bureau Report",
   "pay-out-report": "Pay Out Report",
   "bank-payment-file-bank-holiday-report": "Bank Payment File Bank Holiday Report",
-  "due-demand-vs-collection-fintree": "Due Demand vs Collection Report(Fintree)"
+  "due-demand-vs-collection-fintree": "Due Demand vs Collection Report(Fintree)",
+  "supply-chain-report": "supply-chain-report",
 };
 
 const formatDate = (date) => {

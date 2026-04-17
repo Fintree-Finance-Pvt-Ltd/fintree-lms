@@ -67,6 +67,7 @@ function resolveProcedure(rawReportId, rawLender) {
 "pay out report":"pay-out-report",
 "pay-out-report":"pay-out-report",
 "pay_out_report":"pay-out-report",
+"supply-chain-report":"supply-chain-report"
 
 
   };
@@ -204,7 +205,7 @@ function resolveProcedure(rawReportId, rawLender) {
     // consumer bureau report
 "consumer-bureau-report": () => "sp_consumer_bureau_report_all_products",
 
-
+"supply-chain-report": () => "sp_supply_chain_report",
 
   };
 
