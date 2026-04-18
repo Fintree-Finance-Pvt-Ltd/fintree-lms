@@ -401,6 +401,7 @@ const router = express.Router();
 async function updateLoanTables(query, params) {
   await Promise.all([
     db.promise().query(query.replace("__TABLE__", "loan_booking_helium"), params),
+    db.promise().query(query.replace("__TABLE__", "loan_booking_clayyo"), params),
     db.promise().query(
       query.replace("__TABLE__", "loan_booking_zypay_customer"),
       params

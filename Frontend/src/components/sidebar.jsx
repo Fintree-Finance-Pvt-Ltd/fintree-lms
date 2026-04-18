@@ -247,7 +247,7 @@ const Sidebar = () => {
     'HEY EV Battery Loans': allowedPages.filter(p => p.path.includes('/hey-ev-battery-loans')),
     'Helium Loans': allowedPages.filter(p => p.path.includes('/helium-loans')),
     'Clayoo Loans': allowedPages.filter(p => p.path.includes('/clayoo-loans')),
-    'Loan Digit': allowedPages.filter(p => p.path.includes('/loan-digit/cases')),
+    'Loan Digit': allowedPages.filter(p => p.path.includes('/loan-digit')),
     'Supply Chain Loans': allowedPages.filter(p => p.path.includes('/supply-chain-loans')),
     'Dealer ALL': allowedPages.filter(p => p.path.includes('/dealer-onboarding')),
     'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),

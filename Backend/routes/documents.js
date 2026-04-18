@@ -198,6 +198,7 @@ const ALLOWED_LOAN_DIGIT_DOCS = new Set([
   "bank_statement",
   "loan_agreement",
   "additional_document",
+  "utility_bill",
 ]);
 
 const SINGLE_LOAN_DIGIT_DOCS = new Set([
@@ -208,6 +209,7 @@ const SINGLE_LOAN_DIGIT_DOCS = new Set([
   "selfies",
   "bank_statement",
   "loan_agreement",
+  "utility_bill",
 ]);
 
 function normalizeLoanDigitDocName(name) {
@@ -918,6 +920,8 @@ router.post(
     try {
       const { lan: bodyLan, documents } = req.body;
 
+      console.log("Received /v1/upload-files request", req.body);
+
       const lan = String(bodyLan || "").trim();
       if (!lan) return res.status(400).json({ error: "lan is required" });
 
@@ -959,10 +963,14 @@ router.post(
 
       let parsedDocs = documents;
 
+      console.log("Raw documents input:", documents);
+      
       // If documents arrives as string (multipart form-data case)
       if (typeof documents === "string") {
         parsedDocs = JSON.parse(documents);
       }
+
+      console.log("Parsed documents input:", parsedDocs);
 
       if (!Array.isArray(parsedDocs) || parsedDocs.length === 0)
         return res.status(400).json({ error: "documents[] is required" });
@@ -1000,6 +1008,12 @@ router.post(
         if (uploadedFile) {
           file_name = uploadedFile.filename;
           original_name = uploadedFile.originalname;
+
+            console.log("file upload found for document index", i, {
+              fieldname: uploadedFile.fieldname,
+              originalname: uploadedFile.originalname,
+              filename: uploadedFile.filename,
+            });
         } else if (url) {
 
         /**

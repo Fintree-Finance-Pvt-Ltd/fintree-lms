@@ -1,8 +1,3 @@
-// 
-
-
-
-
 // components/AllLoansScreen.jsx
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,10 +5,14 @@ import api from "../api/api";
 import DataTable from "./ui/DataTable";
 import LoaderOverlay from "./ui/LoaderOverlay";
 import "../styles/AllLoans.css"; // Apply the CSS above
- 
+
 const DEFAULT_PAGE_SIZE = 25;
- 
-const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbursement_amount" }) => {
+
+const AllLoansScreen = ({
+  apiEndpoint,
+  title = "All Loans",
+  amountField = "disbursement_amount",
+}) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -24,25 +23,28 @@ const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbu
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const nav = useNavigate();
   const abortRef = useRef(null);
- 
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
- 
-  useEffect(() => { setPage(1); }, [debouncedSearch, pageSize]);
- 
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, pageSize]);
+
   const fetchPage = useCallback(() => {
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setLoading(true);
     setErr("");
- 
-    api.get(apiEndpoint, {
-      params: { page, pageSize, search: debouncedSearch || undefined },
-      signal: ctrl.signal,
-    })
+
+    api
+      .get(apiEndpoint, {
+        params: { page, pageSize, search: debouncedSearch || undefined },
+        signal: ctrl.signal,
+      })
       .then((res) => {
         const data = res.data;
         if (data && Array.isArray(data.rows)) {
@@ -62,101 +64,250 @@ const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbu
       })
       .finally(() => setLoading(false));
   }, [apiEndpoint, page, pageSize, debouncedSearch]);
- 
-  useEffect(() => { fetchPage(); }, [fetchPage]);
- 
+
+  useEffect(() => {
+    fetchPage();
+  }, [fetchPage]);
+
   const hasADK = rows.some((r) => /^ADK/i.test(r?.lan));
   const hasGQFSF = rows.some((r) => /^GQFSF/i.test(r?.lan));
   const hasGQNonF = rows.some((r) => /^GQNONFSF/i.test(r?.lan));
- 
-  const nf = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
- 
+  const hasClayoo = rows.some((r) => /^CLY/i.test(r?.lan));
+
+  const nf = new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  });
+
   const columns = [
     {
-      key: "customer_name", header: "Customer Name", sortable: true,
+      key: "customer_name",
+      header: "Customer Name",
+      sortable: true,
       render: (r) => (
-        <span className="customer-name-link" onClick={() => nav(`/loan-details/${r.lan}`)}>
+        <span
+          className="customer-name-link"
+          onClick={() => nav(`/loan-details/${r.lan}`)}
+        >
           {r.customer_name ?? r.pan_name ?? "—"}
         </span>
       ),
-      sortAccessor: (r) => (r.customer_name || r.pan_name || "").toLowerCase(), width: 220,
+      sortAccessor: (r) => (r.customer_name || r.pan_name || "").toLowerCase(),
+      width: 220,
     },
     {
-      key: "lan", header: "LAN", sortable: true,
+      key: "lan",
+      header: "LAN",
+      sortable: true,
       render: (r) => (
-        <span className="lan-code-badge" onClick={() => nav(`/loan-details/${r.lan}`)} style={{ cursor: 'pointer' }}>
+        <span
+          className="lan-code-badge"
+          onClick={() => nav(`/loan-details/${r.lan}`)}
+          style={{ cursor: "pointer" }}
+        >
           {r.lan ?? "—"}
         </span>
       ),
-      sortAccessor: (r) => (r.lan || "").toLowerCase(), width: 150,
+      sortAccessor: (r) => (r.lan || "").toLowerCase(),
+      width: 150,
     },
-    ...(hasADK ? [{
-      key: "batch_id", header: "Batch ID", sortable: true,
-      render: (r) => (/^ADK/i.test(r?.lan) ? <span className="lan-code-badge">{r.batch_id ?? "—"}</span> : "—"),
-      sortAccessor: (r) => (/^ADK/i.test(r?.lan) ? String(r?.batch_id || "").toLowerCase() : ""),
-      csvAccessor: (r) => (/^ADK/i.test(r?.lan) ? (r.batch_id ?? "") : ""), width: 140,
-    }] : []),
-    ...(hasGQFSF ? [{
-      key: "app_id", header: "APP ID (FSF)", sortable: true,
-      render: (r) => (/^GQFSF/i.test(r?.lan) ? <span className="lan-code-badge">{r.app_id ?? "—"}</span> : "—"),
-      sortAccessor: (r) => (/^GQFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : ""),
-      csvAccessor: (r) => (/^GQFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""), width: 140,
-    }] : []),
-    ...(hasGQNonF ? [{
-      key: "app_id", header: "APP ID (Non-FSF)", sortable: true,
-      render: (r) => (/^GQNONFSF/i.test(r?.lan) ? <span className="lan-code-badge">{r.app_id ?? "—"}</span> : "—"),
-      sortAccessor: (r) => (/^GQNONFSF/i.test(r?.lan) ? String(r?.app_id || "").toLowerCase() : ""),
-      csvAccessor: (r) => (/^GQNONFSF/i.test(r?.lan) ? (r.app_id ?? "") : ""), width: 140,
-    }] : []),
+    ...(hasADK
+      ? [
+          {
+            key: "batch_id",
+            header: "Batch ID",
+            sortable: true,
+            render: (r) =>
+              /^ADK/i.test(r?.lan) ? (
+                <span className="lan-code-badge">{r.batch_id ?? "—"}</span>
+              ) : (
+                "—"
+              ),
+            sortAccessor: (r) =>
+              /^ADK/i.test(r?.lan)
+                ? String(r?.batch_id || "").toLowerCase()
+                : "",
+            csvAccessor: (r) =>
+              /^ADK/i.test(r?.lan) ? (r.batch_id ?? "") : "",
+            width: 140,
+          },
+        ]
+      : []),
+    ...(hasGQFSF
+      ? [
+          {
+            key: "app_id",
+            header: "APP ID (FSF)",
+            sortable: true,
+            render: (r) =>
+              /^GQFSF/i.test(r?.lan) ? (
+                <span className="lan-code-badge">{r.app_id ?? "—"}</span>
+              ) : (
+                "—"
+              ),
+            sortAccessor: (r) =>
+              /^GQFSF/i.test(r?.lan)
+                ? String(r?.app_id || "").toLowerCase()
+                : "",
+            csvAccessor: (r) =>
+              /^GQFSF/i.test(r?.lan) ? (r.app_id ?? "") : "",
+            width: 140,
+          },
+        ]
+      : []),
+    ...(hasGQNonF
+      ? [
+          {
+            key: "app_id",
+            header: "APP ID (Non-FSF)",
+            sortable: true,
+            render: (r) =>
+              /^GQNONFSF/i.test(r?.lan) ? (
+                <span className="lan-code-badge">{r.app_id ?? "—"}</span>
+              ) : (
+                "—"
+              ),
+            sortAccessor: (r) =>
+              /^GQNONFSF/i.test(r?.lan)
+                ? String(r?.app_id || "").toLowerCase()
+                : "",
+            csvAccessor: (r) =>
+              /^GQNONFSF/i.test(r?.lan) ? (r.app_id ?? "") : "",
+            width: 140,
+          },
+        ]
+      : []),
+      ...(hasClayoo
+  ? [
+      {
+        key: "hospital_name",
+        header: "Hospital Name",
+        sortable: true,
+        render: (r) =>
+          /^CLY/i.test(r?.lan) ? (
+            <span className="lan-code-badge">
+              {r.hospital_name ?? "—"}
+            </span>
+          ) : (
+            "—"
+          ),
+        sortAccessor: (r) =>
+          /^CLAYOO/i.test(r?.lan)
+            ? String(r?.hospital_name || "").toLowerCase()
+            : "",
+        csvAccessor: (r) =>
+          /^CLAYOO/i.test(r?.lan) ? (r.hospital_name ?? "") : "",
+        width: 220,
+      },
+    ]
+  : []),
     {
       key: "partner_loan_id",
       header: "Partner ID",
       sortable: true,
-      render: (r) => <span className="lan-code-badge">{r.partner_loan_id ?? "—"}</span>,
-      sortAccessor: (r) => String(r?.partner_loan_id || "").toLowerCase(),
-      csvAccessor: (r) => r.partner_loan_id ?? "",
+      render: (r) => (
+        <span className="lan-code-badge">
+          {r.partner_loan_id ?? r.app_id ?? "—"}
+        </span>
+      ),
+      sortAccessor: (r) =>
+        String(r?.partner_loan_id || r?.app_id || "").toLowerCase(),
+      csvAccessor: (r) => r.partner_loan_id ?? r.app_id ?? "",
+
       width: 160,
     },
     {
-      key: amountField, header: "Disbursement", sortable: true,
+      key: amountField,
+      header: "Disbursement Amount",
+      sortable: true,
       render: (r) => {
-        const n = Number(r?.[amountField] ?? r?.loan_amount);
-        return <span className="amount-text-bold">{Number.isFinite(n) ? nf.format(n) : "—"}</span>;
+        const n = Number(r?.[amountField] ?? r?.final_limit ?? r?.loan_amount);
+        return (
+          <span className="amount-text-bold">
+            {Number.isFinite(n) ? nf.format(n) : "—"}
+          </span>
+        );
       },
-      sortAccessor: (r) => { const v = Number(r?.[amountField] ?? r?.loan_amount ?? 0); return Number.isFinite(v) ? v : 0; },
+      sortAccessor: (r) => {
+        const v = Number(
+          r?.[amountField] ?? r?.final_limit ?? r?.loan_amount ?? 0,
+        );
+        return Number.isFinite(v) ? v : 0;
+      },
       width: 190,
     },
     {
-      key: "disbursement_date", header: "Date", sortable: true,
-      sortAccessor: (r) => (r.disbursement_date ? Date.parse(r.disbursement_date) : 0), width: 170,
+      key: "disbursement_date",
+      header: "Disbursement Date",
+      sortable: true,
+      sortAccessor: (r) =>
+        r.disbursement_date ? Date.parse(r.disbursement_date) : 0,
+      width: 170,
     },
     {
-      key: "status", header: "Status", sortable: true,
+      key: "status",
+      header: "Status",
+      sortable: true,
       render: (r) => {
         const map = {
-          Disbursed: { bg: "rgba(16,185,129,.12)", bd: "rgba(16,185,129,.35)", fg: "#065f46" },
-          Settled:   { bg: "rgba(59,130,246,.12)", bd: "rgba(59,130,246,.35)", fg: "#1e3a8a" },
-          Pending:   { bg: "rgba(234,179,8,.12)",  bd: "rgba(234,179,8,.35)",  fg: "#713f12" },
-          Failed:    { bg: "rgba(239,68,68,.12)",  bd: "rgba(239,68,68,.35)",  fg: "#7f1d1d" },
+          Disbursed: {
+            bg: "rgba(16,185,129,.12)",
+            bd: "rgba(16,185,129,.35)",
+            fg: "#065f46",
+          },
+          Settled: {
+            bg: "rgba(59,130,246,.12)",
+            bd: "rgba(59,130,246,.35)",
+            fg: "#1e3a8a",
+          },
+          Pending: {
+            bg: "rgba(234,179,8,.12)",
+            bd: "rgba(234,179,8,.35)",
+            fg: "#713f12",
+          },
+          Failed: {
+            bg: "rgba(239,68,68,.12)",
+            bd: "rgba(239,68,68,.35)",
+            fg: "#7f1d1d",
+          },
         };
-        const c = map[r.status] || { bg: "rgba(107,114,128,.12)", bd: "rgba(107,114,128,.35)", fg: "#374151" };
+        const c = map[r.status] || {
+          bg: "rgba(107,114,128,.12)",
+          bd: "rgba(107,114,128,.35)",
+          fg: "#374151",
+        };
         return (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px",
-            borderRadius: 8, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', background: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 12px",
+              borderRadius: 8,
+              fontSize: 11,
+              fontWeight: 800,
+              textTransform: "uppercase",
+              background: c.bg,
+              color: c.fg,
+              border: `1px solid ${c.bd}`,
+            }}
+          >
             {r.status ?? "—"}
           </span>
         );
       },
-      sortAccessor: (r) => (r.status || "").toLowerCase(), width: 130,
+      sortAccessor: (r) => (r.status || "").toLowerCase(),
+      width: 130,
     },
   ];
- 
+
   return (
     <div className="all-loans-page-wrapper">
       <LoaderOverlay show={loading} label="Accessing Ledger…" />
-     
+
       {err && <div className="error-notice">{err}</div>}
- 
+
       <div className="all-loans-table-container">
         <DataTable
           title={title}
@@ -190,16 +341,18 @@ const AllLoansScreen = ({ apiEndpoint, title = "All Loans", amountField = "disbu
     </div>
   );
 };
- 
+
 function pagerBtnStyle(disabled) {
   return {
-    padding: "8px 14px", borderRadius: 8, border: "1px solid #d1d5db",
+    padding: "8px 14px",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
     background: disabled ? "#f3f4f6" : "#fff",
-    color:      disabled ? "#9ca3af" : "#1f2937",
-    cursor:     disabled ? "default" : "pointer",
-    fontSize: 13, fontWeight: 600,
+    color: disabled ? "#9ca3af" : "#1f2937",
+    cursor: disabled ? "default" : "pointer",
+    fontSize: 13,
+    fontWeight: 600,
   };
 }
- 
+
 export default AllLoansScreen;
- 

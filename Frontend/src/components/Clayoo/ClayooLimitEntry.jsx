@@ -1865,11 +1865,11 @@ const ClayooLimitEntry = ({
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const addDaysToDate = (dateStr, days) => {
+  const addMonthsToDate  = (dateStr, months) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return "";
-    d.setDate(d.getDate() + Number(days || 0));
+    d.setMonth(d.getMonth() + Number(months || 0));
     return toYMD(d);
   };
 
@@ -1887,7 +1887,7 @@ const ClayooLimitEntry = ({
         return {
           ...prev,
           mandate_start_date: value,
-          mandate_end_date: addDaysToDate(value, 90),
+          mandate_end_date: addMonthsToDate(value, 24),
         };
       }
 
@@ -1902,16 +1902,16 @@ const ClayooLimitEntry = ({
   };
 
   const handleLimitSubmit = async (lan) => {
-    const limit = Number(limits[lan]);
+    const inputLimit = Number(limits[lan]);  // Input box limit
     const row = rows.find((r) => r.lan === lan);
-    const approvedLimit = Number(row?.approved_limit || 0);
+    const loanAmount = Number(row?.loan_amount || 0);  //loan_amount
 
-    if (!limit || limit <= 0) {
+    if (!inputLimit || inputLimit <= 0) {
       alert("Enter valid limit");
       return;
     }
 
-    if (approvedLimit > 0 && limit > approvedLimit) {
+    if (loanAmount > 0 && inputLimit > loanAmount) {
       const confirmMove = window.confirm(
         "Requested limit exceeds approved limit. Case will move back to Credit Recheck. Continue?",
       );
@@ -1922,7 +1922,7 @@ const ClayooLimitEntry = ({
       setSubmitting((prev) => ({ ...prev, [lan]: true }));
 
       await api.put(`/clayyo-loans/set-limit/${lan}`, {
-        limit,
+        inputLimit,
         table: tableName,
       });
 
@@ -1931,20 +1931,20 @@ const ClayooLimitEntry = ({
           r.lan === lan
             ? {
                 ...r,
-                final_limit: limit,
+                final_limit: inputLimit,
                 status:
-                  approvedLimit > 0 && limit > approvedLimit
+                  loanAmount > 0 && inputLimit > loanAmount
                     ? "Credit Recheck"
-                    : "LIMIT REQUESTED",
+                    : "OPS APPROVED",
                 stage:
-                  approvedLimit > 0 && limit > approvedLimit
+                  loanAmount > 0 && inputLimit > loanAmount
                     ? "CREDIT_REWORK"
-                    : "OPS_INITIATED",
+                    : "OPS_APPROVED",
                 limit_rework_required:
-                  approvedLimit > 0 && limit > approvedLimit ? 1 : 0,
+                  loanAmount > 0 && inputLimit > loanAmount ? 1 : 0,
                 limit_rework_reason:
-                  approvedLimit > 0 && limit > approvedLimit
-                    ? `Requested amount ${limit} exceeds assigned limit ${approvedLimit}`
+                  loanAmount > 0 && inputLimit > loanAmount
+                    ? `Requested amount ${inputLimit} exceeds assigned limit ${loanAmount}`
                     : null,
               }
             : r,
@@ -1994,7 +1994,7 @@ const ClayooLimitEntry = ({
     const startDate =
       loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
 
-    const endDate = addDaysToDate(startDate, 90);
+    const endDate = addMonthsToDate(startDate, 24);
 
     setSelectedLoan(loanRow);
     setBankError("");
@@ -2323,7 +2323,7 @@ const ClayooLimitEntry = ({
       key: "limit_entry",
       header: "Final Limit",
       render: (r) => {
-        const isAssigned = r.status === "LIMIT REQUESTED";
+        const isAssigned = r.status === "LIMIT REQUESTED" || r.status === "Credit Recheck";
         const opsComplete = r.status === "OPS APPROVED";
         const isLoading = submitting[r.lan];
 

@@ -95,7 +95,6 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   }
   else if (lan.startsWith("CLY")) {
 return allocateClayoo(lan, payment);
-  } else if (lan.startsWith("GQN")) {
   }
   else if (lan.startsWith("LDF")) {
 return allocateLoanDigit(lan, payment);

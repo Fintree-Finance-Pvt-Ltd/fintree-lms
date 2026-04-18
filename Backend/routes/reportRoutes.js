@@ -7,6 +7,7 @@ const path = require("path");
 const ExcelJS = require("exceljs");
 const authenticateUser = require("../middleware/verifyToken");
 const exportBankPaymentFile = require("../utils/exportBankPaymentFile");
+const exportBankHolidayReport = require("../utils/exportBankHolidayReport");
 const exportConsumerBureauReport = require("../utils/exportConsumerBureauReport")
 
 
@@ -58,12 +59,15 @@ function resolveProcedure(rawReportId, rawLender) {
     "ccod-loan-data-report": "ccod-loan-data-report",
   "bank-payment-file-report": "bank-payment-file-report",
   "bank payment file report": "bank-payment-file-report",
+  "bank-payment-file-bank-holiday-report": "bank-payment-file-bank-holiday-report",
+  "bank payment file bank holiday report": "bank-payment-file-bank-holiday-report",
 "consumer-bureau-report": "consumer-bureau-report",
 "consumer bureau report": "consumer-bureau-report",
 "consumer_bureau_report": "consumer-bureau-report",
 "pay out report":"pay-out-report",
 "pay-out-report":"pay-out-report",
 "pay_out_report":"pay-out-report",
+"supply-chain-report":"supply-chain-report"
 
 
   };
@@ -78,6 +82,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_cashflow_report_gq_non_fsf"
         : lender === "embifi"
         ? "sp_cashflow_report_embifi"
+         : lender === "clayoo"
+        ? "sp_cashflow_report_clayyo"
         : lender === "gq fsf"
         ? "sp_cashflow_report_gq_fsf"
         : lender === "wctl"
@@ -128,9 +134,14 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_due_collection_all_report_helium"
         : lender === "emiclub"
         ? "sp_due_collection_all_report_emiclub"
+        : lender === "clayoo"
+        ? "sp_due_collection_all_report_clayoo"
         : lender === "circlepe"
         ? "sp_due_collection_all_report_circlepe"
         : "sp_due_collection_all_report",
+
+
+
 
     "consolidated-mis": () =>
       lender === "adikosh"
@@ -151,6 +162,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_consolidated_mis_report_heyev_battery"
         : lender === "helium"
         ? "sp_consolidated_mis_report_helium"
+        : lender === "clayoo"    
+        ? "sp_consolidated_mis_report_clayyo"
         : lender === "circlepe"
         ? "sp_consolidated_mis_report_circlepe"
         : "sp_consolidated_mis_report",
@@ -187,9 +200,23 @@ function resolveProcedure(rawReportId, rawLender) {
         // Bank Payment File Report (for EmiClub)
     "bank-payment-file-report": () => "sp_bank_payment_file",
 
+    "bank-payment-file-bank-holiday-report": () => "sp_south_indian_bank_payment_file",
+
     // consumer bureau report
 "consumer-bureau-report": () => "sp_consumer_bureau_report_all_products",
 
+
+
+
+// NEW IRR Report add
+    "supply-chain-report":  () =>
+      lender === "Muthoot"
+        ? "sp_supply_chain_report"
+         : lender === "Kite"
+        ? "sp_supply_chain_report"
+        : lender === "FFPL"
+        ? "sp_supply_chain_report"
+        : "sp_supply_chain_report",
 
 
   };
@@ -269,7 +296,7 @@ router.post("/trigger", authenticateUser, async (req, res) => {
 
   // ✅ File setup
   const usePdf = outputFormat?.toLowerCase() === "pdf" && isPrintReport;
-  const isBankPaymentFile = norm(reportId) === "bank-payment-file-report";
+  const isBankPaymentFile = norm(reportId) === "bank-payment-file-report" || norm(reportId) === "bank-payment-file-bank-holiday-report";
 const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
   const timestamp = Date.now();
   const fileSafeId = normalizedReportId.replace(/[^a-z0-9-]/g, "");
@@ -347,7 +374,10 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
           if (normalizedReportId === "bank-payment-file-report") {
             // ⚙️ Use custom helper for bank payment file
             await exportBankPaymentFile(finalRows, filePath);
-          } else if (normalizedReportId === "consumer-bureau-report") {
+          }else if (normalizedReportId === "bank-payment-file-bank-holiday-report") {
+    // Call your specific holiday utility here
+    await exportBankHolidayReport(finalRows, filePath); 
+} else if (normalizedReportId === "consumer-bureau-report") {
   await exportConsumerBureauReport(finalRows, filePath);
 } else {
             // ✅ Default Excel export

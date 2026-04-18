@@ -148,7 +148,7 @@ THEN 'Part Paid'
 
 
     WHEN due_date < CURDATE() 
-         AND (remaining_principal > 0 and remaining_interest > 0)
+         AND (principal =remaining_principal  and interest= remaining_interest )
     THEN 'Late'
 
     WHEN due_date = CURDATE() 

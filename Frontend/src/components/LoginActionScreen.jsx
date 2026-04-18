@@ -37,7 +37,6 @@
 //   }
 // };
 
-
 //   if (loading) return <div className="spinner-container"><div className="spinner"></div></div>;
 //   if (error) return <p>{error}</p>;
 
@@ -132,7 +131,6 @@
 
 // export default LoginActionScreen;
 
-
 import React, { useEffect, useState } from "react";
 import api from "../api/api";
 import { useNavigate } from "react-router-dom";
@@ -165,8 +163,13 @@ const LoginActionScreen = ({
   // keep EXACT behavior/signature
   const handleStatusChange = async (lan, newStatus, table) => {
     try {
-      await api.put(`/loan-booking/login-loans/${lan}`, { status: newStatus, table });
-      setRows((prev) => prev.map((r) => (r.lan === lan ? { ...r, status: newStatus } : r)));
+      await api.put(`/loan-booking/login-loans/${lan}`, {
+        status: newStatus,
+        table,
+      });
+      setRows((prev) =>
+        prev.map((r) => (r.lan === lan ? { ...r, status: newStatus } : r)),
+      );
     } catch (err) {
       console.error("Error updating status:", err);
       alert("Failed to update status. Try again.");
@@ -177,15 +180,33 @@ const LoginActionScreen = ({
   if (err) return <p style={{ color: "#b91c1c", fontWeight: 600 }}>{err}</p>;
 
   // show Batch ID column only if any LAN begins with ADK
-  const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
+  const hasADK = rows.some(
+    (r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan),
+  );
 
   // styles
   const pill = (status) => {
     const map = {
-      approved: { bg: "rgba(16,185,129,.12)", bd: "rgba(16,185,129,.35)", fg: "#065f46" },
-      rejected: { bg: "rgba(239,68,68,.12)", bd: "rgba(239,68,68,.35)", fg: "#7f1d1d" },
-      pending: { bg: "rgba(234,179,8,.12)", bd: "rgba(234,179,8,.35)", fg: "#713f12" },
-      login: { bg: "rgba(107,114,128,.12)", bd: "rgba(107,114,128,.35)", fg: "#374151" },
+      approved: {
+        bg: "rgba(16,185,129,.12)",
+        bd: "rgba(16,185,129,.35)",
+        fg: "#065f46",
+      },
+      rejected: {
+        bg: "rgba(239,68,68,.12)",
+        bd: "rgba(239,68,68,.35)",
+        fg: "#7f1d1d",
+      },
+      pending: {
+        bg: "rgba(234,179,8,.12)",
+        bd: "rgba(234,179,8,.35)",
+        fg: "#713f12",
+      },
+      login: {
+        bg: "rgba(107,114,128,.12)",
+        bd: "rgba(107,114,128,.35)",
+        fg: "#374151",
+      },
     };
     const key = (status || "pending").toLowerCase();
     const c = map[key] || map.login;
@@ -201,59 +222,59 @@ const LoginActionScreen = ({
     //   color: c.fg,
     //   border: `1px solid ${c.bd}`,
     // };
-      return {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "8px 14px",
-    borderRadius: 999,
-    fontSize: 13,
-    fontWeight: 600,
-    background: c.bg,
-    color: c.fg,
-    border: "1px solid transparent",
-    minWidth: 72,
-  };
+    return {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "8px 14px",
+      borderRadius: 999,
+      fontSize: 13,
+      fontWeight: 600,
+      background: c.bg,
+      color: c.fg,
+      border: "1px solid transparent",
+      minWidth: 72,
+    };
   };
   const actionBtn = (type) => {
-  const isApprove = type === "approve";
+    const isApprove = type === "approve";
 
-  return {
-    minWidth: isApprove ? "170px" : "110px",
-    height: "44px",
-    padding: "0 16px",
-    borderRadius: "14px",
-    border: "1px solid transparent",
+    return {
+      minWidth: isApprove ? "170px" : "110px",
+      height: "44px",
+      padding: "0 16px",
+      borderRadius: "14px",
+      border: "1px solid transparent",
+      cursor: "pointer",
+      fontSize: "14px",
+      fontWeight: 600,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      whiteSpace: "nowrap",
+      color: isApprove ? "#047857" : "#dc2626",
+      background: isApprove ? "#e8f8f0" : "#fdecec",
+      boxShadow: "none",
+    };
+  };
+
+  const docsBtn = {
+    minWidth: "88px",
+    height: "38px",
+    padding: "0 12px",
+    borderRadius: "12px",
+    border: "1px solid #dbe5ef",
+    color: "#1d4ed8",
+    background: "#f8fbff",
     cursor: "pointer",
-    fontSize: "14px",
+    fontSize: "13px",
     fontWeight: 600,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    whiteSpace: "nowrap",
-    color: isApprove ? "#047857" : "#dc2626",
-    background: isApprove ? "#e8f8f0" : "#fdecec",
-    boxShadow: "none",
+    gap: 6,
   };
-};
-
-const docsBtn = {
-  minWidth: "88px",
-  height: "38px",
-  padding: "0 12px",
-  borderRadius: "12px",
-  border: "1px solid #dbe5ef",
-  color: "#1d4ed8",
-  background: "#f8fbff",
-  cursor: "pointer",
-  fontSize: "13px",
-  fontWeight: 600,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 6,
-};
   // const actionBtn = (type) => ({
   //   padding: "8px 10px",
   //   borderRadius: 8,
@@ -291,7 +312,12 @@ const docsBtn = {
       csvAccessor: () => lenderName,
       width: 120,
     },
-    { key: "partner_loan_id", header: "Partner Loan ID", sortable: true, width: 160 },
+    {
+      key: "partner_loan_id",
+      header: "Partner Loan ID",
+      sortable: true,
+      width: 160,
+    },
     {
       key: "lan",
       header: "LAN",
@@ -314,10 +340,13 @@ const docsBtn = {
             key: "batch_id",
             header: "Batch ID",
             sortable: true,
-            render: (r) => (/^ADK/i.test(r?.lan) ? r?.batch_id ?? "—" : "—"),
+            render: (r) => (/^ADK/i.test(r?.lan) ? (r?.batch_id ?? "—") : "—"),
             sortAccessor: (r) =>
-              /^ADK/i.test(r?.lan) ? String(r?.batch_id || "").toLowerCase() : "",
-            csvAccessor: (r) => (/^ADK/i.test(r?.lan) ? r?.batch_id ?? "" : ""),
+              /^ADK/i.test(r?.lan)
+                ? String(r?.batch_id || "").toLowerCase()
+                : "",
+            csvAccessor: (r) =>
+              /^ADK/i.test(r?.lan) ? (r?.batch_id ?? "") : "",
             width: 140,
           },
         ]
@@ -340,7 +369,9 @@ const docsBtn = {
       key: "status",
       header: "Status",
       sortable: true,
-      render: (r) => <span style={pill(r.status)}>{r.status || "Pending"}</span>,
+      render: (r) => (
+        <span style={pill(r.status)}>{r.status || "Pending"}</span>
+      ),
       sortAccessor: (r) => (r.status || "").toLowerCase(),
       csvAccessor: (r) => r.status || "Pending",
       width: 140,
@@ -361,7 +392,7 @@ const docsBtn = {
           //   fontSize: 13,
           //   fontWeight: 600,
           // }}
-            style={docsBtn}
+          style={docsBtn}
           title="Open documents"
         >
           📂 Docs
@@ -371,80 +402,78 @@ const docsBtn = {
       width: 120,
     },
     {
-  key: "actions",
-  header: "Actions",
-  render: (r) => {
-    const isDLR = /^DLR/i.test(r.lan);
+      key: "actions",
+      header: "Actions",
+      render: (r) => {
+        const isDLR = /^DLR/i.test(r.lan);
 
-    return (
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <button
-          style={actionBtn("approve")}
-          onClick={() =>
-            handleStatusChange(
-              r.lan,
-              isDLR ? "Approved" : "Disburse initiate",
-              tableName
-            )
-          }
-        >
-          ✅ {isDLR ? "Approve" : "Disburse initiate"}
-        </button>
+        return (
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              style={actionBtn("approve")}
+              onClick={() =>
+                handleStatusChange(
+                  r.lan,
+                  isDLR ? "Approved" : "Disburse initiate",
+                  tableName,
+                )
+              }
+            >
+              ✅ {isDLR ? "Approve" : "Disburse initiate"}
+            </button>
 
-        <button
-          style={actionBtn("reject")}
-          onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
-        >
-          ❌ Reject
-        </button>
-      </div>
-    );
-  },
-  csvAccessor: () => "",
-  width: 210,
-},
-//     {
-//   key: "actions",
-//   header: "Actions",
-//   render: (r) => {
-//     const isDLR = /^DLR/i.test(r.lan);
+            <button
+              style={actionBtn("reject")}
+              onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
+            >
+              ❌ Reject
+            </button>
+          </div>
+        );
+      },
+      csvAccessor: () => "",
+      width: 210,
+    },
+    //     {
+    //   key: "actions",
+    //   header: "Actions",
+    //   render: (r) => {
+    //     const isDLR = /^DLR/i.test(r.lan);
 
-//     return (
-//       <div style={{ display: "flex", gap: 8 }}>
-//         <button
-//           style={actionBtn("approve")}
-//           onClick={() =>
-//             handleStatusChange(
-//               r.lan,
-//               isDLR ? "Approved" : "Disburse initiate",
-//               tableName
-//             )
-//           }
-//         >
-//           {isDLR ? "✅ Approve" : "✅ Disburse initiate"}
-//         </button>
+    //     return (
+    //       <div style={{ display: "flex", gap: 8 }}>
+    //         <button
+    //           style={actionBtn("approve")}
+    //           onClick={() =>
+    //             handleStatusChange(
+    //               r.lan,
+    //               isDLR ? "Approved" : "Disburse initiate",
+    //               tableName
+    //             )
+    //           }
+    //         >
+    //           {isDLR ? "✅ Approve" : "✅ Disburse initiate"}
+    //         </button>
 
-//         <button
-//           style={actionBtn("reject")}
-//           onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
-//         >
-//           ❌ Reject
-//         </button>
-//       </div>
-//     );
-//   },
-//   csvAccessor: () => "",
-//   width: 210,
-// }
-
-
+    //         <button
+    //           style={actionBtn("reject")}
+    //           onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
+    //         >
+    //           ❌ Reject
+    //         </button>
+    //       </div>
+    //     );
+    //   },
+    //   csvAccessor: () => "",
+    //   width: 210,
+    // }
   ];
 
   // include batch_id in search/CSV only when present

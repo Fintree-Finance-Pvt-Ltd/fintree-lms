@@ -388,6 +388,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     }
 
     const lender = "LOAN-DIGIT";
+    // const product = "Monthly";
     const product = "Loan Digit";
     const loan_type = "Monthly";
     const status = "Login";
@@ -665,6 +666,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 </soapenv:Body>
 </soapenv:Envelope>`;
 
+console.log("Loan Digit SOAP BODY", soapBody )
       const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
         headers: {
           "Content-Type": "text/xml; charset=utf-8",
@@ -711,7 +713,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
         `UPDATE loan_booking_loan_digit
          SET fintree_cibil_score =?
          WHERE lan=?`,
-        [experianScore , lan],
+        [experianScore, lan],
       );
 
       /* ✅ ADD THIS BLOCK */
@@ -745,10 +747,60 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     console.error("❌ Loan Digit Error:", error);
 
     res.status(500).json({
-    status: "FAILED",
-    message: "Loan upload failed",
-});
+      status: "FAILED",
+      message: "Loan upload failed",
+    });
   }
 });
+
+
+router.get("/approve-initiate-loans", verifyApiKey, async (req, res) => {
+  const { table = "loan_booking_loan_digit" , prefixLan = "LDF" } = req.query;
+  try { const [rows] = await db
+      .promise()
+      .query(
+        `SELECT lan, customer_name, status FROM ${table} WHERE status = 'Login' ORDER BY created_at DESC`,
+      );
+    res.json(Array.isArray(rows) ? rows : []);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Credit approve for disbursement
+router.put("/approve-initiated-loans/:lan", verifyApiKey, async (req, res) => {
+  const { lan } = req.params;
+  const { status, table = "loan_booking_loan_digit" } = req.body;
+
+  if (!lan || !status || !table) {
+    return res.status(400).json({
+      status: "FAILED",
+      message: "Missing required fields: lan, status, table",
+    });
+  }
+  try {
+    const allowedStatuses = ["BRE Approved", "Credit Approved", "Rejected"];
+
+    if (!allowedStatuses.includes(status)) {
+      return res
+        .status(400)
+        .json({
+          status: "FAILED",
+          message: `Invalid status. Allowed values: ${allowedStatuses.join(", ")}`,
+        });
+    }
+    await db
+      .promise()
+      .execute(`UPDATE ${table} SET status = ? WHERE lan = ?`, [status, lan]);
+    res.json({ status: "SUCCESS" });
+  } catch (err) {
+    console.error("Error updating loan status:", err);
+    res
+      .status(500)
+      .json({ status: "FAILED", message: "Database update failed" });
+  }
+});
+
+
 
 module.exports = router;
