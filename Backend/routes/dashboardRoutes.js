@@ -122,7 +122,7 @@ router.post("/dpd-list", async (req, res) => {
 
     const prod     = normalizeProduct(product);
     const page     = Math.max(1, parseInt(pageRaw || 1, 10));
-    const pageSize = Math.min(100, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
+    const pageSize = Math.min(2000, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
     const sortBy   = typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd";
     const sortDir  = String(sortDirRaw || "desc").toLowerCase() === "asc" ? "asc" : "desc";
 
