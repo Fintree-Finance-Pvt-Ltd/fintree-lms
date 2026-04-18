@@ -1073,21 +1073,6 @@ const ALLClayyoCaseScreen = ({
       "credit recheck": { bg: "rgba(249,115,22,.12)", bd: "rgba(249,115,22,.35)", fg: "#9a3412" },
     };
  
-    const stageMap = {
-      login: { bg: "rgba(107,114,128,.12)", bd: "rgba(107,114,128,.35)", fg: "#374151" },
-      credit_initiated: { bg: "rgba(59,130,246,.12)", bd: "rgba(59,130,246,.35)", fg: "#1d4ed8" },
-      bre_rejected: { bg: "rgba(239,68,68,.12)", bd: "rgba(239,68,68,.35)", fg: "#7f1d1d" },
-      limit_approval_pending: { bg: "rgba(234,179,8,.12)", bd: "rgba(234,179,8,.35)", fg: "#713f12" },
-      credit_rework: { bg: "rgba(249,115,22,.12)", bd: "rgba(249,115,22,.35)", fg: "#9a3412" },
-      credit_rejected: { bg: "rgba(239,68,68,.12)", bd: "rgba(239,68,68,.35)", fg: "#7f1d1d" },
-      ops_initiated: { bg: "rgba(14,165,233,.12)", bd: "rgba(14,165,233,.35)", fg: "#0c4a6e" },
-      ops_approved: { bg: "rgba(139,92,246,.12)", bd: "rgba(139,92,246,.35)", fg: "#5b21b6" },
-      agreement_pending: { bg: "rgba(168,85,247,.12)", bd: "rgba(168,85,247,.35)", fg: "#6b21a8" },
-      mandate_pending: { bg: "rgba(236,72,153,.12)", bd: "rgba(236,72,153,.35)", fg: "#9d174d" },
-      ready_for_disbursal: { bg: "rgba(34,197,94,.12)", bd: "rgba(34,197,94,.35)", fg: "#166534" },
-      disbursed: { bg: "rgba(16,185,129,.12)", bd: "rgba(16,185,129,.35)", fg: "#065f46" },
-    };
- 
     const map = type === "stage" ? stageMap : statusMap;
     const c = map[key] || {
       bg: "rgba(107,114,128,.12)",

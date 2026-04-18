@@ -388,6 +388,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     }
 
     const lender = "LOAN-DIGIT";
+    // const product = "Monthly";
     const product = "Loan Digit";
     const loan_type = "Monthly";
     const status = "Login";
@@ -766,7 +767,7 @@ router.get("/approve-initiate-loans", verifyApiKey, async (req, res) => {
   }
 });
 
-// Credit approve for dispursement
+// Credit approve for disbursement
 router.put("/approve-initiated-loans/:lan", verifyApiKey, async (req, res) => {
   const { lan } = req.params;
   const { status, table = "loan_booking_loan_digit" } = req.body;

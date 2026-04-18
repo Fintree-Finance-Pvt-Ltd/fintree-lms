@@ -175,7 +175,7 @@ if (lender === "EMICLUB" && product === "Monthly Loan") {
 
 ///////////////////////LOAN DIGIT ///////////////
 // ✅ Loan Digit: Monthly EMI due based on 25th cut-off logic
-if (lender === "LOAN-DIGIT" && product === "Loan Digit") {
+if (lender === "LOAN-DIGIT" && product === "Monthly") {
   const dueDate = new Date(disbDate);
   const disbDay = dueDate.getDate();
 
