@@ -153,7 +153,7 @@ import { ToastContainer } from "react-toastify";
 import LoanDigit from "./components/Loan Digit/LoanDigit";
 import LoanDigitLoginAction from "./components/Loan Digit/LoanDigitLoginAction";
 import LoanDigitDisburseInitiate from "./components/Loan Digit/LoanDigitDisburseInitiate";
-import LoanDigitDisbursed from "./components/Loan Digit/LoanDIgitDisbursed";
+import LoanDigitDisbursed from "./components/Loan Digit/LoanDigitDisbursed";
 import LoanDigitApproved from "./components/Loan Digit/LoanDigitApproved";
 import LoanDigitAllLoans from "./components/Loan Digit/LoanDigitAllLoans";
 
