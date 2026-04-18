@@ -382,7 +382,7 @@ async function buildMetricCards(prod, start, end, db) {
         SELECT IFNULL(SUM(r.transfer_amount), 0) AS amount
         FROM repayments_upload r
         JOIN ${cfg.collBook} b ON ${eqLan("b.lan", "r.lan")}
-        WHERE r.payment_date IS NOT NULL AND b.status = 'Disbursed'
+        WHERE r.payment_date IS NOT NULL AND b.status IN ('Disbursed', 'Foreclosed', 'Fully Paid', 'Settled & Closed')
         ${pclR.clause}
       `);
       collectParams.push(...pclR.params);
@@ -399,7 +399,7 @@ async function buildMetricCards(prod, start, end, db) {
         FROM repayments_upload
         WHERE payment_date IS NOT NULL
           AND lan COLLATE ${JOIN_COLLATE} IN (
-            SELECT lan COLLATE ${JOIN_COLLATE} FROM ${cfg.bookTable} WHERE status = 'Disbursed'
+            SELECT lan COLLATE ${JOIN_COLLATE} FROM ${cfg.bookTable} WHERE status IN ('Disbursed', 'Foreclosed', 'Fully Paid', 'Settled & Closed')
           )
           ${pclA.clause}
       `);
