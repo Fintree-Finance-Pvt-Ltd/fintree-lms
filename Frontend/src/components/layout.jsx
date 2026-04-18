@@ -2,6 +2,7 @@
 import React from "react";
 import Navbar from "./Navbar";
 import Sidebar from "./sidebar";
+import Footer from "./Footer"; 
 import { Outlet } from "react-router-dom";
 
 
@@ -13,6 +14,7 @@ const Layout = () => {
         <Sidebar />
         <div className="dashboard-content">
           <Outlet />
+                    <Footer />
         </div>
       </div>
     </div>

@@ -500,6 +500,20 @@ const ClayyoApprovedLoanDetails = () => {
                 </Grid>
                 ),
             },
+
+
+               {
+            title: "Bank Details",
+            content: (
+              <Grid>
+                <Field label="Bank Name" value={loan.bank_name} />
+                <Field label="Account Holder Name" value={loan.name_in_bank} />
+                <Field label="Account Number" value={loan.account_number} />
+                <Field label="IFSC" value={loan.ifsc} />
+                <Field label="Branch" value={loan.bank_branch} />
+              </Grid>
+            ),
+          },
             {
                 title: "Verification Pipeline",
                 icon: "🛡️",
@@ -513,6 +527,47 @@ const ClayyoApprovedLoanDetails = () => {
                 </Grid>
                 ),
             },
+{
+            title: "Insurance Details",
+            content: (
+              <Grid>
+                <Field
+                  label="Insurance Company"
+                  value={loan.insurance_company_name}
+                />
+                <Field
+                  label="Policy Holder Name"
+                  value={loan.insurance_policy_holder_name}
+                />
+                <Field
+                  label="Policy Number"
+                  value={loan.insurance_policy_number}
+                />
+                <Field
+                  label="Relation with policy Holder"
+                  value={loan.relation_with_policy_holder}
+                />
+              </Grid>
+            ),
+          },
+          
+          {
+            title: "Loan Details",
+            content: (
+              <Grid>
+                <Field label="Loan Amount" value={loan.loan_amount} />
+                <Field label="Tenure" value={loan.loan_tenure} />
+                <Field label="Interest Rate" value={loan.interest_rate} />
+                <Field label="Policy Type" value={loan.policy_type} />
+                <Field label="Employment" value={loan.employment_type} />
+                <Field
+                  label="Net Monthly Income"
+                  value={loan.net_monthly_income}
+                />
+              </Grid>
+            ),
+         },
+
             {
                 title: "Risk Analysis & Decisioning",
                 icon: "⚖️",
