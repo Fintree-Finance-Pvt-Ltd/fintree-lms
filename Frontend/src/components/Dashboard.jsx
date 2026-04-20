@@ -63,7 +63,7 @@ const Dashboard = () => {
       {/* Footer */}
       <footer style={styles.footer}>
   <p style={{ ...styles.footerText, fontWeight: "bold" }}>
-    © 2026 Loan Management System |@ SAJAG JAIN
+    © 2026 Loan Management System | Developed by Fintree
   </p>
 </footer>
     </div>
