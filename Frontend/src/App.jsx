@@ -1341,7 +1341,14 @@ function App() {
             }
           />
 
-          <Route path="/update-umrn" element={<UpdateUmrn />} />
+          <Route
+            path="/update-umrn"
+            element={
+              <PermissionRoute pageName="Update UMRN">
+                <UpdateUmrn />
+              </PermissionRoute>
+            }
+          />
 
           <Route
             path="/fldg-entry"
