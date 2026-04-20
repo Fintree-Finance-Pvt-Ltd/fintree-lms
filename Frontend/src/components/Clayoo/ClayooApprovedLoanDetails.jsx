@@ -465,6 +465,7 @@ const ClayyoApprovedLoanDetails = () => {
                     <Field label="Email Address" value={loan.email_id} />
                     <Field label="Date of Birth" value={formatDate(loan.dob)} />
                     <Field label="Gender" value={loan.gender} />
+                    <Field label="Patient Name" value={loan.patient_name} />
                 </Grid>
                 ),
             },

@@ -125,6 +125,19 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.app_id";
     netDisbursementExpr = "lb.final_limit";
   } 
+  if (lan.startsWith("LDF")) {
+    tableName = "loan_booking_loan_digit";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.loan_tenure AS loan_tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0)";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    preEmi = "COALESCE(lb.pre_emi, 0)";
+    netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
+  } 
   if (lan.startsWith("E10")) {
     tableName = "loan_booking_embifi";
     loanAmountCol = "lb.disbursal_amount as loan_amount";

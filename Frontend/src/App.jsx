@@ -156,6 +156,7 @@ import LoanDigitDisburseInitiate from "./components/Loan Digit/LoanDigitDisburse
 import LoanDigitDisbursed from "./components/Loan Digit/LoanDigitDisbursed";
 import LoanDigitApproved from "./components/Loan Digit/LoanDigitApproved";
 import LoanDigitAllLoans from "./components/Loan Digit/LoanDigitAllLoans";
+import LoanDigitDetails from "./components/Loan Digit/LoanDigitAllDetails";
 
  
 function App() {
@@ -570,6 +571,15 @@ function App() {
             element={
               <PermissionRoute pageName="Loan Digit All Loans">
                 <LoanDigitAllLoans/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/loan-digit/customer-details"
+            element={
+              <PermissionRoute pageName="Loan Digit Customer Details">
+                <LoanDigitDetails/>
               </PermissionRoute>
             }
           />

@@ -290,21 +290,45 @@ const LoginActionScreen = ({
 
   // base columns
   const baseColumns = [
+    // {
+    //   key: "customer_name",
+    //   header: "Loan Details",
+    //   sortable: true,
+    //   render: (r) => (
+    //     <span
+    //       style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+    //       onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
+    //     >
+    //       {r.customer_name ?? "—"}
+    //     </span>
+    //   ),
+    //   sortAccessor: (r) => (r.customer_name || r.pan_name || "").toLowerCase(),
+    //   width: 220,
+    // },
     {
-      key: "customer_name",
-      header: "Loan Details",
-      sortable: true,
-      render: (r) => (
-        <span
-          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
-        >
-          {r.customer_name ?? "—"}
-        </span>
-      ),
-      sortAccessor: (r) => (r.customer_name || r.pan_name || "").toLowerCase(),
-      width: 220,
-    },
+  key: "customer_name",
+  header: "Loan Details",
+  sortable: true,
+  render: (r) => {
+    // Check if the current row's LAN starts with LDF
+    const isLoanDigit = typeof r?.lan === "string" && /^LDF/i.test(r.lan);
+
+    return (
+      <span
+        style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+         onClick={() =>
+          isLoanDigit
+            ? navigate(`/loan-digit/customer-details?lan=${r.lan}`)
+            : navigate(`/approved-loan-details/${r.lan}`)
+        }
+      >
+        {r.customer_name ?? "—"}
+      </span>
+    );
+  },
+  sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
+  width: 220,
+},
     {
       key: "lender",
       header: "Lender",
