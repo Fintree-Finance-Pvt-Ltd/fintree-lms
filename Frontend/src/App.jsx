@@ -157,6 +157,7 @@ import LoanDigitDisbursed from "./components/Loan Digit/LoanDigitDisbursed";
 import LoanDigitApproved from "./components/Loan Digit/LoanDigitApproved";
 import LoanDigitAllLoans from "./components/Loan Digit/LoanDigitAllLoans";
 import LoanDigitDetails from "./components/Loan Digit/LoanDigitAllDetails";
+import UpdateUmrn from "./components/UpdateUmrn";
 
  
 function App() {
@@ -1339,6 +1340,8 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          <Route path="/update-umrn" element={<UpdateUmrn />} />
 
           <Route
             path="/fldg-entry"
