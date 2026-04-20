@@ -123,7 +123,6 @@ import SCDisbursedLoans from "./components/SCDisbursedLoans"; // Supply Chain Di
 import SCAllLoans from "./components/SCAllLoans"; // Supply Chain All Loans
 import ClayooManualEntry from "./components/Clayoo/ClayooLoanBooking";
 import ClayooDiburseInitiateScreen from "./components/Clayoo/ClayooDiburseInitiateScreen";
-import LoanDigit from "./components/Loan Digit/LoanDigit";
 import HospitalEntry from "./components/Clayoo/HospitalEntry";
 import ClayyoApprovedLoanDetails from "./components/Clayoo/ClayooApprovedLoanDetails";
 import ClayooLoginLoans from "./components/Clayoo/ClayooLoginLoans";
@@ -149,9 +148,16 @@ import SupplyChainInvoiceEntry from "./components/Supply Chain/SupplyChainInvoic
 import SupplyChainCollectionEntry from "./components/Supply Chain/SupplyChainCollectionEntry";
 import ReverseRepayment from "./components/ReverseRepayment";
 import ClayooFintreeScreen from "./components/Clayoo/ClayooFintreeScreen";
-
 import "react-toastify/dist/ReactToastify.css";
 import { ToastContainer } from "react-toastify";
+import LoanDigit from "./components/Loan Digit/LoanDigit";
+import LoanDigitLoginAction from "./components/Loan Digit/LoanDigitLoginAction";
+import LoanDigitDisburseInitiate from "./components/Loan Digit/LoanDigitDisburseInitiate";
+import LoanDigitDisbursed from "./components/Loan Digit/LoanDigitDisbursed";
+import LoanDigitApproved from "./components/Loan Digit/LoanDigitApproved";
+import LoanDigitAllLoans from "./components/Loan Digit/LoanDigitAllLoans";
+import LoanDigitDetails from "./components/Loan Digit/LoanDigitAllDetails";
+
  
 function App() {
   return (
@@ -516,10 +522,64 @@ function App() {
 
           {/* Loan Digit */}
           <Route
-            path="/loan-digit/cases"
+            path="/loan-digit/login-cases"
             element={
-              <PermissionRoute pageName="Loan Digit">
+              <PermissionRoute pageName="Loan Digit Login Loans">
                 <LoanDigit />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/loan-digit/credit-approval-actions"
+            element={
+              <PermissionRoute pageName="Loan Digit Credit Approval">
+                <LoanDigitLoginAction/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/loan-digit/operation-approval-actions"
+            element={
+              <PermissionRoute pageName="Loan Digit Operation Approval">
+                <LoanDigitDisburseInitiate/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/loan-digit/approved-loans"
+            element={
+              <PermissionRoute pageName="Loan Digit Approved Loans">
+                <LoanDigitApproved/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/loan-digit/disbursed-loans"
+            element={
+              <PermissionRoute pageName="Loan Digit Disbursed Loans">
+                <LoanDigitDisbursed/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/loan-digit/all-loans"
+            element={
+              <PermissionRoute pageName="Loan Digit All Loans">
+                <LoanDigitAllLoans/>
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/loan-digit/customer-details"
+            element={
+              <PermissionRoute pageName="Loan Digit Customer Details">
+                <LoanDigitDetails/>
               </PermissionRoute>
             }
           />

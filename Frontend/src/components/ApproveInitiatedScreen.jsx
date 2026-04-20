@@ -23,7 +23,7 @@ const ApproveInitiatedScreen = ({
 
     api
       .get(apiUrl)
-      .then((res) => !off && setRows(Array.isArray(res.data) ? res.data : []))
+      .then((res) => !off && setRows(Array.isArray(res.data?.rows) ? res.data.rows : []))
       .catch(() => !off && setErr("Failed to fetch data."))
       .finally(() => !off && setLoading(false));
     return () => {
@@ -45,6 +45,7 @@ const ApproveInitiatedScreen = ({
 
   // show Batch ID column only if any LAN begins with ADK
   const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
+  const hasLDF = rows.some((r) => typeof r?.lan === "string" && /^LDF/i.test(r.lan));
 
   // styles
   const pill = (status) => {

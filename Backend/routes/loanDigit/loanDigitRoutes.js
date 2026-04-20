@@ -388,6 +388,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     }
 
     const lender = "LOAN-DIGIT";
+    // const product = "Monthly";
     const product = "Loan Digit";
     const loan_type = "Monthly";
     const status = "Login";
@@ -752,51 +753,203 @@ console.log("Loan Digit SOAP BODY", soapBody )
   }
 });
 
-
-router.get("/approve-initiate-loans", verifyApiKey, async (req, res) => {
-  const { table = "loan_booking_loan_digit" , prefixLan = "LDF" } = req.query;
-  try { const [rows] = await db
-      .promise()
-      .query(
-        `SELECT lan, customer_name, status FROM ${table} WHERE status = 'Login' ORDER BY created_at DESC`,
-      );
-    res.json(Array.isArray(rows) ? rows : []);
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
-// Credit approve for dispursement
-router.put("/approve-initiated-loans/:lan", verifyApiKey, async (req, res) => {
+router.get("/loan-digit-info/:lan", async (req, res) => {
   const { lan } = req.params;
-  const { status, table = "loan_booking_loan_digit" } = req.body;
 
-  if (!lan || !status || !table) {
-    return res.status(400).json({
-      status: "FAILED",
-      message: "Missing required fields: lan, status, table",
-    });
-  }
   try {
-    const allowedStatuses = ["BRE Approved", "Credit Approved", "Rejected"];
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        lan,
+        partner_loan_id,
+        login_date,
 
-    if (!allowedStatuses.includes(status)) {
-      return res
-        .status(400)
-        .json({
-          status: "FAILED",
-          message: `Invalid status. Allowed values: ${allowedStatuses.join(", ")}`,
-        });
+        first_name,
+        middle_name,
+        last_name,
+        customer_name,
+        mobile_number,
+        pan_number,
+        dob,
+        age,
+        gender,
+
+        current_address,
+        current_village_city,
+        current_district,
+        current_state,
+        current_pincode,
+
+        permanent_address,
+        permanent_village_city,
+        permanent_district,
+        permanent_state,
+        permanent_pincode,
+
+        employment,
+        mode_of_salary,
+        monthly_salary,
+        current_emi,
+        marital_status,
+        residential_status,
+
+        cibil_score,
+        occupied_since,
+        years_in_current_city,
+
+        company_name,
+        company_address,
+        years_in_current_job,
+        total_work_experience,
+
+        bank_name,
+        name_in_bank,
+        account_number,
+        ifsc,
+        account_type,
+
+        loan_amount,
+        processing_fee,
+        interest_rate,
+        loan_tenure,
+        pre_emi,
+        net_disbursement_amount,
+
+        lender,
+        product,
+        loan_type,
+        status,
+
+        agreement_date,
+        created_at,
+        updated_at,
+
+        pan_status,
+        fintree_cibil_score,
+        loandigit_enquiries_6m,
+        loandigit_dpd_6m_flag,
+        loandigit_dpd_gt30_12m_flag,
+        loandigit_dpd_gt60_ever_flag,
+        loandigit_multi_pan_flag,
+        loandigit_deviation_flag,
+        loandigit_bre_status,
+        loandigit_bre_reason,
+        loandigit_bre_checked_at
+
+      FROM loan_booking_loan_digit
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        message: "Loan not found",
+      });
     }
-    await db
-      .promise()
-      .execute(`UPDATE ${table} SET status = ? WHERE lan = ?`, [status, lan]);
-    res.json({ status: "SUCCESS" });
+
+    const row = rows[0];
+
+    const loan = {
+      lan: row.lan,
+      partner_loan_id: row.partner_loan_id,
+      login_date: row.login_date,
+
+      first_name: row.first_name,
+      middle_name: row.middle_name,
+      last_name: row.last_name,
+      customer_name: row.customer_name,
+
+      mobile_number: row.mobile_number,
+      pan_number: row.pan_number,
+      dob: row.dob,
+      age: row.age,
+      gender: row.gender,
+
+      current_address: row.current_address,
+      current_city: row.current_village_city,
+      current_district: row.current_district,
+      current_state: row.current_state,
+      current_pincode: row.current_pincode,
+
+      permanent_address: row.permanent_address,
+      permanent_city: row.permanent_village_city,
+      permanent_district: row.permanent_district,
+      permanent_state: row.permanent_state,
+      permanent_pincode: row.permanent_pincode,
+
+      employment: row.employment,
+      mode_of_salary: row.mode_of_salary,
+      monthly_salary: row.monthly_salary,
+      current_emi: row.current_emi,
+
+      marital_status: row.marital_status,
+      residential_status: row.residential_status,
+
+      cibil_score: row.cibil_score,
+      fintree_cibil_score: row.fintree_cibil_score,
+
+      occupied_since: row.occupied_since,
+      years_in_current_city: row.years_in_current_city,
+
+      company_name: row.company_name,
+      company_address: row.company_address,
+      years_in_current_job: row.years_in_current_job,
+      total_work_experience: row.total_work_experience,
+
+      bank_name: row.bank_name,
+      name_in_bank: row.name_in_bank,
+      account_number: row.account_number,
+      ifsc: row.ifsc,
+      account_type: row.account_type,
+
+      loan_amount: row.loan_amount,
+      processing_fee: row.processing_fee,
+      interest_rate: row.interest_rate,
+      loan_tenure: row.loan_tenure,
+      pre_emi: row.pre_emi,
+      net_disbursement_amount: row.net_disbursement_amount,
+
+      lender: row.lender,
+      product: row.product,
+      loan_type: row.loan_type,
+      status: row.status,
+
+      agreement_date: row.agreement_date,
+      created_at: row.created_at,
+      updated_at: row.updated_at
+    };
+
+    const bre = {
+      enquiries_6m: row.loandigit_enquiries_6m,
+      dpd_6m_flag: row.loandigit_dpd_6m_flag,
+      dpd_gt30_12m_flag: row.loandigit_dpd_gt30_12m_flag,
+      dpd_gt60_ever_flag: row.loandigit_dpd_gt60_ever_flag,
+      multi_pan_flag: row.loandigit_multi_pan_flag,
+      deviation_flag: row.loandigit_deviation_flag,
+
+      bre_status: row.loandigit_bre_status,
+      bre_reason: row.loandigit_bre_reason,
+      bre_checked_at: row.loandigit_bre_checked_at
+    };
+
+    const kyc = {
+      pan_status: row.pan_status || "PENDING"
+    };
+
+    return res.json({
+      loan,
+      bre,
+      kyc
+    });
+
   } catch (err) {
-    console.error("Error updating loan status:", err);
-    res
-      .status(500)
-      .json({ status: "FAILED", message: "Database update failed" });
+    console.error("❌ Error fetching Loan Digit details:", err);
+
+    return res.status(500).json({
+      message: "Failed to fetch Loan Digit details",
+      error: err.sqlMessage || err.message
+    });
   }
 });
 
