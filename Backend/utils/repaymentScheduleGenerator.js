@@ -1424,36 +1424,84 @@ const generateRepaymentScheduleLoanDigit = async (
     // ===============================
 
     const principal = Number(loanAmount);
-    const annualRate = Number(interestRate);
+    const rate = Number(interestRate);
     const months = Number(tenure);
 
     if (!principal || principal <= 0)
       throw new Error(`Invalid loan amount for LAN ${lan}`);
 
-    if (!annualRate || annualRate <= 0)
+    if (!rate || rate <= 0)
       throw new Error(`Invalid interest rate for LAN ${lan}`);
 
     if (!months || months <= 0)
       throw new Error(`Invalid tenure for LAN ${lan}`);
 
     // ===============================
-    // STEP 1: MONTHLY RATE
+    // STEP 1: CALCULATE FLAT INTEREST
+    // (Loan Digit adjustment logic)
     // ===============================
 
-    const monthlyRate = annualRate / 12 / 100;
+    const flatInterest =
+      principal * (rate / 100) * (months / 12);
 
-    // ===============================
-    // STEP 2: EMI (REDUCING FORMULA)
-    // ===============================
+    // Adjustment factor used by lender engine
+    const adjustedInterest = flatInterest * 0.6775;
+
+    const totalRepayment =
+      principal + adjustedInterest;
 
     const emi = Math.round(
-      (principal *
-        monthlyRate *
-        Math.pow(1 + monthlyRate, months)) /
-        (Math.pow(1 + monthlyRate, months) - 1)
+      totalRepayment / months
     );
 
     console.log(`✅ EMI calculated (${lan}): ${emi}`);
+
+    // ===============================
+    // STEP 2: FIND REDUCING MONTHLY RATE
+    // ===============================
+
+    const getReducingMonthlyRate = () => {
+
+      let low = 0;
+      let high = 0.2;
+      let mid = 0;
+
+      for (let i = 0; i < 200; i++) {
+
+        mid = (low + high) / 2;
+
+        let balance = principal;
+        let totalInterestCheck = 0;
+
+        for (let j = 1; j <= months; j++) {
+
+          let interest = Math.round(balance * mid);
+
+          let principalComponent =
+            emi - interest;
+
+          balance -= principalComponent;
+
+          totalInterestCheck += interest;
+        }
+
+        if (totalInterestCheck > adjustedInterest)
+          high = mid;
+        else
+          low = mid;
+      }
+
+      return mid;
+    };
+
+    const monthlyRate =
+      getReducingMonthlyRate();
+
+    console.log(
+      `✅ Derived reducing monthly rate (${lan}): ${
+        (monthlyRate * 100).toFixed(4)
+      }%`
+    );
 
     // ===============================
     // STEP 3: FIRST EMI DATE
@@ -1466,7 +1514,8 @@ const generateRepaymentScheduleLoanDigit = async (
       product
     );
 
-    const firstDueDate = new Date(firstDueRaw);
+    const firstDueDate =
+      new Date(firstDueRaw);
 
     if (Number.isNaN(firstDueDate.getTime())) {
       throw new Error(
@@ -1479,7 +1528,11 @@ const generateRepaymentScheduleLoanDigit = async (
     // ===============================
 
     let openingPrincipal = principal;
-    let dueDate = new Date(firstDueDate);
+    let remainingPrincipal = principal;
+    let remainingInterest = adjustedInterest;
+
+    let dueDate =
+      new Date(firstDueDate);
 
     const rpsData = [];
 
@@ -1489,16 +1542,23 @@ const generateRepaymentScheduleLoanDigit = async (
         openingPrincipal * monthlyRate
       );
 
-      let principalComponent = emi - interest;
+      let principalComponent =
+        emi - interest;
 
-      // Last EMI correction
       if (i === months) {
-        principalComponent = openingPrincipal;
-        interest = emi - principalComponent;
+        interest = Math.round(
+          remainingInterest
+        );
+        principalComponent = Math.round(
+          remainingPrincipal
+        );
       }
 
       const closingPrincipal =
         openingPrincipal - principalComponent;
+
+      remainingPrincipal -= principalComponent;
+      remainingInterest -= interest;
 
       rpsData.push([
         lan,
@@ -1508,7 +1568,10 @@ const generateRepaymentScheduleLoanDigit = async (
         interest,
         principalComponent,
         openingPrincipal,
-        Math.max(0, Math.round(closingPrincipal)),
+        Math.max(
+          0,
+          Math.round(closingPrincipal)
+        ),
         emi,
         interest,
         principalComponent,
@@ -1516,7 +1579,9 @@ const generateRepaymentScheduleLoanDigit = async (
 
       openingPrincipal = closingPrincipal;
 
-      dueDate.setMonth(dueDate.getMonth() + 1);
+      dueDate.setMonth(
+        dueDate.getMonth() + 1
+      );
     }
 
     // ===============================
@@ -1546,7 +1611,6 @@ const generateRepaymentScheduleLoanDigit = async (
     throw err;
   }
 };
-
 
 ////////// LOAN DIGIT END //////////////////////
 /////////////////// EMI CLUB RPS ///////////////////////
