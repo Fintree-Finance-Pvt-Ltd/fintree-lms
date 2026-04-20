@@ -2473,7 +2473,7 @@ router.post("/update-umrn", (req, res) => {
 
     const updateQuery = `
       UPDATE ??
-      SET enach_umrn = ?,
+      SET enach_umrn = ?
       WHERE lan = ?
     `;
 
