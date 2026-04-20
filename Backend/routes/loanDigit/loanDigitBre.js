@@ -367,7 +367,7 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
 
 if (kyc.bureau_status !== "VERIFIED") {
   await pool.query(
-    `UPDATE loan_booking_loandigit
+    `UPDATE loan_booking_loan_digit
      SET loandigit_bre_status = ?,
          loandigit_bre_reason = ?,
          loandigit_bre_checked_at = NOW()
@@ -387,7 +387,7 @@ if (kyc.bureau_status !== "VERIFIED") {
     years_in_current_job,
     monthly_salary,
     cibil_score
-     FROM loan_booking_loandigit
+     FROM loan_booking_loan_digit
      WHERE lan = ?`,
     [lan]
   );
@@ -411,7 +411,7 @@ if (kyc.bureau_status !== "VERIFIED") {
 
   if (!cibilRows.length || !cibilRows[0].report_xml) {
     await pool.query(
-      `UPDATE loan_booking_loandigit
+      `UPDATE loan_booking_loan_digit
        SET loandigit_bre_status = ?,
            loandigit_bre_reason = ?,
            loandigit_bre_checked_at = NOW()
@@ -436,7 +436,7 @@ if (kyc.bureau_status !== "VERIFIED") {
   if (decision.status === "Credit Recheck") finalStage = "CREDIT_RECHECK";
 
   await pool.query(
-    `UPDATE loan_booking_loandigit
+    `UPDATE loan_booking_loan_digit
      SET
        loandigit_bre_status = ?,
        loandigit_bre_reason = ?,

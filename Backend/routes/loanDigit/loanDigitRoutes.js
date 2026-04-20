@@ -584,7 +584,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 </Identification>
 
 <Application>
-<FTReferenceNumber></FTReferenceNumber>
+<FTReferenceNumber>${lan}</FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
         <EnquiryReason>13</EnquiryReason>
         <FinancePurpose>99</FinancePurpose>
@@ -629,7 +629,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     </Applicant>
 
      <Details>
-        <Income></Income>
+        <Income>${monthly_salary}</Income>
         <MaritalStatus></MaritalStatus>
         <EmployStatus></EmployStatus>
         <TimeWithEmploy></TimeWithEmploy>
