@@ -1221,6 +1221,192 @@ const generateRepaymentScheduleZypay = async (
 
 ////////// LOAN DIGIT//////////////////////
 
+// const generateRepaymentScheduleLoanDigit = async (
+//   conn,
+//   lan,
+//   loanAmount,
+//   interestRate,
+//   tenure,
+//   disbursementDate,
+//   product,
+//   lender
+// ) => {
+//   try {
+
+//     // ===============================
+//     // STEP 0: SANITIZE & VALIDATE INPUTS
+//     // ===============================
+
+//     const principal = Number(loanAmount);
+//     const rate = Number(interestRate);
+//     const months = Number(tenure);
+
+//     if (!principal || principal <= 0)
+//       throw new Error(`Invalid loan amount for LAN ${lan}`);
+
+//     if (!rate || rate <= 0)
+//       throw new Error(`Invalid interest rate for LAN ${lan}`);
+
+//     if (!months || months <= 0)
+//       throw new Error(`Invalid tenure for LAN ${lan}`);
+
+//     // ===============================
+//     // STEP 1: TOTAL FLAT INTEREST
+//     // ===============================
+
+//     const totalInterest =
+//       principal * (rate / 100) * (months / 12);
+
+//     // ===============================
+//     // STEP 2: EMI CALCULATION (FLAT EMI)
+//     // ===============================
+
+//     const emi = Math.round(
+//       (principal + totalInterest) / months
+//     );
+
+//     console.log(`✅ EMI calculated (${lan}): ${emi}`);
+
+//     // ===============================
+//     // STEP 3: FIND MONTHLY REDUCING RATE
+//     // (Matches Loan Digit amortization)
+//     // ===============================
+
+//     const getReducingMonthlyRate = () => {
+
+//       let low = 0;
+//       let high = 0.2;
+//       let mid = 0;
+
+//       for (let i = 0; i < 200; i++) {
+
+//         mid = (low + high) / 2;
+
+//         let balance = principal;
+//         let totalInterestCheck = 0;
+
+//         for (let j = 1; j <= months; j++) {
+
+//           let interest = Math.round(balance * mid);
+//           let principalComponent = emi - interest;
+
+//           balance -= principalComponent;
+//           totalInterestCheck += interest;
+//         }
+
+//         if (totalInterestCheck > totalInterest)
+//           high = mid;
+//         else
+//           low = mid;
+//       }
+
+//       return mid;
+//     };
+
+//     const monthlyRate = getReducingMonthlyRate();
+
+//     console.log(
+//       `✅ Monthly reducing rate (${lan}): ${(monthlyRate * 100).toFixed(4)}%`
+//     );
+
+//     // ===============================
+//     // STEP 4: FIRST EMI DATE
+//     // ===============================
+
+//     const firstDueRaw = getFirstEmiDate(
+//       disbursementDate,
+//       null,
+//       lender,
+//       product
+//     );
+
+//     const firstDueDate = new Date(firstDueRaw);
+
+//     if (Number.isNaN(firstDueDate.getTime())) {
+//       throw new Error(
+//         `Invalid first EMI date returned: ${firstDueRaw}`
+//       );
+//     }
+
+//     // ===============================
+//     // STEP 5: GENERATE RPS
+//     // ===============================
+
+//     let openingPrincipal = principal;
+//     let remainingPrincipal = principal;
+//     let remainingInterest = totalInterest;
+
+//     let dueDate = new Date(firstDueDate);
+
+//     const rpsData = [];
+
+//     for (let i = 1; i <= months; i++) {
+
+//       let interest = Math.round(
+//         openingPrincipal * monthlyRate
+//       );
+
+//       let principalComponent = emi - interest;
+
+//       // Last EMI adjustment
+//       if (i === months) {
+//         interest = Math.round(remainingInterest);
+//         principalComponent = Math.round(remainingPrincipal);
+//       }
+
+//       const closingPrincipal =
+//         openingPrincipal - principalComponent;
+
+//       remainingPrincipal -= principalComponent;
+//       remainingInterest -= interest;
+
+//       rpsData.push([
+//         lan,
+//         dueDate.toISOString().split("T")[0],
+//         "Pending",
+//         emi,
+//         interest,
+//         principalComponent,
+//         openingPrincipal,
+//         Math.max(0, Math.round(closingPrincipal)),
+//         emi,
+//         interest,
+//         principalComponent,
+//       ]);
+
+//       openingPrincipal = closingPrincipal;
+
+//       dueDate.setMonth(dueDate.getMonth() + 1);
+//     }
+
+//     // ===============================
+//     // STEP 6: INSERT INTO DATABASE
+//     // ===============================
+
+//     await conn.query(
+//       `INSERT INTO manual_rps_loan_digit
+//        (lan, due_date, status, emi, interest, principal,
+//         opening, closing, remaining_emi,
+//         remaining_interest, remaining_principal)
+//        VALUES ?`,
+//       [rpsData]
+//     );
+
+//     console.log(
+//       `✅ Loan Digit RPS generated successfully for ${lan}`
+//     );
+
+//   } catch (err) {
+
+//     console.error(
+//       `❌ Loan Digit RPS generation failed (${lan}):`,
+//       err
+//     );
+
+//     throw err;
+//   }
+// };
+
 const generateRepaymentScheduleLoanDigit = async (
   conn,
   lan,
@@ -1234,83 +1420,43 @@ const generateRepaymentScheduleLoanDigit = async (
   try {
 
     // ===============================
-    // STEP 0: SANITIZE & VALIDATE INPUTS
+    // STEP 0: VALIDATION
     // ===============================
 
     const principal = Number(loanAmount);
-    const rate = Number(interestRate);
+    const annualRate = Number(interestRate);
     const months = Number(tenure);
 
     if (!principal || principal <= 0)
       throw new Error(`Invalid loan amount for LAN ${lan}`);
 
-    if (!rate || rate <= 0)
+    if (!annualRate || annualRate <= 0)
       throw new Error(`Invalid interest rate for LAN ${lan}`);
 
     if (!months || months <= 0)
       throw new Error(`Invalid tenure for LAN ${lan}`);
 
     // ===============================
-    // STEP 1: TOTAL FLAT INTEREST
+    // STEP 1: MONTHLY RATE
     // ===============================
 
-    const totalInterest =
-      principal * (rate / 100) * (months / 12);
+    const monthlyRate = annualRate / 12 / 100;
 
     // ===============================
-    // STEP 2: EMI CALCULATION (FLAT EMI)
+    // STEP 2: EMI (REDUCING FORMULA)
     // ===============================
 
     const emi = Math.round(
-      (principal + totalInterest) / months
+      (principal *
+        monthlyRate *
+        Math.pow(1 + monthlyRate, months)) /
+        (Math.pow(1 + monthlyRate, months) - 1)
     );
 
     console.log(`✅ EMI calculated (${lan}): ${emi}`);
 
     // ===============================
-    // STEP 3: FIND MONTHLY REDUCING RATE
-    // (Matches Loan Digit amortization)
-    // ===============================
-
-    const getReducingMonthlyRate = () => {
-
-      let low = 0;
-      let high = 0.2;
-      let mid = 0;
-
-      for (let i = 0; i < 200; i++) {
-
-        mid = (low + high) / 2;
-
-        let balance = principal;
-        let totalInterestCheck = 0;
-
-        for (let j = 1; j <= months; j++) {
-
-          let interest = Math.round(balance * mid);
-          let principalComponent = emi - interest;
-
-          balance -= principalComponent;
-          totalInterestCheck += interest;
-        }
-
-        if (totalInterestCheck > totalInterest)
-          high = mid;
-        else
-          low = mid;
-      }
-
-      return mid;
-    };
-
-    const monthlyRate = getReducingMonthlyRate();
-
-    console.log(
-      `✅ Monthly reducing rate (${lan}): ${(monthlyRate * 100).toFixed(4)}%`
-    );
-
-    // ===============================
-    // STEP 4: FIRST EMI DATE
+    // STEP 3: FIRST EMI DATE
     // ===============================
 
     const firstDueRaw = getFirstEmiDate(
@@ -1329,13 +1475,10 @@ const generateRepaymentScheduleLoanDigit = async (
     }
 
     // ===============================
-    // STEP 5: GENERATE RPS
+    // STEP 4: GENERATE RPS
     // ===============================
 
     let openingPrincipal = principal;
-    let remainingPrincipal = principal;
-    let remainingInterest = totalInterest;
-
     let dueDate = new Date(firstDueDate);
 
     const rpsData = [];
@@ -1348,17 +1491,14 @@ const generateRepaymentScheduleLoanDigit = async (
 
       let principalComponent = emi - interest;
 
-      // Last EMI adjustment
+      // Last EMI correction
       if (i === months) {
-        interest = Math.round(remainingInterest);
-        principalComponent = Math.round(remainingPrincipal);
+        principalComponent = openingPrincipal;
+        interest = emi - principalComponent;
       }
 
       const closingPrincipal =
         openingPrincipal - principalComponent;
-
-      remainingPrincipal -= principalComponent;
-      remainingInterest -= interest;
 
       rpsData.push([
         lan,
@@ -1380,7 +1520,7 @@ const generateRepaymentScheduleLoanDigit = async (
     }
 
     // ===============================
-    // STEP 6: INSERT INTO DATABASE
+    // STEP 5: INSERT INTO DATABASE
     // ===============================
 
     await conn.query(
@@ -1406,6 +1546,7 @@ const generateRepaymentScheduleLoanDigit = async (
     throw err;
   }
 };
+
 
 ////////// LOAN DIGIT END //////////////////////
 /////////////////// EMI CLUB RPS ///////////////////////
