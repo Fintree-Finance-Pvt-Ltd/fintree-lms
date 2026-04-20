@@ -953,7 +953,7 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
 
     const [[loan]] = await db.promise().query(
       `
-      SELECT customer_name, approved_limit
+      SELECT customer_name, final_limit
       FROM loan_booking_clayyo
       WHERE lan = ?
       `,
