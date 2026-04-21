@@ -157,6 +157,7 @@ import LoanDigitDisbursed from "./components/Loan Digit/LoanDigitDisbursed";
 import LoanDigitApproved from "./components/Loan Digit/LoanDigitApproved";
 import LoanDigitAllLoans from "./components/Loan Digit/LoanDigitAllLoans";
 import LoanDigitDetails from "./components/Loan Digit/LoanDigitAllDetails";
+import UpdateUmrn from "./components/UpdateUmrn";
 
  
 function App() {
@@ -1336,6 +1337,15 @@ function App() {
             element={
               <PermissionRoute pageName="Partner Limits">
                 <PartnerLimitEntry />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/update-umrn"
+            element={
+              <PermissionRoute pageName="Update UMRN">
+                <UpdateUmrn />
               </PermissionRoute>
             }
           />

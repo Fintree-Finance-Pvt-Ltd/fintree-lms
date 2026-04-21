@@ -2419,6 +2419,81 @@ router.get("/login-loans", (req, res) => {
   });
 });
 
+router.post("/update-umrn", (req, res) => {
+  const { lan, umrn, table = "loan_booking_helium" } = req.body;
+
+  const allowedTables = {
+    loan_booking_helium: true,
+    loan_booking_ev: true,
+    loan_booking_hey_ev: true,
+    loan_booking_adikosh: true,
+    loan_booking_gq_non_fsf: true,
+    loan_booking_gq_fsf: true,
+    loan_bookings_wctl: true,
+    loan_booking_emiclub: true,
+    loan_booking_zypay_customer: true,
+    loan_booking_finso: true,
+    loan_booking_clayyo: true,
+    loan_booking_circle_pe: true,
+    loan_booking_loan_digit: true,
+    loan_booking_hey_ev_battery: true,
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid table selected",
+    });
+  }
+
+  if (!lan || !umrn) {
+    return res.status(400).json({
+      success: false,
+      message: "LAN and UMRN are required",
+    });
+  }
+
+  const checkQuery = `SELECT lan FROM ?? WHERE lan = ?`;
+
+  db.query(checkQuery, [table, lan], (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({
+        success: false,
+        message: "Database error",
+      });
+    }
+
+    if (result.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "LAN not found",
+      });
+    }
+
+    const updateQuery = `
+      UPDATE ??
+      SET enach_umrn = ?
+      WHERE lan = ?
+    `;
+
+    db.query(updateQuery, [table, umrn, lan], (err, updateResult) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to update UMRN",
+        });
+      }
+
+      return res.json({
+        success: true,
+        message: "UMRN updated successfully",
+      });
+    });
+  });
+});
+
 router.get("/approve-initiate-loans", async (req, res) => {
   const {
     table = "loan_booking_ev",
