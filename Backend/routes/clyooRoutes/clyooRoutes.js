@@ -88,6 +88,11 @@ router.post("/hospitals/create", async (req, res) => {
       "hospital_phone",
       "owner_name",
       "owner_phone",
+      "ifsc_code",
+      "bank_name",
+      "branch_name",
+      "account_holder_name",
+      "account_number",
     ];
 
     const missing = requiredFields.filter(
@@ -136,6 +141,11 @@ router.post("/hospitals/create", async (req, res) => {
       owner_name: data.owner_name,
       owner_email: data.owner_email || null,
       owner_phone: data.owner_phone,
+      ifsc_code: data.ifsc_code,
+      bank_name: data.bank_name,
+      branch_name: data.branch_name,
+      account_holder_name: data.account_holder_name,
+      account_number: data.account_number,
 
       status: "ACTIVE",
       created_at: new Date(),
@@ -265,6 +275,11 @@ router.get("/clayyo-hospital-booking-details/:lan", async (req, res) => {
         owner_name,
         owner_email,
         owner_phone,
+        ifsc_code,
+        bank_name,
+        branch_name,
+        account_holder_name,
+        account_number,
         status,
         created_at
       FROM clayyo_hospital_booking
@@ -600,7 +615,7 @@ router.post("/manual-entry", async (req, res) => {
       hospital_id: data.hospital_id,
       hospital_name: hospitalName,
       policy_type: data.policy_type || null,
-      agreement_date:data.login_date || null,
+      agreement_date: data.login_date || null,
     };
 
     const columns = Object.keys(fields).join(", ");
@@ -861,7 +876,6 @@ router.get("/credit-approved-loans", async (req, res) => {
 //   }
 // });
 
-
 router.put("/set-limit/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
@@ -882,7 +896,7 @@ router.put("/set-limit/:lan", async (req, res) => {
     }
 
     const requestedAmount = Number(loan.loan_amount || 0);
-    const assignedLimit   = Number(inputLimit || 0);
+    const assignedLimit = Number(inputLimit || 0);
 
     console.log(`Requested Amount (loan_amount): ${requestedAmount}`);
     console.log(`Assigned Limit:                 ${assignedLimit}`);
@@ -890,20 +904,24 @@ router.put("/set-limit/:lan", async (req, res) => {
     let newStatus;
     let newStage;
     let limitReworkRequired = 0;
-    let limitReworkReason   = null;
+    let limitReworkReason = null;
 
     // ✅ loan_amount > assignedLimit  →  OPS APPROVED
     // ✅ loan_amount <= assignedLimit →  Credit Recheck
     if (requestedAmount > assignedLimit) {
-      console.log("✅ Requested amount is greater than assigned limit → OPS APPROVED");
+      console.log(
+        "✅ Requested amount is greater than assigned limit → OPS APPROVED",
+      );
       newStatus = "OPS APPROVED";
-      newStage  = "OPS_APPROVED";
+      newStage = "OPS_APPROVED";
     } else {
-      console.log("🔁 Assigned limit exceeds requested amount → Credit Recheck");
-      newStatus          = "Credit Recheck";   // matches your frontend pill + query string exactly
-      newStage           = "CREDIT_REWORK";
+      console.log(
+        "🔁 Assigned limit exceeds requested amount → Credit Recheck",
+      );
+      newStatus = "Credit Recheck"; // matches your frontend pill + query string exactly
+      newStage = "CREDIT_REWORK";
       limitReworkRequired = 1;
-      limitReworkReason  = `Assigned limit ₹${assignedLimit} exceeds requested amount ₹${requestedAmount}`;
+      limitReworkReason = `Assigned limit ₹${assignedLimit} exceeds requested amount ₹${requestedAmount}`;
     }
 
     const [result] = await db.promise().query(
@@ -932,13 +950,13 @@ router.put("/set-limit/:lan", async (req, res) => {
     }
 
     return res.json({
-      message:          "Limit assigned successfully",
+      message: "Limit assigned successfully",
       lan,
       requested_amount: requestedAmount,
-      final_limit:      assignedLimit,
-      status:           newStatus,
-      stage:            newStage,
-      moved_to:         newStage === "CREDIT_REWORK" ? "Credit Screen" : "Ops Screen",
+      final_limit: assignedLimit,
+      status: newStatus,
+      stage: newStage,
+      moved_to: newStage === "CREDIT_REWORK" ? "Credit Screen" : "Ops Screen",
     });
   } catch (err) {
     console.error(err);
@@ -953,7 +971,7 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
 
     const [[loan]] = await db.promise().query(
       `
-      SELECT customer_name, final_limit
+      SELECT customer_name, approved_limit , hospital_name , subvention_percent , updated_subvention ,final_limit
       FROM loan_booking_clayyo
       WHERE lan = ?
       `,
@@ -993,16 +1011,124 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
       to: process.env.OPS_DISBURSEMENT_MAIL.split(","),
       subject: `Disbursement Initiation Request ${lan}`,
       html: `
-        <h3>Disbursement Initiation Required</h3>
+        <table style="width:100%; background:#f1f5f9; padding:30px; font-family:Arial, sans-serif;">
+  <tr>
+    <td align="center">
+      <table style="max-width:620px; width:100%; background:#ffffff; border-radius:14px; padding:30px; box-shadow:0 6px 18px rgba(0,0,0,0.06);">
 
-        <p><strong>Customer:</strong> ${loan.customer_name}</p>
-        <p><strong>LAN:</strong> ${lan}</p>
-        <p><strong>Approved Limit:</strong> ₹${loan.approved_limit}</p>
-        <p><strong>Product : CLAYYO</strong></p>
 
-        <br/>
+    <!-- HEADER -->
+    <tr>
+      <td style="border-bottom:3px solid #0ea5e9; padding-bottom:14px;">
+        <h2 style="margin:0; color:#0f172a;">
+          Disbursement Initiation Request
+        </h2>
 
-        <small>Auto-generated notification from LMS</small>
+        <p style="margin:6px 0 0; font-size:14px; color:#64748b;">
+          Action Required by OPS / Disbursement Team
+        </p>
+      </td>
+    </tr>
+
+    <!-- BODY -->
+    <tr>
+      <td style="padding-top:22px; font-size:15px; color:#1e293b;">
+
+        <p style="margin:0 0 14px;">
+          Dear Team,
+        </p>
+
+        <p style="margin:0 0 20px;">
+          Please initiate the disbursement process for the following approved
+          <strong>CLAYYO</strong> loan case:
+        </p>
+
+        <!-- DETAILS TABLE -->
+        <table style="width:100%; border-collapse:collapse; font-size:14px;">
+
+          <tr>
+            <td style="padding:10px; font-weight:bold; color:#475569;">
+              Customer Name
+            </td>
+            <td style="padding:10px;">
+              ${loan.customer_name}
+            </td>
+          </tr>
+
+          <tr style="background:#f8fafc;">
+            <td style="padding:10px; font-weight:bold; color:#475569;">
+              Hospital Name
+            </td>
+            <td style="padding:10px;">
+              ${loan.hospital_name}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:10px; font-weight:bold; color:#475569;">
+              Loan Account Number (LAN)
+            </td>
+            <td style="padding:10px;">
+              ${lan}
+            </td>
+          </tr>
+
+          <tr style="background:#f8fafc;">
+            <td style="padding:10px; font-weight:bold; color:#475569;">
+              Approved Limit
+            </td>
+            <td style="padding:10px; font-weight:800; color:#0284c7;">
+              ₹${loan.final_limit || loan.approved_limit || 0}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:10px; font-weight:bold; color:#475569;">
+              Subvention Percentage
+            </td>
+            <td style="padding:10px;">
+              ${loan.updated_subvention || loan.subvention_percent || 0}% (Please confirm the final subvention percentage before disbursement)
+            </td>
+          </tr>
+
+          <tr style="background:#f8fafc;">
+            <td style="padding:10px; font-weight:bold; color:#475569;">
+              Product
+            </td>
+            <td style="padding:10px;">
+              CLAYYO
+            </td>
+          </tr>
+
+        </table>
+
+        <p style="margin-top:22px;">
+          Kindly proceed with the required disbursement steps at the earliest.
+        </p>
+
+        <p style="margin-top:20px;">
+          Regards,<br/>
+          <strong>Fintree LMS</strong>
+        </p>
+
+      </td>
+    </tr>
+
+    <!-- FOOTER -->
+    <tr>
+      <td style="border-top:1px solid #e2e8f0; padding-top:14px; font-size:12px; color:#94a3b8;">
+        This is an automated system-generated notification from Fintree LMS.
+        Please do not reply to this email.
+      </td>
+    </tr>
+
+  </table>
+</td>
+
+
+  </tr>
+</table>
+
       `,
     });
     console.log(transporter);
@@ -1189,52 +1315,7 @@ WHERE lan = ?
   });
 });
 
-// router.patch("/disburse/:lan", async (req, res) => {
-//   try {
-//     const { lan } = req.params;
 
-//     const [rows] = await db.promise().query(
-//       `SELECT status, agreement_esign_status, bank_status
-//        FROM loan_booking_clayyo WHERE lan = ?`,
-//       [lan],
-//     );
-
-//     if (!rows.length) {
-//       return res.status(404).json({ message: "Loan not found" });
-//     }
-
-//     const loan = rows[0];
-
-//     if (loan.status !== LOAN_STATUS.OPS_APPROVED) {
-//       return res.status(400).json({ message: "Ops approval required first" });
-//     }
-
-//     if (loan.agreement_esign_status !== "SIGNED") {
-//       return res.status(400).json({ message: "Agreement must be signed first" });
-//     }
-
-//     if (loan.bank_status !== "MANDATE_CREATED") {
-//       return res.status(400).json({ message: "Mandate must be created first" });
-//     }
-
-//     await db.promise().query(
-//       `UPDATE loan_booking_clayyo
-//        SET status = ?, stage = 'DISBURSED',disbursed_at = NOW()
-//        WHERE lan = ?`,
-//       [LOAN_STATUS.DISBURSED, lan],
-//     );
-
-//     res.json({ message: "Loan disbursed successfully", lan });
-//   } catch (err) {
-//     console.error("Disburse error:", err);
-//     res.status(500).json({
-//       message: "Disbursement failed",
-//       error: err.message,
-//     });
-//   }
-// });
-
-//
 router.get("/approved-loans", async (req, res) => {
   try {
     const [rows] = await db.promise().query(
@@ -1465,7 +1546,7 @@ lb.limit_rework_reason,
       mobile_number: row.mobile_number,
       email_id: row.email_id,
       pan_number: row.pan_number,
-      patient_name : row.patient_name,
+      patient_name: row.patient_name,
 
       current_address: row.current_address,
       current_village_city: row.current_village_city,

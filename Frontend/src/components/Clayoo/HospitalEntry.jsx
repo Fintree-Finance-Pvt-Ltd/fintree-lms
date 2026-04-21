@@ -300,11 +300,11 @@ const HospitalEntry = () => {
     avg_ticket_size: "",
     major_procedures: "",
     departments: "",
-    ifsc: "",
+    ifsc_code: "",
     bank_name: "",
-    bank_branch: "",
+    branch_name: "",
     account_number: "",
-    name_in_bank: "",
+    account_holder_name: "",
     hospital_email: "",
     hospital_phone: "",
     owner_email: "",
@@ -325,7 +325,7 @@ const HospitalEntry = () => {
       setFormData((prev) => ({
         ...prev,
         bank_name: data.BANK || "",
-        bank_branch: data.BRANCH || "",
+        branch_name: data.BRANCH || "",
       }));
     } catch (err) {
       try {
@@ -335,14 +335,14 @@ const HospitalEntry = () => {
         setFormData((prev) => ({
           ...prev,
           bank_name: data2.BANK || "",
-          bank_branch: data2.BRANCH || "",
+          branch_name: data2.BRANCH || "",
         }));
       } catch (err2) {
         console.log("Both IFSC APIs failed");
         setFormData((prev) => ({
           ...prev,
           bank_name: "",
-          bank_branch: "",
+          branch_name: "",
         }));
       }
     }
@@ -373,8 +373,8 @@ const HospitalEntry = () => {
       setFormData((prev) => ({
         ...prev,
         account_number: result.account_number?.value || prev.account_number,
-        ifsc: result.ifsc_code?.value || prev.ifsc,
-        name_in_bank: result.name?.value || prev.name_in_bank,
+        ifsc_code: result.ifsc_code?.value || prev.ifsc_code,
+        account_holder_name: result.name?.value || prev.account_holder_name,
         bank_name: result.bank_name?.value || prev.bank_name,
       }));
 
@@ -610,16 +610,16 @@ const HospitalEntry = () => {
               <input type="file" onChange={handleChequeUpload} />
             </div>
 
-            {renderInput("IFSC Code", "ifsc")}
+            {renderInput("IFSC Code", "ifsc_code")}
           </div>
 
           <div className="form-grid">
             {renderInput("Bank Name", "bank_name")}
-            {renderInput("Branch Name", "bank_branch")}
+            {renderInput("Branch Name", "branch_name")}
           </div>
 
           <div className="form-grid">
-            {renderInput("Account Holder Name", "name_in_bank")}
+            {renderInput("Account Holder Name", "account_holder_name")}
             {renderInput("Account Number", "account_number")}
           </div>
         </fieldset>
@@ -804,6 +804,7 @@ const HospitalEntry = () => {
           }
         }
       `}</style>
+      
     </div>
   );
 };
