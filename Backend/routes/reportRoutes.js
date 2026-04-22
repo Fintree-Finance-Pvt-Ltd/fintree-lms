@@ -343,7 +343,7 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
         } else if (normalizedReportId === "consumer-bureau-report") {
     const [results] = await db.promise().query(
     `CALL ${selectedProcedure}(?, ?, ?)`,
-    [startDate, endDate, lender]
+    [startDate, endDate, lenderName]
   );
   const set = results.find(r => Array.isArray(r) && r.length && typeof r[0] === "object");
   finalRows = set || [];
