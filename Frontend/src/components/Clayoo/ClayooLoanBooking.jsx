@@ -1331,6 +1331,51 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     try {
       const res = await api.post("clayyo-loans/manual-entry", formData);
       setMessage(`✅ ${res.data.message} | LAN: ${res.data.lan}`);
+      // Reset form data after successful submission
+    setFormData({
+      login_date: getTodayDateString(),
+      hospital_id: "",
+      first_name: "",
+      middle_name: "",
+      last_name: "",
+      customer_name: "",
+      gender: "",
+      dob: "",
+      age: "",
+      mobile_number: "",
+      email_id: "",
+      pan_number: "",
+      current_address: "",
+      current_village_city: "",
+      current_district: "",
+      current_state: "",
+      current_pincode: "",
+      permanent_address: "",
+      permanent_village_city: "",
+      permanent_district: "",
+      permanent_state: "",
+      permanent_pincode: "",
+      policy_type: "",
+      employment_type: "",
+      net_monthly_income: "",
+      bank_name: "",
+      bank_branch: "",
+      name_in_bank: "",
+      account_number: "",
+      ifsc: "",
+      patient_name: "",
+      father_name: "",
+      mother_name: "",
+      subvention_percent: "",
+      insurance_company_name: "",
+      insurance_policy_holder_name: "",
+      insurance_policy_number: "",
+      relation_with_policy_holder: "",
+      loan_amount: "",
+      product: "CLAYOO",
+      lender: "CLAYOO",
+      status: "Login",
+    });
     } catch (err) {
       setMessage(err.response?.data?.message || "❌ Something went wrong");
     } finally {
