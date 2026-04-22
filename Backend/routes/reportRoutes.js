@@ -203,7 +203,7 @@ function resolveProcedure(rawReportId, rawLender) {
     "bank-payment-file-bank-holiday-report": () => "sp_south_indian_bank_payment_file",
 
     // consumer bureau report
-"consumer-bureau-report": () => "sp_consumer_bureau_report_all_products",
+"consumer-bureau-report": () => "sp_ev_beuro_data",
 
 
 
