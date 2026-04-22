@@ -1619,160 +1619,167 @@ input:focus {
       </div>
  
       <form onSubmit={handleSubmit} className="modern-form-grid">
-        {/* Core Details */}
-        <div className="ui-card">
-          <div className="card-header">
-            <span className="icon">🏥</span>
-            <h3>Facility & Policy Details</h3>
-          </div>
-          <div className="grid-2">
-            <div className="modern-field">
-              <label>Hospital</label>
-              <select name="hospital_id" value={formData.hospital_id} onChange={handleChange}>
-                <option value="">Select Hospital</option>
-                {hospitals.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-              </select>
-            </div>
-            {renderSelect("Policy Type", "policy_type", ["Corporate Policy", "Individual Policy"])}
-          </div>
-          <div className="grid-3">
-            {renderSelect("Employment Type", "employment_type", ["Salaried", "Self-Employed"])}
-            {renderInput("Net Monthly Income", "net_monthly_income", "number")}
-            {renderSelect("Relation with Policy Holder", "relation_with_policy_holder", ["Self", "Spouse", "Father", "Mother", "Son", "Daughter", "Brother", "Sister", "Father-in-law", "Mother-in-law", "Grandfather", "Grandmother", "Guardian", "Other"])}
-          </div>
-          <div className="grid-3">
-            {renderInput("Insurance Card / Company", "insurance_company_name")}
-            {renderInput("Policy Number", "insurance_policy_number")}
-            {renderInput("Policy Holder Name", "insurance_policy_holder_name")}
-          </div>
-          <div className="grid-3">
-            {renderInput("Patient Name", "patient_name")}
-            {renderInput("Father's Name", "father_name")}
-            {renderInput("Mother's Name", "mother_name")}
-          </div>
+  {/* Hospital Selection */}
+  <div className="ui-card">
+    <div className="card-header">
+      <span className="icon">🏥</span>
+      <h3>Hospital & Policy Details</h3>
+    </div>
+    <div className="grid-2">
+      <div className="modern-field">
+        <label>Hospital</label>
+        <select name="hospital_id" value={formData.hospital_id} onChange={handleChange}>
+          <option value="">Select Hospital</option>
+          {hospitals.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+        </select>
+      </div>
+    </div>
+  </div>
+
+   {/* Borrower Details */}
+  <div className="ui-card">
+    <div className="card-header">
+      <span className="icon">👤</span>
+      <h3>Borrower Information</h3>
+    </div>
+    <div className="grid-3">
+      {renderInput("First Name", "first_name")}
+      {renderInput("Middle Name", "middle_name")}
+      {renderInput("Last Name", "last_name")}
+    </div>
+    <div className="grid-3">
+      {renderSelect("Gender", "gender", ["Male", "Female"])}
+      {renderSelect("Policy Type", "policy_type", ["Corporate Policy", "Individual Policy"])}
+      {renderInput("DOB", "dob", "date")}
+      <div className="modern-field">
+        <label>Age</label>
+        <input
+          type="number"
+          name="age"
+          value={formData.age}
+          readOnly
+          style={{ borderColor: ageError ? "#e11d48" : "var(--border)" }}
+        />
+        {ageError && <span className="inline-error">{ageError}</span>}
+      </div>
+    </div>
+    <div className="grid-2">
+      <div className="modern-field">
+        <label>Mobile Number (Aadhaar Linked)</label>
+        <div className="input-with-action">
+          <input
+            type="text"
+            name="mobile_number"
+            value={formData.mobile_number}
+            onChange={handleChange}
+            disabled={otpVerified}
+          />
+          {!otpVerified ? (
+            <button type="button" className="otp-btn" onClick={handleOpenConsentDialog}>Send OTP</button>
+          ) : (
+            <button type="button" className="otp-btn verified">Verified ✅</button>
+          )}
         </div>
+      </div>
+      {renderInput("Email ID", "email_id", "email")}
+    </div>
+    <div className="grid-2">
+      {renderInput("PAN Number", "pan_number")}
+    </div>
+  </div>
+
+  {/* Insurance Details */}
+  <div className="ui-card">
+    <div className="card-header">
+      <span className="icon">💳</span>
+      <h3>Insurance Details</h3>
+    </div>
+    <div className="grid-3">
+      {renderInput("Insurance Card / Company", "insurance_company_name")}
+      {renderInput("Policy Number", "insurance_policy_number")}
+      {renderInput("Policy Holder Name", "insurance_policy_holder_name")}
+    </div>
+    <div className="grid-3">
+      {renderInput("Patient Name", "patient_name")}
+      {renderInput("Father's Name", "father_name")}
+      {renderInput("Mother's Name", "mother_name")}
+    </div>
+  </div>
+
  
-        {/* Borrower Section */}
-        <div className="ui-card">
-          <div className="card-header">
-            <span className="icon">👤</span>
-            <h3>Borrower Information</h3>
-          </div>
-          <div className="grid-3">
-            {renderInput("First Name", "first_name")}
-            {renderInput("Middle Name", "middle_name")}
-            {renderInput("Last Name", "last_name")}
-          </div>
-          <div className="grid-3">
-            {renderSelect("Gender", "gender", ["Male", "Female"])}
-            {renderInput("DOB", "dob", "date")}
-            <div className="modern-field">
-              <label>Age</label>
-              <input
-                type="number"
-                name="age"
-                value={formData.age}
-                readOnly
-                style={{ borderColor: ageError ? "#e11d48" : "var(--border)" }}
-              />
-              {ageError && <span className="inline-error">{ageError}</span>}
-            </div>
-          </div>
-          <div className="grid-2">
-            <div className="modern-field">
-              <label>Mobile Number (Aadhaar Linked)</label>
-              <div className="input-with-action">
-                <input
-                  type="text"
-                  name="mobile_number"
-                  value={formData.mobile_number}
-                  onChange={handleChange}
-                  disabled={otpVerified}
-                />
-                {!otpVerified ? (
-                  <button type="button" className="otp-btn" onClick={handleOpenConsentDialog}>Send OTP</button>
-                ) : (
-                  <button type="button" className="otp-btn verified">Verified ✅</button>
-                )}
-              </div>
-            </div>
-            {renderInput("Email ID", "email_id", "email")}
-          </div>
-          <div className="grid-2">
-            {renderInput("PAN Number", "pan_number")}
-          </div>
-        </div>
- 
-        {/* Address Sections */}
-        <div className="grid-2">
-          <div className="ui-card">
-            <div className="card-header">
-              <span className="icon">📍</span>
-              <h3>Current Address</h3>
-            </div>
-            {renderInput("Full Address", "current_address")}
-            <div className="grid-2">
-              {renderInput("Pincode", "current_pincode")}
-              {renderInput("Village / City", "current_village_city")}
-            </div>
-            <div className="grid-2">
-              {renderInput("District", "current_district")}
-              {renderInput("State", "current_state")}
-            </div>
-          </div>
- 
-          <div className="ui-card">
-            <div className="card-header">
-              <span className="icon">🏠</span>
-              <h3>Permanent Address</h3>
-            </div>
-            <label className="checkbox-container">
-              <input type="checkbox" checked={sameAddress} onChange={handleSameAddress} />
-              Same as Current Address
-            </label>
-            {renderInput("Full Address", "permanent_address")}
-            <div className="grid-2">
-              {renderInput("Pincode", "permanent_pincode")}
-              {renderInput("Village / City", "permanent_village_city")}
-            </div>
-            <div className="grid-2">
-              {renderInput("District", "permanent_district")}
-              {renderInput("State", "permanent_state")}
-            </div>
-          </div>
-        </div>
- 
-        {/* Bank & Loan */}
-        <div className="ui-card">
-          <div className="card-header">
-            <span className="icon">🏦</span>
-            <h3>Banking & Financials</h3>
-          </div>
-          <div className="grid-2">
-            <div className="modern-field">
-              <label>Upload Cheque (OCR)</label>
-              <input type="file" onChange={handleChequeUpload} />
-            </div>
-            {renderInput("IFSC Code", "ifsc")}
-          </div>
-          <div className="grid-2">
-            {renderInput("Bank Name", "bank_name")}
-            {renderInput("Branch Name", "bank_branch")}
-          </div>
-          <div className="grid-2">
-            {renderInput("Account Holder Name", "name_in_bank")}
-            {renderInput("Account Number", "account_number")}
-          </div>
-          <div className="grid-2" style={{ marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
-            {renderInput("Requested Loan Amount", "loan_amount", "number")}
-            {renderInput("Subvention (%)", "subvention_percent", "number")}
-          </div>
-        </div>
- 
-        <button type="submit" className="main-submit-btn" disabled={loading}>
-          {loading ? "Processing..." : "Submit Loan Application"}
-        </button>
-      </form>
+
+  {/* Address Sections */}
+  <div className="grid-2">
+    {/* Current Address */}
+    <div className="ui-card">
+      <div className="card-header">
+        <span className="icon">📍</span>
+        <h3>Current Address</h3>
+      </div>
+      {renderInput("Full Address", "current_address")}
+      <div className="grid-2">
+        {renderInput("Pincode", "current_pincode")}
+        {renderInput("Village / City", "current_village_city")}
+      </div>
+      <div className="grid-2">
+        {renderInput("District", "current_district")}
+        {renderInput("State", "current_state")}
+      </div>
+    </div>
+
+    {/* Permanent Address */}
+    <div className="ui-card">
+      <div className="card-header">
+        <span className="icon">🏠</span>
+        <h3>Permanent Address</h3>
+      </div>
+      <label className="checkbox-container">
+        <input type="checkbox" checked={sameAddress} onChange={handleSameAddress} />
+        Same as Current Address
+      </label>
+      {renderInput("Full Address", "permanent_address")}
+      <div className="grid-2">
+        {renderInput("Pincode", "permanent_pincode")}
+        {renderInput("Village / City", "permanent_village_city")}
+      </div>
+      <div className="grid-2">
+        {renderInput("District", "permanent_district")}
+        {renderInput("State", "permanent_state")}
+      </div>
+    </div>
+  </div>
+
+  {/* Bank & Loan */}
+  <div className="ui-card">
+    <div className="card-header">
+      <span className="icon">🏦</span>
+      <h3>Banking & Financials</h3>
+    </div>
+    <div className="grid-2">
+      <div className="modern-field">
+        <label>Upload Cheque (OCR)</label>
+        <input type="file" onChange={handleChequeUpload} />
+      </div>
+      {renderInput("IFSC Code", "ifsc")}
+    </div>
+    <div className="grid-2">
+      {renderInput("Bank Name", "bank_name")}
+      {renderInput("Branch Name", "bank_branch")}
+    </div>
+    <div className="grid-2">
+      {renderInput("Account Holder Name", "name_in_bank")}
+      {renderInput("Account Number", "account_number")}
+    </div>
+    <div className="grid-2" style={{ marginTop: '20px', borderTop: '1px solid #f1f5f9', paddingTop: '20px' }}>
+      {renderInput("Requested Loan Amount", "loan_amount", "number")}
+      {renderInput("Subvention (%)", "subvention_percent", "number")}
+    </div>
+  </div>
+
+  <button type="submit" className="main-submit-btn" disabled={loading}>
+    {loading ? "Processing..." : "Submit Loan Application"}
+  </button>
+</form>
  
       {message && <div className="message" style={{ color: message.includes('✅') ? '#059669' : '#e11d48' }}>{message}</div>}
  
