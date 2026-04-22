@@ -341,9 +341,9 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
           );
           finalRows = set || [];
         } else if (normalizedReportId === "consumer-bureau-report") {
-  const [results] = await db.promise().query(
-    `CALL ${selectedProcedure}(?)`,
-    [endDate]
+    const [results] = await db.promise().query(
+    `CALL ${selectedProcedure}(?, ?, ?)`,
+    [startDate, endDate, lenderName]
   );
   const set = results.find(r => Array.isArray(r) && r.length && typeof r[0] === "object");
   finalRows = set || [];
@@ -379,9 +379,7 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
           }else if (normalizedReportId === "bank-payment-file-bank-holiday-report") {
     // Call your specific holiday utility here
     await exportBankHolidayReport(finalRows, filePath); 
-} else if (normalizedReportId === "consumer-bureau-report") {
-  await exportConsumerBureauReport(finalRows, filePath);
-} else {
+}else {
             // ✅ Default Excel export
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet("Report");
