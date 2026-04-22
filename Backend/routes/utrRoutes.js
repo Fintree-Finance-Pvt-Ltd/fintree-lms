@@ -859,7 +859,7 @@ WHERE lan = ?`,
             );
           } else if (lan.startsWith("CLYO")) {
             await conn.query(
-              "UPDATE loan_booking_clayyo SET status = 'Disbursed' WHERE lan = ?",
+              "UPDATE loan_booking_clayyo SET status = 'Disbursed' , stage = 'Disbursed' WHERE lan = ?",
               [lan],
             );
           } else if (lan.startsWith("LDF")) {
