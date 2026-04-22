@@ -70,13 +70,13 @@ const generateDailySupplyChainDemand = async (
 
     if (lan.startsWith("MFL")) {
       calculatedStartDate = disbDate;
-      calculatedDueDate = addDays(disbDate, 91);
+      calculatedDueDate = addDays(disbDate, 92);
     } else if (lan.startsWith("FFPL") || lan.startsWith("KITE")) {
       calculatedStartDate = addDays(disbDate, 1);
-      calculatedDueDate = addDays(disbDate, 90);
+      calculatedDueDate = addDays(disbDate, 91);
     } else {
       calculatedStartDate = addDays(disbDate, 1);
-      calculatedDueDate = addDays(disbDate, 90);
+      calculatedDueDate = addDays(disbDate, 91);
     }
 
     let startDate;
