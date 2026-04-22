@@ -379,9 +379,7 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
           }else if (normalizedReportId === "bank-payment-file-bank-holiday-report") {
     // Call your specific holiday utility here
     await exportBankHolidayReport(finalRows, filePath); 
-} else if (normalizedReportId === "consumer-bureau-report") {
-  await exportConsumerBureauReport(finalRows, filePath);
-} else {
+}else {
             // ✅ Default Excel export
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet("Report");
