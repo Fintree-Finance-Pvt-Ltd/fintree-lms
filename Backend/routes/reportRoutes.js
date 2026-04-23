@@ -212,11 +212,11 @@ function resolveProcedure(rawReportId, rawLender) {
 
 // NEW IRR Report add
     "supply-chain-report":  () =>
-      lender === "Muthoot"
+      lender === "muthoot"
         ? "sp_supply_chain_report"
-         : lender === "Kite"
+         : lender === "kite"
         ? "sp_supply_chain_report"
-        : lender === "FFPL"
+        : lender === "ffpl"
         ? "sp_supply_chain_report"
         : "sp_supply_chain_report",
 
