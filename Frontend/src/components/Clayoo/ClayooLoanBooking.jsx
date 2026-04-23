@@ -1685,6 +1685,11 @@ input:focus {
     </div>
     <div className="grid-2">
       {renderInput("PAN Number", "pan_number")}
+      {renderSelect("Employment Type", "employment_type", [
+            "Salaried",
+            "Self-Employed",
+          ])}
+          {renderInput("Net Monthly Income", "net_monthly_income", "number")}
     </div>
   </div>
 
