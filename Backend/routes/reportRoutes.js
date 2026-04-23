@@ -269,6 +269,7 @@ router.post("/trigger", authenticateUser, async (req, res) => {
 
   const createdByUser = req.user?.name || "system";
   const normalizedReportId = norm(reportId);
+  console.log("🔍 Normalized report ID:", reportId, lenderName);
   const selectedProcedure = resolveProcedure(reportId, lenderName);
 
   if (!selectedProcedure) {
