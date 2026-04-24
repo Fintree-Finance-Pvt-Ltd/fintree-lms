@@ -81,7 +81,10 @@ const extractLoanDigitBureauFacts = (reportXml) => {
   const json = parser.parse(reportXml);
   const profile = json?.INProfileResponse || {};
 
-  const score = toNumber(profile?.SCORE?.BureauScore, null);
+  const score =
+  toNumber(profile?.SCORE?.BureauScore, null) ??
+  toNumber(profile?.Score?.BureauScore, null) ??
+  toNumber(profile?.Score?.Value, null);
 
   const enquiries6m =
     toNumber(profile?.TotalCAPS_Summary?.TotalCAPSLast180Days, null) ??
@@ -120,11 +123,13 @@ const extractLoanDigitBureauFacts = (reportXml) => {
     const dateOpened =
       parseDateYYYYMMDD(acc?.Date_Opened_Or_Disbursed) ||
       parseDateYYYYMMDD(acc?.DateOpenedDisbursed) ||
-      parseDateYYYYMMDD(acc?.Date_Opened);
+      parseDateYYYYMMDD(acc?.Date_Opened) ||
+      parseDateYYYYMMDD(acc?.Open_Date);
 
     const dateClosed =
       parseDateYYYYMMDD(acc?.Date_Closed) ||
-      parseDateYYYYMMDD(acc?.DateClosed);
+      parseDateYYYYMMDD(acc?.DateClosed) ||
+      parseDateYYYYMMDD(acc?.Date_Closed_Or_Settled)
 
     const accountStatus = String(acc?.Account_Status || "").toUpperCase();
 
@@ -193,7 +198,9 @@ const extractLoanDigitBureauFacts = (reportXml) => {
       const dateOpened =
         parseDateYYYYMMDD(acc?.Date_Opened_Or_Disbursed) ||
         parseDateYYYYMMDD(acc?.DateOpenedDisbursed) ||
-        parseDateYYYYMMDD(acc?.Date_Opened);
+        parseDateYYYYMMDD(acc?.Date_Opened) ||
+        parseDateYYYYMMDD(acc?.Open_Date);
+
 
       if (dateOpened && dateOpened > latestOldDpdClosedDate) {
         newLoanAfterOldDpd = true;
@@ -256,9 +263,9 @@ const occupation = String(loan.employment || "").trim().toLowerCase();
   /**
    * OCCUPATION CHECK
    */
-  if (occupation !== "salaried") {
-    reasons.push("ONLY_SALARIED_ALLOWED");
-  }
+if (!occupation.includes("salary")) {
+  reasons.push("ONLY_SALARIED_ALLOWED");
+}
 
   /**
    * COMPANY CONTINUITY
