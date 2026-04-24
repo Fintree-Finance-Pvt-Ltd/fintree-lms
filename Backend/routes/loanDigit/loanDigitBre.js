@@ -452,7 +452,6 @@ if (kyc.bureau_status !== "VERIFIED") {
        loandigit_deviation_flag = ?,
 
        status = ?,
-       stage = ?
      WHERE lan = ?`,
     [
       decision.status,
@@ -467,7 +466,6 @@ if (kyc.bureau_status !== "VERIFIED") {
       bureauFacts.deviationEligible ? 1 : 0,
 
       decision.status,
-      finalStage,
       lan,
     ]
   );
