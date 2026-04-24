@@ -99,9 +99,10 @@ const extractLoanDigitBureauFacts = (reportXml) => {
   let latestOldDpdClosedDate = null;
 
   const panReportedRaw =
-    profile?.Current_Application?.Current_Application_Details?.PANNo ||
-    profile?.CAPS?.CAPS_Application_Details?.PANNo ||
-    null;
+  profile?.Current_Application
+    ?.Current_Application_Details
+    ?.Current_Applicant_Details
+    ?.IncomeTaxPan || null;
 
  const totalPanReported = panReportedRaw ? 1 : 0;
 
