@@ -8403,8 +8403,7 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 
 // SUpply Chain Disbursment UTR ///
 
-router.post("/v1/invoice-disbursement/validate", async (req, res) => {
-  const payload = req.body;
+router.post("/v1/invoice-disbursement/validate", async (req, res) => { const payload = req.body;
 
   if (!Array.isArray(payload) || payload.length === 0) {
     return res.status(400).json({
