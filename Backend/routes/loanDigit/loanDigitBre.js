@@ -437,38 +437,38 @@ if (kyc.bureau_status !== "VERIFIED") {
   if (decision.status === "Credit Recheck") finalStage = "CREDIT_RECHECK";
 
   await pool.query(
-    `UPDATE loan_booking_loan_digit
-     SET
-       loandigit_bre_status = ?,
-       loandigit_bre_reason = ?,
-       loandigit_bre_checked_at = NOW(),
+  `UPDATE loan_booking_loan_digit
+   SET
+     loandigit_bre_status = ?,
+     loandigit_bre_reason = ?,
+     loandigit_bre_checked_at = NOW(),
 
-       fintree_cibil_score = ?,
-       loandigit_enquiries_6m = ?,
-       loandigit_dpd_6m_flag = ?,
-       loandigit_dpd_gt30_12m_flag = ?,
-       loandigit_dpd_gt60_ever_flag = ?,
-       loandigit_multi_pan_flag = ?,
-       loandigit_deviation_flag = ?,
+     fintree_cibil_score = ?,
+     loandigit_enquiries_6m = ?,
+     loandigit_dpd_6m_flag = ?,
+     loandigit_dpd_gt30_12m_flag = ?,
+     loandigit_dpd_gt60_ever_flag = ?,
+     loandigit_multi_pan_flag = ?,
+     loandigit_deviation_flag = ?,
 
-       status = ?,
-     WHERE lan = ?`,
-    [
-      decision.status,
-      reasonText,
+     status = ?
+   WHERE lan = ?`,
+  [
+    decision.status,
+    reasonText,
 
-      decision.bureauScore,
-      bureauFacts.enquiries6m,
-      bureauFacts.hasDpdIn6M ? 1 : 0,
-      bureauFacts.hasGt30Dpd12M ? 1 : 0,
-      bureauFacts.hasGt60DpdEver ? 1 : 0,
-      bureauFacts.totalPanReported > 1 ? 1 : 0,
-      bureauFacts.deviationEligible ? 1 : 0,
+    decision.bureauScore,
+    bureauFacts.enquiries6m,
+    bureauFacts.hasDpdIn6M ? 1 : 0,
+    bureauFacts.hasGt30Dpd12M ? 1 : 0,
+    bureauFacts.hasGt60DpdEver ? 1 : 0,
+    bureauFacts.totalPanReported > 1 ? 1 : 0,
+    bureauFacts.deviationEligible ? 1 : 0,
 
-      decision.status,
-      lan,
-    ]
-  );
+    decision.status,
+    lan,
+  ]
+);
 
   console.log(
     `LoanDigit BRE completed for ${lan}: ${decision.status} | ${reasonText}`
