@@ -87,8 +87,8 @@ const extractLoanDigitBureauFacts = (reportXml) => {
   toNumber(profile?.Score?.Value, null);
 
   const enquiries6m =
-    toNumber(profile?.CAPS_Summary?.CAPSLast180Days, null) ??
-    toNumber(profile?.CAPS_Summary?.CAPSLast6Months, null);
+    toNumber(profile?.CAPS?.CAPS_Summary?.CAPSLast180Days, null) ??
+    toNumber(profile?.CAPS?.CAPS_Summary?.CAPSLast6Months, null);
 
   const accounts = toArray(profile?.CAIS_Account?.CAIS_Account_DETAILS);
 
