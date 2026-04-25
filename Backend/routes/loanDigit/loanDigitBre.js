@@ -84,10 +84,28 @@ const extractLoanDigitBureauFacts = (reportXml) => {
   const score = toNumber(profile?.SCORE?.BureauScore, null);
 
   const enquiries6m =
-    toNumber(profile?.TotalCAPS_Summary?.TotalCAPSLast180Days, null) ??
-    toNumber(profile?.TotalCAPS_Summary?.TotalCAPSLast6Months, null);
+    toNumber(profile?.CAPS_Summary?.CAPSLast180Days, null) ??
+    toNumber(profile?.CAPS_Summary?.CAPSLast6Months, null);
 
   const accounts = toArray(profile?.CAIS_Account?.CAIS_Account_DETAILS);
+
+  let activeLoanCountExcludingCreditCards = 0;
+
+for (const acc of accounts) {
+  const accountStatus = String(acc?.Account_Status || "").trim();
+
+  // Account_Type 05 = Credit Card (CIBIL standard)
+  const accountType = String(acc?.Account_Type || "").trim();
+
+  // Active account status usually = 11 (Active)
+  const isActive = accountStatus === "11";
+
+  const isCreditCard = accountType === "05";
+
+  if (isActive && !isCreditCard) {
+    activeLoanCountExcludingCreditCards++;
+  }
+}
 
   let hasDpdIn6M = false;
   let hasGt30Dpd12M = false;
@@ -228,6 +246,7 @@ const extractLoanDigitBureauFacts = (reportXml) => {
     closedLoanWithOldDpd,
     newLoanAfterOldDpd,
     deviationEligible,
+    activeLoanCountExcludingCreditCards,
   };
 };
 
@@ -327,6 +346,16 @@ const occupation = String(loan.employment || "").trim().toLowerCase();
   if (bureauFacts.totalPanReported > 1) {
     reasons.push("MULTIPLE_PAN_REPORTED");
   }
+
+  /**
+ * ACTIVE LOAN COUNT CHECK (excluding credit cards)
+ */
+if (
+  bureauFacts.activeLoanCountExcludingCreditCards !== null &&
+  bureauFacts.activeLoanCountExcludingCreditCards > 3
+) {
+  reasons.push("ACTIVE_LOANS_GT_3_EXCL_CREDIT_CARD");
+}
 
   /**
    * FINAL STATUS
