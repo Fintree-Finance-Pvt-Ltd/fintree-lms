@@ -81,7 +81,10 @@ const extractLoanDigitBureauFacts = (reportXml) => {
   const json = parser.parse(reportXml);
   const profile = json?.INProfileResponse || {};
 
-  const score = toNumber(profile?.SCORE?.BureauScore, null);
+  const score =
+  toNumber(profile?.SCORE?.BureauScore, null) ??
+  toNumber(profile?.Score?.BureauScore, null) ??
+  toNumber(profile?.Score?.Value, null);
 
   const enquiries6m =
     toNumber(profile?.CAPS_Summary?.CAPSLast180Days, null) ??
@@ -117,9 +120,10 @@ for (const acc of accounts) {
   let latestOldDpdClosedDate = null;
 
   const panReportedRaw =
-    profile?.Current_Application?.Current_Application_Details?.PANNo ||
-    profile?.CAPS?.CAPS_Application_Details?.PANNo ||
-    null;
+  profile?.Current_Application
+    ?.Current_Application_Details
+    ?.Current_Applicant_Details
+    ?.IncomeTaxPan || null;
 
  const totalPanReported = panReportedRaw ? 1 : 0;
 
@@ -137,11 +141,13 @@ for (const acc of accounts) {
     const dateOpened =
       parseDateYYYYMMDD(acc?.Date_Opened_Or_Disbursed) ||
       parseDateYYYYMMDD(acc?.DateOpenedDisbursed) ||
-      parseDateYYYYMMDD(acc?.Date_Opened);
+      parseDateYYYYMMDD(acc?.Date_Opened) ||
+      parseDateYYYYMMDD(acc?.Open_Date);
 
     const dateClosed =
       parseDateYYYYMMDD(acc?.Date_Closed) ||
-      parseDateYYYYMMDD(acc?.DateClosed);
+      parseDateYYYYMMDD(acc?.DateClosed) ||
+      parseDateYYYYMMDD(acc?.Date_Closed_Or_Settled)
 
     const accountStatus = String(acc?.Account_Status || "").toUpperCase();
 
@@ -210,7 +216,9 @@ for (const acc of accounts) {
       const dateOpened =
         parseDateYYYYMMDD(acc?.Date_Opened_Or_Disbursed) ||
         parseDateYYYYMMDD(acc?.DateOpenedDisbursed) ||
-        parseDateYYYYMMDD(acc?.Date_Opened);
+        parseDateYYYYMMDD(acc?.Date_Opened) ||
+        parseDateYYYYMMDD(acc?.Open_Date);
+
 
       if (dateOpened && dateOpened > latestOldDpdClosedDate) {
         newLoanAfterOldDpd = true;
@@ -274,9 +282,9 @@ const occupation = String(loan.employment || "").trim().toLowerCase();
   /**
    * OCCUPATION CHECK
    */
-  if (occupation !== "salaried") {
-    reasons.push("ONLY_SALARIED_ALLOWED");
-  }
+if (!occupation.includes("salary")) {
+  reasons.push("ONLY_SALARIED_ALLOWED");
+}
 
   /**
    * COMPANY CONTINUITY
@@ -465,40 +473,38 @@ if (kyc.bureau_status !== "VERIFIED") {
   if (decision.status === "Credit Recheck") finalStage = "CREDIT_RECHECK";
 
   await pool.query(
-    `UPDATE loan_booking_loan_digit
-     SET
-       loandigit_bre_status = ?,
-       loandigit_bre_reason = ?,
-       loandigit_bre_checked_at = NOW(),
+  `UPDATE loan_booking_loan_digit
+   SET
+     loandigit_bre_status = ?,
+     loandigit_bre_reason = ?,
+     loandigit_bre_checked_at = NOW(),
 
-       fintree_cibil_score = ?,
-       loandigit_enquiries_6m = ?,
-       loandigit_dpd_6m_flag = ?,
-       loandigit_dpd_gt30_12m_flag = ?,
-       loandigit_dpd_gt60_ever_flag = ?,
-       loandigit_multi_pan_flag = ?,
-       loandigit_deviation_flag = ?,
+     fintree_cibil_score = ?,
+     loandigit_enquiries_6m = ?,
+     loandigit_dpd_6m_flag = ?,
+     loandigit_dpd_gt30_12m_flag = ?,
+     loandigit_dpd_gt60_ever_flag = ?,
+     loandigit_multi_pan_flag = ?,
+     loandigit_deviation_flag = ?,
 
-       status = ?,
-       stage = ?
-     WHERE lan = ?`,
-    [
-      decision.status,
-      reasonText,
+     status = ?
+   WHERE lan = ?`,
+  [
+    decision.status,
+    reasonText,
 
-      decision.bureauScore,
-      bureauFacts.enquiries6m,
-      bureauFacts.hasDpdIn6M ? 1 : 0,
-      bureauFacts.hasGt30Dpd12M ? 1 : 0,
-      bureauFacts.hasGt60DpdEver ? 1 : 0,
-      bureauFacts.totalPanReported > 1 ? 1 : 0,
-      bureauFacts.deviationEligible ? 1 : 0,
+    decision.bureauScore,
+    bureauFacts.enquiries6m,
+    bureauFacts.hasDpdIn6M ? 1 : 0,
+    bureauFacts.hasGt30Dpd12M ? 1 : 0,
+    bureauFacts.hasGt60DpdEver ? 1 : 0,
+    bureauFacts.totalPanReported > 1 ? 1 : 0,
+    bureauFacts.deviationEligible ? 1 : 0,
 
-      decision.status,
-      finalStage,
-      lan,
-    ]
-  );
+    decision.status,
+    lan,
+  ]
+);
 
   console.log(
     `LoanDigit BRE completed for ${lan}: ${decision.status} | ${reasonText}`

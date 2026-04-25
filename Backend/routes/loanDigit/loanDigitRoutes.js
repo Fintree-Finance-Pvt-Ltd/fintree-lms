@@ -666,7 +666,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 </soapenv:Body>
 </soapenv:Envelope>`;
 
-console.log("Loan Digit SOAP BODY", soapBody )
+      console.log("Loan Digit SOAP BODY", soapBody);
       const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
         headers: {
           "Content-Type": "text/xml; charset=utf-8",
@@ -698,7 +698,9 @@ console.log("Loan Digit SOAP BODY", soapBody )
       const parsedInner = parser.parse(decodedXml);
 
       const scoreStr =
-        parsedInner?.INProfileResponse?.SCORE?.BureauScore ?? null;
+      parsedInner?.INProfileResponse?.SCORE?.BureauScore ??
+      parsedInner?.INProfileResponse?.Score?.BureauScore ??
+      null;
 
       experianScore = scoreStr ? Number(scoreStr) : null;
 
@@ -707,6 +709,14 @@ console.log("Loan Digit SOAP BODY", soapBody )
         (lan, pan_number, score, report_xml, created_at)
         VALUES (?,?,?,?,NOW())`,
         [lan, pan_number, experianScore, decodedXml],
+      );
+
+      await db.promise().query(
+        `INSERT INTO kyc_verification_status (lan, bureau_status)
+        VALUES (?, 'VERIFIED')
+        ON DUPLICATE KEY UPDATE bureau_status='VERIFIED'
+         `,
+        [lan],
       );
 
       await db.promise().execute(
@@ -839,7 +849,7 @@ router.get("/loan-digit-info/:lan", async (req, res) => {
       FROM loan_booking_loan_digit
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -917,7 +927,7 @@ router.get("/loan-digit-info/:lan", async (req, res) => {
 
       agreement_date: row.agreement_date,
       created_at: row.created_at,
-      updated_at: row.updated_at
+      updated_at: row.updated_at,
     };
 
     const bre = {
@@ -930,29 +940,26 @@ router.get("/loan-digit-info/:lan", async (req, res) => {
 
       bre_status: row.loandigit_bre_status,
       bre_reason: row.loandigit_bre_reason,
-      bre_checked_at: row.loandigit_bre_checked_at
+      bre_checked_at: row.loandigit_bre_checked_at,
     };
 
     const kyc = {
-      pan_status: row.pan_status || "PENDING"
+      pan_status: row.pan_status || "PENDING",
     };
 
     return res.json({
       loan,
       bre,
-      kyc
+      kyc,
     });
-
   } catch (err) {
     console.error("❌ Error fetching Loan Digit details:", err);
 
     return res.status(500).json({
       message: "Failed to fetch Loan Digit details",
-      error: err.sqlMessage || err.message
+      error: err.sqlMessage || err.message,
     });
   }
 });
-
-
 
 module.exports = router;

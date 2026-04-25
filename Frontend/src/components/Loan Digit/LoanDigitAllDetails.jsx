@@ -136,7 +136,6 @@ const LoanDigitDetails = () => {
           <FlagField label="DPD > 60 (Ever)" value={bre.dpd_gt60_ever_flag} />
           <FlagField label="Multi PAN Flag" value={bre.multi_pan_flag} />
           <FlagField label="Deviation Flag" value={bre.deviation_flag} />
-          <Field label="PAN Status" value={kyc.pan_status} isStatus />
         </Grid>
       ),
     },
