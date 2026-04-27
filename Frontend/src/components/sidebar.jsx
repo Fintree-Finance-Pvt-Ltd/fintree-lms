@@ -215,6 +215,7 @@ const Sidebar = () => {
       'Helium Loans': <Zap size={iconSize} />,
       'Clayoo Loans': <Layers size={iconSize} />,
       'Loan Digit': <Layers size={iconSize} />,
+      'Switch My Loans': <Layers size={iconSize} />,
       'Supply Chain Loans': <Repeat size={iconSize} />,
       'Dealer ALL': <Users size={iconSize} />,
       'Aldun Loans': <Landmark size={iconSize} />,
@@ -229,7 +230,7 @@ const Sidebar = () => {
   const allowedPages = user.pages || [];
  
   const grouped = {
-    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/wctl-blloans', '/wctl-ccod', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/finso-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/loan-digit', '/aldun-loans', '/mis-reports'].some(prefix => p.path.includes(prefix))),
+    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/wctl-blloans', '/wctl-ccod', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/finso-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/loan-digit', '/sml-loans', '/aldun-loans', '/mis-reports'].some(prefix => p.path.includes(prefix))),
     'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
     'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
@@ -248,6 +249,7 @@ const Sidebar = () => {
     'Helium Loans': allowedPages.filter(p => p.path.includes('/helium-loans')),
     'Clayoo Loans': allowedPages.filter(p => p.path.includes('/clayoo-loans')),
     'Loan Digit': allowedPages.filter(p => p.path.includes('/loan-digit')),
+    'Switch My Loans': allowedPages.filter(p => p.path.includes('/sml-loans')),
     'Supply Chain Loans': allowedPages.filter(p => p.path.includes('/supply-chain-loans')),
     'Dealer ALL': allowedPages.filter(p => p.path.includes('/dealer-onboarding')),
     'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),

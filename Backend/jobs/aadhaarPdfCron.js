@@ -146,7 +146,7 @@ function startAadhaarCron() {
     const sql = `
       SELECT id, lan, file_name, source_url, meta_json
       FROM loan_documents
-      WHERE doc_name='OFFLINE_VERIFICATION_OF_AADHAAR'
+      WHERE doc_name LIKE 'OFFLINE_VERIFICATION_OF_AADHAAR%'
     `;
 
     db.query(sql, async (err, rows) => {

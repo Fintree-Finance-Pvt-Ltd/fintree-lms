@@ -13,6 +13,12 @@ frontend/build/
 .DS_Store
 Thumbs.db
 
+Backend/uploads/
+
+backend/uploads/
+
+uploads
+
 # Env files
 *.env
 Backend/generated/sanction_HEL1011036.pdf

@@ -76,6 +76,12 @@ const EXCLUDE = {
     "manual_rps_gq_non_fsf",
     "manual_rps_gq_non_fsf_bkp",
     "manual_rps_ev_loan_bl_loan_bkp",
+    "manual_rps_finso_loan",
+    "manual_rps_gq_fsf_fintree",
+"manual_rps_gq_fsf_fintree_FSF_BKP",
+"manual_rps_gq_non_fsf_fintree",
+"manual_rps_gq_fsf_FSF_BKP",
+""
   ],
   booking: ["loan_booking_adikosh",
     "loan_booking_gq_fsf",
