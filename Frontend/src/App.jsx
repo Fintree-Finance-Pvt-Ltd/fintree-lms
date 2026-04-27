@@ -158,6 +158,10 @@ import LoanDigitApproved from "./components/Loan Digit/LoanDigitApproved";
 import LoanDigitAllLoans from "./components/Loan Digit/LoanDigitAllLoans";
 import LoanDigitDetails from "./components/Loan Digit/LoanDigitAllDetails";
 import UpdateUmrn from "./components/UpdateUmrn";
+import SMLDisburseInitiate from "./components/switch-my-loan/SMLDisburseInitiate";
+import SMLLoginloans from "./components/switch-my-loan/SMLLoginLoans";
+import SMLAllLoans from "./components/switch-my-loan/SMLAllLoans";
+import RetentionRelease from "./components/RetentionRelease";
 
  
 function App() {
@@ -1259,6 +1263,36 @@ function App() {
             }
           />
 
+
+          {/* Switch my loan Routes */}
+
+          <Route
+            path="/sml-loans/disburse-initiate"
+            element={
+              <PermissionRoute pageName="Switch my loan Disburse Initiate">
+                <SMLDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/sml-loans/login-loans"
+            element={
+              <PermissionRoute pageName="Switch my loan Login loans">
+                <SMLLoginloans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/sml-loans/all-loans"
+            element={
+              <PermissionRoute pageName="Switch my loan All loans">
+                <SMLAllLoans />
+              </PermissionRoute>
+            }
+          />
+
           {/* ✅ Hey EV Battery Loan routes */}
 
           <Route
@@ -1330,6 +1364,7 @@ function App() {
               </PermissionRoute>
             }
           />
+
           
           {/* Partner Limit Management */}
           <Route
@@ -1346,6 +1381,15 @@ function App() {
             element={
               <PermissionRoute pageName="Update UMRN">
                 <UpdateUmrn />
+              </PermissionRoute>
+            }
+          />
+
+            <Route
+            path="/retention-release"
+            element={
+              <PermissionRoute pageName="Retention Release">
+                <RetentionRelease />
               </PermissionRoute>
             }
           />

@@ -910,4 +910,146 @@ router.post("/upload-json", async (req, res) => {
   }
 });
 
+
+
+
+// retention release route 
+router.post("/update-retention-release", (req, res) => {
+  const { lan, utr, payment_date } = req.body;
+  const created_by = req.user?.id || "system";
+
+  if (!lan || !utr || !payment_date) {
+    return res.status(400).json({
+      success: false,
+      message: "LAN, UTR and payment_date required",
+    });
+  }
+
+  let table = "";
+  let product_type = "";
+
+  if (lan.startsWith("GQF")) {
+    table = "loan_booking_gq_fsf";
+    product_type = "GQ_FSF";
+  } else if (lan.startsWith("GQN")) {
+    table = "loan_booking_gq_non_fsf";
+    product_type = "GQ_NON_FSF";
+  } else {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid LAN prefix",
+    });
+  }
+
+  // STEP 1: Check if retention already released
+  const checkRetentionQuery = `
+    SELECT lan 
+    FROM retention_release_gq 
+    WHERE lan = ?
+  `;
+
+  db.query(checkRetentionQuery, [lan], (err, retentionResult) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        message: "Database error",
+      });
+    }
+
+    if (retentionResult.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Retention already released for this LAN",
+      });
+    }
+
+    // STEP 2: Check duplicate UTR
+    const checkUtrQuery = `
+      SELECT utr 
+      FROM retention_release_gq 
+      WHERE utr = ?
+    `;
+
+    db.query(checkUtrQuery, [utr], (err, utrResult) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          message: "Database error",
+        });
+      }
+
+      if (utrResult.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "This UTR already exists",
+        });
+      }
+
+      // STEP 3: Check LAN exists in booking table
+      const checkLanQuery = `
+        SELECT lan 
+        FROM ??
+        WHERE lan = ?
+      `;
+
+      db.query(checkLanQuery, [table, lan], (err, lanResult) => {
+        if (err) {
+          return res.status(500).json({
+            success: false,
+            message: "Database error",
+          });
+        }
+
+        if (!lanResult.length) {
+          return res.status(404).json({
+            success: false,
+            message: "LAN not found",
+          });
+        }
+
+        // STEP 4: Insert retention record
+        const insertQuery = `
+          INSERT INTO retention_release_gq
+          (lan, utr, payment_date, retention_release, product_type, created_by)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `;
+
+        db.query(
+          insertQuery,
+          [lan, utr, payment_date, true, product_type, created_by],
+          (insertErr) => {
+            if (insertErr) {
+              return res.status(500).json({
+                success: false,
+                message: "Failed to insert retention record",
+              });
+            }
+
+            // STEP 5: Update booking table flag
+            const updateQuery = `
+              UPDATE ??
+              SET retention_release = 1
+              WHERE lan = ?
+            `;
+
+            db.query(updateQuery, [table, lan], (updateErr) => {
+              if (updateErr) {
+                return res.status(500).json({
+                  success: false,
+                  message: "Failed to update booking table",
+                });
+              }
+
+              return res.json({
+                success: true,
+                message: "Retention released successfully",
+              });
+            });
+          }
+        );
+      });
+    });
+  });
+});
+
 module.exports = router;
