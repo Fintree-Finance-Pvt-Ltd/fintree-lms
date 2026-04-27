@@ -80,6 +80,11 @@ const EXCLUDE = {
   booking: ["loan_booking_adikosh",
     "loan_booking_gq_fsf",
     "loan_booking_gq_non_fsf",
+    "loan_booking_finso",
+    "loan_booking_finso_bckp",
+    "loan_booking_switch_my_loan",
+    "loan_booking_wctl_cc_od",
+    "loan_bookings_bl_loan_bkp"
   ],
 };
 
