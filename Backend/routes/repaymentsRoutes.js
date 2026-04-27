@@ -770,7 +770,7 @@ async function processRows(sheetData, res) {
       /**
        * Penal charge SP
        */
-      await queryDB(`CALL sp_generate_penal_charge(?)`, [lan]);
+      // await queryDB(`CALL sp_generate_penal_charge(?)`, [lan]);
 
       /**
        * Insert repayment
