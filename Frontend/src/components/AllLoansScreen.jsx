@@ -103,7 +103,13 @@ const AllLoansScreen = ({
       render: (r) => (
         <span
           className="lan-code-badge"
-          onClick={() => nav(`/loan-details/${r.lan}`)}
+          onClick={() => {
+            if (/^LDF/i.test(r.lan)) {
+              nav(`/loan-digit/customer-details?lan=${r.lan}`);
+            } else {
+              nav(`/loan-details/${r.lan}`);
+            }
+          }}
           style={{ cursor: "pointer" }}
         >
           {r.lan ?? "—"}
@@ -178,30 +184,28 @@ const AllLoansScreen = ({
           },
         ]
       : []),
-      ...(hasClayoo
-  ? [
-      {
-        key: "hospital_name",
-        header: "Hospital Name",
-        sortable: true,
-        render: (r) =>
-          /^CLY/i.test(r?.lan) ? (
-            <span className="lan-code-badge">
-              {r.hospital_name ?? "—"}
-            </span>
-          ) : (
-            "—"
-          ),
-        sortAccessor: (r) =>
-          /^CLAYOO/i.test(r?.lan)
-            ? String(r?.hospital_name || "").toLowerCase()
-            : "",
-        csvAccessor: (r) =>
-          /^CLAYOO/i.test(r?.lan) ? (r.hospital_name ?? "") : "",
-        width: 220,
-      },
-    ]
-  : []),
+    ...(hasClayoo
+      ? [
+          {
+            key: "hospital_name",
+            header: "Hospital Name",
+            sortable: true,
+            render: (r) =>
+              /^CLY/i.test(r?.lan) ? (
+                <span className="lan-code-badge">{r.hospital_name ?? "—"}</span>
+              ) : (
+                "—"
+              ),
+            sortAccessor: (r) =>
+              /^CLAYOO/i.test(r?.lan)
+                ? String(r?.hospital_name || "").toLowerCase()
+                : "",
+            csvAccessor: (r) =>
+              /^CLAYOO/i.test(r?.lan) ? (r.hospital_name ?? "") : "",
+            width: 220,
+          },
+        ]
+      : []),
     {
       key: "partner_loan_id",
       header: "Partner ID",

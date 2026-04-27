@@ -7689,16 +7689,6 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
       ===================================================== */
       const tenureDays = Number(data.tenure_days);
 
-      if (!Number.isFinite(tenureDays) || tenureDays !== 90) {
-        results.push({
-          invoice_number: data.invoice_number || null,
-          status: "failed",
-          message: "Tenure mismatch. Only 90 days allowed",
-          received: data.tenure_days,
-        });
-        continue;
-      }
-
       /* =====================================================
          STEP 3: INVOICE DUE DATE CHECK
       ===================================================== */
