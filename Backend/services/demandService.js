@@ -196,7 +196,7 @@ if (current > dueDate) {
     penal_interest_demand,
     cumelate_penal_interest_demand,
     roi_penal_interest_demand,
-    cumelate_roi_penal_interest_demand,
+    cumulative_roi_penal_interest_demand,
     total_amount_demand,
     total_remaining,
     remaining_principal,
