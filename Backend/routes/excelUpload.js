@@ -7222,303 +7222,6 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
   }
 });
 
-////////////////////////////////////////////////////////////////////////////
-///////////////////////    SUPPLY CHAIN  NEW /////////////////
-
-// router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
-//   try {
-//     console.log("📦 SUPPLY CHAIN LOAN REQUEST START");
-
-//     /* ---------------- Partner Validation ---------------- */
-//     if (
-//       !req.partner ||
-//       (req.partner.name || "").toLowerCase().trim() !== "supplychain"
-//     ) {
-//       return res.status(403).json({
-//         message: "This route is only for Supply Chain partner"
-//       });
-//     }
-
-//     const data = req.body;
-
-//     /* ---------------- Required Field Validation ---------------- */
-//     const requiredFields = [
-//       "partner_loan_id",
-
-//       "applicant.name",
-//       "applicant.pan",
-//       "applicant.aadhaar",
-//       "applicant.mobile",
-//       "applicant.address",
-
-//       "company.name",
-//       "company.pan",
-//       "company.gst",
-//       "company.address",
-
-//       "sanctions"
-//     ];
-
-//     for (const field of requiredFields) {
-//       const value = field.split(".").reduce((o, i) => o?.[i], data);
-//       if (!value) {
-//         return res.status(400).json({
-//           message: `${field} is required`
-//         });
-//       }
-//     }
-
-//     if (!Array.isArray(data.sanctions) || data.sanctions.length === 0) {
-//       return res.status(400).json({
-//         message: "At least one lender sanction is required"
-//       });
-//     }
-
-//     /* ---------------- Duplicate PAN Check ---------------- */
-//     const [panCheck] = await db.promise().query(
-//       `SELECT id FROM supply_chain_loans WHERE applicant_pan = ? AND status NOT IN ('Cancelled','Rejected','Closed')`,
-//       [data.applicant.pan]
-//     );
-
-//     if (panCheck.length > 0) {
-//       return res.status(400).json({
-//         message: "Active loan already exists for this PAN"
-//       });
-//     }
-
-//     /* ---------------- Generate LAN ---------------- */
-//     const lan = `SC${Date.now()}`;
-//     console.log("✅ Generated LAN:", lan);
-
-//     /* ---------------- Insert Main Loan ---------------- */
-//     await db.promise().query(
-//       `INSERT INTO supply_chain_loans (
-//         lan, partner_loan_id,
-//         applicant_name, applicant_pan, applicant_aadhaar, applicant_mobile, applicant_address,
-//         co_applicant_name, co_applicant_pan, co_applicant_aadhaar, co_applicant_mobile, co_applicant_address,
-//         company_name, company_pan, gst_number, company_address
-//       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-//       [
-//         lan,
-//         data.partner_loan_id,
-
-//         data.applicant.name,
-//         data.applicant.pan,
-//         data.applicant.aadhaar,
-//         data.applicant.mobile,
-//         data.applicant.address,
-
-//         data.co_applicant?.name || null,
-//         data.co_applicant?.pan || null,
-//         data.co_applicant?.aadhaar || null,
-//         data.co_applicant?.mobile || null,
-//         data.co_applicant?.address || null,
-
-//         data.company.name,
-//         data.company.pan,
-//         data.company.gst,
-//         data.company.address
-//       ]
-//     );
-
-//     /* ---------------- Insert Sanctions ---------------- */
-//     for (const s of data.sanctions) {
-//       const sanctionFields = [
-//         "lender",
-//         "sanction_amount",
-//         "tenure_months",
-//         "interest_rate",
-//         "penal_rate",
-//         "processing_fee"
-//       ];
-
-//       for (const f of sanctionFields) {
-//         if (s[f] === undefined || s[f] === null) {
-//           return res.status(400).json({
-//             message: `Missing ${f} for lender ${s.lender}`
-//           });
-//         }
-//       }
-
-//       await db.promise().query(
-//         `INSERT INTO supply_chain_sanctions (
-//           lan, lender, sanction_amount, tenure_months,
-//           interest_rate, penal_rate, processing_fee
-//         ) VALUES (?,?,?,?,?,?,?)`,
-//         [
-//           lan,
-//           s.lender,
-//           s.sanction_amount,
-//           s.tenure_months,
-//           s.interest_rate,
-//           s.penal_rate,
-//           s.processing_fee
-//         ]
-//       );
-//     }
-
-//     console.log("✅ Supply Chain Loan Saved Successfully:", lan);
-
-//     return res.json({
-//       message: "Supply Chain loan created successfully",
-//       lan
-//     });
-
-//   } catch (error) {
-//     console.error("❌ SUPPLY CHAIN ERROR:", error);
-//     return res.status(500).json({
-//       message: "Failed to create supply chain loan",
-//       error: error.message
-//     });
-//   }
-// });
-
-//////////////// Supply Chain New Customer & Sanction Start //////////////////////
-
-router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
-  try {
-    console.log("📦 SUPPLY CHAIN LOAN REQUEST START");
-
-    if (
-      !req.partner ||
-      (req.partner.name || "").toLowerCase().trim() !== "supplychain"
-    ) {
-      return res.status(403).json({
-        message: "This route is only for Supply Chain partner",
-      });
-    }
-
-    const data = req.body;
-
-    /* ---------- Validate ---------- */
-    const requiredFields = [
-      "partner_loan_id",
-      "applicant.name",
-      "applicant.pan",
-      "applicant.aadhaar",
-      "applicant.mobile",
-      "applicant.address",
-      "company.name",
-      "company.pan",
-      "company.gst",
-      "company.address",
-      "sanctions",
-    ];
-
-    for (const field of requiredFields) {
-      const value = field.split(".").reduce((o, i) => o?.[i], data);
-      if (value === undefined || value === null || value === "") {
-        return res.status(400).json({ message: `${field} is required` });
-      }
-    }
-
-    if (!Array.isArray(data.sanctions) || data.sanctions.length === 0) {
-      return res.status(400).json({
-        message: "At least one lender sanction is required",
-      });
-    }
-
-    /* ---------- Insert MASTER (once) ---------- */
-    const [existing] = await db
-      .promise()
-      .query(`SELECT id FROM supply_chain_loans WHERE partner_loan_id = ?`, [
-        data.partner_loan_id,
-      ]);
-
-    if (existing.length === 0) {
-      await db.promise().query(
-        `INSERT INTO supply_chain_loans (
-          partner_loan_id,
-          applicant_name, applicant_pan, applicant_aadhaar, applicant_mobile, applicant_address,
-          co_applicant_name, co_applicant_pan, co_applicant_aadhaar, co_applicant_mobile, co_applicant_address,
-          company_name, company_pan, gst_number, company_address,
-          status
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [
-          data.partner_loan_id,
-
-          data.applicant.name,
-          data.applicant.pan,
-          data.applicant.aadhaar,
-          data.applicant.mobile,
-          data.applicant.address,
-
-          data.co_applicant?.name || null,
-          data.co_applicant?.pan || null,
-          data.co_applicant?.aadhaar || null,
-          data.co_applicant?.mobile || null,
-          data.co_applicant?.address || null,
-
-          data.company.name,
-          data.company.pan,
-          data.company.gst,
-          data.company.address,
-
-          "Login",
-        ],
-      );
-    }
-
-    /* ---------- Insert SANCTIONS ---------- */
-    const created = [];
-
-    for (const s of data.sanctions) {
-      const sanctionFields = [
-        "lan",
-        "lender",
-        "sanction_amount",
-        "tenure_months",
-        "interest_rate",
-        "penal_rate",
-        "processing_fee",
-      ];
-
-      for (const f of sanctionFields) {
-        if (s[f] === undefined || s[f] === null || s[f] === "") {
-          return res.status(400).json({
-            message: `Missing ${f} for lender ${s.lender}`,
-          });
-        }
-      }
-
-      await db.promise().query(
-        `INSERT INTO supply_chain_sanctions (
-          partner_loan_id, lan, lender,
-          sanction_amount, tenure_months,
-          interest_rate, penal_rate, processing_fee
-        ) VALUES (?,?,?,?,?,?,?,?)`,
-        [
-          data.partner_loan_id,
-          s.lan,
-          s.lender,
-          s.sanction_amount,
-          s.tenure_months,
-          s.interest_rate,
-          s.penal_rate,
-          s.processing_fee,
-        ],
-      );
-
-      created.push({
-        lender: s.lender,
-        lan: s.lan,
-      });
-    }
-
-    return res.json({
-      message: "Supply Chain loan saved successfully",
-      partner_loan_id: data.partner_loan_id,
-      sanctions: created,
-    });
-  } catch (error) {
-    console.error("❌ SUPPLY CHAIN ERROR:", error);
-    return res.status(500).json({
-      message: "Failed to create supply chain loan",
-      error: error.message,
-    });
-  }
-});
-
 ///   Loan Booking Loan Digit  Pratik ////
 
 router.post("/v1/loan-digit", async (req, res) => {
@@ -7683,6 +7386,157 @@ router.post("/v1/loan-digit", async (req, res) => {
   }
 });
 
+
+////////////////////////////////////////////////////////////////////////////
+///////////////////////    SUPPLY CHAIN  NEW /////////////////
+
+//////////////// Supply Chain New Customer & Sanction Start //////////////////////
+
+router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
+  try {
+    console.log("📦 SUPPLY CHAIN LOAN REQUEST START");
+
+    if (
+      !req.partner ||
+      (req.partner.name || "").toLowerCase().trim() !== "supplychain"
+    ) {
+      return res.status(403).json({
+        message: "This route is only for Supply Chain partner",
+      });
+    }
+
+    const data = req.body;
+
+    /* ---------- Validate ---------- */
+    const requiredFields = [
+      "partner_loan_id",
+      "applicant.name",
+      "applicant.pan",
+      "applicant.aadhaar",
+      "applicant.mobile",
+      "applicant.address",
+      "company.name",
+      "company.pan",
+      "company.gst",
+      "company.address",
+      "sanctions",
+    ];
+
+    for (const field of requiredFields) {
+      const value = field.split(".").reduce((o, i) => o?.[i], data);
+      if (value === undefined || value === null || value === "") {
+        return res.status(400).json({ message: `${field} is required` });
+      }
+    }
+
+    if (!Array.isArray(data.sanctions) || data.sanctions.length === 0) {
+      return res.status(400).json({
+        message: "At least one lender sanction is required",
+      });
+    }
+
+    /* ---------- Insert MASTER (once) ---------- */
+    const [existing] = await db
+      .promise()
+      .query(`SELECT id FROM supply_chain_loans WHERE partner_loan_id = ?`, [
+        data.partner_loan_id,
+      ]);
+
+    if (existing.length === 0) {
+      await db.promise().query(
+        `INSERT INTO supply_chain_loans (
+          partner_loan_id,
+          applicant_name, applicant_pan, applicant_aadhaar, applicant_mobile, applicant_address,
+          co_applicant_name, co_applicant_pan, co_applicant_aadhaar, co_applicant_mobile, co_applicant_address,
+          company_name, company_pan, gst_number, company_address,
+          status
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          data.partner_loan_id,
+
+          data.applicant.name,
+          data.applicant.pan,
+          data.applicant.aadhaar,
+          data.applicant.mobile,
+          data.applicant.address,
+
+          data.co_applicant?.name || null,
+          data.co_applicant?.pan || null,
+          data.co_applicant?.aadhaar || null,
+          data.co_applicant?.mobile || null,
+          data.co_applicant?.address || null,
+
+          data.company.name,
+          data.company.pan,
+          data.company.gst,
+          data.company.address,
+
+          "Login",
+        ],
+      );
+    }
+
+    /* ---------- Insert SANCTIONS ---------- */
+    const created = [];
+
+    for (const s of data.sanctions) {
+      const sanctionFields = [
+        "lan",
+        "lender",
+        "sanction_amount",
+        "tenure_months",
+        "interest_rate",
+        "penal_rate",
+        "processing_fee",
+      ];
+
+      for (const f of sanctionFields) {
+        if (s[f] === undefined || s[f] === null || s[f] === "") {
+          return res.status(400).json({
+            message: `Missing ${f} for lender ${s.lender}`,
+          });
+        }
+      }
+
+      await db.promise().query(
+        `INSERT INTO supply_chain_sanctions (
+          partner_loan_id, lan, lender,
+          sanction_amount, tenure_months,
+          interest_rate, penal_rate, processing_fee
+        ) VALUES (?,?,?,?,?,?,?,?)`,
+        [
+          data.partner_loan_id,
+          s.lan,
+          s.lender,
+          s.sanction_amount,
+          s.tenure_months,
+          s.interest_rate,
+          s.penal_rate,
+          s.processing_fee,
+        ],
+      );
+
+      created.push({
+        lender: s.lender,
+        lan: s.lan,
+      });
+    }
+
+    return res.json({
+      message: "Supply Chain loan saved successfully",
+      partner_loan_id: data.partner_loan_id,
+      sanctions: created,
+    });
+  } catch (error) {
+    console.error("❌ SUPPLY CHAIN ERROR:", error);
+    return res.status(500).json({
+      message: "Failed to create supply chain loan",
+      error: error.message,
+    });
+  }
+});
+
+
 ///////////////////////// SUPPLY CHAIN NEW Customer & Sanction END //////////////////////
 
 ///////////////////////// SUPPLY CHAIN NEW Supplier On board Start //////////////////////
@@ -7798,608 +7652,6 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 
 ///////////////////////// SUPPLY CHAIN Invoice Upload & Disbursement Start //////////////////////
 
-// router.post("/v1/invoice-disbursement/validate",verifyApiKey,async (req, res) => {
-//     try {
-//       const data = req.body;
-
-//       /* =====================================================
-//          STEP 1: TENURE CHECK (FIXED = 90 DAYS)
-//       ===================================================== */
-//       if (Number(data.tenure_days) !== 90) {
-//         return res.status(400).json({
-//           message: "Tenure mismatch. Only 90 days allowed"
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 2: INVOICE DUE DATE CHECK (DISB + 90 DAYS)
-//       ===================================================== */
-//       const disbDate = new Date(data.disbursement_date);
-//       const expectedDueDate = new Date(disbDate);
-//       expectedDueDate.setDate(expectedDueDate.getDate() + 90);
-
-//       const formatDate = (d) => d.toISOString().split("T")[0];
-
-//       if (data.invoice_due_date !== formatDate(expectedDueDate)) {
-//         return res.status(400).json({
-//           message: "Invoice due date mismatch",
-//           expected: formatDate(expectedDueDate),
-//           received: data.invoice_due_date
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 3: FETCH SANCTION (ROI SOURCE OF TRUTH)
-//       ===================================================== */
-//       const [sanctionRows] = await db.promise().query(
-//         `SELECT interest_rate
-//          FROM supply_chain_sanctions
-//          WHERE partner_loan_id = ?
-//            AND lan = ?`,
-//         [data.partner_loan_id, data.lan]
-//       );
-
-//       if (sanctionRows.length === 0) {
-//         return res.status(400).json({
-//           message: "Sanction not found for given partner_loan_id and LAN"
-//         });
-//       }
-
-//       const dbRoi = Number(sanctionRows[0].interest_rate);
-
-//       /* =====================================================
-//          STEP 4: ROI MATCH
-//       ===================================================== */
-//       if (Number(data.roi_percentage) !== dbRoi) {
-//         return res.status(400).json({
-//           message: "ROI percentage mismatch",
-//           expected: dbRoi,
-//           received: data.roi_percentage
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 5: LOAN MASTER CHECK
-//       ===================================================== */
-//       const [loanRows] = await db.promise().query(
-//         `SELECT id
-//          FROM supply_chain_loans
-//          WHERE partner_loan_id = ?
-//            AND status = 'Login'`,
-//         [data.partner_loan_id]
-//       );
-
-//       if (loanRows.length === 0) {
-//         return res.status(400).json({
-//           message: "Loan not found or not in Login status"
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 6: SUPPLIER & BANK VALIDATION
-//       ===================================================== */
-//       const [supplierRows] = await db.promise().query(
-//         `SELECT
-//            supplier_name,
-//            bank_account_number,
-//            ifsc_code,
-//            bank_name,
-//            account_holder_name
-//          FROM supplier_onboarding
-//          WHERE partner_loan_id = ?
-//            AND supplier_name = ?
-//            AND status = 'Active'`,
-//         [data.partner_loan_id, data.supplier_name]
-//       );
-
-//       if (supplierRows.length === 0) {
-//         return res.status(400).json({
-//           message: "Supplier not found or inactive"
-//         });
-//       }
-
-//       const s = supplierRows[0];
-
-//       if (
-//         s.bank_account_number !== data.supplier_bank_details.bank_account_number ||
-//         s.ifsc_code !== data.supplier_bank_details.ifsc_code ||
-//         s.bank_name !== data.supplier_bank_details.bank_name ||
-//         s.account_holder_name !== data.supplier_bank_details.account_holder_name
-//       ) {
-//         return res.status(400).json({
-//           message: "Supplier bank details mismatch"
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 7: ROI & EMI CALC VALIDATION
-//       ===================================================== */
-//       const expectedRoiAmount =
-//         (Number(data.disbursement_amount) *
-//           dbRoi *
-//           data.tenure_days) / 365;
-
-//       const expectedEmi =
-//         Number(data.disbursement_amount) + expectedRoiAmount;
-
-//       const round = (v) => Number(v.toFixed(2));
-
-//       if (round(data.total_roi_amount) !== round(expectedRoiAmount)) {
-//         return res.status(400).json({
-//           message: "Total ROI amount mismatch",
-//           expected: round(expectedRoiAmount),
-//           received: data.total_roi_amount
-//         });
-//       }
-
-//       if (round(data.emi_amount) !== round(expectedEmi)) {
-//         return res.status(400).json({
-//           message: "EMI amount mismatch",
-//           expected: round(expectedEmi),
-//           received: data.emi_amount
-//         });
-//       }
-
-// /* =====================================================
-//    STEP 7.5: INVOICE vs DISBURSEMENT AMOUNT CHECK
-// ===================================================== */
-// if (Number(data.disbursement_amount) > Number(data.invoice_amount)) {
-//   return res.status(400).json({
-//     message: "Disbursement amount cannot be greater than invoice amount",
-//     invoice_amount: data.invoice_amount,
-//     disbursement_amount: data.disbursement_amount
-//   });
-// }
-
-// /* =====================================================
-//    STEP 7.6: REMAINING INVOICE AMOUNT CALCULATION
-// ===================================================== */
-// const invoiceAmount = Number(data.invoice_amount);
-// const disbursementAmount = Number(data.disbursement_amount);
-
-// // already ensured disbursement <= invoice
-// const remainingInvoiceAmount = invoiceAmount - disbursementAmount;
-
-//         /* =====================================================
-//          STEP 8: INSERT + SANCTION UPDATE (TRANSACTION)
-//       ===================================================== */
-//       conn = await db.promise().getConnection();
-//       await conn.beginTransaction();
-
-//       // 8.1 Insert invoice
-//       await conn.query(
-//         `INSERT INTO invoice_disbursements (
-//           partner_loan_id,
-//           lan,
-//           invoice_number,
-//           invoice_date,
-//           invoice_amount,
-//           remaining_invoice_amount,
-//           tenure_days,
-//           supplier_name,
-//           bank_account_number,
-//           ifsc_code,
-//           bank_name,
-//           account_holder_name,
-//           disbursement_amount,
-//           remaining_disbursement_amount,
-//           disbursement_date,
-//           invoice_due_date,
-//           disbursement_utr,
-//           roi_percentage,
-//           total_roi_amount,
-//           emi_amount
-//         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-//         [
-//           data.partner_loan_id,
-//           data.lan,
-//           data.invoice_number,
-//           data.invoice_date,
-//           invoiceAmount,
-//           remainingInvoiceAmount,
-//           data.tenure_days,
-//           data.supplier_name,
-//           data.supplier_bank_details.bank_account_number,
-//           data.supplier_bank_details.ifsc_code,
-//           data.supplier_bank_details.bank_name,
-//           data.supplier_bank_details.account_holder_name,
-//           disbursementAmount,
-//           disbursementAmount,
-//           data.disbursement_date,
-//           data.invoice_due_date,
-//           data.disbursement_utr,
-//           data.roi_percentage,
-//           data.total_roi_amount,
-//           data.emi_amount
-//         ]
-//       );
-
-//       // 8.2 Lock & fetch sanction
-//       const [sanctionData] = await conn.query(
-//         `SELECT
-//            sanction_amount,
-//            utilized_sanction_limit
-//          FROM supply_chain_sanctions
-//          WHERE partner_loan_id = ?
-//            AND lan = ?
-//          FOR UPDATE`,
-//         [data.partner_loan_id, data.lan]
-//       );
-
-//       if (sanctionData.length === 0) {
-//         throw new Error("Sanction record not found");
-//       }
-
-//       const sanctionLimit = Number(sanctionData[0].sanction_amount);
-//       const utilized = Number(
-//         sanctionData[0].utilized_sanction_limit
-//       );
-
-//       const newUtilized = utilized + disbursementAmount;
-//       const newUnutilized = sanctionLimit - newUtilized;
-
-//       if (newUtilized > sanctionLimit) {
-//         throw new Error("Sanction limit exceeded");
-//       }
-
-//       // 8.3 Update sanction utilization
-//       await conn.query(
-//         `UPDATE supply_chain_sanctions
-//          SET
-//            utilized_sanction_limit = ?,
-//            unutilization_sanction_limit = ?
-//          WHERE partner_loan_id = ?
-//            AND lan = ?`,
-//         [
-//           newUtilized,
-//           newUnutilized,
-//           data.partner_loan_id,
-//           data.lan
-//         ]
-//       );
-
-//       await conn.commit();
-//       conn.release();
-
-//       /* =====================================================
-//          STEP 9: BACKGROUND DEMAND GENERATION
-//       ===================================================== */
-//       setImmediate(async () => {
-//         try {
-//           await generateDemandFromInvoiceDisbursement(
-//             data.invoice_number
-//           );
-//         } catch (e) {
-//           console.error("Demand generation failed:", e);
-//         }
-//       });
-
-//       return res.json({
-//         message:
-//           "Invoice validated, saved, and sanction updated successfully"
-//       });
-//     } catch (err) {
-//       if (conn) {
-//         await conn.rollback();
-//         conn.release();
-//       }
-
-//       console.error(err);
-//       return res.status(500).json({
-//         message: "Validation failed",
-//         error: err.message
-//       });
-//     }
-//   }
-// );
-
-/////////////////// Supply chain Invoice Upload & Disbursement  //////////////////////
-
-// router.post("/v1/invoice-disbursement/validate",verifyApiKey, async (req, res) => {
-//     let conn;
-//     try {
-//       const data = req.body;
-
-//       /* =====================================================
-//          STEP 1: TENURE CHECK (FIXED = 90 DAYS)
-//       ===================================================== */
-//       const tenure = parseInt(data.tenure_days);
-
-// if (tenure !== 90) {
-//   return res.status(400).json({
-//     message: "Tenure mismatch. Only 90 days allowed"
-//   });
-// }
-//       /* =====================================================
-//          STEP 2: INVOICE DUE DATE CHECK (DISB + 90 DAYS)
-//       ===================================================== */
-//       const disbDate = new Date(data.disbursement_date);
-//       if (isNaN(disbDate.getTime())) {
-//         return res.status(400).json({
-//           message: "Invalid disbursement_date"
-//         });
-//       }
-
-//       const expectedDueDate = new Date(disbDate);
-//       expectedDueDate.setDate(expectedDueDate.getDate() + 90);
-//       const formatDate = (d) => d.toISOString().split("T")[0];
-
-//       if (data.invoice_due_date !== formatDate(expectedDueDate)) {
-//         return res.status(400).json({
-//           message: "Invoice due date mismatch",
-//           expected: formatDate(expectedDueDate),
-//           received: data.invoice_due_date
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 3: FETCH SANCTION (ROI SOURCE OF TRUTH)
-//       ===================================================== */
-//       const [sanctionRows] = await db.promise().query(
-//         `SELECT interest_rate
-//          FROM supply_chain_sanctions
-//          WHERE partner_loan_id = ?
-//            AND lan = ?`,
-//         [data.partner_loan_id, data.lan]
-//       );
-
-//       if (sanctionRows.length === 0) {
-//         return res.status(400).json({
-//           message: "Sanction not found for given partner_loan_id and LAN"
-//         });
-//       }
-
-//       const dbRoi = Number(sanctionRows[0].interest_rate);
-//       if (Number.isNaN(dbRoi)) {
-//         return res.status(400).json({
-//           message: "Invalid ROI in sanction record"
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 4: ROI MATCH
-//       ===================================================== */
-//       if (Number(data.roi_percentage) !== dbRoi) {
-//         return res.status(400).json({
-//           message: "ROI percentage mismatch",
-//           expected: dbRoi,
-//           received: data.roi_percentage
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 5: LOAN MASTER CHECK
-//       ===================================================== */
-//       const [loanRows] = await db.promise().query(
-//         `SELECT id
-//          FROM supply_chain_loans
-//          WHERE partner_loan_id = ?
-//            AND status = 'Login'`,
-//         [data.partner_loan_id]
-//       );
-
-//       if (loanRows.length === 0) {
-//         return res.status(400).json({
-//           message: "Loan not found or not in Login status"
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 6: SUPPLIER & BANK VALIDATION
-//       ===================================================== */
-//       const [supplierRows] = await db.promise().query(
-//         `SELECT
-//            supplier_name,
-//            bank_account_number,
-//            ifsc_code,
-//            bank_name,
-//            account_holder_name
-//          FROM supplier_onboarding
-//          WHERE partner_loan_id = ?
-//            AND supplier_name = ?
-//            AND status = 'Active'`,
-//         [data.partner_loan_id, data.supplier_name]
-//       );
-
-//       if (supplierRows.length === 0) {
-//         return res.status(400).json({
-//           message: "Supplier not found or inactive"
-//         });
-//       }
-
-//       const s = supplierRows[0];
-
-//       if (
-//         s.bank_account_number !== data.supplier_bank_details.bank_account_number ||
-//         s.ifsc_code !== data.supplier_bank_details.ifsc_code ||
-//         s.bank_name !== data.supplier_bank_details.bank_name ||
-//         s.account_holder_name !== data.supplier_bank_details.account_holder_name
-//       ) {
-//         return res.status(400).json({
-//           message: "Supplier bank details mismatch"
-//         });
-//       }
-
-//       /* =====================================================
-//          STEP 7: ROI & EMI CALC VALIDATION
-//       ===================================================== */
-//       const invoiceAmount = Number(data.invoice_amount);
-//       const disbursementAmount = Number(data.disbursement_amount);
-//       const tenureDays = Number(data.tenure_days);
-
-//       if (
-//         [invoiceAmount, disbursementAmount, tenureDays].some(Number.isNaN)
-//       ) {
-//         return res.status(400).json({
-//           message: "Invalid numeric input"
-//         });
-//       }
-
-//       if (disbursementAmount > invoiceAmount) {
-//         return res.status(400).json({
-//           message: "Disbursement amount cannot be greater than invoice amount"
-//         });
-//       }
-
-//       const expectedRoiAmount =
-//         (disbursementAmount * dbRoi * tenureDays) / 365;
-
-//       const expectedEmi = disbursementAmount + expectedRoiAmount;
-//       const round = (v) => Number(v.toFixed(2));
-
-//       if (round(data.total_roi_amount) !== round(expectedRoiAmount)) {
-//         return res.status(400).json({
-//           message: "Total ROI amount mismatch",
-//           expected: round(expectedRoiAmount),
-//           received: data.total_roi_amount
-//         });
-//       }
-
-//       if (round(data.emi_amount) !== round(expectedEmi)) {
-//         return res.status(400).json({
-//           message: "EMI amount mismatch",
-//           expected: round(expectedEmi),
-//           received: data.emi_amount
-//         });
-//       }
-
-//       const remainingInvoiceAmount =
-//         invoiceAmount - disbursementAmount;
-
-//       /* =====================================================
-//          STEP 8: INSERT + SANCTION UPDATE (TRANSACTION)
-//       ===================================================== */
-//       conn = await db.promise().getConnection();
-//       await conn.beginTransaction();
-
-//       // 8.1 Insert invoice disbursement
-//       await conn.query(
-//         `INSERT INTO invoice_disbursements (
-//           partner_loan_id,
-//           lan,
-//           invoice_number,
-//           invoice_date,
-//           invoice_amount,
-//           remaining_invoice_amount,
-//           tenure_days,
-//           supplier_name,
-//           bank_account_number,
-//           ifsc_code,
-//           bank_name,
-//           account_holder_name,
-//           disbursement_amount,
-//           remaining_disbursement_amount,
-//           disbursement_date,
-//           invoice_due_date,
-//           disbursement_utr,
-//           roi_percentage,
-//           total_roi_amount,
-//           emi_amount
-//         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-//         [
-//           data.partner_loan_id,
-//           data.lan,
-//           data.invoice_number,
-//           data.invoice_date,
-//           invoiceAmount,
-//           remainingInvoiceAmount,
-//           tenureDays,
-//           data.supplier_name,
-//           data.supplier_bank_details.bank_account_number,
-//           data.supplier_bank_details.ifsc_code,
-//           data.supplier_bank_details.bank_name,
-//           data.supplier_bank_details.account_holder_name,
-//           disbursementAmount,
-//           disbursementAmount,
-//           data.disbursement_date,
-//           data.invoice_due_date,
-//           data.disbursement_utr,
-//           data.roi_percentage,
-//           data.total_roi_amount,
-//           data.emi_amount
-//         ]
-//       );
-
-//       // 8.2 Lock & fetch sanction
-//       const [sanctionData] = await conn.query(
-//         `SELECT
-//            sanction_amount,
-//            utilized_sanction_limit
-//          FROM supply_chain_sanctions
-//          WHERE partner_loan_id = ?
-//            AND lan = ?
-//          FOR UPDATE`,
-//         [data.partner_loan_id, data.lan]
-//       );
-
-//       if (sanctionData.length === 0) {
-//         throw new Error("Sanction record not found");
-//       }
-
-//       const sanctionLimit = Number(sanctionData[0].sanction_amount);
-//       const utilized = Number(sanctionData[0].utilized_sanction_limit);
-
-//       if ([sanctionLimit, utilized].some(Number.isNaN)) {
-//         throw new Error("Invalid sanction numeric data");
-//       }
-
-//       const newUtilized = utilized + disbursementAmount;
-//       const newUnutilized = sanctionLimit - newUtilized;
-
-//       if (newUtilized > sanctionLimit) {
-//         throw new Error("Sanction limit exceeded");
-//       }
-
-//       // 8.3 Update sanction utilization
-//       await conn.query(
-//         `UPDATE supply_chain_sanctions
-//          SET
-//            utilized_sanction_limit = ?,
-//            unutilization_sanction_limit = ?
-//          WHERE partner_loan_id = ?
-//            AND lan = ?`,
-//         [
-//           newUtilized,
-//           newUnutilized,
-//           data.partner_loan_id,
-//           data.lan
-//         ]
-//       );
-
-//       await conn.commit();
-//       conn.release();
-
-//       /* =====================================================
-//          STEP 9: BACKGROUND DEMAND GENERATION
-//       ===================================================== */
-//       setImmediate(async () => {
-//         try {
-//           await generateDemandFromInvoiceDisbursement(
-//             data.invoice_number
-//           );
-//         } catch (e) {
-//           console.error("Demand generation failed:", e);
-//         }
-//       });
-
-//       return res.json({
-//         message:
-//           "Invoice validated, saved, and sanction updated successfully"
-//       });
-//     } catch (err) {
-//       if (conn) {
-//         await conn.rollback();
-//         conn.release();
-//       }
-
-//       console.error(err);
-//       return res.status(500).json({
-//         message: "Validation failed",
-//         error: err.message
-//       });
-//     }
-//   }
-// );
 
 // SUpply Chain Disbursment UTR ///
 
@@ -8415,7 +7667,6 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
   const results = [];
 
   const formatDate = (d) => d.toISOString().split("T")[0];
-  const round = (v) => Number(Number(v).toFixed(2));
 
   for (const data of payload) {
     let conn;
@@ -8477,10 +7728,10 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
       }
 
       /* =====================================================
-         STEP 4: FETCH SANCTION
+         STEP 4: FETCH SANCTION (NO ROI VALIDATION)
       ===================================================== */
       const [sanctionRows] = await db.promise().query(
-        `SELECT interest_rate, sanction_amount, utilized_sanction_limit
+        `SELECT sanction_amount, utilized_sanction_limit
          FROM supply_chain_sanctions
          WHERE partner_loan_id = ?
            AND lan = ?`,
@@ -8496,33 +7747,8 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
         continue;
       }
 
-      const dbRoi = Number(sanctionRows[0].interest_rate);
-
-      if (Number.isNaN(dbRoi)) {
-        results.push({
-          invoice_number: data.invoice_number || null,
-          status: "failed",
-          message: "Invalid ROI in sanction record",
-        });
-        continue;
-      }
-
       /* =====================================================
-         STEP 5: ROI MATCH
-      ===================================================== */
-      if (Number(data.roi_percentage) !== dbRoi) {
-        results.push({
-          invoice_number: data.invoice_number || null,
-          status: "failed",
-          message: "ROI percentage mismatch",
-          expected: dbRoi,
-          received: data.roi_percentage,
-        });
-        continue;
-      }
-
-      /* =====================================================
-         STEP 6: LOAN MASTER CHECK
+         STEP 5: LOAN MASTER CHECK
       ===================================================== */
       const [loanRows] = await db.promise().query(
         `SELECT id
@@ -8542,58 +7768,7 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
       }
 
       /* =====================================================
-         STEP 7: SUPPLIER & BANK VALIDATION
-      ===================================================== */
-      // const [supplierRows] = await db.promise().query(
-      //   `SELECT
-      //      supplier_name,
-      //      bank_account_number,
-      //      ifsc_code,
-      //      bank_name,
-      //      account_holder_name
-      //    FROM supplier_onboarding
-      //    WHERE partner_loan_id = ?
-      //      AND supplier_name = ?
-      //      AND status = 'Active'`,
-      //   [data.partner_loan_id, data.supplier_name]
-      // );
-
-      // if (supplierRows.length === 0) {
-      //   results.push({
-      //     invoice_number: data.invoice_number || null,
-      //     status: "failed",
-      //     message: "Supplier not found or inactive"
-      //   });
-      //   continue;
-      // }
-
-      // if (!data.supplier_bank_details) {
-      //   results.push({
-      //     invoice_number: data.invoice_number || null,
-      //     status: "failed",
-      //     message: "Supplier bank details missing"
-      //   });
-      //   continue;
-      // }
-
-      // const s = supplierRows[0];
-
-      // if (
-      //   s.bank_account_number !== data.supplier_bank_details.bank_account_number ||
-      //   s.ifsc_code !== data.supplier_bank_details.ifsc_code ||
-      //   s.bank_name !== data.supplier_bank_details.bank_name ||
-      //   s.account_holder_name !== data.supplier_bank_details.account_holder_name
-      // ) {
-      //   results.push({
-      //     invoice_number: data.invoice_number || null,
-      //     status: "failed",
-      //     message: "Supplier bank details mismatch"
-      //   });
-      //   continue;
-      // }
-
-      /* =====================================================
-         STEP 8: ROI & EMI CALC VALIDATION
+         STEP 6: BASIC NUMERIC VALIDATION
       ===================================================== */
       const invoiceAmount = Number(data.invoice_amount);
       const disbursementAmount = Number(data.disbursement_amount);
@@ -8616,52 +7791,11 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
         continue;
       }
 
-      const expectedRoiAmount =
-        (disbursementAmount * (dbRoi / 100) * tenureDays) / 365;
-
-      console.log("expectedroi", expectedRoiAmount);
-      console.log("frontedna kmount", data.total_roi_amount);
-
-      const expectedEmi = disbursementAmount + expectedRoiAmount;
-      const remainingInvoiceAmount = invoiceAmount - disbursementAmount;
-
-      // Function to truncate to a specified number of decimals
-      function truncate(value, decimals) {
-        const factor = Math.pow(10, decimals);
-        return Math.floor(value * factor) / factor;
-      }
-
-      // Function to round numbers for comparison
-      function round(value, decimals) {
-        const factor = Math.pow(10, decimals);
-        return Math.round(value * factor) / factor;
-      }
-
-      // Check if calculated ROI matches received ROI
-      if (round(data.total_roi_amount, 5) !== round(expectedRoiAmount, 5)) {
-        results.push({
-          invoice_number: data.invoice_number || null,
-          status: "failed",
-          message: "Total ROI amount mismatch",
-          expected: round(expectedRoiAmount, 5),
-          received: (data.total_roi_amount, 5),
-        });
-        continue;
-      }
-
-      if (round(data.emi_amount, 3) !== round(expectedEmi, 3)) {
-        results.push({
-          invoice_number: data.invoice_number || null,
-          status: "failed",
-          message: "EMI amount mismatch",
-          expected: round(expectedEmi, 3),
-          received: round(data.emi_amount, 3),
-        });
-        continue;
-      }
+      const remainingInvoiceAmount =
+        invoiceAmount - disbursementAmount;
 
       /* =====================================================
-         STEP 9: INSERT + SANCTION UPDATE
+         STEP 7: INSERT + SANCTION UPDATE
       ===================================================== */
       conn = await db.promise().getConnection();
       await conn.beginTransaction();
@@ -8690,15 +7824,22 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
         throw new Error("Sanction record not found");
       }
 
-      const sanctionLimit = Number(sanctionData[0].sanction_amount);
-      const utilized = Number(sanctionData[0].utilized_sanction_limit);
+      const sanctionLimit = Number(
+        sanctionData[0].sanction_amount
+      );
+      const utilized = Number(
+        sanctionData[0].utilized_sanction_limit
+      );
 
       if ([sanctionLimit, utilized].some(Number.isNaN)) {
         throw new Error("Invalid sanction numeric data");
       }
 
-      const newUtilized = utilized + disbursementAmount;
-      const newUnutilized = sanctionLimit - newUtilized;
+      const newUtilized =
+        utilized + disbursementAmount;
+
+      const newUnutilized =
+        sanctionLimit - newUtilized;
 
       if (newUtilized > sanctionLimit) {
         throw new Error("Sanction limit exceeded");
@@ -8724,9 +7865,10 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
           invoice_due_date,
           disbursement_utr,
           roi_percentage,
+          penal_rate,
           total_roi_amount,
           emi_amount
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           data.partner_loan_id,
           data.lan,
@@ -8746,6 +7888,7 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
           data.invoice_due_date,
           data.disbursement_utr,
           data.roi_percentage,
+          data.penal_rate || 0,
           data.total_roi_amount,
           data.emi_amount,
         ],
@@ -8757,7 +7900,12 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
              unutilization_sanction_limit = ?
          WHERE partner_loan_id = ?
            AND lan = ?`,
-        [newUtilized, newUnutilized, data.partner_loan_id, data.lan],
+        [
+          newUtilized,
+          newUnutilized,
+          data.partner_loan_id,
+          data.lan,
+        ],
       );
 
       await conn.commit();
@@ -8781,7 +7929,8 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
       results.push({
         invoice_number: data.invoice_number,
         status: "success",
-        message: "Invoice validated, saved, and sanction updated successfully",
+        message:
+          "Invoice validated, saved, and sanction updated successfully",
       });
     } catch (err) {
       if (conn) {
@@ -8801,11 +7950,16 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
   return res.json({
     message: "Bulk invoice validation completed",
     total: payload.length,
-    success_count: results.filter((x) => x.status === "success").length,
-    failed_count: results.filter((x) => x.status === "failed").length,
+    success_count: results.filter(
+      (x) => x.status === "success"
+    ).length,
+    failed_count: results.filter(
+      (x) => x.status === "failed"
+    ).length,
     results,
   });
 });
+
 
 ///////////////////////// SUPPLY CHAIN Invoice Upload & Disbursement END //////////////////////
 
