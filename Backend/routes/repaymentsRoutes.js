@@ -1052,4 +1052,191 @@ router.post("/update-retention-release", (req, res) => {
   });
 });
 
+router.post(
+  "/upload-retention-release",
+  upload.single("file"),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No file uploaded",
+      });
+    }
+
+    const success_rows = [];
+    const row_errors = [];
+
+    try {
+      const workbook = xlsx.read(req.file.buffer, {
+        type: "buffer",
+      });
+
+      const sheetName = workbook.SheetNames[0];
+      const rawSheet = workbook.Sheets[sheetName];
+
+      const rawData = xlsx.utils.sheet_to_json(rawSheet, {
+        defval: "",
+        header: 1,
+      });
+
+      const headers = rawData[0];
+
+      const sheetData = rawData.slice(1).map((row, index) => {
+        const formatted = { __row: index + 2 };
+
+        headers.forEach((h, i) => {
+          formatted[h] = row[i];
+        });
+
+        return formatted;
+      });
+
+      for (const row of sheetData) {
+        const R = row.__row;
+        let conn;
+
+        try {
+          const lan = row["lan"]?.trim();
+          const utr = row["utr"]?.trim();
+          const payment_date = row["payment_date"];
+
+          if (!lan || !utr || !payment_date) {
+            row_errors.push({
+              row: R,
+              reason: "Missing LAN / UTR / payment_date",
+            });
+            continue;
+          }
+
+          let table = "";
+          let product_type = "";
+
+          if (lan.startsWith("GQF")) {
+            table = "loan_booking_gq_fsf";
+            product_type = "GQ_FSF";
+          } else if (lan.startsWith("GQN")) {
+            table = "loan_booking_gq_non_fsf";
+            product_type = "GQ_NON_FSF";
+          } else {
+            row_errors.push({
+              row: R,
+              reason: "Invalid LAN prefix",
+            });
+            continue;
+          }
+
+          conn = await db.promise().getConnection();
+          await conn.beginTransaction();
+
+          // Check duplicate LAN retention
+          const [existingLan] = await conn.query(
+            `SELECT lan FROM retention_release_gq WHERE lan = ?`,
+            [lan]
+          );
+
+          if (existingLan.length) {
+            await conn.rollback();
+            conn.release();
+
+            row_errors.push({
+              row: R,
+              reason: "Retention already released",
+            });
+
+            continue;
+          }
+
+          // Check duplicate UTR
+          const [existingUtr] = await conn.query(
+            `SELECT utr FROM retention_release_gq WHERE utr = ?`,
+            [utr]
+          );
+
+          if (existingUtr.length) {
+            await conn.rollback();
+            conn.release();
+
+            row_errors.push({
+              row: R,
+              reason: "Duplicate UTR",
+            });
+
+            continue;
+          }
+
+          // Check LAN exists
+          const [lanExists] = await conn.query(
+            `SELECT lan FROM ?? WHERE lan = ?`,
+            [table, lan]
+          );
+
+          if (!lanExists.length) {
+            await conn.rollback();
+            conn.release();
+
+            row_errors.push({
+              row: R,
+              reason: "LAN not found",
+            });
+
+            continue;
+          }
+
+          const created_by = req.user?.userId || "system";
+
+          // Insert retention record
+          await conn.query(
+            `
+            INSERT INTO retention_release_gq
+            (lan, utr, payment_date, retention_release, product_type, created_by)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `,
+            [lan, utr, payment_date, true, product_type, created_by]
+          );
+
+          // Update booking table
+          await conn.query(
+            `
+            UPDATE ??
+            SET retention_release = 1
+            WHERE lan = ?
+          `,
+            [table, lan]
+          );
+
+          await conn.commit();
+          conn.release();
+
+          success_rows.push(R);
+        } catch (err) {
+          if (conn) {
+            await conn.rollback();
+            conn.release();
+          }
+
+          row_errors.push({
+            row: R,
+            reason: err.message,
+          });
+        }
+      }
+
+      return res.json({
+        success: true,
+        total_rows: sheetData.length,
+        inserted_rows: success_rows.length,
+        failed_rows: row_errors.length,
+        success_rows,
+        row_errors,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Upload failed",
+        error: error.message,
+      });
+    }
+  }
+);
+
 module.exports = router;

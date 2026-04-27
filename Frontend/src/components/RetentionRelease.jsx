@@ -1,51 +1,39 @@
 import React, { useState } from "react";
 import api from "../api/api";
-import "../styles/PartnerLimitEntry.css";
 
-const RetentionRelease = () => {
-  const [form, setForm] = useState({
-    lan: "",
-    utr: "",
-    payment_date: "",
-  });
-
+const RetentionReleaseUpload = () => {
+  const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!form.lan || !form.utr || !form.payment_date) {
-      alert("LAN, UTR and Payment Date are required");
+  const handleUpload = async () => {
+    if (!file) {
+      alert("Select file first");
       return;
     }
+
+    const formData = new FormData();
+    formData.append("file", file);
 
     try {
       setLoading(true);
 
       const res = await api.post(
-        "repayments/update-retention-release",
+        "repayments/upload-retention-release",
+        formData,
         {
-          lan: form.lan.trim(),
-          utr: form.utr.trim(),
-          payment_date: form.payment_date,
-          retention_release: true, // always YES ✅
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         }
       );
 
-      alert(res.data.message || "Retention released successfully");
-
-      setForm({
-        lan: "",
-        utr: "",
-        payment_date: "",
-      });
-
+      alert(
+        `Upload complete\nInserted: ${res.data.inserted_rows}\nFailed: ${res.data.failed_rows}`
+      );
     } catch (err) {
-      console.error(err);
-
       alert(
         err.response?.data?.message ||
-        "Retention release failed"
+          "Upload failed"
       );
     } finally {
       setLoading(false);
@@ -58,83 +46,42 @@ const RetentionRelease = () => {
 
         <div className="page-header">
           <div className="page-header-left">
-            <div className="page-badge">Retention Management</div>
-            <h1>Retention Release – GQ FSF / NonFSF</h1>
+            <div className="page-badge">
+              Retention Management
+            </div>
+
+            <h1>Bulk Retention Release Upload</h1>
+
             <p>
-              Enter LAN, UTR and payment date to release retention amount.
+              Upload Excel with LAN, UTR and payment_date
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="card form-card">
+        <div className="card form-card">
 
-          <div className="card-title">Retention Release Entry</div>
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={(e) =>
+              setFile(e.target.files[0])
+            }
+          />
 
-          <div className="form-grid">
+          <br /><br />
 
-            {/* LAN */}
-            <div className="field">
-              <label>LAN Number</label>
-              <input
-                type="text"
-                placeholder="Enter LAN (GQF / GQN)"
-                value={form.lan}
-                onChange={(e) =>
-                  setForm({ ...form, lan: e.target.value })
-                }
-                required
-              />
-            </div>
+          <button
+            className="btn btn-success"
+            onClick={handleUpload}
+            disabled={loading}
+          >
+            {loading ? "Uploading..." : "Upload Excel"}
+          </button>
 
-            {/* UTR */}
-            <div className="field">
-              <label>UTR Number</label>
-              <input
-                type="text"
-                placeholder="Enter UTR"
-                value={form.utr}
-                onChange={(e) =>
-                  setForm({ ...form, utr: e.target.value })
-                }
-                required
-              />
-            </div>
-
-            {/* Payment Date */}
-            <div className="field">
-              <label>Payment Date</label>
-              <input
-                type="date"
-                value={form.payment_date}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    payment_date: e.target.value,
-                  })
-                }
-                required
-              />
-            </div>
-
-          </div>
-
-          <div className="form-actions">
-            <button
-              type="submit"
-              className="btn btn-success"
-              disabled={loading}
-            >
-              {loading
-                ? "Processing..."
-                : "Release Retention"}
-            </button>
-          </div>
-
-        </form>
-
+        </div>
       </div>
     </div>
   );
 };
 
-export default RetentionRelease;
+export default RetentionReleaseUpload;
