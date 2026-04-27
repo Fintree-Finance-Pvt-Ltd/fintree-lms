@@ -7859,6 +7859,7 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
           invoice_due_date,
           disbursement_utr,
           roi_percentage,
+          roi_penal_rate,
           penal_rate,
           total_roi_amount,
           emi_amount
