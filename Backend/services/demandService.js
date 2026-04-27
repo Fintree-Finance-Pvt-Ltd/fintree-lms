@@ -50,6 +50,7 @@ const generateDailySupplyChainDemand = async (
       invoice_number,
       roi_percentage,
       penal_rate,
+       roi_penal_rate,
       disbursement_amount,
       remaining_disbursement_amount,
       disbursement_date,
@@ -58,6 +59,7 @@ const generateDailySupplyChainDemand = async (
     const principal = Number(remaining_disbursement_amount);
     const roi = Number(roi_percentage) / 100;
     const penalRoi = Number(penal_rate || 0) / 100;
+const roiPenalRoi = Number(roi_penal_rate || 0) / 100;
 
     const dailyInterest = +(principal * roi / 365).toFixed(6);
 
@@ -94,8 +96,12 @@ const generateDailySupplyChainDemand = async (
 
     let cumulativeInterest = Number(seedData.cumulativeInterest || 0);
     let cumulativePenalInterest = Number(
-      seedData.cumulativePenalInterest || 0
-    );
+  seedData.cumulativePenalInterest || 0
+);
+
+let cumulativeRoiPenalInterest = Number(
+  seedData.cumulativeRoiPenalInterest || 0
+);
     let diffDays = Number(seedData.diffDays || 0);
 
     const rows = [];
@@ -113,43 +119,57 @@ const generateDailySupplyChainDemand = async (
 
       const overdueAmount = +(principal + cumulativeInterest).toFixed(6);
 
-      let penalInterest = 0;
+     let penalInterest = 0;
+let roiPenalInterest = 0;
 
-      if (current > dueDate) {
-        penalInterest = +(overdueAmount * penalRoi / 365).toFixed(6);
+if (current > dueDate) {
 
-        cumulativePenalInterest = +(
-          cumulativePenalInterest + penalInterest
-        ).toFixed(6);
-      }
+  penalInterest = +(overdueAmount * penalRoi / 365).toFixed(6);
 
-      const totalAmountDemand = +(
-        overdueAmount + cumulativePenalInterest
-      ).toFixed(4);
+  roiPenalInterest = +(overdueAmount * roiPenalRoi / 365).toFixed(6);
+
+  cumulativePenalInterest = +(
+    cumulativePenalInterest + penalInterest
+  ).toFixed(6);
+
+  cumulativeRoiPenalInterest = +(
+    cumulativeRoiPenalInterest + roiPenalInterest
+  ).toFixed(6);
+}
+
+     const totalAmountDemand = +(
+  overdueAmount +
+  cumulativePenalInterest +
+  cumulativeRoiPenalInterest
+).toFixed(4);
 
       rows.push([
         partner_loan_id,
-        lan,
-        invoice_number,
-        toYMD(dueDate),
-        roi_percentage,
-        penal_rate || 0,
-        disbursement_amount,
-        principal,
-        toYMD(disbursement_date),
-        toYMD(current),
-        diffDays,
-        cumulativeInterest,
-        1,
-        dailyInterest,
-        overdueAmount,
-        penalInterest,
-        cumulativePenalInterest,
-        totalAmountDemand,
-        totalAmountDemand,
-        principal,
-        cumulativeInterest,
-        cumulativePenalInterest,
+  lan,
+  invoice_number,
+  toYMD(dueDate),
+  roi_percentage,
+  penal_rate || 0,
+  roi_penal_rate || 0,
+  disbursement_amount,
+  principal,
+  toYMD(disbursement_date),
+  toYMD(current),
+  diffDays,
+  cumulativeInterest,
+  1,
+  dailyInterest,
+  overdueAmount,
+  penalInterest,
+  cumulativePenalInterest,
+  roiPenalInterest,
+  cumulativeRoiPenalInterest,
+  totalAmountDemand,
+  totalAmountDemand,
+  principal,
+  cumulativeInterest,
+  cumulativePenalInterest,
+  cumulativeRoiPenalInterest
       ]);
     }
 
@@ -157,34 +177,38 @@ const generateDailySupplyChainDemand = async (
 
     await conn.query(
       `INSERT INTO supply_chain_daily_demand (
-        partner_loan_id,
-        lan,
-        invoice_number,
-        invoice_due_date,
-        interest_rate,
-        penal_rate,
-        disbursement_amount,
-        remaining_disbursement_amount,
-        disbursement_date,
-        daily_date,
-        diff_days,
-        cumulate_interest_demand,
-        daily_days,
-        daily_interest_demand,
-        overdue_amount_demand,
-        penal_interest_demand,
-        cumelate_penal_interest_demand,
-        total_amount_demand,
-        total_remaining,
-        remaining_principal,
-        remaining_interest,
-        remaining_penal_interest
-      ) VALUES ?
-      ON DUPLICATE KEY UPDATE
-        diff_days = VALUES(diff_days),
-        cumulate_interest_demand = VALUES(cumulate_interest_demand),
-        updated_at = CURRENT_TIMESTAMP`,
-      [rows]
+    partner_loan_id,
+    lan,
+    invoice_number,
+    invoice_due_date,
+    interest_rate,
+    penal_rate,
+    roi_penal_rate,
+    disbursement_amount,
+    remaining_disbursement_amount,
+    disbursement_date,
+    daily_date,
+    diff_days,
+    cumulate_interest_demand,
+    daily_days,
+    daily_interest_demand,
+    overdue_amount_demand,
+    penal_interest_demand,
+    cumelate_penal_interest_demand,
+    roi_penal_interest_demand,
+    cumelate_roi_penal_interest_demand,
+    total_amount_demand,
+    total_remaining,
+    remaining_principal,
+    remaining_interest,
+    remaining_penal_interest,
+    remaining_roi_penal_interest
+  ) VALUES ?
+  ON DUPLICATE KEY UPDATE
+    diff_days = VALUES(diff_days),
+    cumulate_interest_demand = VALUES(cumulate_interest_demand),
+    updated_at = CURRENT_TIMESTAMP`,
+  [rows]
     );
 
     console.log(
@@ -215,16 +239,17 @@ const generateDemandFromInvoiceDisbursement = async (invoiceNumber) => {
     if (!invoice) throw new Error("Invoice not found");
 
     const [[sanction]] = await conn.query(
-      `SELECT interest_rate, penal_rate
-       FROM supply_chain_sanctions
+      `SELECT roi_percentage as interest_rate, penal_rate,roi_penal_rate
+       FROM invoice_disbursements
        WHERE partner_loan_id = ?
-       AND lan = ?`,
-      [invoice.partner_loan_id, invoice.lan]
+       AND lan = ? AND invoice_number = ?`,
+      [invoice.partner_loan_id, invoice.lan, invoice.invoice_number]
     );
 
     if (!sanction) throw new Error("Sanction not found");
 
     invoice.penal_rate = sanction.penal_rate || 0;
+    invoice.roi_penal_rate = sanction.roi_penal_rate || 0;
 
     const disbDate = parseDateOnly(invoice.disbursement_date);
 
