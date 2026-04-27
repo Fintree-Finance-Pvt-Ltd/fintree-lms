@@ -7839,6 +7839,19 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
         throw new Error("Sanction limit exceeded");
       }
 
+
+console.log("[Invoice Insert] ▶ Preparing insert payload");
+
+console.log("[Invoice Insert] partner_loan_id:", data);
+console.log("[Invoice Insert] lan:", data.lan);
+console.log("[Invoice Insert] invoice_number:", data.invoice_number);
+console.log("[Invoice Insert] invoice_amount:", invoiceAmount);
+console.log("[Invoice Insert] disbursement_amount:", disbursementAmount);
+console.log("[Invoice Insert] roi_percentage:", data.roi_percentage);
+console.log("[Invoice Insert] roi_penal_rate:", data.roi_penal_rate);
+console.log("[Invoice Insert] penal_rate:", data.penal_rate);
+
+
       await conn.query(
         `INSERT INTO invoice_disbursements (
           partner_loan_id,
