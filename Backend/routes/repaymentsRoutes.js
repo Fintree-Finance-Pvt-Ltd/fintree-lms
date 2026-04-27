@@ -916,7 +916,7 @@ router.post("/upload-json", async (req, res) => {
 // retention release route 
 router.post("/update-retention-release", (req, res) => {
   const { lan, utr, payment_date } = req.body;
-  const created_by = req.user?.id || "system";
+  const created_by = req.user?.userId || "system";
 
   if (!lan || !utr || !payment_date) {
     return res.status(400).json({
