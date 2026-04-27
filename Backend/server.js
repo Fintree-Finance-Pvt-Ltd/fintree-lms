@@ -29,6 +29,8 @@ const { generateForReport, generateAllPending } = require('./jobs/cibilPdfServic
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
+const mobileRevocationLookup = require("./utils/mnrlApiService");
+
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
 //   // 32 bytes = 64 characters hex string
@@ -215,6 +217,38 @@ app.get("/api/test-sms", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.post("/api/mobile-lookup-test", async (req, res) => {
+  try {
+    let { mobile_number, lan } = req.body;
+
+    if (!mobile_number || !lan) {
+      return res.status(400).json({
+        ok: false,
+        message: "Mobile number and LAN are required"
+      });
+    }
+
+    // 🔥 FIX: sanitize mobile number
+    mobile = String(mobile_number).trim().replace(/\D/g, "");
+
+    // remove leading 91 if present
+    if (mobile_number.startsWith("91") && mobile_number.length === 12) {
+      mobile_number = mobile_number.slice(2);
+    }
+
+    console.log("Sanitized Mobile:", mobile_number);
+
+    const result = await mobileRevocationLookup(mobile_number, lan);
+
+    res.json({ ok: true, result });
+
+  } catch (err) {
+    console.error("Mobile lookup test error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // app.get('*', (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
 //   });

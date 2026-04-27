@@ -8,7 +8,7 @@ import LoaderOverlay from "./ui/LoaderOverlay";
 const ApproveInitiatedScreen = ({
   apiUrl,
   title = "Approval Initiated Stage Loans",
-  lenderName = "EMI",
+  lenderName = "EMICLUB",
   tableName,
 }) => {
   const [rows, setRows] = useState([]);
