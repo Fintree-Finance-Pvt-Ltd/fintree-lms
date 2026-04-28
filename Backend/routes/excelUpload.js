@@ -2577,7 +2577,7 @@ router.get("/all-loans", async (req, res) => {
     table = "loan_bookings",
     prefix = "BL",
     page = "1",
-    pageSize = "25",
+    pageSize = "1000",
     search = "",
     sortBy = "LAN",
     sortDir = "desc",
@@ -4818,10 +4818,7 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
   }
 });
 
-router.post(
-  "/upload-invoice-disbursements",
-  upload.single("file"),
-  async (req, res) => {
+router.post("/upload-invoice-disbursements", upload.single("file"), async (req, res) => {
     if (!req.file)
       return res.status(400).json({
         message: "No file uploaded",
@@ -4891,15 +4888,6 @@ router.post(
             continue;
           }
 
-          const [utrExists] = await conn.query(
-  `SELECT id FROM invoice_disbursements WHERE disbursement_utr = ?`,
-  [disbursement_utr]
-);
-
-if (utrExists.length) {
-  throw new Error("Duplicate disbursement UTR");
-}
-
           conn = await db.promise().getConnection();
           await conn.beginTransaction();
 
@@ -4927,6 +4915,24 @@ if (utrExists.length) {
 
             continue;
           }
+
+          const [utrExists] = await conn.query(
+  `SELECT id FROM invoice_disbursements WHERE disbursement_utr = ?`,
+  [disbursement_utr]
+);
+
+if (utrExists.length) {
+  await conn.rollback();
+  conn.release();
+
+  row_errors.push({
+    row: R,
+    stage: "duplicate-utr",
+    reason: "Duplicate disbursement UTR",
+  });
+
+  continue;
+}
 
           // Insert row
           await conn.query(
@@ -4982,7 +4988,7 @@ if (utrExists.length) {
               parseNumber(row.penal_rate),
               parseNumber(row.total_roi_amount),
               parseNumber(row.emi_amount),
-              row.status || "Active",
+              "Active",
               parseNumber(row.roi_penal_rate),
             ]
           );
