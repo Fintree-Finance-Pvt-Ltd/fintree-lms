@@ -179,7 +179,7 @@ if (lender === "LOAN-DIGIT" && product === "Loan Digit") {
   const dueDate = new Date(disbDate);
   const disbDay = dueDate.getDate();
 
-  if (disbDay <= 25) {
+  if (disbDay <= 5) {
     // Disbursed between 1st–25th → Next month 5th
     dueDate.setMonth(dueDate.getMonth() + 1);
   } else {
