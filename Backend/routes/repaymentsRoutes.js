@@ -508,6 +508,8 @@ const db = require("../config/db");
 
 const { allocateRepaymentByLAN } = require("../utils/allocate");
 const { excelSerialDateToJS, queryDB } = require("../utils/helpers");
+const authenticateUser = require("../middleware/verifyToken");
+
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -1241,7 +1243,7 @@ router.post("/update-retention-release", (req, res) => {
 
 
 router.post(
-  "/upload-retention-release",
+  "/upload-retention-release", authenticateUser,
   upload.single("file"),
   async (req, res) => {
 
@@ -1364,13 +1366,15 @@ router.post(
             continue;
           }
 
-          const created_by = req.user?.userId || "system";
+          const created_by = req.user?.name || "system";
 
           await conn.query(
             `INSERT INTO retention_release_gq
              (lan, utr, payment_date, retention_release, product_type, created_by)
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [lan, utr, payment_date, 1, product_type, created_by]
+            [lan, utr, payment_date
+    ? excelSerialDateToJS(payment_date)
+    : null, 1, product_type, created_by]
           );
 
           await conn.query(
