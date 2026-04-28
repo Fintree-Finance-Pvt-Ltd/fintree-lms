@@ -4818,6 +4818,212 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
   }
 });
 
+router.post(
+  "/upload-invoice-disbursements",
+  upload.single("file"),
+  async (req, res) => {
+    if (!req.file)
+      return res.status(400).json({
+        message: "No file uploaded",
+      });
+
+    const success_rows = [];
+    const row_errors = [];
+
+    try {
+      const workbook = xlsx.read(req.file.buffer, {
+        type: "buffer",
+      });
+
+      const sheetName = workbook.SheetNames[0];
+      const rawSheet = workbook.Sheets[sheetName];
+
+      const rawData = xlsx.utils.sheet_to_json(rawSheet, {
+        defval: "",
+        header: 1,
+      });
+
+      const headers = rawData[0];
+
+      const sheetData = rawData.slice(1).map((row, index) => {
+        const formatted = { __row: index + 2 };
+
+        headers.forEach((h, i) => {
+          formatted[h] = row[i];
+        });
+
+        return formatted;
+      });
+
+      if (!sheetData.length) {
+        return res.status(400).json({
+          message: "Excel file empty",
+        });
+      }
+
+      const parseNumber = (v) =>
+        typeof v === "number"
+          ? v
+          : parseFloat(
+              (v || "").toString().replace(/[^0-9.]/g, "")
+            ) || 0;
+
+      for (const row of sheetData) {
+        const R = row.__row;
+        let conn;
+
+        try {
+          const {
+            partner_loan_id,
+            lan,
+            invoice_number,
+            supplier_name,
+            disbursement_utr,
+          } = row;
+
+          if (!partner_loan_id || !invoice_number) {
+            row_errors.push({
+              row: R,
+              stage: "validation",
+              reason:
+                "partner_loan_id or invoice_number missing",
+            });
+            continue;
+          }
+
+          const [utrExists] = await conn.query(
+  `SELECT id FROM invoice_disbursements WHERE disbursement_utr = ?`,
+  [disbursement_utr]
+);
+
+if (utrExists.length) {
+  throw new Error("Duplicate disbursement UTR");
+}
+
+          conn = await db.promise().getConnection();
+          await conn.beginTransaction();
+
+          // Duplicate check (already exists)
+          const [existing] = await conn.query(
+            `
+            SELECT id
+            FROM invoice_disbursements
+            WHERE partner_loan_id = ?
+            AND invoice_number = ?
+          `,
+            [partner_loan_id, invoice_number]
+          );
+
+          if (existing.length > 0) {
+            await conn.rollback();
+            conn.release();
+
+            row_errors.push({
+              row: R,
+              stage: "duplicate",
+              reason:
+                "Invoice already exists for this partner_loan_id",
+            });
+
+            continue;
+          }
+
+          // Insert row
+          await conn.query(
+            `
+            INSERT INTO invoice_disbursements (
+              partner_loan_id,
+              lan,
+              invoice_number,
+              invoice_date,
+              invoice_amount,
+              remaining_invoice_amount,
+              tenure_days,
+              supplier_name,
+              bank_account_number,
+              ifsc_code,
+              bank_name,
+              account_holder_name,
+              disbursement_amount,
+              remaining_disbursement_amount,
+              disbursement_date,
+              invoice_due_date,
+              disbursement_utr,
+              roi_percentage,
+              penal_rate,
+              total_roi_amount,
+              emi_amount,
+              status,
+              roi_penal_rate
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+            [
+              partner_loan_id,
+              lan,
+              invoice_number,
+              row.invoice_date || null,
+              parseNumber(row.invoice_amount),
+              parseNumber(row.remaining_invoice_amount),
+              parseNumber(row.tenure_days || 90),
+              supplier_name,
+              row.bank_account_number,
+              row.ifsc_code,
+              row.bank_name,
+              row.account_holder_name,
+              parseNumber(row.disbursement_amount),
+              parseNumber(
+                row.remaining_disbursement_amount
+              ),
+              row.disbursement_date || null,
+              row.invoice_due_date || null,
+              disbursement_utr,
+              parseNumber(row.roi_percentage),
+              parseNumber(row.penal_rate),
+              parseNumber(row.total_roi_amount),
+              parseNumber(row.emi_amount),
+              row.status || "Active",
+              parseNumber(row.roi_penal_rate),
+            ]
+          );
+
+          await conn.commit();
+          conn.release();
+
+          success_rows.push(R);
+        } catch (err) {
+          if (conn) {
+            await conn.rollback();
+            conn.release();
+          }
+
+          row_errors.push({
+            row: R,
+            stage: "insert",
+            reason: err.message,
+          });
+        }
+      }
+
+      return res.status(200).json({
+        message: "Invoice upload completed",
+        total_rows: sheetData.length,
+        inserted_rows: success_rows.length,
+        failed_rows: row_errors.length,
+        success_rows,
+        row_errors,
+      });
+    } catch (error) {
+      console.error("Upload failed:", error);
+
+      return res.status(500).json({
+        message: "Upload failed",
+        error: error.message,
+      });
+    }
+  }
+);
+
 router.get("/gq-fsf-disbursed", (req, res) => {
   const query =
     "SELECT * FROM loan_booking_gq_fsf WHERE status = 'Disbursed' and LAN Like 'GQF%'";
