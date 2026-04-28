@@ -109,11 +109,11 @@ const allocateClayoo = async (lan, payment) => {
   if (pending.count === 0) {
     await queryDB(
       `UPDATE ${loanTable}
-       SET status = 'Fully Paid'
+       SET status = 'Fully Paid', stage = 'Closed'
        WHERE lan = ?`,
       [lan]
     );
-    console.log(`✅ Loan status updated to Fully Paid for EMI Club LAN ${lan}`);
+    console.log(`✅ Loan status updated to Fully Paid for Clayyo LAN ${lan}`);
   }
 };
 
