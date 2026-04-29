@@ -5376,6 +5376,10 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     ", ",
   )}) VALUES ${PLACEHOLDERS}`;
 
+    const success_rows = [];
+  const row_errors = [];
+  const skippedDueToCIBIL = [];
+
   try {
     if (
       !req.partner ||
