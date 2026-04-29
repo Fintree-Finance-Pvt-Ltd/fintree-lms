@@ -5443,6 +5443,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           ...raw,
           account_number:
             raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
+            dob: raw.dob ?? raw.borrower_dob ?? null,
           ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
           processing_fee: raw.processing_fee ?? 0.0,
         };
@@ -5886,6 +5887,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     return res.json({
       message: "Finso upload completed.",
       results,
+      row_errors,
     });
   } catch (error) {
     console.error("❌ Error in Finso JSON Upload:", {
