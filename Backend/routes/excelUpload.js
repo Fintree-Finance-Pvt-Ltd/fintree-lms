@@ -5541,12 +5541,11 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
             await conn.rollback();
             conn.release();
 
-            row_errors.push({
-              row: R,
-              stage: "fldg-check",
-              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
-            });
-
+           row_errors.push({
+  row: data.partner_loan_id,
+  stage: "fldg-check",
+  reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+});
             continue;
           }
         }
