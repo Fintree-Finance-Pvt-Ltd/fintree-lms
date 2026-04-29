@@ -15,7 +15,7 @@ async function main() {
   console.log("🔍 Fetching loan for LAN:", lan);
 
   const [rows] = await db.promise().query(
-    "SELECT * FROM loan_booking_helium WHERE lan = ? LIMIT 1",
+        "SELECT * FROM loan_booking_clayyo WHERE lan = ? LIMIT 1",
     [lan]
   );
 
@@ -83,7 +83,7 @@ async function main() {
     console.error("❌ Failed to save CIBIL report:", err);
   }
 
-  await autoApproveIfAllVerified(lan);
+  // await autoApproveIfAllVerified(lan);
 
   process.exit(0);
 
