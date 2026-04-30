@@ -8090,7 +8090,7 @@ console.log("[Invoice Insert] penal_rate:", data.penal_rate);
           disbursement_utr,
           roi_percentage,
           roi_penal_rate,
-          service_charges,  
+          service_Fee,  
           penal_rate,
           total_roi_amount,
           emi_amount
