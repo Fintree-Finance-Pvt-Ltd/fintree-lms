@@ -8085,10 +8085,11 @@ console.log("[Invoice Insert] penal_rate:", data.penal_rate);
           disbursement_utr,
           roi_percentage,
           roi_penal_rate,
+          service_charges,  
           penal_rate,
           total_roi_amount,
           emi_amount
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           data.partner_loan_id,
           data.lan,
@@ -8109,6 +8110,7 @@ console.log("[Invoice Insert] penal_rate:", data.penal_rate);
           data.disbursement_utr,
           data.roi_percentage,
           data.roi_percentage, // 👈 updated here
+            data.service_charges || 0, // ✅ inserted value here
           data.penal_charges || 0,
           data.total_roi_amount,
           data.emi_amount,
