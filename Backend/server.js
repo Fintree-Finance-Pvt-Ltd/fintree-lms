@@ -1,6 +1,7 @@
 require("dotenv").config({ path: __dirname + "/.env" });
 const express = require("express");
 const cors = require("cors");
+const db = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
@@ -174,6 +175,7 @@ app.post("/api/runheliumvalidations", async (req, res) => {
 
 app.post("/api/retryAadharVerification", async (req, res) => {
   try {
+    const pool = db.promise();
     const { lan , mobile_number, email_id, customer_name } = req.body;
 
     const aadhaarInit = await initAadhaarKyc(
@@ -212,7 +214,7 @@ app.post("/api/retryAadharVerification", async (req, res) => {
     }
 res.json({
       ok: true,
-      message: `Helium validations executed successfully for LAN ${lan}`,
+      message: `Calyyo validations executed successfully for LAN ${lan}`,
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
