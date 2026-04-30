@@ -1,6 +1,7 @@
 require("dotenv").config({ path: __dirname + "/.env" });
 const express = require("express");
 const cors = require("cors");
+const db = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
@@ -30,6 +31,8 @@ const { generateForReport, generateAllPending } = require('./jobs/cibilPdfServic
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
 const mobileRevocationLookup = require("./utils/mnrlApiService");
+const { initAadhaarKyc } = require("./services/digitapaadharservice");
+
 
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
@@ -164,6 +167,54 @@ app.post("/api/runheliumvalidations", async (req, res) => {
     res.json({
       ok: true,
       message: `Helium validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/retryAadharVerification", async (req, res) => {
+  try {
+    const pool = db.promise();
+    const { lan , mobile_number, email_id, customer_name } = req.body;
+
+    const aadhaarInit = await initAadhaarKyc(
+      lan,
+      mobile_number,
+      email_id,
+      customer_name
+    );
+
+    if (aadhaarInit.success) {
+      await pool.query(
+        `UPDATE kyc_verification_status 
+         SET aadhaar_transaction_id=?, aadhaar_kyc_url=?, aadhaar_unique_id=? 
+         WHERE lan=?`,
+        [
+          aadhaarInit.unifiedTransactionId,
+          aadhaarInit.kycUrl,
+          aadhaarInit.uniqueId,
+          lan,
+        ]
+      );
+
+      console.log(
+        "📨 Aadhaar INIT successful, KYC URL:",
+        aadhaarInit.kycUrl
+      );
+    } else {
+      console.log(
+        "❌ Aadhaar INIT Failed, marking FAILED:",
+        aadhaarInit.error || "Unknown error"
+      );
+      await pool.query(
+        "UPDATE kyc_verification_status SET aadhaar_status='FAILED' WHERE lan=?",
+        [lan]
+      );
+    }
+res.json({
+      ok: true,
+      message: `Calyyo validations executed successfully for LAN ${lan}`,
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
