@@ -8,7 +8,7 @@ const Footer = () => {
         
         {/* Copyright Line - Now Centered via Container and Flex order */}
         <p style={styles.text}>
-          © 2025 Sajag Jain Sysytem. All rights reserved.
+          © 2025 Sajag Jain System. All rights reserved.
         </p>
 
         {/* Empty spacer to help balance the flex layout if needed, 
