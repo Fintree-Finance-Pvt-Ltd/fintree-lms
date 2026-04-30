@@ -30,6 +30,8 @@ const { generateForReport, generateAllPending } = require('./jobs/cibilPdfServic
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
 const mobileRevocationLookup = require("./utils/mnrlApiService");
+const { initAadhaarKyc } = require("./services/digitapaadharservice");
+
 
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
@@ -162,6 +164,25 @@ app.post("/api/runheliumvalidations", async (req, res) => {
     await retryPendingValidations(lan);
 
     res.json({
+      ok: true,
+      message: `Helium validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/retryAadharVerification", async (req, res) => {
+  try {
+    const { lan , mobile_number, email_id, customer_name } = req.body;
+
+    await initAadhaarKyc(
+      lan,
+      mobile_number,
+      email_id,
+      customer_name
+    );
+res.json({
       ok: true,
       message: `Helium validations executed successfully for LAN ${lan}`,
     });
