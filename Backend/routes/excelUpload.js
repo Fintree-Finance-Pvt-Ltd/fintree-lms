@@ -8066,6 +8066,7 @@ console.log("[Invoice Insert] invoice_amount:", invoiceAmount);
 console.log("[Invoice Insert] disbursement_amount:", disbursementAmount);
 console.log("[Invoice Insert] roi_percentage:", data.roi_percentage);
 console.log("[Invoice Insert] roi_penal_rate:", data.roi_penal_rate);
+console.log("[Invoice Insert] service_Fee:", data.service_Fee);
 console.log("[Invoice Insert] penal_rate:", data.penal_rate);
 
 
