@@ -2577,7 +2577,7 @@ router.get("/all-loans", async (req, res) => {
     table = "loan_bookings",
     prefix = "BL",
     page = "1",
-    pageSize = "1000",
+    pageSize = "1000", 
     search = "",
     sortBy = "LAN",
     sortDir = "desc",
@@ -5376,6 +5376,10 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     ", ",
   )}) VALUES ${PLACEHOLDERS}`;
 
+    const success_rows = [];
+  const row_errors = [];
+  const skippedDueToCIBIL = [];
+
   try {
     if (
       !req.partner ||
@@ -5439,6 +5443,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           ...raw,
           account_number:
             raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
+            dob: raw.dob ?? raw.borrower_dob ?? null,
           ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
           processing_fee: raw.processing_fee ?? 0.0,
         };
@@ -5537,12 +5542,11 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
             await conn.rollback();
             conn.release();
 
-            row_errors.push({
-              row: R,
-              stage: "fldg-check",
-              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
-            });
-
+           row_errors.push({
+  row: data.partner_loan_id,
+  stage: "fldg-check",
+  reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+});
             continue;
           }
         }
@@ -5883,6 +5887,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     return res.json({
       message: "Finso upload completed.",
       results,
+      row_errors,
     });
   } catch (error) {
     console.error("❌ Error in Finso JSON Upload:", {
@@ -8284,6 +8289,171 @@ router.post("/v1/supplychain/repayment-upload", async (req, res) => {
     });
   }
 });
+
+router.post("/v1/supplychain/repayment-excel", upload.single("file"), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "No file uploaded",
+      });
+    }
+
+    const success_rows = [];
+    const row_errors = [];
+    const duplicate_utrs = [];
+    const missing_lans = [];
+
+    try {
+      const workbook = xlsx.read(req.file.buffer, {
+        type: "buffer",
+      });
+
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+      const rawData = xlsx.utils.sheet_to_json(sheet, {
+        defval: "",
+        header: 1,
+      });
+
+      const headers = rawData[0];
+
+      const sheetData = rawData.slice(1).map((row, index) => {
+        const formatted = { __row: index + 2 };
+
+        headers.forEach((h, i) => {
+          formatted[h] = row[i];
+        });
+
+        return formatted;
+      });
+
+      if (!sheetData.length) {
+        return res.status(400).json({
+          message: "Excel file empty",
+        });
+      }
+
+      for (const row of sheetData) {
+        const R = row.__row;
+        let conn;
+
+        try {
+          const lan = row.lan?.trim();
+          const collection_date = row.collection_date;
+          const collection_utr = row.collection_utr?.trim();
+          const collection_amount = Number(row.collection_amount);
+
+          if (!lan || !collection_date || !collection_utr || !collection_amount) {
+            row_errors.push({
+              row: R,
+              stage: "validation",
+              reason: "Missing required fields",
+            });
+            continue;
+          }
+
+          conn = await db.promise().getConnection();
+          await conn.beginTransaction();
+
+          /* ---------- CHECK LAN EXISTS ---------- */
+
+          const [lanExists] = await conn.query(
+            `SELECT id 
+             FROM supply_chain_sanctions 
+             WHERE lan = ?`,
+            [lan]
+          );
+
+          if (!lanExists.length) {
+            missing_lans.push(lan);
+
+            await conn.rollback();
+            conn.release();
+
+            continue;
+          }
+
+          /* ---------- CHECK DUPLICATE UTR ---------- */
+
+          const [utrExists] = await conn.query(
+            `SELECT id 
+             FROM supply_chain_repayments 
+             WHERE collection_utr = ?`,
+            [collection_utr]
+          );
+
+          if (utrExists.length) {
+            duplicate_utrs.push(collection_utr);
+
+            await conn.rollback();
+            conn.release();
+
+            continue;
+          }
+
+          /* ---------- INSERT REPAYMENT ---------- */
+
+          await conn.query(
+            `
+            INSERT INTO supply_chain_repayments (
+              lan,
+              collection_date,
+              collection_utr,
+              collection_amount
+            )
+            VALUES (?,?,?,?)
+            `,
+            [lan, collection_date, collection_utr, collection_amount]
+          );
+
+          /* ---------- ALLOCATION ENGINE ---------- */
+
+          await allocateSupplyChainRepayment(conn, {
+            lan,
+            collection_date,
+            collection_utr,
+            collection_amount,
+          });
+
+          await conn.commit();
+          conn.release();
+
+          success_rows.push(R);
+
+        } catch (err) {
+          if (conn) {
+            await conn.rollback();
+            conn.release();
+          }
+
+          row_errors.push({
+            row: R,
+            stage: "insert",
+            reason: err.message,
+          });
+        }
+      }
+
+      return res.json({
+        message: "Repayment Excel processed successfully",
+        total_rows: sheetData.length,
+        inserted_rows: success_rows.length,
+        failed_rows: row_errors.length,
+        success_rows,
+        duplicate_utrs,
+        missing_lans,
+        row_errors,
+      });
+
+    } catch (err) {
+      console.error("❌ Excel upload error:", err);
+
+      return res.status(500).json({
+        message: "Excel upload failed",
+        error: err.message,
+      });
+    }
+  }
+);
 //////////////////////////// Supply chain Collection Upload API END ////////////////////////
 
 //////////////////////////////   CIRCLE PE ADD FOR LOAN BOOKING  ////////////////////////

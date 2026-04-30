@@ -13,6 +13,9 @@ const SupplyChainCollectionEntry = () => {
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [excelMode, setExcelMode] = useState(false);
+const [excelFile, setExcelFile] = useState(null);
+const [uploadSummary, setUploadSummary] = useState(null);
 
   /* ---------------- HANDLE CHANGE ---------------- */
 
@@ -62,6 +65,38 @@ const SupplyChainCollectionEntry = () => {
     }
     return true;
   };
+
+  const handleExcelUpload = async () => {
+  if (!excelFile) {
+    setMessage("❌ Please select Excel file");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", excelFile);
+
+  try {
+    setLoading(true);
+
+    const res = await api.post(
+      "loan-booking/v1/supplychain/repayment-excel",
+      formData
+    );
+
+    setUploadSummary(res.data);
+
+    setMessage(
+      `Processed: ${res.data.total_rows} | Inserted: ${res.data.inserted_rows} | Failed: ${res.data.failed_rows}`
+    );
+
+  } catch (err) {
+    setMessage(
+      err.response?.data?.message || "❌ Excel upload failed"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   /* ---------------- SUBMIT ---------------- */
 
@@ -113,6 +148,83 @@ const SupplyChainCollectionEntry = () => {
     <div className="manual-entry-container">
       <h2>Supply Chain Collection Upload</h2>
 
+      <div style={{ marginBottom: "15px" }}>
+  <button
+    type="button"
+    onClick={() => setExcelMode(!excelMode)}
+  >
+    {excelMode
+      ? "Switch to Manual Entry"
+      : "Upload Excel Instead"}
+  </button>
+</div>
+
+{uploadSummary && (
+
+  <fieldset>
+
+    <legend>Upload Summary</legend>
+
+    <div>
+      <strong>Total Rows:</strong> {uploadSummary.total_rows}
+    </div>
+
+    <div>
+      <strong>Inserted:</strong> {uploadSummary.inserted_rows}
+    </div>
+
+    <div>
+      <strong>Failed:</strong> {uploadSummary.failed_rows}
+    </div>
+
+    {uploadSummary.duplicate_utrs?.length > 0 && (
+      <div>
+        <strong>Duplicate UTR:</strong>
+        <ul>
+          {uploadSummary.duplicate_utrs.map((u) => (
+            <li key={u}>{u}</li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    {uploadSummary.missing_lans?.length > 0 && (
+      <div>
+        <strong>Missing LAN:</strong>
+        <ul>
+          {uploadSummary.missing_lans.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+  </fieldset>
+)}
+
+{excelMode && (
+  <fieldset>
+    <legend>Bulk Collection Upload</legend>
+
+    <input
+      type="file"
+      accept=".xlsx,.xls"
+      onChange={(e) =>
+        setExcelFile(e.target.files[0])
+      }
+    />
+
+    <button
+      type="button"
+      onClick={handleExcelUpload}
+      disabled={loading}
+      style={{ marginTop: "10px" }}
+    >
+      {loading ? "Uploading..." : "Upload Excel"}
+    </button>
+  </fieldset>
+)}
+{!excelMode && (
       <fieldset>
         <legend>Collection Entries</legend>
 
@@ -164,6 +276,7 @@ const SupplyChainCollectionEntry = () => {
           ➕ Add Row
         </button>
       </fieldset>
+)}
 
       <button
         type="button"
