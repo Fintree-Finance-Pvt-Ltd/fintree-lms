@@ -686,6 +686,7 @@ async function allocateSupplyChainRepayment(db, repayment) {
           newRemainingPenal,
           newRemainingRoiPenal,
           newRemainingPrincipal,
+          newRemainingPrincipal,
           newRemainingInterest,
           newRemainingPenal,
           newRemainingRoiPenal,
