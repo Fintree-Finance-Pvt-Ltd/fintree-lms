@@ -1264,7 +1264,59 @@ router.put("/ops-approve/:lan", async (req, res) => {
 });
 
 // Credit Screen Status Change Approve Reject
-router.put("/approve-initiated-loans/:lan", (req, res) => {
+// router.put("/approve-initiated-loans/:lan", (req, res) => {
+//   const lan = req.params.lan;
+//   const { status, table } = req.body;
+
+//   const allowedTables = {
+//     loan_booking_clayyo: true,
+//   };
+
+//   if (!allowedTables[table]) {
+//     return res.status(400).json({ message: "Invalid table name" });
+//   }
+
+//   if (
+//     ![LOAN_STATUS.CREDIT_APPROVED, LOAN_STATUS.CREDIT_REJECTED].includes(status)
+//   ) {
+//     return res.status(400).json({ message: "Invalid status value" });
+//   }
+
+//   // const updateQuery = `UPDATE ?? SET status = ? WHERE lan = ?`;
+//   const newStage =
+//     status === LOAN_STATUS.CREDIT_APPROVED
+//       ? "LIMIT_APPROVAL_PENDING"
+//       : "CREDIT_REJECTED";
+
+//   const updateQuery = `
+// UPDATE ??
+// SET status = ?, stage = ?
+// WHERE lan = ?
+// `;
+
+//   db.query(updateQuery, [table, status, newStage, lan], async (err, result) => {
+//     if (err) {
+//       console.error("Error updating loan status:", err);
+//       return res.status(500).json({ message: "Database error" });
+//     }
+
+//     if (result.affectedRows === 0) {
+//       return res
+//         .status(404)
+//         .json({ message: "Loan not found with LAN " + lan });
+//     }
+//     return res.json({
+//       success: true,
+//       lan,
+//       table,
+//       status,
+//       message: `Loan ${status} successfully`,
+//     });
+//   });
+// });
+
+
+router.put("/approve-initiated-loans/:lan", async (req, res) => {
   const lan = req.params.lan;
   const { status, table } = req.body;
 
@@ -1277,42 +1329,79 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
   }
 
   if (
-    ![LOAN_STATUS.CREDIT_APPROVED, LOAN_STATUS.CREDIT_REJECTED].includes(status)
+    ![
+      LOAN_STATUS.CREDIT_APPROVED,
+      LOAN_STATUS.CREDIT_REJECTED,
+    ].includes(status)
   ) {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
-  // const updateQuery = `UPDATE ?? SET status = ? WHERE lan = ?`;
-  const newStage =
-    status === LOAN_STATUS.CREDIT_APPROVED
-      ? "LIMIT_APPROVAL_PENDING"
-      : "CREDIT_REJECTED";
+  const conn = await db.promise().getConnection();
 
-  const updateQuery = `
-UPDATE ??
-SET status = ?, stage = ?
-WHERE lan = ?
-`;
+  try {
+    await conn.beginTransaction();
 
-  db.query(updateQuery, [table, status, newStage, lan], async (err, result) => {
-    if (err) {
-      console.error("Error updating loan status:", err);
-      return res.status(500).json({ message: "Database error" });
+    // Lock row while updating (prevents parallel approvals)
+    const [[loan]] = await conn.query(
+      `SELECT status FROM ?? WHERE lan = ? FOR UPDATE`,
+      [table, lan]
+    );
+
+    if (!loan) {
+      await conn.rollback();
+      return res.status(404).json({
+        message: `Loan not found with LAN ${lan}`,
+      });
     }
 
-    if (result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ message: "Loan not found with LAN " + lan });
+    let newStatus = status;
+    let newStage;
+
+    if (
+      loan.status === "Credit Recheck" &&
+      status === LOAN_STATUS.CREDIT_APPROVED
+    ) {
+      newStatus = "OPS APPROVED";
+      newStage = "OPS_APPROVED";
+    } else if (status === LOAN_STATUS.CREDIT_APPROVED) {
+      newStage = "LIMIT_APPROVAL_PENDING";
+    } else {
+      newStage = "CREDIT_REJECTED";
     }
+
+    await conn.query(
+      `
+      UPDATE ??
+      SET status = ?,
+          stage = ?
+      WHERE lan = ?
+      `,
+      [table, newStatus, newStage, lan]
+    );
+
+    await conn.commit();
+
     return res.json({
       success: true,
       lan,
       table,
-      status,
-      message: `Loan ${status} successfully`,
+      status: newStatus,
+      stage: newStage,
+      message: `Loan moved to ${newStatus}`,
     });
-  });
+
+  } catch (err) {
+    await conn.rollback();
+
+    console.error("Error updating loan status:", err);
+
+    return res.status(500).json({
+      message: "Database error",
+    });
+  } finally {
+    conn.release();
+  }
 });
 
 
