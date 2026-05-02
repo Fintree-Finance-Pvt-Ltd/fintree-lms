@@ -8352,7 +8352,7 @@ router.post("/v1/supplychain/repayment-excel", upload.single("file"), async (req
             continue;
           }
 
-          conn = await db.promise().getConnection();
+          conn = await db.promise();
           await conn.beginTransaction();
 
           /* ---------- CHECK LAN EXISTS ---------- */
