@@ -225,6 +225,7 @@ const [uploadSummary, setUploadSummary] = useState(null);
   </fieldset>
 )}
 {!excelMode && (
+  <>
       <fieldset>
         <legend>Collection Entries</legend>
 
@@ -276,8 +277,6 @@ const [uploadSummary, setUploadSummary] = useState(null);
           ➕ Add Row
         </button>
       </fieldset>
-)}
-
       <button
         type="button"
         onClick={handleSubmit}
@@ -285,50 +284,199 @@ const [uploadSummary, setUploadSummary] = useState(null);
       >
         {loading ? "Uploading..." : "Submit Collections"}
       </button>
+      </>
+)}
+
+      
 
       {message && <div className="message">{message}</div>}
 
       <style>{`
-        .manual-entry-container {
-          max-width: 900px;
-          margin: 2rem auto;
-          background: #fafafa;
-          padding: 2rem;
-          border-radius: 10px;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
 
-        .row-container {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr 1fr auto;
-          gap: 10px;
-          margin-bottom: 10px;
-        }
+/* ============================================================
+   🚀 FINTREE PREMIUM COLLECTION FORM UI
+============================================================ */
 
-        input {
-          padding: 8px;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-        }
+.manual-entry-container {
+  max-width: 950px;
+  margin: 40px auto;
+  padding: 30px;
 
-        button {
-          background-color: #007bff;
-          color: white;
-          border: none;
-          padding: 8px 12px;
-          cursor: pointer;
-          border-radius: 6px;
-        }
+  border-radius: 20px;
+  background: rgba(255,255,255,0.85);
 
-        .message {
-          margin-top: 1rem;
-          padding: 0.8rem;
-          border-radius: 6px;
-          background: #f0f0f0;
-          font-weight: 600;
-          text-align: center;
-        }
-      `}</style>
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.08);
+
+  animation: fadeIn 0.5s ease;
+}
+
+.manual-entry-container h2 {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 20px;
+}
+
+/* ============================================================
+   📦 SECTION CARDS
+============================================================ */
+
+fieldset {
+  border: none;
+  padding: 20px;
+  margin-bottom: 20px;
+
+  border-radius: 16px;
+  background: rgba(255,255,255,0.9);
+
+  box-shadow: 0 8px 25px rgba(0,0,0,0.05);
+  transition: 0.3s ease;
+}
+
+fieldset:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+}
+
+legend {
+  font-size: 14px;
+  font-weight: 700;
+  color: #332e95;
+  padding: 0 10px;
+}
+
+/* ============================================================
+   📊 ROW GRID
+============================================================ */
+
+.row-container {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* ============================================================
+   🧾 INPUTS
+============================================================ */
+
+input {
+  padding: 12px 14px;
+
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.08);
+
+  background: #f8fafc;
+  font-size: 14px;
+
+  transition: all 0.25s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: #312c94;
+  background: #fff;
+
+  box-shadow: 0 0 0 4px rgba(79,70,229,0.12);
+  transform: translateY(-1px);
+}
+
+/* ============================================================
+   🔘 BUTTONS
+============================================================ */
+
+button {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+
+  border: none;
+  padding: 10px 18px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  border-radius: 10px;
+  cursor: pointer;
+
+  transition: all 0.25s ease;
+  margin-top: 10px;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(79,70,229,0.3);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   📢 MESSAGE ALERT
+============================================================ */
+
+.message {
+  margin-top: 20px;
+  padding: 14px;
+
+  border-radius: 12px;
+  font-weight: 600;
+  text-align: center;
+
+  background: rgba(59,130,246,0.1);
+  color: #1d4ed8;
+  border: 1px solid rgba(59,130,246,0.2);
+
+  animation: slideUp 0.4s ease;
+}
+
+/* ============================================================
+   🎬 ANIMATIONS
+============================================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   📱 RESPONSIVE
+============================================================ */
+
+@media (max-width: 768px) {
+  .manual-entry-container {
+    margin: 20px;
+    padding: 20px;
+  }
+
+  .row-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+`}</style>
     </div>
   );
 };
