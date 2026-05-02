@@ -4968,7 +4968,7 @@ if (utrExists.length) {
               partner_loan_id,
               lan,
               invoice_number,
-              row.invoice_date || null,
+              excelDateToJSDate(row.invoice_date) || null,
               parseNumber(row.invoice_amount),
               parseNumber(row.remaining_invoice_amount),
               parseNumber(row.tenure_days || 90),
@@ -4981,8 +4981,8 @@ if (utrExists.length) {
               parseNumber(
                 row.remaining_disbursement_amount
               ),
-              row.disbursement_date || null,
-              row.invoice_due_date || null,
+              excelDateToJSDate(row.disbursement_date) || null,
+              excelDateToJSDate(row.invoice_due_date) || null,
               disbursement_utr,
               parseNumber(row.roi_percentage),
               parseNumber(row.penal_rate),
@@ -8341,7 +8341,7 @@ router.post(
 
         try {
           const lan = row.lan?.trim();
-          const collection_date = row.collection_date;
+          const collection_date = excelDateToJSDate(row.collection_date);
           const collection_utr = row.collection_utr?.trim();
           const collection_amount = Number(row.collection_amount);
 
