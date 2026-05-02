@@ -3001,10 +3001,10 @@ router.put("/login-loans/:lan", (req, res) => {
 
             try {
               await axios.post(webhookUrl, payload, {
-                auth: {
-                  username,
-                  password,
-                },
+                // auth: {
+                //   username,
+                //   password,
+                // },
                 headers: {
                   "Content-Type": "application/json",
                 },

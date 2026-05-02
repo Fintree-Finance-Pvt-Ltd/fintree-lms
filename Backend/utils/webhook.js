@@ -91,10 +91,10 @@ async function sendLoanWebhook(data) {
       url = LOAN_DIGIT_WEBHOOK_URL;
     } else if (ref.startsWith("FINS")) {
       url = FINSO_WEBHOOK_URL;
-      config.auth = {
-        username: FINSO_WEBHOOK_USERNAME,
-        password: FINSO_WEBHOOK_PASSWORD,
-      };
+      // config.auth = {
+      //   username: FINSO_WEBHOOK_USERNAME,
+      //   password: FINSO_WEBHOOK_PASSWORD,
+      // };
     } else {
       console.warn(`⚠️ Unknown reference prefix for ${reference_number}. Webhook not sent.`);
       return;
