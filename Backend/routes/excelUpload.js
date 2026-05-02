@@ -8291,7 +8291,10 @@ router.post("/v1/supplychain/repayment-upload", async (req, res) => {
   }
 });
 
-router.post("/v1/supplychain/repayment-excel", upload.single("file"), async (req, res) => {
+router.post(
+  "/v1/supplychain/repayment-excel",
+  upload.single("file"),
+  async (req, res) => {
     if (!req.file) {
       return res.status(400).json({
         message: "No file uploaded",
@@ -8300,8 +8303,8 @@ router.post("/v1/supplychain/repayment-excel", upload.single("file"), async (req
 
     const success_rows = [];
     const row_errors = [];
-    const duplicate_utrs = [];
-    const missing_lans = [];
+    const duplicate_utrs = new Set();
+    const missing_lans = new Set();
 
     try {
       const workbook = xlsx.read(req.file.buffer, {
@@ -8335,7 +8338,6 @@ router.post("/v1/supplychain/repayment-excel", upload.single("file"), async (req
 
       for (const row of sheetData) {
         const R = row.__row;
-        let conn;
 
         try {
           const lan = row.lan?.trim();
@@ -8343,7 +8345,14 @@ router.post("/v1/supplychain/repayment-excel", upload.single("file"), async (req
           const collection_utr = row.collection_utr?.trim();
           const collection_amount = Number(row.collection_amount);
 
-          if (!lan || !collection_date || !collection_utr || !collection_amount) {
+          /* ---------- BASIC VALIDATION ---------- */
+
+          if (
+            !lan ||
+            !collection_date ||
+            !collection_utr ||
+            Number.isNaN(collection_amount)
+          ) {
             row_errors.push({
               row: R,
               stage: "validation",
@@ -8352,48 +8361,41 @@ router.post("/v1/supplychain/repayment-excel", upload.single("file"), async (req
             continue;
           }
 
-          conn = await db.promise().getConnection();
-          await conn.beginTransaction();
-
           /* ---------- CHECK LAN EXISTS ---------- */
 
-          const [lanExists] = await conn.query(
-            `SELECT id 
-             FROM supply_chain_sanctions 
-             WHERE lan = ?`,
+          const [lanExists] = await db.promise().query(
+            `
+            SELECT id
+            FROM supply_chain_sanctions
+            WHERE lan = ?
+            `,
             [lan]
           );
 
           if (!lanExists.length) {
-            missing_lans.push(lan);
-
-            await conn.rollback();
-            conn.release();
-
+            missing_lans.add(lan);
             continue;
           }
 
           /* ---------- CHECK DUPLICATE UTR ---------- */
 
-          const [utrExists] = await conn.query(
-            `SELECT id 
-             FROM supply_chain_repayments 
-             WHERE collection_utr = ?`,
+          const [utrExists] = await db.promise().query(
+            `
+            SELECT id
+            FROM supply_chain_repayments
+            WHERE collection_utr = ?
+            `,
             [collection_utr]
           );
 
           if (utrExists.length) {
-            duplicate_utrs.push(collection_utr);
-
-            await conn.rollback();
-            conn.release();
-
+            duplicate_utrs.add(collection_utr);
             continue;
           }
 
           /* ---------- INSERT REPAYMENT ---------- */
 
-          await conn.query(
+          await db.promise().query(
             `
             INSERT INTO supply_chain_repayments (
               lan,
@@ -8403,29 +8405,27 @@ router.post("/v1/supplychain/repayment-excel", upload.single("file"), async (req
             )
             VALUES (?,?,?,?)
             `,
-            [lan, collection_date, collection_utr, collection_amount]
+            [
+              lan,
+              collection_date,
+              collection_utr,
+              collection_amount,
+            ]
           );
 
           /* ---------- ALLOCATION ENGINE ---------- */
+          /* allocation handles its own transaction */
 
-          await allocateSupplyChainRepayment(conn, {
+          await allocateSupplyChainRepayment(db, {
             lan,
             collection_date,
             collection_utr,
             collection_amount,
           });
 
-          await conn.commit();
-          conn.release();
-
           success_rows.push(R);
 
         } catch (err) {
-          if (conn) {
-            await conn.rollback();
-            conn.release();
-          }
-
           row_errors.push({
             row: R,
             stage: "insert",
@@ -8440,8 +8440,8 @@ router.post("/v1/supplychain/repayment-excel", upload.single("file"), async (req
         inserted_rows: success_rows.length,
         failed_rows: row_errors.length,
         success_rows,
-        duplicate_utrs,
-        missing_lans,
+        duplicate_utrs: [...duplicate_utrs],
+        missing_lans: [...missing_lans],
         row_errors,
       });
 
