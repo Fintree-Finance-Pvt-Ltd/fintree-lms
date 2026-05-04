@@ -169,16 +169,43 @@ const MotionCorpDealerDetails = () => {
         />
 
         <SectionCard
-          title="EV Details"
-          icon="🔋"
-          content={
+  title="EV Details"
+  icon="🔋"
+  content={
+    <div>
+
+      {!dealer.products || dealer.products.length === 0 ? (
+        <p>No EV Details Found</p>
+      ) : (
+        dealer.products.map((p, index) => (
+          <div
+            key={index}
+            style={{
+              marginBottom: 20,
+              padding: 15,
+              border: "1px solid #e2e8f0",
+              borderRadius: 10
+            }}
+          >
+
+            <h4 style={{ marginBottom: 10 }}>
+              Model {index + 1}
+            </h4>
+
             <Grid>
-              <Field label="Battery Type" value={dealer.battery_type} />
-              <Field label="Battery Name" value={dealer.battery_name} />
-              <Field label="E-Rickshaw Model" value={dealer.e_rickshaw_model} />
+              <Field label="Battery Type" value={p.battery_type} />
+              <Field label="Battery Name" value={p.battery_name} />
+              <Field label="E-Rickshaw Model" value={p.e_rickshaw_model} />
+              <Field label="Price" value={p.price} />
             </Grid>
-          }
-        />
+
+          </div>
+        ))
+      )}
+
+    </div>
+  }
+/>
 
         <SectionCard
           title="Cheque OCR Data"

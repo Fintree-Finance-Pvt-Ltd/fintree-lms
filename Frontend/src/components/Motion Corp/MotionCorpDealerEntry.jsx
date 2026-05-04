@@ -31,9 +31,14 @@ const MotionCorpDealerEntry = () => {
     account_number: "",
     ifsc_code: "",
  
+    products: [
+  {
     battery_type: "",
     battery_name: "",
     e_rickshaw_model: "",
+    price: ""
+  }
+],
  
     cheque_file_path: "",
     cheque_ocr_bank_name: null,
@@ -119,6 +124,41 @@ const MotionCorpDealerEntry = () => {
     }
   };
  
+  const handleProductChange = (index, field, value) => {
+  const updated = [...formData.products];
+  updated[index][field] = value;
+
+  setFormData(prev => ({
+    ...prev,
+    products: updated
+  }));
+};
+
+const addProduct = () => {
+  setFormData(prev => ({
+    ...prev,
+    products: [
+      ...prev.products,
+      {
+        battery_type: "",
+        battery_name: "",
+        e_rickshaw_model: "",
+        price: ""
+      }
+    ]
+  }));
+};
+
+const removeProduct = (index) => {
+  const updated = formData.products.filter((_, i) => i !== index);
+  setFormData(prev => ({
+    ...prev,
+    products: updated
+  }));
+};
+
+
+
   /*
   ==========================
   INPUT CHANGE
@@ -172,6 +212,9 @@ const MotionCorpDealerEntry = () => {
   };
  
   /*
+
+  
+
   ==========================
   SUBMIT
   ==========================
@@ -181,6 +224,13 @@ const MotionCorpDealerEntry = () => {
  
     const payload = {
       ...formData,
+
+        products: formData.products.map(p => ({
+    battery_type: p.battery_type || null,
+    battery_name: p.battery_name || null,
+    e_rickshaw_model: p.e_rickshaw_model || null,
+    price: p.price || null
+  })),
       bank_name: formData.bank_name?.trim() || null,
       branch_name: formData.branch_name?.trim() || null,
       account_holder_name: formData.account_holder_name?.trim() || null,
@@ -710,19 +760,84 @@ const MotionCorpDealerEntry = () => {
 </div>
 </div>
  
-        {/* EV Details */}
+       {/* EV Details */}
 <div className="ui-card">
-<div className="card-header">
-<span className="icon">🔋</span>
-<h3>E-Vehicle Details</h3>
-</div>
-<div className="grid-2">
-            {renderInput("Battery Type", "battery_type")}
-            {renderInput("Battery Name", "battery_name")}
-</div>
-<div className="grid-2">
-            {renderInput("E-Rickshaw Model", "e_rickshaw_model")}
-</div>
+
+  <div className="card-header">
+    <span className="icon">🔋</span>
+    <h3>E-Vehicle Details</h3>
+  </div>
+
+  {formData.products.map((p, index) => (
+    <div key={index} className="grid-3" style={{ marginBottom: "15px" }}>
+
+      <input
+        placeholder="Battery Type"
+        value={p.battery_type}
+        onChange={(e) =>
+          handleProductChange(index, "battery_type", e.target.value)
+        }
+      />
+
+      <input
+        placeholder="Battery Name"
+        value={p.battery_name}
+        onChange={(e) =>
+          handleProductChange(index, "battery_name", e.target.value)
+        }
+      />
+
+      <input
+        placeholder="E-Rickshaw Model"
+        value={p.e_rickshaw_model}
+        onChange={(e) =>
+          handleProductChange(index, "e_rickshaw_model", e.target.value)
+        }
+      />
+
+      <input
+        type="number"
+        placeholder="Price"
+        value={p.price}
+        onChange={(e) =>
+          handleProductChange(index, "price", e.target.value)
+        }
+      />
+
+      {formData.products.length > 1 && (
+        <button
+          type="button"
+          onClick={() => removeProduct(index)}
+          style={{
+            background: "#d91c3e",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            padding: "8px"
+          }}
+        >
+          ❌ Remove
+        </button>
+      )}
+
+    </div>
+  ))}
+
+  <button
+    type="button"
+    onClick={addProduct}
+    style={{
+      marginTop: "10px",
+      padding: "10px",
+      background: "#16a34a",
+      color: "white",
+      border: "none",
+      borderRadius: "8px"
+    }}
+  >
+    ➕ Add Model
+  </button>
+
 </div>
  
         <button
