@@ -95,6 +95,11 @@ app.use("/api/loan-booking", excelUploadRoutes);
 app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅ Register WCTL-CC-OD Routes
 app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
 app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // ✅ Register Clayyo Routes
+
+app.use(
+  "/api/motion-corp",
+  require("./routes/MotionCorp/motionCorpDealerRoutes")
+);
 app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
@@ -176,7 +181,7 @@ app.post("/api/runheliumvalidations", async (req, res) => {
 app.post("/api/retryAadharVerification", async (req, res) => {
   try {
     const pool = db.promise();
-    const { lan , mobile_number, email_id, customer_name } = req.body;
+    const { lan, mobile_number, email_id, customer_name } = req.body;
 
     const aadhaarInit = await initAadhaarKyc(
       lan,
@@ -212,7 +217,7 @@ app.post("/api/retryAadharVerification", async (req, res) => {
         [lan]
       );
     }
-res.json({
+    res.json({
       ok: true,
       message: `Calyyo validations executed successfully for LAN ${lan}`,
     });

@@ -131,6 +131,14 @@ import HospitalLoginActions from "./components/Clayoo/ClayooHospitalLoginActions
 import ClayooApprovedLoans from "./components/Clayoo/ClayooApprovedLoans";
 import ClayooLimitEntry from "./components/Clayoo/ClayooLimitEntry";
 import ClayyoHospitalDetails from "./components/Clayoo/ClayyoHospitalDetails";
+import MotionCorpDealerEntry from "./components/Motion Corp/MotionCorpDealerEntry"; /// Motion Corp Dealer Onboarding
+import MotionCorpDealerLists from "./components/Motion Corp/MotionCorpDealerLists";
+import MotionCorpDealerLoginActions from "./components/Motion Corp/MotionCorpDealerLoginActions";
+import MotionCorpDealerBooking from "./components/Motion Corp/MotionCorpDealerBooking";
+import MotionCorpDealerLoginCases from "./components/Motion Corp/MotionCorpDealerLoginCases";
+import MotionCorpDealerCreditActions from "./components/Motion Corp/MotionCorpDealerCreditActions";
+import MotionCorpDealerApprovedLoans from "./components/Motion Corp/MotionCorpDealerApprovedLoans";
+import MotionCorpDealerAllCases from "./components/Motion Corp/MotionCorpDealerAllCases";
 import PartnerLimitEntry from "./components/PartnerLimitEntry";
 import FldgEntryPage from "./components/FldgEntryPage";
 import FldgSummaryPage from "./components/FldgSummaryPage";
@@ -163,25 +171,25 @@ import SMLLoginloans from "./components/switch-my-loan/SMLLoginLoans";
 import SMLAllLoans from "./components/switch-my-loan/SMLAllLoans";
 import RetentionRelease from "./components/RetentionRelease";
 
- 
+
 function App() {
   return (
-    <Router>  
- 
-<ToastContainer
+    <Router>
+
+      <ToastContainer
         position="top-right"
         autoClose={3000}
         theme="colored"
       />
- 
+
       {/* <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
       </Routes>
   */}
- 
+
       <Routes>
- 
+
 
         {/* ✅ Public routes */}
         <Route path="/" element={<Navigate to="/login" />} />
@@ -429,7 +437,7 @@ function App() {
             }
           />
 
-             <Route
+          <Route
             path="/clayoo-loans/hospital-entry"
             element={
               <PermissionRoute pageName="Clayoo Hospital Entry">
@@ -503,7 +511,7 @@ function App() {
             path="/clayoo-loans/fintree-operation"
             element={
               <PermissionRoute pageName="Clayyo Operation All Loans">
-                <ClayooFintreeScreen/>
+                <ClayooFintreeScreen />
               </PermissionRoute>
             }
           />
@@ -539,7 +547,7 @@ function App() {
             path="/loan-digit/credit-approval-actions"
             element={
               <PermissionRoute pageName="Loan Digit Credit Approval">
-                <LoanDigitLoginAction/>
+                <LoanDigitLoginAction />
               </PermissionRoute>
             }
           />
@@ -548,7 +556,7 @@ function App() {
             path="/loan-digit/operation-approval-actions"
             element={
               <PermissionRoute pageName="Loan Digit Operation Approval">
-                <LoanDigitDisburseInitiate/>
+                <LoanDigitDisburseInitiate />
               </PermissionRoute>
             }
           />
@@ -557,7 +565,7 @@ function App() {
             path="/loan-digit/approved-loans"
             element={
               <PermissionRoute pageName="Loan Digit Approved Loans">
-                <LoanDigitApproved/>
+                <LoanDigitApproved />
               </PermissionRoute>
             }
           />
@@ -566,7 +574,7 @@ function App() {
             path="/loan-digit/disbursed-loans"
             element={
               <PermissionRoute pageName="Loan Digit Disbursed Loans">
-                <LoanDigitDisbursed/>
+                <LoanDigitDisbursed />
               </PermissionRoute>
             }
           />
@@ -575,7 +583,7 @@ function App() {
             path="/loan-digit/all-loans"
             element={
               <PermissionRoute pageName="Loan Digit All Loans">
-                <LoanDigitAllLoans/>
+                <LoanDigitAllLoans />
               </PermissionRoute>
             }
           />
@@ -584,7 +592,7 @@ function App() {
             path="/loan-digit/customer-details"
             element={
               <PermissionRoute pageName="Loan Digit Customer Details">
-                <LoanDigitDetails/>
+                <LoanDigitDetails />
               </PermissionRoute>
             }
           />
@@ -1365,7 +1373,82 @@ function App() {
             }
           />
 
-          
+          {/* ✅ Motion Corp Dealer Entry routes */}
+
+          <Route
+            path="/motion-corp/dealer-entry"
+            element={
+              <PermissionRoute pageName="Motion Corp Dealer Entry">
+                <MotionCorpDealerEntry />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/motion-corp/dealer-lists"
+            element={
+              <PermissionRoute pageName="Motion Corp Dealer Lists">
+                <MotionCorpDealerLists />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/dealer-login-actions"
+            element={
+              <PermissionRoute pageName="Motion Corp Dealer Credit Approval List">
+                <MotionCorpDealerLoginActions />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/dealer-booking"
+            element={
+              <PermissionRoute pageName="Motion Corp Dealer Booking">
+                <MotionCorpDealerBooking />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/dealer-login-cases"
+            element={
+              <PermissionRoute pageName="Motion Corp Dealer Login Cases">
+                <MotionCorpDealerLoginCases />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/dealer-credit-actions"
+            element={
+              <PermissionRoute pageName="Motion Corp Dealer Credit Approval Loans">
+                <MotionCorpDealerCreditActions />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/dealer-approved-loans"
+            element={
+              <PermissionRoute pageName="Motion Corp Dealer Operation Approval Loans">
+                <MotionCorpDealerApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/dealer-all-cases"
+            element={
+              <PermissionRoute pageName="Motion Corp Dealer All Cases Screen">
+                <MotionCorpDealerAllCases />
+              </PermissionRoute>
+            }
+          />
+
+
+
+
           {/* Partner Limit Management */}
           <Route
             path="/partners/limits"
@@ -1385,7 +1468,7 @@ function App() {
             }
           />
 
-            <Route
+          <Route
             path="/retention-release"
             element={
               <PermissionRoute pageName="Retention Release">
@@ -1429,8 +1512,8 @@ function App() {
             }
           /> */}
 
-          <Route path="/fldg-ledger/:partnerId" 
-          element={<FldgLedgerPage />} />
+          <Route path="/fldg-ledger/:partnerId"
+            element={<FldgLedgerPage />} />
 
           {/* supply chain rotues */}
 
@@ -1443,43 +1526,43 @@ function App() {
             }
           />
 
-          <Route path="/supply-chain-loans/invoice-entry" 
-          element={ <PermissionRoute pageName="SC Invoice Entry">
-            <SupplyChainInvoiceEntry />
-          </PermissionRoute>} />
+          <Route path="/supply-chain-loans/invoice-entry"
+            element={<PermissionRoute pageName="SC Invoice Entry">
+              <SupplyChainInvoiceEntry />
+            </PermissionRoute>} />
 
-          <Route path="/supply-chain-loans/collection-entry" 
-          element={<PermissionRoute pageName="SC Collection Entry">
-            <SupplyChainCollectionEntry />
-          </PermissionRoute>} />
+          <Route path="/supply-chain-loans/collection-entry"
+            element={<PermissionRoute pageName="SC Collection Entry">
+              <SupplyChainCollectionEntry />
+            </PermissionRoute>} />
 
-          <Route path="/customers/:lan/invoices" 
-          element={<InvoiceListScreen />} />
+          <Route path="/customers/:lan/invoices"
+            element={<InvoiceListScreen />} />
 
-<Route
-  path="/invoices/:invoice_number"
-  element={<InvoiceDetailsScreen />}
-/>
+          <Route
+            path="/invoices/:invoice_number"
+            element={<InvoiceDetailsScreen />}
+          />
 
-<Route
-  path="/customers/:lan/repayments"
-  element={<RepaymentListScreen />}
-/>
+          <Route
+            path="/customers/:lan/repayments"
+            element={<RepaymentListScreen />}
+          />
 
-<Route
-  path="/customers/:partner_loan_id/suppliers"
-  element={<SupplierListScreen />}
-/>
+          <Route
+            path="/customers/:partner_loan_id/suppliers"
+            element={<SupplierListScreen />}
+          />
 
-        <Route
-  path="/customers/:lan/allocation"
-  element={<AllocationListScreen />}
-/> 
+          <Route
+            path="/customers/:lan/allocation"
+            element={<AllocationListScreen />}
+          />
 
-<Route
-  path="/customers/:partner_loan_id"
-  element={<CustomerDetailsScreen />}
-/>
+          <Route
+            path="/customers/:partner_loan_id"
+            element={<CustomerDetailsScreen />}
+          />
         </Route>
       </Routes>
     </Router>

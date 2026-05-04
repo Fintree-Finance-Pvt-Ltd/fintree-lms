@@ -1,0 +1,387 @@
+const express = require("express");
+const multer = require("multer");
+const axios = require("axios");
+const fs = require("fs");
+const FormData = require("form-data");
+const db = require("../../config/db");
+
+const router = express.Router();
+
+/*
+====================================================
+IDENTIFIER GENERATOR (FIXED VERSION)
+====================================================
+*/
+
+const generateLoanIdentifiers = async (lender) => {
+
+  let prefixLan = "MCDLR";
+  let applicationPrefix = "MCDLRAPP";
+
+  const [rows] = await db.promise().query(
+    "SELECT last_sequence FROM loan_sequences WHERE lender_name=? FOR UPDATE",
+    [lender]
+  );
+
+  let newSequence;
+
+  if (rows.length > 0) {
+
+    newSequence = rows[0].last_sequence + 1;
+
+    await db.promise().query(
+      "UPDATE loan_sequences SET last_sequence=? WHERE lender_name=?",
+      [newSequence, lender]
+    );
+
+  } else {
+
+    newSequence = 11000;
+
+    await db.promise().query(
+      "INSERT INTO loan_sequences (lender_name,last_sequence) VALUES (?,?)",
+      [lender, newSequence]
+    );
+
+  }
+
+  return {
+    application_id: `${applicationPrefix}${newSequence}`,
+    lan: `${prefixLan}${newSequence}`,
+  };
+};
+
+
+/*
+====================================================
+MULTER CONFIG (CHEQUE UPLOAD)
+====================================================
+*/
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/cheques/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const uploadCheque = multer({ storage });
+
+
+/*
+====================================================
+CREATE DEALER (MANUAL ENTRY)
+====================================================
+*/
+
+router.post("/dealer/create", async (req, res) => {
+  try {
+
+    const data = req.body;
+
+    const { lan, application_id } =
+      await generateLoanIdentifiers("MOTION-CORP_DEALER");
+
+    const query = `
+      INSERT INTO motion_corp_dealer_booking
+      (
+        application_id,
+        lan,
+        dealer_id,
+
+        business_name,
+        trade_name,
+        business_type,
+
+        pan_number,
+        gst_number,
+
+        owner_name,
+        owner_mobile,
+        owner_email,
+
+        showroom_address,
+        city,
+        state,
+        pincode,
+
+        bank_name,
+        branch_name,
+        account_holder_name,
+        account_number,
+        ifsc_code,
+
+        battery_type,
+        battery_name,
+        e_rickshaw_model,
+
+        cheque_file_path,
+        cheque_ocr_bank_name,
+        cheque_ocr_branch_name,
+        cheque_ocr_account_holder_name,
+        cheque_ocr_account_number,
+        cheque_ocr_ifsc_code,
+        cheque_ocr_response,
+        cheque_uploaded_at,
+
+        status,
+        created_at,
+        login_date
+      )
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),'ACTIVE',NOW(),CURDATE())
+    `;
+
+    const values = [
+
+      application_id,
+      lan,
+      lan,
+
+      data.business_name,
+      data.trade_name || null,
+      data.business_type,
+
+      data.pan_number,
+      data.gst_number,
+
+      data.owner_name,
+      data.owner_mobile,
+      data.owner_email || null,
+
+      data.showroom_address,
+      data.city,
+      data.state,
+      data.pincode,
+
+      data.bank_name,
+      data.branch_name && data.branch_name.trim()
+  ? data.branch_name
+  : null, // ✅ handle empty string
+      data.account_holder_name,
+      data.account_number,
+      data.ifsc_code,
+
+      data.battery_type || null,
+      data.battery_name || null,
+      data.e_rickshaw_model || null,
+
+      data.cheque_file_path || null,
+      data.cheque_ocr_bank_name || null,
+      data.cheque_ocr_branch_name || null,
+      data.cheque_ocr_account_holder_name || null,
+      data.cheque_ocr_account_number || null,
+      data.cheque_ocr_ifsc_code || null,
+      JSON.stringify(data.cheque_ocr_response || {})
+
+    ];
+
+    console.log("OCR fields received:", {
+      cheque_file_path: data.cheque_file_path,
+      cheque_ocr_bank_name: data.cheque_ocr_bank_name,
+      cheque_ocr_account_number: data.cheque_ocr_account_number
+    });
+
+    await db.promise().query(query, values);
+
+    res.json({
+      message: "Dealer created successfully",
+      lan,
+      application_id
+    });
+
+  }  catch (err) {
+
+  console.error("Insert Error:", err);
+
+  // ✅ Duplicate PAN
+  if (err.code === "ER_DUP_ENTRY") {
+
+  const match = err.sqlMessage.match(/key '(.+?)'/);
+
+  let field = "";
+
+  if (match && match[1]) {
+    const key = match[1];
+
+    if (key.includes("pan")) field = "PAN Number";
+    else if (key.includes("gst")) field = "GST Number";
+    else if (key.includes("account")) field = "Account Number";
+  }
+
+  return res.status(400).json({
+    message: `❌ ${field} already exists`,
+    field: field
+  });
+}
+
+  res.status(500).json({
+    message: "Dealer creation failed",
+    error: err.message
+  });
+}
+});
+
+/*
+====================================================
+UPLOAD CHEQUE + OCR
+====================================================
+*/
+
+router.post(
+  "/dealer/:lan/upload-cheque",
+  uploadCheque.single("cheque"),
+  async (req, res) => {
+
+    try {
+
+      const { lan } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({
+          message: "Cheque file required",
+        });
+      }
+
+      const formData = new FormData();
+      formData.append("file", fs.createReadStream(req.file.path));
+
+      const ocrResponse = await axios.post(
+        process.env.CHEQUE_OCR_API,
+        formData,
+        { headers: formData.getHeaders() }
+      );
+
+      const ocr = ocrResponse.data;
+
+      await db.promise().query(
+        `UPDATE motion_corp_dealer_booking
+         SET cheque_file_path=?,
+             cheque_ocr_bank_name=?,
+             cheque_ocr_branch_name=?,
+             cheque_ocr_account_holder_name=?,
+             cheque_ocr_account_number=?,
+             cheque_ocr_ifsc_code=?,
+             cheque_ocr_response=?,
+             cheque_uploaded_at=NOW()
+         WHERE lan=?`,
+        [
+          req.file.path,
+          ocr.bank_name,
+          ocr.branch_name,
+          ocr.account_holder_name,
+          ocr.account_number,
+          ocr.ifsc_code,
+          JSON.stringify(ocr),
+          lan,
+        ]
+      );
+
+      res.json({
+        message: "Cheque OCR completed successfully",
+        ocr,
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        message: "Cheque OCR failed",
+        error: err.message,
+      });
+
+    }
+
+  }
+);
+
+
+/*
+====================================================
+DEALER LOGIN → CREDIT SCREEN
+====================================================
+*/
+
+router.patch("/dealer/:lan/login", async (req, res) => {
+
+  try {
+
+    const { lan } = req.params;
+
+    await db.promise().query(
+      `UPDATE motion_corp_dealer_booking
+       SET status='LOGIN',
+           login_date=CURDATE(),
+           updated_at=NOW()
+       WHERE lan=?`,
+      [lan]
+    );
+
+    res.json({
+      message: "Dealer moved to credit screen",
+      lan,
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Dealer login failed",
+    });
+
+  }
+
+});
+
+
+/*
+====================================================
+CREDIT APPROVE / REJECT
+====================================================
+*/
+
+router.patch("/dealer/:lan/credit-decision", async (req, res) => {
+
+  try {
+
+    const { lan } = req.params;
+    const { decision, remarks } = req.body;
+
+    if (!["APPROVED", "REJECTED"].includes(decision)) {
+
+      return res.status(400).json({
+        message: "Decision must be APPROVED or REJECTED",
+      });
+
+    }
+
+    await db.promise().query(
+      `UPDATE motion_corp_dealer_booking
+       SET status=?,
+           credit_remarks=?,
+           credit_decision_at=NOW()
+       WHERE lan=?`,
+      [decision, remarks || null, lan]
+    );
+
+    res.json({
+      message: `Case ${decision}`,
+      lan,
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Credit decision update failed",
+    });
+
+  }
+
+});
+
+module.exports = router;
