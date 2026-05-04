@@ -384,4 +384,150 @@ router.patch("/dealer/:lan/credit-decision", async (req, res) => {
 
 });
 
+/////////////// Dealer Lists & Details routes are in a separate file for better organization ///////////////
+router.get("/dealer-list", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT 
+        lan,
+        id,
+        business_name,
+        city,
+        state
+      FROM motion_corp_dealer_booking
+      WHERE status IN ('APPROVED', 'ACTIVE')
+      ORDER BY lan ASC
+    `);
+
+    const formatted = rows.map((d) => ({
+      lan: d.lan,
+      id: d.id,
+      name: `${d.business_name} (${d.city}, ${d.state})`,
+      business_name: d.business_name,
+      city: d.city,
+      state: d.state,
+    }));
+
+    res.json(formatted);
+
+  } catch (err) {
+
+    console.error("Dealer list error:", err);
+
+    res.status(500).json({
+      message: "Failed to fetch dealers",
+      error: err.message,
+    });
+
+  }
+});
+
+//////////// Details route is in a separate file for better organization ///////////////
+router.get("/dealer-details/:lan", async (req, res) => {
+  try {
+
+    const { lan } = req.params;
+
+    const [rows] = await db.promise().query(
+      `SELECT * FROM motion_corp_dealer_booking WHERE lan = ?`,
+      [lan]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        message: "Dealer not found"
+      });
+    }
+
+    res.json(rows[0]);
+
+  } catch (err) {
+
+    console.error("Dealer details error:", err);
+
+    res.status(500).json({
+      message: "Failed to fetch dealer details",
+      error: err.message
+    });
+
+  }
+});
+
+/////////// Dealer Approve/Reject routes are in a separate file for better organization ///////////////
+router.get("/dealers-login-cases", async (req, res) => {
+  try {
+
+    const [rows] = await db.promise().query(`
+      SELECT 
+        id,
+        lan,
+        business_name,
+        trade_name,
+        business_type,
+        city,
+        state,
+        owner_name,
+        owner_mobile,
+        status,
+        created_at
+      FROM motion_corp_dealer_booking
+      WHERE status = 'ACTIVE'
+      ORDER BY created_at DESC
+    `);
+
+    res.json(rows);
+
+  } catch (err) {
+
+    console.error("Dealer login cases error:", err);
+
+    res.status(500).json({
+      message: "Failed to fetch dealer cases",
+      error: err.message,
+    });
+
+  }
+});
+
+router.patch("/dealer/status/:lan", async (req, res) => {
+  try {
+
+    const { lan } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        message: "Status is required"
+      });
+    }
+
+    const [result] = await db.promise().query(
+      `UPDATE motion_corp_dealer_booking 
+       SET status = ?, updated_at = NOW() 
+       WHERE lan = ?`,
+      [status, lan]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "Dealer not found"
+      });
+    }
+
+    res.json({
+      message: "Status updated successfully"
+    });
+
+  } catch (err) {
+
+    console.error("Dealer status update error:", err);
+
+    res.status(500).json({
+      message: "Failed to update dealer status",
+      error: err.message
+    });
+
+  }
+});
+
 module.exports = router;

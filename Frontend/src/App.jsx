@@ -139,6 +139,7 @@ import MotionCorpDealerLoginCases from "./components/Motion Corp/MotionCorpDeale
 import MotionCorpDealerCreditActions from "./components/Motion Corp/MotionCorpDealerCreditActions";
 import MotionCorpDealerApprovedLoans from "./components/Motion Corp/MotionCorpDealerApprovedLoans";
 import MotionCorpDealerAllCases from "./components/Motion Corp/MotionCorpDealerAllCases";
+import MotionCorpDealerDetails from "./components/Motion Corp/MotionCorpDealerDetails";
 import PartnerLimitEntry from "./components/PartnerLimitEntry";
 import FldgEntryPage from "./components/FldgEntryPage";
 import FldgSummaryPage from "./components/FldgSummaryPage";
@@ -1436,6 +1437,11 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          <Route
+  path="/motion-corp/dealer-details/:lan"
+  element={<MotionCorpDealerDetails />}
+/>
 
           <Route
             path="/motion-corp/dealer-all-cases"
