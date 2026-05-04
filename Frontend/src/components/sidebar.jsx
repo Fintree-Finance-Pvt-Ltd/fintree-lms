@@ -231,7 +231,7 @@ const Sidebar = () => {
   const allowedPages = user.pages || [];
  
   const grouped = {
-    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/wctl-blloans', '/wctl-ccod', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/finso-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/loan-digit', '/sml-loans', '/aldun-loans', '/mis-reports'].some(prefix => p.path.includes(prefix))),
+    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/wctl-blloans', '/wctl-ccod', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/finso-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/motion-corp', '/loan-digit', '/sml-loans', '/aldun-loans', '/mis-reports'].some(prefix => p.path.includes(prefix))),
     'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
     'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
