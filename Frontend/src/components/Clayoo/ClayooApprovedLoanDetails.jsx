@@ -466,6 +466,8 @@ const ClayyoApprovedLoanDetails = () => {
                     <Field label="Date of Birth" value={formatDate(loan.dob)} />
                     <Field label="Gender" value={loan.gender} />
                     <Field label="Patient Name" value={loan.patient_name} />
+                    <Field label="PAN Number" value={loan.pan_number} />
+
                 </Grid>
                 ),
             },
@@ -476,6 +478,7 @@ const ClayyoApprovedLoanDetails = () => {
                 <Grid>
                     <Field label="Final Approved Limit" value={loan.final_limit} highlight />
                     <Field label="Subvention Percentage" value={loan.subvention_percent ? `${loan.subvention_percent}%` : '0.00%'} />
+                    <Field label="Updated Subvention Percentage" value={loan.updated_subvention ? `${loan.updated_subvention}%` : '0.00%'} />
                     <Field label="Requested Loan Amount" value={loan.loan_amount} />
                     <Field label="Repayment Tenure" value={`${loan.loan_tenure} Months`} />
                     <Field label="Interest Rate" value={loan.interest_rate ? `${loan.interest_rate}%` : '0%'} />
