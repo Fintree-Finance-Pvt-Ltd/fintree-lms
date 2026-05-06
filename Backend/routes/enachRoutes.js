@@ -663,7 +663,7 @@ router.post("/create-mandate", authenticateUser, async (req, res) => {
     );
 
     await updateLoanTables(
-      `UPDATE __TABLE__ SET bank_status='MANDATE_CREATED' WHERE lan=?`,
+      `UPDATE __TABLE__ SET bank_status='MANDATE_INITIATED' WHERE lan=?`,
       [lan]
     );
 
