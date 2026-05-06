@@ -459,9 +459,7 @@ function App() {
           <Route
             path="/approved-loan-details-clayoo/:lan"
             element={
-              <PermissionRoute pageName="Approved Loan Details">
-                <ClayyoApprovedLoanDetails />
-              </PermissionRoute>
+              <ClayyoApprovedLoanDetails />
             }
           />
 
