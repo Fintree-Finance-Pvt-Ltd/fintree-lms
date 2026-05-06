@@ -1865,7 +1865,7 @@ const ClayooLimitEntry = ({
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const addMonthsToDate  = (dateStr, months) => {
+  const addMonthsToDate = (dateStr, months) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     if (Number.isNaN(d.getTime())) return "";
@@ -1901,10 +1901,59 @@ const ClayooLimitEntry = ({
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleAadharRetry = async (r) => {
+  const retryCount = Number(r.aadhaar_retry_count || 0);
+
+  if (retryCount >= 2) {
+    alert("Maximum Aadhaar retry limit reached");
+    return;
+  }
+
+  if (!window.confirm(`Retrigger Aadhaar verification link for LAN ${r.lan}?`)) {
+    return;
+  }
+
+  try {
+    setActionLan(r.lan);
+
+    const res = await api.post("/retryAadharVerification", {
+      lan: r.lan,
+      mobile_number: r.mobile_number,
+      email_id: r.email_id,
+      customer_name: r.customer_name,
+    });
+
+    if (res.data?.ok) {
+      alert(res.data.message || "Aadhaar verification link retriggered successfully");
+
+      setRows((prev) =>
+        prev.map((row) =>
+          row.lan === r.lan
+            ? {
+                ...row,
+                aadhaar_retry_count: retryCount + 1,
+              }
+            : row
+        )
+      );
+    } else {
+      alert(res.data?.error || "Aadhaar retry failed");
+    }
+  } catch (error) {
+    console.error("Aadhaar retry error:", error);
+    alert(
+      error.response?.data?.error ||
+        "Something went wrong while retrying Aadhaar verification"
+    );
+  } finally {
+    setActionLan(null);
+  }
+};
+
   const handleLimitSubmit = async (lan) => {
-    const inputLimit = Number(limits[lan]);  // Input box limit
+    const inputLimit = Number(limits[lan]); // Input box limit
     const row = rows.find((r) => r.lan === lan);
-    const loanAmount = Number(row?.loan_amount || 0);  //loan_amount
+    const loanAmount = Number(row?.loan_amount || 0); //loan_amount
 
     if (!inputLimit || inputLimit <= 0) {
       alert("Enter valid limit");
@@ -2260,20 +2309,20 @@ const ClayooLimitEntry = ({
       sortAccessor: (r) => (r.lan || "").toLowerCase(),
       width: 140,
     },
-    {
-      key: "mobile_number",
-      header: "Mobile Number",
-      sortable: true,
-      render: (r) =>
-        r.mobile_number ? (
-          <a href={`tel:${r.mobile_number}`} style={link}>
-            {r.mobile_number}
-          </a>
-        ) : (
-          "—"
-        ),
-      width: 160,
-    },
+    // {
+    //   key: "mobile_number",
+    //   header: "Mobile Number",
+    //   sortable: true,
+    //   render: (r) =>
+    //     r.mobile_number ? (
+    //       <a href={`tel:${r.mobile_number}`} style={link}>
+    //         {r.mobile_number}
+    //       </a>
+    //     ) : (
+    //       "—"
+    //     ),
+    //   width: 160,
+    // },
     {
       key: "status",
       header: "Status",
@@ -2323,7 +2372,8 @@ const ClayooLimitEntry = ({
       key: "limit_entry",
       header: "Final Limit",
       render: (r) => {
-        const isAssigned = r.status === "LIMIT REQUESTED" || r.status === "Credit Recheck";
+        const isAssigned =
+          r.status === "LIMIT REQUESTED" || r.status === "Credit Recheck";
         const opsComplete = r.status === "OPS APPROVED";
         const isLoading = submitting[r.lan];
 
@@ -2382,6 +2432,42 @@ const ClayooLimitEntry = ({
       csvAccessor: (r) => r.final_limit || "",
       width: 220,
     },
+    {
+  key: "aadhar_retry",
+  header: "Aadhaar Verification Retry",
+  render: (r) => {
+    const retryCount = Number(r.aadhaar_retry_count || 0);
+    const isLimitReached = retryCount >= 2;
+    const isLoading = actionLan === r.lan;
+
+    return (
+      <button
+        type="button"
+        onClick={() => handleAadharRetry(r)}
+        disabled={isLimitReached || isLoading}
+        style={{
+          padding: "6px 10px",
+          borderRadius: 6,
+          background: isLimitReached ? "#9ca3af" : isLoading ? "#60a5fa" : "#2563eb",
+          color: "#fff",
+          border: "none",
+          fontWeight: 600,
+          cursor: isLimitReached || isLoading ? "not-allowed" : "pointer",
+          fontSize: 12,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {isLimitReached
+          ? "Limit Reached"
+          : isLoading
+            ? "Retrying..."
+            : `Retry (${2 - retryCount} left)`}
+      </button>
+    );
+  },
+  csvAccessor: () => "",
+  width: 180,
+},
     {
       key: "subvention_entry",
       header: "Updated Subvention & Disbursement",
