@@ -1247,30 +1247,30 @@ Co_Applicant_Pincode: "",
           <div
             key={index}
             className={`tab ${activeSection === index ? "active" : ""}`}
-            onClick={() => setActiveSection(index)}
-            //             onClick={() => {
-            //   if (index <= activeSection) {
-            //     setActiveSection(index);
-            //     return;
-            //   }
+            // onClick={() => setActiveSection(index)}
+                        onClick={() => {
+              if (index <= activeSection) {
+                setActiveSection(index);
+                return;
+              }
 
-            //   const sectionErrors = validateSection(activeSection);
+              const sectionErrors = validateSection(activeSection);
 
-            //   if (Object.keys(sectionErrors).length > 0) {
-            //     setErrors(sectionErrors);
+              if (Object.keys(sectionErrors).length > 0) {
+                setErrors(sectionErrors);
 
-            //     const newTouched = {};
-            //     sectionFields[activeSection].forEach((field) => {
-            //       newTouched[field] = true;
-            //     });
+                const newTouched = {};
+                sectionFields[activeSection].forEach((field) => {
+                  newTouched[field] = true;
+                });
 
-            //     setTouched((prev) => ({ ...prev, ...newTouched }));
-            //     setMessage("❌ Please complete current section first.");
-            //     return;
-            //   }
+                setTouched((prev) => ({ ...prev, ...newTouched }));
+                setMessage("❌ Please complete current section first.");
+                return;
+              }
 
-            //   setActiveSection(index);
-            // }}
+              setActiveSection(index);
+            }}
           >
             {sec}
           </div>
