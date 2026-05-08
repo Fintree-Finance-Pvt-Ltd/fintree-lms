@@ -134,7 +134,7 @@ import ClayyoHospitalDetails from "./components/Clayoo/ClayyoHospitalDetails";
 import MotionCorpDealerEntry from "./components/Motion Corp/MotionCorpDealerEntry"; /// Motion Corp Dealer Onboarding
 import MotionCorpDealerLists from "./components/Motion Corp/MotionCorpDealerLists";
 import MotionCorpDealerLoginActions from "./components/Motion Corp/MotionCorpDealerLoginActions";
-import MotionCorpDealerBooking from "./components/Motion Corp/MotionCorpDealerBooking";
+// import MotionCorpDealerBooking from "./components/Motion Corp/MotionCorpDealerBooking";
 import MotionCorpDealerLoginCases from "./components/Motion Corp/MotionCorpDealerLoginCases";
 import MotionCorpDealerCreditActions from "./components/Motion Corp/MotionCorpDealerCreditActions";
 import MotionCorpDealerApprovedLoans from "./components/Motion Corp/MotionCorpDealerApprovedLoans";
@@ -171,6 +171,7 @@ import SMLDisburseInitiate from "./components/switch-my-loan/SMLDisburseInitiate
 import SMLLoginloans from "./components/switch-my-loan/SMLLoginLoans";
 import SMLAllLoans from "./components/switch-my-loan/SMLAllLoans";
 import RetentionRelease from "./components/RetentionRelease";
+import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpDealerBooking";
 
 
 function App() {
@@ -1401,10 +1402,10 @@ function App() {
           />
 
           <Route
-            path="/motion-corp/dealer-booking"
+            path="/motion-corp/loan-booking"
             element={
-              <PermissionRoute pageName="Motion Corp Dealer Booking">
-                <MotionCorpDealerBooking />
+              <PermissionRoute pageName="Motion Corp Loan Booking">
+                <MotionCorpLoanBooking />
               </PermissionRoute>
             }
           />

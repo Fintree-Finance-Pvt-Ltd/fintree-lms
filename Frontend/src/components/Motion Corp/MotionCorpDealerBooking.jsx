@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "../../api/api";
 import axios from "axios";
 
-const MotionCorpDealerBooking = () => {
+const MotionCorpLoanBooking = () => {
   const today = new Date().toISOString().split("T")[0];
   const [formData, setFormData] = useState({
     lenderType: "EV Loan",
@@ -2021,4 +2021,4 @@ color: white;
   );
 };
 
-export default MotionCorpDealerBooking;
+export default MotionCorpLoanBooking;
