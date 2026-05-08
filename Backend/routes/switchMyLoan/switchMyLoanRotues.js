@@ -726,7 +726,7 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
        SET
          lan = ?,
          application_id = ?,
-         full_name = ?,
+         customer_name = ?,
          pan_number = ?,
          father_name = ?,
          dob = ?,
@@ -960,7 +960,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
     };
 
     // basic fields
-    addField("full_name", data.full_name);
+    addField("customer_name", data.full_name);
     addField("pan_number", data.pan_number);
     addField("father_name", data.father_name);
     addField("dob", data.dob);
@@ -1115,10 +1115,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
 
 ///        4)      approve api
 // 4) APPROVE API
-router.post(
-  "/v1/loan/:application_id/approve",
-  verifyApiKey,
-  async (req, res) => {
+router.post("/v1/loan/:application_id/approve", verifyApiKey, async (req, res) => {
     let connection;
     let transactionStarted = false;
 
@@ -1196,7 +1193,7 @@ router.post(
 if (breEngineResult.decision === "REJECTED") {
 
 
-  // await sendRejectionWebhook(application_id);
+  await sendRejectionWebhook(application_id);
 
   await connection.query(
     `UPDATE loan_booking_switch_my_loan
@@ -1238,7 +1235,7 @@ const breResponse = breEngineResult.rules;
            status = ?,
            updated_at = CURRENT_TIMESTAMP
          WHERE application_id = ?`,
-        ["APPROVED", application_id]
+        ["BRE_APPROVED", application_id]
       );
 
       await connection.commit();
@@ -1272,10 +1269,7 @@ const breResponse = breEngineResult.rules;
 );
 
 ////////////// 5) trigger fund disbursal api
-router.post(
-  "/v1/loan/:application_id/disburse",
-  verifyApiKey,
-  async (req, res) => {
+router.post("/v1/loan/:application_id/disburse", verifyApiKey, async (req, res) => {
 
     let connection;
     let transactionStarted = false;
@@ -1338,7 +1332,7 @@ router.post(
 
       await connection.query(
         `UPDATE loan_booking_switch_my_loan
-         SET status = 'DISBURSED'
+         SET status = 'DISBURSED_INITIATED'
          WHERE application_id = ?`,
         [application_id]
       );
@@ -1379,10 +1373,7 @@ router.post(
 
 
 ///////////////////// 6) Repayment API
-router.post(
-  "/v1/loan/:application_id/repayment",
-  verifyApiKey,
-  async (req, res) => {
+router.post("/v1/loan/:application_id/repayment", verifyApiKey, async (req, res) => {
 
     try {
 
@@ -1461,10 +1452,7 @@ router.post(
 );
 
 ///////////////////// 7) Loan charges api 
-router.post(
-  "/v1/loan/:application_id/repayment-charges",
-  verifyApiKey,
-  async (req, res) => {
+router.post("/v1/loan/:application_id/repayment-charges", verifyApiKey, async (req, res) => {
     try {
       const { application_id } = req.params;
       const { type, amount, due_date, remarks } = req.body;
@@ -1520,10 +1508,7 @@ router.post(
 );
 
 /////////////////////// 8 ) extra chrges waiver api
-router.post(
-  "/v1/loan/extra_charge_waiver",
-  verifyApiKey,
-  async (req, res) => {
+router.post("/v1/loan/extra_charge_waiver", verifyApiKey, async (req, res) => {
     try {
       const rows = req.body.data;
 
@@ -1623,7 +1608,7 @@ router.post(
 );
 
 module.exports = router;
-
+ 
 
 
 

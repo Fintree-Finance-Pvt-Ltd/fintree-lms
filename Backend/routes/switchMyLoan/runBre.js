@@ -112,7 +112,7 @@ async function runBRE(data) {
 
     console.log("Triggering AML check for LAN:", lan);
     console.log("aml request", {
-      customer_name: data.full_name,
+      customer_name: data.customer_name,
       location: data.city,
       father_name: data.father_name,
       pan_number: data.pan_number,
@@ -120,7 +120,7 @@ async function runBRE(data) {
     });
 
     const amlResult = await amlCheck("switch-my-loan", {
-      customer_name: data.full_name,
+      customer_name: data.customer_name,
       location: data.city,
       father_name: data.father_name,
       pan_number: data.pan_number,

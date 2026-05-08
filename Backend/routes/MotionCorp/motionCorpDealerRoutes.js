@@ -1,537 +1,3 @@
-// const express = require("express");
-// const multer = require("multer");
-// const axios = require("axios");
-// const fs = require("fs");
-// const FormData = require("form-data");
-// const db = require("../../config/db");
-
-// const router = express.Router();
-
-// /*
-// ====================================================
-// IDENTIFIER GENERATOR (FIXED VERSION)
-// ====================================================
-// */
-
-// const generateLoanIdentifiers = async (lender) => {
-
-//   let prefixLan = "MCDLR";
-//   let applicationPrefix = "MCDLRAPP";
-
-//   const [rows] = await db.promise().query(
-//     "SELECT last_sequence FROM loan_sequences WHERE lender_name=? FOR UPDATE",
-//     [lender]
-//   );
-
-//   let newSequence;
-
-//   if (rows.length > 0) {
-
-//     newSequence = rows[0].last_sequence + 1;
-
-//     await db.promise().query(
-//       "UPDATE loan_sequences SET last_sequence=? WHERE lender_name=?",
-//       [newSequence, lender]
-//     );
-
-//   } else {
-
-//     newSequence = 11000;
-
-//     await db.promise().query(
-//       "INSERT INTO loan_sequences (lender_name,last_sequence) VALUES (?,?)",
-//       [lender, newSequence]
-//     );
-
-//   }
-
-//   return {
-//     application_id: `${applicationPrefix}${newSequence}`,
-//     lan: `${prefixLan}${newSequence}`,
-//   };
-// };
-
-
-// /*
-// ====================================================
-// MULTER CONFIG (CHEQUE UPLOAD)
-// ====================================================
-// */
-
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, "uploads/cheques/");
-//   },
-//   filename: (req, file, cb) => {
-//     cb(null, `${Date.now()}-${file.originalname}`);
-//   },
-// });
-
-// const uploadCheque = multer({ storage });
-
-
-// /*
-// ====================================================
-// CREATE DEALER (MANUAL ENTRY)
-// ====================================================
-// */
-
-// router.post("/dealer/create", async (req, res) => {
-//   try {
-
-//     const data = req.body;
-
-//     const { lan, application_id } =
-//       await generateLoanIdentifiers("MOTION-CORP_DEALER");
-
-//     const query = `
-//       INSERT INTO motion_corp_dealer_booking
-//       (
-//         application_id,
-//         lan,
-//         dealer_id,
-
-//         business_name,
-//         trade_name,
-//         business_type,
-
-//         pan_number,
-//         gst_number,
-
-//         owner_name,
-//         owner_mobile,
-//         owner_email,
-
-//         showroom_address,
-//         city,
-//         state,
-//         pincode,
-
-//         bank_name,
-//         branch_name,
-//         account_holder_name,
-//         account_number,
-//         ifsc_code,
-
-//         battery_type,
-//         battery_name,
-//         e_rickshaw_model,
-
-//         cheque_file_path,
-//         cheque_ocr_bank_name,
-//         cheque_ocr_branch_name,
-//         cheque_ocr_account_holder_name,
-//         cheque_ocr_account_number,
-//         cheque_ocr_ifsc_code,
-//         cheque_ocr_response,
-//         cheque_uploaded_at,
-
-//         status,
-//         created_at,
-//         login_date
-//       )
-//       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),'ACTIVE',NOW(),CURDATE())
-//     `;
-
-//     const values = [
-
-//       application_id,
-//       lan,
-//       lan,
-
-//       data.business_name,
-//       data.trade_name || null,
-//       data.business_type,
-
-//       data.pan_number,
-//       data.gst_number,
-
-//       data.owner_name,
-//       data.owner_mobile,
-//       data.owner_email || null,
-
-//       data.showroom_address,
-//       data.city,
-//       data.state,
-//       data.pincode,
-
-//       data.bank_name,
-//       data.branch_name && data.branch_name.trim()
-//   ? data.branch_name
-//   : null, // ✅ handle empty string
-//       data.account_holder_name,
-//       data.account_number,
-//       data.ifsc_code,
-
-//       data.battery_type || null,
-//       data.battery_name || null,
-//       data.e_rickshaw_model || null,
-
-//       data.cheque_file_path || null,
-//       data.cheque_ocr_bank_name || null,
-//       data.cheque_ocr_branch_name || null,
-//       data.cheque_ocr_account_holder_name || null,
-//       data.cheque_ocr_account_number || null,
-//       data.cheque_ocr_ifsc_code || null,
-//       JSON.stringify(data.cheque_ocr_response || {})
-
-//     ];
-
-//     console.log("OCR fields received:", {
-//       cheque_file_path: data.cheque_file_path,
-//       cheque_ocr_bank_name: data.cheque_ocr_bank_name,
-//       cheque_ocr_account_number: data.cheque_ocr_account_number
-//     });
-
-//     await db.promise().query(query, values);
-
-//     res.json({
-//       message: "Dealer created successfully",
-//       lan,
-//       application_id
-//     });
-
-//   }  catch (err) {
-
-//   console.error("Insert Error:", err);
-
-//   // ✅ Duplicate PAN
-//   if (err.code === "ER_DUP_ENTRY") {
-
-//   const match = err.sqlMessage.match(/key '(.+?)'/);
-
-//   let field = "";
-
-//   if (match && match[1]) {
-//     const key = match[1];
-
-//     if (key.includes("pan")) field = "PAN Number";
-//     else if (key.includes("gst")) field = "GST Number";
-//     else if (key.includes("account")) field = "Account Number";
-//   }
-
-//   return res.status(400).json({
-//     message: `❌ ${field} already exists`,
-//     field: field
-//   });
-// }
-
-//   res.status(500).json({
-//     message: "Dealer creation failed",
-//     error: err.message
-//   });
-// }
-// });
-
-// /*
-// ====================================================
-// UPLOAD CHEQUE + OCR
-// ====================================================
-// */
-
-// router.post(
-//   "/dealer/:lan/upload-cheque",
-//   uploadCheque.single("cheque"),
-//   async (req, res) => {
-
-//     try {
-
-//       const { lan } = req.params;
-
-//       if (!req.file) {
-//         return res.status(400).json({
-//           message: "Cheque file required",
-//         });
-//       }
-
-//       const formData = new FormData();
-//       formData.append("file", fs.createReadStream(req.file.path));
-
-//       const ocrResponse = await axios.post(
-//         process.env.CHEQUE_OCR_API,
-//         formData,
-//         { headers: formData.getHeaders() }
-//       );
-
-//       const ocr = ocrResponse.data;
-
-//       await db.promise().query(
-//         `UPDATE motion_corp_dealer_booking
-//          SET cheque_file_path=?,
-//              cheque_ocr_bank_name=?,
-//              cheque_ocr_branch_name=?,
-//              cheque_ocr_account_holder_name=?,
-//              cheque_ocr_account_number=?,
-//              cheque_ocr_ifsc_code=?,
-//              cheque_ocr_response=?,
-//              cheque_uploaded_at=NOW()
-//          WHERE lan=?`,
-//         [
-//           req.file.path,
-//           ocr.bank_name,
-//           ocr.branch_name,
-//           ocr.account_holder_name,
-//           ocr.account_number,
-//           ocr.ifsc_code,
-//           JSON.stringify(ocr),
-//           lan,
-//         ]
-//       );
-
-//       res.json({
-//         message: "Cheque OCR completed successfully",
-//         ocr,
-//       });
-
-//     } catch (err) {
-
-//       console.error(err);
-
-//       res.status(500).json({
-//         message: "Cheque OCR failed",
-//         error: err.message,
-//       });
-
-//     }
-
-//   }
-// );
-
-
-// /*
-// ====================================================
-// DEALER LOGIN → CREDIT SCREEN
-// ====================================================
-// */
-
-// router.patch("/dealer/:lan/login", async (req, res) => {
-
-//   try {
-
-//     const { lan } = req.params;
-
-//     await db.promise().query(
-//       `UPDATE motion_corp_dealer_booking
-//        SET status='LOGIN',
-//            login_date=CURDATE(),
-//            updated_at=NOW()
-//        WHERE lan=?`,
-//       [lan]
-//     );
-
-//     res.json({
-//       message: "Dealer moved to credit screen",
-//       lan,
-//     });
-
-//   } catch (err) {
-
-//     console.error(err);
-
-//     res.status(500).json({
-//       message: "Dealer login failed",
-//     });
-
-//   }
-
-// });
-
-
-// /*
-// ====================================================
-// CREDIT APPROVE / REJECT
-// ====================================================
-// */
-
-// router.patch("/dealer/:lan/credit-decision", async (req, res) => {
-
-//   try {
-
-//     const { lan } = req.params;
-//     const { decision, remarks } = req.body;
-
-//     if (!["APPROVED", "REJECTED"].includes(decision)) {
-
-//       return res.status(400).json({
-//         message: "Decision must be APPROVED or REJECTED",
-//       });
-
-//     }
-
-//     await db.promise().query(
-//       `UPDATE motion_corp_dealer_booking
-//        SET status=?,
-//            credit_remarks=?,
-//            credit_decision_at=NOW()
-//        WHERE lan=?`,
-//       [decision, remarks || null, lan]
-//     );
-
-//     res.json({
-//       message: `Case ${decision}`,
-//       lan,
-//     });
-
-//   } catch (err) {
-
-//     console.error(err);
-
-//     res.status(500).json({
-//       message: "Credit decision update failed",
-//     });
-
-//   }
-
-// });
-
-// /////////////// Dealer Lists & Details routes are in a separate file for better organization ///////////////
-// router.get("/dealer-list", async (req, res) => {
-//   try {
-//     const [rows] = await db.promise().query(`
-//       SELECT 
-//         lan,
-//         id,
-//         business_name,
-//         city,
-//         state
-//       FROM motion_corp_dealer_booking
-//       WHERE status IN ('APPROVED', 'ACTIVE')
-//       ORDER BY lan ASC
-//     `);
-
-//     const formatted = rows.map((d) => ({
-//       lan: d.lan,
-//       id: d.id,
-//       name: `${d.business_name} (${d.city}, ${d.state})`,
-//       business_name: d.business_name,
-//       city: d.city,
-//       state: d.state,
-//     }));
-
-//     res.json(formatted);
-
-//   } catch (err) {
-
-//     console.error("Dealer list error:", err);
-
-//     res.status(500).json({
-//       message: "Failed to fetch dealers",
-//       error: err.message,
-//     });
-
-//   }
-// });
-
-// //////////// Details route is in a separate file for better organization ///////////////
-// router.get("/dealer-details/:lan", async (req, res) => {
-//   try {
-
-//     const { lan } = req.params;
-
-//     const [rows] = await db.promise().query(
-//       `SELECT * FROM motion_corp_dealer_booking WHERE lan = ?`,
-//       [lan]
-//     );
-
-//     if (rows.length === 0) {
-//       return res.status(404).json({
-//         message: "Dealer not found"
-//       });
-//     }
-
-//     res.json(rows[0]);
-
-//   } catch (err) {
-
-//     console.error("Dealer details error:", err);
-
-//     res.status(500).json({
-//       message: "Failed to fetch dealer details",
-//       error: err.message
-//     });
-
-//   }
-// });
-
-// /////////// Dealer Approve/Reject routes are in a separate file for better organization ///////////////
-// router.get("/dealers-login-cases", async (req, res) => {
-//   try {
-
-//     const [rows] = await db.promise().query(`
-//       SELECT 
-//         id,
-//         lan,
-//         business_name,
-//         trade_name,
-//         business_type,
-//         city,
-//         state,
-//         owner_name,
-//         owner_mobile,
-//         status,
-//         created_at
-//       FROM motion_corp_dealer_booking
-//       WHERE status = 'ACTIVE'
-//       ORDER BY created_at DESC
-//     `);
-
-//     res.json(rows);
-
-//   } catch (err) {
-
-//     console.error("Dealer login cases error:", err);
-
-//     res.status(500).json({
-//       message: "Failed to fetch dealer cases",
-//       error: err.message,
-//     });
-
-//   }
-// });
-
-// router.patch("/dealer/status/:lan", async (req, res) => {
-//   try {
-
-//     const { lan } = req.params;
-//     const { status } = req.body;
-
-//     if (!status) {
-//       return res.status(400).json({
-//         message: "Status is required"
-//       });
-//     }
-
-//     const [result] = await db.promise().query(
-//       `UPDATE motion_corp_dealer_booking 
-//        SET status = ?, updated_at = NOW() 
-//        WHERE lan = ?`,
-//       [status, lan]
-//     );
-
-//     if (result.affectedRows === 0) {
-//       return res.status(404).json({
-//         message: "Dealer not found"
-//       });
-//     }
-
-//     res.json({
-//       message: "Status updated successfully"
-//     });
-
-//   } catch (err) {
-
-//     console.error("Dealer status update error:", err);
-
-//     res.status(500).json({
-//       message: "Failed to update dealer status",
-//       error: err.message
-//     });
-
-//   }
-// });
-
-// module.exports = router;
-
 ////////////////////////
 const express = require("express");
 const multer = require("multer");
@@ -539,6 +5,9 @@ const axios = require("axios");
 const fs = require("fs");
 const FormData = require("form-data");
 const db = require("../../config/db");
+const {
+  universalRunAllValidations,
+} = require("../../utils/runValiationsEngine");
 
 const router = express.Router();
 
@@ -548,37 +17,64 @@ IDENTIFIER GENERATOR
 ====================================================
 */
 const generateLoanIdentifiers = async (lender) => {
-
   let prefixLan = "MCDLR";
   let applicationPrefix = "MCDLRAPP";
+  let custPrefixLan = "MCL";
+  let custPartnerLoanId = "MCFL";
 
-  const [rows] = await db.promise().query(
-    "SELECT last_sequence FROM loan_sequences WHERE lender_name=? FOR UPDATE",
-    [lender]
-  );
+  const [rows] = await db
+    .promise()
+    .query(
+      "SELECT last_sequence FROM loan_sequences WHERE lender_name=? FOR UPDATE",
+      [lender],
+    );
 
   let newSequence;
 
   if (rows.length > 0) {
     newSequence = rows[0].last_sequence + 1;
 
-    await db.promise().query(
-      "UPDATE loan_sequences SET last_sequence=? WHERE lender_name=?",
-      [newSequence, lender]
-    );
+    await db
+      .promise()
+      .query("UPDATE loan_sequences SET last_sequence=? WHERE lender_name=?", [
+        newSequence,
+        lender,
+      ]);
   } else {
     newSequence = 11000;
 
-    await db.promise().query(
-      "INSERT INTO loan_sequences (lender_name,last_sequence) VALUES (?,?)",
-      [lender, newSequence]
-    );
+    await db
+      .promise()
+      .query(
+        "INSERT INTO loan_sequences (lender_name,last_sequence) VALUES (?,?)",
+        [lender, newSequence],
+      );
   }
 
   return {
     application_id: `${applicationPrefix}${newSequence}`,
     lan: `${prefixLan}${newSequence}`,
+    cust_lan: `${custPrefixLan}${newSequence}`,
+    cust_partner_loan_id: `${custPartnerLoanId}${newSequence}`,
   };
+};
+
+const OTP_EXPIRY_SECONDS = 300;
+
+const emptyToNull = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  return value;
+};
+
+const numberOrNull = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const num = Number(value);
+  return Number.isNaN(num) ? null : num;
 };
 
 /*
@@ -588,8 +84,7 @@ MULTER CONFIG
 */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/cheques/"),
-  filename: (req, file, cb) =>
-    cb(null, `${Date.now()}-${file.originalname}`),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
 });
 
 const uploadCheque = multer({ storage });
@@ -601,7 +96,6 @@ CREATE DEALER + MULTIPLE PRODUCTS
 */
 router.post("/dealer/create", async (req, res) => {
   try {
-
     const data = req.body;
 
     const { lan, application_id } =
@@ -658,7 +152,7 @@ router.post("/dealer/create", async (req, res) => {
       data.cheque_ocr_account_holder_name || null,
       data.cheque_ocr_account_number || null,
       data.cheque_ocr_ifsc_code || null,
-      JSON.stringify(data.cheque_ocr_response || {})
+      JSON.stringify(data.cheque_ocr_response || {}),
     ];
 
     await db.promise().query(dealerQuery, dealerValues);
@@ -669,20 +163,19 @@ router.post("/dealer/create", async (req, res) => {
     ============================
     */
     if (data.products && data.products.length > 0) {
-
       const productQuery = `
         INSERT INTO motion_corp_dealer_products
         (application_id, battery_type, battery_name, e_rickshaw_model, e_rickshaw_model_price)
         VALUES ?
       `;
 
-      const productValues = data.products.map(p => ([
+      const productValues = data.products.map((p) => [
         application_id,
         p.battery_type || null,
         p.battery_name || null,
         p.e_rickshaw_model || null,
-        p.price || null
-      ]));
+        p.price || null,
+      ]);
 
       await db.promise().query(productQuery, [productValues]);
     }
@@ -690,22 +183,20 @@ router.post("/dealer/create", async (req, res) => {
     res.json({
       message: "Dealer + Products created successfully",
       lan,
-      application_id
+      application_id,
     });
-
   } catch (err) {
-
     console.error("Insert Error:", err);
 
     if (err.code === "ER_DUP_ENTRY") {
       return res.status(400).json({
-        message: "Duplicate entry found"
+        message: "Duplicate entry found",
       });
     }
 
     res.status(500).json({
       message: "Dealer creation failed",
-      error: err.message
+      error: err.message,
     });
   }
 });
@@ -719,16 +210,24 @@ PRODUCT APIs
 // ➕ Add Product
 router.post("/dealer/product/add", async (req, res) => {
   try {
-    const { application_id, battery_type, battery_name, e_rickshaw_model, price } = req.body;
+    const {
+      application_id,
+      battery_type,
+      battery_name,
+      e_rickshaw_model,
+      price,
+    } = req.body;
 
-    await db.promise().query(`
+    await db.promise().query(
+      `
       INSERT INTO motion_corp_dealer_products
       (application_id, battery_type, battery_name, e_rickshaw_model, e_rickshaw_model_price)
       VALUES (?, ?, ?, ?, ?)
-    `, [application_id, battery_type, battery_name, e_rickshaw_model, price]);
+    `,
+      [application_id, battery_type, battery_name, e_rickshaw_model, price],
+    );
 
     res.json({ message: "Product added successfully" });
-
   } catch (err) {
     res.status(500).json({ message: "Insert failed", error: err.message });
   }
@@ -737,18 +236,19 @@ router.post("/dealer/product/add", async (req, res) => {
 // ✏️ Update Product
 router.put("/dealer/product/:id", async (req, res) => {
   try {
-
     const { id } = req.params;
     const { battery_type, battery_name, e_rickshaw_model, price } = req.body;
 
-    await db.promise().query(`
+    await db.promise().query(
+      `
       UPDATE motion_corp_dealer_products
       SET battery_type=?, battery_name=?, e_rickshaw_model=?, e_rickshaw_model_price=?
       WHERE id=?
-    `, [battery_type, battery_name, e_rickshaw_model, price, id]);
+    `,
+      [battery_type, battery_name, e_rickshaw_model, price, id],
+    );
 
     res.json({ message: "Product updated successfully" });
-
   } catch (err) {
     res.status(500).json({ message: "Update failed", error: err.message });
   }
@@ -757,15 +257,16 @@ router.put("/dealer/product/:id", async (req, res) => {
 // ❌ Delete Product
 router.delete("/dealer/product/:id", async (req, res) => {
   try {
-
     const { id } = req.params;
 
-    await db.promise().query(`
+    await db.promise().query(
+      `
       DELETE FROM motion_corp_dealer_products WHERE id=?
-    `, [id]);
+    `,
+      [id],
+    );
 
     res.json({ message: "Product deleted successfully" });
-
   } catch (err) {
     res.status(500).json({ message: "Delete failed", error: err.message });
   }
@@ -774,16 +275,17 @@ router.delete("/dealer/product/:id", async (req, res) => {
 // 📋 Get Products
 router.get("/dealer/:application_id/products", async (req, res) => {
   try {
-
     const { application_id } = req.params;
 
-    const [rows] = await db.promise().query(`
+    const [rows] = await db.promise().query(
+      `
       SELECT * FROM motion_corp_dealer_products
       WHERE application_id=?
-    `, [application_id]);
+    `,
+      [application_id],
+    );
 
     res.json(rows);
-
   } catch (err) {
     res.status(500).json({ message: "Fetch failed", error: err.message });
   }
@@ -799,7 +301,6 @@ router.post(
   uploadCheque.single("cheque"),
   async (req, res) => {
     try {
-
       const { lan } = req.params;
 
       const formData = new FormData();
@@ -808,36 +309,37 @@ router.post(
       const ocrResponse = await axios.post(
         process.env.CHEQUE_OCR_API,
         formData,
-        { headers: formData.getHeaders() }
+        { headers: formData.getHeaders() },
       );
 
       const ocr = ocrResponse.data;
 
-      await db.promise().query(`
+      await db.promise().query(
+        `
         UPDATE motion_corp_dealer_booking
         SET cheque_file_path=?, cheque_ocr_bank_name=?, cheque_ocr_branch_name=?,
             cheque_ocr_account_holder_name=?, cheque_ocr_account_number=?,
             cheque_ocr_ifsc_code=?, cheque_ocr_response=?, cheque_uploaded_at=NOW()
         WHERE lan=?
-      `, [
-        req.file.path,
-        ocr.bank_name,
-        ocr.branch_name,
-        ocr.account_holder_name,
-        ocr.account_number,
-        ocr.ifsc_code,
-        JSON.stringify(ocr),
-        lan
-      ]);
+      `,
+        [
+          req.file.path,
+          ocr.bank_name,
+          ocr.branch_name,
+          ocr.account_holder_name,
+          ocr.account_number,
+          ocr.ifsc_code,
+          JSON.stringify(ocr),
+          lan,
+        ],
+      );
 
       res.json({ message: "Cheque OCR success", ocr });
-
     } catch (err) {
       res.status(500).json({ message: "OCR failed", error: err.message });
     }
-  }
+  },
 );
-
 
 // /////////////// Dealer Lists & Details routes are in a separate file for better organization ///////////////
 router.get("/dealer-list", async (req, res) => {
@@ -864,23 +366,82 @@ router.get("/dealer-list", async (req, res) => {
     }));
 
     res.json(formatted);
-
   } catch (err) {
-
     console.error("Dealer list error:", err);
 
     res.status(500).json({
       message: "Failed to fetch dealers",
       error: err.message,
     });
+  }
+});
 
+////////////////////// Dealer list for loan booking //////////////////////////////////////////////
+router.get("/dealersforbooking", async (req, res) => {
+  try {
+    const [dealers] = await db.promise().query(`
+      SELECT 
+        id,
+        application_id,
+        lan,
+        dealer_id,
+        business_name,
+        trade_name,
+        business_type,
+        pan_number,
+        gst_number,
+        owner_name,
+        owner_mobile,
+        owner_email,
+        showroom_address,
+        city,
+        state,
+        pincode,
+        bank_name,
+        branch_name,
+        account_holder_name,
+        account_number,
+        ifsc_code,
+        status
+      FROM motion_corp_dealer_booking
+      WHERE status = 'ACTIVE'
+      ORDER BY business_name ASC
+    `);
+
+    const [products] = await db.promise().query(`
+      SELECT 
+        id,
+        application_id,
+        battery_type,
+        battery_name,
+        e_rickshaw_model
+      FROM motion_corp_dealer_products
+      ORDER BY id ASC
+    `);
+
+    const dealersWithProducts = dealers.map((dealer) => ({
+      ...dealer,
+      products: products.filter(
+        (product) => product.application_id === dealer.application_id,
+      ),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      dealers: dealersWithProducts,
+    });
+  } catch (error) {
+    console.error("Fetch dealers error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch dealers.",
+    });
   }
 });
 
 //////////// Details route is in a separate file for better organization ///////////////
 router.get("/dealer-details/:lan", async (req, res) => {
   try {
-
     const { lan } = req.params;
 
     const [rows] = await db.promise().query(
@@ -895,13 +456,13 @@ router.get("/dealer-details/:lan", async (req, res) => {
       LEFT JOIN motion_corp_dealer_products p
         ON d.application_id = p.application_id
       WHERE d.lan = ?`,
-      [lan]
+      [lan],
     );
 
     // ❌ No dealer found
     if (rows.length === 0) {
       return res.status(404).json({
-        message: "Dealer not found"
+        message: "Dealer not found",
       });
     }
 
@@ -915,14 +476,14 @@ router.get("/dealer-details/:lan", async (req, res) => {
       ...rows[0],
 
       products: rows
-        .filter(r => r.product_id !== null) // remove null rows
-        .map(r => ({
+        .filter((r) => r.product_id !== null) // remove null rows
+        .map((r) => ({
           id: r.product_id,
           battery_type: r.battery_type,
           battery_name: r.battery_name,
           e_rickshaw_model: r.e_rickshaw_model,
-          price: r.e_rickshaw_model_price
-        }))
+          price: r.e_rickshaw_model_price,
+        })),
     };
 
     // ✅ Clean duplicate fields from root
@@ -939,23 +500,19 @@ router.get("/dealer-details/:lan", async (req, res) => {
     */
 
     res.json(dealer);
-
   } catch (err) {
-
     console.error("Dealer details error:", err);
 
     res.status(500).json({
       message: "Failed to fetch dealer details",
-      error: err.message
+      error: err.message,
     });
-
   }
 });
 
 /////////// Dealer Approve/Reject routes are in a separate file for better organization ///////////////
 router.get("/dealers-login-cases", async (req, res) => {
   try {
-
     const [rows] = await db.promise().query(`
       SELECT 
         id,
@@ -975,28 +532,24 @@ router.get("/dealers-login-cases", async (req, res) => {
     `);
 
     res.json(rows);
-
   } catch (err) {
-
     console.error("Dealer login cases error:", err);
 
     res.status(500).json({
       message: "Failed to fetch dealer cases",
       error: err.message,
     });
-
   }
 });
 
 router.patch("/dealer/status/:lan", async (req, res) => {
   try {
-
     const { lan } = req.params;
     const { status } = req.body;
 
     if (!status) {
       return res.status(400).json({
-        message: "Status is required"
+        message: "Status is required",
       });
     }
 
@@ -1004,30 +557,543 @@ router.patch("/dealer/status/:lan", async (req, res) => {
       `UPDATE motion_corp_dealer_booking 
        SET status = ?, updated_at = NOW() 
        WHERE lan = ?`,
-      [status, lan]
+      [status, lan],
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
-        message: "Dealer not found"
+        message: "Dealer not found",
       });
     }
 
     res.json({
-      message: "Status updated successfully"
+      message: "Status updated successfully",
     });
-
   } catch (err) {
-
     console.error("Dealer status update error:", err);
 
     res.status(500).json({
       message: "Failed to update dealer status",
-      error: err.message
+      error: err.message,
     });
-
   }
 });
 
+router.post("/upload/ev-customer-manual", async (req, res) => {
+  
+  const connection = await db.promise().getConnection();
+
+  try {
+    const data = req.body;
+    console.log("Received loan booking data:", data);
+
+    const [borrowerOtp] = await connection.query(
+  `
+  SELECT *
+  FROM otp_consent_model
+  WHERE mobile_number = ?
+  AND applicant_type = ?
+  AND verified = 1
+  AND is_used = 0
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+  [data.Mobile_Number, "BORROWER"]
+);
+
+if (!borrowerOtp.length) {
+
+return res.status(400).json({
+success: false,
+message:
+"Borrower mobile not verified",
+});
+
+}
+
+const [guarantorOtp] =
+await connection.query(
+`     SELECT *
+    FROM otp_consent_model
+    WHERE mobile_number = ?
+    AND applicant_type = 'GUARANTOR'
+    AND verified = 1
+    AND is_used = 0
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+[data.GURANTOR_MOBILE]
+);
+
+if (!guarantorOtp.length) {
+
+return res.status(400).json({
+success: false,
+message:
+"Guarantor mobile not verified",
+});
+
+}
+
+if (data.Co_Applicant) {
+
+const [coApplicantOtp] =
+await connection.query(
+`       SELECT *
+      FROM otp_consent_model
+      WHERE mobile_number = ?
+      AND applicant_type =
+      'CO_APPLICANT'
+      AND verified = 1
+      AND is_used = 0
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+[data.Co_Applicant_Mobile]
+);
+
+if (!coApplicantOtp.length) {
+return res.status(400).json({
+  success: false,
+  message:
+    "Co-applicant mobile not verified",
+});
+
+}
+
+}
+
+    const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
+      "MOTION-CORP_CUSTOMER",
+    );
+
+    await connection.beginTransaction();
+
+        const values = [
+      emptyToNull(data.lenderType),
+      emptyToNull(data.lender),
+      emptyToNull(data.product),
+      emptyToNull(data.status),
+      cust_partner_loan_id,
+      cust_lan,
+
+      emptyToNull(data.LOGIN_DATE),
+      emptyToNull(data.First_Name),
+      emptyToNull(data.Last_Name),
+      emptyToNull(data.Customer_Name),
+      emptyToNull(data.Borrower_DOB),
+      emptyToNull(data.Father_Name),
+      emptyToNull(data.Mobile_Number),
+      emptyToNull(data.Email),
+      emptyToNull(data.Pan_Card),
+      emptyToNull(data.Gender),
+
+      emptyToNull(data.Address_Line_1),
+      emptyToNull(data.Address_Line_2),
+      emptyToNull(data.Village),
+      emptyToNull(data.District),
+      emptyToNull(data.State),
+      emptyToNull(data.Pincode),
+
+      numberOrNull(data.Loan_Amount),
+      numberOrNull(data.Interest_Rate),
+      numberOrNull(data.Tenure),
+      numberOrNull(data.Disbursal_Amount),
+      numberOrNull(data.Processing_Fee),
+      numberOrNull(data.Processing_Fee_Percentage),
+
+      emptyToNull(data.GURANTOR),
+      emptyToNull(data.GURANTOR_DOB),
+      emptyToNull(data.GURANTOR_EMAIL),
+      emptyToNull(data.GURANTOR_PAN),
+      emptyToNull(data.GURANTOR_MOBILE),
+      emptyToNull(data.Relationship_with_Borrower),
+      emptyToNull(data.GURANTOR_Address_Line_1),
+emptyToNull(data.GURANTOR_Address_Line_2),
+emptyToNull(data.GURANTOR_Village),
+emptyToNull(data.GURANTOR_District),
+emptyToNull(data.GURANTOR_State),
+emptyToNull(data.GURANTOR_Pincode),
+
+
+      emptyToNull(data.Co_Applicant),
+      emptyToNull(data.Co_Applicant_DOB),
+      emptyToNull(data.Co_Applicant_Email),
+      emptyToNull(data.Co_Applicant_PAN),
+emptyToNull(data.Co_Applicant_Mobile),
+emptyToNull(data.Co_Applicant_Address_Line_1),
+emptyToNull(data.Co_Applicant_Address_Line_2),
+emptyToNull(data.Co_Applicant_Village),
+emptyToNull(data.Co_Applicant_District),
+emptyToNull(data.Co_Applicant_State),
+emptyToNull(data.Co_Applicant_Pincode),
+
+
+      emptyToNull(data.customer_name_as_per_bank),
+      emptyToNull(data.customer_bank_name),
+      emptyToNull(data.customer_account_number),
+      emptyToNull(data.bank_ifsc_code),
+
+      emptyToNull(data.selected_dealer_application_id),
+      emptyToNull(data.dealer_id),
+      emptyToNull(data.trade_name),
+      emptyToNull(data.dealer_name),
+      emptyToNull(data.dealer_contact),
+      emptyToNull(data.dealer_email),
+      emptyToNull(data.gst_no),
+      emptyToNull(data.pan_number),
+      emptyToNull(data.dealer_address),
+      emptyToNull(data.dealer_city),
+      emptyToNull(data.dealer_state),
+      emptyToNull(data.dealer_pincode),
+
+      emptyToNull(data.bank_name),
+      emptyToNull(data.account_number),
+      emptyToNull(data.ifsc),
+      emptyToNull(data.name_in_bank),
+
+      numberOrNull(data.selected_product_id),
+      emptyToNull(data.Battery_Name),
+      emptyToNull(data.Battery_Type),
+      emptyToNull(data.Battery_Serial_no_1),
+      emptyToNull(data.Battery_Serial_no_2),
+      emptyToNull(data.E_Rikshaw_model),
+      emptyToNull(data.Chassis_no),
+      data.borrower_mobile_verified || 0,
+      data.guarantor_mobile_verified || 0,
+      data.co_applicant_mobile_verified || 0,
+    ];
+
+    const insertQuery = `
+      INSERT INTO loan_booking_motion_corp (
+        lender_type,
+        lender,
+        product,
+        status,
+        partner_loan_id,
+        lan,
+
+        login_date,
+        first_name,
+        last_name,
+        customer_name,
+        dob,
+        father_name,
+        mobile_number,
+        email,
+        pan_card,
+        gender,
+
+        permanent_address_line_1,
+        permanent_address_line_2,
+        permanent_village_city,
+        permanent_district,
+        permanent_state,
+        permanent_pincode,
+
+        loan_amount,
+        interest_rate,
+        loan_tenure,
+        disbursal_amount,
+        processing_fee,
+        processing_fee_percentage,
+
+        guarantor_name,
+        guarantor_dob,
+        guarantor_email,
+        guarantor_pan,
+        guarantor_mobile,
+        relationship_with_borrower,
+        guarantor_address_line_1,
+guarantor_address_line_2,
+guarantor_village_city,
+guarantor_district,
+guarantor_state,
+guarantor_pincode,
+
+
+        co_applicant_name,
+        co_applicant_dob,
+        co_applicant_email,
+        co_applicant_pan,
+        co_applicant_mobile,
+        co_applicant_address_line_1,
+co_applicant_address_line_2,
+co_applicant_village_city,
+co_applicant_district,
+co_applicant_state,
+co_applicant_pincode,
+
+
+        customer_name_as_per_bank,
+        customer_bank_name,
+        customer_account_number,
+        bank_ifsc_code,
+
+        selected_dealer_application_id,
+        dealer_id,
+        trade_name,
+        dealer_name,
+        dealer_contact,
+        dealer_email,
+        gst_no,
+        pan_number,
+        dealer_address,
+        dealer_city,
+        dealer_state,
+        dealer_pincode,
+
+        dealer_bank_name,
+        dealer_account_number,
+        dealer_ifsc,
+        dealer_name_in_bank,
+
+        selected_product_id,
+        battery_name,
+        battery_type,
+        battery_serial_no_1,
+        battery_serial_no_2,
+        e_rikshaw_model,
+        chassis_no,
+        borrower_mobile_verified,
+guarantor_mobile_verified,
+co_applicant_mobile_verified
+      )
+      VALUES (${values.map(() => "?").join(", ")})
+    `;
+
+
+
+    await connection.query(insertQuery, values);
+
+    await connection.query(
+`   UPDATE otp_consent_model
+  SET is_used = 1
+  WHERE mobile_number = ?
+  AND applicant_type = ?
+  `,
+[data.Mobile_Number, "BORROWER"]
+);
+
+await connection.query(
+`   UPDATE otp_consent_model
+  SET is_used = 1
+  WHERE mobile_number = ?
+  AND applicant_type = ?
+  `,
+[data.GURANTOR_MOBILE, "GUARANTOR"]
+);
+
+if (data.Co_Applicant) {
+
+await connection.query(
+`     UPDATE otp_consent_model
+    SET is_used = 1
+    WHERE mobile_number = ?
+    AND applicant_type =
+    'CO_APPLICANT'
+    `,
+[data.Co_Applicant_Mobile]
+);
+
+}
+
+
+    await connection.commit();
+
+    universalRunAllValidations(cust_lan);
+
+    return res.status(201).json({
+      success: true,
+      message: "Motion Corp loan booking saved successfully",
+      partner_loan_id: cust_partner_loan_id,
+      lan: cust_lan,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    console.error("Motion Corp loan booking save error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save Motion Corp loan booking",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+router.post("/send-otp", async (req, res) => {
+  try {
+    console.log("Incoming body:", req.body);
+
+    const { mobile, applicantType } = req.body;
+
+    if (!mobile) {
+      return res.status(400).json({
+        success: false,
+        message: "Mobile required",
+      });
+    }
+
+    if (!applicantType) {
+      return res.status(400).json({
+        success: false,
+        message: "Applicant type required",
+      });
+    }
+
+    const cleanedMobile = mobile.replace(/\D/g, "");
+
+    const [existing] = await db.promise().query(
+      `
+    SELECT *
+    FROM otp_consent_model
+    WHERE mobile_number = ?
+    AND applicant_type = ?
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+      [cleanedMobile, applicantType],
+    );
+
+    if (existing.length) {
+      const lastSent = new Date(existing[0].last_sent_at);
+
+      const diffSeconds = (Date.now() - lastSent.getTime()) / 1000;
+
+      if (diffSeconds < 60) {
+        return res.status(429).json({
+          success: false,
+          message: `Wait ${Math.ceil(60 - diffSeconds)} seconds before retry`,
+        });
+      }
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
+
+    const smsParams = {
+      user: process.env.ALOT_USER,
+      password: process.env.ALOT_PASSWORD,
+      senderid: process.env.SENDER_ID,
+      channel: "TRANS",
+      DCS: "0",
+      flashsms: "0",
+      number: cleanedMobile,
+
+      text: `OTP for mobile number verification is ${otp}. Do not share this OTP with anyone. Thanks & Regards Fintree Finance Private Limited:`,
+      route: "5",
+
+      DLTTemplateId: process.env.MOBILE_OTP_TEMPLATE_ID,
+
+      PEID: process.env.DLT_PEID,
+    };
+
+    console.log("Sending SMS with:", smsParams);
+
+    await axios.get(process.env.ALOT_API_URL, {
+      params: smsParams,
+    });
+
+    await db.promise().query(
+      `
+  INSERT INTO otp_consent_model (
+    mobile_number,
+    applicant_type,
+    otp,
+    expires_at,
+    last_sent_at,
+    verified
+  )
+  VALUES (
+    ?, ?, ?, ?, NOW(), 0
+  )
+  `,
+      [cleanedMobile, applicantType, otp, expiresAt],
+    );
+
+    return res.json({
+      success: true,
+      message: "OTP sent successfully",
+    });
+  } catch (err) {
+    console.error("SMS error:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "OTP send failed",
+    });
+  }
+});
+
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { mobile, otp, consentText, applicantType } = req.body;
+
+    const [rows] = await db.promise().query(
+      `
+  SELECT *
+  FROM otp_consent_model
+  WHERE mobile_number = ?
+  AND applicant_type = ?
+  AND verified = 0
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+      [mobile, applicantType],
+    );
+
+    if (!rows.length) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP not found",
+      });
+    }
+
+    const session = rows[0];
+
+    if (session.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid OTP",
+      });
+    }
+
+    if (new Date() > new Date(session.expires_at)) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP expired",
+      });
+    }
+
+    await db.promise().query(
+      `
+  UPDATE otp_consent_model
+  SET
+    verified = 1,
+    consent_given = 1,
+    consent_text = ?,
+    consent_at = NOW()
+  WHERE id = ?
+  `,
+      [consentText, session.id],
+    );
+
+    return res.json({
+      success: true,
+      message: "OTP verified",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Verification failed",
+    });
+  }
+});
 
 module.exports = router;
