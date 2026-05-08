@@ -171,7 +171,7 @@ import SMLDisburseInitiate from "./components/switch-my-loan/SMLDisburseInitiate
 import SMLLoginloans from "./components/switch-my-loan/SMLLoginLoans";
 import SMLAllLoans from "./components/switch-my-loan/SMLAllLoans";
 import RetentionRelease from "./components/RetentionRelease";
-import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpDealerBooking";
+import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpLoanBooking";
 
 
 function App() {
