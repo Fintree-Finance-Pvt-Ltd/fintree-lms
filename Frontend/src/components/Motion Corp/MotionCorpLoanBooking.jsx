@@ -136,47 +136,36 @@ Co_Applicant_Pincode: "",
 
   const [activeSection, setActiveSection] = useState(0);
 
-  const requiredFields = [
-    "First_Name",
-    "Last_Name",
-    "Gender",
-    "Borrower_DOB",
-    "Father_Name",
-    "Mobile_Number",
-    "Address_Line_1",
-    "Village",
-    "District",
-    "State",
-    "Pincode",
-    "Loan_Amount",
-    "Interest_Rate",
-    "Tenure",
-    "Processing_Fee_Percentage",
-    "GURANTOR",
-    "GURANTOR_DOB",
-    "GURANTOR_EMAIL",
-    "GURANTOR_MOBILE",
-    "GURANTOR_PAN",
-"GURANTOR_Address_Line_1",
-"GURANTOR_Village",
-"GURANTOR_District",
-"GURANTOR_State",
-"GURANTOR_Pincode",
+ const requiredFields = [
+  "First_Name",
+  "Last_Name",
+  "Gender",
+  "Borrower_DOB",
+  "Father_Name",
+  "Mobile_Number",
+  "Address_Line_1",
+  "Village",
+  "District",
+  "State",
+  "Pincode",
+  "Loan_Amount",
+  "Interest_Rate",
+  "Tenure",
+  "Processing_Fee_Percentage",
 
-    "Relationship_with_Borrower",
-    "customer_name_as_per_bank",
-    "customer_bank_name",
-    "customer_account_number",
-    "bank_ifsc_code",
-    "Pan_Card",
-    "selected_dealer_application_id",
-    "selected_product_id",
-    "Battery_Name",
-    "Battery_Type",
-    "Battery_Serial_no_1",
-    "E_Rikshaw_model",
-    "Chassis_no",
-  ];
+  "customer_name_as_per_bank",
+  "customer_bank_name",
+  "customer_account_number",
+  "bank_ifsc_code",
+  "Pan_Card",
+  "selected_dealer_application_id",
+  "selected_product_id",
+  "Battery_Name",
+  "Battery_Type",
+  "Battery_Serial_no_1",
+  "E_Rikshaw_model",
+  "Chassis_no",
+];
 
   const isValidMobile = (m) => /^[6-9]\d{9}$/.test(m);
   const isValidAadhar = (a) => /^\d{12}$/.test(a);
@@ -310,51 +299,80 @@ for processing and servicing this loan application.
       }));
     }
   };
+///// sajag     
+const guarantorFields = [
+  "GURANTOR",
+  "GURANTOR_DOB",
+  "GURANTOR_EMAIL",
+  "GURANTOR_PAN",
+  "GURANTOR_MOBILE",
+  "Relationship_with_Borrower",
+  "GURANTOR_Address_Line_1",
+  "GURANTOR_Village",
+  "GURANTOR_District",
+  "GURANTOR_State",
+  "GURANTOR_Pincode",
+];
 
-  const sectionFields = {
-    0: [
-      "LOGIN_DATE",
-      "First_Name",
-      "Last_Name",
-      "Gender",
-      "Borrower_DOB",
-      "Father_Name",
-      "Mobile_Number",
-      "Email",
-      "Pan_Card",
-    ],
-    1: ["Address_Line_1", "Village", "Pincode", "District", "State"],
-    2: ["Loan_Amount", "Interest_Rate", "Tenure", "Processing_Fee_Percentage"],
-    3: [
-      "GURANTOR",
-      "GURANTOR_DOB",
-      "GURANTOR_EMAIL",
-      "GURANTOR_PAN",
-      "GURANTOR_MOBILE",
-      "Relationship_with_Borrower",
-    ],
-    4: [
-      "Co_Applicant",
-      "Co_Applicant_DOB",
-      "Co_Applicant_Email",
-      "Co_Applicant_PAN",
-    ],
-    5: [
-      "customer_name_as_per_bank",
-      "customer_bank_name",
-      "customer_account_number",
-      "bank_ifsc_code",
-    ],
-    6: ["selected_dealer_application_id"],
-    7: [
-      "selected_product_id",
-      "Battery_Name",
-      "Battery_Type",
-      "Battery_Serial_no_1",
-      "E_Rikshaw_model",
-      "Chassis_no",
-    ],
-  };
+const coApplicantFields = [
+  "Co_Applicant",
+  "Co_Applicant_DOB",
+  "Co_Applicant_Email",
+  "Co_Applicant_PAN",
+  "Co_Applicant_Mobile",
+  "Co_Applicant_Address_Line_1",
+  "Co_Applicant_Village",
+  "Co_Applicant_District",
+  "Co_Applicant_State",
+  "Co_Applicant_Pincode",
+];
+
+const hasAnyValue = (fields) =>
+  fields.some((field) => String(formData[field] || "").trim() !== "");
+
+const hasGuarantorDetails = () => hasAnyValue(guarantorFields);
+
+const hasCoApplicantDetails = () => hasAnyValue(coApplicantFields);
+
+const isGuarantorRequired = () => activeSection === 3 && !hasCoApplicantDetails();
+
+const isCoApplicantRequired = () => activeSection === 4 && !hasGuarantorDetails();
+
+
+////////
+
+ const sectionFields = {
+  0: [
+    "LOGIN_DATE",
+    "First_Name",
+    "Last_Name",
+    "Gender",
+    "Borrower_DOB",
+    "Father_Name",
+    "Mobile_Number",
+    "Email",
+    "Pan_Card",
+  ],
+  1: ["Address_Line_1", "Village", "Pincode", "District", "State"],
+  2: ["Loan_Amount", "Interest_Rate", "Tenure", "Processing_Fee_Percentage"],
+  3: guarantorFields,
+  4: coApplicantFields,
+  5: [
+    "customer_name_as_per_bank",
+    "customer_bank_name",
+    "customer_account_number",
+    "bank_ifsc_code",
+  ],
+  6: ["selected_dealer_application_id"],
+  7: [
+    "selected_product_id",
+    "Battery_Name",
+    "Battery_Type",
+    "Battery_Serial_no_1",
+    "E_Rikshaw_model",
+    "Chassis_no",
+  ],
+};
 
   // Real-time validation for individual field
   const validateField = (fieldName, value) => {
@@ -421,20 +439,61 @@ for processing and servicing this loan application.
     return error;
   };
 
-  const validateSection = (sectionIndex) => {
-    const fields = sectionFields[sectionIndex];
-    const newErrors = {};
+const validateSection = (sectionIndex) => {
+  const fields = sectionFields[sectionIndex];
+  const newErrors = {};
 
+  // Guarantor section
+  if (sectionIndex === 3) {
+    // If guarantor is empty, allow skip to Co-Applicant
+    if (!hasGuarantorDetails()) {
+      return {};
+    }
+
+    // If user started guarantor, all guarantor fields become required
     fields.forEach((field) => {
-      const error = validateField(field, formData[field]);
-      if (error) {
-        newErrors[field] = error;
+      if (!formData[field] || String(formData[field]).trim() === "") {
+        newErrors[field] = "This field is required.";
+        return;
       }
+
+      const error = validateField(field, formData[field]);
+      if (error) newErrors[field] = error;
     });
 
     return newErrors;
-  };
+  }
 
+  // Co-Applicant section
+  if (sectionIndex === 4) {
+    // If guarantor is completed, Co-Applicant can be skipped
+    if (hasGuarantorDetails()) {
+      return {};
+    }
+
+    // If guarantor is not filled, Co-Applicant is required
+    fields.forEach((field) => {
+      if (!formData[field] || String(formData[field]).trim() === "") {
+        newErrors[field] = "This field is required.";
+        return;
+      }
+
+      const error = validateField(field, formData[field]);
+      if (error) newErrors[field] = error;
+    });
+
+    return newErrors;
+  }
+
+  fields.forEach((field) => {
+    const error = validateField(field, formData[field]);
+    if (error) {
+      newErrors[field] = error;
+    }
+  });
+
+  return newErrors;
+};
   const handleProductSelect = (e) => {
     const productId = e.target.value;
 
@@ -725,20 +784,56 @@ if (
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
+ const validateForm = () => {
+  const newErrors = {};
 
-    requiredFields.forEach((field) => {
-      const error = validateField(field, formData[field]);
-      if (error) {
-        newErrors[field] = error;
+  requiredFields.forEach((field) => {
+    const error = validateField(field, formData[field]);
+    if (error) {
+      newErrors[field] = error;
+    }
+  });
+
+  const guarantorFilled = hasGuarantorDetails();
+  const coApplicantFilled = hasCoApplicantDetails();
+
+  if (!guarantorFilled && !coApplicantFilled) {
+    coApplicantFields.forEach((field) => {
+      if (!formData[field] || String(formData[field]).trim() === "") {
+        newErrors[field] = "This field is required.";
       }
     });
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    setMessage("❌ Please fill either Guarantor Details or Co-Applicant Details.");
+  }
 
+  if (guarantorFilled) {
+    guarantorFields.forEach((field) => {
+      if (!formData[field] || String(formData[field]).trim() === "") {
+        newErrors[field] = "This field is required.";
+        return;
+      }
+
+      const error = validateField(field, formData[field]);
+      if (error) newErrors[field] = error;
+    });
+  }
+
+  if (!guarantorFilled && coApplicantFilled) {
+    coApplicantFields.forEach((field) => {
+      if (!formData[field] || String(formData[field]).trim() === "") {
+        newErrors[field] = "This field is required.";
+        return;
+      }
+
+      const error = validateField(field, formData[field]);
+      if (error) newErrors[field] = error;
+    });
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
   const handleIFSCBlur = async () => {
     const ifsc = formData.bank_ifsc_code?.trim();
 
@@ -851,7 +946,11 @@ if (
       <div className="form-group">
         <label>
           {label}{" "}
-          {requiredFields.includes(name) && <span className="req">*</span>}
+          {(
+  requiredFields.includes(name) ||
+  (activeSection === 3 && hasGuarantorDetails() && guarantorFields.includes(name)) ||
+  (activeSection === 4 && !hasGuarantorDetails() && coApplicantFields.includes(name))
+) && <span className="req">*</span>}
         </label>
 
         <div className="input-wrapper">
@@ -931,17 +1030,17 @@ if (
       return;
     }
 
-    if (!otpVerified.guarantor) {
-      setMessage("Guarantor mobile not verified");
-      setLoading(false);
-      return;
-    }
+    if (hasGuarantorDetails() && !otpVerified.guarantor) {
+  setMessage("Guarantor mobile not verified");
+  setLoading(false);
+  return;
+}
 
-    if (formData.Co_Applicant && !otpVerified.coApplicant) {
-      setMessage("Co-applicant mobile not verified");
-      setLoading(false);
-      return;
-    }
+if (!hasGuarantorDetails() && hasCoApplicantDetails() && !otpVerified.coApplicant) {
+  setMessage("Co-applicant mobile not verified");
+  setLoading(false);
+  return;
+}
 
     try {
       const res = await api.post("motion-corp/upload/ev-customer-manual", {
@@ -1478,34 +1577,61 @@ otpVerified.guarantor
           )}
 
           {activeSection < sections.length - 1 ? (
-            <button
-              type="button"
-              disabled={!sectionValid}
-              onClick={() => {
-                const sectionErrors = validateSection(activeSection);
+  <>
+    {activeSection === 3 && !hasGuarantorDetails() && (
+      <button
+        type="button"
+        onClick={() => {
+          setErrors({});
+          setActiveSection(4);
+          setMessage("Please fill Co-Applicant Details.");
+        }}
+      >
+        Skip Guarantor →
+      </button>
+    )}
 
-                if (Object.keys(sectionErrors).length > 0) {
-                  setErrors(sectionErrors);
-                  setIsSubmitted(true);
-                  // Mark all fields as touched
-                  const newTouched = {};
-                  sectionFields[activeSection].forEach((field) => {
-                    newTouched[field] = true;
-                  });
-                  setTouched((prev) => ({ ...prev, ...newTouched }));
-                  return;
-                }
+    {activeSection === 4 && hasGuarantorDetails() && (
+      <button
+        type="button"
+        onClick={() => {
+          setErrors({});
+          setActiveSection(5);
+        }}
+      >
+        Skip Co-Applicant →
+      </button>
+    )}
 
-                setActiveSection(activeSection + 1);
-              }}
-            >
-              Next →
-            </button>
-          ) : (
-            <button type="submit" disabled={loading}>
-              {loading ? "Submitting..." : "Submit Loan"}
-            </button>
-          )}
+    <button
+      type="button"
+      onClick={() => {
+        const sectionErrors = validateSection(activeSection);
+
+        if (Object.keys(sectionErrors).length > 0) {
+          setErrors(sectionErrors);
+          setIsSubmitted(true);
+
+          const newTouched = {};
+          sectionFields[activeSection].forEach((field) => {
+            newTouched[field] = true;
+          });
+
+          setTouched((prev) => ({ ...prev, ...newTouched }));
+          return;
+        }
+
+        setActiveSection(activeSection + 1);
+      }}
+    >
+      Next →
+    </button>
+  </>
+) : (
+  <button type="submit" disabled={loading}>
+    {loading ? "Submitting..." : "Submit Loan"}
+  </button>
+)}
         </div>
       </form>
 
