@@ -82,7 +82,7 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     const [rows] = await db
       .promise()
       .query(
-        `SELECT lan FROM kyc_verification_status WHERE aadhaar_transaction_id = ? OR aadhaar_unique_id = ?`,
+        `SELECT lan, applicant_type FROM kyc_verification_status WHERE aadhaar_transaction_id = ? OR aadhaar_unique_id = ? LIMIT 1`,
         [transactionId, uniqueId]
       );
 
@@ -92,6 +92,7 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     }
 
     const lan = rows[0].lan;
+    const applicantType = rows[0].applicant_type;
     console.log("🔗 Webhook Aadhaar mapped to LAN:", lan);
 
     // PDF + XML links from webhook data
@@ -163,7 +164,8 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
              aadhaar_masked_number=?,
              aadhaar_dob=?,
              aadhaar_address=?
-         WHERE lan=?`,
+         WHERE lan=?
+          AND applicant_type=?`,
         [
           JSON.stringify(payload),  // full webhook payload
           pdfFilePath || null,
@@ -173,6 +175,7 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
           aadhaarDob,
           aadhaarAddressStr,
           lan,
+          applicantType,
         ]
       );
 

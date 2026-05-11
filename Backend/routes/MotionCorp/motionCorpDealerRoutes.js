@@ -579,6 +579,133 @@ router.patch("/dealer/status/:lan", async (req, res) => {
   }
 });
 
+router.post("/save-borrower-first-section", async (req, res) => {
+  const connection = await db.promise().getConnection();
+
+  try {
+    const data = req.body;
+
+    const [borrowerOtp] = await connection.query(
+      `
+      SELECT *
+      FROM otp_consent_model
+      WHERE mobile_number = ?
+      AND applicant_type = ?
+      AND verified = 1
+      AND is_used = 0
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [data.Mobile_Number, "BORROWER"]
+    );
+
+    if (!borrowerOtp.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Borrower mobile not verified",
+      });
+    }
+
+    const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
+      "MOTION-CORP_CUSTOMER"
+    );
+
+    await connection.beginTransaction();
+
+    await connection.query(
+      `
+      INSERT INTO loan_booking_motion_corp (
+        lender_type,
+        lender,
+        product,
+        status,
+        partner_loan_id,
+        lan,
+        login_date,
+        first_name,
+        last_name,
+        customer_name,
+        dob,
+        father_name,
+        mobile_number,
+        email,
+        pan_card,
+        gender,
+        borrower_mobile_verified
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        emptyToNull(data.lenderType),
+        emptyToNull(data.lender),
+        emptyToNull(data.product),
+        emptyToNull(data.status),
+        cust_partner_loan_id,
+        cust_lan,
+        emptyToNull(data.LOGIN_DATE),
+        emptyToNull(data.First_Name),
+        emptyToNull(data.Last_Name),
+        emptyToNull(data.Customer_Name),
+        emptyToNull(data.Borrower_DOB),
+        emptyToNull(data.Father_Name),
+        emptyToNull(data.Mobile_Number),
+        emptyToNull(data.Email),
+        emptyToNull(data.Pan_Card),
+        emptyToNull(data.Gender),
+        data.borrower_mobile_verified || 1,
+      ]
+    );
+
+    await connection.query(
+      `
+      UPDATE otp_consent_model
+      SET is_used = 1
+      WHERE id = ?
+      `,
+      [borrowerOtp[0].id]
+    );
+
+    await connection.query(
+      `
+      INSERT IGNORE INTO kyc_verification_status (
+        lan,
+        applicant_type,
+        applicant_name,
+        mobile_number,
+        pan_number
+      )
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [
+        cust_lan,
+        "BORROWER",
+        data.Customer_Name,
+        data.Mobile_Number,
+        data.Pan_Card,
+      ]
+    );
+
+    await connection.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: "Borrower saved and LAN generated",
+      lan: cust_lan,
+      partner_loan_id: cust_partner_loan_id,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save borrower section",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+});
+
 router.post("/upload/ev-customer-manual", async (req, res) => {
   
   const connection = await db.promise().getConnection();
@@ -924,6 +1051,205 @@ await connection.query(
   }
 });
 
+router.post("/final-submit-ev-customer-manual", async (req, res) => {
+  const connection = await db.promise().getConnection();
+
+  try {
+    const data = req.body;
+
+    if (!data.lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN required. Please save borrower first.",
+      });
+    }
+
+    await connection.beginTransaction();
+
+    await connection.query(
+      `
+      UPDATE loan_booking_motion_corp
+      SET
+        permanent_address_line_1 = ?,
+        permanent_address_line_2 = ?,
+        permanent_village_city = ?,
+        permanent_district = ?,
+        permanent_state = ?,
+        permanent_pincode = ?,
+
+        loan_amount = ?,
+        interest_rate = ?,
+        loan_tenure = ?,
+        disbursal_amount = ?,
+        processing_fee = ?,
+        processing_fee_percentage = ?,
+
+        guarantor_name = ?,
+        guarantor_dob = ?,
+        guarantor_email = ?,
+        guarantor_pan = ?,
+        guarantor_mobile = ?,
+        relationship_with_borrower = ?,
+        guarantor_address_line_1 = ?,
+        guarantor_address_line_2 = ?,
+        guarantor_village_city = ?,
+        guarantor_district = ?,
+        guarantor_state = ?,
+        guarantor_pincode = ?,
+
+        co_applicant_name = ?,
+        co_applicant_dob = ?,
+        co_applicant_email = ?,
+        co_applicant_pan = ?,
+        co_applicant_mobile = ?,
+        co_applicant_address_line_1 = ?,
+        co_applicant_address_line_2 = ?,
+        co_applicant_village_city = ?,
+        co_applicant_district = ?,
+        co_applicant_state = ?,
+        co_applicant_pincode = ?,
+
+        customer_name_as_per_bank = ?,
+        customer_bank_name = ?,
+        customer_account_number = ?,
+        bank_ifsc_code = ?,
+
+        selected_dealer_application_id = ?,
+        dealer_id = ?,
+        trade_name = ?,
+        dealer_name = ?,
+        dealer_contact = ?,
+        dealer_email = ?,
+        gst_no = ?,
+        pan_number = ?,
+        dealer_address = ?,
+        dealer_city = ?,
+        dealer_state = ?,
+        dealer_pincode = ?,
+
+        dealer_bank_name = ?,
+        dealer_account_number = ?,
+        dealer_ifsc = ?,
+        dealer_name_in_bank = ?,
+
+        selected_product_id = ?,
+        battery_name = ?,
+        battery_type = ?,
+        battery_serial_no_1 = ?,
+        battery_serial_no_2 = ?,
+        e_rikshaw_model = ?,
+        chassis_no = ?,
+
+        borrower_mobile_verified = ?,
+        guarantor_mobile_verified = ?,
+        co_applicant_mobile_verified = ?
+      WHERE lan = ?
+      `,
+      [
+        emptyToNull(data.Address_Line_1),
+        emptyToNull(data.Address_Line_2),
+        emptyToNull(data.Village),
+        emptyToNull(data.District),
+        emptyToNull(data.State),
+        emptyToNull(data.Pincode),
+
+        numberOrNull(data.Loan_Amount),
+        numberOrNull(data.Interest_Rate),
+        numberOrNull(data.Tenure),
+        numberOrNull(data.Disbursal_Amount),
+        numberOrNull(data.Processing_Fee),
+        numberOrNull(data.Processing_Fee_Percentage),
+
+        emptyToNull(data.GURANTOR),
+        emptyToNull(data.GURANTOR_DOB),
+        emptyToNull(data.GURANTOR_EMAIL),
+        emptyToNull(data.GURANTOR_PAN),
+        emptyToNull(data.GURANTOR_MOBILE),
+        emptyToNull(data.Relationship_with_Borrower),
+        emptyToNull(data.GURANTOR_Address_Line_1),
+        emptyToNull(data.GURANTOR_Address_Line_2),
+        emptyToNull(data.GURANTOR_Village),
+        emptyToNull(data.GURANTOR_District),
+        emptyToNull(data.GURANTOR_State),
+        emptyToNull(data.GURANTOR_Pincode),
+
+        emptyToNull(data.Co_Applicant),
+        emptyToNull(data.Co_Applicant_DOB),
+        emptyToNull(data.Co_Applicant_Email),
+        emptyToNull(data.Co_Applicant_PAN),
+        emptyToNull(data.Co_Applicant_Mobile),
+        emptyToNull(data.Co_Applicant_Address_Line_1),
+        emptyToNull(data.Co_Applicant_Address_Line_2),
+        emptyToNull(data.Co_Applicant_Village),
+        emptyToNull(data.Co_Applicant_District),
+        emptyToNull(data.Co_Applicant_State),
+        emptyToNull(data.Co_Applicant_Pincode),
+
+        emptyToNull(data.customer_name_as_per_bank),
+        emptyToNull(data.customer_bank_name),
+        emptyToNull(data.customer_account_number),
+        emptyToNull(data.bank_ifsc_code),
+
+        emptyToNull(data.selected_dealer_application_id),
+        emptyToNull(data.dealer_id),
+        emptyToNull(data.trade_name),
+        emptyToNull(data.dealer_name),
+        emptyToNull(data.dealer_contact),
+        emptyToNull(data.dealer_email),
+        emptyToNull(data.gst_no),
+        emptyToNull(data.pan_number),
+        emptyToNull(data.dealer_address),
+        emptyToNull(data.dealer_city),
+        emptyToNull(data.dealer_state),
+        emptyToNull(data.dealer_pincode),
+
+        emptyToNull(data.bank_name),
+        emptyToNull(data.account_number),
+        emptyToNull(data.ifsc),
+        emptyToNull(data.name_in_bank),
+
+        numberOrNull(data.selected_product_id),
+        emptyToNull(data.Battery_Name),
+        emptyToNull(data.Battery_Type),
+        emptyToNull(data.Battery_Serial_no_1),
+        emptyToNull(data.Battery_Serial_no_2),
+        emptyToNull(data.E_Rikshaw_model),
+        emptyToNull(data.Chassis_no),
+
+        data.borrower_mobile_verified || 0,
+        data.guarantor_mobile_verified || 0,
+        data.co_applicant_mobile_verified || 0,
+
+        data.lan,
+      ]
+    );
+
+    await connection.commit();
+
+    // Later: replace this with PAN + Bureau only.
+    // For now do NOT call universalRunAllValidations if it still triggers Aadhaar.
+    // universalRunPanAndBureauOnly(data.lan);
+
+    return res.json({
+      success: true,
+      message: "Motion Corp loan booking submitted successfully",
+      lan: data.lan,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    console.error("Final Motion Corp submit error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Final submit failed",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+});
+
 router.post("/send-otp", async (req, res) => {
   try {
     console.log("Incoming body:", req.body);
@@ -1092,6 +1418,338 @@ router.post("/verify-otp", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Verification failed",
+    });
+  }
+});
+
+router.post("/init-aadhaar", async (req, res) => {
+  try {
+    const { lan, applicantType } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN required",
+      });
+    }
+
+    if (!["BORROWER", "GUARANTOR", "CO_APPLICANT"].includes(applicantType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid applicant type",
+      });
+    }
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT *
+      FROM loan_booking_motion_corp
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    const loan = rows[0];
+
+    let applicantData = {};
+
+    if (applicantType === "BORROWER") {
+      applicantData = {
+        name: loan.customer_name,
+        mobile: loan.mobile_number,
+        email: loan.email,
+      };
+    }
+
+    if (applicantType === "GUARANTOR") {
+      applicantData = {
+        name: loan.guarantor_name,
+        mobile: loan.guarantor_mobile,
+        email: loan.guarantor_email,
+      };
+    }
+
+    if (applicantType === "CO_APPLICANT") {
+      applicantData = {
+        name: loan.co_applicant_name,
+        mobile: loan.co_applicant_mobile,
+        email: loan.co_applicant_email,
+      };
+    }
+
+    if (!applicantData.mobile || !applicantData.name) {
+      return res.status(400).json({
+        success: false,
+        message: `${applicantType} details not saved`,
+      });
+    }
+
+    await db.promise().query(
+      `
+      INSERT IGNORE INTO kyc_verification_status (
+        lan,
+        applicant_type,
+        applicant_name,
+        mobile_number
+      )
+      VALUES (?, ?, ?, ?)
+      `,
+      [lan, applicantType, applicantData.name, applicantData.mobile]
+    );
+
+    await db.promise().query(
+      `
+      UPDATE kyc_verification_status
+      SET aadhaar_status = 'INITIATED'
+      WHERE lan = ?
+      AND applicant_type = ?
+      `,
+      [lan, applicantType]
+    );
+
+    const aadhaarInit = await initAadhaarKyc(
+      lan,
+      applicantData.mobile,
+      applicantData.email,
+      applicantData.name
+    );
+
+    if (!aadhaarInit.success) {
+      await db.promise().query(
+        `
+        UPDATE kyc_verification_status
+        SET aadhaar_status = 'FAILED'
+        WHERE lan = ?
+        AND applicant_type = ?
+        `,
+        [lan, applicantType]
+      );
+
+      return res.status(400).json({
+        success: false,
+        message: "Aadhaar init failed",
+      });
+    }
+
+    await db.promise().query(
+      `
+      UPDATE kyc_verification_status
+      SET
+        aadhaar_transaction_id = ?,
+        aadhaar_kyc_url = ?,
+        aadhaar_unique_id = ?
+      WHERE lan = ?
+      AND applicant_type = ?
+      `,
+      [
+        aadhaarInit.unifiedTransactionId,
+        aadhaarInit.kycUrl,
+        aadhaarInit.uniqueId,
+        lan,
+        applicantType,
+      ]
+    );
+
+    return res.json({
+      success: true,
+      message: "Aadhaar initiated",
+      kycUrl: aadhaarInit.kycUrl,
+      transactionId: aadhaarInit.unifiedTransactionId,
+      uniqueId: aadhaarInit.uniqueId,
+    });
+  } catch (error) {
+    console.error("Aadhaar init error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Aadhaar init failed",
+      error: error.message,
+    });
+  }
+});
+
+router.post("/save-applicant-details", async (req, res) => {
+  try {
+    const { lan, applicantType, data } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN required",
+      });
+    }
+
+    if (applicantType === "GUARANTOR") {
+      await db.promise().query(
+        `
+        UPDATE loan_booking_motion_corp
+        SET
+          guarantor_name = ?,
+          guarantor_dob = ?,
+          guarantor_email = ?,
+          guarantor_pan = ?,
+          guarantor_mobile = ?,
+          relationship_with_borrower = ?,
+          guarantor_address_line_1 = ?,
+          guarantor_address_line_2 = ?,
+          guarantor_village_city = ?,
+          guarantor_district = ?,
+          guarantor_state = ?,
+          guarantor_pincode = ?,
+          guarantor_mobile_verified = ?
+        WHERE lan = ?
+        `,
+        [
+          emptyToNull(data.GURANTOR),
+          emptyToNull(data.GURANTOR_DOB),
+          emptyToNull(data.GURANTOR_EMAIL),
+          emptyToNull(data.GURANTOR_PAN),
+          emptyToNull(data.GURANTOR_MOBILE),
+          emptyToNull(data.Relationship_with_Borrower),
+          emptyToNull(data.GURANTOR_Address_Line_1),
+          emptyToNull(data.GURANTOR_Address_Line_2),
+          emptyToNull(data.GURANTOR_Village),
+          emptyToNull(data.GURANTOR_District),
+          emptyToNull(data.GURANTOR_State),
+          emptyToNull(data.GURANTOR_Pincode),
+          data.guarantor_mobile_verified || 0,
+          lan,
+        ]
+      );
+    }
+
+    if (applicantType === "CO_APPLICANT") {
+      await db.promise().query(
+        `
+        UPDATE loan_booking_motion_corp
+        SET
+          co_applicant_name = ?,
+          co_applicant_dob = ?,
+          co_applicant_email = ?,
+          co_applicant_pan = ?,
+          co_applicant_mobile = ?,
+          co_applicant_address_line_1 = ?,
+          co_applicant_address_line_2 = ?,
+          co_applicant_village_city = ?,
+          co_applicant_district = ?,
+          co_applicant_state = ?,
+          co_applicant_pincode = ?,
+          co_applicant_mobile_verified = ?
+        WHERE lan = ?
+        `,
+        [
+          emptyToNull(data.Co_Applicant),
+          emptyToNull(data.Co_Applicant_DOB),
+          emptyToNull(data.Co_Applicant_Email),
+          emptyToNull(data.Co_Applicant_PAN),
+          emptyToNull(data.Co_Applicant_Mobile),
+          emptyToNull(data.Co_Applicant_Address_Line_1),
+          emptyToNull(data.Co_Applicant_Address_Line_2),
+          emptyToNull(data.Co_Applicant_Village),
+          emptyToNull(data.Co_Applicant_District),
+          emptyToNull(data.Co_Applicant_State),
+          emptyToNull(data.Co_Applicant_Pincode),
+          data.co_applicant_mobile_verified || 0,
+          lan,
+        ]
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: `${applicantType} saved`,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Applicant save failed",
+      error: error.message,
+    });
+  }
+});
+
+router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
+  try {
+    const { lan, applicantType } = req.params;
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN required",
+      });
+    }
+
+    if (!["BORROWER", "GUARANTOR", "CO_APPLICANT"].includes(applicantType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid applicant type",
+      });
+    }
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        aadhaar_status,
+        aadhaar_name,
+        aadhaar_dob,
+        aadhaar_masked_number,
+        aadhaar_address
+      FROM kyc_verification_status
+      WHERE lan = ?
+      AND applicant_type = ?
+      LIMIT 1
+      `,
+      [lan, applicantType]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Aadhaar KYC record not found",
+      });
+    }
+
+    const row = rows[0];
+
+    if (row.aadhaar_status !== "VERIFIED") {
+      return res.json({
+        success: false,
+        status: row.aadhaar_status,
+        message: "Aadhaar is not verified yet",
+      });
+    }
+
+    if (!row.aadhaar_address) {
+      return res.json({
+        success: false,
+        status: row.aadhaar_status,
+        message: "Aadhaar address not available",
+      });
+    }
+
+    return res.json({
+      success: true,
+      status: row.aadhaar_status,
+      aadhaarName: row.aadhaar_name,
+      aadhaarDob: row.aadhaar_dob,
+      aadhaarMaskedNumber: row.aadhaar_masked_number,
+      aadhaarAddress: row.aadhaar_address,
+    });
+  } catch (error) {
+    console.error("Fetch Aadhaar address error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Aadhaar address",
+      error: error.message,
     });
   }
 });
