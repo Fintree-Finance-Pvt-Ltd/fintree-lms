@@ -8,6 +8,7 @@ const db = require("../../config/db");
 const {
   universalRunAllValidations,
 } = require("../../utils/runValiationsEngine");
+const { initAadhaarKyc } = require("../../services/digitapaadharservice");
 
 const router = express.Router();
 
@@ -579,132 +580,6 @@ router.patch("/dealer/status/:lan", async (req, res) => {
   }
 });
 
-router.post("/save-borrower-first-section", async (req, res) => {
-  const connection = await db.promise().getConnection();
-
-  try {
-    const data = req.body;
-
-    const [borrowerOtp] = await connection.query(
-      `
-      SELECT *
-      FROM otp_consent_model
-      WHERE mobile_number = ?
-      AND applicant_type = ?
-      AND verified = 1
-      AND is_used = 0
-      ORDER BY id DESC
-      LIMIT 1
-      `,
-      [data.Mobile_Number, "BORROWER"]
-    );
-
-    if (!borrowerOtp.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Borrower mobile not verified",
-      });
-    }
-
-    const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
-      "MOTION-CORP_CUSTOMER"
-    );
-
-    await connection.beginTransaction();
-
-    await connection.query(
-      `
-      INSERT INTO loan_booking_motion_corp (
-        lender_type,
-        lender,
-        product,
-        status,
-        partner_loan_id,
-        lan,
-        login_date,
-        first_name,
-        last_name,
-        customer_name,
-        dob,
-        father_name,
-        mobile_number,
-        email,
-        pan_card,
-        gender,
-        borrower_mobile_verified
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        emptyToNull(data.lenderType),
-        emptyToNull(data.lender),
-        emptyToNull(data.product),
-        emptyToNull(data.status),
-        cust_partner_loan_id,
-        cust_lan,
-        emptyToNull(data.LOGIN_DATE),
-        emptyToNull(data.First_Name),
-        emptyToNull(data.Last_Name),
-        emptyToNull(data.Customer_Name),
-        emptyToNull(data.Borrower_DOB),
-        emptyToNull(data.Father_Name),
-        emptyToNull(data.Mobile_Number),
-        emptyToNull(data.Email),
-        emptyToNull(data.Pan_Card),
-        emptyToNull(data.Gender),
-        data.borrower_mobile_verified || 1,
-      ]
-    );
-
-    await connection.query(
-      `
-      UPDATE otp_consent_model
-      SET is_used = 1
-      WHERE id = ?
-      `,
-      [borrowerOtp[0].id]
-    );
-
-    await connection.query(
-      `
-      INSERT IGNORE INTO kyc_verification_status (
-        lan,
-        applicant_type,
-        applicant_name,
-        mobile_number,
-        pan_number
-      )
-      VALUES (?, ?, ?, ?, ?)
-      `,
-      [
-        cust_lan,
-        "BORROWER",
-        data.Customer_Name,
-        data.Mobile_Number,
-        data.Pan_Card,
-      ]
-    );
-
-    await connection.commit();
-
-    return res.status(201).json({
-      success: true,
-      message: "Borrower saved and LAN generated",
-      lan: cust_lan,
-      partner_loan_id: cust_partner_loan_id,
-    });
-  } catch (error) {
-    await connection.rollback();
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to save borrower section",
-      error: error.message,
-    });
-  } finally {
-    connection.release();
-  }
-});
 
 router.post("/upload/ev-customer-manual", async (req, res) => {
   
@@ -1050,6 +925,134 @@ await connection.query(
     connection.release();
   }
 });
+
+router.post("/save-borrower-first-section", async (req, res) => {
+  const connection = await db.promise().getConnection();
+
+  try {
+    const data = req.body;
+
+    const [borrowerOtp] = await connection.query(
+      `
+      SELECT *
+      FROM otp_consent_model
+      WHERE mobile_number = ?
+      AND applicant_type = ?
+      AND verified = 1
+      AND is_used = 0
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [data.Mobile_Number, "BORROWER"]
+    );
+
+    if (!borrowerOtp.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Borrower mobile not verified",
+      });
+    }
+
+    const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
+      "MOTION-CORP_CUSTOMER"
+    );
+
+    await connection.beginTransaction();
+
+    await connection.query(
+      `
+      INSERT INTO loan_booking_motion_corp (
+        lender_type,
+        lender,
+        product,
+        status,
+        partner_loan_id,
+        lan,
+        login_date,
+        first_name,
+        last_name,
+        customer_name,
+        dob,
+        father_name,
+        mobile_number,
+        email,
+        pan_card,
+        gender,
+        borrower_mobile_verified
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        emptyToNull(data.lenderType),
+        emptyToNull(data.lender),
+        emptyToNull(data.product),
+        emptyToNull(data.status),
+        cust_partner_loan_id,
+        cust_lan,
+        emptyToNull(data.LOGIN_DATE),
+        emptyToNull(data.First_Name),
+        emptyToNull(data.Last_Name),
+        emptyToNull(data.Customer_Name),
+        emptyToNull(data.Borrower_DOB),
+        emptyToNull(data.Father_Name),
+        emptyToNull(data.Mobile_Number),
+        emptyToNull(data.Email),
+        emptyToNull(data.Pan_Card),
+        emptyToNull(data.Gender),
+        data.borrower_mobile_verified || 1,
+      ]
+    );
+
+    await connection.query(
+      `
+      UPDATE otp_consent_model
+      SET is_used = 1
+      WHERE id = ?
+      `,
+      [borrowerOtp[0].id]
+    );
+
+    await connection.query(
+      `
+      INSERT IGNORE INTO kyc_verification_status (
+        lan,
+        applicant_type,
+        applicant_name,
+        mobile_number,
+        pan_number
+      )
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [
+        cust_lan,
+        "BORROWER",
+        data.Customer_Name,
+        data.Mobile_Number,
+        data.Pan_Card,
+      ]
+    );
+
+    await connection.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: "Borrower saved and LAN generated",
+      lan: cust_lan,
+      partner_loan_id: cust_partner_loan_id,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save borrower section",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+});
+
 
 router.post("/final-submit-ev-customer-manual", async (req, res) => {
   const connection = await db.promise().getConnection();
