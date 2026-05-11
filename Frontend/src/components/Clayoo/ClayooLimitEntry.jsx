@@ -2064,7 +2064,7 @@ const ClayooLimitEntry = ({
         loanRow.bankName ||
         "",
       account_holder_name:
-        loanRow.account_holder_name ||
+        loanRow.name_in_bank ||
         loanRow.acc_holder_name ||
         loanRow.customer_name ||
         "",
