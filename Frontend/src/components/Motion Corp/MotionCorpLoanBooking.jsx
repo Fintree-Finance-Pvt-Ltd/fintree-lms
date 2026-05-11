@@ -605,6 +605,12 @@ for processing and servicing this loan application.
     }
   };
 
+  const isAadhaarButtonDisabled = (type) => {
+  return ["INITIATING", "INITIATED", "VERIFIED", "COMPLETED"].includes(
+    aadhaarStatus[type]
+  );
+};
+
   const handleOpenConsentDialog = async (mobile, type) => {
     if (!/^[6-9]\d{9}$/.test(mobile)) {
       alert("Enter valid mobile number");
@@ -750,6 +756,22 @@ for processing and servicing this loan application.
       finalValue = value.toUpperCase();
     }
 
+    if (
+        name === "Email" ||
+        name === "GURANTOR_EMAIL" ||
+        name === "Co_Applicant_Email"
+      ) {
+        finalValue = value.toLowerCase().replace(/\s/g, "");
+      }
+
+      if (
+        name === "Pincode" ||
+        name === "GURANTOR_Pincode" ||
+        name === "Co_Applicant_Pincode"
+      ) {
+        finalValue = value.replace(/\D/g, "").slice(0, 6);
+      }
+
     setFormData((prev) => {
       const updated = {
         ...prev,
@@ -766,22 +788,6 @@ for processing and servicing this loan application.
         updated.Customer_Name = `${firstName || ""} ${lastName || ""}`
           .replace(/\s+/g, " ")
           .trim();
-      }
-
-      if (
-        name === "Email" ||
-        name === "GURANTOR_EMAIL" ||
-        name === "Co_Applicant_Email"
-      ) {
-        finalValue = value.toLowerCase().replace(/\s/g, "");
-      }
-
-      if (
-        name === "Pincode" ||
-        name === "GURANTOR_Pincode" ||
-        name === "Co_Applicant_Pincode"
-      ) {
-        finalValue = value.replace(/\D/g, "").slice(0, 6);
       }
 
       // Auto-calculate Processing Fee and Disbursal Amount
@@ -1359,12 +1365,18 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
     }
 
     try {
-      const res = await api.post("motion-corp/upload/ev-customer-manual", {
-        ...formData,
-        borrower_mobile_verified: otpVerified.borrower ? 1 : 0,
-        guarantor_mobile_verified: otpVerified.guarantor ? 1 : 0,
-        co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
-      });
+      if (!lan) {
+  setMessage("❌ LAN missing. Please save borrower first.");
+  setLoading(false);
+  return;
+}
+      const res = await api.post("motion-corp/final-submit-ev-customer-manual", {
+  ...formData,
+  lan,
+  borrower_mobile_verified: otpVerified.borrower ? 1 : 0,
+  guarantor_mobile_verified: otpVerified.guarantor ? 1 : 0,
+  co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
+});
 
       setMessage(`✅ ${res.data.message} | LAN: ${res.data.lan}`);
 
@@ -1470,6 +1482,16 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
         GUARANTOR: 0,
         CO_APPLICANT: 0,
       });
+
+      setLan("");
+setPartnerLoanId("");
+setBorrowerSaved(false);
+
+setAadhaarStatus({
+  BORROWER: "",
+  GUARANTOR: "",
+  CO_APPLICANT: "",
+});
 
       setOtp("");
       setConsentChecked(false);
@@ -1724,21 +1746,26 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
 
             {renderInput("Email", "Email", "email")}
             {renderInput("Pan Card", "Pan_Card")}
-            <button
-  type="button"
-  className="otp-btn"
-  onClick={() => triggerAadhaar("BORROWER")}
-  disabled={!borrowerSaved || aadhaarStatus.BORROWER === "INITIATING"}
->
-  {aadhaarStatus.BORROWER === "INITIATING"
-    ? "Starting Aadhaar..."
-    : "Trigger Borrower Aadhaar"}
-</button>
+            
           </div>
         )}
 
         {activeSection === 1 && (
           <div className="form-grid">
+            <button
+  type="button"
+  className="otp-btn"
+  onClick={() => triggerAadhaar("BORROWER")}
+  disabled={loading || !borrowerSaved || isAadhaarButtonDisabled("BORROWER")}
+>
+  {aadhaarStatus.BORROWER === "INITIATING"
+    ? "Starting Aadhaar..."
+    : aadhaarStatus.BORROWER === "INITIATED"
+      ? "Aadhaar Initiated ✓"
+      : aadhaarStatus.BORROWER === "VERIFIED"
+        ? "Aadhaar Verified ✓"
+        : "Trigger Borrower Aadhaar"}
+</button>
             <button
       type="button"
       className="otp-btn"
@@ -1822,9 +1849,15 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
   type="button"
   className="otp-btn"
   onClick={() => triggerAadhaar("GUARANTOR")}
-  disabled={!lan || aadhaarStatus.GUARANTOR === "INITIATING"}
+  disabled={ loading || !lan || isAadhaarButtonDisabled("GUARANTOR")}
 >
-  Trigger Guarantor Aadhaar
+  {aadhaarStatus.GUARANTOR === "INITIATING"
+    ? "Starting Aadhaar..."
+    : aadhaarStatus.GUARANTOR === "INITIATED"
+      ? "Aadhaar Initiated ✓"
+      : aadhaarStatus.GUARANTOR === "VERIFIED"
+        ? "Aadhaar Verified ✓"
+        : "Trigger Guarantor Aadhaar"}
 </button>
 
 <button
@@ -1878,13 +1911,21 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
                 {otpVerified.coApplicant ? "Verified ✓" : "Send OTP"}
               </button>
 
-              <button
+              
+            </div>
+            <button
   type="button"
   className="otp-btn"
   onClick={() => triggerAadhaar("CO_APPLICANT")}
-  disabled={!lan || aadhaarStatus.CO_APPLICANT === "INITIATING"}
+  disabled={loading || !lan || isAadhaarButtonDisabled("CO_APPLICANT")}
 >
-  Trigger Co-Applicant Aadhaar
+  {aadhaarStatus.CO_APPLICANT === "INITIATING"
+    ? "Starting Aadhaar..."
+    : aadhaarStatus.CO_APPLICANT === "INITIATED"
+      ? "Aadhaar Initiated ✓"
+      : aadhaarStatus.CO_APPLICANT === "VERIFIED"
+        ? "Aadhaar Verified ✓"
+        : "Trigger Co-Applicant Aadhaar"}
 </button>
 <button
   type="button"
@@ -1894,7 +1935,6 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
 >
   Fetch Co-Applicant Aadhaar Address
 </button>
-            </div>
           </div>
         )}
 
@@ -2032,7 +2072,6 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
 
       {showConsentDialog && (
         <div className="modern-modal-overlay">
-          ```
           <div className="modal-card">
             <h3>Mobile Verification Consent</h3>
 
@@ -2122,7 +2161,6 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
               </button>
             )}
           </div>
-          ```
         </div>
       )}
 
