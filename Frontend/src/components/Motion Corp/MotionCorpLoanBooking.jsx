@@ -41,12 +41,11 @@ const MotionCorpLoanBooking = () => {
     GURANTOR_MOBILE: "",
     Relationship_with_Borrower: "",
     GURANTOR_Address_Line_1: "",
-GURANTOR_Address_Line_2: "",
-GURANTOR_Village: "",
-GURANTOR_District: "",
-GURANTOR_State: "",
-GURANTOR_Pincode: "",
-
+    GURANTOR_Address_Line_2: "",
+    GURANTOR_Village: "",
+    GURANTOR_District: "",
+    GURANTOR_State: "",
+    GURANTOR_Pincode: "",
 
     Co_Applicant: "",
     Co_Applicant_DOB: "",
@@ -54,12 +53,11 @@ GURANTOR_Pincode: "",
     Co_Applicant_PAN: "",
     Co_Applicant_Mobile: "",
     Co_Applicant_Address_Line_1: "",
-Co_Applicant_Address_Line_2: "",
-Co_Applicant_Village: "",
-Co_Applicant_District: "",
-Co_Applicant_State: "",
-Co_Applicant_Pincode: "",
-
+    Co_Applicant_Address_Line_2: "",
+    Co_Applicant_Village: "",
+    Co_Applicant_District: "",
+    Co_Applicant_State: "",
+    Co_Applicant_Pincode: "",
 
     customer_name_as_per_bank: "",
     customer_bank_name: "",
@@ -103,12 +101,22 @@ Co_Applicant_Pincode: "",
   const [touched, setTouched] = useState({});
   const [showConsentDialog, setShowConsentDialog] = useState(false);
 
+  const [lan, setLan] = useState("");
+  const [partnerLoanId, setPartnerLoanId] = useState("");
+  const [borrowerSaved, setBorrowerSaved] = useState(false);
+
+  const [aadhaarStatus, setAadhaarStatus] = useState({
+    BORROWER: "",
+    GUARANTOR: "",
+    CO_APPLICANT: "",
+  });
+
   const [otp, setOtp] = useState("");
 
   const [otpLoading, setOtpLoading] = useState(false);
 
   const [consentChecked, setConsentChecked] = useState(false);
-  
+
   const [resendTimers, setResendTimers] = useState({
     BORROWER: 0,
     GUARANTOR: 0,
@@ -136,36 +144,36 @@ Co_Applicant_Pincode: "",
 
   const [activeSection, setActiveSection] = useState(0);
 
- const requiredFields = [
-  "First_Name",
-  "Last_Name",
-  "Gender",
-  "Borrower_DOB",
-  "Father_Name",
-  "Mobile_Number",
-  "Address_Line_1",
-  "Village",
-  "District",
-  "State",
-  "Pincode",
-  "Loan_Amount",
-  "Interest_Rate",
-  "Tenure",
-  "Processing_Fee_Percentage",
+  const requiredFields = [
+    "First_Name",
+    "Last_Name",
+    "Gender",
+    "Borrower_DOB",
+    "Father_Name",
+    "Mobile_Number",
+    "Address_Line_1",
+    "Village",
+    "District",
+    "State",
+    "Pincode",
+    "Loan_Amount",
+    "Interest_Rate",
+    "Tenure",
+    "Processing_Fee_Percentage",
 
-  "customer_name_as_per_bank",
-  "customer_bank_name",
-  "customer_account_number",
-  "bank_ifsc_code",
-  "Pan_Card",
-  "selected_dealer_application_id",
-  "selected_product_id",
-  "Battery_Name",
-  "Battery_Type",
-  "Battery_Serial_no_1",
-  "E_Rikshaw_model",
-  "Chassis_no",
-];
+    "customer_name_as_per_bank",
+    "customer_bank_name",
+    "customer_account_number",
+    "bank_ifsc_code",
+    "Pan_Card",
+    "selected_dealer_application_id",
+    "selected_product_id",
+    "Battery_Name",
+    "Battery_Type",
+    "Battery_Serial_no_1",
+    "E_Rikshaw_model",
+    "Chassis_no",
+  ];
 
   const isValidMobile = (m) => /^[6-9]\d{9}$/.test(m);
   const isValidAadhar = (a) => /^\d{12}$/.test(a);
@@ -184,22 +192,22 @@ Co_Applicant_Pincode: "",
   // }, [formData.Pincode]);
 
   useEffect(() => {
-  if (formData.Pincode?.length === 6) {
-    handlePincodeLookup(formData.Pincode, "BORROWER");
-  }
-}, [formData.Pincode]);
+    if (formData.Pincode?.length === 6) {
+      handlePincodeLookup(formData.Pincode, "BORROWER");
+    }
+  }, [formData.Pincode]);
 
-useEffect(() => {
-  if (formData.GURANTOR_Pincode?.length === 6) {
-    handlePincodeLookup(formData.GURANTOR_Pincode, "GUARANTOR");
-  }
-}, [formData.GURANTOR_Pincode]);
+  useEffect(() => {
+    if (formData.GURANTOR_Pincode?.length === 6) {
+      handlePincodeLookup(formData.GURANTOR_Pincode, "GUARANTOR");
+    }
+  }, [formData.GURANTOR_Pincode]);
 
-useEffect(() => {
-  if (formData.Co_Applicant_Pincode?.length === 6) {
-    handlePincodeLookup(formData.Co_Applicant_Pincode, "CO_APPLICANT");
-  }
-}, [formData.Co_Applicant_Pincode]);
+  useEffect(() => {
+    if (formData.Co_Applicant_Pincode?.length === 6) {
+      handlePincodeLookup(formData.Co_Applicant_Pincode, "CO_APPLICANT");
+    }
+  }, [formData.Co_Applicant_Pincode]);
 
   useEffect(() => {
     const sectionErrors = validateSection(activeSection);
@@ -299,80 +307,134 @@ for processing and servicing this loan application.
       }));
     }
   };
-///// sajag     
-const guarantorFields = [
-  "GURANTOR",
-  "GURANTOR_DOB",
-  "GURANTOR_EMAIL",
-  "GURANTOR_PAN",
-  "GURANTOR_MOBILE",
-  "Relationship_with_Borrower",
-  "GURANTOR_Address_Line_1",
-  "GURANTOR_Village",
-  "GURANTOR_District",
-  "GURANTOR_State",
-  "GURANTOR_Pincode",
-];
+  ///// sajag
+  const guarantorFields = [
+    "GURANTOR",
+    "GURANTOR_DOB",
+    "GURANTOR_EMAIL",
+    "GURANTOR_PAN",
+    "GURANTOR_MOBILE",
+    "Relationship_with_Borrower",
+    "GURANTOR_Address_Line_1",
+    "GURANTOR_Village",
+    "GURANTOR_District",
+    "GURANTOR_State",
+    "GURANTOR_Pincode",
+  ];
 
-const coApplicantFields = [
-  "Co_Applicant",
-  "Co_Applicant_DOB",
-  "Co_Applicant_Email",
-  "Co_Applicant_PAN",
-  "Co_Applicant_Mobile",
-  "Co_Applicant_Address_Line_1",
-  "Co_Applicant_Village",
-  "Co_Applicant_District",
-  "Co_Applicant_State",
-  "Co_Applicant_Pincode",
-];
+  const coApplicantFields = [
+    "Co_Applicant",
+    "Co_Applicant_DOB",
+    "Co_Applicant_Email",
+    "Co_Applicant_PAN",
+    "Co_Applicant_Mobile",
+    "Co_Applicant_Address_Line_1",
+    "Co_Applicant_Village",
+    "Co_Applicant_District",
+    "Co_Applicant_State",
+    "Co_Applicant_Pincode",
+  ];
 
-const hasAnyValue = (fields) =>
-  fields.some((field) => String(formData[field] || "").trim() !== "");
+  const hasAnyValue = (fields) =>
+    fields.some((field) => String(formData[field] || "").trim() !== "");
 
-const hasGuarantorDetails = () => hasAnyValue(guarantorFields);
+  const hasGuarantorDetails = () => hasAnyValue(guarantorFields);
 
-const hasCoApplicantDetails = () => hasAnyValue(coApplicantFields);
+  const hasCoApplicantDetails = () => hasAnyValue(coApplicantFields);
 
-const isGuarantorRequired = () => activeSection === 3 && !hasCoApplicantDetails();
+  const isGuarantorRequired = () =>
+    activeSection === 3 && !hasCoApplicantDetails();
 
-const isCoApplicantRequired = () => activeSection === 4 && !hasGuarantorDetails();
+  const isCoApplicantRequired = () =>
+    activeSection === 4 && !hasGuarantorDetails();
 
+  const saveBorrowerFirstSection = async () => {
+    const sectionErrors = validateSection(0);
 
-////////
+    if (Object.keys(sectionErrors).length > 0) {
+      setErrors(sectionErrors);
 
- const sectionFields = {
-  0: [
-    "LOGIN_DATE",
-    "First_Name",
-    "Last_Name",
-    "Gender",
-    "Borrower_DOB",
-    "Father_Name",
-    "Mobile_Number",
-    "Email",
-    "Pan_Card",
-  ],
-  1: ["Address_Line_1", "Village", "Pincode", "District", "State"],
-  2: ["Loan_Amount", "Interest_Rate", "Tenure", "Processing_Fee_Percentage"],
-  3: guarantorFields,
-  4: coApplicantFields,
-  5: [
-    "customer_name_as_per_bank",
-    "customer_bank_name",
-    "customer_account_number",
-    "bank_ifsc_code",
-  ],
-  6: ["selected_dealer_application_id"],
-  7: [
-    "selected_product_id",
-    "Battery_Name",
-    "Battery_Type",
-    "Battery_Serial_no_1",
-    "E_Rikshaw_model",
-    "Chassis_no",
-  ],
-};
+      const newTouched = {};
+      sectionFields[0].forEach((field) => {
+        newTouched[field] = true;
+      });
+
+      setTouched((prev) => ({ ...prev, ...newTouched }));
+      setMessage("❌ Please complete Borrower Details first.");
+      return false;
+    }
+
+    if (!otpVerified.borrower) {
+      setMessage("❌ Borrower mobile not verified");
+      return false;
+    }
+
+    if (borrowerSaved && lan) {
+      return true;
+    }
+
+    try {
+      setLoading(true);
+
+      const res = await api.post("motion-corp/save-borrower-first-section", {
+        ...formData,
+        borrower_mobile_verified: 1,
+      });
+
+      if (res.data.success) {
+        setLan(res.data.lan);
+        setPartnerLoanId(res.data.partner_loan_id);
+        setBorrowerSaved(true);
+        setMessage(`✅ Borrower saved. LAN: ${res.data.lan}`);
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      setMessage(
+        `❌ ${
+          err.response?.data?.message || "Failed to save borrower section"
+        }`,
+      );
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+  ////////
+
+  const sectionFields = {
+    0: [
+      "LOGIN_DATE",
+      "First_Name",
+      "Last_Name",
+      "Gender",
+      "Borrower_DOB",
+      "Father_Name",
+      "Mobile_Number",
+      "Email",
+      "Pan_Card",
+    ],
+    1: ["Address_Line_1", "Village", "Pincode", "District", "State"],
+    2: ["Loan_Amount", "Interest_Rate", "Tenure", "Processing_Fee_Percentage"],
+    3: guarantorFields,
+    4: coApplicantFields,
+    5: [
+      "customer_name_as_per_bank",
+      "customer_bank_name",
+      "customer_account_number",
+      "bank_ifsc_code",
+    ],
+    6: ["selected_dealer_application_id"],
+    7: [
+      "selected_product_id",
+      "Battery_Name",
+      "Battery_Type",
+      "Battery_Serial_no_1",
+      "E_Rikshaw_model",
+      "Chassis_no",
+    ],
+  };
 
   // Real-time validation for individual field
   const validateField = (fieldName, value) => {
@@ -439,61 +501,61 @@ const isCoApplicantRequired = () => activeSection === 4 && !hasGuarantorDetails(
     return error;
   };
 
-const validateSection = (sectionIndex) => {
-  const fields = sectionFields[sectionIndex];
-  const newErrors = {};
+  const validateSection = (sectionIndex) => {
+    const fields = sectionFields[sectionIndex];
+    const newErrors = {};
 
-  // Guarantor section
-  if (sectionIndex === 3) {
-    // If guarantor is empty, allow skip to Co-Applicant
-    if (!hasGuarantorDetails()) {
-      return {};
-    }
-
-    // If user started guarantor, all guarantor fields become required
-    fields.forEach((field) => {
-      if (!formData[field] || String(formData[field]).trim() === "") {
-        newErrors[field] = "This field is required.";
-        return;
+    // Guarantor section
+    if (sectionIndex === 3) {
+      // If guarantor is empty, allow skip to Co-Applicant
+      if (!hasGuarantorDetails()) {
+        return {};
       }
 
+      // If user started guarantor, all guarantor fields become required
+      fields.forEach((field) => {
+        if (!formData[field] || String(formData[field]).trim() === "") {
+          newErrors[field] = "This field is required.";
+          return;
+        }
+
+        const error = validateField(field, formData[field]);
+        if (error) newErrors[field] = error;
+      });
+
+      return newErrors;
+    }
+
+    // Co-Applicant section
+    if (sectionIndex === 4) {
+      // If guarantor is completed, Co-Applicant can be skipped
+      if (hasGuarantorDetails()) {
+        return {};
+      }
+
+      // If guarantor is not filled, Co-Applicant is required
+      fields.forEach((field) => {
+        if (!formData[field] || String(formData[field]).trim() === "") {
+          newErrors[field] = "This field is required.";
+          return;
+        }
+
+        const error = validateField(field, formData[field]);
+        if (error) newErrors[field] = error;
+      });
+
+      return newErrors;
+    }
+
+    fields.forEach((field) => {
       const error = validateField(field, formData[field]);
-      if (error) newErrors[field] = error;
+      if (error) {
+        newErrors[field] = error;
+      }
     });
 
     return newErrors;
-  }
-
-  // Co-Applicant section
-  if (sectionIndex === 4) {
-    // If guarantor is completed, Co-Applicant can be skipped
-    if (hasGuarantorDetails()) {
-      return {};
-    }
-
-    // If guarantor is not filled, Co-Applicant is required
-    fields.forEach((field) => {
-      if (!formData[field] || String(formData[field]).trim() === "") {
-        newErrors[field] = "This field is required.";
-        return;
-      }
-
-      const error = validateField(field, formData[field]);
-      if (error) newErrors[field] = error;
-    });
-
-    return newErrors;
-  }
-
-  fields.forEach((field) => {
-    const error = validateField(field, formData[field]);
-    if (error) {
-      newErrors[field] = error;
-    }
-  });
-
-  return newErrors;
-};
+  };
   const handleProductSelect = (e) => {
     const productId = e.target.value;
 
@@ -707,20 +769,20 @@ const validateSection = (sectionIndex) => {
       }
 
       if (
-  name === "Email" ||
-  name === "GURANTOR_EMAIL" ||
-  name === "Co_Applicant_Email"
-) {
-  finalValue = value.toLowerCase().replace(/\s/g, "");
-}
+        name === "Email" ||
+        name === "GURANTOR_EMAIL" ||
+        name === "Co_Applicant_Email"
+      ) {
+        finalValue = value.toLowerCase().replace(/\s/g, "");
+      }
 
-if (
-  name === "Pincode" ||
-  name === "GURANTOR_Pincode" ||
-  name === "Co_Applicant_Pincode"
-) {
-  finalValue = value.replace(/\D/g, "").slice(0, 6);
-}
+      if (
+        name === "Pincode" ||
+        name === "GURANTOR_Pincode" ||
+        name === "Co_Applicant_Pincode"
+      ) {
+        finalValue = value.replace(/\D/g, "").slice(0, 6);
+      }
 
       // Auto-calculate Processing Fee and Disbursal Amount
       if (name === "Loan_Amount" || name === "Processing_Fee_Percentage") {
@@ -784,56 +846,58 @@ if (
     }
   };
 
- const validateForm = () => {
-  const newErrors = {};
+  const validateForm = () => {
+    const newErrors = {};
 
-  requiredFields.forEach((field) => {
-    const error = validateField(field, formData[field]);
-    if (error) {
-      newErrors[field] = error;
+    requiredFields.forEach((field) => {
+      const error = validateField(field, formData[field]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
+
+    const guarantorFilled = hasGuarantorDetails();
+    const coApplicantFilled = hasCoApplicantDetails();
+
+    if (!guarantorFilled && !coApplicantFilled) {
+      coApplicantFields.forEach((field) => {
+        if (!formData[field] || String(formData[field]).trim() === "") {
+          newErrors[field] = "This field is required.";
+        }
+      });
+
+      setMessage(
+        "❌ Please fill either Guarantor Details or Co-Applicant Details.",
+      );
     }
-  });
 
-  const guarantorFilled = hasGuarantorDetails();
-  const coApplicantFilled = hasCoApplicantDetails();
+    if (guarantorFilled) {
+      guarantorFields.forEach((field) => {
+        if (!formData[field] || String(formData[field]).trim() === "") {
+          newErrors[field] = "This field is required.";
+          return;
+        }
 
-  if (!guarantorFilled && !coApplicantFilled) {
-    coApplicantFields.forEach((field) => {
-      if (!formData[field] || String(formData[field]).trim() === "") {
-        newErrors[field] = "This field is required.";
-      }
-    });
+        const error = validateField(field, formData[field]);
+        if (error) newErrors[field] = error;
+      });
+    }
 
-    setMessage("❌ Please fill either Guarantor Details or Co-Applicant Details.");
-  }
+    if (!guarantorFilled && coApplicantFilled) {
+      coApplicantFields.forEach((field) => {
+        if (!formData[field] || String(formData[field]).trim() === "") {
+          newErrors[field] = "This field is required.";
+          return;
+        }
 
-  if (guarantorFilled) {
-    guarantorFields.forEach((field) => {
-      if (!formData[field] || String(formData[field]).trim() === "") {
-        newErrors[field] = "This field is required.";
-        return;
-      }
+        const error = validateField(field, formData[field]);
+        if (error) newErrors[field] = error;
+      });
+    }
 
-      const error = validateField(field, formData[field]);
-      if (error) newErrors[field] = error;
-    });
-  }
-
-  if (!guarantorFilled && coApplicantFilled) {
-    coApplicantFields.forEach((field) => {
-      if (!formData[field] || String(formData[field]).trim() === "") {
-        newErrors[field] = "This field is required.";
-        return;
-      }
-
-      const error = validateField(field, formData[field]);
-      if (error) newErrors[field] = error;
-    });
-  }
-
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
   const handleIFSCBlur = async () => {
     const ifsc = formData.bank_ifsc_code?.trim();
 
@@ -852,6 +916,253 @@ if (
       setMessage("⚠️ Invalid IFSC code");
     }
   };
+
+const saveApplicantBeforeAadhaar = async (applicantType) => {
+  if (!lan) {
+    setMessage("❌ Please save borrower first to generate LAN.");
+    return false;
+  }
+
+  if (applicantType === "GUARANTOR") {
+    const sectionErrors = validateSection(3);
+
+    if (Object.keys(sectionErrors).length > 0) {
+      setErrors(sectionErrors);
+      setMessage("❌ Please complete guarantor details first.");
+      return false;
+    }
+
+    if (!otpVerified.guarantor) {
+      setMessage("❌ Guarantor mobile not verified.");
+      return false;
+    }
+  }
+
+  if (applicantType === "CO_APPLICANT") {
+    const sectionErrors = validateSection(4);
+
+    if (Object.keys(sectionErrors).length > 0) {
+      setErrors(sectionErrors);
+      setMessage("❌ Please complete co-applicant details first.");
+      return false;
+    }
+
+    if (!otpVerified.coApplicant) {
+      setMessage("❌ Co-applicant mobile not verified.");
+      return false;
+    }
+  }
+
+  if (applicantType === "BORROWER") {
+    return true;
+  }
+
+  await api.post("motion-corp/save-applicant-details", {
+    lan,
+    applicantType,
+    data: {
+      ...formData,
+      guarantor_mobile_verified: otpVerified.guarantor ? 1 : 0,
+      co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
+    },
+  });
+
+  return true;
+};
+
+const triggerAadhaar = async (applicantType) => {
+  if (!lan) {
+    setMessage("❌ Please save borrower first to generate LAN.");
+    return;
+  }
+
+  try {
+    const saved = await saveApplicantBeforeAadhaar(applicantType);
+    if (!saved) return;
+
+    setAadhaarStatus((prev) => ({
+      ...prev,
+      [applicantType]: "INITIATING",
+    }));
+
+    const res = await api.post("motion-corp/init-aadhaar", {
+      lan,
+      applicantType,
+    });
+
+    if (res.data.success) {
+      setAadhaarStatus((prev) => ({
+        ...prev,
+        [applicantType]: "INITIATED",
+      }));
+
+      setMessage(`✅ Aadhaar initiated for ${applicantType}`);
+
+      if (res.data.kycUrl) {
+        window.open(res.data.kycUrl, "_blank");
+      }
+    }
+  } catch (err) {
+    setAadhaarStatus((prev) => ({
+      ...prev,
+      [applicantType]: "FAILED",
+    }));
+
+    setMessage(
+      `❌ ${
+        err.response?.data?.message || `Aadhaar failed for ${applicantType}`
+      }`
+    );
+  }
+};
+
+function parseAadhaarAddress(address = "") {
+  const result = {
+    addressLine1: "",
+    addressLine2: "",
+    village: "",
+    district: "",
+    state: "",
+    pincode: "",
+  };
+
+  if (!address || typeof address !== "string") {
+    return result;
+  }
+
+  let cleanAddress = address
+    .replace(/\s+/g, " ")
+    .replace(/,\s*,/g, ",")
+    .replace(/^,\s*/g, "")
+    .trim();
+
+  // Extract pincode from end or anywhere in address
+  const pincodeMatch = cleanAddress.match(/([1-9][0-9]{5})(?!.*[0-9])/);
+
+  if (pincodeMatch) {
+    result.pincode = pincodeMatch[1];
+
+    cleanAddress = cleanAddress
+      .replace(new RegExp(`[-,\\s]*${result.pincode}\\s*$`), "")
+      .trim();
+  }
+
+  // Remove trailing hyphen if left after removing pincode
+  cleanAddress = cleanAddress.replace(/[-,]\s*$/, "").trim();
+
+  const parts = cleanAddress
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  /*
+    Example:
+    [
+      "Sangam Mitra Mandal Teen Dongri Juna Hanuman Nagar",
+      "Mumbai",
+      "Maharashtra"
+    ]
+  */
+
+  if (parts.length >= 1) {
+    result.state = parts[parts.length - 1] || "";
+  }
+
+  if (parts.length >= 2) {
+    result.district = parts[parts.length - 2] || "";
+    result.village = parts[parts.length - 2] || "";
+  }
+
+  if (parts.length >= 3) {
+    result.addressLine1 = parts.slice(0, parts.length - 2).join(", ");
+  } else if (parts.length === 2) {
+    result.addressLine1 = parts[0];
+  } else if (parts.length === 1) {
+    result.addressLine1 = parts[0];
+  }
+
+  return result;
+}
+
+const fetchAndPrefillAadhaarAddress = async (applicantType) => {
+  if (!lan) {
+    setMessage("❌ Please save borrower first to generate LAN.");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const res = await api.get(
+      `motion-corp/aadhaar-address/${lan}/${applicantType}`
+    );
+
+    if (!res.data.success) {
+      setMessage(`⚠️ ${res.data.message}`);
+      return;
+    }
+
+    const parsedAddress = parseAadhaarAddress(res.data.aadhaarAddress);
+
+    setFormData((prev) => {
+      const updated = { ...prev };
+
+      if (applicantType === "BORROWER") {
+        updated.Address_Line_1 =
+          parsedAddress.addressLine1 || prev.Address_Line_1;
+        updated.Address_Line_2 =
+          parsedAddress.addressLine2 || prev.Address_Line_2;
+        updated.Village = parsedAddress.village || prev.Village;
+        updated.District = parsedAddress.district || prev.District;
+        updated.State = parsedAddress.state || prev.State;
+        updated.Pincode = parsedAddress.pincode || prev.Pincode;
+      }
+
+      if (applicantType === "GUARANTOR") {
+        updated.GURANTOR_Address_Line_1 =
+          parsedAddress.addressLine1 || prev.GURANTOR_Address_Line_1;
+        updated.GURANTOR_Address_Line_2 =
+          parsedAddress.addressLine2 || prev.GURANTOR_Address_Line_2;
+        updated.GURANTOR_Village =
+          parsedAddress.village || prev.GURANTOR_Village;
+        updated.GURANTOR_District =
+          parsedAddress.district || prev.GURANTOR_District;
+        updated.GURANTOR_State =
+          parsedAddress.state || prev.GURANTOR_State;
+        updated.GURANTOR_Pincode =
+          parsedAddress.pincode || prev.GURANTOR_Pincode;
+      }
+
+      if (applicantType === "CO_APPLICANT") {
+        updated.Co_Applicant_Address_Line_1 =
+          parsedAddress.addressLine1 || prev.Co_Applicant_Address_Line_1;
+        updated.Co_Applicant_Address_Line_2 =
+          parsedAddress.addressLine2 || prev.Co_Applicant_Address_Line_2;
+        updated.Co_Applicant_Village =
+          parsedAddress.village || prev.Co_Applicant_Village;
+        updated.Co_Applicant_District =
+          parsedAddress.district || prev.Co_Applicant_District;
+        updated.Co_Applicant_State =
+          parsedAddress.state || prev.Co_Applicant_State;
+        updated.Co_Applicant_Pincode =
+          parsedAddress.pincode || prev.Co_Applicant_Pincode;
+      }
+
+      return updated;
+    });
+
+    setMessage(`✅ Aadhaar address prefilled for ${applicantType}`);
+  } catch (err) {
+    setMessage(
+      `❌ ${
+        err.response?.data?.message ||
+        "Aadhaar address not available yet. Please fetch after customer completes Aadhaar."
+      }`
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   // const handlePincodeBlur = async () => {
   //   const pin = formData.Pincode?.trim();
@@ -885,58 +1196,55 @@ if (
   // };
 
   const handlePincodeLookup = async (pin, type) => {
-  const cleanPin = String(pin || "").trim();
+    const cleanPin = String(pin || "").trim();
 
-  if (!cleanPin || cleanPin.length !== 6) return;
+    if (!cleanPin || cleanPin.length !== 6) return;
 
-  try {
-    const res = await axios.get(
-      `https://api.postalpincode.in/pincode/${cleanPin}`,
-    );
-
-    const data = res.data[0];
-
-    if (data.Status === "Success" && data.PostOffice?.length > 0) {
-      const office = data.PostOffice[0];
-
-      setFormData((prev) => {
-        const updated = { ...prev };
-
-        if (type === "BORROWER") {
-          updated.State = office.State || prev.State;
-          updated.District = office.District || prev.District;
-        }
-
-        if (type === "GUARANTOR") {
-          updated.GURANTOR_State =
-            office.State || prev.GURANTOR_State;
-
-          updated.GURANTOR_District =
-            office.District || prev.GURANTOR_District;
-        }
-
-        if (type === "CO_APPLICANT") {
-          updated.Co_Applicant_State =
-            office.State || prev.Co_Applicant_State;
-
-          updated.Co_Applicant_District =
-            office.District || prev.Co_Applicant_District;
-        }
-
-        return updated;
-      });
-
-      setMessage(
-        `✅ Pincode matched: ${office.District}, ${office.State}`,
+    try {
+      const res = await axios.get(
+        `https://api.postalpincode.in/pincode/${cleanPin}`,
       );
-    } else {
-      setMessage("⚠️ Invalid or not found pincode.");
+
+      const data = res.data[0];
+
+      if (data.Status === "Success" && data.PostOffice?.length > 0) {
+        const office = data.PostOffice[0];
+
+        setFormData((prev) => {
+          const updated = { ...prev };
+
+          if (type === "BORROWER") {
+            updated.State = office.State || prev.State;
+            updated.District = office.District || prev.District;
+          }
+
+          if (type === "GUARANTOR") {
+            updated.GURANTOR_State = office.State || prev.GURANTOR_State;
+
+            updated.GURANTOR_District =
+              office.District || prev.GURANTOR_District;
+          }
+
+          if (type === "CO_APPLICANT") {
+            updated.Co_Applicant_State =
+              office.State || prev.Co_Applicant_State;
+
+            updated.Co_Applicant_District =
+              office.District || prev.Co_Applicant_District;
+          }
+
+          return updated;
+        });
+
+        setMessage(`✅ Pincode matched: ${office.District}, ${office.State}`);
+      } else {
+        setMessage("⚠️ Invalid or not found pincode.");
+      }
+    } catch (err) {
+      console.error("Error fetching pincode details:", err);
+      setMessage("⚠️ Could not fetch pincode details. Please fill manually.");
     }
-  } catch (err) {
-    console.error("Error fetching pincode details:", err);
-    setMessage("⚠️ Could not fetch pincode details. Please fill manually.");
-  }
-};
+  };
   const renderSelect = (label, name, options = []) => {
     const hasError = errors[name];
     const isValid = fieldStatus[name] === "valid";
@@ -946,11 +1254,15 @@ if (
       <div className="form-group">
         <label>
           {label}{" "}
-          {(
-  requiredFields.includes(name) ||
-  (activeSection === 3 && hasGuarantorDetails() && guarantorFields.includes(name)) ||
-  (activeSection === 4 && !hasGuarantorDetails() && coApplicantFields.includes(name))
-) && <span className="req">*</span>}
+          {(requiredFields.includes(name) ||
+            (activeSection === 3 &&
+              hasGuarantorDetails() &&
+              guarantorFields.includes(name)) ||
+            (activeSection === 4 &&
+              !hasGuarantorDetails() &&
+              coApplicantFields.includes(name))) && (
+            <span className="req">*</span>
+          )}
         </label>
 
         <div className="input-wrapper">
@@ -1031,16 +1343,20 @@ if (
     }
 
     if (hasGuarantorDetails() && !otpVerified.guarantor) {
-  setMessage("Guarantor mobile not verified");
-  setLoading(false);
-  return;
-}
+      setMessage("Guarantor mobile not verified");
+      setLoading(false);
+      return;
+    }
 
-if (!hasGuarantorDetails() && hasCoApplicantDetails() && !otpVerified.coApplicant) {
-  setMessage("Co-applicant mobile not verified");
-  setLoading(false);
-  return;
-}
+    if (
+      !hasGuarantorDetails() &&
+      hasCoApplicantDetails() &&
+      !otpVerified.coApplicant
+    ) {
+      setMessage("Co-applicant mobile not verified");
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await api.post("motion-corp/upload/ev-customer-manual", {
@@ -1086,20 +1402,20 @@ if (!hasGuarantorDetails() && hasCoApplicantDetails() && !otpVerified.coApplican
         Relationship_with_Borrower: "",
 
         GURANTOR_MOBILE: "",
-GURANTOR_Address_Line_1: "",
-GURANTOR_Address_Line_2: "",
-GURANTOR_Village: "",
-GURANTOR_District: "",
-GURANTOR_State: "",
-GURANTOR_Pincode: "",
+        GURANTOR_Address_Line_1: "",
+        GURANTOR_Address_Line_2: "",
+        GURANTOR_Village: "",
+        GURANTOR_District: "",
+        GURANTOR_State: "",
+        GURANTOR_Pincode: "",
 
-Co_Applicant_Mobile: "",
-Co_Applicant_Address_Line_1: "",
-Co_Applicant_Address_Line_2: "",
-Co_Applicant_Village: "",
-Co_Applicant_District: "",
-Co_Applicant_State: "",
-Co_Applicant_Pincode: "",
+        Co_Applicant_Mobile: "",
+        Co_Applicant_Address_Line_1: "",
+        Co_Applicant_Address_Line_2: "",
+        Co_Applicant_Village: "",
+        Co_Applicant_District: "",
+        Co_Applicant_State: "",
+        Co_Applicant_Pincode: "",
 
         Co_Applicant: "",
         Co_Applicant_DOB: "",
@@ -1150,10 +1466,10 @@ Co_Applicant_Pincode: "",
       });
 
       setResendTimers({
-  BORROWER: 0,
-  GUARANTOR: 0,
-  CO_APPLICANT: 0,
-});
+        BORROWER: 0,
+        GUARANTOR: 0,
+        CO_APPLICANT: 0,
+      });
 
       setOtp("");
       setConsentChecked(false);
@@ -1347,7 +1663,7 @@ Co_Applicant_Pincode: "",
             key={index}
             className={`tab ${activeSection === index ? "active" : ""}`}
             // onClick={() => setActiveSection(index)}
-                        onClick={() => {
+            onClick={() => {
               if (index <= activeSection) {
                 setActiveSection(index);
                 return;
@@ -1387,12 +1703,12 @@ Co_Applicant_Pincode: "",
             {renderInput("Borrower DOB", "Borrower_DOB", "date")}
             {renderInput("Father Name", "Father_Name")}
             <div className="mobile-otp-wrapper">
-{renderInput(
-"Mobile Number",
-"Mobile_Number",
-"text",
-otpVerified.borrower
-)}
+              {renderInput(
+                "Mobile Number",
+                "Mobile_Number",
+                "text",
+                otpVerified.borrower,
+              )}
 
               <button
                 type="button"
@@ -1408,11 +1724,30 @@ otpVerified.borrower
 
             {renderInput("Email", "Email", "email")}
             {renderInput("Pan Card", "Pan_Card")}
+            <button
+  type="button"
+  className="otp-btn"
+  onClick={() => triggerAadhaar("BORROWER")}
+  disabled={!borrowerSaved || aadhaarStatus.BORROWER === "INITIATING"}
+>
+  {aadhaarStatus.BORROWER === "INITIATING"
+    ? "Starting Aadhaar..."
+    : "Trigger Borrower Aadhaar"}
+</button>
           </div>
         )}
 
         {activeSection === 1 && (
           <div className="form-grid">
+            <button
+      type="button"
+      className="otp-btn"
+      onClick={() => fetchAndPrefillAadhaarAddress("BORROWER")}
+      disabled={!lan || loading}
+    >
+      Fetch Borrower Aadhaar Address
+    </button>
+
             {renderInput("Address Line 1", "Address_Line_1")}
             {renderInput("Address Line 2", "Address_Line_2")}
             {renderInput("Village", "Village")}
@@ -1454,19 +1789,18 @@ otpVerified.borrower
             {renderInput("Guarantor Email", "GURANTOR_EMAIL", "email")}
             {renderInput("Guarantor PAN", "GURANTOR_PAN")}
             {renderInput("Guarantor Address Line 1", "GURANTOR_Address_Line_1")}
-{renderInput("Guarantor Address Line 2", "GURANTOR_Address_Line_2")}
-{renderInput("Guarantor Village", "GURANTOR_Village")}
-{renderInput("Guarantor Pincode", "GURANTOR_Pincode")}
-{renderInput("Guarantor District", "GURANTOR_District")}
-{renderInput("Guarantor State", "GURANTOR_State")}
+            {renderInput("Guarantor Address Line 2", "GURANTOR_Address_Line_2")}
+            {renderInput("Guarantor Village", "GURANTOR_Village")}
+            {renderInput("Guarantor Pincode", "GURANTOR_Pincode")}
+            {renderInput("Guarantor District", "GURANTOR_District")}
+            {renderInput("Guarantor State", "GURANTOR_State")}
             <div className="mobile-otp-wrapper">
               {renderInput(
-"Guarantor Mobile",
-"GURANTOR_MOBILE",
-"text",
-otpVerified.guarantor
-)}
-
+                "Guarantor Mobile",
+                "GURANTOR_MOBILE",
+                "text",
+                otpVerified.guarantor,
+              )}
 
               <button
                 type="button"
@@ -1484,6 +1818,23 @@ otpVerified.guarantor
               "Relationship with Borrower",
               "Relationship_with_Borrower",
             )}
+            <button
+  type="button"
+  className="otp-btn"
+  onClick={() => triggerAadhaar("GUARANTOR")}
+  disabled={!lan || aadhaarStatus.GUARANTOR === "INITIATING"}
+>
+  Trigger Guarantor Aadhaar
+</button>
+
+<button
+  type="button"
+  className="otp-btn"
+  onClick={() => fetchAndPrefillAadhaarAddress("GUARANTOR")}
+  disabled={!lan || loading}
+>
+  Fetch Guarantor Aadhaar Address
+</button>
           </div>
         )}
 
@@ -1493,14 +1844,25 @@ otpVerified.guarantor
             {renderInput("Co Applicant DOB", "Co_Applicant_DOB", "date")}
             {renderInput("Co Applicant Email", "Co_Applicant_Email", "email")}
             {renderInput("Co Applicant PAN", "Co_Applicant_PAN")}
-            {renderInput("Co Applicant Address Line 1", "Co_Applicant_Address_Line_1")}
-{renderInput("Co Applicant Address Line 2", "Co_Applicant_Address_Line_2")}
-{renderInput("Co Applicant Village", "Co_Applicant_Village")}
-{renderInput("Co Applicant Pincode", "Co_Applicant_Pincode")}
-{renderInput("Co Applicant District", "Co_Applicant_District")}
-{renderInput("Co Applicant State", "Co_Applicant_State")}
+            {renderInput(
+              "Co Applicant Address Line 1",
+              "Co_Applicant_Address_Line_1",
+            )}
+            {renderInput(
+              "Co Applicant Address Line 2",
+              "Co_Applicant_Address_Line_2",
+            )}
+            {renderInput("Co Applicant Village", "Co_Applicant_Village")}
+            {renderInput("Co Applicant Pincode", "Co_Applicant_Pincode")}
+            {renderInput("Co Applicant District", "Co_Applicant_District")}
+            {renderInput("Co Applicant State", "Co_Applicant_State")}
             <div className="mobile-otp-wrapper">
-              {renderInput("Co Applicant Mobile", "Co_Applicant_Mobile", "text", otpVerified.coApplicant)}
+              {renderInput(
+                "Co Applicant Mobile",
+                "Co_Applicant_Mobile",
+                "text",
+                otpVerified.coApplicant,
+              )}
 
               <button
                 type="button"
@@ -1515,6 +1877,23 @@ otpVerified.guarantor
               >
                 {otpVerified.coApplicant ? "Verified ✓" : "Send OTP"}
               </button>
+
+              <button
+  type="button"
+  className="otp-btn"
+  onClick={() => triggerAadhaar("CO_APPLICANT")}
+  disabled={!lan || aadhaarStatus.CO_APPLICANT === "INITIATING"}
+>
+  Trigger Co-Applicant Aadhaar
+</button>
+<button
+  type="button"
+  className="otp-btn"
+  onClick={() => fetchAndPrefillAadhaarAddress("CO_APPLICANT")}
+  disabled={!lan || loading}
+>
+  Fetch Co-Applicant Aadhaar Address
+</button>
             </div>
           </div>
         )}
@@ -1577,61 +1956,69 @@ otpVerified.guarantor
           )}
 
           {activeSection < sections.length - 1 ? (
-  <>
-    {activeSection === 3 && !hasGuarantorDetails() && (
-      <button
-        type="button"
-        onClick={() => {
-          setErrors({});
-          setActiveSection(4);
-          setMessage("Please fill Co-Applicant Details.");
-        }}
-      >
-        Skip Guarantor →
-      </button>
-    )}
+            <>
+              {activeSection === 3 && !hasGuarantorDetails() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrors({});
+                    setActiveSection(4);
+                    setMessage("Please fill Co-Applicant Details.");
+                  }}
+                >
+                  Skip Guarantor →
+                </button>
+              )}
 
-    {activeSection === 4 && hasGuarantorDetails() && (
-      <button
-        type="button"
-        onClick={() => {
-          setErrors({});
-          setActiveSection(5);
-        }}
-      >
-        Skip Co-Applicant →
-      </button>
-    )}
+              {activeSection === 4 && hasGuarantorDetails() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrors({});
+                    setActiveSection(5);
+                  }}
+                >
+                  Skip Co-Applicant →
+                </button>
+              )}
 
-    <button
-      type="button"
-      onClick={() => {
-        const sectionErrors = validateSection(activeSection);
+              <button
+                type="button"
+                onClick={async () => {
+                  if (activeSection === 0) {
+                    const saved = await saveBorrowerFirstSection();
+                    if (!saved) return;
 
-        if (Object.keys(sectionErrors).length > 0) {
-          setErrors(sectionErrors);
-          setIsSubmitted(true);
+                    setActiveSection(1);
+                    return;
+                  }
 
-          const newTouched = {};
-          sectionFields[activeSection].forEach((field) => {
-            newTouched[field] = true;
-          });
+                  const sectionErrors = validateSection(activeSection);
 
-          setTouched((prev) => ({ ...prev, ...newTouched }));
-          return;
-        }
+                  if (Object.keys(sectionErrors).length > 0) {
+                    setErrors(sectionErrors);
+                    setIsSubmitted(true);
 
-        setActiveSection(activeSection + 1);
-      }}
-    >
-      Next →
-    </button>
-  </>
-) : (
-  <button type="submit" disabled={loading}>
-    {loading ? "Submitting..." : "Submit Loan"}
-  </button>
-)}
+                    const newTouched = {};
+                    sectionFields[activeSection].forEach((field) => {
+                      newTouched[field] = true;
+                    });
+
+                    setTouched((prev) => ({ ...prev, ...newTouched }));
+                    return;
+                  }
+
+                  setActiveSection(activeSection + 1);
+                }}
+              >
+                Next →
+              </button>
+            </>
+          ) : (
+            <button type="submit" disabled={loading}>
+              {loading ? "Submitting..." : "Submit Loan"}
+            </button>
+          )}
         </div>
       </form>
 
@@ -1701,7 +2088,6 @@ otpVerified.guarantor
             </div>
 
             {resendTimers[verificationTarget] > 0 ? (
-
               <p
                 style={{
                   marginTop: "15px",
