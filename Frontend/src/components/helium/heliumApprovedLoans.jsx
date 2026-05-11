@@ -82,71 +82,65 @@ const heliumApprovedLoans = ({
   };
 
   const canRetryAgreementEsign = (row) => {
-  const status = (row.agreement_esign_status || "").toUpperCase();
+    const status = (row.agreement_esign_status || "").toUpperCase();
 
-  if (!["FAILED", "PENDING", "INITIATED"].includes(status)) return true;
+    if (!["FAILED", "PENDING", "INITIATED"].includes(status)) return true;
 
-  if (!row.agreement_esign_sent_at) return true;
+    if (!row.agreement_esign_sent_at) return true;
 
-  const lastAttempt = new Date(row.agreement_esign_sent_at);
-  const now = new Date();
+    const lastAttempt = new Date(row.agreement_esign_sent_at);
+    const now = new Date();
 
-  const diffHours = (now - lastAttempt) / (1000 * 60 * 60);
+    const diffHours = (now - lastAttempt) / (1000 * 60 * 60);
 
-  return diffHours >= 3;
-};
+    return diffHours >= 3;
+  };
 
   // ---------- Bank Modal ----------
-const openBankModal = (loanRow) => {
-  console.log("loanRow in openBankModal:", loanRow);
+  const openBankModal = (loanRow) => {
+    console.log("loanRow in openBankModal:", loanRow);
 
-  const startDate =
-    loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
+    const startDate =
+      loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
 
-  const endDate =
-    loanRow.loan_tenure && Number(loanRow.loan_tenure) > 0
-      ? addMonths(startDate, loanRow.loan_tenure)
-      : "";
+    const endDate =
+      loanRow.loan_tenure && Number(loanRow.loan_tenure) > 0
+        ? addMonths(startDate, loanRow.loan_tenure)
+        : "";
 
-  const defaultAmount = loanRow.emi_amount || loanRow.loan_amount || "";
+    const defaultAmount = loanRow.emi_amount || loanRow.loan_amount || "";
 
-  setSelectedLoan(loanRow);
-  setBankError("");
-  setBankResult(null);
+    setSelectedLoan(loanRow);
+    setBankError("");
+    setBankResult(null);
 
-  setBankForm({
-    account_no:
-      loanRow.account_number ||
-      loanRow.account_no ||
-      loanRow.acc_no ||
-      loanRow.bankAccNo ||
-      "",
-    ifsc:
-      loanRow.ifsc ||
-      loanRow.bank_ifsc ||
-      loanRow.bankIfsc ||
-      "",
-    account_type: loanRow.bank_account_type || "SAVINGS",
-    bank_name:
-      loanRow.bank_name ||
-      loanRow.customer_bank_name ||
-      loanRow.bankName ||
-      "",
-    account_holder_name:
-      loanRow.account_holder_name ||
-      loanRow.acc_holder_name ||
-      loanRow.customer_name ||
-      "",
-    mandate_amount: defaultAmount,
-    mandate_start_date: startDate,
-    mandate_end_date: endDate,
-    mandate_frequency: "monthly",
-  });
+    setBankForm({
+      account_no:
+        loanRow.account_number ||
+        loanRow.account_no ||
+        loanRow.acc_no ||
+        loanRow.bankAccNo ||
+        "",
+      ifsc: loanRow.ifsc || loanRow.bank_ifsc || loanRow.bankIfsc || "",
+      account_type: loanRow.bank_account_type || "SAVINGS",
+      bank_name:
+        loanRow.bank_name ||
+        loanRow.customer_bank_name ||
+        loanRow.bankName ||
+        "",
+      account_holder_name:
+        loanRow.account_holder_name ||
+        loanRow.acc_holder_name ||
+        loanRow.customer_name ||
+        "",
+      mandate_amount: defaultAmount,
+      mandate_start_date: startDate,
+      mandate_end_date: endDate,
+      mandate_frequency: "monthly",
+    });
 
-  setShowBankModal(true);
-};
-
-
+    setShowBankModal(true);
+  };
 
   const closeBankModal = () => {
     setShowBankModal(false);
@@ -241,7 +235,7 @@ const openBankModal = (loanRow) => {
 
       if (!mandData.success) {
         setBankError(
-          mandData.message || "Mandate creation failed. Please try again."
+          mandData.message || "Mandate creation failed. Please try again.",
         );
         setBankLoading(false);
         return;
@@ -255,7 +249,7 @@ const openBankModal = (loanRow) => {
     } catch (err) {
       setBankError(
         err.response?.data?.message ||
-          "Something went wrong. Please try again."
+          "Something went wrong. Please try again.",
       );
     } finally {
       setBankLoading(false);
@@ -388,10 +382,8 @@ const openBankModal = (loanRow) => {
 
       setRows((old) =>
         old.map((r) =>
-          r.lan === lan
-            ? { ...r, agreement_esign_status: "INITIATED" }
-            : r
-        )
+          r.lan === lan ? { ...r, agreement_esign_status: "INITIATED" } : r,
+        ),
       );
     } catch (err) {
       setToast({
@@ -428,84 +420,84 @@ const openBankModal = (loanRow) => {
     { key: "mobile_number", header: "Mobile" },
 
     {
-  key: "status",
-  header: "Loan Status",
-  render: (r) => {
-    const status = (r.status || "Approved").toUpperCase();
+      key: "status",
+      header: "Loan Status",
+      render: (r) => {
+        const status = (r.status || "Approved").toUpperCase();
 
-    const statusMap = {
-      APPROVED: {
-        bg: "#eaf8ef",
-        border: "#9ad9b0",
-        color: "#0f7a42",
-        dot: "#16a34a",
-      },
-      LOGIN: {
-        bg: "#eef4ff",
-        border: "#b8cdfa",
-        color: "#1d4ed8",
-        dot: "#2563eb",
-      },
-      DISBURSED: {
-        bg: "#ecfdf3",
-        border: "#a7f3d0",
-        color: "#047857",
-        dot: "#10b981",
-      },
-      PENDING: {
-        bg: "#fff7e8",
-        border: "#f4d08a",
-        color: "#b45309",
-        dot: "#f59e0b",
-      },
-      REJECTED: {
-        bg: "#fef2f2",
-        border: "#fecaca",
-        color: "#b91c1c",
-        dot: "#ef4444",
-      },
-    };
+        const statusMap = {
+          APPROVED: {
+            bg: "#eaf8ef",
+            border: "#9ad9b0",
+            color: "#0f7a42",
+            dot: "#16a34a",
+          },
+          LOGIN: {
+            bg: "#eef4ff",
+            border: "#b8cdfa",
+            color: "#1d4ed8",
+            dot: "#2563eb",
+          },
+          DISBURSED: {
+            bg: "#ecfdf3",
+            border: "#a7f3d0",
+            color: "#047857",
+            dot: "#10b981",
+          },
+          PENDING: {
+            bg: "#fff7e8",
+            border: "#f4d08a",
+            color: "#b45309",
+            dot: "#f59e0b",
+          },
+          REJECTED: {
+            bg: "#fef2f2",
+            border: "#fecaca",
+            color: "#b91c1c",
+            dot: "#ef4444",
+          },
+        };
 
-    const c = statusMap[status] || {
-      bg: "#f3f4f6",
-      border: "#d1d5db",
-      color: "#374151",
-      dot: "#6b7280",
-    };
+        const c = statusMap[status] || {
+          bg: "#f3f4f6",
+          border: "#d1d5db",
+          color: "#374151",
+          dot: "#6b7280",
+        };
 
-    return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "7px 14px",
-          borderRadius: "999px",
-          background: c.bg,
-          border: `1px solid ${c.border}`,
-          color: c.color,
-          fontWeight: 700,
-          fontSize: 12,
-          letterSpacing: "0.2px",
-          minWidth: 110,
-          justifyContent: "center",
-          boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
-        }}
-      >
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: c.dot,
-            display: "inline-block",
-          }}
-        />
-        {r.status || "Approved"}
-      </span>
-    );
-  },
-},
+        return (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "7px 14px",
+              borderRadius: "999px",
+              background: c.bg,
+              border: `1px solid ${c.border}`,
+              color: c.color,
+              fontWeight: 700,
+              fontSize: 12,
+              letterSpacing: "0.2px",
+              minWidth: 110,
+              justifyContent: "center",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: c.dot,
+                display: "inline-block",
+              }}
+            />
+            {r.status || "Approved"}
+          </span>
+        );
+      },
+    },
     // {
     //   key: "status",
     //   header: "Loan Status",
@@ -574,13 +566,11 @@ const openBankModal = (loanRow) => {
       render: (r) => {
         const status = (r.agreement_esign_status || "").toUpperCase();
 
-const disabled =
-  actionLan === r.lan ||
-  status === "SIGNED";
+        const disabled = actionLan === r.lan || status === "SIGNED";
 
         return (
-<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-  <EsignChip status={r.agreement_esign_status} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <EsignChip status={r.agreement_esign_status} />
 
             <button
               onClick={() => handleAgreementEsign(r)}
@@ -588,9 +578,7 @@ const disabled =
               style={{
                 padding: "6px 8px",
                 borderRadius: 6,
-                border: disabled
-                  ? "1px solid #cbd5f5"
-                  : "1px solid #93c5fd",
+                border: disabled ? "1px solid #cbd5f5" : "1px solid #93c5fd",
                 color: disabled ? "#9ca3af" : "#1d4ed8",
                 background: "#fff",
                 cursor: disabled ? "not-allowed" : "pointer",
@@ -598,12 +586,12 @@ const disabled =
               }}
             >
               {actionLan === r.lan
-  ? "Processing..."
-  : status === "SIGNED"
-  ? "Already Signed"
-  : ["FAILED", "INITIATED"].includes(status)
-  ? "Retry Agreement eSign"
-  : "Send Agreement eSign"}
+                ? "Processing..."
+                : status === "SIGNED"
+                  ? "Already Signed"
+                  : ["FAILED", "INITIATED"].includes(status)
+                    ? "Retry Agreement eSign"
+                    : "Send Agreement eSign"}
             </button>
           </div>
         );
@@ -612,224 +600,230 @@ const disabled =
 
     // 🔹 ACTION Buttons
     {
-  key: "actions",
-  header: "Actions",
-  width: 280,
-  render: (r) => {
-    const bankStatus = (r.bank_status || "PENDING").toUpperCase();
+      key: "actions",
+      header: "Actions",
+      width: 280,
+      render: (r) => {
+        const bankStatus = (r.bank_status || "PENDING").toUpperCase();
 
-    const disableBankBtn =
-      bankStatus === "VERIFIED" ||
-      bankStatus === "MANDATE_CREATED" ||
-      actionLan === r.lan;
+        const disableBankBtn =
+          bankStatus === "VERIFIED" ||
+          bankStatus === "MANDATE_CREATED" ||
+          actionLan === r.lan;
 
-    const bankChipMap = {
-      PENDING: {
-        bg: "#fff7e8",
-        bd: "#f4d08a",
-        fg: "#b45309",
-        dot: "#f59e0b",
-        label: "Pending Bank",
-      },
-      VERIFIED: {
-        bg: "#eef4ff",
-        bd: "#b8cdfa",
-        fg: "#1d4ed8",
-        dot: "#2563eb",
-        label: "Verified",
-      },
-      MANDATE_CREATED: {
-        bg: "#eaf8ef",
-        bd: "#9ad9b0",
-        fg: "#0f7a42",
-        dot: "#16a34a",
-        label: "Mandate Created",
-      },
-    };
+        const bankChipMap = {
+          PENDING: {
+            bg: "#fff7e8",
+            bd: "#f4d08a",
+            fg: "#b45309",
+            dot: "#f59e0b",
+            label: "Pending Bank",
+          },
+          VERIFIED: {
+            bg: "#eef4ff",
+            bd: "#b8cdfa",
+            fg: "#1d4ed8",
+            dot: "#2563eb",
+            label: "Verified",
+          },
+          MANDATE_INITIATED: {
+            bg: "rgba(124,58,237,.12)",
+            bd: "rgba(124,58,237,.35)",
+            fg: "#5b21b6",
+            label: "Mandate Initiated",
+          },
+          MANDATE_CREATED: {
+            bg: "#eaf8ef",
+            bd: "#9ad9b0",
+            fg: "#0f7a42",
+            dot: "#16a34a",
+            label: "Mandate Created",
+          },
+        };
 
-    const chip = bankChipMap[bankStatus] || bankChipMap.PENDING;
+        const chip = bankChipMap[bankStatus] || bankChipMap.PENDING;
 
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          alignItems: "flex-start",
-        }}
-      >
-        {/* BANK STATUS CHIP */}
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "7px 12px",
-            borderRadius: "999px",
-            fontSize: 12,
-            fontWeight: 700,
-            background: chip.bg,
-            color: chip.fg,
-            border: `1px solid ${chip.bd}`,
-            boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
-          }}
-        >
-          <span
+        return (
+          <div
             style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: chip.dot,
-              display: "inline-block",
-            }}
-          />
-          {chip.label}
-        </span>
-
-        {/* ACTION BUTTONS */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            onClick={() => nav(`/documents/${r.lan}`)}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 10,
-              border: "1px solid #b8cdfa",
-              color: "#1d4ed8",
-              background: "#f8fbff",
-              cursor: "pointer",
-              fontWeight: 700,
-              fontSize: 12,
-              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              alignItems: "flex-start",
             }}
           >
-            Docs
-          </button>
+            {/* BANK STATUS CHIP */}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 12px",
+                borderRadius: "999px",
+                fontSize: 12,
+                fontWeight: 700,
+                background: chip.bg,
+                color: chip.fg,
+                border: `1px solid ${chip.bd}`,
+                boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: chip.dot,
+                  display: "inline-block",
+                }}
+              />
+              {chip.label}
+            </span>
 
-          <button
-            onClick={() => !disableBankBtn && openBankModal(r)}
-            disabled={disableBankBtn}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 10,
-              border: disableBankBtn
-                ? "1px solid #d8dee9"
-                : "1px solid #9ad9b0",
-              color: disableBankBtn ? "#9ca3af" : "#0f7a42",
-              background: disableBankBtn ? "#f8fafc" : "#eefbf3",
-              cursor: disableBankBtn ? "not-allowed" : "pointer",
-              fontWeight: 700,
-              fontSize: 12,
-              boxShadow: disableBankBtn
-                ? "none"
-                : "0 1px 2px rgba(15, 23, 42, 0.04)",
-            }}
-          >
-            {bankStatus === "PENDING"
-              ? "Add Bank"
-              : bankStatus === "VERIFIED"
-              ? "Verified"
-              : "Mandate Created"}
-          </button>
-        </div>
-      </div>
-    );
-  },
-}
-//    {
-//   key: "actions",
-//   header: "Actions",
-//   width: 260,
-//   render: (r) => {
-//     const bankStatus = (r.bank_status || "PENDING").toUpperCase();
+            {/* ACTION BUTTONS */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={() => nav(`/documents/${r.lan}`)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #b8cdfa",
+                  color: "#1d4ed8",
+                  background: "#f8fbff",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+                }}
+              >
+                Docs
+              </button>
 
-//     const disableBankBtn =
-//       bankStatus === "VERIFIED" ||
-//       bankStatus === "MANDATE_CREATED" ||
-//       actionLan === r.lan;
+              <button
+                onClick={() => !disableBankBtn && openBankModal(r)}
+                disabled={disableBankBtn}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 10,
+                  border: disableBankBtn
+                    ? "1px solid #d8dee9"
+                    : "1px solid #9ad9b0",
+                  color: disableBankBtn ? "#9ca3af" : "#0f7a42",
+                  background: disableBankBtn ? "#f8fafc" : "#eefbf3",
+                  cursor: disableBankBtn ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  boxShadow: disableBankBtn
+                    ? "none"
+                    : "0 1px 2px rgba(15, 23, 42, 0.04)",
+                }}
+              >
+                {bankStatus === "PENDING"
+                  ? "Add Bank"
+                  : bankStatus === "VERIFIED"
+                    ? "Verified"
+                    : "Mandate Created"}
+              </button>
+            </div>
+          </div>
+        );
+      },
+    },
+    //    {
+    //   key: "actions",
+    //   header: "Actions",
+    //   width: 260,
+    //   render: (r) => {
+    //     const bankStatus = (r.bank_status || "PENDING").toUpperCase();
 
-//     const bankChipMap = {
-//       PENDING: {
-//         bg: "rgba(234,179,8,.12)",
-//         bd: "rgba(234,179,8,.35)",
-//         fg: "#713f12",
-//         label: "Pending Bank",
-//       },
-//       VERIFIED: {
-//         bg: "rgba(59,130,246,.12)",
-//         bd: "rgba(59,130,246,.35)",
-//         fg: "#1e3a8a",
-//         label: "Verified",
-//       },
-//       MANDATE_CREATED: {
-//         bg: "rgba(16,185,129,.12)",
-//         bd: "rgba(16,185,129,.35)",
-//         fg: "#065f46",
-//         label: "Mandate Created",
-//       },
-//     };
+    //     const disableBankBtn =
+    //       bankStatus === "VERIFIED" ||
+    //       bankStatus === "MANDATE_CREATED" ||
+    //       actionLan === r.lan;
 
-//     const chip = bankChipMap[bankStatus];
+    //     const bankChipMap = {
+    //       PENDING: {
+    //         bg: "rgba(234,179,8,.12)",
+    //         bd: "rgba(234,179,8,.35)",
+    //         fg: "#713f12",
+    //         label: "Pending Bank",
+    //       },
+    //       VERIFIED: {
+    //         bg: "rgba(59,130,246,.12)",
+    //         bd: "rgba(59,130,246,.35)",
+    //         fg: "#1e3a8a",
+    //         label: "Verified",
+    //       },
+    //       MANDATE_CREATED: {
+    //         bg: "rgba(16,185,129,.12)",
+    //         bd: "rgba(16,185,129,.35)",
+    //         fg: "#065f46",
+    //         label: "Mandate Created",
+    //       },
+    //     };
 
-//     return (
-//       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        
-//         {/* BANK STATUS CHIP */}
-//         <span
-//           style={{
-//             padding: "3px 8px",
-//             borderRadius: 999,
-//             fontSize: 11,
-//             fontWeight: 600,
-//             background: chip.bg,
-//             color: chip.fg,
-//             border: `1px solid ${chip.bd}`,
-//             textTransform: "uppercase",
-//             width: "fit-content",
-//           }}
-//         >
-//           ● {chip.label}
-//         </span>
+    //     const chip = bankChipMap[bankStatus];
 
-//         {/* DOCS BUTTON */}
-//         <button
-//           onClick={() => nav(`/documents/${r.lan}`)}
-//           style={{
-//             padding: "8px 10px",
-//             borderRadius: 8,
-//             border: "1px solid #93c5fd",
-//             color: "#1d4ed8",
-//             background: "#fff",
-//             cursor: "pointer",
-//             fontWeight: 600,
-//           }}
-//         >
-//           📂 Docs
-//         </button>
+    //     return (
+    //       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
 
-//         {/* ADD BANK BUTTON */}
-//         <button
-//           onClick={() => !disableBankBtn && openBankModal(r)}
-//           disabled={disableBankBtn}
-//           style={{
-//             padding: "8px 10px",
-//             borderRadius: 8,
-//             border: disableBankBtn ? "1px solid #cbd5f5" : "1px solid #34d399",
-//             color: disableBankBtn ? "#9ca3af" : "#047857",
-//             background: disableBankBtn ? "#f3f4f6" : "#ecfdf5",
-//             cursor: disableBankBtn ? "not-allowed" : "pointer",
-//             fontWeight: 600,
-//           }}
-//         >
-//           {bankStatus === "PENDING"
-//             ? "🏦 Add Bank"
-//             : bankStatus === "VERIFIED"
-//             ? "Verified"
-//             : "Mandate Created"}
-//         </button>
-//       </div>
-//     );
-//   },
-// }
+    //         {/* BANK STATUS CHIP */}
+    //         <span
+    //           style={{
+    //             padding: "3px 8px",
+    //             borderRadius: 999,
+    //             fontSize: 11,
+    //             fontWeight: 600,
+    //             background: chip.bg,
+    //             color: chip.fg,
+    //             border: `1px solid ${chip.bd}`,
+    //             textTransform: "uppercase",
+    //             width: "fit-content",
+    //           }}
+    //         >
+    //           ● {chip.label}
+    //         </span>
+
+    //         {/* DOCS BUTTON */}
+    //         <button
+    //           onClick={() => nav(`/documents/${r.lan}`)}
+    //           style={{
+    //             padding: "8px 10px",
+    //             borderRadius: 8,
+    //             border: "1px solid #93c5fd",
+    //             color: "#1d4ed8",
+    //             background: "#fff",
+    //             cursor: "pointer",
+    //             fontWeight: 600,
+    //           }}
+    //         >
+    //           📂 Docs
+    //         </button>
+
+    //         {/* ADD BANK BUTTON */}
+    //         <button
+    //           onClick={() => !disableBankBtn && openBankModal(r)}
+    //           disabled={disableBankBtn}
+    //           style={{
+    //             padding: "8px 10px",
+    //             borderRadius: 8,
+    //             border: disableBankBtn ? "1px solid #cbd5f5" : "1px solid #34d399",
+    //             color: disableBankBtn ? "#9ca3af" : "#047857",
+    //             background: disableBankBtn ? "#f3f4f6" : "#ecfdf5",
+    //             cursor: disableBankBtn ? "not-allowed" : "pointer",
+    //             fontWeight: 600,
+    //           }}
+    //         >
+    //           {bankStatus === "PENDING"
+    //             ? "🏦 Add Bank"
+    //             : bankStatus === "VERIFIED"
+    //             ? "Verified"
+    //             : "Mandate Created"}
+    //         </button>
+    //       </div>
+    //     );
+    //   },
+    // }
   ];
 
   // ---------- FINAL JSX ----------
@@ -849,20 +843,20 @@ const disabled =
               toast.type === "error"
                 ? "rgba(248,113,113,.1)"
                 : toast.type === "success"
-                ? "rgba(16,185,129,.08)"
-                : "rgba(59,130,246,.08)",
+                  ? "rgba(16,185,129,.08)"
+                  : "rgba(59,130,246,.08)",
             border:
               toast.type === "error"
                 ? "1px solid rgba(248,113,113,.4)"
                 : toast.type === "success"
-                ? "1px solid rgba(16,185,129,.35)"
-                : "1px solid rgba(59,130,246,.35)",
+                  ? "1px solid rgba(16,185,129,.35)"
+                  : "1px solid rgba(59,130,246,.35)",
             color:
               toast.type === "error"
                 ? "#991b1b"
                 : toast.type === "success"
-                ? "#14532d"
-                : "#1e3a8a",
+                  ? "#14532d"
+                  : "#1e3a8a",
             fontWeight: 500,
           }}
         >
@@ -941,7 +935,6 @@ const disabled =
                 >
                   <option value="SAVINGS">SAVINGS</option>
                   <option value="CURRENT">CURRENT</option>
-                 
                 </select>
               </div>
 
@@ -954,7 +947,6 @@ const disabled =
                   name="mandate_amount"
                   value={bankForm.mandate_amount}
                   onChange={handleBankChange}
-                  
                 />
               </div>
 
@@ -965,7 +957,6 @@ const disabled =
                   name="mandate_start_date"
                   value={bankForm.mandate_start_date}
                   onChange={handleBankChange}
-                  
                 />
               </div>
 
@@ -976,7 +967,6 @@ const disabled =
                   name="mandate_end_date"
                   value={bankForm.mandate_end_date}
                   onChange={handleBankChange}
-                  
                 />
               </div>
 

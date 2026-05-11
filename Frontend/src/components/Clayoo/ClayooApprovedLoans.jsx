@@ -325,7 +325,7 @@ const ClayooApprovedLoans = ({
 
   // ---------- Status Chip ----------
   const EsignChip = ({ status }) => {
-    const st = (status || "PENDING").toUpperCase();
+    const st = (status || "PENDING").trim().toUpperCase();
 
     const map = {
       SIGNED: {
@@ -354,7 +354,7 @@ const ClayooApprovedLoans = ({
       },
     };
 
-    const c = map[st];
+    const c = map[st] || map.PENDING;
 
     return (
       <span
@@ -603,7 +603,7 @@ const ClayooApprovedLoans = ({
       header: "Actions",
       width: 260,
       render: (r) => {
-        const bankStatus = (r.bank_status || "PENDING").toUpperCase();
+        const bankStatus = (r.bank_status || "PENDING").trim().toUpperCase();
 
         const disableBankBtn =
           bankStatus === "VERIFIED" ||
@@ -624,12 +624,18 @@ const ClayooApprovedLoans = ({
             fg: "#1e3a8a",
             label: "Verified",
           },
+          MANDATE_INITIATED: {
+          bg: "rgba(124,58,237,.12)",
+          bd: "rgba(124,58,237,.35)",
+          fg: "#5b21b6",
+          label: "Mandate Initiated",
+          },
           MANDATE_CREATED: {
             bg: "rgba(16,185,129,.12)",
             bd: "rgba(16,185,129,.35)",
             fg: "#065f46",
             label: "Mandate Created",
-          },
+          }
         };
 
         const chip = bankChipMap[bankStatus];
