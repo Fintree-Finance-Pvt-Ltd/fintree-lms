@@ -1229,9 +1229,9 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
 
     await connection.commit();
 
-    // Later: replace this with PAN + Bureau only.
-    // For now do NOT call universalRunAllValidations if it still triggers Aadhaar.
-    // universalRunPanAndBureauOnly(data.lan);
+    universalRunAllValidations(data.lan).catch((err) => {
+  console.error("Validation engine failed after booking:", err);
+});
 
     return res.json({
       success: true,
