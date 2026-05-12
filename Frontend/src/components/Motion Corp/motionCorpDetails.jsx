@@ -18,11 +18,11 @@ const MotionCorpDetails = () => {
         setLoading(true);
         setErr("");
         // Updated endpoint to match your new backend route
-        const res = await api.get(`/loan-digit/loan-digit-info/${lan}`);
+        const res = await api.get(`/motion-corp/customer-info/${lan}`);
         setDetails(res.data);
       } catch (e) {
-        console.error("Failed to fetch Loan Digit details:", e);
-        setErr("Failed to fetch loan details.");
+        console.error("Failed to fetch Motion Corp details:", e);
+        setErr("Failed to fetch customer details.");
       } finally {
         setLoading(false);
       }

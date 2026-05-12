@@ -176,7 +176,7 @@ import MotionCorpAllLoans from "./components/Motion Corp/motionCorpAllLoans";
 import MotionCorpLoginCases from "./components/Motion Corp/MotionCorpLoginCases";
 import MotionCorpDisburseInitiate from "./components/Motion Corp/motionCorpDisburseInitiate";
 import MotionCorpDetails from "./components/Motion Corp/motionCorpDetails";
-import MotionCorpLoginAction from "./components/Motion Corp/motionCorpLoginAction";
+import MotionCorpLoginAction from "./components/Motion Corp/MotionCorpLoginAction";
 
 
 function App() {
