@@ -106,6 +106,8 @@ const AllLoansScreen = ({
           onClick={() => {
             if (/^LDF/i.test(r.lan)) {
               nav(`/loan-digit/customer-details?lan=${r.lan}`);
+            }else if(/^MC/i.test(r.lan)){
+              nav(`/motion-corp/customer-details?lan=${r.lan}`);
             } else {
               nav(`/loan-details/${r.lan}`);
             }
