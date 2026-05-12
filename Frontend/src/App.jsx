@@ -172,6 +172,11 @@ import SMLLoginloans from "./components/switch-my-loan/SMLLoginLoans";
 import SMLAllLoans from "./components/switch-my-loan/SMLAllLoans";
 import RetentionRelease from "./components/RetentionRelease";
 import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpLoanBooking";
+import MotionCorpAllLoans from "./components/Motion Corp/motionCorpAllLoans";
+import MotionCorpLoginCases from "./components/Motion Corp/MotionCorpLoginCases";
+import MotionCorpDisburseInitiate from "./components/Motion Corp/motionCorpDisburseInitiate";
+import MotionCorpDetails from "./components/Motion Corp/motionCorpDetails";
+import MotionCorpLoginAction from "./components/Motion Corp/motionCorpLoginAction";
 
 
 function App() {
@@ -1447,6 +1452,43 @@ function App() {
             element={
               <PermissionRoute pageName="Motion Corp Dealer All Cases Screen">
                 <MotionCorpDealerAllCases />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/all-loans"
+            element={
+              <PermissionRoute pageName="Motion Corp Customer All Cases Screen">
+                <MotionCorpAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/login-cases"
+            element={
+              <PermissionRoute pageName="Motion Corp Customer Login Cases Screen">
+                <MotionCorpLoginCases />
+              </PermissionRoute>
+            }
+          />
+
+            <Route
+            path="/motion-corp/credit-initiated-cases"
+            element={
+              <PermissionRoute pageName="Motion Corp Customer Credit Initiated Cases Screen">
+                <MotionCorpLoginAction />
+              </PermissionRoute>
+            }
+          />
+
+            
+            <Route
+            path="/motion-corp/customer-details"
+            element={
+              <PermissionRoute pageName="Motion Corp Customer Details">
+                <MotionCorpDetails />
               </PermissionRoute>
             }
           />

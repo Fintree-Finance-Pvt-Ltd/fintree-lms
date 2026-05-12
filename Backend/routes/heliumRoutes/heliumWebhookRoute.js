@@ -190,6 +190,10 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
           console.log("Triggering CLAYYO auto-approval check for LAN:", lan);
           await autoApproveClayyoIfAllVerified(lan);
         }
+        else if(lan.startsWith("MC")){
+          console.log("Triggering Motion Corp auto-approval check for LAN:", lan);
+          await autoApproveMotionCorpIfAllVerified(lan);
+        }
         else {
           console.log("⚠️ LAN does not start with HEL, skipping auto-approval:", lan);
         }

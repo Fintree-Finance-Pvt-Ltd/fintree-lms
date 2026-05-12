@@ -1757,4 +1757,352 @@ router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
   }
 });
 
+router.get("/motion-corp/customer-info/:lan", async (req, res) => {
+  const { lan } = req.params;
+
+  try {
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        lan,
+        partner_loan_id,
+        login_date,
+
+        first_name,
+        last_name,
+        customer_name,
+
+        mobile_number,
+        email,
+        pan_card,
+        dob,
+        gender,
+        father_name,
+
+        permanent_address_line_1,
+        permanent_address_line_2,
+        permanent_village_city,
+        permanent_district,
+        permanent_state,
+        permanent_pincode,
+
+        loan_amount,
+        processing_fee,
+        processing_fee_percentage,
+        disbursal_amount,
+        interest_rate,
+        loan_tenure,
+
+        guarantor_name,
+        guarantor_dob,
+        guarantor_pan,
+        guarantor_mobile,
+        guarantor_email,
+        relationship_with_borrower,
+
+        guarantor_address_line_1,
+        guarantor_address_line_2,
+        guarantor_village_city,
+        guarantor_district,
+        guarantor_state,
+        guarantor_pincode,
+
+        co_applicant_name,
+        co_applicant_dob,
+        co_applicant_pan,
+        co_applicant_mobile,
+        co_applicant_email,
+
+        co_applicant_address_line_1,
+        co_applicant_address_line_2,
+        co_applicant_village_city,
+        co_applicant_district,
+        co_applicant_state,
+        co_applicant_pincode,
+
+        customer_name_as_per_bank,
+        customer_bank_name,
+        customer_account_number,
+        bank_ifsc_code,
+
+        selected_dealer_application_id,
+        dealer_id,
+        trade_name,
+        dealer_name,
+        dealer_contact,
+        dealer_email,
+        gst_no,
+        pan_number,
+
+        dealer_address,
+        dealer_city,
+        dealer_state,
+        dealer_pincode,
+
+        dealer_bank_name,
+        dealer_account_number,
+        dealer_ifsc,
+        dealer_name_in_bank,
+
+        selected_product_id,
+        battery_name,
+        battery_type,
+        battery_serial_no_1,
+        battery_serial_no_2,
+        e_rikshaw_model,
+        chassis_no,
+
+        borrower_mobile_verified,
+        guarantor_mobile_verified,
+        co_applicant_mobile_verified,
+
+        lender,
+        lender_type,
+        product,
+        status,
+
+        created_at,
+        updated_at,
+
+        motioncorp_bre_status,
+        motioncorp_bre_reason,
+        motioncorp_bre_checked_at,
+
+        fintree_cibil_score,
+        motioncorp_enquiries_30d,
+
+        motioncorp_dpd_3m_flag,
+        motioncorp_dpd_6m_flag,
+        motioncorp_overdue_12m_flag,
+
+        motioncorp_written_off_3y_flag,
+
+        motioncorp_60plus_24m_flag,
+        motioncorp_90plus_36m_flag,
+
+        motioncorp_emi_overdue_amount,
+        motioncorp_cc_overdue_amount,
+
+        motioncorp_deviation_flag
+
+      FROM loan_booking_motion_corp
+      WHERE lan = ?
+      `,
+      [lan],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        message: "Motion Corp loan not found",
+      });
+    }
+
+    const row = rows[0];
+
+    const loan = {
+      lan: row.lan,
+      partner_loan_id: row.partner_loan_id,
+      login_date: row.login_date,
+
+      first_name: row.first_name,
+      last_name: row.last_name,
+      customer_name: row.customer_name,
+
+      mobile_number: row.mobile_number,
+      email: row.email,
+      pan_card: row.pan_card,
+      dob: row.dob,
+      gender: row.gender,
+      father_name: row.father_name,
+
+      permanent_address: {
+        address_line_1: row.permanent_address_line_1,
+        address_line_2: row.permanent_address_line_2,
+        city: row.permanent_village_city,
+        district: row.permanent_district,
+        state: row.permanent_state,
+        pincode: row.permanent_pincode,
+      },
+
+      loan_details: {
+        loan_amount: row.loan_amount,
+        processing_fee: row.processing_fee,
+        processing_fee_percentage:
+          row.processing_fee_percentage,
+        disbursal_amount: row.disbursal_amount,
+        interest_rate: row.interest_rate,
+        loan_tenure: row.loan_tenure,
+      },
+
+      guarantor: {
+        name: row.guarantor_name,
+        dob: row.guarantor_dob,
+        pan: row.guarantor_pan,
+        mobile: row.guarantor_mobile,
+        email: row.guarantor_email,
+        relationship_with_borrower:
+          row.relationship_with_borrower,
+
+        address: {
+          address_line_1:
+            row.guarantor_address_line_1,
+          address_line_2:
+            row.guarantor_address_line_2,
+          city: row.guarantor_village_city,
+          district: row.guarantor_district,
+          state: row.guarantor_state,
+          pincode: row.guarantor_pincode,
+        },
+      },
+
+      co_applicant: {
+        name: row.co_applicant_name,
+        dob: row.co_applicant_dob,
+        pan: row.co_applicant_pan,
+        mobile: row.co_applicant_mobile,
+        email: row.co_applicant_email,
+
+        address: {
+          address_line_1:
+            row.co_applicant_address_line_1,
+          address_line_2:
+            row.co_applicant_address_line_2,
+          city: row.co_applicant_village_city,
+          district: row.co_applicant_district,
+          state: row.co_applicant_state,
+          pincode: row.co_applicant_pincode,
+        },
+      },
+
+      bank_details: {
+        customer_name_as_per_bank:
+          row.customer_name_as_per_bank,
+        customer_bank_name:
+          row.customer_bank_name,
+        customer_account_number:
+          row.customer_account_number,
+        bank_ifsc_code:
+          row.bank_ifsc_code,
+      },
+
+      dealer_details: {
+        selected_dealer_application_id:
+          row.selected_dealer_application_id,
+        dealer_id: row.dealer_id,
+        trade_name: row.trade_name,
+        dealer_name: row.dealer_name,
+        dealer_contact: row.dealer_contact,
+        dealer_email: row.dealer_email,
+        gst_no: row.gst_no,
+        pan_number: row.pan_number,
+
+        dealer_address: row.dealer_address,
+        dealer_city: row.dealer_city,
+        dealer_state: row.dealer_state,
+        dealer_pincode: row.dealer_pincode,
+
+        dealer_bank_name:
+          row.dealer_bank_name,
+        dealer_account_number:
+          row.dealer_account_number,
+        dealer_ifsc: row.dealer_ifsc,
+        dealer_name_in_bank:
+          row.dealer_name_in_bank,
+      },
+
+      product_details: {
+        selected_product_id:
+          row.selected_product_id,
+        battery_name: row.battery_name,
+        battery_type: row.battery_type,
+        battery_serial_no_1:
+          row.battery_serial_no_1,
+        battery_serial_no_2:
+          row.battery_serial_no_2,
+        e_rikshaw_model:
+          row.e_rikshaw_model,
+        chassis_no: row.chassis_no,
+      },
+
+      verification: {
+        borrower_mobile_verified:
+          row.borrower_mobile_verified,
+
+        guarantor_mobile_verified:
+          row.guarantor_mobile_verified,
+
+        co_applicant_mobile_verified:
+          row.co_applicant_mobile_verified,
+      },
+
+      lender: row.lender,
+      lender_type: row.lender_type,
+      product: row.product,
+      status: row.status,
+
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+
+    const bre = {
+      fintree_cibil_score:
+        row.fintree_cibil_score,
+
+      enquiries_30d:
+        row.motioncorp_enquiries_30d,
+
+      dpd_3m_flag:
+        row.motioncorp_dpd_3m_flag,
+
+      dpd_6m_flag:
+        row.motioncorp_dpd_6m_flag,
+
+      overdue_12m_flag:
+        row.motioncorp_overdue_12m_flag,
+
+      written_off_3y_flag:
+        row.motioncorp_written_off_3y_flag,
+
+      dpd_60plus_24m_flag:
+        row.motioncorp_60plus_24m_flag,
+
+      dpd_90plus_36m_flag:
+        row.motioncorp_90plus_36m_flag,
+
+      emi_overdue_amount:
+        row.motioncorp_emi_overdue_amount,
+
+      cc_overdue_amount:
+        row.motioncorp_cc_overdue_amount,
+
+      deviation_flag:
+        row.motioncorp_deviation_flag,
+
+      bre_status:
+        row.motioncorp_bre_status,
+
+      bre_reason:
+        row.motioncorp_bre_reason,
+
+      bre_checked_at:
+        row.motioncorp_bre_checked_at,
+    };
+
+    return res.json({
+      loan,
+      bre,
+    });
+  } catch (err) {
+    console.error(
+      "❌ Error fetching Motion Corp details:",
+      err,
+    );
+
+    return res.status(500).json({
+      message: "Failed to fetch Motion Corp details",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
 module.exports = router;

@@ -935,7 +935,7 @@ router.post(
       } else {
         return res.status(400).json({
           error: "Invalid LAN format",
-          message: "LAN must start with SML or LDF",
+          message: "Invalid LAN",
         });
       }
 
