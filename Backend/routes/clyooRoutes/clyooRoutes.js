@@ -1315,7 +1315,6 @@ router.put("/ops-approve/:lan", async (req, res) => {
 //   });
 // });
 
-
 router.put("/approve-initiated-loans/:lan", async (req, res) => {
   const lan = req.params.lan;
   const { status, table } = req.body;
@@ -1329,10 +1328,7 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
   }
 
   if (
-    ![
-      LOAN_STATUS.CREDIT_APPROVED,
-      LOAN_STATUS.CREDIT_REJECTED,
-    ].includes(status)
+    ![LOAN_STATUS.CREDIT_APPROVED, LOAN_STATUS.CREDIT_REJECTED].includes(status)
   ) {
     return res.status(400).json({ message: "Invalid status value" });
   }
@@ -1345,7 +1341,7 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
     // Lock row while updating (prevents parallel approvals)
     const [[loan]] = await conn.query(
       `SELECT status FROM ?? WHERE lan = ? FOR UPDATE`,
-      [table, lan]
+      [table, lan],
     );
 
     if (!loan) {
@@ -1377,7 +1373,7 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
           stage = ?
       WHERE lan = ?
       `,
-      [table, newStatus, newStage, lan]
+      [table, newStatus, newStage, lan],
     );
 
     await conn.commit();
@@ -1390,7 +1386,6 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
       stage: newStage,
       message: `Loan moved to ${newStatus}`,
     });
-
   } catch (err) {
     await conn.rollback();
 
@@ -1403,7 +1398,6 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
     conn.release();
   }
 });
-
 
 router.get("/approved-loans", async (req, res) => {
   try {
@@ -1492,10 +1486,15 @@ router.get("/all-loans", async (req, res) => {
         lb.clayyo_bre_status,
         lb.clayyo_bre_reason,
         lb.clayyo_bre_checked_at,
+      
+        kyc.aadhaar_status,
+        COALESCE(kyc.aadhaar_retry_count, 0) AS aadhaar_retry_count,
         COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_name
       FROM loan_booking_clayyo lb
       LEFT JOIN clayyo_hospital_booking ch
         ON ch.id = lb.hospital_id
+      LEFT JOIN kyc_verification_status kyc
+        ON kyc.lan = lb.lan
       ORDER BY lb.login_date DESC, lb.lan DESC
       LIMIT ? OFFSET ?
       `,

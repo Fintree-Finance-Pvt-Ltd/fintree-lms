@@ -178,11 +178,111 @@ app.post("/api/runheliumvalidations", async (req, res) => {
   }
 });
 
+// app.post("/api/retryAadharVerification", async (req, res) => {
+//   try {
+//     const pool = db.promise();
+//     const { lan, mobile_number, email_id, customer_name } = req.body;
+
+//      if (!lan) {
+//       return res.status(400).json({
+//         ok: false,
+//         error: "LAN is required",
+//       });
+//     }
+
+//     const aadhaarInit = await initAadhaarKyc(
+//       lan,
+//       mobile_number,
+//       email_id,
+//       customer_name
+//     );
+
+//     if (aadhaarInit.success) {
+//       await pool.query(
+//         `UPDATE kyc_verification_status 
+//          SET aadhaar_transaction_id=?, aadhaar_kyc_url=?, aadhaar_unique_id=? 
+//          WHERE lan=?`,
+//         [
+//           aadhaarInit.unifiedTransactionId,
+//           aadhaarInit.kycUrl,
+//           aadhaarInit.uniqueId,
+//           lan,
+//         ]
+//       );
+
+//       console.log(
+//         "📨 Aadhaar INIT successful, KYC URL:",
+//         aadhaarInit.kycUrl
+//       );
+//     } else {
+//       console.log(
+//         "❌ Aadhaar INIT Failed, marking FAILED:",
+//         aadhaarInit.error || "Unknown error"
+//       );
+//       await pool.query(
+//         "UPDATE kyc_verification_status SET aadhaar_status='FAILED' WHERE lan=?",
+//         [lan]
+//       );
+//     }
+//     res.json({
+//       ok: true,
+//       message: `Aadhaar Link reshared successfully for Clayyo where LAN = ${lan}`,
+//     });
+//   } catch (err) {
+//     res.status(500).json({ ok: false, error: err.message });
+//   }
+// });
+
 app.post("/api/retryAadharVerification", async (req, res) => {
   try {
     const pool = db.promise();
     const { lan, mobile_number, email_id, customer_name } = req.body;
 
+    if (!lan) {
+      return res.status(400).json({
+        ok: false,
+        error: "LAN is required",
+      });
+    }
+
+    // 1. Get current Aadhaar status and retry count from DB
+    const [rows] = await pool.query(
+      `SELECT 
+          aadhaar_status, 
+          COALESCE(aadhaar_retry_count, 0) AS aadhaar_retry_count
+       FROM kyc_verification_status
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        ok: false,
+        error: `KYC verification record not found for LAN ${lan}`,
+      });
+    }
+
+    const currentStatus = String(rows[0].aadhaar_status || "").trim().toUpperCase();
+    const retryCount = Number(rows[0].aadhaar_retry_count || 0);
+
+    // 2. If Aadhaar already verified, do not retry
+    if (currentStatus === "VERIFIED") {
+      return res.status(400).json({
+        ok: false,
+        error: "Aadhaar is already verified. Retry is not allowed.",
+      });
+    }
+
+    // 3. Maximum 2 retry validation
+    if (retryCount >= 2) {
+      return res.status(400).json({
+        ok: false,
+        error: "Maximum Aadhaar retry limit reached.",
+      });
+    }
+
+    // 4. Trigger Aadhaar KYC again
     const aadhaarInit = await initAadhaarKyc(
       lan,
       mobile_number,
@@ -193,8 +293,14 @@ app.post("/api/retryAadharVerification", async (req, res) => {
     if (aadhaarInit.success) {
       await pool.query(
         `UPDATE kyc_verification_status 
-         SET aadhaar_transaction_id=?, aadhaar_kyc_url=?, aadhaar_unique_id=? 
-         WHERE lan=?`,
+         SET 
+            aadhaar_transaction_id = ?, 
+            aadhaar_kyc_url = ?, 
+            aadhaar_unique_id = ?,
+            aadhaar_status = 'INITIATED',
+            aadhaar_retry_count = COALESCE(aadhaar_retry_count, 0) + 1,
+            updated_at = NOW()
+         WHERE lan = ?`,
         [
           aadhaarInit.unifiedTransactionId,
           aadhaarInit.kycUrl,
@@ -203,26 +309,40 @@ app.post("/api/retryAadharVerification", async (req, res) => {
         ]
       );
 
-      console.log(
-        "📨 Aadhaar INIT successful, KYC URL:",
-        aadhaarInit.kycUrl
-      );
+      console.log("📨 Aadhaar INIT successful, KYC URL:", aadhaarInit.kycUrl);
+
+      return res.json({
+        ok: true,
+        message: `Aadhaar link reshared successfully for LAN ${lan}`,
+        aadhaar_retry_count: retryCount + 1,
+        aadhaar_status: "INITIATED",
+      });
     } else {
       console.log(
-        "❌ Aadhaar INIT Failed, marking FAILED:",
+        "❌ Aadhaar INIT Failed:",
         aadhaarInit.error || "Unknown error"
       );
+
       await pool.query(
-        "UPDATE kyc_verification_status SET aadhaar_status='FAILED' WHERE lan=?",
+        `UPDATE kyc_verification_status 
+         SET 
+            aadhaar_status = 'FAILED',
+            updated_at = NOW()
+         WHERE lan = ?`,
         [lan]
       );
+
+      return res.status(400).json({
+        ok: false,
+        error: aadhaarInit.error || "Aadhaar retry failed",
+      });
     }
-    res.json({
-      ok: true,
-      message: `Calyyo validations executed successfully for LAN ${lan}`,
-    });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    console.error("Aadhaar retry API error:", err);
+    res.status(500).json({
+      ok: false,
+      error: err.message || "Internal server error",
+    });
   }
 });
 
