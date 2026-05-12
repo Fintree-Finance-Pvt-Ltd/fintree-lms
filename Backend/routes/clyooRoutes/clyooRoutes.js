@@ -1457,7 +1457,7 @@ router.get("/approved-loans", async (req, res) => {
 router.get("/all-loans", async (req, res) => {
   try {
     const page = Number(req.query.page || 1);
-    const pageSize = Number(req.query.pageSize || 25);
+    const pageSize = Number(req.query.pageSize || 1500);
     const offset = (page - 1) * pageSize;
 
     const [[{ total }]] = await db.promise().query(`
