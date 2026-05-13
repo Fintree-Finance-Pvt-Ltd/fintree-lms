@@ -26,6 +26,7 @@ const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute");
 const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
 const { retryPendingValidations } = require("./services/heliumValidationEngine");
 const { autoApproveClayyoIfAllVerified } = require("./routes/clyooRoutes/clayyoBreEngine");
+const { autoApproveMotionCorpIfAllVerified } = require("./routes/MotionCorp/motionCorpBRE");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
 //const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
@@ -378,6 +379,25 @@ app.post("/api/loandigitvalidation", async (req, res) => {
     res.json({
       ok: true,
       message: `Loandigit validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/runmotioncorpvalidations", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+
+    await autoApproveMotionCorpIfAllVerified(lan);
+
+    res.json({
+      ok: true,
+      message: `Motion Corp validations executed successfully for LAN ${lan}`,
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
