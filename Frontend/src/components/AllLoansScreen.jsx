@@ -306,6 +306,35 @@ const AllLoansScreen = ({
       sortAccessor: (r) => (r.status || "").toLowerCase(),
       width: 130,
     },
+    {
+      key: "docs",
+      header: "Action",
+      render: (r) => (
+        <button
+          onClick={() => navigate(`/documents/${r.lan}`)}
+          style={{
+            padding: "8px 14px",
+            borderRadius: "8px",
+            border: "1px solid #e2e8f0",
+            color: "#0f172a",
+            background: "#fff",
+            cursor: "pointer",
+            fontSize: "12px",
+            fontWeight: "700",
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: '0.2s',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
+          onMouseOut={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
+        >
+          <span>📂</span> Documents
+        </button>
+      ),
+      width: 130,
+    },
   ];
 
   return (
