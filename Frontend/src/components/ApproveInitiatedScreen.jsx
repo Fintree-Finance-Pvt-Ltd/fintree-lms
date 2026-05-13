@@ -10,6 +10,9 @@ const ApproveInitiatedScreen = ({
   title = "Approval Initiated Stage Loans",
   lenderName = "EMICLUB",
   tableName,
+
+   approvePayload = null,
+  rejectPayload = null,
 }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,20 +35,54 @@ const ApproveInitiatedScreen = ({
   }, [apiUrl]);
 
   // keep EXACT behavior/signature
-  const handleStatusChange = async (lan, newStatus, table) => {
-    try {
-      await api.put(`/loan-booking/approve-initiated-loans/${lan}`, { status: newStatus, table });
-      setRows((prev) => prev.map((r) => (r.lan === lan ? { ...r, status: newStatus } : r)));
-    } catch (err) {
-      console.error("Error updating status:", err);
-      alert("Failed to update status. Try again.");
-    }
-  };
+  // const handleStatusChange = async (lan, newStatus, table) => {
+  //   try {
+  //     await api.put(`/loan-booking/approve-initiated-loans/${lan}`, { status: newStatus, table });
+  //     setRows((prev) => prev.map((r) => (r.lan === lan ? { ...r, status: newStatus } : r)));
+  //   } catch (err) {
+  //     console.error("Error updating status:", err);
+  //     alert("Failed to update status. Try again.");
+  //   }
+  // };
+
+  const handleStatusChange = async (
+  lan,
+  payload,
+  table,
+) => {
+  try {
+    await api.put(
+      `/loan-booking/approve-initiated-loans/${lan}`,
+      {
+        ...payload,
+        table,
+      },
+    );
+
+    setRows((prev) =>
+      prev.map((r) =>
+        r.lan === lan
+          ? {
+              ...r,
+              ...payload,
+            }
+          : r,
+      ),
+    );
+  } catch (err) {
+    console.error("Error updating status:", err);
+
+    alert("Failed to update status. Try again.");
+  }
+};
 
 
   // show Batch ID column only if any LAN begins with ADK
   const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
   const hasLDF = rows.some((r) => typeof r?.lan === "string" && /^LDF/i.test(r.lan));
+  const hasStageColumn = rows.some(
+  (r) => r.stage !== undefined && r.stage !== null,
+);
 
   // styles
   const pill = (status) => {
@@ -54,6 +91,44 @@ const ApproveInitiatedScreen = ({
       rejected: { bg: "rgba(239,68,68,.12)", bd: "rgba(239,68,68,.35)", fg: "#7f1d1d" },
       pending: { bg: "rgba(234,179,8,.12)", bd: "rgba(234,179,8,.35)", fg: "#713f12" },
       login: { bg: "rgba(107,114,128,.12)", bd: "rgba(107,114,128,.35)", fg: "#374151" },
+      "operations initiated": {
+    bg: "rgba(16,185,129,.12)",
+    bd: "rgba(16,185,129,.35)",
+    fg: "#065f46",
+  },
+
+  "credit approved": {
+    bg: "rgba(16,185,129,.12)",
+    bd: "rgba(16,185,129,.35)",
+    fg: "#065f46",
+  },
+   "credit rejected": {
+    bg: "rgba(239,68,68,.12)",
+    bd: "rgba(239,68,68,.35)",
+    fg: "#7f1d1d",
+  },
+ "credit initiated": {
+    bg: "rgba(245,158,11,.12)",
+    bd: "rgba(245,158,11,.35)",
+    fg: "#92400e",
+  },
+
+  "bre deviation": {
+    bg: "rgba(245,158,11,.12)",
+    bd: "rgba(245,158,11,.35)",
+    fg: "#92400e",
+  },
+   "bre approved": {
+    bg: "rgba(59,130,246,.12)",
+    bd: "rgba(59,130,246,.35)",
+    fg: "#1d4ed8",
+  },
+
+  "bre rejected": {
+    bg: "rgba(239,68,68,.12)",
+    bd: "rgba(239,68,68,.35)",
+    fg: "#7f1d1d",
+  },
     };
     const key = (status || "pending").toLowerCase();
     const c = map[key] || map.login;
@@ -161,6 +236,29 @@ const ApproveInitiatedScreen = ({
       csvAccessor: (r) => r.status || "Pending",
       width: 140,
     },
+    ...(hasStageColumn
+  ? [
+      {
+        key: "stage",
+        header: "Stage",
+        sortable: true,
+
+        render: (r) => (
+          <span style={pill(r.stage)}>
+            {r.stage || "—"}
+          </span>
+        ),
+
+        sortAccessor: (r) =>
+          (r.stage || "").toLowerCase(),
+
+        csvAccessor: (r) =>
+          r.stage || "",
+
+        width: 160,
+      },
+    ]
+  : []),
     {
       key: "docs",
       header: "Documents",
@@ -192,13 +290,31 @@ const ApproveInitiatedScreen = ({
         <div style={{ display: "flex", gap: 8 }}>
           <button
             style={actionBtn("approve")}
-            onClick={() => handleStatusChange(r.lan, "approved", tableName)}
+            // onClick={() => handleStatusChange(r.lan, "approved", tableName)}
+            onClick={() =>
+  handleStatusChange(
+    r.lan,
+    approvePayload || {
+      status: "approved",
+    },
+    tableName,
+  )
+}
           >
             ✅ Approve
           </button>
           <button
             style={actionBtn("reject")}
-            onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
+            // onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
+            onClick={() =>
+  handleStatusChange(
+    r.lan,
+    rejectPayload || {
+      status: "rejected",
+    },
+    tableName,
+  )
+}
           >
             ❌ Reject
           </button>

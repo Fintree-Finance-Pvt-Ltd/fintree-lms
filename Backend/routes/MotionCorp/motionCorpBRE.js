@@ -439,15 +439,28 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
     ? [...decision.reasons, ...decision.deviations].join(", ")
     : "ELIGIBLE";
 
-  let finalStatus = "BRE APPROVED";
+  // let finalStatus = "BRE APPROVED";
 
-  if (decision.status === "BRE REJECTED") {
-    finalStatus = "BRE REJECTED";
-  }
+  // if (decision.status === "BRE REJECTED") {
+  //   finalStatus = "BRE REJECTED";
+  // }
 
-  if (decision.status === "Credit Initiated") {
-    finalStatus = "Credit Initiated";
-  }
+  // if (decision.status === "Credit Initiated") {
+  //   finalStatus = "Credit Initiated";
+  // }
+
+  let finalStatus = "Operations Initiated";
+let finalStage = "BRE Approved";
+
+if (decision.status === "BRE REJECTED") {
+  finalStatus = "Rejected";
+  finalStage = "BRE Rejected";
+}
+
+if (decision.status === "Credit Initiated") {
+  finalStatus = "Credit Initiated";
+  finalStage = "BRE Deviation";
+}
 
   await pool.query(
     `
@@ -467,7 +480,8 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
       motioncorp_emi_overdue_amount = ?,
       motioncorp_cc_overdue_amount = ?,
 
-      status = ?
+      status = ?,
+stage = ?
     WHERE lan = ?
     `,
     [
@@ -485,7 +499,8 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
       bureauFacts.ccOverdueAmount,
 
       finalStatus,
-      lan,
+finalStage,
+lan,
     ],
   );
 

@@ -1478,7 +1478,7 @@ function App() {
             path="/motion-corp/credit-initiated-cases"
             element={
               <PermissionRoute pageName="Motion Corp Customer Credit Initiated Cases Screen">
-                <MotionCorpLoginAction />
+                <MotionCorpDisburseInitiate />
               </PermissionRoute>
             }
           />

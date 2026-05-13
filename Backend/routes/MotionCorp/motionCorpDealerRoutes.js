@@ -9,6 +9,7 @@ const {
   universalRunAllValidations,
 } = require("../../utils/runValiationsEngine");
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
+const { default: Login } = require("../../../Frontend/src/components/Login");
 
 const router = express.Router();
 
@@ -966,6 +967,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         lender,
         product,
         status,
+        stage,
         partner_loan_id,
         lan,
         login_date,
@@ -980,13 +982,14 @@ router.post("/save-borrower-first-section", async (req, res) => {
         gender,
         borrower_mobile_verified
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         emptyToNull(data.lenderType),
         emptyToNull(data.lender),
         emptyToNull(data.product),
-        emptyToNull(data.status),
+        "Login",
+        "Login",
         cust_partner_loan_id,
         cust_lan,
         emptyToNull(data.LOGIN_DATE),
@@ -2104,5 +2107,166 @@ router.get("/customer-details/:lan", async (req, res) => {
     });
   }
 });
+
+router.get("/credit-initiated-loans", async (req, res) => {
+  const {
+    table = "loan_booking_motion_corp",
+    prefix = "MC",
+    page = "1",
+    pageSize = "50",
+    search = "",
+    sortBy = "lan",
+    sortDir = "desc",
+  } = req.query;
+
+  const allowedTables = {
+    loan_booking_motion_corp: true,
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({
+      message: "Invalid table name",
+    });
+  }
+
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+
+  const limit = Math.min(
+    100,
+    Math.max(1, parseInt(pageSize, 10) || 50),
+  );
+
+  const offset = (pg - 1) * limit;
+
+  const safeSortDir =
+    sortDir.toLowerCase() === "asc"
+      ? "ASC"
+      : "DESC";
+
+  const allowedSort = [
+    "lan",
+    "partner_loan_id",
+    "customer_name",
+    "mobile_number",
+    "loan_amount",
+    "created_at",
+    "motioncorp_bre_checked_at",
+  ];
+
+  const sortCol = allowedSort.includes(sortBy)
+    ? sortBy
+    : "created_at";
+
+  try {
+    const likeVal = `${prefix}%`;
+
+    const searchClause = search
+      ? `
+        AND (
+          lb.lan LIKE ?
+          OR lb.customer_name LIKE ?
+          OR lb.partner_loan_id LIKE ?
+          OR lb.mobile_number LIKE ?
+        )
+      `
+      : "";
+
+    const searchParams = search
+      ? [
+          `%${search}%`,
+          `%${search}%`,
+          `%${search}%`,
+          `%${search}%`,
+        ]
+      : [];
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM ?? lb
+      WHERE
+        lb.status = 'Credit Initiated'
+        AND lb.stage = 'BRE Deviation'
+        AND lb.lan LIKE ?
+        ${searchClause}
+    `;
+
+    const dataSql = `
+      SELECT
+        lb.id,
+        lb.lan,
+        lb.partner_loan_id,
+
+        lb.customer_name,
+        lb.mobile_number,
+        lb.pan_card,
+
+        lb.loan_amount,
+        lb.interest_rate,
+        lb.loan_tenure,
+
+        lb.cibil_score,
+        lb.fintree_cibil_score,
+
+        lb.motioncorp_bre_status,
+        lb.motioncorp_bre_reason,
+        lb.motioncorp_bre_checked_at,
+
+        lb.status,
+        lb.stage,
+
+        lb.created_at
+
+      FROM ?? lb
+      WHERE
+        lb.status = 'Credit Initiated'
+        AND lb.stage = 'BRE Deviation'
+        AND lb.lan LIKE ?
+        ${searchClause}
+
+      ORDER BY lb.${sortCol} ${safeSortDir}
+
+      LIMIT ? OFFSET ?
+    `;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(
+        countSql,
+        [table, likeVal, ...searchParams],
+      ),
+
+      db.promise().query(
+        dataSql,
+        [
+          table,
+          likeVal,
+          ...searchParams,
+          limit,
+          offset,
+        ],
+      ),
+    ]);
+
+    return res.json({
+      rows,
+
+      pagination: {
+        page: pg,
+        pageSize: limit,
+        total: Number(countRows[0]?.total || 0),
+      },
+    });
+  } catch (err) {
+    console.error(
+      "Error fetching credit initiated loans:",
+      err,
+    );
+
+    return res.status(500).json({
+      message: "Database error",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
 
 module.exports = router;

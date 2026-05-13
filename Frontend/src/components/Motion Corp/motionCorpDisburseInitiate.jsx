@@ -1,14 +1,28 @@
-import React from 'react'
-import ApproveInitiatedScreen from '../ApproveInitiatedScreen'
+import React from "react";
+import ApproveInitiatedScreen from "../ApproveInitiatedScreen";
 
 const MotionCorpDisburseInitiate = () => {
   return (
     <ApproveInitiatedScreen
-      apiUrl={`/loan-booking/approve-initiate-loans?table=loan_booking_motion_corp&prefix=MCL`}
-      title="Motion Corp Disbursement Action Pending"
-      tableName="loan_booking_motion_corp"
-    />
-  )
-}
+      apiUrl={`/motion-corp/credit-initiated-loans?table=loan_booking_motion_corp&prefix=MC`}
 
-export default MotionCorpDisburseInitiate
+      title="Motion Corp Credit Initiated Loans"
+
+      tableName="loan_booking_motion_corp"
+
+      lenderName="Motion Corp"
+
+      approvePayload={{
+        status: "Operations Initiated",
+        stage: "Credit Approved",
+      }}
+
+      rejectPayload={{
+        status: "Rejected",
+        stage: "Credit Rejected",
+      }}
+    />
+  );
+};
+
+export default MotionCorpDisburseInitiate;

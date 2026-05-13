@@ -3101,16 +3101,128 @@ router.put("/login-loans/:lan", (req, res) => {
 //   }
 // });
 
+// router.put("/approve-initiated-loans/:lan", (req, res) => {
+//   const lan = req.params.lan;
+//   const { status, table } = req.body;
+
+//   const allowedTables = {
+//     loan_bookings: true,
+//     loan_booking_adikosh: true,
+//     loan_booking_gq_non_fsf: true,
+//     loan_booking_gq_fsf: true,
+//     loan_booking_emiclub: true, // 🔥 payout table
+//     loan_bookings_wctl: true,
+//     loan_booking_ev: true,
+//     loan_booking_hey_ev: true,
+//     loan_booking_motion_corp: true,
+//     loan_booking_finso: true,
+//     loan_booking_circle_pe: true,
+//     loan_booking_hey_ev_battery: true,
+//     loan_booking_zypay_customer: true,
+//     loan_booking_loan_digit: true,
+//   };
+
+//   if (!allowedTables[table]) {
+//     return res.status(400).json({ message: "Invalid table name" });
+//   }
+
+//   if (!["approved", "rejected"].includes(status)) {
+//     return res.status(400).json({ message: "Invalid status value" });
+//   }
+
+//   const updateQuery = `UPDATE ?? SET status = ? WHERE lan = ?`;
+
+//   db.query(updateQuery, [table, status, lan], async (err, result) => {
+//     if (err) {
+//       console.error("Error updating loan status:", err);
+//       return res.status(500).json({ message: "Database error" });
+//     }
+
+//     if (result.affectedRows === 0) {
+//       return res
+//         .status(404)
+//         .json({ message: "Loan not found with LAN " + lan });
+//     }
+
+//     /* ======================================================
+//        🔥 PAYOUT TRIGGER (ONLY EMICLUB + APPROVED) EMICLUB API DISBURSED
+//     ====================================================== */
+//     // let payoutTriggered = false;
+
+//     // if (table === "loan_booking_emiclub" && status === "approved") {
+//     //   payoutTriggered = true;
+//     //   try {
+//     //     // 🔁 fire-and-forget (do not block response)
+//     //     approveAndInitiatePayout({ lan, table }).catch((payoutErr) => {
+//     //       console.error(
+//     //         "Payout initiation failed for LAN:",
+//     //         lan,
+//     //         payoutErr
+//     //       );
+//     //     });
+//     //   } catch (err) {
+//     //     console.error("Error loading payout service:", err);
+//     //   }
+//     // }
+
+//     /* ======================================================
+//        📧 OPTIONAL EMAIL LOGIC (kept async, non-blocking)
+//     ====================================================== */
+//     /*
+//     if (lan.startsWith("ADK")) {
+//       db.query(
+//         `SELECT customer_name, loan_amount, batch_id FROM ?? WHERE lan = ?`,
+//         [table, lan],
+//         async (fetchErr, rows) => {
+//           if (!fetchErr && rows.length > 0) {
+//             const { customer_name, loan_amount, batch_id } = rows[0];
+//             try {
+//               await sendLoanStatusMail({
+//                 to: [...],
+//                 customerName: customer_name,
+//                 batchId: batch_id,
+//                 loanAmount: loan_amount,
+//                 status,
+//               });
+//             } catch (mailErr) {
+//               console.error("Email error:", mailErr);
+//             }
+//           }
+//         }
+//       );
+//     }
+//     */
+
+//     /* ======================================================
+//        ✅ SINGLE RESPONSE (ONLY ONCE)
+//     ====================================================== */
+//     return res.json({
+//       success: true,
+//       lan,
+//       table,
+//       status,
+//       // payoutTriggered,
+//       message: `Loan ${status} successfully`,
+//     });
+//   });
+// });
+
+
 router.put("/approve-initiated-loans/:lan", (req, res) => {
   const lan = req.params.lan;
-  const { status, table } = req.body;
+
+  const {
+    status,
+    stage = null,
+    table,
+  } = req.body;
 
   const allowedTables = {
     loan_bookings: true,
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
-    loan_booking_emiclub: true, // 🔥 payout table
+    loan_booking_emiclub: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
     loan_booking_hey_ev: true,
@@ -3123,86 +3235,59 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
   };
 
   if (!allowedTables[table]) {
-    return res.status(400).json({ message: "Invalid table name" });
+    return res.status(400).json({
+      message: "Invalid table name",
+    });
   }
 
-  if (!["approved", "rejected"].includes(status)) {
-    return res.status(400).json({ message: "Invalid status value" });
+  if (!status || typeof status !== "string") {
+    return res.status(400).json({
+      message: "Status is required",
+    });
   }
 
-  const updateQuery = `UPDATE ?? SET status = ? WHERE lan = ?`;
+  const updateQuery = stage
+    ? `
+      UPDATE ??
+      SET status = ?, stage = ?
+      WHERE lan = ?
+    `
+    : `
+      UPDATE ??
+      SET status = ?
+      WHERE lan = ?
+    `;
 
-  db.query(updateQuery, [table, status, lan], async (err, result) => {
+  const params = stage
+    ? [table, status, stage, lan]
+    : [table, status, lan];
+
+  db.query(updateQuery, params, async (err, result) => {
     if (err) {
-      console.error("Error updating loan status:", err);
-      return res.status(500).json({ message: "Database error" });
+      console.error(
+        "Error updating loan status:",
+        err,
+      );
+
+      return res.status(500).json({
+        message: "Database error",
+      });
     }
 
     if (result.affectedRows === 0) {
-      return res
-        .status(404)
-        .json({ message: "Loan not found with LAN " + lan });
+      return res.status(404).json({
+        message:
+          "Loan not found with LAN " + lan,
+      });
     }
 
-    /* ======================================================
-       🔥 PAYOUT TRIGGER (ONLY EMICLUB + APPROVED) EMICLUB API DISBURSED
-    ====================================================== */
-    // let payoutTriggered = false;
-
-    // if (table === "loan_booking_emiclub" && status === "approved") {
-    //   payoutTriggered = true;
-    //   try {
-    //     // 🔁 fire-and-forget (do not block response)
-    //     approveAndInitiatePayout({ lan, table }).catch((payoutErr) => {
-    //       console.error(
-    //         "Payout initiation failed for LAN:",
-    //         lan,
-    //         payoutErr
-    //       );
-    //     });
-    //   } catch (err) {
-    //     console.error("Error loading payout service:", err);
-    //   }
-    // }
-
-    /* ======================================================
-       📧 OPTIONAL EMAIL LOGIC (kept async, non-blocking)
-    ====================================================== */
-    /*
-    if (lan.startsWith("ADK")) {
-      db.query(
-        `SELECT customer_name, loan_amount, batch_id FROM ?? WHERE lan = ?`,
-        [table, lan],
-        async (fetchErr, rows) => {
-          if (!fetchErr && rows.length > 0) {
-            const { customer_name, loan_amount, batch_id } = rows[0];
-            try {
-              await sendLoanStatusMail({
-                to: [...],
-                customerName: customer_name,
-                batchId: batch_id,
-                loanAmount: loan_amount,
-                status,
-              });
-            } catch (mailErr) {
-              console.error("Email error:", mailErr);
-            }
-          }
-        }
-      );
-    }
-    */
-
-    /* ======================================================
-       ✅ SINGLE RESPONSE (ONLY ONCE)
-    ====================================================== */
     return res.json({
       success: true,
       lan,
       table,
       status,
-      // payoutTriggered,
-      message: `Loan ${status} successfully`,
+      stage,
+      message: "Loan updated successfully",
     });
   });
 });
