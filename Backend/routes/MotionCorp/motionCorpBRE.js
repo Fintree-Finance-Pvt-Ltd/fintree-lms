@@ -418,6 +418,7 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
     SELECT score, report_xml, created_at
     FROM loan_cibil_reports
     WHERE lan = ?
+    AND applicant_type = 'BORROWER'
     ORDER BY created_at DESC, id DESC
     LIMIT 1
     `,
