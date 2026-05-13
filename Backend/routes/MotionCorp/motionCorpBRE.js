@@ -479,6 +479,7 @@ if (decision.status === "Credit Initiated") {
       motioncorp_90plus_36m_flag = ?,
       motioncorp_emi_overdue_amount = ?,
       motioncorp_cc_overdue_amount = ?,
+      motioncorp_deviation_flag = ?,
 
       status = ?,
 stage = ?
@@ -497,6 +498,7 @@ stage = ?
       bureauFacts.has90Plus36M ? 1 : 0,
       bureauFacts.emiOverdueAmount,
       bureauFacts.ccOverdueAmount,
+      decision.deviations.length > 0 ? 1 : 0,
 
       finalStatus,
 finalStage,
