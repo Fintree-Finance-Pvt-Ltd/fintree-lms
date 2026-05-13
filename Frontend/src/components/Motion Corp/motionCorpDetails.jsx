@@ -51,94 +51,291 @@ const MotionCorpDetails = () => {
 
   const sections = [
     {
-      title: "Applicant Information",
-      icon: "👤",
-      content: (
-        <Grid>
-          <Field label="LAN" value={loan.lan} highlight />
-          <Field label="Partner Loan ID" value={loan.partner_loan_id} />
-          <Field label="Customer Name" value={loan.customer_name} />
-          <Field label="PAN Number" value={loan.pan_number} />
-          <Field label="Mobile Number" value={loan.mobile_number} />
-          <Field label="DOB" value={formatDate(loan.dob)} />
-          <Field label="Age" value={loan.age} />
-          <Field label="Gender" value={loan.gender} />
-          <Field label="Marital Status" value={loan.marital_status} />
-          <Field label="Current Status" value={loan.status} isStatus />
-        </Grid>
-      ),
-    },
+  title: "Applicant Information",
+  icon: "👤",
+  content: (
+    <Grid>
+      <Field label="LAN" value={loan.lan} highlight />
+      <Field label="Partner Loan ID" value={loan.partner_loan_id} />
+
+      <Field label="Customer Name" value={loan.customer_name} />
+
+      <Field label="First Name" value={loan.first_name} />
+      <Field label="Last Name" value={loan.last_name} />
+
+      <Field label="Father Name" value={loan.father_name} />
+
+      <Field label="PAN Number" value={loan.pan_card} />
+
+      <Field label="Mobile Number" value={loan.mobile_number} />
+
+      <Field label="Email" value={loan.email} />
+
+      <Field label="DOB" value={formatDate(loan.dob)} />
+
+      <Field label="Gender" value={loan.gender} />
+
+      <Field label="Current Status" value={loan.status} isStatus />
+
+      <Field label="Stage" value={loan.stage} isStatus />
+    </Grid>
+  ),
+},
     {
-      title: "Loan & Financials",
-      icon: "💰",
-      content: (
-        <Grid>
-          <Field label="Loan Amount" value={`₹${loan.loan_amount}`} highlight />
-          <Field label="Tenure" value={`${loan.loan_tenure} Months`} />
-          <Field label="Interest Rate" value={`${loan.interest_rate}%`} />
-          <Field label="Processing Fee" value={loan.processing_fee} />
-          <Field label="Net Disbursement" value={loan.net_disbursement_amount} />
-          <Field label="Monthly Salary" value={loan.monthly_salary} />
-          <Field label="Current EMI" value={loan.current_emi} />
-          <Field label="CIBIL Score" value={loan.cibil_score} />
-          <Field label="Fintree CIBIL" value={loan.fintree_cibil_score} />
-        </Grid>
-      ),
-    },
+  title: "Loan & Financials",
+  icon: "💰",
+  content: (
+    <Grid>
+      <Field
+        label="Loan Amount"
+        value={`₹${loan.loan_details?.loan_amount || 0}`}
+        highlight
+      />
+
+      <Field
+        label="Tenure"
+        value={`${loan.loan_details?.loan_tenure || 0} Months`}
+      />
+
+      <Field
+        label="Interest Rate"
+        value={`${loan.loan_details?.interest_rate || 0}%`}
+      />
+
+      <Field
+        label="Processing Fee"
+        value={loan.loan_details?.processing_fee}
+      />
+
+      <Field
+        label="Processing Fee %"
+        value={loan.loan_details?.processing_fee_percentage}
+      />
+
+      <Field
+        label="Disbursal Amount"
+        value={loan.loan_details?.disbursal_amount}
+      />
+
+      <Field
+        label="CIBIL Score"
+        value={bre?.fintree_cibil_score}
+      />
+    </Grid>
+  ),
+},
     {
-      title: "Employment & Professional",
-      icon: "💼",
-      content: (
-        <Grid>
-          <Field label="Employment Type" value={loan.employment} />
-          <Field label="Company Name" value={loan.company_name} />
-          <Field label="Company Address" value={loan.company_address} />
-          <Field label="Salary Mode" value={loan.mode_of_salary} />
-          <Field label="Exp in Job" value={loan.years_in_current_job} />
-          <Field label="Total Experience" value={loan.total_work_experience} />
-        </Grid>
-      ),
-    },
+  title: "Bank Details",
+  icon: "🏦",
+  content: (
+    <Grid>
+      <Field
+        label="Bank Name"
+        value={loan.bank_details?.customer_bank_name}
+      />
+
+      <Field
+        label="Account Holder"
+        value={loan.bank_details?.customer_name_as_per_bank}
+      />
+
+      <Field
+        label="Account Number"
+        value={loan.bank_details?.customer_account_number}
+      />
+
+      <Field
+        label="IFSC Code"
+        value={loan.bank_details?.bank_ifsc_code}
+      />
+    </Grid>
+  ),
+},
     {
-      title: "Bank & Disbursement",
-      icon: "🏦",
-      content: (
-        <Grid>
-          <Field label="Bank Name" value={loan.bank_name} />
-          <Field label="Account Holder" value={loan.name_in_bank} />
-          <Field label="Account Number" value={loan.account_number} />
-          <Field label="IFSC Code" value={loan.ifsc} />
-          <Field label="Account Type" value={loan.account_type} />
-        </Grid>
-      ),
-    },
+  title: "Address Details",
+  icon: "📍",
+  content: (
+    <Grid>
+      <Field
+        label="Address Line 1"
+        value={loan.permanent_address?.address_line_1}
+      />
+
+      <Field
+        label="Address Line 2"
+        value={loan.permanent_address?.address_line_2}
+      />
+
+      <Field
+        label="City"
+        value={loan.permanent_address?.city}
+      />
+
+      <Field
+        label="District"
+        value={loan.permanent_address?.district}
+      />
+
+      <Field
+        label="State"
+        value={loan.permanent_address?.state}
+      />
+
+      <Field
+        label="Pincode"
+        value={loan.permanent_address?.pincode}
+      />
+    </Grid>
+  ),
+},
+
+{
+  title: "Dealer Details",
+  icon: "🏪",
+  content: (
+    <Grid>
+      <Field
+        label="Dealer Name"
+        value={loan.dealer_details?.dealer_name}
+      />
+
+      <Field
+        label="Trade Name"
+        value={loan.dealer_details?.trade_name}
+      />
+
+      <Field
+        label="Dealer Contact"
+        value={loan.dealer_details?.dealer_contact}
+      />
+
+      <Field
+        label="Dealer Email"
+        value={loan.dealer_details?.dealer_email}
+      />
+
+      <Field
+        label="GST Number"
+        value={loan.dealer_details?.gst_no}
+      />
+
+      <Field
+        label="Dealer City"
+        value={loan.dealer_details?.dealer_city}
+      />
+
+      <Field
+        label="Dealer State"
+        value={loan.dealer_details?.dealer_state}
+      />
+    </Grid>
+  ),
+},
+{
+  title: "Vehicle & Product",
+  icon: "🛺",
+  content: (
+    <Grid>
+      <Field
+        label="E-Rickshaw Model"
+        value={loan.product_details?.e_rikshaw_model}
+      />
+
+      <Field
+        label="Battery Name"
+        value={loan.product_details?.battery_name}
+      />
+
+      <Field
+        label="Battery Type"
+        value={loan.product_details?.battery_type}
+      />
+
+      <Field
+        label="Battery Serial No"
+        value={loan.product_details?.battery_serial_no_1}
+      />
+
+      <Field
+        label="Chassis No"
+        value={loan.product_details?.chassis_no}
+      />
+    </Grid>
+  ),
+},
     {
-      title: "Address Details",
-      icon: "📍",
-      content: (
-        <Grid>
-          <Field label="Current Address" value={`${loan.current_address}, ${loan.current_city}, ${loan.current_state} - ${loan.current_pincode}`} />
-          <Field label="Permanent Address" value={`${loan.permanent_address}, ${loan.permanent_city}, ${loan.permanent_state} - ${loan.permanent_pincode}`} />
-          <Field label="Residential Status" value={loan.residential_status} />
-        </Grid>
-      ),
-    },
-    {
-      title: "Risk & BRE Decisioning",
-      icon: "⚖️",
-      content: (
-        <Grid>
-          <Field label="BRE Status" value={bre.bre_status} isStatus />
-          <Field label="BRE Reason" value={bre.bre_reason} />
-          <Field label="Enquiries (6M)" value={bre.enquiries_6m} />
-          <FlagField label="DPD 6M Flag" value={bre.dpd_6m_flag} />
-          <FlagField label="DPD > 30 (12M)" value={bre.dpd_gt30_12m_flag} />
-          <FlagField label="DPD > 60 (Ever)" value={bre.dpd_gt60_ever_flag} />
-          <FlagField label="Multi PAN Flag" value={bre.multi_pan_flag} />
-          <FlagField label="Deviation Flag" value={bre.deviation_flag} />
-        </Grid>
-      ),
-    },
+  title: "Risk & BRE Decisioning",
+  icon: "⚖️",
+  content: (
+    <Grid>
+      <Field
+        label="BRE Status"
+        value={bre?.bre_status}
+        isStatus
+      />
+
+      <Field
+        label="BRE Reason"
+        value={bre?.bre_reason}
+      />
+
+      <Field
+        label="Fintree CIBIL"
+        value={bre?.fintree_cibil_score}
+      />
+
+      <Field
+        label="Enquiries (30D)"
+        value={bre?.enquiries_30d}
+      />
+
+      <FlagField
+        label="DPD 3M"
+        value={bre?.dpd_3m_flag}
+      />
+
+      <FlagField
+        label="DPD 6M"
+        value={bre?.dpd_6m_flag}
+      />
+
+      <FlagField
+        label="Overdue 12M"
+        value={bre?.overdue_12m_flag}
+      />
+
+      <FlagField
+        label="Written Off 3Y"
+        value={bre?.written_off_3y_flag}
+      />
+
+      <FlagField
+        label="60+ DPD"
+        value={bre?.dpd_60plus_24m_flag}
+      />
+
+      <FlagField
+        label="90+ DPD"
+        value={bre?.dpd_90plus_36m_flag}
+      />
+
+      <FlagField
+        label="Deviation"
+        value={bre?.deviation_flag}
+      />
+
+      <Field
+        label="EMI Overdue"
+        value={bre?.emi_overdue_amount}
+      />
+
+      <Field
+        label="CC Overdue"
+        value={bre?.cc_overdue_amount}
+      />
+    </Grid>
+  ),
+},
   ];
 
   return (
