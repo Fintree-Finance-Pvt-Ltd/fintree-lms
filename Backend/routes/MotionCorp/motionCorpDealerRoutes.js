@@ -1757,7 +1757,7 @@ router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
   }
 });
 
-router.get("/motion-corp/customer-details/:lan", async (req, res) => {
+router.get("/customer-details/:lan", async (req, res) => {
   const { lan } = req.params;
 
   try {
