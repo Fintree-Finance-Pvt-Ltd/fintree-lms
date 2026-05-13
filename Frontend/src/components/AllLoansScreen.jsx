@@ -311,7 +311,7 @@ const AllLoansScreen = ({
       header: "Action",
       render: (r) => (
         <button
-          onClick={() => navigate(`/documents/${r.lan}`)}
+          onClick={() => nav(`/documents/${r.lan}`)}
           style={{
             padding: "8px 14px",
             borderRadius: "8px",
