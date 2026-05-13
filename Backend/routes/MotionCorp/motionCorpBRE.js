@@ -192,7 +192,7 @@ const evaluateMotionCorpPolicy = ({ loan, bureauFacts }) => {
 
   const age = calculateAge(loan.dob);
 
-  const loanAmount = toNumber(loan.loan_amount, 0);
+  const loanAmount = toNumber(loan.requested_loan_amount, 0);
 
   const tenure = toNumber(loan.loan_tenure, 0);
 

@@ -13,10 +13,12 @@ const ApproveInitiatedScreen = ({
 
    approvePayload = null,
   rejectPayload = null,
+  enableApprovedLoanAmount = false,
 }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [approvedAmounts, setApprovedAmounts] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,19 +47,85 @@ const ApproveInitiatedScreen = ({
   //   }
   // };
 
-  const handleStatusChange = async (
-  lan,
-  payload,
-  table,
-) => {
+
+  const getApprovedAmount = (lan) => {
+  const value = approvedAmounts[lan];
+
+  if (value === undefined || value === null || value === "") {
+    return "";
+  }
+
+  return value;
+};
+
+const handleApprovedAmountChange = (lan, value) => {
+  const cleanValue = String(value || "")
+    .replace(/[^\d.]/g, "")
+    .replace(/^(\d*\.\d{0,2}).*$/, "$1");
+
+  setApprovedAmounts((prev) => ({
+    ...prev,
+    [lan]: cleanValue,
+  }));
+};
+
+//   const handleStatusChange = async (
+//   lan,
+//   payload,
+//   table,
+// ) => {
+//   try {
+//     await api.put(
+//       `/loan-booking/approve-initiated-loans/${lan}`,
+//       {
+//         ...payload,
+//         table,
+//       },
+//     );
+
+//     setRows((prev) =>
+//       prev.map((r) =>
+//         r.lan === lan
+//           ? {
+//               ...r,
+//               ...payload,
+//             }
+//           : r,
+//       ),
+//     );
+//   } catch (err) {
+//     console.error("Error updating status:", err);
+
+//     alert("Failed to update status. Try again.");
+//   }
+// };
+
+
+  // show Batch ID column only if any LAN begins with ADK
+  
+  const handleStatusChange = async (lan, payload, table, row = null) => {
   try {
-    await api.put(
-      `/loan-booking/approve-initiated-loans/${lan}`,
-      {
-        ...payload,
-        table,
-      },
-    );
+    const finalPayload = {
+      ...payload,
+      table,
+    };
+
+    if (enableApprovedLoanAmount && payload?.status === "Operations Initiated") {
+      const approvedLoanAmount = Number(getApprovedAmount(lan));
+
+      if (
+        !approvedLoanAmount ||
+        Number.isNaN(approvedLoanAmount) ||
+        approvedLoanAmount <= 0
+      ) {
+        alert("Please enter approved loan amount before approving.");
+        return;
+      }
+
+      finalPayload.loan_amount = approvedLoanAmount;
+    }
+
+    await api.put(`/loan-booking/approve-initiated-loans/${lan}`, finalPayload);
 
     setRows((prev) =>
       prev.map((r) =>
@@ -65,19 +133,20 @@ const ApproveInitiatedScreen = ({
           ? {
               ...r,
               ...payload,
+              ...(finalPayload.loan_amount
+                ? { loan_amount: finalPayload.loan_amount }
+                : {}),
             }
           : r,
       ),
     );
   } catch (err) {
     console.error("Error updating status:", err);
-
     alert("Failed to update status. Try again.");
   }
 };
-
-
-  // show Batch ID column only if any LAN begins with ADK
+  
+  
   const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
   const hasLDF = rows.some((r) => typeof r?.lan === "string" && /^LDF/i.test(r.lan));
   const hasStageColumn = rows.some(
@@ -259,6 +328,35 @@ const ApproveInitiatedScreen = ({
       },
     ]
   : []),
+
+  ...(enableApprovedLoanAmount
+  ? [
+      {
+        key: "approved_loan_amount",
+        header: "Approved Amount",
+        render: (r) => (
+          <input
+            type="number"
+            value={getApprovedAmount(r.lan)}
+            placeholder="Enter amount"
+            onChange={(e) =>
+              handleApprovedAmountChange(r.lan, e.target.value)
+            }
+            style={{
+              width: "140px",
+              padding: "8px 10px",
+              borderRadius: 8,
+              border: "1px solid #cbd5e1",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          />
+        ),
+        csvAccessor: () => "",
+        width: 170,
+      },
+    ]
+  : []),
     {
       key: "docs",
       header: "Documents",
@@ -298,6 +396,7 @@ const ApproveInitiatedScreen = ({
       status: "approved",
     },
     tableName,
+    r,
   )
 }
           >
@@ -313,6 +412,7 @@ const ApproveInitiatedScreen = ({
       status: "rejected",
     },
     tableName,
+    r,
   )
 }
           >

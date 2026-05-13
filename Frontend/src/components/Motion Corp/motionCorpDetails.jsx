@@ -87,8 +87,14 @@ const MotionCorpDetails = () => {
   content: (
     <Grid>
       <Field
+        label="Requested Loan Amount"
+        value={`₹${loan.loan_details?.requested_loan_amount || "-"}`}
+        highlight
+      />
+
+      <Field
         label="Loan Amount"
-        value={`₹${loan.loan_details?.loan_amount || 0}`}
+        value={`₹${loan.loan_details?.loan_amount || "-"}`}
         highlight
       />
 
@@ -104,7 +110,7 @@ const MotionCorpDetails = () => {
 
       <Field
         label="Processing Fee"
-        value={loan.loan_details?.processing_fee}
+        value={`₹${loan.loan_details?.processing_fee || "-"}`}
       />
 
       <Field

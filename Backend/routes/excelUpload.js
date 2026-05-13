@@ -3215,6 +3215,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     status,
     stage = null,
     table,
+    loan_amount = null,
   } = req.body;
 
   const allowedTables = {
@@ -3246,38 +3247,55 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     });
   }
 
-  const updateQuery = stage
-    ? `
-      UPDATE ??
-      SET status = ?, stage = ?
-      WHERE lan = ?
-    `
-    : `
-      UPDATE ??
-      SET status = ?
-      WHERE lan = ?
-    `;
+  const fields = ["status = ?"];
+  const params = [status];
 
-  const params = stage
-    ? [table, status, stage, lan]
-    : [table, status, lan];
+  if (stage) {
+    fields.push("stage = ?");
+    params.push(stage);
+  }
 
-  db.query(updateQuery, params, async (err, result) => {
+  if (table === "loan_booking_motion_corp" && loan_amount !== null) {
+    const approvedLoanAmount = Number(loan_amount);
+
+    if (
+      Number.isNaN(approvedLoanAmount) ||
+      approvedLoanAmount <= 0
+    ) {
+      return res.status(400).json({
+        message: "Valid approved loan amount is required",
+      });
+    }
+
+    fields.push("loan_amount = ?");
+    params.push(approvedLoanAmount);
+  }
+
+  const updateQuery = `
+    UPDATE ??
+    SET ${fields.join(", ")}
+    WHERE lan = ?
+  `;
+
+  const queryParams = [
+    table,
+    ...params,
+    lan,
+  ];
+
+  db.query(updateQuery, queryParams, async (err, result) => {
     if (err) {
-      console.error(
-        "Error updating loan status:",
-        err,
-      );
+      console.error("Error updating loan status:", err);
 
       return res.status(500).json({
         message: "Database error",
+        error: err.sqlMessage || err.message,
       });
     }
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
-        message:
-          "Loan not found with LAN " + lan,
+        message: "Loan not found with LAN " + lan,
       });
     }
 
@@ -3287,6 +3305,10 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
       table,
       status,
       stage,
+      loan_amount:
+        table === "loan_booking_motion_corp"
+          ? loan_amount
+          : undefined,
       message: "Loan updated successfully",
     });
   });

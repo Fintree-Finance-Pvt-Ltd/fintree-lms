@@ -10,6 +10,8 @@ const MotionCorpDisburseInitiate = () => {
 
       tableName="loan_booking_motion_corp"
 
+      enableApprovedLoanAmount={true}
+
       lenderName="Motion Corp"
 
       approvePayload={{

@@ -1082,7 +1082,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         permanent_state = ?,
         permanent_pincode = ?,
 
-        loan_amount = ?,
+        requested_loan_amount = ?,
         interest_rate = ?,
         loan_tenure = ?,
         disbursal_amount = ?,
@@ -1927,6 +1927,7 @@ router.get("/customer-details/:lan", async (req, res) => {
       },
 
       loan_details: {
+        requested_loan_amount: row.requested_loan_amount,
         loan_amount: row.loan_amount,
         processing_fee: row.processing_fee,
         processing_fee_percentage:

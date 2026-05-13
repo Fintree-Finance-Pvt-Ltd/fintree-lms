@@ -791,33 +791,73 @@ for processing and servicing this loan application.
       }
 
       // Auto-calculate Processing Fee and Disbursal Amount
-      if (name === "Loan_Amount" || name === "Processing_Fee_Percentage") {
-        const loanAmount = Number(
-          name === "Loan_Amount" ? finalValue : updated.Loan_Amount,
-        );
+      // if (name === "Loan_Amount" || name === "Processing_Fee_Percentage") {
+      //   const loanAmount = Number(
+      //     name === "Loan_Amount" ? finalValue : updated.Loan_Amount,
+      //   );
 
-        const processingFeePercentage = Number(
-          name === "Processing_Fee_Percentage"
-            ? finalValue
-            : updated.Processing_Fee_Percentage,
-        );
+      //   const processingFeePercentage = Number(
+      //     name === "Processing_Fee_Percentage"
+      //       ? finalValue
+      //       : updated.Processing_Fee_Percentage,
+      //   );
 
-        if (
-          !Number.isNaN(loanAmount) &&
-          !Number.isNaN(processingFeePercentage) &&
-          loanAmount > 0 &&
-          processingFeePercentage >= 0
-        ) {
-          const processingFee = (loanAmount * processingFeePercentage) / 100;
-          const disbursalAmount = loanAmount - processingFee;
+      //   if (
+      //     !Number.isNaN(loanAmount) &&
+      //     !Number.isNaN(processingFeePercentage) &&
+      //     loanAmount > 0 &&
+      //     processingFeePercentage >= 0
+      //   ) {
+      //     const processingFee = (loanAmount * processingFeePercentage) / 100;
+      //     const disbursalAmount = loanAmount - processingFee;
 
-          updated.Processing_Fee = processingFee.toFixed(2);
-          updated.Disbursal_Amount = disbursalAmount.toFixed(2);
-        } else {
-          updated.Processing_Fee = "";
-          updated.Disbursal_Amount = "";
-        }
-      }
+      //     updated.Processing_Fee = processingFee.toFixed(2);
+      //     updated.Disbursal_Amount = disbursalAmount.toFixed(2);
+      //   } else {
+      //     updated.Processing_Fee = "";
+      //     updated.Disbursal_Amount = "";
+      //   }
+      // }
+
+      // Auto-calculate Processing Fee % and Disbursal Amount
+if (
+  name === "Loan_Amount" ||
+  name === "Processing_Fee"
+) {
+  const loanAmount = Number(
+    name === "Loan_Amount"
+      ? finalValue
+      : updated.Loan_Amount,
+  );
+
+  const processingFee = Number(
+    name === "Processing_Fee"
+      ? finalValue
+      : updated.Processing_Fee,
+  );
+
+  if (
+    !Number.isNaN(loanAmount) &&
+    !Number.isNaN(processingFee) &&
+    loanAmount > 0 &&
+    processingFee >= 0
+  ) {
+    const processingFeePercentage =
+      (processingFee / loanAmount) * 100;
+
+    const disbursalAmount =
+      loanAmount - processingFee;
+
+    updated.Processing_Fee_Percentage =
+      processingFeePercentage.toFixed(2);
+
+    updated.Disbursal_Amount =
+      disbursalAmount.toFixed(2);
+  } else {
+    updated.Processing_Fee_Percentage = "";
+    updated.Disbursal_Amount = "";
+  }
+}
 
       return updated;
     });
@@ -1790,16 +1830,17 @@ setAadhaarStatus({
             {renderInput("Interest Rate (%)", "Interest_Rate", "number")}
             {renderInput("Tenure (In Months)", "Tenure", "number")}
             {renderInput(
-              "Processing Fee (%)",
-              "Processing_Fee_Percentage",
-              "number",
-            )}
-            {renderInput(
-              "Processing Fee (₹)",
-              "Processing_Fee",
-              "number",
-              true,
-            )}
+  "Processing Fee (₹)",
+  "Processing_Fee",
+  "number",
+)}
+
+{renderInput(
+  "Processing Fee (%)",
+  "Processing_Fee_Percentage",
+  "number",
+  true,
+)}
             {renderInput(
               "Disbursal Amount",
               "Disbursal_Amount",
