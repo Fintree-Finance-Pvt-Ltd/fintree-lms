@@ -18,7 +18,7 @@ const MotionCorpDetails = () => {
         setLoading(true);
         setErr("");
         // Updated endpoint to match your new backend route
-        const res = await api.get(`/motion-corp/customer-info/${lan}`);
+        const res = await api.get(`/motion-corp/customer-details/${lan}`);
         setDetails(res.data);
       } catch (e) {
         console.error("Failed to fetch Motion Corp details:", e);
