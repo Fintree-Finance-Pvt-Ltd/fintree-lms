@@ -9,7 +9,6 @@ const {
   universalRunAllValidations,
 } = require("../../utils/runValiationsEngine");
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
-const { default: Login } = require("../../../Frontend/src/components/Login");
 
 const router = express.Router();
 
