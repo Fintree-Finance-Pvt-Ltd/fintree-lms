@@ -217,13 +217,30 @@ const evaluateMotionCorpPolicy = ({ loan, bureauFacts }) => {
   /**
    * SCORE
    */
-  if (score === null) {
-    deviations.push("NTC_OR_SCORE_MISSING_BANK_STATEMENT_REQUIRED");
-  } else if (score < 650) {
-    reasons.push("CIBIL_BELOW_650");
-  } else if (score >= 650 && score <= 674) {
-    deviations.push("CIBIL_650_TO_674_APPROVAL_BASIS");
-  }
+  /**
+ * SCORE / NTC
+ */
+if (score === null || score < 200) {
+  deviations.push(
+    "NTC_BANK_STATEMENT_REQUIRED",
+  );
+}
+
+if (
+  score >= 200 &&
+  score < 650
+) {
+  hardRejects.push("CIBIL_BELOW_650");
+}
+
+if (
+  score >= 650 &&
+  score <= 674
+) {
+  deviations.push(
+    "CIBIL_650_TO_674_APPROVAL_BASIS",
+  );
+}
 
   /**
    * LOAN AMOUNT
