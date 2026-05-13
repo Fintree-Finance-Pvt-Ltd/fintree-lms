@@ -236,7 +236,14 @@ const handleApprovedAmountChange = (lan, value) => {
       render: (r) => (
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
+          // onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
+          onClick={() => {
+            if(/^MC/i.test(r.lan)){
+              nav(`/motion-corp/customer-details?lan=${r.lan}`);
+            }else {
+              navigate(`/approved-loan-details/${r.lan}`);
+            }
+          }}
         >
           {r.customer_name ?? "—"}
         </span>
@@ -259,7 +266,14 @@ const handleApprovedAmountChange = (lan, value) => {
       render: (r) => (
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
+          // onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
+          onClick={() => {
+            if(/^MC/i.test(r.lan)){
+              nav(`/motion-corp/customer-details?lan=${r.lan}`);
+            }else {
+              navigate(`/approved-loan-details/${r.lan}`);
+            }
+          }}
         >
           {r.lan ?? "—"}
         </span>
