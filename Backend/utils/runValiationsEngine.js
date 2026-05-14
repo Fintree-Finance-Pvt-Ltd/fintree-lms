@@ -685,7 +685,7 @@ exports.universalRunAllValidations = async (lan) => {
 
         current_pincode: loan.permanent_pincode,
 
-        loan_amount: loan.loan_amount,
+        loan_amount: loan.requested_loan_amount,
 
         loan_tenure: loan.loan_tenure,
       },
@@ -728,7 +728,7 @@ exports.universalRunAllValidations = async (lan) => {
 
           current_pincode: loan.guarantor_pincode,
 
-          loan_amount: loan.loan_amount,
+          loan_amount: loan.requested_loan_amount,
 
           loan_tenure: loan.loan_tenure,
         },
@@ -772,7 +772,7 @@ exports.universalRunAllValidations = async (lan) => {
 
           current_pincode: loan.co_applicant_pincode,
 
-          loan_amount: loan.loan_amount,
+          loan_amount: loan.requested_loan_amount,
 
           loan_tenure: loan.loan_tenure,
         },
