@@ -1721,6 +1721,7 @@ lb.limit_rework_reason,
   }
 });
 
+//// Loan Aggreement PDF Generation Route
 router.get("/:lan/pdf", async (req, res) => {
   const { lan } = req.params;
 

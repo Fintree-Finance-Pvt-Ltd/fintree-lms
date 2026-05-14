@@ -1159,6 +1159,7 @@ const {
 } = require("../services/pdfGenerationService");
 
 const { initEsign } = require("../services/esignService");
+const {initEsign} = require("../services/doqfyEsignService");
 const { getLoanContext } = require("../utils/lanHelper");
 
 const router = express.Router();
@@ -1235,7 +1236,7 @@ router.get("/api/loans", async (req, res) => {
 /* ======================================================
    PDF PREVIEW (HTML → PDF)
 ====================================================== */
-router.get("/:lan/pdf", async (req, res) => {
+router.get("/:lan/pdfs", async (req, res) => {
   const { lan } = req.params;
 
   const {
