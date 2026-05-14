@@ -1159,7 +1159,7 @@ const {
 } = require("../services/pdfGenerationService");
 
 const { initEsign } = require("../services/esignService");
-const {initEsign} = require("../services/doqfyEsignService");
+// const {initEsign} = require("../services/doqfyEsignService");
 const { getLoanContext } = require("../utils/lanHelper");
 
 const router = express.Router();
