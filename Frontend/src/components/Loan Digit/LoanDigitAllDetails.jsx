@@ -74,7 +74,7 @@ const LoanDigitDetails = () => {
       content: (
         <Grid>
           <Field label="Loan Amount" value={`₹${loan.loan_amount}`} highlight />
-          <Field label="Tenure" value={`${loan.loan_tenure} Months`} />
+          <Field label="Tenure(in years)" value={`${loan.loan_tenure}`} />
           <Field label="Interest Rate" value={`${loan.interest_rate}%`} />
           <Field label="Processing Fee" value={loan.processing_fee} />
           <Field label="Net Disbursement" value={loan.net_disbursement_amount} />

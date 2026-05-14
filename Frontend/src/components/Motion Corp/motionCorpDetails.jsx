@@ -84,6 +84,74 @@ const MotionCorpDetails = () => {
     </Grid>
   ),
 },
+{
+  title: "Guarantor Details",
+  icon: "🧾",
+  content: hasValue(loan.guarantor?.name) ? (
+    <Grid>
+      <Field label="Guarantor Name" value={loan.guarantor?.name} />
+      <Field label="Guarantor PAN" value={loan.guarantor?.pan} />
+      <Field label="Guarantor Mobile" value={loan.guarantor?.mobile} />
+      <Field label="Guarantor Email" value={loan.guarantor?.email} />
+      <Field label="Guarantor DOB" value={formatDate(loan.guarantor?.dob)} />
+      <Field
+        label="Relationship With Borrower"
+        value={loan.guarantor?.relationship_with_borrower}
+      />
+
+      <Field
+        label="Address Line 1"
+        value={loan.guarantor?.address?.address_line_1}
+      />
+      <Field
+        label="Address Line 2"
+        value={loan.guarantor?.address?.address_line_2}
+      />
+      <Field label="City" value={loan.guarantor?.address?.city} />
+      <Field label="District" value={loan.guarantor?.address?.district} />
+      <Field label="State" value={loan.guarantor?.address?.state} />
+      <Field label="Pincode" value={loan.guarantor?.address?.pincode} />
+    </Grid>
+  ) : (
+    <p style={{ margin: 0, color: "#64748b", fontWeight: 700 }}>
+      No guarantor details available.
+    </p>
+  ),
+},
+
+{
+  title: "Co-Applicant Details",
+  icon: "👥",
+  content: hasValue(loan.co_applicant?.name) ? (
+    <Grid>
+      <Field label="Co-Applicant Name" value={loan.co_applicant?.name} />
+      <Field label="Co-Applicant PAN" value={loan.co_applicant?.pan} />
+      <Field label="Co-Applicant Mobile" value={loan.co_applicant?.mobile} />
+      <Field label="Co-Applicant Email" value={loan.co_applicant?.email} />
+      <Field
+        label="Co-Applicant DOB"
+        value={formatDate(loan.co_applicant?.dob)}
+      />
+
+      <Field
+        label="Address Line 1"
+        value={loan.co_applicant?.address?.address_line_1}
+      />
+      <Field
+        label="Address Line 2"
+        value={loan.co_applicant?.address?.address_line_2}
+      />
+      <Field label="City" value={loan.co_applicant?.address?.city} />
+      <Field label="District" value={loan.co_applicant?.address?.district} />
+      <Field label="State" value={loan.co_applicant?.address?.state} />
+      <Field label="Pincode" value={loan.co_applicant?.address?.pincode} />
+    </Grid>
+  ) : (
+    <p style={{ margin: 0, color: "#64748b", fontWeight: 700 }}>
+      No co-applicant details available.
+    </p>
+  ),
+},
     {
   title: "Loan & Financials",
   icon: "💰",

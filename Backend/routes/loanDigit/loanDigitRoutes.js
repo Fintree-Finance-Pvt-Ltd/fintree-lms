@@ -704,6 +704,8 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 
       experianScore = scoreStr ? Number(scoreStr) : null;
 
+      console.log("Decoded XML Length:", decodedXml.length);
+
       await db.promise().query(
         `INSERT INTO loan_cibil_reports
         (lan, pan_number, score, report_xml, created_at)
@@ -712,11 +714,11 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
       );
 
       await db.promise().query(
-        `INSERT INTO kyc_verification_status (lan, bureau_status)
-        VALUES (?, 'VERIFIED')
-        ON DUPLICATE KEY UPDATE bureau_status='VERIFIED'
+        `INSERT INTO kyc_verification_status (lan, bureau_status , bureau_api_response)
+        VALUES (?, 'VERIFIED' , ?)
+        ON DUPLICATE KEY UPDATE bureau_status='VERIFIED' , bureau_api_response=VALUES(bureau_api_response)
          `,
-        [lan],
+        [lan, decodedXml],
       );
 
       await db.promise().execute(
@@ -735,6 +737,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 
       console.log("✅ Loan Digit Bureau Success", experianScore);
     } catch (err) {
+      console.error(err);
       console.error("⚠️ Loan Digit Bureau Failed:", err.message);
       console.error("➡️ Response status:", err.response?.status);
       console.error("➡️ Response data:", err.response?.data);
@@ -762,6 +765,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     });
   }
 });
+
 
 router.get("/loan-digit-info/:lan", async (req, res) => {
   const { lan } = req.params;
@@ -961,5 +965,160 @@ router.get("/loan-digit-info/:lan", async (req, res) => {
     });
   }
 });
+
+// router.get("/login-loans", async (req, res) => {
+//   const { table = "loan_booking_loan_digit", prefix = "LDF" } = req.query;
+//   if (!table || !prefix) {
+//     return res.status(400).json({
+//       message: "Missing required query parameters: table and prefix",
+//     });
+//   }
+
+//   try {
+//     const [rows] = await db.promise().query(
+//       ` SELECT lan, partner_loan_id, customer_name, mobile_number, pan_number, status, created_at
+//         FROM ${table}
+//         WHERE lan LIKE ? AND status = 'Login'
+//         ORDER BY created_at DESC
+//         LIMIT 100
+//       `,
+//       [`${prefix}%`],
+//     );
+//     return res.json({
+//       loans: rows,
+//     });
+//   } catch (err) {
+//     console.error("❌ Error fetching login loans:", err);
+//     return res.status(500).json({ message: "Failed to fetch login loans", error: err.sqlMessage || err.message });
+//   }
+// });
+
+router.get("/bre-approved-loans", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `
+      SELECT *
+      FROM loan_booking_loan_digit
+      WHERE status = 'BRE_APPROVED'
+      ORDER BY id DESC
+      `
+    );
+
+    return res.json({
+      status: "SUCCESS",
+      count: rows.length,
+      data: rows,
+    });
+
+  } catch (error) {
+    console.error("BRE Approved Fetch Error:", error);
+
+    return res.status(500).json({
+      status: "FAILED",
+      message: "Unable to fetch BRE approved loans",
+    });
+  }
+});
+
+router.put("/approve-initiate-loan/:lan", async (req, res) => {
+  const { lan } = req.params;
+  try {
+    const [result] = await db.promise().query(
+      `
+      UPDATE loan_booking_loan_digit
+      SET status = 'CREDIT_APPROVED'
+      WHERE lan = ? AND status = 'BRE_APPROVED'
+      `,
+      [lan],
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: "FAILED",
+        message: "Loan not found or not in Login status",
+      });
+    }
+
+    return res.json({
+      status: "SUCCESS",
+      message: "Loan approved and initiated successfully",
+    });
+  } catch (err) {
+    console.error("❌ Error approving Loan Digit:", err);
+    return res.status(500).json({
+      status: "FAILED",
+      message: "Failed to approve and initiate loan",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+router.get("/credit-approved-loans", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `
+      SELECT *
+      FROM loan_booking_loan_digit
+      WHERE status = 'CREDIT_APPROVED'
+      ORDER BY id DESC
+      `
+    );
+
+    return res.json({
+      status: "SUCCESS",
+      count: rows.length,
+      data: rows,
+    }); 
+  } catch (error) {
+    console.error("Credit Approved Fetch Error:", error);
+
+    return res.status(500).json({
+      status: "FAILED",
+      message: "Unable to fetch credit approved loans",
+    });
+  }
+});
+
+router.put("/ops-approved-loan/:lan", async (req, res) => {
+  const { lan } = req.params;
+  try {
+
+    // Pagination
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 10, 1);
+    const offset = (page - 1) * limit;
+
+    // Search filter
+    const search = String(req.query.search || "").trim();
+    
+    const [result] = await db.promise().query(
+      `
+      UPDATE loan_booking_loan_digit
+      SET status = 'APPROVED'
+      WHERE lan = ? AND status = 'CREDIT_APPROVED'
+      `,
+      [lan],
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: "FAILED",
+        message: "Loan not found or not in CREDIT_APPROVED status",
+      });
+    }
+
+    return res.json({
+      status: "SUCCESS",
+      message: "Loan approved by operations successfully",
+    });
+  } catch (err) {
+    console.error("❌ Error approving Loan Digit by operations:", err);
+    return res.status(500).json({
+      status: "FAILED",
+      message: "Failed to approve loan by operations",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+
 
 module.exports = router;

@@ -5,6 +5,9 @@ const { getPanCardDetails } = require("../services/pancardapiservice");
 const { runBureau } = require("../services/Bueraupullapiservice");
 
 const { initAadhaarKyc } = require("../services/digitapaadharservice");
+const {
+  autoApproveMotionCorpIfAllVerified,
+} = require("../routes/MotionCorp/motionCorpBRE");
 
 // async function runApplicantValidation({
 //   pool,
@@ -779,7 +782,15 @@ exports.universalRunAllValidations = async (lan) => {
       });
     }
 
-    console.log(`✅ Validation Engine Completed for ${lan}`);
+    if (lan.startsWith("MC")) {
+  console.log(`🚀 Running Motion Corp BRE for ${lan}`);
+
+  await autoApproveMotionCorpIfAllVerified(lan);
+
+  console.log(`✅ Motion Corp BRE finished for ${lan}`);
+}
+
+console.log(`✅ Validation Engine Completed for ${lan}`);
   } catch (err) {
     console.error("❌ Validation Engine Failed:", err);
   }

@@ -79,9 +79,6 @@ const generateLoanIdentifiers = async (lender) => {
     prefixLan = "FCCOD1";
   } else if (lender === "Finso") {
     prefixLan = "FINS1";
-  } else if (lender === "loan_digit") {
-    // prefixPartnerLoan = "FCIR1";
-    prefixLan = "LDF1";
   } else {
     return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
   }
