@@ -163,7 +163,13 @@ const LoginActionScreen = ({
   // keep EXACT behavior/signature
   const handleStatusChange = async (lan, newStatus, table) => {
     try {
-      await api.put(`/loan-booking/login-loans/${lan}`, {
+      let url = `/loan-booking/login-loans/${lan}`;
+
+      if (/^LDF/i.test(lan)) {
+         url = `/loan-booking/loan-digit-login/${lan}`;
+      }
+
+      await api.put(url, {
         status: newStatus,
         table,
       });

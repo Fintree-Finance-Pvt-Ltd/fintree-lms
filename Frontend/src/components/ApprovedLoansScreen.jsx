@@ -281,22 +281,47 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
   // --- MODERN COLUMN DEFINITIONS (Mapping to your logic) ---
   const columns = [
     {
-      key: "customer_name",
-      header: "Customer Details",
-      sortable: true,
-      render: (r) => (
-        <div
-          className="modern-cell-customer"
-          onClick={() => nav(`/approved-loan-details/${r.lan}`)}
-        >
-          <span className="customer-primary">{r.customer_name ?? "—"}</span>
-          <span className="customer-secondary">{r.lender}</span>
-        </div>
-      ),
-      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
-      csvAccessor: (r) => r.customer_name || "",
-      width: 220,
-    },
+  key: "customer_name",
+  header: "Customer Details",
+  sortable: true,
+
+  render: (r) => {
+
+    let url = `/approved-loan-details/${r.lan}`;
+
+    if (/^LDF/i.test(r?.lan)) {
+      url = `/loan-digit/customer-details?lan=${r.lan}`;
+    }
+
+    return (
+      <div
+        className="modern-cell-customer"
+        onClick={() => nav(url)}
+        style={{
+          color: "#2563eb",
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        <span className="customer-primary">
+          {r.customer_name ?? "—"}
+        </span>
+
+        <span className="customer-secondary">
+          {r.lender}
+        </span>
+      </div>
+    );
+  },
+
+  sortAccessor: (r) =>
+    (r.customer_name || "").toLowerCase(),
+
+  csvAccessor: (r) =>
+    r.customer_name || "",
+
+  width: 220,
+},
     { key: "lender", header: "Lender", sortable: true, width: 140 },
     {
       key: "partner_loan_id",
