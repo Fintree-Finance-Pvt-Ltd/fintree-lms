@@ -40,7 +40,7 @@ const MotionCorpDetails = () => {
   if (err) return <p style={{ padding: 40, fontSize: '20px', color: "#dc2626", fontWeight: 700 }}>{err}</p>;
   if (!details) return <p style={{ padding: 40, fontSize: '20px', color: "#6b7280" }}>No data found.</p>;
 
-  const { loan, bre, kyc } = details;
+  const { loan, bre } = details;
 
   const formatDate = (d) => {
     if (!d) return "—";
@@ -48,6 +48,9 @@ const MotionCorpDetails = () => {
     if (Number.isNaN(dt.getTime())) return d;
     return dt.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
+
+  const hasValue = (value) =>
+  value !== null && value !== undefined && String(value).trim() !== "";
 
   const sections = [
     {
@@ -269,6 +272,33 @@ const MotionCorpDetails = () => {
     </Grid>
   ),
 },
+
+{
+  title: "Verification Status",
+  icon: "✅",
+  content: (
+    <div style={{ display: "grid", gap: "24px" }}>
+      <ApplicantVerificationBlock
+        title="Borrower"
+        data={loan.verification_status?.borrower}
+      />
+
+      {hasValue(loan.guarantor?.name) && (
+        <ApplicantVerificationBlock
+          title="Guarantor"
+          data={loan.verification_status?.guarantor}
+        />
+      )}
+
+      {hasValue(loan.co_applicant?.name) && (
+        <ApplicantVerificationBlock
+          title="Co-Applicant"
+          data={loan.verification_status?.co_applicant}
+        />
+      )}
+    </div>
+  ),
+},
     {
   title: "Risk & BRE Decisioning",
   icon: "⚖️",
@@ -445,6 +475,110 @@ const Field = ({ label, value, highlight, isStatus }) => {
             )}
         </div>
     );
+};
+
+const ApplicantVerificationBlock = ({ title, data }) => {
+  const status = data || {
+    pan_status: "PENDING",
+    aadhaar_status: "PENDING",
+    bureau_status: "PENDING",
+  };
+
+  return (
+    <div
+      style={{
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
+        borderRadius: "18px",
+        padding: "24px",
+      }}
+    >
+      <h4
+        style={{
+          margin: "0 0 20px 0",
+          fontSize: "18px",
+          fontWeight: 900,
+          color: "#0f172a",
+        }}
+      >
+        {title}
+      </h4>
+
+      <Grid>
+        <VerificationField label="PAN Status" value={status.pan_status} />
+
+        <VerificationField
+          label="Aadhaar Status"
+          value={status.aadhaar_status}
+        />
+
+        <VerificationField
+          label="Bureau Status"
+          value={status.bureau_status}
+        />
+      </Grid>
+    </div>
+  );
+};
+
+const VerificationField = ({ label, value }) => {
+  const status = String(value || "PENDING").toUpperCase();
+
+  const statusColors = {
+    VERIFIED: {
+      bg: "#dcfce7",
+      text: "#166534",
+      border: "#bbf7d0",
+    },
+    FAILED: {
+      bg: "#fee2e2",
+      text: "#991b1b",
+      border: "#fecaca",
+    },
+    INITIATED: {
+      bg: "#dbeafe",
+      text: "#1e40af",
+      border: "#bfdbfe",
+    },
+    PENDING: {
+      bg: "#fef9c3",
+      text: "#854d0e",
+      border: "#fde68a",
+    },
+  };
+
+  const c = statusColors[status] || statusColors.PENDING;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <label
+        style={{
+          fontSize: "12px",
+          color: "#94a3b8",
+          fontWeight: 800,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        {label}
+      </label>
+
+      <span
+        style={{
+          padding: "9px 18px",
+          borderRadius: "999px",
+          fontSize: "14px",
+          fontWeight: 900,
+          background: c.bg,
+          color: c.text,
+          border: `1px solid ${c.border}`,
+          width: "fit-content",
+        }}
+      >
+        {status}
+      </span>
+    </div>
+  );
 };
 
 const FlagField = ({ label, value }) => (

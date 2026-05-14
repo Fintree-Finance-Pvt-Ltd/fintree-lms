@@ -1800,134 +1800,161 @@ router.get("/customer-details/:lan", async (req, res) => {
 
   try {
     const [rows] = await db.promise().query(
-      `
-      SELECT
-        lan,
-        partner_loan_id,
-        login_date,
+  `
+  SELECT
+    lb.lan,
+    lb.partner_loan_id,
+    lb.login_date,
 
-        first_name,
-        last_name,
-        customer_name,
+    lb.first_name,
+    lb.last_name,
+    lb.customer_name,
 
-        mobile_number,
-        email,
-        pan_card,
-        dob,
-        gender,
-        father_name,
+    lb.mobile_number,
+    lb.email,
+    lb.pan_card,
+    lb.dob,
+    lb.gender,
+    lb.father_name,
 
-        permanent_address_line_1,
-        permanent_address_line_2,
-        permanent_village_city,
-        permanent_district,
-        permanent_state,
-        permanent_pincode,
+    lb.permanent_address_line_1,
+    lb.permanent_address_line_2,
+    lb.permanent_village_city,
+    lb.permanent_district,
+    lb.permanent_state,
+    lb.permanent_pincode,
 
-        loan_amount,
-        processing_fee,
-        processing_fee_percentage,
-        disbursal_amount,
-        interest_rate,
-        loan_tenure,
+    lb.loan_amount,
+    lb.requested_loan_amount,
+    lb.processing_fee,
+    lb.processing_fee_percentage,
+    lb.disbursal_amount,
+    lb.interest_rate,
+    lb.loan_tenure,
 
-        guarantor_name,
-        guarantor_dob,
-        guarantor_pan,
-        guarantor_mobile,
-        guarantor_email,
-        relationship_with_borrower,
+    lb.guarantor_name,
+    lb.guarantor_dob,
+    lb.guarantor_pan,
+    lb.guarantor_mobile,
+    lb.guarantor_email,
+    lb.relationship_with_borrower,
 
-        guarantor_address_line_1,
-        guarantor_address_line_2,
-        guarantor_village_city,
-        guarantor_district,
-        guarantor_state,
-        guarantor_pincode,
+    lb.guarantor_address_line_1,
+    lb.guarantor_address_line_2,
+    lb.guarantor_village_city,
+    lb.guarantor_district,
+    lb.guarantor_state,
+    lb.guarantor_pincode,
 
-        co_applicant_name,
-        co_applicant_dob,
-        co_applicant_pan,
-        co_applicant_mobile,
-        co_applicant_email,
+    lb.co_applicant_name,
+    lb.co_applicant_dob,
+    lb.co_applicant_pan,
+    lb.co_applicant_mobile,
+    lb.co_applicant_email,
 
-        co_applicant_address_line_1,
-        co_applicant_address_line_2,
-        co_applicant_village_city,
-        co_applicant_district,
-        co_applicant_state,
-        co_applicant_pincode,
+    lb.co_applicant_address_line_1,
+    lb.co_applicant_address_line_2,
+    lb.co_applicant_village_city,
+    lb.co_applicant_district,
+    lb.co_applicant_state,
+    lb.co_applicant_pincode,
 
-        customer_name_as_per_bank,
-        customer_bank_name,
-        customer_account_number,
-        bank_ifsc_code,
+    lb.customer_name_as_per_bank,
+    lb.customer_bank_name,
+    lb.customer_account_number,
+    lb.bank_ifsc_code,
 
-        selected_dealer_application_id,
-        dealer_id,
-        trade_name,
-        dealer_name,
-        dealer_contact,
-        dealer_email,
-        gst_no,
-        pan_number,
+    lb.selected_dealer_application_id,
+    lb.dealer_id,
+    lb.trade_name,
+    lb.dealer_name,
+    lb.dealer_contact,
+    lb.dealer_email,
+    lb.gst_no,
+    lb.pan_number,
 
-        dealer_address,
-        dealer_city,
-        dealer_state,
-        dealer_pincode,
+    lb.dealer_address,
+    lb.dealer_city,
+    lb.dealer_state,
+    lb.dealer_pincode,
 
-        dealer_bank_name,
-        dealer_account_number,
-        dealer_ifsc,
-        dealer_name_in_bank,
+    lb.dealer_bank_name,
+    lb.dealer_account_number,
+    lb.dealer_ifsc,
+    lb.dealer_name_in_bank,
 
-        selected_product_id,
-        battery_name,
-        battery_type,
-        battery_serial_no_1,
-        battery_serial_no_2,
-        e_rikshaw_model,
-        chassis_no,
+    lb.selected_product_id,
+    lb.battery_name,
+    lb.battery_type,
+    lb.battery_serial_no_1,
+    lb.battery_serial_no_2,
+    lb.e_rikshaw_model,
+    lb.chassis_no,
 
-        borrower_mobile_verified,
-        guarantor_mobile_verified,
-        co_applicant_mobile_verified,
+    lb.borrower_mobile_verified,
+    lb.guarantor_mobile_verified,
+    lb.co_applicant_mobile_verified,
 
-        lender,
-        lender_type,
-        product,
-        status,
+    lb.lender,
+    lb.lender_type,
+    lb.product,
+    lb.status,
 
-        created_at,
-        updated_at,
+    lb.created_at,
+    lb.updated_at,
 
-        motioncorp_bre_status,
-        motioncorp_bre_reason,
-        motioncorp_bre_checked_at,
+    lb.motioncorp_bre_status,
+    lb.motioncorp_bre_reason,
+    lb.motioncorp_bre_checked_at,
 
-        fintree_cibil_score,
-        motioncorp_enquiries_30d,
+    lb.fintree_cibil_score,
+    lb.motioncorp_enquiries_30d,
 
-        motioncorp_dpd_3m_flag,
-        motioncorp_dpd_6m_flag,
-        motioncorp_overdue_12m_flag,
+    lb.motioncorp_dpd_3m_flag,
+    lb.motioncorp_dpd_6m_flag,
+    lb.motioncorp_overdue_12m_flag,
 
-        motioncorp_written_off_3y_flag,
+    lb.motioncorp_written_off_3y_flag,
 
-        motioncorp_60plus_24m_flag,
-        motioncorp_90plus_36m_flag,
+    lb.motioncorp_60plus_24m_flag,
+    lb.motioncorp_90plus_36m_flag,
 
-        motioncorp_emi_overdue_amount,
-        motioncorp_cc_overdue_amount,
+    lb.motioncorp_emi_overdue_amount,
+    lb.motioncorp_cc_overdue_amount,
 
-        motioncorp_deviation_flag
+    lb.motioncorp_deviation_flag,
 
-      FROM loan_booking_motion_corp
-      WHERE lan = ?
-      `,
-      [lan],
-    );
+    borrower_kyc.pan_status AS borrower_pan_status,
+    borrower_kyc.aadhaar_status AS borrower_aadhaar_status,
+    borrower_kyc.bureau_status AS borrower_bureau_status,
+
+    guarantor_kyc.pan_status AS guarantor_pan_status,
+    guarantor_kyc.aadhaar_status AS guarantor_aadhaar_status,
+    guarantor_kyc.bureau_status AS guarantor_bureau_status,
+
+    co_kyc.pan_status AS co_applicant_pan_status,
+    co_kyc.aadhaar_status AS co_applicant_aadhaar_status,
+    co_kyc.bureau_status AS co_applicant_bureau_status
+
+  FROM loan_booking_motion_corp lb
+
+  LEFT JOIN kyc_verification_status borrower_kyc
+    ON borrower_kyc.lan = lb.lan
+    AND borrower_kyc.applicant_type = 'BORROWER'
+
+  LEFT JOIN kyc_verification_status guarantor_kyc
+    ON guarantor_kyc.lan = lb.lan
+    AND guarantor_kyc.applicant_type = 'GUARANTOR'
+
+  LEFT JOIN kyc_verification_status co_kyc
+    ON co_kyc.lan = lb.lan
+    AND co_kyc.applicant_type = 'CO_APPLICANT'
+
+  WHERE lb.lan = ?
+  LIMIT 1
+  `,
+  [lan]
+);
 
     if (!rows.length) {
       return res.status(404).json({
@@ -2062,6 +2089,31 @@ router.get("/customer-details/:lan", async (req, res) => {
           row.e_rikshaw_model,
         chassis_no: row.chassis_no,
       },
+
+       // ADD HERE
+  verification_status: {
+    borrower: {
+      pan_status: row.borrower_pan_status || "PENDING",
+      aadhaar_status: row.borrower_aadhaar_status || "PENDING",
+      bureau_status: row.borrower_bureau_status || "PENDING",
+    },
+
+    guarantor: row.guarantor_name
+      ? {
+          pan_status: row.guarantor_pan_status || "PENDING",
+          aadhaar_status: row.guarantor_aadhaar_status || "PENDING",
+          bureau_status: row.guarantor_bureau_status || "PENDING",
+        }
+      : null,
+
+    co_applicant: row.co_applicant_name
+      ? {
+          pan_status: row.co_applicant_pan_status || "PENDING",
+          aadhaar_status: row.co_applicant_aadhaar_status || "PENDING",
+          bureau_status: row.co_applicant_bureau_status || "PENDING",
+        }
+      : null,
+  },
 
       verification: {
         borrower_mobile_verified:
