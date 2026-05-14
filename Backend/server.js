@@ -106,7 +106,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
 app.use("/api/helium-webhook", heliumWebhookRoutes);
-app.use("/api/switch-my-loan", require("./routes/switchMyLoan/switchMyLoanRotues")); // ✅ Register Switch My Loan Routes
+app.use("/api/rapid-money", require("./routes/switchMyLoan/switchMyLoanRotues")); // ✅ Register Switch My Loan Routes
 app.use("/api/loan-digit", require("./routes/loanDigit/loanDigitRoutes"));
 app.use("/api/fldg", require("./routes/fldgRoutes")); // ✅ Register FLDG Routes
 
