@@ -371,7 +371,7 @@ const MotionCorpDetails = () => {
             </button>
 
             <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Loan Digit Profile</span>
+                <span style={{ fontSize: '14px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Motion Corp Profile</span>
                 <h1 style={{ margin: "8px 0 0 0", color: "#0f172a", fontSize: '42px', fontWeight: 900, letterSpacing: '-0.02em' }}>
                     {loan.customer_name || lan}
                 </h1>

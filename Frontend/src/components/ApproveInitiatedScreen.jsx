@@ -239,7 +239,7 @@ const handleApprovedAmountChange = (lan, value) => {
           // onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
           onClick={() => {
             if(/^MC/i.test(r.lan)){
-              nav(`/motion-corp/customer-details?lan=${r.lan}`);
+              navigate(`/motion-corp/customer-details?lan=${r.lan}`);
             }else {
               navigate(`/approved-loan-details/${r.lan}`);
             }

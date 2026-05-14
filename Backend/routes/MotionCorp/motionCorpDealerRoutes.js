@@ -1255,6 +1255,42 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
   }
 });
 
+router.get("/loan-booking/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT *
+      FROM loan_booking_motion_corp
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan booking not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (error) {
+    console.error("Fetch Motion Corp booking error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch loan booking",
+      error: error.message,
+    });
+  }
+});
+
 router.post("/send-otp", async (req, res) => {
   try {
     console.log("Incoming body:", req.body);

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api/api";
 import axios from "axios";
+import { useSearchParams } from "react-router-dom";
 
 const MotionCorpLoanBooking = () => {
+  const [searchParams] = useSearchParams();
+const resumeLan = searchParams.get("lan");
   const today = new Date().toISOString().split("T")[0];
   const [formData, setFormData] = useState({
     lenderType: "EV Loan",
@@ -131,6 +134,12 @@ const MotionCorpLoanBooking = () => {
     coApplicant: false,
   });
 
+  useEffect(() => {
+  if (resumeLan) {
+    fetchResumeBooking(resumeLan);
+  }
+}, [resumeLan]);
+
   const sections = [
     "Borrower Details",
     "Address",
@@ -141,6 +150,129 @@ const MotionCorpLoanBooking = () => {
     "Dealer Details",
     "Product Details",
   ];
+
+  const fetchResumeBooking = async (resumeLan) => {
+  try {
+    setLoading(true);
+
+    const res = await api.get(`motion-corp/loan-booking/${resumeLan}`);
+
+    if (!res.data.success) {
+      setMessage("❌ Could not resume booking");
+      return;
+    }
+
+    const d = res.data.data;
+
+    setLan(d.lan || "");
+    setPartnerLoanId(d.partner_loan_id || "");
+    setBorrowerSaved(true);
+
+    setFormData((prev) => ({
+      ...prev,
+
+      lenderType: d.lender_type || "EV Loan",
+      lender: d.lender || "Motion Corp",
+      product: d.product || "Monthly Loan",
+      status: d.status || "Login",
+
+      LOGIN_DATE: d.login_date ? String(d.login_date).split("T")[0] : prev.LOGIN_DATE,
+      First_Name: d.first_name || "",
+      Last_Name: d.last_name || "",
+      Customer_Name: d.customer_name || "",
+      Borrower_DOB: d.dob ? String(d.dob).split("T")[0] : "",
+      Father_Name: d.father_name || "",
+      Mobile_Number: d.mobile_number || "",
+      Email: d.email || "",
+      Pan_Card: d.pan_card || "",
+      Gender: d.gender || "",
+
+      Address_Line_1: d.permanent_address_line_1 || "",
+      Address_Line_2: d.permanent_address_line_2 || "",
+      Village: d.permanent_village_city || "",
+      District: d.permanent_district || "",
+      State: d.permanent_state || "",
+      Pincode: d.permanent_pincode || "",
+
+      Loan_Amount: d.requested_loan_amount || d.loan_amount || "",
+      Interest_Rate: d.interest_rate || "",
+      Tenure: d.loan_tenure || "",
+      Disbursal_Amount: d.disbursal_amount || "",
+      Processing_Fee: d.processing_fee || "",
+      Processing_Fee_Percentage: d.processing_fee_percentage || "",
+
+      GURANTOR: d.guarantor_name || "",
+      GURANTOR_DOB: d.guarantor_dob ? String(d.guarantor_dob).split("T")[0] : "",
+      GURANTOR_EMAIL: d.guarantor_email || "",
+      GURANTOR_PAN: d.guarantor_pan || "",
+      GURANTOR_MOBILE: d.guarantor_mobile || "",
+      Relationship_with_Borrower: d.relationship_with_borrower || "",
+      GURANTOR_Address_Line_1: d.guarantor_address_line_1 || "",
+      GURANTOR_Address_Line_2: d.guarantor_address_line_2 || "",
+      GURANTOR_Village: d.guarantor_village_city || "",
+      GURANTOR_District: d.guarantor_district || "",
+      GURANTOR_State: d.guarantor_state || "",
+      GURANTOR_Pincode: d.guarantor_pincode || "",
+
+      Co_Applicant: d.co_applicant_name || "",
+      Co_Applicant_DOB: d.co_applicant_dob ? String(d.co_applicant_dob).split("T")[0] : "",
+      Co_Applicant_Email: d.co_applicant_email || "",
+      Co_Applicant_PAN: d.co_applicant_pan || "",
+      Co_Applicant_Mobile: d.co_applicant_mobile || "",
+      Co_Applicant_Address_Line_1: d.co_applicant_address_line_1 || "",
+      Co_Applicant_Address_Line_2: d.co_applicant_address_line_2 || "",
+      Co_Applicant_Village: d.co_applicant_village_city || "",
+      Co_Applicant_District: d.co_applicant_district || "",
+      Co_Applicant_State: d.co_applicant_state || "",
+      Co_Applicant_Pincode: d.co_applicant_pincode || "",
+
+      customer_name_as_per_bank: d.customer_name_as_per_bank || "",
+      customer_bank_name: d.customer_bank_name || "",
+      customer_account_number: d.customer_account_number || "",
+      bank_ifsc_code: d.bank_ifsc_code || "",
+
+      selected_dealer_application_id: d.selected_dealer_application_id || "",
+      dealer_id: d.dealer_id || "",
+      trade_name: d.trade_name || "",
+      dealer_name: d.dealer_name || "",
+      dealer_contact: d.dealer_contact || "",
+      dealer_email: d.dealer_email || "",
+      gst_no: d.gst_no || "",
+      pan_number: d.pan_number || "",
+      dealer_address: d.dealer_address || "",
+      dealer_city: d.dealer_city || "",
+      dealer_state: d.dealer_state || "",
+      dealer_pincode: d.dealer_pincode || "",
+
+      bank_name: d.dealer_bank_name || "",
+      account_number: d.dealer_account_number || "",
+      ifsc: d.dealer_ifsc || "",
+      name_in_bank: d.dealer_name_in_bank || "",
+
+      selected_product_id: d.selected_product_id || "",
+      Battery_Name: d.battery_name || "",
+      Battery_Type: d.battery_type || "",
+      Battery_Serial_no_1: d.battery_serial_no_1 || "",
+      Battery_Serial_no_2: d.battery_serial_no_2 || "",
+      E_Rikshaw_model: d.e_rikshaw_model || "",
+      Chassis_no: d.chassis_no || "",
+    }));
+
+    setOtpVerified({
+      borrower: Number(d.borrower_mobile_verified) === 1,
+      guarantor: Number(d.guarantor_mobile_verified) === 1,
+      coApplicant: Number(d.co_applicant_mobile_verified) === 1,
+    });
+
+    setMessage(`✅ Resumed booking. LAN: ${d.lan}`);
+  } catch (err) {
+    setMessage(
+      `❌ ${err.response?.data?.message || "Failed to resume booking"}`
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const [activeSection, setActiveSection] = useState(0);
 
