@@ -230,7 +230,7 @@ if (
   score >= 200 &&
   score < 650
 ) {
-  hardRejects.push("CIBIL_BELOW_650");
+  reasons.push("CIBIL_BELOW_650");
 }
 
 if (
@@ -392,7 +392,7 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
     SELECT
       lan,
       dob,
-      loan_amount,
+      requested_loan_amount,
       loan_tenure,
       interest_rate,
       cibil_score
