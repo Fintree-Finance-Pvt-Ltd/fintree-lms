@@ -716,7 +716,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
       await db.promise().query(
         `INSERT INTO kyc_verification_status (lan, bureau_status , bureau_api_response)
         VALUES (?, 'VERIFIED' , ?)
-        ON DUPLICATE KEY UPDATE bureau_status='VERIFIED' bureau_api_response=VALUES(bureau_api_response)
+        ON DUPLICATE KEY UPDATE bureau_status='VERIFIED' , bureau_api_response=VALUES(bureau_api_response)
          `,
         [lan, decodedXml],
       );
