@@ -633,15 +633,15 @@ router.post("/manual-entry", async (req, res) => {
       lan,
     ]);
 
-    await partnerBookingWrapper.finalizeBooking(
-      conn,
-      validation.partnerId,
-      validation.limitId,
-      lan,
-      loanAmount,
-      validation.requiredFldg,
-      `CLAYOO booking reservation`,
-    );
+    // await partnerBookingWrapper.finalizeBooking(
+    //   conn,
+    //   validation.partnerId,
+    //   validation.limitId,
+    //   lan,
+    //   loanAmount,
+    //   validation.requiredFldg,
+    //   `CLAYOO booking reservation`,
+    // );
 
     await conn.commit();
     conn.release();
@@ -1324,13 +1324,20 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
   };
 
   if (!allowedTables[table]) {
-    return res.status(400).json({ message: "Invalid table name" });
+    return res.status(400).json({
+      message: "Invalid table name",
+    });
   }
 
   if (
-    ![LOAN_STATUS.CREDIT_APPROVED, LOAN_STATUS.CREDIT_REJECTED].includes(status)
+    ![
+      LOAN_STATUS.CREDIT_APPROVED,
+      LOAN_STATUS.CREDIT_REJECTED,
+    ].includes(status)
   ) {
-    return res.status(400).json({ message: "Invalid status value" });
+    return res.status(400).json({
+      message: "Invalid status value",
+    });
   }
 
   const conn = await db.promise().getConnection();
@@ -1338,22 +1345,59 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    // Lock row while updating (prevents parallel approvals)
+    // Lock loan row
     const [[loan]] = await conn.query(
-      `SELECT status FROM ?? WHERE lan = ? FOR UPDATE`,
+      `
+      SELECT
+        lan,
+        status,
+        loan_amount
+      FROM ??
+      WHERE lan = ?
+      FOR UPDATE
+      `,
       [table, lan],
     );
 
     if (!loan) {
       await conn.rollback();
+
       return res.status(404).json({
         message: `Loan not found with LAN ${lan}`,
       });
     }
 
+    // Prevent duplicate processing
+    if (
+      [
+        LOAN_STATUS.CREDIT_APPROVED,
+        LOAN_STATUS.CREDIT_REJECTED,
+      ].includes(loan.status)
+    ) {
+      await conn.rollback();
+
+      return res.status(400).json({
+        message: "Loan already processed",
+      });
+    }
+
+    const loanAmount = Number(loan.loan_amount || 0);
+
+    // Validate partner booking only for approval
+    let validation = null;
+
+    if (status === LOAN_STATUS.CREDIT_APPROVED) {
+      validation = await partnerBookingWrapper.validateBookingOrThrow(
+        conn,
+        "CLAYOO",
+        loanAmount,
+      );
+    }
+
     let newStatus = status;
     let newStage;
 
+    // Recheck flow
     if (
       loan.status === "Credit Recheck" &&
       status === LOAN_STATUS.CREDIT_APPROVED
@@ -1366,15 +1410,30 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
       newStage = "CREDIT_REJECTED";
     }
 
+    // Update loan status
     await conn.query(
       `
       UPDATE ??
-      SET status = ?,
-          stage = ?
+      SET
+        status = ?,
+        stage = ?
       WHERE lan = ?
       `,
       [table, newStatus, newStage, lan],
     );
+
+    // Finalize booking only for approval
+    if (status === LOAN_STATUS.CREDIT_APPROVED) {
+      await partnerBookingWrapper.finalizeBooking(
+        conn,
+        validation.partnerId,
+        validation.limitId,
+        lan,
+        loanAmount,
+        validation.requiredFldg,
+        `CLAYOO booking reservation`,
+      );
+    }
 
     await conn.commit();
 
@@ -1391,8 +1450,25 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
 
     console.error("Error updating loan status:", err);
 
+    if (err.message === "LIMIT_EXCEEDED") {
+      return res.status(403).json({
+        message: `Limit exceeded for ${err.meta.partnerName}`,
+        remaining_limit: err.meta.remaining,
+        required: err.meta.required,
+      });
+    }
+
+    if (err.message === "FLDG_INSUFFICIENT") {
+      return res.status(403).json({
+        message: `Insufficient FLDG balance for ${err.meta.partnerName}`,
+        available_fldg: err.meta.available,
+        required_fldg: err.meta.required,
+      });
+    }
+
     return res.status(500).json({
       message: "Database error",
+      error: err.sqlMessage || err.message,
     });
   } finally {
     conn.release();
