@@ -178,6 +178,17 @@ import MotionCorpDisburseInitiate from "./components/Motion Corp/motionCorpDisbu
 import MotionCorpDetails from "./components/Motion Corp/motionCorpDetails";
 import MotionCorpLoginAction from "./components/Motion Corp/MotionCorpLoginAction";
 import MotionCorpApprovedLoans from "./components/Motion Corp/MotionCorpApprovedLoans";
+import SevenFinCorpDealerEntry from "./components/Seven FinCorp/SevenFinCorpDealerEntry";
+import SevenFinCorpDealerLists from "./components/Seven FinCorp/SevenfinCorpDealerLists";
+import SevenFinCorpLoanBooking from "./components/Seven FinCorp/SevenfinCorpLoanBooking";
+import SevenFinCorpLoginCases from "./components/Seven FinCorp/SevenFinCorpLoginCases";
+import SevenFinCorpApprovedLoans from "./components/Seven FinCorp/SevenFinCorpApprovedLoans";
+import SevenFinCorpDealerDetails from "./components/Seven FinCorp/SevenfinCorpDealerDetails";
+import SevenFinCorpAllLoans from "./components/Seven FinCorp/sevenFinCorpAllLoans";
+import SevenFinCorpDetails from "./components/Seven FinCorp/SevenfinCorpDetails";
+
+
+
 
 
 function App() {
@@ -1444,9 +1455,9 @@ function App() {
           />
 
           <Route
-  path="/motion-corp/dealer-details/:lan"
-  element={<MotionCorpDealerDetails />}
-/>
+            path="/motion-corp/dealer-details/:lan"
+            element={<MotionCorpDealerDetails />}
+          />
 
           <Route
             path="/motion-corp/dealer-all-cases"
@@ -1475,7 +1486,7 @@ function App() {
             }
           />
 
-            <Route
+          <Route
             path="/motion-corp/credit-initiated-cases"
             element={
               <PermissionRoute pageName="Motion Corp Customer Credit Initiated Cases Screen">
@@ -1493,8 +1504,8 @@ function App() {
             }
           />
 
-            
-            <Route
+
+          <Route
             path="/motion-corp/customer-details"
             element={
               <PermissionRoute pageName="Motion Corp Customer Details">
@@ -1503,8 +1514,92 @@ function App() {
             }
           />
 
+{/* ✅ Seven Fincorp Pages */}
+
+{/* ✅ Seven Fincorp Dealer Entry routes */}
+
+/* =========================
+   ✅ Seven Fincorp Routes
+========================= */
+
+<Route
+  path="/seven-fincorp/dealer-entry"
+  element={
+    <PermissionRoute pageName="Seven Fincorp Dealer Entry">
+      <SevenFinCorpDealerEntry />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/seven-fincorp/dealer-lists"
+  element={
+    <PermissionRoute pageName="Seven Fincorp Dealer Lists">
+      <SevenFinCorpDealerLists />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/seven-fincorp/loan-booking"
+  element={
+    <PermissionRoute pageName="Seven Fincorp Loan Booking">
+      <SevenFinCorpLoanBooking />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/seven-fincorp/dealer-login-cases"
+  element={
+    <PermissionRoute pageName="Seven Fincorp Dealer Login Cases">
+      <SevenFinCorpLoginCases />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/seven-fincorp/dealer-approved-loans"
+  element={
+    <PermissionRoute pageName="Seven Fincorp Dealer Operation Approval Loans">
+      <SevenFinCorpApprovedLoans />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/seven-fincorp/dealer-details/:lan"
+  element={<SevenFinCorpDealerDetails />}
+/>
+
+<Route
+  path="/seven-fincorp/all-loans"
+  element={
+    <PermissionRoute pageName="Seven Fincorp Customer All Cases Screen">
+      <SevenFinCorpAllLoans />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/seven-fincorp/login-cases"
+  element={
+    <PermissionRoute pageName="Seven Fincorp Customer Login Cases Screen">
+      <SevenFinCorpLoginCases />
+    </PermissionRoute>
+  }
+/>
 
 
+
+<Route
+  path="/seven-fincorp/customer-details"
+  element={
+    <PermissionRoute pageName="Seven Fincorp Customer Details">
+      <SevenFinCorpDetails />
+    </PermissionRoute>
+  }
+/>
 
           {/* Partner Limit Management */}
           <Route

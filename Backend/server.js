@@ -101,6 +101,13 @@ app.use(
   "/api/motion-corp",
   require("./routes/MotionCorp/motionCorpDealerRoutes")
 );
+
+
+app.use(
+  "/api/seven-fincorp",
+  require("./routes/Seven Fincorp/sevenFincorpDealerRoutes")
+);
+
 app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
