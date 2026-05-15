@@ -178,7 +178,7 @@ import MotionCorpDisburseInitiate from "./components/Motion Corp/motionCorpDisbu
 import MotionCorpDetails from "./components/Motion Corp/motionCorpDetails";
 import MotionCorpLoginAction from "./components/Motion Corp/MotionCorpLoginAction";
 import MotionCorpApprovedLoans from "./components/Motion Corp/MotionCorpApprovedLoans";
-import SevenFinCorpDealerEntry from "./components/Seven FinCorp/SevenFinCorpDealerEntry";
+import SevenFinCorpDealerEntry from "./components/Seven FinCorp/SevenfinCorpDealerEntry";
 import SevenFinCorpDealerLists from "./components/Seven FinCorp/SevenfinCorpDealerLists";
 import SevenFinCorpLoanBooking from "./components/Seven FinCorp/SevenfinCorpLoanBooking";
 import SevenFinCorpLoginCases from "./components/Seven FinCorp/SevenFinCorpLoginCases";
