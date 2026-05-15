@@ -467,14 +467,14 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
   //   finalStatus = "Credit Initiated";
   // }
 
-  let finalStatus = "Operations Initiated";
+  let finalStatus = "Credit Initiated";
 let finalStage = "BRE Approved";
 
 if (decision.status === "BRE REJECTED") {
   finalStatus = "Rejected";
   finalStage = "BRE Rejected";
 }
-
+ 
 if (decision.status === "Credit Initiated") {
   finalStatus = "Credit Initiated";
   finalStage = "BRE Deviation";

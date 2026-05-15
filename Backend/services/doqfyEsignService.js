@@ -86,7 +86,7 @@ exports.initDoqfyEsign = async (lan, type) => {
     /* --------------------------------------------------- */
 
     // These values should ideally come from DB/config
-    const BRANCH_ID = process.env.DOQFY_BRANCH_ID;
+    const BRANCH_ID = process.env.DOQFY_BRANCH_ID || 3581;
 
     // Example article id:
     // Article 5(j) Agreement
@@ -110,28 +110,7 @@ exports.initDoqfyEsign = async (lan, type) => {
           referance_id: referenceId,
 
           // OPTIONAL ESTAMP
-          estamps: [
-            {
-              first_party_name:
-                loan.customer_name || "Customer",
-
-              second_party_name:
-                process.env.COMPANY_NAME || "Company",
-
-              stamp_duty_paid_by: "first_party_name",
-
-              article_id: Number(ARTICLE_ID),
-
-              stamp_duty_amount: 500,
-
-              consideration_amount:
-                Number(loan.loan_amount || 1000),
-
-              description: `${type} Agreement`,
-
-              execution_date: Date.now()
-            }
-          ],
+          estamps: [],
 
           esigns: {
             party_users: [
@@ -143,15 +122,13 @@ exports.initDoqfyEsign = async (lan, type) => {
                 contact_number:
                   loan.mobile_number || "",
 
-                sign_position: "BOTTOM_CENTER",
+                sign_position: "BOTTOM_RIGHT",
 
-                method: "ELECTRONIC",
+                method: "AADHAAR",
 
                 position_details: {},
 
                 pages: "ALL",
-
-                signatory_sequence: 0,
 
                 remark: `${type} Signing`
               }
@@ -165,7 +142,7 @@ exports.initDoqfyEsign = async (lan, type) => {
       document: pdfBase64
     };
 
-    console.log("📤 SENDING PAYLOAD TO DOQFY");
+    console.log("📤 SENDING PAYLOAD TO DOQFY", payload);
 
     /* --------------------------------------------------- */
     /* DOQFY API CALL */
@@ -213,8 +190,12 @@ exports.initDoqfyEsign = async (lan, type) => {
         `/order/orders/?detail=1&order_ids=${orderId}`
       );
 
+      console.log("✅ ORDER DETAILS FETCHED", orderResp);
+
       const orderData =
         orderResp.data?.content?.[0];
+
+        console.log("order response data", orderData);
 
       const esignData =
         orderData?.esign?.[0];

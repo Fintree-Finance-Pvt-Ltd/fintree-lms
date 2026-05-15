@@ -177,6 +177,7 @@ import MotionCorpLoginCases from "./components/Motion Corp/MotionCorpLoginCases"
 import MotionCorpDisburseInitiate from "./components/Motion Corp/motionCorpDisburseInitiate";
 import MotionCorpDetails from "./components/Motion Corp/motionCorpDetails";
 import MotionCorpLoginAction from "./components/Motion Corp/MotionCorpLoginAction";
+import MotionCorpApprovedLoans from "./components/Motion Corp/MotionCorpApprovedLoans";
 
 
 function App() {
@@ -1479,6 +1480,15 @@ function App() {
             element={
               <PermissionRoute pageName="Motion Corp Customer Credit Initiated Cases Screen">
                 <MotionCorpDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/credit-approved-cases"
+            element={
+              <PermissionRoute pageName="Motion Corp Customer Credit Approved Cases Screen">
+                <MotionCorpApprovedLoans />
               </PermissionRoute>
             }
           />

@@ -580,9 +580,7 @@ router.patch("/dealer/status/:lan", async (req, res) => {
   }
 });
 
-
 router.post("/upload/ev-customer-manual", async (req, res) => {
-  
   const connection = await db.promise().getConnection();
 
   try {
@@ -590,7 +588,7 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
     console.log("Received loan booking data:", data);
 
     const [borrowerOtp] = await connection.query(
-  `
+      `
   SELECT *
   FROM otp_consent_model
   WHERE mobile_number = ?
@@ -600,22 +598,18 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
   ORDER BY id DESC
   LIMIT 1
   `,
-  [data.Mobile_Number, "BORROWER"]
-);
+      [data.Mobile_Number, "BORROWER"],
+    );
 
-if (!borrowerOtp.length) {
+    if (!borrowerOtp.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Borrower mobile not verified",
+      });
+    }
 
-return res.status(400).json({
-success: false,
-message:
-"Borrower mobile not verified",
-});
-
-}
-
-const [guarantorOtp] =
-await connection.query(
-`     SELECT *
+    const [guarantorOtp] = await connection.query(
+      `     SELECT *
     FROM otp_consent_model
     WHERE mobile_number = ?
     AND applicant_type = 'GUARANTOR'
@@ -624,24 +618,19 @@ await connection.query(
     ORDER BY id DESC
     LIMIT 1
     `,
-[data.GURANTOR_MOBILE]
-);
+      [data.GURANTOR_MOBILE],
+    );
 
-if (!guarantorOtp.length) {
+    if (!guarantorOtp.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Guarantor mobile not verified",
+      });
+    }
 
-return res.status(400).json({
-success: false,
-message:
-"Guarantor mobile not verified",
-});
-
-}
-
-if (data.Co_Applicant) {
-
-const [coApplicantOtp] =
-await connection.query(
-`       SELECT *
+    if (data.Co_Applicant) {
+      const [coApplicantOtp] = await connection.query(
+        `       SELECT *
       FROM otp_consent_model
       WHERE mobile_number = ?
       AND applicant_type =
@@ -651,19 +640,16 @@ await connection.query(
       ORDER BY id DESC
       LIMIT 1
       `,
-[data.Co_Applicant_Mobile]
-);
+        [data.Co_Applicant_Mobile],
+      );
 
-if (!coApplicantOtp.length) {
-return res.status(400).json({
-  success: false,
-  message:
-    "Co-applicant mobile not verified",
-});
-
-}
-
-}
+      if (!coApplicantOtp.length) {
+        return res.status(400).json({
+          success: false,
+          message: "Co-applicant mobile not verified",
+        });
+      }
+    }
 
     const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
       "MOTION-CORP_CUSTOMER",
@@ -671,7 +657,7 @@ return res.status(400).json({
 
     await connection.beginTransaction();
 
-        const values = [
+    const values = [
       emptyToNull(data.lenderType),
       emptyToNull(data.lender),
       emptyToNull(data.product),
@@ -711,25 +697,23 @@ return res.status(400).json({
       emptyToNull(data.GURANTOR_MOBILE),
       emptyToNull(data.Relationship_with_Borrower),
       emptyToNull(data.GURANTOR_Address_Line_1),
-emptyToNull(data.GURANTOR_Address_Line_2),
-emptyToNull(data.GURANTOR_Village),
-emptyToNull(data.GURANTOR_District),
-emptyToNull(data.GURANTOR_State),
-emptyToNull(data.GURANTOR_Pincode),
-
+      emptyToNull(data.GURANTOR_Address_Line_2),
+      emptyToNull(data.GURANTOR_Village),
+      emptyToNull(data.GURANTOR_District),
+      emptyToNull(data.GURANTOR_State),
+      emptyToNull(data.GURANTOR_Pincode),
 
       emptyToNull(data.Co_Applicant),
       emptyToNull(data.Co_Applicant_DOB),
       emptyToNull(data.Co_Applicant_Email),
       emptyToNull(data.Co_Applicant_PAN),
-emptyToNull(data.Co_Applicant_Mobile),
-emptyToNull(data.Co_Applicant_Address_Line_1),
-emptyToNull(data.Co_Applicant_Address_Line_2),
-emptyToNull(data.Co_Applicant_Village),
-emptyToNull(data.Co_Applicant_District),
-emptyToNull(data.Co_Applicant_State),
-emptyToNull(data.Co_Applicant_Pincode),
-
+      emptyToNull(data.Co_Applicant_Mobile),
+      emptyToNull(data.Co_Applicant_Address_Line_1),
+      emptyToNull(data.Co_Applicant_Address_Line_2),
+      emptyToNull(data.Co_Applicant_Village),
+      emptyToNull(data.Co_Applicant_District),
+      emptyToNull(data.Co_Applicant_State),
+      emptyToNull(data.Co_Applicant_Pincode),
 
       emptyToNull(data.customer_name_as_per_bank),
       emptyToNull(data.customer_bank_name),
@@ -864,42 +848,37 @@ co_applicant_mobile_verified
       VALUES (${values.map(() => "?").join(", ")})
     `;
 
-
-
     await connection.query(insertQuery, values);
 
     await connection.query(
-`   UPDATE otp_consent_model
+      `   UPDATE otp_consent_model
   SET is_used = 1
   WHERE mobile_number = ?
   AND applicant_type = ?
   `,
-[data.Mobile_Number, "BORROWER"]
-);
+      [data.Mobile_Number, "BORROWER"],
+    );
 
-await connection.query(
-`   UPDATE otp_consent_model
+    await connection.query(
+      `   UPDATE otp_consent_model
   SET is_used = 1
   WHERE mobile_number = ?
   AND applicant_type = ?
   `,
-[data.GURANTOR_MOBILE, "GUARANTOR"]
-);
+      [data.GURANTOR_MOBILE, "GUARANTOR"],
+    );
 
-if (data.Co_Applicant) {
-
-await connection.query(
-`     UPDATE otp_consent_model
+    if (data.Co_Applicant) {
+      await connection.query(
+        `     UPDATE otp_consent_model
     SET is_used = 1
     WHERE mobile_number = ?
     AND applicant_type =
     'CO_APPLICANT'
     `,
-[data.Co_Applicant_Mobile]
-);
-
-}
-
+        [data.Co_Applicant_Mobile],
+      );
+    }
 
     await connection.commit();
 
@@ -943,7 +922,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
       ORDER BY id DESC
       LIMIT 1
       `,
-      [data.Mobile_Number, "BORROWER"]
+      [data.Mobile_Number, "BORROWER"],
     );
 
     if (!borrowerOtp.length) {
@@ -954,7 +933,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
     }
 
     const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
-      "MOTION-CORP_CUSTOMER"
+      "MOTION-CORP_CUSTOMER",
     );
 
     await connection.beginTransaction();
@@ -1002,7 +981,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         emptyToNull(data.Pan_Card),
         emptyToNull(data.Gender),
         data.borrower_mobile_verified || 1,
-      ]
+      ],
     );
 
     await connection.query(
@@ -1011,7 +990,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
       SET is_used = 1
       WHERE id = ?
       `,
-      [borrowerOtp[0].id]
+      [borrowerOtp[0].id],
     );
 
     await connection.query(
@@ -1031,7 +1010,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         data.Customer_Name,
         data.Mobile_Number,
         data.Pan_Card,
-      ]
+      ],
     );
 
     await connection.commit();
@@ -1054,7 +1033,6 @@ router.post("/save-borrower-first-section", async (req, res) => {
     connection.release();
   }
 });
-
 
 router.post("/final-submit-ev-customer-manual", async (req, res) => {
   const connection = await db.promise().getConnection();
@@ -1226,14 +1204,14 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         data.co_applicant_mobile_verified || 0,
 
         data.lan,
-      ]
+      ],
     );
 
     await connection.commit();
 
     universalRunAllValidations(data.lan).catch((err) => {
-  console.error("Validation engine failed after booking:", err);
-});
+      console.error("Validation engine failed after booking:", err);
+    });
 
     return res.json({
       success: true,
@@ -1266,7 +1244,7 @@ router.get("/loan-booking/:lan", async (req, res) => {
       WHERE lan = ?
       LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -1488,7 +1466,7 @@ router.post("/init-aadhaar", async (req, res) => {
       WHERE lan = ?
       LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -1543,7 +1521,7 @@ router.post("/init-aadhaar", async (req, res) => {
       )
       VALUES (?, ?, ?, ?)
       `,
-      [lan, applicantType, applicantData.name, applicantData.mobile]
+      [lan, applicantType, applicantData.name, applicantData.mobile],
     );
 
     await db.promise().query(
@@ -1553,14 +1531,14 @@ router.post("/init-aadhaar", async (req, res) => {
       WHERE lan = ?
       AND applicant_type = ?
       `,
-      [lan, applicantType]
+      [lan, applicantType],
     );
 
     const aadhaarInit = await initAadhaarKyc(
       lan,
       applicantData.mobile,
       applicantData.email,
-      applicantData.name
+      applicantData.name,
     );
 
     if (!aadhaarInit.success) {
@@ -1571,7 +1549,7 @@ router.post("/init-aadhaar", async (req, res) => {
         WHERE lan = ?
         AND applicant_type = ?
         `,
-        [lan, applicantType]
+        [lan, applicantType],
       );
 
       return res.status(400).json({
@@ -1596,7 +1574,7 @@ router.post("/init-aadhaar", async (req, res) => {
         aadhaarInit.uniqueId,
         lan,
         applicantType,
-      ]
+      ],
     );
 
     return res.json({
@@ -1663,7 +1641,7 @@ router.post("/save-applicant-details", async (req, res) => {
           emptyToNull(data.GURANTOR_Pincode),
           data.guarantor_mobile_verified || 0,
           lan,
-        ]
+        ],
       );
     }
 
@@ -1700,7 +1678,7 @@ router.post("/save-applicant-details", async (req, res) => {
           emptyToNull(data.Co_Applicant_Pincode),
           data.co_applicant_mobile_verified || 0,
           lan,
-        ]
+        ],
       );
     }
 
@@ -1748,7 +1726,7 @@ router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
       AND applicant_type = ?
       LIMIT 1
       `,
-      [lan, applicantType]
+      [lan, applicantType],
     );
 
     if (!rows.length) {
@@ -1800,7 +1778,7 @@ router.get("/customer-details/:lan", async (req, res) => {
 
   try {
     const [rows] = await db.promise().query(
-  `
+      `
   SELECT
     lb.lan,
     lb.partner_loan_id,
@@ -1953,8 +1931,8 @@ router.get("/customer-details/:lan", async (req, res) => {
   WHERE lb.lan = ?
   LIMIT 1
   `,
-  [lan]
-);
+      [lan],
+    );
 
     if (!rows.length) {
       return res.status(404).json({
@@ -1993,8 +1971,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         requested_loan_amount: row.requested_loan_amount,
         loan_amount: row.loan_amount,
         processing_fee: row.processing_fee,
-        processing_fee_percentage:
-          row.processing_fee_percentage,
+        processing_fee_percentage: row.processing_fee_percentage,
         disbursal_amount: row.disbursal_amount,
         interest_rate: row.interest_rate,
         loan_tenure: row.loan_tenure,
@@ -2006,14 +1983,11 @@ router.get("/customer-details/:lan", async (req, res) => {
         pan: row.guarantor_pan,
         mobile: row.guarantor_mobile,
         email: row.guarantor_email,
-        relationship_with_borrower:
-          row.relationship_with_borrower,
+        relationship_with_borrower: row.relationship_with_borrower,
 
         address: {
-          address_line_1:
-            row.guarantor_address_line_1,
-          address_line_2:
-            row.guarantor_address_line_2,
+          address_line_1: row.guarantor_address_line_1,
+          address_line_2: row.guarantor_address_line_2,
           city: row.guarantor_village_city,
           district: row.guarantor_district,
           state: row.guarantor_state,
@@ -2029,10 +2003,8 @@ router.get("/customer-details/:lan", async (req, res) => {
         email: row.co_applicant_email,
 
         address: {
-          address_line_1:
-            row.co_applicant_address_line_1,
-          address_line_2:
-            row.co_applicant_address_line_2,
+          address_line_1: row.co_applicant_address_line_1,
+          address_line_2: row.co_applicant_address_line_2,
           city: row.co_applicant_village_city,
           district: row.co_applicant_district,
           state: row.co_applicant_state,
@@ -2041,19 +2013,14 @@ router.get("/customer-details/:lan", async (req, res) => {
       },
 
       bank_details: {
-        customer_name_as_per_bank:
-          row.customer_name_as_per_bank,
-        customer_bank_name:
-          row.customer_bank_name,
-        customer_account_number:
-          row.customer_account_number,
-        bank_ifsc_code:
-          row.bank_ifsc_code,
+        customer_name_as_per_bank: row.customer_name_as_per_bank,
+        customer_bank_name: row.customer_bank_name,
+        customer_account_number: row.customer_account_number,
+        bank_ifsc_code: row.bank_ifsc_code,
       },
 
       dealer_details: {
-        selected_dealer_application_id:
-          row.selected_dealer_application_id,
+        selected_dealer_application_id: row.selected_dealer_application_id,
         dealer_id: row.dealer_id,
         trade_name: row.trade_name,
         dealer_name: row.dealer_name,
@@ -2067,63 +2034,53 @@ router.get("/customer-details/:lan", async (req, res) => {
         dealer_state: row.dealer_state,
         dealer_pincode: row.dealer_pincode,
 
-        dealer_bank_name:
-          row.dealer_bank_name,
-        dealer_account_number:
-          row.dealer_account_number,
+        dealer_bank_name: row.dealer_bank_name,
+        dealer_account_number: row.dealer_account_number,
         dealer_ifsc: row.dealer_ifsc,
-        dealer_name_in_bank:
-          row.dealer_name_in_bank,
+        dealer_name_in_bank: row.dealer_name_in_bank,
       },
 
       product_details: {
-        selected_product_id:
-          row.selected_product_id,
+        selected_product_id: row.selected_product_id,
         battery_name: row.battery_name,
         battery_type: row.battery_type,
-        battery_serial_no_1:
-          row.battery_serial_no_1,
-        battery_serial_no_2:
-          row.battery_serial_no_2,
-        e_rikshaw_model:
-          row.e_rikshaw_model,
+        battery_serial_no_1: row.battery_serial_no_1,
+        battery_serial_no_2: row.battery_serial_no_2,
+        e_rikshaw_model: row.e_rikshaw_model,
         chassis_no: row.chassis_no,
       },
 
-       // ADD HERE
-  verification_status: {
-    borrower: {
-      pan_status: row.borrower_pan_status || "PENDING",
-      aadhaar_status: row.borrower_aadhaar_status || "PENDING",
-      bureau_status: row.borrower_bureau_status || "PENDING",
-    },
+      // ADD HERE
+      verification_status: {
+        borrower: {
+          pan_status: row.borrower_pan_status || "PENDING",
+          aadhaar_status: row.borrower_aadhaar_status || "PENDING",
+          bureau_status: row.borrower_bureau_status || "PENDING",
+        },
 
-    guarantor: row.guarantor_name
-      ? {
-          pan_status: row.guarantor_pan_status || "PENDING",
-          aadhaar_status: row.guarantor_aadhaar_status || "PENDING",
-          bureau_status: row.guarantor_bureau_status || "PENDING",
-        }
-      : null,
+        guarantor: row.guarantor_name
+          ? {
+              pan_status: row.guarantor_pan_status || "PENDING",
+              aadhaar_status: row.guarantor_aadhaar_status || "PENDING",
+              bureau_status: row.guarantor_bureau_status || "PENDING",
+            }
+          : null,
 
-    co_applicant: row.co_applicant_name
-      ? {
-          pan_status: row.co_applicant_pan_status || "PENDING",
-          aadhaar_status: row.co_applicant_aadhaar_status || "PENDING",
-          bureau_status: row.co_applicant_bureau_status || "PENDING",
-        }
-      : null,
-  },
+        co_applicant: row.co_applicant_name
+          ? {
+              pan_status: row.co_applicant_pan_status || "PENDING",
+              aadhaar_status: row.co_applicant_aadhaar_status || "PENDING",
+              bureau_status: row.co_applicant_bureau_status || "PENDING",
+            }
+          : null,
+      },
 
       verification: {
-        borrower_mobile_verified:
-          row.borrower_mobile_verified,
+        borrower_mobile_verified: row.borrower_mobile_verified,
 
-        guarantor_mobile_verified:
-          row.guarantor_mobile_verified,
+        guarantor_mobile_verified: row.guarantor_mobile_verified,
 
-        co_applicant_mobile_verified:
-          row.co_applicant_mobile_verified,
+        co_applicant_mobile_verified: row.co_applicant_mobile_verified,
       },
 
       lender: row.lender,
@@ -2136,47 +2093,33 @@ router.get("/customer-details/:lan", async (req, res) => {
     };
 
     const bre = {
-      fintree_cibil_score:
-        row.fintree_cibil_score,
+      fintree_cibil_score: row.fintree_cibil_score,
 
-      enquiries_30d:
-        row.motioncorp_enquiries_30d,
+      enquiries_30d: row.motioncorp_enquiries_30d,
 
-      dpd_3m_flag:
-        row.motioncorp_dpd_3m_flag,
+      dpd_3m_flag: row.motioncorp_dpd_3m_flag,
 
-      dpd_6m_flag:
-        row.motioncorp_dpd_6m_flag,
+      dpd_6m_flag: row.motioncorp_dpd_6m_flag,
 
-      overdue_12m_flag:
-        row.motioncorp_overdue_12m_flag,
+      overdue_12m_flag: row.motioncorp_overdue_12m_flag,
 
-      written_off_3y_flag:
-        row.motioncorp_written_off_3y_flag,
+      written_off_3y_flag: row.motioncorp_written_off_3y_flag,
 
-      dpd_60plus_24m_flag:
-        row.motioncorp_60plus_24m_flag,
+      dpd_60plus_24m_flag: row.motioncorp_60plus_24m_flag,
 
-      dpd_90plus_36m_flag:
-        row.motioncorp_90plus_36m_flag,
+      dpd_90plus_36m_flag: row.motioncorp_90plus_36m_flag,
 
-      emi_overdue_amount:
-        row.motioncorp_emi_overdue_amount,
+      emi_overdue_amount: row.motioncorp_emi_overdue_amount,
 
-      cc_overdue_amount:
-        row.motioncorp_cc_overdue_amount,
+      cc_overdue_amount: row.motioncorp_cc_overdue_amount,
 
-      deviation_flag:
-        row.motioncorp_deviation_flag,
+      deviation_flag: row.motioncorp_deviation_flag,
 
-      bre_status:
-        row.motioncorp_bre_status,
+      bre_status: row.motioncorp_bre_status,
 
-      bre_reason:
-        row.motioncorp_bre_reason,
+      bre_reason: row.motioncorp_bre_reason,
 
-      bre_checked_at:
-        row.motioncorp_bre_checked_at,
+      bre_checked_at: row.motioncorp_bre_checked_at,
     };
 
     return res.json({
@@ -2184,10 +2127,7 @@ router.get("/customer-details/:lan", async (req, res) => {
       bre,
     });
   } catch (err) {
-    console.error(
-      "❌ Error fetching Motion Corp details:",
-      err,
-    );
+    console.error("❌ Error fetching Motion Corp details:", err);
 
     return res.status(500).json({
       message: "Failed to fetch Motion Corp details",
@@ -2219,17 +2159,11 @@ router.get("/credit-initiated-loans", async (req, res) => {
 
   const pg = Math.max(1, parseInt(page, 10) || 1);
 
-  const limit = Math.min(
-    100,
-    Math.max(1, parseInt(pageSize, 10) || 50),
-  );
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
 
   const offset = (pg - 1) * limit;
 
-  const safeSortDir =
-    sortDir.toLowerCase() === "asc"
-      ? "ASC"
-      : "DESC";
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
 
   const allowedSort = [
     "lan",
@@ -2241,9 +2175,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
     "motioncorp_bre_checked_at",
   ];
 
-  const sortCol = allowedSort.includes(sortBy)
-    ? sortBy
-    : "created_at";
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
 
   try {
     const likeVal = `${prefix}%`;
@@ -2260,12 +2192,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       : "";
 
     const searchParams = search
-      ? [
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-        ]
+      ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
       : [];
 
     const countSql = `
@@ -2273,7 +2200,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       FROM ?? lb
       WHERE
         lb.status = 'Credit Initiated'
-        AND lb.stage = 'BRE Deviation'
+        AND lb.stage in ('BRE Deviation', 'BRE Approved')
         AND lb.lan LIKE ?
         ${searchClause}
     `;
@@ -2307,7 +2234,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       FROM ?? lb
       WHERE
         lb.status = 'Credit Initiated'
-        AND lb.stage = 'BRE Deviation'
+        AND lb.stage in ('BRE Deviation', 'BRE Approved')
         AND lb.lan LIKE ?
         ${searchClause}
 
@@ -2317,21 +2244,11 @@ router.get("/credit-initiated-loans", async (req, res) => {
     `;
 
     const [[countRows], [rows]] = await Promise.all([
-      db.promise().query(
-        countSql,
-        [table, likeVal, ...searchParams],
-      ),
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
 
-      db.promise().query(
-        dataSql,
-        [
-          table,
-          likeVal,
-          ...searchParams,
-          limit,
-          offset,
-        ],
-      ),
+      db
+        .promise()
+        .query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
     ]);
 
     return res.json({
@@ -2344,10 +2261,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(
-      "Error fetching credit initiated loans:",
-      err,
-    );
+    console.error("Error fetching credit initiated loans:", err);
 
     return res.status(500).json({
       message: "Database error",
@@ -2356,5 +2270,157 @@ router.get("/credit-initiated-loans", async (req, res) => {
   }
 });
 
+router.get("/operation-initiated-loans", async (req, res) => {
+  const {
+    table = "loan_booking_motion_corp",
+    prefix = "MC",
+    page = "1",
+    pageSize = "50",
+    search = "",
+    sortBy = "lan",
+    sortDir = "desc",
+  } = req.query;
+
+  const allowedTables = {
+    loan_booking_motion_corp: true,
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({
+      message: "Invalid table name",
+    });
+  }
+
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
+
+  const offset = (pg - 1) * limit;
+
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+  const allowedSort = [
+    "lan",
+    "partner_loan_id",
+    "customer_name",
+    "mobile_number",
+    "loan_amount",
+    "created_at",
+    "motioncorp_bre_checked_at",
+  ];
+
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
+
+  try {
+    const likeVal = `${prefix}%`;
+
+    const searchClause = search
+      ? `
+        AND (
+          lb.lan LIKE ?
+          OR lb.customer_name LIKE ?
+          OR lb.partner_loan_id LIKE ?
+          OR lb.mobile_number LIKE ?
+        )
+      `
+      : "";
+
+    const searchParams = search
+      ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+      : [];
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM ?? lb
+      WHERE
+        lb.status = 'Operations Initiated'
+        AND lb.stage = 'Credit Approved'
+        AND lb.lan LIKE ?
+        ${searchClause}
+    `;
+
+    const dataSql = `
+      SELECT
+        lb.id,
+        lb.lan,
+        lb.partner_loan_id,
+
+        lb.customer_name,
+        lb.mobile_number,
+        lb.pan_card,
+
+        lb.loan_amount,
+        lb.interest_rate,
+        lb.loan_tenure,
+
+        lb.cibil_score,
+        lb.fintree_cibil_score,
+
+        lb.motioncorp_bre_status,
+        lb.motioncorp_bre_reason,
+        lb.motioncorp_bre_checked_at,
+
+        lb.customer_name_as_per_bank,
+        lb.customer_bank_name,
+        lb.customer_account_number, 
+        lb.bank_ifsc_code,
+
+        lb.agreement_esign_status,
+        lb.agreement_esign_sent_at,
+
+        lb.bank_status,
+
+        lb.email,
+
+        lb.emi_amount,
+
+        lb.agreement_date,
+        lb.login_date,
+
+        lb.bank_account_type,
+
+        lb.status,
+        lb.stage,
+
+        lb.created_at
+
+      FROM ?? lb
+      WHERE
+        lb.status = 'Operations Initiated'
+        AND lb.stage = 'Credit Approved'
+        AND lb.lan LIKE ?
+        ${searchClause}
+
+      ORDER BY lb.${sortCol} ${safeSortDir}
+
+      LIMIT ? OFFSET ?
+    `;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+
+      db
+        .promise()
+        .query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    return res.json({
+      rows,
+
+      pagination: {
+        page: pg,
+        pageSize: limit,
+        total: Number(countRows[0]?.total || 0),
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching credit initiated loans:", err);
+
+    return res.status(500).json({
+      message: "Database error",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
 
 module.exports = router;

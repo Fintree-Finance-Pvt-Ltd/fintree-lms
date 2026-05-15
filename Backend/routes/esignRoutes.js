@@ -1158,8 +1158,8 @@ const {
   generateAgreementPdf
 } = require("../services/pdfGenerationService");
 
-const { initEsign } = require("../services/esignService");
-// const {initEsign} = require("../services/doqfyEsignService");
+// const { initEsign } = require("../services/esignService");
+const {initDoqfyEsign} = require("../services/doqfyEsignService");
 const { getLoanContext } = require("../utils/lanHelper");
 
 const router = express.Router();
@@ -1420,7 +1420,7 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
       );
     }
 
-    const out = await initEsign(lan, type.toUpperCase());
+    const out = await initDoqfyEsign(lan, type.toUpperCase());
     res.json(out);
   } catch (err) {
     console.error(err);
