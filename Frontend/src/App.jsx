@@ -185,7 +185,7 @@ import SevenFinCorpLoginCases from "./components/Seven FinCorp/SevenFinCorpLogin
 import SevenFinCorpApprovedLoans from "./components/Seven FinCorp/SevenFinCorpApprovedLoans";
 import SevenFinCorpDealerDetails from "./components/Seven FinCorp/SevenfinCorpDealerDetails";
 import SevenFinCorpAllLoans from "./components/Seven FinCorp/SevenFinCorpAllLoans";
-import SevenFinCorpDetails from "./components/Seven FinCorp/SevenFinCorpDetails";
+import SevenFinCorpDetails from "./components/Seven FinCorp/SevenfinCorpDetails";
 
 
 
