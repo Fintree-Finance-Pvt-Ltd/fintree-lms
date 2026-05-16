@@ -8,6 +8,7 @@ const { initAadhaarKyc } = require("../services/digitapaadharservice");
 const {
   autoApproveMotionCorpIfAllVerified,
 } = require("../routes/MotionCorp/motionCorpBRE");
+const { autoApproveSevenFinCorpIfAllVerified } = require("../routes/Seven Fincorp/sevenFincorpBRE");
 
 // async function runApplicantValidation({
 //   pool,
@@ -628,6 +629,8 @@ exports.universalRunAllValidations = async (lan) => {
       table = "loan_booking_helium";
     } else if (lan.startsWith("MC")) {
       table = "loan_booking_motion_corp";
+    } else if (lan.startsWith("SFC")) {
+      table = "loan_booking_seven_fincorp";
     } else {
       console.log("❌ Invalid LAN");
       return;
@@ -788,6 +791,14 @@ exports.universalRunAllValidations = async (lan) => {
   await autoApproveMotionCorpIfAllVerified(lan);
 
   console.log(`✅ Motion Corp BRE finished for ${lan}`);
+}
+
+if (lan.startsWith("SFL")) {
+  console.log(`🚀 Running Seven FinCorp BRE for ${lan}`);
+
+  await autoApproveSevenFinCorpIfAllVerified(lan);
+
+  console.log(`✅ Seven FinCorp BRE finished for ${lan}`);
 }
 
 console.log(`✅ Validation Engine Completed for ${lan}`);
