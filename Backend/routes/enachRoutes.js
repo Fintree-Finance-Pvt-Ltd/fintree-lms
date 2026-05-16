@@ -14,17 +14,17 @@ const router = express.Router();
 /**
  * Utility: update both loan tables
  */
-// async function updateLoanTables(query, params) {
-//   await Promise.all([
-//     db.promise().query(query.replace("__TABLE__", "loan_booking_helium"), params),
-//     db.promise().query(query.replace("__TABLE__", "loan_booking_clayyo"), params),
-//     db.promise().query(query.replace("__TABLE__", "loan_booking_motion_corp"), params),
-//     db.promise().query(
-//       query.replace("__TABLE__", "loan_booking_zypay_customer"),
-//       params
-//     ),
-//   ]);
-// }
+async function updateLoanTablestatus(query, params) {
+  await Promise.all([
+    db.promise().query(query.replace("__TABLE__", "loan_booking_helium"), params),
+    db.promise().query(query.replace("__TABLE__", "loan_booking_clayyo"), params),
+    db.promise().query(query.replace("__TABLE__", "loan_booking_motion_corp"), params),
+    db.promise().query(
+      query.replace("__TABLE__", "loan_booking_zypay_customer"),
+      params
+    ),
+  ]);
+}
 
 async function updateLoanTables({
   lan,
@@ -327,7 +327,7 @@ router.post("/create-mandate", authenticateUser, async (req, res) => {
       ],
     );
 
-    await updateLoanTables(
+    await updateLoanTablestatus(
       `UPDATE __TABLE__ SET bank_status='MANDATE_INITIATED' WHERE lan=?`,
       [lan],
     );
@@ -369,7 +369,7 @@ router.post("/webhooks/digio-mandate", async (req, res) => {
         ],
       );
 
-      await updateLoanTables(
+      await updateLoanTablestatus(
         `UPDATE __TABLE__ SET bank_status='MANDATE_CREATED' WHERE lan=?`,
         [data.customer_ref_number],
       );
