@@ -63,7 +63,7 @@ const calculateAge = (dob) => {
   return age;
 };
 
-const extractMotionCorpBureauFacts = (reportXml) => {
+const extractSevenFinCorpBureauFacts = (reportXml) => {
   if (!reportXml) {
     return {
       score: null,
@@ -186,7 +186,7 @@ const extractMotionCorpBureauFacts = (reportXml) => {
   };
 };
 
-const evaluateMotionCorpPolicy = ({ loan, bureauFacts }) => {
+const evaluateSevenFinCorpPolicy = ({ loan, bureauFacts }) => {
   const reasons = [];
   const deviations = [];
 
@@ -340,7 +340,7 @@ if (
   };
 };
 
-const autoApproveMotionCorpIfAllVerified = async (lan) => {
+const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
   const pool = db.promise();
 
   /**
@@ -367,7 +367,7 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
   if (kyc.bureau_status !== "VERIFIED") {
     await pool.query(
       `
-      UPDATE loan_booking_motion_corp
+      UPDATE loan_booking_seven_fincorp
       SET
         motioncorp_bre_status = ?,
         motioncorp_bre_reason = ?,
@@ -396,7 +396,7 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
       loan_tenure,
       interest_rate,
       cibil_score
-    FROM loan_booking_motion_corp
+    FROM loan_booking_seven_fincorp
     WHERE lan = ?
     `,
     [lan],
@@ -428,7 +428,7 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
   if (!cibilRows.length || !cibilRows[0].report_xml) {
     await pool.query(
       `
-      UPDATE loan_booking_motion_corp
+      UPDATE loan_booking_seven_fincorp
       SET
         motioncorp_bre_status = ?,
         motioncorp_bre_reason = ?,
@@ -441,11 +441,11 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
     return;
   }
 
-  const bureauFacts = extractMotionCorpBureauFacts(
+  const bureauFacts = extractSevenFinCorpBureauFacts(
     cibilRows[0].report_xml,
   );
 
-  const decision = evaluateMotionCorpPolicy({
+  const decision = evaluateSevenFinCorpPolicy({
     loan,
     bureauFacts,
   });
@@ -482,7 +482,7 @@ if (decision.status === "Credit Initiated") {
 
   await pool.query(
     `
-    UPDATE loan_booking_motion_corp
+    UPDATE loan_booking_seven_fincorp
     SET
       motioncorp_bre_status = ?,
       motioncorp_bre_reason = ?,
@@ -530,7 +530,7 @@ lan,
 };
 
 module.exports = {
-  autoApproveMotionCorpIfAllVerified,
-  extractMotionCorpBureauFacts,
-  evaluateMotionCorpPolicy,
+  autoApproveSevenFinCorpIfAllVerified,
+  extractSevenFinCorpBureauFacts,
+  evaluateSevenFinCorpPolicy,
 };

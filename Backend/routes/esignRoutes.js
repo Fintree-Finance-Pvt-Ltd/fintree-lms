@@ -1157,10 +1157,9 @@ const {
   generateSanctionLetterPdf,
   generateAgreementPdf
 } = require("../services/pdfGenerationService");
-
-// const { initEsign } = require("../services/esignService");
 const {initDoqfyEsign} = require("../services/doqfyEsignService");
 const { getLoanContext } = require("../utils/lanHelper");
+const { initEsign } = require("../services/esignService");
 
 const router = express.Router();
 
@@ -1420,7 +1419,10 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
       );
     }
 
-    const out = await initDoqfyEsign(lan, type.toUpperCase());
+    // const out = await initDoqfyEsign(lan, type.toUpperCase());
+
+    const out = await initEsign(lan, type.toUpperCase());
+
     res.json(out);
   } catch (err) {
     console.error(err);
@@ -1532,6 +1534,266 @@ router.post("/v1/digio-esign-webhook", async (req, res) => {
     res.send("ok");
   } catch (err) {
     console.error("[Webhook] Error occurred:", err);
+    res.status(500).send("error");
+  }
+});
+
+
+router.post("/v1/doqfy-esign-webhook", async (req, res) => {
+  console.log("[DOQFY WEBHOOK] Received");
+
+  try {
+    const event = req.body;
+
+    console.log(
+      "[DOQFY WEBHOOK] Raw payload:",
+      JSON.stringify(event)
+    );
+
+    /* --------------------------------------------------- */
+    /* EXTRACT DATA */
+    /* --------------------------------------------------- */
+
+    const orderId = event.order_id;
+    const orderStatus = event.order_status;
+
+    console.log("[DOQFY WEBHOOK] Order ID:", orderId);
+    console.log("[DOQFY WEBHOOK] Order Status:", orderStatus);
+
+    if (!orderId) {
+      console.log("[DOQFY WEBHOOK] Missing order_id");
+      return res.status(400).send("invalid payload");
+    }
+
+    /* --------------------------------------------------- */
+    /* FETCH DOCUMENT */
+    /* --------------------------------------------------- */
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT lan, document_type
+      FROM esign_documents
+      WHERE document_id = ?
+      `,
+      [orderId]
+    );
+
+    if (!rows.length) {
+      console.log(
+        "[DOQFY WEBHOOK] No matching document found"
+      );
+
+      return res.send("ignored");
+    }
+
+    const { lan, document_type } = rows[0];
+
+    console.log("[DOQFY WEBHOOK] LAN:", lan);
+    console.log(
+      "[DOQFY WEBHOOK] Document Type:",
+      document_type
+    );
+
+    /* --------------------------------------------------- */
+    /* RESOLVE BOOKING TABLE */
+    /* --------------------------------------------------- */
+
+    const { bookingTable } = getLoanContext(lan);
+
+    console.log(
+      "[DOQFY WEBHOOK] Booking Table:",
+      bookingTable
+    );
+
+    /* --------------------------------------------------- */
+    /* DETERMINE FINAL STATUS */
+    /* --------------------------------------------------- */
+
+    let finalStatus = "INITIATED";
+
+    // Check signatory status
+    const signatory =
+      event.signatory_data?.[0];
+
+    const signStatus =
+      signatory?.status || "";
+
+    console.log(
+      "[DOQFY WEBHOOK] Signatory Status:",
+      signStatus
+    );
+
+    /*
+      Possible statuses:
+      REQUESTED
+      IN_PROGRESS
+      SIGNED
+      REJECTED
+      EXPIRED
+    */
+
+    if (
+      orderStatus === "Completed" ||
+      signStatus === "SIGNED"
+    ) {
+      finalStatus = "SIGNED";
+    } else if (
+      signStatus === "REJECTED"
+    ) {
+      finalStatus = "REJECTED";
+    } else if (
+      signStatus === "EXPIRED"
+    ) {
+      finalStatus = "EXPIRED";
+    } else {
+      finalStatus = orderStatus;
+    }
+
+    console.log(
+      "[DOQFY WEBHOOK] Final Status:",
+      finalStatus
+    );
+
+    /* --------------------------------------------------- */
+    /* UPDATE ESIGN DOCUMENTS */
+    /* --------------------------------------------------- */
+
+    await db.promise().query(
+      `
+      UPDATE esign_documents
+      SET
+        status = ?,
+        raw_response = ?
+      WHERE document_id = ?
+      `,
+      [
+        finalStatus,
+        JSON.stringify(event),
+        orderId
+      ]
+    );
+
+    console.log(
+      "[DOQFY WEBHOOK] esign_documents updated"
+    );
+
+    /* --------------------------------------------------- */
+    /* UPDATE BOOKING TABLE */
+    /* --------------------------------------------------- */
+
+    const col ="agreement_esign_status";
+
+    await db.promise().query(
+      `
+      UPDATE ${bookingTable}
+      SET ${col} = ?
+      WHERE lan = ?
+      `,
+      [finalStatus, lan]
+    );
+
+    console.log(
+      "[DOQFY WEBHOOK] Booking table updated"
+    );
+
+    if (
+  finalStatus === "SIGNED" &&
+  event.order_document
+) {
+  console.log(
+    "[DOQFY WEBHOOK] Saving signed PDF"
+  );
+
+  const pdfBuffer = Buffer.from(
+    event.order_document,
+    "base64"
+  );
+
+  const signedFileName =
+    `${lan}_${document_type}_SIGNED.pdf`;
+
+  const relativePath =
+    `uploads/signed-documents/${signedFileName}`;
+
+  const fullPath = path.join(
+    __dirname,
+    "..",
+    relativePath
+  );
+
+  fs.mkdirSync(
+    path.dirname(fullPath),
+    { recursive: true }
+  );
+
+  fs.writeFileSync(fullPath, pdfBuffer);
+
+  console.log(
+    "[DOQFY WEBHOOK] Signed PDF saved:",
+    fullPath
+  );
+
+  /* --------------------------------------------------- */
+  /* PREVENT DUPLICATE INSERTS */
+  /* --------------------------------------------------- */
+
+  const [existingDocs] =
+    await db.promise().query(
+      `
+      SELECT id
+      FROM documents
+      WHERE lan = ?
+      AND document_type = ?
+      `,
+      [lan, document_type]
+    );
+
+  if (!existingDocs.length) {
+
+    await db.promise().query(
+      `
+      INSERT INTO documents
+      (
+        lan,
+        document_type,
+        document_name,
+        document_path,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, NOW())
+      `,
+      [
+        lan,
+        document_type,
+        signedFileName,
+        relativePath
+      ]
+    );
+
+    console.log(
+      "[DOQFY WEBHOOK] Document entry created"
+    );
+
+  } else {
+
+    console.log(
+      "[DOQFY WEBHOOK] Document already exists"
+    );
+  }
+}
+
+    console.log(
+      "[DOQFY WEBHOOK] Completed successfully"
+    );
+
+    res.send("ok");
+
+  } catch (err) {
+    console.error(
+      "[DOQFY WEBHOOK] ERROR:",
+      err
+    );
+
     res.status(500).send("error");
   }
 });
