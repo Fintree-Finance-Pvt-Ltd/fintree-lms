@@ -2624,6 +2624,7 @@ const ClayooLimitEntry = ({
 
         const disableBank =
           !opsApproved ||
+          r.bank_status === "MANDATE_INITIATED" ||
           r.bank_status === "VERIFIED" ||
           r.bank_status === "MANDATE_CREATED";
 
@@ -2647,6 +2648,12 @@ const ClayooLimitEntry = ({
             bd: "rgba(59,130,246,.35)",
             fg: "#1e3a8a",
             label: "Verified",
+          },
+          MANDATE_INITIATED: {
+            bg: "rgba(124,58,237,.12)",
+            bd: "rgba(124,58,237,.35)",
+            fg: "#5b21b6",
+            label: "Mandate Initiated",
           },
           MANDATE_CREATED: {
             bg: "rgba(16,185,129,.12)",
