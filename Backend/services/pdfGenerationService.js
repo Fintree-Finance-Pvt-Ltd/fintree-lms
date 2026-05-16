@@ -661,6 +661,7 @@ async function getLoanData(lan) {
         FINAL_LIMIT,
         CUST_PAN,
         CUST_AGE,
+        HOSPITAL_NAME,
         CUST_BANK,
         CUST_ACC_NO,
         DATE_FORMAT(CUR_DATE,'%d-%m-%Y') AS CUR_DATE
