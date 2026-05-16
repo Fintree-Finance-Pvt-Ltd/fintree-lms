@@ -118,6 +118,21 @@ const ClayooDiburseInitiateScreen = ({
       width: 220,
     },
     {
+      key: "patient_name",
+      header: "Patient Name",
+      sortable: true,
+      render: (r) => (
+        <span
+          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+          onClick={() => navigate(`/approved-loan-details-clayoo/${r.lan}`)}
+        >
+          {r.patient_name ?? "—"}
+        </span>
+      ),
+      sortAccessor: (r) => (r.patient_name || "").toLowerCase(),
+      width: 220,
+    },
+    {
       key: "lender",
       header: "Lender",
       render: () => lenderName,
