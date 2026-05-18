@@ -270,7 +270,7 @@ const LoanDigitOpsScreen = () => {
               )
             }
           >
-            ✅ Disburse
+            ✅ Approve
           </button>
 
           <button

@@ -23,7 +23,7 @@ const SevenFinCorpDealerDetails = () => {
         setLoading(true);
         setErr("");
 
-        const res = await api.get(`/motion-corp/dealer-details/${lan}`);
+        const res = await api.get(`/seven-fincorp/dealer-details/${lan}`);
         setDetails(res.data);
 
       } catch (e) {

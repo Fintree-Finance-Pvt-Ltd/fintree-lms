@@ -252,7 +252,7 @@ const LoanDigitLoginScreen = () => {
               )
             }
           >
-            ✅ Disburse initiate
+            ✅ Approve
           </button>
 
           <button

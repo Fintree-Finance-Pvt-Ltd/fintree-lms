@@ -1826,6 +1826,7 @@ router.get("/:lan/pdf", async (req, res) => {
         CUR_DATE,
         LAN,
         CUST_BANK,
+        HOSPITAL_NAME,
         CUST_ACC_NO
       FROM clayyo_loan_summary
       WHERE lan = ?
