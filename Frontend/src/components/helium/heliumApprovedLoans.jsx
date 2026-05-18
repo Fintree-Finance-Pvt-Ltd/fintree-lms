@@ -609,6 +609,7 @@ const heliumApprovedLoans = ({
         const disableBankBtn =
           bankStatus === "VERIFIED" ||
           bankStatus === "MANDATE_CREATED" ||
+          bankStatus === "MANDATE_INITIATED" ||
           actionLan === r.lan;
 
         const bankChipMap = {
