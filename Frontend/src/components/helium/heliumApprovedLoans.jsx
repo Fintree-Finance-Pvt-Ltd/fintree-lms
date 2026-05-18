@@ -607,10 +607,11 @@ const heliumApprovedLoans = ({
         const bankStatus = (r.bank_status || "PENDING").toUpperCase();
 
         const disableBankBtn =
-          bankStatus === "VERIFIED" ||
-          bankStatus === "MANDATE_CREATED" ||
-          bankStatus === "MANDATE_INITIATED" ||
-          actionLan === r.lan;
+  [
+    "VERIFIED",
+    "MANDATE_CREATED",
+    "MANDATE_INITIATED",
+  ].includes(bankStatus) || actionLan === r.lan;
 
         const bankChipMap = {
           PENDING: {
@@ -720,10 +721,14 @@ const heliumApprovedLoans = ({
                 }}
               >
                 {bankStatus === "PENDING"
-                  ? "Add Bank"
-                  : bankStatus === "VERIFIED"
-                    ? "Verified"
-                    : "Mandate Created"}
+  ? "Add Bank"
+  : bankStatus === "VERIFIED"
+    ? "Verified"
+    : bankStatus === "MANDATE_INITIATED"
+      ? "Mandate Initiated"
+      : bankStatus === "MANDATE_CREATED"
+        ? "Mandate Created"
+        : "Add Bank"}
               </button>
             </div>
           </div>
