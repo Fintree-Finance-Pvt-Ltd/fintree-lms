@@ -6043,6 +6043,58 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
   }
 });
 
+router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
+  try {
+    if (
+      !req.partner ||
+      (req.partner_name || "").toLowerCase().trim() !== "finso"
+    ) {
+      return res.status(403).json({
+        message: "This route is only for Finso partner.",
+      });
+    }
+
+    const { lan } = req.params;
+
+    if (!lan) {
+      return res.status(400).json({
+        message: "LAN is required.",
+      });
+    }
+
+    const [rows] = await db.promise().query(
+      `SELECT lan, status
+       FROM loan_booking_finso
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        message: "LAN not found.",
+      });
+    }
+
+    return res.status(200).json({
+      message: "LAN status fetched successfully.",
+      data: {
+        lan: rows[0].lan,
+        status: rows[0].status,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching LAN status:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch LAN status. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
+
+
 // ✅ Update Finso Bank Details by LAN
 router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
   try {

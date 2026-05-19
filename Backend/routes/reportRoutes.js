@@ -8,8 +8,7 @@ const ExcelJS = require("exceljs");
 const authenticateUser = require("../middleware/verifyToken");
 const exportBankPaymentFile = require("../utils/exportBankPaymentFile");
 const exportBankHolidayReport = require("../utils/exportBankHolidayReport");
-const exportConsumerBureauReport = require("../utils/exportConsumerBureauReport")
-
+const exportConsumerBureauReport = require("../utils/exportConsumerBureauReport");
 
 // Optional PDF support
 const PdfPrinter = require("pdfmake");
@@ -42,10 +41,9 @@ function resolveProcedure(rawReportId, rawLender) {
       "due-demand-vs-collection-report(all-products)",
     "due-demand-vs-collection-report":
       "due-demand-vs-collection-report(all-products)",
-      "due-demand-vs-collection-report(FINTREE)":
+    "due-demand-vs-collection-report(FINTREE)":
       "due-demand-vs-collection-report(fintree)",
-      "Due Demand vs Collection Report(Fintree)":
-      
+    "Due Demand vs Collection Report(Fintree)":
       "due-demand-vs-collection-report(fintree)",
     "consolidated-mis": "consolidated-mis",
     "consolidated mis": "consolidated-mis",
@@ -57,19 +55,19 @@ function resolveProcedure(rawReportId, rawLender) {
     "adikosh-cam-report-print": "adikosh-cam-report-print",
     "adikosh-cam-print": "adikosh-cam-report-print",
     "ccod-loan-data-report": "ccod-loan-data-report",
-  "bank-payment-file-report": "bank-payment-file-report",
-  "bank payment file report": "bank-payment-file-report",
-  "bank-payment-file-bank-holiday-report": "bank-payment-file-bank-holiday-report",
-  "bank payment file bank holiday report": "bank-payment-file-bank-holiday-report",
-"consumer-bureau-report": "consumer-bureau-report",
-"consumer bureau report": "consumer-bureau-report",
-"consumer_bureau_report": "consumer-bureau-report",
-"pay out report":"pay-out-report",
-"pay-out-report":"pay-out-report",
-"pay_out_report":"pay-out-report",
-"supply-chain-report":"supply-chain-report"
-
-
+    "bank-payment-file-report": "bank-payment-file-report",
+    "bank payment file report": "bank-payment-file-report",
+    "bank-payment-file-bank-holiday-report":
+      "bank-payment-file-bank-holiday-report",
+    "bank payment file bank holiday report":
+      "bank-payment-file-bank-holiday-report",
+    "consumer-bureau-report": "consumer-bureau-report",
+    "consumer bureau report": "consumer-bureau-report",
+    consumer_bureau_report: "consumer-bureau-report",
+    "pay out report": "pay-out-report",
+    "pay-out-report": "pay-out-report",
+    pay_out_report: "pay-out-report",
+    "supply-chain-report": "supply-chain-report",
   };
 
   const key = aliases[id] || id;
@@ -79,39 +77,35 @@ function resolveProcedure(rawReportId, rawLender) {
       lender === "adikosh"
         ? "sp_cashflow_report_adikosh"
         : lender === "gq non-fsf"
-        ? "sp_cashflow_report_gq_non_fsf"
-        : lender === "embifi"
-        ? "sp_cashflow_report_embifi"
-         : lender === "clayoo"
-        ? "sp_cashflow_report_clayyo"
-        : lender === "gq fsf"
-        ? "sp_cashflow_report_gq_fsf"
-        : lender === "wctl"
-        ? "sp_cashflow_report_wctl"
-        : lender === "ev loan"
-        ? "sp_cashflow_report_ev"
-        : lender === "hey ev"
-        ? "sp_cashflow_report_hey_ev"
-        : lender === "emiclub"
-        ? "sp_cashflow_report_emiclub"
-        : lender === "circlepe"
-        ? "sp_cashflow_report_circlepe"
-        : lender === "heyev battery"
-        ? "sp_cashflow_report_heyev_battery"
-        : lender === "helium"
-        ? "sp_cashflow_report_helium"
-        : "sp_cashflow_report",
+          ? "sp_cashflow_report_gq_non_fsf"
+          : lender === "embifi"
+            ? "sp_cashflow_report_embifi"
+            : lender === "clayoo"
+              ? "sp_cashflow_report_clayyo"
+              : lender === "gq fsf"
+                ? "sp_cashflow_report_gq_fsf"
+                : lender === "wctl"
+                  ? "sp_cashflow_report_wctl"
+                  : lender === "ev loan"
+                    ? "sp_cashflow_report_ev"
+                    : lender === "hey ev"
+                      ? "sp_cashflow_report_hey_ev"
+                      : lender === "emiclub"
+                        ? "sp_cashflow_report_emiclub"
+                        : lender === "circlepe"
+                          ? "sp_cashflow_report_circlepe"
+                          : lender === "heyev battery"
+                            ? "sp_cashflow_report_heyev_battery"
+                            : lender === "helium"
+                              ? "sp_cashflow_report_helium"
+                              : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
 
- "due-demand-vs-collection-report(fintree)": () =>
-      lender  === "gq non-fsf"
+    "due-demand-vs-collection-report(fintree)": () =>
+      lender === "gq non-fsf"
         ? "sp_due_collection_all_report_gq_non_fsf_fintree"
         : "sp_due_collection_all_report_gq_fsf_fintree",
-
-
-
-        
 
     "due-demand-vs-collection-report(all-products)": () =>
       lender === "adikosh"
@@ -149,28 +143,28 @@ function resolveProcedure(rawReportId, rawLender) {
       lender === "adikosh"
         ? "sp_consolidated_mis_report_adikosh"
         : lender === "gq non-fsf"
-        ? "sp_consolidated_mis_report_gq_non_fsf"
-        : lender === "gq fsf"
-        ? "sp_consolidated_mis_report_gq_fsf"
-        : lender === "embifi"
-        ? "sp_consolidated_mis_report_embifi"
-        : lender === "wctl"
-        ? "sp_consolidated_mis_report_wctl"
-        : lender === "emiclub"
-        ? "sp_consolidated_mis_report_emiclub"
-        : lender === "hey ev"
-        ? "sp_consolidated_mis_report_hey_ev"
-        : lender === "heyev battery"
-        ? "sp_consolidated_mis_report_heyev_battery"
-        : lender === "helium"
-        ? "sp_consolidated_mis_report_helium"
-        : lender === "loan-digit"
-        ? "sp_consolidated_mis_report_loan_digit"
-        : lender === "clayoo"    
-        ? "sp_consolidated_mis_report_clayyo"
-        : lender === "circlepe"
-        ? "sp_consolidated_mis_report_circlepe"
-        : "sp_consolidated_mis_report",
+          ? "sp_consolidated_mis_report_gq_non_fsf"
+          : lender === "gq fsf"
+            ? "sp_consolidated_mis_report_gq_fsf"
+            : lender === "embifi"
+              ? "sp_consolidated_mis_report_embifi"
+              : lender === "wctl"
+                ? "sp_consolidated_mis_report_wctl"
+                : lender === "emiclub"
+                  ? "sp_consolidated_mis_report_emiclub"
+                  : lender === "hey ev"
+                    ? "sp_consolidated_mis_report_hey_ev"
+                    : lender === "heyev battery"
+                      ? "sp_consolidated_mis_report_heyev_battery"
+                      : lender === "helium"
+                        ? "sp_consolidated_mis_report_helium"
+                        : lender === "loan-digit"
+                          ? "sp_consolidated_mis_report_loan_digit"
+                          : lender === "clayoo"
+                            ? "sp_consolidated_mis_report_clayyo"
+                            : lender === "circlepe"
+                              ? "sp_consolidated_mis_report_circlepe"
+                              : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
     "irr-report": () =>
@@ -188,43 +182,36 @@ function resolveProcedure(rawReportId, rawLender) {
     // CAM printable (single LAN)
     "adikosh-cam-report-print": () => "sp_cam_data_report_adikosh_print",
 
- 
-
     // CCOD LOAN DATA REPORT
     "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
 
     //// PAYOUT REPORT
-  "pay-out-report": () =>
-  lender?.toLowerCase() === "gq fsf"
-    ? "sp_payout_gq_fsf"
-    : lender?.toLowerCase() === "emiclub"
-    ? "sp_emiclub_payout_report_emiclub"
-    : null,
+    "pay-out-report": () =>
+      lender?.toLowerCase() === "gq fsf"
+        ? "sp_payout_gq_fsf"
+        : lender?.toLowerCase() === "emiclub"
+          ? "sp_emiclub_payout_report_emiclub"
+          : null,
 
-        // Bank Payment File Report (for EmiClub)
+    // Bank Payment File Report (for EmiClub)
     "bank-payment-file-report": () => "sp_bank_payment_file",
 
-    "bank-payment-file-bank-holiday-report": () => "sp_south_indian_bank_payment_file",
+    "bank-payment-file-bank-holiday-report": () =>
+      "sp_south_indian_bank_payment_file",
 
     // consumer bureau report
-"consumer-bureau-report": () =>   lender === "ev loan"
-        ? "sp_ev_beuro_data"
-        : "sp_ev_beuro_data", 
+    "consumer-bureau-report": () =>
+      lender === "ev loan" ? "sp_ev_beuro_data" : "sp_ev_beuro_data",
 
-
-
-
-// NEW IRR Report add
-    "supply-chain-report":  () =>
+    // NEW IRR Report add
+    "supply-chain-report": () =>
       lender === "muthoot"
         ? "sp_supply_chain_report"
-         : lender === "kite"
-        ? "sp_supply_chain_report"
-        : lender === "ffpl"
-        ? "sp_supply_chain_report"
-        : "sp_supply_chain_report",
-
-
+        : lender === "kite"
+          ? "sp_supply_chain_report"
+          : lender === "ffpl"
+            ? "sp_supply_chain_report"
+            : "sp_supply_chain_report",
   };
 
   return procMap[key] ? procMap[key]() : null;
@@ -238,8 +225,8 @@ function autofitColumns(worksheet) {
         cell.value == null
           ? ""
           : typeof cell.value === "object" && cell.value.text
-          ? cell.value.text
-          : String(cell.value);
+            ? cell.value.text
+            : String(cell.value);
       maxLen = Math.max(maxLen, v.length + 2);
     });
     col.width = Math.min(maxLen, 60);
@@ -280,7 +267,7 @@ router.post("/trigger", authenticateUser, async (req, res) => {
     return res.status(400).json({ error: `Invalid report ID: ${reportId}` });
   }
 
-   const isPrintReport =
+  const isPrintReport =
     normalizedReportId === "adikosh-cam-report-print" ||
     normalizedReportId === "adikosh-cam-print";
 
@@ -292,7 +279,7 @@ router.post("/trigger", authenticateUser, async (req, res) => {
         .json({ error: "LAN is required for CAM print report" });
     }
   } else if (normalizedReportId === "consumer-bureau-report") {
-  if (!endDate) return res.status(400).json({ error: "endDate is required" });
+    if (!endDate) return res.status(400).json({ error: "endDate is required" });
   } else if (normalizedReportId !== "bank-payment-file-report") {
     if (!startDate || !endDate || !lenderName) {
       return res
@@ -303,8 +290,10 @@ router.post("/trigger", authenticateUser, async (req, res) => {
 
   // ✅ File setup
   const usePdf = outputFormat?.toLowerCase() === "pdf" && isPrintReport;
-  const isBankPaymentFile = norm(reportId) === "bank-payment-file-report" || norm(reportId) === "bank-payment-file-bank-holiday-report";
-const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
+  const isBankPaymentFile =
+    norm(reportId) === "bank-payment-file-report" ||
+    norm(reportId) === "bank-payment-file-bank-holiday-report";
+  const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
   const timestamp = Date.now();
   const fileSafeId = normalizedReportId.replace(/[^a-z0-9-]/g, "");
   const fileName = `${fileSafeId}_${timestamp}.${ext}`;
@@ -324,7 +313,7 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
         createdByUser,
         "In progress",
         "Running",
-      ]
+      ],
     );
 
     const reportRowId = insertResult.insertId;
@@ -342,17 +331,10 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
             .promise()
             .query(`CALL ${selectedProcedure}(?)`, [lan]);
           const set = results.find(
-            (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
+            (r) => Array.isArray(r) && r.length && typeof r[0] === "object",
           );
           finalRows = set || [];
         } else if (normalizedReportId === "consumer-bureau-report") {
-    const [results] = await db.promise().query(
-    `CALL ${selectedProcedure}(?, ?, ?)`,
-    [startDate, endDate, lenderName]
-  );
-  const set = results.find(r => Array.isArray(r) && r.length && typeof r[0] === "object");
-  finalRows = set || [];
-} else {
           const [results] = await db
             .promise()
             .query(`CALL ${selectedProcedure}(?, ?, ?)`, [
@@ -361,7 +343,19 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
               lenderName,
             ]);
           const set = results.find(
-            (r) => Array.isArray(r) && r.length && typeof r[0] === "object"
+            (r) => Array.isArray(r) && r.length && typeof r[0] === "object",
+          );
+          finalRows = set || [];
+        } else {
+          const [results] = await db
+            .promise()
+            .query(`CALL ${selectedProcedure}(?, ?, ?)`, [
+              startDate,
+              endDate,
+              lenderName,
+            ]);
+          const set = results.find(
+            (r) => Array.isArray(r) && r.length && typeof r[0] === "object",
           );
           finalRows = set || [];
         }
@@ -381,10 +375,12 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
           if (normalizedReportId === "bank-payment-file-report") {
             // ⚙️ Use custom helper for bank payment file
             await exportBankPaymentFile(finalRows, filePath);
-          }else if (normalizedReportId === "bank-payment-file-bank-holiday-report") {
-    // Call your specific holiday utility here
-    await exportBankHolidayReport(finalRows, filePath); 
-}else {
+          } else if (
+            normalizedReportId === "bank-payment-file-bank-holiday-report"
+          ) {
+            // Call your specific holiday utility here
+            await exportBankHolidayReport(finalRows, filePath);
+          } else {
             // ✅ Default Excel export
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet("Report");
@@ -436,7 +432,12 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
             pageSize: "A4",
             pageMargins: [30, 30, 30, 40],
             styles: {
-              header: { fontSize: 16, bold: true, alignment: "center", margin: [0, 0, 0, 12] },
+              header: {
+                fontSize: 16,
+                bold: true,
+                alignment: "center",
+                margin: [0, 0, 0, 12],
+              },
               sectionHeader: { fontSize: 13, bold: true, margin: [0, 8, 0, 4] },
               subHeader: { fontSize: 11, bold: true, margin: [0, 4, 0, 4] },
             },
@@ -456,14 +457,12 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
         // ✅ Mark report as completed
         const secs = Math.floor((Date.now() - startTime) / 1000);
         const pretty = `${Math.floor(secs / 60)} minute ${secs % 60} seconds`;
-        await db
-          .promise()
-          .query(
-            `UPDATE reports_download 
+        await db.promise().query(
+          `UPDATE reports_download 
              SET status='Completed', time_taken=?, generated_at=NOW()
              WHERE id=?`,
-            [pretty, reportRowId]
-          );
+          [pretty, reportRowId],
+        );
         console.log("✅ Report generated:", fileName);
       } catch (err) {
         console.error("❌ Background job error:", err);
@@ -480,23 +479,19 @@ const ext = usePdf ? "pdf" : isBankPaymentFile ? "xls" : "xlsx";
   }
 });
 
-
 /** -------------------- download a generated file -------------------- **/
 router.get("/download/:fileName", (req, res) => {
   const { fileName } = req.params;
   const filePath = path.join(reportsDir, fileName);
 
   if (fs.existsSync(filePath)) {
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${fileName}"`
-    );
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     const isPdf = fileName.toLowerCase().endsWith(".pdf");
     res.setHeader(
       "Content-Type",
       isPdf
         ? "application/pdf"
-        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.download(filePath);
   } else {
@@ -547,9 +542,9 @@ const templateMap = {
   gq_fsf: "GQ_FSF_Loan_Booking.xlsx",
   gq_non_fsf: "gq_non_fsf.xlsx",
   adikosh: "adikosh.xlsx",
-   utr_upload: "utr_upload.xlsx",
+  utr_upload: "utr_upload.xlsx",
   repayment_upload: "repayment_upload.xlsx",
-  emiclub :"emiclub.xlsx",
+  emiclub: "emiclub.xlsx",
   wctl: "wctl.xlsx",
   hey_ev: "hey_ev.xlsx",
   heyev_battery: "heyev_battery.xlsx",
@@ -566,7 +561,9 @@ router.get("/download-template/:product", (req, res) => {
   const fileName = templateMap[productKey];
 
   if (!fileName) {
-    return res.status(400).json({ message: "Invalid product format requested." });
+    return res
+      .status(400)
+      .json({ message: "Invalid product format requested." });
   }
 
   const filePath = path.join(__dirname, `../templates/${fileName}`);
