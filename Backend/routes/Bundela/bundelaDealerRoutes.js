@@ -453,7 +453,7 @@ router.get("/dealer-details/:lan", async (req, res) => {
         p.battery_name,
         p.e_rickshaw_model,
         p.e_rickshaw_model_price
-      FROM loan_booking_bundela d
+      FROM bundela_dealer_booking d
       LEFT JOIN bundela_dealer_products p
         ON d.application_id = p.application_id
       WHERE d.lan = ?`,
