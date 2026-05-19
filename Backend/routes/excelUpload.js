@@ -6045,9 +6045,10 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
 router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
   try {
+
     if (
       !req.partner ||
-      (req.partner_name || "").toLowerCase().trim() !== "finso"
+      (req.partner.name || "").toLowerCase().trim() !== "finso"
     ) {
       return res.status(403).json({
         message: "This route is only for Finso partner.",
@@ -6077,6 +6078,7 @@ router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
         status: rows[0].status,
       },
     });
+
   } catch (error) {
     console.error("❌ Error fetching LAN status:", error);
 
