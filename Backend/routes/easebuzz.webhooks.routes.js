@@ -55,6 +55,7 @@ const express = require("express");
 const db = require("../config/db");
 const { verifyWebhookHash } = require("../utils/webhookHashVerify");
 const { sendLowBalanceAlertMail } = require("../jobs/mailer");
+const { processRapidMoneyDisbursement } = require("../services/processEmiClubDisbursement");
 
 const router = express.Router();
 
