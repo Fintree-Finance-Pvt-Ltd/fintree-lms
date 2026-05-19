@@ -20,7 +20,7 @@ IDENTIFIER GENERATOR
 const generateLoanIdentifiers = async (lender) => {
   let prefixLan = "BUNDLR";
   let applicationPrefix = "BUNDLRAPP";
-  let custPrefixLan = "BUNL";
+  let custPrefixLan = "BUNCL";
   let custPartnerLoanId = "BUNFFPL";
 
   const [rows] = await db
@@ -100,10 +100,10 @@ router.post("/dealer/create", async (req, res) => {
     const data = req.body;
 
     const { lan, application_id } =
-      await generateLoanIdentifiers("BUNDELA_DEALER");
+      await generateLoanIdentifiers("Bundela_DEALER");
 
     const dealerQuery = `
-      INSERT INTO bundela_dealer_booking
+      INSERT INTO loan_booking_bundela
       (
         application_id, lan, dealer_id,
         business_name, trade_name, business_type,
@@ -208,6 +208,7 @@ PRODUCT APIs
 ====================================================
 */
 
+// ➕ Add Product
 router.post("/dealer/product/add", async (req, res) => {
   try {
     const {
@@ -233,6 +234,7 @@ router.post("/dealer/product/add", async (req, res) => {
   }
 });
 
+// ✏️ Update Product
 router.put("/dealer/product/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -253,6 +255,7 @@ router.put("/dealer/product/:id", async (req, res) => {
   }
 });
 
+// ❌ Delete Product
 router.delete("/dealer/product/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -270,6 +273,7 @@ router.delete("/dealer/product/:id", async (req, res) => {
   }
 });
 
+// 📋 Get Products
 router.get("/dealer/:application_id/products", async (req, res) => {
   try {
     const { application_id } = req.params;
@@ -313,22 +317,22 @@ router.post(
 
       await db.promise().query(
         `
-        UPDATE bundela_dealer_booking
+        UPDATE loan_booking_bundela
         SET cheque_file_path=?, cheque_ocr_bank_name=?, cheque_ocr_branch_name=?,
             cheque_ocr_account_holder_name=?, cheque_ocr_account_number=?,
             cheque_ocr_ifsc_code=?, cheque_ocr_response=?, cheque_uploaded_at=NOW()
         WHERE lan=?
       `,
         [
-  req.file.path,
-  ocr.bank_name || ocr.bankName ,
-  ocr.branch_name || ocr.branch || ocr.branchName ,
-  ocr.account_holder_name || ocr.accountHolderName ,
-  ocr.account_number || ocr.accountNumber,
-  ocr.ifsc_code || ocr.ifsc ,
-  JSON.stringify(ocr),
-  lan,
-],
+          req.file.path,
+          ocr.bank_name,
+          ocr.branch_name,
+          ocr.account_holder_name,
+          ocr.account_number,
+          ocr.ifsc_code,
+          JSON.stringify(ocr),
+          lan,
+        ],
       );
 
       res.json({ message: "Cheque OCR success", ocr });
@@ -338,6 +342,7 @@ router.post(
   },
 );
 
+// /////////////// Dealer Lists & Details routes are in a separate file for better organization ///////////////
 router.get("/dealer-list", async (req, res) => {
   try {
     const [rows] = await db.promise().query(`
@@ -347,7 +352,7 @@ router.get("/dealer-list", async (req, res) => {
         business_name,
         city,
         state
-      FROM bundela_dealer_booking
+      FROM loan_booking_bundela
       WHERE status IN ('APPROVED', 'ACTIVE')
       ORDER BY lan ASC
     `);
@@ -372,6 +377,7 @@ router.get("/dealer-list", async (req, res) => {
   }
 });
 
+////////////////////// Dealer list for loan booking //////////////////////////////////////////////
 router.get("/dealersforbooking", async (req, res) => {
   try {
     const [dealers] = await db.promise().query(`
@@ -398,7 +404,7 @@ router.get("/dealersforbooking", async (req, res) => {
         account_number,
         ifsc_code,
         status
-      FROM bundela_dealer_booking
+      FROM loan_booking_bundela
       WHERE status = 'ACTIVE'
       ORDER BY business_name ASC
     `);
@@ -434,37 +440,44 @@ router.get("/dealersforbooking", async (req, res) => {
   }
 });
 
+//////////// Details route is in a separate file for better organization ///////////////
 router.get("/dealer-details/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
 
     const [rows] = await db.promise().query(
-      `
-      SELECT 
+      `SELECT 
         d.*,
         p.id AS product_id,
         p.battery_type,
         p.battery_name,
         p.e_rickshaw_model,
         p.e_rickshaw_model_price
-      FROM bundela_dealer_booking d
+      FROM loan_booking_bundela d
       LEFT JOIN bundela_dealer_products p
         ON d.application_id = p.application_id
       WHERE d.lan = ?`,
       [lan],
     );
 
+    // ❌ No dealer found
     if (rows.length === 0) {
       return res.status(404).json({
         message: "Dealer not found",
       });
     }
 
+    /*
+    ==========================
+    TRANSFORM DATA
+    ==========================
+    */
+
     const dealer = {
       ...rows[0],
 
       products: rows
-        .filter((r) => r.product_id !== null)
+        .filter((r) => r.product_id !== null) // remove null rows
         .map((r) => ({
           id: r.product_id,
           battery_type: r.battery_type,
@@ -474,11 +487,18 @@ router.get("/dealer-details/:lan", async (req, res) => {
         })),
     };
 
+    // ✅ Clean duplicate fields from root
     delete dealer.product_id;
     delete dealer.battery_type;
     delete dealer.battery_name;
     delete dealer.e_rickshaw_model;
     delete dealer.e_rickshaw_model_price;
+
+    /*
+    ==========================
+    RESPONSE
+    ==========================
+    */
 
     res.json(dealer);
   } catch (err) {
@@ -491,6 +511,7 @@ router.get("/dealer-details/:lan", async (req, res) => {
   }
 });
 
+/////////// Dealer Approve/Reject routes are in a separate file for better organization ///////////////
 router.get("/dealers-login-cases", async (req, res) => {
   try {
     const [rows] = await db.promise().query(`
@@ -506,7 +527,7 @@ router.get("/dealers-login-cases", async (req, res) => {
         owner_mobile,
         status,
         created_at
-      FROM bundela_dealer_booking
+      FROM loan_booking_bundela
       WHERE status = 'ACTIVE'
       ORDER BY created_at DESC
     `);
@@ -534,8 +555,7 @@ router.patch("/dealer/status/:lan", async (req, res) => {
     }
 
     const [result] = await db.promise().query(
-      `
-      UPDATE bundela_dealer_booking 
+      `UPDATE loan_booking_bundela 
        SET status = ?, updated_at = NOW() 
        WHERE lan = ?`,
       [status, lan],
@@ -560,9 +580,695 @@ router.patch("/dealer/status/:lan", async (req, res) => {
   }
 });
 
-/*
-OTP SEND & VERIFY
-*/
+router.post("/upload/ev-customer-manual", async (req, res) => {
+  const connection = await db.promise().getConnection();
+
+  try {
+    const data = req.body;
+    console.log("Received loan booking data:", data);
+
+    const [borrowerOtp] = await connection.query(
+      `
+  SELECT *
+  FROM otp_consent_model
+  WHERE mobile_number = ?
+  AND applicant_type = ?
+  AND verified = 1
+  AND is_used = 0
+  ORDER BY id DESC
+  LIMIT 1
+  `,
+      [data.Mobile_Number, "BORROWER"],
+    );
+
+    if (!borrowerOtp.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Borrower mobile not verified",
+      });
+    }
+
+    const [guarantorOtp] = await connection.query(
+      `     SELECT *
+    FROM otp_consent_model
+    WHERE mobile_number = ?
+    AND applicant_type = 'GUARANTOR'
+    AND verified = 1
+    AND is_used = 0
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+      [data.GURANTOR_MOBILE],
+    );
+
+    if (!guarantorOtp.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Guarantor mobile not verified",
+      });
+    }
+
+    if (data.Co_Applicant) {
+      const [coApplicantOtp] = await connection.query(
+        `       SELECT *
+      FROM otp_consent_model
+      WHERE mobile_number = ?
+      AND applicant_type =
+      'CO_APPLICANT'
+      AND verified = 1
+      AND is_used = 0
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+        [data.Co_Applicant_Mobile],
+      );
+
+      if (!coApplicantOtp.length) {
+        return res.status(400).json({
+          success: false,
+          message: "Co-applicant mobile not verified",
+        });
+      }
+    }
+
+    const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
+      "Bundela_CUSTOMER",
+    );
+
+    await connection.beginTransaction();
+
+    const values = [
+      emptyToNull(data.lenderType),
+      emptyToNull(data.lender),
+      emptyToNull(data.product),
+      emptyToNull(data.status),
+      cust_partner_loan_id,
+      cust_lan,
+
+      emptyToNull(data.LOGIN_DATE),
+      emptyToNull(data.First_Name),
+      emptyToNull(data.Last_Name),
+      emptyToNull(data.Customer_Name),
+      emptyToNull(data.Borrower_DOB),
+      emptyToNull(data.Father_Name),
+      emptyToNull(data.Mobile_Number),
+      emptyToNull(data.Email),
+      emptyToNull(data.Pan_Card),
+      emptyToNull(data.Gender),
+
+      emptyToNull(data.Address_Line_1),
+      emptyToNull(data.Address_Line_2),
+      emptyToNull(data.Village),
+      emptyToNull(data.District),
+      emptyToNull(data.State),
+      emptyToNull(data.Pincode),
+
+      numberOrNull(data.Loan_Amount),
+      numberOrNull(data.Interest_Rate),
+      numberOrNull(data.Tenure),
+      numberOrNull(data.Disbursal_Amount),
+      numberOrNull(data.Processing_Fee),
+      numberOrNull(data.Processing_Fee_Percentage),
+
+      emptyToNull(data.GURANTOR),
+      emptyToNull(data.GURANTOR_DOB),
+      emptyToNull(data.GURANTOR_EMAIL),
+      emptyToNull(data.GURANTOR_PAN),
+      emptyToNull(data.GURANTOR_MOBILE),
+      emptyToNull(data.Relationship_with_Borrower),
+      emptyToNull(data.GURANTOR_Address_Line_1),
+      emptyToNull(data.GURANTOR_Address_Line_2),
+      emptyToNull(data.GURANTOR_Village),
+      emptyToNull(data.GURANTOR_District),
+      emptyToNull(data.GURANTOR_State),
+      emptyToNull(data.GURANTOR_Pincode),
+
+      emptyToNull(data.Co_Applicant),
+      emptyToNull(data.Co_Applicant_DOB),
+      emptyToNull(data.Co_Applicant_Email),
+      emptyToNull(data.Co_Applicant_PAN),
+      emptyToNull(data.Co_Applicant_Mobile),
+      emptyToNull(data.Co_Applicant_Address_Line_1),
+      emptyToNull(data.Co_Applicant_Address_Line_2),
+      emptyToNull(data.Co_Applicant_Village),
+      emptyToNull(data.Co_Applicant_District),
+      emptyToNull(data.Co_Applicant_State),
+      emptyToNull(data.Co_Applicant_Pincode),
+
+      emptyToNull(data.customer_name_as_per_bank),
+      emptyToNull(data.customer_bank_name),
+      emptyToNull(data.customer_account_number),
+      emptyToNull(data.bank_ifsc_code),
+
+      emptyToNull(data.selected_dealer_application_id),
+      emptyToNull(data.dealer_id),
+      emptyToNull(data.trade_name),
+      emptyToNull(data.dealer_name),
+      emptyToNull(data.dealer_contact),
+      emptyToNull(data.dealer_email),
+      emptyToNull(data.gst_no),
+      emptyToNull(data.pan_number),
+      emptyToNull(data.dealer_address),
+      emptyToNull(data.dealer_city),
+      emptyToNull(data.dealer_state),
+      emptyToNull(data.dealer_pincode),
+
+      emptyToNull(data.bank_name),
+      emptyToNull(data.account_number),
+      emptyToNull(data.ifsc),
+      emptyToNull(data.name_in_bank),
+
+      numberOrNull(data.selected_product_id),
+      emptyToNull(data.Battery_Name),
+      emptyToNull(data.Battery_Type),
+      emptyToNull(data.Battery_Serial_no_1),
+      emptyToNull(data.Battery_Serial_no_2),
+      emptyToNull(data.E_Rikshaw_model),
+      emptyToNull(data.Chassis_no),
+      data.borrower_mobile_verified || 0,
+      data.guarantor_mobile_verified || 0,
+      data.co_applicant_mobile_verified || 0,
+    ];
+
+    const insertQuery = `
+      INSERT INTO loan_booking_bundela (
+        lender_type,
+        lender,
+        product,
+        status,
+        partner_loan_id,
+        lan,
+
+        login_date,
+        first_name,
+        last_name,
+        customer_name,
+        dob,
+        father_name,
+        mobile_number,
+        email,
+        pan_card,
+        gender,
+
+        permanent_address_line_1,
+        permanent_address_line_2,
+        permanent_village_city,
+        permanent_district,
+        permanent_state,
+        permanent_pincode,
+
+        loan_amount,
+        interest_rate,
+        loan_tenure,
+        disbursal_amount,
+        processing_fee,
+        processing_fee_percentage,
+
+        guarantor_name,
+        guarantor_dob,
+        guarantor_email,
+        guarantor_pan,
+        guarantor_mobile,
+        relationship_with_borrower,
+        guarantor_address_line_1,
+guarantor_address_line_2,
+guarantor_village_city,
+guarantor_district,
+guarantor_state,
+guarantor_pincode,
+
+
+        co_applicant_name,
+        co_applicant_dob,
+        co_applicant_email,
+        co_applicant_pan,
+        co_applicant_mobile,
+        co_applicant_address_line_1,
+co_applicant_address_line_2,
+co_applicant_village_city,
+co_applicant_district,
+co_applicant_state,
+co_applicant_pincode,
+
+
+        customer_name_as_per_bank,
+        customer_bank_name,
+        customer_account_number,
+        bank_ifsc_code,
+
+        selected_dealer_application_id,
+        dealer_id,
+        trade_name,
+        dealer_name,
+        dealer_contact,
+        dealer_email,
+        gst_no,
+        pan_number,
+        dealer_address,
+        dealer_city,
+        dealer_state,
+        dealer_pincode,
+
+        dealer_bank_name,
+        dealer_account_number,
+        dealer_ifsc,
+        dealer_name_in_bank,
+
+        selected_product_id,
+        battery_name,
+        battery_type,
+        battery_serial_no_1,
+        battery_serial_no_2,
+        e_rikshaw_model,
+        chassis_no,
+        borrower_mobile_verified,
+guarantor_mobile_verified,
+co_applicant_mobile_verified
+      )
+      VALUES (${values.map(() => "?").join(", ")})
+    `;
+
+    await connection.query(insertQuery, values);
+
+    await connection.query(
+      `   UPDATE otp_consent_model
+  SET is_used = 1
+  WHERE mobile_number = ?
+  AND applicant_type = ?
+  `,
+      [data.Mobile_Number, "BORROWER"],
+    );
+
+    await connection.query(
+      `   UPDATE otp_consent_model
+  SET is_used = 1
+  WHERE mobile_number = ?
+  AND applicant_type = ?
+  `,
+      [data.GURANTOR_MOBILE, "GUARANTOR"],
+    );
+
+    if (data.Co_Applicant) {
+      await connection.query(
+        `     UPDATE otp_consent_model
+    SET is_used = 1
+    WHERE mobile_number = ?
+    AND applicant_type =
+    'CO_APPLICANT'
+    `,
+        [data.Co_Applicant_Mobile],
+      );
+    }
+
+    await connection.commit();
+
+    universalRunAllValidations(cust_lan);
+
+    return res.status(201).json({
+      success: true,
+      message: "Bundela loan booking saved successfully",
+      partner_loan_id: cust_partner_loan_id,
+      lan: cust_lan,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    console.error("Bundela loan booking save error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save Bundela loan booking",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+router.post("/save-borrower-first-section", async (req, res) => {
+  const connection = await db.promise().getConnection();
+
+  try {
+    const data = req.body;
+
+    const [borrowerOtp] = await connection.query(
+      `
+      SELECT *
+      FROM otp_consent_model
+      WHERE mobile_number = ?
+      AND applicant_type = ?
+      AND verified = 1
+      AND is_used = 0
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [data.Mobile_Number, "BORROWER"],
+    );
+
+    if (!borrowerOtp.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Borrower mobile not verified",
+      });
+    }
+
+    const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
+      "Bundela_CUSTOMER",
+    );
+
+    await connection.beginTransaction();
+
+    await connection.query(
+      `
+      INSERT INTO loan_booking_bundela (
+        lender_type,
+        lender,
+        product,
+        status,
+        stage,
+        partner_loan_id,
+        lan,
+        login_date,
+        first_name,
+        last_name,
+        customer_name,
+        dob,
+        father_name,
+        mobile_number,
+        email,
+        pan_card,
+        gender,
+        borrower_mobile_verified
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        emptyToNull(data.lenderType),
+        emptyToNull(data.lender),
+        emptyToNull(data.product),
+        "Login",
+        "Login",
+        cust_partner_loan_id,
+        cust_lan,
+        emptyToNull(data.LOGIN_DATE),
+        emptyToNull(data.First_Name),
+        emptyToNull(data.Last_Name),
+        emptyToNull(data.Customer_Name),
+        emptyToNull(data.Borrower_DOB),
+        emptyToNull(data.Father_Name),
+        emptyToNull(data.Mobile_Number),
+        emptyToNull(data.Email),
+        emptyToNull(data.Pan_Card),
+        emptyToNull(data.Gender),
+        data.borrower_mobile_verified || 1,
+      ],
+    );
+
+    await connection.query(
+      `
+      UPDATE otp_consent_model
+      SET is_used = 1
+      WHERE id = ?
+      `,
+      [borrowerOtp[0].id],
+    );
+
+    await connection.query(
+      `
+      INSERT IGNORE INTO kyc_verification_status (
+        lan,
+        applicant_type,
+        applicant_name,
+        mobile_number,
+        pan_number
+      )
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [
+        cust_lan,
+        "BORROWER",
+        data.Customer_Name,
+        data.Mobile_Number,
+        data.Pan_Card,
+      ],
+    );
+
+    await connection.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: "Borrower saved and LAN generated",
+      lan: cust_lan,
+      partner_loan_id: cust_partner_loan_id,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save borrower section",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+router.post("/final-submit-ev-customer-manual", async (req, res) => {
+  const connection = await db.promise().getConnection();
+
+  try {
+    const data = req.body;
+
+    if (!data.lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN required. Please save borrower first.",
+      });
+    }
+
+    await connection.beginTransaction();
+
+    await connection.query(
+      `
+      UPDATE loan_booking_bundela
+      SET
+        permanent_address_line_1 = ?,
+        permanent_address_line_2 = ?,
+        permanent_village_city = ?,
+        permanent_district = ?,
+        permanent_state = ?,
+        permanent_pincode = ?,
+
+        requested_loan_amount = ?,
+        interest_rate = ?,
+        loan_tenure = ?,
+        disbursal_amount = ?,
+        processing_fee = ?,
+        processing_fee_percentage = ?,
+
+        guarantor_name = ?,
+        guarantor_dob = ?,
+        guarantor_email = ?,
+        guarantor_pan = ?,
+        guarantor_mobile = ?,
+        relationship_with_borrower = ?,
+        guarantor_address_line_1 = ?,
+        guarantor_address_line_2 = ?,
+        guarantor_village_city = ?,
+        guarantor_district = ?,
+        guarantor_state = ?,
+        guarantor_pincode = ?,
+
+        co_applicant_name = ?,
+        co_applicant_dob = ?,
+        co_applicant_email = ?,
+        co_applicant_pan = ?,
+        co_applicant_mobile = ?,
+        co_applicant_address_line_1 = ?,
+        co_applicant_address_line_2 = ?,
+        co_applicant_village_city = ?,
+        co_applicant_district = ?,
+        co_applicant_state = ?,
+        co_applicant_pincode = ?,
+
+        customer_name_as_per_bank = ?,
+        customer_bank_name = ?,
+        customer_account_number = ?,
+        bank_ifsc_code = ?,
+
+        selected_dealer_application_id = ?,
+        dealer_id = ?,
+        trade_name = ?,
+        dealer_name = ?,
+        dealer_contact = ?,
+        dealer_email = ?,
+        gst_no = ?,
+        pan_number = ?,
+        dealer_address = ?,
+        dealer_city = ?,
+        dealer_state = ?,
+        dealer_pincode = ?,
+
+        dealer_bank_name = ?,
+        dealer_account_number = ?,
+        dealer_ifsc = ?,
+        dealer_name_in_bank = ?,
+
+        selected_product_id = ?,
+        battery_name = ?,
+        battery_type = ?,
+        battery_serial_no_1 = ?,
+        battery_serial_no_2 = ?,
+        e_rikshaw_model = ?,
+        chassis_no = ?,
+
+        borrower_mobile_verified = ?,
+        guarantor_mobile_verified = ?,
+        co_applicant_mobile_verified = ?
+      WHERE lan = ?
+      `,
+      [
+        emptyToNull(data.Address_Line_1),
+        emptyToNull(data.Address_Line_2),
+        emptyToNull(data.Village),
+        emptyToNull(data.District),
+        emptyToNull(data.State),
+        emptyToNull(data.Pincode),
+
+        numberOrNull(data.Loan_Amount),
+        numberOrNull(data.Interest_Rate),
+        numberOrNull(data.Tenure),
+        numberOrNull(data.Disbursal_Amount),
+        numberOrNull(data.Processing_Fee),
+        numberOrNull(data.Processing_Fee_Percentage),
+
+        emptyToNull(data.GURANTOR),
+        emptyToNull(data.GURANTOR_DOB),
+        emptyToNull(data.GURANTOR_EMAIL),
+        emptyToNull(data.GURANTOR_PAN),
+        emptyToNull(data.GURANTOR_MOBILE),
+        emptyToNull(data.Relationship_with_Borrower),
+        emptyToNull(data.GURANTOR_Address_Line_1),
+        emptyToNull(data.GURANTOR_Address_Line_2),
+        emptyToNull(data.GURANTOR_Village),
+        emptyToNull(data.GURANTOR_District),
+        emptyToNull(data.GURANTOR_State),
+        emptyToNull(data.GURANTOR_Pincode),
+
+        emptyToNull(data.Co_Applicant),
+        emptyToNull(data.Co_Applicant_DOB),
+        emptyToNull(data.Co_Applicant_Email),
+        emptyToNull(data.Co_Applicant_PAN),
+        emptyToNull(data.Co_Applicant_Mobile),
+        emptyToNull(data.Co_Applicant_Address_Line_1),
+        emptyToNull(data.Co_Applicant_Address_Line_2),
+        emptyToNull(data.Co_Applicant_Village),
+        emptyToNull(data.Co_Applicant_District),
+        emptyToNull(data.Co_Applicant_State),
+        emptyToNull(data.Co_Applicant_Pincode),
+
+        emptyToNull(data.customer_name_as_per_bank),
+        emptyToNull(data.customer_bank_name),
+        emptyToNull(data.customer_account_number),
+        emptyToNull(data.bank_ifsc_code),
+
+        emptyToNull(data.selected_dealer_application_id),
+        emptyToNull(data.dealer_id),
+        emptyToNull(data.trade_name),
+        emptyToNull(data.dealer_name),
+        emptyToNull(data.dealer_contact),
+        emptyToNull(data.dealer_email),
+        emptyToNull(data.gst_no),
+        emptyToNull(data.pan_number),
+        emptyToNull(data.dealer_address),
+        emptyToNull(data.dealer_city),
+        emptyToNull(data.dealer_state),
+        emptyToNull(data.dealer_pincode),
+
+        emptyToNull(data.bank_name),
+        emptyToNull(data.account_number),
+        emptyToNull(data.ifsc),
+        emptyToNull(data.name_in_bank),
+
+        numberOrNull(data.selected_product_id),
+        emptyToNull(data.Battery_Name),
+        emptyToNull(data.Battery_Type),
+        emptyToNull(data.Battery_Serial_no_1),
+        emptyToNull(data.Battery_Serial_no_2),
+        emptyToNull(data.E_Rikshaw_model),
+        emptyToNull(data.Chassis_no),
+
+        data.borrower_mobile_verified || 0,
+        data.guarantor_mobile_verified || 0,
+        data.co_applicant_mobile_verified || 0,
+
+        data.lan,
+      ],
+    );
+
+    await connection.commit();
+
+    universalRunAllValidations(data.lan).catch((err) => {
+      console.error("Validation engine failed after booking:", err);
+    });
+
+    return res.json({
+      success: true,
+      message: "Bundela loan booking submitted successfully",
+      lan: data.lan,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    console.error("Final Bundela submit error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Final submit failed",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+router.get("/loan-booking/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT *
+      FROM loan_booking_bundela
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan booking not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (error) {
+    console.error("Fetch Bundela booking error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch loan booking",
+      error: error.message,
+    });
+  }
+});
+
 router.post("/send-otp", async (req, res) => {
   try {
     console.log("Incoming body:", req.body);
@@ -587,13 +1293,13 @@ router.post("/send-otp", async (req, res) => {
 
     const [existing] = await db.promise().query(
       `
-      SELECT *
-      FROM otp_consent_model
-      WHERE mobile_number = ?
-      AND applicant_type = ?
-      ORDER BY id DESC
-      LIMIT 1
-      `,
+    SELECT *
+    FROM otp_consent_model
+    WHERE mobile_number = ?
+    AND applicant_type = ?
+    ORDER BY id DESC
+    LIMIT 1
+    `,
       [cleanedMobile, applicantType],
     );
 
@@ -639,16 +1345,18 @@ router.post("/send-otp", async (req, res) => {
 
     await db.promise().query(
       `
-      INSERT INTO otp_consent_model (
-        mobile_number,
-        applicant_type,
-        otp,
-        expires_at,
-        last_sent_at,
-        verified
-      )
-      VALUES (?, ?, ?, ?, NOW(), 0)
-      `,
+  INSERT INTO otp_consent_model (
+    mobile_number,
+    applicant_type,
+    otp,
+    expires_at,
+    last_sent_at,
+    verified
+  )
+  VALUES (
+    ?, ?, ?, ?, NOW(), 0
+  )
+  `,
       [cleanedMobile, applicantType, otp, expiresAt],
     );
 
@@ -672,14 +1380,14 @@ router.post("/verify-otp", async (req, res) => {
 
     const [rows] = await db.promise().query(
       `
-      SELECT *
-      FROM otp_consent_model
-      WHERE mobile_number = ?
-      AND applicant_type = ?
-      AND verified = 0
-      ORDER BY id DESC
-      LIMIT 1
-      `,
+  SELECT *
+  FROM otp_consent_model
+  WHERE mobile_number = ?
+  AND applicant_type = ?
+  AND verified = 0
+  ORDER BY id DESC
+  LIMIT 1
+  `,
       [mobile, applicantType],
     );
 
@@ -708,30 +1416,1011 @@ router.post("/verify-otp", async (req, res) => {
 
     await db.promise().query(
       `
-      UPDATE otp_consent_model
-      SET
-        verified = 1,
-        consent_given = 1,
-        consent_text = ?,
-        consent_at = NOW()
-      WHERE id = ?
-      `,
+  UPDATE otp_consent_model
+  SET
+    verified = 1,
+    consent_given = 1,
+    consent_text = ?,
+    consent_at = NOW()
+  WHERE id = ?
+  `,
       [consentText, session.id],
     );
 
     return res.json({
       success: true,
-      message: "OTP verified successfully",
+      message: "OTP verified",
     });
-  } catch (err) {
-    console.error("OTP verify error:", err.message);
+  } catch (error) {
+    console.error(error);
 
     return res.status(500).json({
       success: false,
-      message: "OTP verification failed",
+      message: "Verification failed",
+    });
+  }
+});
+
+router.post("/init-aadhaar", async (req, res) => {
+  try {
+    const { lan, applicantType } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN required",
+      });
+    }
+
+    if (!["BORROWER", "GUARANTOR", "CO_APPLICANT"].includes(applicantType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid applicant type",
+      });
+    }
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT *
+      FROM loan_booking_bundela
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    const loan = rows[0];
+
+    let applicantData = {};
+
+    if (applicantType === "BORROWER") {
+      applicantData = {
+        name: loan.customer_name,
+        mobile: loan.mobile_number,
+        email: loan.email,
+      };
+    }
+
+    if (applicantType === "GUARANTOR") {
+      applicantData = {
+        name: loan.guarantor_name,
+        mobile: loan.guarantor_mobile,
+        email: loan.guarantor_email,
+      };
+    }
+
+    if (applicantType === "CO_APPLICANT") {
+      applicantData = {
+        name: loan.co_applicant_name,
+        mobile: loan.co_applicant_mobile,
+        email: loan.co_applicant_email,
+      };
+    }
+
+    if (!applicantData.mobile || !applicantData.name) {
+      return res.status(400).json({
+        success: false,
+        message: `${applicantType} details not saved`,
+      });
+    }
+
+    await db.promise().query(
+      `
+      INSERT IGNORE INTO kyc_verification_status (
+        lan,
+        applicant_type,
+        applicant_name,
+        mobile_number
+      )
+      VALUES (?, ?, ?, ?)
+      `,
+      [lan, applicantType, applicantData.name, applicantData.mobile],
+    );
+
+    await db.promise().query(
+      `
+      UPDATE kyc_verification_status
+      SET aadhaar_status = 'INITIATED'
+      WHERE lan = ?
+      AND applicant_type = ?
+      `,
+      [lan, applicantType],
+    );
+
+    const aadhaarInit = await initAadhaarKyc(
+      lan,
+      applicantData.mobile,
+      applicantData.email,
+      applicantData.name,
+    );
+
+    if (!aadhaarInit.success) {
+      await db.promise().query(
+        `
+        UPDATE kyc_verification_status
+        SET aadhaar_status = 'FAILED'
+        WHERE lan = ?
+        AND applicant_type = ?
+        `,
+        [lan, applicantType],
+      );
+
+      return res.status(400).json({
+        success: false,
+        message: "Aadhaar init failed",
+      });
+    }
+
+    await db.promise().query(
+      `
+      UPDATE kyc_verification_status
+      SET
+        aadhaar_transaction_id = ?,
+        aadhaar_kyc_url = ?,
+        aadhaar_unique_id = ?
+      WHERE lan = ?
+      AND applicant_type = ?
+      `,
+      [
+        aadhaarInit.unifiedTransactionId,
+        aadhaarInit.kycUrl,
+        aadhaarInit.uniqueId,
+        lan,
+        applicantType,
+      ],
+    );
+
+    return res.json({
+      success: true,
+      message: "Aadhaar initiated",
+      kycUrl: aadhaarInit.kycUrl,
+      transactionId: aadhaarInit.unifiedTransactionId,
+      uniqueId: aadhaarInit.uniqueId,
+    });
+  } catch (error) {
+    console.error("Aadhaar init error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Aadhaar init failed",
+      error: error.message,
+    });
+  }
+});
+
+router.post("/save-applicant-details", async (req, res) => {
+  try {
+    const { lan, applicantType, data } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN required",
+      });
+    }
+
+    if (applicantType === "GUARANTOR") {
+      await db.promise().query(
+        `
+        UPDATE loan_booking_bundela
+        SET
+          guarantor_name = ?,
+          guarantor_dob = ?,
+          guarantor_email = ?,
+          guarantor_pan = ?,
+          guarantor_mobile = ?,
+          relationship_with_borrower = ?,
+          guarantor_address_line_1 = ?,
+          guarantor_address_line_2 = ?,
+          guarantor_village_city = ?,
+          guarantor_district = ?,
+          guarantor_state = ?,
+          guarantor_pincode = ?,
+          guarantor_mobile_verified = ?
+        WHERE lan = ?
+        `,
+        [
+          emptyToNull(data.GURANTOR),
+          emptyToNull(data.GURANTOR_DOB),
+          emptyToNull(data.GURANTOR_EMAIL),
+          emptyToNull(data.GURANTOR_PAN),
+          emptyToNull(data.GURANTOR_MOBILE),
+          emptyToNull(data.Relationship_with_Borrower),
+          emptyToNull(data.GURANTOR_Address_Line_1),
+          emptyToNull(data.GURANTOR_Address_Line_2),
+          emptyToNull(data.GURANTOR_Village),
+          emptyToNull(data.GURANTOR_District),
+          emptyToNull(data.GURANTOR_State),
+          emptyToNull(data.GURANTOR_Pincode),
+          data.guarantor_mobile_verified || 0,
+          lan,
+        ],
+      );
+    }
+
+    if (applicantType === "CO_APPLICANT") {
+      await db.promise().query(
+        `
+        UPDATE loan_booking_bundela
+        SET
+          co_applicant_name = ?,
+          co_applicant_dob = ?,
+          co_applicant_email = ?,
+          co_applicant_pan = ?,
+          co_applicant_mobile = ?,
+          co_applicant_address_line_1 = ?,
+          co_applicant_address_line_2 = ?,
+          co_applicant_village_city = ?,
+          co_applicant_district = ?,
+          co_applicant_state = ?,
+          co_applicant_pincode = ?,
+          co_applicant_mobile_verified = ?
+        WHERE lan = ?
+        `,
+        [
+          emptyToNull(data.Co_Applicant),
+          emptyToNull(data.Co_Applicant_DOB),
+          emptyToNull(data.Co_Applicant_Email),
+          emptyToNull(data.Co_Applicant_PAN),
+          emptyToNull(data.Co_Applicant_Mobile),
+          emptyToNull(data.Co_Applicant_Address_Line_1),
+          emptyToNull(data.Co_Applicant_Address_Line_2),
+          emptyToNull(data.Co_Applicant_Village),
+          emptyToNull(data.Co_Applicant_District),
+          emptyToNull(data.Co_Applicant_State),
+          emptyToNull(data.Co_Applicant_Pincode),
+          data.co_applicant_mobile_verified || 0,
+          lan,
+        ],
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: `${applicantType} saved`,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Applicant save failed",
+      error: error.message,
+    });
+  }
+});
+
+router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
+  try {
+    const { lan, applicantType } = req.params;
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN required",
+      });
+    }
+
+    if (!["BORROWER", "GUARANTOR", "CO_APPLICANT"].includes(applicantType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid applicant type",
+      });
+    }
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        aadhaar_status,
+        aadhaar_name,
+        aadhaar_dob,
+        aadhaar_masked_number,
+        aadhaar_address
+      FROM kyc_verification_status
+      WHERE lan = ?
+      AND applicant_type = ?
+      LIMIT 1
+      `,
+      [lan, applicantType],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Aadhaar KYC record not found",
+      });
+    }
+
+    const row = rows[0];
+
+    if (row.aadhaar_status !== "VERIFIED") {
+      return res.json({
+        success: false,
+        status: row.aadhaar_status,
+        message: "Aadhaar is not verified yet",
+      });
+    }
+
+    if (!row.aadhaar_address) {
+      return res.json({
+        success: false,
+        status: row.aadhaar_status,
+        message: "Aadhaar address not available",
+      });
+    }
+
+    return res.json({
+      success: true,
+      status: row.aadhaar_status,
+      aadhaarName: row.aadhaar_name,
+      aadhaarDob: row.aadhaar_dob,
+      aadhaarMaskedNumber: row.aadhaar_masked_number,
+      aadhaarAddress: row.aadhaar_address,
+    });
+  } catch (error) {
+    console.error("Fetch Aadhaar address error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Aadhaar address",
+      error: error.message,
+    });
+  }
+});
+
+router.get("/customer-details/:lan", async (req, res) => {
+  const { lan } = req.params;
+
+  try {
+    const [rows] = await db.promise().query(
+      `
+  SELECT
+    lb.lan,
+    lb.partner_loan_id,
+    lb.login_date,
+
+    lb.first_name,
+    lb.last_name,
+    lb.customer_name,
+
+    lb.mobile_number,
+    lb.email,
+    lb.pan_card,
+    lb.dob,
+    lb.gender,
+    lb.father_name,
+
+    lb.permanent_address_line_1,
+    lb.permanent_address_line_2,
+    lb.permanent_village_city,
+    lb.permanent_district,
+    lb.permanent_state,
+    lb.permanent_pincode,
+
+    lb.loan_amount,
+    lb.requested_loan_amount,
+    lb.processing_fee,
+    lb.processing_fee_percentage,
+    lb.disbursal_amount,
+    lb.interest_rate,
+    lb.loan_tenure,
+
+    lb.guarantor_name,
+    lb.guarantor_dob,
+    lb.guarantor_pan,
+    lb.guarantor_mobile,
+    lb.guarantor_email,
+    lb.relationship_with_borrower,
+
+    lb.guarantor_address_line_1,
+    lb.guarantor_address_line_2,
+    lb.guarantor_village_city,
+    lb.guarantor_district,
+    lb.guarantor_state,
+    lb.guarantor_pincode,
+
+    lb.co_applicant_name,
+    lb.co_applicant_dob,
+    lb.co_applicant_pan,
+    lb.co_applicant_mobile,
+    lb.co_applicant_email,
+
+    lb.co_applicant_address_line_1,
+    lb.co_applicant_address_line_2,
+    lb.co_applicant_village_city,
+    lb.co_applicant_district,
+    lb.co_applicant_state,
+    lb.co_applicant_pincode,
+
+    lb.customer_name_as_per_bank,
+    lb.customer_bank_name,
+    lb.customer_account_number,
+    lb.bank_ifsc_code,
+
+    lb.selected_dealer_application_id,
+    lb.dealer_id,
+    lb.trade_name,
+    lb.dealer_name,
+    lb.dealer_contact,
+    lb.dealer_email,
+    lb.gst_no,
+    lb.pan_number,
+
+    lb.dealer_address,
+    lb.dealer_city,
+    lb.dealer_state,
+    lb.dealer_pincode,
+
+    lb.dealer_bank_name,
+    lb.dealer_account_number,
+    lb.dealer_ifsc,
+    lb.dealer_name_in_bank,
+
+    lb.selected_product_id,
+    lb.battery_name,
+    lb.battery_type,
+    lb.battery_serial_no_1,
+    lb.battery_serial_no_2,
+    lb.e_rikshaw_model,
+    lb.chassis_no,
+
+    lb.borrower_mobile_verified,
+    lb.guarantor_mobile_verified,
+    lb.co_applicant_mobile_verified,
+
+    lb.lender,
+    lb.lender_type,
+    lb.product,
+    lb.status,
+
+    lb.created_at,
+    lb.updated_at,
+
+    lb.bundela_bre_status,
+    lb.bundela_bre_reason,
+    lb.bundela_bre_checked_at,
+
+    lb.fintree_cibil_score,
+    lb.bundela_enquiries_30d,
+
+    lb.bundela_dpd_3m_flag,
+    lb.bundela_dpd_6m_flag,
+    lb.bundela_overdue_12m_flag,
+
+    lb.bundela_written_off_3y_flag,
+
+    lb.bundela_60plus_24m_flag,
+    lb.bundela_90plus_36m_flag,
+
+    lb.bundela_emi_overdue_amount,
+    lb.bundela_cc_overdue_amount,
+
+    lb.bundela_deviation_flag,
+
+    borrower_kyc.pan_status AS borrower_pan_status,
+    borrower_kyc.aadhaar_status AS borrower_aadhaar_status,
+    borrower_kyc.bureau_status AS borrower_bureau_status,
+
+    guarantor_kyc.pan_status AS guarantor_pan_status,
+    guarantor_kyc.aadhaar_status AS guarantor_aadhaar_status,
+    guarantor_kyc.bureau_status AS guarantor_bureau_status,
+
+    co_kyc.pan_status AS co_applicant_pan_status,
+    co_kyc.aadhaar_status AS co_applicant_aadhaar_status,
+    co_kyc.bureau_status AS co_applicant_bureau_status
+
+  FROM loan_booking_bundela lb
+
+  LEFT JOIN kyc_verification_status borrower_kyc
+    ON borrower_kyc.lan = lb.lan
+    AND borrower_kyc.applicant_type = 'BORROWER'
+
+  LEFT JOIN kyc_verification_status guarantor_kyc
+    ON guarantor_kyc.lan = lb.lan
+    AND guarantor_kyc.applicant_type = 'GUARANTOR'
+
+  LEFT JOIN kyc_verification_status co_kyc
+    ON co_kyc.lan = lb.lan
+    AND co_kyc.applicant_type = 'CO_APPLICANT'
+
+  WHERE lb.lan = ?
+  LIMIT 1
+  `,
+      [lan],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        message: "Bundela loan not found",
+      });
+    }
+
+    const row = rows[0];
+
+    const loan = {
+      lan: row.lan,
+      partner_loan_id: row.partner_loan_id,
+      login_date: row.login_date,
+
+      first_name: row.first_name,
+      last_name: row.last_name,
+      customer_name: row.customer_name,
+
+      mobile_number: row.mobile_number,
+      email: row.email,
+      pan_card: row.pan_card,
+      dob: row.dob,
+      gender: row.gender,
+      father_name: row.father_name,
+
+      permanent_address: {
+        address_line_1: row.permanent_address_line_1,
+        address_line_2: row.permanent_address_line_2,
+        city: row.permanent_village_city,
+        district: row.permanent_district,
+        state: row.permanent_state,
+        pincode: row.permanent_pincode,
+      },
+
+      loan_details: {
+        requested_loan_amount: row.requested_loan_amount,
+        loan_amount: row.loan_amount,
+        processing_fee: row.processing_fee,
+        processing_fee_percentage: row.processing_fee_percentage,
+        disbursal_amount: row.disbursal_amount,
+        interest_rate: row.interest_rate,
+        loan_tenure: row.loan_tenure,
+      },
+
+      guarantor: {
+        name: row.guarantor_name,
+        dob: row.guarantor_dob,
+        pan: row.guarantor_pan,
+        mobile: row.guarantor_mobile,
+        email: row.guarantor_email,
+        relationship_with_borrower: row.relationship_with_borrower,
+
+        address: {
+          address_line_1: row.guarantor_address_line_1,
+          address_line_2: row.guarantor_address_line_2,
+          city: row.guarantor_village_city,
+          district: row.guarantor_district,
+          state: row.guarantor_state,
+          pincode: row.guarantor_pincode,
+        },
+      },
+
+      co_applicant: {
+        name: row.co_applicant_name,
+        dob: row.co_applicant_dob,
+        pan: row.co_applicant_pan,
+        mobile: row.co_applicant_mobile,
+        email: row.co_applicant_email,
+
+        address: {
+          address_line_1: row.co_applicant_address_line_1,
+          address_line_2: row.co_applicant_address_line_2,
+          city: row.co_applicant_village_city,
+          district: row.co_applicant_district,
+          state: row.co_applicant_state,
+          pincode: row.co_applicant_pincode,
+        },
+      },
+
+      bank_details: {
+        customer_name_as_per_bank: row.customer_name_as_per_bank,
+        customer_bank_name: row.customer_bank_name,
+        customer_account_number: row.customer_account_number,
+        bank_ifsc_code: row.bank_ifsc_code,
+      },
+
+      dealer_details: {
+        selected_dealer_application_id: row.selected_dealer_application_id,
+        dealer_id: row.dealer_id,
+        trade_name: row.trade_name,
+        dealer_name: row.dealer_name,
+        dealer_contact: row.dealer_contact,
+        dealer_email: row.dealer_email,
+        gst_no: row.gst_no,
+        pan_number: row.pan_number,
+
+        dealer_address: row.dealer_address,
+        dealer_city: row.dealer_city,
+        dealer_state: row.dealer_state,
+        dealer_pincode: row.dealer_pincode,
+
+        dealer_bank_name: row.dealer_bank_name,
+        dealer_account_number: row.dealer_account_number,
+        dealer_ifsc: row.dealer_ifsc,
+        dealer_name_in_bank: row.dealer_name_in_bank,
+      },
+
+      product_details: {
+        selected_product_id: row.selected_product_id,
+        battery_name: row.battery_name,
+        battery_type: row.battery_type,
+        battery_serial_no_1: row.battery_serial_no_1,
+        battery_serial_no_2: row.battery_serial_no_2,
+        e_rikshaw_model: row.e_rikshaw_model,
+        chassis_no: row.chassis_no,
+      },
+
+      // ADD HERE
+      verification_status: {
+        borrower: {
+          pan_status: row.borrower_pan_status || "PENDING",
+          aadhaar_status: row.borrower_aadhaar_status || "PENDING",
+          bureau_status: row.borrower_bureau_status || "PENDING",
+        },
+
+        guarantor: row.guarantor_name
+          ? {
+              pan_status: row.guarantor_pan_status || "PENDING",
+              aadhaar_status: row.guarantor_aadhaar_status || "PENDING",
+              bureau_status: row.guarantor_bureau_status || "PENDING",
+            }
+          : null,
+
+        co_applicant: row.co_applicant_name
+          ? {
+              pan_status: row.co_applicant_pan_status || "PENDING",
+              aadhaar_status: row.co_applicant_aadhaar_status || "PENDING",
+              bureau_status: row.co_applicant_bureau_status || "PENDING",
+            }
+          : null,
+      },
+
+      verification: {
+        borrower_mobile_verified: row.borrower_mobile_verified,
+
+        guarantor_mobile_verified: row.guarantor_mobile_verified,
+
+        co_applicant_mobile_verified: row.co_applicant_mobile_verified,
+      },
+
+      lender: row.lender,
+      lender_type: row.lender_type,
+      product: row.product,
+      status: row.status,
+
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+
+    const bre = {
+      fintree_cibil_score: row.fintree_cibil_score,
+
+      enquiries_30d: row.bundela_enquiries_30d,
+
+      dpd_3m_flag: row.bundela_dpd_3m_flag,
+
+      dpd_6m_flag: row.bundela_dpd_6m_flag,
+
+      overdue_12m_flag: row.bundela_overdue_12m_flag,
+
+      written_off_3y_flag: row.bundela_written_off_3y_flag,
+
+      dpd_60plus_24m_flag: row.bundela_60plus_24m_flag,
+
+      dpd_90plus_36m_flag: row.bundela_90plus_36m_flag,
+
+      emi_overdue_amount: row.bundela_emi_overdue_amount,
+
+      cc_overdue_amount: row.bundela_cc_overdue_amount,
+
+      deviation_flag: row.bundela_deviation_flag,
+
+      bre_status: row.bundela_bre_status,
+
+      bre_reason: row.bundela_bre_reason,
+
+      bre_checked_at: row.bundela_bre_checked_at,
+    };
+
+    return res.json({
+      loan,
+      bre,
+    });
+  } catch (err) {
+    console.error("❌ Error fetching Bundela details:", err);
+
+    return res.status(500).json({
+      message: "Failed to fetch Bundela details",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+router.get("/credit-initiated-loans", async (req, res) => {
+  const {
+    table = "loan_booking_bundela",
+    prefix = "MC",
+    page = "1",
+    pageSize = "50",
+    search = "",
+    sortBy = "lan",
+    sortDir = "desc",
+  } = req.query;
+
+  const allowedTables = {
+    loan_booking_bundela: true,
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({
+      message: "Invalid table name",
+    });
+  }
+
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
+
+  const offset = (pg - 1) * limit;
+
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+  const allowedSort = [
+    "lan",
+    "partner_loan_id",
+    "customer_name",
+    "mobile_number",
+    "loan_amount",
+    "created_at",
+    "bundela_bre_checked_at",
+  ];
+
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
+
+  try {
+    const likeVal = `${prefix}%`;
+
+    const searchClause = search
+      ? `
+        AND (
+          lb.lan LIKE ?
+          OR lb.customer_name LIKE ?
+          OR lb.partner_loan_id LIKE ?
+          OR lb.mobile_number LIKE ?
+        )
+      `
+      : "";
+
+    const searchParams = search
+      ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+      : [];
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM ?? lb
+      WHERE
+        lb.status = 'Credit Initiated'
+        AND lb.stage in ('BRE Deviation', 'BRE Approved')
+        AND lb.lan LIKE ?
+        ${searchClause}
+    `;
+
+    const dataSql = `
+      SELECT
+        lb.id,
+        lb.lan,
+        lb.partner_loan_id,
+
+        lb.customer_name,
+        lb.mobile_number,
+        lb.pan_card,
+
+        lb.loan_amount,
+        lb.interest_rate,
+        lb.loan_tenure,
+
+        lb.cibil_score,
+        lb.fintree_cibil_score,
+
+        lb.bundela_bre_status,
+        lb.bundela_bre_reason,
+        lb.bundela_bre_checked_at,
+
+        lb.status,
+        lb.stage,
+
+        lb.created_at
+
+      FROM ?? lb
+      WHERE
+        lb.status = 'Credit Initiated'
+        AND lb.stage in ('BRE Deviation', 'BRE Approved')
+        AND lb.lan LIKE ?
+        ${searchClause}
+
+      ORDER BY lb.${sortCol} ${safeSortDir}
+
+      LIMIT ? OFFSET ?
+    `;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+
+      db
+        .promise()
+        .query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    return res.json({
+      rows,
+
+      pagination: {
+        page: pg,
+        pageSize: limit,
+        total: Number(countRows[0]?.total || 0),
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching credit initiated loans:", err);
+
+    return res.status(500).json({
+      message: "Database error",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+router.get("/operation-initiated-loans", async (req, res) => {
+  const {
+    table = "loan_booking_bundela",
+    prefix = "MC",
+    page = "1",
+    pageSize = "50",
+    search = "",
+    sortBy = "lan",
+    sortDir = "desc",
+  } = req.query;
+
+  const allowedTables = {
+    loan_booking_bundela: true,
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({
+      message: "Invalid table name",
+    });
+  }
+
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
+
+  const offset = (pg - 1) * limit;
+
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+  const allowedSort = [
+    "lan",
+    "partner_loan_id",
+    "customer_name",
+    "mobile_number",
+    "loan_amount",
+    "created_at",
+    "bundela_bre_checked_at",
+  ];
+
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
+
+  try {
+    const likeVal = `${prefix}%`;
+
+    const searchClause = search
+      ? `
+        AND (
+          lb.lan LIKE ?
+          OR lb.customer_name LIKE ?
+          OR lb.partner_loan_id LIKE ?
+          OR lb.mobile_number LIKE ?
+        )
+      `
+      : "";
+
+    const searchParams = search
+      ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+      : [];
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM ?? lb
+      WHERE
+        lb.status = 'Operations Initiated'
+        AND lb.stage = 'Credit Approved'
+        AND lb.lan LIKE ?
+        ${searchClause}
+    `;
+
+    const dataSql = `
+      SELECT
+        lb.id,
+        lb.lan,
+        lb.partner_loan_id,
+
+        lb.customer_name,
+        lb.mobile_number,
+        lb.pan_card,
+
+        lb.loan_amount,
+        lb.interest_rate,
+        lb.loan_tenure,
+
+        lb.cibil_score,
+        lb.fintree_cibil_score,
+
+        lb.bundela_bre_status,
+        lb.bundela_bre_reason,
+        lb.bundela_bre_checked_at,
+
+        lb.customer_name_as_per_bank,
+        lb.customer_bank_name,
+        lb.customer_account_number, 
+        lb.bank_ifsc_code,
+
+        lb.agreement_esign_status,
+        lb.agreement_esign_sent_at,
+
+        lb.bank_status,
+
+        lb.email,
+
+        lb.emi_amount,
+
+        lb.agreement_date,
+        lb.login_date,
+
+        lb.bank_account_type,
+
+        lb.status,
+        lb.stage,
+
+        lb.created_at
+
+      FROM ?? lb
+      WHERE
+        lb.status = 'Operations Initiated'
+        AND lb.stage = 'Credit Approved'
+        AND lb.lan LIKE ?
+        ${searchClause}
+
+      ORDER BY lb.${sortCol} ${safeSortDir}
+
+      LIMIT ? OFFSET ?
+    `;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+
+      db
+        .promise()
+        .query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    return res.json({
+      rows,
+
+      pagination: {
+        page: pg,
+        pageSize: limit,
+        total: Number(countRows[0]?.total || 0),
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching credit initiated loans:", err);
+
+    return res.status(500).json({
+      message: "Database error",
+      error: err.sqlMessage || err.message,
     });
   }
 });
 
 module.exports = router;
-
