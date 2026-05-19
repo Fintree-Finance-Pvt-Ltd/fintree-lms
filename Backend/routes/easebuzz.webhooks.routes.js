@@ -59,12 +59,11 @@ const { sendLowBalanceAlertMail } = require("../jobs/mailer");
 const router = express.Router();
 
 router.post("/payout", async (req, res) => {
+  let conn;
   try {
     const { event, data } = req.body;
 
     console.log("Received Payout Webhook:", req.body);
-
-
 
     /* ==============================
        1️⃣ Verify webhook signature
@@ -74,10 +73,57 @@ router.post("/payout", async (req, res) => {
       return res.sendStatus(401);
     }
 
+    const normalizedStatus = String(
+      data.status || ""
+    ).trim().toLowerCase();
+
+    console.log("📩 Payout Webhook Event:", {
+  event,
+  status: normalizedStatus,
+  unique_request_number:
+    data.unique_request_number,
+});
+
+     conn = await db.promise().getConnection();
+
+    await conn.beginTransaction();
+
+    const [[transfer]] = await conn.query(
+      `
+      SELECT lan, payout_status
+      FROM quick_transfers
+      WHERE unique_request_number = ?
+      LIMIT 1
+      `,
+      [data.unique_request_number]
+    );
+
+    if (!transfer) {
+      console.error("❌ Transfer not found");
+
+      await conn.rollback();
+
+      return res.sendStatus(404);
+    }
+
+    // IDEMPOTENCY
+    if (
+  String(transfer.payout_status || "")
+    .trim()
+    .toLowerCase() === "success"
+) {
+      console.log("⏭️ Duplicate webhook ignored");
+
+      await conn.rollback();
+
+      return res.sendStatus(200);
+    }
+
+
     /* ==============================
        2️⃣ Update payout record
     ============================== */
-    await db.promise().query(
+      await conn.query(
       `
       UPDATE quick_transfers
       SET
@@ -92,12 +138,14 @@ router.post("/payout", async (req, res) => {
       WHERE unique_request_number = ?
       `,
       [
-        data.status || null,
-        data.status || null,
+        normalizedStatus,
+        normalizedStatus,
         data.failure_reason || null,
         data.unique_transaction_reference || null,
         data.queue_on_low_balance ?? 0,
-        data.transfer_date ? new Date(data.transfer_date) : null,
+        data.transfer_date
+          ? new Date(data.transfer_date)
+          : null,
         JSON.stringify(req.body),
         data.unique_request_number,
       ]
@@ -106,25 +154,56 @@ router.post("/payout", async (req, res) => {
     /* ==============================
        3️⃣ Final state handling
     ============================== */
-    if (data.status === "success") {
-      // ✅ Money credited
-      // ➜ Ledger posting
-      // ➜ Loan marked DISBURSED
-      // ➜ Accounting entry
-      console.log("✅ Payout SUCCESS:", data.unique_request_number);
+    if (normalizedStatus === "success") {
+      if (
+        !data.unique_transaction_reference ||
+        !data.transfer_date
+      ) {
+        throw new Error(
+          "Missing UTR or transfer_date"
+        );
+      }
+
+      const lan = transfer.lan;
+
+      if (lan.startsWith("SML")) {
+        await processRapidMoneyDisbursement({
+          lan,
+          disbursementUTR:
+            data.unique_transaction_reference,
+          disbursementDate:
+            new Date(data.transfer_date),
+        });
+      }
+      console.log("✅ Payout SUCCESS:", {
+        lan,
+        utr: data.unique_transaction_reference,
+      });
     }
 
-    if (["failure", "rejected", "reversed"].includes(data.status)) {
-      // ❌ Failed payout
-      // ➜ Retry logic (cron/manual)
-      // ➜ Alert ops team
-      console.log("❌ Payout FAILED:", data.unique_request_number);
-    }
+    if (
+  ["failure", "failed", "rejected", "reversed"]
+    .includes(normalizedStatus)
+) {
+  console.log("❌ Payout FAILED:", {
+    unique_request_number:
+      data.unique_request_number,
+    status: normalizedStatus,
+    reason: data.failure_reason,
+  });
+}
+
+    await conn.commit();
 
     return res.sendStatus(200);
   } catch (err) {
     console.error("Webhook processing error:", err);
-    return res.sendStatus(500);
+
+    if (conn) await conn.rollback();
+
+    return res.sendStatus(200);
+  } finally {
+    if (conn) conn.release();
   }
 });
 

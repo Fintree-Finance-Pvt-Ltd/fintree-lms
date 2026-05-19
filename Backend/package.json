@@ -15,7 +15,7 @@
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
-    "dayjs": "^1.11.19",
+    "dayjs": "^1.11.20",
     "docxtemplater": "^3.67.5",
     "dotenv": "^17.4.1",
     "excel4node": "^1.8.2",

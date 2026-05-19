@@ -221,25 +221,16 @@ const evaluateSevenFinCorpPolicy = ({ loan, bureauFacts }) => {
  * SCORE / NTC
  */
 if (score === null || score < 200) {
-  deviations.push(
+  reasons.push(
     "NTC_BANK_STATEMENT_REQUIRED",
   );
 }
 
 if (
   score >= 200 &&
-  score < 650
+  score < 680
 ) {
-  reasons.push("CIBIL_BELOW_650");
-}
-
-if (
-  score >= 650 &&
-  score <= 674
-) {
-  deviations.push(
-    "CIBIL_650_TO_674_APPROVAL_BASIS",
-  );
+  reasons.push("CIBIL_BELOW_680");
 }
 
   /**
@@ -249,16 +240,9 @@ if (
     reasons.push("LOAN_AMOUNT_BELOW_50000");
   }
 
-  if (loanAmount > 165000) {
-    deviations.push("LOAN_AMOUNT_ABOVE_STANDARD_LIMIT");
+  if (loanAmount > 140000) {
+    reasons.push("LOAN_AMOUNT_ABOVE_140000_LIMIT");
   }
-
-  // /**
-  //  * APR
-  //  */
-  // if (apr > 48) {
-  //   reasons.push("APR_ABOVE_48");
-  // }
 
   /**
    * TENURE
@@ -270,33 +254,30 @@ if (
   /**
    * ENQUIRIES
    */
-  if (bureauFacts.enquiries30d > 5) {
-    reasons.push("ENQUIRIES_GT_5_LAST_30D");
+  if (bureauFacts.enquiries30d > 3) {
+    reasons.push("ENQUIRIES_GT_3_LAST_30D");
   }
 
   /**
    * DPD RULES
    */
-  if (bureauFacts.hasDpd3M) {
-    deviations.push("DPD_LAST_3M_APPROVAL_BASIS");
-  }
 
   if (bureauFacts.hasDpd6M) {
-    deviations.push("DPD_LAST_6M_NO_BLANKET_APPROVAL");
+    reasons.push("DPD_FOUND_IN_LAST_6_MONTHS");
   }
 
   /**
    * OVERDUE
    */
   if (bureauFacts.hasOverdue12M) {
-    reasons.push("OVERDUE_LAST_12M");
+    reasons.push("OVERDUE_FOUND_IN_LAST_12_MONTHS");
   }
 
   /**
    * WRITTEN OFF
    */
   if (bureauFacts.hasWrittenOff3Y) {
-    reasons.push("WRITTEN_OFF_LAST_3Y");
+    deviations.push("WRITTEN_OFF_OR_SETTLED_IN_LAST_3_YEARS");
   }
 
   /**
@@ -467,7 +448,7 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
   //   finalStatus = "Credit Initiated";
   // }
 
-  let finalStatus = "Operations Initiated";
+  let finalStatus = "Credit Initiated";
 let finalStage = "BRE Approved";
 
 if (decision.status === "BRE REJECTED") {

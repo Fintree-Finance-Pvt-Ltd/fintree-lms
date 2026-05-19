@@ -6,6 +6,7 @@ const runBRE = require("./runBre");
 const { allocateRepaymentByLAN } = require("../../utils/allocate");
 const { excelSerialDateToJS, queryDB } = require("../../utils/helpers");
 const { sendRejectionWebhook, sendDisbursementWebhook } = require("./switchMyLoanWebhook");
+const { approveAndInitiatePayout } = require("../../services/payout.service");
 const router = express.Router();
 
 const parsePartnerDate = (dateStr) => {
@@ -304,6 +305,10 @@ const generateApplicationId = () => {
   return crypto.randomUUID();
 };
 
+const generateConsentId = () => {
+  return crypto.randomUUID();
+};
+
 const normalizeDate = (date) => {
   if (!date) return null;
 
@@ -321,7 +326,7 @@ const generateLoanIdentifiers = async (connection, lender) => {
 
   let prefixLan;
 
-  if (normalizedLender === "SWITCH-MY-LOAN") {
+  if (normalizedLender === "RAPID_MONEY") {
     prefixLan = "SML10";
   } else {
     throw new Error("Invalid lender type.");
@@ -426,198 +431,198 @@ const normalizeCreateUpdatePayload = (data) => {
 };
 
 // 1) ASSESSMENT FEE API
-router.post("/v1/loan/assessment-fee", verifyApiKey, async (req, res) => {
-  let connection;
-  let transactionStarted = false;
+// router.post("/v1/loan/assessment-fee", verifyApiKey, async (req, res) => {
+//   let connection;
+//   let transactionStarted = false;
 
-  try {
-    connection = await db.promise().getConnection();
+//   try {
+//     connection = await db.promise().getConnection();
 
-    const { partner_loan_id, amount, payment_date, payment_id } = req.body;
+//     const { partner_loan_id, amount, payment_date, payment_id } = req.body;
 
-    if (!partner_loan_id) {
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message: "partner_loan_id is required",
-          code: "request_validation_error",
-        },
-      });
-    }
+//     if (!partner_loan_id) {
+//       return res.status(400).json({
+//         is_success: false,
+//         error: {
+//           message: "partner_loan_id is required",
+//           code: "request_validation_error",
+//         },
+//       });
+//     }
 
-    if (amount === undefined || amount === null || Number(amount) <= 0) {
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message: "amount must be greater than 0",
-          code: "request_validation_error",
-        },
-      });
-    }
+//     if (amount === undefined || amount === null || Number(amount) <= 0) {
+//       return res.status(400).json({
+//         is_success: false,
+//         error: {
+//           message: "amount must be greater than 0",
+//           code: "request_validation_error",
+//         },
+//       });
+//     }
 
-    if (!payment_date) {
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message: "payment_date is required",
-          code: "request_validation_error",
-        },
-      });
-    }
+//     if (!payment_date) {
+//       return res.status(400).json({
+//         is_success: false,
+//         error: {
+//           message: "payment_date is required",
+//           code: "request_validation_error",
+//         },
+//       });
+//     }
 
-    if (!payment_id) {
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message: "payment_id is required",
-          code: "request_validation_error",
-        },
-      });
-    }
+//     if (!payment_id) {
+//       return res.status(400).json({
+//         is_success: false,
+//         error: {
+//           message: "payment_id is required",
+//           code: "request_validation_error",
+//         },
+//       });
+//     }
 
-    const formattedPaymentDate = parsePartnerDate(payment_date);
+//     const formattedPaymentDate = parsePartnerDate(payment_date);
 
-    await connection.beginTransaction();
-    transactionStarted = true;
+//     await connection.beginTransaction();
+//     transactionStarted = true;
 
-    const [existingPayment] = await connection.query(
-      `SELECT id FROM switch_my_loan_assessment_fee WHERE payment_id = ? LIMIT 1`,
-      [payment_id]
-    );
+//     const [existingPayment] = await connection.query(
+//       `SELECT id FROM switch_my_loan_assessment_fee WHERE payment_id = ? LIMIT 1`,
+//       [payment_id]
+//     );
 
-    if (existingPayment.length > 0) {
-      await connection.rollback();
-      transactionStarted = false;
+//     if (existingPayment.length > 0) {
+//       await connection.rollback();
+//       transactionStarted = false;
 
-      return res.status(409).json({
-        is_success: false,
-        error: {
-          message: "payment_id already exists",
-          code: "duplicate_payment_id",
-        },
-      });
-    }
+//       return res.status(409).json({
+//         is_success: false,
+//         error: {
+//           message: "payment_id already exists",
+//           code: "duplicate_payment_id",
+//         },
+//       });
+//     }
 
-    const [existingCase] = await connection.query(
-      `SELECT id, application_id, partner_loan_id, lan
-       FROM loan_booking_switch_my_loan
-       WHERE partner_loan_id = ?
-       LIMIT 1`,
-      [partner_loan_id]
-    );
+//     const [existingCase] = await connection.query(
+//       `SELECT id, application_id, partner_loan_id, lan
+//        FROM loan_booking_switch_my_loan
+//        WHERE partner_loan_id = ?
+//        LIMIT 1`,
+//       [partner_loan_id]
+//     );
 
-    let applicationId;
-    let lan = null;
+//     let applicationId;
+//     let lan = null;
 
-    if (existingCase.length > 0) {
-      applicationId = existingCase[0].application_id;
-      lan = existingCase[0].lan || null;
+//     if (existingCase.length > 0) {
+//       applicationId = existingCase[0].application_id;
+//       lan = existingCase[0].lan || null;
 
-      if (!applicationId) {
-        applicationId = generateApplicationId();
+//       if (!applicationId) {
+//         applicationId = generateApplicationId();
 
-        await connection.query(
-          `UPDATE loan_booking_switch_my_loan
-           SET application_id = ?
-           WHERE partner_loan_id = ?`,
-          [applicationId, partner_loan_id]
-        );
-      }
-    } else {
-      applicationId = generateApplicationId();
+//         await connection.query(
+//           `UPDATE loan_booking_switch_my_loan
+//            SET application_id = ?
+//            WHERE partner_loan_id = ?`,
+//           [applicationId, partner_loan_id]
+//         );
+//       }
+//     } else {
+//       applicationId = generateApplicationId();
 
-      await connection.query(
-        `INSERT INTO loan_booking_switch_my_loan (
-          lan,
-          application_id,
-          partner_loan_id,
-          assessment_fee_amount,
-          assessment_fee_payment_date,
-          assessment_fee_payment_id,
-          assessment_fee_status,
-          status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          null,
-          applicationId,
-          partner_loan_id,
-          amount,
-          formattedPaymentDate,
-          payment_id,
-          "RECEIVED",
-          "ASSESSMENT_FEE_RECEIVED",
-        ]
-      );
-    }
+//       await connection.query(
+//         `INSERT INTO loan_booking_switch_my_loan (
+//           lan,
+//           application_id,
+//           partner_loan_id,
+//           assessment_fee_amount,
+//           assessment_fee_payment_date,
+//           assessment_fee_payment_id,
+//           assessment_fee_status,
+//           status
+//         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+//         [
+//           null,
+//           applicationId,
+//           partner_loan_id,
+//           amount,
+//           formattedPaymentDate,
+//           payment_id,
+//           "RECEIVED",
+//           "ASSESSMENT_FEE_RECEIVED",
+//         ]
+//       );
+//     }
 
-    await connection.query(
-      `INSERT INTO switch_my_loan_assessment_fee (
-        application_id,
-        partner_loan_id,
-        lan,
-        amount,
-        payment_date,
-        payment_id,
-        api_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        applicationId,
-        partner_loan_id,
-        lan,
-        amount,
-        formattedPaymentDate,
-        payment_id,
-        "RECEIVED",
-      ]
-    );
+//     await connection.query(
+//       `INSERT INTO switch_my_loan_assessment_fee (
+//         application_id,
+//         partner_loan_id,
+//         lan,
+//         amount,
+//         payment_date,
+//         payment_id,
+//         api_status
+//       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+//       [
+//         applicationId,
+//         partner_loan_id,
+//         lan,
+//         amount,
+//         formattedPaymentDate,
+//         payment_id,
+//         "RECEIVED",
+//       ]
+//     );
 
-    await connection.query(
-      `UPDATE loan_booking_switch_my_loan
-       SET
-         assessment_fee_amount = ?,
-         assessment_fee_payment_date = ?,
-         assessment_fee_payment_id = ?,
-         assessment_fee_status = ?,
-         status = ?
-       WHERE partner_loan_id = ?`,
-      [
-        amount,
-        formattedPaymentDate,
-        payment_id,
-        "RECEIVED",
-        "ASSESSMENT_FEE_RECEIVED",
-        partner_loan_id,
-      ]
-    );
+//     await connection.query(
+//       `UPDATE loan_booking_switch_my_loan
+//        SET
+//          assessment_fee_amount = ?,
+//          assessment_fee_payment_date = ?,
+//          assessment_fee_payment_id = ?,
+//          assessment_fee_status = ?,
+//          status = ?
+//        WHERE partner_loan_id = ?`,
+//       [
+//         amount,
+//         formattedPaymentDate,
+//         payment_id,
+//         "RECEIVED",
+//         "ASSESSMENT_FEE_RECEIVED",
+//         partner_loan_id,
+//       ]
+//     );
 
-    await connection.commit();
-    transactionStarted = false;
+//     await connection.commit();
+//     transactionStarted = false;
 
-    return res.json({
-      is_success: true,
-      data: {
-        status: "assessment fee details submitted successfully",
-        application_id: applicationId,
-      },
-    });
-  } catch (err) {
-    if (connection && transactionStarted) {
-      await connection.rollback();
-    }
+//     return res.json({
+//       is_success: true,
+//       data: {
+//         status: "assessment fee details submitted successfully",
+//         application_id: applicationId,
+//       },
+//     });
+//   } catch (err) {
+//     if (connection && transactionStarted) {
+//       await connection.rollback();
+//     }
 
-    console.error("Assessment fee API error:", err);
+//     console.error("Assessment fee API error:", err);
 
-    return res.status(500).json({
-      is_success: false,
-      error: {
-        message: err.message || "Failed to submit assessment fee details",
-        code: "server_error",
-      },
-    });
-  } finally {
-    if (connection) connection.release();
-  }
-});
+//     return res.status(500).json({
+//       is_success: false,
+//       error: {
+//         message: err.message || "Failed to submit assessment fee details",
+//         code: "server_error",
+//       },
+//     });
+//   } finally {
+//     if (connection) connection.release();
+//   }
+// });
 
 // 2) CREATE / SUBMIT LOAN APPLICATION
 router.post("/v1/create", verifyApiKey, async (req, res) => {
@@ -635,7 +640,7 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
       });
     }
 
-    if (!data.lenderType || data.lenderType !== "SWITCH-MY-LOAN") {
+    if (!data.lenderType || data.lenderType !== "RAPID-MONEY") {
       return res.status(400).json({
         message: "Invalid lenderType",
       });
@@ -646,7 +651,7 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
     await connection.beginTransaction();
     transactionStarted = true;
 
-    // 🔍 Check if assessment-fee entry exists
+    // // 🔍 Check if assessment-fee entry exists
     const [existing] = await connection.query(
       `SELECT id, lan, application_id, status
        FROM loan_booking_switch_my_loan
@@ -655,16 +660,16 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
       [data.partner_loan_id]
     );
 
-    // ❌ If assessment-fee not called first → reject
-    if (!existing.length) {
-      await connection.rollback();
-      transactionStarted = false;
+    // // ❌ If assessment-fee not called first → reject
+    // if (!existing.length) {
+    //   await connection.rollback();
+    //   transactionStarted = false;
 
-      return res.status(400).json({
-        message:
-          "Assessment fee not received. Cannot create loan case.",
-      });
-    }
+    //   return res.status(400).json({
+    //     message:
+    //       "Assessment fee not received. Cannot create loan case.",
+    //   });
+    // }
 
     const existingCase = existing[0];
 
@@ -684,16 +689,16 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
       });
     }
 
-    // ❌ Only allow creation after assessment fee
-    if (existingCase.status !== "ASSESSMENT_FEE_RECEIVED") {
-      await connection.rollback();
-      transactionStarted = false;
+    // // ❌ Only allow creation after assessment fee
+    // if (existingCase.status !== "ASSESSMENT_FEE_RECEIVED") {
+    //   await connection.rollback();
+    //   transactionStarted = false;
 
-      return res.status(400).json({
-        message:
-          "Loan case not eligible for creation at current stage",
-      });
-    }
+    //   return res.status(400).json({
+    //     message:
+    //       "Loan case not eligible for creation at current stage",
+    //   });
+    // }
 
     let lan = existingCase.lan;
     let applicationId = existingCase.application_id;
@@ -714,7 +719,7 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
     if (!lan) {
       const generated = await generateLoanIdentifiers(
         connection,
-        "SWITCH-MY-LOAN"
+        "RAPID-MONEY"
       );
 
       lan = generated.lan;
@@ -769,6 +774,7 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
          loan_application_date = ?,
          agreement_date = ?,
          repayment_date = ?,
+         aquisition_fees_txn_id = ?,
          agreement_signature_type = ?,
          source = ?,
          preferred_language = ?,
@@ -829,6 +835,7 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
         payload.loan_application_date,
         payload.agreement_date,
         payload.repayment_date,
+        payload.aquisition_fees_txn_id,
         payload.agreement_signature_type,
         payload.source,
         payload.preferred_language,
@@ -907,14 +914,14 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
 
     const row = existing[0];
 
-    if (row.status === "ASSESSMENT_FEE_RECEIVED") {
-      await connection.rollback();
-      transactionStarted = false;
+    // if (row.status === "ASSESSMENT_FEE_RECEIVED") {
+    //   await connection.rollback();
+    //   transactionStarted = false;
 
-      return res.status(400).json({
-        message: "Loan case not yet created. Call create API first.",
-      });
-    }
+    //   return res.status(400).json({
+    //     message: "Loan case not yet created. Call create API first.",
+    //   });
+    // }
 
     let lan = row.lan;
     let applicationId = row.application_id;
@@ -1005,6 +1012,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
     addField("monthly_emi", data.monthly_emi);
     addField("interest_rate", data.interest_rate);
     addField("processing_fee", data.processing_fee);
+    addField("aquisition_fees_txn_id", data.aquisition_fees_txn_id);
 
     addField("repayment_count", data.repayment_count);
     addField("payment_frequency", data.payment_frequency);
@@ -1110,6 +1118,156 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
     if (connection) connection.release();
   }
 });
+
+router.post("/v1/loan/:application_id/consent", verifyApiKey, async (req, res) => {
+
+    let connection;
+
+    try {
+      connection = await db.promise().getConnection();
+
+      const { application_id } = req.params;
+
+      const {
+        consent_id,
+        timestamp,
+        consent,
+        ip_address
+      } = req.body;
+
+      /* --------------------------------------------------- */
+      /* VALIDATION */
+      /* --------------------------------------------------- */
+
+      if (!application_id) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "application_id is required",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      if (!consent_id) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "consent_id is required",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      if (!timestamp) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "timestamp is required",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      if (!consent) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "consent is required",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      /* --------------------------------------------------- */
+      /* CHECK APPLICATION */
+      /* --------------------------------------------------- */
+
+      const [loanRows] = await connection.query(
+        `
+        SELECT id, lan
+        FROM loan_booking_switch_my_loan
+        WHERE application_id = ?
+        LIMIT 1
+        `,
+        [application_id]
+      );
+
+      if (!loanRows.length) {
+        return res.status(404).json({
+          is_success: false,
+          error: {
+            message: "Application not found",
+            code: "application_not_found",
+          },
+        });
+      }
+
+      /* --------------------------------------------------- */
+      /* GENERATE CONSENT ID */
+      /* --------------------------------------------------- */
+
+      const loanConsentId = crypto.randomUUID();
+
+      /* --------------------------------------------------- */
+      /* SAVE CONSENT */
+      /* --------------------------------------------------- */
+
+      await connection.query(
+  `
+  UPDATE loan_booking_switch_my_loan
+  SET
+    assessment_fee_consent_id = ?,
+    assessment_fee_consent = ?,
+    assessment_fee_consent_timestamp = ?,
+    assessment_fee_consent_ip = ?,
+    loan_consent_id = ?,
+    consent_version = ?
+  WHERE application_id = ?
+  `,
+  [
+    consent_id,
+    consent,
+    timestamp,
+    ip_address || null,
+    loanConsentId,
+    null,
+    application_id
+  ]
+);
+
+      /* --------------------------------------------------- */
+      /* RESPONSE */
+      /* --------------------------------------------------- */
+
+      return res.json({
+        is_success: true,
+        data: {
+          loan_consent_id: loanConsentId,
+          consent_version: null
+        }
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Consent API Error:",
+        err
+      );
+
+      return res.status(500).json({
+        is_success: false,
+        error: toClientError(err),
+      });
+
+    } finally {
+
+      if (connection) {
+        connection.release();
+      }
+    }
+  }
+);
 
 
 
@@ -1269,13 +1427,112 @@ const breResponse = breEngineResult.rules;
 );
 
 ////////////// 5) trigger fund disbursal api
-router.post("/v1/loan/:application_id/disburse", verifyApiKey, async (req, res) => {
+// router.post("/v1/loan/:application_id/disburse", verifyApiKey, async (req, res) => {
 
+//     let connection;
+//     let transactionStarted = false;
+
+//     try {
+
+//       connection = await db.promise().getConnection();
+
+//       const { application_id } = req.params;
+//       const { trigger_fund } = req.body;
+
+//       if (!application_id) {
+//         return res.status(400).json({
+//           message: "application_id required"
+//         });
+//       }
+
+//       if (trigger_fund !== true) {
+//         return res.status(400).json({
+//           message: "trigger_fund must be true"
+//         });
+//       }
+
+//       await connection.beginTransaction();
+//       transactionStarted = true;
+
+//       const [rows] = await connection.query(
+//         `SELECT status, loan_amount, processing_fee
+//          FROM loan_booking_switch_my_loan
+//          WHERE application_id = ?
+//          LIMIT 1`,
+//         [application_id]
+//       );
+
+//       if (!rows.length) {
+
+//         await connection.rollback();
+//         transactionStarted = false;
+
+//         return res.status(404).json({
+//           message: "Loan case not found"
+//         });
+//       }
+
+//       const loan = rows[0];
+
+//       if (loan.status !== "APPROVED") {
+
+//         await connection.rollback();
+//         transactionStarted = false;
+
+//         return res.status(400).json({
+//           message: "Loan not eligible for disbursement"
+//         });
+//       }
+
+//       const disbursalAmount =
+//         Number(loan.loan_amount || 0) -
+//         Number(loan.processing_fee || 0);
+
+//       await connection.query(
+//         `UPDATE loan_booking_switch_my_loan
+//          SET status = 'DISBURSED_INITIATED'
+//          WHERE application_id = ?`,
+//         [application_id]
+//       );
+
+//       await connection.commit();
+//       transactionStarted = false;
+
+//       return res.json({
+//         is_success: true,
+//         data: {
+//           status: "Disbursal Initiated",
+//           amount: disbursalAmount.toFixed(2),
+//           transaction_time: null,
+//           transaction_id: null
+//         }
+//       });
+
+//     } catch (err) {
+
+//       if (connection && transactionStarted) {
+//         await connection.rollback();
+//       }
+
+//       console.error("Disburse error:", err);
+
+//       return res.status(500).json({
+//         message: "Disbursement failed",
+//         error: err.message
+//       });
+
+//     } finally {
+
+//       if (connection) connection.release();
+
+//     }
+//   }
+// );
+
+router.post("/v1/loan/:application_id/disburse", verifyApiKey, async (req, res) => {
     let connection;
-    let transactionStarted = false;
 
     try {
-
       connection = await db.promise().getConnection();
 
       const { application_id } = req.params;
@@ -1283,62 +1540,77 @@ router.post("/v1/loan/:application_id/disburse", verifyApiKey, async (req, res) 
 
       if (!application_id) {
         return res.status(400).json({
-          message: "application_id required"
+          message: "application_id required",
         });
       }
 
       if (trigger_fund !== true) {
         return res.status(400).json({
-          message: "trigger_fund must be true"
+          message: "trigger_fund must be true",
         });
       }
 
-      await connection.beginTransaction();
-      transactionStarted = true;
-
-      const [rows] = await connection.query(
-        `SELECT status, loan_amount, processing_fee
-         FROM loan_booking_switch_my_loan
-         WHERE application_id = ?
-         LIMIT 1`,
+      const [[loan]] = await connection.query(
+        `
+        SELECT
+          application_id,
+          lan,
+          status,
+          loan_amount,
+          processing_fee
+        FROM loan_booking_switch_my_loan
+        WHERE application_id = ?
+        LIMIT 1
+        `,
         [application_id]
       );
 
-      if (!rows.length) {
-
-        await connection.rollback();
-        transactionStarted = false;
-
+      if (!loan) {
         return res.status(404).json({
-          message: "Loan case not found"
+          message: "Loan case not found",
         });
       }
 
-      const loan = rows[0];
-
       if (loan.status !== "APPROVED") {
-
-        await connection.rollback();
-        transactionStarted = false;
-
         return res.status(400).json({
-          message: "Loan not eligible for disbursement"
+          message: "Loan not eligible for disbursement",
+        });
+      }
+
+      if (!loan.lan) {
+        return res.status(400).json({
+          message: "LAN missing for this loan case",
         });
       }
 
       const disbursalAmount =
-        Number(loan.loan_amount || 0) -
-        Number(loan.processing_fee || 0);
+        Number(loan.loan_amount || 0) - Number(loan.processing_fee || 0);
 
+      /**
+       * Mark as initiated before payout call.
+       * This prevents repeated API hits from starting duplicate payouts.
+       */
       await connection.query(
-        `UPDATE loan_booking_switch_my_loan
-         SET status = 'DISBURSED_INITIATED'
-         WHERE application_id = ?`,
+        `
+        UPDATE loan_booking_switch_my_loan
+        SET
+          status = 'DISBURSE_INITIATED',
+          updated_at = NOW()
+        WHERE application_id = ?
+        `,
         [application_id]
       );
 
-      await connection.commit();
-      transactionStarted = false;
+      /**
+       * Fire-and-forget.
+       * API response will not wait for Easebuzz.
+       */
+      approveAndInitiatePayout({
+        lan: loan.lan,
+        table: "loan_booking_switch_my_loan",
+      }).catch((payoutErr) => {
+        console.error("Payout initiation failed for LAN:", loan.lan, payoutErr);
+      });
 
       return res.json({
         is_success: true,
@@ -1346,27 +1618,18 @@ router.post("/v1/loan/:application_id/disburse", verifyApiKey, async (req, res) 
           status: "Disbursal Initiated",
           amount: disbursalAmount.toFixed(2),
           transaction_time: null,
-          transaction_id: null
-        }
+          transaction_id: null,
+        },
       });
-
     } catch (err) {
-
-      if (connection && transactionStarted) {
-        await connection.rollback();
-      }
-
       console.error("Disburse error:", err);
 
       return res.status(500).json({
         message: "Disbursement failed",
-        error: err.message
+        error: err.message,
       });
-
     } finally {
-
       if (connection) connection.release();
-
     }
   }
 );
