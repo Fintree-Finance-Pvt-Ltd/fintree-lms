@@ -3,7 +3,8 @@ import api from "../../api/api";
 import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 
-const SevenFinCorpLoanBooking = ({ lenderType = "Seven FinCorp", apiPrefix = "seven-fincorp" }) => {
+const SevenFinCorpLoanBooking = ({ lenderType = "Seven FinCorp", apiPrefix = "seven-fincorp",title="Seven FinCorp Manual Entry"
+ }) => {
   const [searchParams] = useSearchParams();
 const resumeLan = searchParams.get("lan");
   const today = new Date().toISOString().split("T")[0];
@@ -1849,7 +1850,7 @@ setAadhaarStatus({
 
   return (
     <div className="manual-entry-container">
-      <h2>Seven FinCorp Manual Entry</h2>
+      <h2>{title}</h2>
 
       <div className="section-tabs">
         {sections.map((sec, index) => (
