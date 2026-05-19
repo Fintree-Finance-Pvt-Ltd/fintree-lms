@@ -210,18 +210,14 @@ const evaluateBundelaPolicy = ({ loan, bureauFacts }) => {
   }
 
   /**
-   * SCORE
+   * SCORE / NTC
    */
   if (score === null || score < 200) {
-    deviations.push("NTC_BANK_STATEMENT_REQUIRED");
+    reasons.push("NTC_BANK_STATEMENT_REQUIRED");
   }
 
-  if (score >= 200 && score < 650) {
-    reasons.push("CIBIL_BELOW_650");
-  }
-
-  if (score >= 650 && score <= 674) {
-    deviations.push("CIBIL_650_TO_674_APPROVAL_BASIS");
+  if (score >= 200 && score < 680) {
+    reasons.push("CIBIL_BELOW_680");
   }
 
   /**
@@ -231,8 +227,8 @@ const evaluateBundelaPolicy = ({ loan, bureauFacts }) => {
     reasons.push("LOAN_AMOUNT_BELOW_50000");
   }
 
-  if (loanAmount > 165000) {
-    deviations.push("LOAN_AMOUNT_ABOVE_STANDARD_LIMIT");
+  if (loanAmount > 140000) {
+    reasons.push("LOAN_AMOUNT_ABOVE_140000_LIMIT");
   }
 
   /**
@@ -252,26 +248,22 @@ const evaluateBundelaPolicy = ({ loan, bureauFacts }) => {
   /**
    * DPD RULES
    */
-  if (bureauFacts.hasDpd3M) {
-    deviations.push("DPD_LAST_3M_APPROVAL_BASIS");
-  }
-
   if (bureauFacts.hasDpd6M) {
-    deviations.push("DPD_LAST_6M_NO_BLANKET_APPROVAL");
+    reasons.push("DPD_FOUND_IN_LAST_6_MONTHS");
   }
 
   /**
    * OVERDUE
    */
   if (bureauFacts.hasOverdue12M) {
-    reasons.push("OVERDUE_LAST_12M");
+    reasons.push("OVERDUE_FOUND_IN_LAST_12_MONTHS");
   }
 
   /**
    * WRITTEN OFF
    */
   if (bureauFacts.hasWrittenOff3Y) {
-    reasons.push("WRITTEN_OFF_LAST_3Y");
+    deviations.push("WRITTEN_OFF_OR_SETTLED_IN_LAST_3_YEARS");
   }
 
   /**
@@ -318,6 +310,9 @@ const evaluateBundelaPolicy = ({ loan, bureauFacts }) => {
 const autoApproveBundelaIfAllVerified = async (lan) => {
   const pool = db.promise();
 
+  /**
+   * KYC STATUS
+   */
   const [kycRows] = await pool.query(
     `
     SELECT bureau_status
@@ -355,12 +350,15 @@ const autoApproveBundelaIfAllVerified = async (lan) => {
     return;
   }
 
+  /**
+   * LOAN
+   */
   const [loanRows] = await pool.query(
     `
     SELECT
       lan,
       dob,
-      requested_loan_amount,
+      COALESCE(requested_loan_amount, loan_amount) AS requested_loan_amount,
       loan_tenure,
       interest_rate,
       cibil_score
@@ -377,6 +375,9 @@ const autoApproveBundelaIfAllVerified = async (lan) => {
 
   const loan = loanRows[0];
 
+  /**
+   * BUREAU XML
+   */
   const [cibilRows] = await pool.query(
     `
     SELECT score, report_xml, created_at
@@ -405,9 +406,14 @@ const autoApproveBundelaIfAllVerified = async (lan) => {
     return;
   }
 
-  const bureauFacts = extractBundelaBureauFacts(cibilRows[0].report_xml);
+  const bureauFacts = extractBundelaBureauFacts(
+    cibilRows[0].report_xml,
+  );
 
-  const decision = evaluateBundelaPolicy({ loan, bureauFacts });
+  const decision = evaluateBundelaPolicy({
+    loan,
+    bureauFacts,
+  });
 
   const reasonText = [
     ...(decision.reasons || []),
@@ -416,7 +422,7 @@ const autoApproveBundelaIfAllVerified = async (lan) => {
     ? [...decision.reasons, ...decision.deviations].join(", ")
     : "ELIGIBLE";
 
-  let finalStatus = "Operations Initiated";
+  let finalStatus = "Credit Initiated";
   let finalStage = "BRE Approved";
 
   if (decision.status === "BRE REJECTED") {
@@ -441,6 +447,7 @@ const autoApproveBundelaIfAllVerified = async (lan) => {
       bundela_enquiries_30d = ?,
       bundela_dpd_3m_flag = ?,
       bundela_dpd_6m_flag = ?,
+      bundela_overdue_12m_flag = ?,
       bundela_written_off_3y_flag = ?,
       bundela_60plus_24m_flag = ?,
       bundela_90plus_36m_flag = ?,
@@ -460,6 +467,7 @@ const autoApproveBundelaIfAllVerified = async (lan) => {
       bureauFacts.enquiries30d,
       bureauFacts.hasDpd3M ? 1 : 0,
       bureauFacts.hasDpd6M ? 1 : 0,
+      bureauFacts.hasOverdue12M ? 1 : 0,
       bureauFacts.hasWrittenOff3Y ? 1 : 0,
       bureauFacts.has60Plus24M ? 1 : 0,
       bureauFacts.has90Plus36M ? 1 : 0,
@@ -473,7 +481,9 @@ const autoApproveBundelaIfAllVerified = async (lan) => {
     ],
   );
 
-  console.log(`Bundela BRE completed for ${lan}: ${decision.status} | ${reasonText}`);
+  console.log(
+    `Bundela BRE completed for ${lan}: ${decision.status} | ${reasonText}`,
+  );
 };
 
 module.exports = {
@@ -481,4 +491,3 @@ module.exports = {
   extractBundelaBureauFacts,
   evaluateBundelaPolicy,
 };
-
