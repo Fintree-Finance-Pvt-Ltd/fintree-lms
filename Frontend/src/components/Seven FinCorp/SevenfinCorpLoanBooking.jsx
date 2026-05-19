@@ -156,7 +156,7 @@ const resumeLan = searchParams.get("lan");
   try {
     setLoading(true);
 
-    const res = await api.get(`seven-fincorp/loan-booking/${resumeLan}`);
+    const res = await api.get(`${apiPrefix}/loan-booking/${resumeLan}`);
 
     if (!res.data.success) {
       setMessage("❌ Could not resume booking");
@@ -509,7 +509,7 @@ for processing and servicing this loan application.
     try {
       setLoading(true);
 
-      const res = await api.post("seven-fincorp/save-borrower-first-section", {
+      const res = await api.post(`${apiPrefix}/save-borrower-first-section`, {
         ...formData,
         borrower_mobile_verified: 1,
       });
@@ -1136,7 +1136,7 @@ const saveApplicantBeforeAadhaar = async (applicantType) => {
     return true;
   }
 
-  await api.post("seven-fincorp/save-applicant-details", {
+  await api.post(`${apiPrefix}/save-applicant-details`, {
     lan,
     applicantType,
     data: {
@@ -1164,7 +1164,7 @@ const triggerAadhaar = async (applicantType) => {
       [applicantType]: "INITIATING",
     }));
 
-    const res = await api.post("seven-fincorp/init-aadhaar", {
+    const res = await api.post(`${apiPrefix}/init-aadhaar`, {
       lan,
       applicantType,
     });
@@ -1273,7 +1273,7 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
     setLoading(true);
 
     const res = await api.get(
-      `seven-fincorp/aadhaar-address/${lan}/${applicantType}`
+      `${apiPrefix}/aadhaar-address/${lan}/${applicantType}`
     );
 
     if (!res.data.success) {
@@ -1543,7 +1543,7 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
   setLoading(false);
   return;
 }
-      const res = await api.post("seven-fincorp/final-submit-ev-customer-manual", {
+      const res = await api.post(`${apiPrefix}/final-submit-ev-customer-manual`, {
   ...formData,
   lan,
   borrower_mobile_verified: otpVerified.borrower ? 1 : 0,
