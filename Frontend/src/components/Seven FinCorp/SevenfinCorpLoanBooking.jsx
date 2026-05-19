@@ -349,7 +349,7 @@ const resumeLan = searchParams.get("lan");
 
   const fetchDealers = async () => {
     try {
-      const res = await api.get("motion-corp/dealersforbooking");
+      const res = await api.get(`${apiPrefix}/dealersforbooking`);
       setDealers(res.data?.dealers || []);
     } catch (err) {
       console.error("Dealer fetch error:", err);
