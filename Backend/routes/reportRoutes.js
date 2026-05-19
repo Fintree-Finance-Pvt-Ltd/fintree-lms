@@ -162,7 +162,7 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_consolidated_mis_report_heyev_battery"
         : lender === "helium"
         ? "sp_consolidated_mis_report_helium"
-        : lender === "LOAN-DIGIT"
+        : lender === "loan-digit"
         ? "sp_consolidated_mis_report_loan_digit"
         : lender === "clayoo"    
         ? "sp_consolidated_mis_report_clayyo"
