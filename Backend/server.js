@@ -108,6 +108,12 @@ app.use(
   require("./routes/Seven Fincorp/sevenFincorpDealerRoutes")
 );
 
+app.use(
+  "/api/bundela",
+  require("./routes/Bundela/bundelaDealerRoutes")
+);
+
+
 app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);

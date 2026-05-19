@@ -1903,26 +1903,26 @@ router.get("/customer-details/:lan", async (req, res) => {
     lb.created_at,
     lb.updated_at,
 
-    lb.seven_fincorpbre_status,
-    lb.seven_fincorpbre_reason,
-    lb.seven_fincorpbre_checked_at,
+    lb.seven_fincorp_bre_status,
+    lb.seven_fincorp_bre_reason,
+    lb.seven_fincorp_bre_checked_at,
 
     lb.fintree_cibil_score,
-    lb.seven_fincorpenquiries_30d,
+    lb.seven_fincorp_enquiries_30d,
 
-    lb.seven_fincorpdpd_3m_flag,
-    lb.seven_fincorpdpd_6m_flag,
-    lb.seven_fincorpoverdue_12m_flag,
+    lb.seven_fincorp_dpd_3m_flag,
+    lb.seven_fincorp_dpd_6m_flag,
+    lb.seven_fincorp_overdue_12m_flag,
 
-    lb.seven_fincorpwritten_off_3y_flag,
+    lb.seven_fincorp_written_off_3y_flag,
 
-    lb.seven_fincorp60plus_24m_flag,
-    lb.seven_fincorp90plus_36m_flag,
+    lb.seven_fincorp_60plus_24m_flag,
+    lb.seven_fincorp_90plus_36m_flag,
 
-    lb.seven_fincorpemi_overdue_amount,
-    lb.seven_fincorpcc_overdue_amount,
+    lb.seven_fincorp_emi_overdue_amount,
+    lb.seven_fincorp_cc_overdue_amount,
 
-    lb.seven_fincorpdeviation_flag,
+    lb.seven_fincorp_deviation_flag,
 
     borrower_kyc.pan_status AS borrower_pan_status,
     borrower_kyc.aadhaar_status AS borrower_aadhaar_status,
@@ -2140,43 +2140,43 @@ router.get("/customer-details/:lan", async (req, res) => {
         row.fintree_cibil_score,
 
       enquiries_30d:
-        row.seven_fincorpenquiries_30d,
+        row.seven_fincorp_enquiries_30d,
 
       dpd_3m_flag:
-        row.seven_fincorpdpd_3m_flag,
+        row.seven_fincorp_dpd_3m_flag,
 
       dpd_6m_flag:
-        row.seven_fincorpdpd_6m_flag,
+        row.seven_fincorp_dpd_6m_flag,
 
       overdue_12m_flag:
-        row.seven_fincorpoverdue_12m_flag,
+        row.seven_fincorp_overdue_12m_flag,
 
       written_off_3y_flag:
-        row.seven_fincorpwritten_off_3y_flag,
+        row.seven_fincorp_written_off_3y_flag,
 
       dpd_60plus_24m_flag:
-        row.seven_fincorp60plus_24m_flag,
+        row.seven_fincorp_60plus_24m_flag,
 
       dpd_90plus_36m_flag:
-        row.seven_fincorp90plus_36m_flag,
+        row.seven_fincorp_90plus_36m_flag,
 
       emi_overdue_amount:
-        row.seven_fincorpemi_overdue_amount,
+        row.seven_fincorp_emi_overdue_amount,
 
       cc_overdue_amount:
-        row.seven_fincorpcc_overdue_amount,
+        row.seven_fincorp_cc_overdue_amount,
 
       deviation_flag:
-        row.seven_fincorpdeviation_flag,
+        row.seven_fincorp_deviation_flag,
 
       bre_status:
-        row.seven_fincorpbre_status,
+        row.seven_fincorp_bre_status,
 
       bre_reason:
-        row.seven_fincorpbre_reason,
+        row.seven_fincorp_bre_reason,
 
       bre_checked_at:
-        row.seven_fincorpbre_checked_at,
+        row.seven_fincorp_bre_checked_at,
     };
 
     return res.json({
@@ -2221,7 +2221,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
 
   const limit = Math.min(
     100,
-    Math.max(1, parseInt(pageSize, 10) || 50),
+    Math.max(1, parseInt(pageSize, 10) || 50)
   );
 
   const offset = (pg - 1) * limit;
@@ -2238,7 +2238,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
     "mobile_number",
     "loan_amount",
     "created_at",
-    "seven_fincorpbre_checked_at",
+    "seven_fincorp_bre_checked_at",
   ];
 
   const sortCol = allowedSort.includes(sortBy)
@@ -2295,9 +2295,9 @@ router.get("/credit-initiated-loans", async (req, res) => {
         lb.cibil_score,
         lb.fintree_cibil_score,
 
-        lb.seven_fincorpbre_status,
-        lb.seven_fincorpbre_reason,
-        lb.seven_fincorpbre_checked_at,
+        lb.seven_fincorp_bre_status,
+        lb.seven_fincorp_bre_reason,
+        lb.seven_fincorp_bre_checked_at,
 
         lb.status,
         lb.stage,
@@ -2319,7 +2319,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
     const [[countRows], [rows]] = await Promise.all([
       db.promise().query(
         countSql,
-        [table, likeVal, ...searchParams],
+        [table, likeVal, ...searchParams]
       ),
 
       db.promise().query(
@@ -2330,7 +2330,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
           ...searchParams,
           limit,
           offset,
-        ],
+        ]
       ),
     ]);
 
@@ -2343,10 +2343,11 @@ router.get("/credit-initiated-loans", async (req, res) => {
         total: Number(countRows[0]?.total || 0),
       },
     });
+
   } catch (err) {
     console.error(
       "Error fetching credit initiated loans:",
-      err,
+      err
     );
 
     return res.status(500).json({
@@ -2355,6 +2356,5 @@ router.get("/credit-initiated-loans", async (req, res) => {
     });
   }
 });
-
 
 module.exports = router;

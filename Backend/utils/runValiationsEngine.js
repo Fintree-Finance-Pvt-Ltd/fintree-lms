@@ -9,6 +9,8 @@ const {
   autoApproveMotionCorpIfAllVerified,
 } = require("../routes/MotionCorp/motionCorpBRE");
 const { autoApproveSevenFinCorpIfAllVerified } = require("../routes/Seven Fincorp/sevenFincorpBRE");
+const { autoApproveBundelaIfAllVerified } = require("../routes/Bundela/bundelaBRE");
+
 
 // async function runApplicantValidation({
 //   pool,
@@ -629,12 +631,15 @@ exports.universalRunAllValidations = async (lan) => {
       table = "loan_booking_helium";
     } else if (lan.startsWith("MC")) {
       table = "loan_booking_motion_corp";
-    } else if (lan.startsWith("SFC")) {
+  } else if (lan.startsWith("SFC")) {
       table = "loan_booking_seven_fincorp";
+    } else if (lan.startsWith("SBU")) {
+      table = "loan_booking_bundela";
     } else {
       console.log("❌ Invalid LAN");
       return;
     }
+
 
     const pool = db.promise();
 
@@ -801,7 +806,14 @@ if (lan.startsWith("SFL")) {
   console.log(`✅ Seven FinCorp BRE finished for ${lan}`);
 }
 
+if (lan.startsWith("SBU")) {
+  console.log(`🚀 Running Bundela BRE for ${lan}`);
+  await autoApproveBundelaIfAllVerified(lan);
+  console.log(`✅ Bundela BRE finished for ${lan}`);
+}
+
 console.log(`✅ Validation Engine Completed for ${lan}`);
+
   } catch (err) {
     console.error("❌ Validation Engine Failed:", err);
   }
