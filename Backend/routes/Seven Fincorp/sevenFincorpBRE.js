@@ -338,7 +338,7 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
   );
 
   if (!kycRows.length) {
-    console.log("No Motion Corp KYC row found:", lan);
+    console.log("No Seven FinCorp KYC row found:", lan);
 
     return;
   }

@@ -4,7 +4,7 @@ import ApproveInitiatedScreen from "../ApproveInitiatedScreen";
 const BundelaDisburseInitiate = () => {
   return (
     <ApproveInitiatedScreen
-      apiUrl={`/bundela/credit-initiated-loans?table=loan_booking_bundela&prefix=BUNDL`}
+      apiUrl={`/bundela/credit-initiated-loans?table=loan_booking_bundela&prefix=BUN`}
       title="Bundela Credit Initiated Loans"
       tableName="loan_booking_bundela"
       enableApprovedLoanAmount={true}

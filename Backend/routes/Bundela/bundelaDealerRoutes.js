@@ -103,7 +103,7 @@ router.post("/dealer/create", async (req, res) => {
       await generateLoanIdentifiers("Bundela_DEALER");
 
     const dealerQuery = `
-      INSERT INTO loan_booking_bundela
+      INSERT INTO bundela_dealer_booking
       (
         application_id, lan, dealer_id,
         business_name, trade_name, business_type,
@@ -317,7 +317,7 @@ router.post(
 
       await db.promise().query(
         `
-        UPDATE loan_booking_bundela
+        UPDATE bundela_dealer_booking
         SET cheque_file_path=?, cheque_ocr_bank_name=?, cheque_ocr_branch_name=?,
             cheque_ocr_account_holder_name=?, cheque_ocr_account_number=?,
             cheque_ocr_ifsc_code=?, cheque_ocr_response=?, cheque_uploaded_at=NOW()
@@ -352,7 +352,7 @@ router.get("/dealer-list", async (req, res) => {
         business_name,
         city,
         state
-      FROM loan_booking_bundela
+      FROM bundela_dealer_booking
       WHERE status IN ('APPROVED', 'ACTIVE')
       ORDER BY lan ASC
     `);
@@ -404,7 +404,7 @@ router.get("/dealersforbooking", async (req, res) => {
         account_number,
         ifsc_code,
         status
-      FROM loan_booking_bundela
+      FROM bundela_dealer_booking
       WHERE status = 'ACTIVE'
       ORDER BY business_name ASC
     `);
@@ -453,7 +453,7 @@ router.get("/dealer-details/:lan", async (req, res) => {
         p.battery_name,
         p.e_rickshaw_model,
         p.e_rickshaw_model_price
-      FROM loan_booking_bundela d
+      FROM bundela_dealer_booking d
       LEFT JOIN bundela_dealer_products p
         ON d.application_id = p.application_id
       WHERE d.lan = ?`,
@@ -527,7 +527,7 @@ router.get("/dealers-login-cases", async (req, res) => {
         owner_mobile,
         status,
         created_at
-      FROM loan_booking_bundela
+      FROM bundela_dealer_booking
       WHERE status = 'ACTIVE'
       ORDER BY created_at DESC
     `);
@@ -555,7 +555,7 @@ router.patch("/dealer/status/:lan", async (req, res) => {
     }
 
     const [result] = await db.promise().query(
-      `UPDATE loan_booking_bundela 
+      `UPDATE bundela_dealer_booking 
        SET status = ?, updated_at = NOW() 
        WHERE lan = ?`,
       [status, lan],
