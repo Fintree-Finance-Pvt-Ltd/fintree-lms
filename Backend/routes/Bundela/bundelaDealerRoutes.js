@@ -320,15 +320,15 @@ router.post(
         WHERE lan=?
       `,
         [
-          req.file.path,
-          ocr.bank_name,
-          ocr.branch_name,
-          ocr.account_holder_name,
-          ocr.account_number,
-          ocr.ifsc_code,
-          JSON.stringify(ocr),
-          lan,
-        ],
+  req.file.path,
+  ocr.bank_name || ocr.bankName ,
+  ocr.branch_name || ocr.branch || ocr.branchName ,
+  ocr.account_holder_name || ocr.accountHolderName ,
+  ocr.account_number || ocr.accountNumber,
+  ocr.ifsc_code || ocr.ifsc ,
+  JSON.stringify(ocr),
+  lan,
+],
       );
 
       res.json({ message: "Cheque OCR success", ocr });
