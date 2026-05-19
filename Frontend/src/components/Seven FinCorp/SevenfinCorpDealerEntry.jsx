@@ -123,8 +123,10 @@ const SevenFinCorpDealerEntry = () => {
       alert("Cheque OCR failed");
     }
   };
+
+  
  
-  const handleProductChange = (index, field, value) => {
+const handleProductChange = (index, field, value) => {
   const updated = [...formData.products];
   updated[index][field] = value;
 
@@ -132,6 +134,14 @@ const SevenFinCorpDealerEntry = () => {
     ...prev,
     products: updated
   }));
+
+  setErrors(prev => {
+    const updatedErrors = { ...prev };
+    delete updatedErrors[`${field}_${index}`];
+    return updatedErrors;
+  });
+
+  setMessage("");
 };
 
 const addProduct = () => {
@@ -210,6 +220,10 @@ const removeProduct = (index) => {
       return updated;
     });
   };
+
+
+  
+
  
   /*
 
@@ -219,92 +233,346 @@ const removeProduct = (index) => {
   SUBMIT
   ==========================
   */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
- 
-    const payload = {
-      ...formData,
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+//     const requiredFields = [
+//   "business_name",
+//   "trade_name",
+//   "business_type",
+//   "pan_number",
+//   "gst_number",
 
-        products: formData.products.map(p => ({
-    battery_type: p.battery_type || null,
-    battery_name: p.battery_name || null,
-    e_rickshaw_model: p.e_rickshaw_model || null,
-    price: p.price || null
-  })),
-      bank_name: formData.bank_name?.trim() || null,
-      branch_name: formData.branch_name?.trim() || null,
-      account_holder_name: formData.account_holder_name?.trim() || null,
-      account_number: formData.account_number?.toString().trim() || null,
-      ifsc_code: formData.ifsc_code?.toUpperCase().trim() || null,
-    };
+//   "owner_name",
+//   "owner_mobile",
+//   "owner_email",
+
+//   "showroom_address",
+//   "city",
+//   "state",
+//   "pincode",
+
+//   // Bank Fields
+//   "bank_name",
+//   "branch_name",
+//   "account_holder_name",
+//   "account_number",
+//   "ifsc_code",
+// ];
+
+// const validationErrors = {};
+
+// // Validate required fields
+// requiredFields.forEach((field) => {
+//   if (
+//     !formData[field] ||
+//     String(formData[field]).trim() === ""
+//   ) {
+//     validationErrors[field] =
+//       `${field.replaceAll("_", " ")} is required`;
+//   }
+// });
+
+// // Product validation
+// formData.products.forEach((p, index) => {
+//   if (!p.battery_type) {
+//     validationErrors[`battery_type_${index}`] =
+//       "Battery type required";
+//   }
+
+//   if (!p.battery_name) {
+//     validationErrors[`battery_name_${index}`] =
+//       "Battery name required";
+//   }
+
+//   if (!p.e_rickshaw_model) {
+//     validationErrors[`e_rickshaw_model_${index}`] =
+//       "E-Rickshaw model required";
+//   }
+
+//   if (!p.price) {
+//     validationErrors[`price_${index}`] =
+//       "Price required";
+//   }
+// });
+
+// // PAN validation
+// if (
+//   formData.pan_number &&
+//   !validatePAN(formData.pan_number)
+// ) {
+//   validationErrors.pan_number =
+//     "Invalid PAN format";
+// }
+
+// // GST validation
+// if (
+//   formData.gst_number &&
+//   !validateGST(formData.gst_number)
+// ) {
+//   validationErrors.gst_number =
+//     "Invalid GST format";
+// }
+
+// // IFSC validation
+// if (
+//   formData.ifsc_code &&
+//   !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifsc_code)
+// ) {
+//   validationErrors.ifsc_code =
+//     "Invalid IFSC code";
+// }
+
+// // Stop submit
+// if (Object.keys(validationErrors).length > 0) {
+//   setErrors(validationErrors);
+//   setMessage("❌ Please fill all required fields");
+//   return;
+// }
  
-    if (!payload.business_type) {
-      setMessage("❌ Please select Business Type");
-      return;
+//     const payload = {
+//       ...formData,
+
+//         products: formData.products.map(p => ({
+//     battery_type: p.battery_type || null,
+//     battery_name: p.battery_name || null,
+//     e_rickshaw_model: p.e_rickshaw_model || null,
+//     price: p.price || null
+//   })),
+//       bank_name: formData.bank_name?.trim() || null,
+//       branch_name: formData.branch_name?.trim() || null,
+//       account_holder_name: formData.account_holder_name?.trim() || null,
+//       account_number: formData.account_number?.toString().trim() || null,
+//       ifsc_code: formData.ifsc_code?.toUpperCase().trim() || null,
+//     };
+ 
+//     if (!payload.business_type) {
+//       setMessage("❌ Please select Business Type");
+//       return;
+//     }
+ 
+//     if (Object.keys(errors).length > 0) {
+//       setMessage("❌ Please fix validation errors");
+//       return;
+//     }
+ 
+//     if (!validatePAN(payload.pan_number)) {
+//       setMessage("❌ Invalid PAN format");
+//       return;
+//     }
+ 
+//     if (payload.gst_number && !validateGST(payload.gst_number)) {
+//       setMessage("❌ Invalid GST format");
+//       return;
+//     }
+ 
+//     setLoading(true);
+//     setMessage("");
+ 
+//     try {
+ 
+//       const res = await api.post(
+//         "/seven-fincorp/dealer/create",
+//         payload
+//       );
+ 
+//       setMessage(`✅ Dealer created successfully | LAN: ${res.data.lan}`);
+ 
+//       // reset form
+//       setFormData(initialState);
+ 
+//       // reset file input
+//       if (fileInputRef.current) {
+//         fileInputRef.current.value = "";
+//       }
+ 
+//     } catch (err) {
+ 
+//       setLoading(false);
+//       const backendMsg = err?.response?.data?.message;
+//       const field = err?.response?.data?.field;
+ 
+//       setMessage(backendMsg || "❌ Dealer creation failed");
+ 
+//       // highlight field
+//       if (field) {
+ 
+//         let fieldKey = "";
+ 
+//         if (field.includes("PAN")) fieldKey = "pan_number";
+//         if (field.includes("GST")) fieldKey = "gst_number";
+//         if (field.includes("Account")) fieldKey = "account_number";
+ 
+//         if (fieldKey) {
+//           setErrors(prev => ({
+//             ...prev,
+//             [fieldKey]: backendMsg
+//           }));
+//         }
+//       }
+//     }
+//   };
+ 
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const requiredFields = [
+    "business_name",
+    "trade_name",
+    "business_type",
+    "pan_number",
+    "gst_number",
+
+    "owner_name",
+    "owner_mobile",
+    "owner_email",
+
+    "showroom_address",
+    "city",
+    "state",
+    "pincode",
+
+    // Bank Fields
+    "bank_name",
+    "branch_name",
+    "account_holder_name",
+    "account_number",
+    "ifsc_code",
+  ];
+
+  const validationErrors = {};
+
+  // Validate required fields
+  requiredFields.forEach((field) => {
+    if (!formData[field] || String(formData[field]).trim() === "") {
+      validationErrors[field] = `${field.replaceAll("_", " ")} is required`;
     }
- 
-    if (Object.keys(errors).length > 0) {
-      setMessage("❌ Please fix validation errors");
-      return;
+  });
+
+  // Product validation
+  formData.products.forEach((p, index) => {
+    if (!p.battery_type || String(p.battery_type).trim() === "") {
+      validationErrors[`battery_type_${index}`] = "Battery type required";
     }
- 
-    if (!validatePAN(payload.pan_number)) {
-      setMessage("❌ Invalid PAN format");
-      return;
+
+    if (!p.battery_name || String(p.battery_name).trim() === "") {
+      validationErrors[`battery_name_${index}`] = "Battery name required";
     }
- 
-    if (payload.gst_number && !validateGST(payload.gst_number)) {
-      setMessage("❌ Invalid GST format");
-      return;
+
+    if (!p.e_rickshaw_model || String(p.e_rickshaw_model).trim() === "") {
+      validationErrors[`e_rickshaw_model_${index}`] =
+        "E-Rickshaw model required";
     }
- 
-    setLoading(true);
-    setMessage("");
- 
-    try {
- 
-      const res = await api.post(
-        "/seven-fincorp/dealer/create",
-        payload
-      );
- 
-      setMessage(`✅ Dealer created successfully | LAN: ${res.data.lan}`);
- 
-      // reset form
-      setFormData(initialState);
- 
-      // reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
- 
-    } catch (err) {
- 
-      setLoading(false);
-      const backendMsg = err?.response?.data?.message;
-      const field = err?.response?.data?.field;
- 
-      setMessage(backendMsg || "❌ Dealer creation failed");
- 
-      // highlight field
-      if (field) {
- 
-        let fieldKey = "";
- 
-        if (field.includes("PAN")) fieldKey = "pan_number";
-        if (field.includes("GST")) fieldKey = "gst_number";
-        if (field.includes("Account")) fieldKey = "account_number";
- 
-        if (fieldKey) {
-          setErrors(prev => ({
-            ...prev,
-            [fieldKey]: backendMsg
-          }));
-        }
-      }
+
+    if (!p.price || String(p.price).trim() === "") {
+      validationErrors[`price_${index}`] = "Price required";
     }
+  });
+
+  // PAN validation
+  if (formData.pan_number && !validatePAN(formData.pan_number.trim().toUpperCase())) {
+    validationErrors.pan_number = "Invalid PAN format";
+  }
+
+  // GST validation
+  if (formData.gst_number && !validateGST(formData.gst_number.trim().toUpperCase())) {
+    validationErrors.gst_number = "Invalid GST format";
+  }
+
+  // IFSC validation
+  if (
+    formData.ifsc_code &&
+    !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifsc_code.trim().toUpperCase())
+  ) {
+    validationErrors.ifsc_code = "Invalid IFSC code";
+  }
+
+  // Stop submit if validation failed
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    setMessage("❌ Please fill all required fields");
+    return;
+  }
+
+  // Important: clear old errors after all fields are valid
+  setErrors({});
+  setMessage("");
+
+  const payload = {
+    ...formData,
+
+    business_name: formData.business_name?.trim() || null,
+    trade_name: formData.trade_name?.trim() || null,
+    business_type: formData.business_type || null,
+    pan_number: formData.pan_number?.trim().toUpperCase() || null,
+    gst_number: formData.gst_number?.trim().toUpperCase() || null,
+
+    owner_name: formData.owner_name?.trim() || null,
+    owner_mobile: formData.owner_mobile?.toString().trim() || null,
+    owner_email: formData.owner_email?.trim() || null,
+
+    showroom_address: formData.showroom_address?.trim() || null,
+    city: formData.city?.trim() || null,
+    state: formData.state?.trim() || null,
+    pincode: formData.pincode?.toString().trim() || null,
+
+    products: formData.products.map((p) => ({
+      battery_type: p.battery_type || null,
+      battery_name: p.battery_name || null,
+      e_rickshaw_model: p.e_rickshaw_model || null,
+      price: p.price || null,
+    })),
+
+    bank_name: formData.bank_name?.trim() || null,
+    branch_name: formData.branch_name?.trim() || null,
+    account_holder_name: formData.account_holder_name?.trim() || null,
+    account_number: formData.account_number?.toString().trim() || null,
+    ifsc_code: formData.ifsc_code?.trim().toUpperCase() || null,
   };
- 
+
+  setLoading(true);
+
+  try {
+    const res = await api.post(
+      "/seven-fincorp/dealer/create",
+      payload
+    );
+
+    setMessage(`✅ Dealer created successfully | LAN: ${res.data.lan}`);
+
+    // reset form
+    setFormData(initialState);
+    setErrors({});
+
+    // reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  } catch (err) {
+    const backendMsg = err?.response?.data?.message;
+    const field = err?.response?.data?.field;
+
+    setMessage(backendMsg || "❌ Dealer creation failed");
+
+    // highlight field
+    if (field) {
+      let fieldKey = "";
+
+      if (field.includes("PAN")) fieldKey = "pan_number";
+      if (field.includes("GST")) fieldKey = "gst_number";
+      if (field.includes("Account")) fieldKey = "account_number";
+
+      if (fieldKey) {
+        setErrors((prev) => ({
+          ...prev,
+          [fieldKey]: backendMsg,
+        }));
+      }
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+  
   /*
   ==========================
   INPUT RENDER
@@ -843,7 +1111,7 @@ const removeProduct = (index) => {
         <button
           type="submit"
           className="main-submit-btn"
-          disabled={loading || Object.keys(errors).length > 0}
+          disabled={loading}
 >
           {loading ? "Creating Dealer..." : "Create Dealer"}
 </button>
