@@ -137,7 +137,7 @@ function resolveProcedure(rawReportId, rawLender) {
         : lender === "clayoo"
         ? "sp_due_collection_all_report_clayoo"
         : lender === "loan-digit"
-        ? "sp_due_collection_loan_digit_report"
+        ? "sp_due_collection_all_report_loan_digit"
         : lender === "circlepe"
         ? "sp_due_collection_all_report_circlepe"
         : "sp_due_collection_all_report",
