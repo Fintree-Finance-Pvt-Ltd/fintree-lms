@@ -6045,6 +6045,15 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
 router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
   try {
+    if (
+      !req.partner ||
+      (req.partner_name || "").toLowerCase().trim() !== "finso"
+    ) {
+      return res.status(403).json({
+        message: "This route is only for Finso partner.",
+      });
+    }
+
     const { lan } = req.params;
 
     if (!lan) {
