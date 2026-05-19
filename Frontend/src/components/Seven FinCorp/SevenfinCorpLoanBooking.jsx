@@ -3,7 +3,7 @@ import api from "../../api/api";
 import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 
-const SevenFinCorpLoanBooking = () => {
+const SevenFinCorpLoanBooking = ({ lenderType = "Seven FinCorp", apiPrefix = "seven-fincorp" }) => {
   const [searchParams] = useSearchParams();
 const resumeLan = searchParams.get("lan");
   const today = new Date().toISOString().split("T")[0];
@@ -767,7 +767,7 @@ for processing and servicing this loan application.
   const sendOtp = async (mobile, type) => {
     try {
       setOtpLoading(true);
-      const res = await api.post("seven-fincorp/send-otp", {
+      const res = await api.post(`${apiPrefix}/send-otp`, {
         mobile,
         applicantType: type,
       });
@@ -833,7 +833,7 @@ for processing and servicing this loan application.
         mobile = formData.Co_Applicant_Mobile;
       }
 
-      const res = await api.post("seven-fincorp/verify-otp", {
+      const res = await api.post(`${apiPrefix}/verify-otp`, {
         mobile,
         otp,
         applicantType: verificationTarget,
