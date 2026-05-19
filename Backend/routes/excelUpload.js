@@ -2375,6 +2375,8 @@ router.get("/login-loans", (req, res) => {
     loan_booking_circle_pe: true,
     loan_booking_loan_digit: true,
     loan_booking_hey_ev_battery: true,
+    loan_booking_seven_fincorp: true,
+    loan_booking_bundela: true,
     dealer_onboarding: true,
   };
 
@@ -2436,6 +2438,8 @@ router.post("/update-umrn", (req, res) => {
     loan_booking_circle_pe: true,
     loan_booking_loan_digit: true,
     loan_booking_hey_ev_battery: true,
+    loan_booking_seven_fincorp: true,
+    loan_booking_bundela: true,
   };
 
   if (!allowedTables[table]) {
@@ -2520,6 +2524,8 @@ router.get("/approve-initiate-loans", async (req, res) => {
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_loan_digit: true,
+      loan_booking_seven_fincorp: true,
+      loan_booking_bundela: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2596,6 +2602,8 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_embifi: true,
     loan_booking_finso: true,
     loan_booking_motion_corp: true,
+    loan_booking_bundela: true,
+    loan_booking_seven_fincorp: true,
     loan_booking_clayyo: true,
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery: true,
@@ -2720,6 +2728,8 @@ router.get("/approved-loans", async (req, res) => {
     loan_booking_hey_ev_battery: true,
     loan_booking_switch_my_loan: true,
     loan_booking_loan_digit: true,
+    loan_booking_seven_fincorp: true,
+    loan_booking_bundela: true,
     dealer_onboarding: true,
   };
   if (!allowedTables[table])
@@ -2799,6 +2809,8 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_loan_digit: true,
+    loan_booking_seven_fincorp: true,
+    loan_booking_bundela: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2905,6 +2917,8 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_motion_corp: true,
+    loan_booking_bundela : true,
+     loan_booking_seven_fincorp : true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
@@ -3230,6 +3244,8 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_hey_ev_battery: true,
     loan_booking_zypay_customer: true,
     loan_booking_loan_digit: true,
+    loan_booking_seven_fincorp: true,
+    loan_booking_bundela: true,
   };
 
   if (!allowedTables[table]) {
@@ -3252,8 +3268,15 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     params.push(stage);
   }
 
-  if (table === "loan_booking_motion_corp" && loan_amount !== null) {
-    const approvedLoanAmount = Number(loan_amount);
+ const loanBookingTables = [
+  "loan_booking_motion_corp",
+  "loan_booking_seven_fincorp",
+  "loan_booking_bundela",
+];
+
+if (loanBookingTables.includes(table) && loan_amount !== null) {
+  const approvedLoanAmount = Number(loan_amount);
+  // rest of your logic 
 
     if (
       Number.isNaN(approvedLoanAmount) ||
@@ -3296,17 +3319,21 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
       });
     }
 
+    const loanBookingTables = [
+  "loan_booking_motion_corp",
+  "loan_booking_seven_fincorp",
+  "loan_booking_bundela",
+];
     return res.json({
       success: true,
       lan,
       table,
       status,
       stage,
-      loan_amount:
-        table === "loan_booking_motion_corp"
-          ? loan_amount
-          : undefined,
-      message: "Loan updated successfully",
+      loan_amount: loanBookingTables.includes(table)
+    ? loan_amount
+    : undefined,
+  message: "Loan updated successfully",
     });
   });
 });
