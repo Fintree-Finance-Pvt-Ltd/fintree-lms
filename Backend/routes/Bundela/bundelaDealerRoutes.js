@@ -18,10 +18,10 @@ IDENTIFIER GENERATOR
 ====================================================
 */
 const generateLoanIdentifiers = async (lender) => {
-  let prefixLan = "SFDLR";
-  let applicationPrefix = "SFDLRAPP";
-  let custPrefixLan = "SFL";
-  let custPartnerLoanId = "SFFFPL";
+  let prefixLan = "BUNDLR";
+  let applicationPrefix = "BUNDLRAPP";
+  let custPrefixLan = "BUNL";
+  let custPartnerLoanId = "BUNFFPL";
 
   const [rows] = await db
     .promise()
