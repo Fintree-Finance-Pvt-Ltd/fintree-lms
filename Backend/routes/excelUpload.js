@@ -6056,12 +6056,6 @@ router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
 
     const { lan } = req.params;
 
-    if (!lan) {
-      return res.status(400).json({
-        message: "LAN is required.",
-      });
-    }
-
     const [rows] = await db.promise().query(
       `SELECT lan, status
        FROM loan_booking_finso
