@@ -3,7 +3,8 @@ import api from "../../api/api";
 import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 
-const SevenFinCorpLoanBooking = () => {
+const SevenFinCorpLoanBooking = ({ lenderType = "Seven FinCorp", apiPrefix = "seven-fincorp",title="Seven FinCorp Manual Entry"
+ }) => {
   const [searchParams] = useSearchParams();
 const resumeLan = searchParams.get("lan");
   const today = new Date().toISOString().split("T")[0];
@@ -155,7 +156,7 @@ const resumeLan = searchParams.get("lan");
   try {
     setLoading(true);
 
-    const res = await api.get(`seven-fincorp/loan-booking/${resumeLan}`);
+    const res = await api.get(`${apiPrefix}/loan-booking/${resumeLan}`);
 
     if (!res.data.success) {
       setMessage("❌ Could not resume booking");
@@ -348,7 +349,7 @@ const resumeLan = searchParams.get("lan");
 
   const fetchDealers = async () => {
     try {
-      const res = await api.get("motion-corp/dealersforbooking");
+      const res = await api.get(`${apiPrefix}/dealersforbooking`);
       setDealers(res.data?.dealers || []);
     } catch (err) {
       console.error("Dealer fetch error:", err);
@@ -508,7 +509,7 @@ for processing and servicing this loan application.
     try {
       setLoading(true);
 
-      const res = await api.post("seven-fincorp/save-borrower-first-section", {
+      const res = await api.post(`${apiPrefix}/save-borrower-first-section`, {
         ...formData,
         borrower_mobile_verified: 1,
       });
@@ -767,7 +768,7 @@ for processing and servicing this loan application.
   const sendOtp = async (mobile, type) => {
     try {
       setOtpLoading(true);
-      const res = await api.post("seven-fincorp/send-otp", {
+      const res = await api.post(`${apiPrefix}/send-otp`, {
         mobile,
         applicantType: type,
       });
@@ -833,7 +834,7 @@ for processing and servicing this loan application.
         mobile = formData.Co_Applicant_Mobile;
       }
 
-      const res = await api.post("seven-fincorp/verify-otp", {
+      const res = await api.post(`${apiPrefix}/verify-otp`, {
         mobile,
         otp,
         applicantType: verificationTarget,
@@ -1135,7 +1136,7 @@ const saveApplicantBeforeAadhaar = async (applicantType) => {
     return true;
   }
 
-  await api.post("seven-fincorp/save-applicant-details", {
+  await api.post(`${apiPrefix}/save-applicant-details`, {
     lan,
     applicantType,
     data: {
@@ -1163,7 +1164,7 @@ const triggerAadhaar = async (applicantType) => {
       [applicantType]: "INITIATING",
     }));
 
-    const res = await api.post("seven-fincorp/init-aadhaar", {
+    const res = await api.post(`${apiPrefix}/init-aadhaar`, {
       lan,
       applicantType,
     });
@@ -1272,7 +1273,7 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
     setLoading(true);
 
     const res = await api.get(
-      `seven-fincorp/aadhaar-address/${lan}/${applicantType}`
+      `${apiPrefix}/aadhaar-address/${lan}/${applicantType}`
     );
 
     if (!res.data.success) {
@@ -1542,7 +1543,7 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
   setLoading(false);
   return;
 }
-      const res = await api.post("seven-fincorp/final-submit-ev-customer-manual", {
+      const res = await api.post(`${apiPrefix}/final-submit-ev-customer-manual`, {
   ...formData,
   lan,
   borrower_mobile_verified: otpVerified.borrower ? 1 : 0,
@@ -1849,7 +1850,7 @@ setAadhaarStatus({
 
   return (
     <div className="manual-entry-container">
-      <h2>Seven FinCorp Manual Entry</h2>
+      <h2>{title}</h2>
 
       <div className="section-tabs">
         {sections.map((sec, index) => (

@@ -146,6 +146,10 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
       "loan_tenure",
       "pre_emi",
       "net_disbursement_amount",
+      "token_status",
+"token_number",
+"token_amount",
+"token_auth_type",
     ];
 
     // Validate required fields
@@ -214,6 +218,10 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     const cibil_score = Number(data.cibil_score);
 
     const loan_amount = Number(data.loan_amount);
+    const token_status = String(data.token_status).trim();
+const token_number = String(data.token_number).trim();
+const token_amount = Number(data.token_amount);
+const token_auth_type = String(data.token_auth_type).trim();
     const processing_fee = Number(data.processing_fee);
     const interest_rate = Number(data.interest_rate);
     const loan_tenure = Number(data.loan_tenure);
@@ -455,14 +463,17 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
         loan_tenure,
         pre_emi,
         net_disbursement_amount,
+        token_status,
+token_number,
+token_amount,
+token_auth_type,
 
         lender,
         product,
         loan_type,
         status
       )
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-      `,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         lan,
         partner_loan_id,
@@ -517,6 +528,10 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
         loan_tenure,
         pre_emi,
         net_disbursement_amount,
+        token_status,
+token_number,
+token_amount,
+token_auth_type,
 
         lender,
         product,

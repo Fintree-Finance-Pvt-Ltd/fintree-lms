@@ -187,6 +187,17 @@ import SevenFinCorpDealerDetails from "./components/Seven FinCorp/SevenfinCorpDe
 import SevenFinCorpAllLoans from "./components/Seven FinCorp/SevenFinCorpAllLoans";
 import SevenFinCorpDetails from "./components/Seven FinCorp/SevenfinCorpDetails";
 
+// Bundela Imports
+import BundelaDealerEntry from "./components/Bundela/BundelaDealerEntry";
+import BundelaDealerLists from "./components/Bundela/BundelaDealerLists";
+import BundelaDealerDetails from "./components/Bundela/BundelaDealerDetails";
+import BundelaDealerLoginActions from "./components/Bundela/BundelaDealerLoginActions";
+import BundelaLoanBooking from "./components/Bundela/BundelaLoanBooking";
+import BundelaLoginCases from "./components/Bundela/BundelaLoginCases";
+import BundelaAllLoans from "./components/Bundela/BundelaAllLoans";
+import BundelaApprovedLoans from "./components/Bundela/BundelaApprovedLoans";
+import BundelaDisburseInitiate from "./components/Bundela/BundelaDisburseInitiate";
+import BundelaDetails from "./components/Bundela/BundelaDetails";
 
 
 
@@ -1597,6 +1608,87 @@ function App() {
   element={
     <PermissionRoute pageName="Seven Fincorp Customer Details">
       <SevenFinCorpDetails />
+    </PermissionRoute>
+  }
+/>
+
+{/* =========================
+   ✅ Bundela Routes
+========================= */}
+
+<Route
+  path="/bundela/dealer-entry"
+  element={
+    <PermissionRoute pageName="Bundela Dealer Entry">
+      <BundelaDealerEntry />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/bundela/dealer-lists"
+  element={
+    <PermissionRoute pageName="Bundela Dealer Lists">
+      <BundelaDealerLists />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/bundela/loan-booking"
+  element={
+    <PermissionRoute pageName="Bundela Loan Booking">
+      <BundelaLoanBooking />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/bundela/dealer-login-cases"
+  element={
+    <PermissionRoute pageName="Bundela Dealer Login Cases">
+      <BundelaLoginCases />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/bundela/dealer-approved-loans"
+  element={
+    <PermissionRoute pageName="Bundela Dealer Operation Approval Loans">
+      <BundelaApprovedLoans />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/bundela/dealer-details/:lan"
+  element={<BundelaDealerDetails />}
+/>
+
+<Route
+  path="/bundela/all-loans"
+  element={
+    <PermissionRoute pageName="Bundela Customer All Cases Screen">
+      <BundelaAllLoans />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/bundela/login-cases"
+  element={
+    <PermissionRoute pageName="Bundela Customer Login Cases Screen">
+      <BundelaLoginCases />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/bundela/customer-details"
+  element={
+    <PermissionRoute pageName="Bundela Customer Details">
+      <BundelaDetails />
     </PermissionRoute>
   }
 />

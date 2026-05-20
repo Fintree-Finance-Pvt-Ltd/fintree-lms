@@ -63,7 +63,7 @@ const calculateAge = (dob) => {
   return age;
 };
 
-const extractSevenFinCorpBureauFacts = (reportXml) => {
+const extractBundelaBureauFacts = (reportXml) => {
   if (!reportXml) {
     return {
       score: null,
@@ -186,7 +186,7 @@ const extractSevenFinCorpBureauFacts = (reportXml) => {
   };
 };
 
-const evaluateSevenFinCorpPolicy = ({ loan, bureauFacts }) => {
+const evaluateBundelaPolicy = ({ loan, bureauFacts }) => {
   const reasons = [];
   const deviations = [];
 
@@ -195,11 +195,6 @@ const evaluateSevenFinCorpPolicy = ({ loan, bureauFacts }) => {
   const loanAmount = toNumber(loan.requested_loan_amount, 0);
 
   const tenure = toNumber(loan.loan_tenure, 0);
-
-  // const apr = toNumber(
-  //   loan.apr || loan.interest_rate,
-  //   0,
-  // );
 
   const score = toNumber(bureauFacts.score, null);
 
@@ -215,23 +210,15 @@ const evaluateSevenFinCorpPolicy = ({ loan, bureauFacts }) => {
   }
 
   /**
-   * SCORE
+   * SCORE / NTC
    */
-  /**
- * SCORE / NTC
- */
-if (score === null || score < 200) {
-  reasons.push(
-    "NTC_BANK_STATEMENT_REQUIRED",
-  );
-}
+  if (score === null || score < 200) {
+    reasons.push("NTC_BANK_STATEMENT_REQUIRED");
+  }
 
-if (
-  score >= 200 &&
-  score < 680
-) {
-  reasons.push("CIBIL_BELOW_680");
-}
+  if (score >= 200 && score < 680) {
+    reasons.push("CIBIL_BELOW_680");
+  }
 
   /**
    * LOAN AMOUNT
@@ -254,14 +241,13 @@ if (
   /**
    * ENQUIRIES
    */
-  if (bureauFacts.enquiries30d > 3) {
-    reasons.push("ENQUIRIES_GT_3_LAST_30D");
+  if (bureauFacts.enquiries30d > 5) {
+    reasons.push("ENQUIRIES_GT_5_LAST_30D");
   }
 
   /**
    * DPD RULES
    */
-
   if (bureauFacts.hasDpd6M) {
     reasons.push("DPD_FOUND_IN_LAST_6_MONTHS");
   }
@@ -321,7 +307,7 @@ if (
   };
 };
 
-const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
+const autoApproveBundelaIfAllVerified = async (lan) => {
   const pool = db.promise();
 
   /**
@@ -338,8 +324,7 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
   );
 
   if (!kycRows.length) {
-    console.log("No Seven FinCorp KYC row found:", lan);
-
+    console.log("No Bundela KYC row found:", lan);
     return;
   }
 
@@ -348,11 +333,11 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
   if (kyc.bureau_status !== "VERIFIED") {
     await pool.query(
       `
-      UPDATE loan_booking_seven_fincorp
+      UPDATE loan_booking_bundela
       SET
-        motioncorp_bre_status = ?,
-        motioncorp_bre_reason = ?,
-        motioncorp_bre_checked_at = NOW()
+        bundela_bre_status = ?,
+        bundela_bre_reason = ?,
+        bundela_bre_checked_at = NOW()
       WHERE lan = ?
       `,
       [
@@ -373,19 +358,18 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
     SELECT
       lan,
       dob,
-      requested_loan_amount,
+      COALESCE(requested_loan_amount, loan_amount) AS requested_loan_amount,
       loan_tenure,
       interest_rate,
       cibil_score
-    FROM loan_booking_seven_fincorp
+    FROM loan_booking_bundela
     WHERE lan = ?
     `,
     [lan],
   );
 
   if (!loanRows.length) {
-    console.log("Motion Corp loan not found:", lan);
-
+    console.log("Bundela loan not found:", lan);
     return;
   }
 
@@ -409,11 +393,11 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
   if (!cibilRows.length || !cibilRows[0].report_xml) {
     await pool.query(
       `
-      UPDATE loan_booking_seven_fincorp
+      UPDATE loan_booking_bundela
       SET
-        motioncorp_bre_status = ?,
-        motioncorp_bre_reason = ?,
-        motioncorp_bre_checked_at = NOW()
+        bundela_bre_status = ?,
+        bundela_bre_reason = ?,
+        bundela_bre_checked_at = NOW()
       WHERE lan = ?
       `,
       ["Pending", "BUREAU_REPORT_MISSING", lan],
@@ -422,11 +406,11 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
     return;
   }
 
-  const bureauFacts = extractSevenFinCorpBureauFacts(
+  const bureauFacts = extractBundelaBureauFacts(
     cibilRows[0].report_xml,
   );
 
-  const decision = evaluateSevenFinCorpPolicy({
+  const decision = evaluateBundelaPolicy({
     loan,
     bureauFacts,
   });
@@ -438,50 +422,41 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
     ? [...decision.reasons, ...decision.deviations].join(", ")
     : "ELIGIBLE";
 
-  // let finalStatus = "BRE APPROVED";
-
-  // if (decision.status === "BRE REJECTED") {
-  //   finalStatus = "BRE REJECTED";
-  // }
-
-  // if (decision.status === "Credit Initiated") {
-  //   finalStatus = "Credit Initiated";
-  // }
-
   let finalStatus = "Credit Initiated";
-let finalStage = "BRE Approved";
+  let finalStage = "BRE Approved";
 
-if (decision.status === "BRE REJECTED") {
-  finalStatus = "Rejected";
-  finalStage = "BRE Rejected";
-}
+  if (decision.status === "BRE REJECTED") {
+    finalStatus = "Rejected";
+    finalStage = "BRE Rejected";
+  }
 
-if (decision.status === "Credit Initiated") {
-  finalStatus = "Credit Initiated";
-  finalStage = "BRE Deviation";
-}
+  if (decision.status === "Credit Initiated") {
+    finalStatus = "Credit Initiated";
+    finalStage = "BRE Deviation";
+  }
 
   await pool.query(
     `
-    UPDATE loan_booking_seven_fincorp
+    UPDATE loan_booking_bundela
     SET
-      motioncorp_bre_status = ?,
-      motioncorp_bre_reason = ?,
-      motioncorp_bre_checked_at = NOW(),
+      bundela_bre_status = ?,
+      bundela_bre_reason = ?,
+      bundela_bre_checked_at = NOW(),
 
       fintree_cibil_score = ?,
-      motioncorp_enquiries_30d = ?,
-      motioncorp_dpd_3m_flag = ?,
-      motioncorp_dpd_6m_flag = ?,
-      motioncorp_written_off_3y_flag = ?,
-      motioncorp_60plus_24m_flag = ?,
-      motioncorp_90plus_36m_flag = ?,
-      motioncorp_emi_overdue_amount = ?,
-      motioncorp_cc_overdue_amount = ?,
-      motioncorp_deviation_flag = ?,
+      bundela_enquiries_30d = ?,
+      bundela_dpd_3m_flag = ?,
+      bundela_dpd_6m_flag = ?,
+      bundela_overdue_12m_flag = ?,
+      bundela_written_off_3y_flag = ?,
+      bundela_60plus_24m_flag = ?,
+      bundela_90plus_36m_flag = ?,
+      bundela_emi_overdue_amount = ?,
+      bundela_cc_overdue_amount = ?,
+      bundela_deviation_flag = ?,
 
       status = ?,
-stage = ?
+      stage = ?
     WHERE lan = ?
     `,
     [
@@ -492,6 +467,7 @@ stage = ?
       bureauFacts.enquiries30d,
       bureauFacts.hasDpd3M ? 1 : 0,
       bureauFacts.hasDpd6M ? 1 : 0,
+      bureauFacts.hasOverdue12M ? 1 : 0,
       bureauFacts.hasWrittenOff3Y ? 1 : 0,
       bureauFacts.has60Plus24M ? 1 : 0,
       bureauFacts.has90Plus36M ? 1 : 0,
@@ -500,18 +476,18 @@ stage = ?
       decision.deviations.length > 0 ? 1 : 0,
 
       finalStatus,
-finalStage,
-lan,
+      finalStage,
+      lan,
     ],
   );
 
   console.log(
-    `Motion Corp BRE completed for ${lan}: ${decision.status} | ${reasonText}`,
+    `Bundela BRE completed for ${lan}: ${decision.status} | ${reasonText}`,
   );
 };
 
 module.exports = {
-  autoApproveSevenFinCorpIfAllVerified,
-  extractSevenFinCorpBureauFacts,
-  evaluateSevenFinCorpPolicy,
+  autoApproveBundelaIfAllVerified,
+  extractBundelaBureauFacts,
+  evaluateBundelaPolicy,
 };
