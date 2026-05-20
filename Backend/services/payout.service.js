@@ -419,7 +419,7 @@ if (isTestMode) {
       data: {
         transfer_request: {
           id: `TEST_${Date.now()}`,
-          status: "accepted",
+          status: "success",
           transfer_date: new Date().toISOString(),
           unique_transaction_reference: `TESTUTR${Date.now()}`,
           queue_on_low_balance: 0,

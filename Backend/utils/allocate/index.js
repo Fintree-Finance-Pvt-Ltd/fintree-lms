@@ -41,6 +41,7 @@ const allocateHelium = require ("./allocateHelium");
 const allocateClayoo = require("./allocateClayoo");
 const allocateGQFSFFintree = require("./allocateGQFSFFintree");
 const allocateLoanDigit = require( "./allocateLoanDigit" );
+const allocateRapidMoney = require("./allocateRapidMoney");
 
 
 /**
@@ -79,6 +80,9 @@ const allocateRepaymentByLAN = async (lan, payment) => {
     return allocateEV(lan, payment);
   }else if (lan.startsWith("HEYEV") || lan.startsWith("HEYBF") ) {
     return allocateHEYEV(lan, payment);
+  }
+  else if (lan.startsWith("SML")){
+    return allocateRapidMoney(lan, payment);
   }
   else if (lan.startsWith("FINS")) {
     return allocateFinso(lan, payment);
