@@ -14,7 +14,6 @@
 // const { initEsign } = require("../services/esignService")
 // const router = express.Router();
 
-
 // const templatePath = path.join(
 //   __dirname,
 //   "../templates",
@@ -123,7 +122,6 @@
 //   return convert(num);
 // }
 
-
 // router.get("/api/loans", async (req, res) => {
 //   try {
 //     const [rows] = await db.promise().query(
@@ -149,7 +147,6 @@
 //     res.status(500).json({ message: "Server error" });
 //   }
 // });
-
 
 // router.get("/:lan/pdf", async (req, res) => {
 //   const lan = req.params.lan;
@@ -362,12 +359,7 @@
 //   }
 // });
 
-
-
-
-
 // ///////////////////////// new routes ///////////////////
-
 
 // router.post("/:lan/esign/sanction", authenticateUser, async (req, res) => {
 //   try {
@@ -398,7 +390,6 @@
 //     res.status(500).json({ success: false, error: err.message });
 //   }
 // });
-
 
 // router.post("/v1/digio-esign-webhook", async (req, res) => {
 //   const event = req.body;
@@ -434,7 +425,6 @@
 
 //   res.status(200).send("ok");
 // });
-
 
 // router.get("/:lan/generate-sanction", async (req, res) => {
 //   try {
@@ -483,7 +473,6 @@
 //   }
 // });
 
-
 // router.get("/:lan/generate-agreement", async (req, res) => {
 //   try {
 //     const { lan } = req.params;
@@ -515,11 +504,6 @@
 //     res.status(500).json({ message: "Failed to generate agreement" });
 //   }
 // });
-
-
-
-
-
 
 // ////////////////////////// new routes for digitap //////////////////////
 
@@ -820,8 +804,6 @@
 
 // module.exports = router;
 
-
-
 // const express = require("express");
 // const db = require("../config/db");
 // const dayjs = require("dayjs");
@@ -838,7 +820,6 @@
 // const { getLoanContext } = require("../utils/lanHelper");
 
 // const { bookingTable } = getLoanContext(lan);
-
 
 // const router = express.Router();
 
@@ -1155,9 +1136,9 @@ const path = require("path");
 
 const {
   generateSanctionLetterPdf,
-  generateAgreementPdf
+  generateAgreementPdf,
 } = require("../services/pdfGenerationService");
-const {initDoqfyEsign} = require("../services/doqfyEsignService");
+const { initDoqfyEsign } = require("../services/doqfyEsignService");
 const { getLoanContext } = require("../utils/lanHelper");
 const { initEsign } = require("../services/esignService");
 
@@ -1184,7 +1165,7 @@ function fillTemplate(html, data) {
   for (const [key, value] of Object.entries(data)) {
     out = out.replace(
       new RegExp(`{{\\s*${key}\\s*}}`, "g"),
-      value == null ? "" : String(value)
+      value == null ? "" : String(value),
     );
   }
   return out;
@@ -1194,18 +1175,61 @@ function numberToWords(num) {
   if (!num || num === 0) return "Zero Rupees Only";
 
   const a = [
-    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
-    "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
-    "Seventeen", "Eighteen", "Nineteen"
+    "",
+    "One",
+    "Two",
+    "Three",
+    "Four",
+    "Five",
+    "Six",
+    "Seven",
+    "Eight",
+    "Nine",
+    "Ten",
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen",
   ];
-  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const b = [
+    "",
+    "",
+    "Twenty",
+    "Thirty",
+    "Forty",
+    "Fifty",
+    "Sixty",
+    "Seventy",
+    "Eighty",
+    "Ninety",
+  ];
 
   const convert = (n) => {
     if (n < 20) return a[n];
     if (n < 100) return b[Math.floor(n / 10)] + (n % 10 ? " " + a[n % 10] : "");
-    if (n < 1000) return a[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " + convert(n % 100) : "");
-    if (n < 100000) return convert(Math.floor(n / 1000)) + " Thousand" + (n % 1000 ? " " + convert(n % 1000) : "");
-    if (n < 10000000) return convert(Math.floor(n / 100000)) + " Lakh" + (n % 100000 ? " " + convert(n % 100000) : "");
+    if (n < 1000)
+      return (
+        a[Math.floor(n / 100)] +
+        " Hundred" +
+        (n % 100 ? " " + convert(n % 100) : "")
+      );
+    if (n < 100000)
+      return (
+        convert(Math.floor(n / 1000)) +
+        " Thousand" +
+        (n % 1000 ? " " + convert(n % 1000) : "")
+      );
+    if (n < 10000000)
+      return (
+        convert(Math.floor(n / 100000)) +
+        " Lakh" +
+        (n % 100000 ? " " + convert(n % 100000) : "")
+      );
     return convert(Math.floor(n / 10000000)) + " Crore";
   };
 
@@ -1238,21 +1262,13 @@ router.get("/api/loans", async (req, res) => {
 router.get("/:lan/pdfs", async (req, res) => {
   const { lan } = req.params;
 
-  const {
-    summaryTable,
-    rpsTable,
-    agreementTemplate,
-    type
-  } = getLoanContext(lan);
+  const { summaryTable, rpsTable, agreementTemplate, type } =
+    getLoanContext(lan);
 
   try {
-
     if (summaryTable === "clayyo_loan_summary") {
-    await db.promise().query(
-      "CALL sp_generate_clayyo_summary(?)",
-      [lan]
-    );
-  }
+      await db.promise().query("CALL sp_generate_clayyo_summary(?)", [lan]);
+    }
     const templateHtml = loadAgreementTemplate(agreementTemplate);
 
     let summaryRows;
@@ -1261,7 +1277,6 @@ router.get("/:lan/pdfs", async (req, res) => {
        CLAYYO AGREEMENT DATA
     ====================================================== */
     if (type === "CLAYYO") {
-
       [summaryRows] = await db.promise().query(
         `
         SELECT
@@ -1277,16 +1292,13 @@ router.get("/:lan/pdfs", async (req, res) => {
         FROM ${summaryTable}
         WHERE lan = ?
         `,
-        [lan]
+        [lan],
       );
-
-    }
+    } else {
 
     /* ======================================================
        HELIUM / CUSTOMER AGREEMENT DATA
     ====================================================== */
-    else {
-
       [summaryRows] = await db.promise().query(
         `
         SELECT
@@ -1309,9 +1321,8 @@ router.get("/:lan/pdfs", async (req, res) => {
         FROM ${summaryTable}
         WHERE lan = ?
         `,
-        [lan]
+        [lan],
       );
-
     }
 
     if (!summaryRows.length) {
@@ -1340,7 +1351,7 @@ router.get("/:lan/pdfs", async (req, res) => {
         WHERE lan = ?
         ORDER BY id ASC
         `,
-        [lan]
+        [lan],
       );
 
       firstRps = rpsRows.length ? rpsRows[0] : {};
@@ -1354,20 +1365,20 @@ router.get("/:lan/pdfs", async (req, res) => {
       ...summary,
       ...firstRps,
       CU_date: dayjs().format("DD-MM-YYYY"),
-      L_A_W: summary.L_A ? numberToWords(summary.L_A) : ""
+      L_A_W: summary.L_A ? numberToWords(summary.L_A) : "",
     };
 
     const html = fillTemplate(templateHtml, data);
 
     const browser = await puppeteer.launch({
       headless: "new",
-      args: ["--no-sandbox"]
+      args: ["--no-sandbox"],
     });
 
     const page = await browser.newPage();
 
     await page.setContent(html, {
-      waitUntil: "networkidle0"
+      waitUntil: "networkidle0",
     });
 
     const pdf = await page.pdf({
@@ -1377,8 +1388,8 @@ router.get("/:lan/pdfs", async (req, res) => {
         top: "20mm",
         bottom: "20mm",
         left: "15mm",
-        right: "15mm"
-      }
+        right: "15mm",
+      },
     });
 
     await browser.close();
@@ -1387,20 +1398,17 @@ router.get("/:lan/pdfs", async (req, res) => {
 
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="Agreement_${lan}.pdf`
+      `attachment; filename="Agreement_${lan}.pdf`,
     );
 
     res.send(pdf);
-
   } catch (err) {
-
     console.error("PDF generation failed:", err);
 
     res.status(500).json({
       message: "PDF generation failed",
-      error: err.message
+      error: err.message,
     });
-
   }
 });
 
@@ -1413,10 +1421,12 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
 
   try {
     if (type === "agreement") {
-      const [rows] = await db.promise().query(
-        `SELECT sanction_esign_status FROM ${bookingTable} WHERE lan=?`,
-        [lan]
-      );
+      const [rows] = await db
+        .promise()
+        .query(
+          `SELECT sanction_esign_status FROM ${bookingTable} WHERE lan=?`,
+          [lan],
+        );
     }
 
     // const out = await initDoqfyEsign(lan, type.toUpperCase());
@@ -1485,10 +1495,12 @@ router.post("/v1/digio-esign-webhook", async (req, res) => {
     console.log("[Webhook] Extracted status:", status);
 
     console.log("[DB] Fetching document details from esign_documents");
-    const [rows] = await db.promise().query(
-      "SELECT lan, document_type FROM esign_documents WHERE document_id=?",
-      [docId]
-    );
+    const [rows] = await db
+      .promise()
+      .query(
+        "SELECT lan, document_type FROM esign_documents WHERE document_id=?",
+        [docId],
+      );
 
     console.log("[DB] Query result:", rows);
 
@@ -1505,10 +1517,12 @@ router.post("/v1/digio-esign-webhook", async (req, res) => {
     console.log("[Webhook] Resolved booking table:", bookingTable);
 
     console.log("[DB] Updating esign_documents status and raw_response");
-    await db.promise().query(
-      "UPDATE esign_documents SET status=?, raw_response=? WHERE document_id=?",
-      [status, JSON.stringify(event), docId]
-    );
+    await db
+      .promise()
+      .query(
+        "UPDATE esign_documents SET status=?, raw_response=? WHERE document_id=?",
+        [status, JSON.stringify(event), docId],
+      );
 
     console.log("[DB] esign_documents updated successfully");
 
@@ -1523,10 +1537,12 @@ router.post("/v1/digio-esign-webhook", async (req, res) => {
     console.log("[Webhook] Final status to be stored:", finalStatus);
 
     console.log("[DB] Updating booking table eSign status");
-    await db.promise().query(
-      `UPDATE ${bookingTable} SET ${col}=? WHERE lan=?`,
-      [finalStatus, lan]
-    );
+    await db
+      .promise()
+      .query(`UPDATE ${bookingTable} SET ${col}=? WHERE lan=?`, [
+        finalStatus,
+        lan,
+      ]);
 
     console.log("[DB] Booking table updated successfully");
     console.log("[Webhook] Processing completed successfully");
@@ -1538,17 +1554,13 @@ router.post("/v1/digio-esign-webhook", async (req, res) => {
   }
 });
 
-
 router.post("/v1/doqfy-esign-webhook", async (req, res) => {
   console.log("[DOQFY WEBHOOK] Received");
 
   try {
     const event = req.body;
 
-    console.log(
-      "[DOQFY WEBHOOK] Raw payload:",
-      JSON.stringify(event)
-    );
+    console.log("[DOQFY WEBHOOK] Raw payload:", JSON.stringify(event));
 
     /* --------------------------------------------------- */
     /* EXTRACT DATA */
@@ -1575,13 +1587,11 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
       FROM esign_documents
       WHERE document_id = ?
       `,
-      [orderId]
+      [orderId],
     );
 
     if (!rows.length) {
-      console.log(
-        "[DOQFY WEBHOOK] No matching document found"
-      );
+      console.log("[DOQFY WEBHOOK] No matching document found");
 
       return res.send("ignored");
     }
@@ -1589,10 +1599,7 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
     const { lan, document_type } = rows[0];
 
     console.log("[DOQFY WEBHOOK] LAN:", lan);
-    console.log(
-      "[DOQFY WEBHOOK] Document Type:",
-      document_type
-    );
+    console.log("[DOQFY WEBHOOK] Document Type:", document_type);
 
     /* --------------------------------------------------- */
     /* RESOLVE BOOKING TABLE */
@@ -1600,10 +1607,7 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
 
     const { bookingTable } = getLoanContext(lan);
 
-    console.log(
-      "[DOQFY WEBHOOK] Booking Table:",
-      bookingTable
-    );
+    console.log("[DOQFY WEBHOOK] Booking Table:", bookingTable);
 
     /* --------------------------------------------------- */
     /* DETERMINE FINAL STATUS */
@@ -1612,16 +1616,11 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
     let finalStatus = "INITIATED";
 
     // Check signatory status
-    const signatory =
-      event.signatory_data?.[0];
+    const signatory = event.signatory_data?.[0];
 
-    const signStatus =
-      signatory?.status || "";
+    const signStatus = signatory?.status || "";
 
-    console.log(
-      "[DOQFY WEBHOOK] Signatory Status:",
-      signStatus
-    );
+    console.log("[DOQFY WEBHOOK] Signatory Status:", signStatus);
 
     /*
       Possible statuses:
@@ -1632,27 +1631,17 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
       EXPIRED
     */
 
-    if (
-      orderStatus === "Completed" ||
-      signStatus === "SIGNED"
-    ) {
+    if (orderStatus === "Completed" || signStatus === "SIGNED") {
       finalStatus = "SIGNED";
-    } else if (
-      signStatus === "REJECTED"
-    ) {
+    } else if (signStatus === "REJECTED") {
       finalStatus = "REJECTED";
-    } else if (
-      signStatus === "EXPIRED"
-    ) {
+    } else if (signStatus === "EXPIRED") {
       finalStatus = "EXPIRED";
     } else {
       finalStatus = orderStatus;
     }
 
-    console.log(
-      "[DOQFY WEBHOOK] Final Status:",
-      finalStatus
-    );
+    console.log("[DOQFY WEBHOOK] Final Status:", finalStatus);
 
     /* --------------------------------------------------- */
     /* UPDATE ESIGN DOCUMENTS */
@@ -1666,138 +1655,164 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
         raw_response = ?
       WHERE document_id = ?
       `,
-      [
-        finalStatus,
-        JSON.stringify(event),
-        orderId
-      ]
+      [finalStatus, JSON.stringify(event), orderId],
     );
 
-    console.log(
-      "[DOQFY WEBHOOK] esign_documents updated"
-    );
+    console.log("[DOQFY WEBHOOK] esign_documents updated");
 
     /* --------------------------------------------------- */
     /* UPDATE BOOKING TABLE */
     /* --------------------------------------------------- */
 
-    const col ="agreement_esign_status";
+    /* --------------------------------------------------- */
+/* HANDLE SIGNED DOCUMENT */
+/* --------------------------------------------------- */
 
-    await db.promise().query(
-      `
-      UPDATE ${bookingTable}
-      SET ${col} = ?
-      WHERE lan = ?
-      `,
-      [finalStatus, lan]
-    );
-
-    console.log(
-      "[DOQFY WEBHOOK] Booking table updated"
-    );
-
-    if (
+if (
   finalStatus === "SIGNED" &&
   event.order_document
 ) {
   console.log(
-    "[DOQFY WEBHOOK] Saving signed PDF"
+    "[DOQFY WEBHOOK] Processing signed PDF"
   );
 
+  /**
+   * Decode PDF
+   */
   const pdfBuffer = Buffer.from(
     event.order_document,
     "base64"
   );
 
-  const signedFileName =
-    `${lan}_${document_type}_SIGNED.pdf`;
-
-  const relativePath =
-    `uploads/signed-documents/${signedFileName}`;
-
-  const fullPath = path.join(
+  /**
+   * Save PDF
+   * SAME STRUCTURE AS DIGIO
+   */
+  const folderPath = path.join(
     __dirname,
-    "..",
-    relativePath
+    "../../uploads"
   );
 
-  fs.mkdirSync(
-    path.dirname(fullPath),
-    { recursive: true }
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, {
+      recursive: true,
+    });
+  }
+
+  const fileName =
+    `signed_${lan}_${document_type}_${Date.now()}.pdf`;
+
+  const savePath = path.join(
+    folderPath,
+    fileName
   );
 
-  fs.writeFileSync(fullPath, pdfBuffer);
+  fs.writeFileSync(savePath, pdfBuffer);
 
   console.log(
-    "[DOQFY WEBHOOK] Signed PDF saved:",
-    fullPath
+    "[DOQFY WEBHOOK] PDF saved:",
+    savePath
   );
 
-  /* --------------------------------------------------- */
-  /* PREVENT DUPLICATE INSERTS */
-  /* --------------------------------------------------- */
+  /**
+   * TRANSACTION SAFE DB UPDATE
+   */
+  const connection =
+    await db.promise().getConnection();
 
-  const [existingDocs] =
-    await db.promise().query(
+  try {
+    await connection.beginTransaction();
+
+    /**
+     * UPDATE ESIGN DOCUMENTS
+     */
+    await connection.query(
       `
-      SELECT id
-      FROM documents
-      WHERE lan = ?
-      AND document_type = ?
-      `,
-      [lan, document_type]
-    );
-
-  if (!existingDocs.length) {
-
-    await db.promise().query(
-      `
-      INSERT INTO documents
-      (
-        lan,
-        document_type,
-        document_name,
-        document_path,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, NOW())
+      UPDATE esign_documents
+      SET
+        status = 'SIGNED',
+        signed_file_path = ?,
+        raw_response = ?
+      WHERE document_id = ?
       `,
       [
-        lan,
-        document_type,
-        signedFileName,
-        relativePath
+        savePath,
+        JSON.stringify(event),
+        orderId
       ]
     );
 
-    console.log(
-      "[DOQFY WEBHOOK] Document entry created"
+    /**
+     * INSERT INTO loan_documents
+     * SAME AS DIGIO
+     */
+    await connection.query(
+      `
+      INSERT INTO loan_documents
+      (
+        lan,
+        file_name,
+        original_name,
+        uploaded_at
+      )
+      VALUES (?, ?, ?, NOW())
+      `,
+      [
+        lan,
+        fileName,
+        `${document_type}_SIGNED`
+      ]
     );
 
-  } else {
+    /**
+     * UPDATE BOOKING TABLE
+     */
+    const col =
+      document_type === "SANCTION"
+        ? "sanction_esign_status"
+        : "agreement_esign_status";
+
+    await connection.query(
+      `
+      UPDATE ${bookingTable}
+      SET ${col} = 'SIGNED'
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    await connection.commit();
 
     console.log(
-      "[DOQFY WEBHOOK] Document already exists"
+      "[DOQFY WEBHOOK] Transaction committed"
     );
+
+  } catch (dbErr) {
+
+    await connection.rollback();
+
+    console.error(
+      "[DOQFY WEBHOOK] Transaction rollback:",
+      dbErr
+    );
+
+    throw dbErr;
+
+  } finally {
+
+    connection.release();
   }
 }
 
-    console.log(
-      "[DOQFY WEBHOOK] Completed successfully"
-    );
+    console.log("[DOQFY WEBHOOK] Completed successfully");
 
     res.send("ok");
-
   } catch (err) {
-    console.error(
-      "[DOQFY WEBHOOK] ERROR:",
-      err
-    );
+    console.error("[DOQFY WEBHOOK] ERROR:", err);
 
     res.status(500).send("error");
   }
 });
-
 
 /* ======================================================
    SANCTION & AGREEMENT GENERATION
@@ -1807,11 +1822,11 @@ router.get("/:lan/generate-sanction", async (req, res) => {
   const { bookingTable } = getLoanContext(lan);
 
   try {
-    const [rows] = await db.promise().query(
-      `SELECT * FROM ${bookingTable} WHERE lan=?`,
-      [lan]
-    );
-    if (!rows.length) return res.status(404).json({ message: "Loan not found" });
+    const [rows] = await db
+      .promise()
+      .query(`SELECT * FROM ${bookingTable} WHERE lan=?`, [lan]);
+    if (!rows.length)
+      return res.status(404).json({ message: "Loan not found" });
 
     const pdfName = await generateSanctionLetterPdf(lan);
     res.json({ success: true, pdfName, url: `/uploads/${pdfName}` });
@@ -1820,7 +1835,7 @@ router.get("/:lan/generate-sanction", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Sanction generation failed",
-      error: err.message
+      error: err.message,
     });
   }
 });
@@ -1834,21 +1849,21 @@ router.get("/:lan/generate-agreement", async (req, res) => {
     if (!result || !result.pdfName) {
       return res.status(500).json({
         success: false,
-        message: "Agreement PDF generation returned empty result"
+        message: "Agreement PDF generation returned empty result",
       });
     }
 
     res.json({
       success: true,
       pdfName: result.pdfName,
-      url: `/uploads/${result.pdfName}`
+      url: `/uploads/${result.pdfName}`,
     });
   } catch (err) {
     console.error("Generate agreement failed:", err);
     res.status(500).json({
       success: false,
       message: "Generate agreement failed",
-      error: err.message
+      error: err.message,
     });
   }
 });
