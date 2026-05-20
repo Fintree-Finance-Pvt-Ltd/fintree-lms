@@ -1440,6 +1440,33 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
   }
 });
 
+
+
+router.post("/test/:lan/esign/:type", authenticateUser, async (req, res) => {
+  const { lan, type } = req.params;
+  const { bookingTable } = getLoanContext(lan);
+
+  try {
+    if (type === "agreement") {
+      const [rows] = await db
+        .promise()
+        .query(
+          `SELECT sanction_esign_status FROM ${bookingTable} WHERE lan=?`,
+          [lan],
+        );
+    }
+
+    const out = await initDoqfyEsign(lan, type.toUpperCase());
+
+    // const out = await initEsign(lan, type.toUpperCase());
+
+    res.json(out);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 /* ======================================================
    DIGIO WEBHOOK
 ====================================================== */
