@@ -26,6 +26,12 @@ const UpdateUmrn = () => {
     else if (form.lan.startsWith("MC")) {
       table = "loan_booking_motion_corp";
     }
+    else if (form.lan.startsWith("CL")) {
+      table = "loan_booking_clayyo";
+    }
+    else if (form.lan.startsWith("SF")) {
+      table = "loan_booking_seven_fincorp";
+    }
     else{
       alert("Invalid LAN format");
       return;
@@ -64,7 +70,7 @@ const UpdateUmrn = () => {
         <div className="page-header">
           <div className="page-header-left">
             <div className="page-badge">Mandate Management</div>
-            <h1>Update UMRN For Helium</h1>
+            <h1>Update UMRN</h1>
             <p>
               Enter LAN and UMRN to update mandate details for the borrower.
             </p>
