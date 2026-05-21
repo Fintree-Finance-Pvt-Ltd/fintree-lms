@@ -18,13 +18,26 @@ const UpdateUmrn = () => {
       return;
     }
 
+    let table = "";
+
+    if (form.lan.startsWith("HEL")) {
+      table = "loan_booking_helium";
+    }
+    else if (form.lan.startsWith("MC")) {
+      table = "loan_booking_motion_corp";
+    }
+    else{
+      alert("Invalid LAN format");
+      return;
+    }
+
     try {
       setLoading(true);
 
       const res = await api.post("loan-booking/update-umrn", {
         lan: form.lan.trim(),
         umrn: form.umrn.trim(),
-        table: "loan_booking_helium",
+        table,
       });
 
       alert(res.data.message || "UMRN updated successfully");

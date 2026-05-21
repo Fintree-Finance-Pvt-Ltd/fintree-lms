@@ -2436,11 +2436,14 @@ router.post("/update-umrn", (req, res) => {
     loan_booking_finso: true,
     loan_booking_clayyo: true,
     loan_booking_circle_pe: true,
+    loan_booking_motion_corp: true,
     loan_booking_loan_digit: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
   };
+
+
 
   if (!allowedTables[table]) {
     return res.status(400).json({
