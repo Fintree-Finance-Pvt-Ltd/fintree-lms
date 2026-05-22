@@ -135,6 +135,12 @@ console.log("userId =>", userId);
   const cleanLan = String(lan).trim();
   const cleanPaymentId = String(payment_id).trim();
 
+  if (cleanLan.toUpperCase().startsWith("GQ")) {
+    return res.status(400).json({
+      message: "GQ products are not supported.",
+    });
+  }
+
   let logId = null;
 
   try {
