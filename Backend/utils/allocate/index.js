@@ -42,6 +42,7 @@ const allocateClayoo = require("./allocateClayoo");
 const allocateGQFSFFintree = require("./allocateGQFSFFintree");
 const allocateLoanDigit = require( "./allocateLoanDigit" );
 const allocateRapidMoney = require("./allocateRapidMoney");
+const allocateMotionCorp = require("./allocateMotionCorp");
 
 
 /**
@@ -84,6 +85,9 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   else if (lan.startsWith("SML")){
     return allocateRapidMoney(lan, payment);
   }
+  else if (lan.startsWith("MCL")) {
+  return allocateMotionCorp(lan, payment);
+}
   else if (lan.startsWith("FINS")) {
     return allocateFinso(lan, payment);
   }
