@@ -32,6 +32,9 @@ const UpdateUmrn = () => {
     else if (form.lan.startsWith("SF")) {
       table = "loan_booking_seven_fincorp";
     }
+    else if (form.lan.startsWith("LD")) {
+      table = "loan_booking_loan_digit";
+    }
     else{
       alert("Invalid LAN format");
       return;
