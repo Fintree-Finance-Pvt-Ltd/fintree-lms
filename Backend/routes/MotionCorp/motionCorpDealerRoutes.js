@@ -2423,4 +2423,128 @@ router.get("/operation-initiated-loans", async (req, res) => {
   }
 });
 
+router.post("/:lan/approve", async (req, res) => {
+   try {
+    const { lan } = req.params;
+
+    // Check loan exists
+    const [rows] = await db.promise().query(
+      `
+      SELECT lan, bank_status
+      FROM loan_booking_motion_corp
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    const loan = rows[0];
+
+    // CONDITION
+    if (
+      (loan.bank_status || "").toUpperCase() !==
+      "MANDATE_CREATED"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Loan cannot be approved until mandate is created",
+      });
+    }
+
+    // UPDATE STATUS
+    await db.promise().query(
+      `
+      UPDATE loan_booking_motion_corp
+      SET
+        status = 'Approved',
+        stage = 'Operation Approved',
+        updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    return res.json({
+      success: true,
+      message: "Loan approved successfully",
+    });
+  } catch (err) {
+    console.error("approveLoan error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
+
+router.post("/:lan/reject", async (req, res) => {
+   try {
+    const { lan } = req.params;
+
+    // Check loan exists
+    const [rows] = await db.promise().query(
+      `
+      SELECT lan, bank_status
+      FROM loan_booking_motion_corp
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    const loan = rows[0];
+
+    // CONDITION
+    if (
+      (loan.bank_status || "").toUpperCase() !==
+      "MANDATE_CREATED"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Loan cannot be rejected until mandate is created",
+      });
+    }
+
+    // UPDATE STATUS
+    await db.promise().query(
+      `
+      UPDATE loan_booking_motion_corp
+      SET
+        status = 'Rejected',
+        stage = 'Operation Rejected',
+        updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [lan]
+    );
+
+    return res.json({
+      success: true,
+      message: "Loan rejected successfully",
+    });
+  } catch (err) {
+    console.error("rejectLoan error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
+
 module.exports = router;
