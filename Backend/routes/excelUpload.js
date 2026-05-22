@@ -7426,7 +7426,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
     const [rows] = await db
       .promise()
       .query(
-        `SELECT * FROM loan_booking_clayyo WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+        `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
         [limit],
       );
 
@@ -7606,7 +7606,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
         await db
           .promise()
           .execute(
-            `UPDATE loan_booking_emiclub SET cibil_score = ? WHERE lan = ?`,
+            `UPDATE loan_booking_loan_digit SET fintree_cibil_score = ? WHERE lan = ?`,
             [score, lan],
           );
 
