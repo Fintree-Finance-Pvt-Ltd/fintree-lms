@@ -2459,6 +2459,8 @@ router.post("/update-umrn", (req, res) => {
     });
   }
 
+  console.log("console values", lan, umrn, table);
+
   const checkQuery = `SELECT lan FROM ?? WHERE lan = ?`;
   console.log("console query", checkQuery);
 
