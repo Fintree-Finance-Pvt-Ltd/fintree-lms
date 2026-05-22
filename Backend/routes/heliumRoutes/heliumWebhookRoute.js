@@ -976,10 +976,12 @@ router.post("/enach-webhook", async (req, res) => {
     const event = req.body.event;
     const mandate = req.body?.payload?.mandate;
     const mandateId = mandate?.id;
-
-    console.log("📥 eNACH WEBHOOK:", event, "Mandate:", mandateId);
+    const outsideId =req.body?.id;// This is the LA    console.log("📥 eNACH WEBHOOK:", event, "Mandate:", mandateId);
+    console.log("loggind full webhook payload:", JSON.stringify(req.body).slice(0, 800));
 
     if (!mandateId) return res.status(200).send("ignored");
+    console.log(" madate Id:", mandateId);
+    console.log("outside Id:", outsideId);
 
     // Save webhook JSON
     await db.promise().query(
@@ -1006,12 +1008,11 @@ router.post("/enach-webhook", async (req, res) => {
     // Update mandate table
     await db.promise().query(
       `UPDATE enach_mandates 
-       SET status=?, umrn=?, raw_response=? 
+       SET status=?, umrn=?
        WHERE document_id=?`,
       [
         newStatus,
         umrn,
-        JSON.stringify(mandate),
         mandateId
       ]
     );
@@ -1019,8 +1020,8 @@ router.post("/enach-webhook", async (req, res) => {
     // Update loan table status
     let bankStatus = "PENDING";
 
-    if (event === "mandate.auth_success") bankStatus = "AUTH_SUCCESS";
-    if (event === "mandate.register_success") bankStatus = "ACTIVE";
+    if (event === "mandate.auth_success") bankStatus = "MANDATE_CREATED";
+    if (event === "mandate.register_success") bankStatus = "MANDATE_CREATED";
     if (event === "mandate.auth_fail" || event === "mandate.register_failed") bankStatus = "FAILED";
 
     
@@ -1028,6 +1029,14 @@ router.post("/enach-webhook", async (req, res) => {
     if (lan.startsWith("HEL")) {
       await db.promise().query(
       `UPDATE loan_booking_helium 
+   SET bank_status = ?, enach_umrn = ? 
+   WHERE lan = ?`,
+      [bankStatus, umrn, lan]
+    );
+    }
+    if (lan.startsWith("MC")) {
+      await db.promise().query(
+      `UPDATE loan_booking_motion_corp 
    SET bank_status = ?, enach_umrn = ? 
    WHERE lan = ?`,
       [bankStatus, umrn, lan]

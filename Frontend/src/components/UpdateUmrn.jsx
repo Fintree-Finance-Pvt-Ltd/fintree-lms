@@ -18,13 +18,35 @@ const UpdateUmrn = () => {
       return;
     }
 
+    let table = "";
+
+    if (form.lan.startsWith("HEL")) {
+      table = "loan_booking_helium";
+    }
+    else if (form.lan.startsWith("MC")) {
+      table = "loan_booking_motion_corp";
+    }
+    else if (form.lan.startsWith("CL")) {
+      table = "loan_booking_clayyo";
+    }
+    else if (form.lan.startsWith("SF")) {
+      table = "loan_booking_seven_fincorp";
+    }
+    else if (form.lan.startsWith("LD")) {
+      table = "loan_booking_loan_digit";
+    }
+    else{
+      alert("Invalid LAN format");
+      return;
+    }
+
     try {
       setLoading(true);
 
       const res = await api.post("loan-booking/update-umrn", {
         lan: form.lan.trim(),
         umrn: form.umrn.trim(),
-        table: "loan_booking_helium",
+        table,
       });
 
       alert(res.data.message || "UMRN updated successfully");
@@ -51,7 +73,7 @@ const UpdateUmrn = () => {
         <div className="page-header">
           <div className="page-header-left">
             <div className="page-badge">Mandate Management</div>
-            <h1>Update UMRN For Helium</h1>
+            <h1>Update UMRN</h1>
             <p>
               Enter LAN and UMRN to update mandate details for the borrower.
             </p>

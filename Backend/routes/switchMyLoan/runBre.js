@@ -30,18 +30,6 @@ function calculateCreditLimit(data) {
   return roundDownToThousand(limit);
 }
 
-
-/**
- * AML Decision Engine
- */
-// function getAmlDecision(score) {
-
-//   if (score >= 90) return "REJECT";
-//   if (score >= 70) return "REVIEW";
-
-//   return "CLEAR";
-// }
-
 function getAmlDecision(score, totalMatches) {
 
   // No AML match → safe
@@ -51,21 +39,6 @@ function getAmlDecision(score, totalMatches) {
 
   return "REJECT";
 }
-
-// function getMobileRevocationDecision(result) {
-//   if (!result) return "CLEAR";
-
-//   if (result.mobile_number_status === "REVOKED")
-//     return "REJECT";
-
-//   if (
-//     result.fri_status === "Flagged for reverification" ||
-//     result.severity_index === "Very High Severity"
-//   )
-//     return "REVIEW";
-
-//   return "CLEAR";
-// }
 
 function getMobileRevocationDecision(result) {
 
@@ -79,7 +52,7 @@ function getMobileRevocationDecision(result) {
     result.mobile_number_status === "SUSPECTED" ||
     result.severity_index === "Very High Severity"
   )
-    return "REJECT"; // earlier REVIEW
+    return "REJECT";
 
   return "CLEAR";
 }
