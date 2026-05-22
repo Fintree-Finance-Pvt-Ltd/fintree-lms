@@ -115,7 +115,10 @@ const ReverseRepayment = () => {
       errors.lan = "LAN is required.";
     } else if (trimmed.lan.length < 3) {
       errors.lan = "Enter a valid LAN.";
-    }
+    } // NEW CONDITION
+  else if (trimmed.lan.toUpperCase().startsWith("GQ")) {
+    errors.lan = "GQ products are not supported.";
+  }
 
     if (!trimmed.payment_id) {
       errors.payment_id = "Payment ID is required.";
