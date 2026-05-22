@@ -4520,6 +4520,248 @@ const generateRepaymentScheduleAdikosh = async (
 
 ////////////////////////ADIKOSH END //////////////////////////////////
 
+///////////////// Motion corp RPS Start /////////////////////////
+
+const generateRepaymentScheduleMotionCorp = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate, // Flat ROI
+  tenure,
+  disbursementDate,
+  product,
+  lender,
+) => {
+
+  const principal = Number(loanAmount);
+  const flatRate = Number(interestRate);
+  const months = Number(tenure);
+
+  if (!principal || !flatRate || !months) {
+    throw new Error(`Invalid MotionCorp inputs for LAN ${lan}`);
+  }
+
+  // =========================================================
+  // STEP 1: FLAT INTEREST CALCULATION
+  // =========================================================
+
+  const totalFlatInterest =
+    principal *
+    (flatRate / 100) *
+    (months / 12);
+
+  const totalRepayment =
+    principal + totalFlatInterest;
+
+  // Rounded EMI
+  const emi = Math.round(
+    totalRepayment / months
+  );
+
+  console.log(`✅ MotionCorp EMI: ${emi}`);
+
+  // =========================================================
+  // STEP 2: CONVERT FLAT ROI TO REDUCING ROI
+  // =========================================================
+
+  const getReducingMonthlyRate = () => {
+
+    let low = 0;
+    let high = 0.1;
+    let mid = 0;
+
+    for (let i = 0; i < 200; i++) {
+
+      mid = (low + high) / 2;
+
+      let balance = principal;
+      let totalInterestCheck = 0;
+
+      for (let m = 1; m <= months; m++) {
+
+        const interest =
+          Math.round(balance * mid);
+
+        let principalComponent =
+          emi - interest;
+
+        if (m === months) {
+          principalComponent = balance;
+        }
+
+        totalInterestCheck += interest;
+
+        balance -= principalComponent;
+      }
+
+      if (totalInterestCheck > totalFlatInterest) {
+        high = mid;
+      } else {
+        low = mid;
+      }
+    }
+
+    return mid;
+  };
+
+  const reducingMonthlyRate =
+    getReducingMonthlyRate();
+
+  const reducingAnnualRate = Number(
+    (reducingMonthlyRate * 12 * 100).toFixed(2)
+  );
+
+  console.log(
+    `✅ MotionCorp Flat ROI: ${flatRate}%`
+  );
+
+  console.log(
+    `✅ MotionCorp Reducing ROI: ${reducingAnnualRate}%`
+  );
+
+  // =========================================================
+  // STEP 3: FIRST EMI DATE
+  // =========================================================
+
+  const firstDueRaw = getFirstEmiDate(
+    disbursementDate,
+    null,
+    lender,
+    product,
+  );
+
+  const firstDueDate =
+    new Date(firstDueRaw);
+
+  if (Number.isNaN(firstDueDate.getTime())) {
+
+    throw new Error(
+      `Invalid MotionCorp first due date: ${firstDueRaw}`
+    );
+  }
+
+  // =========================================================
+  // STEP 4: GENERATE RPS
+  // =========================================================
+
+  let openingPrincipal = principal;
+
+  let dueDate =
+    new Date(firstDueDate);
+
+  const rpsData = [];
+
+  for (let i = 1; i <= months; i++) {
+
+    let interest = Math.round(
+      openingPrincipal *
+      reducingMonthlyRate
+    );
+
+    let principalComponent =
+      emi - interest;
+
+    // =====================================================
+    // FINAL EMI ADJUSTMENT
+    // Keep EMI same and adjust interest
+    // =====================================================
+
+    if (i === months) {
+
+      principalComponent =
+        Math.round(openingPrincipal);
+
+      interest =
+        emi - principalComponent;
+    }
+
+    const closingPrincipal =
+      Math.max(
+        0,
+        openingPrincipal -
+        principalComponent
+      );
+
+    rpsData.push([
+      lan,
+      dueDate.toISOString().split("T")[0],
+
+      // EMI
+      emi,
+
+      // Interest
+      interest,
+
+      // Principal
+      principalComponent,
+
+      // Remaining Principal
+      principalComponent,
+
+      // Remaining Interest
+      interest,
+
+      // Remaining EMI
+      emi,
+
+      // Opening
+      Math.round(openingPrincipal),
+
+      // Closing
+      Math.round(closingPrincipal),
+
+      "Pending",
+    ]);
+
+    openingPrincipal =
+      closingPrincipal;
+
+    dueDate.setMonth(
+      dueDate.getMonth() + 1
+    );
+  }
+
+  // =========================================================
+  // STEP 5: INSERT RPS
+  // =========================================================
+
+  await conn.query(
+    `INSERT INTO manual_rps_motioncorp
+     (
+       lan,
+       due_date,
+       emi,
+       interest,
+       principal,
+       remaining_principal,
+       remaining_interest,
+       remaining_emi,
+       opening,
+       closing,
+       status
+     )
+     VALUES ?`,
+    [rpsData],
+  );
+
+  // =========================================================
+  // STEP 6: UPDATE EMI AMOUNT
+  // =========================================================
+
+  await conn.query(
+    `UPDATE loan_booking_motion_corp
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [emi, lan],
+  );
+
+  console.log(
+    `✅ MotionCorp RPS generated successfully for ${lan}`
+  );
+};
+
+/////////////// motion corp RPS End /////////////////////////
+
 ///// WIth PRE EMI /////////////
 // const generateRepaymentScheduleAdikosh = async (
 //   lan,
@@ -4974,7 +5216,19 @@ const generateRepaymentSchedule = async (
       product,
       lender,
     );
-  } else if (lender === "HELIUM") {
+  }else if (lender === "Motion Corp") {
+
+  await generateRepaymentScheduleMotionCorp(
+    conn,
+    lan,
+    loanAmount,
+    interestRate,
+    tenure,
+    disbursementDate,
+    product,
+    lender,
+  );
+} else if (lender === "HELIUM") {
     await generateRepaymentScheduleHelium(
       conn,
       lan,

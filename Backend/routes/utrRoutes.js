@@ -576,11 +576,9 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       );
 
       if (!disbursementUTR || !disbursementDate || !lan) {
-        const reason = `Missing required fields: ${
-          !disbursementUTR ? "Disbursement UTR " : ""
-        }${!disbursementDate ? "Disbursement Date " : ""}${
-          !lan ? "LAN" : ""
-        }`.trim();
+        const reason = `Missing required fields: ${!disbursementUTR ? "Disbursement UTR " : ""
+          }${!disbursementDate ? "Disbursement Date " : ""}${!lan ? "LAN" : ""
+          }`.trim();
         rowErrors.push({
           lan: lan || null,
           utr: disbursementUTR || null,
@@ -634,7 +632,7 @@ WHERE lan = ?`,
              FROM loan_booking_ev WHERE lan = ?`,
             [lan],
           );
-        }else if (lan.startsWith("LDF")) {
+        } else if (lan.startsWith("LDF")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_loan_digit WHERE lan = ?`,
@@ -665,7 +663,21 @@ WHERE lan = ?`,
              FROM loan_booking_circle_pe WHERE lan = ?`,
             [lan],
           );
-        } else if (lan.startsWith("CLYO")) {
+        }
+        else if (lan.startsWith("MCL")) {
+          [loanRes] = await db.promise().query(
+            `SELECT 
+      loan_amount,
+      interest_rate,
+      loan_tenure,
+      product,
+      lender
+     FROM loan_booking_motion_corp
+     WHERE lan = ?`,
+            [lan],
+          );
+        }
+        else if (lan.startsWith("CLYO")) {
           [loanRes] = await db.promise().query(
             `SELECT final_limit AS loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_clayyo WHERE lan = ?`,
@@ -857,7 +869,17 @@ WHERE lan = ?`,
               "UPDATE loan_booking_hey_ev_battery SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
-          } else if (lan.startsWith("CLYO")) {
+          }
+          else if (lan.startsWith("MCL")) {
+            await conn.query(
+              `UPDATE loan_booking_motion_corp
+     SET status = 'Disbursed',
+         stage = 'Disbursed'
+     WHERE lan = ?`,
+              [lan],
+            );
+          }
+          else if (lan.startsWith("CLYO")) {
             await conn.query(
               "UPDATE loan_booking_clayyo SET status = 'Disbursed' , stage = 'Disbursed' WHERE lan = ?",
               [lan],
@@ -1098,11 +1120,11 @@ WHERE lan = ?`,
         });
         try {
           if (conn) await conn.rollback();
-        } catch (_) {}
+        } catch (_) { }
       } finally {
         try {
           if (conn) conn.release();
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 
