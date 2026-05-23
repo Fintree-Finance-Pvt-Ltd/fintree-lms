@@ -198,6 +198,7 @@ import BundelaAllLoans from "./components/Bundela/BundelaAllLoans";
 import BundelaApprovedLoans from "./components/Bundela/BundelaApprovedLoans";
 import BundelaDisburseInitiate from "./components/Bundela/BundelaDisburseInitiate";
 import BundelaDetails from "./components/Bundela/BundelaDetails";
+import MotionCorpOperationApproval from "./components/Motion Corp/MotionCorpOperationApproval";
 
 
 
@@ -1511,6 +1512,15 @@ function App() {
             element={
               <PermissionRoute pageName="Motion Corp Customer Credit Approved Cases Screen">
                 <MotionCorpApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/motion-corp/operation-approval-cases"
+            element={
+              <PermissionRoute pageName="Motion Corp Customer Operation Approval Cases Screen">
+                <MotionCorpOperationApproval />
               </PermissionRoute>
             }
           />
