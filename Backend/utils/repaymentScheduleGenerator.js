@@ -4588,33 +4588,23 @@ const generateRepaymentScheduleMotionCorp = async (
   // STEP 4 : FIRST EMI DATE
   // =====================================================
 
-  const disbDate =
-    new Date(disbursementDate);
+   const firstDueRaw = getFirstEmiDate(
+    disbursementDate,
+    null,
+    lender,
+    product,
+  );
 
-  const disbDay =
-    disbDate.getDate();
+  const firstDueDate =
+    new Date(firstDueRaw);
 
-  let firstDueDate;
+  if (Number.isNaN(firstDueDate.getTime())) {
 
-  // 1-15 => next month 5th
-  // 16-31 => next to next month 5th
-
-  if (disbDay <= 15) {
-
-    firstDueDate = new Date(
-      disbDate.getFullYear(),
-      disbDate.getMonth() + 1,
-      5
-    );
-
-  } else {
-
-    firstDueDate = new Date(
-      disbDate.getFullYear(),
-      disbDate.getMonth() + 2,
-      5
+    throw new Error(
+      `Invalid MotionCorp first due date: ${firstDueRaw}`
     );
   }
+
 
   // =====================================================
   // STEP 5 : PRE EMI DAYS
@@ -4947,6 +4937,7 @@ const generateRepaymentScheduleMotionCorp = async (
     rpsData,
   };
 };
+
 /////////////// motion corp RPS End /////////////////////////
 
 ///// WIth PRE EMI /////////////
