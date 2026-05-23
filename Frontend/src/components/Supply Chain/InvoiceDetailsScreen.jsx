@@ -86,28 +86,30 @@ api.get("/supply-chain/invoices/rps", {
     fetchData();
   }, [fetchData]);
 
-  const formatDateSafe = (dateStr) => {
+ const formatDateSafe = (dateStr) => {
   if (!dateStr) return "—";
 
-  const [y, m, d] = dateStr.split("-");
-  return `${d}-${m}-${y}`;
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}-${month}-${year}`;
 };
 
-
-  const columns = [
-
-    {
-  key: "daily_date",
-  header: "Date",
-  sortable: true,
-  render: (r) =>
-  r.daily_date
-    ? formatDateSafe(r.daily_date)
-    : "—",
-  sortAccessor: (r) =>
-    r.daily_date ? Date.parse(r.daily_date) : 0,
-  width: 150,
-},
+const columns = [
+  {
+    key: "daily_date",
+    header: "Date",
+    sortable: true,
+    render: (r) =>
+      r.daily_date ? formatDateSafe(r.daily_date) : "—",
+    sortAccessor: (r) =>
+      r.daily_date ? Date.parse(r.daily_date) : 0,
+    width: 150,
+  },
 
     {
       key: "remaining_principal",
