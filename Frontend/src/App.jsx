@@ -200,18 +200,10 @@ import BundelaDisburseInitiate from "./components/Bundela/BundelaDisburseInitiat
 import BundelaDetails from "./components/Bundela/BundelaDetails";
 import MotionCorpOperationApproval from "./components/Motion Corp/MotionCorpOperationApproval";
 
-
-
-
 function App() {
   return (
     <Router>
-
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        theme="colored"
-      />
+      <ToastContainer position="top-right" autoClose={3000} theme="colored" />
 
       {/* <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
@@ -220,8 +212,6 @@ function App() {
   */}
 
       <Routes>
-
-
         {/* ✅ Public routes */}
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
@@ -236,9 +226,7 @@ function App() {
         >
           <Route path="/esign/success" element={<EsignSuccess />} />
           <Route path="/esign/error" element={<EsignError />} />
-
           {/* ✅ All pages go INSIDE this layout block */}
-
           <Route
             path="/dashboard"
             element={
@@ -247,7 +235,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/products-dashboard"
             element={
@@ -256,7 +243,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/admin-panel"
             element={
@@ -265,7 +251,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/excel-upload"
             element={
@@ -274,7 +259,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/ev-manual-entry"
             element={
@@ -283,7 +267,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/manual-rps-upload"
             element={
@@ -292,7 +275,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/repayments-upload"
             element={
@@ -301,7 +283,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/create-charges"
             element={
@@ -310,7 +291,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/delete-cashflow"
             element={
@@ -319,7 +299,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/customer-soa"
             element={
@@ -328,7 +307,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/upload-utr"
             element={
@@ -337,7 +315,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/forecloserUpload"
             element={
@@ -346,7 +323,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/loan-application-form"
             element={
@@ -355,7 +331,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/products-excel-format"
             element={
@@ -364,9 +339,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* WCTL CCOD LOAN ROUTES */}
-
           <Route
             path="/wctl-ccod/loan-booking-wctl-ccod"
             element={
@@ -375,7 +348,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/wctl-ccod/all-loans"
             element={
@@ -384,7 +356,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/wctl-ccod/add-inventory/:lan"
             element={
@@ -393,7 +364,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/wctl-ccod/add-invoice/:lan"
             element={
@@ -402,7 +372,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/wctl-ccod/repayment/:lan"
             element={
@@ -411,7 +380,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/wctl-ccod/interest-ledger/:lan"
             element={
@@ -420,9 +388,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* ✅ Helium Loan routes */}
-
           <Route
             path="/helium-loans/manual-entry"
             element={
@@ -431,7 +397,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/helium-loans/all-loans"
             element={
@@ -440,7 +405,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/helium-loans/approved-loans"
             element={
@@ -449,7 +413,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/approved-loan-details-helium/:lan"
             element={
@@ -467,7 +430,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/clayoo-loans/hospital-entry"
             element={
@@ -476,7 +438,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/clayoo-loans/login-actions"
             element={
@@ -485,14 +446,10 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/approved-loan-details-clayoo/:lan"
-            element={
-              <ClayyoApprovedLoanDetails />
-            }
+            element={<ClayyoApprovedLoanDetails />}
           />
-
           <Route
             path="/clayoo-loans/login-cases"
             element={
@@ -509,7 +466,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/clayoo-loans/hospital-lists"
             element={
@@ -518,7 +474,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/clayoo-loans/hospital-login-actions"
             element={
@@ -527,7 +482,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/clayoo-loans/approved-loans"
             element={
@@ -544,7 +498,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/clayoo-loans/credit-approved-loans"
             element={
@@ -561,7 +514,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* Loan Digit */}
           <Route
             path="/loan-digit/login-cases"
@@ -571,7 +523,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/loan-digit/credit-approval-actions"
             element={
@@ -580,7 +531,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/loan-digit/operation-approval-actions"
             element={
@@ -589,7 +539,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/loan-digit/approved-loans"
             element={
@@ -598,7 +547,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/loan-digit/disbursed-loans"
             element={
@@ -607,7 +555,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/loan-digit/all-loans"
             element={
@@ -616,7 +563,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/loan-digit/customer-details"
             element={
@@ -625,9 +571,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* ✅ Loan routes */}
-
           <Route
             path="/ev-loans/approved"
             element={
@@ -660,7 +604,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/ev-loans/login-actions"
             element={
@@ -669,7 +612,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/ev-loans/approve-initiate-actions"
             element={
@@ -678,9 +620,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* ✅ Loan routes */}
-
           <Route
             path="/hey-ev-loans/approved"
             element={
@@ -713,7 +653,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/hey-ev-loans/login-actions"
             element={
@@ -722,7 +661,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/hey-ev-loans/approve-initiate-actions"
             element={
@@ -731,9 +669,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* ✅ Loan routes */}
-
           <Route
             path="/finso-loans/approved"
             element={
@@ -766,7 +702,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/finso-loans/login-actions"
             element={
@@ -775,7 +710,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/finso-loans/approve-initiate-actions"
             element={
@@ -784,9 +718,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* ✅ Loan routes */}
-
           <Route
             path="/emiclub-loans/approved"
             element={
@@ -819,7 +751,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/emiclub-loans/login-actions"
             element={
@@ -828,7 +759,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/emiclub-loans/approve-initiate-actions"
             element={
@@ -837,7 +767,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* ///////////////    ZYPAY LOAN */}
           <Route
             path="/zypay-loans/approved"
@@ -871,7 +800,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/zypay-loans/login-actions"
             element={
@@ -880,7 +808,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/zypay-loans/approve-initiate-actions"
             element={
@@ -889,7 +816,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/embifi-loans/approved"
             element={
@@ -906,7 +832,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/embifi-loans/collection-remarks"
             element={
@@ -915,7 +840,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/embifi-loans/all"
             element={
@@ -924,7 +848,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/business-loans/approved"
             element={
@@ -950,7 +873,6 @@ function App() {
             }
           />
           {/* ✅ SUPPLY CHAIN LOAN ROUTES */}
-
           <Route
             path="/supply-chain-loans/approved"
             element={
@@ -959,7 +881,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/supply-chain-loans/disbursed"
             element={
@@ -968,7 +889,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/supply-chain-loans/all"
             element={
@@ -977,7 +897,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/gq-fsf-loans/approved"
             element={
@@ -1010,7 +929,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/gq-fsf-loans/login-actions"
             element={
@@ -1019,7 +937,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/gq-fsf-loans/approve-initiate-actions"
             element={
@@ -1028,9 +945,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route path="/documents/:lan" element={<DocumentsPage />} />
-
           <Route
             path="/gq-non-fsf-loans/approved"
             element={
@@ -1063,7 +978,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/gq-non-fsf-loans/login-actions"
             element={
@@ -1072,7 +986,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/gq-non-fsf-loans/approve-initiate-actions"
             element={
@@ -1113,7 +1026,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/adikosh-loans/login-actions"
             element={
@@ -1122,7 +1034,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/adikosh-loans/approve-initiate-actions"
             element={
@@ -1131,7 +1042,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/circlepe-loans/approved"
             element={
@@ -1164,7 +1074,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/circlepe-loans/login-actions"
             element={
@@ -1173,7 +1082,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/circlepe-loans/approve-initiate-actions"
             element={
@@ -1182,7 +1090,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/elysium-loans/approved"
             element={
@@ -1247,7 +1154,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/loan-details/:lan"
             element={
@@ -1256,7 +1162,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/approved-loan-details/:lan"
             element={
@@ -1265,7 +1170,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* MIS */}
           <Route
             path="/mis-reports/listing"
@@ -1299,10 +1203,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
-
           {/* Switch my loan Routes */}
-
           <Route
             path="/sml-loans/disburse-initiate"
             element={
@@ -1311,7 +1212,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sml-loans/login-loans"
             element={
@@ -1320,7 +1220,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sml-loans/all-loans"
             element={
@@ -1329,9 +1228,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* ✅ Hey EV Battery Loan routes */}
-
           <Route
             path="/hey-ev-battery-loans/approved"
             element={
@@ -1340,7 +1237,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/hey-ev-battery-loans/disbursed"
             element={
@@ -1349,7 +1245,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/hey-ev-battery-loans/all"
             element={
@@ -1366,7 +1261,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/hey-ev-battery-loans/login-cases"
             element={
@@ -1375,7 +1269,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/hey-ev-battery-loans/login-actions"
             element={
@@ -1392,7 +1285,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/hey-ev-battery-loans/approve-initiate-actions"
             element={
@@ -1401,9 +1293,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* ✅ Motion Corp Dealer Entry routes */}
-
           <Route
             path="/motion-corp/dealer-entry"
             element={
@@ -1420,7 +1310,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/dealer-login-actions"
             element={
@@ -1429,7 +1318,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/loan-booking"
             element={
@@ -1438,7 +1326,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/dealer-login-cases"
             element={
@@ -1447,7 +1334,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/dealer-credit-actions"
             element={
@@ -1456,7 +1342,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/dealer-approved-loans"
             element={
@@ -1465,12 +1350,10 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/dealer-details/:lan"
             element={<MotionCorpDealerDetails />}
           />
-
           <Route
             path="/motion-corp/dealer-all-cases"
             element={
@@ -1479,7 +1362,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/all-loans"
             element={
@@ -1488,7 +1370,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/login-cases"
             element={
@@ -1497,7 +1378,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/credit-initiated-cases"
             element={
@@ -1506,7 +1386,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/credit-approved-cases"
             element={
@@ -1515,7 +1394,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/operation-approval-cases"
             element={
@@ -1524,8 +1402,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
-
           <Route
             path="/motion-corp/customer-details"
             element={
@@ -1534,175 +1410,151 @@ function App() {
               </PermissionRoute>
             }
           />
-
-{/* ✅ Seven Fincorp Pages */}
-
-{/* ✅ Seven Fincorp Dealer Entry routes */}
-
-/* =========================
-   ✅ Seven Fincorp Routes
-========================= */
-
-<Route
-  path="/seven-fincorp/dealer-entry"
-  element={
-    <PermissionRoute pageName="Seven Fincorp Dealer Entry">
-      <SevenFinCorpDealerEntry />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/seven-fincorp/dealer-lists"
-  element={
-    <PermissionRoute pageName="Seven Fincorp Dealer Lists">
-      <SevenFinCorpDealerLists />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/seven-fincorp/loan-booking"
-  element={
-    <PermissionRoute pageName="Seven Fincorp Loan Booking">
-      <SevenFinCorpLoanBooking />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/seven-fincorp/dealer-login-cases"
-  element={
-    <PermissionRoute pageName="Seven Fincorp Dealer Login Cases">
-      <SevenFinCorpLoginCases />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/seven-fincorp/dealer-approved-loans"
-  element={
-    <PermissionRoute pageName="Seven Fincorp Dealer Operation Approval Loans">
-      <SevenFinCorpApprovedLoans />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/seven-fincorp/dealer-details/:lan"
-  element={<SevenFinCorpDealerDetails />}
-/>
-
-<Route
-  path="/seven-fincorp/all-loans"
-  element={
-    <PermissionRoute pageName="Seven Fincorp Customer All Cases Screen">
-      <SevenFinCorpAllLoans />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/seven-fincorp/login-cases"
-  element={
-    <PermissionRoute pageName="Seven Fincorp Customer Login Cases Screen">
-      <SevenFinCorpLoginCases />
-    </PermissionRoute>
-  }
-/>
-
-
-
-<Route
-  path="/seven-fincorp/customer-details"
-  element={
-    <PermissionRoute pageName="Seven Fincorp Customer Details">
-      <SevenFinCorpDetails />
-    </PermissionRoute>
-  }
-/>
-
-{/* =========================
+          {/* ✅ Seven Fincorp Pages */}
+          {/* ✅ Seven Fincorp Dealer Entry routes */}
+          {/* =========================
+              ✅ Seven Fincorp Routes
+                  ========================= */}
+          <Route
+            path="/seven-fincorp/dealer-entry"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Dealer Entry">
+                <SevenFinCorpDealerEntry />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/seven-fincorp/dealer-lists"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Dealer Lists">
+                <SevenFinCorpDealerLists />
+              </PermissionRoute>
+            }
+          />{" "}
+          x
+          <Route
+            path="/seven-fincorp/loan-booking"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Loan Booking">
+                <SevenFinCorpLoanBooking />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/seven-fincorp/dealer-login-cases"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Dealer Login Cases">
+                <SevenFinCorpLoginCases />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/seven-fincorp/dealer-approved-loans"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Dealer Operation Approval Loans">
+                <SevenFinCorpApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/seven-fincorp/dealer-details/:lan"
+            element={<SevenFinCorpDealerDetails />}
+          />
+          <Route
+            path="/seven-fincorp/all-loans"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Customer All Cases Screen">
+                <SevenFinCorpAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/seven-fincorp/login-cases"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Customer Login Cases Screen">
+                <SevenFinCorpLoginCases />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/seven-fincorp/customer-details"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Customer Details">
+                <SevenFinCorpDetails />
+              </PermissionRoute>
+            }
+          />
+          {/* =========================
    ✅ Bundela Routes
 ========================= */}
-
-<Route
-  path="/bundela/dealer-entry"
-  element={
-    <PermissionRoute pageName="Bundela Dealer Entry">
-      <BundelaDealerEntry />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/bundela/dealer-lists"
-  element={
-    <PermissionRoute pageName="Bundela Dealer Lists">
-      <BundelaDealerLists />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/bundela/loan-booking"
-  element={
-    <PermissionRoute pageName="Bundela Loan Booking">
-      <BundelaLoanBooking />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/bundela/dealer-login-cases"
-  element={
-    <PermissionRoute pageName="Bundela Dealer Login Cases">
-      <BundelaLoginCases />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/bundela/dealer-approved-loans"
-  element={
-    <PermissionRoute pageName="Bundela Dealer Operation Approval Loans">
-      <BundelaApprovedLoans />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/bundela/dealer-details/:lan"
-  element={<BundelaDealerDetails />}
-/>
-
-<Route
-  path="/bundela/all-loans"
-  element={
-    <PermissionRoute pageName="Bundela Customer All Cases Screen">
-      <BundelaAllLoans />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/bundela/login-cases"
-  element={
-    <PermissionRoute pageName="Bundela Customer Login Cases Screen">
-      <BundelaLoginCases />
-    </PermissionRoute>
-  }
-/>
-
-<Route
-  path="/bundela/customer-details"
-  element={
-    <PermissionRoute pageName="Bundela Customer Details">
-      <BundelaDetails />
-    </PermissionRoute>
-  }
-/>
-
+          <Route
+            path="/bundela/dealer-entry"
+            element={
+              <PermissionRoute pageName="Bundela Dealer Entry">
+                <BundelaDealerEntry />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/bundela/dealer-lists"
+            element={
+              <PermissionRoute pageName="Bundela Dealer Lists">
+                <BundelaDealerLists />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/bundela/loan-booking"
+            element={
+              <PermissionRoute pageName="Bundela Loan Booking">
+                <BundelaLoanBooking />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/bundela/dealer-login-cases"
+            element={
+              <PermissionRoute pageName="Bundela Dealer Login Cases">
+                <BundelaLoginCases />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/bundela/dealer-approved-loans"
+            element={
+              <PermissionRoute pageName="Bundela Dealer Operation Approval Loans">
+                <BundelaApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/bundela/dealer-details/:lan"
+            element={<BundelaDealerDetails />}
+          />
+          <Route
+            path="/bundela/all-loans"
+            element={
+              <PermissionRoute pageName="Bundela Customer All Cases Screen">
+                <BundelaAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/bundela/login-cases"
+            element={
+              <PermissionRoute pageName="Bundela Customer Login Cases Screen">
+                <BundelaLoginCases />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/bundela/customer-details"
+            element={
+              <PermissionRoute pageName="Bundela Customer Details">
+                <BundelaDetails />
+              </PermissionRoute>
+            }
+          />
           {/* Partner Limit Management */}
           <Route
             path="/partners/limits"
@@ -1712,7 +1564,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/update-umrn"
             element={
@@ -1721,7 +1572,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/retention-release"
             element={
@@ -1730,7 +1580,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/fldg-entry"
             element={
@@ -1747,7 +1596,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/partners-master"
             element={
@@ -1756,7 +1604,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* <Route
             path="/fldg-ledger/:partnerId"
             element={
@@ -1765,12 +1612,8 @@ function App() {
               </PermissionRoute>
             }
           /> */}
-
-          <Route path="/fldg-ledger/:partnerId"
-            element={<FldgLedgerPage />} />
-
+          <Route path="/fldg-ledger/:partnerId" element={<FldgLedgerPage />} />
           {/* supply chain rotues */}
-
           <Route
             path="/supply-chain-loans/customers-list"
             element={
@@ -1779,40 +1622,42 @@ function App() {
               </PermissionRoute>
             }
           />
-
-          <Route path="/supply-chain-loans/invoice-entry"
-            element={<PermissionRoute pageName="SC Invoice Entry">
-              <SupplyChainInvoiceEntry />
-            </PermissionRoute>} />
-
-          <Route path="/supply-chain-loans/collection-entry"
-            element={<PermissionRoute pageName="SC Collection Entry">
-              <SupplyChainCollectionEntry />
-            </PermissionRoute>} />
-
-          <Route path="/customers/:lan/invoices"
-            element={<InvoiceListScreen />} />
-
+          <Route
+            path="/supply-chain-loans/invoice-entry"
+            element={
+              <PermissionRoute pageName="SC Invoice Entry">
+                <SupplyChainInvoiceEntry />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/supply-chain-loans/collection-entry"
+            element={
+              <PermissionRoute pageName="SC Collection Entry">
+                <SupplyChainCollectionEntry />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/customers/:lan/invoices"
+            element={<InvoiceListScreen />}
+          />
           <Route
             path="/invoices/:invoice_number"
             element={<InvoiceDetailsScreen />}
           />
-
           <Route
             path="/customers/:lan/repayments"
             element={<RepaymentListScreen />}
           />
-
           <Route
             path="/customers/:partner_loan_id/suppliers"
             element={<SupplierListScreen />}
           />
-
           <Route
             path="/customers/:lan/allocation"
             element={<AllocationListScreen />}
           />
-
           <Route
             path="/customers/:partner_loan_id"
             element={<CustomerDetailsScreen />}
