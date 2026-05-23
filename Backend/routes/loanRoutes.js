@@ -80,6 +80,15 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("LDF")) {
     table = "loan_booking_loan_digit";
     posTable = "manual_rps_loan_digit";
+  } else if (lan.startsWith("MC")) {
+    table = "loan_booking_motion_corp";
+    posTable = "manual_rps_motioncorp";
+  }else if (lan.startsWith("SF")) {
+    table = "loan_booking_seven_fincorp";
+    posTable = "manual_rps_seven_fincorp";
+  }else if (lan.startsWith("BUN")) {
+    table = "loan_booking_bundela";
+    posTable = "manual_rps_bundela";
   } else if (lan.startsWith("FCCOD")) {
     table = "loan_booking_wctl_cc_od";
   }

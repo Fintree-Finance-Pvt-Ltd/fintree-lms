@@ -33,7 +33,7 @@ const LoanDetails = ({ data }) => {
 
         <div className="loan-details-field">
           <label>Email</label>
-          <input type="text" value={data.email_id} readOnly />
+          <input type="text" value={data.email_id || data.email} readOnly />
         </div>
 
         <div className="loan-details-field">
