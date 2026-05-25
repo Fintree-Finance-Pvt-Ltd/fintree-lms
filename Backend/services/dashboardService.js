@@ -189,7 +189,7 @@ const PRODUCT_MAP = {
   },
   "Motion Corp": {
     rpsTable:      "manual_rps_motion_corp",
-    bookTable:     "loan_booking_motion_corp",
+    bookTable:     "loan_booking_motioncorp",
     disbField:     "loan_amount",
     collType:      "subquery",
     allocTable:    "allocation",
