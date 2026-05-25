@@ -218,8 +218,8 @@ const PRODUCT_MAP = {
     disbDateSource:"utr",
   },
   Zebrs: {
-    rpsTable:      "manual_rps_Zebrs",
-    bookTable:     "loan_booking_Zebrs",
+    rpsTable:      "manual_rps_zebrs",
+    bookTable:     "loan_booking_zebrs",
     disbField:     "loan_amount",
     collType:      "subquery",
     allocTable:    "allocation",
