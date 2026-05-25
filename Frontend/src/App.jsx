@@ -1097,6 +1097,54 @@ function App() {
             }
           />
           <Route
+            path="/circlepe-houser-loans/approved"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Approved Loans">
+                <CirclePeHouserApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/disbursed"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Disbursed Loans">
+                <CirclePeHouserDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/all"
+            element={
+              <PermissionRoute pageName="CirclePe Houser All Loans">
+                <CirclePeHouserAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/login-cases"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Login Loans">
+                <CirclePeHouserLoginLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/login-actions"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Login Actions">
+                <CirclePeHouserActionScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Disburse Initiated">
+                <CirclePeHouserApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="/elysium-loans/approved"
             element={
               <PermissionRoute pageName="Elysium Approved Loans">
