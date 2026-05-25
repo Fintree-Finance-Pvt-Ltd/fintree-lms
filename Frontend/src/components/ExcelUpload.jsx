@@ -226,6 +226,8 @@ const CreateLoanBooking = () => {
         return `/loan-booking/upload-embifi`;
       case "CirclePE":
         return `/loan-booking/circle-pe-upload`;
+      case "Circle Pe Houser":
+        return `/loan-booking/circle-pe-houser-upload`;
       case "WCTL":
         return `/loan-booking/wctl-upload`;
       default:
@@ -334,6 +336,7 @@ const CreateLoanBooking = () => {
           <option value="Adikosh">Adikosh</option>
           <option value="Embifi">Embifi</option>
           <option value="CirclePE">Circle PE</option>
+          <option value="Circle Pe Houser">Circle Pe Houser</option>
           <option value="WCTL">WCTL</option>
           <option value="HeyEV Battery">Hey EV Battery</option>
 

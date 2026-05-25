@@ -47,6 +47,18 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
+   if (lan.startsWith("CIRHUF")) {
+    tableName = "loan_booking_circle_pe_houser";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.loan_tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+  }
 
 
   if (lan.startsWith("HEYEV")) {

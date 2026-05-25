@@ -1859,6 +1859,154 @@ const generateRepaymentScheduleCirclePE = async (
     `✅ Circlepe RPS generated for ${lan} (${isBullet ? "Bullet (one-time)" : "Monthly Loan"})`,
   );
 };
+const generateRepaymentScheduleCirclePeHouser = async (
+  conn, // Transaction connection
+  lan,
+  loanAmount,
+  interestRate, // Annual % e.g. 20.5
+  tenure, // in months (for Monthly Loan)
+  disbursementDate, // e.g. "2025-10-14"
+  product,
+  lender,
+) => {
+  // 🧠 Determine repayment type
+  const isBullet = product?.toLowerCase() === "bullet loan";
+  const isEMI = product?.toLowerCase() === "monthly loan";
+
+  if (!isBullet && !isEMI) {
+    throw new Error(`❌ Unknown product type: ${product}`);
+  }
+
+  console.log(
+    `🔍 Generating ${isBullet ? "Bullet" : "EMI"} repayment schedule for ${lan}`,
+  );
+
+  // 🧮 Convert annual → monthly rate
+  const monthlyRate = interestRate / 100 / 12;
+
+  // 🧾 Compute EMI (only for Monthly Loan)
+  const emi = isEMI
+    ? Math.round(
+        (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
+          (Math.pow(1 + monthlyRate, tenure) - 1),
+      )
+    : 0;
+
+  // ===================================================
+  // 📅 CIRCLEPE due date logic (applies to both EMI & Bullet)
+  // ===================================================
+  let firstDueDate;
+  const disb = new Date(disbursementDate);
+  const day = disb.getDate();
+
+  
+    const due = new Date(disb);
+    if (day >= 1 && day <= 25) {
+      // Disbursed 1–25 → next month 5th
+      due.setMonth(due.getMonth() + 1);
+      due.setDate(5);
+    } else {
+      // Disbursed 26–end → month after next 5th
+      due.setMonth(due.getMonth() + 2);
+      due.setDate(5);
+    }
+    firstDueDate = due;
+  
+
+  console.log(
+    `[Circlepe Houser] Disbursed: ${disbursementDate} | First Due: ${firstDueDate.toISOString().split("T")[0]}`,
+  );
+
+  // ===================================================
+  // 🧮 Build RPS Data
+  // ===================================================
+  let openingPrincipal = loanAmount;
+  let dueDate = new Date(firstDueDate);
+  const rpsData = [];
+
+  // ============ MONTHLY LOAN (EMI) ============
+  if (isEMI) {
+    for (let i = 1; i <= tenure; i++) {
+      const interest = Math.round(openingPrincipal * monthlyRate);
+      let principal = emi - interest;
+
+      if (i === tenure) principal = openingPrincipal;
+
+      const closingPrincipal = Math.max(0, openingPrincipal - principal);
+      const actualEmi = Math.round(principal + interest);
+
+      rpsData.push([
+        lan,
+        dueDate.toISOString().split("T")[0],
+        actualEmi, // emi
+        interest, // interest
+        principal, // principal
+        principal, // remaining_principal
+        interest, // remaining_interest
+        actualEmi, // remaining_emi
+        openingPrincipal, // opening
+        closingPrincipal, // closing
+        "Pending", // status
+      ]);
+
+      openingPrincipal = closingPrincipal;
+      dueDate.setMonth(dueDate.getMonth() + 1);
+    }
+  }
+
+  // ============ BULLET LOAN (Single Payment) ============
+  if (isBullet) {
+    const bulletTenure = 12; // Always 12 months
+    const totalInterest = Math.round(
+      loanAmount * (interestRate / 100) * (bulletTenure / 12),
+    );
+    const totalPayable = loanAmount + totalInterest;
+
+    // Final due date = firstDueDate + 11 months (1st due based on rule)
+    const finalDue = new Date(firstDueDate);
+    finalDue.setMonth(finalDue.getMonth() + bulletTenure - 1);
+
+    rpsData.push([
+      lan,
+      finalDue.toISOString().split("T")[0],
+      Number(totalInterest) + Number(loanAmount),
+      // emi (single payment)
+      totalInterest, // interest
+      loanAmount, // principal
+      loanAmount, // remaining_principal
+      totalInterest, // remaining_interest
+      Number(totalInterest) + Number(loanAmount), // remaining_emi
+      openingPrincipal, // opening
+      0, // closing
+      "Pending", // status
+    ]);
+  }
+
+  // ===================================================
+  // 🗄️ Insert RPS into manual_rps_circlepe
+  // ===================================================
+  await conn.query(
+    `INSERT INTO manual_rps_circle_pe_houser
+     (lan, due_date, emi, interest, principal, remaining_principal, remaining_interest, remaining_emi, opening, closing, status)
+     VALUES ?`,
+    [rpsData],
+  );
+
+  // ===================================================
+  // 💾 Update EMI in loan_booking_circle_pe_houser
+  // ===================================================
+  const updateEmiValue = isBullet ? 0 : emi;
+  await conn.query(
+    `UPDATE loan_booking_circle_pe_houser
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [updateEmiValue, lan],
+  );
+
+  console.log(
+    `✅ Circlepe houser RPS generated for ${lan} (${isBullet ? "Bullet (one-time)" : "Monthly Loan"})`,
+  );
+};
 
 //////////////////////////////////// RPS END OF CIRCLE PE /////////////////////////////////////
 
@@ -5171,7 +5319,20 @@ const generateRepaymentSchedule = async (
       product,
       lender,
     );
-  } else if (lender === "CLAYOO") {
+  }
+  else if(lender ==="circle pe houser"){
+    await generateRepaymentScheduleCirclePeHouser(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    );
+  }
+  else if (lender === "CLAYOO") {
     await generateRepaymentScheduleClayoo(
       conn,
       lan,

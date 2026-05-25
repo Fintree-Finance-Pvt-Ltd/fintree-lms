@@ -39,6 +39,12 @@ import CirclePeActionScreen from "./components/CirclePeActionScreen";
 import CirclePeAllLoans from "./components/CirclePeAllLoans";
 import CirclePeApproveInitiateScreen from "./components/CirclePeApproveInitiateScreen";
 import CirclePeLoginLoans from "./components/CirclePeLoginLoans";
+import CirclePeHouserLoginLoans from "./components/CirclePeHouser/CirclePeHouserLoginLoans";
+import CirclePeHouserActionScreen from "./components/CirclePeHouser/CirclePeHouserActionScreen";
+import CirclePeHouserApproveInitiateScreen from "./components/CirclePeHouser/CirclePeHouserApproveInitiateScreen";
+import CirclePeHouserApprovedLoans from "./components/CirclePeHouser/CirclePeHouserApprovedLoans";
+import CirclePeHouserDisbursedLoans from "./components/CirclePeHouser/CirclePeHouserDisbursedLoans";
+import CirclePeHouserAllLoans from "./components/CirclePeHouser/CirclePeHouserAllLoans";
 import ElysiumApprovedLoans from "./components/ElysiumApprovedLoans";
 import ElysiumDisbursedLoans from "./components/ElysiumDisbursedLoans";
 import UploadUTR from "./components/UploadUTR";
@@ -1087,6 +1093,54 @@ function App() {
             element={
               <PermissionRoute pageName="CirclePe Disburse Initiated">
                 <CirclePeApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/approved"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Approved Loans">
+                <CirclePeHouserApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/disbursed"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Disbursed Loans">
+                <CirclePeHouserDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/all"
+            element={
+              <PermissionRoute pageName="CirclePe Houser All Loans">
+                <CirclePeHouserAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/login-cases"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Login Loans">
+                <CirclePeHouserLoginLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/login-actions"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Login Actions">
+                <CirclePeHouserActionScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/circlepe-houser-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="CirclePe Houser Disburse Initiated">
+                <CirclePeHouserApproveInitiateScreen />
               </PermissionRoute>
             }
           />

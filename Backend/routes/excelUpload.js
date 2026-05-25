@@ -38,7 +38,7 @@ const upload = multer({ storage: storage });
 
 const generateLoanIdentifiers = async (lender) => {
   lender = lender.trim(); // normalize input
-
+  console.log("Generating loan identifiers for lender:", lender);
   let prefixPartnerLoan;
   let prefixLan;
 
@@ -72,6 +72,10 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "circlepe") {
     prefixPartnerLoan = "FCIR1";
     prefixLan = "CIRF1";
+  }
+  else if (lender === "circle pe houser") {
+    prefixPartnerLoan = "CIRHUF1";
+    prefixLan = "CIRHUF1";
   } else if (lender === "emiclub") {
     //prefixPartnerLosan = "FINE1";
     prefixLan = "FINE1";
@@ -2369,6 +2373,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_emiclub: true,
     loan_booking_zypay_customer: true,
     loan_booking_finso: true,
+    loan_booking_circle_pe_houser: true,
     loan_booking_motion_corp: true,
     loan_booking_clayyo: true,
     loan_booking_switch_my_loan: true,
@@ -2528,6 +2533,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
     loan_booking_zypay_customer: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
+    loan_booking_circle_pe_houser: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_loan_digit: true,
       loan_booking_seven_fincorp: true,
@@ -2612,6 +2618,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_seven_fincorp: true,
     loan_booking_clayyo: true,
     loan_booking_circle_pe: true,
+    loan_booking_circle_pe_houser: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_switch_my_loan: true,
     loan_booking_loan_digit: true,
@@ -2730,6 +2737,7 @@ router.get("/approved-loans", async (req, res) => {
     loan_booking_embifi: true,
     loan_booking_finso: true,
     loan_booking_motion_corp: true,
+    loan_booking_circle_pe_houser: true,
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_switch_my_loan: true,
@@ -2813,6 +2821,7 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_motion_corp: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
+    loan_booking_circle_pe_houser: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
@@ -2933,6 +2942,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_zypay_customer: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
+    loan_boooking_circle_pe_houser: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_loan_digit: true,
     loan_booking_switch_my_loan: true,
@@ -3247,6 +3257,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_motion_corp: true,
     loan_booking_finso: true,
     loan_booking_circle_pe: true,
+    loan_booking_circle_pe_houser: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_zypay_customer: true,
     loan_booking_loan_digit: true,
@@ -8918,6 +8929,271 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
     });
   }
 });
+router.post("/circle-pe-houser-upload", upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No file uploaded." });
+  if (!req.body.lenderType)
+    return res.status(400).json({ message: "Lender type is required." });
+
+  const lenderType = req.body.lenderType?.toLowerCase().trim();
+
+  const success_rows = [];
+  const row_errors = [];
+  const skippedDueToCIBIL = [];
+
+  try {
+    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rawData = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+
+    if (rawData.length === 0)
+      return res.status(400).json({ message: "Excel is empty or invalid." });
+
+    const parse = (v) =>
+      typeof v === "number"
+        ? v
+        : parseFloat((v ?? "").toString().replace(/[^0-9.-]/g, "")) || 0;
+
+    for (const [i, row] of rawData.entries()) {
+      const R = i + 2;
+      let conn;
+
+      try {
+        const panCard = row["pan_number"];
+        const aadharNumber = row["aadhaar_number"];
+        const appId = row["App_Id"];
+        const cibilScore = parseInt(row["credit_score"]);
+
+        if (isNaN(cibilScore)) {
+          skippedDueToCIBIL.push({
+            ...row,
+            reason: "Invalid or missing credit score",
+          });
+          continue;
+        }
+        if (!(cibilScore >= 500 || cibilScore === -1)) {
+          skippedDueToCIBIL.push({ ...row, reason: "Low CIBIL Score" });
+          continue;
+        }
+
+        // Check for duplicate app_id
+        const [exists] = await db
+          .promise()
+          .query(`SELECT * FROM loan_booking_circle_pe_houser WHERE app_id = ?`, [
+            appId,
+          ]);
+        if (exists.length > 0) {
+          row_errors.push({
+            row: R,
+            stage: "dup-check",
+            reason: `Duplicate App ID (${appId})`,
+          });
+          continue;
+        }
+
+        // Generate partnerLoanId + LAN
+        conn = await db.promise().getConnection();
+        await conn.beginTransaction();
+
+        const partnerName = "Circle Pe Houser";
+
+        const loginDate = row["loan_application_date"]
+          ? excelDateToJSDate(row["loan_application_date"])
+          : null;
+
+        const today = new Date();
+        const loanAmount = parse(row["loan amount sanctioned"]);
+        const { month, year } = getMonthYear(today);
+
+        const partner = await partnerLimitService.getOrCreatePartner(
+          conn,
+          partnerName,
+        );
+
+        const limitCheck = await partnerLimitService.validatePartnerLimit(
+          conn,
+          partner.partner_id,
+          loanAmount,
+          month,
+          year,
+        );
+
+        if (!limitCheck.valid) {
+          await conn.rollback();
+          conn.release();
+
+          row_errors.push({
+            row: R,
+            stage: "limit-check",
+            reason: `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`,
+          });
+
+          continue;
+        }
+
+        // Fetch partner FLDG percent
+        const [[partnerConfig]] = await conn.query(
+          `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+          [partner.partner_id],
+        );
+
+        if (!partnerConfig) {
+          throw new Error("Partner configuration not found");
+        }
+
+        let requiredFldg = 0;
+
+        if (partnerConfig?.fldg_status === 1) {
+          const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+          requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+        }
+
+        // Validate FLDG availability
+        if (requiredFldg > 0) {
+          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+            conn,
+            partner.partner_id,
+            requiredFldg,
+          );
+
+          if (!fldgCheck.valid) {
+            await conn.rollback();
+            conn.release();
+
+            row_errors.push({
+              row: R,
+              stage: "fldg-check",
+              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+            });
+
+            continue;
+          }
+        }
+
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(lenderType);
+
+        await conn.query(
+          `INSERT INTO loan_booking_circle_pe_houser (
+    login_date, lan, partner_loan_id, app_id, customer_name, gender, dob,
+    father_name, mobile_number, email_id, pan_number, aadhar_number,
+    current_address, current_pincode, loan_amount, interest_rate,
+    loan_tenure, emi_amount, cibil_score, product, lender, residence_type,
+    customer_type, bank_name, name_in_bank, account_number, ifsc,
+    net_disbursement, agreement_date, status
+  ) VALUES (${new Array(30).fill("?").join(",")})`,
+          [
+            row["loan_application_date"]
+              ? excelDateToJSDate(row["loan_application_date"])
+              : null,
+            lan,
+            partnerLoanId,
+            row["App_Id"] || row["app_id"],
+            row["customer_name"],
+            row["gender"],
+            row["date_of_birth"]
+              ? excelDateToJSDate(row["date_of_birth"])
+              : null,
+            row["fathers_name"],
+            row["mobile_number"],
+            row["email_id"],
+            row["pan_number"],
+            row["aadhaar_number"],
+            row["current_address_line1"],
+            row["current_address_pincode"],
+            parse(
+              row["loan amount sanctioned"] || row["loan_amount_sanctioned"],
+            ),
+            parse(row["interest_percent"]),
+            parse(row["loan_tenure_months"]),
+            parse(row["monthly emi"] || row["monthly_emi"]),
+            parseInt(row["credit_score"]),
+            row["product"],
+            row["LenderType"] || lenderType,
+            row["residence_type"],
+            row["customer_type"],
+            row["bank_name"],
+            row["beneficiary_name"],
+            row["institute_account_number"],
+            row["ifsc_code"],
+            parse(
+              row["loan amount sanctioned"] || row["loan_amount_sanctioned"],
+            ), // net_disbursement
+            row["loan_application_date"]
+              ? excelDateToJSDate(row["loan_application_date"])
+              : null, // agreement date
+            "Login",
+          ],
+        );
+
+        console.log(
+          parse(row["loan amount sanctioned"]),
+          row["interest_percent"],
+          row["loan_tenure_months"],
+          parse(row["monthly emi"]),
+        );
+
+        await partnerLimitService.updateUsedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          "BOOKED",
+          lan,
+        );
+
+        if (requiredFldg > 0) {
+          await partnerFldgService.reserveFldg(
+            conn,
+            partner.partner_id,
+            lan,
+            requiredFldg,
+            `Circle PE Loan reservation | Amount: ${loanAmount}`,
+          );
+        }
+
+        await conn.commit();
+        conn.release();
+
+        success_rows.push(R);
+      } catch (err) {
+        if (conn) {
+          await conn.rollback();
+          conn.release();
+        }
+        row_errors.push({
+          row: R,
+          stage: "insert",
+          reason: toClientError(err).message,
+        });
+        continue;
+      }
+    }
+
+    return res.status(200).json({
+      message: "Circle pe houser file processed.",
+      total_rows: rawData.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+      skippedDueToCIBIL,
+      totalSkipped: skippedDueToCIBIL.length,
+    });
+  } catch (error) {
+    console.error("❌ Circle Pe Houser Upload Error:", error);
+    return res.status(500).json({
+      message: "Upload failed",
+      error: toClientError(error),
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+      skippedDueToCIBIL,
+      totalSkipped: skippedDueToCIBIL.length,
+    });
+  }
+});
 
 //////////////////////////////   CIRCLE PE ADD FOR LOAN BOOKING  END ////////////////////////
 
@@ -10852,6 +11128,9 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_helium";
   } else if (lan.startsWith("CIRF")) {
     tableName = "manual_rps_circlepe";
+  }
+  else if (lan.startsWith("CIRHUF")) {
+    tableName = "manual_rps_circle_pe_houser";
   } else if (lan.startsWith("FINS")) {
     tableName = "manual_rps_finso_loan";
   } else if (lan.startsWith("HEYEV")) {
