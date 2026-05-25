@@ -188,8 +188,8 @@ const PRODUCT_MAP = {
     disbDateSource:"utr",
   },
   "Motion Corp": {
-    rpsTable:      "manual_rps_motion_corp",
-    bookTable:     "loan_booking_motioncorp",
+    rpsTable:      "manual_rps_motioncorp",
+    bookTable:     "loan_booking_motion_corp",
     disbField:     "loan_amount",
     collType:      "subquery",
     allocTable:    "allocation",
