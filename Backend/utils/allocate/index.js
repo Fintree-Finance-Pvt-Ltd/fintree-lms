@@ -36,6 +36,7 @@ const allocateEmbifi = require("./allocateEmbifi");
 const allocateFinso = require("./allocateFinso");
 const allocateHEYEV = require("./allocateHeyEV");
 const allocateCirclePE = require("./allocateCirclePE");
+const allocateCirclePeHouser = require("./allocateCirclePeHouser");
 const allocateEmiClub = require ("./allocateEmiClub");
 const allocateHelium = require ("./allocateHelium");
 const allocateClayoo = require("./allocateClayoo");
@@ -100,6 +101,9 @@ const allocateRepaymentByLAN = async (lan, payment) => {
     return allocateEmiClub(lan, payment);
      } else if (lan.startsWith("CIRF")) {
     return allocateCirclePE(lan, payment);
+  }
+   else if (lan.startsWith("CIRHUF")) {
+    return allocateCirclePeHouser(lan, payment);
   }
   else if (lan.startsWith("CLY")) {
 return allocateClayoo(lan, payment);

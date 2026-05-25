@@ -664,6 +664,13 @@ WHERE lan = ?`,
             [lan],
           );
         }
+        else if (lan.startsWith("CIRHUF")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
+             FROM loan_booking_circle_pe_houser WHERE lan = ?`,
+            [lan],
+          );
+        }
         else if (lan.startsWith("MCL")) {
           [loanRes] = await db.promise().query(
             `SELECT 
@@ -857,6 +864,12 @@ WHERE lan = ?`,
           } else if (lan.startsWith("CIRF")) {
             await conn.query(
               "UPDATE loan_booking_circle_pe SET status = 'Disbursed' WHERE lan = ?",
+              [lan],
+            );
+          }
+           else if (lan.startsWith("CIRHUF")) {
+            await conn.query(
+              "UPDATE loan_booking_circle_pe_houser SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
           } else if (lan.startsWith("HEYEV")) {

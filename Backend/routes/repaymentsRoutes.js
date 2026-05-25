@@ -645,6 +645,9 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_emiclub WHERE lan IN (?)`, [
           uniqueLANs,
         ]),
+        queryDB(`SELECT lan FROM loan_booking_circle_pe_houser WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
         queryDB(`SELECT lan FROM loan_booking_circle_pe WHERE lan IN (?)`, [
           uniqueLANs,
         ]),
@@ -829,7 +832,7 @@ async function processRows(sheetData, res) {
 }
 
 /**
- * EXCEL UPLOAD ROUTE
+ * REPAYMENT EXCEL UPLOAD ROUTE
  */
 router.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
