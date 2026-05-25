@@ -33,7 +33,7 @@ function q(sql, params = []) {
 // ---------- LOCK / STATUS logic (ONLY change you needed) ----------
 
 // Canonical statuses that allow edit
-const ALLOWED_STATUSES = new Set(["login", "disburse-initiate", "Active"]);
+const ALLOWED_STATUSES = new Set(["login", "disburse-initiate", "ACTIVE"]);
 
 // Normalize DB variations -> canonical
 function normalizeStatus(s) {
@@ -72,6 +72,7 @@ const LAN_TABLE_MAP = {
   ZYPF: { table: "loan_booking_zypay_customer", statusCol: "status" },
   Cl: { table: "loan_booking_clayyo", statusCol: "status" },
   LDF: { table: "loan_booking_loan_digit", statusCol: "status" },
+  SFDLR: { table: "seven_fincorp_dealer_booking", statusCol: "status" },
 };
 
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing
