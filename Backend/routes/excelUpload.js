@@ -38,7 +38,7 @@ const upload = multer({ storage: storage });
 
 const generateLoanIdentifiers = async (lender) => {
   lender = lender.trim(); // normalize input
-
+  console.log("Generating loan identifiers for lender:", lender);
   let prefixPartnerLoan;
   let prefixLan;
 
@@ -73,7 +73,7 @@ const generateLoanIdentifiers = async (lender) => {
     prefixPartnerLoan = "FCIR1";
     prefixLan = "CIRF1";
   }
-  else if (lender === "Circle Pe Houser") {
+  else if (lender === "circle pe houser") {
     prefixPartnerLoan = "CIRHUF1";
     prefixLan = "CIRHUF1";
   } else if (lender === "emiclub") {
@@ -11128,6 +11128,9 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_helium";
   } else if (lan.startsWith("CIRF")) {
     tableName = "manual_rps_circlepe";
+  }
+  else if (lan.startsWith("CIRHUF")) {
+    tableName = "manual_rps_circle_pe_houser";
   } else if (lan.startsWith("FINS")) {
     tableName = "manual_rps_finso_loan";
   } else if (lan.startsWith("HEYEV")) {

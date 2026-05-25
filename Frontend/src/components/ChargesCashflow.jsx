@@ -103,24 +103,46 @@ const ChargesCashflow = () => {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  useEffect(() => {
-    let off = false;
-    const run = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get(`/charges/charges-cashflow/${lan}`);
-        !off && setRowsRaw(Array.isArray(res.data) ? res.data : []);
-        !off && setErr("");
-      } catch (e) {
-        console.error("Failed to fetch charges cashflow:", e);
-        !off && setErr("❌ Error fetching cashflow data.");
-      } finally {
-        !off && setLoading(false);
+useEffect(() => {
+  let off = false;
+
+  const run = async () => {
+    setLoading(true);
+
+    try {
+      const res = await api.get(`/charges/charges-cashflow/${lan}`);
+
+      if (off) return;
+
+      if (Array.isArray(res.data)) {
+        setRowsRaw(res.data);
+        setErr("");
+      } else {
+        setRowsRaw([]);
+        setErr(res.data?.message || "No cashflow data found.");
       }
-    };
-    run();
-    return () => { off = true; };
-  }, [lan]);
+    } catch (e) {
+      console.error("Failed to fetch charges cashflow:", e);
+
+      if (!off) {
+        setRowsRaw([]);
+        setErr(
+          e.response?.data?.message ||
+          e.message ||
+          "Error fetching cashflow data."
+        );
+      }
+    } finally {
+      if (!off) setLoading(false);
+    }
+  };
+
+  run();
+
+  return () => {
+    off = true;
+  };
+}, [lan]);
 
   const rows = useMemo(
     () => rowsRaw.map((r, i) => ({ _idx: i, ...r })),
