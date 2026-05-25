@@ -33,7 +33,7 @@ function q(sql, params = []) {
 // ---------- LOCK / STATUS logic (ONLY change you needed) ----------
 
 // Canonical statuses that allow edit
-const ALLOWED_STATUSES = new Set(["login", "disburse-initiate", "ACTIVE"]);
+const ALLOWED_STATUSES = new Set(["login", "disburse-initiate", "active"]);
 
 // Normalize DB variations -> canonical
 function normalizeStatus(s) {
@@ -79,7 +79,9 @@ const LAN_TABLE_MAP = {
 // 🔎 Debuggable lock-state. Logs what it did and returns extra fields.
 async function getLockState(lan) {
   const prefix = getLanPrefix(lan);
+  console.log("prefix", prefix);
   const map = LAN_TABLE_MAP[prefix];
+  console.log("map table", map);
 
   if (!map) {
     console.warn("[lock] unknown prefix", { lan, prefix });
