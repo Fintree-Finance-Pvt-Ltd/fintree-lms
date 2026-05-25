@@ -28,8 +28,15 @@ const ChartFilter = ({ onFilterChange }) => {
           <option value="Circle Pe">Circle Pe </option>
           <option value="Finso">Finso </option>
           <option value="Hey EV">Hey EV </option>
+          <option value="Hey EV Battery">Hey EV Battery</option>
           <option value="Embifi">Embifi</option>
-          <option value="HELIUM">Helium</option>
+          <option value="Clayoo">Clayoo</option>
+          <option value="Loan Digit">Loan Digit</option>
+          <option value="Motion Corp">Motion Corp</option>
+          <option value="Seven Fincorp">Seven Fincorp</option>
+          <option value="Bundela">Bundela </option>
+          <option value="Zebrs">Zebrs </option>
+        
         </select>
       </div>
       <div className="filter-group">
