@@ -8568,9 +8568,9 @@ router.post(
         const R = row.__row;
 
         try {
-          const lan = row.lan?.trim();
+          const lan = String(row.lan || "").trim();
           const collection_date = excelDateToJSDate(row.collection_date);
-          const collection_utr = row.collection_utr?.trim();
+          const collection_utr = String(row.collection_utr || "").trim();
           const collection_amount = Number(row.collection_amount);
 
           /* ---------- BASIC VALIDATION ---------- */
