@@ -5603,4 +5603,7 @@ module.exports = {
   excelSerialDateToJS,
   generateRepaymentScheduleClayoo,
   generateRepaymentScheduleLoanDigit, 
+  generateRepaymentScheduleCirclePeHouser,
+  generateRepaymentScheduleMotionCorp,
+
 };
