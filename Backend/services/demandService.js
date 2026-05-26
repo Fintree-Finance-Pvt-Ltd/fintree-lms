@@ -68,10 +68,7 @@ console.log(`${ctx} ℹ Invoice Data:`, {
   remaining_disbursement_amount,
   disbursement_date,
 });
-    const principal =
-  Number(remaining_disbursement_amount) > 0
-    ? Number(remaining_disbursement_amount)
-    : Number(disbursement_amount); 
+    const principal = Number(remaining_disbursement_amount);
     const roi = Number(roi_percentage) / 100;
     const penalRoi = Number(penal_rate || 0) / 100;
 const roiPenalRoi = Number(roi_penal_rate || 0) / 100;
