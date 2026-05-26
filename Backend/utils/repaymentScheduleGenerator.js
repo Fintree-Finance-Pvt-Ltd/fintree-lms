@@ -1859,6 +1859,8 @@ const generateRepaymentScheduleCirclePE = async (
     `✅ Circlepe RPS generated for ${lan} (${isBullet ? "Bullet (one-time)" : "Monthly Loan"})`,
   );
 };
+
+///////////////// RPS for CIRCLE PE HOUSER START //////////////////////
 const generateRepaymentScheduleCirclePeHouser = async (
   conn, // Transaction connection
   lan,
@@ -5555,7 +5557,7 @@ const generateRepaymentSchedule = async (
       product,
       lender,
     );
-  }else if (lender === "Motion Corp") {
+  }else if (lender === "Motion Corp" && product === "Monthly Loan") {
 
   await generateRepaymentScheduleMotionCorp(
     conn,
