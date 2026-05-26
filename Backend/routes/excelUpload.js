@@ -5150,9 +5150,34 @@ if (utrExists.length) {
           );
 
           await conn.commit();
-          conn.release();
+conn.release();
+conn = null;
 
-          success_rows.push(R);
+// ✅ Generate due demand after successful Excel invoice upload
+setImmediate(async () => {
+  try {
+    await generateDemandFromInvoiceDisbursement(
+      invoice_number,
+      lan
+    );
+
+    console.log(
+      `Demand generated successfully for invoice ${invoice_number}, LAN ${lan}`
+    );
+  } catch (e) {
+    console.error(
+      `Demand generation failed for invoice ${invoice_number}, LAN ${lan}:`,
+      e
+    );
+  }
+});
+
+success_rows.push({
+  row: R,
+  invoice_number,
+  lan,
+  demand_generation: "queued",
+});
         } catch (err) {
           if (conn) {
             await conn.rollback();
