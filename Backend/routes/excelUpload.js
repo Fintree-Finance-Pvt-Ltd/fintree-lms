@@ -5134,9 +5134,7 @@ if (utrExists.length) {
               row.bank_name,
               row.account_holder_name,
               parseNumber(row.disbursement_amount),
-              parseNumber(
-                row.remaining_disbursement_amount
-              ),
+              parseNumber(row.disbursement_amount),
               excelDateToJSDate(row.disbursement_date) || null,
               excelDateToJSDate(row.invoice_due_date) || null,
               disbursement_utr,

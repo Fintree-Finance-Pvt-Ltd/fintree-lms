@@ -56,6 +56,18 @@ const generateDailySupplyChainDemand = async (
       disbursement_date,
     } = invoice;
 
+    console.log(`${ctx} ▶ Generating demand from ${toYMD(fromDateOrTillDate)} to ${toYMD(maybeTillDate || fromDateOrTillDate)}`);
+console.log(`${ctx} ℹ Invoice Data:`, {
+  partner_loan_id,
+  lan,
+  invoice_number,
+  roi_percentage,
+  penal_rate,
+  roi_penal_rate,
+  disbursement_amount,
+  remaining_disbursement_amount,
+  disbursement_date,
+});
     const principal = Number(remaining_disbursement_amount);
     const roi = Number(roi_percentage) / 100;
     const penalRoi = Number(penal_rate || 0) / 100;
