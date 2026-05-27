@@ -886,8 +886,7 @@ WHERE lan = ?`,
           else if (lan.startsWith("MCL")) {
             await conn.query(
               `UPDATE loan_booking_motion_corp
-     SET status = 'Disbursed',
-         stage = 'Disbursed'
+     SET status = 'Disbursed'
      WHERE lan = ?`,
               [lan],
             );
