@@ -4743,8 +4743,8 @@ const generateRepaymentScheduleMotionCorp = async (
    const firstDueRaw = getFirstEmiDate(
     disbursementDate,
     null,
-    lender,
-    product,
+    "Motion Corp",
+    "Monthly Loan",
   );
 
   const firstDueDate =
