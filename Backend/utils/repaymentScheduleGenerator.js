@@ -4991,41 +4991,43 @@ const generateRepaymentScheduleMotionCorp = async (
   }
 
   // =====================================================
-  // STEP 9 : INSERT RPS
-  // =====================================================
+// STEP 9 : INSERT RPS
+// =====================================================
 
-  const insertData =
-    rpsData.map(row => ([
-      lan,
-      row.emi_no,
-      row.due_date,
-      row.opening,
-      row.emi,
-      row.interest,
-      row.principal,
-      row.closing,
-      row.status,
-    ]));
+const insertData = rpsData.map(row => ([
+  lan,
+  row.due_date,
+  row.emi,
+  row.interest,
+  row.principal,
+  row.principal,   // remaining_principal
+  row.interest,    // remaining_interest
+  row.emi,         // remaining_emi
+  row.opening,
+  row.closing,
+  "Pending",
+]));
 
-  await conn.query(
-    `
-    INSERT INTO manual_rps_motioncorp
-    (
-      lan,
-      emi_no,
-      due_date,
-      opening,
-      emi,
-      interest,
-      principal,
-      closing,
-      status
-    )
-    VALUES ?
-    `,
-    [insertData]
-  );
-
+await conn.query(
+  `
+  INSERT INTO manual_rps_motioncorp
+  (
+    lan,
+    due_date,
+    emi,
+    interest,
+    principal,
+    remaining_principal,
+    remaining_interest,
+    remaining_emi,
+    opening,
+    closing,
+    status
+  )
+  VALUES ?
+  `,
+  [insertData],
+);
   // =====================================================
   // STEP 10 : UPDATE MAIN TABLE
   // =====================================================
