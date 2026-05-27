@@ -4764,7 +4764,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
   const diffTime =
     firstDueDate.getTime() -
-    disbDate.getTime();
+    disbursementDate.getTime();
 
   const preEmiDays =
     Math.ceil(
