@@ -205,6 +205,7 @@ import BundelaApprovedLoans from "./components/Bundela/BundelaApprovedLoans";
 import BundelaDisburseInitiate from "./components/Bundela/BundelaDisburseInitiate";
 import BundelaDetails from "./components/Bundela/BundelaDetails";
 import MotionCorpOperationApproval from "./components/Motion Corp/MotionCorpOperationApproval";
+import PayUSubscribe from "./components/PayUSubscribe";
 
 function App() {
   return (
@@ -221,6 +222,7 @@ function App() {
         {/* ✅ Public routes */}
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
+        
 
         {/* ✅ Protected + Layout wrapper */}
         <Route
@@ -257,6 +259,8 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          <Route path="/payusubscribe" element={<PayUSubscribe />} />
           <Route
             path="/excel-upload"
             element={
