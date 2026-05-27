@@ -4681,6 +4681,8 @@ const generateRepaymentScheduleMotionCorp = async (
   disbursementDate,
 ) => {
 
+  console.log("inside rps genrate final")
+
   // =====================================================
   // INPUTS
   // =====================================================
@@ -5575,6 +5577,8 @@ console.log("checking data", {
       lender,
     );
   }else if (lender === "Motion Corp" && product === "Monthly Loan") {
+
+    console.log("inside rps genration");
 
   await generateRepaymentScheduleMotionCorp(
     conn,
