@@ -4680,23 +4680,67 @@ const generateRepaymentScheduleMotionCorp = async (
   tenure,
   disbursementDate,
 ) => {
+  console.log("inside MotionCorp RPS generate final");
 
-  console.log("inside rps genrate final")
+  // =====================================================
+  // HELPERS
+  // =====================================================
+
+  const toFiniteNumber = (value, fieldName) => {
+    const num = Number(value);
+
+    if (!Number.isFinite(num)) {
+      throw new Error(
+        `Invalid ${fieldName} for LAN ${lan}: ${value}`
+      );
+    }
+
+    return num;
+  };
+
+  const round2 = (value, fieldName = "value") => {
+    const num = Number(value);
+
+    if (!Number.isFinite(num)) {
+      throw new Error(
+        `Invalid numeric ${fieldName} for LAN ${lan}: ${value}`
+      );
+    }
+
+    return Number(num.toFixed(2));
+  };
+
+  const validateRpsNumber = (value, fieldName, emiNo) => {
+    const num = Number(value);
+
+    if (!Number.isFinite(num)) {
+      throw new Error(
+        `Invalid RPS ${fieldName} for LAN ${lan}, EMI No ${emiNo}: ${value}`
+      );
+    }
+
+    return num;
+  };
 
   // =====================================================
   // INPUTS
   // =====================================================
 
-  const principal = Number(loanAmount);
+  const principal = toFiniteNumber(loanAmount, "loanAmount");
+  const flatRate = toFiniteNumber(interestRate, "interestRate");
+  const months = toFiniteNumber(tenure, "tenure");
 
-  const flatRate = Number(interestRate);
+  const disbDate = new Date(disbursementDate);
 
-  const months = Number(tenure);
-
-  if (!principal || !flatRate || !months) {
-
+  if (
+    principal <= 0 ||
+    flatRate <= 0 ||
+    months <= 0 ||
+    !Number.isInteger(months) ||
+    Number.isNaN(disbDate.getTime())
+  ) {
     throw new Error(
-      `Invalid inputs for LAN ${lan}`
+      `Invalid inputs for LAN ${lan}: loanAmount=${loanAmount}, interestRate=${interestRate}, tenure=${tenure}, disbursementDate=${disbursementDate}`
     );
   }
 
@@ -4704,59 +4748,47 @@ const generateRepaymentScheduleMotionCorp = async (
   // STEP 1 : FLAT INTEREST
   // =====================================================
 
-  const totalFlatInterest =
-    Number(
-      (
-        principal *
-        (flatRate / 100) *
-        (months / 12)
-      ).toFixed(2)
-    );
+  const totalFlatInterest = round2(
+    principal * (flatRate / 100) * (months / 12),
+    "totalFlatInterest"
+  );
 
   // =====================================================
   // STEP 2 : TOTAL REPAYMENT
   // =====================================================
 
-  const totalRepayment =
-    Number(
-      (
-        principal +
-        totalFlatInterest
-      ).toFixed(2)
-    );
+  const totalRepayment = round2(
+    principal + totalFlatInterest,
+    "totalRepayment"
+  );
 
   // =====================================================
   // STEP 3 : EMI
   // =====================================================
 
-  const emi =
-    Number(
-      (
-        totalRepayment / months
-      ).toFixed(2)
-    );
+  const emi = round2(
+    totalRepayment / months,
+    "emi"
+  );
 
   // =====================================================
   // STEP 4 : FIRST EMI DATE
   // =====================================================
 
-   const firstDueRaw = getFirstEmiDate(
-    disbursementDate,
+  const firstDueRaw = getFirstEmiDate(
+    disbDate,
     null,
     "Motion Corp",
     "Monthly Loan",
   );
 
-  const firstDueDate =
-    new Date(firstDueRaw);
+  const firstDueDate = new Date(firstDueRaw);
 
   if (Number.isNaN(firstDueDate.getTime())) {
-
     throw new Error(
-      `Invalid MotionCorp first due date: ${firstDueRaw}`
+      `Invalid MotionCorp first due date for LAN ${lan}: ${firstDueRaw}`
     );
   }
-
 
   // =====================================================
   // STEP 5 : PRE EMI DAYS
@@ -4764,226 +4796,179 @@ const generateRepaymentScheduleMotionCorp = async (
 
   const diffTime =
     firstDueDate.getTime() -
-    disbursementDate.getTime();
+    disbDate.getTime();
 
-  const preEmiDays =
-    Math.ceil(
-      diffTime /
-      (1000 * 60 * 60 * 24)
+  const preEmiDays = Math.ceil(
+    diffTime / (1000 * 60 * 60 * 24)
+  );
+
+  if (!Number.isFinite(preEmiDays) || preEmiDays < 0) {
+    throw new Error(
+      `Invalid preEmiDays for LAN ${lan}: ${preEmiDays}`
     );
+  }
 
   // =====================================================
   // STEP 6 : PRE EMI INTEREST
   // 360 DAYS BASIS
   // =====================================================
 
-  const preEmiInterest =
-    Number(
-      (
-        principal *
-        (flatRate / 100) *
-        (preEmiDays / 360)
-      ).toFixed(2)
-    );
+  const preEmiInterest = round2(
+    principal * (flatRate / 100) * (preEmiDays / 360),
+    "preEmiInterest"
+  );
 
   // =====================================================
   // STEP 7 : REDUCING ROI
-  // EXCEL RATE EQUIVALENT
+  // ROBUST RATE CALCULATION TO AVOID NaN
   // =====================================================
 
-  const calculateReducingROI = (
+  const calculateReducingMonthlyRate = (
+    principalAmount,
+    monthlyEmi,
+    totalMonths
+  ) => {
+    const pmt = (rate) => {
+      if (Math.abs(rate) < 1e-12) {
+        return principalAmount / totalMonths;
+      }
+
+      const pow = Math.pow(1 + rate, totalMonths);
+
+      return (
+        principalAmount *
+        rate *
+        pow
+      ) / (
+        pow - 1
+      );
+    };
+
+    const minEmi = principalAmount / totalMonths;
+
+    if (monthlyEmi <= minEmi) {
+      return 0;
+    }
+
+    let low = 0;
+    let high = 0.01;
+
+    while (pmt(high) < monthlyEmi && high < 10) {
+      high *= 2;
+    }
+
+    if (!Number.isFinite(high) || pmt(high) < monthlyEmi) {
+      throw new Error(
+        `Unable to calculate reducing ROI for LAN ${lan}: principal=${principalAmount}, emi=${monthlyEmi}, months=${totalMonths}`
+      );
+    }
+
+    for (let i = 0; i < 100; i++) {
+      const mid = (low + high) / 2;
+      const midPmt = pmt(mid);
+
+      if (midPmt < monthlyEmi) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+
+    const monthlyRate = (low + high) / 2;
+
+    if (!Number.isFinite(monthlyRate)) {
+      throw new Error(
+        `Invalid monthly reducing rate for LAN ${lan}: ${monthlyRate}`
+      );
+    }
+
+    return monthlyRate;
+  };
+
+  const reducingMonthlyRate = calculateReducingMonthlyRate(
     principal,
     emi,
     months
-  ) => {
+  );
 
-    let guess = 0.02;
+  const reducingAnnualRate = round2(
+    reducingMonthlyRate * 12 * 100,
+    "reducingAnnualRate"
+  );
 
-    for (let i = 0; i < 1000; i++) {
-
-      const pow =
-        Math.pow(
-          1 + guess,
-          months
-        );
-
-      const func =
-        (
-          principal *
-          guess *
-          pow
-        ) /
-        (
-          pow - 1
-        ) - emi;
-
-      const derivative =
-        (
-          principal *
-          (
-            (
-              pow - 1
-            ) -
-            (
-              guess *
-              months *
-              Math.pow(
-                1 + guess,
-                months - 1
-              )
-            )
-          )
-        ) /
-        Math.pow(
-          pow - 1,
-          2
-        );
-
-      const newGuess =
-        guess -
-        (
-          func / derivative
-        );
-
-      if (
-        Math.abs(
-          newGuess - guess
-        ) < 1e-10
-      ) {
-
-        guess = newGuess;
-        break;
-      }
-
-      guess = newGuess;
-    }
-
-    return Number(
-      (
-        guess * 12 * 100
-      ).toFixed(2)
+  if (!Number.isFinite(reducingAnnualRate)) {
+    throw new Error(
+      `Invalid reducingAnnualRate for LAN ${lan}: ${reducingAnnualRate}`
     );
-  };
-
-  const reducingAnnualRate =
-    calculateReducingROI(
-      principal,
-      emi,
-      months
-    );
-
-  const reducingMonthlyRate =
-    reducingAnnualRate /
-    12 /
-    100;
+  }
 
   // =====================================================
   // STEP 8 : GENERATE RPS
   // =====================================================
 
-  let openingPrincipal =
-    principal;
-
-  let dueDate =
-    new Date(firstDueDate);
+  let openingPrincipal = round2(principal, "openingPrincipal");
+  let dueDate = new Date(firstDueDate);
 
   const rpsData = [];
 
   for (let i = 1; i <= months; i++) {
+    let interest = round2(
+      openingPrincipal * reducingMonthlyRate,
+      `interest EMI ${i}`
+    );
 
-    // ===============================================
-    // MONTHLY INTEREST
-    // ===============================================
+    let principalComponent = round2(
+      emi - interest,
+      `principal EMI ${i}`
+    );
 
-    let interest =
-      Number(
-        (
-          openingPrincipal *
-          reducingMonthlyRate
-        ).toFixed(2)
-      );
+    let installmentEmi = emi;
 
-    // ===============================================
-    // PRINCIPAL
-    // ===============================================
-
-    let principalComponent =
-      Number(
-        (
-          emi - interest
-        ).toFixed(2)
-      );
-
-    // ===============================================
-    // LAST EMI ADJUSTMENT
-    // ===============================================
+    // =====================================================
+    // LAST EMI ADJUSTMENT TO CLOSE LOAN
+    // =====================================================
 
     if (i === months) {
-
-      principalComponent =
-        openingPrincipal;
-
-      interest =
-        Number(
-          (
-            emi -
-            principalComponent
-          ).toFixed(2)
-        );
-    }
-
-    // ===============================================
-    // CLOSING
-    // ===============================================
-
-    const closingPrincipal =
-      Number(
-        Math.max(
-          0,
-          (
-            openingPrincipal -
-            principalComponent
-          ).toFixed(2)
-        )
+      principalComponent = round2(
+        openingPrincipal,
+        `last principal EMI ${i}`
       );
 
-    // ===============================================
-    // PUSH RPS
-    // ===============================================
+      installmentEmi = round2(
+        principalComponent + interest,
+        `last EMI ${i}`
+      );
+    }
+
+    const closingPrincipal = round2(
+      Math.max(0, openingPrincipal - principalComponent),
+      `closing EMI ${i}`
+    );
 
     rpsData.push({
-
       emi_no: i,
 
-      due_date:
-        dueDate
-          .toISOString()
-          .split("T")[0],
+      due_date: dueDate
+        .toISOString()
+        .split("T")[0],
 
-      opening:
-        Number(
-          openingPrincipal.toFixed(2)
-        ),
+      opening: round2(
+        openingPrincipal,
+        `opening EMI ${i}`
+      ),
 
-      emi,
+      emi: installmentEmi,
 
       interest,
 
-      principal:
-        principalComponent,
+      principal: principalComponent,
 
-      closing:
-        closingPrincipal,
+      closing: closingPrincipal,
 
       status: "Pending",
     });
 
-    // ===============================================
-    // NEXT LOOP
-    // ===============================================
-
-    openingPrincipal =
-      closingPrincipal;
+    openingPrincipal = closingPrincipal;
 
     dueDate.setMonth(
       dueDate.getMonth() + 1
@@ -4991,43 +4976,81 @@ const generateRepaymentScheduleMotionCorp = async (
   }
 
   // =====================================================
-// STEP 9 : INSERT RPS
-// =====================================================
+  // STEP 9 : INSERT RPS
+  // TABLE: manual_rps_motioncorp
+  // =====================================================
 
-const insertData = rpsData.map(row => ([
-  lan,
-  row.due_date,
-  row.emi,
-  row.interest,
-  row.principal,
-  row.principal,   // remaining_principal
-  row.interest,    // remaining_interest
-  row.emi,         // remaining_emi
-  row.opening,
-  row.closing,
-  "Pending",
-]));
+  const insertData = rpsData.map((row) => {
+    const emiValue = validateRpsNumber(
+      row.emi,
+      "emi",
+      row.emi_no
+    );
 
-await conn.query(
-  `
-  INSERT INTO manual_rps_motioncorp
-  (
-    lan,
-    due_date,
-    emi,
-    interest,
-    principal,
-    remaining_principal,
-    remaining_interest,
-    remaining_emi,
-    opening,
-    closing,
-    status
-  )
-  VALUES ?
-  `,
-  [insertData],
-);
+    const interestValue = validateRpsNumber(
+      row.interest,
+      "interest",
+      row.emi_no
+    );
+
+    const principalValue = validateRpsNumber(
+      row.principal,
+      "principal",
+      row.emi_no
+    );
+
+    const openingValue = validateRpsNumber(
+      row.opening,
+      "opening",
+      row.emi_no
+    );
+
+    const closingValue = validateRpsNumber(
+      row.closing,
+      "closing",
+      row.emi_no
+    );
+
+    return [
+      lan,
+      row.due_date,
+      row.status || "Pending",
+
+      emiValue,
+      interestValue,
+      principalValue,
+      openingValue,
+      closingValue,
+
+      Math.round(emiValue), // remaining_emi is INT in your current table
+      interestValue,        // remaining_interest
+      principalValue,       // remaining_principal
+      emiValue,             // remaining_amount
+    ];
+  });
+
+  await conn.query(
+    `
+    INSERT INTO manual_rps_motioncorp
+    (
+      lan,
+      due_date,
+      status,
+      emi,
+      interest,
+      principal,
+      opening,
+      closing,
+      remaining_emi,
+      remaining_interest,
+      remaining_principal,
+      remaining_amount
+    )
+    VALUES ?
+    `,
+    [insertData]
+  );
+
   // =====================================================
   // STEP 10 : UPDATE MAIN TABLE
   // =====================================================
@@ -5048,8 +5071,8 @@ await conn.query(
       reducingAnnualRate,
       totalFlatInterest,
       preEmiInterest,
-      totalRepayment + preEmiInterest,
-      lan
+      round2(totalRepayment + preEmiInterest, "finalTotalRepayment"),
+      lan,
     ]
   );
 
@@ -5058,40 +5081,29 @@ await conn.query(
   // =====================================================
 
   return {
-
     principal,
-
     flatRate,
-
     months,
-
     emi,
-
     totalFlatInterest,
-
     preEmiInterest,
 
-    totalRepayment:
-      Number(
-        (
-          totalRepayment +
-          preEmiInterest
-        ).toFixed(2)
-      ),
+    totalRepayment: round2(
+      totalRepayment + preEmiInterest,
+      "returnTotalRepayment"
+    ),
 
     reducingAnnualRate,
 
-    firstDueDate:
-      firstDueDate
-        .toISOString()
-        .split("T")[0],
+    firstDueDate: firstDueDate
+      .toISOString()
+      .split("T")[0],
 
     preEmiDays,
 
     rpsData,
   };
 };
-
 /////////////// motion corp RPS End /////////////////////////
 
 ///// WIth PRE EMI /////////////
