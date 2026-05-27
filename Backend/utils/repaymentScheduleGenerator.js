@@ -4710,6 +4710,19 @@ const generateRepaymentScheduleMotionCorp = async (
     return Number(num.toFixed(2));
   };
 
+  // Whole number round for EMI, interest, principal
+  const round0 = (value, fieldName = "value") => {
+    const num = Number(value);
+
+    if (!Number.isFinite(num)) {
+      throw new Error(
+        `Invalid numeric ${fieldName} for LAN ${lan}: ${value}`
+      );
+    }
+
+    return Math.round(num);
+  };
+
   const validateRpsNumber = (value, fieldName, emiNo) => {
     const num = Number(value);
 
@@ -4726,7 +4739,11 @@ const generateRepaymentScheduleMotionCorp = async (
   // INPUTS
   // =====================================================
 
-  const principal = toFiniteNumber(loanAmount, "loanAmount");
+  const principal = round0(
+    toFiniteNumber(loanAmount, "loanAmount"),
+    "loanAmount"
+  );
+
   const flatRate = toFiniteNumber(interestRate, "interestRate");
   const months = toFiniteNumber(tenure, "tenure");
 
@@ -4748,7 +4765,7 @@ const generateRepaymentScheduleMotionCorp = async (
   // STEP 1 : FLAT INTEREST
   // =====================================================
 
-  const totalFlatInterest = round2(
+  const totalFlatInterest = round0(
     principal * (flatRate / 100) * (months / 12),
     "totalFlatInterest"
   );
@@ -4757,16 +4774,16 @@ const generateRepaymentScheduleMotionCorp = async (
   // STEP 2 : TOTAL REPAYMENT
   // =====================================================
 
-  const totalRepayment = round2(
+  const totalRepayment = round0(
     principal + totalFlatInterest,
     "totalRepayment"
   );
 
   // =====================================================
-  // STEP 3 : EMI
+  // STEP 3 : EMI - ROUNDED
   // =====================================================
 
-  const emi = round2(
+  const emi = round0(
     totalRepayment / months,
     "emi"
   );
@@ -4809,18 +4826,16 @@ const generateRepaymentScheduleMotionCorp = async (
   }
 
   // =====================================================
-  // STEP 6 : PRE EMI INTEREST
-  // 360 DAYS BASIS
+  // STEP 6 : PRE EMI INTEREST - ROUNDED
   // =====================================================
 
-  const preEmiInterest = round2(
+  const preEmiInterest = round0(
     principal * (flatRate / 100) * (preEmiDays / 360),
     "preEmiInterest"
   );
 
   // =====================================================
   // STEP 7 : REDUCING ROI
-  // ROBUST RATE CALCULATION TO AVOID NaN
   // =====================================================
 
   const calculateReducingMonthlyRate = (
@@ -4874,15 +4889,7 @@ const generateRepaymentScheduleMotionCorp = async (
       }
     }
 
-    const monthlyRate = (low + high) / 2;
-
-    if (!Number.isFinite(monthlyRate)) {
-      throw new Error(
-        `Invalid monthly reducing rate for LAN ${lan}: ${monthlyRate}`
-      );
-    }
-
-    return monthlyRate;
+    return (low + high) / 2;
   };
 
   const reducingMonthlyRate = calculateReducingMonthlyRate(
@@ -4896,51 +4903,43 @@ const generateRepaymentScheduleMotionCorp = async (
     "reducingAnnualRate"
   );
 
-  if (!Number.isFinite(reducingAnnualRate)) {
-    throw new Error(
-      `Invalid reducingAnnualRate for LAN ${lan}: ${reducingAnnualRate}`
-    );
-  }
-
   // =====================================================
   // STEP 8 : GENERATE RPS
+  // EMI, INTEREST, PRINCIPAL ALL ROUNDED
   // =====================================================
 
-  let openingPrincipal = round2(principal, "openingPrincipal");
+  let openingPrincipal = principal;
   let dueDate = new Date(firstDueDate);
 
   const rpsData = [];
 
   for (let i = 1; i <= months; i++) {
-    let interest = round2(
+    let interest = round0(
       openingPrincipal * reducingMonthlyRate,
       `interest EMI ${i}`
     );
 
-    let principalComponent = round2(
+    let principalComponent = round0(
       emi - interest,
       `principal EMI ${i}`
     );
 
     let installmentEmi = emi;
 
-    // =====================================================
-    // LAST EMI ADJUSTMENT TO CLOSE LOAN
-    // =====================================================
-
+    // Last EMI adjustment to close loan cleanly
     if (i === months) {
-      principalComponent = round2(
+      principalComponent = round0(
         openingPrincipal,
         `last principal EMI ${i}`
       );
 
-      installmentEmi = round2(
+      installmentEmi = round0(
         principalComponent + interest,
         `last EMI ${i}`
       );
     }
 
-    const closingPrincipal = round2(
+    const closingPrincipal = round0(
       Math.max(0, openingPrincipal - principalComponent),
       `closing EMI ${i}`
     );
@@ -4952,10 +4951,7 @@ const generateRepaymentScheduleMotionCorp = async (
         .toISOString()
         .split("T")[0],
 
-      opening: round2(
-        openingPrincipal,
-        `opening EMI ${i}`
-      ),
+      opening: openingPrincipal,
 
       emi: installmentEmi,
 
@@ -4977,7 +4973,6 @@ const generateRepaymentScheduleMotionCorp = async (
 
   // =====================================================
   // STEP 9 : INSERT RPS
-  // TABLE: manual_rps_motioncorp
   // =====================================================
 
   const insertData = rpsData.map((row) => {
@@ -5022,10 +5017,10 @@ const generateRepaymentScheduleMotionCorp = async (
       openingValue,
       closingValue,
 
-      Math.round(emiValue), // remaining_emi is INT in your current table
-      interestValue,        // remaining_interest
-      principalValue,       // remaining_principal
-      emiValue,             // remaining_amount
+      emiValue,          // remaining_emi
+      interestValue,     // remaining_interest
+      principalValue,    // remaining_principal
+      emiValue,          // remaining_amount
     ];
   });
 
@@ -5071,7 +5066,7 @@ const generateRepaymentScheduleMotionCorp = async (
       reducingAnnualRate,
       totalFlatInterest,
       preEmiInterest,
-      round2(totalRepayment + preEmiInterest, "finalTotalRepayment"),
+      round0(totalRepayment + preEmiInterest, "finalTotalRepayment"),
       lan,
     ]
   );
@@ -5088,7 +5083,7 @@ const generateRepaymentScheduleMotionCorp = async (
     totalFlatInterest,
     preEmiInterest,
 
-    totalRepayment: round2(
+    totalRepayment: round0(
       totalRepayment + preEmiInterest,
       "returnTotalRepayment"
     ),
