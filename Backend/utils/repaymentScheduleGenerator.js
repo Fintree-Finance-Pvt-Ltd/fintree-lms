@@ -5219,6 +5219,23 @@ const generateRepaymentSchedule = async (
 ) => {
   console.log("lender testing", lender);
 
+console.log("checking data", {
+  lan,
+  loanAmount, 
+  emiDate,
+  interestRate,
+  tenure,
+  disbursementDate,
+  subventionAmount,
+  no_of_advance_emis,
+  salary_day, 
+  product,
+  lender,
+  retention_percentage,
+  retention_amount,
+});
+
+
   // 🛡 HARD SAFETY (prevents ALL ReferenceErrors)
   const safeRetentionPercent = Number(retention_percentage || 0);
   const safeManualRetentionAmount = Number(retention_amount || 0);
@@ -5569,6 +5586,8 @@ const generateRepaymentSchedule = async (
     product,
     lender,
   );
+
+
 } else if (lender === "HELIUM") {
     await generateRepaymentScheduleHelium(
       conn,
