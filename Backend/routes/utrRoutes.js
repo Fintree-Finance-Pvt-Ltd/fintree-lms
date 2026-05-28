@@ -1024,6 +1024,7 @@ WHERE lan = ?`,
         if (lan.startsWith("MCL")){
 try {
   const partnerName = getPartnerNameByLan(lan, lender, product);
+  console.log("partner_name", partnerName);
 
   // Extract month/year from disbursement date
   const { month, year } = getMonthYear(
