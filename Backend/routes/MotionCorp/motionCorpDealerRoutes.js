@@ -9,6 +9,13 @@ const {
   universalRunAllValidations,
 } = require("../../utils/runValiationsEngine");
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
+const partnerLimitService = require("../../services/partnerLimitService");
+const partnerFldgService = require("../../services/partnerFldgService");
+const {
+  extractPartnerName,
+  getMonthYear,
+  validatePartnerName,
+} = require("../../utils/partnerHelpers");
 
 const router = express.Router();
 
@@ -1047,7 +1054,73 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
       });
     }
 
+    const today = new Date();
+    const loanAmount = data.Loan_Amount;
+    const { month, year } = getMonthYear(today);
+
+    const partnerName = "Motion Corp";
+
     await connection.beginTransaction();
+
+    const partner = await partnerLimitService.getOrCreatePartner(
+      connection,
+      partnerName,
+    );
+
+    const limitCheck = await partnerLimitService.validatePartnerLimit(
+      connection,
+      partner.partner_id,
+      loanAmount,
+      month,
+      year,
+    );
+
+    if (!limitCheck.valid) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        stage: "limit-check",
+        message: `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`,
+      });
+    }
+
+    // Fetch partner FLDG percent
+    const [[partnerConfig]] = await connection.query(
+      `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+      [partner.partner_id],
+    );
+
+    if (!partnerConfig) {
+      throw new Error("Partner configuration not found");
+    }
+
+    let requiredFldg = 0;
+
+    if (partnerConfig?.fldg_status === 1) {
+      const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+      requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+    }
+
+    // Validate FLDG availability
+    if (requiredFldg > 0) {
+      const fldgCheck = await partnerFldgService.validateFldgAvailability(
+        connection,
+        partner.partner_id,
+        requiredFldg,
+      );
+
+      if (!fldgCheck.valid) {
+        await connection.rollback();
+
+        return res.status(400).json({
+          success: false,
+          stage: "fldg-check",
+          message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+        });
+      }
+    }
 
     await connection.query(
       `
@@ -2424,7 +2497,7 @@ router.get("/operation-initiated-loans", async (req, res) => {
 });
 
 router.post("/:lan/approve", async (req, res) => {
-   try {
+  try {
     const { lan } = req.params;
 
     // Check loan exists
@@ -2434,7 +2507,7 @@ router.post("/:lan/approve", async (req, res) => {
       FROM loan_booking_motion_corp
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -2447,14 +2520,10 @@ router.post("/:lan/approve", async (req, res) => {
     const loan = rows[0];
 
     // CONDITION
-    if (
-      (loan.bank_status || "").toUpperCase() !==
-      "MANDATE_CREATED"
-    ) {
+    if ((loan.bank_status || "").toUpperCase() !== "MANDATE_CREATED") {
       return res.status(400).json({
         success: false,
-        message:
-          "Loan cannot be approved until mandate is created",
+        message: "Loan cannot be approved until mandate is created",
       });
     }
 
@@ -2468,7 +2537,7 @@ router.post("/:lan/approve", async (req, res) => {
         updated_at = NOW()
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     return res.json({
@@ -2486,7 +2555,7 @@ router.post("/:lan/approve", async (req, res) => {
 });
 
 router.post("/:lan/reject", async (req, res) => {
-   try {
+  try {
     const { lan } = req.params;
 
     // Check loan exists
@@ -2496,7 +2565,7 @@ router.post("/:lan/reject", async (req, res) => {
       FROM loan_booking_motion_corp
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -2509,14 +2578,10 @@ router.post("/:lan/reject", async (req, res) => {
     const loan = rows[0];
 
     // CONDITION
-    if (
-      (loan.bank_status || "").toUpperCase() !==
-      "MANDATE_CREATED"
-    ) {
+    if ((loan.bank_status || "").toUpperCase() !== "MANDATE_CREATED") {
       return res.status(400).json({
         success: false,
-        message:
-          "Loan cannot be rejected until mandate is created",
+        message: "Loan cannot be rejected until mandate is created",
       });
     }
 
@@ -2530,7 +2595,7 @@ router.post("/:lan/reject", async (req, res) => {
         updated_at = NOW()
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     return res.json({
