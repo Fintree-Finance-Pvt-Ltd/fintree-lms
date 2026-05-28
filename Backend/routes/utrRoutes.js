@@ -1041,7 +1041,7 @@ try {
   const [limitRows] = await conn.query(
     `
     SELECT id
-    FROM partner_monthly_limits
+    FROM partner_monthly_limit
     WHERE partner_id = ?
       AND month = ?
       AND year = ?
