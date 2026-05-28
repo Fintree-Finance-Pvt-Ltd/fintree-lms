@@ -4,6 +4,112 @@ const partnerLimitService = require('../services/partnerLimitService');
 
 const router = express.Router();
 
+
+const RPS_POS_SOURCES = [
+  {
+    partnerName: "Circle Pe Houser",
+    tableName: "manual_rps_circle_pe_houser",
+  },
+  {
+    partnerName: "Circle Pe",
+    tableName: "manual_rps_circlepe",
+  },
+  {
+    partnerName: "Motion Corp",
+    tableName: "manual_rps_motioncorp",
+  },
+  {
+    partnerName: "Adikosh",
+    tableName: "manual_rps_adikosh",
+  },
+  {
+    partnerName: "BL Loan",
+    tableName: "manual_rps_bl_loan",
+  },
+  {
+    partnerName: "GQ FSF",
+    tableName: "manual_rps_gq_fsf",
+  },
+  {
+    partnerName: "GQ NON FSF",
+    tableName: "manual_rps_gq_non_fsf",
+  },
+  {
+    partnerName: "Hey EV Loan",
+    tableName: "manual_rps_hey_ev",
+  },
+  {
+    partnerName: "HeyEV Battery",
+    tableName: "manual_rps_hey_ev_battery",
+  },
+  {
+    partnerName: "WCTL",
+    tableName: "manual_rps_wctl",
+  },
+  {
+    partnerName: "EV Loan",
+    tableName: "manual_rps_ev_loan",
+  },
+  {
+    partnerName: "HELIUM",
+    tableName: "manual_rps_helium",
+  },
+  {
+    partnerName: "Finso",
+    tableName: "manual_rps_finso_loan",
+  },
+  {
+    partnerName: "EMICLUB",
+    tableName: "manual_rps_emiclub",
+  },
+  {
+    partnerName: "Loan Digit",
+    tableName: "manual_rps_loan_digit",
+  },
+  {
+    partnerName: "CLAYOO",
+    tableName: "manual_rps_clayoo",
+  },
+  
+];
+
+
+async function getPartnerPOSMap(conn) {
+  const posMap = {};
+  const posErrors = [];
+
+  for (const source of RPS_POS_SOURCES) {
+    try {
+      const [rows] = await conn.query(
+        `
+        SELECT 
+          COALESCE(SUM(COALESCE(remaining_principal, 0)), 0) AS pos
+        FROM ${source.tableName}
+        WHERE due_date < CURDATE()
+          AND COALESCE(remaining_principal, 0) > 0
+        `
+      );
+
+      posMap[source.partnerName.toLowerCase()] = Number(rows[0]?.pos || 0);
+    } catch (err) {
+      console.error(
+        `POS query failed for ${source.partnerName} / ${source.tableName}:`,
+        err.message
+      );
+
+      posErrors.push({
+        partnerName: source.partnerName,
+        tableName: source.tableName,
+        error: err.message,
+      });
+
+      posMap[source.partnerName.toLowerCase()] = 0;
+    }
+  }
+
+  return { posMap, posErrors };
+}
+
 router.get("/partners-list", async (req, res) => {
 
   try {
@@ -104,38 +210,75 @@ router.put("/:partnerId/status", async (req, res) => {
 
 // GET /api/partners - List all partners with current monthly limits
 router.get('/partners', async (req, res) => {
+  const conn = await db.promise().getConnection();
+
   try {
     const { month, year } = req.query;
+
     const m = parseInt(month) || new Date().getMonth() + 1;
     const y = parseInt(year) || new Date().getFullYear();
 
-    const [partners] = await db.promise().query(`
+    const [partners] = await conn.query(
+      `
       SELECT 
         pm.partner_id, 
         pm.partner_name, 
         pm.status,
         pm.fldg_percent,
-  pm.fldg_status,
-        pml.id as limit_id,
-        pml.assigned_limit,
-        pml.used_limit, 
-        pml.remaining_limit,
+        pm.fldg_status,
+        pml.id AS limit_id,
+        COALESCE(pml.assigned_limit, 0) AS assigned_limit,
+        COALESCE(pml.used_limit, 0) AS used_limit,
+        COALESCE(pml.remaining_limit, 0) AS remaining_limit,
         pml.month,
         pml.year
       FROM partner_master pm
-      LEFT JOIN partner_monthly_limit pml ON pm.partner_id = pml.partner_id 
-        AND pml.month = ? AND pml.year = ?
+      LEFT JOIN partner_monthly_limit pml 
+        ON pm.partner_id = pml.partner_id 
+        AND pml.month = ? 
+        AND pml.year = ?
       ORDER BY pm.partner_name
-    `, [m, y]);
+      `,
+      [m, y]
+    );
+
+    const { posMap, posErrors } = await getPartnerPOSMap(conn);
+
+const partnersWithPOS = partners.map((p) => ({
+  ...p,
+  pos: Number(posMap[String(p.partner_name || "").toLowerCase()] || 0),
+}));
+
+    const totals = partnersWithPOS.reduce(
+      (acc, p) => {
+        acc.assigned_limit += Number(p.assigned_limit || 0);
+        acc.used_limit += Number(p.used_limit || 0);
+        acc.remaining_limit += Number(p.remaining_limit || 0);
+        acc.pos += Number(p.pos || 0);
+        return acc;
+      },
+      {
+        assigned_limit: 0,
+        used_limit: 0,
+        remaining_limit: 0,
+        pos: 0,
+      }
+    );
 
     res.json({
       month: m,
       year: y,
-      partners
+      partners: partnersWithPOS,
+      totals,
     });
   } catch (err) {
     console.error('Partner list error:', err);
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({
+      error: err.message,
+    });
+  } finally {
+    conn.release();
   }
 });
 
