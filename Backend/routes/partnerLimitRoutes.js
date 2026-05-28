@@ -85,8 +85,7 @@ async function getPartnerPOSMap(conn) {
         SELECT 
           COALESCE(SUM(COALESCE(remaining_principal, 0)), 0) AS pos
         FROM ${source.tableName}
-        WHERE due_date < CURDATE()
-          AND COALESCE(remaining_principal, 0) > 0
+        WHERE COALESCE(remaining_principal, 0) > 0
         `
       );
 
