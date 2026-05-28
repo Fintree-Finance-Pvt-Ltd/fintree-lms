@@ -1058,13 +1058,13 @@ try {
     await partnerLimitService.updateUsedLimit(
       conn,
       limitRows[0].id,
-      disbursedAmount,
+      loan_amount,
       "DISBURSED",
       lan,
     );
 
     console.log(
-      `✅ Partner limit updated | Partner: ${partnerName} | LAN: ${lan} | Amount: ${disbursedAmount}`,
+      `✅ Partner limit updated | Partner: ${partnerName} | LAN: ${lan} | Amount: ${loan_amount}`,
     );
 } catch (limitErr) {
   rowErrors.push({
