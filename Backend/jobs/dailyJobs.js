@@ -211,7 +211,7 @@ cron.schedule("*/2 * * * *", async () => {
 // 4️⃣ WhatsApp Due Date Reminder Cron
 // Runs every day at 9:00 AM server time
 cron.schedule(
-  "0 11 * * *",
+  "20 11 * * *",
   async () => {
     console.log("📱 Running WhatsApp Due Date Reminder Service...");
     try {
