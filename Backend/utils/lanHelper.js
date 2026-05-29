@@ -43,6 +43,17 @@ function isClayyoLan(lan = "") {
 }
 
 /**
+ * Check if LAN belongs to Motion Corp flow
+ *
+ * @param {string} lan
+ * @returns {boolean}
+ */
+function isMotionCorpLan(lan = "") {
+  const s = normalizeLan(lan);
+  return s.startsWith("MCL");
+}
+
+/**
  * Check if LAN belongs to Helium flow
  *
  * @param {string} lan
@@ -88,6 +99,16 @@ if (isClayyoLan(lan)) {
     };
   }
 
+  if (isMotionCorpLan(lan)) {
+    return {
+      type: "MOTION_CORP",
+      summaryTable: "motioncorp_loan_summary",
+      rpsTable: "loan_rps_motioncorp",
+      bookingTable: "loan_booking_motion_corp",
+      agreementTemplate: "Motion_Corp_EV_Full_Agreement.html"
+    };
+  }
+
   throw new Error(`Unknown LAN format: ${lan}`);
 }
 
@@ -96,5 +117,6 @@ module.exports = {
   isCustomerLan,
   isClayyoLan,
   isHeliumLan,
+  isMotionCorpLan,
   getLoanContext,
 };

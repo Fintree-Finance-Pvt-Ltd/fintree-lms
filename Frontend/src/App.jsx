@@ -188,7 +188,6 @@ import SevenFinCorpDealerEntry from "./components/Seven FinCorp/SevenfinCorpDeal
 import SevenFinCorpDealerLists from "./components/Seven FinCorp/SevenfinCorpDealerLists";
 import SevenFinCorpLoanBooking from "./components/Seven FinCorp/SevenfinCorpLoanBooking";
 import SevenFinCorpLoginCases from "./components/Seven FinCorp/SevenFinCorpLoginCases";
-import SevenFinCorpApprovedLoans from "./components/Seven FinCorp/SevenFinCorpApprovedLoans";
 import SevenFinCorpDealerDetails from "./components/Seven FinCorp/SevenfinCorpDealerDetails";
 import SevenFinCorpAllLoans from "./components/Seven FinCorp/SevenFinCorpAllLoans";
 import SevenFinCorpDetails from "./components/Seven FinCorp/SevenfinCorpDetails";
@@ -206,6 +205,9 @@ import BundelaDisburseInitiate from "./components/Bundela/BundelaDisburseInitiat
 import BundelaDetails from "./components/Bundela/BundelaDetails";
 import MotionCorpOperationApproval from "./components/Motion Corp/MotionCorpOperationApproval";
 import PayUSubscribe from "./components/PayUSubscribe";
+import SevenFinCorpDealerLoginActions from "./components/Seven FinCorp/SevenfinCorpDealerLoginActions";
+import SevenFinCorpDisburseInitiate from "./components/Seven FinCorp/SevenfinCorpDisburseInitiate";
+import SevenFinCorpApprovedLoans from "./components/Seven FinCorp/SevenFinCorpApprovedLoans";
 
 function App() {
   return (
@@ -1488,8 +1490,31 @@ function App() {
                 <SevenFinCorpDealerLists />
               </PermissionRoute>
             }
-          />{" "}
-          x
+          />
+          <Route
+            path="/seven-fincorp/credit-approval-actions"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Credit Approval Actions">
+                <SevenFinCorpDealerLoginActions />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/seven-fincorp/customer-disburse-initiate"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Customer Credit Initiate Actions">
+                <SevenFinCorpDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/seven-fincorp/operation-initiate-actions"
+            element={
+              <PermissionRoute pageName="Seven Fincorp Customer Operation Initiate Actions">
+                <SevenFinCorpApprovedLoans />
+              </PermissionRoute>
+            }
+          />
           <Route
             path="/seven-fincorp/loan-booking"
             element={
@@ -1506,14 +1531,7 @@ function App() {
               </PermissionRoute>
             }
           />
-          <Route
-            path="/seven-fincorp/dealer-approved-loans"
-            element={
-              <PermissionRoute pageName="Seven Fincorp Dealer Operation Approval Loans">
-                <SevenFinCorpApprovedLoans />
-              </PermissionRoute>
-            }
-          />
+          
           <Route
             path="/seven-fincorp/dealer-details/:lan"
             element={<SevenFinCorpDealerDetails />}
