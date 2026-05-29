@@ -1429,9 +1429,9 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
         );
     }
 
-    const out = await initDoqfyEsign(lan, type.toUpperCase());
+    // const out = await initDoqfyEsign(lan, type.toUpperCase());
 
-    // const out = await initEsign(lan, type.toUpperCase());
+    const out = await initEsign(lan, type.toUpperCase());
 
     res.json(out);
   } catch (err) {
