@@ -648,6 +648,8 @@ async function getLoanData(lan) {
   let summaryRows = [];
   let rpsRows = [];
 
+  let RPS_ROWS = "";
+  let RPS_TABLE_ROWS = "";
   // ===============================
   // CLAYYO SUMMARY
   // ===============================
@@ -673,7 +675,59 @@ async function getLoanData(lan) {
 
     summaryRows = rows;
 
-  } else {
+  } 
+  // ===============================
+  // MOTION CORP SUMMARY
+  // ===============================
+  else if (summaryTable === "motioncorp_loan_summary") {
+    const [rows] = await db.promise().query(
+      `
+      SELECT *
+      FROM motioncorp_loan_summary
+      WHERE LAN = ?
+      `,
+      [lan]
+    );
+
+    summaryRows = rows;
+
+    const [rps] = await db.promise().query(
+      `
+      SELECT
+        emi_no,
+        opening,
+        principal,
+        interest,
+        emi,
+        closing,
+        remaining_emi,
+        remaining_interest,
+        remaining_principal
+      FROM loan_rps_motioncorp
+      WHERE TRIM(lan) = TRIM(?)
+      ORDER BY emi_no ASC
+      `,
+      [lan]
+    );
+
+    rpsRows = rps;
+
+    RPS_TABLE_ROWS = rpsRows
+      .map((row) => `
+        <tr>
+          <td>${row.emi_no ?? ""}</td>
+          <td>${Number(row.opening || 0).toFixed(2)}</td>
+          <td>${Number(row.principal || 0).toFixed(2)}</td>
+          <td>${Number(row.interest || 0).toFixed(2)}</td>
+          <td>${Number(row.emi || 0).toFixed(2)}</td>
+        </tr>
+      `)
+      .join("");
+
+    // Keep this also for backward compatibility
+    RPS_ROWS = RPS_TABLE_ROWS;
+  }
+  else {
     // ===============================
     // EXISTING CLIENTS (UNCHANGED)
     // ===============================
@@ -709,24 +763,38 @@ async function getLoanData(lan) {
 
   if (!summaryRows.length) return null;
 
-  const RPS_ROWS = rpsRows
+  if (summaryTable !== "motioncorp_loan_summary") {
+  RPS_ROWS = rpsRows
     .map((row, index) => `
       <tr>
         <td>${index + 1}</td>
-        <td>${Number(row.opening).toFixed(2)}</td>
-        <td>${Number(row.principal).toFixed(2)}</td>
-        <td>${Number(row.interest).toFixed(2)}</td>
-        <td>${Number(row.emi).toFixed(2)}</td>
-        <td>${Number(row.closing).toFixed(2)}</td>
+        <td>${Number(row.opening || 0).toFixed(2)}</td>
+        <td>${Number(row.principal || 0).toFixed(2)}</td>
+        <td>${Number(row.interest || 0).toFixed(2)}</td>
+        <td>${Number(row.emi || 0).toFixed(2)}</td>
+        <td>${Number(row.closing || 0).toFixed(2)}</td>
       </tr>
     `)
     .join("");
+
+  RPS_TABLE_ROWS = RPS_ROWS;
+}
+
+  const summary = summaryRows[0];
+
+const loanAmount =
+  summary.L_A ||
+  summary.LOAN_AMOUNT ||
+  summary.FINAL_LIMIT ||
+  0;
 
   return {
     ...summaryRows[0],
     RPS: rpsRows,
     RPS_ROWS,
+    RPS_TABLE_ROWS,
     L_A_W: summaryRows[0].L_A ? numberToWords(summaryRows[0].L_A) : "",
+    AMOUNT_IN_WORDS: loanAmount ? numberToWords(loanAmount) : "",
     CU_date: dayjs().format("DD-MM-YYYY")
   };
 }
@@ -810,6 +878,23 @@ exports.generateAgreementPdf = async (lan) => {
   if (summaryTable === "clayyo_loan_summary") {
     await db.promise().query(
       "CALL sp_generate_clayyo_summary(?)",
+      [lan]
+    );
+  }
+
+   // ===============================
+  // MOTION CORP RPS + SUMMARY GENERATION
+  // ===============================
+  if (summaryTable === "motioncorp_loan_summary") {
+    // First generate full RPS
+    await db.promise().query(
+      "CALL sp_generate_motioncorp_rps(?)",
+      [lan]
+    );
+
+    // Then generate one-row summary
+    await db.promise().query(
+      "CALL sp_create_motioncorp_loan_summary(?)",
       [lan]
     );
   }

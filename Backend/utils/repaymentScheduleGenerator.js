@@ -4811,6 +4811,8 @@ const generateRepaymentScheduleMotionCorp = async (
   // STEP 5 : PRE EMI DAYS
   // =====================================================
 
+  const disbDate = new Date(disbursementDate);
+  
   const diffTime =
     firstDueDate.getTime() -
     disbDate.getTime();
