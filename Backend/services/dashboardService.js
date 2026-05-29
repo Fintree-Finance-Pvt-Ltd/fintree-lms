@@ -127,7 +127,7 @@ const PRODUCT_MAP = {
     label:         "Finso",
     disbDateSource:"utr",
   },
-  "Hey EV": {
+  "Hey EV Battery": {
     rpsTable:      "manual_rps_hey_ev_battery",
     bookTable:     "loan_booking_hey_ev_battery",
     disbField:     "loan_amount",
@@ -137,7 +137,7 @@ const PRODUCT_MAP = {
     label:         "Hey EV Battery",
     disbDateSource:"utr",
   },
-  "Hey EV Battery": {
+  "Hey EV": {
     rpsTable:      "manual_rps_hey_ev",
     bookTable:     "loan_booking_hey_ev",
     disbField:     "loan_amount",
