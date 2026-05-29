@@ -66,6 +66,7 @@ const LAN_TABLE_MAP = {
   WCTL: { table: "loan_bookings_wctl", statusCol: "status" },
   E1: { table: "loan_booking_embifi", statusCol: "status" },
   FINE: { table: "loan_booking_emiclub", statusCol: "status" },
+  CARE: { table: "loan_booking_carepay", statusCol: "status" },
   FINS: { table: "loan_booking_finso", statusCol: "status" },
   HEL: { table: "loan_booking_helium", statusCol: "status" },
   DLR: { table: "dealer_onboarding", statusCol: "status" },
@@ -807,7 +808,7 @@ function inferOriginalNameFromUrl(url) {
   }
 }
 
-router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
+async function handleRemoteDocumentUpload(req, res) {
   try {
     const { lan: bodyLan, documents } = req.body;
 
@@ -913,6 +914,14 @@ router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
     console.error("❌ /upload-files-emiclub error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
+}
+
+router.post("/upload-files-emiclub", verifyApiKey, async (req, res) => {
+  return handleRemoteDocumentUpload(req, res);
+});
+
+router.post("/upload-files-carepay", verifyApiKey, async (req, res) => {
+  return handleRemoteDocumentUpload(req, res);
 });
 
 router.post(
@@ -1703,6 +1712,11 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_emiclub";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
+  } else if (lan.startsWith("CARE")) {
+    loanTable = "loan_booking_carepay";
+    rpsTable = "manual_rps_carepay";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
   } else if (lan.startsWith("WCTL")) {
     loanTable = "loan_bookings_wctl";
     rpsTable = "manual_rps_wctl";
@@ -1948,6 +1962,7 @@ router.post("/generate-soa", async (req, res) => {
         loan_booking_circle_pe: "app_id",
         loan_booking_embifi: "partner_loan_id",
         loan_booking_emiclub: "partner_loan_id",
+        loan_booking_carepay: "partner_loan_id",
         loan_booking_finso: "partner_loan_id",
         loan_booking_hey_ev: "partner_loan_id",
         loan_bookings_wctl: "partner_loan_id",
@@ -2154,6 +2169,7 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("BL")) loanTable = "loan_bookings";
   else if (lan.startsWith("E1")) loanTable = "loan_booking_embifi";
   else if (lan.startsWith("FINE")) loanTable = "loan_booking_emiclub";
+  else if (lan.startsWith("CARE")) loanTable = "loan_booking_carepay";
   else if (lan.startsWith("HEYBF")) loanTable = "loan_booking_hey_ev_battery";
   else if (lan.startsWith("HEY")) loanTable = "loan_booking_hey_ev";
   else if (lan.startsWith("HEL")) loanTable = "loan_booking_helium";
@@ -2297,6 +2313,7 @@ router.post("/generate-foreclosure", async (req, res) => {
   else if (lan.startsWith("WCTL")) bookingTable = "loan_bookings_wctl";
   else if (lan.startsWith("BL")) bookingTable = "loan_bookings";
   else if (lan.startsWith("FINE")) bookingTable = "loan_booking_emiclub";
+  else if (lan.startsWith("CARE")) bookingTable = "loan_booking_carepay";
 
   // Helpers
   const fmtDateLong = (d) =>

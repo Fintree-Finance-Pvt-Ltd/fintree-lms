@@ -208,6 +208,13 @@ import PayUSubscribe from "./components/PayUSubscribe";
 import SevenFinCorpDealerLoginActions from "./components/Seven FinCorp/SevenfinCorpDealerLoginActions";
 import SevenFinCorpDisburseInitiate from "./components/Seven FinCorp/SevenfinCorpDisburseInitiate";
 import SevenFinCorpApprovedLoans from "./components/Seven FinCorp/SevenFinCorpApprovedLoans";
+import CarePayAllLoans from "./components/CarePay/CarePayAllLoans";
+import CarePayApprovedLoans from "./components/CarePay/CarePayApprovedLoans";
+import CarePayLoginLoans from "./components/CarePay/CarePayLoginLoans";
+import CarePayApproveInitiateScreen from "./components/CarePay/CarePayApproveInitiateScreen";
+import CarePayActionScreen from "./components/CarePay/CarepayActionScreen";
+import CarePayDisbursedLoans from "./components/CarePay/CarePayDisbursedLoans";
+
 
 function App() {
   return (
@@ -776,6 +783,54 @@ function App() {
             element={
               <PermissionRoute pageName="EmiClub Disburse Initiated">
                 <EmiClubApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/carepay-loans/approved"
+            element={
+              <PermissionRoute pageName="CarePay Approved Loans">
+                <CarePayApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/carepay-loans/disbursed"
+            element={
+              <PermissionRoute pageName="CarePay Disbursed Loans">
+                <CarePayDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/carepay-loans/all"
+            element={
+              <PermissionRoute pageName="CarePay All Loans">
+                <CarePayAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/carepay-loans/login-cases"
+            element={
+              <PermissionRoute pageName="CarePay Login Loans">
+                <CarePayLoginLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/carepay-loans/login-actions"
+            element={
+              <PermissionRoute pageName="CarePay Login Actions">
+                <CarePayActionScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/carepay-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="CarePay Disburse Initiated">
+                <CarePayApproveInitiateScreen />
               </PermissionRoute>
             }
           />

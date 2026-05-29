@@ -57,6 +57,9 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("FINE")) {
     table = "loan_booking_emiclub";
     posTable = "manual_rps_emiclub";
+  } else if (lan.startsWith("CARE")) {
+    table = "loan_booking_carepay";
+    posTable = "manual_rps_carepay";
   } else if (lan.startsWith("FINS")) {
     table = "loan_booking_finso";
     posTable = "manual_rps_finso_loan";

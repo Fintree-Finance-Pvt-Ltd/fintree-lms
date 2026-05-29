@@ -1,5 +1,5 @@
 import React from 'react'
-import ApproveInitiatedScreen from './ApproveInitiatedScreen';
+import ApproveInitiatedScreen from '../ApproveInitiatedScreen';
 
 
 const CarePayApproveInitiateScreen = () => {

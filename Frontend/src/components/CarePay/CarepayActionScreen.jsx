@@ -1,5 +1,5 @@
 import React from 'react'
-import LoginActionScreen from './LoginActionScreen';
+import LoginActionScreen from '../LoginActionScreen';
 
 
 

@@ -1,10 +1,10 @@
 import React from 'react'
-import AllLoans from './AllLoansScreen'
+import AllLoansScreen from '../AllLoansScreen';
 
 
 const CarePayAllLoans = () => {
   return (
-    <AllLoans apiEndpoint={`/loan-booking/all-loans?table=loan_booking_carepay&prefix=CARE`} title="CarePay All Loans" />
+    <AllLoansScreen apiEndpoint={`/loan-booking/all-loans?table=loan_booking_carepay&prefix=CARE`} title="CarePay All Loans" />
   )
 }
 
