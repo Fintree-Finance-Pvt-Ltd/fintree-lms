@@ -531,6 +531,13 @@ const { sendLoanWebhook } = require("../utils/webhook");
 const {
   generateRepaymentSchedule,
 } = require("../utils/repaymentScheduleGenerator");
+const partnerLimitService = require("../services/partnerLimitService");
+const partnerFldgService = require("../services/partnerFldgService");
+const {
+  extractPartnerName,
+  getMonthYear,
+  validatePartnerName,
+} = require("../utils/partnerHelpers");
 
 const upload = multer();
 
@@ -547,6 +554,22 @@ function excelDateToJSDate(serial) {
 
 function toClientError(err) {
   return { message: err.message || String(err) };
+}
+
+function getPartnerNameByLan(lan, lender, product) {
+  if (lan.startsWith("MCL")) return "Motion Corp";
+  if (lan.startsWith("EV")) return "EV Loan";
+  if (lan.startsWith("HEYEV")) return "Hey EV";
+  if (lan.startsWith("HEYBF1")) return "Hey EV Battery";
+  if (lan.startsWith("FINE")) return "EMI Club";
+  if (lan.startsWith("FINS")) return "Finso";
+  if (lan.startsWith("LDF") || lan.startsWith("LDG") || lan.startsWith("LDD")) return "Loan Digit";
+  if (lan.startsWith("CLYO")) return "Clayyo";
+  if (lan.startsWith("HEL")) return "Helium";
+  if (lan.startsWith("ZYPF")) return "Zypay";
+  if (lan.startsWith("CIRF") || lan.startsWith("CIRHUF")) return "Circle Pe";
+
+  return lender || product || null;
 }
 
 router.post("/upload-utr", upload.single("file"), async (req, res) => {
@@ -576,9 +599,11 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       );
 
       if (!disbursementUTR || !disbursementDate || !lan) {
-        const reason = `Missing required fields: ${!disbursementUTR ? "Disbursement UTR " : ""
-          }${!disbursementDate ? "Disbursement Date " : ""}${!lan ? "LAN" : ""
-          }`.trim();
+        const reason = `Missing required fields: ${
+          !disbursementUTR ? "Disbursement UTR " : ""
+        }${!disbursementDate ? "Disbursement Date " : ""}${
+          !lan ? "LAN" : ""
+        }`.trim();
         rowErrors.push({
           lan: lan || null,
           utr: disbursementUTR || null,
@@ -600,16 +625,16 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         } else if (lan.startsWith("GQF")) {
           [loanRes] = await db.promise().query(
             `SELECT 
-  loan_amount_sanctioned AS loan_amount,
-  emi_day AS emi_date,
-  interest_percent AS interest_rate,
-  loan_tenure_months AS loan_tenure,
-  subvention_amount,
-  no_of_advance_emis,
-  product,
-  lender,
-  retention_percentage ,
-  retention_amount AS manual_retention_amount
+            loan_amount_sanctioned AS loan_amount,
+            emi_day AS emi_date,
+            interest_percent AS interest_rate,
+            loan_tenure_months AS loan_tenure,
+            subvention_amount,
+            no_of_advance_emis,
+            product,
+            lender,
+            retention_percentage ,
+            retention_amount AS manual_retention_amount
 FROM loan_booking_gq_fsf
 WHERE lan = ?`,
             [lan],
@@ -663,15 +688,13 @@ WHERE lan = ?`,
              FROM loan_booking_circle_pe WHERE lan = ?`,
             [lan],
           );
-        }
-        else if (lan.startsWith("CIRHUF")) {
+        } else if (lan.startsWith("CIRHUF")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_circle_pe_houser WHERE lan = ?`,
             [lan],
           );
-        }
-        else if (lan.startsWith("MCL")) {
+        } else if (lan.startsWith("MCL")) {
           [loanRes] = await db.promise().query(
             `SELECT 
       loan_amount,
@@ -683,8 +706,7 @@ WHERE lan = ?`,
      WHERE lan = ?`,
             [lan],
           );
-        }
-        else if (lan.startsWith("CLYO")) {
+        } else if (lan.startsWith("CLYO")) {
           [loanRes] = await db.promise().query(
             `SELECT final_limit AS loan_amount, interest_rate, loan_tenure, product, lender 
              FROM loan_booking_clayyo WHERE lan = ?`,
@@ -866,8 +888,7 @@ WHERE lan = ?`,
               "UPDATE loan_booking_circle_pe SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
-          }
-           else if (lan.startsWith("CIRHUF")) {
+          } else if (lan.startsWith("CIRHUF")) {
             await conn.query(
               "UPDATE loan_booking_circle_pe_houser SET status = 'Disbursed' WHERE lan = ?",
               [lan],
@@ -882,17 +903,14 @@ WHERE lan = ?`,
               "UPDATE loan_booking_hey_ev_battery SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
-          }
-          else if (lan.startsWith("MCL")) {
+          } else if (lan.startsWith("MCL")) {
             await conn.query(
               `UPDATE loan_booking_motion_corp
-     SET status = 'Disbursed',
-         stage = 'Disbursed'
+     SET status = 'Disbursed'
      WHERE lan = ?`,
               [lan],
             );
-          }
-          else if (lan.startsWith("CLYO")) {
+          } else if (lan.startsWith("CLYO")) {
             await conn.query(
               "UPDATE loan_booking_clayyo SET status = 'Disbursed' , stage = 'Disbursed' WHERE lan = ?",
               [lan],
@@ -1001,6 +1019,70 @@ WHERE lan = ?`,
           await conn.rollback();
           continue;
         }
+
+        // ✅ Update partner used limit after successful disbursement
+        if (lan.startsWith("MCL")){
+try {
+  const partnerName = getPartnerNameByLan(lan, lender, product);
+  console.log("partner_name", partnerName);
+
+  // Extract month/year from disbursement date
+  const { month, year } = getMonthYear(
+    new Date(disbursementDate),
+  );
+
+  // Fetch partner
+  const partner = await partnerLimitService.getOrCreatePartner(
+    conn,
+    partnerName,
+  );
+
+  // Get current active limit row
+  const [limitRows] = await conn.query(
+    `
+    SELECT id
+    FROM partner_monthly_limit
+    WHERE partner_id = ?
+      AND month = ?
+      AND year = ?
+    ORDER BY id DESC
+    LIMIT 1
+    `,
+    [partner.partner_id, month, year],
+  );
+
+  if (limitRows.length === 0) {
+      throw new Error(`No monthly limit found for ${partnerName}`);
+    }
+
+    await partnerLimitService.updateUsedLimit(
+      conn,
+      limitRows[0].id,
+      loan_amount,
+      "DISBURSED",
+      lan,
+    );
+
+    console.log(
+      `✅ Partner limit updated | Partner: ${partnerName} | LAN: ${lan} | Amount: ${loan_amount}`,
+    );
+} catch (limitErr) {
+  rowErrors.push({
+    lan,
+    utr: disbursementUTR,
+    reason: `Partner limit update failed: ${limitErr.message}`,
+    stage: "partner-limit",
+  });
+
+
+
+  await conn.rollback();
+  continue;
+}
+        }
+
+
+
 
         await conn.commit();
         processedCount++;
@@ -1133,11 +1215,11 @@ WHERE lan = ?`,
         });
         try {
           if (conn) await conn.rollback();
-        } catch (_) { }
+        } catch (_) {}
       } finally {
         try {
           if (conn) conn.release();
-        } catch (_) { }
+        } catch (_) {}
       }
     }
 

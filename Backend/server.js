@@ -96,6 +96,7 @@ app.use("/api/loan-booking", excelUploadRoutes);
 app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅ Register WCTL-CC-OD Routes
 app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
 app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // ✅ Register Clayyo Routes
+app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ Register PayU Routes
 
 app.use(
   "/api/motion-corp",
@@ -148,6 +149,7 @@ app.use("/api/dealer-onboarding", dealerOnboardingRoutes); // ✅ Register Route
 app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers
 
 app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
+app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 
 app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
 

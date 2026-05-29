@@ -5134,9 +5134,7 @@ if (utrExists.length) {
               row.bank_name,
               row.account_holder_name,
               parseNumber(row.disbursement_amount),
-              parseNumber(
-                row.remaining_disbursement_amount
-              ),
+              parseNumber(row.disbursement_amount),
               excelDateToJSDate(row.disbursement_date) || null,
               excelDateToJSDate(row.invoice_due_date) || null,
               disbursement_utr,
@@ -5150,9 +5148,34 @@ if (utrExists.length) {
           );
 
           await conn.commit();
-          conn.release();
+conn.release();
+conn = null;
 
-          success_rows.push(R);
+// ✅ Generate due demand after successful Excel invoice upload
+setImmediate(async () => {
+  try {
+    await generateDemandFromInvoiceDisbursement(
+      invoice_number,
+      lan
+    );
+
+    console.log(
+      `Demand generated successfully for invoice ${invoice_number}, LAN ${lan}`
+    );
+  } catch (e) {
+    console.error(
+      `Demand generation failed for invoice ${invoice_number}, LAN ${lan}:`,
+      e
+    );
+  }
+});
+
+success_rows.push({
+  row: R,
+  invoice_number,
+  lan,
+  demand_generation: "queued",
+});
         } catch (err) {
           if (conn) {
             await conn.rollback();
@@ -8545,9 +8568,9 @@ router.post(
         const R = row.__row;
 
         try {
-          const lan = row.lan?.trim();
+          const lan = String(row.lan || "").trim();
           const collection_date = excelDateToJSDate(row.collection_date);
-          const collection_utr = row.collection_utr?.trim();
+          const collection_utr = String(row.collection_utr || "").trim();
           const collection_amount = Number(row.collection_amount);
 
           /* ---------- BASIC VALIDATION ---------- */

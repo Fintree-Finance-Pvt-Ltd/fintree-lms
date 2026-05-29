@@ -974,7 +974,7 @@ router.post("/esign-webhook", async (req, res) => {
 router.post("/enach-webhook", async (req, res) => {
   try {
     const event = req.body.event;
-    const mandate = req.body?.payload?.mandate;
+    const mandate = req.body?.payload?.api_mandate;
     const mandateId = mandate?.id;
     const outsideId =req.body?.id;// This is the LA    console.log("📥 eNACH WEBHOOK:", event, "Mandate:", mandateId);
     console.log("loggind full webhook payload:", JSON.stringify(req.body).slice(0, 800));
@@ -1000,7 +1000,7 @@ router.post("/enach-webhook", async (req, res) => {
     if (!rows.length) return res.status(200).send("unknown-mandate");
 
     const lan = rows[0].lan;
-    const newStatus = mandate.state || "UNKNOWN";
+    const newStatus = mandate.current_status || "UNKNOWN";
     const umrn = mandate.umrn || null;
 
     console.log("🔄 Updating mandate:", mandateId, "STATUS:", newStatus);
@@ -1020,9 +1020,9 @@ router.post("/enach-webhook", async (req, res) => {
     // Update loan table status
     let bankStatus = "PENDING";
 
-    if (event === "mandate.auth_success") bankStatus = "MANDATE_CREATED";
-    if (event === "mandate.register_success") bankStatus = "MANDATE_CREATED";
-    if (event === "mandate.auth_fail" || event === "mandate.register_failed") bankStatus = "FAILED";
+    if (event === "apimndt.authsuccess") bankStatus = "MANDATE_CREATED";
+    if (event === "apimndt.registersuccess") bankStatus = "MANDATE_CREATED";
+    if (event === "apimndt.authfail" || event === "apimndt.registerfailed") bankStatus = "FAILED";
 
     
 
@@ -1034,7 +1034,7 @@ router.post("/enach-webhook", async (req, res) => {
       [bankStatus, umrn, lan]
     );
     }
-    if (lan.startsWith("MC")) {
+    else if (lan.startsWith("MC")) {
       await db.promise().query(
       `UPDATE loan_booking_motion_corp 
    SET bank_status = ?, enach_umrn = ? 
