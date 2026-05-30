@@ -37,6 +37,7 @@ const RPS_TABLES = [
   "manual_rps_wctl",
   "manual_rps_embifi_loan",
   "manual_rps_emiclub",
+  "manual_rps_carepay",
   "manual_rps_gq_fsf",
   "manual_rps_hey_ev",
 ];
@@ -52,6 +53,7 @@ const LAN_TABLE_MAP = {
   GQNSF: "loan_booking_gq_non_fsf",
   EMB: "loan_booking_embifi",
   FINE: "loan_booking_emiclub",
+  CARE: "loan_booking_carepay",
   CLAY: "loan_booking_clayyo",
   HEY: "loan_booking_hey_ev",
   CIRCLE: "loan_booking_circle_pe",
@@ -78,6 +80,7 @@ function getLoanTableByLAN(lan) {
   if (prefix.startsWith("EMB")) return "loan_booking_embifi";
   if (prefix.startsWith("FINE") || prefix.startsWith("EMIC"))
     return "loan_booking_emiclub";
+  if (prefix.startsWith("CARE")) return "loan_booking_carepay";
   if (prefix.startsWith("CLAY")) return "loan_booking_clayyo";
   if (prefix.startsWith("HEY")) return "loan_booking_hey_ev";
   if (prefix.startsWith("CIRC")) return "loan_booking_circle_pe";
@@ -482,7 +485,7 @@ async function processAllOverdueEMIs() {
       });
 
       // Small delay between messages to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 60000));
+      await new Promise((resolve) => setTimeout(resolve, 10000));
     }
   }
 

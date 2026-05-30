@@ -1,5 +1,5 @@
 import React from 'react'
-import ApprovedLoansTable from './ApprovedLoansScreen'
+import ApprovedLoansTable from '../ApprovedLoansScreen';
 
 const CarePayApprovedLoans = () => {
   return (

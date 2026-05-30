@@ -1,5 +1,5 @@
 import React from 'react'
-import LoginCaseScreen from './LoginCaseScreen';
+import LoginCaseScreen from '../LoginCaseScreen';
 
 
 const CarePayLoginLoans = () => {
