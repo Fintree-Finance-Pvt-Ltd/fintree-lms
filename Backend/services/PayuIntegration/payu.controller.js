@@ -323,6 +323,8 @@ exports.createConsent = async (req, res) => {
       vpa,
     } = req.body;
 
+    console.log("Create consent request received with data:", req.body);
+
     if (!user_id || !name || !email || !phone || !amount) {
       return res.status(400).json({
         success: false,
@@ -438,20 +440,21 @@ exports.createConsent = async (req, res) => {
       amount: payuTransactionAmount,
       productinfo: "Subscription",
       firstname: name,
-      lastname: lastname || "",
       email,
       phone,
 
       surl: `${process.env.BASE_URL}/api/payu/success`,
       furl: `${process.env.BASE_URL}/api/payu/failure`,
+      lastname: lastname || "",
 
-      service_provider: "payu_paisa",
+      // service_provider: "payu_paisa",
 
+      // enforce_paymethod: 'enach|upi',
       api_version: "7",
       si: "1",
       si_details: siDetailsString,
 
-      ...paymentSpecificParams,
+      // ...paymentSpecificParams,
 
       udf1: "",
       udf2: "",
