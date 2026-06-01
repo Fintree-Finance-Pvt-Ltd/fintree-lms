@@ -219,7 +219,6 @@
 //         parseDateYYYYMMDD(acc?.Date_Opened) ||
 //         parseDateYYYYMMDD(acc?.Open_Date);
 
-
 //       if (dateOpened && dateOpened > latestOldDpdClosedDate) {
 //         newLoanAfterOldDpd = true;
 //         break;
@@ -581,8 +580,8 @@ const calculateAge = (dob) => {
  *
  * Final LoanDigit BRE:
  * - TransUnion CIBIL score >= 680
- * - Number of inquiries in last 3 months >= 12
- * - ZERO DPD / Overdue in last 12 months
+ * - Number of inquiries in last 3 months <= 12
+ * - 30 DPD or more in last 12 months -- Reject Zero Overdue in last 12 months
  * - ZERO Write-off / Settlement in last 12 months
  */
 const extractLoanDigitBureauFacts = (reportXml) => {
@@ -644,15 +643,18 @@ const extractLoanDigitBureauFacts = (reportXml) => {
         acc?.Suit_Filed_Wilful_Default ||
         acc?.Written_off_Settled_Status ||
         acc?.Written_Off_Settled_Status ||
-        ""
+        "",
     )
       .trim()
       .toUpperCase();
 
-    const writtenOffAmountTotal = toNumber(acc?.Written_Off_Amount_Total, 0);
+    const writtenOffAmountTotal = toNumber(
+      acc?.Written_Off_Amt_Total ?? acc?.Written_Off_Amount_Total,
+      0,
+    );
     const writtenOffAmountPrincipal = toNumber(
-      acc?.Written_Off_Amount_Principal,
-      0
+      acc?.Written_Off_Amt_Principal ?? acc?.Written_Off_Amount_Principal,
+      0,
     );
     const settlementAmount = toNumber(acc?.Settlement_Amount, 0);
     const amountPastDue = toNumber(acc?.Amount_Past_Due, 0);
@@ -737,7 +739,7 @@ const extractLoanDigitBureauFacts = (reportXml) => {
         monthsAgo: diff,
       });
 
-      if (diff < 12 && dpd > 0) {
+      if (diff < 12 && dpd > 29) {
         hasDpdOrOverdue12M = true;
       }
     }
@@ -767,47 +769,49 @@ const extractLoanDigitBureauFacts = (reportXml) => {
  * Final LoanDigit BRE evaluation
  *
  * Rules:
- * - Age minimum 23, maximum 45
+ * - Age minimum 23, maximum 55
  * - Occupation only salaried
  * - Minimum continuity of last 6 months in current company
  * - TransUnion CIBIL 680+
- * - Number of inquiry in 3 months 12 minimum
+ * - Number of inquiries in 3 months maximum 12
  * - Salary INR 20,000 and above
- * - ZERO DPD / Overdue last 12 months
+ * - 30 DPD or more in last 12 months -- Reject Zero Overdue in last 12 months
  * - ZERO Write-off / Settlement last 12 months
  */
 const evaluateLoanDigitPolicy = ({ loan, bureauFacts }) => {
   const reasons = [];
 
   const age = calculateAge(loan.dob);
-  const occupation = String(loan.employment || "").trim().toLowerCase();
+  const occupation = String(loan.employment || "")
+    .trim()
+    .toLowerCase();
   const continuityInput = String(loan.years_in_current_job || "0");
   const [yearsPart, monthsPart = "0"] = continuityInput.split(".");
-  const companyContinuityMonths = (Number(yearsPart) * 12) + Number(monthsPart);
+  const companyContinuityMonths = Number(yearsPart) * 12 + Number(monthsPart);
   const monthlyIncome = toNumber(loan.monthly_salary, 0);
   const bureauScore = toNumber(bureauFacts.score, null);
 
   /**
-   * Age minimum 23, maximum 45
+   * Age minimum 23, maximum 55
    */
   if (age === null) {
     reasons.push("AGE_MISSING");
   } else {
     if (age < 23) reasons.push("AGE_BELOW_23");
-    if (age > 45) reasons.push("AGE_ABOVE_45");
+    if (age > 55) reasons.push("AGE_ABOVE_55");
   }
 
   /**
    * Occupation only salaried
    */
-  if (!occupation.includes("salary")) {
+  if (!(occupation.includes("salary") || occupation.includes("salaried"))) {
     reasons.push("ONLY_SALARIED_ALLOWED");
   }
 
   /**
    * Minimum continuity of last 6 months in current company
    */
-  if (companyContinuityMonths  < 6) {
+  if (companyContinuityMonths < 6) {
     reasons.push("COMPANY_CONTINUITY_BELOW_6M");
   }
 
@@ -832,8 +836,8 @@ const evaluateLoanDigitPolicy = ({ loan, bureauFacts }) => {
    */
   if (bureauFacts.enquiries3m === null) {
     reasons.push("ENQUIRIES_3M_MISSING");
-  } else if (bureauFacts.enquiries3m < 12) {
-    reasons.push("ENQUIRIES_LT_12_IN_3M");
+  } else if (bureauFacts.enquiries3m > 12) {
+    reasons.push("ENQUIRIES_GT_12_IN_3M");
   }
 
   /**
@@ -869,7 +873,7 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
     `SELECT bureau_status
      FROM kyc_verification_status
      WHERE lan = ?`,
-    [lan]
+    [lan],
   );
 
   if (!kycRows.length) {
@@ -886,7 +890,7 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
            loandigit_bre_reason = ?,
            loandigit_bre_checked_at = NOW()
        WHERE lan = ?`,
-      ["Pending", `BUREAU_STATUS=${kyc.bureau_status || "NA"}`, lan]
+      ["Pending", `BUREAU_STATUS=${kyc.bureau_status || "NA"}`, lan],
     );
 
     return;
@@ -911,7 +915,7 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
        cibil_score
      FROM loan_booking_loan_digit
      WHERE lan = ?`,
-    [lan]
+    [lan],
   );
 
   if (!loanRows.length) {
@@ -930,7 +934,7 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
      WHERE lan = ?
      ORDER BY created_at DESC, id DESC
      LIMIT 1`,
-    [lan]
+    [lan],
   );
 
   if (!cibilRows.length || !cibilRows[0].report_xml) {
@@ -940,7 +944,7 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
            loandigit_bre_reason = ?,
            loandigit_bre_checked_at = NOW()
        WHERE lan = ?`,
-      ["Pending", "BUREAU_REPORT_MISSING", lan]
+      ["Pending", "BUREAU_REPORT_MISSING", lan],
     );
 
     return;
@@ -987,11 +991,11 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
 
       finalStage,
       lan,
-    ]
+    ],
   );
 
   console.log(
-    `LoanDigit BRE completed for ${lan}: ${decision.status} | ${reasonText}`
+    `LoanDigit BRE completed for ${lan}: ${decision.status} | ${reasonText}`,
   );
 };
 
