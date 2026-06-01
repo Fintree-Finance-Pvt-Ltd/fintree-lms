@@ -1467,7 +1467,7 @@ router.post("/test/:lan/esign/:type", authenticateUser, async (req, res) => {
   }
 });
 
-/* ======================================================
+/* =====================================================
    DIGIO WEBHOOK
 ====================================================== */
 // router.post("/v1/digio-esign-webhook", async (req, res) => {
@@ -1508,6 +1508,42 @@ router.post("/test/:lan/esign/:type", authenticateUser, async (req, res) => {
 //     res.status(500).send("error");
 //   }
 // });
+
+
+function decodeDoqfyPdf(orderDocument) {
+  if (!orderDocument) {
+    throw new Error("Missing order_document from Doqfy");
+  }
+
+  let base64Pdf = String(orderDocument).trim();
+
+  // Doqfy is sending Python bytes format: b'JVBER...'
+  if (
+    (base64Pdf.startsWith("b'") && base64Pdf.endsWith("'")) ||
+    (base64Pdf.startsWith('b"') && base64Pdf.endsWith('"'))
+  ) {
+    base64Pdf = base64Pdf.slice(2, -1);
+  }
+
+  // In case they send data URL format
+  if (base64Pdf.includes(",")) {
+    base64Pdf = base64Pdf.split(",").pop();
+  }
+
+  // Remove whitespace/new lines
+  base64Pdf = base64Pdf.replace(/\s/g, "");
+
+  const pdfBuffer = Buffer.from(base64Pdf, "base64");
+
+  // Validate PDF header
+  const header = pdfBuffer.slice(0, 5).toString("ascii");
+  if (header !== "%PDF-") {
+    throw new Error(`Invalid Doqfy PDF. Header received: ${header}`);
+  }
+
+  return pdfBuffer;
+}
+
 router.post("/v1/digio-esign-webhook", async (req, res) => {
   console.log("[Webhook] Received Digio eSign webhook");
 
@@ -1658,7 +1694,12 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
       EXPIRED
     */
 
-    if (orderStatus === "Completed" || signStatus === "SIGNED") {
+    if (
+  orderStatus === "Completed" ||
+  orderStatus === "COMPLETED" ||
+  signStatus === "SIGNED" ||
+  signStatus === "COMPLETED"
+) {
       finalStatus = "SIGNED";
     } else if (signStatus === "REJECTED") {
       finalStatus = "REJECTED";
@@ -1706,10 +1747,7 @@ if (
   /**
    * Decode PDF
    */
-  const pdfBuffer = Buffer.from(
-    event.order_document,
-    "base64"
-  );
+  const pdfBuffer = decodeDoqfyPdf(event.order_document);
 
   /**
    * Save PDF
