@@ -457,13 +457,6 @@ const PartnerLimitEntry = () => {
             </div>
 
             <div className="summary-card">
-              <span>Total Pending Pipeline</span>
-              <strong className="pending-value">
-                {formatCurrency(totals.pendingPipeline)}
-              </strong>
-            </div>
-
-            <div className="summary-card">
               <span>Booking Available</span>
               <strong
                 className={
@@ -520,14 +513,13 @@ const PartnerLimitEntry = () => {
               <thead>
                 <tr>
                   <th>Partner</th>
-                  <th>Status</th>
                   <th>FLDG %</th>
                   <th>FLDG</th>
                   <th className="text-right">Assigned</th>
-                  <th className="text-right">Booked/Login</th>
-                  <th className="text-right">Disbursed/Used</th>
-                  <th className="text-right">Booking Available</th>
-                  <th className="text-right">Disb. Remaining</th>
+                  <th className="text-right">Login</th>
+                  <th className="text-right">Disbursed</th>
+                  <th className="text-right">Login Avl.</th>
+                  <th className="text-right">Disb. Rem</th>
                   <th className="text-right">POS</th>
                   <th>Actions</th>
                 </tr>
@@ -536,18 +528,6 @@ const PartnerLimitEntry = () => {
                 {filteredPartners.map((p, i) => (
                   <tr key={p.partner_id || i}>
                     <td className="partner-name">{p.partner_name}</td>
-
-                    <td>
-                      <span
-                        className={
-                          p.status === "active"
-                            ? "status-badge status-active"
-                            : "status-badge status-inactive"
-                        }
-                      >
-                        {p.status}
-                      </span>
-                    </td>
 
                     <td>{Number(p.fldg_percent || 0)}%</td>
 

@@ -624,19 +624,19 @@
   color: #b45309;
 }
 
-.summary-grid {
+/* .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
   margin-bottom: 18px;
-}
+} */
 
 .pos-value {
   color: #7c2d12;
   font-weight: 800;
 }
 
-.summary-grid {
+/* .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
@@ -648,7 +648,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   padding: 16px;
-}
+} */
 
 .summary-card span {
   display: block;
@@ -745,4 +745,342 @@
   }
   
   
+}
+
+/* =========================================================
+   ONLY PARTNER LIMIT OVERVIEW COMPACT
+   Add this at the END of PartnerLimitEntry.css
+========================================================= */
+
+/* Keep page/form normal */
+.partner-page {
+  min-height: 100vh;
+  padding: 20px 24px;
+  overflow: auto;
+}
+
+.partner-container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Compact only the table card */
+.table-card {
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+/* Summary cards in one line */
+.table-card .summary-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.table-card .summary-card {
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.table-card .summary-card span {
+  font-size: 11px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-card .summary-card strong {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+/* Compact only Partner Limit Overview header */
+.table-card .table-header {
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.table-card .card-title {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.table-card .table-subtitle {
+  display: none;
+}
+
+.table-card .table-search input {
+  height: 36px;
+  min-width: 260px;
+  font-size: 12px;
+  padding: 0 10px;
+}
+
+/* Compact only table */
+.table-card .table-wrap {
+  border-radius: 12px;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.table-card .partner-table {
+  width: 100%;
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+
+.table-card .partner-table th,
+.table-card .partner-table td {
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.table-card .partner-table th {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.table-card .partner-name {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact only table status badge */
+.table-card .status-badge {
+  min-width: 64px;
+  padding: 5px 9px;
+  font-size: 10px;
+}
+
+/* Compact only FLDG switch inside table */
+.table-card .switch {
+  width: 40px;
+  height: 22px;
+}
+
+.table-card .slider::before {
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+}
+
+.table-card .switch-input:checked + .slider::before {
+  transform: translateX(18px);
+}
+
+/* Actions in one line */
+.table-card .action-group {
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.table-card .link-btn {
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   COMPACT FILTER + ADD PARTNER SECTION
+   Scoped only to top cards
+========================================================= */
+
+.top-layout {
+  display: grid;
+  grid-template-columns: 0.8fr 1.4fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.filter-card,
+.form-card {
+  padding: 14px;
+  border-radius: 16px;
+  margin-bottom: 8px;
+}
+
+.filter-card .card-title,
+.form-card .card-title {
+  font-size: 17px;
+  margin-bottom: 10px;
+}
+
+.filter-card .filter-grid,
+.form-card .form-grid {
+  gap: 10px;
+}
+
+.filter-card .field,
+.form-card .field {
+  gap: 5px;
+}
+
+.filter-card .field label,
+.form-card .field label {
+  font-size: 11px;
+}
+
+.filter-card .field input,
+.filter-card .field select,
+.form-card .field input,
+.form-card .field select {
+  height: 38px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+
+.filter-card .btn,
+.form-card .btn {
+  height: 38px;
+  min-width: 130px;
+  padding: 0 14px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+
+.form-card .form-actions {
+  margin-top: 10px;
+}
+
+/* Hide amount words to reduce height */
+.form-card .amount-words {
+  display: none;
+}
+
+/* Keep add partner form in one line */
+.form-card .form-grid {
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
+/* Filter card better alignment */
+.filter-card .filter-grid {
+  grid-template-columns: 1fr 1fr 0.85fr;
+}
+
+
+/* =========================================================
+   COMPACT AUDIT POPUP
+========================================================= */
+
+.audit-modal-overlay {
+  padding: 12px;
+}
+
+.audit-modal {
+  width: min(760px, 94vw);
+  max-height: 80vh;
+  border-radius: 18px;
+}
+
+.audit-modal-header {
+  padding: 16px 20px;
+}
+
+.audit-modal-header h2 {
+  font-size: 24px;
+  margin: 0;
+}
+
+.audit-modal-header p {
+  font-size: 15px;
+  margin-top: 4px;
+}
+
+.modal-close {
+  width: 38px;
+  height: 38px;
+  font-size: 26px;
+}
+
+.audit-modal-body {
+  padding: 16px 20px;
+  overflow: hidden;
+}
+
+.audit-modal-footer {
+  padding: 14px 20px;
+}
+
+.audit-modal-footer .btn {
+  height: 42px;
+  min-width: 140px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+/* Remove horizontal scroll issue inside popup */
+.audit-modal .table-wrap {
+  width: 100%;
+  border-radius: 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+/* Override global partner table min-width only inside audit popup */
+.audit-modal .partner-table,
+.audit-modal .audit-table {
+  width: 100%;
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+
+.audit-modal .partner-table th,
+.audit-modal .partner-table td,
+.audit-modal .audit-table th,
+.audit-modal .audit-table td {
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-modal .partner-table th,
+.audit-modal .audit-table th {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+/* Audit column sizing */
+.audit-modal .audit-table th:nth-child(1),
+.audit-modal .audit-table td:nth-child(1) {
+  width: 28%;
+}
+
+.audit-modal .audit-table th:nth-child(2),
+.audit-modal .audit-table td:nth-child(2) {
+  width: 16%;
+}
+
+.audit-modal .audit-table th:nth-child(3),
+.audit-modal .audit-table td:nth-child(3) {
+  width: 18%;
+}
+
+.audit-modal .audit-table th:nth-child(4),
+.audit-modal .audit-table td:nth-child(4) {
+  width: 16%;
+}
+
+.audit-modal .audit-table th:nth-child(5),
+.audit-modal .audit-table td:nth-child(5) {
+  width: 10%;
+}
+
+.audit-modal .audit-table th:nth-child(6),
+.audit-modal .audit-table td:nth-child(6) {
+  width: 12%;
+}
+
+.audit-action {
+  padding: 5px 10px;
+  font-size: 11px;
 }
