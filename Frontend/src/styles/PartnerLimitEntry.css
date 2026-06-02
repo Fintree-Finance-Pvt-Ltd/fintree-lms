@@ -758,12 +758,6 @@
   padding: 20px 24px;
   overflow: auto;
 }
-
-.partner-container {
-  max-width: 1280px;
-  margin: 0 auto;
-}
-
 /* Compact only the table card */
 .table-card {
   padding: 14px;
