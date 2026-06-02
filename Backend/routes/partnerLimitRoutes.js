@@ -1,9 +1,8 @@
-const express = require('express');
-const db = require('../config/db');
-const partnerLimitService = require('../services/partnerLimitService');
+const express = require("express");
+const db = require("../config/db");
+const partnerLimitService = require("../services/partnerLimitService");
 
 const router = express.Router();
-
 
 const RPS_POS_SOURCES = [
   {
@@ -70,9 +69,7 @@ const RPS_POS_SOURCES = [
     partnerName: "CLAYOO",
     tableName: "manual_rps_clayoo",
   },
-  
 ];
-
 
 async function getPartnerPOSMap(conn) {
   const posMap = {};
@@ -86,14 +83,14 @@ async function getPartnerPOSMap(conn) {
           COALESCE(SUM(COALESCE(remaining_principal, 0)), 0) AS pos
         FROM ${source.tableName}
         WHERE COALESCE(remaining_principal, 0) > 0
-        `
+        `,
       );
 
       posMap[source.partnerName.toLowerCase()] = Number(rows[0]?.pos || 0);
     } catch (err) {
       console.error(
         `POS query failed for ${source.partnerName} / ${source.tableName}:`,
-        err.message
+        err.message,
       );
 
       posErrors.push({
@@ -110,9 +107,7 @@ async function getPartnerPOSMap(conn) {
 }
 
 router.get("/partners-list", async (req, res) => {
-
   try {
-
     const [rows] = await db.promise().query(`
       SELECT
         partner_id,
@@ -125,29 +120,19 @@ router.get("/partners-list", async (req, res) => {
     `);
 
     res.json(rows);
-
   } catch (err) {
-
     res.status(500).json({
       message: "Failed to fetch partners",
-      error: err.message
+      error: err.message,
     });
-
   }
-
 });
 
-
 router.put("/:partnerId/fldg", async (req, res) => {
-
   try {
-
     const { partnerId } = req.params;
 
-    const {
-      fldg_percent,
-      fldg_status
-    } = req.body;
+    const { fldg_percent, fldg_status } = req.body;
 
     await db.promise().query(
       `
@@ -156,29 +141,22 @@ router.put("/:partnerId/fldg", async (req, res) => {
         fldg_status = ?
       WHERE partner_id = ?
       `,
-      [fldg_status, partnerId]
+      [fldg_status, partnerId],
     );
 
     res.json({
-      message: "FLDG updated successfully"
+      message: "FLDG updated successfully",
     });
-
   } catch (err) {
-
     res.status(500).json({
       message: "Update failed",
-      error: err.message
+      error: err.message,
     });
-
   }
-
 });
 
-
 router.put("/:partnerId/status", async (req, res) => {
-
   try {
-
     const { partnerId } = req.params;
 
     const { status } = req.body;
@@ -189,26 +167,22 @@ router.put("/:partnerId/status", async (req, res) => {
       SET status = ?
       WHERE partner_id = ?
       `,
-      [status, partnerId]
+      [status, partnerId],
     );
 
     res.json({
-      message: "Partner status updated"
+      message: "Partner status updated",
     });
-
   } catch (err) {
-
     res.status(500).json({
       message: "Status update failed",
-      error: err.message
+      error: err.message,
     });
-
   }
-
 });
 
 // GET /api/partners - List all partners with current monthly limits
-router.get('/partners', async (req, res) => {
+router.get("/partners", async (req, res) => {
   const conn = await db.promise().getConnection();
 
   try {
@@ -227,8 +201,16 @@ router.get('/partners', async (req, res) => {
         pm.fldg_status,
         pml.id AS limit_id,
         COALESCE(pml.assigned_limit, 0) AS assigned_limit,
+        COALESCE(pml.booked_limit, 0) AS booked_limit,
         COALESCE(pml.used_limit, 0) AS used_limit,
-        COALESCE(pml.remaining_limit, 0) AS remaining_limit,
+         COALESCE(pml.assigned_limit, 0) - COALESCE(pml.used_limit, 0) 
+      AS remaining_limit,
+
+    COALESCE(pml.assigned_limit, 0) - COALESCE(pml.booked_limit, 0)
+      AS booking_remaining_limit,
+
+    COALESCE(pml.booked_limit, 0) - COALESCE(pml.used_limit, 0)
+      AS pending_pipeline,
         pml.month,
         pml.year
       FROM partner_master pm
@@ -238,21 +220,23 @@ router.get('/partners', async (req, res) => {
         AND pml.year = ?
       ORDER BY pm.partner_name
       `,
-      [m, y]
+      [m, y],
     );
 
     const { posMap, posErrors } = await getPartnerPOSMap(conn);
 
-const partnersWithPOS = partners.map((p) => ({
-  ...p,
-  pos: Number(posMap[String(p.partner_name || "").toLowerCase()] || 0),
-}));
+    const partnersWithPOS = partners.map((p) => ({
+      ...p,
+      pos: Number(posMap[String(p.partner_name || "").toLowerCase()] || 0),
+    }));
 
     const totals = partnersWithPOS.reduce(
       (acc, p) => {
         acc.assigned_limit += Number(p.assigned_limit || 0);
         acc.used_limit += Number(p.used_limit || 0);
         acc.remaining_limit += Number(p.remaining_limit || 0);
+        acc.booking_remaining_limit += Number(p.booking_remaining_limit || 0);
+        acc.pending_pipeline += Number(p.pending_pipeline || 0);
         acc.pos += Number(p.pos || 0);
         return acc;
       },
@@ -260,8 +244,10 @@ const partnersWithPOS = partners.map((p) => ({
         assigned_limit: 0,
         used_limit: 0,
         remaining_limit: 0,
+        booking_remaining_limit: 0,
+        pending_pipeline: 0,
         pos: 0,
-      }
+      },
     );
 
     res.json({
@@ -271,7 +257,7 @@ const partnersWithPOS = partners.map((p) => ({
       totals,
     });
   } catch (err) {
-    console.error('Partner list error:', err);
+    console.error("Partner list error:", err);
 
     res.status(500).json({
       error: err.message,
@@ -281,43 +267,96 @@ const partnersWithPOS = partners.map((p) => ({
   }
 });
 
+router.get("/partners/:partnerId/audits", async (req, res) => {
+  try {
+    const { partnerId } = req.params;
+    const { month, year } = req.query;
+
+    const params = [partnerId];
+
+    let monthYearFilter = "";
+
+    if (month && year) {
+      monthYearFilter = " AND a.month = ? AND a.year = ? ";
+      params.push(Number(month), Number(year));
+    }
+
+    const [audits] = await db.promise().query(
+      `
+      SELECT
+        a.id,
+        a.partner_id,
+        pm.partner_name,
+        a.booking_lan,
+        a.loan_amount,
+        a.month,
+        a.year,
+        a.action_type,
+        a.created_at
+      FROM partner_limit_audit a
+      JOIN partner_master pm 
+        ON pm.partner_id = a.partner_id
+      WHERE a.partner_id = ?
+      ${monthYearFilter}
+      ORDER BY a.created_at DESC
+      LIMIT 300
+      `,
+      params
+    );
+
+    res.json({
+      partner_id: Number(partnerId),
+      month: month ? Number(month) : null,
+      year: year ? Number(year) : null,
+      audits,
+    });
+  } catch (err) {
+    console.error("Partner audit fetch error:", err);
+
+    res.status(500).json({
+      message: "Failed to fetch partner audits",
+      error: err.message,
+    });
+  }
+});
+
 // POST /api/partners - Create new partner
-router.post('/partners', async (req, res) => {
+router.post("/partners", async (req, res) => {
   const conn = await db.promise().getConnection();
 
   try {
     const { partner_name } = req.body;
 
-    if (!partner_name || partner_name.trim() === '') {
-      return res.status(400).json({ error: 'partner_name required' });
+    if (!partner_name || partner_name.trim() === "") {
+      return res.status(400).json({ error: "partner_name required" });
     }
 
     const partner = await partnerLimitService.getOrCreatePartner(
       conn,
-      partner_name
+      partner_name,
     );
 
     res.status(201).json({
-      message: 'Partner created successfully',
-      partner
+      message: "Partner created successfully",
+      partner,
     });
-
   } catch (err) {
-    console.error('Partner create error:', err);
+    console.error("Partner create error:", err);
     res.status(500).json({ error: err.message });
-
   } finally {
     conn.release();
   }
 });
 
 // POST /api/partners/:name/limits - Set monthly limit
-router.post('/partners/:name/limits', async (req, res) => {
+router.post("/partners/:name/limits", async (req, res) => {
   try {
     const { name } = req.params;
     const { month, year, assigned_limit } = req.body;
     if (!month || !year || assigned_limit == null) {
-      return res.status(400).json({ error: 'month, year, assigned_limit required' });
+      return res
+        .status(400)
+        .json({ error: "month, year, assigned_limit required" });
     }
 
     const conn = await db.promise().getConnection();
@@ -329,14 +368,19 @@ router.post('/partners/:name/limits', async (req, res) => {
 
       // Get or create limit record
       try {
-        const limit = await partnerLimitService.getPartnerMonthlyLimit(conn, partner.partner_id, month, year);
+        const limit = await partnerLimitService.getPartnerMonthlyLimit(
+          conn,
+          partner.partner_id,
+          month,
+          year,
+        );
         limitId = limit.id;
       } catch {
         // Create if not exists (ignore auto-create policy here)
         const [result] = await conn.query(
           `INSERT INTO partner_monthly_limit (partner_id, month, year, assigned_limit, used_limit) 
            VALUES (?, ?, ?, ?, 0)`,
-          [partner.partner_id, month, year, assigned_limit]
+          [partner.partner_id, month, year, assigned_limit],
         );
         limitId = result.insertId;
       }
@@ -344,42 +388,44 @@ router.post('/partners/:name/limits', async (req, res) => {
       // Update assigned limit
       await conn.query(
         `UPDATE partner_monthly_limit SET assigned_limit = ?, updated_at = NOW() WHERE id = ?`,
-        [assigned_limit, limitId]
+        [assigned_limit, limitId],
       );
 
       await conn.commit();
       conn.release();
 
-      res.json({ message: 'Limit updated', limit_id: limitId });
+      res.json({ message: "Limit updated", limit_id: limitId });
     } catch (err) {
       await conn.rollback();
       conn.release();
       throw err;
     }
   } catch (err) {
-    console.error('Limit set error:', err);
+    console.error("Limit set error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // GET /api/partners/:name/limits - Get partner limits history
-router.get('/partners/:name/limits', async (req, res) => {
+router.get("/partners/:name/limits", async (req, res) => {
   try {
     const { name } = req.params;
     const { year } = req.query;
 
-    const [partner] = await db.promise().query(
-      'SELECT partner_id FROM partner_master WHERE partner_name = ?',
-      [name]
-    );
-    if (!partner.length) return res.status(404).json({ error: 'Partner not found' });
+    const [partner] = await db
+      .promise()
+      .query("SELECT partner_id FROM partner_master WHERE partner_name = ?", [
+        name,
+      ]);
+    if (!partner.length)
+      return res.status(404).json({ error: "Partner not found" });
 
     const [limits] = await db.promise().query(
       `SELECT month, year, assigned_limit, used_limit, remaining_limit 
        FROM partner_monthly_limit 
-       WHERE partner_id = ?${year ? ' AND year = ?' : ''}
+       WHERE partner_id = ?${year ? " AND year = ?" : ""}
        ORDER BY year DESC, month DESC`,
-      [partner[0].partner_id, ...(year ? [year] : [])]
+      [partner[0].partner_id, ...(year ? [year] : [])],
     );
 
     const [audits] = await db.promise().query(
@@ -390,15 +436,14 @@ router.get('/partners/:name/limits', async (req, res) => {
        WHERE pm.partner_name = ?
        ORDER BY a.created_at DESC
        LIMIT 100`,
-      [name]
+      [name],
     );
 
     res.json({ limits, recent_audits: audits });
   } catch (err) {
-    console.error('Partner limits error:', err);
+    console.error("Partner limits error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 module.exports = router;
-
