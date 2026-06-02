@@ -412,7 +412,7 @@ router.get("/dealersforbooking", async (req, res) => {
         ifsc_code,
         status
       FROM motion_corp_dealer_booking
-      WHERE status = 'ACTIVE'
+      WHERE status = 'APPROVED'
       ORDER BY business_name ASC
     `);
 
