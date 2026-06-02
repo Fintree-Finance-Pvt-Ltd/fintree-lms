@@ -1,6 +1,6 @@
 .partner-page {
-  min-height: 100vh;
-  padding: 20px 24px;
+  min-height: 100vh !important;
+  padding: 20px 24px !important;
   background:
     radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 24%),
     linear-gradient(180deg, #f7fbff 0%, #eef4fa 100%);
