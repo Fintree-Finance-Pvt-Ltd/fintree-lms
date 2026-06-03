@@ -5046,10 +5046,6 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     );
 
     if (existing.length > 0) {
-      await conn.rollback();
-      conn.release();
-      conn = null;
-
       return res.status(400).json({
         status: "Failed",
         message: "Duplicate Partner Loan ID",
