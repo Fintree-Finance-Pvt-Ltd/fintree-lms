@@ -504,6 +504,7 @@ const productOptions = [
   { label: "Embifi", value: "Embifi" },
   { label: "EMICLUB", value: "EMICLUB" },
   { label: "Circle Pe", value: "Circlepe" },
+  {label : "Circle Pe Houser", value: "Circlepe Houser" },
   { label: "HELIUM", value: "HELIUM" },
   { label: "CLAYOO", value: "CLAYOO" },
   { label: "LOAN DIGIT", value: "LOAN-DIGIT" },
