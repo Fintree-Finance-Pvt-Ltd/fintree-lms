@@ -173,7 +173,8 @@ await conn.beginTransaction();
     .validateBookingOrThrow(
       conn,
       "HELIUM",
-      loanAmount
+      loanAmount,
+      data.login_date
     );
 
     // 🎫 generate LAN + PLID

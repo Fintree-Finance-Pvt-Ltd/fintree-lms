@@ -2199,7 +2199,7 @@ router.get("/customer-details/:lan", async (req, res) => {
 router.get("/credit-initiated-loans", async (req, res) => {
   const {
     table = "loan_booking_seven_fincorp",
-    prefix = "MC",
+    prefix = "SFL",
     page = "1",
     pageSize = "50",
     search = "",
@@ -2353,6 +2353,275 @@ router.get("/credit-initiated-loans", async (req, res) => {
     return res.status(500).json({
       message: "Database error",
       error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+router.get("/operation-initiated-loans", async (req, res) => {
+  const {
+    table = "loan_booking_motion_corp",
+    prefix = "MC",
+    page = "1",
+    pageSize = "50",
+    search = "",
+    sortBy = "lan",
+    sortDir = "desc",
+  } = req.query;
+
+  const allowedTables = {
+    loan_booking_motion_corp: true,
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({
+      message: "Invalid table name",
+    });
+  }
+
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
+
+  const offset = (pg - 1) * limit;
+
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+  const allowedSort = [
+    "lan",
+    "partner_loan_id",
+    "customer_name",
+    "mobile_number",
+    "loan_amount",
+    "created_at",
+    "motioncorp_bre_checked_at",
+  ];
+
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
+
+  try {
+    const likeVal = `${prefix}%`;
+
+    const searchClause = search
+      ? `
+        AND (
+          lb.lan LIKE ?
+          OR lb.customer_name LIKE ?
+          OR lb.partner_loan_id LIKE ?
+          OR lb.mobile_number LIKE ?
+        )
+      `
+      : "";
+
+    const searchParams = search
+      ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+      : [];
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM ?? lb
+      WHERE
+        lb.status = 'Operations Initiated'
+        AND lb.stage = 'Credit Approved'
+        AND lb.lan LIKE ?
+        ${searchClause}
+    `;
+
+    const dataSql = `
+      SELECT
+        lb.id,
+        lb.lan,
+        lb.partner_loan_id,
+
+        lb.customer_name,
+        lb.mobile_number,
+        lb.pan_card,
+
+        lb.loan_amount,
+        lb.interest_rate,
+        lb.loan_tenure,
+
+        lb.cibil_score,
+        lb.fintree_cibil_score,
+
+        lb.motioncorp_bre_status,
+        lb.motioncorp_bre_reason,
+        lb.motioncorp_bre_checked_at,
+
+        lb.customer_name_as_per_bank,
+        lb.customer_bank_name,
+        lb.customer_account_number, 
+        lb.bank_ifsc_code,
+
+        lb.agreement_esign_status,
+        lb.agreement_esign_sent_at,
+
+        lb.bank_status,
+
+        lb.email,
+
+        lb.emi_amount,
+
+        lb.agreement_date,
+        lb.login_date,
+
+        lb.bank_account_type,
+
+        lb.status,
+        lb.stage,
+
+        lb.created_at
+
+      FROM ?? lb
+      WHERE
+        lb.status = 'Operations Initiated'
+        AND lb.stage = 'Credit Approved'
+        AND lb.lan LIKE ?
+        ${searchClause}
+
+      ORDER BY lb.${sortCol} ${safeSortDir}
+
+      LIMIT ? OFFSET ?
+    `;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+
+      db
+        .promise()
+        .query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    return res.json({
+      rows,
+
+      pagination: {
+        page: pg,
+        pageSize: limit,
+        total: Number(countRows[0]?.total || 0),
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching credit initiated loans:", err);
+
+    return res.status(500).json({
+      message: "Database error",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+router.post("/:lan/approve", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    // Check loan exists
+    const [rows] = await db.promise().query(
+      `
+      SELECT lan, bank_status
+      FROM loan_booking_motion_corp
+      WHERE lan = ?
+      `,
+      [lan],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    const loan = rows[0];
+
+    // CONDITION
+    if ((loan.bank_status || "").toUpperCase() !== "MANDATE_CREATED") {
+      return res.status(400).json({
+        success: false,
+        message: "Loan cannot be approved until mandate is created",
+      });
+    }
+
+    // UPDATE STATUS
+    await db.promise().query(
+      `
+      UPDATE loan_booking_motion_corp
+      SET
+        status = 'Approved',
+        stage = 'Operation Approved',
+        updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [lan],
+    );
+
+    return res.json({
+      success: true,
+      message: "Loan approved successfully",
+    });
+  } catch (err) {
+    console.error("approveLoan error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
+
+router.post("/:lan/reject", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    // Check loan exists
+    const [rows] = await db.promise().query(
+      `
+      SELECT lan, bank_status
+      FROM loan_booking_motion_corp
+      WHERE lan = ?
+      `,
+      [lan],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    const loan = rows[0];
+
+    // CONDITION
+    if ((loan.bank_status || "").toUpperCase() !== "MANDATE_CREATED") {
+      return res.status(400).json({
+        success: false,
+        message: "Loan cannot be rejected until mandate is created",
+      });
+    }
+
+    // UPDATE STATUS
+    await db.promise().query(
+      `
+      UPDATE loan_booking_motion_corp
+      SET
+        status = 'Rejected',
+        stage = 'Operation Rejected',
+        updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [lan],
+    );
+
+    return res.json({
+      success: true,
+      message: "Loan rejected successfully",
+    });
+  } catch (err) {
+    console.error("rejectLoan error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
     });
   }
 });

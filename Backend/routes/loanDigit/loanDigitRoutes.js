@@ -332,7 +332,7 @@ const token_auth_type = String(data.token_auth_type).trim();
       partnerName,
     );
 
-    const limitCheck = await partnerLimitService.validatePartnerLimit(
+    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
       conn,
       partner.partner_id,
       loan_amount,
@@ -543,11 +543,10 @@ token_auth_type,
     /*
      * Update used limit
      */
-    await partnerLimitService.updateUsedLimit(
+    await partnerLimitService.updateBookedLimit(
       conn,
       limitCheck.limitId,
       loan_amount,
-      "BOOKED",
       lan,
     );
 
