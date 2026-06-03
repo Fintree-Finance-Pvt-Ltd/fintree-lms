@@ -778,6 +778,22 @@ const extractLoanDigitBureauFacts = (reportXml) => {
  * - 30 DPD or more in last 12 months -- Reject Zero Overdue in last 12 months
  * - ZERO Write-off / Settlement last 12 months
  */
+
+const getCompanyContinuityMonths = (value) => {
+  const continuityInput = String(value ?? "0").trim();
+
+  const [yearsPart = "0", monthsPart = "0"] = continuityInput.split(".");
+
+  const years = Number(yearsPart || 0);
+  const months = Number(monthsPart || 0);
+
+  if (Number.isNaN(years) || Number.isNaN(months)) {
+    return 0;
+  }
+
+  return years * 12 + months;
+};
+
 const evaluateLoanDigitPolicy = ({ loan, bureauFacts }) => {
   const reasons = [];
 
@@ -785,9 +801,11 @@ const evaluateLoanDigitPolicy = ({ loan, bureauFacts }) => {
   const occupation = String(loan.employment || "")
     .trim()
     .toLowerCase();
-  const continuityInput = String(loan.years_in_current_job || "0");
-  const [yearsPart, monthsPart = "0"] = continuityInput.split(".");
-  const companyContinuityMonths = Number(yearsPart) * 12 + Number(monthsPart);
+
+  const companyContinuityMonths = getCompanyContinuityMonths(
+    loan.years_in_current_job,
+  );
+
   const monthlyIncome = toNumber(loan.monthly_salary, 0);
   const bureauScore = toNumber(bureauFacts.score, null);
 
