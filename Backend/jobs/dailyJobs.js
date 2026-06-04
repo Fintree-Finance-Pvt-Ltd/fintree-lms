@@ -128,7 +128,12 @@ cron.schedule("*/2 * * * *", async () => {
     "manual_rps_gq_fsf_fintree",
     "manual_rps_helium",
     "manual_rps_hey_ev_battery",
-    "manual_rps_zypay"
+    "manual_rps_zypay",
+    "manual_rps_clayoo",
+    "manual_rps_motion_corp",
+    "manual_rps_loan_digit",
+    "manual_circle_pe_houser",
+    "manual_rps_switch_my_loan",
   ];
 
   try {
