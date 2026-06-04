@@ -214,6 +214,10 @@ import CarePayLoginLoans from "./components/CarePay/CarePayLoginLoans";
 import CarePayApproveInitiateScreen from "./components/CarePay/CarePayApproveInitiateScreen";
 import CarePayActionScreen from "./components/CarePay/CarepayActionScreen";
 import CarePayDisbursedLoans from "./components/CarePay/CarePayDisbursedLoans";
+// import CarePayHospitalEntry from "./components/CarePay/CarePayHospitalEntry";
+import CarePayHospitalLists from "./components/CarePay/CarePayHospitalLists";
+import CarePayHospitalLoginActions from "./components/CarePay/CarePayHospitalLoginActions";
+import CarePayHospitalDetails from "./components/CarePay/CarePayHospitalDetails";
 
 
 function App() {
@@ -791,6 +795,38 @@ function App() {
             element={
               <PermissionRoute pageName="CarePay Approved Loans">
                 <CarePayApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          {/* <Route
+            path="/carepay-loans/hospital-entry"
+            element={
+              <PermissionRoute pageName="CarePay Hospital Entry">
+                <CarePayHospitalEntry />
+              </PermissionRoute>
+            }
+          /> */}
+          <Route
+            path="/carepay-loans/hospital-lists"
+            element={
+              <PermissionRoute pageName="CarePay Hospital Lists">
+                <CarePayHospitalLists />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/carepay-loans/hospital-login-actions"
+            element={
+              <PermissionRoute pageName="CarePay Hospital Credit Approval List">
+                <CarePayHospitalLoginActions />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/carepay-loans/hospital-details/:lan"
+            element={
+              <PermissionRoute pageName="CarePay Hospital Details">
+                <CarePayHospitalDetails />
               </PermissionRoute>
             }
           />
