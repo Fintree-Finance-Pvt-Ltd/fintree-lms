@@ -2938,7 +2938,7 @@ router.get("/disbursed-loans", async (req, res) => {
 
 router.put("/login-loans/:lan", (req, res) => {
   const lan = req.params.lan;
-  const { status, table } = req.body;
+  const { status, table, loan_amount = null } = req.body;
 
   const allowedTables = {
     loan_bookings: true,
@@ -2971,8 +2971,24 @@ router.put("/login-loans/:lan", (req, res) => {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
-  const query = `UPDATE ?? SET status = ? WHERE lan = ?`;
-  const values = [table, status, lan];
+  const fields = ["status = ?"];
+  const params = [status];
+
+  if (table === "loan_booking_carepay" && status === "Disburse initiate") {
+    const creditLimit = Number(loan_amount);
+
+    if (!creditLimit || Number.isNaN(creditLimit) || creditLimit <= 0) {
+      return res.status(400).json({
+        message: "Valid credit team limit is required",
+      });
+    }
+
+    fields.push("loan_amount = ?");
+    params.push(creditLimit);
+  }
+
+  const query = `UPDATE ?? SET ${fields.join(", ")} WHERE lan = ?`;
+  const values = [table, ...params, lan];
 
   db.query(query, values, async (err, result) => {
     if (err) {
@@ -7471,6 +7487,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 });
 
 const CAREPAY_HOSPITAL_REQUIRED_FIELDS = [
+  "partner_loan_id",
   "hospital_legal_name",
   "registered_address",
   "registered_city",
@@ -7490,6 +7507,7 @@ const CAREPAY_HOSPITAL_REQUIRED_FIELDS = [
 const CAREPAY_REQUIRED_FIELDS = [
   "login_date",
   "partner_loan_id",
+  "hospital_lan",
   "first_name",
   "last_name",
   "gender",
@@ -7503,7 +7521,7 @@ const CAREPAY_REQUIRED_FIELDS = [
   "current_state",
   "current_pincode",
   "subvention_percentage",
-  "loan_amount",
+  "request_amount",
   "loan_tenure",
   "employment",
   "annual_income",
@@ -7529,37 +7547,28 @@ function nullableString(value) {
   return trimmed === "" ? null : trimmed;
 }
 
-async function resolveCarePayHospital(conn, data) {
-  let sql = "";
-  let params = [];
+function isCarePayPartner(req) {
+  return (req.partner?.name || "").toLowerCase().trim() === "carepay";
+}
 
-  if (data.hospital_id) {
-    sql =
-      "SELECT * FROM carepay_hospital_booking WHERE application_id = ? AND status IN ('ACTIVE', 'APPROVED') LIMIT 1";
-    params = [data.hospital_id];
-  } else if (data.hospital_lan) {
-    sql =
-      "SELECT * FROM carepay_hospital_booking WHERE lan = ? AND status IN ('ACTIVE', 'APPROVED') LIMIT 1";
-    params = [data.hospital_lan];
-  } else if (data.hospital_name) {
-    sql =
-      "SELECT * FROM carepay_hospital_booking WHERE hospital_legal_name = ? AND status IN ('ACTIVE', 'APPROVED') LIMIT 1";
-    params = [data.hospital_name];
-  } else {
-    const err = new Error("hospital_id, hospital_lan or hospital_name is required.");
-    err.statusCode = 400;
-    throw err;
+function getCarePayDecisionStatus(status, creditLimit) {
+  const rawStatus = String(status || "").toLowerCase().trim();
+
+  if (rawStatus === "rejected" || rawStatus === "credit rejected") {
+    return "rejected";
   }
 
-  const [rows] = await conn.query(sql, params);
-
-  if (!rows.length) {
-    const err = new Error("Hospital not found for CarePay booking.");
-    err.statusCode = 404;
-    throw err;
+  if (
+    rawStatus === "approved" ||
+    rawStatus === "disburse initiate" ||
+    rawStatus === "operations initiated" ||
+    rawStatus === "credit approved" ||
+    creditLimit !== null
+  ) {
+    return "approved";
   }
 
-  return rows[0];
+  return "pending";
 }
 
 router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
@@ -7580,11 +7589,11 @@ router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
       });
     }
 
-    const { partnerLoanId: applicationId, lan } =
-      await generateLoanIdentifiers("carepay-hospital");
+    const partnerLoanId = nullableString(data.partner_loan_id);
+    const { lan } = await generateLoanIdentifiers("carepay-hospital");
 
     const fields = {
-      application_id: applicationId,
+      partner_loan_id: partnerLoanId,
       lan,
       hospital_legal_name: data.hospital_legal_name,
       brand_name: nullableString(data.brand_name),
@@ -7613,7 +7622,7 @@ router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
       branch_name: data.branch_name,
       account_holder_name: data.account_holder_name,
       account_number: data.account_number,
-      status: data.status || "ACTIVE",
+      status: "PENDING",
       created_at: new Date(),
     };
 
@@ -7633,7 +7642,7 @@ router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
     return res.json({
       message: "CarePay hospital created successfully",
       lan,
-      application_id: applicationId,
+      partner_loan_id: partnerLoanId,
     });
   } catch (err) {
     console.error("CarePay hospital creation error:", err);
@@ -7656,6 +7665,7 @@ router.get("/v1/carepay-hospitals-list", verifyApiKey, async (req, res) => {
     const [rows] = await db.promise().query(`
       SELECT
         id,
+        partner_loan_id,
         lan,
         hospital_legal_name,
         registered_city,
@@ -7673,6 +7683,7 @@ router.get("/v1/carepay-hospitals-list", verifyApiKey, async (req, res) => {
     return res.json(
       rows.map((hospital) => ({
         id: hospital.id,
+        partner_loan_id: hospital.partner_loan_id,
         lan: hospital.lan,
         name: `${hospital.hospital_legal_name} (${hospital.registered_city}, ${hospital.registered_district})`,
         hospital_legal_name: hospital.hospital_legal_name,
@@ -7691,6 +7702,253 @@ router.get("/v1/carepay-hospitals-list", verifyApiKey, async (req, res) => {
     return res.status(500).json({
       message: "Failed to fetch CarePay hospitals",
       error: err.message,
+    });
+  }
+});
+
+
+router.get("/carepay-hospitals", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT
+        id,
+        partner_loan_id,
+        lan,
+        hospital_legal_name,
+        brand_name,
+        hospital_type,
+        bed_capacity,
+        registered_city,
+        registered_district,
+        registered_state,
+        hospital_phone,
+        contact_person_name,
+        bank_name,
+        account_holder_name,
+        account_number,
+        ifsc_code,
+        CASE WHEN status = 'ACTIVE' THEN 'APPROVED' ELSE status END AS status,
+        created_at
+      FROM carepay_hospital_booking
+      WHERE status IN ('PENDING', 'APPROVED', 'ACTIVE')
+      ORDER BY created_at DESC
+    `);
+
+    return res.json(rows);
+  } catch (err) {
+    console.error("CarePay hospital fetch error:", err);
+
+    return res.status(500).json({
+      message: "Failed to fetch CarePay hospitals",
+      error: err.message,
+    });
+  }
+});
+
+router.get("/carepay-hospitals-login-loans", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT
+        id,
+        partner_loan_id,
+        lan,
+        hospital_legal_name,
+        brand_name,
+        hospital_type,
+        bed_capacity,
+        registered_city,
+        registered_district,
+        registered_state,
+        hospital_phone,
+        contact_person_name,
+        bank_name,
+        account_holder_name,
+        account_number,
+        ifsc_code,
+        status,
+        created_at
+      FROM carepay_hospital_booking
+      WHERE status = 'PENDING'
+      ORDER BY created_at DESC
+    `);
+
+    return res.json(rows);
+  } catch (err) {
+    console.error("CarePay hospital pending fetch error:", err);
+
+    return res.status(500).json({
+      message: "Failed to fetch pending CarePay hospitals",
+      error: err.message,
+    });
+  }
+});
+
+router.get("/carepay-hospital-booking-details/:lan", async (req, res) => {
+  const { lan } = req.params;
+
+  try {
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        id,
+        partner_loan_id,
+        lan,
+        hospital_legal_name,
+        brand_name,
+        branch_locations,
+        hospital_registration_number,
+        year_of_establishment,
+        hospital_type,
+        bed_capacity,
+        key_specialties,
+        major_procedures,
+        departments,
+        registered_address,
+        registered_city,
+        registered_district,
+        registered_state,
+        registered_pincode,
+        hospital_email,
+        hospital_phone,
+        contact_person_name,
+        contact_person_email,
+        contact_person_phone,
+        ifsc_code,
+        bank_name,
+        branch_name,
+        account_holder_name,
+        account_number,
+        CASE WHEN status = 'ACTIVE' THEN 'APPROVED' ELSE status END AS status,
+        created_at
+      FROM carepay_hospital_booking
+      WHERE lan = ?
+      LIMIT 1
+      `,
+      [lan],
+    );
+
+    return res.json(rows[0] || null);
+  } catch (err) {
+    console.error("CarePay hospital details fetch error:", err);
+
+    return res.status(500).json({
+      message: "Failed to fetch CarePay hospital details",
+      error: err.message,
+    });
+  }
+});
+
+router.patch("/carepay-hospitals/status/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+    const status = String(req.body?.status || "").toUpperCase().trim();
+
+    if (!["PENDING", "APPROVED"].includes(status)) {
+      return res.status(400).json({
+        message: "Invalid status. Allowed values are PENDING and APPROVED.",
+      });
+    }
+
+    const [result] = await db.promise().query(
+      `UPDATE carepay_hospital_booking SET status = ? WHERE lan = ?`,
+      [status, lan],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: `Hospital not found: ${lan}` });
+    }
+
+    return res.json({ message: "Status updated successfully", status });
+  } catch (err) {
+    console.error("CarePay hospital status update error:", err);
+
+    return res.status(500).json({
+      message: "Failed to update CarePay hospital status",
+      error: err.message,
+    });
+  }
+});
+
+async function fetchCarePayCaseStatus({ lan, partnerLoanId }) {
+  const whereClause = lan ? "lan = ?" : "partner_loan_id = ?";
+  const value = lan || partnerLoanId;
+
+  const [rows] = await db.promise().query(
+    `SELECT
+       lan,
+       partner_loan_id,
+       customer_name,
+       status,
+       request_amount,
+       loan_amount
+     FROM loan_booking_carepay
+     WHERE ${whereClause}
+     LIMIT 1`,
+    [value],
+  );
+
+  return rows[0] || null;
+}
+
+function buildCarePayStatusResponse(row) {
+  const parsedCreditLimit = Number(row.loan_amount);
+  const creditLimit =
+    row.loan_amount === null ||
+    row.loan_amount === undefined ||
+    row.loan_amount === "" ||
+    !Number.isFinite(parsedCreditLimit)
+      ? null
+      : parsedCreditLimit;
+
+  return {
+    lan: row.lan,
+    partner_loan_id: row.partner_loan_id,
+    customer_name: row.customer_name,
+    status: row.status,
+    case_status: getCarePayDecisionStatus(row.status, creditLimit),
+    request_amount: row.request_amount,
+    loan_amount: creditLimit,
+    credit_limit: creditLimit,
+    limit_available: creditLimit !== null,
+  };
+}
+
+router.get("/v1/carepay-case-status", verifyApiKey, async (req, res) => {
+  try {
+    if (!isCarePayPartner(req)) {
+      return res
+        .status(403)
+        .json({ message: "This route is only for CarePay partner." });
+    }
+
+    const lan = String(req.query.lan || "").trim();
+    const partnerLoanId = String(req.query.partner_loan_id || "").trim();
+
+    if (!lan && !partnerLoanId) {
+      return res.status(400).json({
+        message: "lan or partner_loan_id is required.",
+      });
+    }
+
+    const row = await fetchCarePayCaseStatus({
+      lan: lan || null,
+      partnerLoanId: partnerLoanId || null,
+    });
+
+    if (!row) {
+      return res.status(404).json({ message: "CarePay case not found." });
+    }
+
+    return res.status(200).json({
+      message: "CarePay case status fetched successfully.",
+      data: buildCarePayStatusResponse(row),
+    });
+  } catch (error) {
+    console.error("CarePay case status fetch error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch CarePay case status.",
+      error: error.sqlMessage || error.message,
     });
   }
 });
@@ -7769,11 +8027,11 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
   try {
     const data = req.body || {};
-    const lenderType = req.partner?.name || "";
+    const lenderType = String(req.partner?.name || "").toLowerCase().trim();
 
-    if (!lenderType || lenderType !== "carepay") {
-      return res.status(400).json({
-        message: "Invalid lenderType. Only 'CAREPAY' loans are accepted.",
+    if (!isCarePayPartner(req)) {
+      return res.status(403).json({
+        message: "This route is only for CarePay partner.",
       });
     }
 
@@ -7785,16 +8043,50 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       });
     }
 
-    const loanAmount = Number(data.loan_amount);
+    const rawRequestAmount =
+      data.request_amount !== undefined &&
+      data.request_amount !== null &&
+      data.request_amount !== ""
+        ? data.request_amount
+        : data.loan_amount;
 
-    if (!loanAmount || loanAmount <= 0) {
-      return res.status(400).json({ message: "Invalid loan_amount" });
+    if (
+      rawRequestAmount === undefined ||
+      rawRequestAmount === null ||
+      rawRequestAmount === ""
+    ) {
+      return res.status(400).json({ message: "Missing fields: request_amount" });
+    }
+
+    const requestAmount = Number(rawRequestAmount);
+
+    if (!requestAmount || Number.isNaN(requestAmount) || requestAmount <= 0) {
+      return res.status(400).json({ message: "Invalid request_amount" });
     }
 
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
-    const hospital = await resolveCarePayHospital(conn, data);
+    const hospitalLan = String(data.hospital_lan || "").trim();
+    const [hospitalRows] = await conn.query(
+      `SELECT lan
+       FROM carepay_hospital_booking
+       WHERE lan = ?
+         AND status IN ('APPROVED')
+       LIMIT 1`,
+      [hospitalLan],
+    );
+
+    if (!hospitalRows.length) {
+      await conn.rollback();
+      conn.release();
+      conn = null;
+
+      return res.status(404).json({
+        status: "Failed",
+        message: "Hospital not found or not approved for CarePay booking.",
+      });
+    }
 
     const [existing] = await conn.query(
       `SELECT lan, partner_loan_id, customer_name
@@ -7804,6 +8096,10 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     );
 
     if (existing.length > 0) {
+      await conn.rollback();
+      conn.release();
+      conn = null;
+
       return res.status(400).json({
         status: "Failed",
         message: "Duplicate Partner Loan ID",
@@ -7852,7 +8148,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     // const limitCheck = await partnerLimitService.validatePartnerLimit(
     //   conn,
     //   partner.partner_id,
-    //   loanAmount,
+    //   requestAmount,
     //   month,
     //   year,
     // );
@@ -7865,7 +8161,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     //   return res.status(403).json({
     //     message: "Monthly partner limit exceeded",
     //     remaining_limit: limitCheck.remaining,
-    //     required: loanAmount,
+    //     required: requestAmount,
     //   });
     // }
 
@@ -7885,6 +8181,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     const fields = {
       lan,
       partner_loan_id: data.partner_loan_id,
+      hospital_lan: hospitalLan,
       login_date: data.login_date,
       first_name: data.first_name,
       middle_name: nullableString(data.middle_name),
@@ -7909,7 +8206,8 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       permanent_district: permanentDistrict,
       permanent_state: permanentState,
       permanent_pincode: permanentPincode,
-      loan_amount: loanAmount,
+      request_amount: requestAmount,
+      loan_amount: null,
       interest_rate,
       subvention_percentage: data.subvention_percentage,
       loan_tenure: data.loan_tenure,
@@ -7918,24 +8216,10 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       product: data.product || "Medical Insurance",
       lender: "CAREPAY",
       loan_type: data.loan_type || "Personal Loan",
-      bank_name: hospital.bank_name,
-      name_in_bank: hospital.account_holder_name,
-      account_number: hospital.account_number,
-      ifsc: hospital.ifsc_code,
-      account_type: data.account_type || "current",
-      type_of_account: data.type_of_account || "Hospital",
-      net_disbursement: data.net_disbursement || loanAmount,
+      net_disbursement: data.net_disbursement || requestAmount,
       employment: data.employment,
-      risk_category: nullableString(data.risk_category),
       customer_type: data.customer_type,
       annual_income: data.annual_income,
-      hospital_id: hospital.id,
-      hospital_lan: hospital.lan,
-      hospital_name: hospital.hospital_legal_name,
-      hospital_bank_name: hospital.bank_name,
-      hospital_account_holder_name: hospital.account_holder_name,
-      hospital_account_number: hospital.account_number,
-      hospital_ifsc: hospital.ifsc_code,
       patient_name: nullableString(data.patient_name),
       insurance_company_name: nullableString(data.insurance_company_name),
       insurance_policy_holder_name: nullableString(
@@ -7963,7 +8247,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     // await partnerLimitService.updateUsedLimit(
     //   conn,
     //   limitCheck.limitId,
-    //   loanAmount,
+    //   requestAmount,
     //   "BOOKED",
     //   lan,
     // );
@@ -7972,13 +8256,16 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     conn.release();
     conn = null;
 
-    const bureauResult = await persistCarePayBureauResult(lan, data);
+    const bureauResult = await persistCarePayBureauResult(lan, {
+      ...data,
+      loan_amount: requestAmount,
+      request_amount: requestAmount,
+    });
 
     return res.json({
       message: "CAREPAY loan saved successfully.",
       lan,
-      hospitalId: hospital.id,
-      hospitalName: hospital.hospital_legal_name,
+      hospital_lan: hospitalLan,
       cibilScore: bureauResult.score || "Not Found",
       bureauStatus: bureauResult.success ? "VERIFIED" : "FAILED",
     });
