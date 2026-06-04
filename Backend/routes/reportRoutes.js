@@ -94,6 +94,8 @@ function resolveProcedure(rawReportId, rawLender) {
                         ? "sp_cashflow_report_emiclub"
                         : lender === "circlepe"
                           ? "sp_cashflow_report_circlepe"
+                          : lender === "circlepe houser"
+                          ? "sp_cashflow_report_circlepe_houser"
                           : lender === "heyev battery"
                             ? "sp_cashflow_report_heyev_battery"
                             : lender === "helium"
@@ -134,6 +136,8 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_due_collection_all_report_loan_digit"
         : lender === "circlepe"
         ? "sp_due_collection_all_report_circlepe"
+        : lender === "circlepe houser"
+        ? "sp_due_collection_all_report_circlepe_houser"
         : "sp_due_collection_all_report",
 
 
@@ -164,6 +168,8 @@ function resolveProcedure(rawReportId, rawLender) {
                             ? "sp_consolidated_mis_report_clayyo"
                             : lender === "circlepe"
                               ? "sp_consolidated_mis_report_circlepe"
+                              : lender === "circlepe houser"
+                              ? "sp_consolidated_mis_report_circlepe_houser"
                               : "sp_consolidated_mis_report",
 
     // NEW IRR Report add

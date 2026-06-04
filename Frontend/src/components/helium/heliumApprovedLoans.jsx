@@ -1,5 +1,5 @@
 // src/components/ApprovedLoansTable.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import api from "../../api/api";
 import { useNavigate } from "react-router-dom";
 import DataTable from "../ui/DataTable";
@@ -34,6 +34,7 @@ const heliumApprovedLoans = ({
   const [bankLoading, setBankLoading] = useState(false);
   const [bankError, setBankError] = useState("");
   const [bankResult, setBankResult] = useState(null);
+  const bankSubmitLockRef = useRef(false);
 
   const nav = useNavigate();
 
@@ -143,6 +144,7 @@ const heliumApprovedLoans = ({
   };
 
   const closeBankModal = () => {
+    if (bankLoading) return;
     setShowBankModal(false);
     setSelectedLoan(null);
     setBankError("");
@@ -156,6 +158,9 @@ const heliumApprovedLoans = ({
 
   const handleBankSubmit = async (e) => {
     e.preventDefault();
+    if (bankSubmitLockRef.current || bankLoading) {
+    return;
+  }
     if (!selectedLoan) return;
 
     setBankError("");
@@ -178,9 +183,12 @@ const heliumApprovedLoans = ({
       return;
     }
 
-    setBankLoading(true);
+    const lan = selectedLoan.lan;
+     bankSubmitLockRef.current = true;
+  setBankLoading(true);
+  setActionLan(lan);
     try {
-      const lan = selectedLoan.lan;
+      
       const customer_identifier =
         selectedLoan.mobile_number || selectedLoan.email_id || "";
 
@@ -204,7 +212,6 @@ const heliumApprovedLoans = ({
 
       if (!verifyData.verified) {
         setBankError("Bank verification failed. Please recheck details.");
-        setBankLoading(false);
         return;
       }
 
@@ -225,19 +232,16 @@ const heliumApprovedLoans = ({
       });
 
       const mandData = mandateRes.data || {};
+       if (!mandData.success) {
+      setBankError(
+        mandData.message || "Mandate creation failed. Please try again."
+      );
+      return;
+    }
       const { documentId } = mandData;
 
       if (!documentId) {
         setBankError("Mandate creation failed.");
-        setBankLoading(false);
-        return;
-      }
-
-      if (!mandData.success) {
-        setBankError(
-          mandData.message || "Mandate creation failed. Please try again.",
-        );
-        setBankLoading(false);
         return;
       }
 
@@ -246,13 +250,40 @@ const heliumApprovedLoans = ({
         mandate_created: true,
         document_id: documentId,
       }));
+
+       // Update table immediately so Add Bank button disables
+    setRows((old) =>
+      old.map((r) =>
+        r.lan === lan
+          ? {
+              ...r,
+              bank_status: "MANDATE_CREATED",
+              mandate_document_id: documentId,
+            }
+          : r
+      )
+    );
+
+    setToast({
+      type: "success",
+      msg: "Mandate created successfully.",
+    });
+    resetToastAfterDelay();
+
+    // Close popup after successful mandate creation
+    setShowBankModal(false);
+setSelectedLoan(null);
+setBankError("");
+setBankResult(null);
     } catch (err) {
       setBankError(
         err.response?.data?.message ||
           "Something went wrong. Please try again.",
       );
     } finally {
-      setBankLoading(false);
+      bankSubmitLockRef.current = false;
+    setBankLoading(false);
+    setActionLan(null);
     }
   };
 
@@ -608,7 +639,6 @@ const heliumApprovedLoans = ({
 
         const disableBankBtn =
   [
-    "VERIFIED",
     "MANDATE_CREATED",
     "MANDATE_INITIATED",
   ].includes(bankStatus) || actionLan === r.lan;
@@ -632,6 +662,7 @@ const heliumApprovedLoans = ({
             bg: "rgba(124,58,237,.12)",
             bd: "rgba(124,58,237,.35)",
             fg: "#5b21b6",
+            dot: "#7c3aed",
             label: "Mandate Initiated",
           },
           MANDATE_CREATED: {
@@ -1016,7 +1047,7 @@ const heliumApprovedLoans = ({
                   justifyContent: "flex-end",
                 }}
               >
-                <button type="button" onClick={closeBankModal}>
+                <button type="button" onClick={closeBankModal} disabled={bankLoading}>
                   Cancel
                 </button>
                 <button type="submit" disabled={bankLoading}>

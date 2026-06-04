@@ -412,7 +412,7 @@ router.get("/dealersforbooking", async (req, res) => {
         ifsc_code,
         status
       FROM motion_corp_dealer_booking
-      WHERE status = 'ACTIVE'
+      WHERE status = 'APPROVED'
       ORDER BY business_name ASC
     `);
 
@@ -1067,7 +1067,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
       partnerName,
     );
 
-    const limitCheck = await partnerLimitService.validatePartnerLimit(
+    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
       connection,
       partner.partner_id,
       loanAmount,
@@ -1081,7 +1081,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
       return res.status(400).json({
         success: false,
         stage: "limit-check",
-        message: `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`,
+        message: `Booking Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`,
       });
     }
 
@@ -1279,6 +1279,47 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         data.lan,
       ],
     );
+
+    await partnerLimitService.updateBookedLimit(
+      connection,
+      limitCheck.limitId,
+      loanAmount,
+      data.lan
+    );
+
+    /*
+    --------------------------------------------------
+    6. Reserve FLDG
+    --------------------------------------------------
+    Important:
+    If final-submit can be called multiple times for the same LAN,
+    you should also add duplicate FLDG reservation protection.
+    --------------------------------------------------
+    */
+
+    if (requiredFldg > 0) {
+      const [[alreadyReserved]] = await connection.query(
+        `
+        SELECT id
+        FROM partner_fldg_utilization
+        WHERE partner_id = ?
+          AND booking_lan = ?
+          AND utilization_type = 'RESERVED'
+        LIMIT 1
+        `,
+        [partner.partner_id, data.lan]
+      );
+
+      if (!alreadyReserved) {
+        await partnerFldgService.reserveFldg(
+          connection,
+          partner.partner_id,
+          data.lan,
+          requiredFldg,
+          `Motion Corp booking reservation | Amount: ${loanAmount}`
+        );
+      }
+    }
 
     await connection.commit();
 
