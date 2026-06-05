@@ -8,6 +8,9 @@ const CarePayApproveInitiateScreen = () => {
       apiUrl={`/loan-booking/approve-initiate-loans?table=loan_booking_carepay&prefix=CARE`}
       title="CarePay Approval Action Pending Loans"
       tableName="loan_booking_carepay"
+      approvePayload={{
+        status: "Completed",
+      }}
     />
   );
 }

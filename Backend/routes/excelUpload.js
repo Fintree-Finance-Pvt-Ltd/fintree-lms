@@ -5586,25 +5586,7 @@ function isCarePayPartner(req) {
   return (req.partner?.name || "").toLowerCase().trim() === "carepay";
 }
 
-function getCarePayDecisionStatus(status, creditLimit) {
-  const rawStatus = String(status || "").toLowerCase().trim();
 
-  if (rawStatus === "rejected" || rawStatus === "credit rejected") {
-    return "rejected";
-  }
-
-  if (
-    rawStatus === "approved" ||
-    rawStatus === "disburse initiate" ||
-    rawStatus === "operations initiated" ||
-    rawStatus === "credit approved" ||
-    creditLimit !== null
-  ) {
-    return "approved";
-  }
-
-  return "pending";
-}
 
 router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
   try {
@@ -5940,7 +5922,6 @@ function buildCarePayStatusResponse(row) {
     partner_loan_id: row.partner_loan_id,
     customer_name: row.customer_name,
     status: row.status,
-    case_status: getCarePayDecisionStatus(row.status, creditLimit),
     request_amount: row.request_amount,
     loan_amount: creditLimit,
     credit_limit: creditLimit,
