@@ -2022,7 +2022,7 @@ router.get("/customer-details/:lan", async (req, res) => {
     lb.sales_invoice_number,
     lb.sales_invoice_date,
     lb.downpayment_paid_by_borrower,
-    lb.vehicle_registration_cost
+    lb.vehicle_registration_cost,
 
     lb.dealer_bank_name,
     lb.dealer_account_number,
@@ -2205,7 +2205,6 @@ router.get("/customer-details/:lan", async (req, res) => {
         dealer_bank_name: row.dealer_bank_name,
         dealer_account_number: row.dealer_account_number,
         dealer_ifsc: row.dealer_ifsc,
-        dealer_name_in_bank: row.dealer_name_in_bank,
       },
 
       product_details: {
