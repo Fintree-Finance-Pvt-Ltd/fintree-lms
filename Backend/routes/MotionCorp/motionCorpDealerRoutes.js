@@ -798,12 +798,11 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
         guarantor_mobile,
         relationship_with_borrower,
         guarantor_address_line_1,
-guarantor_address_line_2,
-guarantor_village_city,
-guarantor_district,
-guarantor_state,
-guarantor_pincode,
-
+        guarantor_address_line_2,
+        guarantor_village_city,
+        guarantor_district,
+        guarantor_state,
+        guarantor_pincode,
 
         co_applicant_name,
         co_applicant_dob,
@@ -811,11 +810,11 @@ guarantor_pincode,
         co_applicant_pan,
         co_applicant_mobile,
         co_applicant_address_line_1,
-co_applicant_address_line_2,
-co_applicant_village_city,
-co_applicant_district,
-co_applicant_state,
-co_applicant_pincode,
+        co_applicant_address_line_2,
+        co_applicant_village_city,
+        co_applicant_district,
+        co_applicant_state,
+        co_applicant_pincode,
 
 
         customer_name_as_per_bank,
@@ -849,8 +848,8 @@ co_applicant_pincode,
         e_rikshaw_model,
         chassis_no,
         borrower_mobile_verified,
-guarantor_mobile_verified,
-co_applicant_mobile_verified
+        guarantor_mobile_verified,
+        co_applicant_mobile_verified
       )
       VALUES (${values.map(() => "?").join(", ")})
     `;
@@ -965,9 +964,10 @@ router.post("/save-borrower-first-section", async (req, res) => {
         email,
         pan_card,
         gender,
+        driving_licence,
         borrower_mobile_verified
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         emptyToNull(data.lenderType),
@@ -987,6 +987,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         emptyToNull(data.Email),
         emptyToNull(data.Pan_Card),
         emptyToNull(data.Gender),
+        emptyToNull(data.Driving_Licence),
         data.borrower_mobile_verified || 1,
       ],
     );
@@ -1139,6 +1140,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         disbursal_amount = ?,
         processing_fee = ?,
         processing_fee_percentage = ?,
+        gps_charges = ?,
 
         guarantor_name = ?,
         guarantor_dob = ?,
@@ -1152,6 +1154,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         guarantor_district = ?,
         guarantor_state = ?,
         guarantor_pincode = ?,
+        guarantor_driving_licence = ?,
 
         co_applicant_name = ?,
         co_applicant_dob = ?,
@@ -1164,11 +1167,13 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         co_applicant_district = ?,
         co_applicant_state = ?,
         co_applicant_pincode = ?,
+        co_applicant_driving_licence = ?,
 
         customer_name_as_per_bank = ?,
         customer_bank_name = ?,
         customer_account_number = ?,
         bank_ifsc_code = ?,
+        bank_branch_address = ?,
 
         selected_dealer_application_id = ?,
         dealer_id = ?,
@@ -1195,6 +1200,18 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         battery_serial_no_2 = ?,
         e_rikshaw_model = ?,
         chassis_no = ?,
+        insurance_cost = ?,
+        insurance_company_provider = ?,
+        insurance_policy_number = ?,
+        policy_issued_date = ?,
+        period_of_insurance = ?,
+
+        cost_of_vehicle = ?,
+        manufacturing_year = ?,
+        sales_invoice_number = ?,
+        sales_invoice_date = ?,
+        downpayment_paid_by_borrower = ?,
+        vehicle_registration_cost = ?,
 
         borrower_mobile_verified = ?,
         guarantor_mobile_verified = ?,
@@ -1215,6 +1232,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         numberOrNull(data.Disbursal_Amount),
         numberOrNull(data.Processing_Fee),
         numberOrNull(data.Processing_Fee_Percentage),
+        numberOrNull(data.GPS_Charges),
 
         emptyToNull(data.GURANTOR),
         emptyToNull(data.GURANTOR_DOB),
@@ -1228,6 +1246,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.GURANTOR_District),
         emptyToNull(data.GURANTOR_State),
         emptyToNull(data.GURANTOR_Pincode),
+        emptyToNull(data.GURANTOR_Driving_Licence),
 
         emptyToNull(data.Co_Applicant),
         emptyToNull(data.Co_Applicant_DOB),
@@ -1240,11 +1259,13 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.Co_Applicant_District),
         emptyToNull(data.Co_Applicant_State),
         emptyToNull(data.Co_Applicant_Pincode),
+        emptyToNull(data.Co_Applicant_Driving_Licence),
 
         emptyToNull(data.customer_name_as_per_bank),
         emptyToNull(data.customer_bank_name),
         emptyToNull(data.customer_account_number),
         emptyToNull(data.bank_ifsc_code),
+        emptyToNull(data.bank_branch_address),
 
         emptyToNull(data.selected_dealer_application_id),
         emptyToNull(data.dealer_id),
@@ -1271,6 +1292,18 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.Battery_Serial_no_2),
         emptyToNull(data.E_Rikshaw_model),
         emptyToNull(data.Chassis_no),
+        numberOrNull(data.insurance_cost),
+        emptyToNull(data.insurance_company_provider),
+        emptyToNull(data.insurance_policy_number),
+        emptyToNull(data.policy_issued_date),
+        emptyToNull(data.period_of_insurance),
+
+        numberOrNull(data.cost_of_vehicle),
+        emptyToNull(data.manufacturing_year),
+        emptyToNull(data.sales_invoice_number),
+        emptyToNull(data.sales_invoice_date),
+        numberOrNull(data.downpayment_paid_by_borrower),
+        numberOrNull(data.vehicle_registration_cost),
 
         data.borrower_mobile_verified || 0,
         data.guarantor_mobile_verified || 0,
@@ -1737,7 +1770,9 @@ router.post("/save-applicant-details", async (req, res) => {
           guarantor_district = ?,
           guarantor_state = ?,
           guarantor_pincode = ?,
-          guarantor_mobile_verified = ?
+          guarantor_mobile_verified = ?,
+          guarantor_driving_licence = ?,
+          co_applicant_driving_licence = ?,
         WHERE lan = ?
         `,
         [
@@ -1754,6 +1789,8 @@ router.post("/save-applicant-details", async (req, res) => {
           emptyToNull(data.GURANTOR_State),
           emptyToNull(data.GURANTOR_Pincode),
           data.guarantor_mobile_verified || 0,
+          emptyToNull(data.GURANTOR_Driving_Licence),
+          emptyToNull(data.Co_Applicant_Driving_Licence),
           lan,
         ],
       );
@@ -1969,6 +2006,23 @@ router.get("/customer-details/:lan", async (req, res) => {
     lb.dealer_city,
     lb.dealer_state,
     lb.dealer_pincode,
+
+    lb.gps_charges,
+    lb.driving_licence,
+    lb.guarantor_driving_licence,
+    lb.co_applicant_driving_licence,
+    lb.bank_branch_address,
+    lb.insurance_cost,
+    lb.insurance_company_provider,
+    lb.insurance_policy_number,
+    lb.policy_issued_date,
+    lb.period_of_insurance,
+    lb.cost_of_vehicle,
+    lb.manufacturer_year,
+    lb.sales_invoice_number,
+    lb.sales_invoice_date,
+    lb.downpayment_paid_by_borrower,
+    lb.vehicle_registration_cost
 
     lb.dealer_bank_name,
     lb.dealer_account_number,
