@@ -2262,6 +2262,7 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("LDF")) loanTable = "loan_booking_loan_digit";
   else if (lan.startsWith("SML")) loanTable = "loan_booking_switch_my_loan";
   else if (lan.startsWith("ZBR")) loanTable = "loan_booking_zebrs";
+  else if (lan.startsWith("CLY")) loanTable = "loan_booking_clayyo";
 
   try {
     const [loanRows] = await db
