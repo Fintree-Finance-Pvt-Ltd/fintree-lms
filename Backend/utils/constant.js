@@ -1,0 +1,46 @@
+const CAREPAY_HOSPITAL_REQUIRED_FIELDS = [
+  "partner_loan_id",
+  "hospital_legal_name",
+  "registered_address",
+  "registered_city",
+  "registered_district",
+  "registered_state",
+  "registered_pincode",
+  "hospital_phone",
+  "contact_person_name",
+  "contact_person_phone",
+  "ifsc_code",
+  "bank_name",
+  "branch_name",
+  "account_holder_name",
+  "account_number",
+];
+
+const CAREPAY_REQUIRED_FIELDS = [
+  "login_date",
+  "partner_loan_id",
+  "hospital_lan",
+  "first_name",
+  "last_name",
+  "gender",
+  "dob",
+  "mobile_number",
+  "pan_number",
+  "aadhar_number",
+  "current_address",
+  "current_village_city",
+  "current_district",
+  "current_state",
+  "current_pincode",
+  "subvention_percentage",
+  "request_amount",
+  "loan_tenure",
+  "employment",
+  "annual_income",
+  "customer_type",
+];
+
+module.exports = {
+  CAREPAY_HOSPITAL_REQUIRED_FIELDS,
+  CAREPAY_REQUIRED_FIELDS,
+};
