@@ -26,6 +26,10 @@ const {
   getMonthYear,
   validatePartnerName,
 } = require("../utils/partnerHelpers");
+const {
+  CAREPAY_HOSPITAL_REQUIRED_FIELDS,
+  CAREPAY_REQUIRED_FIELDS,
+} = require("../utils/constant");
 const { runBureau } = require("../services/Bueraupullapiservice");
 
 // const { pullCIBILReport }=  require("../jobs/experianService");
@@ -4261,6 +4265,14 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     "cibil_score",
     "product",
     "lender",
+    "business_name",
+    "company_type",
+    "business_vintage",
+    "industry",
+    "annual_turnover",
+    "abb_value",
+    "net_profit",
+    "loanemi_obligations",
     "employment_type",
     "pre_emi",
     "processing_fee",
@@ -4503,6 +4515,14 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           data.cibil_score ?? null,
           data.product,
           lenderType,
+          data.business_name ?? null,
+          data.company_type ?? null,
+          data.business_vintage ?? null,
+          data.industry ?? null,
+          data.annual_turnover ?? null,
+          data.abb_value ?? null,
+          data.net_profit ?? null,
+          data.loanemi_obligations ?? null,
           data.employment_type ?? null,
           data.pre_emi ?? null,
           data.processing_fee ?? 0.0,
@@ -5545,50 +5565,6 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
   }
 });
 
-const CAREPAY_HOSPITAL_REQUIRED_FIELDS = [
-  "partner_loan_id",
-  "hospital_legal_name",
-  "registered_address",
-  "registered_city",
-  "registered_district",
-  "registered_state",
-  "registered_pincode",
-  "hospital_phone",
-  "contact_person_name",
-  "contact_person_phone",
-  "ifsc_code",
-  "bank_name",
-  "branch_name",
-  "account_holder_name",
-  "account_number",
-];
-
-const CAREPAY_REQUIRED_FIELDS = [
-  "login_date",
-  "partner_loan_id",
-  "hospital_lan",
-  "first_name",
-  "last_name",
-  "gender",
-  "dob",
-  "mobile_number",
-  "pan_number",
-  "aadhar_number",
-  "current_address",
-  "current_village_city",
-  "current_district",
-  "current_state",
-  "current_pincode",
-  "subvention_percentage",
-  "request_amount",
-  "loan_tenure",
-  "employment",
-  "annual_income",
-  "customer_type",
-];
-
-
-
 function getMissingFields(data, requiredFields) {
   return requiredFields.filter((field) => {
     const value = data[field];
@@ -6229,7 +6205,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       data.last_name || ""
     }`.trim();
     const agreement_date = data.login_date;
-    const interest_rate = 18;
+    const interest_rate = 0;
     const permanentAddress = data.permanent_address || data.current_address;
     const permanentVillageCity =
       data.permanent_village_city || data.current_village_city;
