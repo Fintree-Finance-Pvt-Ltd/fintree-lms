@@ -2018,7 +2018,7 @@ router.get("/customer-details/:lan", async (req, res) => {
     lb.policy_issued_date,
     lb.period_of_insurance,
     lb.cost_of_vehicle,
-    lb.manufacturer_year,
+    lb.manufacturing_year,
     lb.sales_invoice_number,
     lb.sales_invoice_date,
     lb.downpayment_paid_by_borrower,

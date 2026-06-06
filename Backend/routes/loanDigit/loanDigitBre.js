@@ -589,7 +589,8 @@ const extractLoanDigitBureauFacts = (reportXml) => {
     return {
       score: null,
       enquiries3m: null,
-      hasDpdOrOverdue12M: false,
+      hasDpd30Plus12M: false,
+      hasOverdue12M: false,
       hasWriteOffOrSettlement12M: false,
     };
   }
@@ -618,7 +619,8 @@ const extractLoanDigitBureauFacts = (reportXml) => {
 
   const accounts = toArray(profile?.CAIS_Account?.CAIS_Account_DETAILS);
 
-  let hasDpdOrOverdue12M = false;
+  let hasDpd30Plus12M = false;
+  let hasOverdue12M = false;
   let hasWriteOffOrSettlement12M = false;
 
   const now = new Date();
@@ -714,7 +716,7 @@ const extractLoanDigitBureauFacts = (reportXml) => {
       amountPastDue > 0 &&
       (reportedMonthsAgo === null || reportedMonthsAgo < 12)
     ) {
-      hasDpdOrOverdue12M = true;
+      hasOverdue12M = true;
     }
 
     /**
@@ -740,7 +742,7 @@ const extractLoanDigitBureauFacts = (reportXml) => {
       });
 
       if (diff < 12 && dpd > 29) {
-        hasDpdOrOverdue12M = true;
+        hasOverdue12M = true;
       }
     }
 
@@ -748,7 +750,8 @@ const extractLoanDigitBureauFacts = (reportXml) => {
   }
 
   debug.flags = {
-    hasDpdOrOverdue12M,
+    hasDpd30Plus12M,
+    hasOverdue12M,
     hasWriteOffOrSettlement12M,
   };
 
@@ -760,7 +763,8 @@ const extractLoanDigitBureauFacts = (reportXml) => {
   return {
     score,
     enquiries3m,
-    hasDpdOrOverdue12M,
+    hasDpd30Plus12M,
+    hasOverdue12M,
     hasWriteOffOrSettlement12M,
   };
 };
@@ -861,8 +865,12 @@ const evaluateLoanDigitPolicy = ({ loan, bureauFacts }) => {
   /**
    * ZERO DPD / Overdue last 12 months
    */
-  if (bureauFacts.hasDpdOrOverdue12M) {
-    reasons.push("DPD_OR_OVERDUE_LAST_12M");
+  if (bureauFacts.hasDpd30Plus12M) {
+    reasons.push("DPD_30_PLUS_LAST_12M");
+  }
+
+  if (bureauFacts.hasOverdue12M) {
+    reasons.push("OVERDUE_LAST_12M");
   }
 
   /**
@@ -1004,7 +1012,7 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
 
       decision.bureauScore,
       bureauFacts.enquiries3m,
-      bureauFacts.hasDpdOrOverdue12M ? 1 : 0,
+      bureauFacts.hasDpd30Plus12M || bureauFacts.hasOverdue12M ? 1 : 0,
       bureauFacts.hasWriteOffOrSettlement12M ? 1 : 0,
 
       finalStage,

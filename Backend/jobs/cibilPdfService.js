@@ -1,4 +1,17 @@
 // /server/services/cibilPdfService.js
+const { 
+  getExperianDescription,
+  ACCOUNT_TYPE,ACCOUNT_STATUS,
+  ACCOUNT_HOLDER_TYPE,
+  PAYMENT_HISTORY_PROFILE,
+  TYPE_OF_COLLATERAL,
+  PORTFOLIO_TYPE,
+  SUTI_FILLED_WILL_FULL_DEFAULT_WRITTEN_OFF_STATUS,
+  SUTI_FILLED_WILL_FULL_DEFAULT,
+  WRITTEN_OFF_SETTLED_STATUS,
+
+} = require ('../utils/experian_description');
+
 const fs = require('fs');
 const path = require('path');
 const { XMLParser } = require('fast-xml-parser');
@@ -91,7 +104,14 @@ function mapFields(x) {
 
 
 function html(fields) {
-  const S = (v) => (v ? String(v) : '-');
+  // const S = (v) => (v ? String(v) : '-');
+  const S = (v) => {
+  if (v === null || v === undefined || v === "") {
+    return "-";
+  }
+
+  return String(v);
+};
 
   // Safe date formatter (fixes .slice() issue)
   const fmtDate = (d) => {
@@ -133,13 +153,14 @@ function html(fields) {
         <h4>Account ${i + 1}: ${S(acc.Account_Number)}</h4>
         <div class="grid">
           <div>Subscriber</div><div>${S(acc.Subscriber_Name)}</div>
-          <div>Account Type</div><div>${S(acc.Account_Type)}</div>
-          <div>Status</div><div>${S(acc.Account_Status)}</div>
+          <div>Account Type</div>
+          <div>${S(getExperianDescription(ACCOUNT_TYPE, acc?.Account_Type))}</div>
+          <div>Status</div><div>${S(getExperianDescription(ACCOUNT_STATUS, acc?.Account_Status))}</div>
           <div>Open Date</div><div>${fmtDate(acc.Open_Date)}</div>
           <div>Highest Credit</div><div>${S(acc.Highest_Credit_or_Original_Loan_Amount)}</div>
           <div>Current Balance</div><div>${S(acc.Current_Balance)}</div>
           <div>Amount Past Due</div><div>${S(acc.Amount_Past_Due)}</div>
-          <div>Written Off Status</div><div>${S(acc.Written_off_Settled_Status)}</div>
+          <div>Written Off Status</div><div>${S(getExperianDescription(WRITTEN_OFF_SETTLED_STATUS, acc?.Written_off_Settled_Status))}</div>
           <div>Date Reported</div><div>${fmtDate(acc.Date_Reported)}</div>
         </div>
         <h5 style="margin-top:8px;">Days Past Due History</h5>
