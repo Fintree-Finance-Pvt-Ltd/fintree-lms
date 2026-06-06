@@ -218,6 +218,7 @@ import CarePayDisbursedLoans from "./components/CarePay/CarePayDisbursedLoans";
 import CarePayHospitalLists from "./components/CarePay/CarePayHospitalLists";
 import CarePayHospitalLoginActions from "./components/CarePay/CarePayHospitalLoginActions";
 import CarePayHospitalDetails from "./components/CarePay/CarePayHospitalDetails";
+import FundifyManualEntry from "./components/Fundify/FundifyLoanBooking";
 
 
 function App() {
@@ -1561,6 +1562,15 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          <Route 
+           path="/fundify/manual-entry"
+            element={
+              // <PermissionRoute pageName="Fundify Loan Booking">
+                <FundifyManualEntry />
+              // </PermissionRoute>
+            }
+          />
           {/* ✅ Seven Fincorp Pages */}
           {/* ✅ Seven Fincorp Dealer Entry routes */}
           {/* =========================
@@ -1579,6 +1589,14 @@ function App() {
             element={
               <PermissionRoute pageName="Seven Fincorp Dealer Lists">
                 <SevenFinCorpDealerLists />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/motion-corp/dealer-login-actions"
+            element={
+              <PermissionRoute pageName="Motion Corp Dealer Credit Approval List">
+                <MotionCorpDealerLoginActions />
               </PermissionRoute>
             }
           />

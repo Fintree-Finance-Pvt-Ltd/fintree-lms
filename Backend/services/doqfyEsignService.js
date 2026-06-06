@@ -10,8 +10,65 @@ const { getLoanContext } = require("../utils/lanHelper");
 
 const {
   generateSanctionLetterPdf,
-  generateAgreementPdf
+  generateAgreementPdf,
 } = require("./pdfGenerationService");
+
+function clean(value) {
+  return value === null || value === undefined ? "" : String(value).trim();
+}
+
+function buildDoqfyPartyUsers(loan, esignParties = [], type) {
+  const positions = ["BOTTOM_RIGHT", "BOTTOM_LEFT", "TOP_RIGHT", "TOP_LEFT"];
+
+  const partyUsers = [];
+
+  for (const party of esignParties) {
+    const name = clean(loan[party.name]);
+    const email = clean(loan[party.email]);
+    const mobile = clean(loan[party.mobile]);
+
+    // means this signer does not exist in this loan
+    const isEmptySigner = !name && !email && !mobile;
+
+    // if required signer missing, stop
+    if (isEmptySigner && party.required) {
+      throw new Error(`${party.role} details are missing`);
+    }
+
+    // if optional signer missing, skip
+    if (isEmptySigner && !party.required) {
+      continue;
+    }
+
+    // partial data validation
+    if (!name) {
+      throw new Error(`${party.role} name is missing`);
+    }
+
+    if (!mobile && !email) {
+      throw new Error(`${party.role} mobile or email is required`);
+    }
+
+    partyUsers.push({
+      name,
+      email,
+      contact_number: mobile,
+      sign_position: positions[partyUsers.length % positions.length],
+      method: "ELECTRONIC",
+      position_details: {},
+      pages: "ALL",
+
+      // role is used here for your reference
+      remark: `${type} Signing - ${party.role}`,
+    });
+  }
+
+  if (!partyUsers.length) {
+    throw new Error("No valid signer found for eSign");
+  }
+
+  return partyUsers;
+}
 
 exports.initDoqfyEsign = async (lan, type) => {
   try {
@@ -29,16 +86,15 @@ exports.initDoqfyEsign = async (lan, type) => {
     /* GET LOAN CONTEXT */
     /* --------------------------------------------------- */
 
-    const { bookingTable } = getLoanContext(lan);
+    const { bookingTable, esignParties } = getLoanContext(lan);
 
     /* --------------------------------------------------- */
     /* FETCH LOAN */
     /* --------------------------------------------------- */
 
-    const [loanRows] = await db.promise().query(
-      `SELECT * FROM ${bookingTable} WHERE lan = ?`,
-      [lan]
-    );
+    const [loanRows] = await db
+      .promise()
+      .query(`SELECT * FROM ${bookingTable} WHERE lan = ?`, [lan]);
 
     if (!loanRows.length) {
       throw new Error("Loan not found");
@@ -47,6 +103,8 @@ exports.initDoqfyEsign = async (lan, type) => {
     const loan = loanRows[0];
 
     console.log("✅ LOAN FETCHED");
+
+    const partyUsers = buildDoqfyPartyUsers(loan, esignParties, type);
 
     /* --------------------------------------------------- */
     /* GENERATE PDF */
@@ -67,11 +125,7 @@ exports.initDoqfyEsign = async (lan, type) => {
       throw new Error("PDF generation failed");
     }
 
-    const filePath = path.join(
-      __dirname,
-      "../uploads",
-      fileName
-    );
+    const filePath = path.join(__dirname, "../uploads", fileName);
 
     if (!fs.existsSync(filePath)) {
       throw new Error("PDF file missing");
@@ -113,33 +167,13 @@ exports.initDoqfyEsign = async (lan, type) => {
           estamps: [],
 
           esigns: {
-            party_users: [
-              {
-                name: loan.customer_name,
-
-                email: loan.email_id || "",
-
-                contact_number:
-                  loan.mobile_number || "",
-
-                sign_position: "BOTTOM_RIGHT",
-
-                method: "AADHAAR",
-
-                position_details: {},
-
-                pages: "ALL",
-
-                remark: `${type} Signing`
-              }
-            ],
-
-            witness_users: []
-          }
-        }
+            party_users: partyUsers,
+            witness_users: [],
+          },
+        },
       ],
 
-      document: pdfBase64
+      document: pdfBase64,
     };
 
     console.log("📤 SENDING PAYLOAD TO DOQFY", payload);
@@ -151,21 +185,12 @@ exports.initDoqfyEsign = async (lan, type) => {
     let response;
 
     try {
-      response = await doqfyClient.post(
-        "/order/cat/upload/",
-        payload
-      );
+      response = await doqfyClient.post("/order/cat/upload/", payload);
     } catch (err) {
-      console.error(
-        "❌ DOQFY API ERROR:",
-        err.response?.data || err.message
-      );
+      console.error("❌ DOQFY API ERROR:", err.response?.data || err.message);
 
       throw new Error(
-        "DOQFY API ERROR: " +
-          JSON.stringify(
-            err.response?.data || err.message
-          )
+        "DOQFY API ERROR: " + JSON.stringify(err.response?.data || err.message),
       );
     }
 
@@ -187,27 +212,22 @@ exports.initDoqfyEsign = async (lan, type) => {
 
     try {
       const orderResp = await doqfyClient.get(
-        `/order/orders/?detail=1&order_ids=${orderId}`
+        `/order/orders/?detail=1&order_ids=${orderId}`,
       );
 
       console.log("✅ ORDER DETAILS FETCHED", orderResp);
 
-      const orderData =
-        orderResp.data?.content?.[0];
+      const orderData = orderResp.data?.content?.[0];
 
-        console.log("order response data", orderData);
+      console.log("order response data", orderData);
 
-      const esignData =
-        orderData?.esign?.[0];
+      const esignData = orderData?.esign?.[0];
 
       signUrl = esignData?.sign_url || null;
 
       console.log("✅ SIGN URL:", signUrl);
     } catch (err) {
-      console.error(
-        "⚠ FAILED TO FETCH ORDER DETAILS:",
-        err.message
-      );
+      console.error("⚠ FAILED TO FETCH ORDER DETAILS:", err.message);
     }
 
     /* --------------------------------------------------- */
@@ -235,8 +255,8 @@ exports.initDoqfyEsign = async (lan, type) => {
         "INITIATED",
         loan.mobile_number || loan.email_id,
         JSON.stringify(payload),
-        JSON.stringify(response.data)
-      ]
+        JSON.stringify(response.data),
+      ],
     );
 
     /* --------------------------------------------------- */
@@ -252,7 +272,7 @@ exports.initDoqfyEsign = async (lan, type) => {
           sanction_esign_document_id = ?
         WHERE lan = ?
         `,
-        [orderId, lan]
+        [orderId, lan],
       );
     } else {
       await db.promise().query(
@@ -263,7 +283,7 @@ exports.initDoqfyEsign = async (lan, type) => {
           agreement_esign_document_id = ?
         WHERE lan = ?
         `,
-        [orderId, lan]
+        [orderId, lan],
       );
     }
 
@@ -275,9 +295,8 @@ exports.initDoqfyEsign = async (lan, type) => {
       success: true,
       lan,
       orderId,
-      sign_url: signUrl
+      sign_url: signUrl,
     };
-
   } catch (err) {
     console.error("❌ FINAL DOQFY ERROR:", err);
     throw err;
