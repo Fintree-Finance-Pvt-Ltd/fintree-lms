@@ -1350,7 +1350,7 @@ router.get("/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
     const docs = await q(
-      "SELECT id, lan, file_name, original_name, uploaded_at FROM loan_documents WHERE lan = ? ORDER BY uploaded_at DESC",
+      "SELECT id, lan, file_name, doc_name, original_name, uploaded_at FROM loan_documents WHERE lan = ? ORDER BY uploaded_at DESC",
       [lan],
     );
     res.json(docs);
