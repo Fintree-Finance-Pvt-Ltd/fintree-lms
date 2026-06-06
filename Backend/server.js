@@ -152,6 +152,7 @@ app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 
 app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
+app.use("/api/fundify", require("./routes/Fundify/fundifyRoutes")); // ✅ Register Routes for Fundify Loans
 
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files

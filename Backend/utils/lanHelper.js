@@ -76,7 +76,17 @@ function getLoanContext(lan = "") {
       summaryTable: "customer_loan_summary",
       rpsTable: "loan_rps_customer",
       bookingTable: "loan_booking_zypay_customer",
-      agreementTemplate: "Customer_Aggrement_Zypay.html"
+      agreementTemplate: "Customer_Aggrement_Zypay.html",
+      // Applicant only
+      esignParties: [
+        {
+          role: "APPLICANT",
+          required: true,
+          name: "customer_name",
+          email: "email_id",
+          mobile: "mobile_number"
+        }
+      ]
     };
   }
 
@@ -86,7 +96,18 @@ if (isClayyoLan(lan)) {
     summaryTable: "clayyo_loan_summary",
     rpsTable: "loan_rps_clayyo",
     bookingTable: "loan_booking_clayyo",
-    agreementTemplate: "Clayyo_Agreement.html"
+    agreementTemplate: "Clayyo_Agreement.html",
+
+    // Applicant only
+      esignParties: [
+        {
+          role: "APPLICANT",
+          required: true,
+          name: "customer_name",
+          email: "email_id",
+          mobile: "mobile_number"
+        }
+      ]
   };
 }
   if (isHeliumLan(lan)) {
@@ -95,7 +116,17 @@ if (isClayyoLan(lan)) {
       summaryTable: "helium_loan_summary",
       rpsTable: "loan_rps_helium",
       bookingTable: "loan_booking_helium",
-      agreementTemplate: "helium_agreement.html"
+      agreementTemplate: "helium_agreement.html",
+      // Applicant only
+      esignParties: [
+        {
+          role: "APPLICANT",
+          required: true,
+          name: "customer_name",
+          email: "email_id",
+          mobile: "mobile_number"
+        }
+      ]
     };
   }
 
@@ -105,7 +136,31 @@ if (isClayyoLan(lan)) {
       summaryTable: "motioncorp_loan_summary",
       rpsTable: "loan_rps_motioncorp",
       bookingTable: "loan_booking_motion_corp",
-      agreementTemplate: "Motion_Corp_EV_Full_Agreement.html"
+      agreementTemplate: "Motion_Corp_EV_Full_Agreement.html",
+      // Applicant only
+      esignParties: [
+        {
+          role: "APPLICANT",
+          required: true,
+          name: "customer_name",
+          email: "email",
+          mobile: "mobile_number"
+        },
+        { 
+          role: "CO_APPLICANT",
+          required: false,
+          name: "co_applicant_name",
+          email: "co_applicant_email",
+          mobile: "co_applicant_mobile"
+        },
+        {
+          role: "GUARANTOR",
+          required: false,
+          name: "guarantor_name",
+          email: "guarantor_email",
+          mobile: "guarantor_mobile"
+        }
+      ]
     };
   }
 
