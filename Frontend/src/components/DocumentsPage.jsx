@@ -814,7 +814,7 @@ const DocumentsPage = () => {
                   return (
                     <tr key={doc.id} style={rowStyle}>
                       <td style={styles.td}>{doc.original_name}</td>
-                      <td style={styles.td}>{doc.file_name}</td>
+                      <td style={styles.td}>{doc.doc_name}</td>
                       <td style={styles.td}>{new Date(doc.uploaded_at).toLocaleString()}</td>
                       <td style={styles.actionsCell}>
                         <div style={styles.actionsRow}>
