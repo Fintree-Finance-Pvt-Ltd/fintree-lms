@@ -1075,6 +1075,8 @@ const FundifyManualEntry = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState({});
+  const [gstLoading, setGstLoading] = useState(false);
+const [gstVerified, setGstVerified] = useState(false);
 
   const [loan, setLoan] = useState({
     login_date: today,
@@ -1144,6 +1146,10 @@ const FundifyManualEntry = () => {
     if (["business_pan", "gstin", "ifsc"].includes(name)) {
       finalValue = value.toUpperCase();
     }
+
+    if (name === "gstin") {
+  setGstVerified(false);
+}
 
     if (name === "business_email") {
       finalValue = value.toLowerCase().replace(/\s/g, "");
@@ -1307,6 +1313,9 @@ const FundifyManualEntry = () => {
       if (loan.business_email && !isValidEmail(loan.business_email)) {
         e.business_email = "Invalid business email address";
       }
+      if (loan.gstin && !isValidGstin(loan.gstin)) {
+  e.gstin = "Invalid GSTIN format";
+}
       if (loan.business_pan && !isValidPan(loan.business_pan)) {
         e.business_pan = "Invalid business PAN format";
       }
@@ -1402,6 +1411,159 @@ const FundifyManualEntry = () => {
       ],
     };
   };
+
+  const isValidGstin = (gstin) =>
+  /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(
+    String(gstin || "").trim().toUpperCase()
+  );
+
+const formatGstDate = (value) => {
+  if (!value) return "";
+
+  // GST API date comes like DD/MM/YYYY
+  const parts = String(value).split("/");
+  if (parts.length !== 3) return "";
+
+  const [dd, mm, yyyy] = parts;
+  return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+};
+
+const parseGstAddress = (address = "") => {
+  const clean = String(address || "").replace(/\s+/g, " ").trim();
+
+  const result = {
+    address: clean,
+    city: "",
+    district: "",
+    state: "",
+    pincode: "",
+  };
+
+  const pincodeMatch = clean.match(/\b[1-9][0-9]{5}\b/);
+  if (pincodeMatch) {
+    result.pincode = pincodeMatch[0];
+  }
+
+  const parts = clean
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  // Example:
+  // 4th Floor, 1, Engineering Centre, 9 Mathew Road, Opera House, Mumbai, Mumbai, Maharashtra, 400004
+  if (parts.length >= 4) {
+    result.state = parts[parts.length - 2] || "";
+    result.district = parts[parts.length - 3] || "";
+    result.city = parts[parts.length - 3] || "";
+  }
+
+  return result;
+};
+
+const handleVerifyGst = async () => {
+  const gstin = String(loan.gstin || "").trim().toUpperCase();
+
+  if (!gstin) {
+    setErrors((prev) => ({
+      ...prev,
+      gstin: "GSTIN is required",
+    }));
+    setMessage("❌ Please enter GSTIN first.");
+    return;
+  }
+
+  if (!isValidGstin(gstin)) {
+    setErrors((prev) => ({
+      ...prev,
+      gstin: "Invalid GSTIN format",
+    }));
+    setMessage("❌ Invalid GSTIN format.");
+    return;
+  }
+
+  try {
+    setGstLoading(true);
+    setMessage("");
+    setErrors((prev) => ({
+      ...prev,
+      gstin: "",
+    }));
+
+    const res = await api.post("fundify/gst/verify", {
+      gstNumber: gstin,
+    });
+
+    if (!res.data?.success) {
+      setGstVerified(false);
+      setMessage(`❌ ${res.data?.message || "GST verification failed"}`);
+      return;
+    }
+
+    const d = res.data.data || {};
+    const parsedAddress = parseGstAddress(d.address);
+
+    setLoan((prev) => ({
+      ...prev,
+
+      gstin: d.gstin || gstin,
+
+      // GSTIN contains PAN from character 3 to 12
+      business_pan: d.gstin ? d.gstin.substring(2, 12) : prev.business_pan,
+
+      business_name: d.legal_name || prev.business_name,
+      trade_name: d.trade_name || d.legal_name || prev.trade_name,
+
+      constitution_type:
+        d.business_constitution || prev.constitution_type,
+
+      nature_of_business:
+        d.business_nature || prev.nature_of_business,
+
+      industry_type:
+        d.industry_type || prev.industry_type,
+
+      business_start_date:
+        formatGstDate(d.registration_date) || prev.business_start_date,
+
+      business_address:
+        parsedAddress.address || prev.business_address,
+
+      business_city:
+        parsedAddress.city || prev.business_city,
+
+      business_district:
+        parsedAddress.district || prev.business_district,
+
+      business_state:
+        parsedAddress.state || prev.business_state,
+
+      business_pincode:
+        parsedAddress.pincode || prev.business_pincode,
+
+      business_mobile:
+        d.mobile || prev.business_mobile,
+
+      business_email:
+        d.email || prev.business_email,
+    }));
+
+    setGstVerified(true);
+    setMessage(
+      `✅ GST verified: ${d.legal_name || d.trade_name || gstin}`
+    );
+  } catch (err) {
+    setGstVerified(false);
+    setMessage(
+      `❌ ${
+        err.response?.data?.message ||
+        err.message ||
+        "GST verification failed"
+      }`
+    );
+  } finally {
+    setGstLoading(false);
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1576,7 +1738,22 @@ const FundifyManualEntry = () => {
             {renderInput("Business Name", "business_name", loan.business_name, handleLoanChange)}
             {renderInput("Trade Name", "trade_name", loan.trade_name, handleLoanChange)}
             {renderInput("Business PAN", "business_pan", loan.business_pan, handleLoanChange)}
-            {renderInput("GSTIN", "gstin", loan.gstin, handleLoanChange)}
+            <div className="gst-verify-wrapper">
+  {renderInput("GSTIN", "gstin", loan.gstin, handleLoanChange)}
+
+  <button
+    type="button"
+    className={gstVerified ? "verified-btn" : "verify-btn"}
+    onClick={handleVerifyGst}
+    disabled={gstLoading || gstVerified}
+  >
+    {gstLoading
+      ? "Verifying..."
+      : gstVerified
+        ? "Verified ✓"
+        : "Verify & Fetch"}
+  </button>
+</div>
             {renderInput("Udyam Registration No", "udyam_registration_no", loan.udyam_registration_no, handleLoanChange)}
             {renderInput("CIN", "cin", loan.cin, handleLoanChange)}
             {renderInput("LLPIN", "llpin", loan.llpin, handleLoanChange)}
@@ -1758,6 +1935,42 @@ const FundifyManualEntry = () => {
           margin-bottom: 24px;
           color: #0f172a;
         }
+          .gst-verify-wrapper {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.gst-verify-wrapper .form-group {
+  flex: 1;
+}
+
+.verify-btn,
+.verified-btn {
+  height: 52px;
+  border: none;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.verify-btn {
+  background: #0f172a;
+  color: white;
+}
+
+.verified-btn {
+  background: #10b981;
+  color: white;
+}
+
+.verify-btn:disabled,
+.verified-btn:disabled {
+  opacity: 0.8;
+  cursor: not-allowed;
+}
         .form-group {
           display: flex;
           flex-direction: column;

@@ -1564,11 +1564,11 @@ function App() {
           />
 
           <Route 
-           path="/fundify/manual-entry"
+           path="/fundify-loans/manual-entry"
             element={
-              // <PermissionRoute pageName="Fundify Loan Booking">
+              <PermissionRoute pageName="Fundify Loan Booking">
                 <FundifyManualEntry />
-              // </PermissionRoute>
+              </PermissionRoute>
             }
           />
           {/* ✅ Seven Fincorp Pages */}

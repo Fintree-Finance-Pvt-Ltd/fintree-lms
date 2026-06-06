@@ -1,5 +1,6 @@
 const express = require("express");
 const db = require("../../config/db");
+const axios = require("axios");
 
 const partnerLimitService = require("../../services/partnerLimitService");
 const partnerFldgService = require("../../services/partnerFldgService");
@@ -655,6 +656,118 @@ router.get("/fundify", async (req, res) => {
       success: false,
       message: "Failed to fetch Fundify loans",
       error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+router.post("/gst/verify", async (req, res) => {
+  try {
+    const { gstNumber } = req.body;
+
+    const cleanGst = String(gstNumber || "").trim().toUpperCase();
+
+    if (!cleanGst) {
+      return res.status(400).json({
+        success: false,
+        message: "GST number is required",
+      });
+    }
+
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(cleanGst)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid GSTIN format",
+      });
+    }
+
+    const gstUrl =
+      process.env.GST_VERIFY_URL || "https://sandbox.fintreelms.com/gst/verify";
+
+    const gstApiKey = process.env.GST_VERIFY_API_KEY;
+
+    if (!gstApiKey) {
+      return res.status(500).json({
+        success: false,
+        message: "GST API key is not configured",
+      });
+    }
+
+    const gstRes = await axios.post(
+      gstUrl,
+      {
+        gstNumber: cleanGst,
+      },
+      {
+        headers: {
+          accept: "*/*",
+          "X-API-Key": gstApiKey,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      }
+    );
+
+    const data = gstRes.data?.data || {};
+    const result = data.result || {};
+
+    if (!gstRes.data?.success || !result.gstin) {
+      return res.status(400).json({
+        success: false,
+        message:
+          result.response_message ||
+          gstRes.data?.message ||
+          "GST verification failed",
+        raw: gstRes.data,
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "GST verified successfully",
+      data: {
+        gstin: result.gstin || cleanGst,
+        legal_name: result.legal_name || "",
+        trade_name: result.trade_name || "",
+        business_constitution: result.business_constitution || "",
+        business_nature: Array.isArray(result.business_nature)
+          ? result.business_nature.join(", ")
+          : result.business_nature || "",
+        industry_type: Array.isArray(result.business_details)
+          ? result.business_details
+              .map((item) => item.sdes)
+              .filter(Boolean)
+              .join(", ")
+          : "",
+        registration_date: result.register_date || "",
+        status: result.current_registration_status || "",
+        taxpayer_type: result.tax_payer_type || "",
+        aggregate_turn_over: result.aggregate_turn_over || "",
+        aggregate_turn_over_year: result.aggregate_turn_over_year || "",
+        email:
+          result.contact?.email ||
+          result.primary_business_address?.email ||
+          "",
+        mobile:
+          result.contact?.mobile_no ||
+          result.primary_business_address?.mobile_no ||
+          "",
+        address:
+          result.primary_business_address?.detailed_address ||
+          result.primary_business_address?.registered_address ||
+          "",
+        raw: result,
+      },
+    });
+  } catch (err) {
+    console.error("Fundify GST verify error:", err.response?.data || err);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "GST verification failed",
     });
   }
 });

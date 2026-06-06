@@ -221,6 +221,7 @@ const Sidebar = () => {
       'Motion Corp': <Users size={iconSize} />,
       'Seven FinCorp': <Users size={iconSize} />,
       'Bundela': <Users size={iconSize} />,
+      'Fundify': <Wallet size={iconSize} />,
       'Supply Chain Loans': <Repeat size={iconSize} />,
       'Dealer ALL': <Users size={iconSize} />,
       'Aldun Loans': <Landmark size={iconSize} />,
@@ -235,7 +236,7 @@ const Sidebar = () => {
   const allowedPages = user.pages || [];
 //console.log("User Pages:", allowedPages);
   const grouped = {
-    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/finso-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/motion-corp', '/loan-digit', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans'].some(prefix => p.path.includes(prefix))),
+    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/finso-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/motion-corp', '/loan-digit', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans'].some(prefix => p.path.includes(prefix))),
     'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
     'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
@@ -258,6 +259,7 @@ const Sidebar = () => {
     'Motion Corp': allowedPages.filter(p => p.path.includes('/motion-corp')),
     'Seven FinCorp': allowedPages.filter(p => p.path.includes('/seven-fincorp')),
     'Bundela': allowedPages.filter(p => p.path.includes('/bundela')),
+    'Fundify': allowedPages.filter(p => p.path.includes('/fundify-loans')),
     'Loan Digit': allowedPages.filter(p => p.path.includes('/loan-digit')),
     'Switch My Loans': allowedPages.filter(p => p.path.includes('/sml-loans')),
     'Supply Chain Loans': allowedPages.filter(p => p.path.includes('/supply-chain-loans')),
