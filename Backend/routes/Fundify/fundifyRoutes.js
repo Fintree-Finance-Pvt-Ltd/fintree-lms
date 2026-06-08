@@ -268,6 +268,142 @@ function buildFundifyApplicantPayload({ applicant, lan, index }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                           FETCH ALL FUNDIFY LOANS                          */
+/* -------------------------------------------------------------------------- */
+
+router.get("/all-loans", async (req, res) => {
+  try {
+    const { page = "1", pageSize = "25", search = "" } = req.query;
+    
+    const pg = Math.max(1, parseInt(page, 10) || 1);
+    const limit = Math.max(1, parseInt(pageSize, 10) || 25);
+    const offset = (pg - 1) * limit;
+
+    let searchClause = "";
+    const searchParams = [];
+
+    if (search) {
+      searchClause = ` AND (lan LIKE ? OR partner_loan_id LIKE ? OR business_name LIKE ? OR business_mobile LIKE ?)`;
+      const likeStr = `%${search}%`;
+      searchParams.push(likeStr, likeStr, likeStr, likeStr);
+    }
+
+    const countQuery = `SELECT COUNT(*) as total FROM loan_booking_fundify WHERE 1=1 ${searchClause}`;
+    const [countResult] = await db.promise().query(countQuery, searchParams);
+    const total = countResult[0].total;
+
+    const dataQuery = `
+      SELECT 
+        lan, 
+        partner_loan_id, 
+        business_name AS customer_name, 
+        business_mobile AS mobile_number, 
+        loan_amount AS disbursement_amount, 
+        status, 
+        created_at AS disbursement_date
+      FROM loan_booking_fundify 
+      WHERE 1=1 ${searchClause}
+      ORDER BY id DESC
+      LIMIT ? OFFSET ?
+    `;
+    
+    const [rows] = await db.promise().query(dataQuery, [...searchParams, limit, offset]);
+
+    res.json({
+      rows,
+      pagination: { total }
+    });
+  } catch (err) {
+    console.error("Error fetching fundify all-loans:", err);
+    res.status(500).json({ message: "Failed to fetch all loans", error: err.message });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*                           UPDATE FUNDIFY LOAN STATUS                       */
+/* -------------------------------------------------------------------------- */
+
+router.put("/status/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required",
+      });
+    }
+
+    const [result] = await db.promise().query(
+      `UPDATE loan_booking_fundify 
+       SET status = ?, updated_at = NOW() 
+       WHERE lan = ?`,
+      [status, lan]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Status updated successfully",
+    });
+  } catch (err) {
+    console.error("Fundify status update error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update loan status",
+      error: err.message,
+    });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*                           FETCH FUNDIFY LOAN                               */
+/* -------------------------------------------------------------------------- */
+
+router.get("/fundify-manual-entry/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    const [loanRows] = await db
+      .promise()
+      .query("SELECT * FROM loan_booking_fundify WHERE lan = ?", [lan]);
+
+    if (loanRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    const [applicantRows] = await db
+      .promise()
+      .query("SELECT * FROM fundify_applicants WHERE lan = ?", [lan]);
+
+    res.json({
+      success: true,
+      data: {
+        loan: loanRows[0],
+        applicants: applicantRows,
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching fundify loan:", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
 /*                           CREATE FUNDIFY LOAN                              */
 /* -------------------------------------------------------------------------- */
 
@@ -333,115 +469,110 @@ router.post("/manual-entry", async (req, res) => {
 
     const partnerName = loan.partner_name || PARTNER_NAME;
     const { month, year } = getMonthYear(loginDate);
-
-    /* ------------------------ Partner Limit Check ------------------------ */
-
-    const partner = await partnerLimitService.getOrCreatePartner(
-      conn,
-      partnerName
-    );
-
-    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-      conn,
-      partner.partner_id,
-      loanAmount,
-      month,
-      year
-    );
-
-    if (!limitCheck.valid) {
-      await conn.rollback();
-
-      return res.status(403).json({
-        success: false,
-        stage: "limit-check",
-        message: `Booking limit exceeded for ${partnerName}`,
-        remaining_limit: limitCheck.remaining,
-        required: loanAmount,
-      });
-    }
-
-    /* ----------------------------- FLDG Check ----------------------------- */
-
-    const [[partnerConfig]] = await conn.query(
-      `
-        SELECT fldg_percent, fldg_status
-        FROM partner_master
-        WHERE partner_id = ?
-      `,
-      [partner.partner_id]
-    );
-
-    if (!partnerConfig) {
-      throw new Error("Partner configuration not found");
-    }
-
+    
+    const isUpdate = !!loan.lan;
+    let lan = isUpdate ? loan.lan : null;
+    let partnerLoanId = isUpdate ? loan.partner_loan_id : null;
+    let limitCheck = null;
+    let partner = null;
     let requiredFldg = 0;
 
-    if (partnerConfig.fldg_status === 1) {
-      const percent = Number(partnerConfig.fldg_percent || 0);
-      requiredFldg = Number(((loanAmount * percent) / 100).toFixed(2));
-    }
+    if (!isUpdate) {
+      /* ------------------------ Partner Limit Check ------------------------ */
 
-    if (requiredFldg > 0) {
-      const fldgCheck = await partnerFldgService.validateFldgAvailability(
+      partner = await partnerLimitService.getOrCreatePartner(
         conn,
-        partner.partner_id,
-        requiredFldg
+        partnerName
       );
 
-      if (!fldgCheck.valid) {
+      limitCheck = await partnerLimitService.validatePartnerBookingLimit(
+        conn,
+        partner.partner_id,
+        loanAmount,
+        month,
+        year
+      );
+
+      if (!limitCheck.valid) {
         await conn.rollback();
 
         return res.status(403).json({
           success: false,
-          stage: "fldg-check",
-          message: `Insufficient FLDG balance for ${partnerName}`,
-          available_fldg: fldgCheck.available,
-          required_fldg: requiredFldg,
+          stage: "limit-check",
+          message: `Booking limit exceeded for ${partnerName}`,
+          remaining_limit: limitCheck.remaining,
+          required: loanAmount,
         });
+      }
+
+      /* ----------------------------- FLDG Check ----------------------------- */
+
+      const [[partnerConfig]] = await conn.query(
+        `
+          SELECT fldg_percent, fldg_status
+          FROM partner_master
+          WHERE partner_id = ?
+        `,
+        [partner.partner_id]
+      );
+
+      if (!partnerConfig) {
+        throw new Error("Partner configuration not found");
+      }
+
+      if (partnerConfig.fldg_status === 1) {
+        const percent = Number(partnerConfig.fldg_percent || 0);
+        requiredFldg = Number(((loanAmount * percent) / 100).toFixed(2));
+      }
+
+      if (requiredFldg > 0) {
+        const fldgCheck = await partnerFldgService.validateFldgAvailability(
+          conn,
+          partner.partner_id,
+          requiredFldg
+        );
+
+        if (!fldgCheck.valid) {
+          await conn.rollback();
+
+          return res.status(403).json({
+            success: false,
+            stage: "fldg-check",
+            message: `Insufficient FLDG balance for ${partnerName}`,
+            available_fldg: fldgCheck.available,
+            required_fldg: requiredFldg,
+          });
+        }
+      }
+
+      /* ------------------------ Duplicate PAN Check ------------------------ */
+
+      if (primaryApplicant.pan) {
+        const [existingApplicant] = await conn.query(
+          `
+            SELECT lan, full_name, pan
+            FROM fundify_applicants
+            WHERE role = 'APPLICANT'
+              AND pan = ?
+            LIMIT 1
+          `,
+          [primaryApplicant.pan]
+        );
+      }
+
+      /* -------------------------- Generate LAN -------------------------- */
+
+      const ids = await generateLoanIdentifiers("FUNDIFY");
+
+      lan = ids.lan;
+      partnerLoanId = ids.partnerLoanId;
+
+      if (!lan) {
+        throw new Error("LAN generation failed for Fundify");
       }
     }
 
-    /* ------------------------ Duplicate PAN Check ------------------------ */
-
-    if (primaryApplicant.pan) {
-      const [existingApplicant] = await conn.query(
-        `
-          SELECT lan, full_name, pan
-          FROM fundify_applicants
-          WHERE role = 'APPLICANT'
-            AND pan = ?
-          LIMIT 1
-        `,
-        [primaryApplicant.pan]
-      );
-
-      // if (existingApplicant.length > 0) {
-      //   await conn.rollback();
-
-      //   return res.status(409).json({
-      //     success: false,
-      //     stage: "duplicate-check",
-      //     message: `Applicant PAN already exists: ${primaryApplicant.pan}`,
-      //     existing_lan: existingApplicant[0].lan,
-      //   });
-      // }
-    }
-
-    /* -------------------------- Generate LAN -------------------------- */
-
-    const ids = await generateLoanIdentifiers("FUNDIFY");
-
-    const lan = ids.lan;
-
-    const partnerLoanId = ids.partnerLoanId;
-
-    if (!lan) {
-      throw new Error("LAN generation failed for Fundify");
-    }
-
-    /* --------------------------- Insert Loan --------------------------- */
+    /* --------------------------- Save/Update Loan --------------------------- */
 
     const loanPayload = buildFundifyLoanPayload({
       loan,
@@ -449,9 +580,24 @@ router.post("/manual-entry", async (req, res) => {
       partnerLoanId,
     });
 
-    await insertRow(conn, "loan_booking_fundify", loanPayload);
+    if (isUpdate) {
+      // Create an update query
+      const columns = Object.keys(loanPayload).filter(key => key !== 'lan' && key !== 'partner_loan_id');
+      const values = columns.map(key => loanPayload[key]);
+      
+      const setClause = columns.map(col => `\`${col}\` = ?`).join(", ");
+      const updateQuery = `UPDATE loan_booking_fundify SET ${setClause} WHERE lan = ?`;
+      
+      await conn.query(updateQuery, [...values, lan]);
+    } else {
+      await insertRow(conn, "loan_booking_fundify", loanPayload);
+    }
 
-    /* ------------------------- Insert Applicants ------------------------- */
+    /* ------------------------- Update Applicants ------------------------- */
+
+    if (isUpdate) {
+      await conn.query("DELETE FROM fundify_applicants WHERE lan = ?", [lan]);
+    }
 
     for (let i = 0; i < applicants.length; i++) {
       const applicantPayload = buildFundifyApplicantPayload({
@@ -463,25 +609,27 @@ router.post("/manual-entry", async (req, res) => {
       await insertRow(conn, "fundify_applicants", applicantPayload);
     }
 
-    /* ----------------------- Update Booked Limit ----------------------- */
+    if (!isUpdate) {
+      /* ----------------------- Update Booked Limit ----------------------- */
 
-    await partnerLimitService.updateBookedLimit(
-      conn,
-      limitCheck.limitId,
-      loanAmount,
-      lan
-    );
-
-    /* --------------------------- Reserve FLDG --------------------------- */
-
-    if (requiredFldg > 0) {
-      await partnerFldgService.reserveFldg(
+      await partnerLimitService.updateBookedLimit(
         conn,
-        partner.partner_id,
-        lan,
-        requiredFldg,
-        `Fundify booking reservation | Amount: ${loanAmount}`
+        limitCheck.limitId,
+        loanAmount,
+        lan
       );
+
+      /* --------------------------- Reserve FLDG --------------------------- */
+
+      if (requiredFldg > 0) {
+        await partnerFldgService.reserveFldg(
+          conn,
+          partner.partner_id,
+          lan,
+          requiredFldg,
+          `Fundify booking reservation | Amount: ${loanAmount}`
+        );
+      }
     }
 
     await conn.commit();

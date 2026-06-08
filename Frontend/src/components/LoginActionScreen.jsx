@@ -167,6 +167,8 @@ const LoginActionScreen = ({
 
       if (/^LDF/i.test(lan)) {
          url = `/loan-booking/loan-digit-login/${lan}`;
+      } else if (/^FUN/i.test(lan)) {
+         url = `/fundify/status/${lan}`;
       }
 
       await api.put(url, {
@@ -322,13 +324,19 @@ const LoginActionScreen = ({
     return (
       <span
         style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-         onClick={() =>
-          isLoanDigit
-            ? navigate(`/loan-digit/customer-details?lan=${r.lan}`)
-            : navigate(`/approved-loan-details/${r.lan}`)
-        }
+        onClick={() => {
+          if (isLoanDigit) {
+            navigate(`/loan-digit/customer-details?lan=${r.lan}`);
+          } else if (/^MC/i.test(r.lan)) {
+            navigate(`/motion-corp/customer-details?lan=${r.lan}`);
+          } else if (/^FUN/i.test(r.lan)) {
+            navigate(`/fundify/customer-details/${r.lan}`);
+          } else {
+            navigate(`/approved-loan-details/${r.lan}`);
+          }
+        }}
       >
-        {r.customer_name ?? "—"}
+        {r.customer_name  ?? "—"}
       </span>
     );
   },
@@ -355,7 +363,17 @@ const LoginActionScreen = ({
       render: (r) => (
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
+          onClick={() => {
+            if (/^LDF/i.test(r.lan)) {
+              navigate(`/loan-digit/customer-details?lan=${r.lan}`);
+            } else if (/^MC/i.test(r.lan)) {
+              navigate(`/motion-corp/customer-details?lan=${r.lan}`);
+            } else if (/^FUN/i.test(r.lan)) {
+              navigate(`/fundify/customer-details/${r.lan}`);
+            } else {
+              navigate(`/approved-loan-details/${r.lan}`);
+            }
+          }}
         >
           {r.lan ?? "—"}
         </span>

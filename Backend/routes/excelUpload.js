@@ -1557,6 +1557,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_hey_ev_battery: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
+    loan_booking_fundify:true,
     dealer_onboarding: true,
   };
 
@@ -2090,6 +2091,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_loan_digit: true,
     loan_booking_switch_my_loan: true,
     dealer_onboarding: true,
+    loan_booking_fundify:true
   };
 
   if (!allowedTables[table]) {

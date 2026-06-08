@@ -180,6 +180,8 @@ import RetentionRelease from "./components/RetentionRelease";
 import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpLoanBooking";
 import MotionCorpAllLoans from "./components/Motion Corp/motionCorpAllLoans";
 import MotionCorpLoginCases from "./components/Motion Corp/MotionCorpLoginCases";
+import FundifyAllLoans from "./components/Fundify/FundifyAllLoans";
+import FundifyDetails from "./components/Fundify/FundifyDetails";
 import MotionCorpDisburseInitiate from "./components/Motion Corp/motionCorpDisburseInitiate";
 import MotionCorpDetails from "./components/Motion Corp/motionCorpDetails";
 import MotionCorpLoginAction from "./components/Motion Corp/MotionCorpLoginAction";
@@ -219,6 +221,8 @@ import CarePayHospitalLists from "./components/CarePay/CarePayHospitalLists";
 import CarePayHospitalLoginActions from "./components/CarePay/CarePayHospitalLoginActions";
 import CarePayHospitalDetails from "./components/CarePay/CarePayHospitalDetails";
 import FundifyManualEntry from "./components/Fundify/FundifyLoanBooking";
+import FundifyLoginCases from "./components/Fundify/fundifyLoginCases";
+import FundifyLoginActions from "./components/Fundify/FundifyLoginActions";
 
 
 function App() {
@@ -1522,6 +1526,7 @@ function App() {
               </PermissionRoute>
             }
           />
+          
           <Route
             path="/motion-corp/login-cases"
             element={
@@ -1570,6 +1575,46 @@ function App() {
                 <FundifyManualEntry />
               </PermissionRoute>
             }
+          />
+
+          <Route 
+           path="/fundify-loans/login-loans"
+            element={
+              <PermissionRoute pageName="Fundify Login loans">
+                <FundifyLoginCases />
+              </PermissionRoute>
+            }
+          />
+
+          <Route 
+           path="/fundify-loans/credit-stage-loans"
+            element={
+              <PermissionRoute pageName="Fundify credit stage loans">
+                <FundifyLoginActions />
+              </PermissionRoute>
+            }
+          />
+
+          <Route 
+           path="/fundify-loans/all-loans"
+            element={
+              <PermissionRoute pageName="Fundify All Cases Screen">
+                <FundifyAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+          {/* <Route
+            path="/fundify/all-loans"
+            element={
+              <PermissionRoute pageName="Fundify All Cases Screen">
+                <FundifyAllLoans />
+              </PermissionRoute>
+            }
+          /> */}
+          <Route
+            path="/fundify/customer-details/:lan"
+            element={<FundifyDetails />}
           />
           {/* ✅ Seven Fincorp Pages */}
           {/* ✅ Seven Fincorp Dealer Entry routes */}
