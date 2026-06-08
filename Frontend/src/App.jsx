@@ -221,7 +221,7 @@ import CarePayHospitalLists from "./components/CarePay/CarePayHospitalLists";
 import CarePayHospitalLoginActions from "./components/CarePay/CarePayHospitalLoginActions";
 import CarePayHospitalDetails from "./components/CarePay/CarePayHospitalDetails";
 import FundifyManualEntry from "./components/Fundify/FundifyLoanBooking";
-import FundifyLoginCases from "./components/Fundify/fundifyLoginCases";
+import FundifyLoginCases from "./components/Fundify/FundifyLoginCases";
 import FundifyLoginActions from "./components/Fundify/FundifyLoginActions";
 
 
