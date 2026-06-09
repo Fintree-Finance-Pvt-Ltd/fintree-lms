@@ -54,7 +54,7 @@ function buildDoqfyPartyUsers(loan, esignParties = [], type) {
       email,
       contact_number: mobile,
       sign_position: positions[partyUsers.length % positions.length],
-      method: "ELECTRONIC",
+      method: "AADHAAR",
       position_details: {},
       pages: "ALL",
 
