@@ -150,7 +150,7 @@ app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ R
 
 app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
-
+app.use("/api/carepay", require("./routes/CarePay/index")); // ✅ Register Routes for CarePay Mandate UMRN Update
 app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
 app.use("/api/fundify", require("./routes/Fundify/fundifyRoutes")); // ✅ Register Routes for Fundify Loans
 
