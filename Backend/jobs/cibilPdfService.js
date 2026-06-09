@@ -375,7 +375,7 @@ const compactCapsSummary = (title, subtitle, summary, prefix) => {
             <td>${fmtDate(c.Date_of_Request)}</td>
             <td>${money(c.Amount_Financed)}</td>
             <td>${S(c.Duration_Of_Agreement)}</td>
-            <td>${S(enquiryReason)}</td>
+            <td>${S(c.Enquiry_Reason)}</td>
           </tr>
         `;
       })
