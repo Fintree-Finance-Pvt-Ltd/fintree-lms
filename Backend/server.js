@@ -54,8 +54,8 @@ const fs = require("fs");
 const path = require("path");
 const { autoApproveLoanDigitIfAllVerified } = require("./routes/loanDigit/loanDigitBre");
 const app = express();
-app.use(express.json({ limit: "20mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cors({
   origin: '*', // <-- Your frontend GitHub Pages URL
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

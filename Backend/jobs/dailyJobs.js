@@ -394,7 +394,7 @@ cron.schedule("5 0 * * *", async () => {
   const today = new Date().toISOString().split("T")[0];
   console.log("🕒 Daily supply chain demand cron running for:", today);
 
-  const [invoices] = await dbCron.promise().query(
+  const [invoices] = await db.promise().query(
     `SELECT
        partner_loan_id,
        lan,
@@ -410,7 +410,7 @@ cron.schedule("5 0 * * *", async () => {
 
   for (const inv of invoices) {
     try {
-      await generateDailySupplyChainDemandOneRow(dbCron.promise(), inv, today);
+      await generateDailySupplyChainDemandOneRow(db.promise(), inv, today);
     } catch (e) {
       console.error(`❌ Demand insert failed for ${inv.invoice_number}:`, e.message);
     }
