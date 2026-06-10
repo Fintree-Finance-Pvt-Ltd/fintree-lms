@@ -1755,7 +1755,7 @@ if (
    */
   const folderPath = path.join(
     __dirname,
-    "../../uploads"
+    "../uploads"
   );
 
   if (!fs.existsSync(folderPath)) {
