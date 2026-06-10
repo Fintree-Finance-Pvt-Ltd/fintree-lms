@@ -10,6 +10,8 @@ const {
 
 const router = express.Router();
 
+const OTP_EXPIRY_SECONDS = 300; // 5 minutes
+
 const generateLoanIdentifiers = async (lender) => {
   lender = lender.trim(); // normalize input
   console.log("Generating loan identifiers for lender:", lender);
@@ -917,6 +919,286 @@ router.post("/gst/verify", async (req, res) => {
         err.message ||
         "GST verification failed",
     });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*              PROGRESSIVE SAVE — SECTION 0: SAVE APPLICANT + CREATE LAN    */
+/* -------------------------------------------------------------------------- */
+
+router.post("/save-applicant", async (req, res) => {
+  const conn = await db.promise().getConnection();
+  try {
+    const { applicant, loginDate } = req.body;
+
+    await conn.beginTransaction();
+
+    const { lan, partnerLoanId } = await generateLoanIdentifiers("Fundify");
+
+    // Create minimal loan_booking_fundify row
+    await conn.query(
+      `INSERT INTO loan_booking_fundify
+       (lan, partner_loan_id, login_date, status, stage, lender, product, partner_name, bre_status)
+       VALUES (?, ?, ?, 'Login', 'Login', 'Fundify', 'Fundify Loan', 'Fundify', 'Pending')`,
+      [lan, partnerLoanId, loginDate || new Date().toISOString().split("T")[0]]
+    );
+
+    // Insert primary applicant
+    const appPayload = buildFundifyApplicantPayload({ applicant, lan, index: 0 });
+    const columns = Object.keys(appPayload);
+    const values = Object.values(appPayload);
+    const sql = `INSERT INTO fundify_applicants (${columns.map(c => `\`${c}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`;
+    await conn.query(sql, values);
+
+    await conn.commit();
+    res.json({ success: true, lan, partnerLoanId, message: "Applicant saved successfully" });
+  } catch (err) {
+    await conn.rollback();
+    console.error("save-applicant error:", err);
+    res.status(500).json({ success: false, message: err.message || "Failed to save applicant" });
+  } finally {
+    conn.release();
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*           PROGRESSIVE SAVE — SECTIONS 1-3: UPDATE SPECIFIC FIELDS         */
+/* -------------------------------------------------------------------------- */
+
+router.post("/update-section", async (req, res) => {
+  try {
+    const { lan, section, data } = req.body;
+    if (!lan) return res.status(400).json({ success: false, message: "LAN required" });
+
+    let updateFields = {};
+
+    if (section === "business") {
+      updateFields = {
+        business_name: emptyToNull(data.business_name),
+        trade_name: emptyToNull(data.trade_name),
+        business_pan: emptyToNull(data.business_pan),
+        gstin: emptyToNull(data.gstin),
+        udyam_registration_no: emptyToNull(data.udyam_registration_no),
+        cin: emptyToNull(data.cin),
+        llpin: emptyToNull(data.llpin),
+        shop_establishment_no: emptyToNull(data.shop_establishment_no),
+        business_registration_no: emptyToNull(data.business_registration_no),
+        constitution_type: emptyToNull(data.constitution_type),
+        business_start_date: dateOrNull(data.business_start_date),
+        business_vintage_months: numberOrNull(data.business_vintage_months),
+        nature_of_business: emptyToNull(data.nature_of_business),
+        industry_type: emptyToNull(data.industry_type),
+        business_address: emptyToNull(data.business_address),
+        business_city: emptyToNull(data.business_city),
+        business_district: emptyToNull(data.business_district),
+        business_state: emptyToNull(data.business_state),
+        business_pincode: emptyToNull(data.business_pincode),
+        premises_ownership: emptyToNull(data.premises_ownership),
+        business_mobile: emptyToNull(data.business_mobile),
+        business_email: emptyToNull(data.business_email),
+      };
+    } else if (section === "loan") {
+      updateFields = {
+        loan_amount: numberOrNull(data.loan_amount),
+        disbursal_amount: numberOrNull(data.disbursal_amount),
+        interest_rate: numberOrNull(data.interest_rate),
+        loan_tenure: numberOrNull(data.loan_tenure),
+        processing_fee: numberOrNull(data.processing_fee),
+        processing_fee_percentage: numberOrNull(data.processing_fee_percentage),
+        insurance_amount: numberOrNull(data.insurance_amount),
+        other_charges: numberOrNull(data.other_charges),
+      };
+    } else if (section === "bank") {
+      updateFields = {
+        bank_name: emptyToNull(data.bank_name),
+        name_in_bank: emptyToNull(data.name_in_bank),
+        account_number: emptyToNull(data.account_number),
+        ifsc: emptyToNull(data.ifsc),
+        account_type: emptyToNull(data.account_type),
+      };
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid section" });
+    }
+
+    const setClause = Object.keys(updateFields).map(k => `\`${k}\` = ?`).join(", ");
+    const vals = [...Object.values(updateFields), lan];
+
+    await db.promise().query(
+      `UPDATE loan_booking_fundify SET ${setClause}, updated_at = NOW() WHERE lan = ?`,
+      vals
+    );
+
+    res.json({ success: true, message: `${section} section saved` });
+  } catch (err) {
+    console.error("update-section error:", err);
+    res.status(500).json({ success: false, message: err.message || "Failed to update section" });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*         PROGRESSIVE SAVE — SECTIONS 4-5: UPSERT CO-APPLICANT/GUARANTOR   */
+/* -------------------------------------------------------------------------- */
+
+router.post("/save-party", async (req, res) => {
+  try {
+    const { lan, applicant } = req.body;
+    if (!lan) return res.status(400).json({ success: false, message: "LAN required" });
+
+    const role = normalizeRole(applicant.role);
+    const partyNo = applicant.party_no || 1;
+
+    const [existing] = await db.promise().query(
+      `SELECT id FROM fundify_applicants WHERE lan = ? AND role = ? AND party_no = ? LIMIT 1`,
+      [lan, role, partyNo]
+    );
+
+    const payload = buildFundifyApplicantPayload({ applicant, lan, index: partyNo - 1 });
+
+    if (existing.length > 0) {
+      const { lan: _l, role: _r, party_no: _p, ...updatePayload } = payload;
+      const setClause = Object.keys(updatePayload).map(k => `\`${k}\` = ?`).join(", ");
+      const vals = [...Object.values(updatePayload), lan, role, partyNo];
+      await db.promise().query(
+        `UPDATE fundify_applicants SET ${setClause} WHERE lan = ? AND role = ? AND party_no = ?`,
+        vals
+      );
+    } else {
+      const columns = Object.keys(payload);
+      const vals = Object.values(payload);
+      const sql = `INSERT INTO fundify_applicants (${columns.map(c => `\`${c}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`;
+      await db.promise().query(sql, vals);
+    }
+
+    res.json({ success: true, message: `${role} party saved` });
+  } catch (err) {
+    console.error("save-party error:", err);
+    res.status(500).json({ success: false, message: err.message || "Failed to save party" });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*                         FINAL SUBMIT — MARK LOAN COMPLETE                  */
+/* -------------------------------------------------------------------------- */
+
+router.post("/final-submit", async (req, res) => {
+  try {
+    const { lan } = req.body;
+    if (!lan) return res.status(400).json({ success: false, message: "LAN required" });
+
+    const [result] = await db.promise().query(
+      `UPDATE loan_booking_fundify SET status = 'Login', stage = 'Login', updated_at = NOW() WHERE lan = ?`,
+      [lan]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Loan not found for LAN: " + lan });
+    }
+
+    res.json({ success: true, lan, message: "Fundify loan submitted successfully" });
+  } catch (err) {
+    console.error("final-submit error:", err);
+    res.status(500).json({ success: false, message: err.message || "Failed to submit loan" });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*                        SEND OTP (MOBILE VERIFICATION)                      */
+/* -------------------------------------------------------------------------- */
+
+router.post("/send-otp", async (req, res) => {
+  try {
+    const { mobile, applicantType } = req.body;
+
+    if (!mobile) return res.status(400).json({ success: false, message: "Mobile required" });
+    if (!applicantType) return res.status(400).json({ success: false, message: "Applicant type required" });
+
+    const cleanedMobile = String(mobile).replace(/\D/g, "");
+
+    // Check if OTP was sent within last 60 seconds
+    const [existing] = await db.promise().query(
+      `SELECT * FROM otp_consent_model WHERE mobile_number = ? AND applicant_type = ? ORDER BY id DESC LIMIT 1`,
+      [cleanedMobile, applicantType]
+    );
+
+    if (existing.length) {
+      const diffSeconds = (Date.now() - new Date(existing[0].last_sent_at).getTime()) / 1000;
+      if (diffSeconds < 60) {
+        return res.status(429).json({ success: false, message: `Wait ${Math.ceil(60 - diffSeconds)} seconds before retry` });
+      }
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
+
+    const smsParams = {
+      user: process.env.ALOT_USER,
+      password: process.env.ALOT_PASSWORD,
+      senderid: process.env.SENDER_ID,
+      channel: "TRANS",
+      DCS: "0",
+      flashsms: "0",
+      number: cleanedMobile,
+      text: `OTP for mobile number verification is ${otp}. Do not share this OTP with anyone. Thanks & Regards Fintree Finance Private Limited:`,
+      route: "5",
+      DLTTemplateId: process.env.MOBILE_OTP_TEMPLATE_ID,
+      PEID: process.env.DLT_PEID,
+    };
+
+    await axios.get(process.env.ALOT_API_URL, { params: smsParams });
+
+    await db.promise().query(
+      `INSERT INTO otp_consent_model (mobile_number, applicant_type, otp, expires_at, last_sent_at, verified) VALUES (?, ?, ?, ?, NOW(), 0)`,
+      [cleanedMobile, applicantType, otp, expiresAt]
+    );
+
+    return res.json({ success: true, message: "OTP sent successfully" });
+  } catch (err) {
+    console.error("Fundify send-otp error:", err.message);
+    return res.status(500).json({ success: false, message: "OTP send failed" });
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*                        VERIFY OTP (MOBILE VERIFICATION)                    */
+/* -------------------------------------------------------------------------- */
+
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { mobile, otp, consentText, applicantType } = req.body;
+
+    // Clean mobile the same way send-otp does — digits only
+    const cleanedMobile = String(mobile || "").replace(/\D/g, "");
+
+    console.log("verify-otp →", { cleanedMobile, applicantType, otp });
+
+    const [rows] = await db.promise().query(
+      `SELECT * FROM otp_consent_model WHERE mobile_number = ? AND applicant_type = ? AND verified = 0 ORDER BY id DESC LIMIT 1`,
+      [cleanedMobile, applicantType]
+    );
+
+    if (!rows.length) return res.status(400).json({ success: false, message: "OTP not found. Please resend OTP." });
+
+    const session = rows[0];
+
+    console.log("DB OTP:", session.otp, "| Entered OTP:", otp);
+
+    if (String(session.otp).trim() !== String(otp).trim()) {
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    if (new Date() > new Date(session.expires_at)) {
+      return res.status(400).json({ success: false, message: "OTP expired" });
+    }
+
+    await db.promise().query(
+      `UPDATE otp_consent_model SET verified = 1, consent_given = 1, consent_text = ?, consent_at = NOW() WHERE id = ?`,
+      [consentText, session.id]
+    );
+
+    return res.json({ success: true, message: "OTP verified successfully" });
+  } catch (err) {
+    console.error("Fundify verify-otp error:", err.message);
+    return res.status(500).json({ success: false, message: "OTP verification failed" });
   }
 });
 
