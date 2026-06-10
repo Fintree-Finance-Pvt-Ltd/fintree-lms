@@ -2,9 +2,18 @@ const db = require("../../config/db");
 const { XMLParser } = require("fast-xml-parser");
 
 const parser = new XMLParser({
-  ignoreAttributes: false,
-  parseTagValue: true,
-  trimValues: true,
+   ignoreAttributes: false,
+    attributeNamePrefix: "",
+    trimValues: true,
+
+    // Keep entity processing enabled, but raise limits for valid large bureau XML.
+    processEntities: {
+      enabled: true,
+      maxTotalExpansions: 10000,
+      maxExpandedLength: 5_000_000,
+      maxEntityCount: 10000,
+      maxEntitySize: 10000,
+    },
 });
 
 const toArray = (v) => {

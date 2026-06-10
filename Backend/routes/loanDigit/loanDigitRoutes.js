@@ -147,9 +147,9 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
       "pre_emi",
       "net_disbursement_amount",
       "token_status",
-"token_number",
-"token_amount",
-"token_auth_type",
+      "token_number",
+      "token_amount",
+      "token_auth_type",
     ];
 
     // Validate required fields
@@ -219,9 +219,9 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 
     const loan_amount = Number(data.loan_amount);
     const token_status = String(data.token_status).trim();
-const token_number = String(data.token_number).trim();
-const token_amount = Number(data.token_amount);
-const token_auth_type = String(data.token_auth_type).trim();
+    const token_number = String(data.token_number).trim();
+    const token_amount = Number(data.token_amount);
+    const token_auth_type = String(data.token_auth_type).trim();
     const processing_fee = Number(data.processing_fee);
     const interest_rate = Number(data.interest_rate);
     const loan_tenure = Number(data.loan_tenure);
@@ -529,9 +529,9 @@ token_auth_type,
         pre_emi,
         net_disbursement_amount,
         token_status,
-token_number,
-token_amount,
-token_auth_type,
+        token_number,
+        token_amount,
+        token_auth_type,
 
         lender,
         product,
@@ -694,7 +694,20 @@ token_auth_type,
       if (response.status !== 200)
         throw new Error(`Experian returned HTTP ${response.status}`);
 
-      const parser = new XMLParser({ ignoreAttributes: false });
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        trimValues: true,
+
+        // Keep entity processing enabled, but raise limits for valid large bureau XML.
+        processEntities: {
+          enabled: true,
+          maxTotalExpansions: 10000,
+          maxExpandedLength: 5_000_000,
+          maxEntityCount: 10000,
+          maxEntitySize: 10000,
+        },
+      });
 
       const parsedOuter = parser.parse(response.data);
 
@@ -712,9 +725,9 @@ token_auth_type,
       const parsedInner = parser.parse(decodedXml);
 
       const scoreStr =
-      parsedInner?.INProfileResponse?.SCORE?.BureauScore ??
-      parsedInner?.INProfileResponse?.Score?.BureauScore ??
-      null;
+        parsedInner?.INProfileResponse?.SCORE?.BureauScore ??
+        parsedInner?.INProfileResponse?.Score?.BureauScore ??
+        null;
 
       experianScore = scoreStr ? Number(scoreStr) : null;
 
@@ -779,7 +792,6 @@ token_auth_type,
     });
   }
 });
-
 
 router.get("/loan-digit-info/:lan", async (req, res) => {
   const { lan } = req.params;
@@ -1015,7 +1027,7 @@ router.get("/bre-approved-loans", async (req, res) => {
       FROM loan_booking_loan_digit
       WHERE status = 'BRE_APPROVED'
       ORDER BY id DESC
-      `
+      `,
     );
 
     return res.json({
@@ -1023,7 +1035,6 @@ router.get("/bre-approved-loans", async (req, res) => {
       count: rows.length,
       data: rows,
     });
-
   } catch (error) {
     console.error("BRE Approved Fetch Error:", error);
 
@@ -1074,14 +1085,14 @@ router.get("/credit-approved-loans", async (req, res) => {
       FROM loan_booking_loan_digit
       WHERE status = 'CREDIT_APPROVED'
       ORDER BY id DESC
-      `
+      `,
     );
 
     return res.json({
       status: "SUCCESS",
       count: rows.length,
       data: rows,
-    }); 
+    });
   } catch (error) {
     console.error("Credit Approved Fetch Error:", error);
 
@@ -1095,7 +1106,6 @@ router.get("/credit-approved-loans", async (req, res) => {
 router.put("/ops-approved-loan/:lan", async (req, res) => {
   const { lan } = req.params;
   try {
-
     // Pagination
     const page = Math.max(Number(req.query.page) || 1, 1);
     const limit = Math.max(Number(req.query.limit) || 10, 1);
@@ -1103,7 +1113,7 @@ router.put("/ops-approved-loan/:lan", async (req, res) => {
 
     // Search filter
     const search = String(req.query.search || "").trim();
-    
+
     const [result] = await db.promise().query(
       `
       UPDATE loan_booking_loan_digit
@@ -1132,7 +1142,5 @@ router.put("/ops-approved-loan/:lan", async (req, res) => {
     });
   }
 });
-
-
 
 module.exports = router;
