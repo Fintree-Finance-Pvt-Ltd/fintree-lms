@@ -284,7 +284,7 @@ const MotionCorpApprovedLoans = ({
       },
     };
 
-    const c = map[st];
+    const c = map[st] || map.PENDING;
 
     return (
       <span
@@ -309,8 +309,9 @@ const MotionCorpApprovedLoans = ({
 
   const handleAgreementEsign = async (row) => {
     const lan = row.lan;
+    const status = (row.agreement_esign_status || "").toUpperCase();
 
-    if (row.agreement_esign_status === "SIGNED") {
+    if (status === "SIGNED") {
       setToast({ type: "info", msg: "Agreement already signed." });
       resetToastAfterDelay();
       return;
@@ -321,23 +322,31 @@ const MotionCorpApprovedLoans = ({
     setActionLan(lan);
 
     try {
-      const res = await api.post(`/esign/${lan}/esign/agreement`);
+      await api.post(`/esign/${lan}/esign/agreement`);
+
+      setRows((old) =>
+        old.map((r) =>
+          r.lan === lan
+            ? {
+                ...r,
+                agreement_esign_status: "INITIATED",
+                agreement_esign_sent_at: new Date().toISOString(),
+              }
+            : r,
+        ),
+      );
+
       setToast({
         type: "success",
         msg: "Agreement eSign initiated.",
       });
       resetToastAfterDelay();
-
-      setRows((old) =>
-        old.map((r) =>
-          r.lan === lan ? { ...r, agreement_esign_status: "INITIATED" } : r,
-        ),
-      );
     } catch (err) {
       setToast({
         type: "error",
-        msg: "Failed to start agreement eSign.",
+        msg: err.response?.data?.message || "Failed to start agreement eSign.",
       });
+      resetToastAfterDelay();
     } finally {
       setActionLan(null);
     }
@@ -571,14 +580,18 @@ const MotionCorpApprovedLoans = ({
     },
 
     // 🔹 AGREEMENT eSign
+    // 🔹 AGREEMENT eSign
     {
       key: "agreement_esign",
       header: "Agreement eSign",
       render: (r) => {
         const status = (r.agreement_esign_status || "").toUpperCase();
 
-        // const disabled = actionLan === r.lan || status === "SIGNED";
-        const disabled = true;
+        const isProcessing = actionLan === r.lan;
+        const isSigned = status === "SIGNED";
+        const canRetry = canRetryAgreementEsign(r);
+
+        const disabled = isProcessing || isSigned || !canRetry;
 
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -597,14 +610,15 @@ const MotionCorpApprovedLoans = ({
                 fontWeight: 600,
               }}
             >
-              {actionLan === r.lan
+              {isProcessing
                 ? "Processing..."
-                : status === "SIGNED"
+                : isSigned
                   ? "Already Signed"
-                  : ["FAILED", "INITIATED"].includes(status)
-                    ? "Retry Agreement eSign"
-                    : "Send Agreement eSign"}
-              {/* Coming soon */}
+                  : !canRetry
+                    ? "Retry After 3 Hours"
+                    : ["FAILED", "INITIATED", "PENDING"].includes(status)
+                      ? "Retry Agreement eSign"
+                      : "Send Agreement eSign"}
             </button>
           </div>
         );
