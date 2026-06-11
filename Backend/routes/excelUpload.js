@@ -31,6 +31,7 @@ const {
   CAREPAY_REQUIRED_FIELDS,
 } = require("../utils/constant");
 const { runBureau } = require("../services/Bueraupullapiservice");
+const { autoRunFinsoBreIfReady } = require("../utils/fincrestBRE");
 
 // const { pullCIBILReport }=  require("../jobs/experianService");
 
@@ -4256,6 +4257,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     "abb_value",
     "net_profit",
     "loanemi_obligations",
+    "bounce_count_6m",
     "employment_type",
     "pre_emi",
     "processing_fee",
@@ -4507,6 +4509,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           data.abb_value ?? null,
           data.net_profit ?? null,
           data.loanemi_obligations ?? null,
+          data.total_bounces ?? null,
           data.employment_type ?? null,
           data.pre_emi ?? null,
           data.processing_fee ?? 0.0,
@@ -4770,12 +4773,33 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
               [score, lan],
             );
 
+          // ── Upsert KYC row so BRE can gate on bureau_status ──────────────
+          try {
+            await db.promise().query(
+              `INSERT INTO kyc_verification_status (lan, applicant_type, party_no, pan_number, bureau_status)
+               VALUES (?, 'BORROWER', 1, ?, ?)
+               ON DUPLICATE KEY UPDATE
+                 bureau_status = VALUES(bureau_status),
+                 pan_number    = VALUES(pan_number)`,
+              [lan, data.pan_card, score != null ? "VERIFIED" : "FAILED"],
+            );
+          } catch (kycErr) {
+            console.error("⚠️ KYC row upsert failed for FINSO BRE:", kycErr.message);
+          }
+          // ─────────────────────────────────────────────────────────────────
+
           console.log("✅ CIBIL saved for FINSO LAN:", lan);
         } catch (err) {
           console.error("⚠️ CIBIL Pull Failed:", err.message);
           console.error("➡️ Status:", err.response?.status);
           console.error("➡️ Raw:", err.response?.data);
         }
+
+        // ── Fire Finso BRE engine after bureau (async, non-blocking) ─────────
+        autoRunFinsoBreIfReady(lan).catch((breErr) => {
+          console.error(`❌ Finso BRE Engine failed for LAN ${lan}:`, breErr);
+        });
+        // ─────────────────────────────────────────────────────────────────────
 
         //////////////////////////////////////////
         //        🔍 BEURO SCORE END            //

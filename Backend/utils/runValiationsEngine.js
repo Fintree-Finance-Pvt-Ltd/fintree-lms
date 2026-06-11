@@ -10,9 +10,9 @@ const {
 } = require("../routes/MotionCorp/motionCorpBRE");
 const { autoApproveSevenFinCorpIfAllVerified } = require("../routes/Seven Fincorp/sevenFincorpBRE");
 const { autoApproveBundelaIfAllVerified } = require("../routes/Bundela/bundelaBRE");
-const {
-  autoApproveFundifyIfAllVerified
-} = require("../routes/Fundify/fundigyBRE");
+// const {
+//   autoApproveFundifyIfAllVerified
+// } = require("../routes/Fundify/fundigyBRE");
 
 async function runApplicantValidation({
   pool,
