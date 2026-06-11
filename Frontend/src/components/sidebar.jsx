@@ -211,7 +211,7 @@ const Sidebar = () => {
       'Elysium Loans': <Layers size={iconSize} />,
       'EMI Club Loans': <Zap size={iconSize} />,
       'Zypay Loans': <CreditCard size={iconSize} />,
-      'Finso Loans': <Layers size={iconSize} />,
+      'Fincrest Loans': <Layers size={iconSize} />,
       'HEY EV Loans': <Car size={iconSize} />,
       'HEY EV Battery Loans': <Zap size={iconSize} />,
       'Helium Loans': <Zap size={iconSize} />,
@@ -236,7 +236,7 @@ const Sidebar = () => {
   const allowedPages = user.pages || [];
 //console.log("User Pages:", allowedPages);
   const grouped = {
-    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/finso-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/motion-corp', '/loan-digit', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans'].some(prefix => p.path.includes(prefix))),
+    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/motion-corp', '/loan-digit', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans'].some(prefix => p.path.includes(prefix))),
     'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
     'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
@@ -251,7 +251,7 @@ const Sidebar = () => {
     'Elysium Loans': allowedPages.filter(p => p.path.includes('/elysium-loans')),
     'EMI Club Loans': allowedPages.filter(p => p.path.includes('/emiclub-loans')),
     'Zypay Loans': allowedPages.filter(p => p.path.includes('/zypay-loans')),
-    'Finso Loans': allowedPages.filter(p => p.path.includes('/finso-loans')),
+    'Fincrest Loans': allowedPages.filter(p => p.path.includes('/fincrest-loans')),
     'HEY EV Loans': allowedPages.filter(p => p.path.includes('/hey-ev-loans')),
     'HEY EV Battery Loans': allowedPages.filter(p => p.path.includes('/hey-ev-battery-loans')),
     'Helium Loans': allowedPages.filter(p => p.path.includes('/helium-loans')),

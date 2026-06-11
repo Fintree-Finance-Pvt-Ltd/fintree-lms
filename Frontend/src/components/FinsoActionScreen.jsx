@@ -6,7 +6,7 @@ const FinsoActionScreen = () => {
   return (
     <LoginActionScreen
       apiUrl={`/loan-booking/login-loans?table=loan_booking_finso&prefix=FINS`}
-      title="Finso Action Pending Loans"
+      title="Fincrest Action Pending Loans"
       tableName="loan_booking_finso"
     />
   );

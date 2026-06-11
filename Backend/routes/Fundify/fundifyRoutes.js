@@ -1081,25 +1081,121 @@ router.post("/save-party", async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 router.post("/final-submit", async (req, res) => {
+  let conn;
   try {
     const { lan } = req.body;
     if (!lan) return res.status(400).json({ success: false, message: "LAN required" });
 
-    const [result] = await db.promise().query(
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    /* ── Fetch the loan row ── */
+    const [[loanRow]] = await conn.query(
+      `SELECT loan_amount, partner_name, login_date FROM loan_booking_fundify WHERE lan = ?`,
+      [lan]
+    );
+  
+    if (!loanRow) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: "Loan not found for LAN: " + lan });
+    }
+
+    const loanAmount  = Number(loanRow.loan_amount  || 0);
+    const partnerName = loanRow.partner_name         || PARTNER_NAME;
+    const loginDate   = new Date(loanRow.login_date  || Date.now());
+    const { month, year } = getMonthYear(loginDate);
+
+    /* ── Partner Limit Check ── */
+    const partner = await partnerLimitService.getOrCreatePartner(conn, partnerName);
+
+    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
+      conn, partner.partner_id, loanAmount, month, year
+    );
+
+    if (!limitCheck.valid) {
+      await conn.rollback();
+      return res.status(403).json({
+        success: false,
+        stage: "limit-check",
+        message: `Booking limit exceeded for ${partnerName}`,
+        remaining_limit: limitCheck.remaining,
+        required: loanAmount,
+      });
+    }
+
+    /* ── FLDG Check ── */
+    const [[partnerConfig]] = await conn.query(
+      `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+      [partner.partner_id]
+    );
+
+    if (!partnerConfig) throw new Error("Partner configuration not found");
+
+    let requiredFldg = 0;
+    if (partnerConfig.fldg_status === 1) {
+      const percent = Number(partnerConfig.fldg_percent || 0);
+      requiredFldg  = Number(((loanAmount * percent) / 100).toFixed(2));
+    }
+
+    if (requiredFldg > 0) {
+      const fldgCheck = await partnerFldgService.validateFldgAvailability(
+        conn, partner.partner_id, requiredFldg
+      );
+
+      if (!fldgCheck.valid) {
+        await conn.rollback();
+        return res.status(403).json({
+          success: false,
+          stage: "fldg-check",
+          message: `Insufficient FLDG balance for ${partnerName}`,
+          available_fldg: fldgCheck.available,
+          required_fldg:  requiredFldg,
+        });
+      }
+    }
+
+    /* ── Mark loan as Login ── */
+    const [result] = await conn.query(
       `UPDATE loan_booking_fundify SET status = 'Login', stage = 'Login', updated_at = NOW() WHERE lan = ?`,
       [lan]
     );
 
     if (result.affectedRows === 0) {
+      await conn.rollback();
       return res.status(404).json({ success: false, message: "Loan not found for LAN: " + lan });
     }
 
+    /* ── Update Booked Limit ── */
+    await partnerLimitService.updateBookedLimit(conn, limitCheck.limitId, loanAmount, lan);
+
+    /* ── Reserve FLDG ── */
+    if (requiredFldg > 0) {
+      await partnerFldgService.reserveFldg(
+        conn,
+        partner.partner_id,
+        lan,
+        requiredFldg,
+        `Fundify booking reservation | Amount: ${loanAmount}`
+      );
+    }
+
+    await conn.commit();
+
+    /* ── Fire BRE (PAN + Bureau validation) async — does NOT block response ── */
+    runFundifyPanBureauValidations(lan).catch((err) => {
+      console.error("Fundify BRE (PAN + Bureau) failed after final-submit for LAN:", lan, err);
+    });
+
     res.json({ success: true, lan, message: "Fundify loan submitted successfully" });
   } catch (err) {
+    if (conn) { try { await conn.rollback(); } catch (_) {} }
     console.error("final-submit error:", err);
     res.status(500).json({ success: false, message: err.message || "Failed to submit loan" });
+  } finally {
+    if (conn) conn.release();
   }
 });
+
 
 /* -------------------------------------------------------------------------- */
 /*                        SEND OTP (MOBILE VERIFICATION)                      */

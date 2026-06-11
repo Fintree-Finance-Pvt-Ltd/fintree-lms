@@ -699,49 +699,49 @@ function App() {
           />
           {/* ✅ Loan routes */}
           <Route
-            path="/finso-loans/approved"
+            path="/fincrest-loans/approved"
             element={
-              <PermissionRoute pageName="Finso Approved Loans">
+              <PermissionRoute pageName="Fincrest Approved Loans">
                 <FinsoApprovedLoans />
               </PermissionRoute>
             }
           />
           <Route
-            path="/finso-loans/disbursed"
+            path="/fincrest-loans/disbursed"
             element={
-              <PermissionRoute pageName="Finso Disbursed Loans">
+              <PermissionRoute pageName="Fincrest Disbursed Loans">
                 <FinsoDisbursedLoans />
               </PermissionRoute>
             }
           />
           <Route
-            path="/finso-loans/all"
+            path="/fincrest-loans/all"
             element={
-              <PermissionRoute pageName="Finso All Loans">
+              <PermissionRoute pageName="Fincrest All Loans">
                 <FinsoAllLoans />
               </PermissionRoute>
             }
           />
           <Route
-            path="/finso-loans/login-cases"
+            path="/fincrest-loans/login-cases"
             element={
-              <PermissionRoute pageName="Finso Login Loans">
+              <PermissionRoute pageName="Fincrest Login Loans">
                 <FinsoLoginLoans />
               </PermissionRoute>
             }
           />
           <Route
-            path="/finso-loans/login-actions"
+            path="/fincrest-loans/login-actions"
             element={
-              <PermissionRoute pageName="Finso Login Actions">
+              <PermissionRoute pageName="Fincrest Login Actions">
                 <FinsoActionScreen />
               </PermissionRoute>
             }
           />
           <Route
-            path="/finso-loans/approve-initiate-actions"
+            path="/fincrest-loans/approve-initiate-actions"
             element={
-              <PermissionRoute pageName="Finso Disburse Initiated">
+              <PermissionRoute pageName="Fincrest Disburse Initiated">
                 <FinsoApproveInitiateScreen />
               </PermissionRoute>
             }
