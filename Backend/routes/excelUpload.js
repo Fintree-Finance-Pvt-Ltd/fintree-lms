@@ -6511,10 +6511,10 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
           // Keep entity processing enabled, but raise limits for valid large bureau XML.
           processEntities: {
             enabled: true,
-            maxTotalExpansions: 10000,
+            maxTotalExpansions: 50000,
             maxExpandedLength: 5_000_000,
-            maxEntityCount: 10000,
-            maxEntitySize: 10000,
+            maxEntityCount: 50000,
+            maxEntitySize: 50000,
           },
         });
         const parsed = parser.parse(response.data);
