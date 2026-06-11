@@ -4929,6 +4929,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
     const requiredFields = [
       "lan",
       "e_mandate_no",
+      "mandate_id",
       "bank_name",
       "name_in_bank",
       "account_number",
@@ -4972,6 +4973,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
         UPDATE loan_booking_finso
         SET 
           e_mandate_no = ?,
+          mandate_id = ?,
           bank_name = ?,
           name_in_bank = ?,
           account_number = ?,
@@ -4981,6 +4983,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
 
       const values = [
         data.e_mandate_no,
+        data.mandate_id,
         data.bank_name,
         data.name_in_bank,
         data.account_number,
