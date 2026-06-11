@@ -911,6 +911,47 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
   }
 });
 
+router.post("/update-stamp-number", async (req, res) => {
+  try {
+    const { lan, stamp_paper_no } = req.body;
+
+    if (!lan || !stamp_paper_no) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: "lan and stamp_paper_no are required",
+      });
+    }
+
+    const [result] = await db.promise().execute(
+      `
+      UPDATE loan_booking_motion_corp
+      SET stamp_paper_no = ?
+      WHERE lan = ?
+      `,
+      [String(stamp_paper_no).trim(), String(lan).trim()]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: "FAILED",
+        message: "Loan not found",
+      });
+    }
+
+    return res.json({
+      status: "SUCCESS",
+      message: "Stamp paper number updated successfully",
+    });
+  } catch (error) {
+    console.error("Update stamp paper number error:", error);
+
+    return res.status(500).json({
+      status: "FAILED",
+      message: "Failed to update stamp paper number",
+    });
+  }
+});
+
 router.post("/save-borrower-first-section", async (req, res) => {
   const connection = await db.promise().getConnection();
 

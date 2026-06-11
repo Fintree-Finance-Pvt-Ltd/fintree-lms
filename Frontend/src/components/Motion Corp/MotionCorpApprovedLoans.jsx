@@ -19,6 +19,7 @@ const MotionCorpApprovedLoans = ({
 
   // ---------- Bank / eNACH Modal ----------
   const [showBankModal, setShowBankModal] = useState(false);
+  const [stampInputs, setStampInputs] = useState({});
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [bankForm, setBankForm] = useState({
     account_no: "",
@@ -44,16 +45,14 @@ const MotionCorpApprovedLoans = ({
     setErr("");
 
     api
-  .get(apiUrl)
-  .then((res) => {
-    if (off) return;
+      .get(apiUrl)
+      .then((res) => {
+        if (off) return;
 
-    const data = Array.isArray(res.data.rows)
-      ? res.data.rows
-      : [];
+        const data = Array.isArray(res.data.rows) ? res.data.rows : [];
 
-    setRows(data);
-  })
+        setRows(data);
+      })
       .catch(() => !off && setErr("Failed to fetch data."))
       .finally(() => !off && setLoading(false));
 
@@ -119,34 +118,23 @@ const MotionCorpApprovedLoans = ({
     setBankResult(null);
 
     setBankForm({
-  account_no:
-    loanRow.customer_account_number ||
-    loanRow.account_number ||
-    "",
+      account_no:
+        loanRow.customer_account_number || loanRow.account_number || "",
 
-  ifsc:
-    loanRow.bank_ifsc_code ||
-    loanRow.ifsc ||
-    "",
+      ifsc: loanRow.bank_ifsc_code || loanRow.ifsc || "",
 
-  account_type:
-    loanRow.bank_account_type || "SAVINGS",
+      account_type: loanRow.bank_account_type || "SAVINGS",
 
-  bank_name:
-    loanRow.customer_bank_name ||
-    loanRow.bank_name ||
-    "",
+      bank_name: loanRow.customer_bank_name || loanRow.bank_name || "",
 
-  account_holder_name:
-    loanRow.customer_name_as_per_bank ||
-    loanRow.customer_name ||
-    "",
+      account_holder_name:
+        loanRow.customer_name_as_per_bank || loanRow.customer_name || "",
 
-  mandate_amount: defaultAmount,
-  mandate_start_date: startDate,
-  mandate_end_date: endDate,
-  mandate_frequency: "monthly",
-});
+      mandate_amount: defaultAmount,
+      mandate_start_date: startDate,
+      mandate_end_date: endDate,
+      mandate_frequency: "monthly",
+    });
 
     setShowBankModal(true);
   };
@@ -318,7 +306,7 @@ const MotionCorpApprovedLoans = ({
       </span>
     );
   };
-  
+
   const handleAgreementEsign = async (row) => {
     const lan = row.lan;
 
@@ -378,6 +366,97 @@ const MotionCorpApprovedLoans = ({
     { key: "partner_loan_id", header: "Partner Loan ID" },
     { key: "lan", header: "LAN" },
     { key: "mobile_number", header: "Mobile" },
+    {
+      key: "stamp_paper_no",
+      header: "Stamp Paper No.",
+      render: (r) => {
+        const value = stampInputs[r.lan] ?? r.stamp_paper_no ?? "";
+
+        return (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) =>
+                setStampInputs((prev) => ({
+                  ...prev,
+                  [r.lan]: e.target.value,
+                }))
+              }
+              placeholder="Stamp no"
+              style={{
+                width: 130,
+                padding: "7px 8px",
+                borderRadius: 8,
+                border: "1px solid #d1d5db",
+                fontSize: 12,
+              }}
+            />
+
+            <button
+              onClick={async () => {
+                const stampNo = String(value || "").trim();
+
+                if (!stampNo) {
+                  setToast({
+                    type: "error",
+                    msg: "Please enter stamp paper number.",
+                  });
+                  resetToastAfterDelay();
+                  return;
+                }
+
+                try {
+                  setActionLan(r.lan);
+
+                  await api.post("/motion-corp/update-stamp-number", {
+                    lan: r.lan,
+                    stamp_paper_no: stampNo,
+                  });
+
+                  setRows((old) =>
+                    old.map((row) =>
+                      row.lan === r.lan
+                        ? { ...row, stamp_paper_no: stampNo }
+                        : row,
+                    ),
+                  );
+
+                  setToast({
+                    type: "success",
+                    msg: "Stamp paper number updated successfully.",
+                  });
+                  resetToastAfterDelay();
+                } catch (err) {
+                  setToast({
+                    type: "error",
+                    msg:
+                      err.response?.data?.message ||
+                      "Failed to update stamp paper number.",
+                  });
+                  resetToastAfterDelay();
+                } finally {
+                  setActionLan(null);
+                }
+              }}
+              disabled={actionLan === r.lan}
+              style={{
+                padding: "7px 10px",
+                borderRadius: 8,
+                border: "1px solid #9ad9b0",
+                color: "#0f7a42",
+                background: "#eefbf3",
+                cursor: actionLan === r.lan ? "not-allowed" : "pointer",
+                fontWeight: 700,
+                fontSize: 12,
+              }}
+            >
+              {actionLan === r.lan ? "Saving..." : "Save"}
+            </button>
+          </div>
+        );
+      },
+    },
 
     {
       key: "status",
@@ -459,24 +538,24 @@ const MotionCorpApprovedLoans = ({
       },
     },
     {
-  key: "stage",
-  header: "Loan Stage",
-  render: (r) => (
-    <span
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        background: "rgba(59,130,246,.12)",
-        border: "1px solid rgba(59,130,246,.35)",
-        color: "#1e3a8a",
-        fontWeight: 700,
-      }}
-    >
-      ● {r.stage || "—"}
-    </span>
-  ),
-},
-  
+      key: "stage",
+      header: "Loan Stage",
+      render: (r) => (
+        <span
+          style={{
+            padding: "6px 10px",
+            borderRadius: 999,
+            background: "rgba(59,130,246,.12)",
+            border: "1px solid rgba(59,130,246,.35)",
+            color: "#1e3a8a",
+            fontWeight: 700,
+          }}
+        >
+          ● {r.stage || "—"}
+        </span>
+      ),
+    },
+
     // 🔹 AGREEMENT eSign
     {
       key: "agreement_esign",
@@ -511,7 +590,7 @@ const MotionCorpApprovedLoans = ({
                   : ["FAILED", "INITIATED"].includes(status)
                     ? "Retry Agreement eSign"
                     : "Send Agreement eSign"}
-                    {/* Coming soon */}
+              {/* Coming soon */}
             </button>
           </div>
         );
