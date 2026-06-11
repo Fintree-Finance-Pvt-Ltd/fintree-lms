@@ -370,13 +370,18 @@ const MotionCorpApprovedLoans = ({
       key: "stamp_paper_no",
       header: "Stamp Paper No.",
       render: (r) => {
-        const value = stampInputs[r.lan] ?? r.stamp_paper_no ?? "";
+        const savedStampNo = String(r.stamp_paper_no ?? "").trim();
+        const value = stampInputs[r.lan] ?? savedStampNo ?? "";
+
+        const isSaving = actionLan === r.lan;
+        const isSaved = !!savedStampNo;
 
         return (
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               type="text"
               value={value}
+              disabled={isSaved || isSaving}
               onChange={(e) =>
                 setStampInputs((prev) => ({
                   ...prev,
@@ -390,11 +395,15 @@ const MotionCorpApprovedLoans = ({
                 borderRadius: 8,
                 border: "1px solid #d1d5db",
                 fontSize: 12,
+                background: isSaved ? "#f3f4f6" : "#ffffff",
+                cursor: isSaved ? "not-allowed" : "text",
               }}
             />
 
             <button
               onClick={async () => {
+                if (isSaved) return;
+
                 const stampNo = String(value || "").trim();
 
                 if (!stampNo) {
@@ -422,6 +431,11 @@ const MotionCorpApprovedLoans = ({
                     ),
                   );
 
+                  setStampInputs((prev) => ({
+                    ...prev,
+                    [r.lan]: stampNo,
+                  }));
+
                   setToast({
                     type: "success",
                     msg: "Stamp paper number updated successfully.",
@@ -439,19 +453,19 @@ const MotionCorpApprovedLoans = ({
                   setActionLan(null);
                 }
               }}
-              disabled={actionLan === r.lan}
+              disabled={isSaved || isSaving}
               style={{
                 padding: "7px 10px",
                 borderRadius: 8,
-                border: "1px solid #9ad9b0",
-                color: "#0f7a42",
-                background: "#eefbf3",
-                cursor: actionLan === r.lan ? "not-allowed" : "pointer",
+                border: isSaved ? "1px solid #d1d5db" : "1px solid #9ad9b0",
+                color: isSaved ? "#6b7280" : "#0f7a42",
+                background: isSaved ? "#f3f4f6" : "#eefbf3",
+                cursor: isSaved || isSaving ? "not-allowed" : "pointer",
                 fontWeight: 700,
                 fontSize: 12,
               }}
             >
-              {actionLan === r.lan ? "Saving..." : "Save"}
+              {isSaved ? "Saved" : isSaving ? "Saving..." : "Save"}
             </button>
           </div>
         );
