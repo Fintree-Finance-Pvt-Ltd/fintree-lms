@@ -1100,58 +1100,83 @@ router.post("/final-submit", async (req, res) => {
       return res.status(404).json({ success: false, message: "Loan not found for LAN: " + lan });
     }
 
-    const loanAmount  = Number(loanRow.loan_amount  || 0);
-    const partnerName = loanRow.partner_name         || PARTNER_NAME;
-    const loginDate   = new Date(loanRow.login_date  || Date.now());
-    const { month, year } = getMonthYear(loginDate);
-
-    /* ── Partner Limit Check ── */
-    const partner = await partnerLimitService.getOrCreatePartner(conn, partnerName);
-
-    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-      conn, partner.partner_id, loanAmount, month, year
+    /* ── Check if limit was already reserved for this LAN (resume case) ── */
+    const [[auditRow]] = await conn.query(
+      `SELECT id FROM partner_limit_audit WHERE booking_lan = ? LIMIT 1`,
+      [lan]
     );
+    const alreadyBooked = !!auditRow;
 
-    if (!limitCheck.valid) {
-      await conn.rollback();
-      return res.status(403).json({
-        success: false,
-        stage: "limit-check",
-        message: `Booking limit exceeded for ${partnerName}`,
-        remaining_limit: limitCheck.remaining,
-        required: loanAmount,
-      });
-    }
+    if (!alreadyBooked) {
+      const loanAmount  = Number(loanRow.loan_amount  || 0);
+      const partnerName = loanRow.partner_name         || PARTNER_NAME;
+      const loginDate   = new Date(loanRow.login_date  || Date.now());
+      const { month, year } = getMonthYear(loginDate);
 
-    /* ── FLDG Check ── */
-    const [[partnerConfig]] = await conn.query(
-      `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-      [partner.partner_id]
-    );
+      /* ── Partner Limit Check ── */
+      const partner = await partnerLimitService.getOrCreatePartner(conn, partnerName);
 
-    if (!partnerConfig) throw new Error("Partner configuration not found");
-
-    let requiredFldg = 0;
-    if (partnerConfig.fldg_status === 1) {
-      const percent = Number(partnerConfig.fldg_percent || 0);
-      requiredFldg  = Number(((loanAmount * percent) / 100).toFixed(2));
-    }
-
-    if (requiredFldg > 0) {
-      const fldgCheck = await partnerFldgService.validateFldgAvailability(
-        conn, partner.partner_id, requiredFldg
+      const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
+        conn, partner.partner_id, loanAmount, month, year
       );
 
-      if (!fldgCheck.valid) {
+      if (!limitCheck.valid) {
         await conn.rollback();
         return res.status(403).json({
           success: false,
-          stage: "fldg-check",
-          message: `Insufficient FLDG balance for ${partnerName}`,
-          available_fldg: fldgCheck.available,
-          required_fldg:  requiredFldg,
+          stage: "limit-check",
+          message: `Booking limit exceeded for ${partnerName}`,
+          remaining_limit: limitCheck.remaining,
+          required: loanAmount,
         });
       }
+
+      /* ── FLDG Check ── */
+      const [[partnerConfig]] = await conn.query(
+        `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+        [partner.partner_id]
+      );
+
+      if (!partnerConfig) throw new Error("Partner configuration not found");
+
+      let requiredFldg = 0;
+      if (partnerConfig.fldg_status === 1) {
+        const percent = Number(partnerConfig.fldg_percent || 0);
+        requiredFldg  = Number(((loanAmount * percent) / 100).toFixed(2));
+      }
+
+      if (requiredFldg > 0) {
+        const fldgCheck = await partnerFldgService.validateFldgAvailability(
+          conn, partner.partner_id, requiredFldg
+        );
+
+        if (!fldgCheck.valid) {
+          await conn.rollback();
+          return res.status(403).json({
+            success: false,
+            stage: "fldg-check",
+            message: `Insufficient FLDG balance for ${partnerName}`,
+            available_fldg: fldgCheck.available,
+            required_fldg:  requiredFldg,
+          });
+        }
+      }
+
+      /* ── Update Booked Limit ── */
+      await partnerLimitService.updateBookedLimit(conn, limitCheck.limitId, loanAmount, lan);
+
+      /* ── Reserve FLDG ── */
+      if (requiredFldg > 0) {
+        await partnerFldgService.reserveFldg(
+          conn,
+          partner.partner_id,
+          lan,
+          requiredFldg,
+          `Fundify booking reservation | Amount: ${loanAmount}`
+        );
+      }
+    } else {
+      console.log(`ℹ️ Fundify final-submit: LAN ${lan} already has limit reserved — skipping limit/FLDG checks (resume flow)`);
     }
 
     /* ── Mark loan as Login ── */
@@ -1163,20 +1188,6 @@ router.post("/final-submit", async (req, res) => {
     if (result.affectedRows === 0) {
       await conn.rollback();
       return res.status(404).json({ success: false, message: "Loan not found for LAN: " + lan });
-    }
-
-    /* ── Update Booked Limit ── */
-    await partnerLimitService.updateBookedLimit(conn, limitCheck.limitId, loanAmount, lan);
-
-    /* ── Reserve FLDG ── */
-    if (requiredFldg > 0) {
-      await partnerFldgService.reserveFldg(
-        conn,
-        partner.partner_id,
-        lan,
-        requiredFldg,
-        `Fundify booking reservation | Amount: ${loanAmount}`
-      );
     }
 
     await conn.commit();
