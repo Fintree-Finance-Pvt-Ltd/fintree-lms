@@ -16,11 +16,10 @@ function formatDobForExperian(dob) {
   }
 
   // Fallback: treat as string
-  const s = String(dob).trim();         // "2000-01-15" or "20000115"
-  const cleaned = s.replace(/-/g, "");  // "20000115"
-  return cleaned.slice(0, 8);           // ensure length 8
+  const s = String(dob).trim(); // "2000-01-15" or "20000115"
+  const cleaned = s.replace(/-/g, ""); // "20000115"
+  return cleaned.slice(0, 8); // ensure length 8
 }
-
 
 // State Code Mapping ( YOUR EXISTING MAPPING )
 const STATE_CODES = {
@@ -64,18 +63,18 @@ const STATE_CODES = {
 
 const runBureau = async (data) => {
   try {
-    
     console.log("🏦 Running Experian Bureau Utility...", data);
 
     // -----------------------------
     // Format required fields
-  //  -----------------------------
+    //  -----------------------------
 
-    const dobFormatted = formatDobForExperian(data.dob); 
+    const dobFormatted = formatDobForExperian(data.dob);
     const gender_code = data.gender === "Female" ? 2 : 1;
 
     const state_code =
-      STATE_CODES[data.current_state?.toUpperCase()] ?? STATE_CODES["MAHARASHTRA"];
+      STATE_CODES[data.current_state?.toUpperCase()] ??
+      STATE_CODES["MAHARASHTRA"];
 
     const firstName = data.first_name.toUpperCase();
     const lastName = data.last_name.toUpperCase();
@@ -173,93 +172,93 @@ const runBureau = async (data) => {
    </soapenv:Body>
 </soapenv:Envelope>`;
 
-/////////////  HARD coded for testing /////////////
-// const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-//    <soapenv:Header/>
-//    <soapenv:Body>
-//       <urn:process>
-//          <urn:in>
-//             <INProfileRequest>
-//     <Identification>
-//        <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-//        <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-//     </Identification>
-//     <Application>
-//         <FTReferenceNumber></FTReferenceNumber>
-//         <CustomerReferenceID></CustomerReferenceID>
-//         <EnquiryReason>13</EnquiryReason> 
-//         <FinancePurpose>99</FinancePurpose>
-//         <AmountFinanced>19200</AmountFinanced>
-//         <DurationOfAgreement>5</DurationOfAgreement>
-//         <ScoreFlag>1</ScoreFlag>
-//         <PSVFlag></PSVFlag>
-//     </Application>
-//     <Applicant>
-//         <Surname>YERRA</Surname>
-//         <FirstName>RAJU</FirstName>
-//         <MiddleName1></MiddleName1>
-//         <MiddleName2></MiddleName2>
-//         <MiddleName3></MiddleName3>
-//         <GenderCode>1</GenderCode>
-//         <IncomeTaxPAN>AFIPY3624H</IncomeTaxPAN>
-//         <PANIssueDate></PANIssueDate>
-//         <PANExpirationDate></PANExpirationDate>
-//         <PassportNumber></PassportNumber>
-//         <PassportIssueDate></PassportIssueDate>
-//         <PassportExpirationDate></PassportExpirationDate>
-//         <VoterIdentityCard></VoterIdentityCard>
-//         <VoterIDIssueDate></VoterIDIssueDate>
-//         <VoterIDExpirationDate></VoterIDExpirationDate>
-//         <DriverLicenseNumber></DriverLicenseNumber>
-//         <DriverLicenseIssueDate></DriverLicenseIssueDate>
-//         <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
-//         <RationCardNumber></RationCardNumber>
-//         <RationCardIssueDate></RationCardIssueDate>
-//         <RationCardExpirationDate></RationCardExpirationDate>
-//         <UniversalIDNumber></UniversalIDNumber>
-//         <UniversalIDIssueDate></UniversalIDIssueDate>
-//         <UniversalIDExpirationDate></UniversalIDExpirationDate>
-//         <DateOfBirth>19840619</DateOfBirth>
-//         <STDPhoneNumber></STDPhoneNumber>
-//         <PhoneNumber>9869350574</PhoneNumber>
-//         <TelephoneExtension></TelephoneExtension>
-//         <TelephoneType></TelephoneType>
-//         <MobilePhone></MobilePhone>
-//         <EMailId></EMailId>
-//     </Applicant>
-//     <Details>
-//         <Income></Income>
-//         <MaritalStatus></MaritalStatus>
-//         <EmployStatus></EmployStatus>
-//         <TimeWithEmploy></TimeWithEmploy>
-//         <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
-//     </Details>
-//     <Address>
-//         <FlatNoPlotNoHouseNo>6 59 harijanawada nararayanapur mandal Gujja</FlatNoPlotNoHouseNo>
-//         <BldgNoSocietyName></BldgNoSocietyName>
-//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-//         <City>Gujja</City>
-//         <Landmark></Landmark>
-//         <State>27</State>
-//         <PinCode>508253</PinCode>
-//     </Address>
-//     <AdditionalAddressFlag>
-//         <Flag>N</Flag>
-//     </AdditionalAddressFlag>
-//     <AdditionalAddress>
-//         <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
-//         <BldgNoSocietyName></BldgNoSocietyName>
-//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-//         <City></City>
-//         <Landmark></Landmark>
-//         <State></State>
-//         <PinCode></PinCode>
-//     </AdditionalAddress>
-// </INProfileRequest>
-// </urn:in>
-//       </urn:process>
-//    </soapenv:Body>
-// </soapenv:Envelope>`;
+    /////////////  HARD coded for testing /////////////
+    // const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+    //    <soapenv:Header/>
+    //    <soapenv:Body>
+    //       <urn:process>
+    //          <urn:in>
+    //             <INProfileRequest>
+    //     <Identification>
+    //        <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+    //        <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+    //     </Identification>
+    //     <Application>
+    //         <FTReferenceNumber></FTReferenceNumber>
+    //         <CustomerReferenceID></CustomerReferenceID>
+    //         <EnquiryReason>13</EnquiryReason>
+    //         <FinancePurpose>99</FinancePurpose>
+    //         <AmountFinanced>19200</AmountFinanced>
+    //         <DurationOfAgreement>5</DurationOfAgreement>
+    //         <ScoreFlag>1</ScoreFlag>
+    //         <PSVFlag></PSVFlag>
+    //     </Application>
+    //     <Applicant>
+    //         <Surname>YERRA</Surname>
+    //         <FirstName>RAJU</FirstName>
+    //         <MiddleName1></MiddleName1>
+    //         <MiddleName2></MiddleName2>
+    //         <MiddleName3></MiddleName3>
+    //         <GenderCode>1</GenderCode>
+    //         <IncomeTaxPAN>AFIPY3624H</IncomeTaxPAN>
+    //         <PANIssueDate></PANIssueDate>
+    //         <PANExpirationDate></PANExpirationDate>
+    //         <PassportNumber></PassportNumber>
+    //         <PassportIssueDate></PassportIssueDate>
+    //         <PassportExpirationDate></PassportExpirationDate>
+    //         <VoterIdentityCard></VoterIdentityCard>
+    //         <VoterIDIssueDate></VoterIDIssueDate>
+    //         <VoterIDExpirationDate></VoterIDExpirationDate>
+    //         <DriverLicenseNumber></DriverLicenseNumber>
+    //         <DriverLicenseIssueDate></DriverLicenseIssueDate>
+    //         <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
+    //         <RationCardNumber></RationCardNumber>
+    //         <RationCardIssueDate></RationCardIssueDate>
+    //         <RationCardExpirationDate></RationCardExpirationDate>
+    //         <UniversalIDNumber></UniversalIDNumber>
+    //         <UniversalIDIssueDate></UniversalIDIssueDate>
+    //         <UniversalIDExpirationDate></UniversalIDExpirationDate>
+    //         <DateOfBirth>19840619</DateOfBirth>
+    //         <STDPhoneNumber></STDPhoneNumber>
+    //         <PhoneNumber>9869350574</PhoneNumber>
+    //         <TelephoneExtension></TelephoneExtension>
+    //         <TelephoneType></TelephoneType>
+    //         <MobilePhone></MobilePhone>
+    //         <EMailId></EMailId>
+    //     </Applicant>
+    //     <Details>
+    //         <Income></Income>
+    //         <MaritalStatus></MaritalStatus>
+    //         <EmployStatus></EmployStatus>
+    //         <TimeWithEmploy></TimeWithEmploy>
+    //         <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
+    //     </Details>
+    //     <Address>
+    //         <FlatNoPlotNoHouseNo>6 59 harijanawada nararayanapur mandal Gujja</FlatNoPlotNoHouseNo>
+    //         <BldgNoSocietyName></BldgNoSocietyName>
+    //         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+    //         <City>Gujja</City>
+    //         <Landmark></Landmark>
+    //         <State>27</State>
+    //         <PinCode>508253</PinCode>
+    //     </Address>
+    //     <AdditionalAddressFlag>
+    //         <Flag>N</Flag>
+    //     </AdditionalAddressFlag>
+    //     <AdditionalAddress>
+    //         <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
+    //         <BldgNoSocietyName></BldgNoSocietyName>
+    //         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+    //         <City></City>
+    //         <Landmark></Landmark>
+    //         <State></State>
+    //         <PinCode></PinCode>
+    //     </AdditionalAddress>
+    // </INProfileRequest>
+    // </urn:in>
+    //       </urn:process>
+    //    </soapenv:Body>
+    // </soapenv:Envelope>`;
 
     // -----------------------------
     // Send SOAP Request
@@ -287,7 +286,20 @@ const runBureau = async (data) => {
     // Parse XML Response
     // -----------------------------
 
-    const parser = new XMLParser({ ignoreAttributes: false });
+    const parser = new XMLParser({
+      ignoreAttributes: false,
+      attributeNamePrefix: "",
+      trimValues: true,
+
+      // Keep entity processing enabled, but raise limits for valid large bureau XML.
+      processEntities: {
+        enabled: true,
+        maxTotalExpansions: 10000,
+        maxExpandedLength: 5_000_000,
+        maxEntityCount: 10000,
+        maxEntitySize: 10000,
+      },
+    });
     const parsedOuter = parser.parse(response.data);
 
     const encodedInnerXml =
@@ -306,8 +318,7 @@ const runBureau = async (data) => {
     const decodedXml = he.decode(encodedInnerXml);
     const parsedInner = parser.parse(decodedXml);
 
-    const scoreStr =
-      parsedInner?.INProfileResponse?.SCORE?.BureauScore || null;
+    const scoreStr = parsedInner?.INProfileResponse?.SCORE?.BureauScore || null;
 
     return {
       success: !!scoreStr,

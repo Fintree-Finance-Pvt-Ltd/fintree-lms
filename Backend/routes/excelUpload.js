@@ -77,8 +77,7 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "circlepe") {
     prefixPartnerLoan = "FCIR1";
     prefixLan = "CIRF1";
-  }
-  else if (lender === "circle pe houser") {
+  } else if (lender === "circle pe houser") {
     prefixPartnerLoan = "CIRHUF1";
     prefixLan = "CIRHUF1";
   } else if (lender === "emiclub") {
@@ -741,11 +740,11 @@ router.post("/upload/ev-manual", async (req, res) => {
 
     // Update partner used limit + audit
     await partnerLimitService.updateBookedLimit(
-  conn,
-  limitCheck.limitId,
-  loanAmount,
-  lan
-);
+      conn,
+      limitCheck.limitId,
+      loanAmount,
+      lan,
+    );
 
     // Reserve FLDG after successful booking
     if (requiredFldg > 0) {
@@ -944,13 +943,14 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
           partnerName,
         );
 
-        const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-          conn,
-          partner.partner_id,
-          loanAmount,
-          month,
-          year,
-        );
+        const limitCheck =
+          await partnerLimitService.validatePartnerBookingLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year,
+          );
 
         if (!limitCheck.valid) {
           await conn.rollback();
@@ -1164,7 +1164,6 @@ router.post("/hey-ev-upload", upload.single("file"), async (req, res) => {
   }
 });
 
-
 router.post(
   "/hey-ev-battery-upload",
   upload.single("file"),
@@ -1310,13 +1309,14 @@ router.post(
             partnerName,
           );
 
-          const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-            conn,
-            partner.partner_id,
-            loanAmount,
-            month,
-            year,
-          );
+          const limitCheck =
+            await partnerLimitService.validatePartnerBookingLimit(
+              conn,
+              partner.partner_id,
+              loanAmount,
+              month,
+              year,
+            );
 
           if (!limitCheck.valid) {
             await conn.rollback();
@@ -1557,7 +1557,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_hey_ev_battery: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
-    loan_booking_fundify:true,
+    loan_booking_fundify: true,
     dealer_onboarding: true,
   };
 
@@ -1624,8 +1624,6 @@ router.post("/update-umrn", (req, res) => {
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
   };
-
-
 
   if (!allowedTables[table]) {
     return res.status(400).json({
@@ -1703,7 +1701,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
     loan_booking_hey_ev: true,
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
-    loan_booking_motion_corp: true, 
+    loan_booking_motion_corp: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_emiclub: true,
@@ -1714,8 +1712,8 @@ router.get("/approve-initiate-loans", async (req, res) => {
     loan_booking_circle_pe_houser: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_loan_digit: true,
-      loan_booking_seven_fincorp: true,
-      loan_booking_bundela: true,
+    loan_booking_seven_fincorp: true,
+    loan_booking_bundela: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -1773,7 +1771,7 @@ router.get("/all-loans", async (req, res) => {
     table = "loan_bookings",
     prefix = "BL",
     page = "1",
-    pageSize = "1000", 
+    pageSize = "1000",
     search = "",
     sortBy = "LAN",
     sortDir = "desc",
@@ -2075,8 +2073,8 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_adikosh: true,
     loan_booking_gq_non_fsf: true,
     loan_booking_motion_corp: true,
-    loan_booking_bundela : true,
-     loan_booking_seven_fincorp : true,
+    loan_booking_bundela: true,
+    loan_booking_seven_fincorp: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
     loan_booking_ev: true,
@@ -2091,7 +2089,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_loan_digit: true,
     loan_booking_switch_my_loan: true,
     dealer_onboarding: true,
-    loan_booking_fundify:true
+    loan_booking_fundify: true,
   };
 
   if (!allowedTables[table]) {
@@ -2341,7 +2339,7 @@ router.put("/login-loans/:lan", (req, res) => {
 //     //   payoutTriggered = true;
 //     //   try {
 //     //     // 🔁 fire-and-forget (do not block response)
-        // approveAndInitiatePayout({ lan, table }).catch((payoutErr) => {
+// approveAndInitiatePayout({ lan, table }).catch((payoutErr) => {
 //     //       console.error(
 //     //         "Payout initiation failed for LAN:",
 //     //         lan,
@@ -2395,16 +2393,10 @@ router.put("/login-loans/:lan", (req, res) => {
 //   });
 // });
 
-
 router.put("/approve-initiated-loans/:lan", (req, res) => {
   const lan = req.params.lan;
 
-  const {
-    status,
-    stage = null,
-    table,
-    loan_amount = null,
-  } = req.body;
+  const { status, stage = null, table, loan_amount = null } = req.body;
 
   const allowedTables = {
     loan_bookings: true,
@@ -2447,20 +2439,17 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     params.push(stage);
   }
 
- const loanBookingTables = [
-  "loan_booking_motion_corp",
-  "loan_booking_seven_fincorp",
-  "loan_booking_bundela",
-];
+  const loanBookingTables = [
+    "loan_booking_motion_corp",
+    "loan_booking_seven_fincorp",
+    "loan_booking_bundela",
+  ];
 
-if (loanBookingTables.includes(table) && loan_amount !== null) {
-  const approvedLoanAmount = Number(loan_amount);
-  // rest of your logic 
+  if (loanBookingTables.includes(table) && loan_amount !== null) {
+    const approvedLoanAmount = Number(loan_amount);
+    // rest of your logic
 
-    if (
-      Number.isNaN(approvedLoanAmount) ||
-      approvedLoanAmount <= 0
-    ) {
+    if (Number.isNaN(approvedLoanAmount) || approvedLoanAmount <= 0) {
       return res.status(400).json({
         message: "Valid approved loan amount is required",
       });
@@ -2476,11 +2465,7 @@ if (loanBookingTables.includes(table) && loan_amount !== null) {
     WHERE lan = ?
   `;
 
-  const queryParams = [
-    table,
-    ...params,
-    lan,
-  ];
+  const queryParams = [table, ...params, lan];
 
   db.query(updateQuery, queryParams, async (err, result) => {
     if (err) {
@@ -2499,20 +2484,18 @@ if (loanBookingTables.includes(table) && loan_amount !== null) {
     }
 
     const loanBookingTables = [
-  "loan_booking_motion_corp",
-  "loan_booking_seven_fincorp",
-  "loan_booking_bundela",
-];
+      "loan_booking_motion_corp",
+      "loan_booking_seven_fincorp",
+      "loan_booking_bundela",
+    ];
     return res.json({
       success: true,
       lan,
       table,
       status,
       stage,
-      loan_amount: loanBookingTables.includes(table)
-    ? loan_amount
-    : undefined,
-  message: "Loan updated successfully",
+      loan_amount: loanBookingTables.includes(table) ? loan_amount : undefined,
+      message: "Loan updated successfully",
     });
   });
 });
@@ -3169,13 +3152,14 @@ router.post("/bl-upload", upload.single("file"), async (req, res) => {
           partnerName,
         );
 
-        const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-          conn,
-          partner.partner_id,
-          loanAmount,
-          month,
-          year,
-        );
+        const limitCheck =
+          await partnerLimitService.validatePartnerBookingLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year,
+          );
 
         if (!limitCheck.valid) {
           await conn.rollback();
@@ -3469,13 +3453,14 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
           partnerName,
         );
 
-        const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-          conn,
-          partner.partner_id,
-          loanAmount,
-          month,
-          year,
-        );
+        const limitCheck =
+          await partnerLimitService.validatePartnerBookingLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year,
+          );
 
         if (!limitCheck.valid) {
           await conn.rollback();
@@ -3713,7 +3698,10 @@ router.post("/gq-fsf-upload", upload.single("file"), async (req, res) => {
   }
 });
 
-router.post("/upload-invoice-disbursements", upload.single("file"), async (req, res) => {
+router.post(
+  "/upload-invoice-disbursements",
+  upload.single("file"),
+  async (req, res) => {
     if (!req.file)
       return res.status(400).json({
         message: "No file uploaded",
@@ -3756,9 +3744,7 @@ router.post("/upload-invoice-disbursements", upload.single("file"), async (req, 
       const parseNumber = (v) =>
         typeof v === "number"
           ? v
-          : parseFloat(
-              (v || "").toString().replace(/[^0-9.]/g, "")
-            ) || 0;
+          : parseFloat((v || "").toString().replace(/[^0-9.]/g, "")) || 0;
 
       for (const row of sheetData) {
         const R = row.__row;
@@ -3777,8 +3763,7 @@ router.post("/upload-invoice-disbursements", upload.single("file"), async (req, 
             row_errors.push({
               row: R,
               stage: "validation",
-              reason:
-                "partner_loan_id or invoice_number missing",
+              reason: "partner_loan_id or invoice_number missing",
             });
             continue;
           }
@@ -3794,7 +3779,7 @@ router.post("/upload-invoice-disbursements", upload.single("file"), async (req, 
             WHERE partner_loan_id = ?
             AND invoice_number = ?
           `,
-            [partner_loan_id, invoice_number]
+            [partner_loan_id, invoice_number],
           );
 
           if (existing.length > 0) {
@@ -3804,30 +3789,29 @@ router.post("/upload-invoice-disbursements", upload.single("file"), async (req, 
             row_errors.push({
               row: R,
               stage: "duplicate",
-              reason:
-                "Invoice already exists for this partner_loan_id",
+              reason: "Invoice already exists for this partner_loan_id",
             });
 
             continue;
           }
 
           const [utrExists] = await conn.query(
-  `SELECT id FROM invoice_disbursements WHERE disbursement_utr = ?`,
-  [disbursement_utr]
-);
+            `SELECT id FROM invoice_disbursements WHERE disbursement_utr = ?`,
+            [disbursement_utr],
+          );
 
-if (utrExists.length) {
-  await conn.rollback();
-  conn.release();
+          if (utrExists.length) {
+            await conn.rollback();
+            conn.release();
 
-  row_errors.push({
-    row: R,
-    stage: "duplicate-utr",
-    reason: "Duplicate disbursement UTR",
-  });
+            row_errors.push({
+              row: R,
+              stage: "duplicate-utr",
+              reason: "Duplicate disbursement UTR",
+            });
 
-  continue;
-}
+            continue;
+          }
 
           // Insert row
           await conn.query(
@@ -3883,38 +3867,35 @@ if (utrExists.length) {
               parseNumber(row.emi_amount),
               "Active",
               parseNumber(row.roi_penal_rate),
-            ]
+            ],
           );
 
           await conn.commit();
-conn.release();
-conn = null;
+          conn.release();
+          conn = null;
 
-// ✅ Generate due demand after successful Excel invoice upload
-setImmediate(async () => {
-  try {
-    await generateDemandFromInvoiceDisbursement(
-      invoice_number,
-      lan
-    );
+          // ✅ Generate due demand after successful Excel invoice upload
+          setImmediate(async () => {
+            try {
+              await generateDemandFromInvoiceDisbursement(invoice_number, lan);
 
-    console.log(
-      `Demand generated successfully for invoice ${invoice_number}, LAN ${lan}`
-    );
-  } catch (e) {
-    console.error(
-      `Demand generation failed for invoice ${invoice_number}, LAN ${lan}:`,
-      e
-    );
-  }
-});
+              console.log(
+                `Demand generated successfully for invoice ${invoice_number}, LAN ${lan}`,
+              );
+            } catch (e) {
+              console.error(
+                `Demand generation failed for invoice ${invoice_number}, LAN ${lan}:`,
+                e,
+              );
+            }
+          });
 
-success_rows.push({
-  row: R,
-  invoice_number,
-  lan,
-  demand_generation: "queued",
-});
+          success_rows.push({
+            row: R,
+            invoice_number,
+            lan,
+            demand_generation: "queued",
+          });
         } catch (err) {
           if (conn) {
             await conn.rollback();
@@ -3945,7 +3926,7 @@ success_rows.push({
         error: error.message,
       });
     }
-  }
+  },
 );
 
 router.get("/gq-fsf-disbursed", (req, res) => {
@@ -4301,7 +4282,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     ", ",
   )}) VALUES ${PLACEHOLDERS}`;
 
-    const success_rows = [];
+  const success_rows = [];
   const row_errors = [];
   const skippedDueToCIBIL = [];
 
@@ -4368,7 +4349,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           ...raw,
           account_number:
             raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
-            dob: raw.dob ?? raw.borrower_dob ?? null,
+          dob: raw.dob ?? raw.borrower_dob ?? null,
           ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
           processing_fee: raw.processing_fee ?? 0.0,
         };
@@ -4416,13 +4397,14 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           partnerName,
         );
 
-        const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-          conn,
-          partner.partner_id,
-          loanAmount,
-          month,
-          year,
-        );
+        const limitCheck =
+          await partnerLimitService.validatePartnerBookingLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year,
+          );
 
         if (!limitCheck.valid) {
           await conn.rollback();
@@ -4467,11 +4449,11 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
             await conn.rollback();
             conn.release();
 
-           row_errors.push({
-  row: data.partner_loan_id,
-  stage: "fldg-check",
-  reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
-});
+            row_errors.push({
+              row: data.partner_loan_id,
+              stage: "fldg-check",
+              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+            });
             continue;
           }
         }
@@ -4632,8 +4614,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         const lastName = (data.last_name || "").toUpperCase();
         const genderCode = data.gender === "Female" ? 2 : 1;
 
-        
-      const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+        const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
    <soapenv:Header/>
    <soapenv:Body>
       <urn:process>
@@ -4743,7 +4724,18 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           console.log("📥 Experian Status:", response.status);
           console.log("📥 Raw Response:", response.data?.substring(0, 1000));
 
-          const parser = new XMLParser({ ignoreAttributes: false });
+          const parser = new XMLParser({
+            ignoreAttributes: false,
+            attributeNamePrefix: "",
+            trimValues: true,
+            processEntities: {
+              enabled: true,
+              maxTotalExpansions: 10000,
+              maxExpandedLength: 5_000_000,
+              maxEntityCount: 10000,
+              maxEntitySize: 10000,
+            },
+          });
           const soapParsed = parser.parse(response.data);
 
           const encodedInnerXml =
@@ -4838,7 +4830,6 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
 router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
   try {
-
     if (
       !req.partner ||
       (req.partner.name || "").toLowerCase().trim() !== "finso"
@@ -4855,7 +4846,7 @@ router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
        FROM loan_booking_finso
        WHERE lan = ?
        LIMIT 1`,
-      [lan]
+      [lan],
     );
 
     if (rows.length === 0) {
@@ -4871,7 +4862,6 @@ router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
         status: rows[0].status,
       },
     });
-
   } catch (error) {
     console.error("❌ Error fetching LAN status:", error);
 
@@ -4881,8 +4871,6 @@ router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
     });
   }
 });
-
-
 
 // ✅ Update Finso Bank Details by LAN
 router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
@@ -4996,8 +4984,6 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
     });
   }
 });
-
-
 
 router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
   let conn;
@@ -5490,7 +5476,20 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         throw new Error(`Experian returned HTTP ${response.status}`);
       //////////////////// new addd.//////////
       // --- Parse SOAP XML ---
-      const parser = new XMLParser({ ignoreAttributes: false });
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        trimValues: true,
+
+        // Keep entity processing enabled, but raise limits for valid large bureau XML.
+        processEntities: {
+          enabled: true,
+          maxTotalExpansions: 10000,
+          maxExpandedLength: 5_000_000,
+          maxEntityCount: 10000,
+          maxEntitySize: 10000,
+        },
+      });
       const soapParsed = parser.parse(response.data);
       const encodedInnerXml =
         soapParsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
@@ -5588,11 +5587,8 @@ function isCarePayPartner(req) {
   return (req.partner?.name || "").toLowerCase().trim() === "carepay";
 }
 
-
-
 router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
   try {
-   
     const partner = req.partner.name || {};
     if (partner.toLowerCase().trim() !== "carepay") {
       return res
@@ -5724,7 +5720,6 @@ router.get("/v1/carepay-hospitals-list", verifyApiKey, async (req, res) => {
     });
   }
 });
-
 
 router.get("/carepay-hospitals", async (req, res) => {
   try {
@@ -5860,7 +5855,9 @@ router.get("/carepay-hospital-booking-details/:lan", async (req, res) => {
 router.patch("/carepay-hospitals/status/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
-    const status = String(req.body?.status || "").toUpperCase().trim();
+    const status = String(req.body?.status || "")
+      .toUpperCase()
+      .trim();
 
     if (!["PENDING", "APPROVED"].includes(status)) {
       return res.status(400).json({
@@ -5868,10 +5865,12 @@ router.patch("/carepay-hospitals/status/:lan", async (req, res) => {
       });
     }
 
-    const [result] = await db.promise().query(
-      `UPDATE carepay_hospital_booking SET status = ? WHERE lan = ?`,
-      [status, lan],
-    );
+    const [result] = await db
+      .promise()
+      .query(`UPDATE carepay_hospital_booking SET status = ? WHERE lan = ?`, [
+        status,
+        lan,
+      ]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: `Hospital not found: ${lan}` });
@@ -5994,10 +5993,10 @@ async function persistCarePayBureauResult(lan, data) {
     if (score !== null) {
       await db
         .promise()
-        .execute("UPDATE loan_booking_carepay SET cibil_score = ? WHERE lan = ?", [
-          score,
-          lan,
-        ]);
+        .execute(
+          "UPDATE loan_booking_carepay SET cibil_score = ? WHERE lan = ?",
+          [score, lan],
+        );
     }
 
     try {
@@ -6033,7 +6032,10 @@ async function persistCarePayBureauResult(lan, data) {
         [err.message, lan],
       );
     } catch (kycErr) {
-      console.error("CarePay failed bureau status update failed:", kycErr.message);
+      console.error(
+        "CarePay failed bureau status update failed:",
+        kycErr.message,
+      );
     }
 
     return bureauResult;
@@ -6045,7 +6047,9 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
   try {
     const data = req.body || {};
-    const lenderType = String(req.partner?.name || "").toLowerCase().trim();
+    const lenderType = String(req.partner?.name || "")
+      .toLowerCase()
+      .trim();
 
     if (!isCarePayPartner(req)) {
       return res.status(403).json({
@@ -6073,7 +6077,9 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       rawRequestAmount === null ||
       rawRequestAmount === ""
     ) {
-      return res.status(400).json({ message: "Missing fields: request_amount" });
+      return res
+        .status(400)
+        .json({ message: "Missing fields: request_amount" });
     }
 
     const requestAmount = Number(rawRequestAmount);
@@ -6141,7 +6147,12 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
     if (
       panRecords.some(
-        (row) => !allowedStatuses.has(String(row.status || "").trim().toLowerCase()),
+        (row) =>
+          !allowedStatuses.has(
+            String(row.status || "")
+              .trim()
+              .toLowerCase(),
+          ),
       )
     ) {
       await conn.rollback();
@@ -6150,7 +6161,8 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
       return res.status(400).json({
         status: "Failed",
-        message: "PAN already exists with an active loan. New loan not allowed.",
+        message:
+          "PAN already exists with an active loan. New loan not allowed.",
       });
     }
 
@@ -6311,7 +6323,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
     const [rows] = await db
       .promise()
       .query(
-        `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+        `SELECT * FROM loan_booking_clayyo WHERE clayyo_bureau_score IS NULL ORDER BY lan DESC LIMIT ?`,
         [limit],
       );
 
@@ -6467,7 +6479,20 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
           throw new Error(`HTTP ${response.status}`);
         }
 
-        const parser = new XMLParser({ ignoreAttributes: false });
+        const parser = new XMLParser({
+          ignoreAttributes: false,
+          attributeNamePrefix: "",
+          trimValues: true,
+
+          // Keep entity processing enabled, but raise limits for valid large bureau XML.
+          processEntities: {
+            enabled: true,
+            maxTotalExpansions: 10000,
+            maxExpandedLength: 5_000_000,
+            maxEntityCount: 10000,
+            maxEntitySize: 10000,
+          },
+        });
         const parsed = parser.parse(response.data);
         const encodedInnerXml =
           parsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
@@ -6491,7 +6516,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
         await db
           .promise()
           .execute(
-            `UPDATE loan_booking_loan_digit SET fintree_cibil_score = ? WHERE lan = ?`,
+            `UPDATE loan_booking_clayyo SET clayyo_bureau_score = ? WHERE lan = ?`,
             [score, lan],
           );
 
@@ -6684,7 +6709,6 @@ router.post("/v1/loan-digit", async (req, res) => {
   }
 });
 
-
 ////////////////////////////////////////////////////////////////////////////
 ///////////////////////    SUPPLY CHAIN  NEW /////////////////
 
@@ -6834,7 +6858,6 @@ router.post("/v1/supply-chain", verifyApiKey, async (req, res) => {
   }
 });
 
-
 ///////////////////////// SUPPLY CHAIN NEW Customer & Sanction END //////////////////////
 
 ///////////////////////// SUPPLY CHAIN NEW Supplier On board Start //////////////////////
@@ -6949,7 +6972,6 @@ router.post("/v1/supplier-onboarding", verifyApiKey, async (req, res) => {
 ///////////////////////// SUPPLY CHAIN NEW Supplier On Board END //////////////////////
 
 ///////////////////////// SUPPLY CHAIN Invoice Upload & Disbursement Start //////////////////////
-
 
 // SUpply Chain Disbursment UTR ///
 
@@ -7079,8 +7101,7 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
         continue;
       }
 
-      const remainingInvoiceAmount =
-        invoiceAmount - disbursementAmount;
+      const remainingInvoiceAmount = invoiceAmount - disbursementAmount;
 
       /* =====================================================
          STEP 7: INSERT + SANCTION UPDATE
@@ -7112,40 +7133,32 @@ router.post("/v1/invoice-disbursement/validate", async (req, res) => {
         throw new Error("Sanction record not found");
       }
 
-      const sanctionLimit = Number(
-        sanctionData[0].sanction_amount
-      );
-      const utilized = Number(
-        sanctionData[0].utilized_sanction_limit
-      );
+      const sanctionLimit = Number(sanctionData[0].sanction_amount);
+      const utilized = Number(sanctionData[0].utilized_sanction_limit);
 
       if ([sanctionLimit, utilized].some(Number.isNaN)) {
         throw new Error("Invalid sanction numeric data");
       }
 
-      const newUtilized =
-        utilized + disbursementAmount;
+      const newUtilized = utilized + disbursementAmount;
 
-      const newUnutilized =
-        sanctionLimit - newUtilized;
+      const newUnutilized = sanctionLimit - newUtilized;
 
       if (newUtilized > sanctionLimit) {
         throw new Error("Sanction limit exceeded");
       }
 
+      console.log("[Invoice Insert] ▶ Preparing insert payload");
 
-console.log("[Invoice Insert] ▶ Preparing insert payload");
-
-console.log("[Invoice Insert] partner_loan_id:", data);
-console.log("[Invoice Insert] lan:", data.lan);
-console.log("[Invoice Insert] invoice_number:", data.invoice_number);
-console.log("[Invoice Insert] invoice_amount:", invoiceAmount);
-console.log("[Invoice Insert] disbursement_amount:", disbursementAmount);
-console.log("[Invoice Insert] roi_percentage:", data.roi_percentage);
-console.log("[Invoice Insert] roi_penal_rate:", data.roi_penal_rate);
-console.log("[Invoice Insert] service_Fee:", data.service_Fee);
-console.log("[Invoice Insert] penal_rate:", data.penal_rate);
-
+      console.log("[Invoice Insert] partner_loan_id:", data);
+      console.log("[Invoice Insert] lan:", data.lan);
+      console.log("[Invoice Insert] invoice_number:", data.invoice_number);
+      console.log("[Invoice Insert] invoice_amount:", invoiceAmount);
+      console.log("[Invoice Insert] disbursement_amount:", disbursementAmount);
+      console.log("[Invoice Insert] roi_percentage:", data.roi_percentage);
+      console.log("[Invoice Insert] roi_penal_rate:", data.roi_penal_rate);
+      console.log("[Invoice Insert] service_Fee:", data.service_Fee);
+      console.log("[Invoice Insert] penal_rate:", data.penal_rate);
 
       await conn.query(
         `INSERT INTO invoice_disbursements (
@@ -7206,12 +7219,7 @@ console.log("[Invoice Insert] penal_rate:", data.penal_rate);
              unutilization_sanction_limit = ?
          WHERE partner_loan_id = ?
            AND lan = ?`,
-        [
-          newUtilized,
-          newUnutilized,
-          data.partner_loan_id,
-          data.lan,
-        ],
+        [newUtilized, newUnutilized, data.partner_loan_id, data.lan],
       );
 
       await conn.commit();
@@ -7235,8 +7243,7 @@ console.log("[Invoice Insert] penal_rate:", data.penal_rate);
       results.push({
         invoice_number: data.invoice_number,
         status: "success",
-        message:
-          "Invoice validated, saved, and sanction updated successfully",
+        message: "Invoice validated, saved, and sanction updated successfully",
       });
     } catch (err) {
       if (conn) {
@@ -7256,16 +7263,11 @@ console.log("[Invoice Insert] penal_rate:", data.penal_rate);
   return res.json({
     message: "Bulk invoice validation completed",
     total: payload.length,
-    success_count: results.filter(
-      (x) => x.status === "success"
-    ).length,
-    failed_count: results.filter(
-      (x) => x.status === "failed"
-    ).length,
+    success_count: results.filter((x) => x.status === "success").length,
+    failed_count: results.filter((x) => x.status === "failed").length,
     results,
   });
 });
-
 
 ///////////////////////// SUPPLY CHAIN Invoice Upload & Disbursement END //////////////////////
 
@@ -7446,7 +7448,7 @@ router.post(
             FROM supply_chain_sanctions
             WHERE lan = ?
             `,
-            [lan]
+            [lan],
           );
 
           if (!lanExists.length) {
@@ -7462,7 +7464,7 @@ router.post(
             FROM supply_chain_repayments
             WHERE collection_utr = ?
             `,
-            [collection_utr]
+            [collection_utr],
           );
 
           if (utrExists.length) {
@@ -7482,12 +7484,7 @@ router.post(
             )
             VALUES (?,?,?,?)
             `,
-            [
-              lan,
-              collection_date,
-              collection_utr,
-              collection_amount,
-            ]
+            [lan, collection_date, collection_utr, collection_amount],
           );
 
           /* ---------- ALLOCATION ENGINE ---------- */
@@ -7501,7 +7498,6 @@ router.post(
           });
 
           success_rows.push(R);
-
         } catch (err) {
           row_errors.push({
             row: R,
@@ -7521,7 +7517,6 @@ router.post(
         missing_lans: [...missing_lans],
         row_errors,
       });
-
     } catch (err) {
       console.error("❌ Excel upload error:", err);
 
@@ -7530,7 +7525,7 @@ router.post(
         error: err.message,
       });
     }
-  }
+  },
 );
 //////////////////////////// Supply chain Collection Upload API END ////////////////////////
 
@@ -7617,13 +7612,14 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
           partnerName,
         );
 
-        const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-          conn,
-          partner.partner_id,
-          loanAmount,
-          month,
-          year,
-        );
+        const limitCheck =
+          await partnerLimitService.validatePartnerBookingLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year,
+          );
 
         if (!limitCheck.valid) {
           await conn.rollback();
@@ -7800,153 +7796,161 @@ router.post("/circle-pe-upload", upload.single("file"), async (req, res) => {
     });
   }
 });
-router.post("/circle-pe-houser-upload", upload.single("file"), async (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "No file uploaded." });
-  if (!req.body.lenderType)
-    return res.status(400).json({ message: "Lender type is required." });
+router.post(
+  "/circle-pe-houser-upload",
+  upload.single("file"),
+  async (req, res) => {
+    if (!req.file)
+      return res.status(400).json({ message: "No file uploaded." });
+    if (!req.body.lenderType)
+      return res.status(400).json({ message: "Lender type is required." });
 
-  const lenderType = req.body.lenderType?.toLowerCase().trim();
+    const lenderType = req.body.lenderType?.toLowerCase().trim();
 
-  const success_rows = [];
-  const row_errors = [];
-  const skippedDueToCIBIL = [];
+    const success_rows = [];
+    const row_errors = [];
+    const skippedDueToCIBIL = [];
 
-  try {
-    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const rawData = xlsx.utils.sheet_to_json(sheet, { defval: "" });
+    try {
+      const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const rawData = xlsx.utils.sheet_to_json(sheet, { defval: "" });
 
-    if (rawData.length === 0)
-      return res.status(400).json({ message: "Excel is empty or invalid." });
+      if (rawData.length === 0)
+        return res.status(400).json({ message: "Excel is empty or invalid." });
 
-    const parse = (v) =>
-      typeof v === "number"
-        ? v
-        : parseFloat((v ?? "").toString().replace(/[^0-9.-]/g, "")) || 0;
+      const parse = (v) =>
+        typeof v === "number"
+          ? v
+          : parseFloat((v ?? "").toString().replace(/[^0-9.-]/g, "")) || 0;
 
-    for (const [i, row] of rawData.entries()) {
-      const R = i + 2;
-      let conn;
+      for (const [i, row] of rawData.entries()) {
+        const R = i + 2;
+        let conn;
 
-      try {
-        const panCard = row["pan_number"];
-        const aadharNumber = row["aadhaar_number"];
-        const appId = row["App_Id"];
-        const cibilScore = parseInt(row["credit_score"]);
+        try {
+          const panCard = row["pan_number"];
+          const aadharNumber = row["aadhaar_number"];
+          const appId = row["App_Id"];
+          const cibilScore = parseInt(row["credit_score"]);
 
-        if (isNaN(cibilScore)) {
-          skippedDueToCIBIL.push({
-            ...row,
-            reason: "Invalid or missing credit score",
-          });
-          continue;
-        }
-        if (!(cibilScore >= 500 || cibilScore === -1)) {
-          skippedDueToCIBIL.push({ ...row, reason: "Low CIBIL Score" });
-          continue;
-        }
+          if (isNaN(cibilScore)) {
+            skippedDueToCIBIL.push({
+              ...row,
+              reason: "Invalid or missing credit score",
+            });
+            continue;
+          }
+          if (!(cibilScore >= 500 || cibilScore === -1)) {
+            skippedDueToCIBIL.push({ ...row, reason: "Low CIBIL Score" });
+            continue;
+          }
 
-        // Check for duplicate app_id
-        const [exists] = await db
-          .promise()
-          .query(`SELECT * FROM loan_booking_circle_pe_houser WHERE app_id = ?`, [
-            appId,
-          ]);
-        if (exists.length > 0) {
-          row_errors.push({
-            row: R,
-            stage: "dup-check",
-            reason: `Duplicate App ID (${appId})`,
-          });
-          continue;
-        }
+          // Check for duplicate app_id
+          const [exists] = await db
+            .promise()
+            .query(
+              `SELECT * FROM loan_booking_circle_pe_houser WHERE app_id = ?`,
+              [appId],
+            );
+          if (exists.length > 0) {
+            row_errors.push({
+              row: R,
+              stage: "dup-check",
+              reason: `Duplicate App ID (${appId})`,
+            });
+            continue;
+          }
 
-        // Generate partnerLoanId + LAN
-        conn = await db.promise().getConnection();
-        await conn.beginTransaction();
+          // Generate partnerLoanId + LAN
+          conn = await db.promise().getConnection();
+          await conn.beginTransaction();
 
-        const partnerName = "Circle Pe Houser";
+          const partnerName = "Circle Pe Houser";
 
-        const loginDate = row["loan_application_date"]
-          ? excelDateToJSDate(row["loan_application_date"])
-          : null;
+          const loginDate = row["loan_application_date"]
+            ? excelDateToJSDate(row["loan_application_date"])
+            : null;
 
-        const today = new Date();
-        const loanAmount = parse(row["loan amount sanctioned"]);
-        const { month, year } = getMonthYear(today);
+          const today = new Date();
+          const loanAmount = parse(row["loan amount sanctioned"]);
+          const { month, year } = getMonthYear(today);
 
-        const partner = await partnerLimitService.getOrCreatePartner(
-          conn,
-          partnerName,
-        );
-
-        const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-          conn,
-          partner.partner_id,
-          loanAmount,
-          month,
-          year,
-        );
-
-        if (!limitCheck.valid) {
-          await conn.rollback();
-          conn.release();
-
-          row_errors.push({
-            row: R,
-            stage: "limit-check",
-            reason: `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`,
-          });
-
-          continue;
-        }
-
-        // Fetch partner FLDG percent
-        const [[partnerConfig]] = await conn.query(
-          `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-          [partner.partner_id],
-        );
-
-        if (!partnerConfig) {
-          throw new Error("Partner configuration not found");
-        }
-
-        let requiredFldg = 0;
-
-        if (partnerConfig?.fldg_status === 1) {
-          const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
-
-          requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
-        }
-
-        // Validate FLDG availability
-        if (requiredFldg > 0) {
-          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+          const partner = await partnerLimitService.getOrCreatePartner(
             conn,
-            partner.partner_id,
-            requiredFldg,
+            partnerName,
           );
 
-          if (!fldgCheck.valid) {
+          const limitCheck =
+            await partnerLimitService.validatePartnerBookingLimit(
+              conn,
+              partner.partner_id,
+              loanAmount,
+              month,
+              year,
+            );
+
+          if (!limitCheck.valid) {
             await conn.rollback();
             conn.release();
 
             row_errors.push({
               row: R,
-              stage: "fldg-check",
-              reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+              stage: "limit-check",
+              reason: `Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`,
             });
 
             continue;
           }
-        }
 
-        const { partnerLoanId, lan } =
-          await generateLoanIdentifiers(lenderType);
+          // Fetch partner FLDG percent
+          const [[partnerConfig]] = await conn.query(
+            `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+            [partner.partner_id],
+          );
 
-        await conn.query(
-          `INSERT INTO loan_booking_circle_pe_houser (
+          if (!partnerConfig) {
+            throw new Error("Partner configuration not found");
+          }
+
+          let requiredFldg = 0;
+
+          if (partnerConfig?.fldg_status === 1) {
+            const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+
+            requiredFldg = Number(
+              ((loanAmount * fldgPercent) / 100).toFixed(2),
+            );
+          }
+
+          // Validate FLDG availability
+          if (requiredFldg > 0) {
+            const fldgCheck = await partnerFldgService.validateFldgAvailability(
+              conn,
+              partner.partner_id,
+              requiredFldg,
+            );
+
+            if (!fldgCheck.valid) {
+              await conn.rollback();
+              conn.release();
+
+              row_errors.push({
+                row: R,
+                stage: "fldg-check",
+                reason: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+              });
+
+              continue;
+            }
+          }
+
+          const { partnerLoanId, lan } =
+            await generateLoanIdentifiers(lenderType);
+
+          await conn.query(
+            `INSERT INTO loan_booking_circle_pe_houser (
     login_date, lan, partner_loan_id, app_id, customer_name, gender, dob,
     father_name, mobile_number, email_id, pan_number, aadhar_number,
     current_address, current_pincode, loan_amount, interest_rate,
@@ -7954,116 +7958,117 @@ router.post("/circle-pe-houser-upload", upload.single("file"), async (req, res) 
     customer_type, bank_name, name_in_bank, account_number, ifsc,
     net_disbursement, agreement_date, status
   ) VALUES (${new Array(30).fill("?").join(",")})`,
-          [
-            row["loan_application_date"]
-              ? excelDateToJSDate(row["loan_application_date"])
-              : null,
-            lan,
-            partnerLoanId,
-            row["App_Id"] || row["app_id"],
-            row["customer_name"],
-            row["gender"],
-            row["date_of_birth"]
-              ? excelDateToJSDate(row["date_of_birth"])
-              : null,
-            row["fathers_name"],
-            row["mobile_number"],
-            row["email_id"],
-            row["pan_number"],
-            row["aadhaar_number"],
-            row["current_address_line1"],
-            row["current_address_pincode"],
-            parse(
-              row["loan amount sanctioned"] || row["loan_amount_sanctioned"],
-            ),
-            parse(row["interest_percent"]),
-            parse(row["loan_tenure_months"]),
-            parse(row["monthly emi"] || row["monthly_emi"]),
-            parseInt(row["credit_score"]),
-            row["product"],
-            row["LenderType"] || lenderType,
-            row["residence_type"],
-            row["customer_type"],
-            row["bank_name"],
-            row["beneficiary_name"],
-            row["institute_account_number"],
-            row["ifsc_code"],
-            parse(
-              row["loan amount sanctioned"] || row["loan_amount_sanctioned"],
-            ), // net_disbursement
-            row["loan_application_date"]
-              ? excelDateToJSDate(row["loan_application_date"])
-              : null, // agreement date
-            "Login",
-          ],
-        );
-
-        console.log(
-          parse(row["loan amount sanctioned"]),
-          row["interest_percent"],
-          row["loan_tenure_months"],
-          parse(row["monthly emi"]),
-        );
-
-        await partnerLimitService.updateBookedLimit(
-          conn,
-          limitCheck.limitId,
-          loanAmount,
-          lan,
-        );
-
-        if (requiredFldg > 0) {
-          await partnerFldgService.reserveFldg(
-            conn,
-            partner.partner_id,
-            lan,
-            requiredFldg,
-            `Circle PE Loan reservation | Amount: ${loanAmount}`,
+            [
+              row["loan_application_date"]
+                ? excelDateToJSDate(row["loan_application_date"])
+                : null,
+              lan,
+              partnerLoanId,
+              row["App_Id"] || row["app_id"],
+              row["customer_name"],
+              row["gender"],
+              row["date_of_birth"]
+                ? excelDateToJSDate(row["date_of_birth"])
+                : null,
+              row["fathers_name"],
+              row["mobile_number"],
+              row["email_id"],
+              row["pan_number"],
+              row["aadhaar_number"],
+              row["current_address_line1"],
+              row["current_address_pincode"],
+              parse(
+                row["loan amount sanctioned"] || row["loan_amount_sanctioned"],
+              ),
+              parse(row["interest_percent"]),
+              parse(row["loan_tenure_months"]),
+              parse(row["monthly emi"] || row["monthly_emi"]),
+              parseInt(row["credit_score"]),
+              row["product"],
+              row["LenderType"] || lenderType,
+              row["residence_type"],
+              row["customer_type"],
+              row["bank_name"],
+              row["beneficiary_name"],
+              row["institute_account_number"],
+              row["ifsc_code"],
+              parse(
+                row["loan amount sanctioned"] || row["loan_amount_sanctioned"],
+              ), // net_disbursement
+              row["loan_application_date"]
+                ? excelDateToJSDate(row["loan_application_date"])
+                : null, // agreement date
+              "Login",
+            ],
           );
-        }
 
-        await conn.commit();
-        conn.release();
+          console.log(
+            parse(row["loan amount sanctioned"]),
+            row["interest_percent"],
+            row["loan_tenure_months"],
+            parse(row["monthly emi"]),
+          );
 
-        success_rows.push(R);
-      } catch (err) {
-        if (conn) {
-          await conn.rollback();
+          await partnerLimitService.updateBookedLimit(
+            conn,
+            limitCheck.limitId,
+            loanAmount,
+            lan,
+          );
+
+          if (requiredFldg > 0) {
+            await partnerFldgService.reserveFldg(
+              conn,
+              partner.partner_id,
+              lan,
+              requiredFldg,
+              `Circle PE Loan reservation | Amount: ${loanAmount}`,
+            );
+          }
+
+          await conn.commit();
           conn.release();
-        }
-        row_errors.push({
-          row: R,
-          stage: "insert",
-          reason: toClientError(err).message,
-        });
-        continue;
-      }
-    }
 
-    return res.status(200).json({
-      message: "Circle pe houser file processed.",
-      total_rows: rawData.length,
-      inserted_rows: success_rows.length,
-      failed_rows: row_errors.length,
-      success_rows,
-      row_errors,
-      skippedDueToCIBIL,
-      totalSkipped: skippedDueToCIBIL.length,
-    });
-  } catch (error) {
-    console.error("❌ Circle Pe Houser Upload Error:", error);
-    return res.status(500).json({
-      message: "Upload failed",
-      error: toClientError(error),
-      inserted_rows: success_rows.length,
-      failed_rows: row_errors.length,
-      success_rows,
-      row_errors,
-      skippedDueToCIBIL,
-      totalSkipped: skippedDueToCIBIL.length,
-    });
-  }
-});
+          success_rows.push(R);
+        } catch (err) {
+          if (conn) {
+            await conn.rollback();
+            conn.release();
+          }
+          row_errors.push({
+            row: R,
+            stage: "insert",
+            reason: toClientError(err).message,
+          });
+          continue;
+        }
+      }
+
+      return res.status(200).json({
+        message: "Circle pe houser file processed.",
+        total_rows: rawData.length,
+        inserted_rows: success_rows.length,
+        failed_rows: row_errors.length,
+        success_rows,
+        row_errors,
+        skippedDueToCIBIL,
+        totalSkipped: skippedDueToCIBIL.length,
+      });
+    } catch (error) {
+      console.error("❌ Circle Pe Houser Upload Error:", error);
+      return res.status(500).json({
+        message: "Upload failed",
+        error: toClientError(error),
+        inserted_rows: success_rows.length,
+        failed_rows: row_errors.length,
+        success_rows,
+        row_errors,
+        skippedDueToCIBIL,
+        totalSkipped: skippedDueToCIBIL.length,
+      });
+    }
+  },
+);
 
 //////////////////////////////   CIRCLE PE ADD FOR LOAN BOOKING  END ////////////////////////
 
@@ -8311,13 +8316,14 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
           partnerName,
         );
 
-        const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-          conn,
-          partner.partner_id,
-          loanAmount,
-          month,
-          year,
-        );
+        const limitCheck =
+          await partnerLimitService.validatePartnerBookingLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year,
+          );
 
         if (!limitCheck.valid) {
           rejectedLimit++;
@@ -8751,13 +8757,14 @@ router.post("/gq-non-fsf-upload", upload.single("file"), async (req, res) => {
           partnerName,
         );
 
-        const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-          conn,
-          partner.partner_id,
-          loanAmount,
-          month,
-          year,
-        );
+        const limitCheck =
+          await partnerLimitService.validatePartnerBookingLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year,
+          );
 
         if (!limitCheck.valid) {
           await conn.rollback();
@@ -9646,7 +9653,6 @@ router.post("/adikosh-upload", upload.single("file"), async (req, res) => {
   }
 });
 
-
 router.get("/schedule/:lan", (req, res) => {
   const lan = req.params.lan;
   let query;
@@ -9673,8 +9679,7 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_helium";
   } else if (lan.startsWith("CIRF")) {
     tableName = "manual_rps_circlepe";
-  }
-  else if (lan.startsWith("CIRHUF")) {
+  } else if (lan.startsWith("CIRHUF")) {
     tableName = "manual_rps_circle_pe_houser";
   } else if (lan.startsWith("FINS")) {
     tableName = "manual_rps_finso_loan";
@@ -9686,7 +9691,7 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_clayoo";
   } else if (lan.startsWith("LDF")) {
     tableName = "manual_rps_loan_digit";
-  }else if (lan.startsWith("MC")) {
+  } else if (lan.startsWith("MC")) {
     tableName = "manual_rps_motioncorp";
   } else if (lan.startsWith("SF")) {
     tableName = "manual_rps_seven_fincorp";

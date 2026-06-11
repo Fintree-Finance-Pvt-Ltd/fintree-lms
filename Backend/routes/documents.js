@@ -1709,17 +1709,59 @@ const fmtDDMMMYYYY = (d) => {
     .toUpperCase();
 };
 
-// single-line cell (no wrap) trimmed with ellipsis
-function cellText(doc, text, x, y, w, h, align = "left") {
-  const pad = 3;
+// Premium visual metric card helper
+function drawPremiumCard(doc, x, y, w, h, label, value, isPrimary = false) {
+  doc.save();
+  if (isPrimary) {
+    // Dark mode high-contrast primary anchor card
+    doc.fillColor("#2c55b5").roundedRect(x, y, w, h, 6).fill();
+    doc.fillColor("#ebeef1").font("Helvetica").fontSize(7.5).text(label, x + 12, y + 8);
+    doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(11.5).text(value, x + 12, y + 20);
+  } else {
+    // Standard minimalist layout sub-card
+    doc.fillColor("#F8FAFC").roundedRect(x, y, w, h, 5).fill();
+    doc.lineWidth(0.5).strokeColor("#E2E8F0").roundedRect(x, y, w, h, 5).stroke();
+    doc.fillColor("#64748B").font("Helvetica").fontSize(7.5).text(label, x + 10, y + 8);
+    doc.fillColor("#1E293B").font("Helvetica-Bold").fontSize(10.5).text(value, x + 10, y + 20);
+  }
+  doc.restore();
+}
+
+function drawSoaTopAccent(doc) {
+  doc.save();
+  // Premium navy + Fintree green accent
+  doc.fillColor("#2c55b5")
+    .rect(0, 0, doc.page.width * 0.82, 6)
+    .fill();
+
+  doc.fillColor("#24A148")
+    .rect(doc.page.width * 0.82, 0, doc.page.width * 0.18, 6)
+    .fill();
+  doc.restore();
+}
+
+// Single-line cell wrapper with vertical centering and clear zero suppression
+function cellText(doc, text, x, y, w, h, align = "left", colIndex = 0, isHeader = false) {
+  const pad = 6; 
   const innerW = w - pad * 2;
+  
   let s =
-    text === null || text === undefined || text === "" ? "-" : String(text);
+   text === null || text === undefined || text === "" ? "-" : String(text);
+  
+  // Clean empty cells by keeping zero amounts blank in columns
+  if (!isHeader && (s === "0.00" || s === "-0.00" || s === "0")) {
+    s = "";
+  }
+
+  // Format loose plain numbers into formatted currency inside table strings safely
+  if (!isHeader && s !== "-" && s !== "" && !isNaN(Number(s.replace(/,/g, ""))) && s.includes(".")) {
+    s = inr(Number(s.replace(/,/g, "")));
+  }
 
   if (doc.widthOfString(s) > innerW) {
     const ell = "…";
-    let lo = 0,
-      hi = s.length;
+    let lo = 0, 
+    hi = s.length;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
       const candidate = s.slice(0, mid) + ell;
@@ -1729,23 +1771,57 @@ function cellText(doc, text, x, y, w, h, align = "left") {
     s = s.slice(0, Math.max(0, lo - 1)) + ell;
   }
 
+  doc.save();
+  if (isHeader) {
+    doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(8);
+  } else {
+    // Apply clean modern color accents directly to financial values based on accounting category
+    if (colIndex === 3 && s !== "") {
+      doc.fillColor("#1E293B"); // Debit column text uses clean deep charcoal
+    } else if (colIndex >= 4 && colIndex <= 6 && s !== "") {
+      doc.fillColor("#15803D"); // Principal, Interest, and Total Credits use crisp brand green
+    } else {
+      doc.fillColor("#334155"); // Baseline fields use muted slate tones
+    }
+    doc.font("Helvetica").fontSize(8.5);
+  }
+
   doc.text(s, x + pad, y + (h - doc.currentLineHeight()) / 2, {
     width: innerW,
     align,
     lineBreak: false,
   });
+  doc.restore();
 }
 
-// draw header with absolute positions; return next y
+// Draw an ultra-modern header layout block matching the cards design
 function drawHeaderAbs(doc, y, colX, colW, headers, rowH) {
-  doc.font("Helvetica-Bold").fontSize(9);
+  doc.save();
+  // Premium dark slate background header ribbon block matching neo-banking components
+  doc.fillColor("#2c55b5").roundedRect(colX[0], y, 725, rowH, 4).fill();
+  
+  // Flatten bottom corners of the header to merge seamlessly with the table frame below
+  doc.fillColor("#2c55b5").rect(colX[0], y + rowH - 4, 725, 4).fill();
+
   for (let i = 0; i < headers.length; i++) {
-    const x = colX[i],
-      w = colW[i];
-    doc.rect(x, y, w, rowH).stroke();
-    cellText(doc, headers[i], x, y, w, rowH, "left");
+    const rightAlign = i >= 3 && i <= 8;
+    cellText(doc, headers[i], colX[i], y, colW[i], rowH, rightAlign ? "right" : "left", i, true);
   }
+  doc.restore();
   return y + rowH;
+}
+
+// Helper to render an ultra-modern glassmorphic container for footer text
+function drawGlassFooterCard(doc, y, text1, text2) {
+  doc.save();
+  let cardH = 34;
+  doc.fillColor("#F8FAFC").roundedRect(35, y, 725, cardH, 5).fill();
+  doc.lineWidth(0.5).strokeColor("#E2E8F0").roundedRect(35, y, 725, cardH, 5).stroke();
+  
+  doc.fillColor("#64748B").font("Helvetica").fontSize(7.5);
+  doc.text(text1, 47, y + 8);
+  doc.text(text2, 47, y + 18);
+  doc.restore();
 }
 
 // ----------------- route -----------------
@@ -1754,10 +1830,7 @@ router.post("/generate-soa", async (req, res) => {
   if (!lan) return res.status(400).json({ error: "lan required" });
 
   // pick tables
-  let loanTable = "",
-    rpsTable = "",
-    paymentsTable = "",
-    chargesTable = "";
+  let loanTable = "", rpsTable = "", paymentsTable = "", chargesTable = "";
   if (lan.startsWith("GQN")) {
     loanTable = "loan_booking_gq_non_fsf";
     rpsTable = "manual_rps_gq_non_fsf";
@@ -1907,7 +1980,7 @@ router.post("/generate-soa", async (req, res) => {
         date: r.due_date,
         description: "EMI Due",
         charge_type: "EMI",
-        debit: safeNum(r.emi),
+        debit: safeNum(r.emi).toFixed(2),
       });
     });
     (chargesRows || []).forEach((c) => {
@@ -1916,7 +1989,7 @@ router.post("/generate-soa", async (req, res) => {
         date: c.due_date || c.charge_date || null,
         description: c.charge_type || "Charge",
         charge_type: c.charge_type,
-        debit: safeNum(c.amount),
+        debit: safeNum(c.amount).toFixed(2),
       });
     });
 
@@ -1925,7 +1998,7 @@ router.post("/generate-soa", async (req, res) => {
     (allocationRows || []).forEach((a) => {
       const allocDate = a.allocation_date || a.bank_date_allocation || null;
       const p = payMap.get(a.payment_id) || null;
-      const payment_date = p ? p.payment_date || null : null; // shown in last column
+      const payment_date = p ? p.payment_date || null : null;
       const amt = safeNum(a.allocated_amount);
       const ct = (a.charge_type || "").toLowerCase();
 
@@ -1934,15 +2007,15 @@ router.post("/generate-soa", async (req, res) => {
         date: allocDate || payment_date || new Date(),
         description: `Allocation - ${a.charge_type || "Allocation"}`,
         charge_type: a.charge_type,
-        principal: ct === "principal" ? amt : 0,
-        interest: ct === "interest" ? amt : 0,
-        other: ct !== "principal" && ct !== "interest" ? amt : 0,
-        total: amt,
+        principal: ct === "principal" ? amt.toFixed(2) : "0.00",
+        interest: ct === "interest" ? amt.toFixed(2) : "0.00",
+        other: ct !== "principal" && ct !== "interest" ? amt.toFixed(2) : "0.00",
+        total: amt.toFixed(2),
         payment_date,
       });
     });
 
-    // Any unallocated payments → show as "other"
+    // Any unallocated payments
     const allocatedIds = new Set(
       (allocationRows || []).map((a) => a.payment_id).filter(Boolean),
     );
@@ -1953,16 +2026,16 @@ router.post("/generate-soa", async (req, res) => {
           date: p.bank_date || p.payment_date || new Date(),
           description: "Repayment (unallocated)",
           charge_type: p.payment_mode,
-          principal: 0,
-          interest: 0,
-          other: safeNum(p.transfer_amount),
-          total: safeNum(p.transfer_amount),
+          principal: "0.00",
+          interest: "0.00",
+          other: safeNum(p.transfer_amount).toFixed(2),
+          total: safeNum(p.transfer_amount).toFixed(2),
           payment_date: p.payment_date,
         });
       }
     });
 
-    // Merge + sort (DEBIT before CREDIT on same date)
+    // Merge + sort
     const all = [...debits, ...credits].sort((a, b) => {
       const ta = new Date(a.date).getTime(),
         tb = new Date(b.date).getTime();
@@ -1972,7 +2045,7 @@ router.post("/generate-soa", async (req, res) => {
       return 0;
     });
 
-    // Final rows (only principal reduces outstanding)
+    // Final rows mapping loop logic
     const rows = [];
     for (const it of all) {
       const opening = outstanding;
@@ -1994,7 +2067,7 @@ router.post("/generate-soa", async (req, res) => {
         const i = safeNum(it.interest || 0);
         const o = safeNum(it.other || 0);
         const tot = p + i + o;
-        outstanding = Math.max(0, opening - p); // principal only
+        outstanding = Math.max(0, opening - p);
         rows.push({
           date: fmtDate(it.date),
           description: it.description,
@@ -2028,10 +2101,6 @@ router.post("/generate-soa", async (req, res) => {
 
     // overdue sums
     const totalEmiOverdue = safeNum(overdueAgg?.total_emi_overdue || 0);
-    const otherOverdues = safeNum(otherDueAgg?.other_due || 0);
-    const totalOverdue = totalEmiOverdue + otherOverdues;
-
-    // principal outstanding is your running outstanding
     const principalOutstanding = safeNum(outstanding);
 
     function getPartnerLoanIdByTable(loan, loanTable) {
@@ -2049,16 +2118,14 @@ router.post("/generate-soa", async (req, res) => {
         loan_bookings_wctl: "partner_loan_id",
         loan_bookings: "partner_loan_id",
       };
-
       const field = FIELD_MAP[loanTable];
-
       return field && loan[field] ? loan[field] : loan.lan || "-";
     }
 
     const partnerLoanId = getPartnerLoanIdByTable(loan, loanTable);
 
-    // -------- PDF: stable multi-page layout --------
-    const MARGINS = { top: 40, left: 40, right: 40, bottom: 40 };
+    // -------- PDF Setup --------
+    const MARGINS = { top: 45, left: 35, right: 35, bottom: 40 };
     const doc = new PDFDocument({
       size: "A4",
       layout: "landscape",
@@ -2072,104 +2139,110 @@ router.post("/generate-soa", async (req, res) => {
     const ws = fs.createWriteStream(filePath);
     doc.pipe(ws);
 
-    // --- Logo + Title ---
-    doc
-      .image(path.join(__dirname, "../public/fintree-logo.png"), {
-        fit: [100, 100],
-        align: "center",
-      })
-      .moveDown(0.5);
+    // --- 1. Top Edge Branding Accent Line ---
+    drawSoaTopAccent(doc);
 
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(16)
-      .text("Statement Of Account", { align: "center" })
-      .moveDown(0.6);
+    // --- 2. Logo Layout ---
+    const logoPath = path.join(__dirname, "../public/fintree-logo.png");
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, MARGINS.left, 20, { width: 110 }); 
+    }
 
-    // --- Body (regular font) ---
-    doc.font("Helvetica").fontSize(11);
+    doc.fillColor("#2c55b5").font("Helvetica-Bold").fontSize(16).text("Statement Of Account", 520, 26, { align: "right" });
 
-    // Left column
+    // --- 3. First Grid Segment ---
+    let cardY1 = 105; 
+    let cardW = 175;
+    let cardH = 38;
+    let gap = 8;
 
-    const leftX = doc.page.margins.left;
-    // const leftX   = leftX + 360; // second column start (tweak if needed)
+    drawPremiumCard(doc, MARGINS.left, cardY1, cardW, cardH, "PRINCIPAL OUTSTANDING", `Rs. ${inr(principalOutstanding)}`, true);
+    drawPremiumCard(doc, MARGINS.left + (cardW + gap) * 1, cardY1, cardW, cardH, "TOTAL OVERDUE", `Rs. ${inr(totalEmiOverdue)}`);
+    drawPremiumCard(doc, MARGINS.left + (cardW + gap) * 2, cardY1, cardW, cardH, "SANCTIONED AMOUNT", `Rs. ${inr(loanAmt)}`);
+    drawPremiumCard(doc, MARGINS.left + (cardW + gap) * 3, cardY1, cardW, cardH, "MONTHLY EMI", `Rs. ${inr(emiAmt)}`);
 
-    const drawLine = (x, label, value) => {
-      doc.text(`${label}: ${value}`, x);
-      doc.moveDown(0.1);
-    };
+    // --- 4. Second Grid Segment ---
+    let cardY2 = cardY1 + cardH + gap; 
+    drawPremiumCard(doc, MARGINS.left, cardY2, cardW, cardH, "TENURE / INTEREST RATE", `${tenureMonths} Mo. / ${roi}%`);
+    drawPremiumCard(doc, MARGINS.left + (cardW + gap) * 1, cardY2, cardW, cardH, "EMI START DATE", fmtDDMMMYYYY(emiStart));
+    drawPremiumCard(doc, MARGINS.left + (cardW + gap) * 2, cardY2, cardW, cardH, "EMI MATURITY DATE", fmtDDMMMYYYY(emiLast));
 
-    doc
-      .text(`Customer Name: ${loan.customer_name || "-"}`)
-      .text(`Loan Account No: ${loan.lan || "-"}`)
-      // .text(`Partner Loan ID: ${loan.app_id || "-"}`)
-      .text(`Partner Loan ID: ${partnerLoanId}`);
-    drawLine(leftX, "Loan Amount (Rs)", inr(loanAmt));
-    drawLine(leftX, "Rate of Interest (%)", roi);
-    drawLine(leftX, "EMI Start Date", fmtDDMMMYYYY(emiStart));
-    drawLine(leftX, "Loan Tenure", `${tenureMonths} Months`);
+    // --- 5. Account Holder Metadata Plate ---
+    let infoPlateY = cardY2 + cardH + gap; 
+    let infoPlateH = 22;
+    doc.save();
+    doc.fillColor("#F8FAFC").roundedRect(MARGINS.left, infoPlateY, 725, infoPlateH, 4).fill();
+    doc.lineWidth(0.5).strokeColor("#E2E8F0").roundedRect(MARGINS.left, infoPlateY, 725, infoPlateH, 4).stroke();
+    
+    doc.fillColor("#475569").font("Helvetica-Bold").fontSize(8.5);
+    doc.text("ACCOUNT HOLDERS SUMMARY DETAILS", MARGINS.left + 10, infoPlateY + 7);
+    
+    doc.fillColor("#64748B").font("Helvetica").fontSize(8.5);
+    doc.text(`Customer Name:`, MARGINS.left + 210, infoPlateY + 7);
+    doc.fillColor("#2c55b5").font("Helvetica-Bold").text(`${loan.customer_name || "-"}`, MARGINS.left + 285, infoPlateY + 7);
+    
+    doc.fillColor("#64748B").font("Helvetica").text(`Loan Account No:`, MARGINS.left + 410, infoPlateY + 7);
+    doc.fillColor("#2c55b5").font("Helvetica-Bold").text(`${loan.lan || "-"}`, MARGINS.left + 490, infoPlateY + 7);
+    
+    doc.fillColor("#64748B").font("Helvetica").text(`Partner ID:`, MARGINS.left + 595, infoPlateY + 7);
+    doc.fillColor("#2c55b5").font("Helvetica-Bold").text(`${partnerLoanId}`, MARGINS.left + 645, infoPlateY + 7);
+    doc.restore();
 
-    // Right column lines
-    // doc.y = startY; // align top of right column with left
-    drawLine(leftX, "EMI Last Date", fmtDDMMMYYYY(emiLast));
-    drawLine(leftX, "EMI (Rs)", inr(emiAmt));
-    drawLine(leftX, "Total EMI Overdue", inr(totalEmiOverdue));
-    drawLine(leftX, "Principal Outstanding", inr(principalOutstanding));
-    drawLine(leftX, "Report Date", new Date().toLocaleDateString("en-IN"));
-
-    doc.moveDown(0.6);
-
-    // column widths (edit here only)
-    const colW = [
-      60, // Date
-      95, // Description
-      70, // Charge
-      70, // Debit
-      70, // Principal
-      70, // Interest
-      70, // Total Credit
-      80, // Opening
-      80, // Closing
-      90, // Payment Date
-    ];
+    // Column configurations setup
+    const colW = [68, 110, 62, 62, 62, 62, 62, 75, 75, 87];
     const headers = [
       "Date",
       "Description",
-      "Charge",
-      "Debit",
-      "Principal",
-      "Interest",
+      "Charge Type",
+      "Debit (Dr)",
+      "Principal Cr",
+      "Interest Cr",
       "Total Credit",
-      "Opening",
-      "Closing",
+      "Opening O/S",
+      "Closing O/S",
       "Payment Date",
     ];
 
-    // absolute X positions from the left margin
     const colX = new Array(colW.length);
     colX[0] = MARGINS.left;
     for (let i = 1; i < colW.length; i++) colX[i] = colX[i - 1] + colW[i - 1];
 
-    const rowH = 18;
-    const bottomY = doc.page.height - MARGINS.bottom;
+    const rowH = 22; 
+    const bottomLimitY = doc.page.height - MARGINS.bottom - 40; 
 
-    // Header (page 1)
-    let y = drawHeaderAbs(doc, doc.y, colX, colW, headers, rowH);
-    doc.font("Helvetica").fontSize(9);
+    let y = infoPlateY + infoPlateH + 10; 
+    let tableStartY = y; 
+    
+    y = drawHeaderAbs(doc, y, colX, colW, headers, rowH);
+    let rowIndex = 0;
 
-    // Rows
+    // Rows Painter Execution Loop
     for (const r of rows) {
-      if (y + rowH > bottomY) {
+      if (y + rowH > bottomLimitY) {
+        // Apply page-level outer closing border box to keep elements structural on page break splits
+        doc.save();
+        doc.lineWidth(0.5).strokeColor("#CBD5E0").rect(MARGINS.left, tableStartY, 725, y - tableStartY).stroke();
+        doc.restore();
+
         doc.addPage({ size: "A4", layout: "landscape", margins: MARGINS });
-        y = MARGINS.top + 10;
+        
+        drawSoaTopAccent(doc);
+
+        y = MARGINS.top + 5;
+        tableStartY = y; 
         y = drawHeaderAbs(doc, y, colX, colW, headers, rowH);
-        doc.font("Helvetica").fontSize(9);
+        rowIndex = 0;
       }
 
-      // grid boxes (absolute x each time)
-      for (let i = 0; i < colW.length; i++) {
-        doc.rect(colX[i], y, colW[i], rowH).stroke();
+      doc.save();
+      // Premium Alternating Soft Row Shading
+      if (rowIndex % 2 === 1) {
+        doc.fillColor("#F8FAFC").rect(MARGINS.left, y, 725, rowH).fill();
       }
+      
+      // Clean modern borderless internal rule lines (only subtle horizontal split indicators)
+      doc.lineWidth(0.4).strokeColor("#E2E8F0").moveTo(MARGINS.left, y + rowH).lineTo(MARGINS.left + 725, y + rowH).stroke();
+      doc.restore();
 
       const vals = [
         r.date,
@@ -2183,8 +2256,9 @@ router.post("/generate-soa", async (req, res) => {
         r.closing,
         r.paydate,
       ];
+      
       for (let i = 0; i < colW.length; i++) {
-        const right = i >= 3 && i <= 8; // numeric columns
+        const right = i >= 3 && i <= 8; 
         cellText(
           doc,
           vals[i],
@@ -2193,20 +2267,31 @@ router.post("/generate-soa", async (req, res) => {
           colW[i],
           rowH,
           right ? "right" : "left",
+          i,
+          false
         );
       }
       y += rowH;
+      rowIndex++;
     }
 
-    // footer
-    doc
-      .moveDown(1)
-      .fontSize(9)
-      .text(
-        "***This is a system generated document and does not require a signature***",
-        MARGINS.left,
-        y + 6,
-      );
+    // Paint the absolute crisp outer frame boundary box around the final rows block segment
+    doc.save();
+    doc.lineWidth(0.5).strokeColor("#CBD5E0").rect(MARGINS.left, tableStartY, 725, y - tableStartY).stroke();
+    doc.restore();
+
+    if (y + 45 > doc.page.height - MARGINS.bottom) {
+      doc.addPage({ size: "A4", layout: "landscape", margins: MARGINS });
+      drawSoaTopAccent(doc);
+      y = MARGINS.top;
+    } else {
+      y += 12; 
+    }
+
+    // --- 6. Glassmorphic Footer Card Layout Generation Engine ---
+    const textPart1 = `Report Date: ${new Date().toLocaleDateString("en-IN")}   |   Fintree Finance Private Limited Document Registry.`;
+    const textPart2 = `***This is a system generated statement tracking transaction ledger history allocations and does not require a physical signature.***`;
+    drawGlassFooterCard(doc, y, textPart1, textPart2);
 
     doc.end();
 

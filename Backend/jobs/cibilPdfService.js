@@ -50,6 +50,13 @@ function parseXml(xml) {
     ignoreAttributes: false,
     attributeNamePrefix: '',
     trimValues: true,
+    processEntities: {
+      enabled: true,
+      maxTotalExpansions: 10000,
+      maxExpandedLength: 5_000_000,
+      maxEntityCount: 10000,
+      maxEntitySize: 10000,
+    },
   });
   return parser.parse(xml);
 }
