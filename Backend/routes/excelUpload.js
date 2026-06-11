@@ -4733,10 +4733,10 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
             trimValues: true,
             processEntities: {
               enabled: true,
-              maxTotalExpansions: 10000,
-              maxExpandedLength: 5_000_000,
-              maxEntityCount: 10000,
-              maxEntitySize: 10000,
+              maxTotalExpansions: 200000,
+              maxExpandedLength: 20_000_000,
+              maxEntityCount: 200000,
+              maxEntitySize: 200000,
             },
           });
           const soapParsed = parser.parse(response.data);
@@ -5508,10 +5508,10 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
         // Keep entity processing enabled, but raise limits for valid large bureau XML.
         processEntities: {
           enabled: true,
-          maxTotalExpansions: 10000,
-          maxExpandedLength: 5_000_000,
-          maxEntityCount: 10000,
-          maxEntitySize: 10000,
+          maxTotalExpansions: 200000,
+          maxExpandedLength: 20_000_000,
+          maxEntityCount: 200000,
+          maxEntitySize: 200000,
         },
       });
       const soapParsed = parser.parse(response.data);
@@ -6511,10 +6511,10 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
           // Keep entity processing enabled, but raise limits for valid large bureau XML.
           processEntities: {
             enabled: true,
-            maxTotalExpansions: 100000,
-            maxExpandedLength: 5_000_000,
-            maxEntityCount: 100000,
-            maxEntitySize: 100000,
+            maxTotalExpansions: 200000,
+            maxExpandedLength: 20_000_000,
+            maxEntityCount: 200000,
+            maxEntitySize: 200000,
           },
         });
         const parsed = parser.parse(response.data);

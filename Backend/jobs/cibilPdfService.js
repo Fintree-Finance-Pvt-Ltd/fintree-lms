@@ -52,10 +52,10 @@ function parseXml(xml) {
     trimValues: true,
     processEntities: {
       enabled: true,
-      maxTotalExpansions: 10000,
-      maxExpandedLength: 5_000_000,
-      maxEntityCount: 10000,
-      maxEntitySize: 10000,
+      maxTotalExpansions: 200000,
+      maxExpandedLength: 20_000_000,
+      maxEntityCount: 200000,
+      maxEntitySize: 200000,
     },
   });
   return parser.parse(xml);

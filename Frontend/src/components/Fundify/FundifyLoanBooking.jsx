@@ -87,6 +87,8 @@ const FundifyManualEntry = () => {
   /* ---- Progressive save ---- */
   const [lan, setLan] = useState(resumeLan || "");
   const [applicantSaved, setApplicantSaved] = useState(!!resumeLan);
+  const [submitted, setSubmitted] = useState(false);
+  const [submittedLan, setSubmittedLan] = useState("");
 
   /* ---- GST ---- */
   const [gstLoading, setGstLoading] = useState(false);
@@ -672,7 +674,8 @@ const FundifyManualEntry = () => {
     try {
       setLoading(true);
       const res = await api.post("/fundify/final-submit", { lan });
-      setMessage(`✅ Fundify loan submitted successfully! LAN: ${res.data.lan}`);
+      setSubmittedLan(res.data.lan || lan);
+      setSubmitted(true);
       return true;
     } catch (err) {
       setMessage(`❌ ${err.response?.data?.message || "Failed to submit loan"}`);
@@ -932,6 +935,169 @@ const FundifyManualEntry = () => {
 
   const isOptionalSection = activeSection === 4 || activeSection === 5;
   const isLastSection = activeSection === SECTIONS.length - 1;
+
+  /* ── Success Screen ── */
+  if (submitted) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f2027 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+        fontFamily: "'Inter', 'Segoe UI', sans-serif",
+      }}>
+        <div style={{
+          background: "linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: "24px",
+          padding: "56px 48px",
+          maxWidth: "560px",
+          width: "100%",
+          textAlign: "center",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)",
+          animation: "fadeSlideUp 0.5s ease",
+        }}>
+          {/* Animated checkmark circle */}
+          <div style={{
+            width: "88px",
+            height: "88px",
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #22c55e, #16a34a)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 32px",
+            boxShadow: "0 0 40px rgba(34,197,94,0.4), 0 0 80px rgba(34,197,94,0.15)",
+            animation: "popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275)",
+          }}>
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <path d="M8 20L16 28L32 12" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+
+          <h1 style={{
+            fontSize: "26px",
+            fontWeight: 700,
+            color: "#f1f5f9",
+            margin: "0 0 12px",
+            letterSpacing: "-0.5px",
+          }}>Case Submitted Successfully!</h1>
+
+          <p style={{
+            fontSize: "15px",
+            color: "#94a3b8",
+            margin: "0 0 32px",
+            lineHeight: 1.7,
+          }}>
+            Thank you! Your loan application has been created and forwarded to the
+            <strong style={{ color: "#cbd5e1" }}> Credit Team</strong> for review and verification.
+            You will be notified once the process is complete.
+          </p>
+
+          {/* LAN Card */}
+          <div style={{
+            background: "rgba(99,102,241,0.12)",
+            border: "1px solid rgba(99,102,241,0.35)",
+            borderRadius: "14px",
+            padding: "20px 24px",
+            marginBottom: "36px",
+          }}>
+            <p style={{ margin: "0 0 6px", fontSize: "12px", color: "#818cf8", textTransform: "uppercase", letterSpacing: "1.5px", fontWeight: 600 }}>
+              Loan Application Number
+            </p>
+            <p style={{
+              margin: 0,
+              fontSize: "24px",
+              fontWeight: 800,
+              color: "#a5b4fc",
+              letterSpacing: "2px",
+              fontFamily: "'Courier New', monospace",
+            }}>
+              {submittedLan}
+            </p>
+          </div>
+
+          {/* Info pill */}
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "rgba(251,191,36,0.1)",
+            border: "1px solid rgba(251,191,36,0.25)",
+            borderRadius: "50px",
+            padding: "8px 18px",
+            marginBottom: "36px",
+          }}>
+            <span style={{ fontSize: "16px" }}>⏳</span>
+            <span style={{ fontSize: "13px", color: "#fde68a", fontWeight: 500 }}>
+              Processing usually takes 24–48 hours
+            </span>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={() => window.history.back()}
+              style={{
+                padding: "12px 28px",
+                borderRadius: "10px",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.06)",
+                color: "#cbd5e1",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.12)"}
+              onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.06)"}
+            >
+              ← Go Back
+            </button>
+            <button
+              onClick={() => {
+                setSubmitted(false);
+                setSubmittedLan("");
+                setLan("");
+                setActiveSection(0);
+                setCompletedSections(new Set());
+              }}
+              style={{
+                padding: "12px 28px",
+                borderRadius: "10px",
+                border: "none",
+                background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+                color: "#fff",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 4px 20px rgba(99,102,241,0.35)",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={e => e.target.style.transform = "translateY(-2px)"}
+              onMouseLeave={e => e.target.style.transform = "translateY(0)"}
+            >
+              + New Application
+            </button>
+          </div>
+        </div>
+
+        <style>{`
+          @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes popIn {
+            from { transform: scale(0.4); opacity: 0; }
+            to   { transform: scale(1); opacity: 1; }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="manual-entry-container">
