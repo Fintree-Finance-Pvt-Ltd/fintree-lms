@@ -1,6 +1,7 @@
 const db = require("../config/db");
 const { getPanCardDetails } = require("../services/pancardapiservice");
 const { runBureau } = require("../services/Bueraupullapiservice");
+const { autoApproveFundifyIfAllVerified } = require("../routes/Fundify/fundifyBRE");
 
 const FUNDIFY_TABLE = "loan_booking_fundify";
 
@@ -576,6 +577,13 @@ exports.runFundifyPanBureauValidations = async (lan) => {
     );
 
     console.log(`✅ Fundify PAN + Bureau Validation Engine completed for ${lan}`);
+
+    // ── Trigger BRE engine after PAN + Bureau completes ──────────────────────
+    // This runs asynchronously so it does NOT block the PAN/Bureau response.
+    autoApproveFundifyIfAllVerified(lan).catch((breErr) => {
+      console.error(`❌ Fundify BRE Engine failed after PAN+Bureau for ${lan}:`, breErr);
+    });
+    // ─────────────────────────────────────────────────────────────────────────
 
     return {
       success: true,

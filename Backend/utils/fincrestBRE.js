@@ -1,4 +1,4 @@
-const db = require("../../config/db");
+const db = require("../config/db");
 const { XMLParser } = require("fast-xml-parser");
 
 const parser = new XMLParser({
