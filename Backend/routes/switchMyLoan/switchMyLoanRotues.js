@@ -1745,11 +1745,11 @@ router.post(
 
       const loan = existing[0];
 
-      if (["DISBURSED", "DISBURSE_INITIATED", "Disbursed"].includes(loan.status)) {
+      if (["DISBURSED", "DISBURSE_INITIATED", "Disbursed", "CANCELLED", "CLOSED", "Fully Paid"].includes(loan.status)) {
         return res.status(400).json({
           is_success: false,
           error: {
-            message: "Cannot reject a loan that is already disbursed",
+            message: `Cannot reject a loan with status '${loan.status}'`,
             code: "request_validation_error",
           },
         });
