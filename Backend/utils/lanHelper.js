@@ -84,32 +84,32 @@ function getLoanContext(lan = "") {
           required: true,
           name: "customer_name",
           email: "email_id",
-          mobile: "mobile_number"
-        }
-      ]
+          mobile: "mobile_number",
+        },
+      ],
     };
   }
 
-if (isClayyoLan(lan)) {
-  return {
-    type: "CLAYYO",
-    summaryTable: "clayyo_loan_summary",
-    rpsTable: "loan_rps_clayyo",
-    bookingTable: "loan_booking_clayyo",
-    agreementTemplate: "Clayyo_Agreement.html",
+  if (isClayyoLan(lan)) {
+    return {
+      type: "CLAYYO",
+      summaryTable: "clayyo_loan_summary",
+      rpsTable: "loan_rps_clayyo",
+      bookingTable: "loan_booking_clayyo",
+      agreementTemplate: "Clayyo_Agreement.html",
 
-    // Applicant only
+      // Applicant only
       esignParties: [
         {
           role: "APPLICANT",
           required: true,
           name: "customer_name",
           email: "email_id",
-          mobile: "mobile_number"
-        }
-      ]
-  };
-}
+          mobile: "mobile_number",
+        },
+      ],
+    };
+  }
   if (isHeliumLan(lan)) {
     return {
       type: "HELIUM",
@@ -124,9 +124,9 @@ if (isClayyoLan(lan)) {
           required: true,
           name: "customer_name",
           email: "email_id",
-          mobile: "mobile_number"
-        }
-      ]
+          mobile: "mobile_number",
+        },
+      ],
     };
   }
 
@@ -144,23 +144,56 @@ if (isClayyoLan(lan)) {
           required: true,
           name: "customer_name",
           email: "email",
-          mobile: "mobile_number"
+          mobile: "mobile_number",
+          sign_position: "DRAG_DROP",
+          position_details: {
+            ALL: [
+              {
+                x1: 51,
+                x2: 126,
+                y1: 85,
+                y2: 130,
+              },
+            ],
+          },
         },
-        { 
+        {
           role: "CO_APPLICANT",
           required: false,
           name: "co_applicant_name",
           email: "co_applicant_email",
-          mobile: "co_applicant_mobile"
+          mobile: "co_applicant_mobile",
+          sign_position: "DRAG_DROP",
+          position_details: {
+            ALL: [
+              {
+                x1: 191,
+                x2: 266,
+                y1: 84,
+                y2: 129,
+              },
+            ],
+          },
         },
         {
           role: "GUARANTOR",
           required: false,
           name: "guarantor_name",
           email: "guarantor_email",
-          mobile: "guarantor_mobile"
-        }
-      ]
+          mobile: "guarantor_mobile",
+          sign_position: "DRAG_DROP",
+          position_details: {
+            ALL: [
+              {
+                x1: 328,
+                x2: 403,
+                y1: 85,
+                y2: 130,
+              },
+            ],
+          },
+        },
+      ],
     };
   }
 

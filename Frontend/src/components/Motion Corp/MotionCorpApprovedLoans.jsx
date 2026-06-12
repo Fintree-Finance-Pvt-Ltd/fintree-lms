@@ -284,7 +284,7 @@ const MotionCorpApprovedLoans = ({
       },
     };
 
-    const c = map[st];
+    const c = map[st] || map.PENDING;
 
     return (
       <span
@@ -309,8 +309,9 @@ const MotionCorpApprovedLoans = ({
 
   const handleAgreementEsign = async (row) => {
     const lan = row.lan;
+    const status = (row.agreement_esign_status || "").toUpperCase();
 
-    if (row.agreement_esign_status === "SIGNED") {
+    if (status === "SIGNED") {
       setToast({ type: "info", msg: "Agreement already signed." });
       resetToastAfterDelay();
       return;
@@ -321,23 +322,31 @@ const MotionCorpApprovedLoans = ({
     setActionLan(lan);
 
     try {
-      const res = await api.post(`/esign/${lan}/esign/agreement`);
+      await api.post(`/esign/${lan}/esign/agreement`);
+
+      setRows((old) =>
+        old.map((r) =>
+          r.lan === lan
+            ? {
+                ...r,
+                agreement_esign_status: "INITIATED",
+                agreement_esign_sent_at: new Date().toISOString(),
+              }
+            : r,
+        ),
+      );
+
       setToast({
         type: "success",
         msg: "Agreement eSign initiated.",
       });
       resetToastAfterDelay();
-
-      setRows((old) =>
-        old.map((r) =>
-          r.lan === lan ? { ...r, agreement_esign_status: "INITIATED" } : r,
-        ),
-      );
     } catch (err) {
       setToast({
         type: "error",
-        msg: "Failed to start agreement eSign.",
+        msg: err.response?.data?.message || "Failed to start agreement eSign.",
       });
+      resetToastAfterDelay();
     } finally {
       setActionLan(null);
     }
@@ -370,13 +379,18 @@ const MotionCorpApprovedLoans = ({
       key: "stamp_paper_no",
       header: "Stamp Paper No.",
       render: (r) => {
-        const value = stampInputs[r.lan] ?? r.stamp_paper_no ?? "";
+        const savedStampNo = String(r.stamp_paper_no ?? "").trim();
+        const value = stampInputs[r.lan] ?? savedStampNo ?? "";
+
+        const isSaving = actionLan === r.lan;
+        const isSaved = !!savedStampNo;
 
         return (
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               type="text"
               value={value}
+              disabled={isSaved || isSaving}
               onChange={(e) =>
                 setStampInputs((prev) => ({
                   ...prev,
@@ -390,11 +404,15 @@ const MotionCorpApprovedLoans = ({
                 borderRadius: 8,
                 border: "1px solid #d1d5db",
                 fontSize: 12,
+                background: isSaved ? "#f3f4f6" : "#ffffff",
+                cursor: isSaved ? "not-allowed" : "text",
               }}
             />
 
             <button
               onClick={async () => {
+                if (isSaved) return;
+
                 const stampNo = String(value || "").trim();
 
                 if (!stampNo) {
@@ -422,6 +440,11 @@ const MotionCorpApprovedLoans = ({
                     ),
                   );
 
+                  setStampInputs((prev) => ({
+                    ...prev,
+                    [r.lan]: stampNo,
+                  }));
+
                   setToast({
                     type: "success",
                     msg: "Stamp paper number updated successfully.",
@@ -439,19 +462,19 @@ const MotionCorpApprovedLoans = ({
                   setActionLan(null);
                 }
               }}
-              disabled={actionLan === r.lan}
+              disabled={isSaved || isSaving}
               style={{
                 padding: "7px 10px",
                 borderRadius: 8,
-                border: "1px solid #9ad9b0",
-                color: "#0f7a42",
-                background: "#eefbf3",
-                cursor: actionLan === r.lan ? "not-allowed" : "pointer",
+                border: isSaved ? "1px solid #d1d5db" : "1px solid #9ad9b0",
+                color: isSaved ? "#6b7280" : "#0f7a42",
+                background: isSaved ? "#f3f4f6" : "#eefbf3",
+                cursor: isSaved || isSaving ? "not-allowed" : "pointer",
                 fontWeight: 700,
                 fontSize: 12,
               }}
             >
-              {actionLan === r.lan ? "Saving..." : "Save"}
+              {isSaved ? "Saved" : isSaving ? "Saving..." : "Save"}
             </button>
           </div>
         );
@@ -557,14 +580,18 @@ const MotionCorpApprovedLoans = ({
     },
 
     // 🔹 AGREEMENT eSign
+    // 🔹 AGREEMENT eSign
     {
       key: "agreement_esign",
       header: "Agreement eSign",
       render: (r) => {
         const status = (r.agreement_esign_status || "").toUpperCase();
 
-        // const disabled = actionLan === r.lan || status === "SIGNED";
-        const disabled = true;
+        const isProcessing = actionLan === r.lan;
+        const isSigned = status === "SIGNED";
+        const canRetry = canRetryAgreementEsign(r);
+
+        const disabled = isProcessing || isSigned || !canRetry;
 
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -583,14 +610,15 @@ const MotionCorpApprovedLoans = ({
                 fontWeight: 600,
               }}
             >
-              {actionLan === r.lan
+              {isProcessing
                 ? "Processing..."
-                : status === "SIGNED"
+                : isSigned
                   ? "Already Signed"
-                  : ["FAILED", "INITIATED"].includes(status)
-                    ? "Retry Agreement eSign"
-                    : "Send Agreement eSign"}
-              {/* Coming soon */}
+                  : !canRetry
+                    ? "Retry After 3 Hours"
+                    : ["FAILED", "INITIATED", "PENDING"].includes(status)
+                      ? "Retry Agreement eSign"
+                      : "Send Agreement eSign"}
             </button>
           </div>
         );
