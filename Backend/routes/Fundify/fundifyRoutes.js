@@ -7,6 +7,7 @@ const partnerFldgService = require("../../services/partnerFldgService");
 const {
   runFundifyPanBureauValidations,
 } = require("../../utils/fundifyValidationEngine");
+const { initAadhaarKyc } = require("../../services/digitapaadharservice");
 
 const router = express.Router();
 
@@ -871,6 +872,26 @@ router.post("/gst/verify", async (req, res) => {
       });
     }
 
+    /* ── If a LAN was provided, persist GST status in kyc_verification_status ── */
+    const { lan: gstLan } = req.body;
+    if (gstLan) {
+      try {
+        const rawResponse = JSON.stringify(result);
+        await db.promise().query(
+          `INSERT INTO kyc_verification_status (lan, applicant_type, gst_number, gst_status, gst_raw_response)
+           VALUES (?, 'BUSINESS', ?, 'VERIFIED', ?)
+           ON DUPLICATE KEY UPDATE
+             gst_number = VALUES(gst_number),
+             gst_status = 'VERIFIED',
+             gst_raw_response = VALUES(gst_raw_response)`,
+          [gstLan, result.gstin || req.body.gstNumber, rawResponse]
+        );
+      } catch (kycErr) {
+        console.warn("kyc_verification_status GST upsert failed (non-fatal):", kycErr.message);
+      }
+    }
+
+
     return res.json({
       success: true,
       message: "GST verified successfully",
@@ -923,35 +944,112 @@ router.post("/gst/verify", async (req, res) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/*              PROGRESSIVE SAVE — SECTION 0: SAVE APPLICANT + CREATE LAN    */
+/*          PROGRESSIVE SAVE — SECTION 0: SAVE BUSINESS DETAILS + CREATE LAN */
 /* -------------------------------------------------------------------------- */
 
-router.post("/save-applicant", async (req, res) => {
+router.post("/save-business", async (req, res) => {
   const conn = await db.promise().getConnection();
   try {
-    const { applicant, loginDate } = req.body;
+    const { loan, loginDate, gstVerified, gstRawResponse } = req.body;
 
     await conn.beginTransaction();
 
     const { lan, partnerLoanId } = await generateLoanIdentifiers("Fundify");
 
-    // Create minimal loan_booking_fundify row
+    // Create loan_booking_fundify row with business details
     await conn.query(
       `INSERT INTO loan_booking_fundify
-       (lan, partner_loan_id, login_date, status, stage, lender, product, partner_name, bre_status)
-       VALUES (?, ?, ?, 'Login', 'Login', 'Fundify', 'Fundify Loan', 'Fundify', 'Pending')`,
-      [lan, partnerLoanId, loginDate || new Date().toISOString().split("T")[0]]
+       (lan, partner_loan_id, login_date, status, stage, lender, product, partner_name, bre_status,
+        business_name, trade_name, business_pan, gstin, udyam_registration_no, cin, llpin,
+        shop_establishment_no, business_registration_no, constitution_type, business_start_date,
+        business_vintage_months, nature_of_business, industry_type, business_address, business_city,
+        business_district, business_state, business_pincode, premises_ownership, business_mobile,
+        business_email)
+       VALUES (?, ?, ?, 'Login', 'Login', 'Fundify', 'Fundify Loan', 'Fundify', 'Pending',
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        lan, partnerLoanId,
+        loginDate || (loan && loan.login_date) || new Date().toISOString().split("T")[0],
+        emptyToNull(loan?.business_name),
+        emptyToNull(loan?.trade_name),
+        emptyToNull(loan?.business_pan),
+        emptyToNull(loan?.gstin),
+        emptyToNull(loan?.udyam_registration_no),
+        emptyToNull(loan?.cin),
+        emptyToNull(loan?.llpin),
+        emptyToNull(loan?.shop_establishment_no),
+        emptyToNull(loan?.business_registration_no),
+        emptyToNull(loan?.constitution_type),
+        dateOrNull(loan?.business_start_date),
+        numberOrNull(loan?.business_vintage_months),
+        emptyToNull(loan?.nature_of_business),
+        emptyToNull(loan?.industry_type),
+        emptyToNull(loan?.business_address),
+        emptyToNull(loan?.business_city),
+        emptyToNull(loan?.business_district),
+        emptyToNull(loan?.business_state),
+        emptyToNull(loan?.business_pincode),
+        emptyToNull(loan?.premises_ownership),
+        emptyToNull(loan?.business_mobile),
+        emptyToNull(loan?.business_email),
+      ]
     );
 
-    // Insert primary applicant
+    /* ── Persist GST verification in kyc_verification_status now that LAN exists ── */
+    if (gstVerified && loan?.gstin) {
+      try {
+        const rawResponse = gstRawResponse ? JSON.stringify(gstRawResponse) : null;
+        await conn.query(
+          `INSERT INTO kyc_verification_status (lan, applicant_type, gst_number, gst_status, gst_raw_response)
+           VALUES (?, 'BUSINESS', ?, 'VERIFIED', ?)
+           ON DUPLICATE KEY UPDATE
+             gst_number = VALUES(gst_number),
+             gst_status = 'VERIFIED',
+             gst_raw_response = VALUES(gst_raw_response)`,
+          [lan, loan.gstin, rawResponse]
+        );
+        console.log(`✅ GST verification status stored for LAN: ${lan}`);
+      } catch (kycErr) {
+        console.warn("kyc_verification_status GST upsert failed (non-fatal):", kycErr.message);
+      }
+    }
+
+    await conn.commit();
+    res.json({ success: true, lan, partnerLoanId, message: "Business details saved successfully" });
+  } catch (err) {
+    await conn.rollback();
+    console.error("save-business error:", err);
+    res.status(500).json({ success: false, message: err.message || "Failed to save business details" });
+  } finally {
+    conn.release();
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/*          PROGRESSIVE SAVE — SECTION 1: SAVE APPLICANT (LAN exists)        */
+/* -------------------------------------------------------------------------- */
+
+router.post("/save-applicant", async (req, res) => {
+  const conn = await db.promise().getConnection();
+  try {
+    const { applicant, lan, loginDate } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ success: false, message: "LAN required. Save business details first." });
+    }
+
+    await conn.beginTransaction();
+
+    // Upsert primary applicant (INSERT or UPDATE if already saved once)
     const appPayload = buildFundifyApplicantPayload({ applicant, lan, index: 0 });
     const columns = Object.keys(appPayload);
     const values = Object.values(appPayload);
-    const sql = `INSERT INTO fundify_applicants (${columns.map(c => `\`${c}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`;
-    await conn.query(sql, values);
+    const insertSql = `INSERT INTO fundify_applicants (${columns.map(c => `\`${c}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})
+      ON DUPLICATE KEY UPDATE ${columns.filter(c => c !== "lan" && c !== "applicant_type").map(c => `\`${c}\` = VALUES(\`${c}\`)`).join(", ")}`;
+    await conn.query(insertSql, values);
 
     await conn.commit();
-    res.json({ success: true, lan, partnerLoanId, message: "Applicant saved successfully" });
+    res.json({ success: true, lan, message: "Applicant saved successfully" });
   } catch (err) {
     await conn.rollback();
     console.error("save-applicant error:", err);
@@ -1309,4 +1407,131 @@ router.post("/verify-otp", async (req, res) => {
   }
 });
 
-module.exports = router;
+
+/* ============================================================ */
+/*                  AADHAAR KYC ROUTES                          */
+/* ============================================================ */
+
+/**
+ * POST /fundify/init-aadhaar
+ * Initiates Aadhaar e-KYC for a given applicant type on a Fundify LAN.
+ * Reads applicant details from fundify_applicants, creates a kyc_verification_status
+ * row, calls the Helium/Digilocker KYC API, and stores the returned URL + IDs.
+ */
+router.post("/init-aadhaar", async (req, res) => {
+  try {
+    const { lan, applicantType } = req.body;
+
+    if (!lan) return res.status(400).json({ success: false, message: "LAN required" });
+    if (!["BORROWER", "CO_APPLICANT", "GUARANTOR"].includes(applicantType))
+      return res.status(400).json({ success: false, message: "Invalid applicant type" });
+
+    /* ── Fetch applicant from fundify_applicants ── */
+    const [[applicantRow]] = await db.promise().query(
+      `SELECT full_name, first_name, last_name, mobile, email, applicant_type
+       FROM fundify_applicants
+       WHERE lan = ? AND applicant_type = ?
+       LIMIT 1`,
+      [lan, applicantType]
+    );
+
+    if (!applicantRow)
+      return res.status(404).json({ success: false, message: `${applicantType} not found for LAN ${lan}` });
+
+    const name  = applicantRow.full_name ||
+                  `${applicantRow.first_name || ""} ${applicantRow.last_name || ""}`.trim();
+    const mobile = applicantRow.mobile;
+    const email  = applicantRow.email || "";
+
+    if (!mobile || !name)
+      return res.status(400).json({ success: false, message: `${applicantType} mobile/name not saved` });
+
+    /* ── Upsert kyc_verification_status row ── */
+    await db.promise().query(
+      `INSERT IGNORE INTO kyc_verification_status (lan, applicant_type, applicant_name, mobile_number)
+       VALUES (?, ?, ?, ?)`,
+      [lan, applicantType, name, mobile]
+    );
+    await db.promise().query(
+      `UPDATE kyc_verification_status SET aadhaar_status = 'INITIATED'
+       WHERE lan = ? AND applicant_type = ?`,
+      [lan, applicantType]
+    );
+
+    /* ── Call Aadhaar KYC API ── */
+    const aadhaarInit = await initAadhaarKyc(lan, mobile, email, name);
+
+    if (!aadhaarInit.success) {
+      await db.promise().query(
+        `UPDATE kyc_verification_status SET aadhaar_status = 'FAILED'
+         WHERE lan = ? AND applicant_type = ?`,
+        [lan, applicantType]
+      );
+      return res.status(400).json({ success: false, message: "Aadhaar init failed" });
+    }
+
+    /* ── Store transaction details ── */
+    await db.promise().query(
+      `UPDATE kyc_verification_status
+       SET aadhaar_transaction_id = ?, aadhaar_kyc_url = ?, aadhaar_unique_id = ?
+       WHERE lan = ? AND applicant_type = ?`,
+      [aadhaarInit.unifiedTransactionId, aadhaarInit.kycUrl, aadhaarInit.uniqueId, lan, applicantType]
+    );
+
+    return res.json({
+      success: true,
+      message: "Aadhaar initiated",
+      kycUrl: aadhaarInit.kycUrl,
+      transactionId: aadhaarInit.unifiedTransactionId,
+      uniqueId: aadhaarInit.uniqueId,
+    });
+  } catch (err) {
+    console.error("Fundify init-aadhaar error:", err);
+    return res.status(500).json({ success: false, message: "Aadhaar init failed", error: err.message });
+  }
+});
+
+/**
+ * GET /fundify/aadhaar-address/:lan/:applicantType
+ * Returns the Aadhaar-verified address for an applicant once status = VERIFIED.
+ */
+router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
+  try {
+    const { lan, applicantType } = req.params;
+
+    if (!lan) return res.status(400).json({ success: false, message: "LAN required" });
+    if (!["BORROWER", "CO_APPLICANT", "GUARANTOR"].includes(applicantType))
+      return res.status(400).json({ success: false, message: "Invalid applicant type" });
+
+    const [[row]] = await db.promise().query(
+      `SELECT aadhaar_status, aadhaar_name, aadhaar_dob, aadhaar_masked_number, aadhaar_address
+       FROM kyc_verification_status
+       WHERE lan = ? AND applicant_type = ?
+       LIMIT 1`,
+      [lan, applicantType]
+    );
+
+    if (!row)
+      return res.status(404).json({ success: false, message: "Aadhaar KYC record not found" });
+
+    if (row.aadhaar_status !== "VERIFIED")
+      return res.json({ success: false, status: row.aadhaar_status, message: "Aadhaar is not verified yet" });
+
+    if (!row.aadhaar_address)
+      return res.json({ success: false, status: row.aadhaar_status, message: "Aadhaar address not available" });
+
+    return res.json({
+      success: true,
+      status: row.aadhaar_status,
+      aadhaarName: row.aadhaar_name,
+      aadhaarDob: row.aadhaar_dob,
+      aadhaarMaskedNumber: row.aadhaar_masked_number,
+      aadhaarAddress: row.aadhaar_address,
+    });
+  } catch (err) {
+    console.error("Fundify aadhaar-address error:", err);
+    return res.status(500).json({ success: false, message: "Failed to fetch Aadhaar address", error: err.message });
+  }
+});
+
+module.exports = router;

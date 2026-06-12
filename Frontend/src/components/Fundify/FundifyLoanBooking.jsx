@@ -47,8 +47,8 @@ const emptyApplicant = (role, partyNo) => ({
 });
 
 const SECTIONS = [
-  "Applicant",
   "Business Details",
+  "Applicant",
   "Loan Details",
   "Bank Details",
   "Co-Applicants",
@@ -86,13 +86,21 @@ const FundifyManualEntry = () => {
 
   /* ---- Progressive save ---- */
   const [lan, setLan] = useState(resumeLan || "");
-  const [applicantSaved, setApplicantSaved] = useState(!!resumeLan);
+  const [businessSaved, setBusinessSaved] = useState(!!resumeLan); // LAN created when business section saved
   const [submitted, setSubmitted] = useState(false);
   const [submittedLan, setSubmittedLan] = useState("");
+
+  /* ---- Aadhaar KYC ---- */
+  const [aadhaarStatus, setAadhaarStatus] = useState({
+    BORROWER: "",
+    CO_APPLICANT: "",
+    GUARANTOR: "",
+  });
 
   /* ---- GST ---- */
   const [gstLoading, setGstLoading] = useState(false);
   const [gstVerified, setGstVerified] = useState(false);
+  const [gstRawResponse, setGstRawResponse] = useState(null);
 
   /* ---- OTP ---- */
   const [showConsentDialog, setShowConsentDialog] = useState(false);
@@ -169,7 +177,7 @@ const FundifyManualEntry = () => {
 
         setLoan((prev) => ({ ...prev, ...rl }));
         setLan(resumeLanParam);
-        setApplicantSaved(true);
+        setBusinessSaved(true);
         setCompletedSections(new Set([0, 1, 2, 3]));
 
         const apps = [], coApps = [], guars = [];
@@ -447,8 +455,8 @@ const FundifyManualEntry = () => {
 
   const getSectionErrors = (sectionIdx) => {
     switch (sectionIdx) {
-      case 0: return validateApplicant();
-      case 1: return validateBusiness();
+      case 0: return validateBusiness();
+      case 1: return validateApplicant();
       case 2: return validateLoan();
       case 3: return validateBank();
       case 4: {
@@ -607,22 +615,47 @@ const FundifyManualEntry = () => {
   /*                   PROGRESSIVE SAVE HANDLERS                  */
   /* ============================================================ */
 
-  const saveApplicantSection = async () => {
+  /* ---------- Save Business Details → creates LAN (section 0) ---------- */
+  const saveBusinessSection = async () => {
+    if (businessSaved && lan) return true;  // already created
+    try {
+      setLoading(true);
+      const res = await api.post("/fundify/save-business", {
+        loan,
+        loginDate: loan.login_date,
+        gstVerified: gstVerified,
+        gstRawResponse: gstRawResponse,
+      });
+      if (res.data.success) {
+        setLan(res.data.lan);
+        setBusinessSaved(true);
+        setMessage(`✅ Business details saved. LAN: ${res.data.lan}`);
+        return true;
+      }
+    } catch (err) {
+      setMessage(`❌ ${err.response?.data?.message || "Failed to save business details"}`);
+    } finally {
+      setLoading(false);
+    }
+    return false;
+  };
+
+  /* ---------- Update Applicant after LAN exists (section 1) ---------- */
+  const updateApplicantSection = async () => {
     if (!otpVerified.applicant) {
       setMessage("❌ Please verify applicant's mobile via OTP before proceeding.");
       return false;
     }
-    if (applicantSaved && lan) return true;
+    if (!lan) { setMessage("❌ LAN missing. Please complete Business Details first."); return false; }
     try {
       setLoading(true);
       const res = await api.post("/fundify/save-applicant", {
         applicant: { ...applicant, mobile_verified: 1 },
+        lan,                       // attach to existing LAN
         loginDate: loan.login_date,
       });
       if (res.data.success) {
-        setLan(res.data.lan);
-        setApplicantSaved(true);
-        setMessage(`✅ Applicant saved. LAN: ${res.data.lan}`);
+        setMessage(`✅ Applicant saved.`);
         return true;
       }
     } catch (err) {
@@ -695,8 +728,8 @@ const FundifyManualEntry = () => {
     setErrors({}); setMessage("");
 
     let saved = false;
-    if (activeSection === 0) saved = await saveApplicantSection();
-    else if (activeSection === 1) saved = await updateSection("business");
+    if (activeSection === 0) saved = await saveBusinessSection();       // creates LAN
+    else if (activeSection === 1) saved = await updateApplicantSection(); // uses existing LAN
     else if (activeSection === 2) saved = await updateSection("loan");
     else if (activeSection === 3) saved = await updateSection("bank");
     else if (activeSection === 4) saved = await saveParties(coApplicants, "CO_APPLICANT");
@@ -763,7 +796,7 @@ const FundifyManualEntry = () => {
     if (!isValidGstin(gstin)) { setErrors((p) => ({ ...p, gstin: "Invalid GSTIN format" })); return; }
     try {
       setGstLoading(true);
-      const res = await api.post("fundify/gst/verify", { gstNumber: gstin });
+      const res = await api.post("fundify/gst/verify", { gstNumber: gstin, lan: lan || null });
       if (!res.data?.success) { setGstVerified(false); setMessage(`❌ ${res.data?.message || "GST verification failed"}`); return; }
       const d = res.data.data || {};
       const pa = parseGstAddress(d.address);
@@ -786,6 +819,7 @@ const FundifyManualEntry = () => {
         business_email: d.email || prev.business_email,
       }));
       setGstVerified(true);
+      setGstRawResponse(res.data.data || {});
       setMessage(`✅ GST verified: ${d.legal_name || d.trade_name || gstin}`);
     } catch (err) {
       setGstVerified(false);
@@ -851,7 +885,69 @@ const FundifyManualEntry = () => {
     );
   };
 
-  const renderApplicantForm = (data, onChange, title, prefix, otpKey) => (
+  /* ---- Aadhaar helpers ---- */
+  const isAadhaarButtonDisabled = (stateKey) =>
+    ["INITIATING", "INITIATED", "VERIFIED", "COMPLETED"].includes(aadhaarStatus[stateKey]);
+
+  function parseAadhaarAddress(address = "") {
+    const result = { addressLine1: "", addressLine2: "", village: "", district: "", state: "", pincode: "" };
+    if (!address || typeof address !== "string") return result;
+    let clean = address.replace(/\s+/g, " ").replace(/,\s*,/g, ",").replace(/^,\s*/g, "").trim();
+    const pm = clean.match(/([1-9][0-9]{5})(?!.*[0-9])/);
+    if (pm) { result.pincode = pm[1]; clean = clean.replace(new RegExp(`[-,\\s]*${result.pincode}\\s*$`), "").trim(); }
+    clean = clean.replace(/[-,]\s*$/, "").trim();
+    const parts = clean.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 1) result.state = parts[parts.length - 1] || "";
+    if (parts.length >= 2) { result.district = parts[parts.length - 2] || ""; result.village = parts[parts.length - 2] || ""; }
+    if (parts.length >= 3) result.addressLine1 = parts.slice(0, parts.length - 2).join(", ");
+    else if (parts.length === 2) result.addressLine1 = parts[0];
+    else if (parts.length === 1) result.addressLine1 = parts[0];
+    return result;
+  }
+
+  const triggerAadhaar = async (applicantType, stateKey) => {
+    if (!lan) { setMessage("❌ Please save applicant first to generate LAN."); return; }
+    try {
+      setAadhaarStatus((prev) => ({ ...prev, [stateKey]: "INITIATING" }));
+      const res = await api.post("/fundify/init-aadhaar", { lan, applicantType });
+      if (res.data.success) {
+        setAadhaarStatus((prev) => ({ ...prev, [stateKey]: "INITIATED" }));
+        setMessage(`✅ Aadhaar initiated for ${applicantType}`);
+        if (res.data.kycUrl) window.open(res.data.kycUrl, "_blank");
+      } else {
+        setAadhaarStatus((prev) => ({ ...prev, [stateKey]: "FAILED" }));
+        setMessage(`❌ Aadhaar initiation failed for ${applicantType}`);
+      }
+    } catch (err) {
+      setAadhaarStatus((prev) => ({ ...prev, [stateKey]: "FAILED" }));
+      setMessage(`❌ ${err.response?.data?.message || `Aadhaar initiation failed for ${applicantType}`}`);
+    }
+  };
+
+  const fetchAndPrefillAadhaarAddress = async (applicantType, setter) => {
+    if (!lan) { setMessage("❌ LAN missing."); return; }
+    try {
+      setLoading(true);
+      const res = await api.get(`/fundify/aadhaar-address/${lan}/${applicantType}`);
+      if (!res.data.success) { setMessage(`⚠️ ${res.data.message}`); return; }
+      const p = parseAadhaarAddress(res.data.aadhaarAddress);
+      setter((prev) => ({
+        ...prev,
+        current_address: p.addressLine1 || prev.current_address,
+        current_city: p.village || prev.current_city,
+        current_district: p.district || prev.current_district,
+        current_state: p.state || prev.current_state,
+        current_pincode: p.pincode || prev.current_pincode,
+      }));
+      setMessage(`✅ Aadhaar address prefilled for ${applicantType}`);
+    } catch (err) {
+      setMessage(`❌ ${err.response?.data?.message || "Aadhaar address not available yet."}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderApplicantForm = (data, onChange, title, prefix, otpKey, applicantType, aadhaarSetter, stateKey, aadhaarReady) => (
     <div className="party-card">
       <h3>{title}</h3>
       <div className="form-grid">
@@ -883,6 +979,39 @@ const FundifyManualEntry = () => {
         {renderInput("Email", "email", data.email, onChange, "email", false, `${prefix}_email`)}
         {renderInput("PAN", "pan", data.pan, onChange, "text", false, `${prefix}_pan`)}
         {renderInput("Aadhaar Last 4", "aadhaar_last4", data.aadhaar_last4, onChange, "text", false, `${prefix}_aadhaar_last4`)}
+
+        {/* ─── Aadhaar KYC Buttons ─── */}
+        {aadhaarReady && applicantType && stateKey && (
+          <div className="aadhaar-btn-row full-row" style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "4px 0" }}>
+            <button
+              type="button"
+              className={isAadhaarButtonDisabled(stateKey) ? "verified-btn" : aadhaarStatus[stateKey] === "FAILED" ? "otp-btn" : "otp-btn"}
+              onClick={() => triggerAadhaar(applicantType, stateKey)}
+              disabled={loading || !lan || isAadhaarButtonDisabled(stateKey)}
+              style={{ flex: "1", minWidth: "180px" }}
+            >
+              {aadhaarStatus[stateKey] === "INITIATING"
+                ? "Starting Aadhaar..."
+                : aadhaarStatus[stateKey] === "INITIATED"
+                  ? "Aadhaar Initiated ✓"
+                  : aadhaarStatus[stateKey] === "VERIFIED"
+                    ? "Aadhaar Verified ✓"
+                    : aadhaarStatus[stateKey] === "FAILED"
+                      ? "⚠️ Retry Aadhaar"
+                      : `Trigger ${applicantType === "BORROWER" ? "Applicant" : applicantType === "CO_APPLICANT" ? "Co-Applicant" : "Guarantor"} Aadhaar`}
+            </button>
+            <button
+              type="button"
+              className="otp-btn"
+              onClick={() => fetchAndPrefillAadhaarAddress(applicantType, aadhaarSetter)}
+              disabled={!lan || loading}
+              style={{ flex: "1", minWidth: "180px" }}
+            >
+              Fetch Aadhaar Address
+            </button>
+          </div>
+        )}
+
         {renderInput("Voter ID", "voter_id", data.voter_id, onChange, "text", false, `${prefix}_voter_id`)}
         {renderInput("Driving License No", "driving_license_no", data.driving_license_no, onChange, "text", false, `${prefix}_driving_license_no`)}
         {renderInput("Passport No", "passport_no", data.passport_no, onChange, "text", false, `${prefix}_passport_no`)}
@@ -1130,17 +1259,8 @@ const FundifyManualEntry = () => {
 
       <form onSubmit={handleSubmit}>
 
-        {/* ───── SECTION 0: APPLICANT ───── */}
-        {activeSection === 0 && renderApplicantForm(
-          applicant,
-          handleApplicantChange(setApplicant),
-          "Primary Applicant",
-          "applicant",
-          "applicant"
-        )}
-
-        {/* ───── SECTION 1: BUSINESS DETAILS ───── */}
-        {activeSection === 1 && (
+        {/* ───── SECTION 0: BUSINESS DETAILS (creates LAN) ───── */}
+        {activeSection === 0 && (
           <div className="party-card">
             <h3>Business Details</h3>
             <div className="form-grid">
@@ -1181,6 +1301,19 @@ const FundifyManualEntry = () => {
               {renderInput("Business Email", "business_email", loan.business_email, handleLoanChange, "email")}
             </div>
           </div>
+        )}
+
+        {/* ───── SECTION 1: APPLICANT (LAN already exists) ───── */}
+        {activeSection === 1 && renderApplicantForm(
+          applicant,
+          handleApplicantChange(setApplicant),
+          "Primary Applicant",
+          "applicant",
+          "applicant",
+          "BORROWER",
+          setApplicant,
+          "BORROWER_0",
+          !!lan   // ← LAN created in section 0, so button is ready as soon as user reaches section 1
         )}
 
         {/* ───── SECTION 2: LOAN DETAILS ───── */}
@@ -1252,7 +1385,11 @@ const FundifyManualEntry = () => {
                   handleApplicantChange(setCoApplicants, idx),
                   `Co-Applicant ${idx + 1}`,
                   `co_${idx}`,
-                  `co_${idx}`
+                  `co_${idx}`,
+                  "CO_APPLICANT",
+                  (updater) => setCoApplicants((prev) => prev.map((item, i) => i === idx ? (typeof updater === "function" ? updater(item) : updater) : item)),
+                  `CO_APPLICANT_${idx}`,
+                  !!lan    // ← LAN always exists when user reaches Co-Applicant section
                 )}
                 {coApplicants.length > 1 && (
                   <button
@@ -1289,7 +1426,11 @@ const FundifyManualEntry = () => {
                   handleApplicantChange(setGuarantors, idx),
                   `Guarantor ${idx + 1}`,
                   `guarantor_${idx}`,
-                  `guarantor_${idx}`
+                  `guarantor_${idx}`,
+                  "GUARANTOR",
+                  (updater) => setGuarantors((prev) => prev.map((item, i) => i === idx ? (typeof updater === "function" ? updater(item) : updater) : item)),
+                  `GUARANTOR_${idx}`,
+                  !!lan    // ← LAN always exists when user reaches Guarantor section
                 )}
                 {guarantors.length > 1 && (
                   <button
