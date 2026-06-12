@@ -1602,7 +1602,7 @@ router.post(
         });
       }
 
-      if (loan.status !== "APPROVED") {
+      if (loan.status !== "BRE_APPROVED") {
         await connection.rollback();
         transactionStarted = false;
 
@@ -1703,6 +1703,81 @@ router.post(
       });
     } finally {
       if (connection) connection.release();
+    }
+  }
+);
+
+///////////////////// Partner-Initiated Rejection
+router.post(
+  "/v1/loan/:application_id/reject-by-partner",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      const { application_id } = req.params;
+
+      if (!application_id) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "application_id is required",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      const [existing] = await db.promise().query(
+        `SELECT application_id, status
+         FROM loan_booking_switch_my_loan
+         WHERE application_id = ?
+         LIMIT 1`,
+        [application_id]
+      );
+
+      if (!existing.length) {
+        return res.status(404).json({
+          is_success: false,
+          error: {
+            message: "Loan application not found",
+            code: "not_found",
+          },
+        });
+      }
+
+      const loan = existing[0];
+
+      if (["DISBURSED", "DISBURSE_INITIATED", "Disbursed", "CANCELLED", "CLOSED", "Fully Paid"].includes(loan.status)) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: `Cannot reject a loan with status '${loan.status}'`,
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      await db.promise().query(
+        `UPDATE loan_booking_switch_my_loan
+         SET status = 'REJECTED', updated_at = NOW()
+         WHERE application_id = ?`,
+        [application_id]
+      );
+
+      return res.json({
+        is_success: true,
+        data: {
+          success: true,
+        },
+      });
+    } catch (err) {
+      console.error("Reject-by-partner error:", err);
+
+      return res.status(500).json({
+        is_success: false,
+        error: {
+          message: "Internal server error",
+          code: "internal_server_error",
+        },
+      });
     }
   }
 );
