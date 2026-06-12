@@ -299,12 +299,12 @@ if (existingRps.length > 0) {
       utr: disbursementUTR,
     });
 
-    // await sendDisbursementWebhook({
-    //   applicationId: loan.application_id,
-    //   transactionId: disbursementUTR,
-    //   disbursementDate: new Date(disbursementDate).toISOString().split("T")[0],
-    //   repaymentDate: new Date(loan.repayment_date).toISOString().split("T")[0],
-    // });
+    await sendDisbursementWebhook({
+      applicationId: loan.application_id,
+      transactionId: disbursementUTR,
+      disbursementDate: new Date(disbursementDate).toISOString().split("T")[0],
+      repaymentDate: new Date(loan.repayment_date).toISOString().split("T")[0],
+    });
 
  console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan });
 
