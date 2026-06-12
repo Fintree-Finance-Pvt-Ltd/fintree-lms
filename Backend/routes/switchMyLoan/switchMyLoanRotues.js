@@ -1602,7 +1602,7 @@ router.post(
         });
       }
 
-      if (loan.status !== "APPROVED") {
+      if (loan.status !== "BRE_APPROVED") {
         await connection.rollback();
         transactionStarted = false;
 
