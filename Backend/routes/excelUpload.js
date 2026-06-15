@@ -4931,7 +4931,6 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
       "e_mandate_no",
       "mandate_id",
       "bank_name",
-      "name_in_bank",
       "account_number",
       "ifsc",
     ];
@@ -4952,7 +4951,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
       if (missingField) {
         results.push({ error: `${missingField} is required.`, data });
         continue;
-      }
+      }   
 
       // ✅ Update existing record where LAN matches
       const [existing] = await db
@@ -4975,7 +4974,6 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
           e_mandate_no = ?,
           mandate_id = ?,
           bank_name = ?,
-          name_in_bank = ?,
           account_number = ?,
           ifsc = ?
         WHERE lan = ?
@@ -4985,7 +4983,6 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
         data.e_mandate_no,
         data.mandate_id,
         data.bank_name,
-        data.name_in_bank,
         data.account_number,
         data.ifsc,
         data.lan,
