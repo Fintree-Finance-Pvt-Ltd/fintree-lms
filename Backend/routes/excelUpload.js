@@ -2050,6 +2050,14 @@ router.get("/login-loans", (req, res) => {
       WHERE lb.status = 'Login'
         AND lb.LAN LIKE ?
     `;
+  } else if (table === "loan_booking_finso") {
+    // ✅ Only Clayyo needs hospital join
+    query = `
+      SELECT *
+      FROM ??
+      WHERE status in ('Login', 'BRE_APPROVED')
+        AND LAN LIKE ?
+    `;
   } else {
     // ✅ Other lenders unchanged
     query = `
