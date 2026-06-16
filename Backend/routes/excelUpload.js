@@ -6537,7 +6537,7 @@ async function persistCarePayBureauResult(lan, data) {
       await db
         .promise()
         .execute(
-          "UPDATE loan_booking_carepay SET cibil_score = ? WHERE lan = ?",
+          "UPDATE loan_booking_carepay SET cibil_score_fintree = ? WHERE lan = ?",
           [score, lan],
         );
     }
@@ -6585,11 +6585,374 @@ async function persistCarePayBureauResult(lan, data) {
   }
 }
 
+// router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
+//   let conn;
+
+//   try {
+//     const data = req.body || {};
+//     const lenderType = String(req.partner?.name || "")
+//       .toLowerCase()
+//       .trim();
+
+//     if (!isCarePayPartner(req)) {
+//       return res.status(403).json({
+//         message: "This route is only for CarePay partner.",
+//       });
+//     }
+//     if (!data.loan_type) {
+//       return res.status(400).json({
+//         message: "Missing fields: loan_type",
+//       });
+//     }
+
+//     const normalizedLoanType = String(data.loan_type).toLowerCase().trim();
+
+//     const loanType = CarepayLoanTypes.find(
+//       (type) => type.toLowerCase() === normalizedLoanType,
+//     );
+
+//     if (!loanType) {
+//       return res.status(400).json({
+//         message: `Invalid loan_type. Allowed values are: ${CarepayLoanTypes.join(", ")}`,
+//       });
+//     }
+
+//     const missing = getMissingFields(data, CAREPAY_REQUIRED_FIELDS);
+
+//     if (missing.length) {
+//       return res.status(400).json({
+//         message: `Missing fields: ${missing.join(", ")}`,
+//       });
+//     }
+
+//     const rawRequestAmount =
+//       data.request_amount !== undefined &&
+//       data.request_amount !== null &&
+//       data.request_amount !== ""
+//         ? data.request_amount
+//         : data.loan_amount;
+
+//     if (
+//       rawRequestAmount === undefined ||
+//       rawRequestAmount === null ||
+//       rawRequestAmount === ""
+//     ) {
+//       return res
+//         .status(400)
+//         .json({ message: "Missing fields: request_amount" });
+//     }
+ 
+
+//     const requestAmount = Number(rawRequestAmount);
+
+//     if (!requestAmount || Number.isNaN(requestAmount) || requestAmount <= 0) {
+//       return res.status(400).json({ message: "Invalid request_amount" });
+//     }
+
+//     conn = await db.promise().getConnection();
+//     await conn.beginTransaction();
+
+//     const hospitalLan = String(data.hospital_lan || "").trim();
+//     const [hospitalRows] = await conn.query(
+//       `SELECT lan
+//        FROM carepay_hospital_booking
+//        WHERE lan = ?
+//          AND status IN ('APPROVED')
+//        LIMIT 1`,
+//       [hospitalLan],
+//     );
+
+//     if (!hospitalRows.length) {
+//       await conn.rollback();
+//       conn.release();
+//       conn = null;
+
+//       return res.status(404).json({
+//         status: "Failed",
+//         message: "Hospital not found or not approved for CarePay booking.",
+//       });
+//     }
+
+//     const [existing] = await conn.query(
+//       `SELECT lan, partner_loan_id, customer_name
+//        FROM loan_booking_carepay
+//        WHERE partner_loan_id = ?`,
+//       [data.partner_loan_id],
+//     );
+
+//     if (existing.length > 0) {
+//       await conn.rollback();
+//       conn.release();
+//       conn = null;
+
+//       return res.status(400).json({
+//         status: "Failed",
+//         message: "Duplicate Partner Loan ID",
+//         existingLan: existing[0].lan,
+//       });
+//     }
+
+//     const [panRecords] = await conn.query(
+//       `SELECT status
+//        FROM loan_booking_carepay
+//        WHERE pan_number = ?`,
+//       [data.pan_number],
+//     );
+
+//     const allowedStatuses = new Set([
+//       "cancelled",
+//       "foreclosed",
+//       "fully paid",
+//       "rejected",
+//     ]);
+
+//     if (
+//       panRecords.some(
+//         (row) =>
+//           !allowedStatuses.has(
+//             String(row.status || "")
+//               .trim()
+//               .toLowerCase(),
+//           ),
+//       )
+//     ) {
+//       await conn.rollback();
+//       conn.release();
+//       conn = null;
+
+//       return res.status(400).json({
+//         status: "Failed",
+//         message:
+//           "PAN already exists with an active loan. New loan not allowed.",
+//       });
+//     }
+
+//     const partnerName = "CAREPAY";
+//     const today = new Date();
+//     const { month, year } = getMonthYear(today);
+
+//     const partner = await partnerLimitService.getOrCreatePartner(
+//       conn,
+//       partnerName,
+//     );
+
+//     // const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
+//     //   conn,
+//     //   partner.partner_id,
+//     //   requestAmount,
+//     //   month,
+//     //   year,
+//     // );
+
+//     // if (!limitCheck.valid) {
+//     //   await conn.rollback();
+//     //   conn.release();
+//     //   conn = null;
+
+//     //   return res.status(403).json({
+//     //     message: "Monthly partner limit exceeded",
+//     //     remaining_limit: limitCheck.remaining,
+//     //     required: requestAmount,
+//     //   });
+//     // }
+
+//     const { lan } = await generateLoanIdentifiers(lenderType);
+//     const customer_name = `${data.first_name || ""} ${
+//       data.last_name || ""
+//     }`.trim();
+//     const agreement_date = data.login_date;
+//     const interest_rate = 0;
+//     const permanentAddress = data.permanent_address || data.current_address;
+//     const permanentVillageCity =
+//       data.permanent_village_city || data.current_village_city;
+//     const permanentDistrict = data.permanent_district || data.current_district;
+//     const permanentState = data.permanent_state || data.current_state;
+//     const permanentPincode = data.permanent_pincode || data.current_pincode;
+
+//     const fields = {
+//       lan,
+//       partner_loan_id: data.partner_loan_id,
+//       hospital_lan: hospitalLan,
+//       login_date: data.login_date,
+//       first_name: data.first_name,
+//       middle_name: nullableString(data.middle_name),
+//       last_name: data.last_name,
+//       customer_name,
+//       gender: data.gender,
+//       dob: data.dob,
+//       age: data.age || null,
+//       father_name: nullableString(data.father_name),
+//       mother_name: nullableString(data.mother_name),
+//       mobile_number: data.mobile_number,
+//       email_id: nullableString(data.email_id),
+//       pan_number: data.pan_number,
+//       aadhar_number: data.aadhar_number,
+//       current_address: data.current_address,
+//       current_village_city: data.current_village_city,
+//       current_district: data.current_district,
+//       current_state: data.current_state,
+//       current_pincode: data.current_pincode,
+//       permanent_address: permanentAddress,
+//       permanent_village_city: permanentVillageCity,
+//       permanent_district: permanentDistrict,
+//       permanent_state: permanentState,
+//       permanent_pincode: permanentPincode,
+//       request_amount: requestAmount,
+//       loan_amount: null,
+//       interest_rate:data.interest_rate || 0,
+//       processing_fee_percentage: data.processing_fee_percentage,
+//       subvention_percentage: data.subvention_percentage,
+//       subvention_amount: data.subvention_amount,
+//       loan_tenure: data.loan_tenure,
+//       emi_amount: data.emi_amount || null,
+//       cibil_score: data.cibil_score || null,
+//       product: data.loan_type,
+//       lender: "CAREPAY",
+//       // loan_type: data.loan_type,
+//       net_disbursement: data.net_disbursement || requestAmount,
+//       employment: data.employment,
+//       customer_type: data.customer_type,
+//       annual_income: data.annual_income,
+//       patient_name: nullableString(data.patient_name),
+//       insurance_company_name: nullableString(data.insurance_company_name),
+//       insurance_policy_holder_name: nullableString(
+//         data.insurance_policy_holder_name,
+//       ),
+//       insurance_policy_number: nullableString(data.insurance_policy_number),
+//       relation_with_policy_holder: nullableString(
+//         data.relation_with_policy_holder,
+//       ),
+//       status: "Login",
+//       agreement_date,
+//     };
+
+//     const columns = Object.keys(fields).join(", ");
+//     const placeholders = Object.keys(fields)
+//       .map(() => "?")
+//       .join(", ");
+//     const values = Object.values(fields);
+
+//     await conn.query(
+//       `INSERT INTO loan_booking_carepay (${columns}) VALUES (${placeholders})`,
+//       values,
+//     );
+
+//     // await partnerLimitService.updateBookedLimit(
+//     //   conn,
+//     //   limitCheck.limitId,
+//     //   loanAmount,
+//     //   lan,
+//     // );
+
+//     await conn.commit();
+//     conn.release();
+//     conn = null;
+
+//     const bureauResult = await persistCarePayBureauResult(lan, {
+//       ...data,
+//       loan_amount: requestAmount,
+//       request_amount: requestAmount,
+//     });
+
+//     return res.json({
+//       message: "CAREPAY loan saved successfully.",
+//       lan,
+//       hospital_lan: hospitalLan,
+//       cibilScore: bureauResult.score || "Not Found",
+//       bureauStatus: bureauResult.success ? "VERIFIED" : "FAILED",
+//     });
+//   } catch (error) {
+//     if (conn) {
+//       await conn.rollback();
+//       conn.release();
+//     }
+
+//     console.error("CarePay onboarding error:", error);
+//     res.status(error.statusCode || 500).json({
+//       message: "Upload failed. Please try again.",
+//       error: error.sqlMessage || error.message,
+//     });
+//   }
+// });
+
+///// NEW CODE ADD SUB PFEE AND NET DIS. .......
+
+const isProvided = (value) =>
+  value !== undefined && value !== null && String(value).trim() !== "";
+
+const round2 = (value) =>
+  Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+
+const parseNonNegativeNumber = (value, fieldName) => {
+  if (!isProvided(value)) return null;
+
+  const num = Number(value);
+
+  if (!Number.isFinite(num) || num < 0) {
+    throw new Error(`Invalid ${fieldName}`);
+  }
+
+  return num;
+};
+
+const calculateAmountPercentagePair = ({
+  baseAmount,
+  amountValue,
+  percentageValue,
+  amountField,
+  percentageField,
+}) => {
+  const amount = parseNonNegativeNumber(amountValue, amountField);
+  const percentage = parseNonNegativeNumber(percentageValue, percentageField);
+
+  // Vendor passed both amount and percentage.
+  // Validate that both are matching.
+  if (amount !== null && percentage !== null) {
+    const expectedAmount = round2((baseAmount * percentage) / 100);
+    const givenAmount = round2(amount);
+
+    if (Math.abs(expectedAmount - givenAmount) > 0.01) {
+      throw new Error(
+        `${amountField} does not match ${percentageField}. Expected ${expectedAmount}`,
+      );
+    }
+
+    return {
+      amount: givenAmount,
+      percentage: round2(percentage),
+    };
+  }
+
+  // Vendor passed only percentage.
+  // Calculate amount.
+  if (percentage !== null) {
+    return {
+      percentage: round2(percentage),
+      amount: round2((baseAmount * percentage) / 100),
+    };
+  }
+
+  // Vendor passed only amount.
+  // Calculate percentage.
+  if (amount !== null) {
+    return {
+      amount: round2(amount),
+      percentage: round2((amount / baseAmount) * 100),
+    };
+  }
+
+  return {
+    amount: 0,
+    percentage: 0,
+  };
+};
+
 router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
   let conn;
 
   try {
     const data = req.body || {};
+
     const lenderType = String(req.partner?.name || "")
       .toLowerCase()
       .trim();
@@ -6599,6 +6962,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
         message: "This route is only for CarePay partner.",
       });
     }
+
     if (!data.loan_type) {
       return res.status(400).json({
         message: "Missing fields: loan_type",
@@ -6617,7 +6981,28 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       });
     }
 
-    const missing = getMissingFields(data, CAREPAY_REQUIRED_FIELDS);
+    /**
+     * Do not validate these fields through CAREPAY_REQUIRED_FIELDS,
+     * because vendor can send either amount or percentage.
+     *
+     * Example valid payloads:
+     * 1. processing_fee + subvention_amount
+     * 2. processing_fee_percentage + subvention_percentage
+     */
+    const OPTIONAL_CALCULATED_FIELDS = new Set([
+      "processing_fee",
+      "processing_fee_percentage",
+      "subvention_amount",
+      "subvention_percentage",
+      "request_amount",
+      "loan_amount",
+    ]);
+
+    const requiredFieldsForCarePay = CAREPAY_REQUIRED_FIELDS.filter(
+      (field) => !OPTIONAL_CALCULATED_FIELDS.has(field),
+    );
+
+    const missing = getMissingFields(data, requiredFieldsForCarePay);
 
     if (missing.length) {
       return res.status(400).json({
@@ -6625,34 +7010,89 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       });
     }
 
-    const rawRequestAmount =
-      data.request_amount !== undefined &&
-      data.request_amount !== null &&
-      data.request_amount !== ""
-        ? data.request_amount
-        : data.loan_amount;
+    const rawRequestAmount = isProvided(data.request_amount)
+      ? data.request_amount
+      : data.loan_amount;
 
-    if (
-      rawRequestAmount === undefined ||
-      rawRequestAmount === null ||
-      rawRequestAmount === ""
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Missing fields: request_amount" });
+    if (!isProvided(rawRequestAmount)) {
+      return res.status(400).json({
+        message: "Missing fields: request_amount",
+      });
     }
- 
 
     const requestAmount = Number(rawRequestAmount);
 
-    if (!requestAmount || Number.isNaN(requestAmount) || requestAmount <= 0) {
-      return res.status(400).json({ message: "Invalid request_amount" });
+    if (!Number.isFinite(requestAmount) || requestAmount <= 0) {
+      return res.status(400).json({
+        message: "Invalid request_amount",
+      });
+    }
+
+    const hasSubventionPercentage = isProvided(data.subvention_percentage);
+    const hasSubventionAmount = isProvided(data.subvention_amount);
+
+    if (!hasSubventionPercentage && !hasSubventionAmount) {
+      return res.status(400).json({
+        status: "Failed",
+        message: "Missing fields: subvention_percentage or subvention_amount",
+      });
+    }
+
+    const hasProcessingFeePercentage = isProvided(
+      data.processing_fee_percentage,
+    );
+    const hasProcessingFee = isProvided(data.processing_fee);
+
+    if (!hasProcessingFeePercentage && !hasProcessingFee) {
+      return res.status(400).json({
+        status: "Failed",
+        message: "Missing fields: processing_fee_percentage or processing_fee",
+      });
+    }
+
+    let subvention;
+    let processingFee;
+
+    try {
+      subvention = calculateAmountPercentagePair({
+        baseAmount: requestAmount,
+        amountValue: data.subvention_amount,
+        percentageValue: data.subvention_percentage,
+        amountField: "subvention_amount",
+        percentageField: "subvention_percentage",
+      });
+
+      processingFee = calculateAmountPercentagePair({
+        baseAmount: requestAmount,
+        amountValue: data.processing_fee,
+        percentageValue: data.processing_fee_percentage,
+        amountField: "processing_fee",
+        percentageField: "processing_fee_percentage",
+      });
+    } catch (calculationError) {
+      return res.status(400).json({
+        status: "Failed",
+        message: calculationError.message,
+      });
+    }
+
+    const netDisbursement = round2(
+      requestAmount - processingFee.amount - subvention.amount,
+    );
+
+    if (netDisbursement < 0) {
+      return res.status(400).json({
+        status: "Failed",
+        message:
+          "Invalid net_disbursement. Processing fee and subvention amount cannot exceed loan amount.",
+      });
     }
 
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
     const hospitalLan = String(data.hospital_lan || "").trim();
+
     const [hospitalRows] = await conn.query(
       `SELECT lan
        FROM carepay_hospital_booking
@@ -6722,8 +7162,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
       return res.status(400).json({
         status: "Failed",
-        message:
-          "PAN already exists with an active loan. New loan not allowed.",
+        message: "PAN already exists with an active loan. New loan not allowed.",
       });
     }
 
@@ -6757,11 +7196,13 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     // }
 
     const { lan } = await generateLoanIdentifiers(lenderType);
+
     const customer_name = `${data.first_name || ""} ${
       data.last_name || ""
     }`.trim();
+
     const agreement_date = data.login_date;
-    const interest_rate = 0;
+
     const permanentAddress = data.permanent_address || data.current_address;
     const permanentVillageCity =
       data.permanent_village_city || data.current_village_city;
@@ -6774,45 +7215,61 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       partner_loan_id: data.partner_loan_id,
       hospital_lan: hospitalLan,
       login_date: data.login_date,
+
       first_name: data.first_name,
       middle_name: nullableString(data.middle_name),
       last_name: data.last_name,
       customer_name,
+
       gender: data.gender,
       dob: data.dob,
       age: data.age || null,
+
       father_name: nullableString(data.father_name),
       mother_name: nullableString(data.mother_name),
+
       mobile_number: data.mobile_number,
       email_id: nullableString(data.email_id),
+
       pan_number: data.pan_number,
       aadhar_number: data.aadhar_number,
+
       current_address: data.current_address,
       current_village_city: data.current_village_city,
       current_district: data.current_district,
       current_state: data.current_state,
       current_pincode: data.current_pincode,
+
       permanent_address: permanentAddress,
       permanent_village_city: permanentVillageCity,
       permanent_district: permanentDistrict,
       permanent_state: permanentState,
       permanent_pincode: permanentPincode,
+
       request_amount: requestAmount,
-      loan_amount: null,
-      interest_rate:data.interest_rate || 0,
-      processing_fee_percentage: data.processing_fee_percentage,
-      subvention_percentage: data.subvention_percentage,
-      subvention_amount: data.subvention_amount,
+      loan_amount: requestAmount,
+
+      interest_rate: data.interest_rate || 0,
+
+      processing_fee_percentage: processingFee.percentage,
+      processing_fee: processingFee.amount,
+
+      subvention_percentage: subvention.percentage,
+      subvention_amount: subvention.amount,
+
       loan_tenure: data.loan_tenure,
       emi_amount: data.emi_amount || null,
       cibil_score: data.cibil_score || null,
+
       product: data.loan_type,
       lender: "CAREPAY",
-      // loan_type: data.loan_type,
-      net_disbursement: data.net_disbursement || requestAmount,
+
+      net_disbursement: netDisbursement,
+
       employment: data.employment,
       customer_type: data.customer_type,
       annual_income: data.annual_income,
+
       patient_name: nullableString(data.patient_name),
       insurance_company_name: nullableString(data.insurance_company_name),
       insurance_policy_holder_name: nullableString(
@@ -6822,6 +7279,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       relation_with_policy_holder: nullableString(
         data.relation_with_policy_holder,
       ),
+
       status: "Login",
       agreement_date,
     };
@@ -6840,7 +7298,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     // await partnerLimitService.updateBookedLimit(
     //   conn,
     //   limitCheck.limitId,
-    //   loanAmount,
+    //   requestAmount,
     //   lan,
     // );
 
@@ -6852,12 +7310,32 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       ...data,
       loan_amount: requestAmount,
       request_amount: requestAmount,
+
+      processing_fee_percentage: processingFee.percentage,
+      processing_fee: processingFee.amount,
+
+      subvention_percentage: subvention.percentage,
+      subvention_amount: subvention.amount,
+
+      net_disbursement: netDisbursement,
     });
 
     return res.json({
       message: "CAREPAY loan saved successfully.",
       lan,
       hospital_lan: hospitalLan,
+
+      request_amount: requestAmount,
+      loan_amount: requestAmount,
+
+      processing_fee_percentage: processingFee.percentage,
+      processing_fee: processingFee.amount,
+
+      subvention_percentage: subvention.percentage,
+      subvention_amount: subvention.amount,
+
+      net_disbursement: netDisbursement,
+
       cibilScore: bureauResult.score || "Not Found",
       bureauStatus: bureauResult.success ? "VERIFIED" : "FAILED",
     });
@@ -6868,12 +7346,15 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     }
 
     console.error("CarePay onboarding error:", error);
-    res.status(error.statusCode || 500).json({
+
+    return res.status(error.statusCode || 500).json({
       message: "Upload failed. Please try again.",
       error: error.sqlMessage || error.message,
     });
   }
 });
+
+   
 
 //////////////////emiclub missed cibil cases temporary route////////////////
 
