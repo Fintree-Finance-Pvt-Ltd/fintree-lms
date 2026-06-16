@@ -1336,9 +1336,12 @@ router.post(
 
         await connection.query(
           `UPDATE loan_booking_switch_my_loan
-     SET status = ?
-     WHERE application_id = ?`,
-          ["REJECTED", application_id],
+           SET status = ?,
+               sml_bre_status = ?,
+               sml_bre_reason = ?,
+               sml_credit_limit = ?
+           WHERE application_id = ?`,
+          ["REJECTED", "REJECTED", breEngineResult.reason || "BRE_REJECT", breEngineResult.creditLimit || null, application_id],
         );
 
         return res.status(400).json({
@@ -1370,9 +1373,13 @@ router.post(
         `UPDATE loan_booking_switch_my_loan
          SET
            status = ?,
+           sml_bre_status = ?,
+           sml_bre_reason = ?,
+           sml_credit_limit = ?,
+           disbursal_amount = ?,
            updated_at = CURRENT_TIMESTAMP
          WHERE application_id = ?`,
-        ["BRE_APPROVED", application_id],
+        ["BRE_APPROVED", "APPROVED", "BRE_CLEARED", breEngineResult.creditLimit || null, loan.loan_amount, application_id],
       );
 
       await connection.commit();

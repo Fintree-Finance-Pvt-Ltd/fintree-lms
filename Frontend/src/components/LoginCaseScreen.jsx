@@ -114,6 +114,8 @@ const LoginCaseScreen = ({
             onClick={() => {
               if (/^LDF/i.test(r?.lan)) {
                 navigate(`/loan-digit/customer-details?lan=${r.lan}`);
+              } else if (/^FINS/i.test(r?.lan)) {
+                navigate(`/fincrest-loan-details/${r.lan}`);
               } else {
                 navigate(`/approved-loan-details/${r.lan}`);
               }

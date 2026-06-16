@@ -331,6 +331,8 @@ const LoginActionScreen = ({
             navigate(`/motion-corp/customer-details?lan=${r.lan}`);
           } else if (/^FUN/i.test(r.lan)) {
             navigate(`/fundify/customer-details/${r.lan}`);
+          } else if (/^FINS/i.test(r.lan)) {
+            navigate(`/fincrest-loan-details/${r.lan}`);
           } else {
             navigate(`/approved-loan-details/${r.lan}`);
           }
@@ -370,6 +372,8 @@ const LoginActionScreen = ({
               navigate(`/motion-corp/customer-details?lan=${r.lan}`);
             } else if (/^FUN/i.test(r.lan)) {
               navigate(`/fundify/customer-details/${r.lan}`);
+            } else if (/^FINS/i.test(r.lan)) {
+              navigate(`/fincrest-loan-details/${r.lan}`);
             } else {
               navigate(`/approved-loan-details/${r.lan}`);
             }

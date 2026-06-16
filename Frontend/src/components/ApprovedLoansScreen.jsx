@@ -291,6 +291,8 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
 
     if (/^LDF/i.test(r?.lan)) {
       url = `/loan-digit/customer-details?lan=${r.lan}`;
+    } else if (/^FINS/i.test(r?.lan)) {
+      url = `/fincrest-loan-details/${r.lan}`;
     }
 
     return (

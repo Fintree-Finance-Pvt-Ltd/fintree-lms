@@ -4896,6 +4896,37 @@ router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
   }
 });
 
+// ✅ GET Finso Customer Details by LAN (For Frontend details screen)
+router.get("/v1/finso-customer-details/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    const [rows] = await db.promise().query(
+      `SELECT * FROM loan_booking_finso WHERE lan = ? LIMIT 1`,
+      [lan]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        is_success: false,
+        error: { message: "LAN not found.", code: "not_found" }
+      });
+    }
+
+    return res.status(200).json({
+      is_success: true,
+      message: "Customer details fetched successfully.",
+      data: rows[0],
+    });
+  } catch (error) {
+    console.error("❌ Error fetching finso customer details:", error);
+    return res.status(500).json({
+      is_success: false,
+      error: { message: "Failed to fetch details", details: error.message },
+    });
+  }
+});
+
 // ✅ Update Finso Bank Details by LAN
 router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
   try {

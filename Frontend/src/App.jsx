@@ -89,6 +89,7 @@ import FinsoAllLoans from "./components/FinsoAllLoans";
 import FinsoLoginLoans from "./components/FinsoLoginLoans";
 import FinsoActionScreen from "./components/FinsoActionScreen";
 import FinsoApproveInitiateScreen from "./components/FinsoApproveInitiateScreen";
+import FincrestLoanDetails from "./components/FincrestLoanDetails";
 import CustomerGenerateSOA from "./components/CustomerGenerateSOA";
 import HEYEVApprovedLoans from "./components/HEYEVApprovedLoans";
 import HEYEVDisbursedLoans from "./components/HEYEVDisbursedLoans";
@@ -744,6 +745,14 @@ function App() {
               <PermissionRoute pageName="Fincrest Disburse Initiated">
                 <FinsoApproveInitiateScreen />
               </PermissionRoute>
+            }
+          />
+          <Route
+            path="/fincrest-loan-details/:lan"
+            element={
+              // <PermissionRoute pageName="Fincrest Loan Details">
+                <FincrestLoanDetails />
+              // {/* </PermissionRoute> */}
             }
           />
           {/* ✅ Loan routes */}
