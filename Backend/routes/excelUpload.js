@@ -29,6 +29,7 @@ const {
 const {
   CAREPAY_HOSPITAL_REQUIRED_FIELDS,
   CAREPAY_REQUIRED_FIELDS,
+  CarepayLoanTypes,
 } = require("../utils/constant");
 const { runBureau } = require("../services/Bueraupullapiservice");
 const { autoRunFinsoBreIfReady } = require("../utils/fincrestBRE");
@@ -5253,7 +5254,10 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
               [lan, data.pan_card, score != null ? "VERIFIED" : "FAILED"],
             );
           } catch (kycErr) {
-            console.error("⚠️ KYC row upsert failed for FINSO BRE:", kycErr.message);
+            console.error(
+              "⚠️ KYC row upsert failed for FINSO BRE:",
+              kycErr.message,
+            );
           }
           // ─────────────────────────────────────────────────────────────────
 
@@ -5420,7 +5424,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
       if (missingField) {
         results.push({ error: `${missingField} is required.`, data });
         continue;
-      }   
+      }
 
       // ✅ Update existing record where LAN matches
       const [existing] = await db
@@ -6557,6 +6561,23 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
         message: "This route is only for CarePay partner.",
       });
     }
+    if (!data.loan_type) {
+      return res.status(400).json({
+        message: "Missing fields: loan_type",
+      });
+    }
+
+    const normalizedLoanType = String(data.loan_type).toLowerCase().trim();
+
+    const loanType = CarepayLoanTypes.find(
+      (type) => type.toLowerCase() === normalizedLoanType,
+    );
+
+    if (!loanType) {
+      return res.status(400).json({
+        message: `Invalid loan_type. Allowed values are: ${CarepayLoanTypes.join(", ")}`,
+      });
+    }
 
     const missing = getMissingFields(data, CAREPAY_REQUIRED_FIELDS);
 
@@ -6582,9 +6603,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
         .status(400)
         .json({ message: "Missing fields: request_amount" });
     }
-    if(!data.loan_type){
-      return res.status(400).json({ message: "Missing fields: loan_type" });
-    }
+ 
 
     const requestAmount = Number(rawRequestAmount);
 
