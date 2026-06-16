@@ -33,6 +33,7 @@ const { generateForReport, generateAllPending } = require('./jobs/cibilPdfServic
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
 const mobileRevocationLookup = require("./utils/mnrlApiService");
 const { initAadhaarKyc } = require("./services/digitapaadharservice");
+const { autoRunFinsoBreIfReady} = require("./utils/fincrestBRE")
 
 
 // function generateApiKey() {
@@ -201,6 +202,27 @@ app.post("/api/runheliumvalidations", async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
+app.post("/api/runfinsovalidations", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+
+    await autoRunFinsoBreIfReady(lan);
+
+    res.json({
+      ok: true,
+      message: `FINSO validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// autoRunFinsoBreIfReady
 
 // app.post("/api/retryAadharVerification", async (req, res) => {
 //   try {
