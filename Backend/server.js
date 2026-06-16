@@ -112,7 +112,7 @@ app.use(
 
 app.use(
   "/api/srbh",
-  require("./routes/SRBH/srbhDealerRoutes")
+  require("./routes/srbh/srbhDealerRoutes")
 );
 
 
