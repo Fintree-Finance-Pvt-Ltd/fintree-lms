@@ -4662,9 +4662,9 @@ const generateRepaymentScheduleFinso365 = async (
       r.principal,
       r.opening,
       r.closing,
-      r.remainingEmi,
-      r.remainingInterest,
-      r.remainingPrincipal,
+      r.emi,
+      r.interest,
+      r.principal,
       r.remainingAmount,
     ]);
 
