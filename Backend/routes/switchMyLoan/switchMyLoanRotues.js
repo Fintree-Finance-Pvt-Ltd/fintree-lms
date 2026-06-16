@@ -2395,6 +2395,115 @@ router.post("/v1/loan/extra_charge_waiver", verifyApiKey, async (req, res) => {
 //   }
 // );
 
+router.get("/v1/loan/:application_id/customer-details", verifyApiKey, async (req, res) => {
+  let connection;
+  try {
+    connection = await db.promise().getConnection();
+    const { application_id } = req.params;
+
+    const [existing] = await connection.query(
+      `SELECT * FROM loan_booking_switch_my_loan WHERE application_id = ? LIMIT 1`,
+      [application_id]
+    );
+
+    if (!existing.length) {
+      return res.status(404).json({
+        is_success: false,
+        error: {
+          message: "Loan application not found",
+          code: "not_found",
+        },
+      });
+    }
+
+    const loan = existing[0];
+
+    return res.json({
+      is_success: true,
+      data: {
+        partner_loan_id: loan.partner_loan_id,
+        application_id: loan.application_id,
+        lan: loan.lan,
+        status: loan.status,
+
+        full_name: loan.customer_name,
+        pan_number: loan.pan_number,
+        father_name: loan.father_name,
+        dob: loan.borrower_dob || loan.dob,
+        gender: loan.gender,
+        mobile: loan.mobile,
+        email: loan.email,
+        pincode: loan.pincode,
+        state: loan.state,
+        city: loan.city,
+        district: loan.district,
+
+        residence_status: loan.residence_status,
+        employment_type: loan.employment_type,
+        company_type: loan.company_type,
+        company_name: loan.company_name,
+        designation: loan.designation,
+        salary_range: loan.salary_range,
+        salary_mode: loan.salary_mode,
+        nature_of_business: loan.nature_of_business,
+        industry_type: loan.industry_type,
+        monthly_income: loan.monthly_income,
+
+        address_line_1: loan.address_line_1,
+        address_line_2: loan.address_line_2,
+        address_pincode: loan.address_pincode,
+        address_city: loan.address_city,
+        address_state: loan.address_state,
+        is_current_address: loan.is_current_address,
+        current_address_line_1: loan.current_address_line_1,
+        current_address_line_2: loan.current_address_line_2,
+        current_address_pincode: loan.current_address_pincode,
+        current_address_city: loan.current_address_city,
+        current_address_state: loan.current_address_state,
+
+        loan_amount: loan.loan_amount,
+        tenure: loan.tenure,
+        loan_type: loan.loan_type,
+        monthly_emi: loan.emi_amount || loan.monthly_emi,
+        interest_rate: loan.interest_rate,
+        processing_fee: loan.processing_fee,
+        repayment_count: loan.repayment_count,
+        payment_frequency: loan.payment_frequency,
+
+        loan_application_date: loan.loan_application_date,
+        agreement_date: loan.agreement_date,
+        repayment_date: loan.repayment_date,
+        agreement_signature_type: loan.agreement_signature_type,
+        source: loan.source,
+        preferred_language: loan.preferred_language,
+        previous_loan_amount: loan.previous_loan_amount,
+        total_disbursed_applications: loan.total_disbursed_applications,
+
+        bank_account: {
+          ac_name: loan.bank_ac_name,
+          ac_number: loan.bank_ac_number,
+          ifsc_code: loan.bank_ifsc_code,
+          nach_umrn: loan.bank_nach_umrn,
+          upi_id: loan.bank_upi_id,
+        },
+        
+        kyc: loan.kyc_json ? JSON.parse(loan.kyc_json) : null,
+      },
+    });
+  } catch (error) {
+    console.error("Fetch partner details error:", error);
+    return res.status(500).json({
+      is_success: false,
+      error: {
+        message: "Failed to fetch details",
+        code: "server_error",
+      },
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
 module.exports = router;
 
 // 3) UPDATE DETAILS
