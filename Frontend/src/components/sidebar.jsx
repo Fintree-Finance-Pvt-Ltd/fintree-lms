@@ -226,6 +226,7 @@ const Sidebar = () => {
       'Dealer ALL': <Users size={iconSize} />,
       'Aldun Loans': <Landmark size={iconSize} />,
       'MIS Reports': <BarChart3 size={iconSize} />,
+      'SRBH ':<BarChart3 size={iconSize} />,
     };
     // Return the icon or the first letter if not found
     return icons[group] || <span className="fallback-char">{group.charAt(0)}</span>;
@@ -266,6 +267,7 @@ const Sidebar = () => {
     'Dealer ALL': allowedPages.filter(p => p.path.includes('/dealer-onboarding')),
     'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),
     'MIS Reports': allowedPages.filter(p => p.path.includes('/mis-reports')),
+    'SRBH ': allowedPages.filter(p => p.path.includes('/srbh')),
   };
  
   return (

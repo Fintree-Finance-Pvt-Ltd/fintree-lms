@@ -225,6 +225,9 @@ import FundifyLoginCases from "./components/Fundify/FundifyLoginCases";
 import FundifyLoginActions from "./components/Fundify/FundifyLoginActions";
 
 
+import SRBHLoanBooking from "./components/Srbh/SRBHLoanBooking";
+import SRBHLoginCases from "./components/Srbh/SRBHLoginCases";
+
 function App() {
   return (
     <Router>
@@ -1892,7 +1895,53 @@ function App() {
             path="/customers/:partner_loan_id"
             element={<CustomerDetailsScreen />}
           />
+
+          {/* SRBH */}
+        {/* <Route
+          path="/srbh/dealer-entry"
+          element={
+            <PermissionRoute pageName="SRBH Dealer Entry">
+              <SRBHDealerEntry />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="/srbh/dealer-lists"
+          element={
+            <PermissionRoute pageName="SRBH Dealer Lists">
+              <SRBHDealerLists />
+            </PermissionRoute>
+          }
+        /> */}
+        {/* <Route
+          path="/srbh/dealer-login-actions"
+          element={
+            <PermissionRoute pageName="SRBH Dealer Login Cases">
+              <SRBHDealerLoginActions />
+            </PermissionRoute>
+          }
+        /> */}
+       <Route
+            path="/srbh/loan-booking"
+            element={
+              <PermissionRoute pageName="SRBH Loan Booking">
+                <SRBHLoanBooking />
+              </PermissionRoute>
+            }
+          />
+
+           <Route
+            path="/srbh/login-cases"
+            element={
+              <PermissionRoute pageName="SRBH Customer Login Cases Screen">
+                <SRBHLoginCases />
+              </PermissionRoute>
+            }
+          />
+ 
+ 
         </Route>
+
       </Routes>
     </Router>
   );

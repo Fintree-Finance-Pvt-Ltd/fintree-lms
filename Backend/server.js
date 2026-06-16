@@ -109,6 +109,13 @@ app.use(
   require("./routes/Seven Fincorp/sevenFincorpDealerRoutes")
 );
 
+
+app.use(
+  "/api/srbh",
+  require("./routes/SRBH/srbhDealerRoutes")
+);
+
+
 app.use(
   "/api/bundela",
   require("./routes/Bundela/bundelaDealerRoutes")

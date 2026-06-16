@@ -5099,7 +5099,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     <Application>
         <FTReferenceNumber></FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>13</EnquiryReason> 
+        <EnquiryReason>05</EnquiryReason> 
         <FinancePurpose>99</FinancePurpose>
         <AmountFinanced>${data.loan_amount}</AmountFinanced>
         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
@@ -5869,7 +5869,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     <Application>
         <FTReferenceNumber></FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>13</EnquiryReason> 
+        <EnquiryReason>06</EnquiryReason> 
         <FinancePurpose>99</FinancePurpose>
         <AmountFinanced>${data.loan_amount}</AmountFinanced>
         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
@@ -6943,7 +6943,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
                 <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
               </Identification>
               <Application>
-                <EnquiryReason>13</EnquiryReason>
+                <EnquiryReason>06</EnquiryReason>
                 <FinancePurpose>99</FinancePurpose>
                 <AmountFinanced>${loan_amount}</AmountFinanced>
                 <DurationOfAgreement>${loan_tenure}</DurationOfAgreement>

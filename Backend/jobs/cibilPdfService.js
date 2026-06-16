@@ -382,7 +382,7 @@ const compactCapsSummary = (title, subtitle, summary, prefix) => {
             <td>${fmtDate(c.Date_of_Request)}</td>
             <td>${money(c.Amount_Financed)}</td>
             <td>${S(c.Duration_Of_Agreement)}</td>
-            <td>${S(c.Enquiry_Reason)}</td>
+            <td>${S(enquiryReason)}</td>
           </tr>
         `;
       })
@@ -1946,56 +1946,56 @@ async function generateForReport(reportId) {
     if (!rows.length) throw new Error('report not found');
     const r = rows[0];
 
-    if (Number(r.pdf_generated) === 1) {
-        console.log(`PDF already generated for report id ${r.id}. Skipping.`);
+    // if (Number(r.pdf_generated) === 1) {
+    //     console.log(`PDF already generated for report id ${r.id}. Skipping.`);
 
-      await c.commit();
-      return { skipped: true };
-    }
-// if (Number(r.pdf_generated) === 1) {
-//   const backendDir = findBackendDir(__dirname);
-//   const uploadDir = path.join(backendDir, "uploads");
+    //   await c.commit();
+    //   return { skipped: true };
+    // }
+if (Number(r.pdf_generated) === 1) {
+  const backendDir = findBackendDir(__dirname);
+  const uploadDir = path.join(backendDir, "uploads");
 
-//   const [docs] = await c.query(
-//     `SELECT file_name 
-//      FROM loan_documents 
-//      WHERE lan = ? AND doc_name = 'CIBIL_REPORT'
-//      ORDER BY uploaded_at DESC 
-//      LIMIT 1`,
-//     [r.lan]
-//   );
+  const [docs] = await c.query(
+    `SELECT file_name 
+     FROM loan_documents 
+     WHERE lan = ? AND doc_name = 'CIBIL_REPORT'
+     ORDER BY uploaded_at DESC 
+     LIMIT 1`,
+    [r.lan]
+  );
 
-//   const existingFileName = docs?.[0]?.file_name;
-//   const existingFilePath = existingFileName
-//     ? path.join(uploadDir, existingFileName)
-//     : null;
+  const existingFileName = docs?.[0]?.file_name;
+  const existingFilePath = existingFileName
+    ? path.join(uploadDir, existingFileName)
+    : null;
 
-//   if (existingFilePath && fs.existsSync(existingFilePath)) {
-//     console.log(`PDF already exists for report id ${r.id}: ${existingFilePath}`);
-//     await c.commit();
-//     return { skipped: true, existing_file: existingFileName };
-//   }
+  if (existingFilePath && fs.existsSync(existingFilePath)) {
+    console.log(`PDF already exists for report id ${r.id}: ${existingFilePath}`);
+    await c.commit();
+    return { skipped: true, existing_file: existingFileName };
+  }
 
-//   console.log(`pdf_generated = 1 but file missing for report id ${r.id}. Regenerating PDF...`);
-// }
+  console.log(`pdf_generated = 1 but file missing for report id ${r.id}. Regenerating PDF...`);
+}
     const data = parseXml(r.report_xml);
     const fields = mapFields(data);
     const { filename, filePath } = makeOutputPath(r.lan);
 
     await generatePdf(filePath, html(fields));
 
-// if (!fs.existsSync(filePath)) {
-//   throw new Error(`PDF not stored at expected path: ${filePath}`);
-// }
+if (!fs.existsSync(filePath)) {
+  throw new Error(`PDF not stored at expected path: ${filePath}`);
+}
 
-// const pdfStat = fs.statSync(filePath);
+const pdfStat = fs.statSync(filePath);
 
-// if (!pdfStat.size || pdfStat.size <= 0) {
-//   throw new Error(`PDF file created but empty: ${filePath}`);
-// }
+if (!pdfStat.size || pdfStat.size <= 0) {
+  throw new Error(`PDF file created but empty: ${filePath}`);
+}
 
-// console.log("PDF STORED SUCCESSFULLY =>", filePath);
-// console.log("PDF SIZE =>", pdfStat.size, "bytes");
+console.log("PDF STORED SUCCESSFULLY =>", filePath);
+console.log("PDF SIZE =>", pdfStat.size, "bytes");
 
     await c.query(
       `INSERT INTO loan_documents (lan, doc_name, file_name, original_name, uploaded_at)

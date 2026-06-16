@@ -317,6 +317,7 @@ async function runBureauValidation({
   );
 
   const bureauResult = await runBureau({
+    enquiry_reason: "61", // 05 - Credit Assessment
     customer_name: applicantData.customer_name,
     first_name: applicantData.first_name,
     last_name: applicantData.last_name,

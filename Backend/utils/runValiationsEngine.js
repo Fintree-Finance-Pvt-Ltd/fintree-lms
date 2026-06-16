@@ -232,6 +232,7 @@ async function runApplicantValidation({
       }
 
       const bureauResult = await runBureau({
+        enquiry_reason: "01", // 05 - Credit Assessment
         customer_name: applicantData.customer_name,
         first_name: applicantData.first_name,
         last_name: applicantData.last_name,

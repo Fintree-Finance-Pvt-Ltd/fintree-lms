@@ -113,6 +113,7 @@ exports.clayooRunAllValidations = async (lan) => {
     }
 
     let bureauResult = await runBureau({
+      enquiry_reason: "05", // 05 - Credit Assessment
       customer_name: loan.customer_name,
       first_name: loan.first_name,
       last_name: loan.last_name,

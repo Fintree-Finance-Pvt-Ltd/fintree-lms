@@ -600,7 +600,7 @@ token_auth_type,
 <Application>
 <FTReferenceNumber>${lan}</FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>13</EnquiryReason>
+        <EnquiryReason>05</EnquiryReason>
         <FinancePurpose>99</FinancePurpose>
         <AmountFinanced>${loan_amount}</AmountFinanced>
         <DurationOfAgreement>${loan_tenure}</DurationOfAgreement>

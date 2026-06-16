@@ -98,7 +98,7 @@ const runBureau = async (data) => {
     <Application>
         <FTReferenceNumber></FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>13</EnquiryReason> 
+        <EnquiryReason>${data.enquiry_reason || 13}</EnquiryReason> 
         <FinancePurpose>99</FinancePurpose>
         <AmountFinanced>${data.loan_amount}</AmountFinanced>
         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
