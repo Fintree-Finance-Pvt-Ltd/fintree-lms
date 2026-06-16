@@ -5825,7 +5825,7 @@ module.exports = {
   generateRepaymentScheduleEV,
   generateRepaymentScheduleHEYEV,
   generateRepaymentScheduleHEYEVBattery,
-  generateRepaymentScheduleFinso360,
+  // generateRepaymentScheduleFinso360,
   generateRepaymentScheduleFinso365,
   generateRepaymentScheduleBL,
   generateRepaymentScheduleGQNonFSF,
