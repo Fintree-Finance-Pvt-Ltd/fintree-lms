@@ -1,21 +1,25 @@
 // bre/runBre.js
+// Rapid Money / Switch My Loan BRE
+// Performs AML check + credit limit check only. MNRL removed.
 
 const db = require("../../config/db");
 const { amlCheck } = require("../../utils/amlCrimescanService");
-const mobileRevocationLookup = require("../../utils/mnrlApiService");
 
+/* ─────────────────────────────────────────────
+   Pure helpers
+───────────────────────────────────────────── */
 
 function roundDownToThousand(value) {
   return Math.floor(Number(value || 0) / 1000) * 1000;
 }
 
 function isNewCustomer(totalDisbursedApplications) {
-  return Number(totalDisbursedApplications || 0) === 0;
+  return Number(totalDisbursedApplications ?? 0) === 0;
 }
 
 function calculateCreditLimit(data) {
-  const totalDisbursed = Number(data.total_disbursed_applications || 0);
-  const previousLoanAmount = Number(data.previous_loan_amount || 0);
+  const totalDisbursed = Number(data.total_disbursed_applications ?? 0);
+  const previousLoanAmount = Number(data.previous_loan_amount ?? 0);
 
   let limit = 0;
 
@@ -31,99 +35,69 @@ function calculateCreditLimit(data) {
 }
 
 function getAmlDecision(score, totalMatches) {
-
   // No AML match → safe
   if (totalMatches === 0) return "CLEAR";
-
   if (score >= 70) return "CLEAR";
-
   return "REJECT";
 }
 
-function getMobileRevocationDecision(result) {
-
-  if (!result) return "CLEAR";
-
-  if (result.mobile_number_status === "REVOKED")
-    return "REJECT";
-
-  if (
-    result.fri_status === "Flagged for reverification" ||
-    result.mobile_number_status === "SUSPECTED" ||
-    result.severity_index === "Very High Severity"
-  )
-    return "REJECT";
-
-  return "CLEAR";
-}
-
-
-/**
- * MAIN BRE FUNCTION
- */
+/* ─────────────────────────────────────────────
+   MAIN BRE FUNCTION
+───────────────────────────────────────────── */
 async function runBRE(data) {
-
   const lan = data.lan;
 
-  // STEP 1️⃣ Check existing AML result
+  /* STEP 1: Check if AML already run for this LAN */
   const [rows] = await db.promise().query(
-    `SELECT aml_score, aml_status, mobile_revocation_status
+    `SELECT aml_score, aml_status
      FROM loan_booking_switch_my_loan
      WHERE lan = ?`,
     [lan]
   );
 
-  let amlScore = rows?.[0]?.aml_score || null;
-  let amlStatus = rows?.[0]?.aml_status || null;
-  let mobileRevocationStatus =
-    rows?.[0]?.mobile_revocation_status ?? null;
+  let amlScore = rows?.[0]?.aml_score ?? null;
+  let amlStatus = rows?.[0]?.aml_status ?? null;
 
+  console.log(`[BRE] LAN=${lan} existing aml_score=${amlScore} aml_status=${amlStatus}`);
 
-    console.log(`Existing AML score: ${amlScore}, status: ${amlStatus}, mobile revocation status: ${mobileRevocationStatus}`);
-  // STEP 2️⃣ If AML not already run → trigger AML API
-  if (amlScore === null ) {
+  /* STEP 2: Run AML if not already done */
+  if (amlScore === null) {
+    console.log(`[BRE] Triggering AML check for LAN=${lan}`);
 
-    console.log("Triggering AML check for LAN:", lan);
-    console.log("aml request", {
-      customer_name: data.customer_name,
-      location: data.city,
-      father_name: data.father_name,
-      pan_number: data.pan_number,
-      phone: data.mobile
-    });
+    let amlResult;
+    try {
+      amlResult = await amlCheck("switch-my-loan", {
+        customer_name: data.customer_name,
+        location: data.city,
+        father_name: data.father_name,
+        pan_number: data.pan_number,
+        phone: data.mobile,
+      });
+    } catch (amlErr) {
+      console.error(`[BRE] AML API failed for LAN=${lan}:`, amlErr.message);
+      // Fail-safe: reject on AML error to prevent risky approvals
+      return {
+        decision: "REJECTED",
+        reason: "AML_CHECK_FAILED",
+        amlScore: null,
+      };
+    }
 
-    const amlResult = await amlCheck("switch-my-loan", {
-      customer_name: data.customer_name,
-      location: data.city,
-      father_name: data.father_name,
-      pan_number: data.pan_number,
-      phone: data.mobile
-    });
+    console.log(`[BRE] AML Result for LAN=${lan}:`, JSON.stringify(amlResult));
 
-    console.log("AML Result:", amlResult);
+    const totalMatches = Number(amlResult?.total ?? 0);
 
-    // const match = amlResult?.results?.[0];
+    if (totalMatches === 0) {
+      // No AML match → safe, set perfect score
+      amlScore = 100;
+    } else {
+      const match = amlResult.results?.[0];
+      amlScore = match?.score ?? 0;
+    }
 
-    // amlScore = match?.score || 0;
+    amlStatus = getAmlDecision(amlScore, totalMatches);
 
-if (!amlResult || amlResult.total === 0) {
-
-  // No AML match → safe
-  amlScore = 100;
-
-} else {
-
-  const match = amlResult.results[0];
-  amlScore = match?.score || 0;
-
-}
-
-    amlStatus = getAmlDecision(
-      amlScore,
-      amlResult.total
-    );    
-
-    // Save AML result
+    // Persist AML result
     await db.promise().query(
       `UPDATE loan_booking_switch_my_loan
        SET aml_score = ?, aml_status = ?, aml_checked_at = NOW()
@@ -132,119 +106,72 @@ if (!amlResult || amlResult.total === 0) {
     );
   }
 
-
-  // STEP 3️⃣ Decision based on AML status
+  /* STEP 3: Reject if AML flagged */
   if (amlStatus === "REJECT") {
+    console.warn(`[BRE] AML REJECT for LAN=${lan} score=${amlScore}`);
     return {
       decision: "REJECTED",
       reason: "AML_HIGH_RISK_MATCH",
-      amlScore
+      amlScore,
     };
   }
 
-  // if (amlStatus === "REVIEW") {
-  //   return {
-  //     decision: "MANUAL_REVIEW",
-  //     reason: "AML_MEDIUM_RISK_MATCH",
-  //     amlScore
-  //   };
-  // }
-
   if (amlStatus === "REVIEW") {
-  return {
-    decision: "REJECTED",
-    reason: "AML_MEDIUM_RISK_MATCH",
-    amlScore
-  };
-}
+    console.warn(`[BRE] AML REVIEW treated as REJECT for LAN=${lan} score=${amlScore}`);
+    return {
+      decision: "REJECTED",
+      reason: "AML_MEDIUM_RISK_MATCH",
+      amlScore,
+    };
+  }
 
+  /* STEP 4: Credit limit check */
+  const requestedLoanAmount = Number(data.loan_amount ?? 0);
 
+  if (requestedLoanAmount <= 0) {
+    console.warn(`[BRE] Invalid loan_amount=${requestedLoanAmount} for LAN=${lan}`);
+    return {
+      decision: "REJECTED",
+      reason: "INVALID_LOAN_AMOUNT",
+      requestedLoanAmount,
+    };
+  }
 
-  // STEP 4️⃣ Mobile Revocation Lookup Check
-
-if (!mobileRevocationStatus) {
-
-let mobileRevocationResult = null;
-
-  try {
-  mobileRevocationResult = await mobileRevocationLookup(
-    data.mobile,
-    lan
-  );
-} catch (err) {
-  console.error("Mobile revocation lookup failed:", err.message);
-  mobileRevocationResult = null;
-}
-
-  mobileRevocationStatus =
-    getMobileRevocationDecision(mobileRevocationResult);
-
-  await db.promise().query(
-    `UPDATE loan_booking_switch_my_loan
-     SET mobile_revocation_status = ?,
-         mobile_revocation_checked_at = NOW()
-     WHERE lan = ?`,
-    [mobileRevocationStatus, lan]
-  );
-}
-
-
-// STEP 5️⃣ Reject if revoked number
-
-if (mobileRevocationStatus === "REJECT") {
-  return {
-    decision: "REJECTED",
-    reason: "MOBILE_NUMBER_REVOKED"
-  };
-}
-
-
-// STEP 6️⃣ Manual review if suspicious number
-
-// if (mobileRevocationStatus === "REVIEW") {
-//   return {
-//     decision: "MANUAL_REVIEW",
-//     reason: "MOBILE_NUMBER_SUSPECTED"
-//   };
-// }
-
-if (mobileRevocationStatus === "REVIEW") {
-  return {
-    decision: "REJECTED",
-    reason: "MOBILE_NUMBER_SUSPECTED"
-  };
-}
-
-
-  // STEP 4️⃣ Continue normal BRE logic
-
-  const totalDisbursed = Number(data.total_disbursed_applications || 0);
-
+  const totalDisbursed = Number(data.total_disbursed_applications ?? 0);
   const newCustomer = isNewCustomer(totalDisbursed);
-
   const creditLimit = calculateCreditLimit(data);
+
+  console.log(`[BRE] LAN=${lan} requestedLoanAmount=${requestedLoanAmount} creditLimit=${creditLimit} newCustomer=${newCustomer}`);
+
+  if (requestedLoanAmount > creditLimit) {
+    console.warn(`[BRE] Loan amount ${requestedLoanAmount} exceeds credit limit ${creditLimit} for LAN=${lan}`);
+    return {
+      decision: "REJECTED",
+      reason: "LOAN_AMOUNT_EXCEEDS_CREDIT_LIMIT",
+      requestedLoanAmount,
+      creditLimit,
+    };
+  }
+
+  /* STEP 5: APPROVED */
+  console.log(`[BRE] APPROVED for LAN=${lan}`);
 
   return {
     decision: "APPROVED",
-
+    creditLimit,
     aml: {
       status: amlStatus,
-      score: amlScore
+      score: amlScore,
     },
-
-    mobile_revocation: mobileRevocationStatus,
 
     rules: {
       CREDIT_LIMIT_CHECK_RPM: {
         derived_values: {
-          LIMIT_ASSIGNMENT_IS_NEW_CUSTOMER_RPM:
-            newCustomer ? creditLimit : 0,
-
-          LIMIT_ASSIGNMENT_IS_REPEAT_CUSTOMER_RPM:
-            newCustomer ? 0 : creditLimit
-        }
-      }
-    }
+          LIMIT_ASSIGNMENT_IS_NEW_CUSTOMER_RPM: newCustomer ? creditLimit : 0,
+          LIMIT_ASSIGNMENT_IS_REPEAT_CUSTOMER_RPM: newCustomer ? 0 : creditLimit,
+        },
+      },
+    },
   };
 }
 

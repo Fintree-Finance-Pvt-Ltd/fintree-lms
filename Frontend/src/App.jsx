@@ -89,6 +89,7 @@ import FinsoAllLoans from "./components/FinsoAllLoans";
 import FinsoLoginLoans from "./components/FinsoLoginLoans";
 import FinsoActionScreen from "./components/FinsoActionScreen";
 import FinsoApproveInitiateScreen from "./components/FinsoApproveInitiateScreen";
+import FincrestLoanDetails from "./components/FincrestLoanDetails";
 import CustomerGenerateSOA from "./components/CustomerGenerateSOA";
 import HEYEVApprovedLoans from "./components/HEYEVApprovedLoans";
 import HEYEVDisbursedLoans from "./components/HEYEVDisbursedLoans";
@@ -225,8 +226,15 @@ import FundifyLoginCases from "./components/Fundify/FundifyLoginCases";
 import FundifyLoginActions from "./components/Fundify/FundifyLoginActions";
 
 
+//SRBH Imports
+import SRBHDealerEntry from "./components/Srbh/SRBHDealerEntry";
+import SRBHDealerLists from "./components/Srbh/SRBHDealerLists";
+import SRBHDealerLoginActions from "./components/Srbh/SRBHDealerLoginActions";
+import SRBHDealerDetails from "./components/Srbh/SRBHDealerDetails";
 import SRBHLoanBooking from "./components/Srbh/SRBHLoanBooking";
 import SRBHLoginCases from "./components/Srbh/SRBHLoginCases";
+
+
 
 function App() {
   return (
@@ -747,6 +755,14 @@ function App() {
               <PermissionRoute pageName="Fincrest Disburse Initiated">
                 <FinsoApproveInitiateScreen />
               </PermissionRoute>
+            }
+          />
+          <Route
+            path="/fincrest-loan-details/:lan"
+            element={
+              // <PermissionRoute pageName="Fincrest Loan Details">
+                <FincrestLoanDetails />
+              // {/* </PermissionRoute> */}
             }
           />
           {/* ✅ Loan routes */}
@@ -1896,12 +1912,11 @@ function App() {
             element={<CustomerDetailsScreen />}
           />
 
-          {/* SRBH */}
-        {/* <Route
+           <Route
           path="/srbh/dealer-entry"
           element={
             <PermissionRoute pageName="SRBH Dealer Entry">
-              <SRBHDealerEntry />
+              <SRBHDealerEntry/>
             </PermissionRoute>
           }
         />
@@ -1912,15 +1927,20 @@ function App() {
               <SRBHDealerLists />
             </PermissionRoute>
           }
-        /> */}
-        {/* <Route
+        />
+        <Route
           path="/srbh/dealer-login-actions"
           element={
-            <PermissionRoute pageName="SRBH Dealer Login Cases">
+            <PermissionRoute pageName="SRBH Dealer Credit Approval List">
               <SRBHDealerLoginActions />
             </PermissionRoute>
           }
-        /> */}
+        />
+        <Route
+            path="/srbh/dealer-details/:lan"
+            element={<SRBHDealerDetails />}
+          />
+ 
        <Route
             path="/srbh/loan-booking"
             element={

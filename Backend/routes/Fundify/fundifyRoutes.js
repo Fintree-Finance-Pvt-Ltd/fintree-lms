@@ -957,6 +957,7 @@ router.post("/save-business", async (req, res) => {
     const { lan, partnerLoanId } = await generateLoanIdentifiers("Fundify");
 
     // Create loan_booking_fundify row with business details
+    const rawResponse = gstRawResponse ? JSON.stringify(gstRawResponse) : null;
     await conn.query(
       `INSERT INTO loan_booking_fundify
        (lan, partner_loan_id, login_date, status, stage, lender, product, partner_name, bre_status,
@@ -964,9 +965,9 @@ router.post("/save-business", async (req, res) => {
         shop_establishment_no, business_registration_no, constitution_type, business_start_date,
         business_vintage_months, nature_of_business, industry_type, business_address, business_city,
         business_district, business_state, business_pincode, premises_ownership, business_mobile,
-        business_email)
+        business_email, gst_raw_response)
        VALUES (?, ?, ?, 'Login', 'Login', 'Fundify', 'Fundify Loan', 'Fundify', 'Pending',
-        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         lan, partnerLoanId,
         loginDate || (loan && loan.login_date) || new Date().toISOString().split("T")[0],
@@ -992,6 +993,7 @@ router.post("/save-business", async (req, res) => {
         emptyToNull(loan?.premises_ownership),
         emptyToNull(loan?.business_mobile),
         emptyToNull(loan?.business_email),
+        rawResponse,
       ]
     );
 

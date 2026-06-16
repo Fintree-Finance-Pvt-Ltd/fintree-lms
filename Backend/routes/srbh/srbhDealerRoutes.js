@@ -77,7 +77,6 @@ const numberOrNull = (value) => {
   const num = Number(value);
   return Number.isNaN(num) ? null : num;
 };
-
 /*
 ====================================================
 MULTER CONFIG
@@ -90,8 +89,501 @@ const storage = multer.diskStorage({
 
 const uploadCheque = multer({ storage });
 
+/*
+====================================================
+CREATE DEALER + MULTIPLE PRODUCTS
+====================================================
+*/
+router.post("/dealer/create", async (req, res) => {
+  try {
+    const data = req.body;
 
+    const { lan, application_id } =
+      await generateLoanIdentifiers("SRBH_DEALER");
 
+    const dealerQuery = `
+      INSERT INTO srbh_dealer_booking
+      (
+        application_id, lan, dealer_id,
+        business_name, trade_name, business_type,
+        pan_number, gst_number,
+        owner_name, owner_mobile, owner_email,
+        showroom_address, city, state, pincode,
+        bank_name, branch_name, account_holder_name, account_number, ifsc_code,
+        cheque_file_path, cheque_ocr_bank_name, cheque_ocr_branch_name,
+        cheque_ocr_account_holder_name, cheque_ocr_account_number,
+        cheque_ocr_ifsc_code, cheque_ocr_response,
+        cheque_uploaded_at,
+        status, created_at, login_date
+      )
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),'ACTIVE',NOW(),CURDATE())
+    `;
+
+    const dealerValues = [
+      application_id,
+      lan,
+      lan,
+
+      data.business_name,
+      data.trade_name || null,
+      data.business_type,
+
+      data.pan_number,
+      data.gst_number,
+
+      data.owner_name,
+      data.owner_mobile,
+      data.owner_email || null,
+
+      data.showroom_address,
+      data.city,
+      data.state,
+      data.pincode,
+
+      data.bank_name,
+      data.branch_name?.trim() || null,
+      data.account_holder_name,
+      data.account_number,
+      data.ifsc_code,
+
+      data.cheque_file_path || null,
+      data.cheque_ocr_bank_name || null,
+      data.cheque_ocr_branch_name || null,
+      data.cheque_ocr_account_holder_name || null,
+      data.cheque_ocr_account_number || null,
+      data.cheque_ocr_ifsc_code || null,
+      JSON.stringify(data.cheque_ocr_response || {}),
+    ];
+
+    await db.promise().query(dealerQuery, dealerValues);
+
+    /*
+    ============================
+    INSERT MULTIPLE PRODUCTS
+    ============================
+    */
+    if (data.products && data.products.length > 0) {
+      const productQuery = `
+        INSERT INTO srbh_dealer_products
+        (application_id, battery_type, battery_name, e_rickshaw_model, e_rickshaw_model_price)
+        VALUES ?
+      `;
+
+      const productValues = data.products.map((p) => [
+        application_id,
+        p.battery_type || null,
+        p.battery_name || null,
+        p.e_rickshaw_model || null,
+        p.price || null,
+      ]);
+
+      await db.promise().query(productQuery, [productValues]);
+    }
+
+    res.json({
+      message: "Dealer + Products created successfully",
+      lan,
+      application_id,
+    });
+  } catch (err) {
+    console.error("Insert Error:", err);
+
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(400).json({
+        message: "Duplicate entry found",
+      });
+    }
+
+    res.status(500).json({
+      message: "Dealer creation failed",
+      error: err.message,
+    });
+  }
+});
+
+/*
+====================================================
+PRODUCT APIs
+====================================================
+*/
+
+// ➕ Add Product
+router.post("/dealer/product/add", async (req, res) => {
+  try {
+    const {
+      application_id,
+      battery_type,
+      battery_name,
+      e_rickshaw_model,
+      price,
+    } = req.body;
+
+    await db.promise().query(
+      `
+      INSERT INTO srbh_dealer_products
+      (application_id, battery_type, battery_name, e_rickshaw_model, e_rickshaw_model_price)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+      [application_id, battery_type, battery_name, e_rickshaw_model, price],
+    );
+
+    res.json({ message: "Product added successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Insert failed", error: err.message });
+  }
+});
+
+// ✏️ Update Product
+router.put("/dealer/product/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { battery_type, battery_name, e_rickshaw_model, price } = req.body;
+
+    await db.promise().query(
+      `
+      UPDATE srbh_dealer_products
+      SET battery_type=?, battery_name=?, e_rickshaw_model=?, e_rickshaw_model_price=?
+      WHERE id=?
+    `,
+      [battery_type, battery_name, e_rickshaw_model, price, id],
+    );
+
+    res.json({ message: "Product updated successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Update failed", error: err.message });
+  }
+});
+
+// ❌ Delete Product
+router.delete("/dealer/product/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await db.promise().query(
+      `
+      DELETE FROM srbh_dealer_products WHERE id=?
+    `,
+      [id],
+    );
+
+    res.json({ message: "Product deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Delete failed", error: err.message });
+  }
+});
+
+// 📋 Get Products
+router.get("/dealer/:application_id/products", async (req, res) => {
+  try {
+    const { application_id } = req.params;
+
+    const [rows] = await db.promise().query(
+      `
+      SELECT * FROM srbh_dealer_products
+      WHERE application_id=?
+    `,
+      [application_id],
+    );
+
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "Fetch failed", error: err.message });
+  }
+});
+
+/*
+====================================================
+UPLOAD CHEQUE OCR
+====================================================
+*/
+router.post(
+  "/dealer/:lan/upload-cheque",
+  uploadCheque.single("cheque"),
+  async (req, res) => {
+    try {
+      const { lan } = req.params;
+
+      const formData = new FormData();
+      formData.append("file", fs.createReadStream(req.file.path));
+
+      const ocrResponse = await axios.post(
+        process.env.CHEQUE_OCR_API,
+        formData,
+        { headers: formData.getHeaders() },
+      );
+
+      const ocr = ocrResponse.data;
+
+      await db.promise().query(
+        `
+        UPDATE srbh_dealer_booking
+        SET cheque_file_path=?, cheque_ocr_bank_name=?, cheque_ocr_branch_name=?,
+            cheque_ocr_account_holder_name=?, cheque_ocr_account_number=?,
+            cheque_ocr_ifsc_code=?, cheque_ocr_response=?, cheque_uploaded_at=NOW()
+        WHERE lan=?
+      `,
+        [
+          req.file.path,
+          ocr.bank_name,
+          ocr.branch_name,
+          ocr.account_holder_name,
+          ocr.account_number,
+          ocr.ifsc_code,
+          JSON.stringify(ocr),
+          lan,
+        ],
+      );
+
+      res.json({ message: "Cheque OCR success", ocr });
+    } catch (err) {
+      res.status(500).json({ message: "OCR failed", error: err.message });
+    }
+  },
+);
+
+// /////////////// Dealer Lists & Details routes are in a separate file for better organization ///////////////
+router.get("/dealer-list", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT 
+        lan,
+        id,
+        business_name,
+        trade_name,
+        business_type,
+        city,
+        state,
+        owner_name
+      FROM srbh_dealer_booking
+      WHERE status IN ('APPROVED', 'ACTIVE')
+      ORDER BY lan ASC
+    `);
+
+    const formatted = rows.map((d) => ({
+      lan: d.lan,
+      id: d.id,
+      name: `${d.business_name} (${d.city}, ${d.state})`,
+      business_name: d.business_name,
+      trade_name: d.trade_name,
+      business_type: d.business_type,
+      city: d.city,
+      state: d.state,
+      owner_name: d.owner_name,
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error("Dealer list error:", err);
+
+    res.status(500).json({
+      message: "Failed to fetch dealers",
+      error: err.message,
+    });
+  }
+});
+
+////////////////////// Dealer list for loan booking //////////////////////////////////////////////
+router.get("/dealersforbooking", async (req, res) => {
+  try {
+    const [dealers] = await db.promise().query(`
+      SELECT 
+        id,
+        application_id,
+        lan,
+        dealer_id,
+        business_name,
+        trade_name,
+        business_type,
+        pan_number,
+        gst_number,
+        owner_name,
+        owner_mobile,
+        owner_email,
+        showroom_address,
+        city,
+        state,
+        pincode,
+        bank_name,
+        branch_name,
+        account_holder_name,
+        account_number,
+        ifsc_code,
+        status
+      FROM srbh_dealer_booking
+      WHERE status = 'ACTIVE'
+      ORDER BY business_name ASC
+    `);
+
+    const [products] = await db.promise().query(`
+      SELECT 
+        id,
+        application_id,
+        battery_type,
+        battery_name,
+        e_rickshaw_model
+      FROM srbh_dealer_products
+      ORDER BY id ASC
+    `);
+
+    const dealersWithProducts = dealers.map((dealer) => ({
+      ...dealer,
+      products: products.filter(
+        (product) => product.application_id === dealer.application_id,
+      ),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      dealers: dealersWithProducts,
+    });
+  } catch (error) {
+    console.error("Fetch dealers error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch dealers.",
+    });
+  }
+});
+
+//////////// Details route is in a separate file for better organization ///////////////
+router.get("/dealer-details/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    const [rows] = await db.promise().query(
+      `SELECT 
+        d.*,
+        p.id AS product_id,
+        p.battery_type,
+        p.battery_name,
+        p.e_rickshaw_model,
+        p.e_rickshaw_model_price
+      FROM srbh_dealer_booking d
+      LEFT JOIN srbh_dealer_products p
+        ON d.application_id = p.application_id
+      WHERE d.lan = ?`,
+      [lan],
+    );
+
+    // ❌ No dealer found
+    if (rows.length === 0) {
+      return res.status(404).json({
+        message: "Dealer not found",
+      });
+    }
+
+    /*
+    ==========================
+    TRANSFORM DATA
+    ==========================
+    */
+
+    const dealer = {
+      ...rows[0],
+
+      products: rows
+        .filter((r) => r.product_id !== null) // remove null rows
+        .map((r) => ({
+          id: r.product_id,
+          battery_type: r.battery_type,
+          battery_name: r.battery_name,
+          e_rickshaw_model: r.e_rickshaw_model,
+          price: r.e_rickshaw_model_price,
+        })),
+    };
+
+    // ✅ Clean duplicate fields from root
+    delete dealer.product_id;
+    delete dealer.battery_type;
+    delete dealer.battery_name;
+    delete dealer.e_rickshaw_model;
+    delete dealer.e_rickshaw_model_price;
+
+    /*
+    ==========================
+    RESPONSE
+    ==========================
+    */
+
+    res.json(dealer);
+  } catch (err) {
+    console.error("Dealer details error:", err);
+
+    res.status(500).json({
+      message: "Failed to fetch dealer details",
+      error: err.message,
+    });
+  }
+});
+
+/////////// Dealer Approve/Reject routes are in a separate file for better organization ///////////////
+router.get("/dealers-login-cases", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT 
+        id,
+        lan,
+        business_name,
+        trade_name,
+        business_type,
+        city,
+        state,
+        owner_name,
+        owner_mobile,
+        status,
+        created_at
+      FROM srbh_dealer_booking
+      WHERE status = 'ACTIVE'
+      ORDER BY created_at DESC
+    `);
+
+    res.json(rows);
+  } catch (err) {
+    console.error("Dealer login cases error:", err);
+
+    res.status(500).json({
+      message: "Failed to fetch dealer cases",
+      error: err.message,
+    });
+  }
+});
+
+router.patch("/dealer/status/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        message: "Status is required",
+      });
+    }
+
+    const [result] = await db.promise().query(
+      `UPDATE srbh_dealer_booking 
+       SET status = ?, updated_at = NOW() 
+       WHERE lan = ?`,
+      [status, lan],
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "Dealer not found",
+      });
+    }
+
+    res.json({
+      message: "Status updated successfully",
+    });
+  } catch (err) {
+    console.error("Dealer status update error:", err);
+
+    res.status(500).json({
+      message: "Failed to update dealer status",
+      error: err.message,
+    });
+  }
+});
 
 
 router.post("/upload/ev-customer-manual", async (req, res) => {

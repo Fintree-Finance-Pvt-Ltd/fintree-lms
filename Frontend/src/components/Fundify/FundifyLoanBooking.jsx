@@ -220,7 +220,7 @@ const FundifyManualEntry = () => {
   const isValidMobile = (m) => /^[6-9]\d{9}$/.test(String(m || "").trim());
   const isValidPan    = (p) => /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(String(p || "").trim());
   const isValidEmail  = (e) => !e || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || "").trim());
-  const isValidGstin  = (g) => /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(String(g || "").trim().toUpperCase());
+  const isValidGstin  = (g) => /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][a-zA-Z0-9][0-9A-Z]$/.test(String(g || "").trim().toUpperCase());
 
   /* ============================================================ */
   /*              PINCODE & IFSC LOOKUP HANDLERS                  */
@@ -417,7 +417,7 @@ const FundifyManualEntry = () => {
   const validateBusiness = () => {
     const e = {};
     if (!loan.business_name) e["business_name"] = "Business name is required";
-    if (loan.business_mobile && !isValidMobile(loan.business_mobile)) e["business_mobile"] = "Valid 10-digit mobile required";
+    if (!loan.business_mobile || !isValidMobile(loan.business_mobile)) e["business_mobile"] = "Valid 10-digit mobile required";
     if (loan.business_email && !isValidEmail(loan.business_email)) e["business_email"] = "Invalid email format";
     if (loan.gstin && !isValidGstin(loan.gstin)) e["gstin"] = "Invalid GSTIN format";
     if (loan.business_pan && !isValidPan(loan.business_pan)) e["business_pan"] = "Invalid PAN format";

@@ -422,11 +422,11 @@ const getCibilOffer = (scoreInput) => {
    * Above 725   => 50,000 / 100 days
    */
 
-  if (score === -1) {
+  if (score !== null && score >= -1 && score <= 200) {
     return {
       amount: 20000,
       tenureDays: 60,
-      band: "NTC_-1",
+      band: "NTC",
     };
   }
 

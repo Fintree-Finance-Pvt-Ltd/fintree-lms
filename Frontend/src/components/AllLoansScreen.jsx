@@ -110,6 +110,8 @@ const AllLoansScreen = ({
               nav(`/motion-corp/customer-details?lan=${r.lan}`);
             } else if (/^FUN/i.test(r.lan)) {
               nav(`/fundify/customer-details/${r.lan}`);
+            } else if (/^FINS/i.test(r.lan)) {
+              nav(`/fincrest-loan-details/${r.lan}`);
             } else {
               nav(`/loan-details/${r.lan}`);
             }

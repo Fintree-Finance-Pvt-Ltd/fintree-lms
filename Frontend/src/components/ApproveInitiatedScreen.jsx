@@ -240,7 +240,9 @@ const handleApprovedAmountChange = (lan, value) => {
           onClick={() => {
             if(/^MC/i.test(r.lan)){
               navigate(`/motion-corp/customer-details?lan=${r.lan}`);
-            }else {
+            } else if (/^FINS/i.test(r.lan)) {
+              navigate(`/fincrest-loan-details/${r.lan}`);
+            } else {
               navigate(`/approved-loan-details/${r.lan}`);
             }
           }}
@@ -270,7 +272,9 @@ const handleApprovedAmountChange = (lan, value) => {
           onClick={() => {
             if(/^MC/i.test(r.lan)){
               navigate(`/motion-corp/customer-details?lan=${r.lan}`);
-            }else {
+            } else if (/^FINS/i.test(r.lan)) {
+              navigate(`/fincrest-loan-details/${r.lan}`);
+            } else {
               navigate(`/approved-loan-details/${r.lan}`);
             }
           }}
