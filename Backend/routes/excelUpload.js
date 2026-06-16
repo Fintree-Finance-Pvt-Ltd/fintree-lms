@@ -91,8 +91,14 @@ const generateLoanIdentifiers = async (lender) => {
     prefixLan = "CAREHOS";
   } else if (lender === "WCTL_CC_OD") {
     prefixLan = "FCCOD1";
-  } else if (lender === "Finso") {
+  }  else if (lender === "Finso") {
+    prefixPartnerLoan = "FINS1";
     prefixLan = "FINS1";
+
+  } else if (lender === "Term Loan") {
+    // ✅ Added for loan_booking_term_loan
+    prefixPartnerLoan = "TLFFPL1";
+    prefixLan = "TLF1";
   } else {
     return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
   }
@@ -780,6 +786,469 @@ router.post("/upload/ev-manual", async (req, res) => {
     });
   }
 });
+
+///////////// TERM LOAN //////////////
+// ===============================
+// TERM LOAN EXCEL UPLOAD CODE
+// ===============================
+
+// Required existing imports in your route file:
+// const express = require("express");
+// const router = express.Router();
+// const xlsx = require("xlsx");
+// const multer = require("multer");
+// const db = require("../config/db");
+// const upload = multer({ storage: multer.memoryStorage() });
+// const { generateLoanIdentifiers } = require("../utils/generateLoanIdentifiers");
+
+const TERM_LOAN_TABLE = "loan_booking_term_loan";
+
+// These headers are based on your Term Loan Excel sheet
+const termLoanExpectedHeaders = [
+  "login_date",
+  "customer_name",
+  "mobile_number",
+  "alternate_mobile",
+  "email",
+  "business_type",
+  "business_category",
+  "gst_number",
+  "business_address_line1",
+  "business_address_line2",
+  "business_pincode",
+  "business_city",
+  "business_state",
+  "business_vintage_years",
+  "current_date",
+  "borrower_dob",
+  "father_name",
+  "address_line_1",
+  "address_line_2",
+  "village",
+  "district",
+  "state",
+  "pincode",
+  "loan_amount",
+  "interest_rate",
+  "loan_tenure",
+  "emi_amount",
+  "guarantor_name",
+  "guarantor_dob",
+  "guarantor_aadhar",
+  "guarantor_pan",
+  "name_in_bank",
+  "bank_name",
+  "account_number",
+  "ifsc",
+  "aadhar_number",
+  "pan_card",
+  "product",
+  "lender",
+  "agreement_date",
+  "disbursal_amount",
+  "processing_fee",
+  "cibil_score",
+  "guarantor_cibil_score",
+  "relationship_with_borrower",
+  "co_applicant",
+  "co_applicant_dob",
+  "co_applicant_aadhar",
+  "co_applicant_pan",
+  "co_applicant_cibil_score",
+  "apr",
+  "battery_name",
+  "risk_category",
+  "bucket",
+];
+
+// DB insert columns
+const termLoanInsertColumns = [
+  "partner_loan_id",
+  "lan",
+  ...termLoanExpectedHeaders,
+  "status",
+];
+
+// Required fields for validation
+const termLoanRequiredFields = [
+  "login_date",
+  "customer_name",
+  "mobile_number",
+  "business_type",
+  "business_category",
+  "gst_number",
+  "business_address_line1",
+  "business_pincode",
+  "business_city",
+  "business_state",
+  "borrower_dob",
+  "father_name",
+  "address_line_1",
+  "district",
+  "state",
+  "pincode",
+  "loan_amount",
+  "interest_rate",
+  "loan_tenure",
+  "name_in_bank",
+  "bank_name",
+  "account_number",
+  "ifsc",
+  "aadhar_number",
+  "pan_card",
+  "product",
+  "lender",
+];
+
+const termLoanDateFields = new Set([
+  "login_date",
+  "current_date",
+  "borrower_dob",
+  "guarantor_dob",
+  "agreement_date",
+  "co_applicant_dob",
+]);
+
+const isBlankTermLoanValue = (value) => {
+  return value === undefined || value === null || String(value).trim() === "";
+};
+
+const cleanTermLoanValue = (value) => {
+  if (value === undefined || value === null) return null;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed === "" ? null : trimmed;
+  }
+
+  return value;
+};
+
+const toSqlDateTermLoan = (value) => {
+  if (isBlankTermLoanValue(value)) return null;
+
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === "number") {
+    // Excel serial date to YYYY-MM-DD
+    const utcDays = Math.floor(value - 25569);
+    const utcValue = utcDays * 86400;
+    return new Date(utcValue * 1000).toISOString().slice(0, 10);
+  }
+
+  return String(value).trim();
+};
+
+// =====================================================
+// BULK TERM LOAN EXCEL UPLOAD
+// URL: POST /upload/term-loan
+// Body: form-data
+// file: Excel file
+// lenderType: Term Loan
+// =====================================================
+
+router.post("/upload/term-loan", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      message: "No file uploaded. Please select a valid Excel file.",
+    });
+  }
+
+  if (!req.body.lenderType) {
+    return res.status(400).json({
+      message: "Lender type is required.",
+    });
+  }
+
+  try {
+    const lenderType = String(req.body.lenderType).trim();
+
+    if (lenderType !== "Term Loan") {
+      return res.status(400).json({
+        message: "Invalid upload lender type. Only Term Loan is supported.",
+      });
+    }
+
+    const workbook = xlsx.read(req.file.buffer, {
+      type: "buffer",
+      cellDates: true,
+    });
+
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    const headerRows = xlsx.utils.sheet_to_json(sheet, {
+      header: 1,
+      defval: "",
+      raw: true,
+    });
+
+    const uploadedHeaders = (headerRows[0] || []).map((h) =>
+      String(h).trim()
+    );
+
+    const missingHeaders = termLoanExpectedHeaders.filter(
+      (header) => !uploadedHeaders.includes(header)
+    );
+
+    if (missingHeaders.length > 0) {
+      return res.status(400).json({
+        message: "Excel column mismatch. Missing required headers.",
+        missing_headers: missingHeaders,
+        expected_headers: termLoanExpectedHeaders,
+        uploaded_headers: uploadedHeaders,
+      });
+    }
+
+    const sheetData = xlsx.utils.sheet_to_json(sheet, {
+      defval: "",
+      raw: true,
+    });
+
+    if (!sheetData || sheetData.length === 0) {
+      return res.status(400).json({
+        message: "Uploaded Excel file is empty or invalid.",
+      });
+    }
+
+    const success_rows = [];
+    const row_errors = [];
+
+    for (let i = 0; i < sheetData.length; i++) {
+      const row = sheetData[i];
+      const excelRowNumber = i + 2;
+
+      try {
+        const missingFields = termLoanRequiredFields.filter((field) =>
+          isBlankTermLoanValue(row[field])
+        );
+
+        if (missingFields.length > 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Missing required fields: ${missingFields.join(", ")}`,
+          });
+          continue;
+        }
+
+        const rowLender = String(row.lender || "").trim();
+        const panCard = String(row.pan_card || "").trim().toUpperCase();
+        const loanAmount = Number(row.loan_amount);
+        const interestRate = Number(row.interest_rate);
+
+        if (rowLender !== "Term Loan") {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "Invalid lender value in Excel row. Expected: Term Loan.",
+          });
+          continue;
+        }
+
+        if (isNaN(loanAmount) || loanAmount <= 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "Valid numeric loan_amount is required.",
+          });
+          continue;
+        }
+
+        if (isNaN(interestRate) || interestRate <= 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "Valid numeric interest_rate is required.",
+          });
+          continue;
+        }
+
+        // Duplicate PAN check
+        const [existingRecords] = await db
+          .promise()
+          .query(`SELECT lan FROM ${TERM_LOAN_TABLE} WHERE pan_card = ?`, [
+            panCard || null,
+          ]);
+
+        if (existingRecords.length > 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "dup-check",
+            reason: `Customer already exists. Duplicate found for pan_card: ${panCard}`,
+          });
+          continue;
+        }
+
+        // Generate partnerLoanId and LAN
+        const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+
+        const values = termLoanInsertColumns.map((col) => {
+          if (col === "partner_loan_id") return partnerLoanId;
+          if (col === "lan") return lan;
+          if (col === "status") return "Login";
+          if (col === "pan_card") return panCard;
+
+          if (termLoanDateFields.has(col)) {
+            return toSqlDateTermLoan(row[col]);
+          }
+
+          return cleanTermLoanValue(row[col]);
+        });
+
+        const query = `
+          INSERT INTO ${TERM_LOAN_TABLE}
+          (${termLoanInsertColumns.map((col) => `\`${col}\``).join(", ")})
+          VALUES (${termLoanInsertColumns.map(() => "?").join(", ")})
+        `;
+
+        await db.promise().query(query, values);
+
+        success_rows.push({
+          row: excelRowNumber,
+          lan,
+          partnerLoanId,
+          pan_card: panCard,
+          loan_amount: loanAmount,
+          interest_rate: interestRate,
+        });
+
+        console.log(
+          `✅ Term Loan inserted row ${excelRowNumber} | PAN: ${panCard} | LAN: ${lan}`
+        );
+      } catch (err) {
+        row_errors.push({
+          row: excelRowNumber,
+          stage: "insert",
+          reason: err.sqlMessage || err.message,
+        });
+
+        console.error(`❌ Term Loan row ${excelRowNumber} failed:`, err);
+      }
+    }
+
+    return res.json({
+      message: "Term Loan file processed.",
+      total_rows: sheetData.length,
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+      success_rows,
+      row_errors,
+    });
+  } catch (error) {
+    console.error("❌ Error in Term Loan upload process:", error);
+
+    return res.status(500).json({
+      message: "Term Loan upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
+// =====================================================
+// MANUAL TERM LOAN ENTRY
+// URL: POST /upload/term-loan-manual
+// Body: JSON
+// lenderType: Term Loan
+// =====================================================
+
+router.post("/upload/term-loan-manual", async (req, res) => {
+  try {
+    const data = req.body;
+
+    if (!data.lenderType || String(data.lenderType).trim() !== "Term Loan") {
+      return res.status(400).json({
+        message: "Invalid lender type. Only Term Loan is supported.",
+      });
+    }
+
+    const missingFields = termLoanRequiredFields.filter((field) =>
+      isBlankTermLoanValue(data[field])
+    );
+
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        message: `Missing required fields: ${missingFields.join(", ")}`,
+      });
+    }
+
+    const panCard = String(data.pan_card || "").trim().toUpperCase();
+    const loanAmount = Number(data.loan_amount);
+    const interestRate = Number(data.interest_rate);
+
+    if (isNaN(loanAmount) || loanAmount <= 0) {
+      return res.status(400).json({
+        message: "Valid numeric loan_amount is required.",
+      });
+    }
+
+    if (isNaN(interestRate) || interestRate <= 0) {
+      return res.status(400).json({
+        message: "Valid numeric interest_rate is required.",
+      });
+    }
+
+    if (String(data.lender || "").trim() !== "Term Loan") {
+      return res.status(400).json({
+        message: "Invalid lender value. Expected: Term Loan.",
+      });
+    }
+
+    const [duplicate] = await db
+      .promise()
+      .query(`SELECT lan FROM ${TERM_LOAN_TABLE} WHERE pan_card = ?`, [
+        panCard || null,
+      ]);
+
+    if (duplicate.length > 0) {
+      return res.status(409).json({
+        message: `Duplicate entry found for PAN: ${panCard}`,
+      });
+    }
+
+    const { partnerLoanId, lan } = await generateLoanIdentifiers("Term Loan");
+
+    const values = termLoanInsertColumns.map((col) => {
+      if (col === "partner_loan_id") return partnerLoanId;
+      if (col === "lan") return lan;
+      if (col === "status") return data.status || "Login";
+      if (col === "pan_card") return panCard;
+
+      if (termLoanDateFields.has(col)) {
+        return toSqlDateTermLoan(data[col]);
+      }
+
+      return cleanTermLoanValue(data[col]);
+    });
+
+    const query = `
+      INSERT INTO ${TERM_LOAN_TABLE}
+      (${termLoanInsertColumns.map((col) => `\`${col}\``).join(", ")})
+      VALUES (${termLoanInsertColumns.map(() => "?").join(", ")})
+    `;
+
+    await db.promise().query(query, values);
+
+    console.log(`✅ Manual Term Loan inserted | LAN: ${lan} | PAN: ${panCard}`);
+
+    return res.json({
+      message: "Term Loan manually inserted successfully.",
+      lan,
+      partnerLoanId,
+    });
+  } catch (err) {
+    console.error("❌ Manual Term Loan entry failed:", err);
+
+    return res.status(500).json({
+      message: "Manual Term Loan entry failed.",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+
 
 /////////////////////////// NEW CODE FOR HEY EV LOAN DATA CROOS CHECK AND INSERTION //////////////////////
 
@@ -5611,6 +6080,8 @@ function isCarePayPartner(req) {
   return (req.partner?.name || "").toLowerCase().trim() === "carepay";
 }
 
+
+
 router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
   try {
     const partner = req.partner.name || {};
@@ -5693,6 +6164,7 @@ router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
   }
 });
 
+////////// CARE PAY HOSPITAL LIST FOR CAREPAY PARTNER (for excel upload) //////////
 router.get("/v1/carepay-hospitals-list", verifyApiKey, async (req, res) => {
   try {
     if (!isCarePayPartner(req)) {
@@ -5745,6 +6217,7 @@ router.get("/v1/carepay-hospitals-list", verifyApiKey, async (req, res) => {
   }
 });
 
+
 router.get("/carepay-hospitals", async (req, res) => {
   try {
     const [rows] = await db.promise().query(`
@@ -5783,6 +6256,7 @@ router.get("/carepay-hospitals", async (req, res) => {
   }
 });
 
+////////////////// CARE PAY HOSPITAL PENDING CASES FOR ADMIN APPROVAL //////////
 router.get("/carepay-hospitals-login-loans", async (req, res) => {
   try {
     const [rows] = await db.promise().query(`
@@ -5821,6 +6295,7 @@ router.get("/carepay-hospitals-login-loans", async (req, res) => {
   }
 });
 
+////////////// CARE PAY HOSPITAL DETAILS BY LAN (for admin view and excel upload) //////////
 router.get("/carepay-hospital-booking-details/:lan", async (req, res) => {
   const { lan } = req.params;
 
@@ -5876,6 +6351,7 @@ router.get("/carepay-hospital-booking-details/:lan", async (req, res) => {
   }
 });
 
+//////////////// CARE PAY HOSPITAL STATUS UPDATE BY LAN (for admin approval and excel upload) //////////
 router.patch("/carepay-hospitals/status/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
@@ -5954,6 +6430,7 @@ function buildCarePayStatusResponse(row) {
   };
 }
 
+///////////// CARE PAY CASE STATUS FETCH BY LAN OR PARTNER LOAN ID (for excel upload) //////////
 router.get("/v1/carepay-case-status", verifyApiKey, async (req, res) => {
   try {
     if (!isCarePayPartner(req)) {
