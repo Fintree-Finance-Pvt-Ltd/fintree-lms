@@ -6105,6 +6105,9 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
         .status(400)
         .json({ message: "Missing fields: request_amount" });
     }
+    if(!data.loan_type){
+      return res.status(400).json({ message: "Missing fields: loan_type" });
+    }
 
     const requestAmount = Number(rawRequestAmount);
 
@@ -6269,7 +6272,7 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       cibil_score: data.cibil_score || null,
       product: data.product || "Medical Insurance",
       lender: "CAREPAY",
-      loan_type: data.loan_type || "Personal Loan",
+      loan_type: data.loan_type,
       net_disbursement: data.net_disbursement || requestAmount,
       employment: data.employment,
       customer_type: data.customer_type,
