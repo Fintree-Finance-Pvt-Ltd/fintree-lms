@@ -40,7 +40,17 @@ const CAREPAY_REQUIRED_FIELDS = [
   "customer_type",
 ];
 
+
+const CarepayLoanTypes = [
+  "No-Cost EMI",
+  "Low-Cost EMI",
+  "Standard EMI",
+  "Short-Term Personal Loan",
+];
+
+
 module.exports = {
   CAREPAY_HOSPITAL_REQUIRED_FIELDS,
   CAREPAY_REQUIRED_FIELDS,
+  CarepayLoanTypes
 };

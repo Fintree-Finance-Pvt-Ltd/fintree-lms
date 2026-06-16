@@ -4207,138 +4207,269 @@ const generateRepaymentScheduleEmbifi = async (
   }
 };
 
-const generateRepaymentScheduleFinso360 = async (
-  conn,
-  lan,
-  loanAmount,
-  interestRate,
-  tenure,
-  disbursementDate,
-  product,
-  lender,
-) => {
-  try {
-    // validate / normalize
-    if (!lan) throw new Error("lan is required");
-    const P = Number(loanAmount);
-    if (!P || isNaN(P)) throw new Error("invalid loanAmount");
-    const n = Number(tenure);
-    if (!n || isNaN(n) || n <= 0) throw new Error("invalid tenure (days)");
-    let annualRate = Number(interestRate || 0);
-    if (annualRate > 1) annualRate = annualRate / 100.0; // accept 24 or 0.24
+// const generateRepaymentScheduleFinso360 = async (
+//   conn,
+//   lan,
+//   loanAmount,
+//   interestRate,
+//   tenure,
+//   disbursementDate,
+//   product,
+//   lender,
+// ) => {
+//   try {
+//     // validate / normalize
+//     if (!lan) throw new Error("lan is required");
+//     const P = Number(loanAmount);
+//     if (!P || isNaN(P)) throw new Error("invalid loanAmount");
+//     const n = Number(tenure);
+//     if (!n || isNaN(n) || n <= 0) throw new Error("invalid tenure (days)");
+//     let annualRate = Number(interestRate || 0);
+//     if (annualRate > 1) annualRate = annualRate / 100.0; // accept 24 or 0.24
 
-    // 360-day basis
-    const dayCount = 360;
-    const dailyRate = annualRate / dayCount;
+//     // 360-day basis
+//     const dayCount = 360;
+//     const dailyRate = annualRate / dayCount;
 
-    // daily annuity EMI A = P * r * (1+r)^n / ((1+r)^n - 1)
-    let dailyEmi;
-    if (dailyRate === 0) {
-      dailyEmi = Math.round(P / n);
-    } else {
-      const powv = Math.pow(1 + dailyRate, n);
-      dailyEmi = Math.round((P * dailyRate * powv) / (powv - 1));
-    }
+//     // daily annuity EMI A = P * r * (1+r)^n / ((1+r)^n - 1)
+//     let dailyEmi;
+//     if (dailyRate === 0) {
+//       dailyEmi = Math.round(P / n);
+//     } else {
+//       const powv = Math.pow(1 + dailyRate, n);
+//       dailyEmi = Math.round((P * dailyRate * powv) / (powv - 1));
+//     }
 
-    // local helpers
-    const addDays = (d, days) => {
-      const tmp = new Date(d);
-      tmp.setDate(tmp.getDate() + days);
-      return tmp;
-    };
-    const fmt = (d) => d.toISOString().split("T")[0];
+//     // local helpers
+//     const addDays = (d, days) => {
+//       const tmp = new Date(d);
+//       tmp.setDate(tmp.getDate() + days);
+//       return tmp;
+//     };
+//     const fmt = (d) => d.toISOString().split("T")[0];
 
-    // prepare rows
-    const disb = new Date(disbursementDate);
-    if (isNaN(disb.getTime())) throw new Error("invalid disbursementDate");
-    let dueDate = addDays(disb, 1);
-    let remainingPrincipal = P;
-    const rows = [];
+//     // prepare rows
+//     const disb = new Date(disbursementDate);
+//     if (isNaN(disb.getTime())) throw new Error("invalid disbursementDate");
+//     let dueDate = addDays(disb, 1);
+//     let remainingPrincipal = P;
+//     const rows = [];
 
-    for (let i = 1; i <= n; i++) {
-      // interest per-day (360), rounded up
-      const interest =
-        Math.ceil((remainingPrincipal * annualRate * 1) / dayCount) || 0;
-      let principal = dailyEmi - interest;
+//     for (let i = 1; i <= n; i++) {
+//       // interest per-day (360), rounded up
+//       const interest =
+//         Math.ceil((remainingPrincipal * annualRate * 1) / dayCount) || 0;
+//       let principal = dailyEmi - interest;
 
-      // last installment: flush remainder
-      if (i === n) principal = remainingPrincipal;
+//       // last installment: flush remainder
+//       if (i === n) principal = remainingPrincipal;
 
-      const nextRemainingPrincipal = Math.max(
-        remainingPrincipal - principal,
-        0,
-      );
-      const remainingInterest = Math.max(interest * (n - i), 0);
+//       const nextRemainingPrincipal = Math.max(
+//         remainingPrincipal - principal,
+//         0,
+//       );
+//       const remainingInterest = Math.max(interest * (n - i), 0);
 
-      rows.push([
-        lan,
-        fmt(dueDate),
-        dailyEmi,
-        interest,
-        principal,
-        principal,
-        interest,
-        dailyEmi,
-        "Pending",
-      ]);
+//       rows.push([
+//         lan,
+//         fmt(dueDate),
+//         dailyEmi,
+//         interest,
+//         principal,
+//         principal,
+//         interest,
+//         dailyEmi,
+//         "Pending",
+//       ]);
 
-      remainingPrincipal = nextRemainingPrincipal;
-      dueDate = addDays(dueDate, 1);
-    }
+//       remainingPrincipal = nextRemainingPrincipal;
+//       dueDate = addDays(dueDate, 1);
+//     }
 
-    // DB insert with transaction and chunking
-    conn = await db.promise().getConnection();
-    await conn.beginTransaction();
+//     // DB insert with transaction and chunking
+//     conn = await db.promise().getConnection();
+//     await conn.beginTransaction();
 
-    const CHUNK = 800;
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const chunk = rows.slice(i, i + CHUNK);
-      await conn.query(
-        `INSERT INTO manual_rps_finso_loan
-          (lan, due_date, emi, interest, principal,
-           remaining_principal, remaining_interest, remaining_emi, status)
-         VALUES ?`,
-        [chunk],
-      );
-    }
+//     const CHUNK = 800;
+//     for (let i = 0; i < rows.length; i += CHUNK) {
+//       const chunk = rows.slice(i, i + CHUNK);
+//       await conn.query(
+//         `INSERT INTO manual_rps_finso_loan
+//           (lan, due_date, emi, interest, principal,
+//            remaining_principal, remaining_interest, remaining_emi, status)
+//          VALUES ?`,
+//         [chunk],
+//       );
+//     }
 
-    // update loan_booking_finso with computed daily EMI
-    try {
-      await conn.query(
-        `UPDATE loan_booking_finso SET emi_amount = ? WHERE lan = ?`,
-        [dailyEmi, lan],
-      );
-    } catch (updErr) {
-      console.warn(
-        "Warning updating loan_booking_finso:",
-        updErr.message || updErr,
-      );
-    }
+//     // update loan_booking_finso with computed daily EMI
+//     try {
+//       await conn.query(
+//         `UPDATE loan_booking_finso SET emi_amount = ? WHERE lan = ?`,
+//         [dailyEmi, lan],
+//       );
+//     } catch (updErr) {
+//       console.warn(
+//         "Warning updating loan_booking_finso:",
+//         updErr.message || updErr,
+//       );
+//     }
 
-    await conn.commit();
-    conn.release();
+//     await conn.commit();
+//     conn.release();
 
-    return {
-      success: true,
-      lan,
-      basis: 360,
-      rowsInserted: rows.length,
-      dailyEmi,
-      sampleFirstRow: rows[0],
-    };
-  } catch (err) {
-    console.error(`❌ FINSO RPS 360 Error for ${lan}:`, err);
-    if (conn) {
-      try {
-        await conn.rollback();
-        conn.release();
-      } catch (e) {}
-    }
-    return { success: false, error: err.message || String(err) };
-  }
-};
+//     return {
+//       success: true,
+//       lan,
+//       basis: 360,
+//       rowsInserted: rows.length,
+//       dailyEmi,
+//       sampleFirstRow: rows[0],
+//     };
+//   } catch (err) {
+//     console.error(`❌ FINSO RPS 360 Error for ${lan}:`, err);
+//     if (conn) {
+//       try {
+//         await conn.rollback();
+//         conn.release();
+//       } catch (e) {}
+//     }
+//     return { success: false, error: err.message || String(err) };
+//   }
+// };
 
 ///////////////////////   RPS for FINSO 365 Days ///////////////////////////////////
+// const generateRepaymentScheduleFinso365 = async (
+//   conn,
+//   lan,
+//   loanAmount,
+//   interestRate,
+//   tenure,
+//   disbursementDate,
+//   product,
+//   lender,
+// ) => {
+//   try {
+//     // validate / normalize
+//     if (!lan) throw new Error("lan is required");
+//     const P = Number(loanAmount);
+//     if (!P || isNaN(P)) throw new Error("invalid loanAmount");
+//     const n = Number(tenure);
+//     if (!n || isNaN(n) || n <= 0) throw new Error("invalid tenure (days)");
+//     let annualRate = Number(interestRate || 0);
+//     if (annualRate > 1) annualRate = annualRate / 100.0; // accept 24 or 0.24
+
+//     // 365-day basis
+//     const dayCount = 365;
+//     const dailyRate = annualRate / dayCount;
+
+//     // daily annuity EMI A = P * r * (1+r)^n / ((1+r)^n - 1)
+//     let dailyEmi;
+//     if (dailyRate === 0) {
+//       dailyEmi = Math.round(P / n);
+//     } else {
+//       const powv = Math.pow(1 + dailyRate, n);
+//       dailyEmi = Math.round((P * dailyRate * powv) / (powv - 1));
+//     }
+
+//     // local helpers
+//     const addDays = (d, days) => {
+//       const tmp = new Date(d);
+//       tmp.setDate(tmp.getDate() + days);
+//       return tmp;
+//     };
+//     const fmt = (d) => d.toISOString().split("T")[0];
+
+//     // prepare rows
+//     const disb = new Date(disbursementDate);
+//     if (isNaN(disb.getTime())) throw new Error("invalid disbursementDate");
+//     let dueDate = addDays(disb, 2);
+//     let remainingPrincipal = P;
+//     const rows = [];
+
+//     for (let i = 1; i <= n; i++) {
+//       // interest per-day (365), rounded up
+//       const interest =
+//         Math.ceil((remainingPrincipal * annualRate * 1) / dayCount) || 0;
+//       let principal = dailyEmi - interest;
+
+//       // last installment: flush remainder
+//       if (i === n) principal = remainingPrincipal;
+
+//       const nextRemainingPrincipal = Math.max(
+//         remainingPrincipal - principal,
+//         0,
+//       );
+//       const remainingInterest = Math.max(interest * (n - i), 0);
+
+//       rows.push([
+//         lan,
+//         fmt(dueDate),
+//         dailyEmi,
+//         interest,
+//         principal,
+//         principal,
+//         interest,
+//         dailyEmi,
+//         "Pending",
+//       ]);
+
+//       remainingPrincipal = nextRemainingPrincipal;
+//       dueDate = addDays(dueDate, 1);
+//     }
+
+//     // DB insert with transaction and chunking
+//     conn = await db.promise().getConnection();
+//     await conn.beginTransaction();
+
+//     const CHUNK = 800;
+//     for (let i = 0; i < rows.length; i += CHUNK) {
+//       const chunk = rows.slice(i, i + CHUNK);
+//       await conn.query(
+//         `INSERT INTO manual_rps_finso_loan
+//           (lan, due_date, emi, interest, principal,
+//            remaining_principal, remaining_interest, remaining_emi, status)
+//          VALUES ?`,
+//         [chunk],
+//       );
+//     }
+
+//     // update loan_booking_finso with computed daily EMI
+//     try {
+//       await conn.query(
+//         `UPDATE loan_booking_finso SET emi_amount = ? WHERE lan = ?`,
+//         [dailyEmi, lan],
+//       );
+//     } catch (updErr) {
+//       console.warn(
+//         "Warning updating loan_booking_finso:",
+//         updErr.message || updErr,
+//       );
+//     }
+
+//     await conn.commit();
+//     conn.release();
+
+//     return {
+//       success: true,
+//       lan,
+//       basis: 365,
+//       rowsInserted: rows.length,
+//       dailyEmi,
+//       sampleFirstRow: rows[0],
+//     };
+//   } catch (err) {
+//     console.error(`❌ FINSO RPS 365 Error for ${lan}:`, err);
+//     if (conn) {
+//       try {
+//         await conn.rollback();
+//         conn.release();
+//       } catch (e) {}
+//     }
+//     return { success: false, error: err.message || String(err) };
+//   }
+// };
+
 const generateRepaymentScheduleFinso365 = async (
   conn,
   lan,
@@ -4349,124 +4480,304 @@ const generateRepaymentScheduleFinso365 = async (
   product,
   lender,
 ) => {
+  let localConn = conn;
+  let ownConnection = false;
+
   try {
-    // validate / normalize
     if (!lan) throw new Error("lan is required");
-    const P = Number(loanAmount);
-    if (!P || isNaN(P)) throw new Error("invalid loanAmount");
-    const n = Number(tenure);
-    if (!n || isNaN(n) || n <= 0) throw new Error("invalid tenure (days)");
-    let annualRate = Number(interestRate || 0);
-    if (annualRate > 1) annualRate = annualRate / 100.0; // accept 24 or 0.24
 
-    // 365-day basis
-    const dayCount = 365;
-    const dailyRate = annualRate / dayCount;
+    const round2 = (num) =>
+      Math.round((Number(num) + Number.EPSILON) * 100) / 100;
 
-    // daily annuity EMI A = P * r * (1+r)^n / ((1+r)^n - 1)
-    let dailyEmi;
-    if (dailyRate === 0) {
-      dailyEmi = Math.round(P / n);
-    } else {
-      const powv = Math.pow(1 + dailyRate, n);
-      dailyEmi = Math.round((P * dailyRate * powv) / (powv - 1));
-    }
+    const toNumber = (value, defaultValue = 0) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : defaultValue;
+    };
 
-    // local helpers
     const addDays = (d, days) => {
       const tmp = new Date(d);
       tmp.setDate(tmp.getDate() + days);
       return tmp;
     };
-    const fmt = (d) => d.toISOString().split("T")[0];
 
-    // prepare rows
+    const fmt = (d) => {
+      const dt = new Date(d);
+      if (isNaN(dt.getTime())) return null;
+      return dt.toISOString().split("T")[0];
+    };
+
+    // -------------------------------
+    // 1. Validate values
+    // -------------------------------
+
+    const P = round2(toNumber(loanAmount));
+
+    if (!P || P <= 0) {
+      throw new Error("invalid loanAmount");
+    }
+
+    let n = Math.round(toNumber(tenure));
+
+    // Important safety because your log showed tenure = 50000
+    if (!n || n <= 0 || n > 366) {
+      console.warn("⚠️ Invalid Finso tenure received. Resetting to 365.", {
+        lan,
+        receivedTenure: tenure,
+        loanAmount,
+        product,
+        lender,
+      });
+
+      n = 365;
+    }
+
+    let annualRate = toNumber(interestRate);
+
+    // Accept both 31 and 0.31
+    if (annualRate > 1) {
+      annualRate = annualRate / 100;
+    }
+
+    if (annualRate < 0 || isNaN(annualRate)) {
+      throw new Error("invalid interestRate");
+    }
+
     const disb = new Date(disbursementDate);
-    if (isNaN(disb.getTime())) throw new Error("invalid disbursementDate");
-    let dueDate = addDays(disb, 1);
+
+    if (isNaN(disb.getTime())) {
+      throw new Error("invalid disbursementDate");
+    }
+
+    // -------------------------------
+    // 2. EMI calculation - 365 day basis
+    // -------------------------------
+
+    const dayCount = 365;
+    const dailyRate = annualRate / dayCount;
+
+    let regularDailyEmi;
+
+    if (dailyRate === 0) {
+      regularDailyEmi = round2(P / n);
+    } else {
+      const powv = Math.pow(1 + dailyRate, n);
+
+      regularDailyEmi = round2(
+        (P * dailyRate * powv) / (powv - 1),
+      );
+    }
+
+    if (!regularDailyEmi || regularDailyEmi <= 0 || isNaN(regularDailyEmi)) {
+      throw new Error("invalid calculated daily EMI");
+    }
+
+    // -------------------------------
+    // 3. Generate schedule
+    // -------------------------------
+
+    let dueDate = addDays(disb, 2);
     let remainingPrincipal = P;
-    const rows = [];
+
+    const schedule = [];
 
     for (let i = 1; i <= n; i++) {
-      // interest per-day (365), rounded up
-      const interest =
-        Math.ceil((remainingPrincipal * annualRate * 1) / dayCount) || 0;
-      let principal = dailyEmi - interest;
+      const opening = round2(remainingPrincipal);
 
-      // last installment: flush remainder
-      if (i === n) principal = remainingPrincipal;
+      let interest = round2(opening * dailyRate);
+      let principal = round2(regularDailyEmi - interest);
+      let actualEmi = regularDailyEmi;
 
-      const nextRemainingPrincipal = Math.max(
-        remainingPrincipal - principal,
-        0,
-      );
-      const remainingInterest = Math.max(interest * (n - i), 0);
+      if (principal <= 0 && i !== n) {
+        throw new Error(
+          `Invalid RPS at row ${i}; interest is greater than or equal to EMI`,
+        );
+      }
 
-      rows.push([
+      // Final row adjustment to close loan exactly
+      if (i === n) {
+        principal = round2(opening);
+        actualEmi = round2(principal + interest);
+      }
+
+      if (principal > opening) {
+        principal = opening;
+        actualEmi = round2(principal + interest);
+      }
+
+      let closing = round2(opening - principal);
+
+      if (i === n || closing < 0.01) {
+        closing = 0;
+      }
+
+      schedule.push({
+        emiNo: i,
         lan,
-        fmt(dueDate),
-        dailyEmi,
-        interest,
-        principal,
-        principal,
-        interest,
-        dailyEmi,
-        "Pending",
-      ]);
+        dueDate: fmt(dueDate),
+        status: "Pending",
 
-      remainingPrincipal = nextRemainingPrincipal;
+        emi: actualEmi,
+        interest,
+        principal,
+
+        opening,
+        closing,
+
+        remainingPrincipal: closing,
+        remainingAmount: actualEmi,
+      });
+
+      remainingPrincipal = closing;
       dueDate = addDays(dueDate, 1);
     }
 
-    // DB insert with transaction and chunking
-    conn = await db.promise().getConnection();
-    await conn.beginTransaction();
+    // -------------------------------
+    // 4. Calculate remaining interest and remaining EMI
+    // -------------------------------
+
+    let futureInterest = 0;
+
+    for (let i = schedule.length - 1; i >= 0; i--) {
+      const r = schedule[i];
+
+      // Future pending interest after this row
+      r.remainingInterest = round2(futureInterest);
+
+      // Since DB column is INT, store remaining EMI count
+      r.remainingEmi = n - r.emiNo;
+
+      futureInterest = round2(futureInterest + r.interest);
+    }
+
+    // -------------------------------
+    // 5. Prepare insert rows
+    // -------------------------------
+
+    const rows = schedule.map((r) => [
+      r.lan,
+      r.dueDate,
+      r.status,
+      r.emi,
+      r.interest,
+      r.principal,
+      r.opening,
+      r.closing,
+      r.emi,
+      r.interest,
+      r.principal,
+      r.remainingAmount,
+    ]);
+
+    // -------------------------------
+    // 6. DB insert
+    // -------------------------------
+
+    if (!localConn) {
+      localConn = await db.promise().getConnection();
+      ownConnection = true;
+      await localConn.beginTransaction();
+    }
+
+    // Avoid duplicate RPS rows for same LAN
+    await localConn.query(
+      `DELETE FROM manual_rps_finso_loan WHERE lan = ?`,
+      [lan],
+    );
 
     const CHUNK = 800;
+
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK);
-      await conn.query(
-        `INSERT INTO manual_rps_finso_loan
-          (lan, due_date, emi, interest, principal,
-           remaining_principal, remaining_interest, remaining_emi, status)
-         VALUES ?`,
+
+      await localConn.query(
+        `
+        INSERT INTO manual_rps_finso_loan
+          (
+            lan,
+            due_date,
+            status,
+            emi,
+            interest,
+            principal,
+            opening,
+            closing,
+            remaining_emi,
+            remaining_interest,
+            remaining_principal,
+            remaining_amount
+          )
+        VALUES ?
+        `,
         [chunk],
       );
     }
 
-    // update loan_booking_finso with computed daily EMI
-    try {
-      await conn.query(
-        `UPDATE loan_booking_finso SET emi_amount = ? WHERE lan = ?`,
-        [dailyEmi, lan],
-      );
-    } catch (updErr) {
-      console.warn(
-        "Warning updating loan_booking_finso:",
-        updErr.message || updErr,
-      );
+    await localConn.query(
+      `
+      UPDATE loan_booking_finso
+      SET emi_amount = ?
+      WHERE lan = ?
+      `,
+      [regularDailyEmi, lan],
+    );
+
+    if (ownConnection) {
+      await localConn.commit();
+      localConn.release();
     }
 
-    await conn.commit();
-    conn.release();
+    const totalPrincipal = round2(
+      schedule.reduce((sum, r) => sum + r.principal, 0),
+    );
+
+    const totalInterest = round2(
+      schedule.reduce((sum, r) => sum + r.interest, 0),
+    );
+
+    const totalPayable = round2(
+      schedule.reduce((sum, r) => sum + r.emi, 0),
+    );
+
+    console.log(`✅ FINSO RPS 365 generated for ${lan}`, {
+      rowsInserted: rows.length,
+      regularDailyEmi,
+      totalPrincipal,
+      totalInterest,
+      totalPayable,
+      finalClosingPrincipal: schedule[schedule.length - 1]?.closing,
+    });
 
     return {
       success: true,
       lan,
       basis: 365,
       rowsInserted: rows.length,
-      dailyEmi,
+      dailyEmi: regularDailyEmi,
+      totalPrincipal,
+      totalInterest,
+      totalPayable,
+      finalClosingPrincipal: schedule[schedule.length - 1]?.closing || 0,
       sampleFirstRow: rows[0],
+      sampleLastRow: rows[rows.length - 1],
     };
   } catch (err) {
     console.error(`❌ FINSO RPS 365 Error for ${lan}:`, err);
-    if (conn) {
+
+    if (ownConnection && localConn) {
       try {
-        await conn.rollback();
-        conn.release();
+        await localConn.rollback();
+      } catch (e) {}
+
+      try {
+        localConn.release();
       } catch (e) {}
     }
-    return { success: false, error: err.message || String(err) };
+
+    return {
+      success: false,
+      lan,
+      error: err.message || String(err),
+    };
   }
 };
 
@@ -5621,7 +5932,7 @@ module.exports = {
   generateRepaymentScheduleEV,
   generateRepaymentScheduleHEYEV,
   generateRepaymentScheduleHEYEVBattery,
-  generateRepaymentScheduleFinso360,
+  // generateRepaymentScheduleFinso360,
   generateRepaymentScheduleFinso365,
   generateRepaymentScheduleBL,
   generateRepaymentScheduleGQNonFSF,
