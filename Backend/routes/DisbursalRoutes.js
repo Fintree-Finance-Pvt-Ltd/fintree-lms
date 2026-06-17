@@ -176,8 +176,8 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
   } 
 
-  if (lan.startsWith("SF")) {
-    tableName = "loan_booking_seven_fincorp";
+  if (lan.startsWith("SH")) {
+    tableName = "loan_booking_srbh";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
     interestRateCol = "lb.interest_rate";
@@ -190,6 +190,19 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
   } 
 
+   if (lan.startsWith("SF")) {
+    tableName = "loan_booking_srbh";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.loan_tenure AS loan_tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0)";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    preEmi = "0";
+    netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
+  } 
   if (lan.startsWith("BUN")) {
     tableName = "loan_booking_bundela";
     loanAmountCol = "lb.loan_amount";

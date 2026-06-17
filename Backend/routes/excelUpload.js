@@ -2030,6 +2030,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_bundela: true,
     loan_booking_fundify: true,
     dealer_onboarding: true,
+    loan_booking_srbh:true,
   };
 
   if (!allowedTables[table]) {
@@ -2192,6 +2193,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
+    loan_booking_srbh:true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2279,6 +2281,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_switch_my_loan: true,
     loan_booking_loan_digit: true,
     dealer_onboarding: true,
+    loan_booking_srbh:true,
   };
 
   if (!allowedTables[table]) {
@@ -2402,6 +2405,7 @@ router.get("/approved-loans", async (req, res) => {
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
     dealer_onboarding: true,
+    loan_booking_srbh:true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2484,6 +2488,7 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
+    loan_booking_srbh:true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2568,6 +2573,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_switch_my_loan: true,
     dealer_onboarding: true,
     loan_booking_fundify: true,
+    loan_booking_srbh:true,
   };
 
   if (!allowedTables[table]) {
@@ -2895,6 +2901,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
+    loan_booking_srbh:true,
   };
 
   if (!allowedTables[table]) {
@@ -2921,6 +2928,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     "loan_booking_motion_corp",
     "loan_booking_seven_fincorp",
     "loan_booking_bundela",
+    "loan_booking_srbh",
   ];
 
   if (loanBookingTables.includes(table) && loan_amount !== null) {
@@ -2965,6 +2973,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
       "loan_booking_motion_corp",
       "loan_booking_seven_fincorp",
       "loan_booking_bundela",
+      "loan_booking_srbh",
     ];
     return res.json({
       success: true,

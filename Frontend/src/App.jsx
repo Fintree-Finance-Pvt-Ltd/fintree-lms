@@ -233,8 +233,8 @@ import SRBHDealerLoginActions from "./components/Srbh/SRBHDealerLoginActions";
 import SRBHDealerDetails from "./components/Srbh/SRBHDealerDetails";
 import SRBHLoanBooking from "./components/Srbh/SRBHLoanBooking";
 import SRBHLoginCases from "./components/Srbh/SRBHLoginCases";
-
-
+import SRBHDisburseInitiate from "./components/Srbh/SRBHDisburseInitiate";
+import SRBHAllLoans from "./components/Srbh/SRBHAllLoans";
 
 function App() {
   return (
@@ -1959,6 +1959,24 @@ function App() {
             }
           />
  
+            <Route
+            path="/srbh/credit-initiated-cases"
+            element={
+              <PermissionRoute pageName="SRBH Customer Credit Initiated Cases Screen">
+                <SRBHDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/srbh/all-loans"
+            element={
+              <PermissionRoute pageName="SRBH Customer All Cases Screen">
+                <SRBHAllLoans />
+              </PermissionRoute>
+            }
+          />
+ 
+         
  
         </Route>
 

@@ -410,7 +410,7 @@ router.get("/dealersforbooking", async (req, res) => {
         ifsc_code,
         status
       FROM srbh_dealer_booking
-      WHERE status = 'ACTIVE'
+      WHERE status = 'APPROVED'
       ORDER BY business_name ASC
     `);
 
@@ -671,7 +671,7 @@ return res.status(400).json({
 }
 
     const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
-      "SEVEN_FINCORP_CUSTOMER",
+      "SRBH",
     );
 
     await connection.beginTransaction();
@@ -772,7 +772,7 @@ emptyToNull(data.Co_Applicant_Pincode),
     ];
 
     const insertQuery = `
-      INSERT INTO loan_booking_seven_fincorp (
+      INSERT INTO loan_booking_srbh (
         lender_type,
         lender,
         product,
@@ -912,18 +912,18 @@ await connection.query(
 
     return res.status(201).json({
       success: true,
-      message: "Seven Fincorp loan booking saved successfully",
+      message: "SRBH loan booking saved successfully",
       partner_loan_id: cust_partner_loan_id,
       lan: cust_lan,
     });
   } catch (error) {
     await connection.rollback();
 
-    console.error("Seven Fincorp loan booking save error:", error);
+    console.error("SRBH loan booking save error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to save Seven Fincorp loan booking",
+      message: "Failed to save SRBH loan booking",
       error: error.message,
     });
   } finally {
@@ -1601,7 +1601,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
 
     await connection.query(
       `
-      UPDATE loan_booking_seven_fincorp
+      UPDATE loan_booking_srbh
       SET
         permanent_address_line_1 = ?,
         permanent_address_line_2 = ?,
@@ -1765,13 +1765,13 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Seven Fincorp loan booking submitted successfully",
+      message: "SRBH loan booking submitted successfully",
       lan: data.lan,
     });
   } catch (error) {
     await connection.rollback();
 
-    console.error("Final Motion Corp submit error:", error);
+    console.error("Final SRBH submit error:", error);
 
     return res.status(500).json({
       success: false,
@@ -1809,7 +1809,7 @@ router.get("/loan-booking/:lan", async (req, res) => {
       data: rows[0],
     });
   } catch (error) {
-    console.error("Fetch Motion Corp booking error:", error);
+    console.error("Fetch SRBH booking error:", error);
 
     return res.status(500).json({
       success: false,
@@ -2159,7 +2159,7 @@ router.post("/save-applicant-details", async (req, res) => {
     if (applicantType === "GUARANTOR") {
       await db.promise().query(
         `
-        UPDATE loan_booking_seven_fincorp
+        UPDATE loan_booking_srbh
         SET
           guarantor_name = ?,
           guarantor_dob = ?,
@@ -2198,7 +2198,7 @@ router.post("/save-applicant-details", async (req, res) => {
     if (applicantType === "CO_APPLICANT") {
       await db.promise().query(
         `
-        UPDATE loan_booking_seven_fincorp
+        UPDATE loan_booking_srbh
         SET
           co_applicant_name = ?,
           co_applicant_dob = ?,
@@ -2431,26 +2431,26 @@ router.get("/customer-details/:lan", async (req, res) => {
     lb.created_at,
     lb.updated_at,
 
-    lb.seven_fincorp_bre_status,
-    lb.seven_fincorp_bre_reason,
-    lb.seven_fincorp_bre_checked_at,
+    lb.srbh_bre_status,
+    lb.srbh_bre_reason,
+    lb.srbh_bre_checked_at,
 
     lb.fintree_cibil_score,
-    lb.seven_fincorp_enquiries_30d,
+    lb.srbh_enquiries_30d,
 
-    lb.seven_fincorp_dpd_3m_flag,
-    lb.seven_fincorp_dpd_6m_flag,
-    lb.seven_fincorp_overdue_12m_flag,
+    lb.srbh_dpd_3m_flag,
+    lb.srbh_dpd_6m_flag,
+    lb.srbh_overdue_12m_flag,
 
-    lb.seven_fincorp_written_off_3y_flag,
+    lb.srbh_written_off_3y_flag,
 
-    lb.seven_fincorp_60plus_24m_flag,
-    lb.seven_fincorp_90plus_36m_flag,
+    lb.srbh_60plus_24m_flag,
+    lb.srbh_90plus_36m_flag,
 
-    lb.seven_fincorp_emi_overdue_amount,
-    lb.seven_fincorp_cc_overdue_amount,
+    lb.srbh_emi_overdue_amount,
+    lb.srbh_cc_overdue_amount,
 
-    lb.seven_fincorp_deviation_flag,
+    lb.srbh_deviation_flag,
 
     borrower_kyc.pan_status AS borrower_pan_status,
     borrower_kyc.aadhaar_status AS borrower_aadhaar_status,
@@ -2464,7 +2464,7 @@ router.get("/customer-details/:lan", async (req, res) => {
     co_kyc.aadhaar_status AS co_applicant_aadhaar_status,
     co_kyc.bureau_status AS co_applicant_bureau_status
 
-  FROM loan_booking_seven_fincorp lb
+  FROM loan_booking_srbh lb
 
   LEFT JOIN kyc_verification_status borrower_kyc
     ON borrower_kyc.lan = lb.lan
@@ -2486,7 +2486,7 @@ router.get("/customer-details/:lan", async (req, res) => {
 
     if (!rows.length) {
       return res.status(404).json({
-        message: "Motion Corp loan not found",
+        message: "SRBH loan not found",
       });
     }
 
@@ -2668,43 +2668,43 @@ router.get("/customer-details/:lan", async (req, res) => {
         row.fintree_cibil_score,
 
       enquiries_30d:
-        row.seven_fincorp_enquiries_30d,
+        row.srbh_enquiries_30d,
 
       dpd_3m_flag:
-        row.seven_fincorp_dpd_3m_flag,
+        row.srbh_dpd_3m_flag,
 
       dpd_6m_flag:
-        row.seven_fincorp_dpd_6m_flag,
+        row.srbh_dpd_6m_flag,
 
       overdue_12m_flag:
-        row.seven_fincorp_overdue_12m_flag,
+        row.srbh_overdue_12m_flag,
 
       written_off_3y_flag:
-        row.seven_fincorp_written_off_3y_flag,
+        row.srbh_written_off_3y_flag,
 
       dpd_60plus_24m_flag:
-        row.seven_fincorp_60plus_24m_flag,
+        row.srbh_60plus_24m_flag,
 
       dpd_90plus_36m_flag:
-        row.seven_fincorp_90plus_36m_flag,
+        row.srbh_90plus_36m_flag,
 
       emi_overdue_amount:
-        row.seven_fincorp_emi_overdue_amount,
+        row.srbh_emi_overdue_amount,
 
       cc_overdue_amount:
-        row.seven_fincorp_cc_overdue_amount,
+        row.srbh_cc_overdue_amount,
 
       deviation_flag:
-        row.seven_fincorp_deviation_flag,
+        row.srbh_deviation_flag,
 
       bre_status:
-        row.seven_fincorp_bre_status,
+        row.srbh_bre_status,
 
       bre_reason:
-        row.seven_fincorp_bre_reason,
+        row.srbh_bre_reason,
 
       bre_checked_at:
-        row.seven_fincorp_bre_checked_at,
+        row.srbh_bre_checked_at,
     };
 
     return res.json({
@@ -2713,12 +2713,12 @@ router.get("/customer-details/:lan", async (req, res) => {
     });
   } catch (err) {
     console.error(
-      "❌ Error fetching Motion Corp details:",
+      "❌ Error fetching SRBH details:",
       err,
     );
 
     return res.status(500).json({
-      message: "Failed to fetch Motion Corp details",
+      message: "Failed to fetch SRBH details",
       error: err.sqlMessage || err.message,
     });
   }
@@ -2726,8 +2726,8 @@ router.get("/customer-details/:lan", async (req, res) => {
 
 router.get("/credit-initiated-loans", async (req, res) => {
   const {
-    table = "loan_booking_seven_fincorp",
-    prefix = "SFL",
+    table = "loan_booking_srbh",
+    prefix = "SHL",
     page = "1",
     pageSize = "50",
     search = "",
@@ -2736,7 +2736,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
   } = req.query;
 
   const allowedTables = {
-    loan_booking_seven_fincorp: true,
+    loan_booking_srbh: true,
   };
 
   if (!allowedTables[table]) {
@@ -2766,7 +2766,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
     "mobile_number",
     "loan_amount",
     "created_at",
-    "seven_fincorp_bre_checked_at",
+    "srbh_bre_checked_at",
   ];
 
   const sortCol = allowedSort.includes(sortBy)
@@ -2823,9 +2823,9 @@ router.get("/credit-initiated-loans", async (req, res) => {
         lb.cibil_score,
         lb.fintree_cibil_score,
 
-        lb.seven_fincorp_bre_status,
-        lb.seven_fincorp_bre_reason,
-        lb.seven_fincorp_bre_checked_at,
+        lb.srbh_bre_status,
+        lb.srbh_bre_reason,
+        lb.srbh_bre_checked_at,
 
         lb.status,
         lb.stage,
@@ -2887,8 +2887,8 @@ router.get("/credit-initiated-loans", async (req, res) => {
 
 router.get("/operation-initiated-loans", async (req, res) => {
   const {
-    table = "loan_booking_motion_corp",
-    prefix = "MC",
+    table = "loan_booking_srbh",
+    prefix = "SHL",
     page = "1",
     pageSize = "50",
     search = "",
@@ -2897,7 +2897,7 @@ router.get("/operation-initiated-loans", async (req, res) => {
   } = req.query;
 
   const allowedTables = {
-    loan_booking_motion_corp: true,
+    loan_booking_srbh: true,
   };
 
   if (!allowedTables[table]) {
@@ -2921,7 +2921,7 @@ router.get("/operation-initiated-loans", async (req, res) => {
     "mobile_number",
     "loan_amount",
     "created_at",
-    "motioncorp_bre_checked_at",
+    "srbh_bre_checked_at",
   ];
 
   const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
@@ -2971,9 +2971,9 @@ router.get("/operation-initiated-loans", async (req, res) => {
         lb.cibil_score,
         lb.fintree_cibil_score,
 
-        lb.motioncorp_bre_status,
-        lb.motioncorp_bre_reason,
-        lb.motioncorp_bre_checked_at,
+        lb.srbh_bre_status,
+        lb.srbh_bre_reason,
+        lb.srbh_bre_checked_at,
 
         lb.customer_name_as_per_bank,
         lb.customer_bank_name,
@@ -3046,7 +3046,7 @@ router.post("/:lan/approve", async (req, res) => {
     const [rows] = await db.promise().query(
       `
       SELECT lan, bank_status
-      FROM loan_booking_motion_corp
+      FROM loan_booking_srbh
       WHERE lan = ?
       `,
       [lan],
@@ -3072,7 +3072,7 @@ router.post("/:lan/approve", async (req, res) => {
     // UPDATE STATUS
     await db.promise().query(
       `
-      UPDATE loan_booking_motion_corp
+      UPDATE loan_booking_srbh
       SET
         status = 'Approved',
         stage = 'Operation Approved',
@@ -3104,7 +3104,7 @@ router.post("/:lan/reject", async (req, res) => {
     const [rows] = await db.promise().query(
       `
       SELECT lan, bank_status
-      FROM loan_booking_motion_corp
+      FROM loan_booking_srbh
       WHERE lan = ?
       `,
       [lan],
@@ -3130,7 +3130,7 @@ router.post("/:lan/reject", async (req, res) => {
     // UPDATE STATUS
     await db.promise().query(
       `
-      UPDATE loan_booking_motion_corp
+      UPDATE loan_booking_srbh
       SET
         status = 'Rejected',
         stage = 'Operation Rejected',
