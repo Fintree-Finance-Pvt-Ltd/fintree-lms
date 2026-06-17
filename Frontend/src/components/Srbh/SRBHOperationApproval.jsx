@@ -666,7 +666,7 @@ const SRBHOperationApproval = ({
       if (!window.confirm(`Approve loan ${r.lan}?`)) return;
 
       try {
-        await api.post(`/motion-corp/${r.lan}/approve`);
+        await api.post(`/srbh/${r.lan}/approve`);
 
         setToast({
           type: "success",
@@ -698,7 +698,7 @@ const SRBHOperationApproval = ({
       if (!reason) return;
 
       try {
-        await api.post(`/motion-corp/${r.lan}/reject`, {
+        await api.post(`/srbh/${r.lan}/reject`, {
           reason,
         });
 
