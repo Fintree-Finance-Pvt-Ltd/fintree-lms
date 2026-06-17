@@ -798,6 +798,18 @@ WHERE lan = ?`,
              FROM loan_booking_clayyo WHERE lan = ?`,
             [lan],
           );
+        } else if (lan.startsWith("SH")) {
+          [loanRes] = await db.promise().query(
+            `SELECT 
+      loan_amount,
+      interest_rate,
+      loan_tenure,
+      product,
+      lender
+     FROM loan_booking_srbh
+     WHERE lan = ?`,
+            [lan],
+          );
         }
         ///////   this is for ZYPAY ////
         else if (lan.startsWith("ZYPF")) {
@@ -993,6 +1005,13 @@ WHERE lan = ?`,
           } else if (lan.startsWith("MCL")) {
             await conn.query(
               `UPDATE loan_booking_motion_corp
+     SET status = 'Disbursed'
+     WHERE lan = ?`,
+              [lan],
+            );
+          } else if (lan.startsWith("SH")) {
+            await conn.query(
+              `UPDATE loan_booking_srbh
      SET status = 'Disbursed'
      WHERE lan = ?`,
               [lan],

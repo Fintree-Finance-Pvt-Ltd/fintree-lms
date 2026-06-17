@@ -252,7 +252,38 @@ if (lender === "Motion Corp" && product === "Monthly Loan") {
   return dueDate;
 }
 
+if (lender === "SRBH" && product === "Monthly Loan") {
 
+  const dueDate = new Date(disbDate);
+
+  const disbDay = dueDate.getDate();
+
+  // Set EMI day first to avoid JS rollover issues
+  dueDate.setDate(5);
+
+  if (disbDay <= 15) {
+
+    // Disbursed between 1st–15th
+    // → Next month 5th
+
+    dueDate.setMonth(dueDate.getMonth() + 1);
+
+  } else {
+
+    // Disbursed between 16th–31st
+    // → Next-to-next month 5th
+
+    dueDate.setMonth(dueDate.getMonth() + 2);
+  }
+
+  console.log(
+    `[SRBH Monthly Loan] Disbursement Day: ${disbDay}, EMI Due: ${
+      dueDate.toISOString().split("T")[0]
+    }`
+  );
+
+  return dueDate;
+}
 ///////////////////////ZYPAY FIRST EMI DATE /////////////////////////
 if (lender === "ZYPAY" && product === "Monthly Loan") {
   const dueDate = new Date(disbDate);

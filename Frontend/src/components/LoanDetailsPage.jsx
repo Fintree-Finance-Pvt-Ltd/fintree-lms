@@ -26,6 +26,7 @@ const LoanDetailsPage = () => {
     const [isAdikosh, setIsAdikosh] = useState(false);
     const [isGNonFSF, setIsGNonFSF] = useState(false);
     const [isGQFSF, setIsGQFSF] = useState(false);
+    const [isSRBH, setIsSRBH] = useState(false);
 
     useEffect(() => {
         const fetchLoanDetails = async () => {
@@ -41,6 +42,8 @@ const LoanDetailsPage = () => {
         setIsAdikosh(lan.includes("AD"));
         setIsGNonFSF(lan.includes("GQNon"));
         setIsGQFSF(lan.includes("GQFSF"));
+        setIsSRBH(lan.includes("SH"));
+
     }, [lan]);
 
 
