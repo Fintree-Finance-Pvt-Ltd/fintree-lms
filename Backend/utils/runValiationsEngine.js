@@ -9,6 +9,9 @@ const {
   autoApproveMotionCorpIfAllVerified,
 } = require("../routes/MotionCorp/motionCorpBRE");
 const { autoApproveSevenFinCorpIfAllVerified } = require("../routes/Seven Fincorp/sevenFincorpBRE");
+const {
+  autoApproveSrbhIfAllVerified,
+} = require("../routes/srbh/srbhBRE");
 const { autoApproveBundelaIfAllVerified } = require("../routes/Bundela/bundelaBRE");
 // const {
 //   autoApproveFundifyIfAllVerified
@@ -337,6 +340,8 @@ exports.universalRunAllValidations = async (lan) => {
       table = "loan_booking_bundela";
     } else if (lan.startsWith("FUN")) {
       table = "loan_booking_fundify";
+    }else if (lan.startsWith("SH")) {
+      table = "loan_booking_srbh";
     } else {
       console.log("❌ Invalid LAN");
       return;
@@ -513,7 +518,11 @@ if (lan.startsWith("SBU")) {
   await autoApproveBundelaIfAllVerified(lan);
   console.log(`✅ Bundela BRE finished for ${lan}`);
 }
-
+if (lan.startsWith("SH")) {
+  console.log(`🚀 Running SRBH BRE for ${lan}`);
+  await autoApproveBundelaIfAllVerified(lan);
+  console.log(`✅ SRBH BRE finished for ${lan}`);
+}
 console.log(`✅ Validation Engine Completed for ${lan}`);
 
   } catch (err) {
