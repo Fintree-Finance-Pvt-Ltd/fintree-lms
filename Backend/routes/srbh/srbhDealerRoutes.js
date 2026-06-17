@@ -2724,10 +2724,12 @@ router.get("/customer-details/:lan", async (req, res) => {
   }
 });
 
+
+
 router.get("/credit-initiated-loans", async (req, res) => {
   const {
     table = "loan_booking_srbh",
-    prefix = "SHL",
+    prefix = "SH",
     page = "1",
     pageSize = "50",
     search = "",
@@ -2747,17 +2749,11 @@ router.get("/credit-initiated-loans", async (req, res) => {
 
   const pg = Math.max(1, parseInt(page, 10) || 1);
 
-  const limit = Math.min(
-    100,
-    Math.max(1, parseInt(pageSize, 10) || 50)
-  );
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
 
   const offset = (pg - 1) * limit;
 
-  const safeSortDir =
-    sortDir.toLowerCase() === "asc"
-      ? "ASC"
-      : "DESC";
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
 
   const allowedSort = [
     "lan",
@@ -2766,12 +2762,10 @@ router.get("/credit-initiated-loans", async (req, res) => {
     "mobile_number",
     "loan_amount",
     "created_at",
-    "srbh_bre_checked_at",
+    "srbh_checked_at",
   ];
 
-  const sortCol = allowedSort.includes(sortBy)
-    ? sortBy
-    : "created_at";
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
 
   try {
     const likeVal = `${prefix}%`;
@@ -2788,12 +2782,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       : "";
 
     const searchParams = search
-      ? [
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-        ]
+      ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
       : [];
 
     const countSql = `
@@ -2801,7 +2790,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       FROM ?? lb
       WHERE
         lb.status = 'Credit Initiated'
-        AND lb.stage = 'BRE Deviation'
+        AND lb.stage in ('BRE Deviation', 'BRE Approved')
         AND lb.lan LIKE ?
         ${searchClause}
     `;
@@ -2835,7 +2824,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       FROM ?? lb
       WHERE
         lb.status = 'Credit Initiated'
-        AND lb.stage = 'BRE Deviation'
+        AND lb.stage in ('BRE Deviation', 'BRE Approved')
         AND lb.lan LIKE ?
         ${searchClause}
 
@@ -2845,21 +2834,11 @@ router.get("/credit-initiated-loans", async (req, res) => {
     `;
 
     const [[countRows], [rows]] = await Promise.all([
-      db.promise().query(
-        countSql,
-        [table, likeVal, ...searchParams]
-      ),
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
 
-      db.promise().query(
-        dataSql,
-        [
-          table,
-          likeVal,
-          ...searchParams,
-          limit,
-          offset,
-        ]
-      ),
+      db
+        .promise()
+        .query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
     ]);
 
     return res.json({
@@ -2871,12 +2850,8 @@ router.get("/credit-initiated-loans", async (req, res) => {
         total: Number(countRows[0]?.total || 0),
       },
     });
-
   } catch (err) {
-    console.error(
-      "Error fetching credit initiated loans:",
-      err
-    );
+    console.error("Error fetching credit initiated loans:", err);
 
     return res.status(500).json({
       message: "Database error",
@@ -2884,7 +2859,6 @@ router.get("/credit-initiated-loans", async (req, res) => {
     });
   }
 });
-
 router.get("/operation-initiated-loans", async (req, res) => {
   const {
     table = "loan_booking_srbh",
