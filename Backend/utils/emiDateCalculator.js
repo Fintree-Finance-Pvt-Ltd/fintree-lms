@@ -88,6 +88,7 @@
 
 // utils/emiDateCalculator.js
 const db = require("../config/db");
+const { isCarepayLoanType } = require("./constant.js");
 
 // ✅ Excel serial date to JS date (YYYY-MM-DD)
 const excelSerialDateToJS = (value) => {
@@ -114,6 +115,20 @@ const excelSerialDateToJS = (value) => {
   }
 
   return null;
+};
+
+const formatDateYMD = (value) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${value}`);
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 };
 
 // //// clampDay Function //////////////////
@@ -471,6 +486,46 @@ else if (lender === "EV Loan" && product === "Monthly Loan") {
     console.log(`[EV Monthly Loan] EMI due: ${dueDate.toISOString().split("T")[0]}`);
     return dueDate;
 }
+////////////// CARE PAY EMI DATE /////////////////////// 
+// ✅ CAREPAY EMI date rule
+else if (
+  String(lender || "").trim().toLowerCase() === "carepay" &&
+  isCarepayLoanType(product)
+) {
+  const disbDate = new Date(disbursementDate);
+
+  if (Number.isNaN(disbDate.getTime())) {
+    throw new Error(
+      `Invalid CarePay disbursement date: ${disbursementDate}`,
+    );
+  }
+
+  const offset = Number(monthOffset || 0);
+
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw new Error(`Invalid monthOffset: ${monthOffset}`);
+  }
+
+  const disbursementDay = disbDate.getDate();
+
+  // 1st–25th: 5th of next month
+  // 26th–month end: 5th of month after next
+  const initialMonthGap = disbursementDay <= 25 ? 1 : 2;
+
+  const dueDate = new Date(
+    disbDate.getFullYear(),
+    disbDate.getMonth() + initialMonthGap + offset,
+    5,
+  );
+
+  console.log(
+    `[CAREPAY ${product}] EMI due: ${formatDateYMD(dueDate)}`,
+  );
+
+  return dueDate;
+}
+
+
 /////// HELIUM ///////////////////
 
 // ✅ HELIUM loan EMI date logic

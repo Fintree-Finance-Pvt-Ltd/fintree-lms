@@ -48,9 +48,26 @@ const CarepayLoanTypes = [
   "Short-Term Personal Loan",
 ];
 
+const normalizeCarepayProduct = (value) =>
+  String(value || "")
+    .trim()
+    .replace(/^["']+|["',]+$/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+const CarepayLoanTypeSet = new Set(
+  CarepayLoanTypes.map((type) => normalizeCarepayProduct(type)),
+);
+
+const isCarepayLoanType = (value) =>
+  CarepayLoanTypeSet.has(normalizeCarepayProduct(value));
 
 module.exports = {
   CAREPAY_HOSPITAL_REQUIRED_FIELDS,
   CAREPAY_REQUIRED_FIELDS,
-  CarepayLoanTypes
+  CarepayLoanTypes,
+  CarepayLoanTypeSet,
+  isCarepayLoanType,
+  normalizeCarepayProduct,
+  
 };
