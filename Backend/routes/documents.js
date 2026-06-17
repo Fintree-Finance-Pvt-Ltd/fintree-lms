@@ -2353,6 +2353,8 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("SML")) loanTable = "loan_booking_switch_my_loan";
   else if (lan.startsWith("ZBR")) loanTable = "loan_booking_zebrs";
   else if (lan.startsWith("CLY")) loanTable = "loan_booking_clayyo";
+    else if (lan.startsWith("SH")) loanTable = "loan_booking_srbh";
+
 
   try {
     const [loanRows] = await db
@@ -2493,6 +2495,8 @@ router.post("/generate-foreclosure", async (req, res) => {
   else if (lan.startsWith("BL")) bookingTable = "loan_bookings";
   else if (lan.startsWith("FINE")) bookingTable = "loan_booking_emiclub";
   else if (lan.startsWith("CARE")) bookingTable = "loan_booking_carepay";
+    else if (lan.startsWith("SH")) bookingTable = "loan_booking_srbh";
+
 
   // Helpers
   const fmtDateLong = (d) =>
