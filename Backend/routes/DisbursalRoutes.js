@@ -176,8 +176,8 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
   } 
 
-  if (lan.startsWith("SH")) {
-    tableName = "loan_booking_srbh";
+  if (lan.startsWith("SF")) {
+    tableName = "loan_booking_seven_fincorp";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
     interestRateCol = "lb.interest_rate";
@@ -190,7 +190,7 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
   } 
 
-   if (lan.startsWith("SF")) {
+   if (lan.startsWith("SH")) {
     tableName = "loan_booking_srbh";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
