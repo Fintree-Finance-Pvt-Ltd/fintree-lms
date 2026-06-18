@@ -317,4 +317,166 @@ if (existingRps.length > 0) {
   }
 }
 
-module.exports = { processEmiClubDisbursement , processRapidMoneyDisbursement };
+async function processLoanDigitDisbursement({ lan, disbursementUTR, disbursementDate }) {
+   console.log("[Loan Digit][START] Processing disbursement", { lan, disbursementUTR, disbursementDate });
+
+  if (!lan || (!lan.startsWith("LDF") && !lan.startsWith("LDG") && !lan.startsWith("LDD"))) {
+    return { skipped: true, reason: "NOT_LOAN_DIGIT" };
+  }
+
+  if (!disbursementUTR || !disbursementDate) {
+    return { skipped: true, reason: "MISSING_UTR_OR_DATE" };
+  }
+
+  let conn;
+  try {
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    const [[loan]] = await conn.query(
+      `
+      SELECT loan_amount, interest_rate, loan_tenure, pre_emi, product, lender, status
+      FROM loan_booking_loan_digit
+      WHERE lan = ?
+      FOR UPDATE
+      `,
+      [lan]
+    );
+
+    if (!loan) throw new Error(`Loan Digit loan not found: ${lan}`);
+
+    if (String(loan.status).toLowerCase() === "disbursed") {
+      await conn.rollback();
+      return { skipped: true, reason: "ALREADY_DISBURSED" };
+    }
+
+    const [utrExists] = await conn.query(
+      `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
+      [disbursementUTR]
+    );
+
+    if (utrExists.length > 0) {
+      await conn.rollback();
+      return { skipped: true, reason: "DUPLICATE_UTR" };
+    }
+
+    // Generate RPS
+    await generateRepaymentSchedule(
+      conn,
+      lan,
+      loan.loan_amount,
+      null, // subvention_amount
+      loan.interest_rate,
+      loan.loan_tenure,
+      disbursementDate,
+      null, // retention
+      null, // advance emis
+      loan.pre_emi, // pre_emi
+      loan.product,
+      loan.lender || "Loan Digit"
+    );
+
+    // Insert UTR
+    await conn.query(
+      `INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)`,
+      [disbursementUTR, disbursementDate, lan]
+    );
+
+    // Update status
+    await conn.query(
+      `UPDATE loan_booking_loan_digit SET status = 'DISBURSED' WHERE lan = ?`,
+      [lan]
+    );
+
+    await conn.commit();
+    return { success: true };
+  } catch (err) {
+    if (conn) await conn.rollback();
+    throw err;
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
+async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate }) {
+   console.log("[Finso][START] Processing disbursement", { lan, disbursementUTR, disbursementDate });
+
+  if (!lan || !lan.startsWith("FINS")) {
+    return { skipped: true, reason: "NOT_FINSO" };
+  }
+
+  if (!disbursementUTR || !disbursementDate) {
+    return { skipped: true, reason: "MISSING_UTR_OR_DATE" };
+  }
+
+  let conn;
+  try {
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    const [[loan]] = await conn.query(
+      `
+      SELECT loan_amount, interest_rate, loan_tenure, pre_emi, product, lender, status
+      FROM loan_booking_finso
+      WHERE lan = ?
+      FOR UPDATE
+      `,
+      [lan]
+    );
+
+    if (!loan) throw new Error(`Finso loan not found: ${lan}`);
+
+    if (String(loan.status).toLowerCase() === "disbursed") {
+      await conn.rollback();
+      return { skipped: true, reason: "ALREADY_DISBURSED" };
+    }
+
+    const [utrExists] = await conn.query(
+      `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
+      [disbursementUTR]
+    );
+
+    if (utrExists.length > 0) {
+      await conn.rollback();
+      return { skipped: true, reason: "DUPLICATE_UTR" };
+    }
+
+    // Generate RPS
+    await generateRepaymentSchedule(
+      conn,
+      lan,
+      loan.loan_amount,
+      null, // subvention_amount
+      loan.interest_rate,
+      loan.loan_tenure,
+      disbursementDate,
+      null, // retention
+      null, // advance emis
+      loan.pre_emi, // pre_emi
+      loan.product,
+      loan.lender || "Finso"
+    );
+
+    // Insert UTR
+    await conn.query(
+      `INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)`,
+      [disbursementUTR, disbursementDate, lan]
+    );
+
+    // Update status
+    await conn.query(
+      `UPDATE loan_booking_finso SET status = 'DISBURSED' WHERE lan = ?`,
+      [lan]
+    );
+
+    await conn.commit();
+    return { success: true };
+  } catch (err) {
+    if (conn) await conn.rollback();
+    throw err;
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
+module.exports = { processEmiClubDisbursement , processRapidMoneyDisbursement, processLoanDigitDisbursement, processFinsoDisbursement };
