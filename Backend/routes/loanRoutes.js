@@ -94,6 +94,10 @@ router.get("/loan-booking/:lan", (req, res) => {
   }else if (lan.startsWith("SF")) {
     table = "loan_booking_seven_fincorp";
     posTable = "manual_rps_seven_fincorp";
+  }
+  else if (lan.startsWith("SH")) {
+    table = "loan_booking_srbh";
+    posTable = "manual_rps_srbh";
   }else if (lan.startsWith("BUN")) {
     table = "loan_booking_bundela";
     posTable = "manual_rps_bundela";

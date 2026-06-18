@@ -237,6 +237,16 @@ const PRODUCT_MAP = {
     label:         "Zebrs",
     disbDateSource:"utr",
   },
+    SRBH: {
+    rpsTable:      "manual_rps_srbh",
+    bookTable:     "loan_booking_srbh",
+    disbField:     "loan_amount",
+    collType:      "subquery",
+    allocTable:    "allocation",
+    allocLike:     "%SH%",
+    label:         "SRBH",
+    disbDateSource:"utr",
+  },
 };
 
 /* ================================================================

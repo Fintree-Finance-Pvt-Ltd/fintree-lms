@@ -410,7 +410,7 @@ router.get("/dealersforbooking", async (req, res) => {
         ifsc_code,
         status
       FROM srbh_dealer_booking
-      WHERE status = 'ACTIVE'
+      WHERE status = 'APPROVED'
       ORDER BY business_name ASC
     `);
 
@@ -671,7 +671,7 @@ return res.status(400).json({
 }
 
     const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
-      "SEVEN_FINCORP_CUSTOMER",
+      "SRBH",
     );
 
     await connection.beginTransaction();
@@ -772,7 +772,7 @@ emptyToNull(data.Co_Applicant_Pincode),
     ];
 
     const insertQuery = `
-      INSERT INTO loan_booking_seven_fincorp (
+      INSERT INTO loan_booking_srbh (
         lender_type,
         lender,
         product,
@@ -912,18 +912,18 @@ await connection.query(
 
     return res.status(201).json({
       success: true,
-      message: "Seven Fincorp loan booking saved successfully",
+      message: "SRBH loan booking saved successfully",
       partner_loan_id: cust_partner_loan_id,
       lan: cust_lan,
     });
   } catch (error) {
     await connection.rollback();
 
-    console.error("Seven Fincorp loan booking save error:", error);
+    console.error("SRBH loan booking save error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Failed to save Seven Fincorp loan booking",
+      message: "Failed to save SRBH loan booking",
       error: error.message,
     });
   } finally {
@@ -1601,7 +1601,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
 
     await connection.query(
       `
-      UPDATE loan_booking_seven_fincorp
+      UPDATE loan_booking_srbh
       SET
         permanent_address_line_1 = ?,
         permanent_address_line_2 = ?,
@@ -1765,13 +1765,13 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Seven Fincorp loan booking submitted successfully",
+      message: "SRBH loan booking submitted successfully",
       lan: data.lan,
     });
   } catch (error) {
     await connection.rollback();
 
-    console.error("Final Motion Corp submit error:", error);
+    console.error("Final SRBH submit error:", error);
 
     return res.status(500).json({
       success: false,
@@ -1809,7 +1809,7 @@ router.get("/loan-booking/:lan", async (req, res) => {
       data: rows[0],
     });
   } catch (error) {
-    console.error("Fetch Motion Corp booking error:", error);
+    console.error("Fetch SRBH booking error:", error);
 
     return res.status(500).json({
       success: false,
@@ -2159,7 +2159,7 @@ router.post("/save-applicant-details", async (req, res) => {
     if (applicantType === "GUARANTOR") {
       await db.promise().query(
         `
-        UPDATE loan_booking_seven_fincorp
+        UPDATE loan_booking_srbh
         SET
           guarantor_name = ?,
           guarantor_dob = ?,
@@ -2198,7 +2198,7 @@ router.post("/save-applicant-details", async (req, res) => {
     if (applicantType === "CO_APPLICANT") {
       await db.promise().query(
         `
-        UPDATE loan_booking_seven_fincorp
+        UPDATE loan_booking_srbh
         SET
           co_applicant_name = ?,
           co_applicant_dob = ?,
@@ -2431,26 +2431,26 @@ router.get("/customer-details/:lan", async (req, res) => {
     lb.created_at,
     lb.updated_at,
 
-    lb.seven_fincorp_bre_status,
-    lb.seven_fincorp_bre_reason,
-    lb.seven_fincorp_bre_checked_at,
+    lb.srbh_bre_status,
+    lb.srbh_bre_reason,
+    lb.srbh_bre_checked_at,
 
     lb.fintree_cibil_score,
-    lb.seven_fincorp_enquiries_30d,
+    lb.srbh_enquiries_30d,
 
-    lb.seven_fincorp_dpd_3m_flag,
-    lb.seven_fincorp_dpd_6m_flag,
-    lb.seven_fincorp_overdue_12m_flag,
+    lb.srbh_dpd_3m_flag,
+    lb.srbh_dpd_6m_flag,
+    lb.srbh_overdue_12m_flag,
 
-    lb.seven_fincorp_written_off_3y_flag,
+    lb.srbh_written_off_3y_flag,
 
-    lb.seven_fincorp_60plus_24m_flag,
-    lb.seven_fincorp_90plus_36m_flag,
+    lb.srbh_60plus_24m_flag,
+    lb.srbh_90plus_36m_flag,
 
-    lb.seven_fincorp_emi_overdue_amount,
-    lb.seven_fincorp_cc_overdue_amount,
+    lb.srbh_emi_overdue_amount,
+    lb.srbh_cc_overdue_amount,
 
-    lb.seven_fincorp_deviation_flag,
+    lb.srbh_deviation_flag,
 
     borrower_kyc.pan_status AS borrower_pan_status,
     borrower_kyc.aadhaar_status AS borrower_aadhaar_status,
@@ -2464,7 +2464,7 @@ router.get("/customer-details/:lan", async (req, res) => {
     co_kyc.aadhaar_status AS co_applicant_aadhaar_status,
     co_kyc.bureau_status AS co_applicant_bureau_status
 
-  FROM loan_booking_seven_fincorp lb
+  FROM loan_booking_srbh lb
 
   LEFT JOIN kyc_verification_status borrower_kyc
     ON borrower_kyc.lan = lb.lan
@@ -2486,7 +2486,7 @@ router.get("/customer-details/:lan", async (req, res) => {
 
     if (!rows.length) {
       return res.status(404).json({
-        message: "Motion Corp loan not found",
+        message: "SRBH loan not found",
       });
     }
 
@@ -2668,43 +2668,43 @@ router.get("/customer-details/:lan", async (req, res) => {
         row.fintree_cibil_score,
 
       enquiries_30d:
-        row.seven_fincorp_enquiries_30d,
+        row.srbh_enquiries_30d,
 
       dpd_3m_flag:
-        row.seven_fincorp_dpd_3m_flag,
+        row.srbh_dpd_3m_flag,
 
       dpd_6m_flag:
-        row.seven_fincorp_dpd_6m_flag,
+        row.srbh_dpd_6m_flag,
 
       overdue_12m_flag:
-        row.seven_fincorp_overdue_12m_flag,
+        row.srbh_overdue_12m_flag,
 
       written_off_3y_flag:
-        row.seven_fincorp_written_off_3y_flag,
+        row.srbh_written_off_3y_flag,
 
       dpd_60plus_24m_flag:
-        row.seven_fincorp_60plus_24m_flag,
+        row.srbh_60plus_24m_flag,
 
       dpd_90plus_36m_flag:
-        row.seven_fincorp_90plus_36m_flag,
+        row.srbh_90plus_36m_flag,
 
       emi_overdue_amount:
-        row.seven_fincorp_emi_overdue_amount,
+        row.srbh_emi_overdue_amount,
 
       cc_overdue_amount:
-        row.seven_fincorp_cc_overdue_amount,
+        row.srbh_cc_overdue_amount,
 
       deviation_flag:
-        row.seven_fincorp_deviation_flag,
+        row.srbh_deviation_flag,
 
       bre_status:
-        row.seven_fincorp_bre_status,
+        row.srbh_bre_status,
 
       bre_reason:
-        row.seven_fincorp_bre_reason,
+        row.srbh_bre_reason,
 
       bre_checked_at:
-        row.seven_fincorp_bre_checked_at,
+        row.srbh_bre_checked_at,
     };
 
     return res.json({
@@ -2713,21 +2713,23 @@ router.get("/customer-details/:lan", async (req, res) => {
     });
   } catch (err) {
     console.error(
-      "❌ Error fetching Motion Corp details:",
+      "❌ Error fetching SRBH details:",
       err,
     );
 
     return res.status(500).json({
-      message: "Failed to fetch Motion Corp details",
+      message: "Failed to fetch SRBH details",
       error: err.sqlMessage || err.message,
     });
   }
 });
+
+
 
 router.get("/credit-initiated-loans", async (req, res) => {
   const {
-    table = "loan_booking_seven_fincorp",
-    prefix = "SFL",
+    table = "loan_booking_srbh",
+    prefix = "SH",
     page = "1",
     pageSize = "50",
     search = "",
@@ -2736,168 +2738,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
   } = req.query;
 
   const allowedTables = {
-    loan_booking_seven_fincorp: true,
-  };
-
-  if (!allowedTables[table]) {
-    return res.status(400).json({
-      message: "Invalid table name",
-    });
-  }
-
-  const pg = Math.max(1, parseInt(page, 10) || 1);
-
-  const limit = Math.min(
-    100,
-    Math.max(1, parseInt(pageSize, 10) || 50)
-  );
-
-  const offset = (pg - 1) * limit;
-
-  const safeSortDir =
-    sortDir.toLowerCase() === "asc"
-      ? "ASC"
-      : "DESC";
-
-  const allowedSort = [
-    "lan",
-    "partner_loan_id",
-    "customer_name",
-    "mobile_number",
-    "loan_amount",
-    "created_at",
-    "seven_fincorp_bre_checked_at",
-  ];
-
-  const sortCol = allowedSort.includes(sortBy)
-    ? sortBy
-    : "created_at";
-
-  try {
-    const likeVal = `${prefix}%`;
-
-    const searchClause = search
-      ? `
-        AND (
-          lb.lan LIKE ?
-          OR lb.customer_name LIKE ?
-          OR lb.partner_loan_id LIKE ?
-          OR lb.mobile_number LIKE ?
-        )
-      `
-      : "";
-
-    const searchParams = search
-      ? [
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-        ]
-      : [];
-
-    const countSql = `
-      SELECT COUNT(*) AS total
-      FROM ?? lb
-      WHERE
-        lb.status = 'Credit Initiated'
-        AND lb.stage = 'BRE Deviation'
-        AND lb.lan LIKE ?
-        ${searchClause}
-    `;
-
-    const dataSql = `
-      SELECT
-        lb.id,
-        lb.lan,
-        lb.partner_loan_id,
-
-        lb.customer_name,
-        lb.mobile_number,
-        lb.pan_card,
-
-        lb.loan_amount,
-        lb.interest_rate,
-        lb.loan_tenure,
-
-        lb.cibil_score,
-        lb.fintree_cibil_score,
-
-        lb.seven_fincorp_bre_status,
-        lb.seven_fincorp_bre_reason,
-        lb.seven_fincorp_bre_checked_at,
-
-        lb.status,
-        lb.stage,
-
-        lb.created_at
-
-      FROM ?? lb
-      WHERE
-        lb.status = 'Credit Initiated'
-        AND lb.stage = 'BRE Deviation'
-        AND lb.lan LIKE ?
-        ${searchClause}
-
-      ORDER BY lb.${sortCol} ${safeSortDir}
-
-      LIMIT ? OFFSET ?
-    `;
-
-    const [[countRows], [rows]] = await Promise.all([
-      db.promise().query(
-        countSql,
-        [table, likeVal, ...searchParams]
-      ),
-
-      db.promise().query(
-        dataSql,
-        [
-          table,
-          likeVal,
-          ...searchParams,
-          limit,
-          offset,
-        ]
-      ),
-    ]);
-
-    return res.json({
-      rows,
-
-      pagination: {
-        page: pg,
-        pageSize: limit,
-        total: Number(countRows[0]?.total || 0),
-      },
-    });
-
-  } catch (err) {
-    console.error(
-      "Error fetching credit initiated loans:",
-      err
-    );
-
-    return res.status(500).json({
-      message: "Database error",
-      error: err.sqlMessage || err.message,
-    });
-  }
-});
-
-router.get("/operation-initiated-loans", async (req, res) => {
-  const {
-    table = "loan_booking_motion_corp",
-    prefix = "MC",
-    page = "1",
-    pageSize = "50",
-    search = "",
-    sortBy = "lan",
-    sortDir = "desc",
-  } = req.query;
-
-  const allowedTables = {
-    loan_booking_motion_corp: true,
+    loan_booking_srbh: true,
   };
 
   if (!allowedTables[table]) {
@@ -2921,7 +2762,140 @@ router.get("/operation-initiated-loans", async (req, res) => {
     "mobile_number",
     "loan_amount",
     "created_at",
-    "motioncorp_bre_checked_at",
+    "srbh_checked_at",
+  ];
+
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
+
+  try {
+    const likeVal = `${prefix}%`;
+
+    const searchClause = search
+      ? `
+        AND (
+          lb.lan LIKE ?
+          OR lb.customer_name LIKE ?
+          OR lb.partner_loan_id LIKE ?
+          OR lb.mobile_number LIKE ?
+        )
+      `
+      : "";
+
+    const searchParams = search
+      ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+      : [];
+
+    const countSql = `
+      SELECT COUNT(*) AS total
+      FROM ?? lb
+      WHERE
+        lb.status = 'Credit Initiated'
+        AND lb.stage in ('BRE Deviation', 'BRE Approved')
+        AND lb.lan LIKE ?
+        ${searchClause}
+    `;
+
+    const dataSql = `
+      SELECT
+        lb.id,
+        lb.lan,
+        lb.partner_loan_id,
+
+        lb.customer_name,
+        lb.mobile_number,
+        lb.pan_card,
+
+        lb.loan_amount,
+        lb.interest_rate,
+        lb.loan_tenure,
+
+        lb.cibil_score,
+        lb.fintree_cibil_score,
+
+        lb.srbh_bre_status,
+        lb.srbh_bre_reason,
+        lb.srbh_bre_checked_at,
+
+        lb.status,
+        lb.stage,
+
+        lb.created_at
+
+      FROM ?? lb
+      WHERE
+        lb.status = 'Credit Initiated'
+        AND lb.stage in ('BRE Deviation', 'BRE Approved')
+        AND lb.lan LIKE ?
+        ${searchClause}
+
+      ORDER BY lb.${sortCol} ${safeSortDir}
+
+      LIMIT ? OFFSET ?
+    `;
+
+    const [[countRows], [rows]] = await Promise.all([
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
+
+      db
+        .promise()
+        .query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
+    ]);
+
+    return res.json({
+      rows,
+
+      pagination: {
+        page: pg,
+        pageSize: limit,
+        total: Number(countRows[0]?.total || 0),
+      },
+    });
+  } catch (err) {
+    console.error("Error fetching credit initiated loans:", err);
+
+    return res.status(500).json({
+      message: "Database error",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+router.get("/operation-initiated-loans", async (req, res) => {
+  const {
+    table = "loan_booking_srbh",
+    prefix = "SHL",
+    page = "1",
+    pageSize = "50",
+    search = "",
+    sortBy = "lan",
+    sortDir = "desc",
+  } = req.query;
+
+  const allowedTables = {
+    loan_booking_srbh: true,
+  };
+
+  if (!allowedTables[table]) {
+    return res.status(400).json({
+      message: "Invalid table name",
+    });
+  }
+
+  const pg = Math.max(1, parseInt(page, 10) || 1);
+
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
+
+  const offset = (pg - 1) * limit;
+
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
+
+  const allowedSort = [
+    "lan",
+    "partner_loan_id",
+    "customer_name",
+    "mobile_number",
+    "loan_amount",
+    "created_at",
+    "srbh_bre_checked_at",
   ];
 
   const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
@@ -2971,9 +2945,9 @@ router.get("/operation-initiated-loans", async (req, res) => {
         lb.cibil_score,
         lb.fintree_cibil_score,
 
-        lb.motioncorp_bre_status,
-        lb.motioncorp_bre_reason,
-        lb.motioncorp_bre_checked_at,
+        lb.srbh_bre_status,
+        lb.srbh_bre_reason,
+        lb.srbh_bre_checked_at,
 
         lb.customer_name_as_per_bank,
         lb.customer_bank_name,
@@ -3046,7 +3020,7 @@ router.post("/:lan/approve", async (req, res) => {
     const [rows] = await db.promise().query(
       `
       SELECT lan, bank_status
-      FROM loan_booking_motion_corp
+      FROM loan_booking_srbh
       WHERE lan = ?
       `,
       [lan],
@@ -3072,7 +3046,7 @@ router.post("/:lan/approve", async (req, res) => {
     // UPDATE STATUS
     await db.promise().query(
       `
-      UPDATE loan_booking_motion_corp
+      UPDATE loan_booking_srbh
       SET
         status = 'Approved',
         stage = 'Operation Approved',
@@ -3104,7 +3078,7 @@ router.post("/:lan/reject", async (req, res) => {
     const [rows] = await db.promise().query(
       `
       SELECT lan, bank_status
-      FROM loan_booking_motion_corp
+      FROM loan_booking_srbh
       WHERE lan = ?
       `,
       [lan],
@@ -3130,7 +3104,7 @@ router.post("/:lan/reject", async (req, res) => {
     // UPDATE STATUS
     await db.promise().query(
       `
-      UPDATE loan_booking_motion_corp
+      UPDATE loan_booking_srbh
       SET
         status = 'Rejected',
         stage = 'Operation Rejected',
@@ -3154,300 +3128,5 @@ router.post("/:lan/reject", async (req, res) => {
   }
 });
 
-// router.post("/save-section-details", async (req, res) => {
-//   let connection;
 
-//   try {
-//     connection = await db.getConnection();
-
-//     const data = req.body;
-
-//     const cleanLan = String(data.lan || "").trim();
-//     const section = Number(data.activeSection);
-
-//     if (!cleanLan) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "LAN is required",
-//       });
-//     }
-
-//     await connection.beginTransaction();
-
-//     let query = "";
-//     let values = [];
-
-//     // SECTION 1: Address
-//     if (section === 1) {
-//       query = `
-//         UPDATE loan_booking_srbh
-//         SET
-//           permanent_address_line_1 = ?,
-//           permanent_address_line_2 = ?,
-//           permanent_village_city = ?,
-//           permanent_district = ?,
-//           permanent_state = ?,
-//           permanent_pincode = ?
-//         WHERE lan = ?
-//       `;
-
-//       values = [
-//         emptyToNull(data.Address_Line_1),
-//         emptyToNull(data.Address_Line_2),
-//         emptyToNull(data.Village),
-//         emptyToNull(data.District),
-//         emptyToNull(data.State),
-//         emptyToNull(data.Pincode),
-//         cleanLan,
-//       ];
-//     }
-
-//     // SECTION 2: Loan Details
-//     else if (section === 2) {
-//       query = `
-//         UPDATE loan_booking_srbh
-//         SET
-//           requested_loan_amount = ?,
-//           loan_amount = ?,
-//           interest_rate = ?,
-//           loan_tenure = ?,
-//           processing_fee = ?,
-//           processing_fee_percentage = ?,
-//           disbursal_amount = ?
-//         WHERE lan = ?
-//       `;
-
-//       values = [
-//         emptyToNull(data.Loan_Amount),
-//         emptyToNull(data.Loan_Amount),
-//         emptyToNull(data.Interest_Rate),
-//         emptyToNull(data.Tenure),
-//         emptyToNull(data.Processing_Fee),
-//         emptyToNull(data.Processing_Fee_Percentage),
-//         emptyToNull(data.Disbursal_Amount),
-//         cleanLan,
-//       ];
-//     }
-
-//     // SECTION 3: Guarantor
-//     else if (section === 3) {
-//       query = `
-//         UPDATE loan_booking_srbh
-//         SET
-//           guarantor_name = ?,
-//           guarantor_dob = ?,
-//           guarantor_email = ?,
-//           guarantor_pan = ?,
-//           guarantor_mobile = ?,
-//           relationship_with_borrower = ?,
-//           guarantor_address_line_1 = ?,
-//           guarantor_address_line_2 = ?,
-//           guarantor_village_city = ?,
-//           guarantor_district = ?,
-//           guarantor_state = ?,
-//           guarantor_pincode = ?,
-//           guarantor_mobile_verified = ?
-//         WHERE lan = ?
-//       `;
-
-//       values = [
-//         emptyToNull(data.GURANTOR),
-//         emptyToNull(data.GURANTOR_DOB),
-//         emptyToNull(data.GURANTOR_EMAIL),
-//         emptyToNull(data.GURANTOR_PAN),
-//         emptyToNull(data.GURANTOR_MOBILE),
-//         emptyToNull(data.Relationship_with_Borrower),
-//         emptyToNull(data.GURANTOR_Address_Line_1),
-//         emptyToNull(data.GURANTOR_Address_Line_2),
-//         emptyToNull(data.GURANTOR_Village),
-//         emptyToNull(data.GURANTOR_District),
-//         emptyToNull(data.GURANTOR_State),
-//         emptyToNull(data.GURANTOR_Pincode),
-//         data.guarantor_mobile_verified || 0,
-//         cleanLan,
-//       ];
-//     }
-
-//     // SECTION 4: Co-Applicant
-//     else if (section === 4) {
-//       query = `
-//         UPDATE loan_booking_srbh
-//         SET
-//           co_applicant_name = ?,
-//           co_applicant_dob = ?,
-//           co_applicant_email = ?,
-//           co_applicant_pan = ?,
-//           co_applicant_mobile = ?,
-//           co_applicant_address_line_1 = ?,
-//           co_applicant_address_line_2 = ?,
-//           co_applicant_village_city = ?,
-//           co_applicant_district = ?,
-//           co_applicant_state = ?,
-//           co_applicant_pincode = ?,
-//           co_applicant_mobile_verified = ?
-//         WHERE lan = ?
-//       `;
-
-//       values = [
-//         emptyToNull(data.Co_Applicant),
-//         emptyToNull(data.Co_Applicant_DOB),
-//         emptyToNull(data.Co_Applicant_Email),
-//         emptyToNull(data.Co_Applicant_PAN),
-//         emptyToNull(data.Co_Applicant_Mobile),
-//         emptyToNull(data.Co_Applicant_Address_Line_1),
-//         emptyToNull(data.Co_Applicant_Address_Line_2),
-//         emptyToNull(data.Co_Applicant_Village),
-//         emptyToNull(data.Co_Applicant_District),
-//         emptyToNull(data.Co_Applicant_State),
-//         emptyToNull(data.Co_Applicant_Pincode),
-//         data.co_applicant_mobile_verified || 0,
-//         cleanLan,
-//       ];
-//     }
-
-//     // SECTION 5: Customer Bank Details
-//     else if (section === 5) {
-//       query = `
-//         UPDATE loan_booking_srbh
-//         SET
-//           customer_name_as_per_bank = ?,
-//           customer_bank_name = ?,
-//           customer_account_number = ?,
-//           bank_ifsc_code = ?
-//         WHERE lan = ?
-//       `;
-
-//       values = [
-//         emptyToNull(data.customer_name_as_per_bank),
-//         emptyToNull(data.customer_bank_name),
-//         emptyToNull(data.customer_account_number),
-//         emptyToNull(data.bank_ifsc_code),
-//         cleanLan,
-//       ];
-//     }
-
-//     // SECTION 6: Dealer Details
-//     else if (section === 6) {
-//       query = `
-//         UPDATE loan_booking_srbh
-//         SET
-//           selected_dealer_application_id = ?,
-//           dealer_id = ?,
-//           trade_name = ?,
-//           dealer_name = ?,
-//           dealer_contact = ?,
-//           dealer_email = ?,
-//           gst_no = ?,
-//           pan_number = ?,
-//           dealer_address = ?,
-//           dealer_city = ?,
-//           dealer_state = ?,
-//           dealer_pincode = ?,
-//           dealer_bank_name = ?,
-//           dealer_account_number = ?,
-//           dealer_ifsc = ?,
-//           dealer_name_in_bank = ?
-//         WHERE lan = ?
-//       `;
-
-//       values = [
-//         emptyToNull(data.selected_dealer_application_id),
-//         emptyToNull(data.dealer_id),
-//         emptyToNull(data.trade_name),
-//         emptyToNull(data.dealer_name),
-//         emptyToNull(data.dealer_contact),
-//         emptyToNull(data.dealer_email),
-//         emptyToNull(data.gst_no),
-//         emptyToNull(data.pan_number),
-//         emptyToNull(data.dealer_address),
-//         emptyToNull(data.dealer_city),
-//         emptyToNull(data.dealer_state),
-//         emptyToNull(data.dealer_pincode),
-//         emptyToNull(data.bank_name),
-//         emptyToNull(data.account_number),
-//         emptyToNull(data.ifsc),
-//         emptyToNull(data.name_in_bank),
-//         cleanLan,
-//       ];
-//     }
-
-//     // SECTION 7: Product Details
-//     else if (section === 7) {
-//       query = `
-//         UPDATE loan_booking_srbh
-//         SET
-//           selected_product_id = ?,
-//           battery_name = ?,
-//           battery_type = ?,
-//           battery_serial_no_1 = ?,
-//           battery_serial_no_2 = ?,
-//           e_rikshaw_model = ?,
-//           chassis_no = ?
-//         WHERE lan = ?
-//       `;
-
-//       values = [
-//         emptyToNull(data.selected_product_id),
-//         emptyToNull(data.Battery_Name),
-//         emptyToNull(data.Battery_Type),
-//         emptyToNull(data.Battery_Serial_no_1),
-//         emptyToNull(data.Battery_Serial_no_2),
-//         emptyToNull(data.E_Rikshaw_model),
-//         emptyToNull(data.Chassis_no),
-//         cleanLan,
-//       ];
-//     }
-
-//     else {
-//       await connection.rollback();
-
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid section",
-//         activeSection: section,
-//       });
-//     }
-
-//     const [result] = await connection.query(query, values);
-
-//     if (result.affectedRows === 0) {
-//       await connection.rollback();
-
-//       return res.status(404).json({
-//         success: false,
-//         message: "LAN not found in loan_booking_srbh",
-//         lan: cleanLan,
-//       });
-//     }
-
-//     await connection.commit();
-
-//     return res.json({
-//       success: true,
-//       message: "Section saved successfully",
-//       lan: cleanLan,
-//       activeSection: section,
-//       affectedRows: result.affectedRows,
-//       changedRows: result.changedRows,
-//     });
-//   } catch (error) {
-//     if (connection) {
-//       await connection.rollback();
-//     }
-
-//     console.error("SAVE SECTION ERROR:", error);
-//     console.error("SQL MESSAGE:", error.sqlMessage);
-
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to save section",
-//       error: error.message,
-//       sqlMessage: error.sqlMessage,
-//     });
-//   } finally {
-//     if (connection) {
-//       connection.release();
-//     }
-//   }
-// });
 module.exports = router;

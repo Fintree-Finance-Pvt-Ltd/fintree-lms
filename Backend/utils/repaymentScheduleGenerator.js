@@ -502,6 +502,10 @@
 /////////////////////////////////////    NEW   ///////////////////////
 const db = require("../config/db");
 const { getFirstEmiDate } = require("../utils/emiDateCalculator");
+const {
+  isCarepayLoanType,
+  normalizeCarepayProduct,
+} = require("./constant.js");
 
 // ✅ Excel serial date to JS date (YYYY-MM-DD)
 const excelSerialDateToJS = (value) => {
@@ -1704,6 +1708,340 @@ const generateRepaymentScheduleEmiclub = async (
 
   console.log(`✅ EMICLUB RPS generated  for ${lan}`);
 };
+////////// EMI CLUB end ////////
+
+/////////////// CAREPAY START ///////////////////////
+
+const round2 = (value) =>
+  Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+
+const formatDateYMD = (value) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${value}`);
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const generateRepaymentScheduleCarepay = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender,
+) => {
+  if (!conn) {
+    throw new Error("Database transaction connection is required");
+  }
+
+  const normalizedLan = String(lan || "").trim().toUpperCase();
+  const normalizedProduct = normalizeCarepayProduct(product);
+
+  if (!normalizedLan) {
+    throw new Error("CarePay LAN is required");
+  }
+
+  if (!normalizedLan.startsWith("CARE")) {
+    throw new Error(`Invalid CarePay LAN: ${normalizedLan}`);
+  }
+
+  if (!isCarepayLoanType(normalizedProduct)) {
+    throw new Error(
+      `Invalid CarePay product: ${product}. Allowed products: No-Cost EMI, Low-Cost EMI, Standard EMI, Short-Term Personal Loan`,
+    );
+  }
+
+  const numericLoanAmount = Number(loanAmount);
+  const numericInterestRate = Number(interestRate || 0);
+  const numericTenure = Number(tenure);
+
+  if (!Number.isFinite(numericLoanAmount) || numericLoanAmount <= 0) {
+    throw new Error(`Invalid CarePay loan amount: ${loanAmount}`);
+  }
+
+  if (
+    !Number.isFinite(numericInterestRate) ||
+    numericInterestRate < 0
+  ) {
+    throw new Error(
+      `Invalid CarePay interest rate: ${interestRate}`,
+    );
+  }
+
+  const isNoCostEmi = normalizedProduct === "no-cost emi";
+
+  const isLowCostEmi = normalizedProduct === "low-cost emi";
+
+  const isStandardEmi = normalizedProduct === "standard emi";
+
+  const isShortTermPersonalLoan =
+    normalizedProduct === "short-term personal loan";
+
+  let repaymentTenure;
+
+  // Short-Term Personal Loan always has one repayment
+  if (isShortTermPersonalLoan) {
+    repaymentTenure = 1;
+  } else {
+    if (
+      !Number.isInteger(numericTenure) ||
+      numericTenure <= 0
+    ) {
+      throw new Error(`Invalid CarePay tenure: ${tenure}`);
+    }
+
+    repaymentTenure = numericTenure;
+  }
+
+  // No-Cost EMI always has zero customer interest
+  const effectiveAnnualInterestRate = isNoCostEmi
+    ? 0
+    : numericInterestRate;
+
+  const monthlyRate =
+    effectiveAnnualInterestRate / 100 / 12;
+
+  let regularEmi;
+
+  /*
+   * Short-Term Personal Loan:
+   *
+   * Principal + one month's interest
+   *
+   * Example:
+   * 140000 + (140000 × 20% / 12)
+   * = 142333.33
+   */
+  if (isShortTermPersonalLoan) {
+    const oneMonthInterest = round2(
+      numericLoanAmount * monthlyRate,
+    );
+
+    regularEmi = round2(
+      numericLoanAmount + oneMonthInterest,
+    );
+  }
+
+  /*
+   * No-Cost EMI:
+   *
+   * Loan amount / tenure
+   *
+   * EMI rounded to nearest rupee.
+   * Last installment is adjusted to close balance.
+   */
+  else if (isNoCostEmi || monthlyRate === 0) {
+    regularEmi = Math.round(
+      numericLoanAmount / repaymentTenure,
+    );
+  }
+
+  /*
+   * Standard EMI and Low-Cost EMI:
+   *
+   * Reducing-balance PMT calculation.
+   */
+  else if (isStandardEmi || isLowCostEmi) {
+    const rateFactor = Math.pow(
+      1 + monthlyRate,
+      repaymentTenure,
+    );
+
+    regularEmi = Math.round(
+      (numericLoanAmount * monthlyRate * rateFactor) /
+        (rateFactor - 1),
+    );
+  }
+
+  if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
+    throw new Error(
+      `Unable to calculate CarePay EMI for LAN ${normalizedLan}`,
+    );
+  }
+
+  // Prevent duplicate RPS creation
+  const [existingRps] = await conn.query(
+    `SELECT 1
+     FROM manual_rps_carepay
+     WHERE lan = ?
+     LIMIT 1`,
+    [normalizedLan],
+  );
+
+  if (existingRps.length > 0) {
+    throw new Error(
+      `CarePay RPS already exists for LAN ${normalizedLan}`,
+    );
+  }
+
+  let openingPrincipal = numericLoanAmount;
+  const rpsData = [];
+
+  for (
+    let installmentNumber = 1;
+    installmentNumber <= repaymentTenure;
+    installmentNumber++
+  ) {
+    const dueDate = getFirstEmiDate(
+      disbursementDate,
+      null,
+      lender || "CAREPAY",
+      product,
+      installmentNumber - 1,
+    );
+
+    let interest = 0;
+    let principal = 0;
+
+    /*
+     * Short-Term Personal Loan:
+     * One installment with full principal
+     * and one month interest.
+     */
+    if (isShortTermPersonalLoan) {
+      interest = round2(
+        openingPrincipal * monthlyRate,
+      );
+
+      principal = openingPrincipal;
+    }
+
+    /*
+     * No-Cost EMI:
+     * No interest, equal principal installments.
+     */
+    else if (isNoCostEmi || monthlyRate === 0) {
+      interest = 0;
+
+      principal =
+        installmentNumber === repaymentTenure
+          ? openingPrincipal
+          : Math.min(regularEmi, openingPrincipal);
+    }
+
+    /*
+     * Standard EMI and Low-Cost EMI:
+     * Reducing-balance calculation.
+     */
+    else {
+      interest = Math.round(
+        openingPrincipal * monthlyRate,
+      );
+
+      principal = regularEmi - interest;
+
+      if (principal <= 0) {
+        throw new Error(
+          `Invalid principal calculated for LAN ${normalizedLan}, installment ${installmentNumber}`,
+        );
+      }
+
+      // Final installment must clear the balance
+      if (
+        installmentNumber === repaymentTenure ||
+        principal > openingPrincipal
+      ) {
+        principal = openingPrincipal;
+      }
+    }
+
+    principal = round2(principal);
+    interest = round2(interest);
+
+    const closingPrincipal = Math.max(
+      0,
+      round2(openingPrincipal - principal),
+    );
+
+    const actualEmi = round2(
+      principal + interest,
+    );
+
+    const remainingPrincipal = principal;
+    const remainingInterest = interest;
+    const remainingEmi = actualEmi;
+
+    rpsData.push([
+      normalizedLan,
+      formatDateYMD(dueDate),
+      actualEmi,
+      interest,
+      principal,
+      principal,
+      interest,
+      actualEmi,
+      openingPrincipal,
+      closingPrincipal,
+      "Pending",
+    ]);
+
+    openingPrincipal = closingPrincipal;
+  }
+
+  if (Math.abs(openingPrincipal) > 0.01) {
+    throw new Error(
+      `CarePay RPS did not close correctly. Remaining principal: ${openingPrincipal}`,
+    );
+  }
+
+  await conn.query(
+    `INSERT INTO manual_rps_carepay
+     (
+       lan,
+       due_date,
+       emi,
+       interest,
+       principal,
+       remaining_principal,
+       remaining_interest,
+       remaining_emi,
+       opening,
+       closing,
+       status
+     )
+     VALUES ?`,
+    [rpsData],
+  );
+
+  await conn.query(
+    `UPDATE loan_booking_carepay
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [regularEmi, normalizedLan],
+  );
+
+  console.log("✅ CAREPAY RPS generated", {
+    lan: normalizedLan,
+    product,
+    loanAmount: numericLoanAmount,
+    interestRate: effectiveAnnualInterestRate,
+    tenure: repaymentTenure,
+    regularEmi,
+    installmentCount: rpsData.length,
+  });
+
+  return {
+    lan: normalizedLan,
+    product,
+    loan_amount: numericLoanAmount,
+    interest_rate: effectiveAnnualInterestRate,
+    tenure: repaymentTenure,
+    emi_amount: regularEmi,
+    installment_count: rpsData.length,
+  };
+};
+
+
+
 ////////////////////////////// RPS FOR CIRCLE PE START ///////////////////////////////////
 
 const generateRepaymentScheduleCirclePE = async (
@@ -5410,6 +5748,437 @@ const generateRepaymentScheduleMotionCorp = async (
     rpsData,
   };
 };
+
+
+
+
+const generateRepaymentScheduleSrbh = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+) => {
+  console.log("inside SRBH RPS generate final");
+
+  // =====================================================
+  // HELPERS
+  // =====================================================
+
+  const toFiniteNumber = (value, fieldName) => {
+    const num = Number(value);
+
+    if (!Number.isFinite(num)) {
+      throw new Error(
+        `Invalid ${fieldName} for LAN ${lan}: ${value}`
+      );
+    }
+
+    return num;
+  };
+
+  const round2 = (value, fieldName = "value") => {
+    const num = Number(value);
+
+    if (!Number.isFinite(num)) {
+      throw new Error(
+        `Invalid numeric ${fieldName} for LAN ${lan}: ${value}`
+      );
+    }
+
+    return Number(num.toFixed(2));
+  };
+
+  // Whole number round for EMI, interest, principal
+  const round0 = (value, fieldName = "value") => {
+    const num = Number(value);
+
+    if (!Number.isFinite(num)) {
+      throw new Error(
+        `Invalid numeric ${fieldName} for LAN ${lan}: ${value}`
+      );
+    }
+
+    return Math.round(num);
+  };
+
+  const validateRpsNumber = (value, fieldName, emiNo) => {
+    const num = Number(value);
+
+    if (!Number.isFinite(num)) {
+      throw new Error(
+        `Invalid RPS ${fieldName} for LAN ${lan}, EMI No ${emiNo}: ${value}`
+      );
+    }
+
+    return num;
+  };
+
+  // =====================================================
+  // INPUTS
+  // =====================================================
+
+  const principal = round0(
+    toFiniteNumber(loanAmount, "loanAmount"),
+    "loanAmount"
+  );
+
+  const flatRate = toFiniteNumber(interestRate, "interestRate");
+  const months = toFiniteNumber(tenure, "tenure");
+
+  const disbDate = new Date(disbursementDate);
+
+  if (
+    principal <= 0 ||
+    flatRate <= 0 ||
+    months <= 0 ||
+    !Number.isInteger(months) ||
+    Number.isNaN(disbDate.getTime())
+  ) {
+    throw new Error(
+      `Invalid inputs for LAN ${lan}: loanAmount=${loanAmount}, interestRate=${interestRate}, tenure=${tenure}, disbursementDate=${disbursementDate}`
+    );
+  }
+
+  // =====================================================
+  // STEP 1 : FLAT INTEREST
+  // =====================================================
+
+  const totalFlatInterest = round0(
+    principal * (flatRate / 100) * (months / 12),
+    "totalFlatInterest"
+  );
+
+  // =====================================================
+  // STEP 2 : TOTAL REPAYMENT
+  // =====================================================
+
+  const totalRepayment = round0(
+    principal + totalFlatInterest,
+    "totalRepayment"
+  );
+
+  // =====================================================
+  // STEP 3 : EMI - ROUNDED
+  // =====================================================
+
+  const emi = round0(
+    totalRepayment / months,
+    "emi"
+  );
+
+  // =====================================================
+  // STEP 4 : FIRST EMI DATE
+  // =====================================================
+
+  const firstDueRaw = getFirstEmiDate(
+    disbDate,
+    null,
+    "SRBH",
+    "Monthly Loan",
+  );
+
+  const firstDueDate = new Date(firstDueRaw);
+
+  if (Number.isNaN(firstDueDate.getTime())) {
+    throw new Error(
+      `Invalid SRBH first due date for LAN ${lan}: ${firstDueRaw}`
+    );
+  }
+
+  // =====================================================
+  // STEP 5 : PRE EMI DAYS
+  // =====================================================
+  
+  const diffTime =
+    firstDueDate.getTime() -
+    disbDate.getTime();
+
+  const preEmiDays = Math.ceil(
+    diffTime / (1000 * 60 * 60 * 24)
+  );
+
+  if (!Number.isFinite(preEmiDays) || preEmiDays < 0) {
+    throw new Error(
+      `Invalid preEmiDays for LAN ${lan}: ${preEmiDays}`
+    );
+  }
+
+  // =====================================================
+  // STEP 6 : PRE EMI INTEREST - ROUNDED
+  // =====================================================
+
+  const preEmiInterest = round0(
+    principal * (flatRate / 100) * (preEmiDays / 360),
+    "preEmiInterest"
+  );
+
+  // =====================================================
+  // STEP 7 : REDUCING ROI
+  // =====================================================
+
+  const calculateReducingMonthlyRate = (
+    principalAmount,
+    monthlyEmi,
+    totalMonths
+  ) => {
+    const pmt = (rate) => {
+      if (Math.abs(rate) < 1e-12) {
+        return principalAmount / totalMonths;
+      }
+
+      const pow = Math.pow(1 + rate, totalMonths);
+
+      return (
+        principalAmount *
+        rate *
+        pow
+      ) / (
+        pow - 1
+      );
+    };
+
+    const minEmi = principalAmount / totalMonths;
+
+    if (monthlyEmi <= minEmi) {
+      return 0;
+    }
+
+    let low = 0;
+    let high = 0.01;
+
+    while (pmt(high) < monthlyEmi && high < 10) {
+      high *= 2;
+    }
+
+    if (!Number.isFinite(high) || pmt(high) < monthlyEmi) {
+      throw new Error(
+        `Unable to calculate reducing ROI for LAN ${lan}: principal=${principalAmount}, emi=${monthlyEmi}, months=${totalMonths}`
+      );
+    }
+
+    for (let i = 0; i < 100; i++) {
+      const mid = (low + high) / 2;
+      const midPmt = pmt(mid);
+
+      if (midPmt < monthlyEmi) {
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+
+    return (low + high) / 2;
+  };
+
+  const reducingMonthlyRate = calculateReducingMonthlyRate(
+    principal,
+    emi,
+    months
+  );
+
+  const reducingAnnualRate = round2(
+    reducingMonthlyRate * 12 * 100,
+    "reducingAnnualRate"
+  );
+
+  // =====================================================
+  // STEP 8 : GENERATE RPS
+  // EMI, INTEREST, PRINCIPAL ALL ROUNDED
+  // =====================================================
+
+  let openingPrincipal = principal;
+  let dueDate = new Date(firstDueDate);
+
+  const rpsData = [];
+
+  for (let i = 1; i <= months; i++) {
+    let interest = round0(
+      openingPrincipal * reducingMonthlyRate,
+      `interest EMI ${i}`
+    );
+
+    let principalComponent = round0(
+      emi - interest,
+      `principal EMI ${i}`
+    );
+
+    let installmentEmi = emi;
+
+    // Last EMI adjustment to close loan cleanly
+    if (i === months) {
+      principalComponent = round0(
+        openingPrincipal,
+        `last principal EMI ${i}`
+      );
+
+      installmentEmi = round0(
+        principalComponent + interest,
+        `last EMI ${i}`
+      );
+    }
+
+    const closingPrincipal = round0(
+      Math.max(0, openingPrincipal - principalComponent),
+      `closing EMI ${i}`
+    );
+
+    rpsData.push({
+      emi_no: i,
+
+      due_date: dueDate
+        .toISOString()
+        .split("T")[0],
+
+      opening: openingPrincipal,
+
+      emi: installmentEmi,
+
+      interest,
+
+      principal: principalComponent,
+
+      closing: closingPrincipal,
+
+      status: "Pending",
+    });
+
+    openingPrincipal = closingPrincipal;
+
+    dueDate.setMonth(
+      dueDate.getMonth() + 1
+    );
+  }
+
+  // =====================================================
+  // STEP 9 : INSERT RPS
+  // =====================================================
+
+  const insertData = rpsData.map((row) => {
+    const emiValue = validateRpsNumber(
+      row.emi,
+      "emi",
+      row.emi_no
+    );
+
+    const interestValue = validateRpsNumber(
+      row.interest,
+      "interest",
+      row.emi_no
+    );
+
+    const principalValue = validateRpsNumber(
+      row.principal,
+      "principal",
+      row.emi_no
+    );
+
+    const openingValue = validateRpsNumber(
+      row.opening,
+      "opening",
+      row.emi_no
+    );
+
+    const closingValue = validateRpsNumber(
+      row.closing,
+      "closing",
+      row.emi_no
+    );
+
+    return [
+      lan,
+      row.due_date,
+      row.status || "Pending",
+
+      emiValue,
+      interestValue,
+      principalValue,
+      openingValue,
+      closingValue,
+
+      emiValue,          // remaining_emi
+      interestValue,     // remaining_interest
+      principalValue,    // remaining_principal
+      emiValue,          // remaining_amount
+    ];
+  });
+
+  await conn.query(
+    `
+    INSERT INTO manual_rps_srbh
+    (
+      lan,
+      due_date,
+      status,
+      emi,
+      interest,
+      principal,
+      opening,
+      closing,
+      remaining_emi,
+      remaining_interest,
+      remaining_principal,
+      remaining_amount
+    )
+    VALUES ?
+    `,
+    [insertData]
+  );
+
+  // =====================================================
+  // STEP 10 : UPDATE MAIN TABLE
+  // =====================================================
+
+  await conn.query(
+    `
+    UPDATE loan_booking_srbh
+    SET
+      emi_amount = ?,
+      reducing_roi = ?,
+      flat_interest = ?,
+      pre_emi_interest = ?,
+      total_repayment = ?
+    WHERE lan = ?
+    `,
+    [
+      emi,
+      reducingAnnualRate,
+      totalFlatInterest,
+      preEmiInterest,
+      round0(totalRepayment + preEmiInterest, "finalTotalRepayment"),
+      lan,
+    ]
+  );
+
+  // =====================================================
+  // FINAL RESPONSE
+  // =====================================================
+
+  return {
+    principal,
+    flatRate,
+    months,
+    emi,
+    totalFlatInterest,
+    preEmiInterest,
+
+    totalRepayment: round0(
+      totalRepayment + preEmiInterest,
+      "returnTotalRepayment"
+    ),
+
+    reducingAnnualRate,
+
+    firstDueDate: firstDueDate
+      .toISOString()
+      .split("T")[0],
+
+    preEmiDays,
+
+    rpsData,
+  };
+};
 /////////////// motion corp RPS End /////////////////////////
 
 ///// WIth PRE EMI /////////////
@@ -5585,6 +6354,17 @@ console.log("checking data", {
     );
   } else if (lender === "EV Loan" && product.toLowerCase() === "monthly loan") {
     await generateRepaymentScheduleEV(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    );
+      } else if (lender === "CAREPAY" ) {
+    await generateRepaymentScheduleCarepay(
       conn,
       lan,
       loanAmount,
@@ -5912,6 +6692,22 @@ console.log("checking data", {
   );
 
 
+}else if (lender === "SRBH" && product === "Monthly Loan") {
+
+    console.log("inside rps genration");
+
+  await generateRepaymentScheduleSrbh(
+    conn,
+    lan,
+    loanAmount,
+    interestRate,
+    tenure,
+    disbursementDate,
+    product,
+    lender,
+  );
+
+
 } else if (lender === "HELIUM") {
     await generateRepaymentScheduleHelium(
       conn,
@@ -5950,5 +6746,7 @@ module.exports = {
   generateRepaymentScheduleLoanDigit, 
   generateRepaymentScheduleCirclePeHouser,
   generateRepaymentScheduleMotionCorp,
+  generateRepaymentScheduleCarepay,
+  generateRepaymentScheduleSrbh,
 
 };

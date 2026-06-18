@@ -232,7 +232,12 @@ import SRBHDealerLists from "./components/Srbh/SRBHDealerLists";
 import SRBHDealerLoginActions from "./components/Srbh/SRBHDealerLoginActions";
 import SRBHDealerDetails from "./components/Srbh/SRBHDealerDetails";
 import SRBHLoanBooking from "./components/Srbh/SRBHLoanBooking";
+
 import SRBHLoginCases from "./components/Srbh/SRBHLoginCases";
+import SRBHDisburseInitiate from "./components/Srbh/SRBHDisburseInitiate";
+import SRBHAllLoans from "./components/Srbh/SRBHAllLoans";
+import SRBHOperationApproval from "./components/Srbh/SRBHOperationApproval";
+import SRBHApprovedLoans from "./components/Srbh/SRBHApprovedLoans";
 
 
 
@@ -1959,6 +1964,44 @@ function App() {
             }
           />
  
+            <Route
+            path="/srbh/credit-initiated-cases"
+            element={
+              <PermissionRoute pageName="SRBH Customer Credit Initiated Cases Screen">
+                <SRBHDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/srbh/all-loans"
+            element={
+              <PermissionRoute pageName="SRBH Customer All Cases Screen">
+                <SRBHAllLoans />
+              </PermissionRoute>
+            }
+          />
+ 
+         
+       
+     
+          <Route
+            path="/srbh/credit-approved-cases"
+            element={
+              <PermissionRoute pageName="SRBH Customer Credit Approved Cases Screen">
+                <SRBHApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+           <Route
+            path="/srbh/operation-approval-cases"
+            element={
+              <PermissionRoute pageName="SRBH Customer Operation Approval Cases Screen">
+                <SRBHOperationApproval />
+              </PermissionRoute>
+            }
+          />
+          
+            
  
         </Route>
 

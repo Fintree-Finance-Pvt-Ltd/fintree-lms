@@ -574,6 +574,7 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("ZYPF")) return "Zypay";
   if (lan.startsWith("CIRHUF")) return "Circle Pe Houser";
   if (lan.startsWith("CIRF")) return "Circle PE";
+  if (lan.startsWith("CARE")) return "CAREPAY";
 
   if (lender && String(lender).trim()) return String(lender).trim();
   if (product && String(product).trim()) return String(product).trim();
@@ -660,7 +661,9 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
     for (const row of sheetData) {
       const disbursementUTR = row["Disbursement UTR"];
       const disbursementDate = excelDateToJSDate(row["Disbursement Date"]);
-      const lan = row["LAN"];
+      // const lan = row["LAN"];
+
+      const lan = String(row["LAN"] || "").trim().toUpperCase();
 
       console.log(
         `Processing row: LAN=${lan}, UTR=${disbursementUTR}, Date=${disbursementDate}`,
@@ -713,6 +716,21 @@ WHERE lan = ?`,
              FROM loan_booking_embifi WHERE lan = ?`,
             [lan],
           );
+           } else if (lan.startsWith("CARE")) {
+  [loanRes] = await db.promise().query(
+    `SELECT
+       COALESCE(loan_amount, request_amount) AS loan_amount,
+       interest_rate,
+       loan_tenure,
+       subvention_amount,
+       product,
+       lender,
+       partner_loan_id
+     FROM loan_booking_carepay
+     WHERE lan = ?
+     LIMIT 1`,
+    [lan],
+  );
         } else if (lan.startsWith("ADK")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
@@ -780,6 +798,18 @@ WHERE lan = ?`,
              FROM loan_booking_clayyo WHERE lan = ?`,
             [lan],
           );
+        } else if (lan.startsWith("SH")) {
+          [loanRes] = await db.promise().query(
+            `SELECT 
+      loan_amount,
+      interest_rate,
+      loan_tenure,
+      product,
+      lender
+     FROM loan_booking_srbh
+     WHERE lan = ?`,
+            [lan],
+          );
         }
         ///////   this is for ZYPAY ////
         else if (lan.startsWith("ZYPF")) {
@@ -844,6 +874,8 @@ WHERE lan = ?`,
         lender,
         retention_percentage,
         manual_retention_amount, // ✅ correct
+          partner_loan_id,
+
       } = loanRes[0];
 
       // Duplicate UTR check
@@ -977,6 +1009,13 @@ WHERE lan = ?`,
      WHERE lan = ?`,
               [lan],
             );
+          } else if (lan.startsWith("SH")) {
+            await conn.query(
+              `UPDATE loan_booking_srbh
+     SET status = 'Disbursed'
+     WHERE lan = ?`,
+              [lan],
+            );
           } else if (lan.startsWith("CLYO")) {
             await conn.query(
               "UPDATE loan_booking_clayyo SET status = 'Disbursed' , stage = 'Disbursed' WHERE lan = ?",
@@ -1004,6 +1043,15 @@ WHERE lan = ?`,
               "UPDATE loan_booking_emiclub SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
+          }
+
+             ///// this for CARE PAY /////
+          else if (lan.startsWith("CARE")) {
+            await conn.query(
+              "UPDATE loan_booking_carepay SET status = 'Disbursed' WHERE lan = ?",
+              [lan],
+            );
+
           } else if (lan.startsWith("HEL")) {
             // 1️⃣ Mark loan as Disbursed
             await conn.query(
@@ -1201,6 +1249,66 @@ try {
             });
           }
         }
+
+// ✅ Call webhook for CAREPAY loans only
+if (lan.startsWith("CARE")) {
+  let partnerLoanId = null;
+
+  try {
+    partnerLoanId = String(partner_loan_id || "").trim();
+
+    if (!partnerLoanId) {
+      throw new Error(
+        `partner_loan_id not found for CarePay loan ${lan}`,
+      );
+    }
+
+    if (
+      !(disbursementDate instanceof Date) ||
+      Number.isNaN(disbursementDate.getTime())
+    ) {
+      throw new Error(`Invalid disbursement date for CarePay loan ${lan}`);
+    }
+
+    const webhookResult = await sendLoanWebhook({
+      external_ref_no: partnerLoanId,
+      utr: String(disbursementUTR).trim(),
+      disbursement_date: disbursementDate.toISOString().split("T")[0],
+      reference_number: lan,
+      status: "DISBURSED",
+      reject_reason: null,
+    });
+
+    console.log("✅ CarePay webhook successful", {
+      lan,
+      partnerLoanId,
+      webhookResult,
+    });
+  } catch (webhookErr) {
+    const responseStatus = webhookErr.response?.status || null;
+    const responseData = webhookErr.response?.data || null;
+
+    console.error("❌ CarePay webhook failed", {
+      lan,
+      partnerLoanId,
+      message: webhookErr.message,
+      responseStatus,
+      responseData,
+    });
+
+    rowErrors.push({
+      partnerLoanId: partnerLoanId || null,
+      lan,
+      utr: disbursementUTR,
+      reason: responseData
+        ? `CarePay webhook failed: ${JSON.stringify(responseData)}`
+        : `CarePay webhook failed: ${webhookErr.message}`,
+      http_status: responseStatus,
+      stage: "webhook",
+    });
+  }
+}
+
 
         // ✅ Call webhook for FINE (Finso) loans only
         if (lan.startsWith("FINS")) {
