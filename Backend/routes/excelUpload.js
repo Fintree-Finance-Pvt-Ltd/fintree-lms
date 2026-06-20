@@ -7455,7 +7455,8 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
     const [rows] = await db
       .promise()
       .query(
-        `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+        // `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+        `SELECT * FROM loan_booking_clayyo WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
         [limit],
       );
 
@@ -7645,10 +7646,17 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
           [lan, pan_number, score, decoded],
         );
 
+        // await db.promise().query(
+        //   `INSERT INTO kyc_verification_status (lan, report_xml, created_at)
+        //      VALUES (?,?,NOW())`,
+        //   [lan,decoded],
+        // );
+
         await db
           .promise()
           .execute(
-            `UPDATE loan_booking_loan_digit SET fintree_cibil_score = ? WHERE lan = ?`,
+            // `UPDATE loan_booking_loan_digit SET fintree_cibil_score = ? WHERE lan = ?`,
+            `UPDATE loan_booking_clayyo SET cibil_score = ? WHERE lan = ?`,
             [score, lan],
           );
 
