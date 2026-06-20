@@ -1,4 +1,4 @@
-const partnerConfigByPrefix  = {
+const  partnerConfigByPrefix  = {
   LDF: {
     partner: "loan_digit",
     table: "loan_booking_loan_digit",
