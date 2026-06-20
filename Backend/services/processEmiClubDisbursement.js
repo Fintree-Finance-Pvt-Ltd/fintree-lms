@@ -335,7 +335,7 @@ async function processLoanDigitDisbursement({ lan, disbursementUTR, disbursement
 
     const [[loan]] = await conn.query(
       `
-      SELECT loan_amount, interest_rate, loan_tenure, pre_emi, product, lender, status
+      SELECT partner_loan_id, loan_amount, interest_rate, loan_tenure, pre_emi, product, lender, status
       FROM loan_booking_loan_digit
       WHERE lan = ?
       FOR UPDATE
@@ -389,6 +389,22 @@ async function processLoanDigitDisbursement({ lan, disbursementUTR, disbursement
     );
 
     await conn.commit();
+
+    try {
+      if (loan.partner_loan_id) {
+        await sendLoanWebhook({
+          external_ref_no: loan.partner_loan_id,
+          utr: disbursementUTR,
+          disbursement_date: new Date(disbursementDate).toISOString().split("T")[0],
+          reference_number: lan,
+          status: "DISBURSED",
+          reject_reason: null,
+        });
+      }
+    } catch (webhookErr) {
+      console.error(`⚠️ LoanDigit webhook failed for ${lan}:`, webhookErr.message);
+    }
+
     return { success: true };
   } catch (err) {
     if (conn) await conn.rollback();
@@ -416,7 +432,7 @@ async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate
 
     const [[loan]] = await conn.query(
       `
-      SELECT loan_amount, interest_rate, loan_tenure, pre_emi, product, lender, status
+      SELECT partner_loan_id, loan_amount, interest_rate, loan_tenure, pre_emi, product, lender, status
       FROM loan_booking_finso
       WHERE lan = ?
       FOR UPDATE
@@ -470,6 +486,22 @@ async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate
     );
 
     await conn.commit();
+
+    try {
+      if (loan.partner_loan_id) {
+        await sendLoanWebhook({
+          external_ref_no: loan.partner_loan_id,
+          utr: disbursementUTR,
+          disbursement_date: new Date(disbursementDate).toISOString().split("T")[0],
+          reference_number: lan,
+          status: "DISBURSED",
+          reject_reason: null,
+        });
+      }
+    } catch (webhookErr) {
+      console.error(`⚠️ Finso webhook failed for ${lan}:`, webhookErr.message);
+    }
+
     return { success: true };
   } catch (err) {
     if (conn) await conn.rollback();
