@@ -6654,18 +6654,16 @@ const generateRepaymentSchedule = async (
   console.log("lender testing", lender);
 
   // Must be declared here, before all lender conditions
-  const safeProcessingFee = Number(
-    processing_fee || 0,
-  );
+  const safeProcessingFee = Number(processingFee ?? 0);
 
-  if (
-    !Number.isFinite(safeProcessingFee) ||
-    safeProcessingFee < 0
-  ) {
-    throw new Error(
-      `Invalid processing fee for LAN ${lan}: ${processing_fee}`,
-    );
-  }
+if (
+  !Number.isFinite(safeProcessingFee) ||
+  safeProcessingFee < 0
+) {
+  throw new Error(
+    `Invalid processing fee for LAN ${lan}: ${processingFee}`,
+  );
+}
 
   console.log("checking data", {
     lan,
