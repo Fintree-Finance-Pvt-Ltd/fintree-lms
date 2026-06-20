@@ -728,6 +728,7 @@ WHERE lan = ?`,
        COALESCE(processing_fee, 0) AS processing_fee,
        product,
        lender,
+       processing_fee,
        partner_loan_id
      FROM loan_booking_carepay
      WHERE lan = ?
