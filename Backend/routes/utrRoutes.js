@@ -725,6 +725,7 @@ WHERE lan = ?`,
        subvention_amount,
        product,
        lender,
+        processing_fee, // ✅ pass processing fee
        partner_loan_id
      FROM loan_booking_carepay
      WHERE lan = ?
@@ -874,6 +875,7 @@ WHERE lan = ?`,
         lender,
         retention_percentage,
         manual_retention_amount, // ✅ correct
+         processing_fee, // ✅ pass processing fee
           partner_loan_id,
 
       } = loanRes[0];
@@ -932,6 +934,8 @@ WHERE lan = ?`,
               lender,
               retention_percentage,
               manual_retention_amount, // ✅ pass correct value
+              processing_fee, // ✅ pass processing fee
+
             );
           }
         } catch (rpsErr) {
