@@ -4392,18 +4392,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
     const safeRetentionPercent = Number(retentionPercent || 0);
     const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
-    const safeProcessingFee = Number(
-  processingFee || 0,
-);
-
-if (
-  !Number.isFinite(safeProcessingFee) ||
-  safeProcessingFee < 0
-) {
-  throw new Error(
-    `Invalid processing fee for LAN ${lan}: ${processingFee}`,
-  );
-}
+    
 
     // ---------- NET VALUES ----------
     const netLoanForLender = approved - subvention;
