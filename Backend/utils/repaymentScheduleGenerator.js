@@ -4392,18 +4392,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
     const safeRetentionPercent = Number(retentionPercent || 0);
     const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
-    const safeProcessingFee = Number(
-  processingFee || 0,
-);
-
-if (
-  !Number.isFinite(safeProcessingFee) ||
-  safeProcessingFee < 0
-) {
-  throw new Error(
-    `Invalid processing fee for LAN ${lan}: ${processingFee}`,
-  );
-}
+    
 
     // ---------- NET VALUES ----------
     const netLoanForLender = approved - subvention;
@@ -6649,20 +6638,31 @@ const generateRepaymentSchedule = async (
   lender,
   retention_percentage,
   retention_amount,
-  processing_fee = 0,
+  processingFee = 0,
 ) => {
   console.log("lender testing", lender);
 
+ const safeProcessingFee = Number(processingFee ?? 0);
+
+if (
+  !Number.isFinite(safeProcessingFee) ||
+  safeProcessingFee < 0
+) {
+  throw new Error(
+    `Invalid processing fee for LAN ${lan}: ${processingFee}`,
+  );
+}
+
 console.log("checking data", {
   lan,
-  loanAmount, 
+  loanAmount,
   emiDate,
   interestRate,
   tenure,
   disbursementDate,
   subventionAmount,
   no_of_advance_emis,
-  salary_day, 
+  salary_day,
   product,
   lender,
   retention_percentage,
@@ -6670,7 +6670,6 @@ console.log("checking data", {
   processingFee,
   safeProcessingFee,
 });
-
 
   // 🛡 HARD SAFETY (prevents ALL ReferenceErrors)
   const safeRetentionPercent = Number(retention_percentage || 0);
@@ -6708,7 +6707,10 @@ console.log("checking data", {
       product,
       lender,
     );
-      } else if (lender === "CAREPAY" ) {
+      } else if(
+    String(lender || "").trim().toUpperCase() ===
+    "CAREPAY"
+  ) {
     await generateRepaymentScheduleCarepay(
       conn,
       lan,
@@ -6720,6 +6722,7 @@ console.log("checking data", {
       lender,
       safeProcessingFee,
     );
+
   } else if (lender === "STERLION") {
     await generateRepaymentScheduleSterlion(
       conn,
