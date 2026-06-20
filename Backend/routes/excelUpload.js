@@ -4730,6 +4730,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     "business_state",
     "business_pincode",
     "loan_amount",
+    "net_disbursement",
     "interest_rate",
     "loan_tenure",
     "cibil_score",
@@ -4877,6 +4878,11 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         const partnerName = "Finso";
         const loanAmount = Number(data.loan_amount);
 
+        const processingFeeCalc = loanAmount * 0.05;
+        const gstCalc = processingFeeCalc * 0.18;
+        const totalDeduction = processingFeeCalc + gstCalc;
+        const netDisbursement = loanAmount - totalDeduction;
+
         const today = new Date();
         const { month, year } = getMonthYear(today);
 
@@ -4982,6 +4988,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           data.business_pincode ?? null,
           // loan
           data.loan_amount,
+          netDisbursement,
           data.interest_rate,
           data.loan_tenure,
           data.cibil_score ?? null,
@@ -4998,7 +5005,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           data.total_bounces ?? null,
           data.employment_type ?? null,
           data.pre_emi ?? null,
-          data.processing_fee ?? 0.0,
+          totalDeduction,
           data.disbursal_amount,
           data.emi_amount ?? null,
           data.apr ?? null,
@@ -5412,6 +5419,78 @@ router.get("/v1/finso-customer-details/:lan", async (req, res) => {
     return res.status(500).json({
       is_success: false,
       error: { message: "Failed to fetch details", details: error.message },
+    });
+  }
+});
+
+// ✅ Fetch Ops Maker Approved Finso Loans (for Ops Checker screen)
+router.get("/v1/finso-ops-maker-approved-loans", async (req, res) => {
+  try {
+    const query = `
+      SELECT * FROM loan_booking_finso 
+      WHERE status = 'approved'
+      ORDER BY LAN DESC
+    `;
+    const [rows] = await db.promise().query(query);
+    return res.json({ data: rows });
+  } catch (err) {
+    console.error("❌ Error fetching ops maker approved finso loans:", err);
+    return res.status(500).json({
+      status: "FAILED",
+      message: "Unable to fetch ops maker approved loans",
+    });
+  }
+});
+
+// ✅ Ops Checker Approve & Pay for Finso
+router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
+  const { lan } = req.params;
+  const { ops_checker_id, ops_checker_name, status } = req.body;
+  try {
+    if (status === "OPS_REJECTED") {
+      await db.promise().query(
+        `UPDATE loan_booking_finso 
+         SET status = 'OPS_REJECTED', ops_checker_id = ?, ops_checker_name = ?
+         WHERE lan = ?`,
+        [ops_checker_id || null, ops_checker_name || null, lan]
+      );
+      return res.json({
+        status: "SUCCESS",
+        message: "Loan rejected by operations checker successfully",
+      });
+    }
+
+    if (ops_checker_id) {
+      await db.promise().query(
+        `UPDATE loan_booking_finso 
+         SET ops_checker_id = ?, ops_checker_name = ?
+         WHERE lan = ?`,
+        [ops_checker_id, ops_checker_name, lan]
+      );
+    }
+
+    const payoutResult = await approveAndInitiatePayout({
+      lan,
+      table: "loan_booking_finso"
+    });
+
+    if (!payoutResult.success) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: payoutResult.message || "Payout initiation failed",
+      });
+    }
+
+    return res.json({
+      status: "SUCCESS",
+      message: "Loan approved by operations checker and payout initiated successfully",
+    });
+  } catch (err) {
+    console.error("❌ Error approving Finso loan by operations checker:", err);
+    return res.status(500).json({
+      status: "FAILED",
+      message: err.message || "Failed to approve loan by operations checker",
+      error: err.sqlMessage || err.message,
     });
   }
 });

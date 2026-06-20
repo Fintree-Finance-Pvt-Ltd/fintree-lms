@@ -10,6 +10,7 @@ const {
 
 const partnerLimitService = require("../../services/partnerLimitService");
 const partnerFldgService = require("../../services/partnerFldgService");
+const payoutService = require("../../services/payout.service");
 const router = express.Router();
 
 /**
@@ -1106,18 +1107,10 @@ router.get("/credit-approved-loans", async (req, res) => {
 router.put("/ops-approved-loan/:lan", async (req, res) => {
   const { lan } = req.params;
   try {
-    // Pagination
-    const page = Math.max(Number(req.query.page) || 1, 1);
-    const limit = Math.max(Number(req.query.limit) || 10, 1);
-    const offset = (page - 1) * limit;
-
-    // Search filter
-    const search = String(req.query.search || "").trim();
-
     const [result] = await db.promise().query(
       `
       UPDATE loan_booking_loan_digit
-      SET status = 'APPROVED'
+      SET status = 'OPS_MAKER_APPROVED'
       WHERE lan = ? AND status = 'CREDIT_APPROVED'
       `,
       [lan],
@@ -1131,13 +1124,93 @@ router.put("/ops-approved-loan/:lan", async (req, res) => {
 
     return res.json({
       status: "SUCCESS",
-      message: "Loan approved by operations successfully",
+      message: "Loan approved by operations maker successfully",
     });
   } catch (err) {
-    console.error("❌ Error approving Loan Digit by operations:", err);
+    console.error("❌ Error approving Loan Digit by operations maker:", err);
     return res.status(500).json({
       status: "FAILED",
-      message: "Failed to approve loan by operations",
+      message: "Failed to approve loan by operations maker",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+router.get("/ops-maker-approved-loans", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `
+      SELECT *
+      FROM loan_booking_loan_digit
+      WHERE status = 'OPS_MAKER_APPROVED'
+      ORDER BY id DESC
+      `,
+    );
+
+    return res.json({
+      status: "SUCCESS",
+      count: rows.length,
+      data: rows,
+    });
+  } catch (error) {
+    console.error("Ops Maker Approved Fetch Error:", error);
+
+    return res.status(500).json({
+      status: "FAILED",
+      message: "Unable to fetch ops maker approved loans",
+    });
+  }
+});
+
+router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
+  const { lan } = req.params;
+  const { ops_checker_id, ops_checker_name, status } = req.body;
+  try {
+
+    if (status === "OPS_REJECTED") {
+      await db.promise().query(
+        `UPDATE loan_booking_loan_digit 
+         SET status = 'OPS_REJECTED', ops_checker_id = ?, ops_checker_name = ?
+         WHERE lan = ?`,
+        [ops_checker_id || null, ops_checker_name || null, lan]
+      );
+      return res.json({
+        status: "SUCCESS",
+        message: "Loan rejected by operations checker successfully",
+      });
+    }
+
+    // First update the ops checker details in the DB for approval/payout
+    if (ops_checker_id) {
+      await db.promise().query(
+        `UPDATE loan_booking_loan_digit 
+         SET ops_checker_id = ?, ops_checker_name = ?
+         WHERE lan = ?`,
+        [ops_checker_id, ops_checker_name, lan]
+      );
+    }
+
+    const payoutResult = await payoutService.approveAndInitiatePayout({
+      lan,
+      table: "loan_booking_loan_digit"
+    });
+
+    if (!payoutResult.success) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: payoutResult.message || "Payout initiation failed",
+      });
+    }
+
+    return res.json({
+      status: "SUCCESS",
+      message: "Loan approved by operations checker and payout initiated successfully",
+    });
+  } catch (err) {
+    console.error("❌ Error approving Loan Digit by operations checker:", err);
+    return res.status(500).json({
+      status: "FAILED",
+      message: err.message || "Failed to approve loan by operations checker",
       error: err.sqlMessage || err.message,
     });
   }

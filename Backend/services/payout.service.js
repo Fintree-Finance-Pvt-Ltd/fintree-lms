@@ -260,13 +260,14 @@ const axios = require("axios");
 const crypto = require("crypto");
 const db = require("../config/db");
 
-const { processEmiClubDisbursement } = require("../services/processEmiClubDisbursement");
-const { processRapidMoneyDisbursement } = require("../services/processEmiClubDisbursement");
+const { processEmiClubDisbursement, processRapidMoneyDisbursement, processLoanDigitDisbursement, processFinsoDisbursement } = require("../services/processEmiClubDisbursement");
 // const { processSwitchMyLoanDisbursement } = require("../services/processSwitchMyLoanDisbursement");
 
 const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_emiclub",
   "loan_booking_switch_my_loan",
+  "loan_booking_loan_digit",
+  "loan_booking_finso",
 ];
 
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
@@ -283,22 +284,26 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
 
     const [[existingTransfer]] = await db.promise().query(
       `
-      SELECT lan
+      SELECT lan, payout_status
       FROM quick_transfers
       WHERE lan = ?
+      ORDER BY id DESC
       LIMIT 1
       `,
       [lan]
     );
 
-    // if (existingTransfer) {
-    //   console.log(`⛔ Payout already initiated earlier for LAN: ${lan}`);
+    if (existingTransfer) {
+      const pStatus = String(existingTransfer.payout_status).toUpperCase();
+      if (pStatus === "SUCCESS" || pStatus === "INITIATED") {
+        console.log(`⛔ Payout already ${pStatus} for LAN: ${lan}`);
 
-    //   return {
-    //     success: false,
-    //     message: "Payout already exists for this LAN",
-    //   };
-    // }
+        return {
+          success: false,
+          message: `Payout already exists for this LAN with status: ${pStatus}`,
+        };
+      }
+    }
 
     let loanQuery = "";
     let loanParams = [lan];
@@ -324,6 +329,32 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
           bank_ac_number AS account_number,
           bank_ifsc_code AS ifsc
         FROM loan_booking_switch_my_loan
+        WHERE lan = ?
+        LIMIT 1
+      `;
+    }
+
+    if (table === "loan_booking_loan_digit") {
+      loanQuery = `
+        SELECT
+          name_in_bank AS beneficiary_name,
+          net_disbursement_amount as loan_amount,
+          account_number,
+          ifsc
+        FROM loan_booking_loan_digit
+        WHERE lan = ?
+        LIMIT 1
+      `;
+    }
+
+    if (table === "loan_booking_finso") {
+      loanQuery = `
+        SELECT
+          name_in_bank AS beneficiary_name,
+          net_disbursement as loan_amount,
+          account_number,
+          ifsc
+        FROM loan_booking_finso
         WHERE lan = ?
         LIMIT 1
       `;
@@ -407,8 +438,13 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
 
     let response;
 
-const isTestMode =
-  process.env.ENABLE_REAL_PAYOUT !== "true";
+let isTestMode = process.env.ENABLE_REAL_PAYOUT !== "true";
+
+if (table === "loan_booking_switch_my_loan") {
+  isTestMode = true;
+} else if (table === "loan_booking_loan_digit" || table === "loan_booking_finso") {
+  isTestMode = false;
+}
 
 if (isTestMode) {
   console.log("🧪 TEST MODE ENABLED");
@@ -607,6 +643,20 @@ return {
     }
      else if (table === "loan_booking_switch_my_loan") {
       await processRapidMoneyDisbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
+    }
+    else if (table === "loan_booking_loan_digit") {
+      await processLoanDigitDisbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
+    }
+    else if (table === "loan_booking_finso") {
+      await processFinsoDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),

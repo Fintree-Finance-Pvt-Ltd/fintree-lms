@@ -89,6 +89,7 @@ import FinsoAllLoans from "./components/FinsoAllLoans";
 import FinsoLoginLoans from "./components/FinsoLoginLoans";
 import FinsoActionScreen from "./components/FinsoActionScreen";
 import FinsoApproveInitiateScreen from "./components/FinsoApproveInitiateScreen";
+import FinsoOpsCheckerScreen from "./components/FinsoOpsCheckerScreen";
 import FincrestLoanDetails from "./components/FincrestLoanDetails";
 import CustomerGenerateSOA from "./components/CustomerGenerateSOA";
 import HEYEVApprovedLoans from "./components/HEYEVApprovedLoans";
@@ -169,6 +170,7 @@ import { ToastContainer } from "react-toastify";
 import LoanDigit from "./components/Loan Digit/LoanDigit";
 import LoanDigitLoginAction from "./components/Loan Digit/LoanDigitLoginAction";
 import LoanDigitDisburseInitiate from "./components/Loan Digit/LoanDigitDisburseInitiate";
+import LoanDigitOpsCheckerScreen from "./components/Loan Digit/LoanDigitOpsCheckerScreen";
 import LoanDigitDisbursed from "./components/Loan Digit/LoanDigitDisbursed";
 import LoanDigitApproved from "./components/Loan Digit/LoanDigitApproved";
 import LoanDigitAllLoans from "./components/Loan Digit/LoanDigitAllLoans";
@@ -584,6 +586,14 @@ function App() {
             }
           />
           <Route
+            path="/loan-digit/operation-checker-actions"
+            element={
+              <PermissionRoute pageName="Loan Digit Operation Checker Approval">
+                <LoanDigitOpsCheckerScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="/loan-digit/approved-loans"
             element={
               <PermissionRoute pageName="Loan Digit Approved Loans">
@@ -653,6 +663,14 @@ function App() {
             element={
               <PermissionRoute pageName="EV Login Actions">
                 <EVActionScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/fincrest-loans/ops-checker"
+            element={
+              <PermissionRoute pageName="Fincrest Ops Checker">
+                <FinsoOpsCheckerScreen />
               </PermissionRoute>
             }
           />

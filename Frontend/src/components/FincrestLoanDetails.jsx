@@ -123,6 +123,7 @@ const FincrestLoanDetails = () => {
           <Field label="Lender" value={loan.lender} />
           <Field label="Requested Loan Amount" value={`₹${loan.loan_amount || "-"}`} highlight />
           <Field label="Disbursal Amount" value={`₹${loan.disbursal_amount || "-"}`} highlight />
+          <Field label="Net Disbursement" value={`₹${loan.net_disbursement || "-"}`} highlight />
           <Field label="Tenure" value={`${loan.loan_tenure || 0} Months`} />
           <Field label="Interest Rate" value={`${loan.interest_rate || 0}%`} />
           <Field label="APR" value={`${loan.apr || 0}%`} />

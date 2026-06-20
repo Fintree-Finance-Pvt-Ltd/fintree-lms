@@ -467,11 +467,50 @@ const DownloadedReports = ({ reportIdFromParent }) => {
           Downloaded Reports
         </h2>
 
-        {loading && (
-          <span style={{ fontSize: "14px", color: "#6b7280" }}>
-            Refreshing...
-          </span>
-        )}
+       {loading && (
+  <>
+    <style>
+      {`
+        .inline-circle-loader-wrapper {
+          width: 100%;
+          min-height: 180px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .inline-circle-loader {
+          position: relative;
+          width: 60px;
+          height: 60px;
+        }
+
+        .inline-circle-loader::before {
+          content: "";
+          box-sizing: border-box;
+          position: absolute;
+          inset: 0;
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          border-top: 3px solid #8900ff;
+          border-right: 3px solid transparent;
+          animation: spinner8217 0.8s linear infinite;
+        }
+
+        @keyframes spinner8217 {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}
+    </style>
+
+    <div className="inline-circle-loader-wrapper">
+      <div className="inline-circle-loader" />
+    </div>
+  </>
+)}
       </div>
 
       {error ? (
