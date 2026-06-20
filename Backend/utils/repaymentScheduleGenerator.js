@@ -6523,6 +6523,7 @@ console.log("checking data", {
       disbursementDate,
       product,
       lender,
+      processing_fee,
     );
   } else if (lender === "HEY EV Loan") {
     await generateRepaymentScheduleHEYEV(

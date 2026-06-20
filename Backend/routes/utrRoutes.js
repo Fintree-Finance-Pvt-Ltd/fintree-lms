@@ -723,9 +723,9 @@ WHERE lan = ?`,
        interest_rate,
        loan_tenure,
        subvention_amount,
+       processing_fee,
        product,
        lender,
-        processing_fee, // ✅ pass processing fee
        partner_loan_id
      FROM loan_booking_carepay
      WHERE lan = ?
