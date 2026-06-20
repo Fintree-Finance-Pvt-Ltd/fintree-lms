@@ -671,11 +671,9 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       );
 
       if (!disbursementUTR || !disbursementDate || !lan) {
-        const reason = `Missing required fields: ${
-          !disbursementUTR ? "Disbursement UTR " : ""
-        }${!disbursementDate ? "Disbursement Date " : ""}${
-          !lan ? "LAN" : ""
-        }`.trim();
+        const reason = `Missing required fields: ${!disbursementUTR ? "Disbursement UTR " : ""
+          }${!disbursementDate ? "Disbursement Date " : ""}${!lan ? "LAN" : ""
+          }`.trim();
         rowErrors.push({
           lan: lan || null,
           utr: disbursementUTR || null,
@@ -718,9 +716,9 @@ WHERE lan = ?`,
             [lan],
           );
 
-           } else if (lan.startsWith("CARE")) {
-  [loanRes] = await db.promise().query(
-    `SELECT
+        } else if (lan.startsWith("CARE")) {
+          [loanRes] = await db.promise().query(
+            `SELECT
        COALESCE(loan_amount, request_amount) AS loan_amount,
        interest_rate,
        loan_tenure,
@@ -728,13 +726,12 @@ WHERE lan = ?`,
        COALESCE(processing_fee, 0) AS processing_fee,
        product,
        lender,
-       processing_fee,
        partner_loan_id
      FROM loan_booking_carepay
      WHERE lan = ?
      LIMIT 1`,
-    [lan],
-  );
+            [lan],
+          );
 
 
 
@@ -896,10 +893,23 @@ WHERE lan = ?`,
         lender,
         retention_percentage,
         manual_retention_amount, // ✅ correct
-         processing_fee, // ✅ pass processing fee
-          partner_loan_id,
+        processing_fee, // ✅ pass processing fee
+        partner_loan_id,
 
       } = loanRes[0];
+
+
+      if (lan.startsWith("CARE")) {
+        console.log("CarePay loan fetched", {
+          lan,
+          loan_amount,
+          interest_rate,
+          loan_tenure,
+          processing_fee,
+          product,
+          lender,
+        });
+      }
 
       // Duplicate UTR check
       try {
@@ -1070,7 +1080,7 @@ WHERE lan = ?`,
             );
           }
 
-             ///// this for CARE PAY /////
+          ///// this for CARE PAY /////
           else if (lan.startsWith("CARE")) {
             await conn.query(
               "UPDATE loan_booking_carepay SET status = 'Disbursed' WHERE lan = ?",
@@ -1168,31 +1178,31 @@ WHERE lan = ?`,
 
         // ✅ Update partner used limit after successful disbursement
 
-try {
-  const limitResult = await updatePartnerLimitAfterDisbursement(conn, {
-    lan,
-    lender,
-    product,
-    loanAmount: loan_amount,
-    disbursementDate,
-  });
+        try {
+          const limitResult = await updatePartnerLimitAfterDisbursement(conn, {
+            lan,
+            lender,
+            product,
+            loanAmount: loan_amount,
+            disbursementDate,
+          });
 
-  console.log(
-    `Partner disbursement limit processed | LAN: ${lan} | Amount: ${loan_amount}`,
-    limitResult
-  );
-} catch (limitErr) {
-  rowErrors.push({
-    lan,
-    utr: disbursementUTR,
-    reason: `Partner disbursement limit update failed: ${limitErr.message}`,
-    meta: limitErr.meta || null,
-    stage: "partner-limit",
-  });
+          console.log(
+            `Partner disbursement limit processed | LAN: ${lan} | Amount: ${loan_amount}`,
+            limitResult
+          );
+        } catch (limitErr) {
+          rowErrors.push({
+            lan,
+            utr: disbursementUTR,
+            reason: `Partner disbursement limit update failed: ${limitErr.message}`,
+            meta: limitErr.meta || null,
+            stage: "partner-limit",
+          });
 
-  await conn.rollback();
-  continue;
-}
+          await conn.rollback();
+          continue;
+        }
 
         await conn.commit();
         insertedLANs.add(lan);
@@ -1281,64 +1291,64 @@ try {
           }
         }
 
-// ✅ Call webhook for CAREPAY loans only
-if (lan.startsWith("CARE")) {
-  let partnerLoanId = null;
+        // ✅ Call webhook for CAREPAY loans only
+        if (lan.startsWith("CARE")) {
+          let partnerLoanId = null;
 
-  try {
-    partnerLoanId = String(partner_loan_id || "").trim();
+          try {
+            partnerLoanId = String(partner_loan_id || "").trim();
 
-    if (!partnerLoanId) {
-      throw new Error(
-        `partner_loan_id not found for CarePay loan ${lan}`,
-      );
-    }
+            if (!partnerLoanId) {
+              throw new Error(
+                `partner_loan_id not found for CarePay loan ${lan}`,
+              );
+            }
 
-    if (
-      !(disbursementDate instanceof Date) ||
-      Number.isNaN(disbursementDate.getTime())
-    ) {
-      throw new Error(`Invalid disbursement date for CarePay loan ${lan}`);
-    }
+            if (
+              !(disbursementDate instanceof Date) ||
+              Number.isNaN(disbursementDate.getTime())
+            ) {
+              throw new Error(`Invalid disbursement date for CarePay loan ${lan}`);
+            }
 
-    const webhookResult = await sendLoanWebhook({
-      external_ref_no: partnerLoanId,
-      utr: String(disbursementUTR).trim(),
-      disbursement_date: disbursementDate.toISOString().split("T")[0],
-      reference_number: lan,
-      status: "DISBURSED",
-      reject_reason: null,
-    });
+            const webhookResult = await sendLoanWebhook({
+              external_ref_no: partnerLoanId,
+              utr: String(disbursementUTR).trim(),
+              disbursement_date: disbursementDate.toISOString().split("T")[0],
+              reference_number: lan,
+              status: "DISBURSED",
+              reject_reason: null,
+            });
 
-    console.log("✅ CarePay webhook successful", {
-      lan,
-      partnerLoanId,
-      webhookResult,
-    });
-  } catch (webhookErr) {
-    const responseStatus = webhookErr.response?.status || null;
-    const responseData = webhookErr.response?.data || null;
+            console.log("✅ CarePay webhook successful", {
+              lan,
+              partnerLoanId,
+              webhookResult,
+            });
+          } catch (webhookErr) {
+            const responseStatus = webhookErr.response?.status || null;
+            const responseData = webhookErr.response?.data || null;
 
-    console.error("❌ CarePay webhook failed", {
-      lan,
-      partnerLoanId,
-      message: webhookErr.message,
-      responseStatus,
-      responseData,
-    });
+            console.error("❌ CarePay webhook failed", {
+              lan,
+              partnerLoanId,
+              message: webhookErr.message,
+              responseStatus,
+              responseData,
+            });
 
-    rowErrors.push({
-      partnerLoanId: partnerLoanId || null,
-      lan,
-      utr: disbursementUTR,
-      reason: responseData
-        ? `CarePay webhook failed: ${JSON.stringify(responseData)}`
-        : `CarePay webhook failed: ${webhookErr.message}`,
-      http_status: responseStatus,
-      stage: "webhook",
-    });
-  }
-}
+            rowErrors.push({
+              partnerLoanId: partnerLoanId || null,
+              lan,
+              utr: disbursementUTR,
+              reason: responseData
+                ? `CarePay webhook failed: ${JSON.stringify(responseData)}`
+                : `CarePay webhook failed: ${webhookErr.message}`,
+              http_status: responseStatus,
+              stage: "webhook",
+            });
+          }
+        }
 
 
         // ✅ Call webhook for FINE (Finso) loans only
@@ -1386,11 +1396,11 @@ if (lan.startsWith("CARE")) {
         });
         try {
           if (conn) await conn.rollback();
-        } catch (_) {}
+        } catch (_) { }
       } finally {
         try {
           if (conn) conn.release();
-        } catch (_) {}
+        } catch (_) { }
       }
     }
 

@@ -6649,7 +6649,7 @@ const generateRepaymentSchedule = async (
   lender,
   retention_percentage,
   retention_amount,
-  processing_fee = 0,
+  processingFee = 0,
 ) => {
   console.log("lender testing", lender);
 
