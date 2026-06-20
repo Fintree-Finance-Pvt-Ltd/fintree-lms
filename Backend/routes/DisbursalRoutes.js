@@ -111,6 +111,18 @@ router.get("/:lan", async (req, res) => {
   //   partnerLoanIdCol = "lb.partner_loan_id";
   //   netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   // }
+  // if (lan.startsWith("STRL")) {
+  //   tableName = "loan_booking_sterlion";
+  //   loanAmountCol = "COALESCE(lb.loan_amount, lb.request_amount) AS loan_amount";
+  //   loanAmountExpr = "COALESCE(lb.loan_amount, lb.request_amount)";
+  //   interestRateCol = "lb.interest_rate AS interest_rate";
+  //   tenureCol = "lb.loan_tenure";
+  //   processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
+  //   subventionCol = "0";
+  //   retentionCol = "0";
+  //   partnerLoanIdCol = "lb.partner_loan_id";
+  //   netDisbursementExpr = `COALESCE(lb.net_disbursement, (${loanAmountExpr} - COALESCE(lb.processing_fee, 0)))`;
+  // }
     if (lan.startsWith("ZYPF")) {
     tableName = "loan_booking_zypay_customer";
     loanAmountCol = "lb.loan_amount";

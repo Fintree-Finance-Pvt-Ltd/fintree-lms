@@ -40,6 +40,28 @@ const CAREPAY_REQUIRED_FIELDS = [
   "customer_type",
 ];
 
+const STERLION_REQUIRED_FIELDS = [
+  "login_date",
+  "partner_loan_id",
+  "first_name",
+  "last_name",
+  "dob",
+  "mobile_number",
+  "pan_number",
+  "current_address",
+  "current_state",
+  "current_pincode",
+  "business_name",
+  "business_type",
+  "business_vintage_months",
+  "business_address",
+  "business_state",
+  "business_pincode",
+  "request_amount",
+  "loan_tenure",
+  "annual_income",
+];
+
 
 const CarepayLoanTypes = [
   "No-Cost EMI",
@@ -65,6 +87,7 @@ const isCarepayLoanType = (value) =>
 module.exports = {
   CAREPAY_HOSPITAL_REQUIRED_FIELDS,
   CAREPAY_REQUIRED_FIELDS,
+  STERLION_REQUIRED_FIELDS,
   CarepayLoanTypes,
   CarepayLoanTypeSet,
   isCarepayLoanType,

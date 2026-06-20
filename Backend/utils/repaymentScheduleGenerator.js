@@ -2040,6 +2040,175 @@ const generateRepaymentScheduleCarepay = async (
   };
 };
 
+const generateRepaymentScheduleSterlion = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender,
+) => {
+  if (!conn) {
+    throw new Error("Database transaction connection is required");
+  }
+
+  const normalizedLan = String(lan || "").trim().toUpperCase();
+  const numericLoanAmount = Number(loanAmount);
+  const numericInterestRate = Number(interestRate || 0);
+  const numericTenure = Number(tenure);
+
+  if (!normalizedLan.startsWith("STRL")) {
+    throw new Error(`Invalid Sterlion LAN: ${normalizedLan}`);
+  }
+
+  if (!Number.isFinite(numericLoanAmount) || numericLoanAmount <= 0) {
+    throw new Error(`Invalid Sterlion loan amount: ${loanAmount}`);
+  }
+
+  if (!Number.isInteger(numericTenure) || numericTenure <= 0) {
+    throw new Error(`Invalid Sterlion tenure: ${tenure}`);
+  }
+
+  if (!Number.isFinite(numericInterestRate) || numericInterestRate < 0) {
+    throw new Error(`Invalid Sterlion interest rate: ${interestRate}`);
+  }
+
+  const [existingRps] = await conn.query(
+    `SELECT 1
+     FROM manual_rps_sterlion
+     WHERE lan = ?
+     LIMIT 1`,
+    [normalizedLan],
+  );
+
+  if (existingRps.length > 0) {
+    throw new Error(`Sterlion RPS already exists for LAN ${normalizedLan}`);
+  }
+
+  const monthlyRate = numericInterestRate / 100 / 12;
+  const rateFactor = Math.pow(1 + monthlyRate, numericTenure);
+  const regularEmi = monthlyRate
+    ? Math.round((numericLoanAmount * monthlyRate * rateFactor) / (rateFactor - 1))
+    : Math.round(numericLoanAmount / numericTenure);
+
+  if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
+    throw new Error(`Unable to calculate Sterlion EMI for LAN ${normalizedLan}`);
+  }
+
+  let openingPrincipal = numericLoanAmount;
+  const rpsData = [];
+
+  for (
+    let installmentNumber = 1;
+    installmentNumber <= numericTenure;
+    installmentNumber++
+  ) {
+    const dueDate = getFirstEmiDate(
+      disbursementDate,
+      null,
+      lender || "STERLION",
+      product || "Unsecured Business Loan",
+      installmentNumber - 1,
+    );
+
+    let interest = monthlyRate
+      ? Math.round(openingPrincipal * monthlyRate)
+      : 0;
+    let principal = monthlyRate
+      ? regularEmi - interest
+      : Math.min(regularEmi, openingPrincipal);
+
+    if (
+      installmentNumber === numericTenure ||
+      principal > openingPrincipal
+    ) {
+      principal = openingPrincipal;
+      interest = monthlyRate ? round2(regularEmi - principal) : 0;
+    }
+
+    principal = round2(principal);
+    interest = round2(interest);
+
+    const closingPrincipal = Math.max(
+      0,
+      round2(openingPrincipal - principal),
+    );
+    const actualEmi = round2(principal + interest);
+
+    rpsData.push([
+      normalizedLan,
+      formatDateYMD(dueDate),
+      actualEmi,
+      interest,
+      principal,
+      principal,
+      interest,
+      actualEmi,
+      actualEmi,
+      openingPrincipal,
+      closingPrincipal,
+      "Pending",
+    ]);
+
+    openingPrincipal = closingPrincipal;
+  }
+
+  if (Math.abs(openingPrincipal) > 0.01) {
+    throw new Error(
+      `Sterlion RPS did not close correctly. Remaining principal: ${openingPrincipal}`,
+    );
+  }
+
+  await conn.query(
+    `INSERT INTO manual_rps_sterlion
+     (
+       lan,
+       due_date,
+       emi,
+       interest,
+       principal,
+       remaining_principal,
+       remaining_interest,
+       remaining_emi,
+       remaining_amount,
+       opening,
+       closing,
+       status
+     )
+     VALUES ?`,
+    [rpsData],
+  );
+
+  await conn.query(
+    `UPDATE loan_booking_sterlion
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [regularEmi, normalizedLan],
+  );
+
+  console.log("Sterlion RPS generated", {
+    lan: normalizedLan,
+    product,
+    loanAmount: numericLoanAmount,
+    interestRate: numericInterestRate,
+    tenure: numericTenure,
+    regularEmi,
+    installmentCount: rpsData.length,
+  });
+
+  return {
+    lan: normalizedLan,
+    product,
+    loan_amount: numericLoanAmount,
+    interest_rate: numericInterestRate,
+    tenure: numericTenure,
+    emi_amount: regularEmi,
+    installment_count: rpsData.length,
+  };
+};
+
 
 
 ////////////////////////////// RPS FOR CIRCLE PE START ///////////////////////////////////
@@ -6374,6 +6543,17 @@ console.log("checking data", {
       product,
       lender,
     );
+  } else if (lender === "STERLION") {
+    await generateRepaymentScheduleSterlion(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    );
   } else if (lender === "HEY EV Loan") {
     await generateRepaymentScheduleHEYEV(
       conn,
@@ -6747,6 +6927,7 @@ module.exports = {
   generateRepaymentScheduleCirclePeHouser,
   generateRepaymentScheduleMotionCorp,
   generateRepaymentScheduleCarepay,
+  generateRepaymentScheduleSterlion,
   generateRepaymentScheduleSrbh,
 
 };

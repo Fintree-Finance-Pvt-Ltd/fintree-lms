@@ -223,6 +223,12 @@ import CarePayDisbursedLoans from "./components/CarePay/CarePayDisbursedLoans";
 import CarePayHospitalLists from "./components/CarePay/CarePayHospitalLists";
 import CarePayHospitalLoginActions from "./components/CarePay/CarePayHospitalLoginActions";
 import CarePayHospitalDetails from "./components/CarePay/CarePayHospitalDetails";
+import SterlionAllLoans from "./components/Sterlion/SterlionAllLoans";
+import SterlionApprovedLoans from "./components/Sterlion/SterlionApprovedLoans";
+import SterlionLoginLoans from "./components/Sterlion/SterlionLoginLoans";
+import SterlionActionScreen from "./components/Sterlion/SterlionActionScreen";
+import SterlionApproveInitiateScreen from "./components/Sterlion/SterlionApproveInitiateScreen";
+import SterlionDisbursedLoans from "./components/Sterlion/SterlionDisbursedLoans";
 import FundifyManualEntry from "./components/Fundify/FundifyLoanBooking";
 import FundifyLoginCases from "./components/Fundify/FundifyLoginCases";
 import FundifyLoginActions from "./components/Fundify/FundifyLoginActions";
@@ -914,6 +920,54 @@ function App() {
             element={
               <PermissionRoute pageName="CarePay Disburse Initiated">
                 <CarePayApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sterlion-loans/approved"
+            element={
+              <PermissionRoute pageName="Sterlion Approved Loans">
+                <SterlionApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sterlion-loans/disbursed"
+            element={
+              <PermissionRoute pageName="Sterlion Disbursed Loans">
+                <SterlionDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sterlion-loans/all"
+            element={
+              <PermissionRoute pageName="Sterlion All Loans">
+                <SterlionAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sterlion-loans/login-cases"
+            element={
+              <PermissionRoute pageName="Sterlion Login Loans">
+                <SterlionLoginLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sterlion-loans/login-actions"
+            element={
+              <PermissionRoute pageName="Sterlion Login Actions">
+                <SterlionActionScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sterlion-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="Sterlion Disburse Initiated">
+                <SterlionApproveInitiateScreen />
               </PermissionRoute>
             }
           />

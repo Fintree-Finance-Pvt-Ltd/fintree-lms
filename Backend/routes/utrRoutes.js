@@ -575,6 +575,7 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("CIRHUF")) return "Circle Pe Houser";
   if (lan.startsWith("CIRF")) return "Circle PE";
   if (lan.startsWith("CARE")) return "CAREPAY";
+  if (lan.startsWith("STRL")) return "STERLION";
 
   if (lender && String(lender).trim()) return String(lender).trim();
   if (product && String(product).trim()) return String(product).trim();
@@ -731,6 +732,21 @@ WHERE lan = ?`,
      LIMIT 1`,
     [lan],
   );
+        } else if (lan.startsWith("STRL")) {
+          [loanRes] = await db.promise().query(
+            `SELECT
+               COALESCE(loan_amount, request_amount) AS loan_amount,
+               interest_rate,
+               loan_tenure,
+               0 AS subvention_amount,
+               product,
+               lender,
+               partner_loan_id
+             FROM loan_booking_sterlion
+             WHERE lan = ?
+             LIMIT 1`,
+            [lan],
+          );
         } else if (lan.startsWith("ADK")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
@@ -1049,6 +1065,12 @@ WHERE lan = ?`,
           else if (lan.startsWith("CARE")) {
             await conn.query(
               "UPDATE loan_booking_carepay SET status = 'Disbursed' WHERE lan = ?",
+              [lan],
+            );
+
+          } else if (lan.startsWith("STRL")) {
+            await conn.query(
+              "UPDATE loan_booking_sterlion SET status = 'Disbursed', stage = 'Disbursed' WHERE lan = ?",
               [lan],
             );
 

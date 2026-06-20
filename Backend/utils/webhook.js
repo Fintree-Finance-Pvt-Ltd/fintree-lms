@@ -55,6 +55,7 @@ const LOAN_DIGIT_WEBHOOK_URL = process.env.LOAN_DIGIT_WEBHOOK_URL;
 const FINSO_WEBHOOK_URL = process.env.FINSO_WEBHOOK_URL;
 // You can keep this hardcoded, or move it to env.
 const CAREPAY_WEBHOOK_URL = process.env.CAREPAY_WEBHOOK_URL;
+const STERLION_WEBHOOK_URL = process.env.STERLION_WEBHOOK_URL;
 const FINSO_WEBHOOK_USERNAME = process.env.FINSO_WEBHOOK_USERNAME;
 const FINSO_WEBHOOK_PASSWORD = process.env.FINSO_WEBHOOK_PASSWORD;
 
@@ -93,6 +94,8 @@ async function sendLoanWebhook(data) {
       url = LOAN_DIGIT_WEBHOOK_URL;
        } else if (ref.startsWith("CARE")) {
       url = CAREPAY_WEBHOOK_URL;
+    } else if (ref.startsWith("STRL")) {
+      url = STERLION_WEBHOOK_URL;
     } else if (ref.startsWith("FINS")) {
       url = FINSO_WEBHOOK_URL;
       // config.auth = {
