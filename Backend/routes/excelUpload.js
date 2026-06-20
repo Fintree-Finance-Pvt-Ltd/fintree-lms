@@ -4747,6 +4747,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     "business_state",
     "business_pincode",
     "loan_amount",
+    "net_disbursement",
     "interest_rate",
     "loan_tenure",
     "cibil_score",
@@ -4894,6 +4895,11 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         const partnerName = "Finso";
         const loanAmount = Number(data.loan_amount);
 
+        const processingFeeCalc = loanAmount * 0.05;
+        const gstCalc = processingFeeCalc * 0.18;
+        const totalDeduction = processingFeeCalc + gstCalc;
+        const netDisbursement = loanAmount - totalDeduction;
+
         const today = new Date();
         const { month, year } = getMonthYear(today);
 
@@ -4999,6 +5005,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           data.business_pincode ?? null,
           // loan
           data.loan_amount,
+          netDisbursement,
           data.interest_rate,
           data.loan_tenure,
           data.cibil_score ?? null,
@@ -5015,7 +5022,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           data.total_bounces ?? null,
           data.employment_type ?? null,
           data.pre_emi ?? null,
-          data.processing_fee ?? 0.0,
+          totalDeduction,
           data.disbursal_amount,
           data.emi_amount ?? null,
           data.apr ?? null,

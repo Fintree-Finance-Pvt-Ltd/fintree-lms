@@ -211,6 +211,13 @@ const LoanDigitOpsCheckerScreen = () => {
     },
 
     {
+      key: "net_disbursement_amount",
+      header: "Net Disbursement",
+      sortable: true,
+      width: 150,
+    },
+
+    {
       key: "status",
       header: "Status",
       sortable: true,

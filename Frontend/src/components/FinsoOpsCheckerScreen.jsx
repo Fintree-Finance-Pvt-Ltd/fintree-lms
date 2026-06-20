@@ -206,6 +206,13 @@ const FinsoOpsCheckerScreen = () => {
     },
 
     {
+      key: "net_disbursement",
+      header: "Net Disbursement",
+      sortable: true,
+      width: 150,
+    },
+
+    {
       key: "status",
       header: "Status",
       sortable: true,

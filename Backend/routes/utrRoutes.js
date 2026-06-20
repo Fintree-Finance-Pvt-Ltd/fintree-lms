@@ -724,6 +724,7 @@ WHERE lan = ?`,
        interest_rate,
        loan_tenure,
        subvention_amount,
+       processing_fee,
        product,
        lender,
        partner_loan_id
@@ -890,6 +891,7 @@ WHERE lan = ?`,
         lender,
         retention_percentage,
         manual_retention_amount, // ✅ correct
+         processing_fee, // ✅ pass processing fee
           partner_loan_id,
 
       } = loanRes[0];
@@ -948,6 +950,8 @@ WHERE lan = ?`,
               lender,
               retention_percentage,
               manual_retention_amount, // ✅ pass correct value
+              processing_fee, // ✅ pass processing fee
+
             );
           }
         } catch (rpsErr) {
