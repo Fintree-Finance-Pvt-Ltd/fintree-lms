@@ -1738,7 +1738,7 @@ const generateRepaymentScheduleCarepay = async (
   disbursementDate,
   product,
   lender,
-   processing_fee, // ✅ pass processing fee
+   processingFee = 0, // ✅ pass processing fee
 ) => {
   if (!conn) {
     throw new Error(
@@ -1777,6 +1777,14 @@ const generateRepaymentScheduleCarepay = async (
   const numericProcessingFee = round2(
     Number(processingFee || 0),
   );
+  if (
+  !Number.isFinite(numericProcessingFee) ||
+  numericProcessingFee < 0
+) {
+  throw new Error(
+    `Invalid CarePay processing fee: ${processingFee}`,
+  );
+}
 
   if (
     !Number.isFinite(numericLoanAmount) ||
@@ -1943,13 +1951,13 @@ const generateRepaymentScheduleCarepay = async (
     installmentNumber <= repaymentTenure;
     installmentNumber++
   ) {
-    const dueDate = getFirstEmiDate(
-      disbursementDate,
-      null,
-      lender || "CAREPAY",
-      product,
-      installmentNumber - 1,
-    );
+   const dueDate = getFirstEmiDate(
+  disbursementDate,
+  null,
+  lender || "CAREPAY",
+  normalizedProduct,
+  installmentNumber - 1,
+);
 
     /*
      * Processing fee is collected only
@@ -2190,6 +2198,9 @@ const generateRepaymentScheduleCarepay = async (
     installment_count: rpsData.length,
   };
 };
+
+
+/////////// STERLION RPS ///////////////////////
 
 const generateRepaymentScheduleSterlion = async (
   conn,
@@ -4381,6 +4392,18 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
     const safeRetentionPercent = Number(retentionPercent || 0);
     const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
+    const safeProcessingFee = Number(
+  processingFee || 0,
+);
+
+if (
+  !Number.isFinite(safeProcessingFee) ||
+  safeProcessingFee < 0
+) {
+  throw new Error(
+    `Invalid processing fee for LAN ${lan}: ${processingFee}`,
+  );
+}
 
     // ---------- NET VALUES ----------
     const netLoanForLender = approved - subvention;
@@ -6626,6 +6649,7 @@ const generateRepaymentSchedule = async (
   lender,
   retention_percentage,
   retention_amount,
+  processing_fee = 0,
 ) => {
   console.log("lender testing", lender);
 
@@ -6643,6 +6667,8 @@ console.log("checking data", {
   lender,
   retention_percentage,
   retention_amount,
+  processingFee,
+  safeProcessingFee,
 });
 
 
@@ -6692,7 +6718,7 @@ console.log("checking data", {
       disbursementDate,
       product,
       lender,
-      processing_fee,
+      safeProcessingFee,
     );
   } else if (lender === "STERLION") {
     await generateRepaymentScheduleSterlion(

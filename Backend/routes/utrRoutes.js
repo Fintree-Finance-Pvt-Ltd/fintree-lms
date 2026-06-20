@@ -717,6 +717,7 @@ WHERE lan = ?`,
              FROM loan_booking_embifi WHERE lan = ?`,
             [lan],
           );
+
            } else if (lan.startsWith("CARE")) {
   [loanRes] = await db.promise().query(
     `SELECT
@@ -724,7 +725,7 @@ WHERE lan = ?`,
        interest_rate,
        loan_tenure,
        subvention_amount,
-       processing_fee,
+       COALESCE(processing_fee, 0) AS processing_fee,
        product,
        lender,
        partner_loan_id
@@ -733,6 +734,9 @@ WHERE lan = ?`,
      LIMIT 1`,
     [lan],
   );
+
+
+
         } else if (lan.startsWith("STRL")) {
           [loanRes] = await db.promise().query(
             `SELECT
