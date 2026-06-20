@@ -6653,24 +6653,37 @@ const generateRepaymentSchedule = async (
 ) => {
   console.log("lender testing", lender);
 
-console.log("checking data", {
-  lan,
-  loanAmount, 
-  emiDate,
-  interestRate,
-  tenure,
-  disbursementDate,
-  subventionAmount,
-  no_of_advance_emis,
-  salary_day, 
-  product,
-  lender,
-  retention_percentage,
-  retention_amount,
-  processingFee,
-  safeProcessingFee,
-});
+  // Must be declared here, before all lender conditions
+  const safeProcessingFee = Number(
+    processing_fee || 0,
+  );
 
+  if (
+    !Number.isFinite(safeProcessingFee) ||
+    safeProcessingFee < 0
+  ) {
+    throw new Error(
+      `Invalid processing fee for LAN ${lan}: ${processing_fee}`,
+    );
+  }
+
+  console.log("checking data", {
+    lan,
+    loanAmount,
+    emiDate,
+    interestRate,
+    tenure,
+    disbursementDate,
+    subventionAmount,
+    no_of_advance_emis,
+    salary_day,
+    product,
+    lender,
+    retention_percentage,
+    retention_amount,
+    processing_fee,
+    safeProcessingFee,
+  });
 
   // 🛡 HARD SAFETY (prevents ALL ReferenceErrors)
   const safeRetentionPercent = Number(retention_percentage || 0);
@@ -6708,7 +6721,10 @@ console.log("checking data", {
       product,
       lender,
     );
-      } else if (lender === "CAREPAY" ) {
+      } else if(
+    String(lender || "").trim().toUpperCase() ===
+    "CAREPAY"
+  ) {
     await generateRepaymentScheduleCarepay(
       conn,
       lan,
@@ -6720,6 +6736,7 @@ console.log("checking data", {
       lender,
       safeProcessingFee,
     );
+
   } else if (lender === "STERLION") {
     await generateRepaymentScheduleSterlion(
       conn,
