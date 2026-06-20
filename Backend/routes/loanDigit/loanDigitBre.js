@@ -993,8 +993,13 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
       ? decision.reasons.join(", ")
       : "ELIGIBLE";
 
-  const finalStage =
-    decision.status === "BRE FAILED" ? "BRE_REJECTED" : "BRE_APPROVED";
+  // const finalStage =
+  //   decision.status === "BRE FAILED" ? "BRE_REJECTED" : "BRE_APPROVED";
+
+  const finalStatus =
+  decision.status === "BRE APPROVED"
+    ? "CREDIT_APPROVED"
+    : "BRE_REJECTED";
 
   /**
    * 4) Update LoanDigit BRE result
