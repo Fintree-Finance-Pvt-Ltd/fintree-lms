@@ -6642,8 +6642,7 @@ const generateRepaymentSchedule = async (
 ) => {
   console.log("lender testing", lender);
 
-  // Must be declared here, before all lender conditions
-  const safeProcessingFee = Number(processingFee ?? 0);
+ const safeProcessingFee = Number(processingFee ?? 0);
 
 if (
   !Number.isFinite(safeProcessingFee) ||
@@ -6654,23 +6653,23 @@ if (
   );
 }
 
-  console.log("checking data", {
-    lan,
-    loanAmount,
-    emiDate,
-    interestRate,
-    tenure,
-    disbursementDate,
-    subventionAmount,
-    no_of_advance_emis,
-    salary_day,
-    product,
-    lender,
-    retention_percentage,
-    retention_amount,
-    processing_fee,
-    safeProcessingFee,
-  });
+console.log("checking data", {
+  lan,
+  loanAmount,
+  emiDate,
+  interestRate,
+  tenure,
+  disbursementDate,
+  subventionAmount,
+  no_of_advance_emis,
+  salary_day,
+  product,
+  lender,
+  retention_percentage,
+  retention_amount,
+  processingFee,
+  safeProcessingFee,
+});
 
   // 🛡 HARD SAFETY (prevents ALL ReferenceErrors)
   const safeRetentionPercent = Number(retention_percentage || 0);
