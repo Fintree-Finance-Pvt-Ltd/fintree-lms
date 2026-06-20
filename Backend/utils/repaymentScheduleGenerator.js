@@ -1738,20 +1738,29 @@ const generateRepaymentScheduleCarepay = async (
   disbursementDate,
   product,
   lender,
+   processing_fee, // ✅ pass processing fee
 ) => {
   if (!conn) {
-    throw new Error("Database transaction connection is required");
+    throw new Error(
+      "Database transaction connection is required",
+    );
   }
 
-  const normalizedLan = String(lan || "").trim().toUpperCase();
-  const normalizedProduct = normalizeCarepayProduct(product);
+  const normalizedLan = String(lan || "")
+    .trim()
+    .toUpperCase();
+
+  const normalizedProduct =
+    normalizeCarepayProduct(product);
 
   if (!normalizedLan) {
     throw new Error("CarePay LAN is required");
   }
 
   if (!normalizedLan.startsWith("CARE")) {
-    throw new Error(`Invalid CarePay LAN: ${normalizedLan}`);
+    throw new Error(
+      `Invalid CarePay LAN: ${normalizedLan}`,
+    );
   }
 
   if (!isCarepayLoanType(normalizedProduct)) {
@@ -1761,11 +1770,21 @@ const generateRepaymentScheduleCarepay = async (
   }
 
   const numericLoanAmount = Number(loanAmount);
-  const numericInterestRate = Number(interestRate || 0);
+  const numericInterestRate = Number(
+    interestRate || 0,
+  );
   const numericTenure = Number(tenure);
+  const numericProcessingFee = round2(
+    Number(processingFee || 0),
+  );
 
-  if (!Number.isFinite(numericLoanAmount) || numericLoanAmount <= 0) {
-    throw new Error(`Invalid CarePay loan amount: ${loanAmount}`);
+  if (
+    !Number.isFinite(numericLoanAmount) ||
+    numericLoanAmount <= 0
+  ) {
+    throw new Error(
+      `Invalid CarePay loan amount: ${loanAmount}`,
+    );
   }
 
   if (
@@ -1777,18 +1796,34 @@ const generateRepaymentScheduleCarepay = async (
     );
   }
 
-  const isNoCostEmi = normalizedProduct === "no-cost emi";
+  if (
+    !Number.isFinite(numericProcessingFee) ||
+    numericProcessingFee < 0
+  ) {
+    throw new Error(
+      `Invalid CarePay processing fee: ${processingFee}`,
+    );
+  }
 
-  const isLowCostEmi = normalizedProduct === "low-cost emi";
+  const isNoCostEmi =
+    normalizedProduct === "no-cost emi";
 
-  const isStandardEmi = normalizedProduct === "standard emi";
+  const isLowCostEmi =
+    normalizedProduct === "low-cost emi";
+
+  const isStandardEmi =
+    normalizedProduct === "standard emi";
 
   const isShortTermPersonalLoan =
-    normalizedProduct === "short-term personal loan";
+    normalizedProduct ===
+    "short-term personal loan";
 
   let repaymentTenure;
 
-  // Short-Term Personal Loan always has one repayment
+  /*
+   * Short-Term Personal Loan always has
+   * exactly one repayment installment.
+   */
   if (isShortTermPersonalLoan) {
     repaymentTenure = 1;
   } else {
@@ -1796,16 +1831,20 @@ const generateRepaymentScheduleCarepay = async (
       !Number.isInteger(numericTenure) ||
       numericTenure <= 0
     ) {
-      throw new Error(`Invalid CarePay tenure: ${tenure}`);
+      throw new Error(
+        `Invalid CarePay tenure: ${tenure}`,
+      );
     }
 
     repaymentTenure = numericTenure;
   }
 
-  // No-Cost EMI always has zero customer interest
-  const effectiveAnnualInterestRate = isNoCostEmi
-    ? 0
-    : numericInterestRate;
+  /*
+   * No-Cost EMI always has zero
+   * customer interest.
+   */
+  const effectiveAnnualInterestRate =
+    isNoCostEmi ? 0 : numericInterestRate;
 
   const monthlyRate =
     effectiveAnnualInterestRate / 100 / 12;
@@ -1815,11 +1854,11 @@ const generateRepaymentScheduleCarepay = async (
   /*
    * Short-Term Personal Loan:
    *
-   * Principal + one month's interest
+   * Regular repayment amount excludes
+   * the processing fee.
    *
-   * Example:
-   * 140000 + (140000 × 20% / 12)
-   * = 142333.33
+   * Processing fee is added later only
+   * to the first installment.
    */
   if (isShortTermPersonalLoan) {
     const oneMonthInterest = round2(
@@ -1834,10 +1873,9 @@ const generateRepaymentScheduleCarepay = async (
   /*
    * No-Cost EMI:
    *
-   * Loan amount / tenure
-   *
-   * EMI rounded to nearest rupee.
-   * Last installment is adjusted to close balance.
+   * Equal principal installments.
+   * Last installment clears any rounding
+   * difference.
    */
   else if (isNoCostEmi || monthlyRate === 0) {
     regularEmi = Math.round(
@@ -1857,18 +1895,29 @@ const generateRepaymentScheduleCarepay = async (
     );
 
     regularEmi = Math.round(
-      (numericLoanAmount * monthlyRate * rateFactor) /
+      (numericLoanAmount *
+        monthlyRate *
+        rateFactor) /
         (rateFactor - 1),
     );
   }
 
-  if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
+  if (
+    !Number.isFinite(regularEmi) ||
+    regularEmi <= 0
+  ) {
     throw new Error(
       `Unable to calculate CarePay EMI for LAN ${normalizedLan}`,
     );
   }
 
-  // Prevent duplicate RPS creation
+  /*
+   * Prevent duplicate RPS creation.
+   *
+   * A UNIQUE index on manual_rps_carepay.lan
+   * is also recommended to prevent concurrent
+   * duplicate insertions.
+   */
   const [existingRps] = await conn.query(
     `SELECT 1
      FROM manual_rps_carepay
@@ -1883,7 +1932,10 @@ const generateRepaymentScheduleCarepay = async (
     );
   }
 
-  let openingPrincipal = numericLoanAmount;
+  let openingPrincipal = round2(
+    numericLoanAmount,
+  );
+
   const rpsData = [];
 
   for (
@@ -1899,16 +1951,39 @@ const generateRepaymentScheduleCarepay = async (
       installmentNumber - 1,
     );
 
-    let interest = 0;
+    /*
+     * Processing fee is collected only
+     * in installment number 1.
+     */
+    const installmentProcessingFee =
+      installmentNumber === 1
+        ? numericProcessingFee
+        : 0;
+
+    /*
+     * normalInterest excludes processing fee.
+     *
+     * This is important because principal must be:
+     *
+     * regular EMI - normal interest
+     *
+     * and not:
+     *
+     * regular EMI - normal interest - processing fee
+     */
+    let normalInterest = 0;
     let principal = 0;
 
     /*
      * Short-Term Personal Loan:
-     * One installment with full principal
-     * and one month interest.
+     *
+     * One installment containing:
+     * - Full principal
+     * - One month's normal interest
+     * - Processing fee
      */
     if (isShortTermPersonalLoan) {
-      interest = round2(
+      normalInterest = round2(
         openingPrincipal * monthlyRate,
       );
 
@@ -1917,27 +1992,39 @@ const generateRepaymentScheduleCarepay = async (
 
     /*
      * No-Cost EMI:
-     * No interest, equal principal installments.
+     *
+     * No normal borrower interest.
+     * Processing fee is charged only in EMI 1.
      */
-    else if (isNoCostEmi || monthlyRate === 0) {
-      interest = 0;
+    else if (
+      isNoCostEmi ||
+      monthlyRate === 0
+    ) {
+      normalInterest = 0;
 
       principal =
         installmentNumber === repaymentTenure
           ? openingPrincipal
-          : Math.min(regularEmi, openingPrincipal);
+          : Math.min(
+              regularEmi,
+              openingPrincipal,
+            );
     }
 
     /*
      * Standard EMI and Low-Cost EMI:
-     * Reducing-balance calculation.
+     *
+     * Calculate normal interest first.
+     * Calculate principal without considering
+     * the processing fee.
      */
     else {
-      interest = Math.round(
+      normalInterest = Math.round(
         openingPrincipal * monthlyRate,
       );
 
-      principal = regularEmi - interest;
+      principal =
+        regularEmi - normalInterest;
 
       if (principal <= 0) {
         throw new Error(
@@ -1945,7 +2032,10 @@ const generateRepaymentScheduleCarepay = async (
         );
       }
 
-      // Final installment must clear the balance
+      /*
+       * Last installment must clear the
+       * remaining principal balance.
+       */
       if (
         installmentNumber === repaymentTenure ||
         principal > openingPrincipal
@@ -1955,13 +2045,41 @@ const generateRepaymentScheduleCarepay = async (
     }
 
     principal = round2(principal);
-    interest = round2(interest);
+    normalInterest = round2(normalInterest);
+
+    /*
+     * The current table does not have a
+     * separate processing_fee column.
+     *
+     * Therefore, for installment 1:
+     *
+     * interest =
+     * normal interest + processing fee
+     */
+    const interest = round2(
+      normalInterest +
+        installmentProcessingFee,
+    );
 
     const closingPrincipal = Math.max(
       0,
-      round2(openingPrincipal - principal),
+      round2(
+        openingPrincipal - principal,
+      ),
     );
 
+    /*
+     * First installment:
+     *
+     * principal
+     * + normal interest
+     * + processing fee
+     *
+     * Other installments:
+     *
+     * principal
+     * + normal interest
+     */
     const actualEmi = round2(
       principal + interest,
     );
@@ -1976,9 +2094,9 @@ const generateRepaymentScheduleCarepay = async (
       actualEmi,
       interest,
       principal,
-      principal,
-      interest,
-      actualEmi,
+      remainingPrincipal,
+      remainingInterest,
+      remainingEmi,
       openingPrincipal,
       closingPrincipal,
       "Pending",
@@ -1987,6 +2105,10 @@ const generateRepaymentScheduleCarepay = async (
     openingPrincipal = closingPrincipal;
   }
 
+  /*
+   * Ensure the schedule completely closes
+   * the principal balance.
+   */
   if (Math.abs(openingPrincipal) > 0.01) {
     throw new Error(
       `CarePay RPS did not close correctly. Remaining principal: ${openingPrincipal}`,
@@ -2012,6 +2134,12 @@ const generateRepaymentScheduleCarepay = async (
     [rpsData],
   );
 
+  /*
+   * Store only the regular EMI.
+   *
+   * Do not include the processing fee because
+   * it is a one-time first-installment charge.
+   */
   await conn.query(
     `UPDATE loan_booking_carepay
      SET emi_amount = ?
@@ -2019,12 +2147,204 @@ const generateRepaymentScheduleCarepay = async (
     [regularEmi, normalizedLan],
   );
 
+  const firstInstallmentAmount =
+    rpsData[0]?.[2] || 0;
+
+  const totalExpectedRepayment = round2(
+    rpsData.reduce(
+      (total, installment) =>
+        total + Number(installment[2] || 0),
+      0,
+    ),
+  );
+
   console.log("✅ CAREPAY RPS generated", {
+    lan: normalizedLan,
+    product: normalizedProduct,
+    loanAmount: numericLoanAmount,
+    interestRate:
+      effectiveAnnualInterestRate,
+    processingFee:
+      numericProcessingFee,
+    tenure: repaymentTenure,
+    regularEmi,
+    firstInstallmentAmount,
+    totalExpectedRepayment,
+    installmentCount: rpsData.length,
+  });
+
+  return {
+    lan: normalizedLan,
+    product: normalizedProduct,
+    loan_amount: numericLoanAmount,
+    interest_rate:
+      effectiveAnnualInterestRate,
+    processing_fee:
+      numericProcessingFee,
+    tenure: repaymentTenure,
+    emi_amount: regularEmi,
+    first_installment_amount:
+      firstInstallmentAmount,
+    total_expected_repayment:
+      totalExpectedRepayment,
+    installment_count: rpsData.length,
+  };
+};
+
+const generateRepaymentScheduleSterlion = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender,
+) => {
+  if (!conn) {
+    throw new Error("Database transaction connection is required");
+  }
+
+  const normalizedLan = String(lan || "").trim().toUpperCase();
+  const numericLoanAmount = Number(loanAmount);
+  const numericInterestRate = Number(interestRate || 0);
+  const numericTenure = Number(tenure);
+
+  if (!normalizedLan.startsWith("STRL")) {
+    throw new Error(`Invalid Sterlion LAN: ${normalizedLan}`);
+  }
+
+  if (!Number.isFinite(numericLoanAmount) || numericLoanAmount <= 0) {
+    throw new Error(`Invalid Sterlion loan amount: ${loanAmount}`);
+  }
+
+  if (!Number.isInteger(numericTenure) || numericTenure <= 0) {
+    throw new Error(`Invalid Sterlion tenure: ${tenure}`);
+  }
+
+  if (!Number.isFinite(numericInterestRate) || numericInterestRate < 0) {
+    throw new Error(`Invalid Sterlion interest rate: ${interestRate}`);
+  }
+
+  const [existingRps] = await conn.query(
+    `SELECT 1
+     FROM manual_rps_sterlion
+     WHERE lan = ?
+     LIMIT 1`,
+    [normalizedLan],
+  );
+
+  if (existingRps.length > 0) {
+    throw new Error(`Sterlion RPS already exists for LAN ${normalizedLan}`);
+  }
+
+  const monthlyRate = numericInterestRate / 100 / 12;
+  const rateFactor = Math.pow(1 + monthlyRate, numericTenure);
+  const regularEmi = monthlyRate
+    ? Math.round((numericLoanAmount * monthlyRate * rateFactor) / (rateFactor - 1))
+    : Math.round(numericLoanAmount / numericTenure);
+
+  if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
+    throw new Error(`Unable to calculate Sterlion EMI for LAN ${normalizedLan}`);
+  }
+
+  let openingPrincipal = numericLoanAmount;
+  const rpsData = [];
+
+  for (
+    let installmentNumber = 1;
+    installmentNumber <= numericTenure;
+    installmentNumber++
+  ) {
+    const dueDate = getFirstEmiDate(
+      disbursementDate,
+      null,
+      lender || "STERLION",
+      product || "Unsecured Business Loan",
+      installmentNumber - 1,
+    );
+
+    let interest = monthlyRate
+      ? Math.round(openingPrincipal * monthlyRate)
+      : 0;
+    let principal = monthlyRate
+      ? regularEmi - interest
+      : Math.min(regularEmi, openingPrincipal);
+
+    if (
+      installmentNumber === numericTenure ||
+      principal > openingPrincipal
+    ) {
+      principal = openingPrincipal;
+      interest = monthlyRate ? round2(regularEmi - principal) : 0;
+    }
+
+    principal = round2(principal);
+    interest = round2(interest);
+
+    const closingPrincipal = Math.max(
+      0,
+      round2(openingPrincipal - principal),
+    );
+    const actualEmi = round2(principal + interest);
+
+    rpsData.push([
+      normalizedLan,
+      formatDateYMD(dueDate),
+      actualEmi,
+      interest,
+      principal,
+      principal,
+      interest,
+      actualEmi,
+      actualEmi,
+      openingPrincipal,
+      closingPrincipal,
+      "Pending",
+    ]);
+
+    openingPrincipal = closingPrincipal;
+  }
+
+  if (Math.abs(openingPrincipal) > 0.01) {
+    throw new Error(
+      `Sterlion RPS did not close correctly. Remaining principal: ${openingPrincipal}`,
+    );
+  }
+
+  await conn.query(
+    `INSERT INTO manual_rps_sterlion
+     (
+       lan,
+       due_date,
+       emi,
+       interest,
+       principal,
+       remaining_principal,
+       remaining_interest,
+       remaining_emi,
+       remaining_amount,
+       opening,
+       closing,
+       status
+     )
+     VALUES ?`,
+    [rpsData],
+  );
+
+  await conn.query(
+    `UPDATE loan_booking_sterlion
+     SET emi_amount = ?
+     WHERE lan = ?`,
+    [regularEmi, normalizedLan],
+  );
+
+  console.log("Sterlion RPS generated", {
     lan: normalizedLan,
     product,
     loanAmount: numericLoanAmount,
-    interestRate: effectiveAnnualInterestRate,
-    tenure: repaymentTenure,
+    interestRate: numericInterestRate,
+    tenure: numericTenure,
     regularEmi,
     installmentCount: rpsData.length,
   });
@@ -2033,13 +2353,12 @@ const generateRepaymentScheduleCarepay = async (
     lan: normalizedLan,
     product,
     loan_amount: numericLoanAmount,
-    interest_rate: effectiveAnnualInterestRate,
-    tenure: repaymentTenure,
+    interest_rate: numericInterestRate,
+    tenure: numericTenure,
     emi_amount: regularEmi,
     installment_count: rpsData.length,
   };
 };
-
 
 
 ////////////////////////////// RPS FOR CIRCLE PE START ///////////////////////////////////
@@ -6373,6 +6692,18 @@ console.log("checking data", {
       disbursementDate,
       product,
       lender,
+      processing_fee,
+    );
+  } else if (lender === "STERLION") {
+    await generateRepaymentScheduleSterlion(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
     );
   } else if (lender === "HEY EV Loan") {
     await generateRepaymentScheduleHEYEV(
@@ -6747,6 +7078,7 @@ module.exports = {
   generateRepaymentScheduleCirclePeHouser,
   generateRepaymentScheduleMotionCorp,
   generateRepaymentScheduleCarepay,
+  generateRepaymentScheduleSterlion,
   generateRepaymentScheduleSrbh,
 
 };

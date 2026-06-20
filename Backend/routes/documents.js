@@ -67,6 +67,7 @@ const LAN_TABLE_MAP = {
   E1: { table: "loan_booking_embifi", statusCol: "status" },
   FINE: { table: "loan_booking_emiclub", statusCol: "status" },
   CARE: { table: "loan_booking_carepay", statusCol: "status" },
+  STRL: { table: "loan_booking_sterlion", statusCol: "status" },
   FINS: { table: "loan_booking_finso", statusCol: "status" },
   HEL: { table: "loan_booking_helium", statusCol: "status" },
   DLR: { table: "dealer_onboarding", statusCol: "status" },
@@ -1871,6 +1872,11 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_carepay";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
+  } else if (lan.startsWith("STRL")) {
+    loanTable = "loan_booking_sterlion";
+    rpsTable = "manual_rps_sterlion";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
   } else if (lan.startsWith("WCTL")) {
     loanTable = "loan_bookings_wctl";
     rpsTable = "manual_rps_wctl";
@@ -2118,6 +2124,7 @@ router.post("/generate-soa", async (req, res) => {
         loan_booking_embifi: "partner_loan_id",
         loan_booking_emiclub: "partner_loan_id",
         loan_booking_carepay: "partner_loan_id",
+        loan_booking_sterlion: "partner_loan_id",
         loan_booking_finso: "partner_loan_id",
         loan_booking_hey_ev: "partner_loan_id",
         loan_bookings_wctl: "partner_loan_id",
@@ -2341,6 +2348,7 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("E1")) loanTable = "loan_booking_embifi";
   else if (lan.startsWith("FINE")) loanTable = "loan_booking_emiclub";
   else if (lan.startsWith("CARE")) loanTable = "loan_booking_carepay";
+  else if (lan.startsWith("STRL")) loanTable = "loan_booking_sterlion";
   else if (lan.startsWith("HEYBF")) loanTable = "loan_booking_hey_ev_battery";
   else if (lan.startsWith("HEY")) loanTable = "loan_booking_hey_ev";
   else if (lan.startsWith("HEL")) loanTable = "loan_booking_helium";
@@ -2495,6 +2503,7 @@ router.post("/generate-foreclosure", async (req, res) => {
   else if (lan.startsWith("BL")) bookingTable = "loan_bookings";
   else if (lan.startsWith("FINE")) bookingTable = "loan_booking_emiclub";
   else if (lan.startsWith("CARE")) bookingTable = "loan_booking_carepay";
+  else if (lan.startsWith("STRL")) bookingTable = "loan_booking_sterlion";
     else if (lan.startsWith("SH")) bookingTable = "loan_booking_srbh";
 
 
