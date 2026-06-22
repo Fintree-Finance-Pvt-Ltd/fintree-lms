@@ -2112,6 +2112,9 @@ router.post("/generate-soa", async (req, res) => {
 
     // overdue sums
     const totalEmiOverdue = safeNum(overdueAgg?.total_emi_overdue || 0);
+    // const otherOverdues = safeNum(otherDueAgg?.other_due || 0);
+    // const totalOverdue = totalEmiOverdue + otherOverdues;
+    
     const principalOutstanding = safeNum(outstanding);
 
     function getPartnerLoanIdByTable(loan, loanTable) {
