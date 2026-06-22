@@ -4,7 +4,7 @@ import LoginCaseScreen from '../LoginCaseScreen'
 const SevenFinCorpLoginCases = () => {
   return (
     <LoginCaseScreen
-      apiUrl={`/loan-booking/login-loans?table=loan_booking_seven_fincorp&prefix=SFC`}
+      apiUrl={`/loan-booking/login-loans?table=loan_booking_seven_fincorp&prefix=SFL`}
       title="Seven FinCorp Login Stage Cases"
       tableName="loan_booking_seven_fincorp"
       lenderName= "Seven FinCorp"

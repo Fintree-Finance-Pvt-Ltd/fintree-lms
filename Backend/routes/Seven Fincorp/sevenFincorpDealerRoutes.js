@@ -99,8 +99,9 @@ router.post("/dealer/create", async (req, res) => {
   try {
     const data = req.body;
 
-    const { lan, application_id } =
-      await generateLoanIdentifiers("SEVEN_FINCORP_DEALER");
+    const { lan, application_id } = await generateLoanIdentifiers(
+      "SEVEN_FINCORP_DEALER",
+    );
 
     const dealerQuery = `
       INSERT INTO seven_fincorp_dealer_booking
@@ -580,9 +581,7 @@ router.patch("/dealer/status/:lan", async (req, res) => {
   }
 });
 
-
 router.post("/upload/ev-customer-manual", async (req, res) => {
-  
   const connection = await db.promise().getConnection();
 
   try {
@@ -590,7 +589,7 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
     console.log("Received loan booking data:", data);
 
     const [borrowerOtp] = await connection.query(
-  `
+      `
   SELECT *
   FROM otp_consent_model
   WHERE mobile_number = ?
@@ -600,22 +599,18 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
   ORDER BY id DESC
   LIMIT 1
   `,
-  [data.Mobile_Number, "BORROWER"]
-);
+      [data.Mobile_Number, "BORROWER"],
+    );
 
-if (!borrowerOtp.length) {
+    if (!borrowerOtp.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Borrower mobile not verified",
+      });
+    }
 
-return res.status(400).json({
-success: false,
-message:
-"Borrower mobile not verified",
-});
-
-}
-
-const [guarantorOtp] =
-await connection.query(
-`     SELECT *
+    const [guarantorOtp] = await connection.query(
+      `     SELECT *
     FROM otp_consent_model
     WHERE mobile_number = ?
     AND applicant_type = 'GUARANTOR'
@@ -624,24 +619,19 @@ await connection.query(
     ORDER BY id DESC
     LIMIT 1
     `,
-[data.GURANTOR_MOBILE]
-);
+      [data.GURANTOR_MOBILE],
+    );
 
-if (!guarantorOtp.length) {
+    if (!guarantorOtp.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Guarantor mobile not verified",
+      });
+    }
 
-return res.status(400).json({
-success: false,
-message:
-"Guarantor mobile not verified",
-});
-
-}
-
-if (data.Co_Applicant) {
-
-const [coApplicantOtp] =
-await connection.query(
-`       SELECT *
+    if (data.Co_Applicant) {
+      const [coApplicantOtp] = await connection.query(
+        `       SELECT *
       FROM otp_consent_model
       WHERE mobile_number = ?
       AND applicant_type =
@@ -651,19 +641,16 @@ await connection.query(
       ORDER BY id DESC
       LIMIT 1
       `,
-[data.Co_Applicant_Mobile]
-);
+        [data.Co_Applicant_Mobile],
+      );
 
-if (!coApplicantOtp.length) {
-return res.status(400).json({
-  success: false,
-  message:
-    "Co-applicant mobile not verified",
-});
-
-}
-
-}
+      if (!coApplicantOtp.length) {
+        return res.status(400).json({
+          success: false,
+          message: "Co-applicant mobile not verified",
+        });
+      }
+    }
 
     const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
       "SEVEN_FINCORP_CUSTOMER",
@@ -671,7 +658,7 @@ return res.status(400).json({
 
     await connection.beginTransaction();
 
-        const values = [
+    const values = [
       emptyToNull(data.lenderType),
       emptyToNull(data.lender),
       emptyToNull(data.product),
@@ -711,25 +698,23 @@ return res.status(400).json({
       emptyToNull(data.GURANTOR_MOBILE),
       emptyToNull(data.Relationship_with_Borrower),
       emptyToNull(data.GURANTOR_Address_Line_1),
-emptyToNull(data.GURANTOR_Address_Line_2),
-emptyToNull(data.GURANTOR_Village),
-emptyToNull(data.GURANTOR_District),
-emptyToNull(data.GURANTOR_State),
-emptyToNull(data.GURANTOR_Pincode),
-
+      emptyToNull(data.GURANTOR_Address_Line_2),
+      emptyToNull(data.GURANTOR_Village),
+      emptyToNull(data.GURANTOR_District),
+      emptyToNull(data.GURANTOR_State),
+      emptyToNull(data.GURANTOR_Pincode),
 
       emptyToNull(data.Co_Applicant),
       emptyToNull(data.Co_Applicant_DOB),
       emptyToNull(data.Co_Applicant_Email),
       emptyToNull(data.Co_Applicant_PAN),
-emptyToNull(data.Co_Applicant_Mobile),
-emptyToNull(data.Co_Applicant_Address_Line_1),
-emptyToNull(data.Co_Applicant_Address_Line_2),
-emptyToNull(data.Co_Applicant_Village),
-emptyToNull(data.Co_Applicant_District),
-emptyToNull(data.Co_Applicant_State),
-emptyToNull(data.Co_Applicant_Pincode),
-
+      emptyToNull(data.Co_Applicant_Mobile),
+      emptyToNull(data.Co_Applicant_Address_Line_1),
+      emptyToNull(data.Co_Applicant_Address_Line_2),
+      emptyToNull(data.Co_Applicant_Village),
+      emptyToNull(data.Co_Applicant_District),
+      emptyToNull(data.Co_Applicant_State),
+      emptyToNull(data.Co_Applicant_Pincode),
 
       emptyToNull(data.customer_name_as_per_bank),
       emptyToNull(data.customer_bank_name),
@@ -761,6 +746,23 @@ emptyToNull(data.Co_Applicant_Pincode),
       emptyToNull(data.Battery_Serial_no_2),
       emptyToNull(data.E_Rikshaw_model),
       emptyToNull(data.Chassis_no),
+      // Add after emptyToNull(data.Chassis_no):
+      emptyToNull(data.Driving_License),
+      numberOrNull(data.GPS_Charges),
+      emptyToNull(data.GURANTOR_Driving_Licence),
+      emptyToNull(data.Co_Applicant_Driving_Licence),
+      emptyToNull(data.branch_address),
+      numberOrNull(data.insurance_cost),
+      emptyToNull(data.insurance_company_provider),
+      emptyToNull(data.insurance_policy_number),
+      emptyToNull(data.policy_issued_date),
+      emptyToNull(data.period_of_insurance),
+      numberOrNull(data.cost_of_vehicle),
+      numberOrNull(data.manufacturing_year),
+      numberOrNull(data.downpayment_paid_by_borrower),
+      numberOrNull(data.vehicle_registration_cost),
+      emptyToNull(data.sales_invoice_number),
+      emptyToNull(data.sales_invoice_date),
       data.borrower_mobile_verified || 0,
       data.guarantor_mobile_verified || 0,
       data.co_applicant_mobile_verified || 0,
@@ -807,11 +809,11 @@ emptyToNull(data.Co_Applicant_Pincode),
         guarantor_mobile,
         relationship_with_borrower,
         guarantor_address_line_1,
-guarantor_address_line_2,
-guarantor_village_city,
-guarantor_district,
-guarantor_state,
-guarantor_pincode,
+        guarantor_address_line_2,
+        guarantor_village_city,
+        guarantor_district,
+        guarantor_state,
+        guarantor_pincode,
 
 
         co_applicant_name,
@@ -820,11 +822,11 @@ guarantor_pincode,
         co_applicant_pan,
         co_applicant_mobile,
         co_applicant_address_line_1,
-co_applicant_address_line_2,
-co_applicant_village_city,
-co_applicant_district,
-co_applicant_state,
-co_applicant_pincode,
+        co_applicant_address_line_2,
+        co_applicant_village_city,
+        co_applicant_district,
+        co_applicant_state,
+        co_applicant_pincode,
 
 
         customer_name_as_per_bank,
@@ -858,48 +860,43 @@ co_applicant_pincode,
         e_rikshaw_model,
         chassis_no,
         borrower_mobile_verified,
-guarantor_mobile_verified,
-co_applicant_mobile_verified
+        guarantor_mobile_verified,
+        co_applicant_mobile_verified
       )
       VALUES (${values.map(() => "?").join(", ")})
     `;
 
-
-
     await connection.query(insertQuery, values);
 
     await connection.query(
-`   UPDATE otp_consent_model
+      `   UPDATE otp_consent_model
   SET is_used = 1
   WHERE mobile_number = ?
   AND applicant_type = ?
   `,
-[data.Mobile_Number, "BORROWER"]
-);
+      [data.Mobile_Number, "BORROWER"],
+    );
 
-await connection.query(
-`   UPDATE otp_consent_model
+    await connection.query(
+      `   UPDATE otp_consent_model
   SET is_used = 1
   WHERE mobile_number = ?
   AND applicant_type = ?
   `,
-[data.GURANTOR_MOBILE, "GUARANTOR"]
-);
+      [data.GURANTOR_MOBILE, "GUARANTOR"],
+    );
 
-if (data.Co_Applicant) {
-
-await connection.query(
-`     UPDATE otp_consent_model
+    if (data.Co_Applicant) {
+      await connection.query(
+        `     UPDATE otp_consent_model
     SET is_used = 1
     WHERE mobile_number = ?
     AND applicant_type =
     'CO_APPLICANT'
     `,
-[data.Co_Applicant_Mobile]
-);
-
-}
-
+        [data.Co_Applicant_Mobile],
+      );
+    }
 
     await connection.commit();
 
@@ -943,7 +940,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
       ORDER BY id DESC
       LIMIT 1
       `,
-      [data.Mobile_Number, "BORROWER"]
+      [data.Mobile_Number, "BORROWER"],
     );
 
     if (!borrowerOtp.length) {
@@ -954,7 +951,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
     }
 
     const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
-      "SEVEN_FINCORP_CUSTOMER"
+      "SEVEN_FINCORP_CUSTOMER",
     );
 
     await connection.beginTransaction();
@@ -1002,7 +999,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         emptyToNull(data.Pan_Card),
         emptyToNull(data.Gender),
         data.borrower_mobile_verified || 1,
-      ]
+      ],
     );
 
     await connection.query(
@@ -1011,7 +1008,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
       SET is_used = 1
       WHERE id = ?
       `,
-      [borrowerOtp[0].id]
+      [borrowerOtp[0].id],
     );
 
     await connection.query(
@@ -1031,7 +1028,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         data.Customer_Name,
         data.Mobile_Number,
         data.Pan_Card,
-      ]
+      ],
     );
 
     await connection.commit();
@@ -1055,6 +1052,204 @@ router.post("/save-borrower-first-section", async (req, res) => {
   }
 });
 
+// router.post("/final-submit-ev-customer-manual", async (req, res) => {
+//   const connection = await db.promise().getConnection();
+
+//   try {
+//     const data = req.body;
+
+//     if (!data.lan) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "LAN required. Please save borrower first.",
+//       });
+//     }
+
+//     await connection.beginTransaction();
+
+//     await connection.query(
+//       `
+//       UPDATE loan_booking_seven_fincorp
+//       SET
+//         permanent_address_line_1 = ?,
+//         permanent_address_line_2 = ?,
+//         permanent_village_city = ?,
+//         permanent_district = ?,
+//         permanent_state = ?,
+//         permanent_pincode = ?,
+
+//         requested_loan_amount = ?,
+//         interest_rate = ?,
+//         loan_tenure = ?,
+//         disbursal_amount = ?,
+//         processing_fee = ?,
+//         processing_fee_percentage = ?,
+
+//         guarantor_name = ?,
+//         guarantor_dob = ?,
+//         guarantor_email = ?,
+//         guarantor_pan = ?,
+//         guarantor_mobile = ?,
+//         relationship_with_borrower = ?,
+//         guarantor_address_line_1 = ?,
+//         guarantor_address_line_2 = ?,
+//         guarantor_village_city = ?,
+//         guarantor_district = ?,
+//         guarantor_state = ?,
+//         guarantor_pincode = ?,
+
+//         co_applicant_name = ?,
+//         co_applicant_dob = ?,
+//         co_applicant_email = ?,
+//         co_applicant_pan = ?,
+//         co_applicant_mobile = ?,
+//         co_applicant_address_line_1 = ?,
+//         co_applicant_address_line_2 = ?,
+//         co_applicant_village_city = ?,
+//         co_applicant_district = ?,
+//         co_applicant_state = ?,
+//         co_applicant_pincode = ?,
+
+//         customer_name_as_per_bank = ?,
+//         customer_bank_name = ?,
+//         customer_account_number = ?,
+//         bank_ifsc_code = ?,
+
+//         selected_dealer_application_id = ?,
+//         dealer_id = ?,
+//         trade_name = ?,
+//         dealer_name = ?,
+//         dealer_contact = ?,
+//         dealer_email = ?,
+//         gst_no = ?,
+//         pan_number = ?,
+//         dealer_address = ?,
+//         dealer_city = ?,
+//         dealer_state = ?,
+//         dealer_pincode = ?,
+
+//         dealer_bank_name = ?,
+//         dealer_account_number = ?,
+//         dealer_ifsc = ?,
+//         dealer_name_in_bank = ?,
+
+//         selected_product_id = ?,
+//         battery_name = ?,
+//         battery_type = ?,
+//         battery_serial_no_1 = ?,
+//         battery_serial_no_2 = ?,
+//         e_rikshaw_model = ?,
+//         chassis_no = ?,
+
+//         borrower_mobile_verified = ?,
+//         guarantor_mobile_verified = ?,
+//         co_applicant_mobile_verified = ?
+//       WHERE lan = ?
+//       `,
+//       [
+//         emptyToNull(data.Address_Line_1),
+//         emptyToNull(data.Address_Line_2),
+//         emptyToNull(data.Village),
+//         emptyToNull(data.District),
+//         emptyToNull(data.State),
+//         emptyToNull(data.Pincode),
+
+//         numberOrNull(data.Loan_Amount),
+//         numberOrNull(data.Interest_Rate),
+//         numberOrNull(data.Tenure),
+//         numberOrNull(data.Disbursal_Amount),
+//         numberOrNull(data.Processing_Fee),
+//         numberOrNull(data.Processing_Fee_Percentage),
+
+//         emptyToNull(data.GURANTOR),
+//         emptyToNull(data.GURANTOR_DOB),
+//         emptyToNull(data.GURANTOR_EMAIL),
+//         emptyToNull(data.GURANTOR_PAN),
+//         emptyToNull(data.GURANTOR_MOBILE),
+//         emptyToNull(data.Relationship_with_Borrower),
+//         emptyToNull(data.GURANTOR_Address_Line_1),
+//         emptyToNull(data.GURANTOR_Address_Line_2),
+//         emptyToNull(data.GURANTOR_Village),
+//         emptyToNull(data.GURANTOR_District),
+//         emptyToNull(data.GURANTOR_State),
+//         emptyToNull(data.GURANTOR_Pincode),
+
+//         emptyToNull(data.Co_Applicant),
+//         emptyToNull(data.Co_Applicant_DOB),
+//         emptyToNull(data.Co_Applicant_Email),
+//         emptyToNull(data.Co_Applicant_PAN),
+//         emptyToNull(data.Co_Applicant_Mobile),
+//         emptyToNull(data.Co_Applicant_Address_Line_1),
+//         emptyToNull(data.Co_Applicant_Address_Line_2),
+//         emptyToNull(data.Co_Applicant_Village),
+//         emptyToNull(data.Co_Applicant_District),
+//         emptyToNull(data.Co_Applicant_State),
+//         emptyToNull(data.Co_Applicant_Pincode),
+
+//         emptyToNull(data.customer_name_as_per_bank),
+//         emptyToNull(data.customer_bank_name),
+//         emptyToNull(data.customer_account_number),
+//         emptyToNull(data.bank_ifsc_code),
+
+//         emptyToNull(data.selected_dealer_application_id),
+//         emptyToNull(data.dealer_id),
+//         emptyToNull(data.trade_name),
+//         emptyToNull(data.dealer_name),
+//         emptyToNull(data.dealer_contact),
+//         emptyToNull(data.dealer_email),
+//         emptyToNull(data.gst_no),
+//         emptyToNull(data.pan_number),
+//         emptyToNull(data.dealer_address),
+//         emptyToNull(data.dealer_city),
+//         emptyToNull(data.dealer_state),
+//         emptyToNull(data.dealer_pincode),
+
+//         emptyToNull(data.bank_name),
+//         emptyToNull(data.account_number),
+//         emptyToNull(data.ifsc),
+//         emptyToNull(data.name_in_bank),
+
+//         numberOrNull(data.selected_product_id),
+//         emptyToNull(data.Battery_Name),
+//         emptyToNull(data.Battery_Type),
+//         emptyToNull(data.Battery_Serial_no_1),
+//         emptyToNull(data.Battery_Serial_no_2),
+//         emptyToNull(data.E_Rikshaw_model),
+//         emptyToNull(data.Chassis_no),
+
+//         data.borrower_mobile_verified || 0,
+//         data.guarantor_mobile_verified || 0,
+//         data.co_applicant_mobile_verified || 0,
+
+//         data.lan,
+//       ],
+//     );
+
+//     await connection.commit();
+
+//     universalRunAllValidations(data.lan).catch((err) => {
+//       console.error("Validation engine failed after booking:", err);
+//     });
+
+//     return res.json({
+//       success: true,
+//       message: "Seven Fincorp loan booking submitted successfully",
+//       lan: data.lan,
+//     });
+//   } catch (error) {
+//     await connection.rollback();
+
+//     console.error("Final Motion Corp submit error:", error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Final submit failed",
+//       error: error.message,
+//     });
+//   } finally {
+//     connection.release();
+//   }
+// });
 
 router.post("/final-submit-ev-customer-manual", async (req, res) => {
   const connection = await db.promise().getConnection();
@@ -1088,6 +1283,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         disbursal_amount = ?,
         processing_fee = ?,
         processing_fee_percentage = ?,
+        gps_charges = ?,
 
         guarantor_name = ?,
         guarantor_dob = ?,
@@ -1101,6 +1297,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         guarantor_district = ?,
         guarantor_state = ?,
         guarantor_pincode = ?,
+        guarantor_driving_licence = ?,
 
         co_applicant_name = ?,
         co_applicant_dob = ?,
@@ -1113,11 +1310,13 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         co_applicant_district = ?,
         co_applicant_state = ?,
         co_applicant_pincode = ?,
+        co_applicant_driving_licence = ?,
 
         customer_name_as_per_bank = ?,
         customer_bank_name = ?,
         customer_account_number = ?,
         bank_ifsc_code = ?,
+        branch_address = ?,
 
         selected_dealer_application_id = ?,
         dealer_id = ?,
@@ -1145,12 +1344,27 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         e_rikshaw_model = ?,
         chassis_no = ?,
 
+        insurance_cost = ?,
+        insurance_company_provider = ?,
+        insurance_policy_number = ?,
+        policy_issued_date = ?,
+        period_of_insurance = ?,
+
+        cost_of_vehicle = ?,
+        manufacturing_year = ?,
+        downpayment_paid_by_borrower = ?,
+        vehicle_registration_cost = ?,
+        sales_invoice_number = ?,
+        sales_invoice_date = ?,
+
         borrower_mobile_verified = ?,
         guarantor_mobile_verified = ?,
         co_applicant_mobile_verified = ?
+
       WHERE lan = ?
       `,
       [
+        // Permanent Address
         emptyToNull(data.Address_Line_1),
         emptyToNull(data.Address_Line_2),
         emptyToNull(data.Village),
@@ -1158,13 +1372,16 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.State),
         emptyToNull(data.Pincode),
 
+        // Loan Details
         numberOrNull(data.Loan_Amount),
         numberOrNull(data.Interest_Rate),
         numberOrNull(data.Tenure),
         numberOrNull(data.Disbursal_Amount),
         numberOrNull(data.Processing_Fee),
         numberOrNull(data.Processing_Fee_Percentage),
+        numberOrNull(data.GPS_Charges),
 
+        // Guarantor
         emptyToNull(data.GURANTOR),
         emptyToNull(data.GURANTOR_DOB),
         emptyToNull(data.GURANTOR_EMAIL),
@@ -1177,7 +1394,9 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.GURANTOR_District),
         emptyToNull(data.GURANTOR_State),
         emptyToNull(data.GURANTOR_Pincode),
+        emptyToNull(data.GURANTOR_Driving_Licence),
 
+        // Co-Applicant
         emptyToNull(data.Co_Applicant),
         emptyToNull(data.Co_Applicant_DOB),
         emptyToNull(data.Co_Applicant_Email),
@@ -1189,12 +1408,16 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.Co_Applicant_District),
         emptyToNull(data.Co_Applicant_State),
         emptyToNull(data.Co_Applicant_Pincode),
+        emptyToNull(data.Co_Applicant_Driving_Licence),
 
+        // Borrower Bank Details
         emptyToNull(data.customer_name_as_per_bank),
         emptyToNull(data.customer_bank_name),
         emptyToNull(data.customer_account_number),
         emptyToNull(data.bank_ifsc_code),
+        emptyToNull(data.branch_address),
 
+        // Dealer Details
         emptyToNull(data.selected_dealer_application_id),
         emptyToNull(data.dealer_id),
         emptyToNull(data.trade_name),
@@ -1208,11 +1431,13 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.dealer_state),
         emptyToNull(data.dealer_pincode),
 
+        // Dealer Bank Details
         emptyToNull(data.bank_name),
         emptyToNull(data.account_number),
         emptyToNull(data.ifsc),
         emptyToNull(data.name_in_bank),
 
+        // Product Details
         numberOrNull(data.selected_product_id),
         emptyToNull(data.Battery_Name),
         emptyToNull(data.Battery_Type),
@@ -1221,19 +1446,35 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.E_Rikshaw_model),
         emptyToNull(data.Chassis_no),
 
+        // Insurance Details
+        numberOrNull(data.insurance_cost),
+        emptyToNull(data.insurance_company_provider),
+        emptyToNull(data.insurance_policy_number),
+        emptyToNull(data.policy_issued_date),
+        emptyToNull(data.period_of_insurance),
+
+        // Vehicle Details
+        numberOrNull(data.cost_of_vehicle),
+        numberOrNull(data.manufacturing_year),
+        numberOrNull(data.downpayment_paid_by_borrower),
+        numberOrNull(data.vehicle_registration_cost),
+        emptyToNull(data.sales_invoice_number),
+        emptyToNull(data.sales_invoice_date),
+
+        // OTP Flags
         data.borrower_mobile_verified || 0,
         data.guarantor_mobile_verified || 0,
         data.co_applicant_mobile_verified || 0,
 
         data.lan,
-      ]
+      ],
     );
 
     await connection.commit();
 
     universalRunAllValidations(data.lan).catch((err) => {
-  console.error("Validation engine failed after booking:", err);
-});
+      console.error("Validation engine failed after booking:", err);
+    });
 
     return res.json({
       success: true,
@@ -1243,7 +1484,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
   } catch (error) {
     await connection.rollback();
 
-    console.error("Final Motion Corp submit error:", error);
+    console.error("Final submit error:", error);
 
     return res.status(500).json({
       success: false,
@@ -1266,7 +1507,7 @@ router.get("/loan-booking/:lan", async (req, res) => {
       WHERE lan = ?
       LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -1488,7 +1729,7 @@ router.post("/init-aadhaar", async (req, res) => {
       WHERE lan = ?
       LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -1543,7 +1784,7 @@ router.post("/init-aadhaar", async (req, res) => {
       )
       VALUES (?, ?, ?, ?)
       `,
-      [lan, applicantType, applicantData.name, applicantData.mobile]
+      [lan, applicantType, applicantData.name, applicantData.mobile],
     );
 
     await db.promise().query(
@@ -1553,14 +1794,14 @@ router.post("/init-aadhaar", async (req, res) => {
       WHERE lan = ?
       AND applicant_type = ?
       `,
-      [lan, applicantType]
+      [lan, applicantType],
     );
 
     const aadhaarInit = await initAadhaarKyc(
       lan,
       applicantData.mobile,
       applicantData.email,
-      applicantData.name
+      applicantData.name,
     );
 
     if (!aadhaarInit.success) {
@@ -1571,7 +1812,7 @@ router.post("/init-aadhaar", async (req, res) => {
         WHERE lan = ?
         AND applicant_type = ?
         `,
-        [lan, applicantType]
+        [lan, applicantType],
       );
 
       return res.status(400).json({
@@ -1596,7 +1837,7 @@ router.post("/init-aadhaar", async (req, res) => {
         aadhaarInit.uniqueId,
         lan,
         applicantType,
-      ]
+      ],
     );
 
     return res.json({
@@ -1645,7 +1886,8 @@ router.post("/save-applicant-details", async (req, res) => {
           guarantor_district = ?,
           guarantor_state = ?,
           guarantor_pincode = ?,
-          guarantor_mobile_verified = ?
+          guarantor_mobile_verified = ?,
+          gurantor_driving_licence = ?
         WHERE lan = ?
         `,
         [
@@ -1660,10 +1902,11 @@ router.post("/save-applicant-details", async (req, res) => {
           emptyToNull(data.GURANTOR_Village),
           emptyToNull(data.GURANTOR_District),
           emptyToNull(data.GURANTOR_State),
+          emptyToNull(data.GURANTOR_Driving_Licence),
           emptyToNull(data.GURANTOR_Pincode),
           data.guarantor_mobile_verified || 0,
           lan,
-        ]
+        ],
       );
     }
 
@@ -1683,6 +1926,7 @@ router.post("/save-applicant-details", async (req, res) => {
           co_applicant_district = ?,
           co_applicant_state = ?,
           co_applicant_pincode = ?,
+          co_applicant_driving_licence = ?,
           co_applicant_mobile_verified = ?
         WHERE lan = ?
         `,
@@ -1698,9 +1942,10 @@ router.post("/save-applicant-details", async (req, res) => {
           emptyToNull(data.Co_Applicant_District),
           emptyToNull(data.Co_Applicant_State),
           emptyToNull(data.Co_Applicant_Pincode),
+          emptyToNull(data.Co_Applicant_Driving_Licence),
           data.co_applicant_mobile_verified || 0,
           lan,
-        ]
+        ],
       );
     }
 
@@ -1748,7 +1993,7 @@ router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
       AND applicant_type = ?
       LIMIT 1
       `,
-      [lan, applicantType]
+      [lan, applicantType],
     );
 
     if (!rows.length) {
@@ -1800,7 +2045,7 @@ router.get("/customer-details/:lan", async (req, res) => {
 
   try {
     const [rows] = await db.promise().query(
-  `
+      `
   SELECT
     lb.lan,
     lb.partner_loan_id,
@@ -1891,6 +2136,24 @@ router.get("/customer-details/:lan", async (req, res) => {
     lb.e_rikshaw_model,
     lb.chassis_no,
 
+    // Add to the SELECT query after chassis_no:
+    lb.driving_license,
+    lb.gps_charges,
+    lb.guarantor_driving_licence,
+    lb.co_applicant_driving_licence,
+    lb.branch_address,
+    lb.insurance_cost,
+    lb.insurance_company_provider,
+    lb.insurance_policy_number,
+    lb.policy_issued_date,
+    lb.period_of_insurance,
+    lb.cost_of_vehicle,
+    lb.manufacturing_year,
+    lb.downpayment_paid_by_borrower,
+    lb.vehicle_registration_cost,
+    lb.sales_invoice_number,
+    lb.sales_invoice_date,
+
     lb.borrower_mobile_verified,
     lb.guarantor_mobile_verified,
     lb.co_applicant_mobile_verified,
@@ -1953,8 +2216,8 @@ router.get("/customer-details/:lan", async (req, res) => {
   WHERE lb.lan = ?
   LIMIT 1
   `,
-  [lan]
-);
+      [lan],
+    );
 
     if (!rows.length) {
       return res.status(404).json({
@@ -1993,11 +2256,11 @@ router.get("/customer-details/:lan", async (req, res) => {
         requested_loan_amount: row.requested_loan_amount,
         loan_amount: row.loan_amount,
         processing_fee: row.processing_fee,
-        processing_fee_percentage:
-          row.processing_fee_percentage,
+        processing_fee_percentage: row.processing_fee_percentage,
         disbursal_amount: row.disbursal_amount,
         interest_rate: row.interest_rate,
         loan_tenure: row.loan_tenure,
+        gps_charges: row.gps_charges,
       },
 
       guarantor: {
@@ -2006,14 +2269,12 @@ router.get("/customer-details/:lan", async (req, res) => {
         pan: row.guarantor_pan,
         mobile: row.guarantor_mobile,
         email: row.guarantor_email,
-        relationship_with_borrower:
-          row.relationship_with_borrower,
+        relationship_with_borrower: row.relationship_with_borrower,
+        driving_licence: row.guarantor_driving_licence,
 
         address: {
-          address_line_1:
-            row.guarantor_address_line_1,
-          address_line_2:
-            row.guarantor_address_line_2,
+          address_line_1: row.guarantor_address_line_1,
+          address_line_2: row.guarantor_address_line_2,
           city: row.guarantor_village_city,
           district: row.guarantor_district,
           state: row.guarantor_state,
@@ -2027,12 +2288,11 @@ router.get("/customer-details/:lan", async (req, res) => {
         pan: row.co_applicant_pan,
         mobile: row.co_applicant_mobile,
         email: row.co_applicant_email,
+        driving_licence: row.co_applicant_driving_licence,
 
         address: {
-          address_line_1:
-            row.co_applicant_address_line_1,
-          address_line_2:
-            row.co_applicant_address_line_2,
+          address_line_1: row.co_applicant_address_line_1,
+          address_line_2: row.co_applicant_address_line_2,
           city: row.co_applicant_village_city,
           district: row.co_applicant_district,
           state: row.co_applicant_state,
@@ -2041,19 +2301,15 @@ router.get("/customer-details/:lan", async (req, res) => {
       },
 
       bank_details: {
-        customer_name_as_per_bank:
-          row.customer_name_as_per_bank,
-        customer_bank_name:
-          row.customer_bank_name,
-        customer_account_number:
-          row.customer_account_number,
-        bank_ifsc_code:
-          row.bank_ifsc_code,
+        customer_name_as_per_bank: row.customer_name_as_per_bank,
+        customer_bank_name: row.customer_bank_name,
+        customer_account_number: row.customer_account_number,
+        bank_ifsc_code: row.bank_ifsc_code,
+        branch_address: row.branch_address,
       },
 
       dealer_details: {
-        selected_dealer_application_id:
-          row.selected_dealer_application_id,
+        selected_dealer_application_id: row.selected_dealer_application_id,
         dealer_id: row.dealer_id,
         trade_name: row.trade_name,
         dealer_name: row.dealer_name,
@@ -2067,63 +2323,71 @@ router.get("/customer-details/:lan", async (req, res) => {
         dealer_state: row.dealer_state,
         dealer_pincode: row.dealer_pincode,
 
-        dealer_bank_name:
-          row.dealer_bank_name,
-        dealer_account_number:
-          row.dealer_account_number,
+        dealer_bank_name: row.dealer_bank_name,
+        dealer_account_number: row.dealer_account_number,
         dealer_ifsc: row.dealer_ifsc,
-        dealer_name_in_bank:
-          row.dealer_name_in_bank,
+        dealer_name_in_bank: row.dealer_name_in_bank,
       },
 
       product_details: {
-        selected_product_id:
-          row.selected_product_id,
+        selected_product_id: row.selected_product_id,
         battery_name: row.battery_name,
         battery_type: row.battery_type,
-        battery_serial_no_1:
-          row.battery_serial_no_1,
-        battery_serial_no_2:
-          row.battery_serial_no_2,
-        e_rikshaw_model:
-          row.e_rikshaw_model,
+        battery_serial_no_1: row.battery_serial_no_1,
+        battery_serial_no_2: row.battery_serial_no_2,
+        e_rikshaw_model: row.e_rikshaw_model,
         chassis_no: row.chassis_no,
+        driving_license: row.driving_license,
       },
 
-       // ADD HERE
-  verification_status: {
-    borrower: {
-      pan_status: row.borrower_pan_status || "PENDING",
-      aadhaar_status: row.borrower_aadhaar_status || "PENDING",
-      bureau_status: row.borrower_bureau_status || "PENDING",
-    },
+      insurance_details: {
+        insurance_cost: row.insurance_cost,
+        insurance_company_provider: row.insurance_company_provider,
+        insurance_policy_number: row.insurance_policy_number,
+        policy_issued_date: row.policy_issued_date,
+        period_of_insurance: row.period_of_insurance,
+      },
 
-    guarantor: row.guarantor_name
-      ? {
-          pan_status: row.guarantor_pan_status || "PENDING",
-          aadhaar_status: row.guarantor_aadhaar_status || "PENDING",
-          bureau_status: row.guarantor_bureau_status || "PENDING",
-        }
-      : null,
+      vehicle_details: {
+        cost_of_vehicle: row.cost_of_vehicle,
+        manufacturing_year: row.manufacturing_year,
+        downpayment_paid_by_borrower: row.downpayment_paid_by_borrower,
+        vehicle_registration_cost: row.vehicle_registration_cost,
+        sales_invoice_number: row.sales_invoice_number,
+        sales_invoice_date: row.sales_invoice_date,
+      },
 
-    co_applicant: row.co_applicant_name
-      ? {
-          pan_status: row.co_applicant_pan_status || "PENDING",
-          aadhaar_status: row.co_applicant_aadhaar_status || "PENDING",
-          bureau_status: row.co_applicant_bureau_status || "PENDING",
-        }
-      : null,
-  },
+      // ADD HERE
+      verification_status: {
+        borrower: {
+          pan_status: row.borrower_pan_status || "PENDING",
+          aadhaar_status: row.borrower_aadhaar_status || "PENDING",
+          bureau_status: row.borrower_bureau_status || "PENDING",
+        },
+
+        guarantor: row.guarantor_name
+          ? {
+              pan_status: row.guarantor_pan_status || "PENDING",
+              aadhaar_status: row.guarantor_aadhaar_status || "PENDING",
+              bureau_status: row.guarantor_bureau_status || "PENDING",
+            }
+          : null,
+
+        co_applicant: row.co_applicant_name
+          ? {
+              pan_status: row.co_applicant_pan_status || "PENDING",
+              aadhaar_status: row.co_applicant_aadhaar_status || "PENDING",
+              bureau_status: row.co_applicant_bureau_status || "PENDING",
+            }
+          : null,
+      },
 
       verification: {
-        borrower_mobile_verified:
-          row.borrower_mobile_verified,
+        borrower_mobile_verified: row.borrower_mobile_verified,
 
-        guarantor_mobile_verified:
-          row.guarantor_mobile_verified,
+        guarantor_mobile_verified: row.guarantor_mobile_verified,
 
-        co_applicant_mobile_verified:
-          row.co_applicant_mobile_verified,
+        co_applicant_mobile_verified: row.co_applicant_mobile_verified,
       },
 
       lender: row.lender,
@@ -2136,47 +2400,33 @@ router.get("/customer-details/:lan", async (req, res) => {
     };
 
     const bre = {
-      fintree_cibil_score:
-        row.fintree_cibil_score,
+      fintree_cibil_score: row.fintree_cibil_score,
 
-      enquiries_30d:
-        row.seven_fincorp_enquiries_30d,
+      enquiries_30d: row.seven_fincorp_enquiries_30d,
 
-      dpd_3m_flag:
-        row.seven_fincorp_dpd_3m_flag,
+      dpd_3m_flag: row.seven_fincorp_dpd_3m_flag,
 
-      dpd_6m_flag:
-        row.seven_fincorp_dpd_6m_flag,
+      dpd_6m_flag: row.seven_fincorp_dpd_6m_flag,
 
-      overdue_12m_flag:
-        row.seven_fincorp_overdue_12m_flag,
+      overdue_12m_flag: row.seven_fincorp_overdue_12m_flag,
 
-      written_off_3y_flag:
-        row.seven_fincorp_written_off_3y_flag,
+      written_off_3y_flag: row.seven_fincorp_written_off_3y_flag,
 
-      dpd_60plus_24m_flag:
-        row.seven_fincorp_60plus_24m_flag,
+      dpd_60plus_24m_flag: row.seven_fincorp_60plus_24m_flag,
 
-      dpd_90plus_36m_flag:
-        row.seven_fincorp_90plus_36m_flag,
+      dpd_90plus_36m_flag: row.seven_fincorp_90plus_36m_flag,
 
-      emi_overdue_amount:
-        row.seven_fincorp_emi_overdue_amount,
+      emi_overdue_amount: row.seven_fincorp_emi_overdue_amount,
 
-      cc_overdue_amount:
-        row.seven_fincorp_cc_overdue_amount,
+      cc_overdue_amount: row.seven_fincorp_cc_overdue_amount,
 
-      deviation_flag:
-        row.seven_fincorp_deviation_flag,
+      deviation_flag: row.seven_fincorp_deviation_flag,
 
-      bre_status:
-        row.seven_fincorp_bre_status,
+      bre_status: row.seven_fincorp_bre_status,
 
-      bre_reason:
-        row.seven_fincorp_bre_reason,
+      bre_reason: row.seven_fincorp_bre_reason,
 
-      bre_checked_at:
-        row.seven_fincorp_bre_checked_at,
+      bre_checked_at: row.seven_fincorp_bre_checked_at,
     };
 
     return res.json({
@@ -2184,10 +2434,7 @@ router.get("/customer-details/:lan", async (req, res) => {
       bre,
     });
   } catch (err) {
-    console.error(
-      "❌ Error fetching Motion Corp details:",
-      err,
-    );
+    console.error("❌ Error fetching Motion Corp details:", err);
 
     return res.status(500).json({
       message: "Failed to fetch Motion Corp details",
@@ -2219,17 +2466,11 @@ router.get("/credit-initiated-loans", async (req, res) => {
 
   const pg = Math.max(1, parseInt(page, 10) || 1);
 
-  const limit = Math.min(
-    100,
-    Math.max(1, parseInt(pageSize, 10) || 50)
-  );
+  const limit = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 50));
 
   const offset = (pg - 1) * limit;
 
-  const safeSortDir =
-    sortDir.toLowerCase() === "asc"
-      ? "ASC"
-      : "DESC";
+  const safeSortDir = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
 
   const allowedSort = [
     "lan",
@@ -2241,9 +2482,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
     "seven_fincorp_bre_checked_at",
   ];
 
-  const sortCol = allowedSort.includes(sortBy)
-    ? sortBy
-    : "created_at";
+  const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
 
   try {
     const likeVal = `${prefix}%`;
@@ -2260,12 +2499,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       : "";
 
     const searchParams = search
-      ? [
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-          `%${search}%`,
-        ]
+      ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
       : [];
 
     const countSql = `
@@ -2317,21 +2551,11 @@ router.get("/credit-initiated-loans", async (req, res) => {
     `;
 
     const [[countRows], [rows]] = await Promise.all([
-      db.promise().query(
-        countSql,
-        [table, likeVal, ...searchParams]
-      ),
+      db.promise().query(countSql, [table, likeVal, ...searchParams]),
 
-      db.promise().query(
-        dataSql,
-        [
-          table,
-          likeVal,
-          ...searchParams,
-          limit,
-          offset,
-        ]
-      ),
+      db
+        .promise()
+        .query(dataSql, [table, likeVal, ...searchParams, limit, offset]),
     ]);
 
     return res.json({
@@ -2343,12 +2567,8 @@ router.get("/credit-initiated-loans", async (req, res) => {
         total: Number(countRows[0]?.total || 0),
       },
     });
-
   } catch (err) {
-    console.error(
-      "Error fetching credit initiated loans:",
-      err
-    );
+    console.error("Error fetching credit initiated loans:", err);
 
     return res.status(500).json({
       message: "Database error",
@@ -2359,8 +2579,8 @@ router.get("/credit-initiated-loans", async (req, res) => {
 
 router.get("/operation-initiated-loans", async (req, res) => {
   const {
-    table = "loan_booking_motion_corp",
-    prefix = "MC",
+    table = "loan_booking_seven_fincorp",
+    prefix = "SFL",
     page = "1",
     pageSize = "50",
     search = "",
@@ -2369,7 +2589,7 @@ router.get("/operation-initiated-loans", async (req, res) => {
   } = req.query;
 
   const allowedTables = {
-    loan_booking_motion_corp: true,
+    loan_booking_seven_fincorp: true,
   };
 
   if (!allowedTables[table]) {
@@ -2393,7 +2613,7 @@ router.get("/operation-initiated-loans", async (req, res) => {
     "mobile_number",
     "loan_amount",
     "created_at",
-    "motioncorp_bre_checked_at",
+    "seven_fincorp_bre_checked_at",
   ];
 
   const sortCol = allowedSort.includes(sortBy) ? sortBy : "created_at";
@@ -2443,9 +2663,9 @@ router.get("/operation-initiated-loans", async (req, res) => {
         lb.cibil_score,
         lb.fintree_cibil_score,
 
-        lb.motioncorp_bre_status,
-        lb.motioncorp_bre_reason,
-        lb.motioncorp_bre_checked_at,
+        lb.seven_fincorp_bre_status,
+        lb.seven_fincorp_bre_reason,
+        lb.seven_fincorp_bre_checked_at,
 
         lb.customer_name_as_per_bank,
         lb.customer_bank_name,
