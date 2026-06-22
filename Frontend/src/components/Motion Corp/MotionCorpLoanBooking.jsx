@@ -1033,7 +1033,7 @@ for processing and servicing this loan application.
       // }
 
       // Auto-calculate Processing Fee % and Disbursal Amount
-      if (name === "Loan_Amount" || name === "Processing_Fee") {
+      if (name === "Loan_Amount" || name === "Processing_Fee" || name === "GPS_Charges") {
         const loanAmount = Number(
           name === "Loan_Amount" ? finalValue : updated.Loan_Amount,
         );
@@ -1042,15 +1042,21 @@ for processing and servicing this loan application.
           name === "Processing_Fee" ? finalValue : updated.Processing_Fee,
         );
 
+        const gpsCharges = Number(
+          name === "GPS_Charges" ? finalValue : updated.GPS_Charges,
+        );
+
         if (
           !Number.isNaN(loanAmount) &&
           !Number.isNaN(processingFee) &&
+          !Number.isNaN(gpsCharges) &&
           loanAmount > 0 &&
-          processingFee >= 0
+          processingFee >= 0 &&
+          gpsCharges >= 0
         ) {
           const processingFeePercentage = (processingFee / loanAmount) * 100;
 
-          const disbursalAmount = loanAmount - processingFee;
+          const disbursalAmount = loanAmount - processingFee - gpsCharges;
 
           updated.Processing_Fee_Percentage =
             processingFeePercentage.toFixed(2);

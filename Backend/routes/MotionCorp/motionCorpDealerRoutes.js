@@ -913,7 +913,8 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
 
 router.post("/update-stamp-number", async (req, res) => {
   try {
-    const { lan, stamp_paper_no } = req.body;
+    const lan = String(req.body.lan ?? "").trim();
+    const stamp_paper_no = String(req.body.stamp_paper_no ?? "").trim();
 
     if (!lan || !stamp_paper_no) {
       return res.status(400).json({
@@ -928,7 +929,7 @@ router.post("/update-stamp-number", async (req, res) => {
       SET stamp_paper_no = ?
       WHERE lan = ?
       `,
-      [String(stamp_paper_no).trim(), String(lan).trim()]
+      [stamp_paper_no, lan],
     );
 
     if (result.affectedRows === 0) {
@@ -1358,7 +1359,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
       connection,
       limitCheck.limitId,
       loanAmount,
-      data.lan
+      data.lan,
     );
 
     /*
@@ -1381,7 +1382,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
           AND utilization_type = 'RESERVED'
         LIMIT 1
         `,
-        [partner.partner_id, data.lan]
+        [partner.partner_id, data.lan],
       );
 
       if (!alreadyReserved) {
@@ -1390,7 +1391,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
           partner.partner_id,
           data.lan,
           requiredFldg,
-          `Motion Corp booking reservation | Amount: ${loanAmount}`
+          `Motion Corp booking reservation | Amount: ${loanAmount}`,
         );
       }
     }
@@ -2581,6 +2582,7 @@ router.get("/operation-initiated-loans", async (req, res) => {
         lb.email,
 
         lb.emi_amount,
+        lb.stamp_paper_no,
 
         lb.agreement_date,
         lb.login_date,
