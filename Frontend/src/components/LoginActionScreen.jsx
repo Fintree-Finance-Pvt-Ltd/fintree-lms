@@ -313,36 +313,54 @@ const LoginActionScreen = ({
     //   sortAccessor: (r) => (r.customer_name || r.pan_name || "").toLowerCase(),
     //   width: 220,
     // },
-    {
+{
   key: "customer_name",
   header: "Loan Details",
   sortable: true,
   render: (r) => {
-    // Check if the current row's LAN starts with LDF
-    const isLoanDigit = typeof r?.lan === "string" && /^LDF/i.test(r.lan);
+    const isLoanDigit = /^LDF/i.test(r?.lan || "");
+    const isFundify = /^FUN/i.test(r?.lan || "");
+
+    const displayName = isFundify
+      ? r.business_name || r.customer_name || "—"
+      : r.customer_name || "—";
 
     return (
       <span
-        style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+        style={{
+          color: "#2563eb",
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
         onClick={() => {
           if (isLoanDigit) {
             navigate(`/loan-digit/customer-details?lan=${r.lan}`);
-          } else if (/^MC/i.test(r.lan)) {
+          } else if (/^MC/i.test(r?.lan || "")) {
             navigate(`/motion-corp/customer-details?lan=${r.lan}`);
-          } else if (/^FUN/i.test(r.lan)) {
+          } else if (isFundify) {
             navigate(`/fundify/customer-details/${r.lan}`);
-          } else if (/^FINS/i.test(r.lan)) {
+          } else if (/^FINS/i.test(r?.lan || "")) {
             navigate(`/fincrest-loan-details/${r.lan}`);
           } else {
             navigate(`/approved-loan-details/${r.lan}`);
           }
         }}
       >
-        {r.customer_name  ?? "—"}
+        {displayName}
       </span>
     );
   },
-  sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
+  sortAccessor: (r) => {
+    const name = /^FUN/i.test(r?.lan || "")
+      ? r.business_name || r.customer_name || ""
+      : r.customer_name || "";
+
+    return name.toLowerCase();
+  },
+  csvAccessor: (r) =>
+    /^FUN/i.test(r?.lan || "")
+      ? r.business_name || r.customer_name || ""
+      : r.customer_name || "",
   width: 220,
 },
     {
@@ -531,10 +549,12 @@ const LoginActionScreen = ({
   // include batch_id in search/CSV only when present
   const globalSearchKeys = [
     "customer_name",
+    "business_name",
     "partner_loan_id",
     "lan",
     ...(hasADK ? ["batch_id"] : []),
     "mobile_number",
+    "business_mobile",
     "status",
   ];
 
