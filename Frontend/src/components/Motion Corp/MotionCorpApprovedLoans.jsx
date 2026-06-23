@@ -16,6 +16,8 @@ const MotionCorpApprovedLoans = ({
   // Which LAN is processing eSign
   const [actionLan, setActionLan] = useState(null);
   const [toast, setToast] = useState(null);
+  // for updating stamp paper number
+  const [stampSavingLan, setStampSavingLan] = useState(null);
 
   // ---------- Bank / eNACH Modal ----------
   const [showBankModal, setShowBankModal] = useState(false);
@@ -380,21 +382,92 @@ const MotionCorpApprovedLoans = ({
       header: "Stamp Paper No.",
       render: (r) => {
         const savedStampNo = String(r.stamp_paper_no ?? "").trim();
-        const value = stampInputs[r.lan] ?? savedStampNo ?? "";
+        const isSaved = savedStampNo.length > 0;
+        const isSaving = stampSavingLan === r.lan;
 
-        const isSaving = actionLan === r.lan;
-        const isSaved = !!savedStampNo;
+        // Once saved, always display the value stored in the row.
+        const value = isSaved ? savedStampNo : (stampInputs[r.lan] ?? "");
+
+        const handleSaveStampNumber = async () => {
+          if (isSaved || isSaving) return;
+
+          const stampNo = String(value).trim();
+
+          if (!stampNo) {
+            setToast({
+              type: "error",
+              msg: "Please enter stamp paper number.",
+            });
+            resetToastAfterDelay();
+            return;
+          }
+
+          try {
+            setStampSavingLan(r.lan);
+
+            const response = await api.post(
+              "/motion-corp/update-stamp-number",
+              {
+                lan: r.lan,
+                stamp_paper_no: stampNo,
+              },
+            );
+
+            // Use API value when returned; otherwise use entered value.
+            const persistedStampNo = String(
+              response.data?.stamp_paper_no ?? stampNo,
+            ).trim();
+
+            setRows((oldRows) =>
+              oldRows.map((row) =>
+                row.lan === r.lan
+                  ? {
+                      ...row,
+                      stamp_paper_no: persistedStampNo,
+                    }
+                  : row,
+              ),
+            );
+
+            setStampInputs((previous) => ({
+              ...previous,
+              [r.lan]: persistedStampNo,
+            }));
+
+            setToast({
+              type: "success",
+              msg: "Stamp paper number updated successfully.",
+            });
+            resetToastAfterDelay();
+          } catch (error) {
+            setToast({
+              type: "error",
+              msg:
+                error.response?.data?.message ||
+                "Failed to update stamp paper number.",
+            });
+            resetToastAfterDelay();
+          } finally {
+            setStampSavingLan(null);
+          }
+        };
 
         return (
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+            }}
+          >
             <input
               type="text"
               value={value}
               disabled={isSaved || isSaving}
-              onChange={(e) =>
-                setStampInputs((prev) => ({
-                  ...prev,
-                  [r.lan]: e.target.value,
+              onChange={(event) =>
+                setStampInputs((previous) => ({
+                  ...previous,
+                  [r.lan]: event.target.value,
                 }))
               }
               placeholder="Stamp no"
@@ -405,63 +478,13 @@ const MotionCorpApprovedLoans = ({
                 border: "1px solid #d1d5db",
                 fontSize: 12,
                 background: isSaved ? "#f3f4f6" : "#ffffff",
-                cursor: isSaved ? "not-allowed" : "text",
+                cursor: isSaved || isSaving ? "not-allowed" : "text",
               }}
             />
 
             <button
-              onClick={async () => {
-                if (isSaved) return;
-
-                const stampNo = String(value || "").trim();
-
-                if (!stampNo) {
-                  setToast({
-                    type: "error",
-                    msg: "Please enter stamp paper number.",
-                  });
-                  resetToastAfterDelay();
-                  return;
-                }
-
-                try {
-                  setActionLan(r.lan);
-
-                  await api.post("/motion-corp/update-stamp-number", {
-                    lan: r.lan,
-                    stamp_paper_no: stampNo,
-                  });
-
-                  setRows((old) =>
-                    old.map((row) =>
-                      row.lan === r.lan
-                        ? { ...row, stamp_paper_no: stampNo }
-                        : row,
-                    ),
-                  );
-
-                  setStampInputs((prev) => ({
-                    ...prev,
-                    [r.lan]: stampNo,
-                  }));
-
-                  setToast({
-                    type: "success",
-                    msg: "Stamp paper number updated successfully.",
-                  });
-                  resetToastAfterDelay();
-                } catch (err) {
-                  setToast({
-                    type: "error",
-                    msg:
-                      err.response?.data?.message ||
-                      "Failed to update stamp paper number.",
-                  });
-                  resetToastAfterDelay();
-                } finally {
-                  setActionLan(null);
-                }
-              }}
+              type="button"
+              onClick={handleSaveStampNumber}
               disabled={isSaved || isSaving}
               style={{
                 padding: "7px 10px",

@@ -95,44 +95,70 @@ const LoginCaseScreen = ({
     };
   };
 
+  const isFundifyRecord = (row) =>
+  /^FUN/i.test(row?.lan || "") ||
+  row?.lender?.toLowerCase() === "fundify" ||
+  row?.partner_name?.toLowerCase() === "fundify";
+
+const getCustomerName = (row) => {
+  if (isFundifyRecord(row)) {
+    return row?.business_name || "—";
+  }
+
+  return row?.customer_name || "—";
+};
+
+const getContactNumber = (row) => {
+  if (isFundifyRecord(row)) {
+    return row?.business_mobile || "—";
+  }
+
+  return row?.mobile_number || "—";
+};
+
   const columns = [
     {
-      key: "customer_name",
-      header: "Customer Details",
-      sortable: true,
-      render: (r) => (
-        <div
+  key: "customer_name",
+  header: "Customer Details",
+  sortable: true,
+  render: (r) => {
+    const displayName = getCustomerName(r);
+
+    return (
+      <div
           style={{ display: "flex", flexDirection: "column", padding: "4px 0" }}
+      >
+        <span
+          style={{
+            color: "#2563eb",
+            fontWeight: 700,
+            cursor: "pointer",
+            fontSize: "14.5px",
+          }}
+          onClick={() => {
+            if (/^LDF/i.test(r?.lan)) {
+              navigate(`/loan-digit/customer-details?lan=${r.lan}`);
+            } else if (/^FINS/i.test(r?.lan)) {
+              navigate(`/fincrest-loan-details/${r.lan}`);
+            } else {
+              navigate(`/approved-loan-details/${r.lan}`);
+            }
+          }}
         >
-          <span
-            style={{
-              color: "#2563eb",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontSize: "14.5px",
-            }}
-            onClick={() => {
-              if (/^LDF/i.test(r?.lan)) {
-                navigate(`/loan-digit/customer-details?lan=${r.lan}`);
-              } else if (/^FINS/i.test(r?.lan)) {
-                navigate(`/fincrest-loan-details/${r.lan}`);
-              } else {
-                navigate(`/approved-loan-details/${r.lan}`);
-              }
-            }}
-          >
-            {r.customer_name ?? "—"}
-          </span>
-          <span
+          {displayName}
+        </span>
+
+        <span
             style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}
-          >
-            {lenderName} Partner
-          </span>
-        </div>
-      ),
-      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
-      width: 220,
-    },
+        >
+          {isFundifyRecord(r) ? "Fundify Partner" : `${lenderName} Partner`}
+        </span>
+      </div>
+    );
+  },
+  sortAccessor: (r) => getCustomerName(r).toLowerCase(),
+  width: 220,
+},
     {
       key: "lan",
       header: "LAN",
@@ -234,31 +260,46 @@ const LoginCaseScreen = ({
         ]
       : []),
     {
-      key: "mobile_number",
-      header: "Contact Info",
-      sortable: true,
-      render: (r) => (
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <span style={{ fontSize: "14px" }}>📞</span>
-          {r.mobile_number ? (
-            <a
-              href={`tel:${r.mobile_number}`}
-              style={{
-                color: "#0f172a",
-                textDecoration: "none",
-                fontWeight: 600,
-                fontSize: "13px",
-              }}
-            >
-              {r.mobile_number}
-            </a>
-          ) : (
-            "—"
-          )}
-        </div>
-      ),
-      width: 160,
-    },
+  key: "mobile_number",
+  header: "Contact Info",
+  sortable: true,
+  render: (r) => {
+    const contactNumber = getContactNumber(r);
+
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+        }}
+      >
+        <span style={{ fontSize: "14px" }}>📞</span>
+
+        {contactNumber !== "—" ? (
+          <a
+            href={`tel:${contactNumber}`}
+            style={{
+              color: "#0f172a",
+              textDecoration: "none",
+              fontWeight: 600,
+              fontSize: "13px",
+            }}
+          >
+            {contactNumber}
+          </a>
+        ) : (
+          "—"
+        )}
+      </div>
+    );
+  },
+  sortAccessor: (r) => {
+    const contactNumber = getContactNumber(r);
+    return contactNumber === "—" ? "" : contactNumber;
+  },
+  width: 160,
+},
     {
       key: "status",
       header: "Stage Status",
@@ -314,20 +355,23 @@ const LoginCaseScreen = ({
 
   return (
     <div style={{ padding: "24px", background: "#f8fafc", minHeight: "100vh" }}>
-      <DataTable
-        title={title}
-        rows={rows}
-        columns={columns}
-        globalSearchKeys={[
-          "customer_name",
-          "partner_loan_id",
-          "lan",
-          "mobile_number",
-          "status",
-        ]}
-        initialSort={{ key: "disbursement_date", dir: "desc" }}
-        exportFileName="login_stage_loans"
-      />
+     <DataTable
+  title={title}
+  rows={rows}
+  columns={columns}
+  globalSearchKeys={[
+    "customer_name",
+    "business_name",
+    "partner_loan_id",
+    "lan",
+    "mobile_number",
+    "business_mobile",
+    "business_email",
+    "status",
+  ]}
+  initialSort={{ key: "created_at", dir: "desc" }}
+  exportFileName="login_stage_loans"
+/>
     </div>
   );
 };

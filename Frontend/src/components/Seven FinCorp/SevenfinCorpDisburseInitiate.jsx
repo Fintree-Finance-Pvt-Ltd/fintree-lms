@@ -4,7 +4,7 @@ import ApproveInitiatedScreen from "../ApproveInitiatedScreen";
 const SevenFinCorpDisburseInitiate = () => {
   return (
     <ApproveInitiatedScreen
-      apiUrl={`/seven-fincorp/credit-initiated-loans?table=loan_booking_seven_fincorp&prefix=SFC`}
+      apiUrl={`/seven-fincorp/credit-initiated-loans?table=loan_booking_seven_fincorp&prefix=SFL`}
 
       title="Seven FinCorp Credit Initiated Loans"
 

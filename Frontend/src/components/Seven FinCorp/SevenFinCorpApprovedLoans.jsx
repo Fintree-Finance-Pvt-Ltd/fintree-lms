@@ -7,7 +7,7 @@ import LoaderOverlay from "../ui/LoaderOverlay";
 
 const SevenFinCorpApprovedLoans = ({
   apiUrl = "/seven-fincorp/operation-initiated-loans",
-  title = "Seven FinCorp Approved Loans",
+  title = "Seven FinCorp Approval Loans",
 }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
