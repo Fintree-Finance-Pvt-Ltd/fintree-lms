@@ -97,10 +97,9 @@ const generateLoanIdentifiers = async (lender) => {
     prefixLan = "CAREHOS";
   } else if (lender === "WCTL_CC_OD") {
     prefixLan = "FCCOD1";
-  }  else if (lender === "Finso") {
+  } else if (lender === "Finso") {
     prefixPartnerLoan = "FINS1";
     prefixLan = "FINS1";
-
   } else if (lender === "Term Loan") {
     // ✅ Added for loan_booking_term_loan
     prefixPartnerLoan = "TLFFPL1";
@@ -991,12 +990,10 @@ router.post("/upload/term-loan", upload.single("file"), async (req, res) => {
       raw: true,
     });
 
-    const uploadedHeaders = (headerRows[0] || []).map((h) =>
-      String(h).trim()
-    );
+    const uploadedHeaders = (headerRows[0] || []).map((h) => String(h).trim());
 
     const missingHeaders = termLoanExpectedHeaders.filter(
-      (header) => !uploadedHeaders.includes(header)
+      (header) => !uploadedHeaders.includes(header),
     );
 
     if (missingHeaders.length > 0) {
@@ -1028,7 +1025,7 @@ router.post("/upload/term-loan", upload.single("file"), async (req, res) => {
 
       try {
         const missingFields = termLoanRequiredFields.filter((field) =>
-          isBlankTermLoanValue(row[field])
+          isBlankTermLoanValue(row[field]),
         );
 
         if (missingFields.length > 0) {
@@ -1041,7 +1038,9 @@ router.post("/upload/term-loan", upload.single("file"), async (req, res) => {
         }
 
         const rowLender = String(row.lender || "").trim();
-        const panCard = String(row.pan_card || "").trim().toUpperCase();
+        const panCard = String(row.pan_card || "")
+          .trim()
+          .toUpperCase();
         const loanAmount = Number(row.loan_amount);
         const interestRate = Number(row.interest_rate);
 
@@ -1089,7 +1088,8 @@ router.post("/upload/term-loan", upload.single("file"), async (req, res) => {
         }
 
         // Generate partnerLoanId and LAN
-        const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(lenderType);
 
         const values = termLoanInsertColumns.map((col) => {
           if (col === "partner_loan_id") return partnerLoanId;
@@ -1122,7 +1122,7 @@ router.post("/upload/term-loan", upload.single("file"), async (req, res) => {
         });
 
         console.log(
-          `✅ Term Loan inserted row ${excelRowNumber} | PAN: ${panCard} | LAN: ${lan}`
+          `✅ Term Loan inserted row ${excelRowNumber} | PAN: ${panCard} | LAN: ${lan}`,
         );
       } catch (err) {
         row_errors.push({
@@ -1171,7 +1171,7 @@ router.post("/upload/term-loan-manual", async (req, res) => {
     }
 
     const missingFields = termLoanRequiredFields.filter((field) =>
-      isBlankTermLoanValue(data[field])
+      isBlankTermLoanValue(data[field]),
     );
 
     if (missingFields.length > 0) {
@@ -1180,7 +1180,9 @@ router.post("/upload/term-loan-manual", async (req, res) => {
       });
     }
 
-    const panCard = String(data.pan_card || "").trim().toUpperCase();
+    const panCard = String(data.pan_card || "")
+      .trim()
+      .toUpperCase();
     const loanAmount = Number(data.loan_amount);
     const interestRate = Number(data.interest_rate);
 
@@ -1253,8 +1255,6 @@ router.post("/upload/term-loan-manual", async (req, res) => {
     });
   }
 });
-
-
 
 /////////////////////////// NEW CODE FOR HEY EV LOAN DATA CROOS CHECK AND INSERTION //////////////////////
 
@@ -2036,7 +2036,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_bundela: true,
     loan_booking_fundify: true,
     dealer_onboarding: true,
-    loan_booking_srbh:true,
+    loan_booking_srbh: true,
   };
 
   if (!allowedTables[table]) {
@@ -2201,7 +2201,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
-    loan_booking_srbh:true,
+    loan_booking_srbh: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2291,7 +2291,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_switch_my_loan: true,
     loan_booking_loan_digit: true,
     dealer_onboarding: true,
-    loan_booking_srbh:true,
+    loan_booking_srbh: true,
   };
 
   if (!allowedTables[table]) {
@@ -2416,7 +2416,7 @@ router.get("/approved-loans", async (req, res) => {
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
     dealer_onboarding: true,
-    loan_booking_srbh:true,
+    loan_booking_srbh: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2500,7 +2500,7 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
-    loan_booking_srbh:true,
+    loan_booking_srbh: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2586,7 +2586,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_switch_my_loan: true,
     dealer_onboarding: true,
     loan_booking_fundify: true,
-    loan_booking_srbh:true,
+    loan_booking_srbh: true,
   };
 
   if (!allowedTables[table]) {
@@ -2918,7 +2918,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
-    loan_booking_srbh:true,
+    loan_booking_srbh: true,
   };
 
   if (!allowedTables[table]) {
@@ -5310,7 +5310,10 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
         // ── Fire Finso BRE engine after bureau (async, non-blocking) ─────────
         autoRunFinsoBreIfReady(lan).catch((breErr) => {
-          console.error(`❌ FINCREST BRE Engine failed for LAN ${lan}:`, breErr);
+          console.error(
+            `❌ FINCREST BRE Engine failed for LAN ${lan}:`,
+            breErr,
+          );
         });
         // ─────────────────────────────────────────────────────────────────────
 
@@ -5414,15 +5417,14 @@ router.get("/v1/finso-customer-details/:lan", async (req, res) => {
   try {
     const { lan } = req.params;
 
-    const [rows] = await db.promise().query(
-      `SELECT * FROM loan_booking_finso WHERE lan = ? LIMIT 1`,
-      [lan]
-    );
+    const [rows] = await db
+      .promise()
+      .query(`SELECT * FROM loan_booking_finso WHERE lan = ? LIMIT 1`, [lan]);
 
     if (rows.length === 0) {
       return res.status(404).json({
         is_success: false,
-        error: { message: "LAN not found.", code: "not_found" }
+        error: { message: "LAN not found.", code: "not_found" },
       });
     }
 
@@ -5469,7 +5471,7 @@ router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
         `UPDATE loan_booking_finso 
          SET status = 'OPS_REJECTED', ops_checker_id = ?, ops_checker_name = ?
          WHERE lan = ?`,
-        [ops_checker_id || null, ops_checker_name || null, lan]
+        [ops_checker_id || null, ops_checker_name || null, lan],
       );
       return res.json({
         status: "SUCCESS",
@@ -5482,13 +5484,13 @@ router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
         `UPDATE loan_booking_finso 
          SET ops_checker_id = ?, ops_checker_name = ?
          WHERE lan = ?`,
-        [ops_checker_id, ops_checker_name, lan]
+        [ops_checker_id, ops_checker_name, lan],
       );
     }
 
     const payoutResult = await approveAndInitiatePayout({
       lan,
-      table: "loan_booking_finso"
+      table: "loan_booking_finso",
     });
 
     if (!payoutResult.success) {
@@ -5500,10 +5502,14 @@ router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
 
     return res.json({
       status: "SUCCESS",
-      message: "Loan approved by operations checker and payout initiated successfully",
+      message:
+        "Loan approved by operations checker and payout initiated successfully",
     });
   } catch (err) {
-    console.error("❌ Error approving FINCREST loan by operations checker:", err);
+    console.error(
+      "❌ Error approving FINCREST loan by operations checker:",
+      err,
+    );
     return res.status(500).json({
       status: "FAILED",
       message: err.message || "Failed to approve loan by operations checker",
@@ -6231,8 +6237,6 @@ function isSterlionPartner(req) {
   return (req.partner?.name || "").toLowerCase().trim() === "sterlion";
 }
 
-
-
 router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
   try {
     const partner = req.partner.name || {};
@@ -6367,7 +6371,6 @@ router.get("/v1/carepay-hospitals-list", verifyApiKey, async (req, res) => {
     });
   }
 });
-
 
 router.get("/carepay-hospitals", async (req, res) => {
   try {
@@ -6750,7 +6753,6 @@ async function persistCarePayBureauResult(lan, data) {
 //         .status(400)
 //         .json({ message: "Missing fields: request_amount" });
 //     }
- 
 
 //     const requestAmount = Number(rawRequestAmount);
 
@@ -7271,7 +7273,8 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
       return res.status(400).json({
         status: "Failed",
-        message: "PAN already exists with an active loan. New loan not allowed.",
+        message:
+          "PAN already exists with an active loan. New loan not allowed.",
       });
     }
 
@@ -7541,10 +7544,12 @@ async function persistSterlionBureauAndBre(lan, data) {
     }
 
     if (score !== null) {
-      await db.promise().execute(
-        "UPDATE loan_booking_sterlion SET cibil_score_fintree = ? WHERE lan = ?",
-        [score, lan],
-      );
+      await db
+        .promise()
+        .execute(
+          "UPDATE loan_booking_sterlion SET cibil_score_fintree = ? WHERE lan = ?",
+          [score, lan],
+        );
     }
 
     try {
@@ -7561,7 +7566,10 @@ async function persistSterlionBureauAndBre(lan, data) {
         [bureauResult.success ? "VERIFIED" : "FAILED", report, lan],
       );
     } catch (kycErr) {
-      console.error("Sterlion KYC bureau status update failed:", kycErr.message);
+      console.error(
+        "Sterlion KYC bureau status update failed:",
+        kycErr.message,
+      );
     }
   } catch (err) {
     console.error("Sterlion bureau hard pull failed:", err.message);
@@ -7703,10 +7711,7 @@ router.post("/v1/sterlion-lb", verifyApiKey, async (req, res) => {
     }
 
     const businessVintageMonths = Number(data.business_vintage_months);
-    if (
-      !Number.isFinite(businessVintageMonths) ||
-      businessVintageMonths < 0
-    ) {
+    if (!Number.isFinite(businessVintageMonths) || businessVintageMonths < 0) {
       return res.status(400).json({
         message: "Invalid business_vintage_months",
       });
@@ -7777,7 +7782,8 @@ router.post("/v1/sterlion-lb", verifyApiKey, async (req, res) => {
     if (netDisbursement < 0) {
       return res.status(400).json({
         status: "Failed",
-        message: "Invalid net_disbursement. Processing fee cannot exceed request amount.",
+        message:
+          "Invalid net_disbursement. Processing fee cannot exceed request amount.",
       });
     }
 
@@ -7833,14 +7839,17 @@ router.post("/v1/sterlion-lb", verifyApiKey, async (req, res) => {
 
       return res.status(400).json({
         status: "Failed",
-        message: "PAN already exists with an active loan. New loan not allowed.",
+        message:
+          "PAN already exists with an active loan. New loan not allowed.",
       });
     }
 
     const { lan } = await generateLoanIdentifiers(lenderType);
     const customer_name = `${data.first_name || ""} ${data.middle_name || ""} ${
       data.last_name || ""
-    }`.replace(/\s+/g, " ").trim();
+    }`
+      .replace(/\s+/g, " ")
+      .trim();
     const product = nullableString(data.loan_type) || "Unsecured Business Loan";
     const agreement_date = data.login_date;
 
@@ -7874,8 +7883,7 @@ router.post("/v1/sterlion-lb", verifyApiKey, async (req, res) => {
       current_pincode: data.current_pincode,
 
       permanent_address: data.permanent_address || data.current_address,
-      permanent_village_city:
-        data.permanent_village_city || currentVillageCity,
+      permanent_village_city: data.permanent_village_city || currentVillageCity,
       permanent_district:
         data.permanent_district || nullableString(data.current_district),
       permanent_state: data.permanent_state || data.current_state,
@@ -7990,7 +7998,6 @@ router.post("/v1/sterlion-lb", verifyApiKey, async (req, res) => {
   }
 });
 
-
 //////////////////emiclub missed cibil cases temporary route////////////////
 
 router.post("/v1/emiclub-cibil-retry", async (req, res) => {
@@ -7999,13 +8006,11 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
   );
   const limit = req.body.limit || 10; // default 10 at a time
   try {
-    const [rows] = await db
-      .promise()
-      .query(
-        `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
-        // `SELECT * FROM loan_booking_clayyo WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
-        [limit],
-      );
+    const [rows] = await db.promise().query(
+      `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+      // `SELECT * FROM loan_booking_clayyo WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+      [limit],
+    );
 
     if (!rows.length) {
       return res.json({
@@ -8071,6 +8076,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
         current_village_city,
         current_state,
         current_pincode,
+        monthly_salary,
       } = row;
 
       console.log(`\n🚀 Processing LAN: ${lan} (PAN: ${pan_number})`);
@@ -8108,43 +8114,130 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
         continue; // move to next case
       }
 
+      //       const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+      //    <soapenv:Header/>
+      //    <soapenv:Body>
+      //       <urn:process>
+      //          <urn:in>
+      //             <INProfileRequest>
+      //               <Identification>
+      //                 <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+      //                 <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+      //               </Identification>
+      //               <Application>
+      //                 <FTReferenceNumber>${String(lan).replace(/\D/g, '').slice(-6)}</FTReferenceNumber>
+      //                 <EnquiryReason>13</EnquiryReason>
+      //                 <FinancePurpose>99</FinancePurpose>
+      //                 <AmountFinanced>${loan_amount}</AmountFinanced>
+      //                 <DurationOfAgreement>${loan_tenure}</DurationOfAgreement>
+      //                 <ScoreFlag>3</ScoreFlag>
+      //                 <PSVFlag>0</PSVFlag>
+      //               </Application>
+      //               <Applicant>
+      //                 <Surname>${(last_name || "").toUpperCase()}</Surname>
+      //                 <FirstName>${(first_name || "").toUpperCase()}</FirstName>
+      //                 <GenderCode>${gender_code}</GenderCode>
+      //                 <IncomeTaxPAN>${pan_number}</IncomeTaxPAN>
+      //                 <DateOfBirth>${dobFormatted}</DateOfBirth>
+      //                 <PhoneNumber>${mobile_number}</PhoneNumber>
+      //               </Applicant>
+      //               <Address>
+      //                 <FlatNoPlotNoHouseNo>${current_address}</FlatNoPlotNoHouseNo>
+      //                 <City>${current_village_city}</City>
+      //                 <State>${state_code}</State>
+      //                 <PinCode>${current_pincode}</PinCode>
+      //               </Address>
+      //             </INProfileRequest>
+      //          </urn:in>
+      //       </urn:process>
+      //    </soapenv:Body>
+      // </soapenv:Envelope>`;
+
       const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <urn:process>
-         <urn:in>
-            <INProfileRequest>
-              <Identification>
-                <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-                <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-              </Identification>
-              <Application>
-                <FTReferenceNumber>${String(lan).replace(/\D/g, '').slice(-6)}</FTReferenceNumber>
-                <EnquiryReason>13</EnquiryReason>
-                <FinancePurpose>99</FinancePurpose>
-                <AmountFinanced>${loan_amount}</AmountFinanced>
-                <DurationOfAgreement>${loan_tenure}</DurationOfAgreement>
-                <ScoreFlag>3</ScoreFlag>
-                <PSVFlag>0</PSVFlag>
-              </Application>
-              <Applicant>
-                <Surname>${(last_name || "").toUpperCase()}</Surname>
-                <FirstName>${(first_name || "").toUpperCase()}</FirstName>
-                <GenderCode>${gender_code}</GenderCode>
-                <IncomeTaxPAN>${pan_number}</IncomeTaxPAN>
-                <DateOfBirth>${dobFormatted}</DateOfBirth>
-                <PhoneNumber>${mobile_number}</PhoneNumber>
-              </Applicant>
-              <Address>
-                <FlatNoPlotNoHouseNo>${current_address}</FlatNoPlotNoHouseNo>
-                <City>${current_village_city}</City>
-                <State>${state_code}</State>
-                <PinCode>${current_pincode}</PinCode>
-              </Address>
-            </INProfileRequest>
-         </urn:in>
-      </urn:process>
-   </soapenv:Body>
+<soapenv:Header/>
+<soapenv:Body>
+  <urn:process>
+    <urn:in>
+      <INProfileRequest>
+        <Identification>
+          <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+          <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+        </Identification>
+        <Application>
+          <FTReferenceNumber>${String(lan).replace(/\D/g, "").slice(-6)}</FTReferenceNumber>
+          <CustomerReferenceID/>
+          <EnquiryReason>13</EnquiryReason>
+          <FinancePurpose>99</FinancePurpose>
+          <AmountFinanced>${loan_amount}</AmountFinanced>
+          <DurationOfAgreement>${loan_tenure}</DurationOfAgreement>
+          <ScoreFlag>3</ScoreFlag>
+          <PSVFlag>0</PSVFlag>
+        </Application>
+        <Applicant>
+          <Surname>${(last_name || "").toUpperCase()}</Surname>
+          <FirstName>${(first_name || "").toUpperCase()}</FirstName>
+          <MiddleName1>${middle_name ? middle_name.toUpperCase() : ""}</MiddleName1>
+          <MiddleName2/>
+          <MiddleName3/>
+          <GenderCode>${gender_code}</GenderCode>
+          <IncomeTaxPAN>${pan_number}</IncomeTaxPAN>
+          <PANIssueDate/>
+          <PANExpirationDate/>
+          <PassportNumber/>
+          <PassportIssueDate/>
+          <PassportExpirationDate/>
+          <VoterIdentityCard/>
+          <VoterIDIssueDate/>
+          <VoterIDExpirationDate/>
+          <DriverLicenseNumber/>
+          <DriverLicenseIssueDate/>
+          <DriverLicenseExpirationDate/>
+          <RationCardNumber/>
+          <RationCardIssueDate/>
+          <RationCardExpirationDate/>
+          <UniversalIDNumber/>
+          <UniversalIDIssueDate/>
+          <UniversalIDExpirationDate/>
+          <DateOfBirth>${dobFormatted}</DateOfBirth>
+          <STDPhoneNumber/>
+          <PhoneNumber/>
+          <TelephoneExtension/>
+          <TelephoneType/>
+          <MobilePhone>${mobile_number}</MobilePhone>
+          <EMailId/>
+        </Applicant>
+        <Details>
+          <Income>${monthly_salary}</Income>
+          <MaritalStatus/>
+          <EmployStatus/>
+          <TimeWithEmploy/>
+          <NumberOfMajorCreditCardHeld/>
+        </Details>
+        <Address>
+          <FlatNoPlotNoHouseNo>${current_address}</FlatNoPlotNoHouseNo>
+          <BldgNoSocietyName/>
+          <RoadNoNameAreaLocality/>
+          <City>${current_village_city}</City>
+          <Landmark/>
+          <State>${state_code}</State>
+          <PinCode>${current_pincode}</PinCode>
+        </Address>
+        <AdditionalAddressFlag>
+          <Flag>N</Flag>
+        </AdditionalAddressFlag>
+        <AdditionalAddress>
+          <FlatNoPlotNoHouseNo/>
+          <BldgNoSocietyName/>
+          <RoadNoNameAreaLocality/>
+          <City/>
+          <Landmark/>
+          <State/>
+          <PinCode/>
+        </AdditionalAddress>
+      </INProfileRequest>
+    </urn:in>
+  </urn:process>
+</soapenv:Body>
 </soapenv:Envelope>`;
 
       try {
@@ -8195,19 +8288,18 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
           [lan, pan_number, score, decoded],
         );
 
-        // await db.promise().query(
-        //   `INSERT INTO kyc_verification_status (lan, report_xml, created_at)
-        //      VALUES (?,?,NOW())`,
-        //   [lan,decoded],
-        // );
+        await db.promise().query(
+          `INSERT INTO kyc_verification_status (lan, bureau_status, bureau_api_response)
+   VALUES (?, 'VERIFIED', ?)
+   ON DUPLICATE KEY UPDATE bureau_status='VERIFIED', bureau_api_response=VALUES(bureau_api_response)`,
+          [lan, decoded],
+        );
 
-        await db
-          .promise()
-          .execute(
-            `UPDATE loan_booking_loan_digit SET fintree_cibil_score = ? WHERE lan = ?`,
-            // `UPDATE loan_booking_clayyo SET cibil_score = ? WHERE lan = ?`,
-            [score, lan],
-          );
+        await db.promise().execute(
+          `UPDATE loan_booking_loan_digit SET fintree_cibil_score = ? WHERE lan = ?`,
+          // `UPDATE loan_booking_clayyo SET cibil_score = ? WHERE lan = ?`,
+          [score, lan],
+        );
 
         console.log(`✅ CIBIL fetched for ${lan} → Score: ${score}`);
         results.push({ lan, pan_number, score, status: "success" });
