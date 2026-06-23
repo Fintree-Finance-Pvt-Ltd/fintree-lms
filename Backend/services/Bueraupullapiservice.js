@@ -115,8 +115,7 @@ const runBureau = async (data) => {
     const gender_code = data.gender?.toLowerCase() === "female" ? 2 : 1;
 
     const state_code =
-      STATE_CODES[data.current_state?.toUpperCase().trim()] ??
-      STATE_CODES["MAHARASHTRA"];
+      STATE_CODES[data.current_state?.toUpperCase().trim()] ?? "27"; // Default to Maharashtra if not found
 
     const firstName = data.first_name.trim().toUpperCase();
     const lastName = data.last_name.trim().toUpperCase();
