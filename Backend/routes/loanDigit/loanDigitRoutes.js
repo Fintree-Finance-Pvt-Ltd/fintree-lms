@@ -599,14 +599,14 @@ token_auth_type,
 </Identification>
 
 <Application>
-<FTReferenceNumber>${lan}</FTReferenceNumber>
+<FTReferenceNumber>${String(lan).replace(/\D/g, '').slice(-6)}</FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>05</EnquiryReason>
+        <EnquiryReason>13</EnquiryReason>
         <FinancePurpose>99</FinancePurpose>
         <AmountFinanced>${loan_amount}</AmountFinanced>
         <DurationOfAgreement>${loan_tenure}</DurationOfAgreement>
-        <ScoreFlag>1</ScoreFlag>
-        <PSVFlag></PSVFlag>
+        <ScoreFlag>3</ScoreFlag>
+        <PSVFlag>0</PSVFlag>
 </Application>
 
    <Applicant>
@@ -636,10 +636,10 @@ token_auth_type,
         <UniversalIDExpirationDate></UniversalIDExpirationDate>
         <DateOfBirth>${dobFormatted}</DateOfBirth>
         <STDPhoneNumber></STDPhoneNumber>
-        <PhoneNumber>${mobile_number}</PhoneNumber>
+        <PhoneNumber></PhoneNumber>
         <TelephoneExtension></TelephoneExtension>
         <TelephoneType></TelephoneType>
-        <MobilePhone></MobilePhone>
+        <MobilePhone>${mobile_number}</MobilePhone>
         <EMailId></EMailId>
     </Applicant>
 
