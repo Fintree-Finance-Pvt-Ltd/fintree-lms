@@ -215,7 +215,7 @@ app.post("/api/runfinsovalidations", async (req, res) => {
 
     res.json({
       ok: true,
-      message: `FINSO validations executed successfully for LAN ${lan}`,
+      message: `FINCREST validations executed successfully for LAN ${lan}`,
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

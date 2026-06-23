@@ -4799,7 +4799,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     ) {
       return res
         .status(403)
-        .json({ message: "This route is only for Finso partner." });
+        .json({ message: "This route is only for FINCREST partner." });
     }
     // ✅ Extract lender from header (case-insensitive)
     const lenderTypeRaw = req.headers["x-lender"] ?? req.headers["lender"];
@@ -4808,11 +4808,11 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     if (!lenderType) {
       return res
         .status(400)
-        .json({ message: "Lender header is required (x-lender: Finso)." });
+        .json({ message: "Lender header is required (x-lender: FINCREST)." });
     }
     if (lenderType.toLowerCase() !== "finso") {
       return res.status(400).json({
-        message: `Invalid lender: ${lenderType}. Only 'Finso' loans can be inserted.`,
+        message: `Invalid lender: ${lenderType}. Only 'FINCREST' loans can be inserted.`,
       });
     }
 
@@ -5067,7 +5067,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
             partner.partner_id,
             lan,
             requiredFldg,
-            `Finso Loan reservation | Amount: ${loanAmount}`,
+            `FINCREST Loan reservation | Amount: ${loanAmount}`,
           );
         }
 
@@ -5214,7 +5214,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
    </soapenv:Body>
 </soapenv:Envelope>`;
 
-        console.log("📨 Sending SOAP request (Finso)...");
+        console.log("📨 Sending SOAP request (FINCREST)...");
 
         let score = null;
         let parsedXmlToStore = null;
@@ -5267,7 +5267,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
             score = scoreStr ? Number(scoreStr) : null;
 
-            console.log("🎯 FINSO CIBIL SCORE =", score);
+            console.log("🎯 FINCREST CIBIL SCORE =", score);
           }
 
           await db.promise().query(
@@ -5295,13 +5295,13 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
             );
           } catch (kycErr) {
             console.error(
-              "⚠️ KYC row upsert failed for FINSO BRE:",
+              "⚠️ KYC row upsert failed for FINCREST BRE:",
               kycErr.message,
             );
           }
           // ─────────────────────────────────────────────────────────────────
 
-          console.log("✅ CIBIL saved for FINSO LAN:", lan);
+          console.log("✅ CIBIL saved for FINCREST LAN:", lan);
         } catch (err) {
           console.error("⚠️ CIBIL Pull Failed:", err.message);
           console.error("➡️ Status:", err.response?.status);
@@ -5310,7 +5310,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
         // ── Fire Finso BRE engine after bureau (async, non-blocking) ─────────
         autoRunFinsoBreIfReady(lan).catch((breErr) => {
-          console.error(`❌ Finso BRE Engine failed for LAN ${lan}:`, breErr);
+          console.error(`❌ FINCREST BRE Engine failed for LAN ${lan}:`, breErr);
         });
         // ─────────────────────────────────────────────────────────────────────
 
@@ -5319,7 +5319,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         //////////////////////////////////////////
 
         results.push({
-          message: "Finso loan saved successfully.",
+          message: "FINCREST loan saved successfully.",
           partner_loan_id: data.partner_loan_id,
           lan,
         });
@@ -5347,12 +5347,12 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     }
 
     return res.json({
-      message: "Finso upload completed.",
+      message: "FINCREST upload completed.",
       results,
       row_errors,
     });
   } catch (error) {
-    console.error("❌ Error in Finso JSON Upload:", {
+    console.error("❌ Error in FINCREST JSON Upload:", {
       code: error.code,
       errno: error.errno,
       sqlState: error.sqlState,
@@ -5372,7 +5372,7 @@ router.get("/v1/finso-lan-status/:lan", verifyApiKey, async (req, res) => {
       (req.partner.name || "").toLowerCase().trim() !== "finso"
     ) {
       return res.status(403).json({
-        message: "This route is only for Finso partner.",
+        message: "This route is only for FINCREST partner.",
       });
     }
 
@@ -5432,7 +5432,7 @@ router.get("/v1/finso-customer-details/:lan", async (req, res) => {
       data: rows[0],
     });
   } catch (error) {
-    console.error("❌ Error fetching finso customer details:", error);
+    console.error("❌ Error fetching FINCREST customer details:", error);
     return res.status(500).json({
       is_success: false,
       error: { message: "Failed to fetch details", details: error.message },
@@ -5451,7 +5451,7 @@ router.get("/v1/finso-ops-maker-approved-loans", async (req, res) => {
     const [rows] = await db.promise().query(query);
     return res.json({ data: rows });
   } catch (err) {
-    console.error("❌ Error fetching ops maker approved finso loans:", err);
+    console.error("❌ Error fetching ops maker approved FINCREST loans:", err);
     return res.status(500).json({
       status: "FAILED",
       message: "Unable to fetch ops maker approved loans",
@@ -5503,7 +5503,7 @@ router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
       message: "Loan approved by operations checker and payout initiated successfully",
     });
   } catch (err) {
-    console.error("❌ Error approving Finso loan by operations checker:", err);
+    console.error("❌ Error approving FINCREST loan by operations checker:", err);
     return res.status(500).json({
       status: "FAILED",
       message: err.message || "Failed to approve loan by operations checker",
@@ -5521,7 +5521,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
     ) {
       return res
         .status(403)
-        .json({ message: "This route is only for Finso partner." });
+        .json({ message: "This route is only for FINCREST partner." });
     }
 
     const lenderTypeRaw = req.headers["x-lender"] ?? req.headers["lender"];
@@ -5534,7 +5534,7 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
     }
     if (lenderType.toLowerCase() !== "finso") {
       return res.status(400).json({
-        message: `Invalid lender: ${lenderType}. Only 'Finso' loans can be inserted.`,
+        message: `Invalid lender: ${lenderType}. Only 'FINCREST' loans can be inserted.`,
       });
     }
 
@@ -5607,17 +5607,17 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
       await db.promise().query(UPDATE_SQL, values);
 
       results.push({
-        message: "Finso loan bank details updated successfully.",
+        message: "FINCREST loan bank details updated successfully.",
         lan: data.lan,
       });
     }
 
     return res.json({
-      message: "Finso bank details processed successfully.",
+      message: "FINCREST bank details processed successfully.",
       results,
     });
   } catch (error) {
-    console.error("❌ Error in Finso JSON Upload:", error);
+    console.error("❌ Error in FINCREST JSON Upload:", error);
     return res.status(500).json({
       message: "Upload failed. Please try again.",
       error: error.sqlMessage || error.message,

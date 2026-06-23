@@ -650,7 +650,7 @@ const autoRunFinsoBreIfReady = async (lan) => {
   );
 
   if (!loanRows.length) {
-    console.log("Finso loan not found:", lan);
+    console.log("FINCREST loan not found:", lan);
     return;
   }
 
