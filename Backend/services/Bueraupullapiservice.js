@@ -46,13 +46,18 @@ function validatePincode(pincode) {
 }
 
 function validatePAN(pan) {
-  if (!pan) throw new Error("PAN number is required.");
-  const p = String(pan).trim().toUpperCase();
-  const panRegex = /^[A-Z]{3}[PФCAHBLJ][A-Z]\d{4}[A-Z]$/;
-  if (p.length !== 10 || !panRegex.test(p)) {
-    throw new Error(`Invalid PAN: ${pan}`);
+  if (!pan || !String(pan).trim()) {
+    throw new Error("PAN number is required.");
   }
-  return p;
+
+  const normalizedPAN = String(pan).trim().toUpperCase();
+  const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+  if (!panRegex.test(normalizedPAN)) {
+    throw new Error(`Invalid PAN format: ${pan}`);
+  }
+  
+  return normalizedPAN;
 }
 // State Code Mapping ( YOUR EXISTING MAPPING )
 const STATE_CODES = {
