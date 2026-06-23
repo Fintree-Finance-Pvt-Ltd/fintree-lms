@@ -8002,8 +8002,8 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
     const [rows] = await db
       .promise()
       .query(
-        // `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
-        `SELECT * FROM loan_booking_clayyo WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+        `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+        // `SELECT * FROM loan_booking_clayyo WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
         [limit],
       );
 
@@ -8119,11 +8119,13 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
                 <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
               </Identification>
               <Application>
-                <EnquiryReason>06</EnquiryReason>
+                <FTReferenceNumber>${String(lan).replace(/\D/g, '').slice(-6)}</FTReferenceNumber>
+                <EnquiryReason>13</EnquiryReason>
                 <FinancePurpose>99</FinancePurpose>
                 <AmountFinanced>${loan_amount}</AmountFinanced>
                 <DurationOfAgreement>${loan_tenure}</DurationOfAgreement>
-                <ScoreFlag>1</ScoreFlag>
+                <ScoreFlag>3</ScoreFlag>
+                <PSVFlag>0</PSVFlag>
               </Application>
               <Applicant>
                 <Surname>${(last_name || "").toUpperCase()}</Surname>
@@ -8202,8 +8204,8 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
         await db
           .promise()
           .execute(
-            // `UPDATE loan_booking_loan_digit SET fintree_cibil_score = ? WHERE lan = ?`,
-            `UPDATE loan_booking_clayyo SET cibil_score = ? WHERE lan = ?`,
+            `UPDATE loan_booking_loan_digit SET fintree_cibil_score = ? WHERE lan = ?`,
+            // `UPDATE loan_booking_clayyo SET cibil_score = ? WHERE lan = ?`,
             [score, lan],
           );
 
