@@ -1029,7 +1029,7 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
       bureauFacts.hasDpd30Plus12M || bureauFacts.hasOverdue12M ? 1 : 0,
       bureauFacts.hasWriteOffOrSettlement12M ? 1 : 0,
 
-      finalStage,
+      finalStatus,
       lan,
     ],
   );
