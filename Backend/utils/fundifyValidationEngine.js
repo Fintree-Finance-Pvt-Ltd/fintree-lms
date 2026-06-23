@@ -1,12 +1,16 @@
 const db = require("../config/db");
 const { getPanCardDetails } = require("../services/pancardapiservice");
 const { runBureau } = require("../services/Bueraupullapiservice");
-const { autoApproveFundifyIfAllVerified } = require("../routes/Fundify/fundifyBRE");
+const {
+  autoApproveFundifyIfAllVerified,
+} = require("../routes/Fundify/fundifyBRE");
 
 const FUNDIFY_TABLE = "loan_booking_fundify";
 
 function normalize(value) {
-  return String(value || "").trim().toUpperCase();
+  return String(value || "")
+    .trim()
+    .toUpperCase();
 }
 
 function emptyToNull(value) {
@@ -147,7 +151,7 @@ async function ensureKycRow({
       applicantData.customer_name,
       applicantData.mobile_number,
       applicantData.pan_number,
-    ]
+    ],
   );
 }
 
@@ -163,7 +167,7 @@ async function getCurrentKycStatus({ pool, lan, applicantType, partyNo }) {
       AND party_no = ?
     LIMIT 1
     `,
-    [lan, applicantType, partyNo]
+    [lan, applicantType, partyNo],
   );
 
   return rows[0] || {};
@@ -193,7 +197,7 @@ async function runPanValidation({
         lan,
         applicantType,
         partyNo,
-      ]
+      ],
     );
 
     return {
@@ -211,16 +215,16 @@ async function runPanValidation({
       AND applicant_type = ?
       AND party_no = ?
     `,
-    [lan, applicantType, partyNo]
+    [lan, applicantType, partyNo],
   );
 
   const panResult = await getPanCardDetails(
     applicantData.pan_number,
-    applicantData.customer_name
+    applicantData.customer_name,
   ).catch((err) => {
     console.error(
       `❌ Fundify ${applicantType}-${partyNo} PAN Error:`,
-      err?.response?.data || err
+      err?.response?.data || err,
     );
 
     return {
@@ -249,7 +253,7 @@ async function runPanValidation({
       lan,
       applicantType,
       partyNo,
-    ]
+    ],
   );
 
   if (sourceApplicantId) {
@@ -259,7 +263,7 @@ async function runPanValidation({
       SET pan_verified = ?
       WHERE id = ?
       `,
-      [panResult.success ? 1 : 0, sourceApplicantId]
+      [panResult.success ? 1 : 0, sourceApplicantId],
     );
   }
 
@@ -295,7 +299,7 @@ async function runBureauValidation({
         lan,
         applicantType,
         partyNo,
-      ]
+      ],
     );
 
     return {
@@ -313,11 +317,12 @@ async function runBureauValidation({
       AND applicant_type = ?
       AND party_no = ?
     `,
-    [lan, applicantType, partyNo]
+    [lan, applicantType, partyNo],
   );
 
   const bureauResult = await runBureau({
-    enquiry_reason: "61", // 05 - Credit Assessment
+    enquiry_reason: 3, // 05 - Credit Assessment
+    finance_purpose: 11, // 99 - Others
     customer_name: applicantData.customer_name,
     first_name: applicantData.first_name,
     last_name: applicantData.last_name,
@@ -356,7 +361,7 @@ async function runBureauValidation({
       AND applicant_type = ?
       AND party_no = ?
     `,
-    [bureauStatus, bureauResponse, lan, applicantType, partyNo]
+    [bureauStatus, bureauResponse, lan, applicantType, partyNo],
   );
 
   await pool.query(
@@ -381,7 +386,7 @@ async function runBureauValidation({
       applicantData.pan_number,
       bureauResult.score,
       bureauResponse,
-    ]
+    ],
   );
 
   if (bureauResult.score != null && sourceApplicantId) {
@@ -393,7 +398,7 @@ async function runBureauValidation({
         bureau_score = ?
       WHERE id = ?
       `,
-      [bureauResult.score, bureauResult.score, sourceApplicantId]
+      [bureauResult.score, bureauResult.score, sourceApplicantId],
     );
   }
 
@@ -406,7 +411,7 @@ async function runBureauValidation({
         bureau_score = ?
       WHERE lan = ?
       `,
-      [bureauResult.score, bureauResult.score, lan]
+      [bureauResult.score, bureauResult.score, lan],
     );
   }
 
@@ -431,7 +436,7 @@ async function runSingleFundifyApplicantValidation({ pool, loan, applicant }) {
   });
 
   console.log(
-    `🚀 Running Fundify ${applicantType}-${partyNo} validations for ${lan}`
+    `🚀 Running Fundify ${applicantType}-${partyNo} validations for ${lan}`,
   );
 
   await ensureKycRow({
@@ -475,7 +480,7 @@ async function runSingleFundifyApplicantValidation({ pool, loan, applicant }) {
     };
 
     console.log(
-      `⏭️ Fundify ${applicantType}-${partyNo} PAN skipped. Existing status: ${currentStatus.pan_status}`
+      `⏭️ Fundify ${applicantType}-${partyNo} PAN skipped. Existing status: ${currentStatus.pan_status}`,
     );
   }
 
@@ -495,7 +500,7 @@ async function runSingleFundifyApplicantValidation({ pool, loan, applicant }) {
     };
 
     console.log(
-      `⏭️ Fundify ${applicantType}-${partyNo} Bureau skipped. Existing status: ${currentStatus.bureau_status}`
+      `⏭️ Fundify ${applicantType}-${partyNo} Bureau skipped. Existing status: ${currentStatus.bureau_status}`,
     );
   }
 
@@ -506,7 +511,9 @@ exports.runFundifyPanBureauValidations = async (lan) => {
   const pool = db.promise();
 
   try {
-    console.log(`🚀 Starting Fundify PAN + Bureau Validation Engine for ${lan}`);
+    console.log(
+      `🚀 Starting Fundify PAN + Bureau Validation Engine for ${lan}`,
+    );
 
     const [loanRows] = await pool.query(
       `
@@ -514,7 +521,7 @@ exports.runFundifyPanBureauValidations = async (lan) => {
       FROM ${FUNDIFY_TABLE}
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
     if (!loanRows.length) {
@@ -538,7 +545,7 @@ exports.runFundifyPanBureauValidations = async (lan) => {
                party_no,
                id
       `,
-      [lan]
+      [lan],
     );
 
     if (!applicants.length) {
@@ -574,15 +581,20 @@ exports.runFundifyPanBureauValidations = async (lan) => {
         updated_at = CURRENT_TIMESTAMP
       WHERE lan = ?
       `,
-      [lan]
+      [lan],
     );
 
-    console.log(`✅ Fundify PAN + Bureau Validation Engine completed for ${lan}`);
+    console.log(
+      `✅ Fundify PAN + Bureau Validation Engine completed for ${lan}`,
+    );
 
     // ── Trigger BRE engine after PAN + Bureau completes ──────────────────────
     // This runs asynchronously so it does NOT block the PAN/Bureau response.
     autoApproveFundifyIfAllVerified(lan).catch((breErr) => {
-      console.error(`❌ Fundify BRE Engine failed after PAN+Bureau for ${lan}:`, breErr);
+      console.error(
+        `❌ Fundify BRE Engine failed after PAN+Bureau for ${lan}:`,
+        breErr,
+      );
     });
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -594,7 +606,7 @@ exports.runFundifyPanBureauValidations = async (lan) => {
   } catch (err) {
     console.error(
       `❌ Fundify PAN + Bureau Validation Engine failed for ${lan}:`,
-      err
+      err,
     );
 
     return {

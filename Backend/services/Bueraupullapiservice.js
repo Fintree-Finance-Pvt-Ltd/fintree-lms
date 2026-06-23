@@ -21,6 +21,39 @@ function formatDobForExperian(dob) {
   return cleaned.slice(0, 8); // ensure length 8
 }
 
+function validateMobile(mobile) {
+  const digits = String(mobile).replace(/\D/g, "");
+  if (digits.length < 10) {
+    throw new Error(
+      `Invalid mobile number: ${mobile}. Must be at least 10 digits.`,
+    );
+  }
+  // Remove country code if present (e.g. 91XXXXXXXXXX → XXXXXXXXXX)
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+function validatePincode(pincode) {
+  const p = String(pincode).trim();
+  if (p.length < 6) {
+    throw new Error(`Invalid pincode: ${pincode}. Must be at least 6 digits.`);
+  }
+  if (p.slice(-3) === "000") {
+    throw new Error(
+      `Invalid pincode: ${pincode}. Last 3 digits cannot be 000.`,
+    );
+  }
+  return p;
+}
+
+function validatePAN(pan) {
+  if (!pan) throw new Error("PAN number is required.");
+  const p = String(pan).trim().toUpperCase();
+  const panRegex = /^[A-Z]{3}[PФCAHBLJ][A-Z]\d{4}[A-Z]$/;
+  if (p.length !== 10 || !panRegex.test(p)) {
+    throw new Error(`Invalid PAN: ${pan}`);
+  }
+  return p;
+}
 // State Code Mapping ( YOUR EXISTING MAPPING )
 const STATE_CODES = {
   "JAMMU AND KASHMIR": "01",
@@ -68,18 +101,45 @@ const runBureau = async (data) => {
     // -----------------------------
     // Format required fields
     //  -----------------------------
+    if (!data.first_name) throw new Error("first_name is required.");
+    if (!data.last_name) throw new Error("last_name is required.");
+    if (!data.dob) throw new Error("dob is required.");
+    if (!data.current_address) throw new Error("current_address is required.");
+    if (!data.current_village_city)
+      throw new Error("current_village_city is required.");
+    if (!data.current_pincode) throw new Error("current_pincode is required.");
+    if (!data.mobile_number) throw new Error("mobile_number is required.");
+    if (!data.pan_number) throw new Error("pan_number is required.");
 
     const dobFormatted = formatDobForExperian(data.dob);
-    const gender_code = data.gender === "Female" ? 2 : 1;
+    const gender_code = data.gender?.toLowerCase() === "female" ? 2 : 1;
 
     const state_code =
-      STATE_CODES[data.current_state?.toUpperCase()] ??
+      STATE_CODES[data.current_state?.toUpperCase().trim()] ??
       STATE_CODES["MAHARASHTRA"];
 
-    const firstName = data.first_name.toUpperCase();
-    const lastName = data.last_name.toUpperCase();
+    const firstName = data.first_name.trim().toUpperCase();
+    const lastName = data.last_name.trim().toUpperCase();
+    const middleName = data.middle_name
+      ? data.middle_name.trim().toUpperCase()
+      : "";
 
-    console.log(dobFormatted, gender_code, firstName, lastName);
+    const pan = validatePAN(data.pan_number);
+    const mobile = validateMobile(data.mobile_number);
+    const pincode = validatePincode(data.current_pincode);
+
+    // Loan amount — must be numeric
+    const loanAmount = Number(data.loan_amount);
+    if (isNaN(loanAmount)) throw new Error("loan_amount must be numeric.");
+
+    // Duration — must be numeric, max 3 digits
+    const loanTenure = Number(data.loan_tenure);
+    if (isNaN(loanTenure)) throw new Error("loan_tenure must be numeric.");
+
+    const enquiryReason = data.enquiry_reason || 13;
+    const financePurpose = data.finance_purpose || 99;
+
+    console.log(dobFormatted, gender_code, firstName, lastName, state_code);
 
     // -----------------------------
     // YOUR EXACT SOAP XML (NO REMOVALS)
@@ -96,61 +156,61 @@ const runBureau = async (data) => {
        <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
     </Identification>
     <Application>
-        <FTReferenceNumber></FTReferenceNumber>
-        <CustomerReferenceID></CustomerReferenceID>
-        <EnquiryReason>${data.enquiry_reason || 13}</EnquiryReason> 
-        <FinancePurpose>99</FinancePurpose>
-        <AmountFinanced>${data.loan_amount}</AmountFinanced>
-        <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-        <ScoreFlag>1</ScoreFlag>
-        <PSVFlag></PSVFlag>
+        <FTReferenceNumber/>
+        <CustomerReferenceID/>
+        <EnquiryReason>${enquiryReason}</EnquiryReason> 
+        <FinancePurpose>${financePurpose}</FinancePurpose>
+        <AmountFinanced>${loanAmount}</AmountFinanced>
+        <DurationOfAgreement>${loanTenure}</DurationOfAgreement>
+        <ScoreFlag>3</ScoreFlag>
+        <PSVFlag>0</PSVFlag>
     </Application>
     <Applicant>
         <Surname>${lastName}</Surname>
         <FirstName>${firstName}</FirstName>
-        <MiddleName1></MiddleName1>
-        <MiddleName2></MiddleName2>
-        <MiddleName3></MiddleName3>
+        <MiddleName1>${middleName}</MiddleName1>
+        <MiddleName2/>
+        <MiddleName3/>
         <GenderCode>${gender_code}</GenderCode>
-        <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
-        <PANIssueDate></PANIssueDate>
-        <PANExpirationDate></PANExpirationDate>
-        <PassportNumber></PassportNumber>
-        <PassportIssueDate></PassportIssueDate>
-        <PassportExpirationDate></PassportExpirationDate>
-        <VoterIdentityCard></VoterIdentityCard>
-        <VoterIDIssueDate></VoterIDIssueDate>
-        <VoterIDExpirationDate></VoterIDExpirationDate>
-        <DriverLicenseNumber></DriverLicenseNumber>
-        <DriverLicenseIssueDate></DriverLicenseIssueDate>
-        <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
-        <RationCardNumber></RationCardNumber>
-        <RationCardIssueDate></RationCardIssueDate>
-        <RationCardExpirationDate></RationCardExpirationDate>
-        <UniversalIDNumber></UniversalIDNumber>
-        <UniversalIDIssueDate></UniversalIDIssueDate>
-        <UniversalIDExpirationDate></UniversalIDExpirationDate>
+        <IncomeTaxPAN>${pan}</IncomeTaxPAN>
+        <PANIssueDate/>
+        <PANExpirationDate/>
+        <PassportNumber/>
+        <PassportIssueDate/>
+        <PassportExpirationDate/>
+        <VoterIdentityCard/>
+        <VoterIDIssueDate/>
+        <VoterIDExpirationDate/>
+        <DriverLicenseNumber/>
+        <DriverLicenseIssueDate/>
+        <DriverLicenseExpirationDate/>
+        <RationCardNumber/>
+        <RationCardIssueDate/>
+        <RationCardExpirationDate/>
+        <UniversalIDNumber/>
+        <UniversalIDIssueDate/>
+        <UniversalIDExpirationDate/>
         <DateOfBirth>${dobFormatted}</DateOfBirth>
-        <STDPhoneNumber></STDPhoneNumber>
-        <PhoneNumber>${data.mobile_number}</PhoneNumber>
-        <TelephoneExtension></TelephoneExtension>
-        <TelephoneType></TelephoneType>
-        <MobilePhone></MobilePhone>
-        <EMailId></EMailId>
+        <STDPhoneNumber/>
+        <PhoneNumber/>
+        <TelephoneExtension/>
+        <TelephoneType/>
+        <MobilePhone>${mobile}</MobilePhone>
+        <EMailId/>
     </Applicant>
     <Details>
-        <Income></Income>
-        <MaritalStatus></MaritalStatus>
-        <EmployStatus></EmployStatus>
-        <TimeWithEmploy></TimeWithEmploy>
-        <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
+          <Income/>
+          <MaritalStatus/>
+          <EmployStatus/>
+          <TimeWithEmploy/>
+          <NumberOfMajorCreditCardHeld/>
     </Details>
     <Address>
         <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
-        <BldgNoSocietyName></BldgNoSocietyName>
-        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+            <BldgNoSocietyName/>
+            <RoadNoNameAreaLocality/>
         <City>${data.current_village_city}</City>
-        <Landmark></Landmark>
+            <Landmark/>
         <State>${state_code}</State>
         <PinCode>${data.current_pincode}</PinCode>
     </Address>
@@ -158,13 +218,13 @@ const runBureau = async (data) => {
         <Flag>N</Flag>
     </AdditionalAddressFlag>
     <AdditionalAddress>
-        <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
-        <BldgNoSocietyName></BldgNoSocietyName>
-        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-        <City></City>
-        <Landmark></Landmark>
-        <State></State>
-        <PinCode></PinCode>
+            <FlatNoPlotNoHouseNo/>
+            <BldgNoSocietyName/>
+            <RoadNoNameAreaLocality/>
+            <City/>
+            <Landmark/>
+            <State/>
+            <PinCode/>
     </AdditionalAddress>
 </INProfileRequest>
 </urn:in>
@@ -294,10 +354,10 @@ const runBureau = async (data) => {
       // Keep entity processing enabled, but raise limits for valid large bureau XML.
       processEntities: {
         enabled: true,
-        maxTotalExpansions: 200000,
-        maxExpandedLength: 20_000_000,
-        maxEntityCount: 200000,
-        maxEntitySize: 200000,
+        maxTotalExpansions: 500000,
+        maxExpandedLength: 50_000_000,
+        maxEntityCount: 500000,
+        maxEntitySize: 500000,
       },
     });
     const parsedOuter = parser.parse(response.data);
@@ -317,6 +377,12 @@ const runBureau = async (data) => {
 
     const decodedXml = he.decode(encodedInnerXml);
     const parsedInner = parser.parse(decodedXml);
+
+    const userMsg =
+      parsedInner?.INProfileResponse?.UserMessage?.UserMessageText;
+    if (userMsg) {
+      console.warn("⚠️ Bureau UserMessage:", userMsg);
+    }
 
     const scoreStr = parsedInner?.INProfileResponse?.SCORE?.BureauScore || null;
 
