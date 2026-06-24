@@ -1026,7 +1026,7 @@ router.get("/bre-approved-loans", async (req, res) => {
       `
       SELECT *
       FROM loan_booking_loan_digit
-      WHERE status = 'BRE_APPROVED'
+      WHERE status = 'BRE_APPROVED' OR status = 'BRE_REJECTED'
       ORDER BY id DESC
       `,
     );
@@ -1048,14 +1048,24 @@ router.get("/bre-approved-loans", async (req, res) => {
 
 router.put("/approve-initiate-loan/:lan", async (req, res) => {
   const { lan } = req.params;
+  const { status } = req.body;
+
+  const allowedStatuses = ["CREDIT_APPROVED", "CREDIT_REJECTED"];
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({
+      status: "FAILED",
+      message: "Invalid status value",
+    });
+  }
+
   try {
     const [result] = await db.promise().query(
       `
       UPDATE loan_booking_loan_digit
-      SET status = 'CREDIT_APPROVED'
-      WHERE lan = ? AND status = 'BRE_APPROVED'
+      SET status = ?
+      WHERE lan = ? AND status IN ('BRE_APPROVED', 'BRE_REJECTED')
       `,
-      [lan],
+      [status, lan],
     );
     if (result.affectedRows === 0) {
       return res.status(404).json({
@@ -1066,13 +1076,13 @@ router.put("/approve-initiate-loan/:lan", async (req, res) => {
 
     return res.json({
       status: "SUCCESS",
-      message: "Loan approved and initiated successfully",
+      message: `Loan ${status} successfully`,
     });
   } catch (err) {
     console.error("❌ Error approving Loan Digit:", err);
     return res.status(500).json({
       status: "FAILED",
-      message: "Failed to approve and initiate loan",
+      message: "Failed to update loan status",
       error: err.sqlMessage || err.message,
     });
   }
