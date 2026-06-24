@@ -1189,6 +1189,247 @@ router.post(
   },
 );
 
+router.post(
+  "/v1/:application_id/upload-files",
+  verifyApiKey,
+  upload.any(),
+  async (req, res) => {
+    try {
+      const { application_id } = req.params;
+      const { documents } = req.body;
+
+      console.log("==========================================");
+      console.log(`📥 [${new Date().toISOString()}] New request received`);
+      console.log(`📌 application_id: ${application_id}`);
+      console.log(`📦 Raw body:`, req.body);
+      console.log(`📁 Files received:`, req.files?.length || 0);
+      console.log("==========================================");
+
+      if (!application_id) {
+        console.log("❌ application_id is missing");
+        return res.status(400).json({ error: "application_id is required" });
+      }
+
+      // Step 1: Check if partner_loan_id exists and get the LAN
+      console.log(`🔍 Looking up partner_loan_id: ${application_id} in loan_booking_switch_my_loan...`);
+
+      const loanRecord = await new Promise((resolve, reject) => {
+        const sql = `
+          SELECT lan 
+          FROM loan_booking_switch_my_loan
+          WHERE partner_loan_id = ?
+          LIMIT 1
+        `;
+        db.query(sql, [application_id], (err, result) => {
+          if (err) {
+            console.log("❌ DB error while checking partner_loan_id:", err.message);
+            return reject(err);
+          }
+          console.log(`🗄️ DB result for partner_loan_id lookup:`, result);
+          resolve(result.length > 0 ? result[0] : null);
+        });
+      });
+
+      if (!loanRecord) {
+        console.log(`❌ No loan found for application_id: ${application_id}`);
+        return res.status(404).json({
+          error: "Invalid application_id",
+          message: `No loan found with partner_loan_id: ${application_id} in Switch My Loan`,
+        });
+      }
+
+      const lan = loanRecord.lan;
+      console.log(`✅ LAN found: ${lan} for application_id: ${application_id}`);
+
+      // Step 2: Parse documents
+      console.log("📄 Raw documents input:", documents);
+
+      let parsedDocs = documents;
+
+      if (typeof documents === "string") {
+        try {
+          parsedDocs = JSON.parse(documents);
+          console.log("✅ Documents parsed from string successfully");
+        } catch (e) {
+          console.log("❌ Failed to parse documents JSON:", e.message);
+          return res.status(400).json({ error: "Invalid documents JSON format" });
+        }
+      }
+
+      console.log("📄 Parsed documents:", JSON.stringify(parsedDocs, null, 2));
+
+      if (!Array.isArray(parsedDocs) || parsedDocs.length === 0) {
+        console.log("❌ documents[] is empty or not an array");
+        return res.status(400).json({ error: "documents[] is required" });
+      }
+
+      console.log(`📋 Total documents to process: ${parsedDocs.length}`);
+
+      // Step 3: Process each document
+      const errors = [];
+      const cleaned = [];
+      const now = new Date();
+
+      for (let i = 0; i < parsedDocs.length; i++) {
+        const d = parsedDocs[i] || {};
+        const doc_name = String(d.doc_name || "").trim();
+        const url = String(d.document_url || "").trim();
+        const doc_password = (d.doc_password ?? "").toString().trim();
+
+        console.log(`------------------------------------------`);
+        console.log(`🔄 Processing document [${i}]:`);
+        console.log(`   doc_name: ${doc_name}`);
+        console.log(`   document_url: ${url}`);
+        console.log(`   doc_password: ${doc_password ? "provided" : "not provided"}`);
+
+        if (!doc_name || !ALLOWED_DOCS.has(doc_name)) {
+          console.log(`❌ [${i}] Invalid doc_name: "${doc_name}"`);
+          errors.push({
+            index: i,
+            field: "doc_name",
+            reason: "Invalid doc_name",
+          });
+          continue;
+        }
+
+        let file_name = null;
+        let original_name = null;
+        let source_url = null;
+
+        // CASE 1: FILE UPLOAD
+        const uploadedFile = Array.isArray(req.files)
+          ? req.files.find((f) => f.fieldname === `documents[${i}][file]`)
+          : null;
+
+        if (uploadedFile) {
+          console.log(`📁 [${i}] File upload found:`, {
+            fieldname: uploadedFile.fieldname,
+            originalname: uploadedFile.originalname,
+            filename: uploadedFile.filename,
+            size: uploadedFile.size,
+          });
+
+          file_name = uploadedFile.filename;
+          original_name = uploadedFile.originalname;
+
+        } else if (url) {
+          // CASE 2: DOWNLOAD FROM URL
+          console.log(`⬇️  [${i}] No file uploaded. Downloading from URL: ${url}`);
+
+          try {
+            const resp = await axios.get(url, {
+              responseType: "arraybuffer",
+              timeout: 30000, // 30 second timeout
+            });
+
+            console.log(`✅ [${i}] Download successful!`);
+            console.log(`   Status: ${resp.status}`);
+            console.log(`   Size: ${resp.data.byteLength} bytes`);
+            console.log(`   Content-Type: ${resp.headers["content-type"]}`);
+
+            original_name = path.basename(url.split("?")[0]) || `${doc_name}.pdf`;
+            const ext = path.extname(original_name) || ".bin";
+            file_name = `${Date.now()}_${doc_name}${ext}`;
+
+            const fullPath = path.join(uploadPath, file_name);
+
+            fs.writeFileSync(fullPath, resp.data);
+
+            console.log(`💾 [${i}] File saved successfully!`);
+            console.log(`   file_name: ${file_name}`);
+            console.log(`   full path: ${fullPath}`);
+
+            source_url = url;
+
+          } catch (err) {
+            console.log(`❌ [${i}] Failed to download from URL: ${url}`);
+            console.log(`   Error: ${err.message}`);
+            errors.push({
+              index: i,
+              field: "document_url",
+              reason: "Failed to download remote file: " + err.message,
+            });
+            continue;
+          }
+
+        } else {
+          console.log(`❌ [${i}] Neither file upload nor URL provided`);
+          errors.push({
+            index: i,
+            reason: "Either file upload or document_url is required",
+          });
+          continue;
+        }
+
+        console.log(`✅ [${i}] Document processed successfully`);
+
+        cleaned.push([
+          lan,
+          doc_name,
+          file_name,
+          source_url,
+          doc_password || null,
+          original_name,
+          now,
+        ]);
+      }
+
+      console.log("------------------------------------------");
+      console.log(`📊 Processing summary:`);
+      console.log(`   Total: ${parsedDocs.length}`);
+      console.log(`   Success: ${cleaned.length}`);
+      console.log(`   Errors: ${errors.length}`);
+      console.log(`   Error details:`, errors);
+
+      if (!cleaned.length) {
+        console.log("❌ No valid documents to insert");
+        return res.status(400).json({
+          error: "No valid documents to insert",
+          details: errors,
+        });
+      }
+
+      // Step 4: Insert into loan_documents
+      console.log(`💾 Inserting ${cleaned.length} documents into loan_documents table...`);
+
+      const sql = `
+        INSERT INTO loan_documents
+        (lan, doc_name, file_name, source_url, doc_password, original_name, uploaded_at)
+        VALUES ?
+      `;
+
+      await new Promise((resolve, reject) => {
+        db.query(sql, [cleaned], (err, result) => {
+          if (err) {
+            console.log("❌ DB insert error:", err.message);
+            return reject(err);
+          }
+          console.log(`✅ DB insert successful! Rows inserted: ${result.affectedRows}`);
+          resolve(result);
+        });
+      });
+
+      console.log("==========================================");
+      console.log(`✅ Request completed successfully for application_id: ${application_id}`);
+      console.log("==========================================");
+
+      return res.status(200).json({
+        message: "✅ Documents uploaded successfully",
+        application_id,
+        lan,
+        inserted_count: cleaned.length,
+        skipped_or_errors: errors,
+      });
+
+    } catch (err) {
+      console.error("❌ Unhandled error in /v1/:application_id/upload-files:");
+      console.error("   Message:", err.message);
+      console.error("   Stack:", err.stack);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
 ///////////////// DEALER API DOC UPLOAD START /////////////////////
 /* ===========================
    Dealer Allowed Docs
