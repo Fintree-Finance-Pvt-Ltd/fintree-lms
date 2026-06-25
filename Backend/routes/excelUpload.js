@@ -4717,7 +4717,7 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
   }
 });
 
-///// FINSO     //////
+///// FINCREST //////
 
 router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
   // Column list kept in ONE place to avoid mismatches
@@ -4752,7 +4752,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     "loan_tenure",
     "cibil_score",
     "product",
-    "lender",
+    "FINCREST",
     "business_name",
     "company_type",
     "business_vintage",
@@ -4795,7 +4795,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
   try {
     if (
       !req.partner ||
-      (req.partner.name || "").toLowerCase().trim() !== "finso"
+      (req.partner.name || "").toLowerCase().trim() !== "fincrest"
     ) {
       return res
         .status(403)
@@ -4810,7 +4810,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         .status(400)
         .json({ message: "Lender header is required (x-lender: FINCREST)." });
     }
-    if (lenderType.toLowerCase() !== "finso") {
+    if (lenderType.toLowerCase() !== "fincrest") {
       return res.status(400).json({
         message: `Invalid lender: ${lenderType}. Only 'FINCREST' loans can be inserted.`,
       });

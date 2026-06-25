@@ -40,6 +40,8 @@ const FincrestLoanDetails = () => {
 
   const loan = details;
 
+  const lenderName = "Fincrest";
+
   const formatDate = (d) => {
     if (!d) return "—";
     const dt = new Date(d);
@@ -120,7 +122,7 @@ const FincrestLoanDetails = () => {
       content: (
         <Grid>
           <Field label="Product" value={loan.product} />
-          <Field label="Lender" value={loan.lender} />
+          <Field label="Lender" value={`${lenderName.toUpperCase()}`} />
           <Field label="Requested Loan Amount" value={`₹${loan.loan_amount || "-"}`} highlight />
           <Field label="Disbursal Amount" value={`₹${loan.disbursal_amount || "-"}`} highlight />
           <Field label="Net Disbursement" value={`₹${loan.net_disbursement || "-"}`} highlight />

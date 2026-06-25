@@ -9,6 +9,7 @@ const ApproveInitiatedScreen = ({
   apiUrl,
   title = "Approval Initiated Stage Loans",
   lenderName = "EMICLUB",
+  lender,
   tableName,
 
    approvePayload = null,
@@ -256,7 +257,7 @@ const handleApprovedAmountChange = (lan, value) => {
     {
       key: "lender",
       header: "Lender",
-      render: () => lenderName,
+      render: (r) => lender.toUpperCase() ?? lenderName,
       csvAccessor: () => lenderName,
       width: 120,
     },

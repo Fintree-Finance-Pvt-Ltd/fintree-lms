@@ -196,9 +196,7 @@
 //   };
 // }
 
-
 // export default ApprovedLoansTable;
-
 
 // src/components/ApprovedLoansScreen.jsx
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -207,10 +205,10 @@ import { useNavigate } from "react-router-dom";
 import DataTable from "./ui/DataTable";
 import LoaderOverlay from "./ui/LoaderOverlay";
 import "../styles/ApprovedLoans.css";
- 
+
 const DEFAULT_PAGE_SIZE = 25;
- 
-const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
+
+const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lender }) => {
   // --- YOUR ORIGINAL LOGIC: STATE ---
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -220,30 +218,30 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
   const [totalRows, setTotalRows] = useState(0);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
- 
+
   const nav = useNavigate();
   const abortRef = useRef(null);
- 
+
   // --- YOUR ORIGINAL LOGIC: SEARCH DEBOUNCE ---
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
   }, [search]);
- 
+
   // --- YOUR ORIGINAL LOGIC: PAGINATION RESET ---
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, pageSize]);
- 
+
   // --- YOUR ORIGINAL LOGIC: DATA FETCHING ---
   const fetchPage = useCallback(() => {
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
- 
+
     setLoading(true);
     setErr("");
- 
+
     api
       .get(apiUrl, {
         params: { page, pageSize, search: debouncedSearch || undefined },
@@ -268,63 +266,56 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
       })
       .finally(() => setLoading(false));
   }, [apiUrl, page, pageSize, debouncedSearch]);
- 
+
   useEffect(() => {
     fetchPage();
   }, [fetchPage]);
- 
+
   // --- YOUR ORIGINAL LOGIC: LAN PATTERN DETECTION ---
   const hasADK = rows.some((r) => /^ADK/i.test(r?.lan));
   const hasGQFSF = rows.some((r) => /^GQFSF/i.test(r?.lan));
   const hasGQNonF = rows.some((r) => /^GQNonFSF/i.test(r?.lan));
- 
+
   // --- MODERN COLUMN DEFINITIONS (Mapping to your logic) ---
   const columns = [
     {
-  key: "customer_name",
-  header: "Customer Details",
-  sortable: true,
+      key: "customer_name",
+      header: "Customer Details",
+      sortable: true,
 
-  render: (r) => {
+      render: (r) => {
+        let url = `/approved-loan-details/${r.lan}`;
 
-    let url = `/approved-loan-details/${r.lan}`;
+        if (/^LDF/i.test(r?.lan)) {
+          url = `/loan-digit/customer-details?lan=${r.lan}`;
+        } else if (/^FINS/i.test(r?.lan)) {
+          url = `/fincrest-loan-details/${r.lan}`;
+        }
 
-    if (/^LDF/i.test(r?.lan)) {
-      url = `/loan-digit/customer-details?lan=${r.lan}`;
-    } else if (/^FINS/i.test(r?.lan)) {
-      url = `/fincrest-loan-details/${r.lan}`;
-    }
+        return (
+          <div
+            className="modern-cell-customer"
+            onClick={() => nav(url)}
+            style={{
+              color: "#2563eb",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <span className="customer-primary">{r.customer_name ?? "—"}</span>
 
-    return (
-      <div
-        className="modern-cell-customer"
-        onClick={() => nav(url)}
-        style={{
-          color: "#2563eb",
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
-      >
-        <span className="customer-primary">
-          {r.customer_name ?? "—"}
-        </span>
+            <span className="customer-secondary">{lender ?? r.lender}</span>
+          </div>
+        );
+      },
 
-        <span className="customer-secondary">
-          {r.lender}
-        </span>
-      </div>
-    );
-  },
+      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
 
-  sortAccessor: (r) =>
-    (r.customer_name || "").toLowerCase(),
+      csvAccessor: (r) => r.customer_name || "",
 
-  csvAccessor: (r) =>
-    r.customer_name || "",
-
-  width: 220,
-},
-    { key: "lender", header: "Lender", sortable: true, width: 140 },
+      width: 220,
+    },
+    { key: "lender", header: "Lender", sortable: true, width: 140 , render: (r) => lender.toUpperCase() ?? r.lender, },
     {
       key: "partner_loan_id",
       header: "Partner Loan ID",
@@ -435,11 +426,11 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
       width: 110,
     },
   ];
- 
+
   return (
     <div className="approved-layout">
       <LoaderOverlay show={loading} label="Fetching data…" />
- 
+
       {/* --- NEW MODERN HEADER --- */}
       <div className="approved-header-modern">
         <div className="header-titles">
@@ -448,7 +439,7 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
             View and manage all verified and approved loan records
           </p>
         </div>
- 
+
         <div className="header-tools">
           <div className="modern-search-wrapper">
             <span className="search-icon">🔍</span>
@@ -464,9 +455,9 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
           </div>
         </div>
       </div>
- 
+
       {err && <div className="modern-error-toast">{err}</div>}
- 
+
       {/* --- TABLE WRAPPED IN MODERN CONTAINER --- */}
       <div className="table-container-modern">
         <DataTable
@@ -488,7 +479,5 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans" }) => {
     </div>
   );
 };
- 
+
 export default ApprovedLoansTable;
- 
- 
