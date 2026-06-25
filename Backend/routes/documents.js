@@ -1189,6 +1189,13 @@ router.post(
 );
 
 
+const ALLOWED_DOCS_SML = new Set([
+  "AADHAAR_XML_DIGILOCKER",
+  "SELFIE_IMAGE",
+  "LOAN_AGREEMENT_SIGNED",
+  "OTHER_DOCUMENTS"
+]);
+
 router.post(
   "/v1/:application_id/upload-files",
   verifyApiKey,
@@ -1291,7 +1298,7 @@ router.post(
           `   doc_password: ${doc_password ? "provided" : "not provided"}`,
         );
 
-        if (!doc_name || !ALLOWED_DOCS.has(doc_name)) {
+        if (!doc_name || !ALLOWED_DOCS_SML.has(doc_name)) {
           console.log(`❌ [${i}] Invalid doc_name: "${doc_name}"`);
           errors.push({
             index: i,
