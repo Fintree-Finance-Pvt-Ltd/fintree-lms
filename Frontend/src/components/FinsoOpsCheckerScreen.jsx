@@ -234,7 +234,7 @@ const FinsoOpsCheckerScreen = () => {
         <button
           style={docsBtn}
           onClick={() =>
-            navigate(`/finso-upload-files?lan=${r.lan}`)
+            navigate(`/documents/${r.lan}`)
           }
         >
           📂 Docs
