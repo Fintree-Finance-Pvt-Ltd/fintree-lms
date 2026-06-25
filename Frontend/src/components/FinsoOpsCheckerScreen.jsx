@@ -232,10 +232,18 @@ const FinsoOpsCheckerScreen = () => {
 
       render: (r) => (
         <button
-          style={docsBtn}
-          onClick={() =>
-            navigate(`/documents/${r.lan}`)
-          }
+          onClick={() => navigate(`/documents/${r.lan}`)}
+          style={{
+            padding: "8px 10px",
+            borderRadius: 8,
+            border: "1px solid #93c5fd",
+            color: "#1d4ed8",
+            background: "#fff",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+          title="Open documents"
         >
           📂 Docs
         </button>
