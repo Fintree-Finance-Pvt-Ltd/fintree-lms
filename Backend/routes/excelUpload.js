@@ -4810,7 +4810,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         .status(400)
         .json({ message: "Lender header is required (x-lender: FINCREST)." });
     }
-    if (lenderType.toLowerCase() !== "fincrest") {
+    if (lenderType.toLowerCase() !== "finso") {
       return res.status(400).json({
         message: `Invalid lender: ${lenderType}. Only 'FINCREST' loans can be inserted.`,
       });
