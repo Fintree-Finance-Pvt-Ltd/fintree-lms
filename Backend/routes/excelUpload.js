@@ -4752,7 +4752,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
     "loan_tenure",
     "cibil_score",
     "product",
-    "FINCREST",
+    "lender",
     "business_name",
     "company_type",
     "business_vintage",
