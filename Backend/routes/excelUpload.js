@@ -2327,18 +2327,20 @@ router.get("/all-loans", async (req, res) => {
             OR lb.customer_name LIKE ?
             OR lb.partner_loan_id LIKE ?
             OR lb.app_id LIKE ?
+            OR lb.status LIKE ?
           )`
         : ` AND (
             lb.LAN LIKE ?
             OR lb.customer_name LIKE ?
             OR lb.partner_loan_id LIKE ?
+            OR lb.status LIKE ?
           )`
       : "";
 
     const searchParams = search
       ? isGqTable
-        ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
-        : [`%${search}%`, `%${search}%`, `%${search}%`]
+        ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%` , `%${search}%`]
+        : [`%${search}%`, `%${search}%`, `%${search}%` , `%${search}%`]
       : [];
 
     const countSql = `
