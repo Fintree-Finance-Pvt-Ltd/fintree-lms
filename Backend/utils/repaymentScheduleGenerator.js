@@ -4208,7 +4208,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
   lan,
   approvedAmount,
   emiDate,
-  interestRate, // flat % p.a. (EMI calc only)
+  interestRate,
   tenure,
   disbursementDate,
   subventionAmount,
@@ -4218,190 +4218,1662 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
   retentionPercent,
   manualRetentionAmount,
 ) => {
-  try {
-    const approved = Number(approvedAmount);
-    const tenureMonths = Number(tenure);
-    const advEmiCount = Number(no_of_advance_emis || 0);
-    const subvention = Number(subventionAmount || 0);
+  // =====================================================
+  // COMMON HELPERS
+  // =====================================================
 
-    const disb =
-      disbursementDate instanceof Date
-        ? disbursementDate
-        : new Date(disbursementDate);
+  const round2 = (value, label = "value") => {
+    const number = Number(value);
 
-    if (!disb || Number.isNaN(disb.getTime())) {
+    if (!Number.isFinite(number)) {
       throw new Error(
-        `Invalid disbursementDate for LAN=${lan}: ${JSON.stringify(disbursementDate)}`,
+        `Invalid ${label} for LAN=${lan}: ${value}`,
       );
     }
 
-    const safeRetentionPercent = Number(retentionPercent || 0);
-    const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
-    
+    return (
+      Math.round(
+        (number + Number.EPSILON) * 100,
+      ) / 100
+    );
+  };
 
-    // ---------- NET VALUES ----------
-    const netLoanForLender = approved - subvention;
+  const parsePercentage = (
+    value,
+    label,
+  ) => {
+    if (
+      value === undefined ||
+      value === null ||
+      String(value).trim() === ""
+    ) {
+      return 0;
+    }
 
-    const retentionAmount = safeManualRetentionAmount
-      ? +safeManualRetentionAmount.toFixed(2)
-      : safeRetentionPercent
-        ? +(netLoanForLender * safeRetentionPercent).toFixed(2)
-        : 0;
+    const cleaned = String(value)
+      .trim()
+      .replace("%", "");
 
-    const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
+    const number = Number(cleaned);
 
-    // ---------- EMI (FLAT) ----------
-    const emiAmount = +(
-      approved / tenureMonths +
-      (approved * (Number(interestRate || 0) / 100)) / tenureMonths
-    ).toFixed(2);
-
-    // ---------- NET PRINCIPAL O/S ----------
-    const netPrincipalOS = +(netDisbursement - emiAmount).toFixed(2);
-
-    // ---------- CASHFLOWS ----------
-    const normalEmis = tenureMonths - advEmiCount;
-    if (normalEmis <= 0) {
+    if (
+      !Number.isFinite(number) ||
+      number < 0
+    ) {
       throw new Error(
-        `Invalid normalEmis=${normalEmis} for LAN=${lan}. tenure=${tenureMonths}, adv=${advEmiCount}`,
+        `Invalid ${label} for LAN=${lan}: ${value}`,
       );
     }
 
-    const lastEmi = +(emiAmount - retentionAmount).toFixed(2);
+    /*
+     * Supports:
+     *
+     * 20
+     * "20%"
+     * 0.20
+     */
+    return number > 1
+      ? number / 100
+      : number;
+  };
 
-    const cashflows = [-netPrincipalOS];
-    for (let i = 1; i <= normalEmis - 1; i++) cashflows.push(emiAmount);
-    cashflows.push(lastEmi);
-
-    // ---------- IRR ----------
-    const monthlyIRR = calculateIRR(cashflows);
-    const annualIRR = +(monthlyIRR * 12 * 100).toFixed(2);
-
-    // ---------- RPS ----------
-    let openingBal = netPrincipalOS;
-    const rpsData = [];
-
-    // ---------- ADVANCE EMI ----------
-    if (advEmiCount > 0) {
-      rpsData.push([
-        lan,
-        toISO(disb, "disbursementDate"),
-        "Pending",
-        emiAmount,
-        0,
-        emiAmount,
-        +(netPrincipalOS + emiAmount).toFixed(2),
-        netPrincipalOS,
-        emiAmount,
-        0,
-        emiAmount,
-        emiAmount,
-      ]);
+  const parseDateOnly = (
+    value,
+    label = "date",
+  ) => {
+    if (!value) {
+      throw new Error(
+        `${label} is required for LAN=${lan}`,
+      );
     }
 
-    // ---------- NORMAL EMIs ----------
-    for (let i = 1; i <= normalEmis - 1; i++) {
-      const interest = +(openingBal * monthlyIRR).toFixed(2);
-      const principal = +(emiAmount - interest).toFixed(2);
-      const closingBal = +(openingBal - principal).toFixed(2);
-
-      const dueDate = addMonthsWithEmiDate(disb, i, emiDate);
-      if (!dueDate) {
-        throw new Error(`Could not compute dueDate for LAN=${lan}, i=${i}`);
+    if (value instanceof Date) {
+      if (
+        Number.isNaN(
+          value.getTime(),
+        )
+      ) {
+        throw new Error(
+          `Invalid ${label} for LAN=${lan}`,
+        );
       }
 
-      rpsData.push([
+      return new Date(
+        Date.UTC(
+          value.getFullYear(),
+          value.getMonth(),
+          value.getDate(),
+        ),
+      );
+    }
+
+    const text = String(value).trim();
+
+    // YYYY-MM-DD
+    let match = text.match(
+      /^(\d{4})-(\d{2})-(\d{2})$/,
+    );
+
+    if (match) {
+      const [
+        ,
+        year,
+        month,
+        day,
+      ] = match;
+
+      const date = new Date(
+        Date.UTC(
+          Number(year),
+          Number(month) - 1,
+          Number(day),
+        ),
+      );
+
+      if (
+        date.getUTCFullYear() !==
+          Number(year) ||
+        date.getUTCMonth() !==
+          Number(month) - 1 ||
+        date.getUTCDate() !==
+          Number(day)
+      ) {
+        throw new Error(
+          `Invalid ${label} for LAN=${lan}: ${value}`,
+        );
+      }
+
+      return date;
+    }
+
+    // DD-MM-YYYY or DD/MM/YYYY
+    match = text.match(
+      /^(\d{2})[-/](\d{2})[-/](\d{4})$/,
+    );
+
+    if (match) {
+      const [
+        ,
+        day,
+        month,
+        year,
+      ] = match;
+
+      const date = new Date(
+        Date.UTC(
+          Number(year),
+          Number(month) - 1,
+          Number(day),
+        ),
+      );
+
+      if (
+        date.getUTCFullYear() !==
+          Number(year) ||
+        date.getUTCMonth() !==
+          Number(month) - 1 ||
+        date.getUTCDate() !==
+          Number(day)
+      ) {
+        throw new Error(
+          `Invalid ${label} for LAN=${lan}: ${value}`,
+        );
+      }
+
+      return date;
+    }
+
+    // DD-MMM-YY or DD-MMM-YYYY
+    match = text.match(
+      /^(\d{1,2})-([A-Za-z]{3})-(\d{2}|\d{4})$/,
+    );
+
+    if (match) {
+      const [
+        ,
+        dayText,
+        monthText,
+        yearText,
+      ] = match;
+
+      const monthMap = {
+        jan: 0,
+        feb: 1,
+        mar: 2,
+        apr: 3,
+        may: 4,
+        jun: 5,
+        jul: 6,
+        aug: 7,
+        sep: 8,
+        oct: 9,
+        nov: 10,
+        dec: 11,
+      };
+
+      const month =
+        monthMap[
+          monthText.toLowerCase()
+        ];
+
+      const year =
+        yearText.length === 2
+          ? 2000 + Number(yearText)
+          : Number(yearText);
+
+      const day = Number(dayText);
+
+      if (
+        month === undefined
+      ) {
+        throw new Error(
+          `Invalid ${label} for LAN=${lan}: ${value}`,
+        );
+      }
+
+      const date = new Date(
+        Date.UTC(
+          year,
+          month,
+          day,
+        ),
+      );
+
+      if (
+        date.getUTCFullYear() !==
+          year ||
+        date.getUTCMonth() !==
+          month ||
+        date.getUTCDate() !==
+          day
+      ) {
+        throw new Error(
+          `Invalid ${label} for LAN=${lan}: ${value}`,
+        );
+      }
+
+      return date;
+    }
+
+    const parsed = new Date(text);
+
+    if (
+      Number.isNaN(
+        parsed.getTime(),
+      )
+    ) {
+      throw new Error(
+        `Invalid ${label} for LAN=${lan}: ${value}`,
+      );
+    }
+
+    return new Date(
+      Date.UTC(
+        parsed.getFullYear(),
+        parsed.getMonth(),
+        parsed.getDate(),
+      ),
+    );
+  };
+
+  const getEmiDay = (
+    value,
+  ) => {
+    const directDay =
+      Number(value);
+
+    if (
+      Number.isInteger(
+        directDay,
+      ) &&
+      directDay >= 1 &&
+      directDay <= 31
+    ) {
+      return directDay;
+    }
+
+    /*
+     * Supports:
+     *
+     * "05-Oct-25"
+     * "05-Oct-2025"
+     */
+    const match = String(
+      value || "",
+    )
+      .trim()
+      .match(/^(\d{1,2})/);
+
+    if (match) {
+      const day = Number(
+        match[1],
+      );
+
+      if (
+        day >= 1 &&
+        day <= 31
+      ) {
+        return day;
+      }
+    }
+
+    throw new Error(
+      `Invalid emiDate for LAN=${lan}: ${value}`,
+    );
+  };
+
+  const toISODate = (
+    value,
+    label = "date",
+  ) =>
+    parseDateOnly(
+      value,
+      label,
+    )
+      .toISOString()
+      .slice(0, 10);
+
+  const addMonthsClamped = (
+    baseDate,
+    monthsToAdd,
+    requestedEmiDay,
+  ) => {
+    const base =
+      parseDateOnly(
+        baseDate,
+        "disbursementDate",
+      );
+
+    const targetMonthStart =
+      new Date(
+        Date.UTC(
+          base.getUTCFullYear(),
+          base.getUTCMonth() +
+            Number(monthsToAdd),
+          1,
+        ),
+      );
+
+    const targetYear =
+      targetMonthStart.getUTCFullYear();
+
+    const targetMonth =
+      targetMonthStart.getUTCMonth();
+
+    const lastDay =
+      new Date(
+        Date.UTC(
+          targetYear,
+          targetMonth + 1,
+          0,
+        ),
+      ).getUTCDate();
+
+    return new Date(
+      Date.UTC(
+        targetYear,
+        targetMonth,
+        Math.min(
+          requestedEmiDay,
+          lastDay,
+        ),
+      ),
+    );
+  };
+
+  let connection;
+  let transactionStarted =
+    false;
+
+  try {
+    // =====================================================
+    // INPUT VALIDATION
+    // =====================================================
+
+    if (
+      !lan ||
+      !String(lan).trim()
+    ) {
+      throw new Error(
+        "LAN is required",
+      );
+    }
+
+    const approved = round2(
+      approvedAmount,
+      "approvedAmount",
+    );
+
+    const tenureMonths =
+      Number(tenure);
+
+    const advanceEmiCount =
+      Number(
+        no_of_advance_emis ||
+          0,
+      );
+
+    const subvention =
+      round2(
+        subventionAmount ||
+          0,
+        "subventionAmount",
+      );
+
+    const flatRate =
+      parsePercentage(
+        interestRate || 0,
+        "interestRate",
+      );
+
+    const retentionRate =
+      parsePercentage(
+        retentionPercent || 0,
+        "retentionPercent",
+      );
+
+    const disbursement =
+      parseDateOnly(
+        disbursementDate,
+        "disbursementDate",
+      );
+
+    const emiDay =
+      getEmiDay(emiDate);
+
+    if (approved <= 0) {
+      throw new Error(
+        `approvedAmount must be greater than zero for LAN=${lan}`,
+      );
+    }
+
+    if (
+      !Number.isInteger(
+        tenureMonths,
+      ) ||
+      tenureMonths <= 0
+    ) {
+      throw new Error(
+        `Invalid tenure=${tenure} for LAN=${lan}`,
+      );
+    }
+
+    if (
+      !Number.isInteger(
+        advanceEmiCount,
+      ) ||
+      advanceEmiCount < 0 ||
+      advanceEmiCount >=
+        tenureMonths
+    ) {
+      throw new Error(
+        `Invalid no_of_advance_emis=${no_of_advance_emis} ` +
+          `for LAN=${lan}`,
+      );
+    }
+
+    if (
+      subvention < 0 ||
+      subvention > approved
+    ) {
+      throw new Error(
+        `Invalid subventionAmount=${subventionAmount} ` +
+          `for LAN=${lan}`,
+      );
+    }
+
+    const hasManualRetention =
+      manualRetentionAmount !==
+        undefined &&
+      manualRetentionAmount !==
+        null &&
+      String(
+        manualRetentionAmount,
+      ).trim() !== "";
+
+    // =====================================================
+    // NET LOAN VALUES
+    // =====================================================
+
+    const netLoanForLender =
+      round2(
+        approved -
+          subvention,
+      );
+
+    /*
+     * Manual retention has priority.
+     *
+     * Manual value 0 is also accepted.
+     */
+    const retentionAmount =
+      hasManualRetention
+        ? round2(
+            manualRetentionAmount,
+            "manualRetentionAmount",
+          )
+        : round2(
+            netLoanForLender *
+              retentionRate,
+          );
+
+    if (
+      retentionAmount < 0 ||
+      retentionAmount >
+        netLoanForLender
+    ) {
+      throw new Error(
+        `Invalid retentionAmount=${retentionAmount} ` +
+          `for LAN=${lan}`,
+      );
+    }
+
+    const netDisbursement =
+      round2(
+        netLoanForLender -
+          retentionAmount,
+      );
+
+    // =====================================================
+    // FIXED EMI
+    // =====================================================
+
+    /*
+     * EMI remains unchanged.
+     *
+     * EMI =
+     * Approved amount / tenure
+     * +
+     * Flat interest / tenure
+     */
+    const emiAmount =
+      round2(
+        approved /
+          tenureMonths +
+          (
+            approved *
+            flatRate
+          ) /
+            tenureMonths,
+        "emiAmount",
+      );
+
+    if (emiAmount <= 0) {
+      throw new Error(
+        `Calculated EMI is invalid for LAN=${lan}`,
+      );
+    }
+
+    // =====================================================
+    // ADVANCE EMI
+    // =====================================================
+
+    const totalAdvanceAmount =
+      round2(
+        emiAmount *
+          advanceEmiCount,
+      );
+
+    if (
+      totalAdvanceAmount >
+      netDisbursement + 0.01
+    ) {
+      throw new Error(
+        `Advance EMI amount ${totalAdvanceAmount} exceeds ` +
+          `net disbursement ${netDisbursement} for LAN=${lan}`,
+      );
+    }
+
+    const netPrincipalOS =
+      round2(
+        netDisbursement -
+          totalAdvanceAmount,
+      );
+
+    const normalEmis =
+      tenureMonths -
+      advanceEmiCount;
+
+    if (normalEmis <= 0) {
+      throw new Error(
+        `Invalid normal EMI count for LAN=${lan}`,
+      );
+    }
+
+    // =====================================================
+    // IRR CASHFLOW
+    // =====================================================
+
+    /*
+     * Retention-adjusted final cashflow is used only
+     * for deriving the monthly IRR.
+     *
+     * It is not directly inserted in RPS.
+     */
+    const retentionAdjustedFinalCashflow =
+      round2(
+        emiAmount -
+          retentionAmount,
+      );
+
+    const cashflows = [
+      -netPrincipalOS,
+    ];
+
+    for (
+      let installment = 1;
+      installment <=
+      normalEmis - 1;
+      installment++
+    ) {
+      cashflows.push(
+        emiAmount,
+      );
+    }
+
+    cashflows.push(
+      retentionAdjustedFinalCashflow,
+    );
+
+    const monthlyIRR =
+      netPrincipalOS > 0
+        ? calculateIRR(
+            cashflows,
+            0.01,
+          )
+        : 0;
+
+    if (
+      !Number.isFinite(
+        monthlyIRR,
+      ) ||
+      monthlyIRR < 0 ||
+      monthlyIRR <= -1
+    ) {
+      throw new Error(
+        `Invalid monthlyIRR=${monthlyIRR} for LAN=${lan}`,
+      );
+    }
+
+    const annualIRR =
+      round2(
+        monthlyIRR *
+          12 *
+          100,
+      );
+
+    // =====================================================
+    // BUILD RPS
+    // =====================================================
+
+    const schedule = [];
+
+    let openingBalance =
+      netDisbursement;
+
+    let retentionScheduled = 0;
+
+    let grossPositiveInterest = 0;
+
+    let totalInterest = 0;
+
+    let totalPrincipal = 0;
+
+    // =====================================================
+    // ADVANCE EMI ROWS
+    // =====================================================
+
+    for (
+      let advanceIndex = 0;
+      advanceIndex <
+      advanceEmiCount;
+      advanceIndex++
+    ) {
+      const principal =
+        round2(
+          Math.min(
+            openingBalance,
+            emiAmount,
+          ),
+        );
+
+      const retentionForRow =
+        round2(
+          Math.min(
+            Math.max(
+              0,
+              emiAmount -
+                principal,
+            ),
+            Math.max(
+              0,
+              retentionAmount -
+                retentionScheduled,
+            ),
+          ),
+        );
+
+      const interest =
+        round2(
+          emiAmount -
+            principal -
+            retentionForRow,
+        );
+
+      const closingBalance =
+        round2(
+          Math.max(
+            0,
+            openingBalance -
+              principal,
+          ),
+        );
+
+      schedule.push({
         lan,
-        toISO(dueDate, "dueDate"),
-        "Pending",
-        emiAmount,
-        interest,
-        principal,
-        openingBal,
-        closingBal,
-        emiAmount,
-        interest,
-        principal,
-        emiAmount,
-      ]);
 
-      openingBal = closingBal;
+        dueDate:
+          toISODate(
+            disbursement,
+            "disbursementDate",
+          ),
+
+        status: "Pending",
+
+        emi: emiAmount,
+
+        interest,
+
+        principal,
+
+        retentionAmount:
+          retentionForRow,
+
+        opening:
+          openingBalance,
+
+        closing:
+          closingBalance,
+
+        remainingEmi:
+          emiAmount,
+
+        remainingInterest:
+          interest,
+
+        remainingPrincipal:
+          principal,
+
+        remainingRetention:
+          retentionForRow,
+
+        remainingAmount:
+          emiAmount,
+
+        isInterestAdjustment:
+          false,
+      });
+
+      if (interest > 0) {
+        grossPositiveInterest =
+          round2(
+            grossPositiveInterest +
+              interest,
+          );
+      }
+
+      totalInterest =
+        round2(
+          totalInterest +
+            interest,
+        );
+
+      totalPrincipal =
+        round2(
+          totalPrincipal +
+            principal,
+        );
+
+      retentionScheduled =
+        round2(
+          retentionScheduled +
+            retentionForRow,
+        );
+
+      openingBalance =
+        closingBalance;
     }
 
-    // ---------- LAST EMI (RETENTION ADJUSTED) ----------
-    const lastInterest = +(openingBal * monthlyIRR).toFixed(2);
-    const lastPrincipal = +(lastEmi - lastInterest).toFixed(2);
-    const lastClosing = +(openingBal - lastPrincipal).toFixed(2);
+    // =====================================================
+    // NORMAL EMI ROWS
+    //
+    // Final row is reserved for retention adjustment.
+    // =====================================================
 
-    const lastDueDate = addMonthsWithEmiDate(disb, normalEmis, emiDate);
-    if (!lastDueDate) {
-      throw new Error(`Could not compute lastDueDate for LAN=${lan}`);
+    for (
+      let installment = 1;
+      installment <=
+      normalEmis - 1;
+      installment++
+    ) {
+      const rowOpening =
+        openingBalance;
+
+      const interest =
+        rowOpening > 0
+          ? round2(
+              rowOpening *
+                monthlyIRR,
+            )
+          : 0;
+
+      const principal =
+        round2(
+          Math.min(
+            rowOpening,
+            Math.max(
+              0,
+              emiAmount -
+                interest,
+            ),
+          ),
+        );
+
+      /*
+       * If principal becomes zero before final row,
+       * the remaining EMI amount goes to retention.
+       */
+      const retentionForRow =
+        round2(
+          Math.min(
+            Math.max(
+              0,
+              emiAmount -
+                interest -
+                principal,
+            ),
+            Math.max(
+              0,
+              retentionAmount -
+                retentionScheduled,
+            ),
+          ),
+        );
+
+      const closingBalance =
+        round2(
+          Math.max(
+            0,
+            rowOpening -
+              principal,
+          ),
+        );
+
+      const rowTotal =
+        round2(
+          interest +
+            principal +
+            retentionForRow,
+        );
+
+      if (
+        Math.abs(
+          rowTotal -
+            emiAmount,
+        ) > 0.01
+      ) {
+        throw new Error(
+          `Normal EMI mismatch for LAN=${lan}, ` +
+            `installment=${installment}, ` +
+            `EMI=${emiAmount}, components=${rowTotal}`,
+        );
+      }
+
+      const dueDate =
+        addMonthsClamped(
+          disbursement,
+          installment,
+          emiDay,
+        );
+
+      schedule.push({
+        lan,
+
+        dueDate:
+          toISODate(
+            dueDate,
+            "dueDate",
+          ),
+
+        status: "Pending",
+
+        emi: emiAmount,
+
+        interest,
+
+        principal,
+
+        retentionAmount:
+          retentionForRow,
+
+        opening:
+          rowOpening,
+
+        closing:
+          closingBalance,
+
+        remainingEmi:
+          emiAmount,
+
+        remainingInterest:
+          interest,
+
+        remainingPrincipal:
+          principal,
+
+        remainingRetention:
+          retentionForRow,
+
+        remainingAmount:
+          emiAmount,
+
+        isInterestAdjustment:
+          false,
+      });
+
+      if (interest > 0) {
+        grossPositiveInterest =
+          round2(
+            grossPositiveInterest +
+              interest,
+          );
+      }
+
+      totalInterest =
+        round2(
+          totalInterest +
+            interest,
+        );
+
+      totalPrincipal =
+        round2(
+          totalPrincipal +
+            principal,
+        );
+
+      retentionScheduled =
+        round2(
+          retentionScheduled +
+            retentionForRow,
+        );
+
+      openingBalance =
+        closingBalance;
     }
 
-    rpsData.push([
+    // =====================================================
+    // FINAL RETENTION ADJUSTMENT ROW
+    // =====================================================
+
+    /*
+     * Final row calculation:
+     *
+     * EMI =
+     * final interest adjustment
+     * + remaining principal
+     * + remaining retention
+     *
+     * Example:
+     *
+     * EMI                 58,333.33
+     * Principal                 0.00
+     * Retention            58,524.37
+     * Interest adjustment    -191.04
+     */
+    const finalPrincipal =
+      round2(
+        openingBalance,
+      );
+
+    const remainingRetention =
+      round2(
+        Math.max(
+          0,
+          retentionAmount -
+            retentionScheduled,
+        ),
+      );
+
+    const finalInterestAdjustment =
+      round2(
+        emiAmount -
+          finalPrincipal -
+          remainingRetention,
+      );
+
+    const finalClosingBalance =
+      round2(
+        Math.max(
+          0,
+          openingBalance -
+            finalPrincipal,
+        ),
+      );
+
+    const finalDueDate =
+      addMonthsClamped(
+        disbursement,
+        normalEmis,
+        emiDay,
+      );
+
+    const finalRowTotal =
+      round2(
+        finalInterestAdjustment +
+          finalPrincipal +
+          remainingRetention,
+      );
+
+    if (
+      Math.abs(
+        finalRowTotal -
+          emiAmount,
+      ) > 0.01
+    ) {
+      throw new Error(
+        `Final EMI mismatch for LAN=${lan}. ` +
+          `EMI=${emiAmount}, components=${finalRowTotal}`,
+      );
+    }
+
+    schedule.push({
       lan,
-      toISO(lastDueDate, "lastDueDate"),
-      "Pending",
-      lastEmi,
-      lastInterest,
-      lastPrincipal,
-      openingBal,
-      lastClosing,
-       lastEmi,
-  lastInterest,
-  lastPrincipal,
-  lastEmi,
-    ]);
 
-    // ---------- DB INSERT ----------
-    if (rpsData.length > 0) {
-      // Optional safety: remove old schedule
+      dueDate:
+        toISODate(
+          finalDueDate,
+          "finalDueDate",
+        ),
+
+      status: "Pending",
+
+      emi:
+        emiAmount,
+
+      interest:
+        finalInterestAdjustment,
+
+      principal:
+        finalPrincipal,
+
+      retentionAmount:
+        remainingRetention,
+
+      opening:
+        openingBalance,
+
+      closing:
+        finalClosingBalance,
+
+      remainingEmi:
+        emiAmount,
+
+      remainingInterest:
+        finalInterestAdjustment,
+
+      remainingPrincipal:
+        finalPrincipal,
+
+      remainingRetention:
+        remainingRetention,
+
+      remainingAmount:
+        emiAmount,
+
+      isInterestAdjustment:
+        true,
+    });
+
+    totalInterest =
+      round2(
+        totalInterest +
+          finalInterestAdjustment,
+      );
+
+    totalPrincipal =
+      round2(
+        totalPrincipal +
+          finalPrincipal,
+      );
+
+    retentionScheduled =
+      round2(
+        retentionScheduled +
+          remainingRetention,
+      );
+
+    openingBalance =
+      finalClosingBalance;
+
+    // =====================================================
+    // TOTALS
+    // =====================================================
+
+    const totalScheduledEmi =
+      round2(
+        emiAmount *
+          tenureMonths,
+      );
+
+    /*
+     * Net interest must reconcile to:
+     *
+     * Total EMI
+     * - principal
+     * - retention
+     */
+    const expectedNetInterest =
+      round2(
+        totalScheduledEmi -
+          netDisbursement -
+          retentionAmount,
+      );
+
+    const totalRpsAmount =
+      round2(
+        schedule.reduce(
+          (
+            total,
+            row,
+          ) =>
+            total +
+            row.emi,
+          0,
+        ),
+      );
+
+    // =====================================================
+    // ROW VALIDATIONS
+    // =====================================================
+
+    schedule.forEach(
+      (
+        row,
+        index,
+      ) => {
+        const componentTotal =
+          round2(
+            row.interest +
+              row.principal +
+              row.retentionAmount,
+          );
+
+        const closingCheck =
+          round2(
+            row.opening -
+              row.principal,
+          );
+
+        const isFinalAdjustmentRow =
+          index ===
+            schedule.length -
+              1 &&
+          row.isInterestAdjustment ===
+            true;
+
+        if (
+          row.emi < 0 ||
+          row.principal < 0 ||
+          row.retentionAmount <
+            0 ||
+          row.opening < 0 ||
+          row.closing < 0 ||
+          (
+            !isFinalAdjustmentRow &&
+            row.interest < 0
+          ) ||
+          row.principal >
+            row.opening +
+              0.01 ||
+          Math.abs(
+            componentTotal -
+              row.emi,
+          ) > 0.01 ||
+          Math.abs(
+            closingCheck -
+              row.closing,
+          ) > 0.01
+        ) {
+          throw new Error(
+            `Invalid RPS row ${index + 1} for LAN=${lan}: ` +
+              JSON.stringify(
+                row,
+              ),
+          );
+        }
+      },
+    );
+
+    if (
+      schedule.length !==
+      tenureMonths
+    ) {
+      throw new Error(
+        `RPS row count mismatch for LAN=${lan}. ` +
+          `Expected=${tenureMonths}, ` +
+          `actual=${schedule.length}`,
+      );
+    }
+
+    if (
+      Math.abs(
+        openingBalance,
+      ) > 0.01
+    ) {
+      throw new Error(
+        `Principal did not close for LAN=${lan}. ` +
+          `Closing=${openingBalance}`,
+      );
+    }
+
+    if (
+      Math.abs(
+        totalPrincipal -
+          netDisbursement,
+      ) > 0.01
+    ) {
+      throw new Error(
+        `Principal mismatch for LAN=${lan}. ` +
+          `Expected=${netDisbursement}, ` +
+          `actual=${totalPrincipal}`,
+      );
+    }
+
+    if (
+      Math.abs(
+        retentionScheduled -
+          retentionAmount,
+      ) > 0.01
+    ) {
+      throw new Error(
+        `Retention mismatch for LAN=${lan}. ` +
+          `Expected=${retentionAmount}, ` +
+          `actual=${retentionScheduled}`,
+      );
+    }
+
+    if (
+      Math.abs(
+        totalInterest -
+          expectedNetInterest,
+      ) > 0.01
+    ) {
+      throw new Error(
+        `Interest mismatch for LAN=${lan}. ` +
+          `Expected=${expectedNetInterest}, ` +
+          `actual=${totalInterest}`,
+      );
+    }
+
+    if (
+      Math.abs(
+        totalRpsAmount -
+          totalScheduledEmi,
+      ) > 0.01
+    ) {
+      throw new Error(
+        `RPS total mismatch for LAN=${lan}. ` +
+          `Expected=${totalScheduledEmi}, ` +
+          `actual=${totalRpsAmount}`,
+      );
+    }
+
+    // =====================================================
+    // DATABASE INSERT DATA
+    // =====================================================
+
+    const rpsData =
+      schedule.map(
+        (row) => [
+          row.lan,
+          row.dueDate,
+          row.status,
+          row.emi,
+          row.interest,
+          row.principal,
+          row.retentionAmount,
+          row.opening,
+          row.closing,
+          row.remainingEmi,
+          row.remainingInterest,
+          row.remainingPrincipal,
+          row.remainingRetention,
+          row.remainingAmount,
+        ],
+      );
+
+    // =====================================================
+    // TRANSACTION
+    // =====================================================
+
+    connection =
       await db
         .promise()
-        .query("DELETE FROM manual_rps_gq_fsf_fintree WHERE lan = ?", [lan]);
+        .getConnection();
 
-      const insertSql = `
-        INSERT INTO manual_rps_gq_fsf_fintree
-        (
-          lan,
-          due_date,
-          status,
-          emi,
-          interest,
-          principal,
-          opening,
-          closing,
-          remaining_emi,
-          remaining_interest,
-          remaining_principal,
-          remaining_amount
-        )
-        VALUES ?
-      `;
+    await connection.beginTransaction();
 
-      await db.promise().query(insertSql, [rpsData]);
+    transactionStarted = true;
+
+    /*
+     * Remove any previously generated RPS for the LAN.
+     */
+    await connection.query(
+      `
+        DELETE FROM manual_rps_gq_fsf_fintree
+        WHERE lan = ?
+      `,
+      [lan],
+    );
+
+    if (
+      rpsData.length > 0
+    ) {
+      await connection.query(
+        `
+          INSERT INTO manual_rps_gq_fsf_fintree
+          (
+            lan,
+            due_date,
+            status,
+            emi,
+            interest,
+            principal,
+            retention_amount,
+            opening,
+            closing,
+            remaining_emi,
+            remaining_interest,
+            remaining_principal,
+            remaining_retention,
+            remaining_amount
+          )
+          VALUES ?
+        `,
+        [rpsData],
+      );
     }
 
-    // ---------- RETURN ----------
+    await connection.commit();
+
+    transactionStarted =
+      false;
+
+    // =====================================================
+    // RETURN
+    // =====================================================
+
     return {
+      success: true,
+
       lan,
+      product,
+      lender,
+
+      approvedAmount:
+        approved,
+
+      tenureMonths,
+
+      advanceEmiCount,
+
       emiAmount,
-      netDisbursement,
-      netPrincipalOS,
+
+      subventionAmount:
+        subvention,
+
+      netLoanForLender,
+
       retentionAmount,
+
+      netDisbursement,
+
+      netPrincipalOS,
+
       monthlyIRR,
+
       annualIRR,
+
+      /*
+       * Total positive interest before final adjustment.
+       */
+      grossPositiveInterest,
+
+      /*
+       * Final negative or positive interest adjustment.
+       */
+      finalInterestAdjustment,
+
+      /*
+       * Net interest after final adjustment.
+       */
+      totalInterest,
+
+      totalPrincipal,
+
+      totalRetention:
+        retentionScheduled,
+
+      totalScheduledEmi,
+
+      totalRpsAmount,
+
+      expectedNetInterest,
+
       cashflows,
+
+      rpsRowsInserted:
+        rpsData.length,
+
+      schedule,
     };
-  } catch (err) {
-    console.error("❌ RPS ERROR (GQFSF_Fintree):", err);
-    throw err;
+  } catch (error) {
+    if (
+      connection &&
+      transactionStarted
+    ) {
+      try {
+        await connection.rollback();
+      } catch (
+        rollbackError
+      ) {
+        console.error(
+          `RPS rollback failed for LAN=${lan}:`,
+          rollbackError,
+        );
+      }
+    }
+
+    console.error(
+      `RPS ERROR (GQFSF_Fintree) LAN=${lan}:`,
+      error,
+    );
+
+    throw error;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 };
 
 
+// const generateRepaymentScheduleGQFSF_Fintree = async (
+//   lan,
+//   approvedAmount,
+//   emiDate,
+//   interestRate, // flat % p.a. (EMI calc only)
+//   tenure,
+//   disbursementDate,
+//   subventionAmount,
+//   product,
+//   lender,
+//   no_of_advance_emis,
+//   retentionPercent,
+//   manualRetentionAmount,
+// ) => {
+//   try {
+//     const approved = Number(approvedAmount);
+//     const tenureMonths = Number(tenure);
+//     const advEmiCount = Number(no_of_advance_emis || 0);
+//     const subvention = Number(subventionAmount || 0);
 
-////////////// CLAYOO LOAN CALCULATION - BULLET STRUCTURE (NO EMI, INTEREST ONLY AT END) ////////////////////////////
+//     const disb =
+//       disbursementDate instanceof Date
+//         ? disbursementDate
+//         : new Date(disbursementDate);
+
+//     if (!disb || Number.isNaN(disb.getTime())) {
+//       throw new Error(
+//         `Invalid disbursementDate for LAN=${lan}: ${JSON.stringify(disbursementDate)}`,
+//       );
+//     }
+
+//     const safeRetentionPercent = Number(retentionPercent || 0);
+//     const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
+    
+
+//     // ---------- NET VALUES ----------
+//     const netLoanForLender = approved - subvention;
+
+//     const retentionAmount = safeManualRetentionAmount
+//       ? +safeManualRetentionAmount.toFixed(2)
+//       : safeRetentionPercent
+//         ? +(netLoanForLender * safeRetentionPercent).toFixed(2)
+//         : 0;
+
+//     const netDisbursement = +(netLoanForLender - retentionAmount).toFixed(2);
+
+//     // ---------- EMI (FLAT) ----------
+//     const emiAmount = +(
+//       approved / tenureMonths +
+//       (approved * (Number(interestRate || 0) / 100)) / tenureMonths
+//     ).toFixed(2);
+
+//     // ---------- NET PRINCIPAL O/S ----------
+//     const netPrincipalOS = +(netDisbursement - emiAmount).toFixed(2);
+
+//     // ---------- CASHFLOWS ----------
+//     const normalEmis = tenureMonths - advEmiCount;
+//     if (normalEmis <= 0) {
+//       throw new Error(
+//         `Invalid normalEmis=${normalEmis} for LAN=${lan}. tenure=${tenureMonths}, adv=${advEmiCount}`,
+//       );
+//     }
+
+//     const lastEmi = +(emiAmount - retentionAmount).toFixed(2);
+
+//     const cashflows = [-netPrincipalOS];
+//     for (let i = 1; i <= normalEmis - 1; i++) cashflows.push(emiAmount);
+//     cashflows.push(lastEmi);
+
+//     // ---------- IRR ----------
+//     const monthlyIRR = calculateIRR(cashflows);
+//     const annualIRR = +(monthlyIRR * 12 * 100).toFixed(2);
+
+//     // ---------- RPS ----------
+//     let openingBal = netPrincipalOS;
+//     const rpsData = [];
+
+//     // ---------- ADVANCE EMI ----------
+//     if (advEmiCount > 0) {
+//       rpsData.push([
+//         lan,
+//         toISO(disb, "disbursementDate"),
+//         "Pending",
+//         emiAmount,
+//         0,
+//         emiAmount,
+//         +(netPrincipalOS + emiAmount).toFixed(2),
+//         netPrincipalOS,
+//         emiAmount,
+//         0,
+//         emiAmount,
+//         emiAmount,
+//       ]);
+//     }
+
+//     // ---------- NORMAL EMIs ----------
+//     for (let i = 1; i <= normalEmis - 1; i++) {
+//       const interest = +(openingBal * monthlyIRR).toFixed(2);
+//       const principal = +(emiAmount - interest).toFixed(2);
+//       const closingBal = +(openingBal - principal).toFixed(2);
+
+//       const dueDate = addMonthsWithEmiDate(disb, i, emiDate);
+//       if (!dueDate) {
+//         throw new Error(`Could not compute dueDate for LAN=${lan}, i=${i}`);
+//       }
+
+//       rpsData.push([
+//         lan,
+//         toISO(dueDate, "dueDate"),
+//         "Pending",
+//         emiAmount,
+//         interest,
+//         principal,
+//         openingBal,
+//         closingBal,
+//         emiAmount,
+//         interest,
+//         principal,
+//         emiAmount,
+//       ]);
+
+//       openingBal = closingBal;
+//     }
+
+//     // ---------- LAST EMI (RETENTION ADJUSTED) ----------
+//     const lastInterest = +(openingBal * monthlyIRR).toFixed(2);
+//     const lastPrincipal = +(lastEmi - lastInterest).toFixed(2);
+//     const lastClosing = +(openingBal - lastPrincipal).toFixed(2);
+
+//     const lastDueDate = addMonthsWithEmiDate(disb, normalEmis, emiDate);
+//     if (!lastDueDate) {
+//       throw new Error(`Could not compute lastDueDate for LAN=${lan}`);
+//     }
+
+//     rpsData.push([
+//       lan,
+//       toISO(lastDueDate, "lastDueDate"),
+//       "Pending",
+//       lastEmi,
+//       lastInterest,
+//       lastPrincipal,
+//       openingBal,
+//       lastClosing,
+//        lastEmi,
+//   lastInterest,
+//   lastPrincipal,
+//   lastEmi,
+//     ]);
+
+//     // ---------- DB INSERT ----------
+//     if (rpsData.length > 0) {
+//       // Optional safety: remove old schedule
+//       await db
+//         .promise()
+//         .query("DELETE FROM manual_rps_gq_fsf_fintree WHERE lan = ?", [lan]);
+
+//       const insertSql = `
+//         INSERT INTO manual_rps_gq_fsf_fintree
+//         (
+//           lan,
+//           due_date,
+//           status,
+//           emi,
+//           interest,
+//           principal,
+//           opening,
+//           closing,
+//           remaining_emi,
+//           remaining_interest,
+//           remaining_principal,
+//           remaining_amount
+//         )
+//         VALUES ?
+//       `;
+
+//       await db.promise().query(insertSql, [rpsData]);
+//     }
+
+//     // ---------- RETURN ----------
+//     return {
+//       lan,
+//       emiAmount,
+//       netDisbursement,
+//       netPrincipalOS,
+//       retentionAmount,
+//       monthlyIRR,
+//       annualIRR,
+//       cashflows,
+//     };
+//   } catch (err) {
+//     console.error("❌ RPS ERROR (GQFSF_Fintree):", err);
+//     throw err;
+//   }
+// };
+
+
+
+
+
+///////////////////////// GQ FSF FINTREE RPS Sajag New End ////////////////////////////
+
+
+
+//////////// CLAYOO LOAN CALCULATION - BULLET STRUCTURE (NO EMI, INTEREST ONLY AT END) ////////////////////////////
+
+
 const generateRepaymentScheduleClayoo = async (
   conn,
   lan,
@@ -4516,7 +5988,6 @@ console.log("disbursement dtae", disbursementDate);
   );
 };
 
-/////////////////////////// GQ FSF FINTREE RPS Sajag New End ////////////////////////////
 ///////////////////////////// ADIKOSH LOAN CALCULATION /////////////////////////////////////////
 /////// Without PRE EMI /////////////
 
