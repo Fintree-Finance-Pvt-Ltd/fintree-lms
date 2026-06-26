@@ -4795,7 +4795,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
   try {
     if (
       !req.partner ||
-      (req.partner.name || "").toLowerCase().trim() !== "fincrest"
+      (req.partner.name || "").toLowerCase().trim() !== "finso"
     ) {
       return res
         .status(403)
