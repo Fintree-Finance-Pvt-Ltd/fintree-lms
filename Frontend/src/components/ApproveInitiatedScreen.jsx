@@ -257,8 +257,8 @@ const handleApprovedAmountChange = (lan, value) => {
     {
       key: "lender",
       header: "Lender",
-      render: (r) => lender.toUpperCase() ?? lenderName,
-      csvAccessor: () => lenderName,
+      render: (r) => lender?.toUpperCase() || lenderName,
+        csvAccessor: () => lender?.toUpperCase() || lenderName,
       width: 120,
     },
     { key: "partner_loan_id", header: "Partner Loan ID", sortable: true, width: 160 },
