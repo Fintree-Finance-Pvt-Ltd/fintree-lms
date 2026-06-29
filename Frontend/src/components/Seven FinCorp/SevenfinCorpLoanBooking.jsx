@@ -342,7 +342,6 @@ const SevenFinCorpLoanBooking = ({
     "Interest_Rate",
     "Tenure",
     "Processing_Fee",
-    "Driving_License",
     "GPS_Charges",
 
     "customer_name_as_per_bank",
@@ -358,17 +357,17 @@ const SevenFinCorpLoanBooking = ({
     "E_Rikshaw_model",
     "Chassis_no",
     "insurance_cost",
-"insurance_company_provider",
-"insurance_policy_number",
-"policy_issued_date",
-"period_of_insurance",
+    "insurance_company_provider",
+    "insurance_policy_number",
+    "policy_issued_date",
+    "period_of_insurance",
 
-"cost_of_vehicle",
-"manufacturing_year",
-"downpayment_paid_by_borrower",
-"vehicle_registration_cost",
-"sales_invoice_number",
-"sales_invoice_date",
+    "cost_of_vehicle",
+    "manufacturing_year",
+    "downpayment_paid_by_borrower",
+    "vehicle_registration_cost",
+    "sales_invoice_number",
+    "sales_invoice_date",
   ];
 
   const isValidMobile = (m) => /^[6-9]\d{9}$/.test(m);
