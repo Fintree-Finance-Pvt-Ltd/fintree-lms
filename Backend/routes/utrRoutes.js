@@ -540,6 +540,9 @@ const {
 } = require("../utils/partnerHelpers");
 
 const upload = multer();
+const {
+  sendWelcomeLetterAfterUtrUpload,
+} = require("../services/welcomeLetterService");
 
 function excelDateToJSDate(serial) {
   const utc_days = Math.floor(serial - 25569);
@@ -652,6 +655,11 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
     const duplicateUTRs = [];
     const missingLANs = [];
     const insertedLANs = new Set();
+
+    // welcome letter
+    const welcomeEmailAttemptedLANs = new Set();
+    const welcomeEmailResults = [];
+    const welcomeEmailErrors = [];
 
     for (const row of sheetData) {
       const disbursementUTR = row["Disbursement UTR"];
@@ -1194,8 +1202,46 @@ WHERE lan = ?`,
         // }
 
         await conn.commit();
+        conn.release();
+        conn = null;
         insertedLANs.add(lan);
         processedCount++;
+
+        if (!welcomeEmailAttemptedLANs.has(lan)) {
+          welcomeEmailAttemptedLANs.add(lan);
+          try {
+            const emailResult = await sendWelcomeLetterAfterUtrUpload({
+              lan,
+              utrNumber: String(disbursementUTR).trim(),
+            });
+            welcomeEmailResults.push({
+              lan,
+              utr: disbursementUTR,
+              recipient: emailResult.recipient,
+              messageId: emailResult.emailMessageId,
+              partnerTable: emailResult.partnerTable,
+              status: "SENT",
+            });
+            console.log(
+              `✅ Welcome email sent successfully | LAN: ${lan} | Recipient: ${emailResult.recipient}`,
+            );
+          } catch (welcomeEmailError) {
+            console.error(
+              `❌ Welcome email failed | LAN: ${lan}`,
+              welcomeEmailError.message,
+            );
+            welcomeEmailErrors.push({
+              lan,
+              utr: disbursementUTR,
+              reason: welcomeEmailError.message,
+              errorCode:
+                welcomeEmailError.code ||
+                welcomeEmailError.context?.errorCode ||
+                "WELCOME_EMAIL_FAILED",
+              status: "FAILED",
+            });
+          }
+        }
 
         // ✅ Call webhook for FINE (EMI CLUB) loans only
         if (lan.startsWith("FINE")) {
@@ -1400,6 +1446,9 @@ WHERE lan = ?`,
       processed_count: processedCount,
       duplicate_utr: duplicateUTRs,
       missing_lans: missingLANs,
+      welcome_email_failed_count: welcomeEmailErrors.length,
+      welcome_email_results: welcomeEmailResults,
+      welcome_email_errors: welcomeEmailErrors,
       row_errors: rowErrors,
     });
   } catch (error) {
