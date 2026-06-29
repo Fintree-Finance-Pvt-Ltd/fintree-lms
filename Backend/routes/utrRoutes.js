@@ -1167,31 +1167,31 @@ WHERE lan = ?`,
 
         // ✅ Update partner used limit after successful disbursement
 
-        try {
-          const limitResult = await updatePartnerLimitAfterDisbursement(conn, {
-            lan,
-            lender,
-            product,
-            loanAmount: loan_amount,
-            disbursementDate,
-          });
+        // try {
+        //   const limitResult = await updatePartnerLimitAfterDisbursement(conn, {
+        //     lan,
+        //     lender,
+        //     product,
+        //     loanAmount: loan_amount,
+        //     disbursementDate,
+        //   });
 
-          console.log(
-            `Partner disbursement limit processed | LAN: ${lan} | Amount: ${loan_amount}`,
-            limitResult,
-          );
-        } catch (limitErr) {
-          rowErrors.push({
-            lan,
-            utr: disbursementUTR,
-            reason: `Partner disbursement limit update failed: ${limitErr.message}`,
-            meta: limitErr.meta || null,
-            stage: "partner-limit",
-          });
+        //   console.log(
+        //     `Partner disbursement limit processed | LAN: ${lan} | Amount: ${loan_amount}`,
+        //     limitResult,
+        //   );
+        // } catch (limitErr) {
+        //   rowErrors.push({
+        //     lan,
+        //     utr: disbursementUTR,
+        //     reason: `Partner disbursement limit update failed: ${limitErr.message}`,
+        //     meta: limitErr.meta || null,
+        //     stage: "partner-limit",
+        //   });
 
-          await conn.rollback();
-          continue;
-        }
+        //   await conn.rollback();
+        //   continue;
+        // }
 
         await conn.commit();
         insertedLANs.add(lan);
