@@ -559,85 +559,85 @@ function toClientError(err) {
   return { message: err.message || String(err) };
 }
 
-// function getPartnerNameByLan(lan, lender, product) {
-//   if (lan.startsWith("MCL")) return "Motion Corp";
-//   if (lan.startsWith("GQN")) return "GQ NON FSF";
-//   if (lan.startsWith("GQF")) return "GQ FSF";
-//   if (lan.startsWith("ADK")) return "Adikosh";
-//   if (lan.startsWith("EV")) return "EV Loan";
-//   if (lan.startsWith("BL")) return "BL Loan";
-//   if (lan.startsWith("WCTL")) return "WCTL";
-//   if (lan.startsWith("HEYEV")) return "Hey EV";
-//   if (lan.startsWith("HEYBF1")) return "HeyEV Battery";
-//   if (lan.startsWith("FINE")) return "EMIClub";
-//   if (lan.startsWith("FINS")) return "Finso";
-//   if (lan.startsWith("LDF") || lan.startsWith("LDG") || lan.startsWith("LDD"))
-//     return "Loan Digit";
-//   if (lan.startsWith("CLYO")) return "CLAYOO";
-//   if (lan.startsWith("HEL")) return "HELIUM";
-//   if (lan.startsWith("ZYPF")) return "Zypay";
-//   if (lan.startsWith("CIRHUF")) return "Circle Pe Houser";
-//   if (lan.startsWith("CIRF")) return "Circle PE";
-//   if (lan.startsWith("CARE")) return "CAREPAY";
-//   if (lan.startsWith("STRL")) return "STERLION";
+function getPartnerNameByLan(lan, lender, product) {
+  if (lan.startsWith("MCL")) return "Motion Corp";
+  if (lan.startsWith("GQN")) return "GQ NON FSF";
+  if (lan.startsWith("GQF")) return "GQ FSF";
+  if (lan.startsWith("ADK")) return "Adikosh";
+  if (lan.startsWith("EV")) return "EV Loan";
+  if (lan.startsWith("BL")) return "BL Loan";
+  if (lan.startsWith("WCTL")) return "WCTL";
+  if (lan.startsWith("HEYEV")) return "Hey EV";
+  if (lan.startsWith("HEYBF1")) return "HeyEV Battery";
+  if (lan.startsWith("FINE")) return "EMIClub";
+  if (lan.startsWith("FINS")) return "Finso";
+  if (lan.startsWith("LDF") || lan.startsWith("LDG") || lan.startsWith("LDD"))
+    return "Loan Digit";
+  if (lan.startsWith("CLYO")) return "CLAYOO";
+  if (lan.startsWith("HEL")) return "HELIUM";
+  if (lan.startsWith("ZYPF")) return "Zypay";
+  if (lan.startsWith("CIRHUF")) return "Circle Pe Houser";
+  if (lan.startsWith("CIRF")) return "Circle PE";
+  if (lan.startsWith("CARE")) return "CAREPAY";
+  if (lan.startsWith("STRL")) return "STERLION";
 
-//   if (lender && String(lender).trim()) return String(lender).trim();
-//   if (product && String(product).trim()) return String(product).trim();
+  if (lender && String(lender).trim()) return String(lender).trim();
+  if (product && String(product).trim()) return String(product).trim();
 
-//   return null;
-// }
+  return null;
+}
 
-// async function updatePartnerLimitAfterDisbursement(
-//   conn,
-//   { lan, lender, product, loanAmount, disbursementDate },
-// ) {
-//   const partnerName = getPartnerNameByLan(lan, lender, product);
+async function updatePartnerLimitAfterDisbursement(
+  conn,
+  { lan, lender, product, loanAmount, disbursementDate },
+) {
+  const partnerName = getPartnerNameByLan(lan, lender, product);
 
-//   console.log("partner_name", partnerName);
+  console.log("partner_name", partnerName);
 
-//   if (!partnerName) {
-//     throw new Error(`Partner name not found for LAN ${lan}`);
-//   }
+  if (!partnerName) {
+    throw new Error(`Partner name not found for LAN ${lan}`);
+  }
 
-//   const { month, year } = getMonthYear(new Date(disbursementDate));
+  const { month, year } = getMonthYear(new Date(disbursementDate));
 
-//   const partner = await partnerLimitService.getOrCreatePartner(
-//     conn,
-//     partnerName,
-//   );
+  const partner = await partnerLimitService.getOrCreatePartner(
+    conn,
+    partnerName,
+  );
 
-//   console.log("Partner data", partner);
+  console.log("Partner data", partner);
 
-//   const limitCheck = await partnerLimitService.validatePartnerDisbursementLimit(
-//     conn,
-//     partner.partner_id,
-//     Number(loanAmount),
-//     month,
-//     year,
-//   );
+  const limitCheck = await partnerLimitService.validatePartnerDisbursementLimit(
+    conn,
+    partner.partner_id,
+    Number(loanAmount),
+    month,
+    year,
+  );
 
-//   if (!limitCheck.valid) {
-//     const err = new Error("DISBURSEMENT_LIMIT_EXCEEDED");
+  if (!limitCheck.valid) {
+    const err = new Error("DISBURSEMENT_LIMIT_EXCEEDED");
 
-//     err.meta = {
-//       partnerName,
-//       lan,
-//       remaining: limitCheck.remaining,
-//       required: Number(loanAmount),
-//       month,
-//       year,
-//     };
+    err.meta = {
+      partnerName,
+      lan,
+      remaining: limitCheck.remaining,
+      required: Number(loanAmount),
+      month,
+      year,
+    };
 
-//     throw err;
-//   }
+    throw err;
+  }
 
-//   return partnerLimitService.updateDisbursedLimit(
-//     conn,
-//     limitCheck.limitId,
-//     Number(loanAmount),
-//     lan,
-//   );
-// }
+  return partnerLimitService.updateDisbursedLimit(
+    conn,
+    limitCheck.limitId,
+    Number(loanAmount),
+    lan,
+  );
+}
 
 router.post("/upload-utr", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
@@ -1175,31 +1175,31 @@ WHERE lan = ?`,
 
         // ✅ Update partner used limit after successful disbursement
 
-        // try {
-        //   const limitResult = await updatePartnerLimitAfterDisbursement(conn, {
-        //     lan,
-        //     lender,
-        //     product,
-        //     loanAmount: loan_amount,
-        //     disbursementDate,
-        //   });
+        try {
+          const limitResult = await updatePartnerLimitAfterDisbursement(conn, {
+            lan,
+            lender,
+            product,
+            loanAmount: loan_amount,
+            disbursementDate,
+          });
 
-        //   console.log(
-        //     `Partner disbursement limit processed | LAN: ${lan} | Amount: ${loan_amount}`,
-        //     limitResult,
-        //   );
-        // } catch (limitErr) {
-        //   rowErrors.push({
-        //     lan,
-        //     utr: disbursementUTR,
-        //     reason: `Partner disbursement limit update failed: ${limitErr.message}`,
-        //     meta: limitErr.meta || null,
-        //     stage: "partner-limit",
-        //   });
+          console.log(
+            `Partner disbursement limit processed | LAN: ${lan} | Amount: ${loan_amount}`,
+            limitResult,
+          );
+        } catch (limitErr) {
+          rowErrors.push({
+            lan,
+            utr: disbursementUTR,
+            reason: `Partner disbursement limit update failed: ${limitErr.message}`,
+            meta: limitErr.meta || null,
+            stage: "partner-limit",
+          });
 
-        //   await conn.rollback();
-        //   continue;
-        // }
+          await conn.rollback();
+          continue;
+        }
 
         await conn.commit();
         conn.release();
