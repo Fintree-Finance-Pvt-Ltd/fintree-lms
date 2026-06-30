@@ -179,6 +179,12 @@ import UpdateUmrn from "./components/UpdateUmrn";
 import SMLDisburseInitiate from "./components/switch-my-loan/SMLDisburseInitiate";
 import SMLLoginloans from "./components/switch-my-loan/SMLLoginLoans";
 import SMLAllLoans from "./components/switch-my-loan/SMLAllLoans";
+import RapidMoneyApprovedLoans from "./components/RapidMoney/RapidMoneyApprovedLoans";
+import RapidMoneyDisbursedLoans from "./components/RapidMoney/RapidMoneyDisbursedLoans";
+import RapidMoneyAllLoans from "./components/RapidMoney/RapidMoneyAllLoans";
+import RapidMoneyLoginLoans from "./components/RapidMoney/RapidMoneyLoginLoans";
+import RapidMoneyActionScreen from "./components/RapidMoney/RapidMoneyActionScreen";
+import RapidMoneyApproveInitiateScreen from "./components/RapidMoney/RapidMoneyApproveInitiateScreen";
 import RetentionRelease from "./components/RetentionRelease";
 import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpLoanBooking";
 import MotionCorpAllLoans from "./components/Motion Corp/motionCorpAllLoans";
@@ -1455,7 +1461,55 @@ function App() {
               </PermissionRoute>
             }
           />
-          {/* Switch my loan Routes */}
+          {/* RapidMoney Routes */}
+          <Route
+            path="/rapidmoney-loans/approved"
+            element={
+              <PermissionRoute pageName="RapidMoney Approved Loans">
+                <RapidMoneyApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/rapidmoney-loans/disbursed"
+            element={
+              <PermissionRoute pageName="RapidMoney Disbursed Loans">
+                <RapidMoneyDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/rapidmoney-loans/all"
+            element={
+              <PermissionRoute pageName="RapidMoney All Loans">
+                <RapidMoneyAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/rapidmoney-loans/login-cases"
+            element={
+              <PermissionRoute pageName="RapidMoney Login Loans">
+                <RapidMoneyLoginLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/rapidmoney-loans/login-actions"
+            element={
+              <PermissionRoute pageName="RapidMoney Login Actions">
+                <RapidMoneyActionScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/rapidmoney-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="RapidMoney Disburse Initiated">
+                <RapidMoneyApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
           <Route
             path="/sml-loans/disburse-initiate"
             element={
