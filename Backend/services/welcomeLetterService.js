@@ -1385,27 +1385,33 @@ async function getLoanAgreementDocument(lan) {
   });
 
   const rows = await executeQuery(
-    `
-      SELECT
-        id,
-        lan,
-        doc_name,
-        file_name,
-        original_name,
-        source_url,
-        doc_password,
-        uploaded_at
-      FROM loan_documents
-      WHERE lan = ?
-        AND (
-          LOWER(TRIM(doc_name)) = 'loan_agreement'
-          OR LOWER(TRIM(original_name)) = 'loan_agreement.pdf'
-        )
-      ORDER BY uploaded_at DESC, id DESC
-      LIMIT 1
-    `,
-    [lan],
-  );
+  `
+    SELECT
+      id,
+      lan,
+      doc_name,
+      file_name,
+      original_name,
+      source_url,
+      doc_password,
+      uploaded_at
+    FROM loan_documents
+    WHERE TRIM(UPPER(lan)) = TRIM(UPPER(?))
+      AND (
+        LOWER(TRIM(COALESCE(doc_name, '')))
+          LIKE '%agreement%'
+
+        OR LOWER(TRIM(COALESCE(original_name, '')))
+          LIKE '%agreement%'
+
+        OR LOWER(TRIM(COALESCE(file_name, '')))
+          LIKE '%agreement%'
+      )
+    ORDER BY uploaded_at DESC, id DESC
+    LIMIT 1
+  `,
+  [lan],
+);
 
   if (!rows.length) {
     throw createServiceError(
