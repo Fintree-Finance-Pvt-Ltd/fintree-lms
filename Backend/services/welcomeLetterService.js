@@ -2,8 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const nodemailer = require("nodemailer");
 const db = require("../config/db");
-const htmlPdfNode = require("html-pdf-node");
-/* =========================================================
+const puppeteer = require("puppeteer");/* =========================================================
    LAN PREFIX ROUTING
 ========================================================= */
 
@@ -1178,30 +1177,49 @@ async function generateWelcomeLetterPdf({
   lan,
 }) {
   const startedAt = Date.now();
+  let browser = null;
 
   console.log("[WELCOME_LETTER_PDF_GENERATION_START]", {
     lan,
     format: "A4",
+    pdfEngine: "puppeteer",
   });
 
   try {
-    const pdfHtml = await embedLogoForPdf(completedHtml, logoPath, logoExists);
+    const pdfHtml = await embedLogoForPdf(
+      completedHtml,
+      logoPath,
+      logoExists,
+    );
 
-    const file = {
-      content: pdfHtml,
-    };
+    browser = await puppeteer.launch({
+      headless: true,
 
-    const options = {
+      // Required on many Ubuntu/VPS environments.
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+      ],
+    });
+
+    const page = await browser.newPage();
+
+    await page.setContent(pdfHtml, {
+      waitUntil: ["load", "domcontentloaded", "networkidle0"],
+      timeout: 60000,
+    });
+
+    // Ensure background colours and images appear in the PDF.
+    await page.emulateMediaType("screen");
+
+    const pdfBuffer = await page.pdf({
       format: "A4",
-
       landscape: false,
-
       printBackground: true,
-
       preferCSSPageSize: false,
 
       displayHeaderFooter: true,
-
       headerTemplate: "<div></div>",
 
       footerTemplate: `
@@ -1228,12 +1246,11 @@ async function generateWelcomeLetterPdf({
         bottom: "15mm",
         left: "15mm",
       },
-    };
-
-    const pdfBuffer = await htmlPdfNode.generatePdf(file, options);
+    });
 
     if (
-      String(process.env.DEBUG_WELCOME_PDF || "false").toLowerCase() === "true"
+      String(process.env.DEBUG_WELCOME_PDF || "false").toLowerCase() ===
+      "true"
     ) {
       const debugDirectory = path.join(
         __dirname,
@@ -1249,7 +1266,11 @@ async function generateWelcomeLetterPdf({
         `${lan}_welcome_letter.html`,
       );
 
-      await fs.promises.writeFile(debugHtmlPath, pdfHtml, "utf8");
+      await fs.promises.writeFile(
+        debugHtmlPath,
+        pdfHtml,
+        "utf8",
+      );
 
       console.log("[WELCOME_LETTER_DEBUG_HTML_SAVED]", {
         lan,
@@ -1257,7 +1278,12 @@ async function generateWelcomeLetterPdf({
       });
     }
 
-    if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+    const finalPdfBuffer = Buffer.from(pdfBuffer);
+
+    if (
+      !Buffer.isBuffer(finalPdfBuffer) ||
+      finalPdfBuffer.length === 0
+    ) {
       throw createServiceError(
         `PDF generation returned an empty buffer for LAN ${lan}.`,
         "EMPTY_PDF_BUFFER",
@@ -1266,11 +1292,11 @@ async function generateWelcomeLetterPdf({
 
     console.log("[WELCOME_LETTER_PDF_GENERATION_SUCCESS]", {
       lan,
-      pdfSizeBytes: pdfBuffer.length,
+      pdfSizeBytes: finalPdfBuffer.length,
       executionTimeMs: Date.now() - startedAt,
     });
 
-    return pdfBuffer;
+    return finalPdfBuffer;
   } catch (error) {
     console.error("[WELCOME_LETTER_PDF_GENERATION_FAILED]", {
       lan,
@@ -1280,6 +1306,15 @@ async function generateWelcomeLetterPdf({
     });
 
     throw error;
+  } finally {
+    if (browser) {
+      await browser.close().catch((closeError) => {
+        console.error("[WELCOME_LETTER_BROWSER_CLOSE_FAILED]", {
+          lan,
+          errorMessage: closeError.message,
+        });
+      });
+    }
   }
 }
 /* =========================================================
