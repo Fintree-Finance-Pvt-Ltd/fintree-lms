@@ -1906,14 +1906,26 @@ router.post(
         },
       ];
 
-      console.log("Repayment sheet data:", sheetData);  
+      console.log("Repayment sheet data:", sheetData);
       const result = await processRows(sheetData);
+      console.log("Repayment processor result:", result);
 
       /* ==============================
          HANDLE FAILURE
       ============================== */
 
-      if (!result.success || result.failed_rows > 0) {
+      if (!result.success) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: result.error?.message || result.message || "Repayment processing failed",
+            code: result.error?.code || "request_validation_error",
+            details: result.error?.details || result.details,
+          },
+        });
+      }
+
+      if (result.failed_rows > 0) {
         const firstError = result.row_errors?.[0];
 
         return res.status(400).json({
