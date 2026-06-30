@@ -176,29 +176,29 @@ async function processRows(sheetData) {
       /**
        * Validation
        */
-      if (
-        !lan ||
-        !utr ||
-        !payment_date ||
-        !payment_id ||
-        !payment_mode ||
-        !transfer_amount
-      ) {
-        rowErrors.push({
-          row: rowNumber,
-          lan,
-          utr,
-          bank_date,
-          payment_date,
-          payment_id,
-          payment_mode,
-          transfer_amount,
-          stage: "validation",
-          reason: "Missing required fields",
-        });
+      // if (
+      //   !lan ||
+      //   !utr ||
+      //   !payment_date ||
+      //   !payment_id ||
+      //   !payment_mode ||
+      //   !transfer_amount
+      // ) {
+      //   rowErrors.push({
+      //     row: rowNumber,
+      //     lan,
+      //     utr,
+      //     bank_date,
+      //     payment_date,
+      //     payment_id,
+      //     payment_mode,
+      //     transfer_amount,
+      //     stage: "validation",
+      //     reason: "Missing required fields",
+      //   });
 
-        continue;
-      }
+      //   continue;
+      // }
 
       /**
        * LAN existence check
@@ -334,7 +334,7 @@ const generateLoanIdentifiers = async (connection, lender) => {
   let prefixLan;
 
   if (normalizedLender === "RAPID-MONEY") {
-    prefixLan = "SML10";
+    prefixLan = "RML10";
   } else {
     throw new Error("Invalid lender type.");
   }
