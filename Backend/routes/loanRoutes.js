@@ -107,6 +107,9 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("FCCOD")) {
     table = "loan_booking_wctl_cc_od";
   }
+  else if (lan.startsWith("SML")) {
+    table = "loan_booking_switch_my_loan";
+  }
 
   const query = `SELECT * FROM ${table} WHERE lan = ?`;
 
