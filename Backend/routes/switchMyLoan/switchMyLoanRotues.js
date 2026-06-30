@@ -47,18 +47,26 @@ const parsePartnerDate = (dateStr) => {
 const parseApiDate = (value) => {
   if (!value) return null;
 
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value;
-  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
 
-  if (typeof value === "string" && /^\d{2}-\d{2}-\d{4}$/.test(value)) {
-    const [d, m, y] = value.split("-");
-    return `${y}-${m}-${d}`;
-  }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
 
-  if (typeof value === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
-    const [d, m, y] = value.split("/");
-    return `${y}-${m}-${d}`;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+      return trimmed.slice(0, 10);
+    }
+
+    if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+      const [d, m, y] = trimmed.split("-");
+      return `${y}-${m}-${d}`;
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      const [d, m, y] = trimmed.split("/");
+      return `${y}-${m}-${d}`;
+    }
   }
 
   return null;
@@ -149,6 +157,9 @@ async function processRows(sheetData) {
 
       validLANs = new Set(results.flat().map((r) => r.lan));
     }
+
+    console.log("Valid LANs:", Array.from(validLANs));
+    console.log("sheetdat in processrows", sheetData);
 
     /**
      * Process each row
@@ -1797,23 +1808,40 @@ router.post(
   async (req, res) => {
     try {
       const { application_id } = req.params;
-      const { amount, payment_date, payment_id, payment_mode, utr } = req.body;
+      const { amount, payment_date, payment_id, payment_mode, utr } = req.body || {};
 
-      if (!application_id) {
+      if (!req.body || Object.keys(req.body).length === 0) {
+        console.error("Repayment API error: empty request body", {
+          application_id,
+          headers: req.headers,
+        });
+
         return res.status(400).json({
           is_success: false,
           error: {
-            message: "application_id required",
+            message: "Request body is empty or invalid JSON",
             code: "request_validation_error",
           },
         });
       }
 
-      if (!amount || !payment_date || !payment_id) {
+      const missingFields = [];
+      if (!application_id) missingFields.push("application_id");
+      if (!amount) missingFields.push("amount");
+      if (!payment_date) missingFields.push("payment_date");
+      if (!payment_id) missingFields.push("payment_id");
+
+      if (missingFields.length) {
+        console.error("Repayment API validation failure", {
+          application_id,
+          missingFields,
+          body: req.body,
+        });
+
         return res.status(400).json({
           is_success: false,
           error: {
-            message: "amount, payment_date, payment_id required",
+            message: `Missing required fields: ${missingFields.join(", ")}`,
             code: "request_validation_error",
           },
         });
@@ -1851,6 +1879,16 @@ router.post(
 
       const paymentDate = parseApiDate(payment_date);
 
+      if (!paymentDate) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "Invalid payment_date format",
+            code: "request_validation_error",
+          },
+        });
+      }
+
       const sheetData = [
         {
           LAN: lan,
@@ -1864,6 +1902,7 @@ router.post(
         },
       ];
 
+      console.log("Repayment sheet data:", sheetData);  
       const result = await processRows(sheetData);
 
       /* ==============================
