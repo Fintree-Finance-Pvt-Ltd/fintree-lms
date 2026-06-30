@@ -16,18 +16,18 @@ const parsePartnerDate = (dateStr) => {
   if (!dateStr) return null;
 
   const months = {
-    Jan: "01",
-    Feb: "02",
-    Mar: "03",
-    Apr: "04",
-    May: "05",
-    Jun: "06",
-    Jul: "07",
-    Aug: "08",
-    Sep: "09",
-    Oct: "10",
-    Nov: "11",
-    Dec: "12",
+    jan: "01",
+    feb: "02",
+    mar: "03",
+    apr: "04",
+    may: "05",
+    jun: "06",
+    jul: "07",
+    aug: "08",
+    sep: "09",
+    oct: "10",
+    nov: "11",
+    dec: "12",
   };
 
   const parts = String(dateStr).split("-");
@@ -36,7 +36,7 @@ const parsePartnerDate = (dateStr) => {
   }
 
   const [day, mon, year] = parts;
-  const month = months[mon];
+  const month = months[String(mon).toLowerCase()];
 
   if (!month) {
     throw new Error("Invalid month in date");
@@ -56,6 +56,10 @@ const parseApiDate = (value) => {
 
     if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
       return trimmed.slice(0, 10);
+    }
+
+    if (/^\d{2}-[A-Za-z]{3}-\d{4}$/.test(trimmed)) {
+      return parsePartnerDate(trimmed);
     }
 
     if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
