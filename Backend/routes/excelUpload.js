@@ -8181,7 +8181,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
         <Applicant>
           <Surname>${(last_name || "").toUpperCase()}</Surname>
           <FirstName>${(first_name || "").toUpperCase()}</FirstName>
-          <MiddleName1>${middle_name ? middle_name.toUpperCase() : ""}</MiddleName1>
+          <MiddleName1/>
           <MiddleName2/>
           <MiddleName3/>
           <GenderCode>${gender_code}</GenderCode>
