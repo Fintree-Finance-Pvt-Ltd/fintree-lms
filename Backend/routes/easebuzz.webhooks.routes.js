@@ -167,7 +167,7 @@ router.post("/payout", async (req, res) => {
 
       const lan = transfer.lan;
 
-      if (lan.startsWith("SML")) {
+      if (lan.startsWith("RML")) {
         await processRapidMoneyDisbursement({
           lan,
           disbursementUTR:

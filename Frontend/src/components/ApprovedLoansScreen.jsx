@@ -290,6 +290,8 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lender }) => {
           url = `/loan-digit/customer-details?lan=${r.lan}`;
         } else if (/^FINS/i.test(r?.lan)) {
           url = `/fincrest-loan-details/${r.lan}`;
+        } else if (/^RML/i.test(r?.lan)) {
+          url = `/rapidmoney-loans/customer-details?lan=${r.lan}`;
         }
 
         return (

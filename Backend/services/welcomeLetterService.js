@@ -146,19 +146,7 @@ const PARTNER_ROUTES = [
   },
 
   {
-    prefix: "LDG",
-    table: "loan_booking_loan_digit",
-    rpsTable: "manual_rps_loan_digit",
-  },
-
-  {
-    prefix: "LDD",
-    table: "loan_booking_loan_digit",
-    rpsTable: "manual_rps_loan_digit",
-  },
-
-  {
-    prefix: "SML",
+    prefix: "RML",
     table: "loan_booking_switch_my_loan",
 
     /*
