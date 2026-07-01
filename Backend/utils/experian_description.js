@@ -1,4 +1,4 @@
- const ACCOUNT_TYPE = {
+const ACCOUNT_TYPE = {
   "01": "AUTO LOAN ",
   "02": "HOUSING LOAN",
   "03": "PROPERTY LOAN ",

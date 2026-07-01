@@ -2447,8 +2447,12 @@ router.get("/approved-loans", async (req, res) => {
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
       : [];
 
-    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.status = 'Approved' AND lb.LAN LIKE ?${searchClause}`;
-    const dataSql = `SELECT lb.* FROM ?? lb WHERE lb.status = 'Approved' AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
+    // For switch_my_loan (RML), approved status is BRE_APPROVED
+    const statusFilter = table === 'loan_booking_switch_my_loan'
+      ? `lb.status IN ('Approved', 'BRE_APPROVED')`
+      : `lb.status = 'Approved'`;
+    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause}`;
+    const dataSql = `SELECT lb.* FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
 
     const [[countRows], [rows]] = await Promise.all([
       db.promise().query(countSql, [table, likeVal, ...searchParams]),
@@ -2533,14 +2537,19 @@ router.get("/disbursed-loans", async (req, res) => {
       : [];
 
     const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?${searchClause}`;
-    const dataSql = `
-      SELECT lb.*, DATE_FORMAT(CONVERT_TZ(edu.disbursement_date, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS disbursement_date
-      FROM ?? AS lb
-      LEFT JOIN ev_disbursement_utr AS edu ON edu.LAN = lb.LAN
-      WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?${searchClause}
-      ORDER BY lb.${sortCol} ${safeSortDir}
-      LIMIT ? OFFSET ?
-    `;
+    // Only join ev_disbursement_utr for EV-like products that have UTR tracking
+    const tablesWithUtr = ['loan_booking_ev','loan_booking_hey_ev','loan_booking_hey_ev_battery'];
+    const dataSql = tablesWithUtr.includes(table)
+      ? `SELECT lb.*, DATE_FORMAT(CONVERT_TZ(edu.disbursement_date, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS disbursement_date
+         FROM ?? AS lb
+         LEFT JOIN ev_disbursement_utr AS edu ON edu.LAN = lb.LAN
+         WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?${searchClause}
+         ORDER BY lb.${sortCol} ${safeSortDir}
+         LIMIT ? OFFSET ?`
+      : `SELECT lb.* FROM ?? AS lb
+         WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?${searchClause}
+         ORDER BY lb.${sortCol} ${safeSortDir}
+         LIMIT ? OFFSET ?`;
 
     const [[countRows], [rows]] = await Promise.all([
       db.promise().query(countSql, [table, likeVal, ...searchParams]),
