@@ -8035,7 +8035,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
     console.log(`🔍 Found ${rows.length} pending cases.`);
 
     const stateCodes = {
-      "JAMMU and KASHMIR": "01",
+      "JAMMU and KASHMIR": "01", "JAMMU & KASHMIR": "01",
       "HIMACHAL PRADESH": "02",
       PUNJAB: "03",
       CHANDIGARH: "04",
@@ -8097,7 +8097,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
 
       const state = current_state || "MAHARASHTRA";
       console.log("state", state);
-      const state_code = stateCodes[state.toUpperCase()] ?? null;
+      const state_code = stateCodes[state.trim().toUpperCase()] ?? null;
       console.log("state code", state_code);
       const gender_code = (gender ?? "Male").toLowerCase() === "female" ? 2 : 1;
       // --- Normalize and validate DOB ---
