@@ -599,7 +599,7 @@ token_auth_type,
 </Identification>
 
 <Application>
-<FTReferenceNumber>${String(lan).replace(/\D/g, '').slice(-6)}</FTReferenceNumber>
+<FTReferenceNumber>${String(Date.now()).slice(-9)}</FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
         <EnquiryReason>13</EnquiryReason>
         <FinancePurpose>99</FinancePurpose>
@@ -703,10 +703,10 @@ token_auth_type,
         // Keep entity processing enabled, but raise limits for valid large bureau XML.
         processEntities: {
           enabled: true,
-          maxTotalExpansions: 200000,
-          maxExpandedLength: 20_000_000,
-          maxEntityCount: 200000,
-          maxEntitySize: 200000,
+          maxTotalExpansions: 500000,
+          maxExpandedLength: 50_000_000,
+          maxEntityCount: 500000,
+          maxEntitySize: 500000,
         },
       });
 
@@ -724,6 +724,20 @@ token_auth_type,
       const decodedXml = he.decode(encodedInnerXml);
 
       const parsedInner = parser.parse(decodedXml);
+
+      const errorNode =
+        parsedInner?.INProfileResponse?.ERROR ||
+        parsedInner?.["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
+          "SOAP-ENV:Fault"
+        ];
+      if (errorNode) {
+        throw new Error(
+          `Experian error: ${JSON.stringify(errorNode).slice(0, 500)}`,
+        );
+      }
+      if (!parsedInner?.INProfileResponse) {
+        throw new Error("Invalid Experian response structure");
+      }
 
       const scoreStr =
         parsedInner?.INProfileResponse?.SCORE?.BureauScore ??
@@ -770,6 +784,28 @@ token_auth_type,
       console.error("➡️ Response status:", err.response?.status);
       console.error("➡️ Response data:", err.response?.data);
       console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
+
+      try {
+        await db.promise().query(
+          `INSERT INTO kyc_verification_status (lan, bureau_status, bureau_api_response)
+       VALUES (?, 'FAILED', ?)
+       ON DUPLICATE KEY UPDATE bureau_status='FAILED', bureau_api_response=VALUES(bureau_api_response)`,
+          [lan, String(err.message || "").slice(0, 4000)],
+        );
+        await db.promise().query(
+          `UPDATE loan_booking_loan_digit
+       SET loandigit_bre_status = 'Pending',
+           loandigit_bre_reason = ?,
+           loandigit_bre_checked_at = NOW()
+       WHERE lan = ?`,
+          [
+            `BUREAU_FETCH_FAILED: ${String(err.message || "").slice(0, 200)}`,
+            lan,
+          ],
+        );
+      } catch (dbErr) {
+        console.error("Failed to persist bureau failure:", dbErr.message);
+      }
     }
 
     console.log("📦 LOAN DIGIT REQUEST END");
@@ -867,12 +903,9 @@ router.get("/loan-digit-info/:lan", async (req, res) => {
 
         pan_status,
         fintree_cibil_score,
-        loandigit_enquiries_6m,
-        loandigit_dpd_6m_flag,
-        loandigit_dpd_gt30_12m_flag,
-        loandigit_dpd_gt60_ever_flag,
-        loandigit_multi_pan_flag,
-        loandigit_deviation_flag,
+        loandigit_enquiries_3m,
+        loandigit_dpd_or_overdue_12m_flag,
+        loandigit_writeoff_settlement_12m_flag,
         loandigit_bre_status,
         loandigit_bre_reason,
         loandigit_bre_checked_at
@@ -962,13 +995,9 @@ router.get("/loan-digit-info/:lan", async (req, res) => {
     };
 
     const bre = {
-      enquiries_6m: row.loandigit_enquiries_6m,
-      dpd_6m_flag: row.loandigit_dpd_6m_flag,
-      dpd_gt30_12m_flag: row.loandigit_dpd_gt30_12m_flag,
-      dpd_gt60_ever_flag: row.loandigit_dpd_gt60_ever_flag,
-      multi_pan_flag: row.loandigit_multi_pan_flag,
-      deviation_flag: row.loandigit_deviation_flag,
-
+      enquiries_3m: row.loandigit_enquiries_3m,
+      dpd_or_overdue_12m_flag: row.loandigit_dpd_or_overdue_12m_flag,
+      writeoff_settlement_12m_flag: row.loandigit_writeoff_settlement_12m_flag,
       bre_status: row.loandigit_bre_status,
       bre_reason: row.loandigit_bre_reason,
       bre_checked_at: row.loandigit_bre_checked_at,
@@ -1026,7 +1055,7 @@ router.get("/bre-approved-loans", async (req, res) => {
       `
       SELECT *
       FROM loan_booking_loan_digit
-      WHERE status = 'BRE_APPROVED' OR status = 'BRE_REJECTED'
+      WHERE status = 'BRE_REJECTED'
       ORDER BY id DESC
       `,
     );
@@ -1063,7 +1092,7 @@ router.put("/approve-initiate-loan/:lan", async (req, res) => {
       `
       UPDATE loan_booking_loan_digit
       SET status = ?
-      WHERE lan = ? AND status IN ('BRE_APPROVED', 'BRE_REJECTED')
+      WHERE lan = ? AND status IN ('CREDIT_APPROVED', 'BRE_REJECTED')
       `,
       [status, lan],
     );
@@ -1176,13 +1205,12 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
   const { lan } = req.params;
   const { ops_checker_id, ops_checker_name, status } = req.body;
   try {
-
     if (status === "OPS_REJECTED") {
       await db.promise().query(
         `UPDATE loan_booking_loan_digit 
          SET status = 'OPS_REJECTED', ops_checker_id = ?, ops_checker_name = ?
          WHERE lan = ?`,
-        [ops_checker_id || null, ops_checker_name || null, lan]
+        [ops_checker_id || null, ops_checker_name || null, lan],
       );
       return res.json({
         status: "SUCCESS",
@@ -1196,13 +1224,13 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
         `UPDATE loan_booking_loan_digit 
          SET ops_checker_id = ?, ops_checker_name = ?
          WHERE lan = ?`,
-        [ops_checker_id, ops_checker_name, lan]
+        [ops_checker_id, ops_checker_name, lan],
       );
     }
 
     const payoutResult = await payoutService.approveAndInitiatePayout({
       lan,
-      table: "loan_booking_loan_digit"
+      table: "loan_booking_loan_digit",
     });
 
     if (!payoutResult.success) {
@@ -1214,7 +1242,8 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
 
     return res.json({
       status: "SUCCESS",
-      message: "Loan approved by operations checker and payout initiated successfully",
+      message:
+        "Loan approved by operations checker and payout initiated successfully",
     });
   } catch (err) {
     console.error("❌ Error approving Loan Digit by operations checker:", err);
