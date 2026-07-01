@@ -1348,6 +1348,12 @@ router.post(
       const breEngineResult = await runBRE(loan);
 
       if (breEngineResult.decision === "REJECTED") {
+        console.log("[SML] Triggering rejection webhook", {
+          application_id,
+          reason: breEngineResult.reason,
+          amlScore: breEngineResult.amlScore,
+        });
+
         await sendRejectionWebhook(application_id);
 
         await connection.query(
