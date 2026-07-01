@@ -16,18 +16,18 @@ const parsePartnerDate = (dateStr) => {
   if (!dateStr) return null;
 
   const months = {
-    Jan: "01",
-    Feb: "02",
-    Mar: "03",
-    Apr: "04",
-    May: "05",
-    Jun: "06",
-    Jul: "07",
-    Aug: "08",
-    Sep: "09",
-    Oct: "10",
-    Nov: "11",
-    Dec: "12",
+    jan: "01",
+    feb: "02",
+    mar: "03",
+    apr: "04",
+    may: "05",
+    jun: "06",
+    jul: "07",
+    aug: "08",
+    sep: "09",
+    oct: "10",
+    nov: "11",
+    dec: "12",
   };
 
   const parts = String(dateStr).split("-");
@@ -36,7 +36,7 @@ const parsePartnerDate = (dateStr) => {
   }
 
   const [day, mon, year] = parts;
-  const month = months[mon];
+  const month = months[String(mon).toLowerCase()];
 
   if (!month) {
     throw new Error("Invalid month in date");
@@ -47,18 +47,30 @@ const parsePartnerDate = (dateStr) => {
 const parseApiDate = (value) => {
   if (!value) return null;
 
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value;
-  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
 
-  if (typeof value === "string" && /^\d{2}-\d{2}-\d{4}$/.test(value)) {
-    const [d, m, y] = value.split("-");
-    return `${y}-${m}-${d}`;
-  }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
 
-  if (typeof value === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
-    const [d, m, y] = value.split("/");
-    return `${y}-${m}-${d}`;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+      return trimmed.slice(0, 10);
+    }
+
+    if (/^\d{2}-[A-Za-z]{3}-\d{4}$/.test(trimmed)) {
+      return parsePartnerDate(trimmed);
+    }
+
+    if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+      const [d, m, y] = trimmed.split("-");
+      return `${y}-${m}-${d}`;
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      const [d, m, y] = trimmed.split("/");
+      return `${y}-${m}-${d}`;
+    }
   }
 
   return null;
@@ -150,6 +162,9 @@ async function processRows(sheetData) {
       validLANs = new Set(results.flat().map((r) => r.lan));
     }
 
+    console.log("Valid LANs:", Array.from(validLANs));
+    console.log("sheetdat in processrows", sheetData);
+
     /**
      * Process each row
      */
@@ -176,29 +191,29 @@ async function processRows(sheetData) {
       /**
        * Validation
        */
-      if (
-        !lan ||
-        !utr ||
-        !payment_date ||
-        !payment_id ||
-        !payment_mode ||
-        !transfer_amount
-      ) {
-        rowErrors.push({
-          row: rowNumber,
-          lan,
-          utr,
-          bank_date,
-          payment_date,
-          payment_id,
-          payment_mode,
-          transfer_amount,
-          stage: "validation",
-          reason: "Missing required fields",
-        });
+      // if (
+      //   !lan ||
+      //   !utr ||
+      //   !payment_date ||
+      //   !payment_id ||
+      //   !payment_mode ||
+      //   !transfer_amount
+      // ) {
+      //   rowErrors.push({
+      //     row: rowNumber,
+      //     lan,
+      //     utr,
+      //     bank_date,
+      //     payment_date,
+      //     payment_id,
+      //     payment_mode,
+      //     transfer_amount,
+      //     stage: "validation",
+      //     reason: "Missing required fields",
+      //   });
 
-        continue;
-      }
+      //   continue;
+      // }
 
       /**
        * LAN existence check
@@ -334,7 +349,7 @@ const generateLoanIdentifiers = async (connection, lender) => {
   let prefixLan;
 
   if (normalizedLender === "RAPID-MONEY") {
-    prefixLan = "SML10";
+    prefixLan = "RML10";
   } else {
     throw new Error("Invalid lender type.");
   }
@@ -913,7 +928,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
     const row = existing[0];
 
     let lan = row.lan;
-    let applicationId = row.application_id;
+    let applicationId = row.application_id;       
 
     const preUpdateFields = [];
     const preUpdateValues = [];
@@ -1068,6 +1083,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
 
     const lockedStatuses = [
   "APPROVED",
+  "BRE_APPROVED",
   "DISBURSE_INITIATED",
   "DISBURSED",
   "CLOSED",
@@ -1796,23 +1812,40 @@ router.post(
   async (req, res) => {
     try {
       const { application_id } = req.params;
-      const { amount, payment_date, payment_id, payment_mode, utr } = req.body;
+      const { amount, payment_date, payment_id, payment_mode, utr } = req.body || {};
 
-      if (!application_id) {
+      if (!req.body || Object.keys(req.body).length === 0) {
+        console.error("Repayment API error: empty request body", {
+          application_id,
+          headers: req.headers,
+        });
+
         return res.status(400).json({
           is_success: false,
           error: {
-            message: "application_id required",
+            message: "Request body is empty or invalid JSON",
             code: "request_validation_error",
           },
         });
       }
 
-      if (!amount || !payment_date || !payment_id) {
+      const missingFields = [];
+      if (!application_id) missingFields.push("application_id");
+      if (!amount) missingFields.push("amount");
+      if (!payment_date) missingFields.push("payment_date");
+      if (!payment_id) missingFields.push("payment_id");
+
+      if (missingFields.length) {
+        console.error("Repayment API validation failure", {
+          application_id,
+          missingFields,
+          body: req.body,
+        });
+
         return res.status(400).json({
           is_success: false,
           error: {
-            message: "amount, payment_date, payment_id required",
+            message: `Missing required fields: ${missingFields.join(", ")}`,
             code: "request_validation_error",
           },
         });
@@ -1850,6 +1883,16 @@ router.post(
 
       const paymentDate = parseApiDate(payment_date);
 
+      if (!paymentDate) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "Invalid payment_date format",
+            code: "request_validation_error",
+          },
+        });
+      }
+
       const sheetData = [
         {
           LAN: lan,
@@ -1863,13 +1906,26 @@ router.post(
         },
       ];
 
+      console.log("Repayment sheet data:", sheetData);
       const result = await processRows(sheetData);
+      console.log("Repayment processor result:", result);
 
       /* ==============================
          HANDLE FAILURE
       ============================== */
 
-      if (!result.success || result.failed_rows > 0) {
+      if (!result.success) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: result.error?.message || result.message || "Repayment processing failed",
+            code: result.error?.code || "request_validation_error",
+            details: result.error?.details || result.details,
+          },
+        });
+      }
+
+      if (result.failed_rows > 0) {
         const firstError = result.row_errors?.[0];
 
         return res.status(400).json({
@@ -2505,200 +2561,3 @@ router.get("/v1/loan/:application_id/customer-details", verifyApiKey, async (req
 });
 
 module.exports = router;
-
-// 3) UPDATE DETAILS
-// router.put("/v1/update-details", verifyApiKey, async (req, res) => {
-//   let connection;
-//   let transactionStarted = false;
-
-//   try {
-//     connection = await db.promise().getConnection();
-
-//     const data = req.body;
-
-//     if (!data.partner_loan_id) {
-//       return res.status(400).json({ message: "partner_loan_id is required" });
-//     }
-
-//     const payload = normalizeCreateUpdatePayload(data);
-
-//     await connection.beginTransaction();
-//     transactionStarted = true;
-
-//     const [existing] = await connection.query(
-//       `SELECT id, lan, application_id
-//        FROM loan_booking_switch_my_loan
-//        WHERE partner_loan_id = ?
-//        LIMIT 1`,
-//       [data.partner_loan_id]
-//     );
-
-//     if (!existing.length) {
-//       await connection.rollback();
-//       transactionStarted = false;
-
-//       return res.status(404).json({
-//         message: "Loan case not found for provided partner_loan_id",
-//       });
-//     }
-
-//     let lan = existing[0].lan || null;
-//     let applicationId = existing[0].application_id || null;
-
-//     if (!applicationId) {
-//       applicationId = generateApplicationId();
-//     }
-
-//     if (!lan) {
-//       const generated = await generateLoanIdentifiers(connection, "SWITCH-MY-LOAN");
-//       lan = generated.lan;
-//     }
-
-//     await connection.query(
-//       `UPDATE loan_booking_switch_my_loan
-//        SET
-//          lan = ?,
-//          application_id = ?,
-//          full_name = ?,
-//          pan_number = ?,
-//          father_name = ?,
-//          dob = ?,
-//          gender = ?,
-//          mobile = ?,
-//          email = ?,
-//          pincode = ?,
-//          state = ?,
-//          city = ?,
-//          district = ?,
-//          residence_status = ?,
-//          employment_type = ?,
-//          company_type = ?,
-//          company_name = ?,
-//          designation = ?,
-//          salary_range = ?,
-//          salary_mode = ?,
-//          nature_of_business = ?,
-//          industry_type = ?,
-//          monthly_income = ?,
-//          address_line_1 = ?,
-//          address_line_2 = ?,
-//          address_pincode = ?,
-//          address_city = ?,
-//          address_state = ?,
-//          is_current_address = ?,
-//          current_address_line_1 = ?,
-//          current_address_line_2 = ?,
-//          current_address_pincode = ?,
-//          current_address_city = ?,
-//          current_address_state = ?,
-//          loan_amount = ?,
-//          tenure = ?,
-//          loan_type = ?,
-//          monthly_emi = ?,
-//          interest_rate = ?,
-//          processing_fee = ?,
-//          repayment_count = ?,
-//          payment_frequency = ?,
-//          loan_application_date = ?,
-//          agreement_date = ?,
-//          repayment_date = ?,
-//          agreement_signature_type = ?,
-//          source = ?,
-//          preferred_language = ?,
-//          previous_loan_amount = ?,
-//          total_disbursed_applications = ?,
-//          bank_ac_name = ?,
-//          bank_ac_number = ?,
-//          bank_ifsc_code = ?,
-//          bank_nach_umrn = ?,
-//          bank_upi_id = ?,
-//          kyc_json = ?,
-//          status = ?
-//        WHERE partner_loan_id = ?`,
-//       [
-//         lan,
-//         applicationId,
-//         payload.full_name,
-//         payload.pan_number,
-//         payload.father_name,
-//         payload.dob,
-//         payload.gender,
-//         payload.mobile,
-//         payload.email,
-//         payload.pincode,
-//         payload.state,
-//         payload.city,
-//         payload.district,
-//         payload.residence_status,
-//         payload.employment_type,
-//         payload.company_type,
-//         payload.company_name,
-//         payload.designation,
-//         payload.salary_range,
-//         payload.salary_mode,
-//         payload.nature_of_business,
-//         payload.industry_type,
-//         payload.monthly_income,
-//         payload.address_line_1,
-//         payload.address_line_2,
-//         payload.address_pincode,
-//         payload.address_city,
-//         payload.address_state,
-//         payload.is_current_address,
-//         payload.current_address_line_1,
-//         payload.current_address_line_2,
-//         payload.current_address_pincode,
-//         payload.current_address_city,
-//         payload.current_address_state,
-//         payload.loan_amount,
-//         payload.tenure,
-//         payload.loan_type,
-//         payload.monthly_emi,
-//         payload.interest_rate,
-//         payload.processing_fee,
-//         payload.repayment_count,
-//         payload.payment_frequency,
-//         payload.loan_application_date,
-//         payload.agreement_date,
-//         payload.repayment_date,
-//         payload.agreement_signature_type,
-//         payload.source,
-//         payload.preferred_language,
-//         payload.previous_loan_amount,
-//         payload.total_disbursed_applications,
-//         payload.bank_ac_name,
-//         payload.bank_ac_number,
-//         payload.bank_ifsc_code,
-//         payload.bank_nach_umrn,
-//         payload.bank_upi_id,
-//         payload.kyc_json,
-//         payload.loan_amount && payload.tenure
-//   ? "APPLICATION_COMPLETED"
-//   : "DETAILS_UPDATED",
-//         data.partner_loan_id,
-//       ]
-//     );
-
-//     await connection.commit();
-//     transactionStarted = false;
-
-//     return res.json({
-//       message: "Step 2 + Step 3 details updated successfully",
-//       lan,
-//       application_id: applicationId,
-//     });
-//   } catch (error) {
-//     if (connection && transactionStarted) {
-//       await connection.rollback();
-//     }
-
-//     console.error("Update details error:", error);
-
-//     return res.status(500).json({
-//       message: "Failed to update loan details",
-//       error: error.message,
-//     });
-//   } finally {
-//     if (connection) connection.release();
-//   }
-// });

@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fintree Finance - Welcome Letter</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap");
+
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      html,
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+        color: #1e2937;
+        margin: 0;
+        padding: 0;
+        font-size: 9.5pt;
+        line-height: 1.5;
+        background-color: #ffffff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      @media screen {
+        body {
+          max-width: 850px;
+          margin: 30px auto;
+          padding: 20px 40px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+          border-radius: 12px;
+          background: white;
+        }
+      }
+
+      /* Brand Colors from Logo */
+      :root {
+        --fin-blue: #1e40af;
+        --fin-green: #15803d;
+        --accent-green: #22c55e;
+      }
+
+      /* Top Accent Bar - Inspired by Logo */
+      .top-accent {
+        height: 6px;
+        background: linear-gradient(
+          to right,
+          var(--fin-blue) 65%,
+          var(--fin-green) 65%
+        );
+        margin-bottom: 20px;
+        border-radius: 0 0 4px 4px;
+      }
+
+      .brand-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 10px;
+        margin-bottom: 5px;
+      }
+
+      .logo-section {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .logo-img {
+        height: 160px;
+        width: auto;
+        object-fit: contain;
+      }
+
+      .brand-name .fin {
+        color: var(--fin-blue);
+      }
+
+      .brand-name .tree {
+        color: var(--fin-green);
+      }
+
+      .doc-title {
+        font-size: 22pt;
+        font-weight: 700;
+        color: var(--fin-blue);
+        text-align: right;
+        line-height: 1.1;
+      }
+
+      .meta-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 25px;
+      }
+
+      .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 9pt;
+      }
+
+      .meta-label {
+        color: #64748b;
+        font-weight: 500;
+        width: 110px;
+      }
+
+      .meta-value {
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .placeholder {
+        color: #1e40af;
+        background: #f0fdf4;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 9pt;
+      }
+
+      .address-card {
+        margin-bottom: 25px;
+      }
+
+      .to-title {
+        font-size: 8.5pt;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #64748b;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+
+      .customer-name {
+        font-size: 13pt;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 6px;
+      }
+
+      .address-text {
+        color: #475569;
+        font-size: 9.5pt;
+        margin-bottom: 8px;
+      }
+
+      .contact-info {
+        font-size: 9pt;
+        color: #64748b;
+      }
+
+      .subject-bar {
+        background: linear-gradient(to right, var(--fin-blue), #1e3a8a);
+        color: white;
+        padding: 12px 18px;
+        font-weight: 700;
+        font-size: 11pt;
+        border-radius: 8px;
+        margin-bottom: 22px;
+        box-shadow: 0 2px 8px rgba(30, 64, 175, 0.15);
+      }
+
+      .salutation {
+        font-size: 11pt;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #1e2937;
+      }
+
+      .body-p {
+        color: #334155;
+        margin-bottom: 18px;
+        text-align: justify;
+        font-size: 9.8pt;
+      }
+
+      .section-header {
+        font-size: 10.5pt;
+        font-weight: 700;
+        color: var(--fin-blue);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        border-bottom: 2px solid var(--accent-green);
+        padding-bottom: 6px;
+        margin: 26px 0 12px;
+      }
+
+      .modern-grid {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 22px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .grid-header {
+        background: linear-gradient(to right, var(--fin-blue), #1e40af);
+        color: white;
+        padding: 12px 16px;
+        font-size: 10pt;
+        text-align: left;
+      }
+
+      .grid-row td {
+        padding: 10px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 9pt;
+        vertical-align: middle;
+      }
+
+      .cell-label {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 500;
+        width: 28%;
+      }
+
+      .highlight-bg {
+        background-color: #f0fdf4 !important;
+      }
+
+      .premium-list {
+        padding-left: 22px;
+        margin: 18px 0 22px;
+      }
+
+      .premium-list li {
+        margin-bottom: 9px;
+        color: #334155;
+        font-size: 9.5pt;
+      }
+
+      .premium-list li::marker {
+        color: var(--fin-green);
+        font-weight: bold;
+      }
+
+      .support-card {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 25px;
+      }
+
+      .support-cell {
+        padding: 11px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 9.2pt;
+      }
+
+      .support-label {
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        width: 38%;
+      }
+
+      .footer {
+        margin-top: 35px;
+        padding-top: 20px;
+        border-top: 1px solid #e2e8f0;
+      }
+
+      .legal-notice {
+        background: #f8fafc;
+        border: 1px dashed #94a3b8;
+        border-radius: 8px;
+        padding: 14px 18px;
+        font-size: 8pt;
+        color: #475569;
+        margin-top: 25px;
+        line-height: 1.4;
+      }
+
+      .signature {
+        margin-top: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top Accent Bar -->
+    <div class="top-accent"></div>
+
+    <!-- Header -->
+    <div class="brand-header">
+      <div class="logo-section">
+        <img
+          class="logo-img"
+          src="/Backend/public/fintree-logo.png"
+          alt="Fintree Finance Logo"
+        />
+      </div>
+      <div class="doc-title">Welcome Letter</div>
+    </div>
+
+    <!-- Meta Info -->
+    <div class="meta-container">
+      <div>
+        <div class="meta-item">
+          <span class="meta-label">Date:</span>
+          <span class="meta-value placeholder">{{DATE}}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Customer ID:</span>
+          <span class="meta-value placeholder">{{CUSTOMER_ID}}</span>
+        </div>
+      </div>
+      <div>
+        <div class="meta-item">
+          <span class="meta-label">LAN:</span>
+          <span class="meta-value placeholder">{{LOAN_ACCOUNT_NUMBER}}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Letter Ref No:</span>
+          <span class="meta-value placeholder">{{LETTER_REF_NO}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recipient -->
+    <div class="address-card">
+      <div class="to-title">To</div>
+      <div class="customer-name">{{BORROWER_NAME}}</div>
+      <div class="address-text">{{BORROWER_ADDRESS}}</div>
+      <div class="contact-info">
+        <strong>Mobile:</strong> {{MOBILE_NUMBER}} &nbsp;&nbsp;|&nbsp;&nbsp;
+        <strong>Email:</strong> {{EMAIL_ID}}
+      </div>
+    </div>
+
+    <!-- Subject -->
+    <div class="subject-bar">
+      Subject: Welcome to Fintree Finance Private Limited
+    </div>
+
+    <!-- Body -->
+    <div class="salutation">Dear {{BORROWER_NAME}},</div>
+
+    <div class="body-p">
+      We are delighted to welcome you to the
+      <strong>Fintree Finance</strong> family. Your loan facility has been
+      successfully approved and disbursed as per the terms agreed upon in the
+      loan agreement, repayment schedule, and other related documents.
+    </div>
+
+    <!-- Loan Details -->
+    <div class="section-header">1. Loan Summary</div>
+    <table class="modern-grid">
+      <thead>
+        <tr>
+          <th colspan="4" class="grid-header">Facility Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="grid-row">
+          <td class="cell-label">Borrower Name</td>
+          <td class="cell-value">{{BORROWER_NAME}}</td>
+          <td class="cell-label highlight-bg">Loan Account No.</td>
+          <td class="cell-value highlight-bg">{{LOAN_ACCOUNT_NUMBER}}</td>
+        </tr>
+        <tr class="grid-row">
+          <td class="cell-label">LSP Name</td>
+          <td class="cell-value">{{LOAN_PRODUCT_NAME}}</td>
+          <td class="cell-label highlight-bg">Sanctioned Amount</td>
+          <td class="cell-value highlight-bg">₹ {{SANCTIONED_AMOUNT}}</td>
+        </tr>
+        <tr class="grid-row">
+          <td class="cell-label">Disbursed Amount</td>
+          <td class="cell-value">₹ {{DISBURSED_AMOUNT}}</td>
+          <td class="cell-label highlight-bg">Interest Rate</td>
+          <td class="cell-value highlight-bg">{{RATE_OF_INTEREST}}% p.a.</td>
+        </tr>
+        <tr class="grid-row">
+          <td class="cell-label">Loan Tenure</td>
+          <td class="cell-value">{{LOAN_TENURE}}</td>
+          <td class="cell-label highlight-bg">EMI Amount</td>
+          <td class="cell-value highlight-bg">₹ {{EMI_AMOUNT}}</td>
+        </tr>
+        <tr class="grid-row">
+          <td class="cell-label">1 <sup>st</sup> EMI Due Date</td>
+          <td class="cell-value">{{EMI_DUE_DATE}}</td>
+          <td class="cell-label highlight-bg">Repayment Mode</td>
+          <td class="cell-value highlight-bg">{{REPAYMENT_MODE}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Important Instructions -->
+    <div class="section-header">2. Important Instructions</div>
+    <ol class="premium-list">
+      <li>
+        Maintain sufficient balance in your registered bank account on or before
+        every EMI due date.
+      </li>
+      <li>
+        Any delay in repayment may attract penal interest and affect your credit
+        score.
+      </li>
+      <li>
+        Keep your contact details, email, and bank information updated with us
+        at all times.
+      </li>
+      <li>
+        For repayment schedule, statements, foreclosure, or any loan-related
+        queries, please contact our support team.
+      </li>
+      <li>
+        Please refer to your sanction letter and loan agreement for complete
+        terms and conditions.
+      </li>
+    </ol>
+
+    <!-- Support -->
+    <div class="section-header">3. Customer Support</div>
+    <table class="support-card">
+      <tr>
+        <td class="support-cell support-label">Email</td>
+        <td class="support-cell">wecare@fintreefinance.com</td>
+      </tr>
+      <tr>
+        <td class="support-cell support-label">Phone</td>
+        <td class="support-cell">18002678111</td>
+      </tr>
+      <tr>
+        <td class="support-cell support-label">Address</td>
+        <td class="support-cell">
+          Engineering Centre 4th Floor, 9 Matthew Road, Opera House, Mumbai -
+          400004
+        </td>
+      </tr>
+      <tr>
+        <td class="support-cell support-label">Working Hours</td>
+        <td class="support-cell">Mon - Sat | 9:30 AM - 6:00 PM</td>
+      </tr>
+    </table>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div>Warm Regards,</div>
+      <div style="margin-top: 12px; font-weight: 600; color: var(--fin-blue)">
+        For Fintree Finance Private Limited
+      </div>
+
+      <div class="signature">
+        <strong>Authorized Signatory</strong><br />
+        Name: Lalit Shah<br />
+        Designation: Managing Director
+      </div>
+    </div>
+
+    <div class="legal-notice">
+      <strong>Note:</strong> This communication is for informational purposes
+      only. All financial transactions and obligations remain subject to the
+      executed loan agreement, sanction letter, and other applicable legal
+      documents.
+    </div>
+  </body>
+</html>
