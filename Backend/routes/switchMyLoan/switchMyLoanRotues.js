@@ -1345,6 +1345,18 @@ router.post(
         });
       }
 
+      const blockedStatuses = ["REJECTED", "CANCELLED", "DISBURSED", "CLOSED", "Fully Paid", "DISBURSE_INITIATED"];
+
+if (blockedStatuses.includes(loan.status)) {  
+  return res.status(400).json({
+    is_success: false,
+    error: {
+      message: "Application not eligible for approval",
+      code: "request_validation_error",
+    },
+  });
+}
+
       const breEngineResult = await runBRE(loan);
 
       if (breEngineResult.decision === "REJECTED") {
