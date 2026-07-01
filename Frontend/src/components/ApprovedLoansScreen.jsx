@@ -315,7 +315,7 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lender }) => {
 
       width: 220,
     },
-    { key: "lender", header: "Lender", sortable: true, width: 140 , render: (r) => lender.toUpperCase() ?? r.lender, },
+    { key: "lender", header: "Lender", sortable: true, width: 140 , render: (r) => lender?.toUpperCase() ?? r.lender, },
     {
       key: "partner_loan_id",
       header: "Partner Loan ID",
