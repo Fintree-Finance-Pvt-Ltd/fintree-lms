@@ -18,7 +18,8 @@ function clean(value) {
 }
 
 function buildDoqfyPartyUsers(loan, esignParties = [], type) {
-  const positions = ["BOTTOM_RIGHT", "BOTTOM_LEFT", "TOP_RIGHT", "TOP_LEFT"];
+  // const positions = ["BOTTOM_RIGHT", "BOTTOM_LEFT", "TOP_RIGHT", "TOP_LEFT"];
+  const positions = ["DRAG_DROP"];
 
   const partyUsers = [];
 

@@ -2591,6 +2591,7 @@ router.get("/operation-initiated-loans", async (req, res) => {
 
         lb.status,
         lb.stage,
+        lb.stamp_paper_no,
 
         lb.created_at
 
