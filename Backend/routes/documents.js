@@ -1022,7 +1022,7 @@ router.post(
       let tableName = null;
 
       // Detect table based on LAN prefix
-      if (lan.startsWith("RML")) {
+      if (lan.startsWith("SML")) {
         tableName = "loan_booking_switch_my_loan";
       } else if (lan.startsWith("LDF")) {
         tableName = "loan_booking_loan_digit";
@@ -2782,7 +2782,7 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("SFL")) loanTable = "loan_booking_zypay_customer";
   else if (lan.startsWith("BUN")) loanTable = "loan_booking_bundela";
   else if (lan.startsWith("LDF")) loanTable = "loan_booking_loan_digit";
-  else if (lan.startsWith("RML")) loanTable = "loan_booking_switch_my_loan";
+  else if (lan.startsWith("SML")) loanTable = "loan_booking_switch_my_loan";
   else if (lan.startsWith("ZBR")) loanTable = "loan_booking_zebrs";
   else if (lan.startsWith("CLY")) loanTable = "loan_booking_clayyo";
   else if (lan.startsWith("SH")) loanTable = "loan_booking_srbh";

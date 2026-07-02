@@ -230,6 +230,8 @@ const CreateLoanBooking = () => {
         return `/loan-booking/circle-pe-houser-upload`;
       case "WCTL":
         return `/loan-booking/wctl-upload`;
+      case "WCTL FFPL":
+        return `/loan-booking/v1/wctl-ffpl-upload`;
       default:
         return "";
     }
@@ -339,6 +341,7 @@ const CreateLoanBooking = () => {
           <option value="Circle Pe Houser">Circle Pe Houser</option>
           <option value="WCTL">WCTL</option>
           <option value="HeyEV Battery">Hey EV Battery</option>
+          <option value="WCTL FFPL">WCTL FFPL</option>
 
         </select>
 

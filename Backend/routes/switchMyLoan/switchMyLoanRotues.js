@@ -16,18 +16,18 @@ const parsePartnerDate = (dateStr) => {
   if (!dateStr) return null;
 
   const months = {
-    jan: "01",
-    feb: "02",
-    mar: "03",
-    apr: "04",
-    may: "05",
-    jun: "06",
-    jul: "07",
-    aug: "08",
-    sep: "09",
-    oct: "10",
-    nov: "11",
-    dec: "12",
+    Jan: "01",
+    Feb: "02",
+    Mar: "03",
+    Apr: "04",
+    May: "05",
+    Jun: "06",
+    Jul: "07",
+    Aug: "08",
+    Sep: "09",
+    Oct: "10",
+    Nov: "11",
+    Dec: "12",
   };
 
   const parts = String(dateStr).split("-");
@@ -36,7 +36,7 @@ const parsePartnerDate = (dateStr) => {
   }
 
   const [day, mon, year] = parts;
-  const month = months[String(mon).toLowerCase()];
+  const month = months[mon];
 
   if (!month) {
     throw new Error("Invalid month in date");
@@ -47,30 +47,18 @@ const parsePartnerDate = (dateStr) => {
 const parseApiDate = (value) => {
   if (!value) return null;
 
-  if (typeof value === "string") {
-    const trimmed = value.trim();
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      return trimmed;
-    }
+  if (typeof value === "string" && /^\d{2}-\d{2}-\d{4}$/.test(value)) {
+    const [d, m, y] = value.split("-");
+    return `${y}-${m}-${d}`;
+  }
 
-    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
-      return trimmed.slice(0, 10);
-    }
-
-    if (/^\d{2}-[A-Za-z]{3}-\d{4}$/.test(trimmed)) {
-      return parsePartnerDate(trimmed);
-    }
-
-    if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
-      const [d, m, y] = trimmed.split("-");
-      return `${y}-${m}-${d}`;
-    }
-
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
-      const [d, m, y] = trimmed.split("/");
-      return `${y}-${m}-${d}`;
-    }
+  if (typeof value === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    const [d, m, y] = value.split("/");
+    return `${y}-${m}-${d}`;
   }
 
   return null;
@@ -162,9 +150,6 @@ async function processRows(sheetData) {
       validLANs = new Set(results.flat().map((r) => r.lan));
     }
 
-    console.log("Valid LANs:", Array.from(validLANs));
-    console.log("sheetdat in processrows", sheetData);
-
     /**
      * Process each row
      */
@@ -191,29 +176,29 @@ async function processRows(sheetData) {
       /**
        * Validation
        */
-      // if (
-      //   !lan ||
-      //   !utr ||
-      //   !payment_date ||
-      //   !payment_id ||
-      //   !payment_mode ||
-      //   !transfer_amount
-      // ) {
-      //   rowErrors.push({
-      //     row: rowNumber,
-      //     lan,
-      //     utr,
-      //     bank_date,
-      //     payment_date,
-      //     payment_id,
-      //     payment_mode,
-      //     transfer_amount,
-      //     stage: "validation",
-      //     reason: "Missing required fields",
-      //   });
+      if (
+        !lan ||
+        !utr ||
+        !payment_date ||
+        !payment_id ||
+        !payment_mode ||
+        !transfer_amount
+      ) {
+        rowErrors.push({
+          row: rowNumber,
+          lan,
+          utr,
+          bank_date,
+          payment_date,
+          payment_id,
+          payment_mode,
+          transfer_amount,
+          stage: "validation",
+          reason: "Missing required fields",
+        });
 
-      //   continue;
-      // }
+        continue;
+      }
 
       /**
        * LAN existence check
@@ -349,7 +334,7 @@ const generateLoanIdentifiers = async (connection, lender) => {
   let prefixLan;
 
   if (normalizedLender === "RAPID-MONEY") {
-    prefixLan = "RML10";
+    prefixLan = "SML10";
   } else {
     throw new Error("Invalid lender type.");
   }
@@ -1345,27 +1330,9 @@ router.post(
         });
       }
 
-      const blockedStatuses = ["REJECTED", "CANCELLED", "DISBURSED", "CLOSED", "Fully Paid", "DISBURSE_INITIATED"];
-
-if (blockedStatuses.includes(loan.status)) {  
-  return res.status(400).json({
-    is_success: false,
-    error: {
-      message: "Application not eligible for approval",
-      code: "request_validation_error",
-    },
-  });
-}
-
       const breEngineResult = await runBRE(loan);
 
       if (breEngineResult.decision === "REJECTED") {
-        console.log("[SML] Triggering rejection webhook", {
-          application_id,
-          reason: breEngineResult.reason,
-          amlScore: breEngineResult.amlScore,
-        });
-
         await sendRejectionWebhook(application_id);
 
         await connection.query(
@@ -1830,40 +1797,23 @@ router.post(
   async (req, res) => {
     try {
       const { application_id } = req.params;
-      const { amount, payment_date, payment_id, payment_mode, utr } = req.body || {};
+      const { amount, payment_date, payment_id, payment_mode, utr } = req.body;
 
-      if (!req.body || Object.keys(req.body).length === 0) {
-        console.error("Repayment API error: empty request body", {
-          application_id,
-          headers: req.headers,
-        });
-
+      if (!application_id) {
         return res.status(400).json({
           is_success: false,
           error: {
-            message: "Request body is empty or invalid JSON",
+            message: "application_id required",
             code: "request_validation_error",
           },
         });
       }
 
-      const missingFields = [];
-      if (!application_id) missingFields.push("application_id");
-      if (!amount) missingFields.push("amount");
-      if (!payment_date) missingFields.push("payment_date");
-      if (!payment_id) missingFields.push("payment_id");
-
-      if (missingFields.length) {
-        console.error("Repayment API validation failure", {
-          application_id,
-          missingFields,
-          body: req.body,
-        });
-
+      if (!amount || !payment_date || !payment_id) {
         return res.status(400).json({
           is_success: false,
           error: {
-            message: `Missing required fields: ${missingFields.join(", ")}`,
+            message: "amount, payment_date, payment_id required",
             code: "request_validation_error",
           },
         });
@@ -1901,16 +1851,6 @@ router.post(
 
       const paymentDate = parseApiDate(payment_date);
 
-      if (!paymentDate) {
-        return res.status(400).json({
-          is_success: false,
-          error: {
-            message: "Invalid payment_date format",
-            code: "request_validation_error",
-          },
-        });
-      }
-
       const sheetData = [
         {
           LAN: lan,
@@ -1924,26 +1864,13 @@ router.post(
         },
       ];
 
-      console.log("Repayment sheet data:", sheetData);
       const result = await processRows(sheetData);
-      console.log("Repayment processor result:", result);
 
       /* ==============================
          HANDLE FAILURE
       ============================== */
 
-      if (!result.success) {
-        return res.status(400).json({
-          is_success: false,
-          error: {
-            message: result.error?.message || result.message || "Repayment processing failed",
-            code: result.error?.code || "request_validation_error",
-            details: result.error?.details || result.details,
-          },
-        });
-      }
-
-      if (result.failed_rows > 0) {
+      if (!result.success || result.failed_rows > 0) {
         const firstError = result.row_errors?.[0];
 
         return res.status(400).json({

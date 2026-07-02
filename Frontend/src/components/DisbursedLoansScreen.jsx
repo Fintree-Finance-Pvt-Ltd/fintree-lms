@@ -310,15 +310,7 @@ const DisbursedLoansTable = ({
     {
       key: "lan", header: "LAN", sortable: true,
       render: (r) => (
-        <div className="id-stack-disbursed" style={{ cursor: 'pointer' }} onClick={() => {
-          if (/^RML/i.test(r.lan)) {
-            navigate(`/rapidmoney-loans/customer-details?lan=${r.lan}`);
-          } else if (/^LDF/i.test(r.lan)) {
-            navigate(`/loan-digit/customer-details?lan=${r.lan}`);
-          } else {
-            navigate(`/loan-details/${r.lan}`);
-          }
-        }}>
+        <div className="id-stack-disbursed" style={{ cursor: 'pointer' }} onClick={() => navigate(`/loan-details/${r.lan}`)}>
           <span className="id-main">{r.lan ?? "—"}</span>
           <span className="id-sub">Loan Account No.</span>
         </div>

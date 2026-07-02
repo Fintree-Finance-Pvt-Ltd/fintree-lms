@@ -290,8 +290,6 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lender }) => {
           url = `/loan-digit/customer-details?lan=${r.lan}`;
         } else if (/^FINS/i.test(r?.lan)) {
           url = `/fincrest-loan-details/${r.lan}`;
-        } else if (/^RML/i.test(r?.lan)) {
-          url = `/rapidmoney-loans/customer-details?lan=${r.lan}`;
         }
 
         return (
@@ -317,7 +315,7 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lender }) => {
 
       width: 220,
     },
-    { key: "lender", header: "Lender", sortable: true, width: 140 , render: (r) => lender?.toUpperCase() ?? r.lender, },
+    { key: "lender", header: "Lender", sortable: true, width: 140 , render: (r) => lender.toUpperCase() ?? r.lender, },
     {
       key: "partner_loan_id",
       header: "Partner Loan ID",

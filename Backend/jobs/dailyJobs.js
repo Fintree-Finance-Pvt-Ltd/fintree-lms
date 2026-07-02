@@ -106,523 +106,87 @@ const startAadhaarCron = require("./aadhaarPdfCron");
 const { sendLoanWebhook } = require("../utils/webhook");
 
 // 1️⃣ DPD + OOD Cron
-// cron.schedule("*/2 * * * *", async () => {
-//   console.log("⏰ Running DPD update (every 2 min)...");
+cron.schedule("*/2 * * * *", async () => {
+  console.log("⏰ Running DPD update (every 2 min)...");
 
-//   const tables = [
-//     "manual_rps_ev_loan",
-//     "manual_rps_wctl",
-//     "manual_rps_gq_non_fsf",
-//     "manual_rps_gq_non_fsf_fintree",
-//     "manual_rps_gq_fsf",
-//     "manual_rps_adikosh",
-//     "manual_rps_adikosh_fintree",
-//     "manual_rps_adikosh_partner",
-//     "manual_rps_adikosh_fintree_roi",
-//     "manual_rps_embifi_loan",
-//     "manual_rps_emiclub",
-//     "manual_rps_bl_loan",
-//     "manual_rps_circlepe",
-//     "manual_rps_finso_loan",
-//     "manual_rps_hey_ev",
-//     "manual_rps_gq_fsf_fintree",
-//     "manual_rps_helium",
-//     "manual_rps_hey_ev_battery",
-//     "manual_rps_zypay",
-//     "manual_rps_clayoo",
-//     "manual_rps_motioncorp",
-//     "manual_rps_loan_digit",
-//     "manual_rps_circle_pe_houser",
-//     "manual_rps_switch_my_loan",
-//   ];
-
-//   try {
-//     for (const table of tables) {
-//       await db.promise().query(`
-//         UPDATE ${table}
-//         SET
-//           status = CASE
-//               WHEN remaining_principal = 0 
-//          AND remaining_interest = 0 
-//     THEN 'Paid'
-
-//    WHEN emi > 0
-//      AND remaining_emi > 0
-//      AND remaining_emi < emi
-// THEN 'Part Paid'
-
-
-//     WHEN due_date < CURDATE() 
-//          AND (principal =remaining_principal  and interest= remaining_interest )
-//     THEN 'Late'
-
-//     WHEN due_date = CURDATE() 
-//          AND (remaining_principal > 0 OR remaining_interest > 0)
-//     THEN 'Due'
-
-//     WHEN due_date > CURDATE() 
-//     THEN 'Not Set'
-//             ELSE status
-//           END,
-//           dpd = CASE
-//             WHEN remaining_principal = 0 AND remaining_interest = 0 THEN 0
-//             WHEN due_date > CURDATE() THEN 0
-//             WHEN due_date <= CURDATE() THEN GREATEST(DATEDIFF(CURDATE(), due_date), 0)
-//             ELSE dpd
-//           END
-//       `);
-//     }
-
-//     console.log("✅ All tables updated successfully");
-
-//     const sql = `CALL sp_cc_ood_generate_all(
-//       DATE_SUB(CURDATE(), INTERVAL 1 DAY),
-//       DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-//     )`;
-//     await db.promise().query(sql);
-
-//     console.log("✅ OOD ledger generated successfully for all LANs");
-
-//   } catch (err) {
-//     console.error("❌ Cron job failed:", err.sqlMessage || err.message);
-//   }
-// });
-
-
-let isDpdCronRunning = false;
-
-const tables = [
-  "manual_rps_ev_loan",
-  "manual_rps_wctl",
-  "manual_rps_gq_non_fsf",
-  "manual_rps_gq_non_fsf_fintree",
-  "manual_rps_gq_fsf",
-  "manual_rps_adikosh",
-  "manual_rps_adikosh_fintree",
-  "manual_rps_adikosh_partner",
-  "manual_rps_adikosh_fintree_roi",
-  "manual_rps_embifi_loan",
-  "manual_rps_emiclub",
-  "manual_rps_bl_loan",
-  "manual_rps_circlepe",
-  "manual_rps_finso_loan",
-  "manual_rps_hey_ev",
-  "manual_rps_gq_fsf_fintree",
-  "manual_rps_helium",
-  "manual_rps_hey_ev_battery",
-  "manual_rps_zypay",
-  "manual_rps_clayoo",
-  "manual_rps_motioncorp",
-  "manual_rps_loan_digit",
-  "manual_rps_circle_pe_houser",
-  "manual_rps_switch_my_loan",
-];
-
-const tableColumnsCache = new Map();
-
-function safeIdentifier(value) {
-  if (!/^[a-zA-Z0-9_]+$/.test(value)) {
-    throw new Error(`Invalid SQL identifier: ${value}`);
-  }
-
-  return `\`${value}\``;
-}
-
-async function getTableColumns(tableName) {
-  if (tableColumnsCache.has(tableName)) {
-    return tableColumnsCache.get(tableName);
-  }
-
-  const [rows] = await db.promise().query(
-    `
-      SELECT COLUMN_NAME
-      FROM INFORMATION_SCHEMA.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE()
-        AND TABLE_NAME = ?
-    `,
-    [tableName],
-  );
-
-  const columns = new Set(
-    rows.map((row) => row.COLUMN_NAME),
-  );
-
-  tableColumnsCache.set(tableName, columns);
-
-  return columns;
-}
-
-function buildStatusUpdateQuery(tableName, columns) {
-  const requiredColumns = [
-    "status",
-    "due_date",
-    "dpd",
+  const tables = [
+    "manual_rps_ev_loan",
+    "manual_rps_wctl",
+    "manual_rps_gq_non_fsf",
+    "manual_rps_gq_non_fsf_fintree",
+    "manual_rps_gq_fsf",
+    "manual_rps_adikosh",
+    "manual_rps_adikosh_fintree",
+    "manual_rps_adikosh_partner",
+    "manual_rps_adikosh_fintree_roi",
+    "manual_rps_embifi_loan",
+    "manual_rps_emiclub",
+    "manual_rps_bl_loan",
+    "manual_rps_circlepe",
+    "manual_rps_finso_loan",
+    "manual_rps_hey_ev",
+    "manual_rps_gq_fsf_fintree",
+    "manual_rps_helium",
+    "manual_rps_hey_ev_battery",
+    "manual_rps_zypay",
+    "manual_rps_clayoo",
+    "manual_rps_motioncorp",
+    "manual_rps_loan_digit",
+    "manual_rps_circle_pe_houser",
+    "manual_rps_switch_my_loan",
   ];
 
-  const missingRequiredColumns = requiredColumns.filter(
-    (column) => !columns.has(column),
-  );
+  try {
+    for (const table of tables) {
+      await db.promise().query(`
+        UPDATE ${table}
+        SET
+          status = CASE
+              WHEN remaining_principal = 0 
+         AND remaining_interest = 0 
+    THEN 'Paid'
 
-  if (missingRequiredColumns.length > 0) {
-    return {
-      skip: true,
-      reason: `Missing columns: ${missingRequiredColumns.join(", ")}`,
-    };
-  }
+   WHEN emi > 0
+     AND remaining_emi > 0
+     AND remaining_emi < emi
+THEN 'Part Paid'
 
-  /*
-   * Use all remaining fields available in the table.
-   */
-  const remainingColumns = [
-    "remaining_amount",
-    "remaining_retention",
-    "remaining_principal",
-    "remaining_interest",
-    "remaining_emi",
-  ].filter((column) => columns.has(column));
 
-  if (remainingColumns.length === 0) {
-    return {
-      skip: true,
-      reason: "No remaining balance column found",
-    };
-  }
+    WHEN due_date < CURDATE() 
+         AND (principal =remaining_principal  and interest= remaining_interest )
+    THEN 'Late'
 
-  /*
-   * At least one remaining field is available and populated.
-   */
-  const hasRemainingData = remainingColumns
-    .map((column) => `${safeIdentifier(column)} IS NOT NULL`)
-    .join(" OR ");
+    WHEN due_date = CURDATE() 
+         AND (remaining_principal > 0 OR remaining_interest > 0)
+    THEN 'Due'
 
-  /*
-   * Outstanding exists when any remaining field is greater than zero.
-   */
-  const hasOutstanding = remainingColumns
-    .map(
-      (column) =>
-        `COALESCE(${safeIdentifier(column)}, 0) > 0`,
-    )
-    .join(" OR ");
-
-  /*
-   * Fully paid only when every available remaining field
-   * is zero or negative.
-   */
-  const fullyPaid = remainingColumns
-    .map(
-      (column) =>
-        `COALESCE(${safeIdentifier(column)}, 0) <= 0`,
-    )
-    .join(" AND ");
-
-  const partialPaymentConditions = [];
-
-  /*
-   * EMI partially paid.
-   */
-  if (
-    columns.has("emi") &&
-    columns.has("remaining_emi")
-  ) {
-    partialPaymentConditions.push(`
-      (
-        COALESCE(emi, 0) > 0
-        AND COALESCE(remaining_emi, 0) > 0
-        AND COALESCE(remaining_emi, 0) < COALESCE(emi, 0)
-      )
-    `);
-  }
-
-  /*
-   * Remaining amount reduced from EMI.
-   */
-  if (
-    columns.has("emi") &&
-    columns.has("remaining_amount")
-  ) {
-    partialPaymentConditions.push(`
-      (
-        COALESCE(emi, 0) > 0
-        AND COALESCE(remaining_amount, 0) > 0
-        AND COALESCE(remaining_amount, 0) < COALESCE(emi, 0)
-      )
-    `);
-  }
-
-  /*
-   * Principal partially paid.
-   */
-  if (
-    columns.has("principal") &&
-    columns.has("remaining_principal")
-  ) {
-    partialPaymentConditions.push(`
-      (
-        COALESCE(principal, 0) > 0
-        AND COALESCE(remaining_principal, 0) >= 0
-        AND COALESCE(remaining_principal, 0)
-            < COALESCE(principal, 0)
-      )
-    `);
-  }
-
-  /*
-   * Retention partially paid.
-   *
-   * Example:
-   * Retention amount    = 13,524.57
-   * Remaining retention = 13,087.00
-   * Result              = Part Paid
-   */
-  if (
-    columns.has("retention_amount") &&
-    columns.has("remaining_retention")
-  ) {
-    partialPaymentConditions.push(`
-      (
-        COALESCE(retention_amount, 0) > 0
-        AND COALESCE(remaining_retention, 0) >= 0
-        AND COALESCE(remaining_retention, 0)
-            < COALESCE(retention_amount, 0)
-      )
-    `);
-  }
-
-  /*
-   * Interest partially paid.
-   */
-  if (
-    columns.has("interest") &&
-    columns.has("remaining_interest")
-  ) {
-    partialPaymentConditions.push(`
-      (
-        COALESCE(interest, 0) > 0
-        AND COALESCE(remaining_interest, 0) >= 0
-        AND COALESCE(remaining_interest, 0)
-            < COALESCE(interest, 0)
-      )
-    `);
-  }
-
-  const isPartPaid =
-    partialPaymentConditions.length > 0
-      ? partialPaymentConditions.join(" OR ")
-      : "FALSE";
-
-  const table = safeIdentifier(tableName);
-
-  return {
-    skip: false,
-
-    sql: `
-      UPDATE ${table}
-      SET
-        status = CASE
-
-          /* ==========================================
-             1. PAID
-             All remaining balances are cleared
-             ========================================== */
-          WHEN (${hasRemainingData})
-           AND (${fullyPaid})
-          THEN 'Paid'
-
-          /* ==========================================
-             2. NOT SET
-             Due date missing or future due date
-             ========================================== */
-          WHEN (
-                due_date IS NULL
-                OR due_date > CURDATE()
-               )
-           AND (${hasOutstanding})
-          THEN 'Not Set'
-
-          /* ==========================================
-             3. DUE
-             Outstanding instalment due today
-             ========================================== */
-          WHEN due_date = CURDATE()
-           AND (${hasOutstanding})
-          THEN 'Due'
-
-          /* ==========================================
-             4. PART PAID
-             Past due, partially recovered, balance remains
-             ========================================== */
-          WHEN due_date < CURDATE()
-           AND (${hasOutstanding})
-           AND (${isPartPaid})
-          THEN 'Part Paid'
-
-          /* ==========================================
-             5. LATE
-             Past due, balance remains, no partial payment
-             ========================================== */
-          WHEN due_date < CURDATE()
-           AND (${hasOutstanding})
-          THEN 'Late'
-
-          /*
-           * Ensure no other status is retained.
-           */
-          ELSE 'Not Set'
-
-        END,
-
-        dpd = CASE
-
-          /*
-           * Missing due date.
-           */
-          WHEN due_date IS NULL
-          THEN 0
-
-          /*
-           * Fully paid.
-           */
-          WHEN (${hasRemainingData})
-           AND (${fullyPaid})
-          THEN 0
-
-          /*
-           * Not Set and Due must have zero DPD.
-           */
-          WHEN due_date >= CURDATE()
-          THEN 0
-
-          /*
-           * Calculate DPD only when:
-           * 1. Due date has passed
-           * 2. Any remaining balance is positive
-           */
-          WHEN due_date < CURDATE()
-           AND (${hasOutstanding})
-          THEN DATEDIFF(CURDATE(), due_date)
-
-          ELSE 0
-
-        END
-    `,
-  };
-}
-
-// 1️⃣ DPD + OOD Cron
-cron.schedule(
-  "*/2 * * * *",
-  async () => {
-    if (isDpdCronRunning) {
-      console.log(
-        "⏭️ Previous DPD cron is still running. Skipping this execution.",
-      );
-      return;
+    WHEN due_date > CURDATE() 
+    THEN 'Not Set'
+            ELSE status
+          END,
+          dpd = CASE
+            WHEN remaining_principal = 0 AND remaining_interest = 0 THEN 0
+            WHEN due_date > CURDATE() THEN 0
+            WHEN due_date <= CURDATE() THEN GREATEST(DATEDIFF(CURDATE(), due_date), 0)
+            ELSE dpd
+          END
+      `);
     }
 
-    isDpdCronRunning = true;
+    console.log("✅ All tables updated successfully");
 
-    console.log(
-      "⏰ Running DPD and status update every 2 minutes...",
-    );
+    const sql = `CALL sp_cc_ood_generate_all(
+      DATE_SUB(CURDATE(), INTERVAL 1 DAY),
+      DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+    )`;
+    await db.promise().query(sql);
 
-    let successfulTables = 0;
-    let skippedTables = 0;
-    let failedTables = 0;
+    console.log("✅ OOD ledger generated successfully for all LANs");
 
-    try {
-      /*
-       * Ensure CURDATE() follows India time.
-       */
-      await db.promise().query(
-        "SET time_zone = '+05:30'",
-      );
-
-      for (const table of tables) {
-        try {
-          const columns = await getTableColumns(table);
-
-          if (columns.size === 0) {
-            skippedTables += 1;
-
-            console.warn(
-              `⚠️ ${table}: table does not exist`,
-            );
-
-            continue;
-          }
-
-          const queryData = buildStatusUpdateQuery(
-            table,
-            columns,
-          );
-
-          if (queryData.skip) {
-            skippedTables += 1;
-
-            console.warn(
-              `⚠️ ${table}: ${queryData.reason}`,
-            );
-
-            continue;
-          }
-
-          const [result] = await db
-            .promise()
-            .query(queryData.sql);
-
-          successfulTables += 1;
-
-          console.log(
-            `✅ ${table}: affected=${result.affectedRows}, changed=${result.changedRows}`,
-          );
-        } catch (tableError) {
-          failedTables += 1;
-
-          console.error(
-            `❌ ${table}:`,
-            tableError.sqlMessage ||
-              tableError.message,
-          );
-        }
-      }
-
-      console.log(
-        `✅ Status/DPD update completed. Success=${successfulTables}, Skipped=${skippedTables}, Failed=${failedTables}`,
-      );
-
-      /*
-       * Existing OOD procedure.
-       *
-       * This will execute every two minutes because it is
-       * inside this cron.
-       */
-      const sql = `
-        CALL sp_cc_ood_generate_all(
-          DATE_SUB(CURDATE(), INTERVAL 1 DAY),
-          DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-        )
-      `;
-
-      await db.promise().query(sql);
-
-      console.log(
-        "✅ OOD ledger generated successfully for all LANs",
-      );
-    } catch (error) {
-      console.error(
-        "❌ DPD/OOD cron failed:",
-        error.sqlMessage || error.message,
-      );
-    } finally {
-      isDpdCronRunning = false;
-    }
-  },
-  {
-    timezone: "Asia/Kolkata",
-  },
-);
-
+  } catch (err) {
+    console.error("❌ Cron job failed:", err.sqlMessage || err.message);
+  }
+});
 
 // 2️⃣ PDF generator cron
 cron.schedule("*/2 * * * *", async () => {

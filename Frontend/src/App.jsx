@@ -182,7 +182,6 @@ import SMLAllLoans from "./components/switch-my-loan/SMLAllLoans";
 import RapidMoneyApprovedLoans from "./components/RapidMoney/RapidMoneyApprovedLoans";
 import RapidMoneyDisbursedLoans from "./components/RapidMoney/RapidMoneyDisbursedLoans";
 import RapidMoneyAllLoans from "./components/RapidMoney/RapidMoneyAllLoans";
-import RapidMoneyDetails from "./components/RapidMoney/RapidMoneyDetails";
 import RapidMoneyLoginLoans from "./components/RapidMoney/RapidMoneyLoginLoans";
 import RapidMoneyActionScreen from "./components/RapidMoney/RapidMoneyActionScreen";
 import RapidMoneyApproveInitiateScreen from "./components/RapidMoney/RapidMoneyApproveInitiateScreen";
@@ -1484,14 +1483,6 @@ function App() {
             element={
               <PermissionRoute pageName="RapidMoney All Loans">
                 <RapidMoneyAllLoans />
-              </PermissionRoute>
-            }
-          />
-          <Route
-            path="/rapidmoney-loans/customer-details"
-            element={
-              <PermissionRoute pageName="RapidMoney Customer Details">
-                <RapidMoneyDetails />
               </PermissionRoute>
             }
           />

@@ -162,7 +162,7 @@ async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursemen
     disbursementDate,
   });
   // ✅ Only EMI CLUB
-  if (!lan || !lan.startsWith("RML")) return { skipped: true, reason: "NOT_RapidMoney" };
+  if (!lan || !lan.startsWith("SML")) return { skipped: true, reason: "NOT_RapidMoney" };
    console.log("[Rapid money][SKIP] Not an Rapid Money loan", { lan });
 
   // ✅ Basic validation
