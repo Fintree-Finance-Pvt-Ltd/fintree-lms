@@ -1887,11 +1887,11 @@ router.post("/save-applicant-details", async (req, res) => {
           guarantor_state = ?,
           guarantor_pincode = ?,
           guarantor_mobile_verified = ?,
-          gurantor_driving_licence = ?
+          guarantor_driving_licence = ?
         WHERE lan = ?
         `,
         [
-          emptyToNull(data.GURANTOR),
+          emptyToNull(data.GUARANTOR),
           emptyToNull(data.GURANTOR_DOB),
           emptyToNull(data.GURANTOR_EMAIL),
           emptyToNull(data.GURANTOR_PAN),

@@ -8269,9 +8269,9 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
           processEntities: {
             enabled: true,
             maxTotalExpansions: 500000,
-            maxExpandedLength: 20_000_000,
-            maxEntityCount: 200000,
-            maxEntitySize: 200000,
+            maxExpandedLength: 50_000_000,
+            maxEntityCount: 500000,
+            maxEntitySize: 500000,
           },
         });
         const parsed = parser.parse(response.data);
@@ -8285,7 +8285,10 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
         const decoded = he.decode(encodedInnerXml);
         const innerParsed = parser.parse(decoded);
         const scoreStr =
-          innerParsed?.INProfileResponse?.SCORE?.BureauScore ?? null;
+            innerParsed?.INProfileResponse?.SCORE?.BureauScore ??
+            innerParsed?.INProfileResponse?.SCORE?.BureauScoreConfidLevel ??
+            innerParsed?.INProfileResponse?.CreditProfileHeader?.BureauScore ??
+            null;
         const score = scoreStr ? Number(scoreStr) : null;
 
         await db.promise().query(

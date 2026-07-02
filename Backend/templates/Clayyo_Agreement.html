@@ -387,6 +387,22 @@
   table li {
     margin-bottom: 2pt;
   }
+@page {
+    size: A4;
+    margin: 15mm;
+}
+
+.fintree-sign {
+    position: fixed;
+    left: 5mm;
+    bottom: -3mm;
+    width: 80px;
+}
+
+.fintree-sign img{
+    width:100%;
+    display:block;
+}
 </style>
 </head>
 <body>
@@ -1855,6 +1871,9 @@ Mumbai - 400004</strong></p>
   <div class="indented">
     <p>Yours faithfully,</p>
   </div>
+</div>
+<div class="fintree-sign">
+    <img src="{{FINTREE_SIGNATURE}}" alt="Fintree Finance Pvt Ltd" width="200">
 </div>
 </body>
 </html>
