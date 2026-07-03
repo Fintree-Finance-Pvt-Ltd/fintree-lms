@@ -70,6 +70,7 @@ const LAN_TABLE_MAP = {
   GQFSF: { table: "loan_booking_gq_non_fsf", statusCol: "status" },
   ADKF: { table: "loan_booking_adikosh", statusCol: "status" },
   WCTL: { table: "loan_bookings_wctl", statusCol: "status" },
+  TLF: { table: "loan_booking_wctl_ffpl", statusCol: "status" },
   E1: { table: "loan_booking_embifi", statusCol: "status" },
   FINE: { table: "loan_booking_emiclub", statusCol: "status" },
   CARE: { table: "loan_booking_carepay", statusCol: "status" },

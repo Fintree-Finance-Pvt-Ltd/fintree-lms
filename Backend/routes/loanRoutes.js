@@ -69,6 +69,9 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("WCTL")) {
     table = "loan_bookings_wctl";
     posTable = "manual_rps_wctl";
+  } else if (lan.startsWith("TLF")) {
+    table = "loan_booking_wctl_ffpl";
+    posTable = "manual_rps_wctl_ffpl";
   } else if (lan.startsWith("CIRF")) {
     table = "loan_booking_circle_pe";
     posTable = "manual_rps_circlepe";

@@ -52,6 +52,9 @@ import ElysiumAllLoans from "./components/ElysiumAllLoans";
 import WCTLBLApprovedLoans from "./components/WCTL-BLApprovedLoans";
 import WCTLBLDisbursedLoans from "./components/WCTL-BLDisbursedLoans";
 import WCTLBLAllLoans from "./components/WCTL-BLAllLoans";
+import WCTLFFPLApprovedLoans from "./components/WCTLFFPL/WCTLFFPLApprovedLoans";
+import WCTLFFPLDisbursedLoans from "./components/WCTLFFPL/WCTLFFPLDisbursedLoans";
+import WCTLFFPLAllLoans from "./components/WCTLFFPL/WCTLFFPLAllLoans";
 import AldunApprovedLoans from "./components/AldunActiveCases";
 import AldunCollection from "./components/AldunCollection";
 import MISReportListing from "./components/Reports/ReportsListing";
@@ -1393,6 +1396,30 @@ function App() {
             element={
               <PermissionRoute pageName="WCTL BLAll Loans">
                 <WCTLBLAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/wctl-ffpl-loans/approved"
+            element={
+              <PermissionRoute pageName="WCTL FFPL Approved Loans">
+                <WCTLFFPLApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/wctl-ffpl-loans/disbursed"
+            element={
+              <PermissionRoute pageName="WCTL FFPL Disbursed Loans">
+                <WCTLFFPLDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/wctl-ffpl-loans/all"
+            element={
+              <PermissionRoute pageName="WCTL FFPL All Loans">
+                <WCTLFFPLAllLoans />
               </PermissionRoute>
             }
           />
