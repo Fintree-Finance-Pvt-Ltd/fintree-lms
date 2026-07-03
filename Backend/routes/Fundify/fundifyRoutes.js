@@ -14,13 +14,12 @@ const router = express.Router();
 const OTP_EXPIRY_SECONDS = 300; // 5 minutes
 
 const generateLoanIdentifiers = async (lender) => {
-  lender = lender.trim(); // normalize input
+  lender = String(lender || "")
+    .trim()
+    .toUpperCase(); // normalize casing
   console.log("Generating loan identifiers for lender:", lender);
-  let prefixPartnerLoan;
-  let prefixLan;
-
-  prefixLan = "FUNDI1";
-  prefixPartnerLoan = "FUNFIN1";
+  const prefixLan = "FUNDI1";
+  const prefixPartnerLoan = "FUNFIN1";
 
   console.log("prefixPartnerLoan:", prefixPartnerLoan);
   console.log("prefixLan:", prefixLan);
@@ -98,7 +97,7 @@ function normalizeRole(role) {
     .trim()
     .toUpperCase();
 
-  const allowedRoles = ["APPLICANT", "CO_APPLICANT", "GUARANTOR"];
+  const allowedRoles = ["BORROWER", "CO_APPLICANT", "GUARANTOR"];
 
   if (!allowedRoles.includes(normalizedRole)) {
     throw new Error("INVALID_APPLICANT_ROLE");
@@ -395,11 +394,18 @@ router.get("/fundify-manual-entry/:lan", async (req, res) => {
       .promise()
       .query("SELECT * FROM fundify_applicants WHERE lan = ?", [lan]);
 
+    const [gstStatus] = await db
+      .promise()
+      .query("SELECT gst_status FROM kyc_verification_status WHERE lan = ?", [
+        lan,
+      ]);
+
     res.json({
       success: true,
       data: {
         loan: loanRows[0],
         applicants: applicantRows,
+        kyc: gstStatus,
       },
     });
   } catch (err) {
@@ -458,7 +464,7 @@ router.post("/manual-entry", async (req, res) => {
       (applicant) =>
         String(applicant.role || "")
           .trim()
-          .toUpperCase() === "APPLICANT",
+          .toUpperCase() === "BORROWER",
     );
 
     if (!primaryApplicant) {
@@ -560,17 +566,25 @@ router.post("/manual-entry", async (req, res) => {
           `
             SELECT lan, full_name, pan
             FROM fundify_applicants
-            WHERE role = 'APPLICANT'
+            WHERE role = 'BORROWER'
               AND pan = ?
             LIMIT 1
           `,
           [primaryApplicant.pan],
         );
+        if (existingApplicant.length > 0) {
+          await conn.rollback();
+          return res.status(409).json({
+            success: false,
+            stage: "duplicate-pan",
+            message: `An application already exists for PAN ${primaryApplicant.pan} (LAN: ${existingApplicant[0].lan})`,
+          });
+        }
       }
 
       /* -------------------------- Generate LAN -------------------------- */
 
-      const ids = await generateLoanIdentifiers("FUNDIFY");
+      const ids = await generateLoanIdentifiers(conn, LENDER_NAME);
 
       lan = ids.lan;
       partnerLoanId = ids.partnerLoanId;
@@ -705,7 +719,7 @@ router.get("/fundify/:lan", async (req, res) => {
         SELECT *
         FROM fundify_applicants
         WHERE lan = ?
-        ORDER BY FIELD(role, 'APPLICANT', 'CO_APPLICANT', 'GUARANTOR'),
+        ORDER BY FIELD(role, 'BORROWER', 'CO_APPLICANT', 'GUARANTOR'),
                  party_no,
                  id
       `,
@@ -795,7 +809,7 @@ router.get("/fundify", async (req, res) => {
 
         LEFT JOIN fundify_applicants p
           ON p.lan = l.lan
-          AND p.role = 'APPLICANT'
+          AND p.role = 'BORROWER'
 
         ${where}
 
@@ -836,7 +850,7 @@ router.post("/gst/verify", async (req, res) => {
       });
     }
 
-    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(cleanGst)) {
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][a-zA-Z0-9][0-9A-Z]$/.test(cleanGst)) {
       return res.status(400).json({
         success: false,
         message: "Invalid GSTIN format",
@@ -891,7 +905,7 @@ router.post("/gst/verify", async (req, res) => {
         const rawResponse = JSON.stringify(result);
         await db.promise().query(
           `INSERT INTO kyc_verification_status (lan, applicant_type, gst_number, gst_status, gst_raw_response)
-           VALUES (?, 'BUSINESS', ?, 'VERIFIED', ?)
+           VALUES (?, 'BORROWER_GST', ?, 'VERIFIED', ?)
            ON DUPLICATE KEY UPDATE
              gst_number = VALUES(gst_number),
              gst_status = 'VERIFIED',
@@ -966,7 +980,10 @@ router.post("/save-business", async (req, res) => {
 
     await conn.beginTransaction();
 
-    const { lan, partnerLoanId } = await generateLoanIdentifiers("Fundify");
+    const { lan, partnerLoanId } = await generateLoanIdentifiers(
+      conn,
+      LENDER_NAME,
+    );
 
     // Create loan_booking_fundify row with business details
     const rawResponse = gstRawResponse ? JSON.stringify(gstRawResponse) : null;
@@ -1019,8 +1036,8 @@ router.post("/save-business", async (req, res) => {
           ? JSON.stringify(gstRawResponse)
           : null;
         await conn.query(
-          `INSERT INTO kyc_verification_status (lan, applicant_type, gst_number, gst_status, gst_raw_response)
-           VALUES (?, 'BUSINESS', ?, 'VERIFIED', ?)
+          `INSERT INTO kyc_verification_status (lan, gst_number, gst_status, gst_raw_response)
+           VALUES (?,?, 'VERIFIED', ?)
            ON DUPLICATE KEY UPDATE
              gst_number = VALUES(gst_number),
              gst_status = 'VERIFIED',
@@ -1046,12 +1063,10 @@ router.post("/save-business", async (req, res) => {
   } catch (err) {
     await conn.rollback();
     console.error("save-business error:", err);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: err.message || "Failed to save business details",
-      });
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to save business details",
+    });
   } finally {
     conn.release();
   }
@@ -1067,12 +1082,10 @@ router.post("/save-applicant", async (req, res) => {
     const { applicant, lan, loginDate } = req.body;
 
     if (!lan) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "LAN required. Save business details first.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "LAN required. Save business details first.",
+      });
     }
 
     await conn.beginTransaction();
@@ -1085,11 +1098,12 @@ router.post("/save-applicant", async (req, res) => {
     });
     const columns = Object.keys(appPayload);
     const values = Object.values(appPayload);
-    const insertSql = `INSERT INTO fundify_applicants (${columns.map((c) => `\`${c}\``).join(", ")}) VALUES (${columns.map(() => "?").join(", ")})
-      ON DUPLICATE KEY UPDATE ${columns
-        .filter((c) => c !== "lan" && c !== "applicant_type")
-        .map((c) => `\`${c}\` = VALUES(\`${c}\`)`)
-        .join(", ")}`;
+    const insertSql = `INSERT INTO fundify_applicants (${columns.map((c) => `\`${c}\``).join(", ")})
+  VALUES (${columns.map(() => "?").join(", ")})
+  ON DUPLICATE KEY UPDATE ${columns
+    .filter((c) => c !== "lan" && c !== "role" && c !== "party_no")
+    .map((c) => `\`${c}\` = VALUES(\`${c}\`)`)
+    .join(", ")}`;
     await conn.query(insertSql, values);
 
     await conn.commit();
@@ -1097,12 +1111,10 @@ router.post("/save-applicant", async (req, res) => {
   } catch (err) {
     await conn.rollback();
     console.error("save-applicant error:", err);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: err.message || "Failed to save applicant",
-      });
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to save applicant",
+    });
   } finally {
     conn.release();
   }
@@ -1185,12 +1197,10 @@ router.post("/update-section", async (req, res) => {
     res.json({ success: true, message: `${section} section saved` });
   } catch (err) {
     console.error("update-section error:", err);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: err.message || "Failed to update section",
-      });
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to update section",
+    });
   }
 });
 
@@ -1264,7 +1274,7 @@ router.post("/final-submit", async (req, res) => {
 
     /* ── Fetch the loan row ── */
     const [[loanRow]] = await conn.query(
-      `SELECT loan_amount, partner_name, login_date FROM loan_booking_fundify WHERE lan = ?`,
+      `SELECT loan_amount, partner_name, login_date, bank_name, account_number, ifsc FROM loan_booking_fundify WHERE lan = ?`,
       [lan],
     );
 
@@ -1273,6 +1283,31 @@ router.post("/final-submit", async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Loan not found for LAN: " + lan });
+    }
+
+    const missing = [];
+    if (!Number(loanRow.loan_amount) || Number(loanRow.loan_amount) <= 0)
+      missing.push("loan amount");
+    if (!loanRow.bank_name) missing.push("bank name");
+    if (!loanRow.account_number) missing.push("account number");
+    if (!loanRow.ifsc) missing.push("IFSC");
+
+    const [[borrower]] = await conn.query(
+      `SELECT id, mobile_verified FROM fundify_applicants
+   WHERE lan = ? AND role = 'BORROWER' LIMIT 1`,
+      [lan],
+    );
+    if (!borrower) missing.push("primary applicant");
+    else if (!borrower.mobile_verified)
+      missing.push("applicant mobile verification");
+
+    if (missing.length > 0) {
+      await conn.rollback();
+      return res.status(400).json({
+        success: false,
+        stage: "incomplete",
+        message: `Cannot submit — missing: ${missing.join(", ")}`,
+      });
     }
 
     /* ── Check if limit was already reserved for this LAN (resume case) ── */
@@ -1406,12 +1441,10 @@ router.post("/final-submit", async (req, res) => {
       } catch (_) {}
     }
     console.error("final-submit error:", err);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: err.message || "Failed to submit loan",
-      });
+    res.status(500).json({
+      success: false,
+      message: err.message || "Failed to submit loan",
+    });
   } finally {
     if (conn) conn.release();
   }
@@ -1448,12 +1481,10 @@ router.post("/send-otp", async (req, res) => {
       const diffSeconds =
         (Date.now() - new Date(existing[0].last_sent_at).getTime()) / 1000;
       if (diffSeconds < 60) {
-        return res
-          .status(429)
-          .json({
-            success: false,
-            message: `Wait ${Math.ceil(60 - diffSeconds)} seconds before retry`,
-          });
+        return res.status(429).json({
+          success: false,
+          message: `Wait ${Math.ceil(60 - diffSeconds)} seconds before retry`,
+        });
       }
     }
 
@@ -1566,20 +1597,18 @@ router.post("/init-aadhaar", async (req, res) => {
 
     /* ── Fetch applicant from fundify_applicants ── */
     const [[applicantRow]] = await db.promise().query(
-      `SELECT full_name, first_name, last_name, mobile, email, applicant_type
+      `SELECT full_name, first_name, last_name, mobile, email, role
        FROM fundify_applicants
-       WHERE lan = ? AND applicant_type = ?
+       WHERE lan = ? AND role = ?
        LIMIT 1`,
       [lan, applicantType],
     );
 
     if (!applicantRow)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: `${applicantType} not found for LAN ${lan}`,
-        });
+      return res.status(404).json({
+        success: false,
+        message: `${applicantType} not found for LAN ${lan}`,
+      });
 
     const name =
       applicantRow.full_name ||
@@ -1588,12 +1617,10 @@ router.post("/init-aadhaar", async (req, res) => {
     const email = applicantRow.email || "";
 
     if (!mobile || !name)
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: `${applicantType} mobile/name not saved`,
-        });
+      return res.status(400).json({
+        success: false,
+        message: `${applicantType} mobile/name not saved`,
+      });
 
     /* ── Upsert kyc_verification_status row ── */
     await db.promise().query(
@@ -1644,13 +1671,11 @@ router.post("/init-aadhaar", async (req, res) => {
     });
   } catch (err) {
     console.error("Fundify init-aadhaar error:", err);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "Aadhaar init failed",
-        error: err.message,
-      });
+    return res.status(500).json({
+      success: false,
+      message: "Aadhaar init failed",
+      error: err.message,
+    });
   }
 });
 
@@ -1706,13 +1731,11 @@ router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
     });
   } catch (err) {
     console.error("Fundify aadhaar-address error:", err);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "Failed to fetch Aadhaar address",
-        error: err.message,
-      });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Aadhaar address",
+      error: err.message,
+    });
   }
 });
 

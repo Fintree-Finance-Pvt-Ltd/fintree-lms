@@ -14,6 +14,10 @@ const headers = {
 async function sendRejectionWebhook(applicationId) {
 
   try {
+    console.log("[SML] Sending rejection webhook", {
+      applicationId,
+      url: `${BASE_URL}/api-api/v1/webhooks/fintree/loan-rejected`
+    });
 
     const response = await axios.post(
       `${BASE_URL}/api-api/v1/webhooks/fintree/loan-rejected`,
@@ -26,11 +30,21 @@ async function sendRejectionWebhook(applicationId) {
       { headers }
     );
 
+    console.log("[SML] Rejection webhook sent successfully", {
+      applicationId,
+      status: response?.status,
+      data: response?.data
+    });
+
     return response.data;
 
   } catch (error) {
-
-    console.error("Rejection webhook failed:", error.message);
+    console.error("[SML] Rejection webhook failed", {
+      applicationId,
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
 
     return null;
   }

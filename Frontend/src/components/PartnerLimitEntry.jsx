@@ -35,20 +35,20 @@ const PartnerLimitEntry = () => {
   ];
 
   const formatDateTime = (value) => {
-  if (!value) return "-";
+    if (!value) return "-";
 
-  const date = new Date(value);
+    const date = new Date(value);
 
-  if (isNaN(date.getTime())) return "-";
+    if (isNaN(date.getTime())) return "-";
 
-  return date.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+    return date.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const numberToIndianWords = (amount) => {
     const num = Math.floor(Number(amount || 0));
@@ -236,6 +236,21 @@ const PartnerLimitEntry = () => {
     return `₹${num.toLocaleString("en-IN")}`;
   };
 
+  const formatIndianAmountInput = (value) => {
+    if (value === "" || value === null || value === undefined) {
+      return "";
+    }
+
+    const stringValue = String(value);
+    const [integerPart, decimalPart] = stringValue.split(".");
+
+    const formattedInteger = Number(integerPart || 0).toLocaleString("en-IN");
+
+    return decimalPart !== undefined
+      ? `${formattedInteger}.${decimalPart}`
+      : formattedInteger;
+  };
+
   const filteredPartners = partners.filter((p) => {
     const search = searchTerm.toLowerCase();
 
@@ -407,24 +422,35 @@ const PartnerLimitEntry = () => {
               </div>
 
               <div className="field">
-                <label>Assigned Limit</label>
+                <label htmlFor="assigned_limit">Assigned Limit</label>
+
                 <input
-                  type="number"
+                  id="assigned_limit"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
                   placeholder="Assigned Limit (₹)"
-                  value={form.assigned_limit}
-                  onChange={(e) =>
-                    setForm({ ...form, assigned_limit: e.target.value })
-                  }
-                  step="0.01"
+                  value={formatIndianAmountInput(form.assigned_limit)}
+                  onChange={(e) => {
+                    const rawValue = e.target.value
+                      .replace(/,/g, "")
+                      .replace(/[^\d.]/g, "");
+
+                    if (/^\d*\.?\d{0,2}$/.test(rawValue)) {
+                      setForm((previousForm) => ({
+                        ...previousForm,
+                        assigned_limit: rawValue,
+                      }));
+                    }
+                  }}
                   required
                 />
-
-                {form.assigned_limit && Number(form.assigned_limit) > 0 && (
-                  <div className="amount-words">
-                    {numberToIndianWords(form.assigned_limit)}
-                  </div>
-                )}
               </div>
+              {Number(form.assigned_limit || 0) > 0 && (
+                <div className="assigned-limit-words">
+                  {numberToIndianWords(form.assigned_limit)}
+                </div>
+              )}
             </div>
 
             <div className="form-actions">
