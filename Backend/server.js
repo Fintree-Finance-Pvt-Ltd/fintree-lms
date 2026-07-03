@@ -24,7 +24,7 @@ const enachRoutes = require("./routes/enachRoutes");
 const esignRoutes = require("./routes/esignRoutes");
 const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute");
 const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
-const { retryPendingValidations } = require("./services/heliumValidationEngine");
+const { retryPendingValidations, autoApproveIfAllVerified } = require("./services/heliumValidationEngine");
 const { autoApproveClayyoIfAllVerified } = require("./routes/clyooRoutes/clayyoBreEngine");
 const { autoApproveMotionCorpIfAllVerified } = require("./routes/MotionCorp/motionCorpBRE");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
@@ -195,7 +195,7 @@ app.post("/api/runheliumvalidations", async (req, res) => {
     }
 
     await retryPendingValidations(lan);
-
+    await autoApproveIfAllVerified(lan);
     res.json({
       ok: true,
       message: `Helium validations executed successfully for LAN ${lan}`,

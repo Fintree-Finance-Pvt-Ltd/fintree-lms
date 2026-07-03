@@ -107,7 +107,6 @@ const runBureau = async (data) => {
     // Format required fields
     //  -----------------------------
     if (!data.first_name) throw new Error("first_name is required.");
-    if (!data.last_name) throw new Error("last_name is required.");
     if (!data.dob) throw new Error("dob is required.");
     if (!data.current_address) throw new Error("current_address is required.");
     if (!data.current_village_city)
