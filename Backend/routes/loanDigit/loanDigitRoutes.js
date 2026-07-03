@@ -299,6 +299,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
       "Foreclosed",
       "Fully Paid",
       "Rejected",
+      "OPS_REJECTED",
     ];
 
     if (panRecords.length > 0) {
