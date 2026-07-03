@@ -84,7 +84,7 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   }else if (lan.startsWith("HEYEV") || lan.startsWith("HEYBF") ) {
     return allocateHEYEV(lan, payment);
   }
-  else if (lan.startsWith("SML")){
+  else if (lan.startsWith("RML")){
     return allocateRapidMoney(lan, payment);
   }
   else if (lan.startsWith("MCL")) {

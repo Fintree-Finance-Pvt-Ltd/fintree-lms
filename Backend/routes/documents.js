@@ -1022,7 +1022,7 @@ router.post(
       let tableName = null;
 
       // Detect table based on LAN prefix
-      if (lan.startsWith("SML")) {
+      if (lan.startsWith("RML")) {
         tableName = "loan_booking_switch_my_loan";
       } else if (lan.startsWith("LDF")) {
         tableName = "loan_booking_loan_digit";
