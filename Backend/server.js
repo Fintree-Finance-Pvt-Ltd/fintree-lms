@@ -33,7 +33,8 @@ const { generateForReport, generateAllPending } = require('./jobs/cibilPdfServic
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
 const mobileRevocationLookup = require("./utils/mnrlApiService");
 const { initAadhaarKyc } = require("./services/digitapaadharservice");
-const { autoRunFinsoBreIfReady} = require("./utils/fincrestBRE")
+const { autoRunFinsoBreIfReady} = require("./utils/fincrestBRE");
+const { autoApproveSrbhIfAllVerified } = require("./routes/srbh/srbhBRE");
 
 
 // function generateApiKey() {
@@ -407,6 +408,25 @@ app.post("/api/runclayyovalidations", async (req, res) => {
     res.json({
       ok: true,
       message: `Clayyo validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/srbhvalidation", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+
+    await autoApproveSrbhIfAllVerified(lan);
+
+    res.json({
+      ok: true,
+      message: `Loandigit validations executed successfully for LAN ${lan}`,
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
