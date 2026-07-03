@@ -508,6 +508,8 @@ const productOptions = [
   { label: "HELIUM", value: "HELIUM" },
   { label: "CLAYOO", value: "CLAYOO" },
   { label: "LOAN DIGIT", value: "LOAN-DIGIT" },
+  { label: "Motion Corp", value: "Motion Corp" }, 
+  { label: "Finso", value: "Finso" },
   { label: "FFPL", value: "FFPL" },
   { label: "KITE", value: "KITE" },
   { label: "Muthoot", value: "Muthoot" }
