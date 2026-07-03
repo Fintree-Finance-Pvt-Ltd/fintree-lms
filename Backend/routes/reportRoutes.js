@@ -511,18 +511,27 @@ router.get("/downloads", (req, res) => {
 
   let query = `
     SELECT 
-      id, report_id, status, file_name, generated_at, 
-      description, product, created_by, time_taken
+      id,
+      report_id,
+      status,
+      file_name,
+      generated_at,
+      description,
+      product,
+      created_by,
+      time_taken
     FROM reports_download
   `;
+
   const params = [];
 
   if (reportId) {
-    query += " WHERE LOWER(report_id) = LOWER(?)";
-    params.push(reportId.toLowerCase());
+    query += " WHERE LOWER(TRIM(report_id)) = LOWER(TRIM(?))";
+    params.push(reportId);
   }
 
-  query += " ORDER BY generated_at DESC";
+  // Latest inserted record first
+  query += " ORDER BY id DESC";
 
   db.query(query, params, (err, results) => {
     if (err) {
@@ -530,10 +539,12 @@ router.get("/downloads", (req, res) => {
       return res.status(500).json({ message: "Database error" });
     }
 
-    const apiBase = process.env.API_BASE_URL || "http://localhost:5000";
-    const withUrls = results.map((r) => ({
-      ...r,
-      downloadUrl: `${apiBase}/reports/${r.file_name}`,
+    const apiBase =
+      process.env.API_BASE_URL || "http://localhost:5000";
+
+    const withUrls = results.map((row) => ({
+      ...row,
+      downloadUrl: `${apiBase}/reports/${row.file_name}`,
     }));
 
     res.json(withUrls);
