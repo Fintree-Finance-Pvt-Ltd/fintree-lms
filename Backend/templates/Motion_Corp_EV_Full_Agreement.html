@@ -191,7 +191,6 @@
       .signature-footer {
         height: var(--footer-height);
         flex: 0 0 var(--footer-height);
-        border-top: 1.2px solid #111;
         margin-top: 3mm;
         padding-top: 2.2mm;
         font-size: 8px;
@@ -232,6 +231,27 @@
         font-size: 7.3px;
         margin-top: 0.7mm;
       }
+    .sig-top > div {
+  min-height: 14mm;
+}
+
+.sig-top .financer-sign-cell {
+  height: 14mm;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.financer-signature-img {
+  display: block;
+  width: auto;
+  height: 13mm;
+  max-width: 55mm;
+  max-height: 13mm;
+  object-fit: contain;
+}
 
       /* Document content styling */
       p {
@@ -8092,7 +8112,7 @@
         const formattedDate = formatDateOnly(rawCurrentDate);
 
         const footerHtml = `
-    <div class="sig-grid sig-top"><div>B</div><div>C</div><div>G</div><div>The Financer</div></div>
+     <div class="sig-grid sig-top"><div>B</div><div>C</div><div>G</div><div class="financer-sign-cell"><img class="financer-signature-img" src="../public/Picture1-removebg-preview.png" alt="Financer Signature" onerror="this.style.display='none'" /></div></div>
     <div class="sig-grid sig-labels"><div>Borrower</div><div>Co-Borrower</div><div>Guarantor</div><div>The Financer</div></div>
     <div class="sig-declaration">मैं/हम एतद्द्वारा घोषणा करता/करती/करते हैं कि दस्तावेज़ की आंतरिक सामग्री मुझे/हमें सरल भाषा में समझाई गई है तथा दस्तावेज़ों की आंतरिक सामग्री स्पष्ट रूप से समझ में आ गई है।</div>
     <div class="sig-date-place"><span>Date: ${formattedDate}</span><span>Place: Mumbai</span></div>
