@@ -127,7 +127,7 @@ function resolveProcedure(rawReportId, rawLender) {
                               ? "sp_due_collection_all_report_loan_digit"
                               : lender === "circlepe"
                                 ? "sp_due_collection_all_report_circlepe"
-                                : lender === "circle pe houser"
+                                : lender === "circlepe houser"
                                   ? "sp_due_collection_all_report_circle_pe_houser"
                                   : lender === "finso"
                                     ? "sp_due_collection_all_report_fincrest"
