@@ -566,6 +566,7 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("ADK")) return "Adikosh";
   if (lan.startsWith("EV")) return "EV Loan";
   if (lan.startsWith("BL")) return "BL Loan";
+  if (lan.startsWith("WCTLFFPL")) return "WCTL FFPL";
   if (lan.startsWith("WCTL")) return "WCTL";
   if (lan.startsWith("HEYEV")) return "Hey EV";
   if (lan.startsWith("HEYBF1")) return "HeyEV Battery";
@@ -752,7 +753,14 @@ WHERE lan = ?`,
              LIMIT 1`,
             [lan],
           );
-        } else if (lan.startsWith("ADK")) {
+        } else if(lan.startsWith("WCTLFFPL")){
+          [loanRes]= await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender
+             FROM loan_booking_wctl_ffpl WHERE lan = ?`,
+            [lan],
+          )
+        }
+         else if (lan.startsWith("ADK")) {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, salary_day, product, lender 
              FROM loan_booking_adikosh WHERE lan = ?`,
@@ -1029,6 +1037,12 @@ WHERE lan = ?`,
           } else if (lan.startsWith("HEYEV")) {
             await conn.query(
               "UPDATE loan_booking_hey_ev SET status = 'Disbursed' WHERE lan = ?",
+              [lan],
+            );
+          }
+          else if (lan.startsWith("WCTLFFPL")) {
+            await conn.query(
+              "UPDATE loan_booking_wctl_ffpl SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
           } else if (lan.startsWith("HEYBF1")) {
