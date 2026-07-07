@@ -8,11 +8,13 @@ const { initAadhaarKyc } = require("../services/digitapaadharservice");
 const {
   autoApproveMotionCorpIfAllVerified,
 } = require("../routes/MotionCorp/motionCorpBRE");
-const { autoApproveSevenFinCorpIfAllVerified } = require("../routes/Seven Fincorp/sevenFincorpBRE");
 const {
-  autoApproveSrbhIfAllVerified,
-} = require("../routes/srbh/srbhBRE");
-const { autoApproveBundelaIfAllVerified } = require("../routes/Bundela/bundelaBRE");
+  autoApproveSevenFinCorpIfAllVerified,
+} = require("../routes/Seven Fincorp/sevenFincorpBRE");
+const { autoApproveSrbhIfAllVerified } = require("../routes/srbh/srbhBRE");
+const {
+  autoApproveBundelaIfAllVerified,
+} = require("../routes/Bundela/bundelaBRE");
 // const {
 //   autoApproveFundifyIfAllVerified
 // } = require("../routes/Fundify/fundigyBRE");
@@ -334,19 +336,18 @@ exports.universalRunAllValidations = async (lan) => {
       table = "loan_booking_helium";
     } else if (lan.startsWith("MC")) {
       table = "loan_booking_motion_corp";
-  } else if (lan.startsWith("SFC")) {
+    } else if (lan.startsWith("SFC")) {
       table = "loan_booking_seven_fincorp";
     } else if (lan.startsWith("SBU")) {
       table = "loan_booking_bundela";
     } else if (lan.startsWith("FUN")) {
       table = "loan_booking_fundify";
-    }else if (lan.startsWith("SH")) {
+    } else if (lan.startsWith("SH")) {
       table = "loan_booking_srbh";
     } else {
       console.log("❌ Invalid LAN");
       return;
     }
-
 
     const pool = db.promise();
 
@@ -498,33 +499,32 @@ exports.universalRunAllValidations = async (lan) => {
     }
 
     if (lan.startsWith("MC")) {
-  console.log(`🚀 Running Motion Corp BRE for ${lan}`);
+      console.log(`🚀 Running Motion Corp BRE for ${lan}`);
 
-  await autoApproveMotionCorpIfAllVerified(lan);
+      await autoApproveMotionCorpIfAllVerified(lan);
 
-  console.log(`✅ Motion Corp BRE finished for ${lan}`);
-}
+      console.log(`✅ Motion Corp BRE finished for ${lan}`);
+    }
 
-if (lan.startsWith("SFL")) {
-  console.log(`🚀 Running Seven FinCorp BRE for ${lan}`);
+    if (lan.startsWith("SFL")) {
+      console.log(`🚀 Running Seven FinCorp BRE for ${lan}`);
 
-  await autoApproveSevenFinCorpIfAllVerified(lan);
+      await autoApproveSevenFinCorpIfAllVerified(lan);
 
-  console.log(`✅ Seven FinCorp BRE finished for ${lan}`);
-}
+      console.log(`✅ Seven FinCorp BRE finished for ${lan}`);
+    }
 
-if (lan.startsWith("SBU")) {
-  console.log(`🚀 Running Bundela BRE for ${lan}`);
-  await autoApproveBundelaIfAllVerified(lan);
-  console.log(`✅ Bundela BRE finished for ${lan}`);
-}
-if (lan.startsWith("SH")) {
-  console.log(`🚀 Running SRBH BRE for ${lan}`);
-  await autoApproveBundelaIfAllVerified(lan);
-  console.log(`✅ SRBH BRE finished for ${lan}`);
-}
-console.log(`✅ Validation Engine Completed for ${lan}`);
-
+    if (lan.startsWith("SBU")) {
+      console.log(`🚀 Running Bundela BRE for ${lan}`);
+      await autoApproveBundelaIfAllVerified(lan);
+      console.log(`✅ Bundela BRE finished for ${lan}`);
+    }
+    if (lan.startsWith("SH")) {
+      console.log(`🚀 Running SRBH BRE for ${lan}`);
+      await autoApproveBundelaIfAllVerified(lan);
+      console.log(`✅ SRBH BRE finished for ${lan}`);
+    }
+    console.log(`✅ Validation Engine Completed for ${lan}`);
   } catch (err) {
     console.error("❌ Validation Engine Failed:", err);
   }

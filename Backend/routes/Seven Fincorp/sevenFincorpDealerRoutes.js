@@ -923,134 +923,134 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
   }
 });
 
-router.post("/save-borrower-first-section", async (req, res) => {
-  const connection = await db.promise().getConnection();
+// router.post("/save-borrower-first-section", async (req, res) => {
+//   const connection = await db.promise().getConnection();
 
-  try {
-    const data = req.body;
+//   try {
+//     const data = req.body;
 
-    const [borrowerOtp] = await connection.query(
-      `
-      SELECT *
-      FROM otp_consent_model
-      WHERE mobile_number = ?
-      AND applicant_type = ?
-      AND verified = 1
-      AND is_used = 0
-      ORDER BY id DESC
-      LIMIT 1
-      `,
-      [data.Mobile_Number, "BORROWER"],
-    );
+//     const [borrowerOtp] = await connection.query(
+//       `
+//       SELECT *
+//       FROM otp_consent_model
+//       WHERE mobile_number = ?
+//       AND applicant_type = ?
+//       AND verified = 1
+//       AND is_used = 0
+//       ORDER BY id DESC
+//       LIMIT 1
+//       `,
+//       [data.Mobile_Number, "BORROWER"],
+//     );
 
-    if (!borrowerOtp.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Borrower mobile not verified",
-      });
-    }
+//     if (!borrowerOtp.length) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Borrower mobile not verified",
+//       });
+//     }
 
-    const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
-      "SEVEN_FINCORP_CUSTOMER",
-    );
+//     const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
+//       "SEVEN_FINCORP_CUSTOMER",
+//     );
 
-    await connection.beginTransaction();
+//     await connection.beginTransaction();
 
-    await connection.query(
-      `
-      INSERT INTO loan_booking_seven_fincorp (
-        lender_type,
-        lender,
-        product,
-        status,
-        stage,
-        partner_loan_id,
-        lan,
-        login_date,
-        first_name,
-        last_name,
-        customer_name,
-        dob,
-        father_name,
-        mobile_number,
-        email,
-        pan_card,
-        gender,
-        borrower_mobile_verified
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        emptyToNull(data.lenderType),
-        emptyToNull(data.lender),
-        emptyToNull(data.product),
-        "Login",
-        "Login",
-        cust_partner_loan_id,
-        cust_lan,
-        emptyToNull(data.LOGIN_DATE),
-        emptyToNull(data.First_Name),
-        emptyToNull(data.Last_Name),
-        emptyToNull(data.Customer_Name),
-        emptyToNull(data.Borrower_DOB),
-        emptyToNull(data.Father_Name),
-        emptyToNull(data.Mobile_Number),
-        emptyToNull(data.Email),
-        emptyToNull(data.Pan_Card),
-        emptyToNull(data.Gender),
-        data.borrower_mobile_verified || 1,
-      ],
-    );
+//     await connection.query(
+//       `
+//       INSERT INTO loan_booking_seven_fincorp (
+//         lender_type,
+//         lender,
+//         product,
+//         status,
+//         stage,
+//         partner_loan_id,
+//         lan,
+//         login_date,
+//         first_name,
+//         last_name,
+//         customer_name,
+//         dob,
+//         father_name,
+//         mobile_number,
+//         email,
+//         pan_card,
+//         gender,
+//         borrower_mobile_verified
+//       )
+//       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//       `,
+//       [
+//         emptyToNull(data.lenderType),
+//         emptyToNull(data.lender),
+//         emptyToNull(data.product),
+//         "Login",
+//         "Login",
+//         cust_partner_loan_id,
+//         cust_lan,
+//         emptyToNull(data.LOGIN_DATE),
+//         emptyToNull(data.First_Name),
+//         emptyToNull(data.Last_Name),
+//         emptyToNull(data.Customer_Name),
+//         emptyToNull(data.Borrower_DOB),
+//         emptyToNull(data.Father_Name),
+//         emptyToNull(data.Mobile_Number),
+//         emptyToNull(data.Email),
+//         emptyToNull(data.Pan_Card),
+//         emptyToNull(data.Gender),
+//         data.borrower_mobile_verified || 1,
+//       ],
+//     );
 
-    await connection.query(
-      `
-      UPDATE otp_consent_model
-      SET is_used = 1
-      WHERE id = ?
-      `,
-      [borrowerOtp[0].id],
-    );
+//     await connection.query(
+//       `
+//       UPDATE otp_consent_model
+//       SET is_used = 1
+//       WHERE id = ?
+//       `,
+//       [borrowerOtp[0].id],
+//     );
 
-    await connection.query(
-      `
-      INSERT IGNORE INTO kyc_verification_status (
-        lan,
-        applicant_type,
-        applicant_name,
-        mobile_number,
-        pan_number
-      )
-      VALUES (?, ?, ?, ?, ?)
-      `,
-      [
-        cust_lan,
-        "BORROWER",
-        data.Customer_Name,
-        data.Mobile_Number,
-        data.Pan_Card,
-      ],
-    );
+//     await connection.query(
+//       `
+//       INSERT IGNORE INTO kyc_verification_status (
+//         lan,
+//         applicant_type,
+//         applicant_name,
+//         mobile_number,
+//         pan_number
+//       )
+//       VALUES (?, ?, ?, ?, ?)
+//       `,
+//       [
+//         cust_lan,
+//         "BORROWER",
+//         data.Customer_Name,
+//         data.Mobile_Number,
+//         data.Pan_Card,
+//       ],
+//     );
 
-    await connection.commit();
+//     await connection.commit();
 
-    return res.status(201).json({
-      success: true,
-      message: "Borrower saved and LAN generated",
-      lan: cust_lan,
-      partner_loan_id: cust_partner_loan_id,
-    });
-  } catch (error) {
-    await connection.rollback();
+//     return res.status(201).json({
+//       success: true,
+//       message: "Borrower saved and LAN generated",
+//       lan: cust_lan,
+//       partner_loan_id: cust_partner_loan_id,
+//     });
+//   } catch (error) {
+//     await connection.rollback();
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to save borrower section",
-      error: error.message,
-    });
-  } finally {
-    connection.release();
-  }
-});
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to save borrower section",
+//       error: error.message,
+//     });
+//   } finally {
+//     connection.release();
+//   }
+// });
 
 // router.post("/final-submit-ev-customer-manual", async (req, res) => {
 //   const connection = await db.promise().getConnection();
@@ -1250,7 +1250,536 @@ router.post("/save-borrower-first-section", async (req, res) => {
 //     connection.release();
 //   }
 // });
+router.post("/save-borrower-first-section", async (req, res) => {
+  let connection;
+  let transactionStarted = false;
 
+  try {
+    connection = await db.promise().getConnection();
+
+    const data = req.body;
+    const section = Number(data.activeSection || 0);
+    const existingLan = data.lan ? String(data.lan).trim() : "";
+
+    await connection.beginTransaction();
+    transactionStarted = true;
+
+    // SECTION 0: INSERT first time / UPDATE if LAN already exists
+    if (section === 0) {
+      if (existingLan) {
+        const [updateResult] = await connection.query(
+          `
+          UPDATE loan_booking_seven_fincorp
+          SET
+            lender_type = ?,
+            lender = ?,
+            product = ?,
+            login_date = ?,
+            first_name = ?,
+            last_name = ?,
+            customer_name = ?,
+            dob = ?,
+            father_name = ?,
+            mobile_number = ?,
+            email = ?,
+            pan_card = ?,
+            gender = ?,
+            driving_license = ?,
+            borrower_mobile_verified = ?
+          WHERE lan = ?
+          `,
+          [
+            emptyToNull(data.lenderType),
+            emptyToNull(data.lender),
+            emptyToNull(data.product),
+            emptyToNull(data.LOGIN_DATE),
+            emptyToNull(data.First_Name),
+            emptyToNull(data.Last_Name),
+            emptyToNull(data.Customer_Name),
+            emptyToNull(data.Borrower_DOB),
+            emptyToNull(data.Father_Name),
+            emptyToNull(data.Mobile_Number),
+            emptyToNull(data.Email),
+            emptyToNull(data.Pan_Card),
+            emptyToNull(data.Gender),
+            emptyToNull(data.Driving_License),
+            data.borrower_mobile_verified || 1,
+            existingLan,
+          ]
+        );
+
+        if (updateResult.affectedRows === 0) {
+          await connection.rollback();
+          transactionStarted = false;
+
+          return res.status(404).json({
+            success: false,
+            message: "LAN not found",
+          });
+        }
+
+        await connection.commit();
+        transactionStarted = false;
+
+        return res.json({
+          success: true,
+          message: "Borrower section updated",
+          lan: existingLan,
+          partner_loan_id: data.partner_loan_id || "",
+        });
+      }
+
+      const [borrowerOtp] = await connection.query(
+        `
+        SELECT *
+        FROM otp_consent_model
+        WHERE mobile_number = ?
+        AND applicant_type = ?
+        AND verified = 1
+        AND is_used = 0
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [data.Mobile_Number, "BORROWER"]
+      );
+
+      if (!borrowerOtp.length) {
+        await connection.rollback();
+        transactionStarted = false;
+
+        return res.status(400).json({
+          success: false,
+          message: "Borrower mobile not verified",
+        });
+      }
+
+      const { cust_lan, cust_partner_loan_id } =
+        await generateLoanIdentifiers( "SEVEN_FINCORP_CUSTOMER");
+
+      await connection.query(
+        `
+        INSERT INTO loan_booking_seven_fincorp (
+          lender_type,
+          lender,
+          product,
+          status,
+          stage,
+          partner_loan_id,
+          lan,
+          login_date,
+          first_name,
+          last_name,
+          customer_name,
+          dob,
+          father_name,
+          mobile_number,
+          email,
+          pan_card,
+          gender,
+          driving_license,
+          borrower_mobile_verified,
+          gps_charges
+        )
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
+        [
+          emptyToNull(data.lenderType),
+          emptyToNull(data.lender),
+          emptyToNull(data.product),
+          "Login",
+          "Login",
+          cust_partner_loan_id,
+          cust_lan,
+          emptyToNull(data.LOGIN_DATE),
+          emptyToNull(data.First_Name),
+          emptyToNull(data.Last_Name),
+          emptyToNull(data.Customer_Name),
+          emptyToNull(data.Borrower_DOB),
+          emptyToNull(data.Father_Name),
+          emptyToNull(data.Mobile_Number),
+          emptyToNull(data.Email),
+          emptyToNull(data.Pan_Card),
+          emptyToNull(data.Gender),
+          emptyToNull(data.Driving_License),
+          data.borrower_mobile_verified || 1,
+          emptyToNull(data.GPS_Charges),
+        ]
+      );
+
+      await connection.query(
+        `
+        UPDATE otp_consent_model
+        SET is_used = 1
+        WHERE id = ?
+        `,
+        [borrowerOtp[0].id]
+      );
+
+      await connection.query(
+        `
+        INSERT IGNORE INTO kyc_verification_status (
+          lan,
+          applicant_type,
+          applicant_name,
+          mobile_number,
+          pan_number
+        )
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          cust_lan,
+          "BORROWER",
+          data.Customer_Name,
+          data.Mobile_Number,
+          data.Pan_Card,
+        ]
+      );
+
+      await connection.commit();
+      transactionStarted = false;
+
+      return res.status(201).json({
+        success: true,
+        message: "Borrower saved and LAN generated",
+        lan: cust_lan,
+        partner_loan_id: cust_partner_loan_id,
+      });
+    }
+
+    // SECTION 1 ONWARD: LAN IS REQUIRED
+    if (!existingLan) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        success: false,
+        message: "LAN is required to save this section",
+      });
+    }
+
+    let query = "";
+    let values = [];
+
+    // SECTION 1: Address
+    if (section === 1) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          permanent_address_line_1 = ?,
+          permanent_address_line_2 = ?,
+          permanent_village_city = ?,
+          permanent_district = ?,
+          permanent_state = ?,
+          permanent_pincode = ?
+        WHERE lan = ?
+      `;
+
+      values = [
+        emptyToNull(data.Address_Line_1),
+        emptyToNull(data.Address_Line_2),
+        emptyToNull(data.Village),
+        emptyToNull(data.District),
+        emptyToNull(data.State),
+        emptyToNull(data.Pincode),
+        existingLan,
+      ];
+    }
+
+    // SECTION 2: Loan Details
+    else if (section === 2) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          requested_loan_amount = ?,
+          loan_amount = ?,
+          interest_rate = ?,
+          loan_tenure = ?,
+          processing_fee = ?,
+          processing_fee_percentage = ?,
+          disbursal_amount = ?,
+          gps_charges = ?
+        WHERE lan = ?
+      `;
+
+      values = [
+        emptyToNull(data.Loan_Amount),
+        emptyToNull(data.Loan_Amount),
+        emptyToNull(data.Interest_Rate),
+        emptyToNull(data.Tenure),
+        emptyToNull(data.Processing_Fee),
+        emptyToNull(data.Processing_Fee_Percentage),
+        emptyToNull(data.Disbursal_Amount),
+        emptyToNull(data.GPS_Charges),
+        existingLan,
+      ];
+    }
+
+    // SECTION 3: Guarantor
+    else if (section === 3) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          guarantor_name = ?,
+          guarantor_dob = ?,
+          guarantor_email = ?,
+          guarantor_pan = ?,
+          guarantor_mobile = ?,
+          relationship_with_borrower = ?,
+          guarantor_address_line_1 = ?,
+          guarantor_address_line_2 = ?,
+          guarantor_village_city = ?,
+          guarantor_district = ?,
+          guarantor_state = ?,
+          guarantor_pincode = ?,
+          guarantor_mobile_verified = ?
+        WHERE lan = ?
+      `;
+
+      values = [
+        emptyToNull(data.GURANTOR),
+        emptyToNull(data.GURANTOR_DOB),
+        emptyToNull(data.GURANTOR_EMAIL),
+        emptyToNull(data.GURANTOR_PAN),
+        emptyToNull(data.GURANTOR_MOBILE),
+        emptyToNull(data.Relationship_with_Borrower),
+        emptyToNull(data.GURANTOR_Address_Line_1),
+        emptyToNull(data.GURANTOR_Address_Line_2),
+        emptyToNull(data.GURANTOR_Village),
+        emptyToNull(data.GURANTOR_District),
+        emptyToNull(data.GURANTOR_State),
+        emptyToNull(data.GURANTOR_Pincode),
+        data.guarantor_mobile_verified || 0,
+        existingLan,
+      ];
+    }
+
+    // SECTION 4: Co-Applicant
+    else if (section === 4) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          co_applicant_name = ?,
+          co_applicant_dob = ?,
+          co_applicant_email = ?,
+          co_applicant_pan = ?,
+          co_applicant_mobile = ?,
+          co_applicant_address_line_1 = ?,
+          co_applicant_address_line_2 = ?,
+          co_applicant_village_city = ?,
+          co_applicant_district = ?,
+          co_applicant_state = ?,
+          co_applicant_pincode = ?,
+          co_applicant_mobile_verified = ?
+        WHERE lan = ?
+      `;
+
+      values = [
+        emptyToNull(data.Co_Applicant),
+        emptyToNull(data.Co_Applicant_DOB),
+        emptyToNull(data.Co_Applicant_Email),
+        emptyToNull(data.Co_Applicant_PAN),
+        emptyToNull(data.Co_Applicant_Mobile),
+        emptyToNull(data.Co_Applicant_Address_Line_1),
+        emptyToNull(data.Co_Applicant_Address_Line_2),
+        emptyToNull(data.Co_Applicant_Village),
+        emptyToNull(data.Co_Applicant_District),
+        emptyToNull(data.Co_Applicant_State),
+        emptyToNull(data.Co_Applicant_Pincode),
+        data.co_applicant_mobile_verified || 0,
+        existingLan,
+      ];
+    }
+
+    // SECTION 5: Customer Bank Details
+    else if (section === 5) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          customer_name_as_per_bank = ?,
+          customer_bank_name = ?,
+          customer_account_number = ?,
+          bank_ifsc_code = ?
+        WHERE lan = ?
+      `;
+
+      values = [
+        emptyToNull(data.customer_name_as_per_bank),
+        emptyToNull(data.customer_bank_name),
+        emptyToNull(data.customer_account_number),
+        emptyToNull(data.bank_ifsc_code),
+        existingLan,
+      ];
+    }
+
+    // SECTION 6: Dealer Details
+    else if (section === 6) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          selected_dealer_application_id = ?,
+          dealer_id = ?,
+          trade_name = ?,
+          dealer_name = ?,
+          dealer_contact = ?,
+          dealer_email = ?,
+          gst_no = ?,
+          pan_number = ?,
+          dealer_address = ?,
+          dealer_city = ?,
+          dealer_state = ?,
+          dealer_pincode = ?,
+          dealer_bank_name = ?,
+          dealer_account_number = ?,
+          dealer_ifsc = ?,
+          dealer_name_in_bank = ?
+        WHERE lan = ?
+      `;
+
+      values = [
+        emptyToNull(data.selected_dealer_application_id),
+        emptyToNull(data.dealer_id),
+        emptyToNull(data.trade_name),
+        emptyToNull(data.dealer_name),
+        emptyToNull(data.dealer_contact),
+        emptyToNull(data.dealer_email),
+        emptyToNull(data.gst_no),
+        emptyToNull(data.pan_number),
+        emptyToNull(data.dealer_address),
+        emptyToNull(data.dealer_city),
+        emptyToNull(data.dealer_state),
+        emptyToNull(data.dealer_pincode),
+        emptyToNull(data.bank_name),
+        emptyToNull(data.account_number),
+        emptyToNull(data.ifsc),
+        emptyToNull(data.name_in_bank),
+        existingLan,
+      ];
+    }
+
+    // SECTION 7: Product Details
+    else if (section === 7) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          selected_product_id = ?,
+          battery_name = ?,
+          battery_type = ?,
+          battery_serial_no_1 = ?,
+          battery_serial_no_2 = ?,
+          e_rikshaw_model = ?,
+          chassis_no = ?
+        WHERE lan = ?
+      `;
+
+      values = [
+        emptyToNull(data.selected_product_id),
+        emptyToNull(data.Battery_Name),
+        emptyToNull(data.Battery_Type),
+        emptyToNull(data.Battery_Serial_no_1),
+        emptyToNull(data.Battery_Serial_no_2),
+        emptyToNull(data.E_Rikshaw_model),
+        emptyToNull(data.Chassis_no),
+        existingLan,
+      ];
+    }
+
+    else {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid section",
+        activeSection: section,
+      });
+    }
+
+    const [result] = await connection.query(query, values);
+
+    if (result.affectedRows === 0) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(404).json({
+        success: false,
+        message: "LAN not found",
+        lan: existingLan,
+      });
+    }
+
+    if (section === 3 && data.GURANTOR) {
+      await connection.query(
+        `
+        INSERT IGNORE INTO kyc_verification_status (
+          lan,
+          applicant_type,
+          applicant_name,
+          mobile_number,
+          pan_number
+        )
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          existingLan,
+          "GUARANTOR",
+          data.GURANTOR,
+          data.GURANTOR_MOBILE,
+          data.GURANTOR_PAN,
+        ]
+      );
+    }
+
+    if (section === 4 && data.Co_Applicant) {
+      await connection.query(
+        `
+        INSERT IGNORE INTO kyc_verification_status (
+          lan,
+          applicant_type,
+          applicant_name,
+          mobile_number,
+          pan_number
+        )
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          existingLan,
+          "CO_APPLICANT",
+          data.Co_Applicant,
+          data.Co_Applicant_Mobile,
+          data.Co_Applicant_PAN,
+        ]
+      );
+    }
+
+    await connection.commit();
+    transactionStarted = false;
+
+    return res.json({
+      success: true,
+      message: "Section saved successfully",
+      lan: existingLan,
+      activeSection: section,
+      affectedRows: result.affectedRows,
+      changedRows: result.changedRows,
+    });
+  } catch (error) {
+    if (connection && transactionStarted) {
+      await connection.rollback();
+    }
+
+    console.error("SAVE BORROWER / SECTION ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save section",
+      error: error.message,
+      sqlMessage: error.sqlMessage,
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
 router.post("/final-submit-ev-customer-manual", async (req, res) => {
   const connection = await db.promise().getConnection();
 
@@ -1887,11 +2416,11 @@ router.post("/save-applicant-details", async (req, res) => {
           guarantor_state = ?,
           guarantor_pincode = ?,
           guarantor_mobile_verified = ?,
-          gurantor_driving_licence = ?
+          guarantor_driving_licence = ?
         WHERE lan = ?
         `,
         [
-          emptyToNull(data.GURANTOR),
+          emptyToNull(data.GUARANTOR),
           emptyToNull(data.GURANTOR_DOB),
           emptyToNull(data.GURANTOR_EMAIL),
           emptyToNull(data.GURANTOR_PAN),
@@ -2136,7 +2665,6 @@ router.get("/customer-details/:lan", async (req, res) => {
     lb.e_rikshaw_model,
     lb.chassis_no,
 
-    // Add to the SELECT query after chassis_no:
     lb.driving_license,
     lb.gps_charges,
     lb.guarantor_driving_licence,
@@ -2738,7 +3266,7 @@ router.post("/:lan/approve", async (req, res) => {
     const [rows] = await db.promise().query(
       `
       SELECT lan, bank_status
-      FROM loan_booking_motion_corp
+      FROM loan_booking_seven_fincorp
       WHERE lan = ?
       `,
       [lan],
@@ -2764,7 +3292,7 @@ router.post("/:lan/approve", async (req, res) => {
     // UPDATE STATUS
     await db.promise().query(
       `
-      UPDATE loan_booking_motion_corp
+      UPDATE loan_booking_seven_fincorp
       SET
         status = 'Approved',
         stage = 'Operation Approved',
@@ -2796,7 +3324,7 @@ router.post("/:lan/reject", async (req, res) => {
     const [rows] = await db.promise().query(
       `
       SELECT lan, bank_status
-      FROM loan_booking_motion_corp
+      FROM loan_booking_seven_fincorp
       WHERE lan = ?
       `,
       [lan],

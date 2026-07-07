@@ -155,6 +155,11 @@ const SevenFinCorpLoanBooking = ({
     guarantor: false,
     coApplicant: false,
   });
+  useEffect(() => {
+  if (lan) {
+    fetchAadhaarStatuses();
+  }
+}, [lan]);
 
   useEffect(() => {
     if (resumeLan) {
@@ -543,61 +548,134 @@ for processing and servicing this loan application.
   const isCoApplicantRequired = () =>
     activeSection === 4 && !hasGuarantorDetails();
 
+  // const saveBorrowerFirstSection = async () => {
+  //   const sectionErrors = validateSection(0);
+
+  //   if (Object.keys(sectionErrors).length > 0) {
+  //     setErrors(sectionErrors);
+
+  //     const newTouched = {};
+  //     sectionFields[0].forEach((field) => {
+  //       newTouched[field] = true;
+  //     });
+
+  //     setTouched((prev) => ({ ...prev, ...newTouched }));
+  //     setMessage("❌ Please complete Borrower Details first.");
+  //     return false;
+  //   }
+
+  //   if (!otpVerified.borrower) {
+  //     setMessage("❌ Borrower mobile not verified");
+  //     return false;
+  //   }
+
+  //   if (borrowerSaved && lan) {
+  //     return true;
+  //   }
+
+  //   try {
+  //     setLoading(true);
+
+  //     const res = await api.post(`${apiPrefix}/save-borrower-first-section`, {
+  //       ...formData,
+  //       borrower_mobile_verified: 1,
+  //     });
+
+  //     if (res.data.success) {
+  //       setLan(res.data.lan);
+  //       setPartnerLoanId(res.data.partner_loan_id);
+  //       setBorrowerSaved(true);
+  //       setMessage(`✅ Borrower saved. LAN: ${res.data.lan}`);
+  //       return true;
+  //     }
+
+  //     return false;
+  //   } catch (err) {
+  //     setMessage(
+  //       `❌ ${
+  //         err.response?.data?.message || "Failed to save borrower section"
+  //       }`,
+  //     );
+  //     return false;
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+  ////////
+
+
   const saveBorrowerFirstSection = async () => {
-    const sectionErrors = validateSection(0);
+  const sectionErrors = validateSection(activeSection);
 
-    if (Object.keys(sectionErrors).length > 0) {
-      setErrors(sectionErrors);
+  if (Object.keys(sectionErrors).length > 0) {
+    setErrors(sectionErrors);
 
-      const newTouched = {};
-      sectionFields[0].forEach((field) => {
-        newTouched[field] = true;
-      });
+    const newTouched = {};
+    sectionFields[activeSection].forEach((field) => {
+      newTouched[field] = true;
+    });
 
-      setTouched((prev) => ({ ...prev, ...newTouched }));
-      setMessage("❌ Please complete Borrower Details first.");
-      return false;
-    }
+    setTouched((prev) => ({ ...prev, ...newTouched }));
+    setMessage("❌ Please complete current section first.");
+    return false;
+  }
 
-    if (!otpVerified.borrower) {
-      setMessage("❌ Borrower mobile not verified");
-      return false;
-    }
+  if (activeSection === 0 && !otpVerified.borrower) {
+    setMessage("❌ Borrower mobile not verified");
+    return false;
+  }
 
-    if (borrowerSaved && lan) {
+  try {
+    setLoading(true);
+
+    const res = await api.post(`${apiPrefix}/save-borrower-first-section`, {
+      activeSection,
+      lan,
+      partner_loan_id: partnerLoanId,
+
+      ...formData,
+
+      borrower_mobile_verified: otpVerified.borrower ? 1 : 0,
+      guarantor_mobile_verified: otpVerified.guarantor ? 1 : 0,
+      co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
+    });
+
+    if (res.data.success) {
+      if (res.data.lan) {
+        setLan(res.data.lan);
+      }
+
+      if (res.data.partner_loan_id) {
+        setPartnerLoanId(res.data.partner_loan_id);
+      }
+
+      if (activeSection === 0) {
+        setBorrowerSaved(true);
+      }
+
+      setMessage(`✅ ${res.data.message}`);
       return true;
     }
 
-    try {
-      setLoading(true);
+    setMessage("❌ Failed to save section.");
+    return false;
+  } catch (err) {
+    console.error("SAVE ERROR:", err.response?.data || err);
 
-      const res = await api.post(`${apiPrefix}/save-borrower-first-section`, {
-        ...formData,
-        borrower_mobile_verified: 1,
-      });
+    setMessage(
+      `❌ ${
+        err.response?.data?.sqlMessage ||
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Failed to save current section"
+      }`
+    );
 
-      if (res.data.success) {
-        setLan(res.data.lan);
-        setPartnerLoanId(res.data.partner_loan_id);
-        setBorrowerSaved(true);
-        setMessage(`✅ Borrower saved. LAN: ${res.data.lan}`);
-        return true;
-      }
-
-      return false;
-    } catch (err) {
-      setMessage(
-        `❌ ${
-          err.response?.data?.message || "Failed to save borrower section"
-        }`,
-      );
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-  ////////
-
+    return false;
+  } finally {
+    setLoading(false);
+  }
+};
   const sectionFields = {
     0: [
       "LOGIN_DATE",
@@ -1047,7 +1125,7 @@ for processing and servicing this loan application.
       // }
 
       // Auto-calculate Processing Fee % and Disbursal Amount
-      if (name === "Loan_Amount" || name === "Processing_Fee") {
+      if (name === "Loan_Amount" || name === "Processing_Fee" || name === "GPS_Charges") {
         const loanAmount = Number(
           name === "Loan_Amount" ? finalValue : updated.Loan_Amount,
         );
@@ -1056,15 +1134,23 @@ for processing and servicing this loan application.
           name === "Processing_Fee" ? finalValue : updated.Processing_Fee,
         );
 
+        const gpsCharges = Number(
+          name === "GPS_Charges" ? finalValue : updated.GPS_Charges,
+        );
+
         if (
           !Number.isNaN(loanAmount) &&
           !Number.isNaN(processingFee) &&
+          !Number.isNaN(gpsCharges) &&
           loanAmount > 0 &&
-          processingFee >= 0
+          processingFee >= 0 &&
+          gpsCharges >= 0
         ) {
           const processingFeePercentage = (processingFee / loanAmount) * 100;
 
-          const disbursalAmount = loanAmount - processingFee;
+          const disbursalAmount = loanAmount - processingFee - gpsCharges;
+          // const disbursalAmount = disbursalAmoun - gpsCharges;
+           
 
           updated.Processing_Fee_Percentage =
             processingFeePercentage.toFixed(2);
@@ -1254,10 +1340,12 @@ for processing and servicing this loan application.
       });
 
       if (res.data.success) {
-        setAadhaarStatus((prev) => ({
-          ...prev,
-          [applicantType]: "INITIATED",
-        }));
+              await fetchAadhaarStatuses();
+
+        // setAadhaarStatus((prev) => ({
+        //   ...prev,
+        //   [applicantType]: "INITIATED",
+        // }));
 
         setMessage(`✅ Aadhaar initiated for ${applicantType}`);
 
@@ -1574,6 +1662,42 @@ for processing and servicing this loan application.
       </div>
     );
   };
+
+
+  
+const fetchAadhaarStatuses = async () => {
+  if (!lan) return;
+
+  try {
+    const response = await api.get(
+      `${apiPrefix}/customer-details/${lan}`,
+    );
+
+    const verificationStatus =
+      response.data?.loan?.verification_status || {};
+
+    setAadhaarStatus((previous) => ({
+      ...previous,
+
+      BORROWER:
+        verificationStatus.borrower?.aadhaar_status ||
+        "PENDING",
+
+      GUARANTOR:
+        verificationStatus.guarantor?.aadhaar_status ||
+        "PENDING",
+
+      CO_APPLICANT:
+        verificationStatus.co_applicant?.aadhaar_status ||
+        "PENDING",
+    }));
+  } catch (error) {
+    console.error(
+      "Failed to fetch Aadhaar status:",
+      error,
+    );
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -2092,7 +2216,7 @@ for processing and servicing this loan application.
             {renderInput("Guarantor DOB", "GURANTOR_DOB", "date")}
             {renderInput("Guarantor Email", "GURANTOR_EMAIL", "email")}
             {renderInput("Guarantor PAN", "GURANTOR_PAN")}
-            {renderInput("Guarantor Address Line 1", "GURANTOR_Address_Line_1")}
+                       {renderInput("Guarantor Address Line 1", "GURANTOR_Address_Line_1")}
             {renderInput("Guarantor Address Line 2", "GURANTOR_Address_Line_2")}
             {renderInput("Guarantor Village", "GURANTOR_Village")}
             {renderInput("Guarantor Pincode", "GURANTOR_Pincode")}
@@ -2340,7 +2464,7 @@ for processing and servicing this loan application.
                 </button>
               )}
 
-              <button
+              {/* <button
                 type="button"
                 onClick={async () => {
                   if (activeSection === 0) {
@@ -2370,7 +2494,19 @@ for processing and servicing this loan application.
                 }}
               >
                 Next →
-              </button>
+              </button> */}
+               <button
+  type="button"
+  disabled={loading}
+  onClick={async () => {
+    const saved = await saveBorrowerFirstSection();
+    if (!saved) return;
+
+    setActiveSection((prev) => prev + 1);
+  }}
+>
+  {loading ? "Saving..." : "Next →"}
+</button>
             </>
           ) : (
             <button type="submit" disabled={loading}>

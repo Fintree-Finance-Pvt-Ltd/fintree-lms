@@ -5,6 +5,7 @@ const db = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
+const sterlionRoutes = require("./routes/sterlion/sterlionRoutes");
 const loanRoutes = require("./routes/loanRoutes");
 const repaymentRoutes = require("./routes/repaymentsRoutes");
 const loanChargesRoutes = require("./routes/loanChargesRoutes");
@@ -24,7 +25,7 @@ const enachRoutes = require("./routes/enachRoutes");
 const esignRoutes = require("./routes/esignRoutes");
 const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute");
 const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
-const { retryPendingValidations } = require("./services/heliumValidationEngine");
+const { retryPendingValidations, autoApproveIfAllVerified } = require("./services/heliumValidationEngine");
 const { autoApproveClayyoIfAllVerified } = require("./routes/clyooRoutes/clayyoBreEngine");
 const { autoApproveMotionCorpIfAllVerified } = require("./routes/MotionCorp/motionCorpBRE");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
@@ -33,7 +34,8 @@ const { generateForReport, generateAllPending } = require('./jobs/cibilPdfServic
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
 const mobileRevocationLookup = require("./utils/mnrlApiService");
 const { initAadhaarKyc } = require("./services/digitapaadharservice");
-const { autoRunFinsoBreIfReady} = require("./utils/fincrestBRE")
+const { autoRunFinsoBreIfReady} = require("./utils/fincrestBRE");
+const { autoApproveSrbhIfAllVerified } = require("./routes/srbh/srbhBRE");
 
 
 // function generateApiKey() {
@@ -93,6 +95,7 @@ app.use("/generated", express.static(path.join(__dirname, "generated")));
 app.use("/reports", express.static(reportsPath));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/loan-booking", sterlionRoutes);
 app.use("/api/loan-booking", excelUploadRoutes);
 app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅ Register WCTL-CC-OD Routes
 app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
@@ -165,6 +168,8 @@ app.use("/api/fundify", require("./routes/Fundify/fundifyRoutes")); // ✅ Regis
 app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 
+app.use("/bureau", require("./services/bureauretry"));
+
 app.use("/api/supply-chain", require("./routes/supplyChainRoutes/supplyChainRoutes")); // ✅ Register Routes for Supply Chain Loans
 app.post("/api/cibil/:id/pdf", async (req, res) => {
   try {
@@ -193,7 +198,7 @@ app.post("/api/runheliumvalidations", async (req, res) => {
     }
 
     await retryPendingValidations(lan);
-
+    await autoApproveIfAllVerified(lan);
     res.json({
       ok: true,
       message: `Helium validations executed successfully for LAN ${lan}`,
@@ -405,6 +410,25 @@ app.post("/api/runclayyovalidations", async (req, res) => {
     res.json({
       ok: true,
       message: `Clayyo validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/srbhvalidation", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+
+    await autoApproveSrbhIfAllVerified(lan);
+
+    res.json({
+      ok: true,
+      message: `Loandigit validations executed successfully for LAN ${lan}`,
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

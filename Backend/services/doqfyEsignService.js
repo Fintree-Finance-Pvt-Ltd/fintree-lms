@@ -18,8 +18,6 @@ function clean(value) {
 }
 
 function buildDoqfyPartyUsers(loan, esignParties = [], type) {
-  const positions = ["BOTTOM_RIGHT", "BOTTOM_LEFT", "TOP_RIGHT", "TOP_LEFT"];
-
   const partyUsers = [];
 
   for (const party of esignParties) {
@@ -27,20 +25,16 @@ function buildDoqfyPartyUsers(loan, esignParties = [], type) {
     const email = clean(loan[party.email]);
     const mobile = clean(loan[party.mobile]);
 
-    // means this signer does not exist in this loan
     const isEmptySigner = !name && !email && !mobile;
 
-    // if required signer missing, stop
     if (isEmptySigner && party.required) {
       throw new Error(`${party.role} details are missing`);
     }
 
-    // if optional signer missing, skip
     if (isEmptySigner && !party.required) {
       continue;
     }
 
-    // partial data validation
     if (!name) {
       throw new Error(`${party.role} name is missing`);
     }
@@ -49,18 +43,29 @@ function buildDoqfyPartyUsers(loan, esignParties = [], type) {
       throw new Error(`${party.role} mobile or email is required`);
     }
 
-    partyUsers.push({
+    const useCoordinates =
+      type === "AGREEMENT" &&
+      party.sign_position === "DRAG_DROP" &&
+      party.position_details &&
+      Object.keys(party.position_details).length > 0;
+
+    const partyUser = {
       name,
       email,
       contact_number: mobile,
-      sign_position: positions[partyUsers.length % positions.length],
       method: "AADHAAR",
-      position_details: {},
       pages: "ALL",
-
-      // role is used here for your reference
       remark: `${type} Signing - ${party.role}`,
-    });
+      sign_position: useCoordinates ? "DRAG_DROP" : "BOTTOM_RIGHT",
+    };
+
+    if (useCoordinates) {
+      partyUser.position_details = party.position_details;
+    } else {
+      partyUser.position_details = {};
+    }
+
+    partyUsers.push(partyUser);
   }
 
   if (!partyUsers.length) {
@@ -141,10 +146,6 @@ exports.initDoqfyEsign = async (lan, type) => {
 
     // These values should ideally come from DB/config
     const BRANCH_ID = process.env.DOQFY_BRANCH_ID || 3581;
-
-    // Example article id:
-    // Article 5(j) Agreement
-    const ARTICLE_ID = process.env.DOQFY_ARTICLE_ID || 3980;
 
     const referenceId = `${lan}_${type}_${Date.now()}`;
 
@@ -234,6 +235,11 @@ exports.initDoqfyEsign = async (lan, type) => {
     /* SAVE TO DATABASE */
     /* --------------------------------------------------- */
 
+    const primarySigner = partyUsers[0];
+
+    const signerIdentifier =
+      primarySigner.contact_number || primarySigner.email || null;
+
     await db.promise().query(
       `
       INSERT INTO esign_documents
@@ -253,7 +259,7 @@ exports.initDoqfyEsign = async (lan, type) => {
         orderId,
         type,
         "INITIATED",
-        loan.mobile_number || loan.email_id,
+        signerIdentifier,
         JSON.stringify(payload),
         JSON.stringify(response.data),
       ],

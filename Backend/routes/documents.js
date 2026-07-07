@@ -70,6 +70,7 @@ const LAN_TABLE_MAP = {
   GQFSF: { table: "loan_booking_gq_non_fsf", statusCol: "status" },
   ADKF: { table: "loan_booking_adikosh", statusCol: "status" },
   WCTL: { table: "loan_bookings_wctl", statusCol: "status" },
+  TLF: { table: "loan_booking_wctl_ffpl", statusCol: "status" },
   E1: { table: "loan_booking_embifi", statusCol: "status" },
   FINE: { table: "loan_booking_emiclub", statusCol: "status" },
   CARE: { table: "loan_booking_carepay", statusCol: "status" },
@@ -2782,7 +2783,7 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("SFL")) loanTable = "loan_booking_zypay_customer";
   else if (lan.startsWith("BUN")) loanTable = "loan_booking_bundela";
   else if (lan.startsWith("LDF")) loanTable = "loan_booking_loan_digit";
-  else if (lan.startsWith("RML")) loanTable = "loan_booking_switch_my_loan";
+  else if (lan.startsWith("SML")) loanTable = "loan_booking_switch_my_loan";
   else if (lan.startsWith("ZBR")) loanTable = "loan_booking_zebrs";
   else if (lan.startsWith("CLY")) loanTable = "loan_booking_clayyo";
   else if (lan.startsWith("SH")) loanTable = "loan_booking_srbh";

@@ -29,12 +29,11 @@ const {
 const {
   CAREPAY_HOSPITAL_REQUIRED_FIELDS,
   CAREPAY_REQUIRED_FIELDS,
-  STERLION_REQUIRED_FIELDS,
   CarepayLoanTypes,
+  WCTL_ALLOWED_PRODUCTS,
 } = require("../utils/constant");
 const { runBureau } = require("../services/Bueraupullapiservice");
 const { autoRunFinsoBreIfReady } = require("../utils/fincrestBRE");
-const { runSterlionBre } = require("../utils/sterlionBRE");
 
 // const { pullCIBILReport }=  require("../jobs/experianService");
 
@@ -69,6 +68,9 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "WCTL") {
     prefixPartnerLoan = "WCTL1";
     prefixLan = "WCTL1";
+  } else if (lender === "WCTL FFPL") {
+    prefixPartnerLoan = "WCTLFFPL1";
+    prefixLan = "WCTLFFPL1";
   } else if (lender === "GQ FSF") {
     prefixPartnerLoan = "GQFSF1";
     prefixLan = "GQFSF1";
@@ -89,9 +91,6 @@ const generateLoanIdentifiers = async (lender) => {
     prefixLan = "FINE1";
   } else if (lender === "carepay") {
     prefixLan = "CARE";
-  } else if (lender === "sterlion") {
-    prefixPartnerLoan = "STRL";
-    prefixLan = "STRL";
   } else if (lender === "carepay-hospital") {
     prefixPartnerLoan = "CAREHOS";
     prefixLan = "CAREHOS";
@@ -2020,6 +2019,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
+    loan_booking_wctl_ffpl: true,
     loan_booking_emiclub: true,
     loan_booking_carepay: true,
     loan_booking_sterlion: true,
@@ -2097,6 +2097,7 @@ router.post("/update-umrn", (req, res) => {
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
+    loan_booking_wctl_ffpl: true,
     loan_booking_emiclub: true,
     loan_booking_carepay: true,
     loan_booking_sterlion: true,
@@ -2190,6 +2191,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
     loan_booking_motion_corp: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
+    loan_booking_wctl_ffpl: true,
     loan_booking_emiclub: true,
     loan_booking_carepay: true,
     loan_booking_sterlion: true,
@@ -2273,6 +2275,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
+    loan_booking_wctl_ffpl: true,
     loan_booking_hey_ev: true,
     loan_booking_emiclub: true,
     loan_booking_carepay: true,
@@ -2340,8 +2343,14 @@ router.get("/all-loans", async (req, res) => {
 
     const searchParams = search
       ? isGqTable
-        ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%` , `%${search}%`]
-        : [`%${search}%`, `%${search}%`, `%${search}%` , `%${search}%`]
+        ? [
+            `%${search}%`,
+            `%${search}%`,
+            `%${search}%`,
+            `%${search}%`,
+            `%${search}%`,
+          ]
+        : [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
       : [];
 
     const countSql = `
@@ -2404,6 +2413,7 @@ router.get("/approved-loans", async (req, res) => {
     loan_booking_gq_non_fsf: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
+    loan_booking_wctl_ffpl: true,
     loan_booking_emiclub: true,
     loan_booking_carepay: true,
     loan_booking_sterlion: true,
@@ -2448,9 +2458,10 @@ router.get("/approved-loans", async (req, res) => {
       : [];
 
     // For switch_my_loan (RML), approved status is BRE_APPROVED
-    const statusFilter = table === 'loan_booking_switch_my_loan'
-      ? `lb.status IN ('Approved', 'BRE_APPROVED')`
-      : `lb.status = 'Approved'`;
+    const statusFilter =
+      table === "loan_booking_switch_my_loan"
+        ? `lb.status IN ('Approved', 'BRE_APPROVED')`
+        : `lb.status = 'Approved'`;
     const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause}`;
     const dataSql = `SELECT lb.* FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
 
@@ -2496,6 +2507,7 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_sterlion: true,
     loan_booking_zypay_customer: true,
     loan_bookings_wctl: true,
+    loan_booking_wctl_ffpl: true,
     loan_booking_ev: true,
     loan_booking_hey_ev: true,
     loan_booking_embifi: true,
@@ -2538,7 +2550,11 @@ router.get("/disbursed-loans", async (req, res) => {
 
     const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.status = 'Disbursed' AND lb.LAN LIKE ?${searchClause}`;
     // Only join ev_disbursement_utr for EV-like products that have UTR tracking
-    const tablesWithUtr = ['loan_booking_ev','loan_booking_hey_ev','loan_booking_hey_ev_battery'];
+    const tablesWithUtr = [
+      "loan_booking_ev",
+      "loan_booking_hey_ev",
+      "loan_booking_hey_ev_battery",
+    ];
     const dataSql = tablesWithUtr.includes(table)
       ? `SELECT lb.*, DATE_FORMAT(CONVERT_TZ(edu.disbursement_date, '+00:00', '+05:30'), '%Y-%m-%d %H:%i:%s') AS disbursement_date
          FROM ?? AS lb
@@ -2585,6 +2601,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_seven_fincorp: true,
     loan_booking_gq_fsf: true,
     loan_bookings_wctl: true,
+    loan_booking_wctl_ffpl: true,
     loan_booking_ev: true,
     loan_booking_hey_ev: true,
     loan_booking_emiclub: true,
@@ -2920,6 +2937,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_carepay: true,
     loan_booking_sterlion: true,
     loan_bookings_wctl: true,
+    loan_booking_wctl_ffpl: true,
     loan_booking_ev: true,
     loan_booking_hey_ev: true,
     loan_booking_motion_corp: true,
@@ -6247,10 +6265,6 @@ function isCarePayPartner(req) {
   return (req.partner?.name || "").toLowerCase().trim() === "carepay";
 }
 
-function isSterlionPartner(req) {
-  return (req.partner?.name || "").toLowerCase().trim() === "sterlion";
-}
-
 router.post("/v1/carepay-hospitals/create", verifyApiKey, async (req, res) => {
   try {
     const partner = req.partner.name || {};
@@ -7480,538 +7494,6 @@ router.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
   }
 });
 
-async function fetchSterlionCaseStatus({ lan, partnerLoanId }) {
-  const whereClause = lan ? "lan = ?" : "partner_loan_id = ?";
-  const value = lan || partnerLoanId;
-
-  const [rows] = await db.promise().query(
-    `SELECT
-       lan,
-       partner_loan_id,
-       customer_name,
-       business_name,
-       status,
-       stage,
-       request_amount,
-       loan_amount,
-       sterlion_bre_status,
-       sterlion_bre_reason,
-       cibil_score_fintree,
-       estimated_emi,
-       foir_percentage
-     FROM loan_booking_sterlion
-     WHERE ${whereClause}
-     LIMIT 1`,
-    [value],
-  );
-
-  return rows[0] || null;
-}
-
-function buildSterlionStatusResponse(row) {
-  const parsedCreditLimit = Number(row.loan_amount);
-  const creditLimit =
-    row.loan_amount === null ||
-    row.loan_amount === undefined ||
-    row.loan_amount === "" ||
-    !Number.isFinite(parsedCreditLimit)
-      ? null
-      : parsedCreditLimit;
-
-  return {
-    lan: row.lan,
-    partner_loan_id: row.partner_loan_id,
-    customer_name: row.customer_name,
-    business_name: row.business_name,
-    status: row.status,
-    stage: row.stage,
-    request_amount: row.request_amount,
-    loan_amount: creditLimit,
-    credit_limit: creditLimit,
-    limit_available: creditLimit !== null,
-    bre_status: row.sterlion_bre_status,
-    bre_reason: row.sterlion_bre_reason,
-    cibil_score: row.cibil_score_fintree,
-    estimated_emi: row.estimated_emi,
-    foir_percentage: row.foir_percentage,
-  };
-}
-
-async function persistSterlionBureauAndBre(lan, data) {
-  let bureauResult = {
-    success: false,
-    score: null,
-    response: null,
-  };
-
-  try {
-    bureauResult = await runBureau(data);
-    const score = bureauResult.score ?? null;
-    const report = bureauResult.response ?? null;
-
-    if (report) {
-      await db.promise().query(
-        `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
-         VALUES (?, ?, ?, ?, NOW())`,
-        [lan, data.pan_number, score, report],
-      );
-    }
-
-    if (score !== null) {
-      await db
-        .promise()
-        .execute(
-          "UPDATE loan_booking_sterlion SET cibil_score_fintree = ? WHERE lan = ?",
-          [score, lan],
-        );
-    }
-
-    try {
-      await db
-        .promise()
-        .query("INSERT IGNORE INTO kyc_verification_status (lan) VALUES (?)", [
-          lan,
-        ]);
-
-      await db.promise().query(
-        `UPDATE kyc_verification_status
-         SET bureau_status = ?, bureau_api_response = ?
-         WHERE lan = ?`,
-        [bureauResult.success ? "VERIFIED" : "FAILED", report, lan],
-      );
-    } catch (kycErr) {
-      console.error(
-        "Sterlion KYC bureau status update failed:",
-        kycErr.message,
-      );
-    }
-  } catch (err) {
-    console.error("Sterlion bureau hard pull failed:", err.message);
-
-    try {
-      await db
-        .promise()
-        .query("INSERT IGNORE INTO kyc_verification_status (lan) VALUES (?)", [
-          lan,
-        ]);
-      await db.promise().query(
-        `UPDATE kyc_verification_status
-         SET bureau_status = 'FAILED', bureau_api_response = ?
-         WHERE lan = ?`,
-        [err.message, lan],
-      );
-    } catch (kycErr) {
-      console.error(
-        "Sterlion failed bureau status update failed:",
-        kycErr.message,
-      );
-    }
-  }
-
-  let breResult = null;
-
-  try {
-    breResult = await runSterlionBre(lan, bureauResult.score ?? null);
-  } catch (breErr) {
-    console.error("Sterlion BRE failed:", breErr.message);
-  }
-
-  return {
-    bureauResult,
-    breResult,
-  };
-}
-
-router.get("/v1/sterlion-case-status", verifyApiKey, async (req, res) => {
-  try {
-    if (!isSterlionPartner(req)) {
-      return res
-        .status(403)
-        .json({ message: "This route is only for Sterlion partner." });
-    }
-
-    const lan = String(req.query.lan || "").trim();
-    const partnerLoanId = String(req.query.partner_loan_id || "").trim();
-
-    if (!lan && !partnerLoanId) {
-      return res.status(400).json({
-        message: "lan or partner_loan_id is required.",
-      });
-    }
-
-    const row = await fetchSterlionCaseStatus({
-      lan: lan || null,
-      partnerLoanId: partnerLoanId || null,
-    });
-
-    if (!row) {
-      return res.status(404).json({ message: "Sterlion case not found." });
-    }
-
-    return res.status(200).json({
-      message: "Sterlion case status fetched successfully.",
-      data: buildSterlionStatusResponse(row),
-    });
-  } catch (error) {
-    console.error("Sterlion case status fetch error:", error);
-
-    return res.status(500).json({
-      message: "Failed to fetch Sterlion case status.",
-      error: error.sqlMessage || error.message,
-    });
-  }
-});
-
-router.post("/v1/sterlion-lb", verifyApiKey, async (req, res) => {
-  let conn;
-
-  try {
-    const data = req.body || {};
-    const lenderType = String(req.partner?.name || "")
-      .toLowerCase()
-      .trim();
-
-    if (!isSterlionPartner(req)) {
-      return res.status(403).json({
-        message: "This route is only for Sterlion partner.",
-      });
-    }
-
-    const missing = getMissingFields(data, STERLION_REQUIRED_FIELDS);
-    const currentVillageCity = nullableString(
-      data.current_village_city || data.current_city,
-    );
-    const businessCity = nullableString(
-      data.business_city || data.business_village_city,
-    );
-
-    if (!currentVillageCity) {
-      missing.push("current_city");
-    }
-
-    if (!businessCity) {
-      missing.push("business_city");
-    }
-
-    if (missing.length) {
-      return res.status(400).json({
-        message: `Missing fields: ${missing.join(", ")}`,
-      });
-    }
-
-    const rawRequestAmount = isProvided(data.request_amount)
-      ? data.request_amount
-      : data.loan_amount;
-    const requestAmount = Number(rawRequestAmount);
-
-    if (!Number.isFinite(requestAmount) || requestAmount <= 0) {
-      return res.status(400).json({
-        message: "Invalid request_amount",
-      });
-    }
-
-    const loanTenure = Number(data.loan_tenure);
-    if (!Number.isInteger(loanTenure) || loanTenure <= 0) {
-      return res.status(400).json({
-        message: "Invalid loan_tenure",
-      });
-    }
-
-    const annualIncome = Number(data.annual_income);
-    if (!Number.isFinite(annualIncome) || annualIncome <= 0) {
-      return res.status(400).json({
-        message: "Invalid annual_income",
-      });
-    }
-
-    const businessVintageMonths = Number(data.business_vintage_months);
-    if (!Number.isFinite(businessVintageMonths) || businessVintageMonths < 0) {
-      return res.status(400).json({
-        message: "Invalid business_vintage_months",
-      });
-    }
-
-    const monthlyIncome = isProvided(data.monthly_income)
-      ? Number(data.monthly_income)
-      : round2(annualIncome / 12);
-
-    if (!Number.isFinite(monthlyIncome) || monthlyIncome <= 0) {
-      return res.status(400).json({
-        message: "Invalid monthly_income",
-      });
-    }
-
-    const monthlyObligation = isProvided(data.monthly_obligation)
-      ? Number(data.monthly_obligation)
-      : 0;
-
-    if (!Number.isFinite(monthlyObligation) || monthlyObligation < 0) {
-      return res.status(400).json({
-        message: "Invalid monthly_obligation",
-      });
-    }
-
-    const interestRate = isProvided(data.interest_rate)
-      ? Number(data.interest_rate)
-      : 24;
-
-    if (!Number.isFinite(interestRate) || interestRate < 0) {
-      return res.status(400).json({
-        message: "Invalid interest_rate",
-      });
-    }
-
-    const businessTurnover = isProvided(data.business_turnover)
-      ? Number(data.business_turnover)
-      : null;
-
-    if (
-      businessTurnover !== null &&
-      (!Number.isFinite(businessTurnover) || businessTurnover < 0)
-    ) {
-      return res.status(400).json({
-        message: "Invalid business_turnover",
-      });
-    }
-
-    let processingFee;
-
-    try {
-      processingFee = calculateAmountPercentagePair({
-        baseAmount: requestAmount,
-        amountValue: data.processing_fee,
-        percentageValue: data.processing_fee_percentage,
-        amountField: "processing_fee",
-        percentageField: "processing_fee_percentage",
-      });
-    } catch (calculationError) {
-      return res.status(400).json({
-        status: "Failed",
-        message: calculationError.message,
-      });
-    }
-
-    const netDisbursement = round2(requestAmount - processingFee.amount);
-
-    if (netDisbursement < 0) {
-      return res.status(400).json({
-        status: "Failed",
-        message:
-          "Invalid net_disbursement. Processing fee cannot exceed request amount.",
-      });
-    }
-
-    conn = await db.promise().getConnection();
-    await conn.beginTransaction();
-
-    const [existing] = await conn.query(
-      `SELECT lan, partner_loan_id, customer_name
-       FROM loan_booking_sterlion
-       WHERE partner_loan_id = ?`,
-      [data.partner_loan_id],
-    );
-
-    if (existing.length > 0) {
-      await conn.rollback();
-      conn.release();
-      conn = null;
-
-      return res.status(400).json({
-        status: "Failed",
-        message: "Duplicate Partner Loan ID",
-        existingLan: existing[0].lan,
-      });
-    }
-
-    const [panRecords] = await conn.query(
-      `SELECT status
-       FROM loan_booking_sterlion
-       WHERE pan_number = ?`,
-      [data.pan_number],
-    );
-
-    const allowedStatuses = new Set([
-      "cancelled",
-      "foreclosed",
-      "fully paid",
-      "rejected",
-    ]);
-
-    if (
-      panRecords.some(
-        (row) =>
-          !allowedStatuses.has(
-            String(row.status || "")
-              .trim()
-              .toLowerCase(),
-          ),
-      )
-    ) {
-      await conn.rollback();
-      conn.release();
-      conn = null;
-
-      return res.status(400).json({
-        status: "Failed",
-        message:
-          "PAN already exists with an active loan. New loan not allowed.",
-      });
-    }
-
-    const { lan } = await generateLoanIdentifiers(lenderType);
-    const customer_name = `${data.first_name || ""} ${data.middle_name || ""} ${
-      data.last_name || ""
-    }`
-      .replace(/\s+/g, " ")
-      .trim();
-    const product = nullableString(data.loan_type) || "Unsecured Business Loan";
-    const agreement_date = data.login_date;
-
-    const fields = {
-      lan,
-      partner_loan_id: data.partner_loan_id,
-      login_date: data.login_date,
-
-      first_name: data.first_name,
-      middle_name: nullableString(data.middle_name),
-      last_name: data.last_name,
-      customer_name,
-
-      gender: nullableString(data.gender),
-      dob: data.dob,
-      age: data.age || null,
-      father_name: nullableString(data.father_name),
-      mother_name: nullableString(data.mother_name),
-
-      mobile_number: data.mobile_number,
-      alternate_mobile_number: nullableString(data.alternate_mobile_number),
-      email_id: nullableString(data.email_id),
-
-      pan_number: data.pan_number,
-      aadhar_number: nullableString(data.aadhar_number),
-
-      current_address: data.current_address,
-      current_village_city: currentVillageCity,
-      current_district: nullableString(data.current_district),
-      current_state: data.current_state,
-      current_pincode: data.current_pincode,
-
-      permanent_address: data.permanent_address || data.current_address,
-      permanent_village_city: data.permanent_village_city || currentVillageCity,
-      permanent_district:
-        data.permanent_district || nullableString(data.current_district),
-      permanent_state: data.permanent_state || data.current_state,
-      permanent_pincode: data.permanent_pincode || data.current_pincode,
-
-      business_name: data.business_name,
-      trade_name: nullableString(data.trade_name),
-      business_type: data.business_type,
-      business_vintage_months: businessVintageMonths,
-      business_address: data.business_address,
-      business_city: businessCity,
-      business_district: nullableString(data.business_district),
-      business_state: data.business_state,
-      business_pincode: data.business_pincode,
-      gst_number: nullableString(data.gst_number),
-      udyam_registration_no: nullableString(data.udyam_registration_no),
-      cin: nullableString(data.cin),
-
-      request_amount: requestAmount,
-      loan_amount: null,
-      interest_rate: interestRate,
-      processing_fee_percentage: processingFee.percentage,
-      processing_fee: processingFee.amount,
-      loan_tenure: loanTenure,
-      emi_amount: null,
-      estimated_emi: null,
-
-      annual_income: annualIncome,
-      monthly_income: monthlyIncome,
-      monthly_obligation: monthlyObligation,
-      business_turnover: businessTurnover,
-      foir_percentage: null,
-
-      bank_name: nullableString(data.bank_name),
-      branch_name: nullableString(data.branch_name),
-      ifsc_code: nullableString(data.ifsc_code),
-      account_holder_name: nullableString(data.account_holder_name),
-      account_number: nullableString(data.account_number),
-
-      product,
-      lender: "STERLION",
-      net_disbursement: netDisbursement,
-
-      sterlion_bre_status: "Pending",
-      sterlion_bre_reason: null,
-      sterlion_bre_checked_at: null,
-
-      status: "Login",
-      stage: "Lead Received",
-      agreement_date,
-    };
-
-    const columns = Object.keys(fields).join(", ");
-    const placeholders = Object.keys(fields)
-      .map(() => "?")
-      .join(", ");
-    const values = Object.values(fields);
-
-    await conn.query(
-      `INSERT INTO loan_booking_sterlion (${columns}) VALUES (${placeholders})`,
-      values,
-    );
-
-    await conn.commit();
-    conn.release();
-    conn = null;
-
-    const { bureauResult, breResult } = await persistSterlionBureauAndBre(lan, {
-      ...data,
-      current_village_city: currentVillageCity,
-      current_state: data.current_state,
-      current_pincode: data.current_pincode,
-      loan_amount: requestAmount,
-      request_amount: requestAmount,
-      loan_tenure: loanTenure,
-      annual_income: annualIncome,
-      monthly_income: monthlyIncome,
-      monthly_obligation: monthlyObligation,
-      business_vintage_months: businessVintageMonths,
-      processing_fee_percentage: processingFee.percentage,
-      processing_fee: processingFee.amount,
-      net_disbursement: netDisbursement,
-    });
-
-    return res.status(201).json({
-      message: "STERLION loan lead saved successfully.",
-      lan,
-      partner_loan_id: data.partner_loan_id,
-      request_amount: requestAmount,
-      loan_amount: null,
-      processing_fee_percentage: processingFee.percentage,
-      processing_fee: processingFee.amount,
-      net_disbursement: netDisbursement,
-      cibilScore: bureauResult.score || "Not Found",
-      bureauStatus: bureauResult.success ? "VERIFIED" : "FAILED",
-      breStatus: breResult?.breStatus || "Pending",
-      breReason: breResult?.reasonText || null,
-      stage: breResult?.stage || "BRE Pending",
-    });
-  } catch (error) {
-    if (conn) {
-      await conn.rollback();
-      conn.release();
-    }
-
-    console.error("Sterlion onboarding error:", error);
-
-    return res.status(error.statusCode || 500).json({
-      message: "Upload failed. Please try again.",
-      error: error.sqlMessage || error.message,
-    });
-  }
-});
-
 //////////////////emiclub missed cibil cases temporary route////////////////
 
 router.post("/v1/emiclub-cibil-retry", async (req, res) => {
@@ -8035,7 +7517,8 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
     console.log(`🔍 Found ${rows.length} pending cases.`);
 
     const stateCodes = {
-      "JAMMU and KASHMIR": "01", "JAMMU & KASHMIR": "01",
+      "JAMMU and KASHMIR": "01",
+      "JAMMU & KASHMIR": "01",
       "HIMACHAL PRADESH": "02",
       PUNJAB: "03",
       CHANDIGARH: "04",
@@ -10039,6 +9522,901 @@ router.post("/v1/circlepe-lb", verifyApiKey, async (req, res) => {
 ///////////// CIRCLE PAY API CALL  END for Loan Booking ////////
 ////////////////////////   WCTL LOAN BOOKIN START /////////////////
 
+const WCTL_FFPL_LENDER = "WCTL FFPL";
+const WCTL_FFPL_REQUIRED_FIELDS = [
+  "product",
+  "loanAmount",
+  "tenureMonths",
+  "interestRate",
+  "processingFee",
+  "firstName",
+  "lastName",
+  "aadhaarNumber",
+  "panNumber",
+  "mobileNumber",
+  "email",
+  "businessName",
+  "industry",
+  "accountHolderName",
+  "accountNumber",
+  "ifsc",
+  "bankName",
+];
+const WCTL_ALLOWED_PRODUCT_CODES = Object.keys(WCTL_ALLOWED_PRODUCTS);
+
+const normalizeWctlProductCode = (value) =>
+  String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+
+const cleanWctlValue = (value) => {
+  if (value === undefined || value === null) return null;
+  const trimmed = String(value).trim();
+  return trimmed === "" ? null : trimmed;
+};
+
+const parseWctlNumber = (value) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(String(value).replace(/[, ]/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const toWctlSqlDate = (value) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return null;
+  }
+
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  const trimmed = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return excelDateToJSDate(value);
+};
+
+// router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
+//   if (!req.file) {
+//     return res.status(400).json({
+//       message: "No file uploaded. Please select a valid Excel file.",
+//     });
+//   }
+
+//   if (
+//     req.body.lenderType &&
+//     String(req.body.lenderType).trim() !== WCTL_FFPL_LENDER
+//   ) {
+//     return res.status(400).json({
+//       message: `Invalid lender type. Only ${WCTL_FFPL_LENDER} is supported.`,
+//     });
+//   }
+
+//   const success_rows = [];
+//   const row_errors = [];
+
+//   try {
+//     const workbook = xlsx.read(req.file.buffer, {
+//       type: "buffer",
+//       cellDates: true,
+//     });
+//     const sheetName = workbook.SheetNames[0];
+//     const sheet = workbook.Sheets[sheetName];
+//         conn = await db.promise().getConnection();
+
+//     const headerRows = xlsx.utils.sheet_to_json(sheet, {
+//       header: 1,
+//       defval: "",
+//       raw: true,
+//     });
+//     const uploadedHeaders = (headerRows[0] || []).map((header) =>
+//       String(header).trim(),
+//     );
+
+//     const missingHeaders = WCTL_FFPL_REQUIRED_FIELDS.filter(
+//       (field) => !uploadedHeaders.includes(field),
+//     );
+
+//     if (missingHeaders.length > 0) {
+//       return res.status(400).json({
+//         message: "Excel column mismatch. Missing required headers.",
+//         missing_headers: missingHeaders,
+//         expected_headers: [
+//           ...WCTL_FFPL_REQUIRED_FIELDS,
+//           "dateOfBirth",
+//           "permanentAddress",
+//           "businessAddress",
+//           "gstNumber",
+//           "udyamNumber",
+//         ],
+//       });
+//     }
+
+//     const sheetData = xlsx.utils.sheet_to_json(sheet, {
+//       defval: "",
+//       raw: true,
+//     });
+
+//     if (!sheetData.length) {
+//       return res.status(400).json({
+//         message: "Uploaded Excel file is empty or invalid.",
+//       });
+//     }
+
+//     const allowedStatuses = new Set([
+//       "cancelled",
+//       "foreclosed",
+//       "fully paid",
+//       "rejected",
+//     ]);
+
+//     for (let index = 0; index < sheetData.length; index++) {
+//       const data = sheetData[index];
+//       const excelRowNumber = index + 2;
+
+//       try {
+//         const row = {};
+//         for (const [key, value] of Object.entries(data)) {
+//           row[String(key).trim()] = value;
+//         }
+
+//         const missing = getMissingFields(row, WCTL_FFPL_REQUIRED_FIELDS);
+//         if (missing.length) {
+//           row_errors.push({
+//             row: excelRowNumber,
+//             stage: "validation",
+//             reason: `Missing fields: ${missing.join(", ")}`,
+//           });
+//           continue;
+//         }
+
+//         const productCode = normalizeWctlProductCode(row.product);
+//         if (!WCTL_ALLOWED_PRODUCTS[productCode]) {
+//           row_errors.push({
+//             row: excelRowNumber,
+//             stage: "validation",
+//             reason: `Invalid product. Allowed values: ${WCTL_ALLOWED_PRODUCT_CODES.join(", ")}`,
+//           });
+//           continue;
+//         }
+
+//         const loanAmount = parseWctlNumber(row.loanAmount);
+//         const loanTenure = parseInt(parseWctlNumber(row.tenureMonths), 10);
+//         const interestRate = parseWctlNumber(row.interestRate);
+//         const processingFee = parseWctlNumber(row.processingFee);
+
+//         if (!loanAmount || loanAmount <= 0) {
+//           row_errors.push({
+//             row: excelRowNumber,
+//             stage: "validation",
+//             reason: "Invalid loanAmount",
+//           });
+//           continue;
+//         }
+
+//         if (!Number.isInteger(loanTenure) || loanTenure <= 0) {
+//           row_errors.push({
+//             row: excelRowNumber,
+//             stage: "validation",
+//             reason: "Invalid tenureMonths",
+//           });
+//           continue;
+//         }
+
+//         if (!interestRate || interestRate <= 0) {
+//           row_errors.push({
+//             row: excelRowNumber,
+//             stage: "validation",
+//             reason: "Invalid interestRate",
+//           });
+//           continue;
+//         }
+
+//         if (processingFee === null || processingFee < 0) {
+//           row_errors.push({
+//             row: excelRowNumber,
+//             stage: "validation",
+//             reason: "Invalid processingFee",
+//           });
+//           continue;
+//         }
+
+//         const panCard = String(row.panNumber || "")
+//           .trim()
+//           .toUpperCase();
+//         const customerName = `${row.firstName || ""} ${row.lastName || ""}`
+//           .replace(/\s+/g, " ")
+//           .trim();
+
+//         const [activePanRecords] = await db
+//           .promise()
+//           .query(
+//             `SELECT status FROM loan_booking_wctl_ffpl WHERE pan_card = ?`,
+//             [panCard],
+//           );
+
+//         if (
+//           activePanRecords.some(
+//             (loan) =>
+//               !allowedStatuses.has(
+//                 String(loan.status || "")
+//                   .trim()
+//                   .toLowerCase(),
+//               ),
+//           )
+//         ) {
+//           row_errors.push({
+//             row: excelRowNumber,
+//             stage: "dup-check",
+//             reason:
+//               "PAN already exists with an active loan. New loan not allowed.",
+//           });
+//           continue;
+//         }
+//         const partnerName = "WCTL FFPL";
+//         const today = new Date();
+//         const { month, year } = getMonthYear(today);
+
+//         const partner = await partnerLimitService.getOrCreatePartner(
+//           conn,
+//           partnerName,
+//         );
+
+//         const limitCheck =
+//           await partnerLimitService.validatePartnerBookingLimit(
+//             conn,
+//             partner.partner_id,
+//             requestAmount,
+//             month,
+//             year,
+//           );
+
+//         if (!limitCheck.valid) {
+//           await conn.rollback();
+//           conn.release();
+//           conn = null;
+
+//           return res.status(403).json({
+//             message: "Monthly partner limit exceeded",
+//             remaining_limit: limitCheck.remaining,
+//             required: requestAmount,
+//           });
+//         }
+//         const { partnerLoanId, lan } =
+//           await generateLoanIdentifiers("WCTL FFPL");
+//         const fields = {
+//           partner_loan_id: partnerLoanId,
+//           lan,
+//           login_date: today,
+//           customer_name: customerName,
+//           mobile_number: cleanWctlValue(row.mobileNumber),
+//           email: cleanWctlValue(row.email),
+//           business_type: cleanWctlValue(row.businessName),
+//           business_category: cleanWctlValue(row.industry),
+//           gst_number: nullableString(row.gstNumber),
+//           business_address_line1: nullableString(row.businessAddress),
+//           current_date: today,
+//           borrower_dob: toWctlSqlDate(row.dateOfBirth),
+//           address_line_1: nullableString(row.permanentAddress),
+//           loan_amount: loanAmount,
+//           interest_rate: interestRate,
+//           loan_tenure: loanTenure,
+//           name_in_bank: cleanWctlValue(row.accountHolderName),
+//           bank_name: cleanWctlValue(row.bankName),
+//           account_number: cleanWctlValue(row.accountNumber),
+//           ifsc: cleanWctlValue(row.ifsc),
+//           aadhar_number: cleanWctlValue(row.aadhaarNumber),
+//           pan_card: panCard,
+//           product: productCode,
+//           lender: WCTL_FFPL_LENDER,
+//           agreement_date: today,
+//           processing_fee: processingFee,
+//           bucket: WCTL_ALLOWED_PRODUCTS[productCode],
+//           status: "Approved",
+//         };
+
+//         const columns = Object.keys(fields)
+//           .map((column) => `\`${column}\``)
+//           .join(", ");
+//         const placeholders = Object.keys(fields)
+//           .map(() => "?")
+//           .join(", ");
+//         const values = Object.values(fields);
+
+//         await db
+//           .promise()
+//           .query(
+//             `INSERT INTO loan_booking_wctl_ffpl (${columns}) VALUES (${placeholders})`,
+//             values,
+//           );
+
+//         success_rows.push({
+//           row: excelRowNumber,
+//           lan,
+//           partnerLoanId,
+//           product: productCode,
+//           repaymentFrequency: WCTL_ALLOWED_PRODUCTS[productCode],
+//         });
+//       } catch (err) {
+//         row_errors.push({
+//           row: excelRowNumber,
+//           stage: "insert",
+//           reason: err.sqlMessage || err.message,
+//         });
+//       }
+//     }
+
+//     return res.json({
+//       message: "WCTL FFPL Excel upload processed.",
+//       loanType: "TERM LOAN",
+//       total_rows: sheetData.length,
+//       inserted_rows: success_rows.length,
+//       failed_rows: row_errors.length,
+//       success_rows,
+//       row_errors,
+//     });
+//   } catch (error) {
+//     console.error("WCTL FFPL Excel upload error:", error);
+//     return res.status(500).json({
+//       status: "Failed",
+//       message: "WCTL FFPL Excel upload failed.",
+//       error: error.sqlMessage || error.message,
+//       inserted_rows: success_rows.length,
+//       failed_rows: row_errors.length,
+//       success_rows,
+//       row_errors,
+//     });
+//   }
+// });
+
+
+router.post(
+  "/v1/wctl-ffpl-upload",
+  upload.single("file"),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "No file uploaded. Please select a valid Excel file.",
+      });
+    }
+
+    if (
+      req.body.lenderType &&
+      String(req.body.lenderType).trim() !== WCTL_FFPL_LENDER
+    ) {
+      return res.status(400).json({
+        message: `Invalid lender type. Only ${WCTL_FFPL_LENDER} is supported.`,
+      });
+    }
+
+    const success_rows = [];
+    const row_errors = [];
+
+    try {
+      /* =====================================================
+         READ EXCEL FILE
+      ===================================================== */
+
+      const workbook = xlsx.read(req.file.buffer, {
+        type: "buffer",
+        cellDates: true,
+      });
+
+      const sheetName = workbook.SheetNames[0];
+
+      if (!sheetName) {
+        return res.status(400).json({
+          message: "Uploaded Excel file does not contain any worksheet.",
+        });
+      }
+
+      const sheet = workbook.Sheets[sheetName];
+
+      /* =====================================================
+         VALIDATE HEADERS
+      ===================================================== */
+
+      const headerRows = xlsx.utils.sheet_to_json(sheet, {
+        header: 1,
+        defval: "",
+        raw: true,
+      });
+
+      const uploadedHeaders = (headerRows[0] || []).map((header) =>
+        String(header).trim(),
+      );
+
+      const missingHeaders = WCTL_FFPL_REQUIRED_FIELDS.filter(
+        (field) => !uploadedHeaders.includes(field),
+      );
+
+      if (missingHeaders.length > 0) {
+        return res.status(400).json({
+          message: "Excel column mismatch. Missing required headers.",
+          missing_headers: missingHeaders,
+          expected_headers: [
+            ...WCTL_FFPL_REQUIRED_FIELDS,
+            "dateOfBirth",
+            "permanentAddress",
+            "businessAddress",
+            "gstNumber",
+            "udyamNumber",
+          ],
+        });
+      }
+
+      /* =====================================================
+         CONVERT SHEET INTO JSON
+      ===================================================== */
+
+      const sheetData = xlsx.utils.sheet_to_json(sheet, {
+        defval: "",
+        raw: true,
+      });
+
+      if (!sheetData.length) {
+        return res.status(400).json({
+          message: "Uploaded Excel file is empty or invalid.",
+        });
+      }
+
+      const allowedStatuses = new Set([
+        "cancelled",
+        "foreclosed",
+        "fully paid",
+        "rejected",
+      ]);
+
+      /* =====================================================
+         PROCESS EACH EXCEL ROW
+      ===================================================== */
+
+      for (let index = 0; index < sheetData.length; index++) {
+        const data = sheetData[index];
+        const excelRowNumber = index + 2;
+
+        let conn = null;
+        let transactionStarted = false;
+
+        try {
+          /* -----------------------------------------
+             NORMALIZE COLUMN NAMES
+          ----------------------------------------- */
+
+          const row = {};
+
+          for (const [key, value] of Object.entries(data)) {
+            row[String(key).trim()] = value;
+          }
+
+          /* -----------------------------------------
+             REQUIRED FIELD VALIDATION
+          ----------------------------------------- */
+
+          const missing = getMissingFields(
+            row,
+            WCTL_FFPL_REQUIRED_FIELDS,
+          );
+
+          if (missing.length > 0) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: `Missing fields: ${missing.join(", ")}`,
+            });
+
+            continue;
+          }
+
+          /* -----------------------------------------
+             PRODUCT VALIDATION
+          ----------------------------------------- */
+
+          const productCode = normalizeWctlProductCode(row.product);
+
+          if (!WCTL_ALLOWED_PRODUCTS[productCode]) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: `Invalid product. Allowed values: ${WCTL_ALLOWED_PRODUCT_CODES.join(
+                ", ",
+              )}`,
+            });
+
+            continue;
+          }
+
+          /* -----------------------------------------
+             NUMBER VALIDATION
+          ----------------------------------------- */
+
+          const loanAmount = parseWctlNumber(row.loanAmount);
+          const tenureValue = parseWctlNumber(row.tenureMonths);
+          const loanTenure = Number(tenureValue);
+          const interestRate = parseWctlNumber(row.interestRate);
+          const processingFee = parseWctlNumber(row.processingFee);
+
+          if (
+            loanAmount === null ||
+            !Number.isFinite(loanAmount) ||
+            loanAmount <= 0
+          ) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "Invalid loanAmount. It must be greater than zero.",
+            });
+
+            continue;
+          }
+
+          if (
+            !Number.isInteger(loanTenure) ||
+            loanTenure <= 0
+          ) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason:
+                "Invalid tenureMonths. It must be a positive integer.",
+            });
+
+            continue;
+          }
+
+          if (
+            interestRate === null ||
+            !Number.isFinite(interestRate) ||
+            interestRate <= 0
+          ) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason:
+                "Invalid interestRate. It must be greater than zero.",
+            });
+
+            continue;
+          }
+
+          if (
+            processingFee === null ||
+            !Number.isFinite(processingFee) ||
+            processingFee < 0
+          ) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason:
+                "Invalid processingFee. It cannot be negative.",
+            });
+
+            continue;
+          }
+
+          /* -----------------------------------------
+             PAN VALIDATION
+          ----------------------------------------- */
+
+          const panCard = String(row.panNumber || "")
+            .trim()
+            .toUpperCase();
+
+          const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+          if (!panRegex.test(panCard)) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "Invalid PAN number format.",
+            });
+
+            continue;
+          }
+
+          /* -----------------------------------------
+             CUSTOMER NAME
+          ----------------------------------------- */
+
+          const customerName =
+            `${row.firstName || ""} ${row.lastName || ""}`
+              .replace(/\s+/g, " ")
+              .trim();
+
+          if (!customerName) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "Customer name is required.",
+            });
+
+            continue;
+          }
+
+          /* -----------------------------------------
+             START DATABASE TRANSACTION
+          ----------------------------------------- */
+
+          conn = await db.promise().getConnection();
+
+          await conn.beginTransaction();
+          transactionStarted = true;
+
+          /* -----------------------------------------
+             DUPLICATE PAN CHECK
+          ----------------------------------------- */
+
+          const [existingPanRecords] = await conn.query(
+            `
+              SELECT
+                id,
+                lan,
+                status
+              FROM loan_booking_wctl_ffpl
+              WHERE pan_card = ?
+              FOR UPDATE
+            `,
+            [panCard],
+          );
+
+          const activePanLoan = existingPanRecords.find((loan) => {
+            const currentStatus = String(loan.status || "")
+              .trim()
+              .toLowerCase();
+
+            return !allowedStatuses.has(currentStatus);
+          });
+
+          if (activePanLoan) {
+            await conn.rollback();
+            transactionStarted = false;
+
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "dup-check",
+              reason:
+                "PAN already exists with an active loan. New loan is not allowed.",
+              existing_lan: activePanLoan.lan || null,
+              existing_status: activePanLoan.status || null,
+            });
+
+            continue;
+          }
+
+          /* -----------------------------------------
+             PARTNER LIMIT CHECK
+          ----------------------------------------- */
+
+          const partnerName = "WCTL FFPL";
+          const today = new Date();
+          const { month, year } = getMonthYear(today);
+
+          const partner =
+            await partnerLimitService.getOrCreatePartner(
+              conn,
+              partnerName,
+            );
+
+          if (!partner || !partner.partner_id) {
+            throw new Error(
+              "Unable to find or create the WCTL FFPL partner.",
+            );
+          }
+
+          const limitCheck =
+            await partnerLimitService.validatePartnerBookingLimit(
+              conn,
+              partner.partner_id,
+              loanAmount,
+              month,
+              year,
+            );
+
+          if (!limitCheck.valid) {
+            await conn.rollback();
+            transactionStarted = false;
+
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "partner-limit",
+              reason: "Monthly partner limit exceeded.",
+              remaining_limit: Number(limitCheck.remaining || 0),
+              required_amount: loanAmount,
+            });
+
+            continue;
+          }
+
+          /* -----------------------------------------
+             GENERATE LAN AND PARTNER LOAN ID
+          ----------------------------------------- */
+
+          const { partnerLoanId, lan } =
+            await generateLoanIdentifiers(partnerName);
+
+          if (!partnerLoanId || !lan) {
+            throw new Error(
+              "Unable to generate partner loan ID or LAN.",
+            );
+          }
+
+          /* -----------------------------------------
+             PREPARE INSERT DATA
+          ----------------------------------------- */
+
+          const fields = {
+            partner_loan_id: partnerLoanId,
+            lan,
+            login_date: today,
+
+            customer_name: customerName,
+            mobile_number: cleanWctlValue(row.mobileNumber),
+            email: cleanWctlValue(row.email),
+
+            business_type: cleanWctlValue(row.businessName),
+            business_category: cleanWctlValue(row.industry),
+            gst_number: nullableString(row.gstNumber),
+            udyam_number: nullableString(row.udyamNumber),
+            business_address_line1: nullableString(
+              row.businessAddress,
+            ),
+
+            current_date: today,
+            borrower_dob: toWctlSqlDate(row.dateOfBirth),
+            address_line_1: nullableString(row.permanentAddress),
+
+            loan_amount: loanAmount,
+            interest_rate: interestRate,
+            loan_tenure: loanTenure,
+            processing_fee: processingFee,
+
+            name_in_bank: cleanWctlValue(
+              row.accountHolderName,
+            ),
+            bank_name: cleanWctlValue(row.bankName),
+            account_number: cleanWctlValue(row.accountNumber),
+            ifsc: cleanWctlValue(row.ifsc),
+
+            aadhar_number: cleanWctlValue(row.aadhaarNumber),
+            pan_card: panCard,
+
+            product: productCode,
+            bucket: WCTL_ALLOWED_PRODUCTS[productCode],
+            lender: WCTL_FFPL_LENDER,
+
+            agreement_date: today,
+            status: "Approved",
+          };
+
+          const columns = Object.keys(fields)
+            .map((column) => `\`${column}\``)
+            .join(", ");
+
+          const placeholders = Object.keys(fields)
+            .map(() => "?")
+            .join(", ");
+
+          const values = Object.values(fields);
+
+          /* -----------------------------------------
+             INSERT LOAN
+          ----------------------------------------- */
+
+          const [insertResult] = await conn.query(
+            `
+              INSERT INTO loan_booking_wctl_ffpl
+              (${columns})
+              VALUES (${placeholders})
+            `,
+            values,
+          );
+
+          /*
+           * Important:
+           * If validatePartnerBookingLimit() only checks the limit
+           * and does not reserve/update utilization, call your
+           * partner-limit utilization method here before commit.
+           *
+           * Example:
+           *
+           * await partnerLimitService.recordPartnerBooking(
+           *   conn,
+           *   partner.partner_id,
+           *   loanAmount,
+           *   month,
+           *   year,
+           *   lan
+           * );
+           */
+
+          await conn.commit();
+          transactionStarted = false;
+
+          success_rows.push({
+            row: excelRowNumber,
+            id: insertResult.insertId,
+            lan,
+            partnerLoanId,
+            loanAmount,
+            product: productCode,
+            repaymentFrequency:
+              WCTL_ALLOWED_PRODUCTS[productCode],
+          });
+        } catch (err) {
+          if (conn && transactionStarted) {
+            try {
+              await conn.rollback();
+            } catch (rollbackError) {
+              console.error(
+                `Rollback failed for Excel row ${excelRowNumber}:`,
+                rollbackError,
+              );
+            }
+          }
+
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "insert",
+            reason:
+              err.sqlMessage ||
+              err.message ||
+              "Unknown error while processing the row.",
+          });
+        } finally {
+          if (conn) {
+            conn.release();
+          }
+        }
+      }
+
+      /* =====================================================
+         FINAL RESPONSE
+      ===================================================== */
+
+      const hasSuccess = success_rows.length > 0;
+      const hasErrors = row_errors.length > 0;
+
+      return res.status(hasSuccess ? 200 : 400).json({
+        success: hasSuccess,
+        message:
+          hasSuccess && hasErrors
+            ? "WCTL FFPL Excel upload completed with some row errors."
+            : hasSuccess
+              ? "WCTL FFPL Excel upload completed successfully."
+              : "No WCTL FFPL loans were inserted.",
+        loanType: "TERM LOAN",
+        lender: WCTL_FFPL_LENDER,
+        total_rows: sheetData.length,
+        inserted_rows: success_rows.length,
+        failed_rows: row_errors.length,
+        success_rows,
+        row_errors,
+      });
+    } catch (error) {
+      console.error("WCTL FFPL Excel upload error:", error);
+
+      return res.status(500).json({
+        success: false,
+        status: "Failed",
+        message: "WCTL FFPL Excel upload failed.",
+        error:
+          error.sqlMessage ||
+          error.message ||
+          "Unexpected server error.",
+        inserted_rows: success_rows.length,
+        failed_rows: row_errors.length,
+        success_rows,
+        row_errors,
+      });
+    }
+  },
+);
 router.post("/wctl-upload", upload.single("file"), async (req, res) => {
   console.log("Request received:", req.body);
 

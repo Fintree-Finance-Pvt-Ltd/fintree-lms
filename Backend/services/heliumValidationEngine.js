@@ -149,7 +149,7 @@ exports.runAllValidations = async (lan) => {
     // Fetch loan details
     const [loanRows] = await pool.query(
       "SELECT * FROM loan_booking_helium WHERE lan = ?",
-      [lan]
+      [lan],
     );
 
     if (loanRows.length === 0) {
@@ -162,18 +162,18 @@ exports.runAllValidations = async (lan) => {
     // Ensure KYC row exists
     await pool.query(
       "INSERT IGNORE INTO kyc_verification_status (lan) VALUES (?)",
-      [lan]
+      [lan],
     );
 
     // 1️⃣ PAN
     await pool.query(
       "UPDATE kyc_verification_status SET pan_status='INITIATED' WHERE lan=?",
-      [lan]
+      [lan],
     );
 
     let panResult = await getPanCardDetails(
       loan.pan_number,
-      loan.customer_name
+      loan.customer_name,
     ).catch((err) => {
       console.error("❌ PAN Verification Error:", err?.response?.data || err);
       return {
@@ -189,25 +189,25 @@ exports.runAllValidations = async (lan) => {
         panResult.success ? "VERIFIED" : "FAILED",
         JSON.stringify(panResult.response || {}),
         lan,
-      ]
+      ],
     );
 
     console.log(
       `📌 PAN Status for ${lan}:`,
-      panResult.success ? "VERIFIED" : "FAILED"
+      panResult.success ? "VERIFIED" : "FAILED",
     );
 
     // 2️⃣ Aadhaar INIT
     await pool.query(
       "UPDATE kyc_verification_status SET aadhaar_status='INITIATED' WHERE lan=?",
-      [lan]
+      [lan],
     );
 
     const aadhaarInit = await initAadhaarKyc(
       lan,
       loan.mobile_number,
       loan.email_id,
-      loan.customer_name
+      loan.customer_name,
     );
 
     if (aadhaarInit.success) {
@@ -220,28 +220,25 @@ exports.runAllValidations = async (lan) => {
           aadhaarInit.kycUrl,
           aadhaarInit.uniqueId,
           lan,
-        ]
+        ],
       );
 
-      console.log(
-        "📨 Aadhaar INIT successful, KYC URL:",
-        aadhaarInit.kycUrl
-      );
+      console.log("📨 Aadhaar INIT successful, KYC URL:", aadhaarInit.kycUrl);
     } else {
       console.log(
         "❌ Aadhaar INIT Failed, marking FAILED:",
-        aadhaarInit.error || "Unknown error"
+        aadhaarInit.error || "Unknown error",
       );
       await pool.query(
         "UPDATE kyc_verification_status SET aadhaar_status='FAILED' WHERE lan=?",
-        [lan]
+        [lan],
       );
     }
 
     // 3️⃣ Bureau
     await pool.query(
       "UPDATE kyc_verification_status SET bureau_status='INITIATED' WHERE lan=?",
-      [lan]
+      [lan],
     );
 
     let dobStr = loan.dob;
@@ -280,7 +277,7 @@ exports.runAllValidations = async (lan) => {
         bureauResult.success ? "VERIFIED" : "FAILED",
         JSON.stringify(bureauResult.response || {}),
         lan,
-      ]
+      ],
     );
 
     await pool.query(
@@ -291,22 +288,21 @@ exports.runAllValidations = async (lan) => {
         loan.pan_number,
         bureauResult.score,
         bureauResult.response ? String(bureauResult.response) : null,
-      ]
+      ],
     );
 
     console.log(
       `📌 Bureau Status for ${lan}:`,
-      bureauResult.success ? "VERIFIED" : "FAILED"
+      bureauResult.success ? "VERIFIED" : "FAILED",
     );
     console.log(`📌 Bureau Score Extracted:`, bureauResult.score);
 
     if (bureauResult.score != null) {
       await pool.query(
         "UPDATE loan_booking_helium SET cibil_score=? WHERE lan=?",
-        [bureauResult.score, lan]
+        [bureauResult.score, lan],
       );
     }
-
   } catch (err) {
     console.error("❌ Validation Engine Failed:", err);
   }
@@ -321,7 +317,7 @@ exports.retryPendingValidations = async (lan) => {
     // Fetch loan details
     const [loanRows] = await pool.query(
       "SELECT * FROM loan_booking_helium WHERE lan = ?",
-      [lan]
+      [lan],
     );
 
     if (!loanRows.length) {
@@ -334,15 +330,14 @@ exports.retryPendingValidations = async (lan) => {
     // Fetch existing KYC status
     const [kycRows] = await pool.query(
       "SELECT * FROM kyc_verification_status WHERE lan=?",
-      [lan]
+      [lan],
     );
 
     if (!kycRows.length) {
       console.log("⚠️ No KYC status row found. Creating one...");
-      await pool.query(
-        "INSERT INTO kyc_verification_status (lan) VALUES (?)",
-        [lan]
-      );
+      await pool.query("INSERT INTO kyc_verification_status (lan) VALUES (?)", [
+        lan,
+      ]);
     }
 
     const kyc = kycRows[0] || {};
@@ -358,12 +353,12 @@ exports.retryPendingValidations = async (lan) => {
 
       await pool.query(
         "UPDATE kyc_verification_status SET pan_status='INITIATED' WHERE lan=?",
-        [lan]
+        [lan],
       );
 
       let panResult = await getPanCardDetails(
         loan.pan_number,
-        loan.customer_name
+        loan.customer_name,
       ).catch((err) => {
         console.error("❌ PAN Error:", err);
         return {
@@ -378,7 +373,7 @@ exports.retryPendingValidations = async (lan) => {
           panResult.success ? "VERIFIED" : "FAILED",
           JSON.stringify(panResult.response || {}),
           lan,
-        ]
+        ],
       );
 
       console.log("📌 PAN Retry Complete:", panResult.success);
@@ -397,14 +392,14 @@ exports.retryPendingValidations = async (lan) => {
 
       await pool.query(
         "UPDATE kyc_verification_status SET aadhaar_status='INITIATED' WHERE lan=?",
-        [lan]
+        [lan],
       );
 
       const aadhaarInit = await initAadhaarKyc(
         lan,
         loan.mobile_number,
         loan.email_id,
-        loan.customer_name
+        loan.customer_name,
       );
 
       if (aadhaarInit.success) {
@@ -417,14 +412,14 @@ exports.retryPendingValidations = async (lan) => {
             aadhaarInit.kycUrl,
             aadhaarInit.uniqueId,
             lan,
-          ]
+          ],
         );
 
         console.log("📨 Aadhaar retry INIT success");
       } else {
         await pool.query(
           "UPDATE kyc_verification_status SET aadhaar_status='FAILED' WHERE lan=?",
-          [lan]
+          [lan],
         );
 
         console.log("❌ Aadhaar retry failed");
@@ -444,7 +439,7 @@ exports.retryPendingValidations = async (lan) => {
 
       await pool.query(
         "UPDATE kyc_verification_status SET bureau_status='INITIATED' WHERE lan=?",
-        [lan]
+        [lan],
       );
 
       let dobStr = loan.dob;
@@ -483,13 +478,13 @@ exports.retryPendingValidations = async (lan) => {
           bureauResult.success ? "VERIFIED" : "FAILED",
           JSON.stringify(bureauResult.response || {}),
           lan,
-        ]
+        ],
       );
 
       if (bureauResult.score != null) {
         await pool.query(
           "UPDATE loan_booking_helium SET cibil_score=? WHERE lan=?",
-          [bureauResult.score, lan]
+          [bureauResult.score, lan],
         );
 
         await pool.query(
@@ -501,9 +496,11 @@ exports.retryPendingValidations = async (lan) => {
             loan.pan_number,
             bureauResult.score,
             String(bureauResult.response || ""),
-          ]
+          ],
         );
       }
+
+      await autoApproveIfAllVerified(lan);
 
       console.log("📌 Bureau retry complete:", bureauResult.success);
     } else {
@@ -511,7 +508,6 @@ exports.retryPendingValidations = async (lan) => {
     }
 
     console.log("🎯 Retry validation flow completed");
-
   } catch (err) {
     console.error("❌ Retry validation engine failed:", err);
   }
@@ -528,7 +524,7 @@ exports.autoApproveIfAllVerified = async (lan) => {
   const [rows] = await pool.query(
     `SELECT pan_status, aadhaar_status, bureau_status 
      FROM kyc_verification_status WHERE lan=?`,
-    [lan]
+    [lan],
   );
 
   if (!rows.length) {
@@ -547,7 +543,7 @@ exports.autoApproveIfAllVerified = async (lan) => {
       `⏳ Loan ${lan} pending — some checks not verified.`,
       v.pan_status,
       v.aadhaar_status,
-      v.bureau_status
+      v.bureau_status,
     );
     return;
   }
@@ -558,7 +554,7 @@ exports.autoApproveIfAllVerified = async (lan) => {
             net_monthly_income, avg_monthly_rent,
             loan_amount, loan_tenure
      FROM loan_booking_helium WHERE lan=?`,
-    [lan]
+    [lan],
   );
 
   if (!loanRows.length) {
@@ -588,7 +584,7 @@ exports.autoApproveIfAllVerified = async (lan) => {
            helium_risk_band='Not Eligible',
            helium_risk_flag=0
        WHERE lan=?`,
-      [lan]
+      [lan],
     );
   }
 
@@ -657,10 +653,10 @@ exports.autoApproveIfAllVerified = async (lan) => {
 
       components.total.flag,
       lan,
-    ]
+    ],
   );
 
   console.log(
-    `🎯 FINAL DECISION FOR ${lan}: ${finalStatus} | HRS=${hrs} | Band=${riskBand} | TotalFlag=${components.total.flag}`
+    `🎯 FINAL DECISION FOR ${lan}: ${finalStatus} | HRS=${hrs} | Band=${riskBand} | TotalFlag=${components.total.flag}`,
   );
 };

@@ -299,6 +299,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
       "Foreclosed",
       "Fully Paid",
       "Rejected",
+      "OPS_REJECTED",
     ];
 
     if (panRecords.length > 0) {
@@ -465,9 +466,9 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
         pre_emi,
         net_disbursement_amount,
         token_status,
-token_number,
-token_amount,
-token_auth_type,
+        token_number,
+        token_amount,
+        token_auth_type,
 
         lender,
         product,
@@ -761,6 +762,23 @@ token_auth_type,
         await autoApproveLoanDigitIfAllVerified(lan);
       } catch (err) {
         console.error("LoanDigit BRE trigger failed:", lan, err.message);
+
+        await db.promise().query(
+          `INSERT INTO kyc_verification_status 
+            (lan, bureau_status, bureau_api_response)
+            VALUES (?, 'FAILED', ?)
+            ON DUPLICATE KEY UPDATE 
+            bureau_status = 'FAILED',
+            bureau_api_response = VALUES(bureau_api_response)`,
+            [lan, err.message],
+        );
+
+        await db.promise().query(
+          `UPDATE loan_booking_loan_digit
+          SET status = 'Bureau Failed'
+          WHERE lan = ?`,
+          [lan],
+        );
       }
 
       console.log("✅ Loan Digit Bureau Success", experianScore);

@@ -70,6 +70,19 @@ const CarepayLoanTypes = [
   "Short-Term Personal Loan",
 ];
 
+
+const WCTL_ALLOWED_PRODUCTS = {
+  MONTHLY_360: "MONTHLY",
+  QUARTERLY_360: "QUARTERLY",
+  HALF_YEARLY_360: "HALF_YEARLY",
+  YEARLY_360: "YEARLY",
+
+  MONTHLY_365: "MONTHLY",
+  QUARTERLY_365: "QUARTERLY",
+  HALF_YEARLY_365: "HALF_YEARLY",
+  YEARLY_365: "YEARLY"
+};
+
 const normalizeCarepayProduct = (value) =>
   String(value || "")
     .trim()
@@ -92,5 +105,5 @@ module.exports = {
   CarepayLoanTypeSet,
   isCarepayLoanType,
   normalizeCarepayProduct,
-  
+  WCTL_ALLOWED_PRODUCTS
 };

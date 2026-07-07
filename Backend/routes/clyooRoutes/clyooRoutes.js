@@ -1815,6 +1815,23 @@ router.get("/:lan/pdf", async (req, res) => {
 
     let html = fs.readFileSync(templatePath, "utf-8");
 
+const signaturePath = path.join(
+  __dirname,
+  "../../public/Picture1-removebg-preview.png"
+);
+
+console.log(signaturePath);
+
+const image = fs.readFileSync(signaturePath);
+
+const signature = `data:image/png;base64,${image.toString("base64")}`;
+
+html = html.replace(
+  "{{FINTREE_SIGNATURE}}",
+  signature
+);
+
+
     const [rows] = await db.promise().query(
       `
       SELECT

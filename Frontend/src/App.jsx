@@ -52,6 +52,9 @@ import ElysiumAllLoans from "./components/ElysiumAllLoans";
 import WCTLBLApprovedLoans from "./components/WCTL-BLApprovedLoans";
 import WCTLBLDisbursedLoans from "./components/WCTL-BLDisbursedLoans";
 import WCTLBLAllLoans from "./components/WCTL-BLAllLoans";
+import WCTLFFPLApprovedLoans from "./components/WCTLFFPL/WCTLFFPLApprovedLoans";
+import WCTLFFPLDisbursedLoans from "./components/WCTLFFPL/WCTLFFPLDisbursedLoans";
+import WCTLFFPLAllLoans from "./components/WCTLFFPL/WCTLFFPLAllLoans";
 import AldunApprovedLoans from "./components/AldunActiveCases";
 import AldunCollection from "./components/AldunCollection";
 import MISReportListing from "./components/Reports/ReportsListing";
@@ -182,7 +185,6 @@ import SMLAllLoans from "./components/switch-my-loan/SMLAllLoans";
 import RapidMoneyApprovedLoans from "./components/RapidMoney/RapidMoneyApprovedLoans";
 import RapidMoneyDisbursedLoans from "./components/RapidMoney/RapidMoneyDisbursedLoans";
 import RapidMoneyAllLoans from "./components/RapidMoney/RapidMoneyAllLoans";
-import RapidMoneyDetails from "./components/RapidMoney/RapidMoneyDetails";
 import RapidMoneyLoginLoans from "./components/RapidMoney/RapidMoneyLoginLoans";
 import RapidMoneyActionScreen from "./components/RapidMoney/RapidMoneyActionScreen";
 import RapidMoneyApproveInitiateScreen from "./components/RapidMoney/RapidMoneyApproveInitiateScreen";
@@ -1398,6 +1400,30 @@ function App() {
             }
           />
           <Route
+            path="/wctl-ffpl-loans/approved"
+            element={
+              <PermissionRoute pageName="WCTL FFPL Approved Loans">
+                <WCTLFFPLApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/wctl-ffpl-loans/disbursed"
+            element={
+              <PermissionRoute pageName="WCTL FFPL Disbursed Loans">
+                <WCTLFFPLDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/wctl-ffpl-loans/all"
+            element={
+              <PermissionRoute pageName="WCTL FFPL All Loans">
+                <WCTLFFPLAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="/aldun-loans/approved"
             element={
               <PermissionRoute pageName="Aldun Active Loans">
@@ -1484,14 +1510,6 @@ function App() {
             element={
               <PermissionRoute pageName="RapidMoney All Loans">
                 <RapidMoneyAllLoans />
-              </PermissionRoute>
-            }
-          />
-          <Route
-            path="/rapidmoney-loans/customer-details"
-            element={
-              <PermissionRoute pageName="RapidMoney Customer Details">
-                <RapidMoneyDetails />
               </PermissionRoute>
             }
           />

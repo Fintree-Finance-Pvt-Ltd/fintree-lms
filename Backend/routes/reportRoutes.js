@@ -74,33 +74,23 @@ function resolveProcedure(rawReportId, rawLender) {
 
   const procMap = {
     "cashflow-report": () =>
-      lender === "adikosh"
-        ? "sp_cashflow_report_adikosh"
-        : lender === "gq non-fsf"
-          ? "sp_cashflow_report_gq_non_fsf"
-          : lender === "embifi"
-            ? "sp_cashflow_report_embifi"
-            : lender === "clayoo"
-              ? "sp_cashflow_report_clayyo"
-              : lender === "gq fsf"
-                ? "sp_cashflow_report_gq_fsf"
-                : lender === "wctl"
-                  ? "sp_cashflow_report_wctl"
-                  : lender === "ev loan"
-                    ? "sp_cashflow_report_ev"
-                    : lender === "hey ev"
-                      ? "sp_cashflow_report_hey_ev"
-                      : lender === "emiclub"
-                        ? "sp_cashflow_report_emiclub"
-                        : lender === "circlepe"
-                          ? "sp_cashflow_report_circlepe"
-                          : lender === "circlepe houser"
-                          ? "sp_cashflow_report_circlepe_houser"
-                          : lender === "heyev battery"
-                            ? "sp_cashflow_report_heyev_battery"
-                            : lender === "helium"
-                              ? "sp_cashflow_report_helium"
-                              : "sp_cashflow_report",
+      lender === "adikosh" ? "sp_cashflow_report_adikosh"
+        : lender === "gq non-fsf" ? "sp_cashflow_report_gq_non_fsf"
+          : lender === "embifi" ? "sp_cashflow_report_embifi"
+            : lender === "clayoo" ? "sp_cashflow_report_clayyo"
+              : lender === "gq fsf" ? "sp_cashflow_report_gq_fsf"
+                : lender === "wctl" ? "sp_cashflow_report_wctl"
+                  : lender === "ev loan" ? "sp_cashflow_report_ev"
+                    : lender === "hey ev" ? "sp_cashflow_report_hey_ev"
+                      : lender === "emiclub" ? "sp_cashflow_report_emiclub"
+                        : lender === "circlepe" ? "sp_cashflow_report_circlepe"
+                          : lender === "circlepe houser" ? "sp_cashflow_report_circle_pe_houser"
+                            : lender === "heyev battery" ? "sp_cashflow_report_heyev_battery"
+                              : lender === "helium" ? "sp_cashflow_report_helium"
+                                : lender === "finso" ? "sp_cashflow_report_fincrest"
+                                  : lender === "motion corp" ? "sp_cashflow_report_motion_corp"
+                                    : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
+                                      : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
 
@@ -109,36 +99,43 @@ function resolveProcedure(rawReportId, rawLender) {
         ? "sp_due_collection_all_report_gq_non_fsf_fintree"
         : "sp_due_collection_all_report_gq_fsf_fintree",
 
+
     "due-demand-vs-collection-report(all-products)": () =>
       lender === "adikosh"
         ? "sp_due_collection_all_report_adikosh"
         : lender === "gq non-fsf"
-        ? "sp_due_collection_all_report_gq_non_fsf"
-        : lender === "gq fsf"
-        ? "sp_due_collection_all_report_gq_fsf"
-        : lender === "bl loan"
-        ? "sp_due_collection_all_report_BL_Loan"
-        : lender === "embifi"
-        ? "sp_due_collection_all_report_embifi"
-        : lender === "wctl"
-        ? "sp_due_collection_all_report_wctl"
-         : lender === "hey ev"
-        ? "sp_due_collection_all_report_hey_ev"
-        : lender === "heyev battery"
-        ? "sp_due_collection_all_report_heyev_battery"
-        : lender === "helium"
-        ? "sp_due_collection_all_report_helium"
-        : lender === "emiclub"
-        ? "sp_due_collection_all_report_emiclub"
-        : lender === "clayoo"
-        ? "sp_due_collection_all_report_clayoo"
-        : lender === "loan-digit"
-        ? "sp_due_collection_all_report_loan_digit"
-        : lender === "circlepe"
-        ? "sp_due_collection_all_report_circlepe"
-        : lender === "circlepe houser"
-        ? "sp_due_collection_all_report_circlepe_houser"
-        : "sp_due_collection_all_report",
+          ? "sp_due_collection_all_report_gq_non_fsf"
+          : lender === "gq fsf"
+            ? "sp_due_collection_all_report_gq_fsf"
+            : lender === "bl loan"
+              ? "sp_due_collection_all_report_BL_Loan"
+              : lender === "embifi"
+                ? "sp_due_collection_all_report_embifi"
+                : lender === "wctl"
+                  ? "sp_due_collection_all_report_wctl"
+                  : lender === "hey ev"
+                    ? "sp_due_collection_all_report_hey_ev"
+                    : lender === "heyev battery"
+                      ? "sp_due_collection_all_report_heyev_battery"
+                      : lender === "helium"
+                        ? "sp_due_collection_all_report_helium"
+                        : lender === "emiclub"
+                          ? "sp_due_collection_all_report_emiclub"
+                          : lender === "clayoo"
+                            ? "sp_due_collection_all_report_clayoo"
+                            : lender === "loan-digit"
+                              ? "sp_due_collection_all_report_loan_digit"
+                              : lender === "circlepe"
+                                ? "sp_due_collection_all_report_circlepe"
+                                : lender === "circlepe houser"
+                                  ? "sp_due_collection_all_report_circle_pe_houser"
+                                  : lender === "finso"
+                                    ? "sp_due_collection_all_report_fincrest"
+                                    : lender === "motion corp"
+                                      ? "sp_due_collection_all_report_motion_corp"
+                                      : "sp_due_collection_all_report",
+
+
 
 
 
@@ -169,8 +166,12 @@ function resolveProcedure(rawReportId, rawLender) {
                             : lender === "circlepe"
                               ? "sp_consolidated_mis_report_circlepe"
                               : lender === "circlepe houser"
-                              ? "sp_consolidated_mis_report_circlepe_houser"
-                              : "sp_consolidated_mis_report",
+                                ? "sp_consolidated_mis_report_circlepe_houser"
+                                : lender === "motion corp" 
+                                ? "sp_consolidated_mis_report_motion_corp" 
+                                : lender === "finso" 
+                                ? "sp_consolidated_mis_report_fincrest" 
+                                : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
     "irr-report": () =>
@@ -207,7 +208,7 @@ function resolveProcedure(rawReportId, rawLender) {
 
     // consumer bureau report
     "consumer-bureau-report": () =>
-      lender === "ev loan" ? "sp_ev_beuro_data" : "sp_ev_beuro_data",
+      lender === "ev loan" ? "sp_ev_beuro_data_ev_loan" : "sp_ev_beuro_data_ev_loan",
 
     // NEW IRR Report add
     "supply-chain-report": () =>
@@ -511,18 +512,27 @@ router.get("/downloads", (req, res) => {
 
   let query = `
     SELECT 
-      id, report_id, status, file_name, generated_at, 
-      description, product, created_by, time_taken
+      id,
+      report_id,
+      status,
+      file_name,
+      generated_at,
+      description,
+      product,
+      created_by,
+      time_taken
     FROM reports_download
   `;
+
   const params = [];
 
   if (reportId) {
-    query += " WHERE LOWER(report_id) = LOWER(?)";
-    params.push(reportId.toLowerCase());
+    query += " WHERE LOWER(TRIM(report_id)) = LOWER(TRIM(?))";
+    params.push(reportId);
   }
 
-  query += " ORDER BY generated_at DESC";
+  // Latest inserted record first
+  query += " ORDER BY id DESC";
 
   db.query(query, params, (err, results) => {
     if (err) {
@@ -530,10 +540,12 @@ router.get("/downloads", (req, res) => {
       return res.status(500).json({ message: "Database error" });
     }
 
-    const apiBase = process.env.API_BASE_URL || "http://localhost:5000";
-    const withUrls = results.map((r) => ({
-      ...r,
-      downloadUrl: `${apiBase}/reports/${r.file_name}`,
+    const apiBase =
+      process.env.API_BASE_URL || "http://localhost:5000";
+
+    const withUrls = results.map((row) => ({
+      ...row,
+      downloadUrl: `${apiBase}/reports/${row.file_name}`,
     }));
 
     res.json(withUrls);

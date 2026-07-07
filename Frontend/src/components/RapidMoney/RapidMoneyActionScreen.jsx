@@ -3,7 +3,7 @@ import LoginActionScreen from "../LoginActionScreen";
 
 const RapidMoneyActionScreen = () => (
   <LoginActionScreen
-    apiUrl="/loan-booking/login-loans?table=loan_booking_switch_my_loan&prefix=RML"
+    apiUrl="/loan-booking/login-loans?table=loan_booking_switch_my_loan&prefix=SML"
     title="RapidMoney Action Pending Loans"
     lenderName="RapidMoney"
     tableName="loan_booking_switch_my_loan"
