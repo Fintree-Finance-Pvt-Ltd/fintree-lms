@@ -5,6 +5,7 @@ const db = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
+const sterlionRoutes = require("./routes/sterlion/sterlionRoutes");
 const loanRoutes = require("./routes/loanRoutes");
 const repaymentRoutes = require("./routes/repaymentsRoutes");
 const loanChargesRoutes = require("./routes/loanChargesRoutes");
@@ -94,6 +95,7 @@ app.use("/generated", express.static(path.join(__dirname, "generated")));
 app.use("/reports", express.static(reportsPath));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/loan-booking", sterlionRoutes);
 app.use("/api/loan-booking", excelUploadRoutes);
 app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅ Register WCTL-CC-OD Routes
 app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
