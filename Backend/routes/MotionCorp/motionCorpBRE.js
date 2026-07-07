@@ -356,42 +356,85 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
    * KYC STATUS
    */
   const [kycRows] = await pool.query(
-    `
-    SELECT bureau_status
-    FROM kyc_verification_status
-    WHERE lan = ?
+  `
+  SELECT
+    pan_status,
+    aadhaar_status,
+    bureau_status
+  FROM kyc_verification_status
+  WHERE lan = ?
     AND applicant_type = 'BORROWER'
-    `,
-    [lan],
-  );
+    AND party_no = 1
+  LIMIT 1
+  `,
+  [lan],
+);
 
   if (!kycRows.length) {
-    console.log("No Motion Corp KYC row found:", lan);
+  console.log("No Motion Corp KYC row found:", lan);
 
-    return;
-  }
+  await pool.query(
+    `
+    UPDATE loan_booking_motion_corp
+    SET
+      motioncorp_bre_status = ?,
+      motioncorp_bre_reason = ?,
+      motioncorp_bre_checked_at = NOW()
+    WHERE lan = ?
+    `,
+    [
+      "Pending",
+      "KYC_STATUS_ROW_MISSING",
+      lan,
+    ],
+  );
 
-  const kyc = kycRows[0];
+  return;
+}
 
-  if (kyc.bureau_status !== "VERIFIED") {
-    await pool.query(
-      `
-      UPDATE loan_booking_motion_corp
-      SET
-        motioncorp_bre_status = ?,
-        motioncorp_bre_reason = ?,
-        motioncorp_bre_checked_at = NOW()
-      WHERE lan = ?
-      `,
-      [
-        "Pending",
-        `BUREAU_STATUS=${kyc.bureau_status || "NA"}`,
-        lan,
-      ],
-    );
+ const kyc = kycRows[0];
 
-    return;
-  }
+const requiredKycStatuses = {
+  PAN: kyc.pan_status,
+  AADHAAR: kyc.aadhaar_status,
+  BUREAU: kyc.bureau_status,
+};
+
+const incompleteKycChecks = Object.entries(
+  requiredKycStatuses,
+)
+  .filter(([, status]) => status !== "VERIFIED")
+  .map(
+    ([verificationType, status]) =>
+      `${verificationType}_STATUS=${status || "NA"}`,
+  );
+
+if (incompleteKycChecks.length > 0) {
+  const pendingReason =
+    incompleteKycChecks.join(", ");
+
+  await pool.query(
+    `
+    UPDATE loan_booking_motion_corp
+    SET
+      motioncorp_bre_status = ?,
+      motioncorp_bre_reason = ?,
+      motioncorp_bre_checked_at = NOW()
+    WHERE lan = ?
+    `,
+    [
+      "Pending",
+      pendingReason,
+      lan,
+    ],
+  );
+
+  console.log(
+    `Motion Corp BRE pending for ${lan}: ${pendingReason}`,
+  );
+
+  return;
+}
 
   /**
    * LOAN
