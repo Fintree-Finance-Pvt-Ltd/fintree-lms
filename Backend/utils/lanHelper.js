@@ -140,7 +140,7 @@ function getLoanContext(lan = "") {
       // Applicant only
       esignParties: [
         {
-          role: "APPLICANT",
+          role: "BORROWER",
           required: true,
           name: "customer_name",
           email: "email",

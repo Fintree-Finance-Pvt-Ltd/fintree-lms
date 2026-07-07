@@ -14,7 +14,7 @@ const {
 
 if (!DOQFY_API_KEY || !DOQFY_SECRET_KEY) {
   console.warn(
-    "[doqfyClient] ⚠️ DOQFY_API_KEY / DOQFY_SECRET_KEY not set in .env"
+    "[doqfyClient] ⚠️ DOQFY_API_KEY / DOQFY_SECRET_KEY not set in .env",
   );
 }
 
@@ -40,7 +40,7 @@ const doqfyClient = axios.create({
 doqfyClient.interceptors.request.use(
   (config) => {
     console.log(
-      `📤 DOQFY API REQUEST: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`
+      `📤 DOQFY API REQUEST: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`,
     );
 
     return config;
@@ -48,7 +48,7 @@ doqfyClient.interceptors.request.use(
   (error) => {
     console.error("❌ DOQFY REQUEST ERROR:", error);
     return Promise.reject(error);
-  }
+  },
 );
 
 /* -------------------------------------------------- */
@@ -58,7 +58,7 @@ doqfyClient.interceptors.request.use(
 doqfyClient.interceptors.response.use(
   (response) => {
     console.log(
-      `✅ DOQFY API RESPONSE: ${response.status} ${response.config.url}`
+      `✅ DOQFY API RESPONSE: ${response.status} ${response.config.url}`,
     );
 
     return response;
@@ -66,11 +66,11 @@ doqfyClient.interceptors.response.use(
   (error) => {
     console.error(
       "❌ DOQFY RESPONSE ERROR:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
 
     return Promise.reject(error);
-  }
+  },
 );
 
 module.exports = doqfyClient;
