@@ -1,9 +1,9 @@
 const express = require("express");
-const db = require("../config/db");
-const verifyApiKey = require("../middleware/apiKeyAuth");
-const { STERLION_REQUIRED_FIELDS } = require("../utils/constant");
-const { runBureau } = require("../services/Bueraupullapiservice");
-const { runSterlionBre } = require("../utils/sterlionBRE");
+const db = require("../../config/db");
+const verifyApiKey = require("../../middleware/apiKeyAuth");
+const { STERLION_REQUIRED_FIELDS } = require("../../utils/constant");
+const { runBureau } = require("../../services/Bueraupullapiservice");
+const { runSterlionBre } = require("../../utils/sterlionBRE");
 
 const router = express.Router();
 
