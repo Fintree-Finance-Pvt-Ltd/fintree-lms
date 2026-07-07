@@ -6086,7 +6086,7 @@
           <tr class="odd">
             <td><strong>7. </strong> </td>
             <td>Net disbursed amount (1-6) </td>
-            <td>{{LOAN_AMOUNT}}</td>
+            <td>{{DISBURSAL_AMOUNT}}</td>
           </tr>
           <tr class="even">
             <td><strong>8.</strong> </td>
@@ -6859,7 +6859,7 @@
         <div class="ckyc-name-grid">
           <div class="ckyc-field">
             <span class="ckyc-label">Full Name</span
-            ><span class="ckyc-value compact">{{CUST_FIRST_NAME}}</span>
+            ><span class="ckyc-value compact">{{CUSTOMER_NAME}}</span>
           </div>
         </div>
         <div class="ckyc-fields-3" style="margin-top: 2px">
@@ -6919,7 +6919,7 @@
               <span class="ckyc-box"></span
               ><span>F - Proof of Possession of Aadhaar</span
               ><span class="ckyc-value compact"
-                >{{AADHAAR_LAST_FOUR_DIGITS}}</span
+                >{{AADHAAR_NO}}</span
               >
               <span class="ckyc-box"></span
               ><span>II - E-KYC Authentication</span
@@ -8225,20 +8225,47 @@
           }
           return current;
         }
+
         function normalizeRenderedDates(root) {
+          const months = {
+            Jan: "01",
+            Feb: "02",
+            Mar: "03",
+            Apr: "04",
+            May: "05",
+            Jun: "06",
+            Jul: "07",
+            Aug: "08",
+            Sep: "09",
+            Oct: "10",
+            Nov: "11",
+            Dec: "12",
+          };
+
           const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+
           let node;
+
           while ((node = walker.nextNode())) {
-            // ISO YYYY-MM-DD  →  DD/MM/YYYY
-            node.nodeValue = node.nodeValue.replace(
+            let text = node.nodeValue;
+
+            text = text.replace(
+              /\b(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+(\d{4})\s+\d{2}:\d{2}:\d{2}\s+GMT[+-]\d{4}(?:\s+\([^)]+\))?/g,
+              (_, month, day, year) =>
+                `${String(day).padStart(2, "0")}/${months[month]}/${year}`,
+            );
+
+            text = text.replace(
               /\b(\d{4})-(\d{2})-(\d{2})(?:T[\d:.+\-Z]+)?/g,
-              (_, y, m, d) => `${d}/${m}/${y}`,
+              (_, year, month, day) => `${day}/${month}/${year}`,
             );
-            // Already DD-MM-YYYY (with dashes)  →  normalise to slashes
-            node.nodeValue = node.nodeValue.replace(
+
+            text = text.replace(
               /\b(\d{2})-(\d{2})-(\d{4})\b/g,
-              (_, d, m, y) => `${d}/${m}/${y}`,
+              (_, day, month, year) => `${day}/${month}/${year}`,
             );
+
+            node.nodeValue = text;
           }
         }
 

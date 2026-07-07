@@ -720,6 +720,7 @@ async function getLoanData(lan) {
           <td>${Number(row.principal || 0).toFixed(2)}</td>
           <td>${Number(row.interest || 0).toFixed(2)}</td>
           <td>${Number(row.emi || 0).toFixed(2)}</td>
+          <td>${Number(row.closing || 0).toFixed(2)}</td>
         </tr>
       `)
       .join("");
