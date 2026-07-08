@@ -359,9 +359,9 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
       `
       UPDATE loan_booking_seven_fincorp
       SET
-        motioncorp_bre_status = ?,
-        motioncorp_bre_reason = ?,
-        motioncorp_bre_checked_at = NOW()
+        seven_fincorp_bre_status = ?,
+        seven_fincorp_bre_reason = ?,
+        seven_fincorp_bre_checked_at = NOW()
       WHERE lan = ?
       `,
       [
@@ -420,9 +420,9 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
       `
       UPDATE loan_booking_seven_fincorp
       SET
-        motioncorp_bre_status = ?,
-        motioncorp_bre_reason = ?,
-        motioncorp_bre_checked_at = NOW()
+        seven_fincorp_bre_status = ?,
+        seven_fincorp_bre_reason = ?,
+        seven_fincorp_bre_checked_at = NOW()
       WHERE lan = ?
       `,
       ["Pending", "BUREAU_REPORT_MISSING", lan],
@@ -474,20 +474,21 @@ if (decision.status === "Credit Initiated") {
     `
     UPDATE loan_booking_seven_fincorp
     SET
-      motioncorp_bre_status = ?,
-      motioncorp_bre_reason = ?,
-      motioncorp_bre_checked_at = NOW(),
+      seven_fincorp_bre_status = ?,
+      seven_fincorp_bre_reason = ?,
+      seven_fincorp_bre_checked_at = NOW(),
 
       fintree_cibil_score = ?,
-      motioncorp_enquiries_30d = ?,
-      motioncorp_dpd_3m_flag = ?,
-      motioncorp_dpd_6m_flag = ?,
-      motioncorp_written_off_3y_flag = ?,
-      motioncorp_60plus_24m_flag = ?,
-      motioncorp_90plus_36m_flag = ?,
-      motioncorp_emi_overdue_amount = ?,
-      motioncorp_cc_overdue_amount = ?,
-      motioncorp_deviation_flag = ?,
+      seven_fincorp_enquiries_30d = ?,
+      seven_fincorp_dpd_3m_flag = ?,
+      seven_fincorp_dpd_6m_flag = ?,
+      seven_fincorp_overdue_12m_flag = ?,
+      seven_fincorp_written_off_3y_flag = ?,
+      seven_fincorp_60plus_24m_flag = ?,
+      seven_fincorp_90plus_36m_flag = ?,
+      seven_fincorp_emi_overdue_amount = ?,
+      seven_fincorp_cc_overdue_amount = ?,
+      seven_fincorp_deviation_flag = ?,
 
       status = ?,
 stage = ?
@@ -501,6 +502,7 @@ stage = ?
       bureauFacts.enquiries30d,
       bureauFacts.hasDpd3M ? 1 : 0,
       bureauFacts.hasDpd6M ? 1 : 0,
+      bureauFacts.hasOverdue12M ? 1 : 0,
       bureauFacts.hasWrittenOff3Y ? 1 : 0,
       bureauFacts.has60Plus24M ? 1 : 0,
       bureauFacts.has90Plus36M ? 1 : 0,
