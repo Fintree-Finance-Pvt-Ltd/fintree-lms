@@ -15,8 +15,8 @@ const SevenFinCorpDisburseInitiate = () => {
       lenderName="Seven FinCorp"
 
       approvePayload={{
-        status: "Operations Initiated",
-        stage: "Credit Approved",
+        status: "Credit Initiated",
+        stage: "Credit Initiated",
       }}
 
       rejectPayload={{
