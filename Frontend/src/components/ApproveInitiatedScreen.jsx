@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import DataTable from "./ui/DataTable";
 import LoaderOverlay from "./ui/LoaderOverlay";
 
-
 const ApproveInitiatedScreen = ({
   apiUrl,
   title = "Approval Initiated Stage Loans",
@@ -12,7 +11,7 @@ const ApproveInitiatedScreen = ({
   lender,
   tableName,
 
-   approvePayload = null,
+  approvePayload = null,
   rejectPayload = null,
   enableApprovedLoanAmount = false,
 }) => {
@@ -29,7 +28,10 @@ const ApproveInitiatedScreen = ({
 
     api
       .get(apiUrl)
-      .then((res) => !off && setRows(Array.isArray(res.data?.rows) ? res.data.rows : []))
+      .then(
+        (res) =>
+          !off && setRows(Array.isArray(res.data?.rows) ? res.data.rows : []),
+      )
       .catch(() => !off && setErr("Failed to fetch data."))
       .finally(() => !off && setLoading(false));
     return () => {
@@ -48,157 +50,180 @@ const ApproveInitiatedScreen = ({
   //   }
   // };
 
-
   const getApprovedAmount = (lan) => {
-  const value = approvedAmounts[lan];
+    const value = approvedAmounts[lan];
 
-  if (value === undefined || value === null || value === "") {
-    return "";
-  }
-
-  return value;
-};
-
-const handleApprovedAmountChange = (lan, value) => {
-  const cleanValue = String(value || "")
-    .replace(/[^\d.]/g, "")
-    .replace(/^(\d*\.\d{0,2}).*$/, "$1");
-
-  setApprovedAmounts((prev) => ({
-    ...prev,
-    [lan]: cleanValue,
-  }));
-};
-
-//   const handleStatusChange = async (
-//   lan,
-//   payload,
-//   table,
-// ) => {
-//   try {
-//     await api.put(
-//       `/loan-booking/approve-initiated-loans/${lan}`,
-//       {
-//         ...payload,
-//         table,
-//       },
-//     );
-
-//     setRows((prev) =>
-//       prev.map((r) =>
-//         r.lan === lan
-//           ? {
-//               ...r,
-//               ...payload,
-//             }
-//           : r,
-//       ),
-//     );
-//   } catch (err) {
-//     console.error("Error updating status:", err);
-
-//     alert("Failed to update status. Try again.");
-//   }
-// };
-
-
-  // show Batch ID column only if any LAN begins with ADK
-  
-  const handleStatusChange = async (lan, payload, table, row = null) => {
-  try {
-    const finalPayload = {
-      ...payload,
-      table,
-    };
-
-    if (enableApprovedLoanAmount && payload?.status === "Operations Initiated") {
-      const approvedLoanAmount = Number(getApprovedAmount(lan));
-
-      if (
-        !approvedLoanAmount ||
-        Number.isNaN(approvedLoanAmount) ||
-        approvedLoanAmount <= 0
-      ) {
-        alert("Please enter approved loan amount before approving.");
-        return;
-      }
-
-      finalPayload.loan_amount = approvedLoanAmount;
+    if (value === undefined || value === null || value === "") {
+      return "";
     }
 
-    await api.put(`/loan-booking/approve-initiated-loans/${lan}`, finalPayload);
+    return value;
+  };
 
-    setRows((prev) =>
-      prev.map((r) =>
-        r.lan === lan
-          ? {
-              ...r,
-              ...payload,
-              ...(finalPayload.loan_amount
-                ? { loan_amount: finalPayload.loan_amount }
-                : {}),
-            }
-          : r,
-      ),
-    );
-  } catch (err) {
-    console.error("Error updating status:", err);
-    alert("Failed to update status. Try again.");
-  }
-};
-  
-  
-  const hasADK = rows.some((r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan));
-  const hasLDF = rows.some((r) => typeof r?.lan === "string" && /^LDF/i.test(r.lan));
+  const handleApprovedAmountChange = (lan, value) => {
+    const cleanValue = String(value || "")
+      .replace(/[^\d.]/g, "")
+      .replace(/^(\d*\.\d{0,2}).*$/, "$1");
+
+    setApprovedAmounts((prev) => ({
+      ...prev,
+      [lan]: cleanValue,
+    }));
+  };
+
+  //   const handleStatusChange = async (
+  //   lan,
+  //   payload,
+  //   table,
+  // ) => {
+  //   try {
+  //     await api.put(
+  //       `/loan-booking/approve-initiated-loans/${lan}`,
+  //       {
+  //         ...payload,
+  //         table,
+  //       },
+  //     );
+
+  //     setRows((prev) =>
+  //       prev.map((r) =>
+  //         r.lan === lan
+  //           ? {
+  //               ...r,
+  //               ...payload,
+  //             }
+  //           : r,
+  //       ),
+  //     );
+  //   } catch (err) {
+  //     console.error("Error updating status:", err);
+
+  //     alert("Failed to update status. Try again.");
+  //   }
+  // };
+
+  // show Batch ID column only if any LAN begins with ADK
+
+  const handleStatusChange = async (lan, payload, table, row = null) => {
+    try {
+      const finalPayload = {
+        ...payload,
+        table,
+      };
+
+      if (
+        enableApprovedLoanAmount &&
+        payload?.status === "Operations Initiated"
+      ) {
+        const approvedLoanAmount = Number(getApprovedAmount(lan));
+
+        if (
+          !approvedLoanAmount ||
+          Number.isNaN(approvedLoanAmount) ||
+          approvedLoanAmount <= 0
+        ) {
+          alert("Please enter approved loan amount before approving.");
+          return;
+        }
+
+        finalPayload.loan_amount = approvedLoanAmount;
+      }
+
+      await api.put(
+        `/loan-booking/approve-initiated-loans/${lan}`,
+        finalPayload,
+      );
+
+      setRows((prev) =>
+        prev.map((r) =>
+          r.lan === lan
+            ? {
+                ...r,
+                ...payload,
+                ...(finalPayload.loan_amount
+                  ? { loan_amount: finalPayload.loan_amount }
+                  : {}),
+              }
+            : r,
+        ),
+      );
+    } catch (err) {
+      console.error("Error updating status:", err);
+      alert("Failed to update status. Try again.");
+    }
+  };
+
+  const hasADK = rows.some(
+    (r) => typeof r?.lan === "string" && /^ADK/i.test(r.lan),
+  );
+  const hasLDF = rows.some(
+    (r) => typeof r?.lan === "string" && /^LDF/i.test(r.lan),
+  );
   const hasStageColumn = rows.some(
-  (r) => r.stage !== undefined && r.stage !== null,
-);
+    (r) => r.stage !== undefined && r.stage !== null,
+  );
 
   // styles
   const pill = (status) => {
     const map = {
-      approved: { bg: "rgba(16,185,129,.12)", bd: "rgba(16,185,129,.35)", fg: "#065f46" },
-      rejected: { bg: "rgba(239,68,68,.12)", bd: "rgba(239,68,68,.35)", fg: "#7f1d1d" },
-      pending: { bg: "rgba(234,179,8,.12)", bd: "rgba(234,179,8,.35)", fg: "#713f12" },
-      login: { bg: "rgba(107,114,128,.12)", bd: "rgba(107,114,128,.35)", fg: "#374151" },
+      approved: {
+        bg: "rgba(16,185,129,.12)",
+        bd: "rgba(16,185,129,.35)",
+        fg: "#065f46",
+      },
+      rejected: {
+        bg: "rgba(239,68,68,.12)",
+        bd: "rgba(239,68,68,.35)",
+        fg: "#7f1d1d",
+      },
+      pending: {
+        bg: "rgba(234,179,8,.12)",
+        bd: "rgba(234,179,8,.35)",
+        fg: "#713f12",
+      },
+      login: {
+        bg: "rgba(107,114,128,.12)",
+        bd: "rgba(107,114,128,.35)",
+        fg: "#374151",
+      },
       "operations initiated": {
-    bg: "rgba(16,185,129,.12)",
-    bd: "rgba(16,185,129,.35)",
-    fg: "#065f46",
-  },
+        bg: "rgba(16,185,129,.12)",
+        bd: "rgba(16,185,129,.35)",
+        fg: "#065f46",
+      },
 
-  "credit approved": {
-    bg: "rgba(16,185,129,.12)",
-    bd: "rgba(16,185,129,.35)",
-    fg: "#065f46",
-  },
-   "credit rejected": {
-    bg: "rgba(239,68,68,.12)",
-    bd: "rgba(239,68,68,.35)",
-    fg: "#7f1d1d",
-  },
- "credit initiated": {
-    bg: "rgba(245,158,11,.12)",
-    bd: "rgba(245,158,11,.35)",
-    fg: "#92400e",
-  },
+      "credit approved": {
+        bg: "rgba(16,185,129,.12)",
+        bd: "rgba(16,185,129,.35)",
+        fg: "#065f46",
+      },
+      "credit rejected": {
+        bg: "rgba(239,68,68,.12)",
+        bd: "rgba(239,68,68,.35)",
+        fg: "#7f1d1d",
+      },
+      "credit initiated": {
+        bg: "rgba(245,158,11,.12)",
+        bd: "rgba(245,158,11,.35)",
+        fg: "#92400e",
+      },
 
-  "bre deviation": {
-    bg: "rgba(245,158,11,.12)",
-    bd: "rgba(245,158,11,.35)",
-    fg: "#92400e",
-  },
-   "bre approved": {
-    bg: "rgba(59,130,246,.12)",
-    bd: "rgba(59,130,246,.35)",
-    fg: "#1d4ed8",
-  },
+      "bre deviation": {
+        bg: "rgba(245,158,11,.12)",
+        bd: "rgba(245,158,11,.35)",
+        fg: "#92400e",
+      },
+      "bre approved": {
+        bg: "rgba(59,130,246,.12)",
+        bd: "rgba(59,130,246,.35)",
+        fg: "#1d4ed8",
+      },
 
-  "bre rejected": {
-    bg: "rgba(239,68,68,.12)",
-    bd: "rgba(239,68,68,.35)",
-    fg: "#7f1d1d",
-  },
+      "bre rejected": {
+        bg: "rgba(239,68,68,.12)",
+        bd: "rgba(239,68,68,.35)",
+        fg: "#7f1d1d",
+      },
     };
     const key = (status || "pending").toLowerCase();
     const c = map[key] || map.login;
@@ -239,7 +264,7 @@ const handleApprovedAmountChange = (lan, value) => {
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
           // onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
           onClick={() => {
-            if(/^MC/i.test(r.lan)){
+            if (/^MC/i.test(r.lan)) {
               navigate(`/motion-corp/customer-details?lan=${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {
               navigate(`/fincrest-loan-details/${r.lan}`);
@@ -258,10 +283,15 @@ const handleApprovedAmountChange = (lan, value) => {
       key: "lender",
       header: "Lender",
       render: (r) => lender?.toUpperCase() || lenderName,
-        csvAccessor: () => lender?.toUpperCase() || lenderName,
+      csvAccessor: () => lender?.toUpperCase() || lenderName,
       width: 120,
     },
-    { key: "partner_loan_id", header: "Partner Loan ID", sortable: true, width: 160 },
+    {
+      key: "partner_loan_id",
+      header: "Partner Loan ID",
+      sortable: true,
+      width: 160,
+    },
     {
       key: "lan",
       header: "LAN",
@@ -271,7 +301,7 @@ const handleApprovedAmountChange = (lan, value) => {
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
           // onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
           onClick={() => {
-            if(/^MC/i.test(r.lan)){
+            if (/^MC/i.test(r.lan)) {
               navigate(`/motion-corp/customer-details?lan=${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {
               navigate(`/fincrest-loan-details/${r.lan}`);
@@ -293,10 +323,13 @@ const handleApprovedAmountChange = (lan, value) => {
             key: "batch_id",
             header: "Batch ID",
             sortable: true,
-            render: (r) => (/^ADK/i.test(r?.lan) ? r?.batch_id ?? "—" : "—"),
+            render: (r) => (/^ADK/i.test(r?.lan) ? (r?.batch_id ?? "—") : "—"),
             sortAccessor: (r) =>
-              /^ADK/i.test(r?.lan) ? String(r?.batch_id || "").toLowerCase() : "",
-            csvAccessor: (r) => (/^ADK/i.test(r?.lan) ? r?.batch_id ?? "" : ""),
+              /^ADK/i.test(r?.lan)
+                ? String(r?.batch_id || "").toLowerCase()
+                : "",
+            csvAccessor: (r) =>
+              /^ADK/i.test(r?.lan) ? (r?.batch_id ?? "") : "",
             width: 140,
           },
         ]
@@ -319,63 +352,59 @@ const handleApprovedAmountChange = (lan, value) => {
       key: "status",
       header: "Status",
       sortable: true,
-      render: (r) => <span style={pill(r.status)}>{r.status || "Pending"}</span>,
+      render: (r) => (
+        <span style={pill(r.status)}>{r.status || "Pending"}</span>
+      ),
       sortAccessor: (r) => (r.status || "").toLowerCase(),
       csvAccessor: (r) => r.status || "Pending",
       width: 140,
     },
     ...(hasStageColumn
-  ? [
-      {
-        key: "stage",
-        header: "Stage",
-        sortable: true,
+      ? [
+          {
+            key: "stage",
+            header: "Stage",
+            sortable: true,
 
-        render: (r) => (
-          <span style={pill(r.stage)}>
-            {r.stage || "—"}
-          </span>
-        ),
+            render: (r) => <span style={pill(r.stage)}>{r.stage || "—"}</span>,
 
-        sortAccessor: (r) =>
-          (r.stage || "").toLowerCase(),
+            sortAccessor: (r) => (r.stage || "").toLowerCase(),
 
-        csvAccessor: (r) =>
-          r.stage || "",
+            csvAccessor: (r) => r.stage || "",
 
-        width: 160,
-      },
-    ]
-  : []),
+            width: 160,
+          },
+        ]
+      : []),
 
-  ...(enableApprovedLoanAmount
-  ? [
-      {
-        key: "approved_loan_amount",
-        header: "Approved Amount",
-        render: (r) => (
-          <input
-            type="number"
-            value={getApprovedAmount(r.lan)}
-            placeholder="Enter amount"
-            onChange={(e) =>
-              handleApprovedAmountChange(r.lan, e.target.value)
-            }
-            style={{
-              width: "140px",
-              padding: "8px 10px",
-              borderRadius: 8,
-              border: "1px solid #cbd5e1",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          />
-        ),
-        csvAccessor: () => "",
-        width: 170,
-      },
-    ]
-  : []),
+    ...(enableApprovedLoanAmount
+      ? [
+          {
+            key: "approved_loan_amount",
+            header: "Approved Amount",
+            render: (r) => (
+              <input
+                type="number"
+                value={getApprovedAmount(r.lan)}
+                placeholder="Enter amount"
+                onChange={(e) =>
+                  handleApprovedAmountChange(r.lan, e.target.value)
+                }
+                style={{
+                  width: "140px",
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              />
+            ),
+            csvAccessor: () => "",
+            width: 170,
+          },
+        ]
+      : []),
     {
       key: "docs",
       header: "Documents",
@@ -409,15 +438,15 @@ const handleApprovedAmountChange = (lan, value) => {
             style={actionBtn("approve")}
             // onClick={() => handleStatusChange(r.lan, "approved", tableName)}
             onClick={() =>
-  handleStatusChange(
-    r.lan,
-    approvePayload || {
-      status: "approved",
-    },
-    tableName,
-    r,
-  )
-}
+              handleStatusChange(
+                r.lan,
+                approvePayload || {
+                  status: "approved",
+                },
+                tableName,
+                r,
+              )
+            }
           >
             ✅ Approve
           </button>
@@ -425,15 +454,15 @@ const handleApprovedAmountChange = (lan, value) => {
             style={actionBtn("reject")}
             // onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
             onClick={() =>
-  handleStatusChange(
-    r.lan,
-    rejectPayload || {
-      status: "rejected",
-    },
-    tableName,
-    r,
-  )
-}
+              handleStatusChange(
+                r.lan,
+                rejectPayload || {
+                  status: "rejected",
+                },
+                tableName,
+                r,
+              )
+            }
           >
             ❌ Reject
           </button>
@@ -456,15 +485,15 @@ const handleApprovedAmountChange = (lan, value) => {
 
   return (
     <>
-    <LoaderOverlay show={loading} label="Fetching data…" />
+      <LoaderOverlay show={loading} label="Fetching data…" />
       {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
-    <DataTable
-      title={title}
-      rows={rows}
-      columns={baseColumns}
-      globalSearchKeys={globalSearchKeys}
-      exportFileName="login_stage_loans"
-    />
+      <DataTable
+        title={title}
+        rows={rows}
+        columns={baseColumns}
+        globalSearchKeys={globalSearchKeys}
+        exportFileName="login_stage_loans"
+      />
     </>
   );
 };
