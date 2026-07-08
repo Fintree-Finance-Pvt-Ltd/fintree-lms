@@ -325,7 +325,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       loanQuery = `
         SELECT
           bank_ac_name AS beneficiary_name,
-          loan_amount,
+          disbursal_amount AS loan_amount,
           bank_ac_number AS account_number,
           bank_ifsc_code AS ifsc
         FROM loan_booking_switch_my_loan

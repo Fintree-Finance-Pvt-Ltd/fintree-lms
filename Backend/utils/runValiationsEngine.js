@@ -336,7 +336,7 @@ exports.universalRunAllValidations = async (lan) => {
       table = "loan_booking_helium";
     } else if (lan.startsWith("MC")) {
       table = "loan_booking_motion_corp";
-    } else if (lan.startsWith("SFC")) {
+  } else if (lan.startsWith("SFC")) {
       table = "loan_booking_seven_fincorp";
     } else if (lan.startsWith("SBU")) {
       table = "loan_booking_bundela";
@@ -529,3 +529,4 @@ exports.universalRunAllValidations = async (lan) => {
     console.error("❌ Validation Engine Failed:", err);
   }
 };
+
