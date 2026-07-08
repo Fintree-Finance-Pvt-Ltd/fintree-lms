@@ -36,6 +36,7 @@ const mobileRevocationLookup = require("./utils/mnrlApiService");
 const { initAadhaarKyc } = require("./services/digitapaadharservice");
 const { autoRunFinsoBreIfReady} = require("./utils/fincrestBRE");
 const { autoApproveSrbhIfAllVerified } = require("./routes/srbh/srbhBRE");
+const { universalRunAllValidations} = require("./utils/runValiationsEngine");
 
 
 // function generateApiKey() {
@@ -467,6 +468,26 @@ app.post("/api/runmotioncorpvalidations", async (req, res) => {
     res.json({
       ok: true,
       message: `Motion Corp validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+
+app.post("/api/universalRunAllValidations", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+
+    await universalRunAllValidations(lan);
+
+    res.json({
+      ok: true,
+      message: `Universal validations executed successfully for LAN ${lan}`,
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
