@@ -232,13 +232,23 @@ const AllLoansScreen = ({
       header: "Disbursement Amount",
       sortable: true,
       render: (r) => {
-        const n = Number(r?.[amountField] ?? r?.final_limit ?? r?.loan_amount);
+        const n = Number(r?.[amountField] ?? r?.net_disbursement_amount ?? r?.final_limit ?? r?.loan_amount);
         return (
           <span className="amount-text-bold">
             {Number.isFinite(n) ? nf.format(n) : "—"}
           </span>
         );
       },
+      csvAccessor: (r) => {       //csvAccessor -> net_disbursement_amount
+    const n = Number(
+      r?.[amountField] ??
+      r?.net_disbursement_amount ??
+      r?.final_limit ??
+      r?.loan_amount
+    );
+ 
+    return Number.isFinite(n) ? n : "";
+  },
       sortAccessor: (r) => {
         const v = Number(
           r?.[amountField] ?? r?.final_limit ?? r?.loan_amount ?? 0,
