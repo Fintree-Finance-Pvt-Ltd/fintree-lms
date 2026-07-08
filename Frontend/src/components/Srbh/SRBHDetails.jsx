@@ -24,6 +24,8 @@ const SRBHDetails = () => {
         setErr("");
 
         const res = await api.get(`/srbh/customer-details/${lan}`);
+        console.log("SRBH API response:", res.data);
+
         setDetails(res.data);
       } catch (e) {
         console.error("Failed to fetch SRBH details:", e);
@@ -88,18 +90,120 @@ const SRBHDetails = () => {
     );
   }
 
-  /**
-   * Supports both possible API responses:
-   * 1. { loan: {...}, verification_status: {...} }
-   * 2. flat loan object directly
-   */
-  const loan = details.loan || details;
+  const apiLoan = details.loan || details;
+  const bre = details.bre || {};
+  const verificationStatus = apiLoan.verification_status || {};
 
-  const verificationStatus =
-    details.verification_status || loan.verification_status || {};
+  const loan = {
+    ...apiLoan,
+
+    requested_loan_amount: apiLoan.loan_details?.requested_loan_amount,
+    loan_amount: apiLoan.loan_details?.loan_amount,
+    processing_fee: apiLoan.loan_details?.processing_fee,
+    processing_fee_percentage: apiLoan.loan_details?.processing_fee_percentage,
+    disbursal_amount: apiLoan.loan_details?.disbursal_amount,
+    interest_rate: apiLoan.loan_details?.interest_rate,
+    loan_tenure: apiLoan.loan_details?.loan_tenure,
+    emi_amount: apiLoan.loan_details?.emi_amount,
+    agreement_date: apiLoan.loan_details?.agreement_date,
+    reducing_roi: apiLoan.loan_details?.reducing_roi,
+    flat_interest: apiLoan.loan_details?.flat_interest,
+    pre_emi_interest: apiLoan.loan_details?.pre_emi_interest,
+    total_repayment: apiLoan.loan_details?.total_repayment,
+
+    permanent_address_line_1: apiLoan.permanent_address?.address_line_1,
+    permanent_address_line_2: apiLoan.permanent_address?.address_line_2,
+    permanent_village_city: apiLoan.permanent_address?.city,
+    permanent_district: apiLoan.permanent_address?.district,
+    permanent_state: apiLoan.permanent_address?.state,
+    permanent_pincode: apiLoan.permanent_address?.pincode,
+
+    guarantor_name: apiLoan.guarantor?.name,
+    guarantor_dob: apiLoan.guarantor?.dob,
+    guarantor_pan: apiLoan.guarantor?.pan,
+    guarantor_mobile: apiLoan.guarantor?.mobile,
+    guarantor_email: apiLoan.guarantor?.email,
+    relationship_with_borrower: apiLoan.guarantor?.relationship_with_borrower,
+    guarantor_address_line_1: apiLoan.guarantor?.address?.address_line_1,
+    guarantor_address_line_2: apiLoan.guarantor?.address?.address_line_2,
+    guarantor_village_city: apiLoan.guarantor?.address?.city,
+    guarantor_district: apiLoan.guarantor?.address?.district,
+    guarantor_state: apiLoan.guarantor?.address?.state,
+    guarantor_pincode: apiLoan.guarantor?.address?.pincode,
+
+    co_applicant_name: apiLoan.co_applicant?.name,
+    co_applicant_dob: apiLoan.co_applicant?.dob,
+    co_applicant_pan: apiLoan.co_applicant?.pan,
+    co_applicant_mobile: apiLoan.co_applicant?.mobile,
+    co_applicant_email: apiLoan.co_applicant?.email,
+    co_applicant_address_line_1: apiLoan.co_applicant?.address?.address_line_1,
+    co_applicant_address_line_2: apiLoan.co_applicant?.address?.address_line_2,
+    co_applicant_village_city: apiLoan.co_applicant?.address?.city,
+    co_applicant_district: apiLoan.co_applicant?.address?.district,
+    co_applicant_state: apiLoan.co_applicant?.address?.state,
+    co_applicant_pincode: apiLoan.co_applicant?.address?.pincode,
+
+    customer_name_as_per_bank: apiLoan.bank_details?.customer_name_as_per_bank,
+    customer_bank_name: apiLoan.bank_details?.customer_bank_name,
+    customer_account_number: apiLoan.bank_details?.customer_account_number,
+    bank_ifsc_code: apiLoan.bank_details?.bank_ifsc_code,
+    bank_status: apiLoan.bank_details?.bank_status,
+    bank_account_type: apiLoan.bank_details?.bank_account_type,
+
+    selected_dealer_application_id:
+      apiLoan.dealer_details?.selected_dealer_application_id,
+    dealer_id: apiLoan.dealer_details?.dealer_id,
+    trade_name: apiLoan.dealer_details?.trade_name,
+    dealer_name: apiLoan.dealer_details?.dealer_name,
+    dealer_contact: apiLoan.dealer_details?.dealer_contact,
+    dealer_email: apiLoan.dealer_details?.dealer_email,
+    gst_no: apiLoan.dealer_details?.gst_no,
+    pan_number: apiLoan.dealer_details?.pan_number,
+    dealer_address: apiLoan.dealer_details?.dealer_address,
+    dealer_city: apiLoan.dealer_details?.dealer_city,
+    dealer_state: apiLoan.dealer_details?.dealer_state,
+    dealer_pincode: apiLoan.dealer_details?.dealer_pincode,
+    dealer_bank_name: apiLoan.dealer_details?.dealer_bank_name,
+    dealer_account_number: apiLoan.dealer_details?.dealer_account_number,
+    dealer_ifsc: apiLoan.dealer_details?.dealer_ifsc,
+    dealer_name_in_bank: apiLoan.dealer_details?.dealer_name_in_bank,
+
+    selected_product_id: apiLoan.product_details?.selected_product_id,
+    battery_name: apiLoan.product_details?.battery_name,
+    battery_type: apiLoan.product_details?.battery_type,
+    battery_serial_no_1: apiLoan.product_details?.battery_serial_no_1,
+    battery_serial_no_2: apiLoan.product_details?.battery_serial_no_2,
+    e_rikshaw_model: apiLoan.product_details?.e_rikshaw_model,
+    chassis_no: apiLoan.product_details?.chassis_no,
+
+    borrower_mobile_verified: apiLoan.verification?.borrower_mobile_verified,
+    guarantor_mobile_verified: apiLoan.verification?.guarantor_mobile_verified,
+    co_applicant_mobile_verified:
+      apiLoan.verification?.co_applicant_mobile_verified,
+
+    agreement_esign_status: apiLoan.agreement?.agreement_esign_status,
+    agreement_esign_sent_at: apiLoan.agreement?.agreement_esign_sent_at,
+
+    srbh_bre_status: bre.bre_status,
+    srbh_bre_reason: bre.bre_reason,
+    srbh_bre_checked_at: bre.bre_checked_at,
+    fintree_cibil_score: bre.fintree_cibil_score,
+    cibil_score: bre.cibil_score,
+    srbh_enquiries_30d: bre.enquiries_30d,
+    srbh_dpd_3m_flag: bre.dpd_3m_flag,
+    srbh_dpd_6m_flag: bre.dpd_6m_flag,
+    srbh_overdue_12m_flag: bre.overdue_12m_flag,
+    srbh_written_off_3y_flag: bre.written_off_3y_flag,
+    srbh_60plus_24m_flag: bre.dpd_60plus_24m_flag,
+    srbh_90plus_36m_flag: bre.dpd_90plus_36m_flag,
+    srbh_emi_overdue_amount: bre.emi_overdue_amount,
+    srbh_cc_overdue_amount: bre.cc_overdue_amount,
+    srbh_deviation_flag: bre.deviation_flag,
+  };
 
   const formatDate = (d) => {
     if (!d) return "—";
+
     const dt = new Date(d);
     if (Number.isNaN(dt.getTime())) return d;
 
@@ -112,6 +216,7 @@ const SRBHDetails = () => {
 
   const formatDateTime = (d) => {
     if (!d) return "—";
+
     const dt = new Date(d);
     if (Number.isNaN(dt.getTime())) return d;
 
@@ -129,7 +234,11 @@ const SRBHDetails = () => {
 
   const formatCurrency = (value) => {
     if (!hasValue(value)) return "—";
-    return `₹${Number(value).toLocaleString("en-IN")}`;
+
+    const num = Number(value);
+    if (Number.isNaN(num)) return `₹${value}`;
+
+    return `₹${num.toLocaleString("en-IN")}`;
   };
 
   const formatPercent = (value) => {
@@ -152,18 +261,15 @@ const SRBHDetails = () => {
           <Field label="Lender Type" value={loan.lender_type} />
           <Field label="Lender" value={loan.lender} />
           <Field label="Product" value={loan.product} />
-
           <Field label="Login Date" value={formatDate(loan.login_date)} />
 
           <Field label="Customer Name" value={loan.customer_name} />
           <Field label="First Name" value={loan.first_name} />
           <Field label="Last Name" value={loan.last_name} />
-
           <Field label="Father Name" value={loan.father_name} />
           <Field label="PAN Number" value={loan.pan_card} />
           <Field label="Mobile Number" value={loan.mobile_number} />
           <Field label="Email" value={loan.email} />
-
           <Field label="DOB" value={formatDate(loan.dob)} />
           <Field label="Gender" value={loan.gender} />
 
@@ -182,12 +288,10 @@ const SRBHDetails = () => {
           <Field label="Guarantor Mobile" value={loan.guarantor_mobile} />
           <Field label="Guarantor Email" value={loan.guarantor_email} />
           <Field label="Guarantor DOB" value={formatDate(loan.guarantor_dob)} />
-
           <Field
             label="Relationship With Borrower"
             value={loan.relationship_with_borrower}
           />
-
           <Field
             label="Address Line 1"
             value={loan.guarantor_address_line_1}
@@ -220,7 +324,6 @@ const SRBHDetails = () => {
             label="Co-Applicant DOB"
             value={formatDate(loan.co_applicant_dob)}
           />
-
           <Field
             label="Address Line 1"
             value={loan.co_applicant_address_line_1}
@@ -253,57 +356,48 @@ const SRBHDetails = () => {
             value={formatCurrency(loan.requested_loan_amount)}
             highlight
           />
-
           <Field
             label="Loan Amount"
             value={formatCurrency(loan.loan_amount)}
             highlight
           />
-
           <Field
             label="Disbursal Amount"
             value={formatCurrency(loan.disbursal_amount)}
             highlight
           />
-
           <Field
             label="Tenure"
             value={
               hasValue(loan.loan_tenure) ? `${loan.loan_tenure} Months` : "—"
             }
           />
-
-          <Field label="Interest Rate" value={formatPercent(loan.interest_rate)} />
-
+          <Field
+            label="Interest Rate"
+            value={formatPercent(loan.interest_rate)}
+          />
           <Field
             label="Processing Fee"
             value={formatCurrency(loan.processing_fee)}
           />
-
           <Field
             label="Processing Fee %"
             value={formatPercent(loan.processing_fee_percentage)}
           />
-
           <Field label="EMI Amount" value={formatCurrency(loan.emi_amount)} />
-
           <Field label="Reducing ROI" value={formatPercent(loan.reducing_roi)} />
-
           <Field
             label="Flat Interest"
             value={formatCurrency(loan.flat_interest)}
           />
-
           <Field
             label="Pre EMI Interest"
             value={formatCurrency(loan.pre_emi_interest)}
           />
-
           <Field
             label="Total Repayment"
             value={formatCurrency(loan.total_repayment)}
           />
-
           <Field label="CIBIL Score" value={loan.cibil_score} />
           <Field label="Fintree CIBIL Score" value={loan.fintree_cibil_score} />
         </Grid>
@@ -331,21 +425,9 @@ const SRBHDetails = () => {
       icon: "📍",
       content: (
         <Grid>
-          <Field
-            label="Address Line 1"
-            value={loan.permanent_address_line_1}
-          />
-
-          <Field
-            label="Address Line 2"
-            value={loan.permanent_address_line_2}
-          />
-
-          <Field
-            label="Village / City"
-            value={loan.permanent_village_city}
-          />
-
+          <Field label="Address Line 1" value={loan.permanent_address_line_1} />
+          <Field label="Address Line 2" value={loan.permanent_address_line_2} />
+          <Field label="Village / City" value={loan.permanent_village_city} />
           <Field label="District" value={loan.permanent_district} />
           <Field label="State" value={loan.permanent_state} />
           <Field label="Pincode" value={loan.permanent_pincode} />
@@ -361,7 +443,6 @@ const SRBHDetails = () => {
             label="Selected Dealer Application ID"
             value={loan.selected_dealer_application_id}
           />
-
           <Field label="Dealer ID" value={loan.dealer_id} />
           <Field label="Dealer Name" value={loan.dealer_name} />
           <Field label="Trade Name" value={loan.trade_name} />
@@ -457,17 +538,11 @@ const SRBHDetails = () => {
             value={loan.agreement_esign_status}
             isStatus
           />
-
           <Field
             label="Agreement E-Sign Sent At"
             value={formatDateTime(loan.agreement_esign_sent_at)}
           />
-
-          <Field
-            label="Agreement Date"
-            value={formatDate(loan.agreement_date)}
-          />
-
+          <Field label="Agreement Date" value={formatDate(loan.agreement_date)} />
           <Field label="Bank Status" value={loan.bank_status} isStatus />
         </Grid>
       ),
@@ -479,12 +554,10 @@ const SRBHDetails = () => {
         <Grid>
           <Field label="SRBH BRE Status" value={loan.srbh_bre_status} isStatus />
           <Field label="SRBH BRE Reason" value={loan.srbh_bre_reason} />
-
           <Field
             label="BRE Checked At"
             value={formatDateTime(loan.srbh_bre_checked_at)}
           />
-
           <Field label="Fintree CIBIL" value={loan.fintree_cibil_score} />
           <Field label="CIBIL Score" value={loan.cibil_score} />
           <Field label="Enquiries 30D" value={loan.srbh_enquiries_30d} />
@@ -504,7 +577,6 @@ const SRBHDetails = () => {
             label="EMI Overdue"
             value={formatCurrency(loan.srbh_emi_overdue_amount)}
           />
-
           <Field
             label="CC Overdue"
             value={formatCurrency(loan.srbh_cc_overdue_amount)}
@@ -652,6 +724,7 @@ const Field = ({ label, value, highlight, isStatus }) => {
     SUCCESS: { bg: "#bbf7d0", text: "#14532d" },
     VERIFIED: { bg: "#bbf7d0", text: "#14532d" },
     COMPLETED: { bg: "#bbf7d0", text: "#14532d" },
+    DISBURSED: { bg: "#dcfce7", text: "#166534" },
 
     REJECTED: { bg: "#fecaca", text: "#7f1d1d" },
     FAILED: { bg: "#fecaca", text: "#7f1d1d" },
@@ -659,7 +732,6 @@ const Field = ({ label, value, highlight, isStatus }) => {
     PENDING: { bg: "#fef08a", text: "#713f12" },
     INITIATED: { bg: "#dbeafe", text: "#1e40af" },
     LOGIN: { bg: "#e0f2fe", text: "#075985" },
-    DISBURSED: { bg: "#dcfce7", text: "#166534" },
   };
 
   const normalizedStatus = String(value || "PENDING").toUpperCase();
@@ -745,17 +817,14 @@ const ApplicantVerificationBlock = ({ title, data }) => {
           label="Mobile Status"
           value={status.mobile_status || "PENDING"}
         />
-
         <VerificationField
           label="PAN Status"
           value={status.pan_status || "PENDING"}
         />
-
         <VerificationField
           label="Aadhaar Status"
           value={status.aadhaar_status || "PENDING"}
         />
-
         <VerificationField
           label="Bureau Status"
           value={status.bureau_status || "PENDING"}
