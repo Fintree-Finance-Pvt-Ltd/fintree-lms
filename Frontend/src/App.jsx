@@ -1887,9 +1887,7 @@ function App() {
           <Route
             path="/seven-fincorp/customer-details"
             element={
-              <PermissionRoute pageName="Seven Fincorp Customer Details">
                 <SevenFinCorpDetails />
-              </PermissionRoute>
             }
           />
           {/* =========================

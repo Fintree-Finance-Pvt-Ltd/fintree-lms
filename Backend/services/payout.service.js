@@ -440,9 +440,9 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
 
 let isTestMode = process.env.ENABLE_REAL_PAYOUT !== "true";
 
-if (table === "loan_booking_switch_my_loan") {
+if (table === "loan_booking_fundify") {
   isTestMode = true;
-} else if (table === "loan_booking_loan_digit" || table === "loan_booking_finso") {
+} else if (table === "loan_booking_loan_digit" || table === "loan_booking_finso" || table === "loan_booking_switch_my_loan") {
   isTestMode = false;
 }
 

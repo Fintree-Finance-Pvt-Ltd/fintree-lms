@@ -368,7 +368,7 @@ const SevenFinCorpApprovedLoans = ({
             fontWeight: 600,
             cursor: "pointer",
           }}
-          onClick={() => nav(`/approved-loan-details-helium/${r.lan}`)}
+          onClick={() => nav(`/seven-fincorp/customer-details?lan=${r.lan}`)}
         >
           {r.customer_name ?? "—"}
         </span>

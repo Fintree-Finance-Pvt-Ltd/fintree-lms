@@ -105,7 +105,7 @@ const AllLoansScreen = ({
           className="lan-code-badge"
           onClick={() => {
             if (/^LDF/i.test(r.lan)) {
-              nav(`/loan-digit/customer-details?lan=${r.lan}`);
+              nav(`/loan-digit/customer-details?lan=${r.lan}`);/seven-fincorp/customer-details
             } else if (/^MC/i.test(r.lan)) {
               nav(`/motion-corp/customer-details?lan=${r.lan}`);
             } else if (/^FUN/i.test(r.lan)) {
@@ -114,6 +114,8 @@ const AllLoansScreen = ({
               nav(`/fincrest-loan-details/${r.lan}`);
             }else if (/^SHL/i.test(r.lan)) {
               nav(`/srbh/customer-details?lan=${r.lan}`);
+            }else if (/^SFL/i.test(r.lan)) {
+              nav(`/seven-fincorp/customer-details?lan=${r.lan}`);
             } else {
               nav(`/loan-details/${r.lan}`);
             }
