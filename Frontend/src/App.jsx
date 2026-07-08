@@ -255,6 +255,7 @@ import SRBHDisburseInitiate from "./components/Srbh/SRBHDisburseInitiate";
 import SRBHAllLoans from "./components/Srbh/SRBHAllLoans";
 import SRBHOperationApproval from "./components/Srbh/SRBHOperationApproval";
 import SRBHApprovedLoans from "./components/Srbh/SRBHApprovedLoans";
+import SRBHDetails from "./components/Srbh/SRBHDetails";
 
 
 
@@ -2097,6 +2098,11 @@ function App() {
         <Route
             path="/srbh/dealer-details/:lan"
             element={<SRBHDealerDetails />}
+          />
+
+          <Route
+            path="/srbh/customer-details"
+            element={<SRBHDetails />}
           />
  
        <Route

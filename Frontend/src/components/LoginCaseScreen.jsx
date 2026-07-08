@@ -140,6 +140,8 @@ const getContactNumber = (row) => {
               navigate(`/loan-digit/customer-details?lan=${r.lan}`);
             } else if (/^FINS/i.test(r?.lan)) {
               navigate(`/fincrest-loan-details/${r.lan}`);
+            } else if (/^SHL/i.test(r.lan)) {
+              nav(`/srbh/customer-details?lan=${r.lan}`);
             } else {
               navigate(`/approved-loan-details/${r.lan}`);
             }

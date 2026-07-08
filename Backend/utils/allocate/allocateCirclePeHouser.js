@@ -23,7 +23,7 @@ const allocateCirclePeHouser = async (lan, payment) => {
   if (!paymentId) throw new Error("❌ payment_id is required");
 
   // --- Circle PE loan tables ---
-  const emiTable = "manual_rps_circlepe_houser";
+  const emiTable = "manual_rps_circle_pe_houser";
   const loanTable = "loan_booking_circle_pe_houser";
 
   // 1️⃣ Knock off EMIs: interest first, then principal (oldest due first)

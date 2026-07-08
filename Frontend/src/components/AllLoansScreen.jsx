@@ -112,6 +112,8 @@ const AllLoansScreen = ({
               nav(`/fundify/customer-details/${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {
               nav(`/fincrest-loan-details/${r.lan}`);
+            }else if (/^SHL/i.test(r.lan)) {
+              nav(`/srbh/customer-details?lan=${r.lan}`);
             } else {
               nav(`/loan-details/${r.lan}`);
             }
