@@ -1724,16 +1724,27 @@ router.post(
 
 ///        4)      approve api
 
-function buildPartnerBreResponse(breResult) {
-  const creditLimit = Number(breResult.creditLimit || 0);
+function buildPartnerBreResponse(breResult = {}) {
+  const decision = String(breResult?.decision || "").toUpperCase();
 
-  const newCustomer = breResult.newCustomer === true;
+  if (decision === "REJECTED") {
+    return {
+      CREDIT_LIMIT_CHECK_RPM: {
+        derived_values: {
+          LIMIT_ASSIGNMENT_IS_NEW_CUSTOMER_RPM: 0,
+          LIMIT_ASSIGNMENT_IS_REPEAT_CUSTOMER_RPM: 0,
+        },
+      },
+    };
+  }
+
+  const creditLimit = Number(breResult?.creditLimit || 0);
+  const newCustomer = breResult?.newCustomer === true;
 
   return {
     CREDIT_LIMIT_CHECK_RPM: {
       derived_values: {
         LIMIT_ASSIGNMENT_IS_NEW_CUSTOMER_RPM: newCustomer ? creditLimit : 0,
-
         LIMIT_ASSIGNMENT_IS_REPEAT_CUSTOMER_RPM: newCustomer ? 0 : creditLimit,
       },
     },
