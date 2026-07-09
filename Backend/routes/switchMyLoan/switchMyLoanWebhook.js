@@ -2,11 +2,24 @@ const axios = require("axios");
 
 const BASE_URL = "https://web.rapidmoney.in";
 
-const headers = {
-  Authorization: `Bearer ${process.env.RAPID_MONEY_WEBHOOK_TOKEN}`,
-  "Content-Type": "application/json",
-};
+function getHeaders() {
+  const token = process.env.RAPID_MONEY_WEBHOOK_TOKEN;
 
+  console.log("[SML] Token check:", {
+    hasToken: Boolean(token),
+    tokenLength: token ? String(token).trim().length : 0,
+  });
+
+  if (!token) {
+    throw new Error("RAPID_MONEY_WEBHOOK_TOKEN is missing in .env");
+  }
+
+  return {
+    Authorization: `Bearer ${String(token).trim().replace(/^Bearer\s+/i, "")}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+}
 
 /**
  * Loan Rejection Webhook
@@ -32,7 +45,9 @@ async function sendRejectionWebhook(applicationId) {
       JSON.stringify(requestBody, null, 2),
     );
 
-    const response = await axios.post(url, requestBody, { headers });
+    const response = await axios.post(url, requestBody, {
+      headers: getHeaders(),
+    });
 
     console.log("[SML] Rejection webhook sent successfully", {
       applicationId,
@@ -64,8 +79,6 @@ async function sendDisbursementWebhook({
 }) {
   try {
     const url = `${BASE_URL}/api-api/v1/webhooks/fintree/disbursement-status`;
-console.log("[SML] Rapid Money Webhook Token:", process.env.RAPID_MONEY_WEBHOOK_TOKEN);
-
 
     const requestBody = {
       payload: {
@@ -87,7 +100,9 @@ console.log("[SML] Rapid Money Webhook Token:", process.env.RAPID_MONEY_WEBHOOK_
       JSON.stringify(requestBody, null, 2),
     );
 
-    const response = await axios.post(url, requestBody, { headers });
+    const response = await axios.post(url, requestBody, {
+      headers: getHeaders(),
+    });
 
     console.log("[SML] Disbursement webhook sent successfully", {
       applicationId,
