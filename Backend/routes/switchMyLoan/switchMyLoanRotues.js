@@ -2162,6 +2162,7 @@ router.post(
           status,
           loan_amount,
           disbursal_amount,
+          sml_credit_limit,
           processing_fee
         FROM loan_booking_switch_my_loan
         WHERE application_id = ?
