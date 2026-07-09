@@ -256,6 +256,7 @@ import SRBHAllLoans from "./components/Srbh/SRBHAllLoans";
 import SRBHOperationApproval from "./components/Srbh/SRBHOperationApproval";
 import SRBHApprovedLoans from "./components/Srbh/SRBHApprovedLoans";
 import SRBHDetails from "./components/Srbh/SRBHDetails";
+import ClayooRejectedLoans from "./components/Clayoo/ClayooApprovedLoans";
 
 
 
@@ -545,10 +546,10 @@ function App() {
             }
           />
           <Route
-            path="/clayoo-loans/approved-loans"
+            path="/clayoo-loans/bre-rejected-loans"
             element={
-              <PermissionRoute pageName="Clayyo Operation Approval Loans">
-                <ClayooApprovedLoans />
+              <PermissionRoute pageName="Clayyo BRE Rejected Loans">
+                <ClayooRejectedLoans />
               </PermissionRoute>
             }
           />

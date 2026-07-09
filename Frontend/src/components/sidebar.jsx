@@ -223,7 +223,7 @@ const Sidebar = () => {
       'Switch My Loans': <Layers size={iconSize} />,
       'Motion Corp': <Users size={iconSize} />,
       'Seven FinCorp': <Users size={iconSize} />,
-       'SRBH ':<BarChart3 size={iconSize} />,
+      'SRBH ':<BarChart3 size={iconSize} />,
       'Bundela': <Users size={iconSize} />,
       'Fundify': <Wallet size={iconSize} />,
       'Supply Chain Loans': <Repeat size={iconSize} />,

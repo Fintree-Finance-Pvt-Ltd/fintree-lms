@@ -1897,4 +1897,78 @@ html = html.replace(
   }
 });
 
+router.get("/bre-rejected-loans", async (req, res) => {
+  const { table = "loan_booking_clayyo", prefix = "CLY" } = req.query;
+
+  const allowedTables = {
+    loan_booking_clayyo: true,
+  };
+  if (!allowedTables[table]) {
+    return res.status(400).json({ message: "Invalid table name" });
+  }
+
+  const query = `
+    SELECT
+      lb.*,
+      COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_name
+    FROM ?? lb
+    LEFT JOIN clayyo_hospital_booking ch
+      ON ch.id = lb.hospital_id
+    WHERE lb.status = ? AND lb.lan LIKE ?
+    ORDER BY lb.created_at DESC, lb.lan DESC
+  `;
+  const values = [
+    table,
+    "BRE FAILED",
+    `${prefix}%`,
+  ];
+
+  db.query(query, values, (err, results) => {
+    if (err) {
+      console.error("Error fetching BRE rejected loans:", err);
+      return res.status(500).json({ message: "Database error" });
+    }
+    res.json(results);
+  });
+});
+
+router.put("/approve-bre-loan/:lan", async (req, res) => {
+  const { lan } = req.params; // ✅ extract lan from params
+  const { table = "loan_booking_clayyo" , status } = req.body;
+
+  const allowedTables = {
+    loan_booking_clayyo: true,
+  };
+  if (!allowedTables[table]) {
+    return res.status(400).json({ message: "Invalid table name" });
+  }
+
+ if (!status) {
+  return res.status(400).json({ message: "Status is required" });
+}
+
+  // ✅ Derive stage based on status
+  const stage = status === "BRE APPROVED" ? "CREDIT_INITIATED" : "REJECTED";
+
+  const query = `
+    UPDATE ??
+    SET status = ?, stage = ?, updated_at = NOW()
+    WHERE lan = ?
+  `;
+  const values = [table, status, stage , lan];
+
+  db.query(query, values, (err, results) => {
+    if (err) {
+      console.error("Error approving BRE loan:", err);
+      return res.status(500).json({ message: "Database error" });
+    }
+
+    if (results.affectedRows === 0) {
+      return res.status(404).json({ message: "Loan not found" });
+    }
+
+    res.json({ message: "Loan approved successfully", lan });
+  });
+});
+
 module.exports = router;
