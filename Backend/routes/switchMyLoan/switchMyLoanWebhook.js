@@ -7,6 +7,8 @@ const headers = {
   "Content-Type": "application/json",
 };
 
+console.log("[SML] Rapid Money Webhook Token:", process.env.RAPID_MONEY_WEBHOOK_TOKEN);
+
 /**
  * Loan Rejection Webhook
  */
