@@ -435,7 +435,112 @@ async function resolveStateForBureau(loan) {
   return "";
 }
 
+const GST_ON_PROCESSING_FEE_RATE = 0.18;
 
+function toNumberOrNull(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const number = Number(
+    String(value)
+      .replace(/,/g, "")
+      .trim(),
+  );
+
+  return Number.isFinite(number) ? number : null;
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+}
+
+function calculateNetDisbursalAmount({
+  creditLimit,
+  processingFeeRate,
+  gstRate = GST_ON_PROCESSING_FEE_RATE,
+}) {
+  const grossApprovedAmount = toNumberOrNull(creditLimit);
+  const pfRate = toNumberOrNull(processingFeeRate);
+  const gst = toNumberOrNull(gstRate) ?? GST_ON_PROCESSING_FEE_RATE;
+
+  if (!Number.isFinite(grossApprovedAmount) || grossApprovedAmount <= 0) {
+    return {
+      ok: false,
+      reason: "INVALID_GROSS_APPROVED_AMOUNT",
+      grossApprovedAmount: grossApprovedAmount ?? 0,
+      processingFeeRate: pfRate ?? 0,
+      processingFeeAmount: 0,
+      gstRate: gst,
+      gstOnProcessingFee: 0,
+      totalDeduction: 0,
+      netDisbursalAmount: null,
+    };
+  }
+
+  /**
+   * Your DB format:
+   * 0.15 = 15%
+   * 0.12 = 12%
+   *
+   * So valid processing_fee should be between 0 and 1.
+   */
+  if (!Number.isFinite(pfRate) || pfRate < 0 || pfRate > 1) {
+    return {
+      ok: false,
+      reason: "INVALID_PROCESSING_FEE_RATE",
+      grossApprovedAmount,
+      processingFeeRate: pfRate ?? 0,
+      processingFeeAmount: 0,
+      gstRate: gst,
+      gstOnProcessingFee: 0,
+      totalDeduction: 0,
+      netDisbursalAmount: null,
+    };
+  }
+
+  const processingFeeAmount = roundMoney(grossApprovedAmount * pfRate);
+
+  const gstOnProcessingFee = roundMoney(processingFeeAmount * gst);
+
+  const totalDeduction = roundMoney(
+    processingFeeAmount + gstOnProcessingFee,
+  );
+
+  const netDisbursalAmount = roundMoney(
+    grossApprovedAmount - totalDeduction,
+  );
+
+  if (!Number.isFinite(netDisbursalAmount) || netDisbursalAmount <= 0) {
+    return {
+      ok: false,
+      reason: "NET_DISBURSAL_AMOUNT_INVALID",
+      grossApprovedAmount,
+      processingFeeRate: pfRate,
+      processingFeePercent: roundMoney(pfRate * 100),
+      processingFeeAmount,
+      gstRate: gst,
+      gstPercent: roundMoney(gst * 100),
+      gstOnProcessingFee,
+      totalDeduction,
+      netDisbursalAmount,
+    };
+  }
+
+  return {
+    ok: true,
+    reason: null,
+    grossApprovedAmount,
+    processingFeeRate: pfRate,
+    processingFeePercent: roundMoney(pfRate * 100),
+    processingFeeAmount,
+    gstRate: gst,
+    gstPercent: roundMoney(gst * 100),
+    gstOnProcessingFee,
+    totalDeduction,
+    netDisbursalAmount,
+  };
+}
 /**
  * Bureau execution flow required by business:
  * 1. VERIFIED + stored response -> reuse stored response.
@@ -958,6 +1063,8 @@ async function runBRE(data) {
 
     requestedLoanAmount: null,
     approvedLoanAmount: null,
+    grossApprovedLoanAmount: null,
+    disbursalBreakup: null,
     limitAdjusted: false,
 
     age: null,
@@ -1240,110 +1347,160 @@ async function runBRE(data) {
   //   },
   // );
 
-  const requestedLoanAmount =
-    Number(loan.loan_amount);
-
-  const numericCreditLimit =
-    Number(creditLimit);
-
-  const validCreditLimit =
-    Number.isFinite(numericCreditLimit) &&
-    numericCreditLimit >=
-    POLICY.MIN_LOAN_AMOUNT;
-
   /*
    * Requested amount exceeding the calculated
    * credit limit is not a rejection.
    *
    * The customer is approved at the lower amount.
    */
-  const approvedLoanAmount =
-    validCreditLimit
-      ? Math.min(
-        requestedLoanAmount,
-        numericCreditLimit,
-      )
+const requestedLoanAmount = Number(loan.loan_amount);
+const numericCreditLimit = Number(creditLimit);
+
+const validCreditLimit =
+  Number.isFinite(numericCreditLimit) &&
+  numericCreditLimit >= POLICY.MIN_LOAN_AMOUNT;
+
+/**
+ * Requested amount exceeding the calculated credit limit is not a rejection.
+ * Customer is approved at the lower amount.
+ */
+const grossApprovedLoanAmount =
+  validCreditLimit
+    ? Math.min(requestedLoanAmount, numericCreditLimit)
+    : null;
+
+const disbursalBreakup =
+  grossApprovedLoanAmount !== null
+    ? calculateNetDisbursalAmount({
+        creditLimit: grossApprovedLoanAmount,
+        processingFeeRate: loan.processing_fee,
+      })
+    : null;
+
+if (!validCreditLimit) {
+  addReason(
+    reasons,
+    "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED",
+  );
+}
+
+if (validCreditLimit && !disbursalBreakup?.ok) {
+  addReason(
+    reasons,
+    disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID",
+  );
+}
+
+const approvedLoanAmount =
+  disbursalBreakup?.ok
+    ? disbursalBreakup.netDisbursalAmount
+    : null;
+
+const limitAdjusted =
+  validCreditLimit &&
+  requestedLoanAmount > numericCreditLimit;
+
+result.creditLimit =
+  validCreditLimit
+    ? numericCreditLimit
+    : null;
+
+result.requestedLoanAmount = requestedLoanAmount;
+
+/**
+ * This is NET disbursal after PF + GST deduction.
+ * Approve API stores this into disbursal_amount.
+ */
+result.approvedLoanAmount = approvedLoanAmount;
+
+/**
+ * This is gross approved amount before PF + GST.
+ */
+result.grossApprovedLoanAmount = grossApprovedLoanAmount;
+
+result.limitAdjusted = limitAdjusted;
+
+/**
+ * No new DB column needed.
+ * This breakup will be saved inside existing sml_bre_details_json.
+ */
+result.disbursalBreakup = disbursalBreakup;
+
+const creditLimitRulePassed =
+  validCreditLimit &&
+  Boolean(disbursalBreakup?.ok);
+
+const creditLimitRuleReason =
+  !validCreditLimit
+    ? "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED"
+    : !disbursalBreakup?.ok
+      ? disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID"
       : null;
 
-  const limitAdjusted =
-    validCreditLimit &&
-    requestedLoanAmount >
-    numericCreditLimit;
-
-  result.creditLimit =
-    validCreditLimit
-      ? numericCreditLimit
-      : null;
-
-  result.requestedLoanAmount =
-    requestedLoanAmount;
-
-  result.approvedLoanAmount =
-    approvedLoanAmount;
-
-  result.limitAdjusted =
-    limitAdjusted;
-
-  /*
-   * Reject only when a valid credit limit could
-   * not be calculated.
-   */
-  if (!validCreditLimit) {
-    addReason(
-      reasons,
-      "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED",
-    );
-  }
-
-  rules.CREDIT_LIMIT_CHECK_RPM =
-    rule(
-      validCreditLimit,
-
+rules.CREDIT_LIMIT_CHECK_RPM = rule(
+  creditLimitRulePassed,
+  creditLimitRuleReason,
+  {
+    creditLimit:
       validCreditLimit
+        ? numericCreditLimit
+        : null,
+
+    requestedLoanAmount,
+
+    grossApprovedLoanAmount,
+
+    approvedLoanAmount,
+
+    netDisbursalAmount: approvedLoanAmount,
+
+    processingFeeRate:
+      disbursalBreakup?.processingFeeRate ?? 0,
+
+    processingFeePercent:
+      disbursalBreakup?.processingFeePercent ?? 0,
+
+    processingFeeAmount:
+      disbursalBreakup?.processingFeeAmount ?? 0,
+
+    gstRate:
+      disbursalBreakup?.gstRate ?? GST_ON_PROCESSING_FEE_RATE,
+
+    gstPercent:
+      disbursalBreakup?.gstPercent ?? 18,
+
+    gstOnProcessingFee:
+      disbursalBreakup?.gstOnProcessingFee ?? 0,
+
+    totalDeduction:
+      disbursalBreakup?.totalDeduction ?? 0,
+
+    limitAdjusted,
+
+    adjustmentReason:
+      limitAdjusted
+        ? "REQUESTED_AMOUNT_CAPPED_TO_CREDIT_LIMIT"
+        : null,
+
+    newCustomer,
+
+    repeatLoanCount:
+      newCustomer
+        ? 0
+        : totalDisbursed,
+
+    previousLoanAmount:
+      newCustomer
         ? null
-        : "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED",
+        : Number(loan.previous_loan_amount || 0),
 
-      {
-        creditLimit:
-          validCreditLimit
-            ? numericCreditLimit
-            : null,
+    multiplier:
+      repeatLimitDetails?.multiplier ?? null,
 
-        requestedLoanAmount,
-
-        approvedLoanAmount,
-
-        limitAdjusted,
-
-        adjustmentReason:
-          limitAdjusted
-            ? "REQUESTED_AMOUNT_CAPPED_TO_CREDIT_LIMIT"
-            : null,
-
-        newCustomer,
-
-        repeatLoanCount:
-          newCustomer
-            ? 0
-            : totalDisbursed,
-
-        previousLoanAmount:
-          newCustomer
-            ? null
-            : Number(
-              loan.previous_loan_amount ||
-              0,
-            ),
-
-        multiplier:
-          repeatLimitDetails
-            ?.multiplier ?? null,
-
-        ageCapApplied:
-          repeatLimitDetails
-            ?.ageCapApplied ?? false,
-      },
-    );
+    ageCapApplied:
+      repeatLimitDetails?.ageCapApplied ?? false,
+  },
+);
 
   result.decision = reasons.length ? "REJECTED" : "APPROVED";
   result.reason = reasons[0] || null;
