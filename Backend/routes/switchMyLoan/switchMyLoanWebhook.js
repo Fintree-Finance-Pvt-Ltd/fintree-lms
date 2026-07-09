@@ -3,7 +3,7 @@ const axios = require("axios");
 const BASE_URL = "https://web.rapidmoney.in";
 
 function getHeaders() {
-  const token = process.env.RAPID_MONEY_WEBHOOK_TOKEN;
+  const token = process.env.RAPID_MONEY_WEBHOOK_TOKEN || "y2v8v4e4b1g7f9a3c6e2b4d8f1a7d5e9b2d6g3a8c1f4e7d0f2a1c6e5b1d8f3c5";
 
   console.log("[SML] Token check:", {
     hasToken: Boolean(token),
