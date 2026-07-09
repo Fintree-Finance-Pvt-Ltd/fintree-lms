@@ -37,6 +37,9 @@ const { initAadhaarKyc } = require("./services/digitapaadharservice");
 const { autoRunFinsoBreIfReady} = require("./utils/fincrestBRE");
 const { autoApproveSrbhIfAllVerified } = require("./routes/srbh/srbhBRE");
 const { universalRunAllValidations} = require("./utils/runValiationsEngine");
+const {
+  sendWelcomeLetterAfterUtrUpload,
+} = require("./services/welcomeLetterService");
 
 
 // function generateApiKey() {
@@ -491,6 +494,98 @@ app.post("/api/universalRunAllValidations", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+
+// =====================================================
+// SEND WELCOME LETTER MANUALLY
+// =====================================================
+app.post("/api/welcome-letter/send", async (req, res) => {
+  try {
+    const lan = String(req.body?.lan || "")
+      .trim()
+      .toUpperCase();
+
+    let utrNumber = String(
+      req.body?.utrNumber ||
+      req.body?.utr ||
+      req.body?.disbursement_utr ||
+      "",
+    ).trim();
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN is required",
+        code: "LAN_REQUIRED",
+      });
+    }
+
+    /*
+     * If UTR is not passed manually, fetch latest UTR from DB.
+     */
+    if (!utrNumber) {
+      const [[utrRow]] = await db.promise().query(
+        `
+        SELECT Disbursement_UTR
+        FROM ev_disbursement_utr
+        WHERE LAN = ?
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [lan],
+      );
+
+      utrNumber = String(utrRow?.Disbursement_UTR || "").trim();
+    }
+
+    if (!utrNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "UTR number is required or not found for this LAN",
+        code: "UTR_REQUIRED",
+      });
+    }
+
+    console.log("📩 Manual welcome letter request", {
+      lan,
+      utrNumber,
+    });
+
+    const emailResult = await sendWelcomeLetterAfterUtrUpload({
+      lan,
+      utrNumber,
+    });
+
+    return res.json({
+      success: true,
+      message: "Welcome letter sent successfully",
+      data: {
+        lan,
+        utrNumber,
+        recipient: emailResult?.recipient || null,
+        messageId: emailResult?.emailMessageId || null,
+        partnerTable: emailResult?.partnerTable || null,
+        result: emailResult,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Manual welcome letter failed", {
+      message: error.message,
+      code: error.code,
+      context: error.context,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Welcome letter sending failed",
+      code:
+        error.code ||
+        error.context?.errorCode ||
+        "WELCOME_LETTER_FAILED",
+      context: error.context || null,
+    });
   }
 });
 

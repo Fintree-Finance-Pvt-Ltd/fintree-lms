@@ -148,12 +148,7 @@ const PARTNER_ROUTES = [
   {
     prefix: "RML",
     table: "loan_booking_switch_my_loan",
-
-    /*
-     * No RPS table was included for SML in your mapping.
-     * Add rpsTable here when its table is available.
-     */
-    rpsTable: null,
+    rpsTable: "manual_rps_switch_my_loan",
   },
 
   {
