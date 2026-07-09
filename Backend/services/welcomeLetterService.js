@@ -261,6 +261,7 @@ const TEMPLATE_FIELD_COLUMNS = {
     "borrower_address",
     "complete_address",
     "address",
+    "address_line_1",
     "cur_add",
     "permanent_address",
     "per_add",
@@ -271,9 +272,10 @@ const TEMPLATE_FIELD_COLUMNS = {
     "current_city",
     "city",
     "village_city",
+    "address_city",
   ],
 
-  borrower_district: ["current_district", "district"],
+  borrower_district: ["current_district", "district", "address_city"],
 
   borrower_state: ["current_state", "state"],
 
@@ -283,6 +285,7 @@ const TEMPLATE_FIELD_COLUMNS = {
     "pincode",
     "pin_code",
     "postal_code",
+    "address_pincode",
   ],
 
   mobile_number: [
