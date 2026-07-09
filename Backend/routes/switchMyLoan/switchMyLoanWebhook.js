@@ -23,7 +23,7 @@ async function sendRejectionWebhook(applicationId) {
       `${BASE_URL}/api-api/v1/webhooks/fintree/loan-rejected`,
       {
         payload: {
-          status: "Rejected",
+          status: "rejected",
           lead_id: applicationId
         }
       },
@@ -67,7 +67,7 @@ async function sendDisbursementWebhook({
       `${BASE_URL}/api-api/v1/webhooks/fintree/disbursement-status`,
       {
         payload: {
-          status: "Disbursed",
+          status: "disbursed",
           lead_id: applicationId,
           transaction_id: transactionId,
           disbursement_date: disbursementDate,
