@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const BASE_URL = "https://uat.rapidmoney.in";
+const BASE_URL = "https://web.rapidmoney.in";
 
 const headers = {
   Authorization: `Bearer ${process.env.RAPID_MONEY_WEBHOOK_TOKEN}`,
