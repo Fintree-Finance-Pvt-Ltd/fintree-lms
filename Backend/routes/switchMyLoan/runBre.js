@@ -209,8 +209,90 @@ async function setBureauStatus(lan, status, response = null) {
   );
 }
 
-  function cleanText(value) {
+function cleanText(value) {
   return String(value || "").trim();
+}
+
+function normalizeDbString(value, maxLength) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const text = String(value).trim();
+
+  if (!text) {
+    return null;
+  }
+
+  return text.slice(0, maxLength);
+}
+
+async function saveLoanCibilReport({
+  loan,
+  score = null,
+  response = null,
+  sourceApplicantId = null,
+  insertOnlyIfMissing = false,
+}) {
+  const reportXml = serializeBureauResponse(response);
+
+  if (
+    !loan?.lan ||
+    reportXml === null ||
+    reportXml === undefined ||
+    reportXml === ""
+  ) {
+    return;
+  }
+
+  const applicantType = "BORROWER";
+  const partyNo = 1;
+
+  if (insertOnlyIfMissing) {
+    const [existingRows] = await db.promise().query(
+      `
+      SELECT id
+      FROM loan_cibil_reports
+      WHERE lan = ?
+        AND applicant_type = ?
+        AND party_no = ?
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [loan.lan, applicantType, partyNo],
+    );
+
+    if (existingRows.length) {
+      return;
+    }
+  }
+
+  await db.promise().query(
+    `
+    INSERT INTO loan_cibil_reports
+    (
+      lan,
+      pan_number,
+      score,
+      report_xml,
+      pdf_generated,
+      applicant_type,
+      party_no,
+      source_applicant_id,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, 0, ?, ?, ?, NOW())
+    `,
+    [
+      normalizeDbString(loan.lan, 50),
+      normalizeDbString(loan.pan_number, 15),
+      normalizeDbString(score, 10),
+      reportXml,
+      applicantType,
+      partyNo,
+      sourceApplicantId || null,
+    ],
+  );
 }
 
 function isValidStateValue(value) {
@@ -218,10 +300,10 @@ function isValidStateValue(value) {
 
   return Boolean(
     state &&
-      state !== "NA" &&
-      state !== "N/A" &&
-      state !== "NULL" &&
-      state !== "UNDEFINED",
+    state !== "NA" &&
+    state !== "N/A" &&
+    state !== "NULL" &&
+    state !== "UNDEFINED",
   );
 }
 
@@ -401,6 +483,26 @@ async function runOrReuseBureau(loan) {
       };
     }
 
+    try {
+      await saveLoanCibilReport({
+        loan,
+        score: parsed.score,
+        response: existingKyc.bureau_api_response,
+        sourceApplicantId: existingKyc.id,
+        insertOnlyIfMissing: true,
+      });
+    } catch (error) {
+      console.error("[SML BRE] Failed to save reused bureau report", {
+        lan: loan.lan,
+        message: error.message,
+      });
+
+      return {
+        status: "FAILED",
+        technicalReason: "BUREAU_REPORT_SAVE_FAILED",
+      };
+    }
+
     return {
       status: "VERIFIED",
       ...parsed,
@@ -438,28 +540,42 @@ async function runOrReuseBureau(loan) {
     ],
   );
 
-  try {
-    const resolvedStateForBureau =
-  await resolveStateForBureau(loan);
-
-const resolvedPincodeForBureau =
-  getLoanPincode(loan);
-
-if (!resolvedStateForBureau) {
-  await setBureauStatus(
-    loan.lan,
-    "FAILED",
-    safeJson({
-      error: "BUREAU_STATE_MISSING",
-      pincode: resolvedPincodeForBureau || null,
-    }),
+  const [[currentKyc]] = await pool.query(
+    `
+  SELECT id
+  FROM kyc_verification_status
+  WHERE lan = ?
+    AND applicant_type = 'BORROWER'
+    AND party_no = 1
+  LIMIT 1
+  `,
+    [loan.lan],
   );
 
-  return {
-    status: "FAILED",
-    technicalReason: "BUREAU_STATE_MISSING",
-  };
-}
+  const currentKycId = currentKyc?.id || existingKyc?.id || null;
+
+  try {
+    const resolvedStateForBureau =
+      await resolveStateForBureau(loan);
+
+    const resolvedPincodeForBureau =
+      getLoanPincode(loan);
+
+    if (!resolvedStateForBureau) {
+      await setBureauStatus(
+        loan.lan,
+        "FAILED",
+        safeJson({
+          error: "BUREAU_STATE_MISSING",
+          pincode: resolvedPincodeForBureau || null,
+        }),
+      );
+
+      return {
+        status: "FAILED",
+        technicalReason: "BUREAU_STATE_MISSING",
+      };
+    }
 
     const bureauResult = await runBureau({
       ...splitName(loan.customer_name),
@@ -472,8 +588,8 @@ if (!resolvedStateForBureau) {
         loan.address_city ||
         loan.city ||
         "",
-        current_state: resolvedStateForBureau,
-  current_pincode: resolvedPincodeForBureau,
+      current_state: resolvedStateForBureau,
+      current_pincode: resolvedPincodeForBureau,
       mobile_number: loan.mobile,
       pan_number: loan.pan_number,
       loan_amount: loan.loan_amount,
@@ -503,6 +619,34 @@ if (!resolvedStateForBureau) {
       return {
         status: "FAILED",
         technicalReason: "BUREAU_PARSE_FAILED",
+      };
+    }
+
+    try {
+      await saveLoanCibilReport({
+        loan,
+        score: parsed.score,
+        response: responseToStore,
+        sourceApplicantId: currentKycId,
+      });
+    } catch (error) {
+      console.error("[SML BRE] Failed to save new bureau report", {
+        lan: loan.lan,
+        message: error.message,
+      });
+
+      await setBureauStatus(
+        loan.lan,
+        "FAILED",
+        safeJson({
+          error: "BUREAU_REPORT_SAVE_FAILED",
+          message: error.message,
+        }),
+      );
+
+      return {
+        status: "FAILED",
+        technicalReason: "BUREAU_REPORT_SAVE_FAILED",
       };
     }
 
@@ -559,27 +703,27 @@ async function runOrReuseAml(loan) {
    * Reuse a completed AML result.
    */
   const hasCompleteAmlAudit =
-  amlRow.aml_total_matches !== null &&
-  amlRow.aml_total_matches !== undefined &&
-  Boolean(amlRow.aml_api_response);
+    amlRow.aml_total_matches !== null &&
+    amlRow.aml_total_matches !== undefined &&
+    Boolean(amlRow.aml_api_response);
 
-if (
-  FINAL_AML_STATUSES.has(
-    currentStatus,
-  ) &&
-  hasCompleteAmlAudit
-) {
+  if (
+    FINAL_AML_STATUSES.has(
+      currentStatus,
+    ) &&
+    hasCompleteAmlAudit
+  ) {
     return {
       status: currentStatus,
       score:
         amlRow.aml_score === null ||
-        amlRow.aml_score === undefined
+          amlRow.aml_score === undefined
           ? null
           : Number(amlRow.aml_score),
 
       totalMatches:
         amlRow.aml_total_matches === null ||
-        amlRow.aml_total_matches === undefined
+          amlRow.aml_total_matches === undefined
           ? null
           : Number(amlRow.aml_total_matches),
 
@@ -639,8 +783,8 @@ if (
 
     const parsedScore =
       returnedScore === null ||
-      returnedScore === undefined ||
-      returnedScore === ""
+        returnedScore === undefined ||
+        returnedScore === ""
         ? null
         : Number(returnedScore);
 
@@ -813,8 +957,8 @@ async function runBRE(data) {
     creditLimit: null,
 
     requestedLoanAmount: null,
-  approvedLoanAmount: null,
-  limitAdjusted: false,
+    approvedLoanAmount: null,
+    limitAdjusted: false,
 
     age: null,
     newCustomer: null,
@@ -943,32 +1087,32 @@ async function runBRE(data) {
 
 
     const firstTimeLimitAdjusted =
-  Number(loan.loan_amount) >
-  POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+      Number(loan.loan_amount) >
+      POLICY.FIRST_TIME_CUSTOMER_LIMIT;
 
-rules.FIRST_TIME_LIMIT_CHECK_RPM =
-  rule(
-    true,
-    null,
-    {
-      applicable: true,
+    rules.FIRST_TIME_LIMIT_CHECK_RPM =
+      rule(
+        true,
+        null,
+        {
+          applicable: true,
 
-      requestedLoanAmount:
-        Number(loan.loan_amount),
+          requestedLoanAmount:
+            Number(loan.loan_amount),
 
-      assignedCreditLimit:
-        POLICY
-          .FIRST_TIME_CUSTOMER_LIMIT,
+          assignedCreditLimit:
+            POLICY
+              .FIRST_TIME_CUSTOMER_LIMIT,
 
-      limitAdjusted:
-        firstTimeLimitAdjusted,
+          limitAdjusted:
+            firstTimeLimitAdjusted,
 
-      adjustmentReason:
-        firstTimeLimitAdjusted
-          ? "REQUESTED_AMOUNT_CAPPED_TO_FIRST_TIME_LIMIT"
-          : null,
-    },
-  );
+          adjustmentReason:
+            firstTimeLimitAdjusted
+              ? "REQUESTED_AMOUNT_CAPPED_TO_FIRST_TIME_LIMIT"
+              : null,
+        },
+      );
 
     rules.REPEAT_LIMIT_CHECK_RPM = rule(true, null, { applicable: false });
     rules.REPEAT_AGE_CAP_CHECK_RPM = rule(true, null, { applicable: false });
@@ -1028,45 +1172,45 @@ rules.FIRST_TIME_LIMIT_CHECK_RPM =
     //   Number(loan.loan_amount) > POLICY.REPEAT_CUSTOMER_UNDER_28_LIMIT;
 
     const ageCapApplicable =
-  age !== null &&
-  age < 28;
+      age !== null &&
+      age < 28;
 
-const ageCapAdjusted =
-  ageCapApplicable &&
-  Number(loan.loan_amount) >
-    POLICY
-      .REPEAT_CUSTOMER_UNDER_28_LIMIT;
+    const ageCapAdjusted =
+      ageCapApplicable &&
+      Number(loan.loan_amount) >
+      POLICY
+        .REPEAT_CUSTOMER_UNDER_28_LIMIT;
 
-rules.REPEAT_AGE_CAP_CHECK_RPM =
-  rule(
-    true,
-    null,
-    {
-      applicable:
-        ageCapApplicable,
+    rules.REPEAT_AGE_CAP_CHECK_RPM =
+      rule(
+        true,
+        null,
+        {
+          applicable:
+            ageCapApplicable,
 
-      age,
+          age,
 
-      requestedLoanAmount:
-        Number(loan.loan_amount),
+          requestedLoanAmount:
+            Number(loan.loan_amount),
 
-      maximumAllowedAmount:
-        POLICY
-          .REPEAT_CUSTOMER_UNDER_28_LIMIT,
+          maximumAllowedAmount:
+            POLICY
+              .REPEAT_CUSTOMER_UNDER_28_LIMIT,
 
-      ageCapApplied:
-        repeatLimitDetails
-          .ageCapApplied,
+          ageCapApplied:
+            repeatLimitDetails
+              .ageCapApplied,
 
-      limitAdjusted:
-        ageCapAdjusted,
+          limitAdjusted:
+            ageCapAdjusted,
 
-      adjustmentReason:
-        ageCapAdjusted
-          ? "REQUESTED_AMOUNT_CAPPED_TO_UNDER_28_LIMIT"
-          : null,
-    },
-  );
+          adjustmentReason:
+            ageCapAdjusted
+              ? "REQUESTED_AMOUNT_CAPPED_TO_UNDER_28_LIMIT"
+              : null,
+        },
+      );
   }
 
   // if (
@@ -1097,109 +1241,109 @@ rules.REPEAT_AGE_CAP_CHECK_RPM =
   // );
 
   const requestedLoanAmount =
-  Number(loan.loan_amount);
+    Number(loan.loan_amount);
 
-const numericCreditLimit =
-  Number(creditLimit);
+  const numericCreditLimit =
+    Number(creditLimit);
 
-const validCreditLimit =
-  Number.isFinite(numericCreditLimit) &&
-  numericCreditLimit >=
+  const validCreditLimit =
+    Number.isFinite(numericCreditLimit) &&
+    numericCreditLimit >=
     POLICY.MIN_LOAN_AMOUNT;
 
-/*
- * Requested amount exceeding the calculated
- * credit limit is not a rejection.
- *
- * The customer is approved at the lower amount.
- */
-const approvedLoanAmount =
-  validCreditLimit
-    ? Math.min(
+  /*
+   * Requested amount exceeding the calculated
+   * credit limit is not a rejection.
+   *
+   * The customer is approved at the lower amount.
+   */
+  const approvedLoanAmount =
+    validCreditLimit
+      ? Math.min(
         requestedLoanAmount,
         numericCreditLimit,
       )
-    : null;
+      : null;
 
-const limitAdjusted =
-  validCreditLimit &&
-  requestedLoanAmount >
+  const limitAdjusted =
+    validCreditLimit &&
+    requestedLoanAmount >
     numericCreditLimit;
 
-    result.creditLimit =
-  validCreditLimit
-    ? numericCreditLimit
-    : null;
-
-result.requestedLoanAmount =
-  requestedLoanAmount;
-
-result.approvedLoanAmount =
-  approvedLoanAmount;
-
-result.limitAdjusted =
-  limitAdjusted;
-
-/*
- * Reject only when a valid credit limit could
- * not be calculated.
- */
-if (!validCreditLimit) {
-  addReason(
-    reasons,
-    "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED",
-  );
-}
-
-rules.CREDIT_LIMIT_CHECK_RPM =
-  rule(
-    validCreditLimit,
-
+  result.creditLimit =
     validCreditLimit
-      ? null
-      : "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED",
+      ? numericCreditLimit
+      : null;
 
-    {
-      creditLimit:
-        validCreditLimit
-          ? numericCreditLimit
-          : null,
+  result.requestedLoanAmount =
+    requestedLoanAmount;
 
-      requestedLoanAmount,
+  result.approvedLoanAmount =
+    approvedLoanAmount;
 
-      approvedLoanAmount,
+  result.limitAdjusted =
+    limitAdjusted;
 
-      limitAdjusted,
+  /*
+   * Reject only when a valid credit limit could
+   * not be calculated.
+   */
+  if (!validCreditLimit) {
+    addReason(
+      reasons,
+      "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED",
+    );
+  }
 
-      adjustmentReason:
-        limitAdjusted
-          ? "REQUESTED_AMOUNT_CAPPED_TO_CREDIT_LIMIT"
-          : null,
+  rules.CREDIT_LIMIT_CHECK_RPM =
+    rule(
+      validCreditLimit,
 
-      newCustomer,
+      validCreditLimit
+        ? null
+        : "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED",
 
-      repeatLoanCount:
-        newCustomer
-          ? 0
-          : totalDisbursed,
+      {
+        creditLimit:
+          validCreditLimit
+            ? numericCreditLimit
+            : null,
 
-      previousLoanAmount:
-        newCustomer
-          ? null
-          : Number(
+        requestedLoanAmount,
+
+        approvedLoanAmount,
+
+        limitAdjusted,
+
+        adjustmentReason:
+          limitAdjusted
+            ? "REQUESTED_AMOUNT_CAPPED_TO_CREDIT_LIMIT"
+            : null,
+
+        newCustomer,
+
+        repeatLoanCount:
+          newCustomer
+            ? 0
+            : totalDisbursed,
+
+        previousLoanAmount:
+          newCustomer
+            ? null
+            : Number(
               loan.previous_loan_amount ||
-                0,
+              0,
             ),
 
-      multiplier:
-        repeatLimitDetails
-          ?.multiplier ?? null,
+        multiplier:
+          repeatLimitDetails
+            ?.multiplier ?? null,
 
-      ageCapApplied:
-        repeatLimitDetails
-          ?.ageCapApplied ?? false,
-    },
-  );
+        ageCapApplied:
+          repeatLimitDetails
+            ?.ageCapApplied ?? false,
+      },
+    );
 
   result.decision = reasons.length ? "REJECTED" : "APPROVED";
   result.reason = reasons[0] || null;
@@ -1234,11 +1378,11 @@ rules.CREDIT_LIMIT_CHECK_RPM =
     panCount: bureau.panCount,
     hasDualPan: bureau.hasDualPan,
     reportDate:
-    bureau.reportDate || null,
+      bureau.reportDate || null,
 
-  enquiryBreakdown30Days:
-    bureau.enquiryBreakdown30Days ||
-    null,
+    enquiryBreakdown30Days:
+      bureau.enquiryBreakdown30Days ||
+      null,
     enquiries30Days: bureau.enquiries30Days,
     totalOverdueAmount: bureau.totalOverdueAmount,
     maxDpdLast3Months: bureau.maxDpdLast3Months,

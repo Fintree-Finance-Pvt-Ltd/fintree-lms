@@ -462,8 +462,8 @@ function extractEnquiries30Days(parsedReport, asOf = new Date()) {
    * TotalCAPSLast30Days = 2
    */
   const totalCapsLast30Days = toFiniteNumber(
-    profile?.TotalCAPS_Summary
-      ?.TotalCAPSLast30Days,
+    profile?.CAPS?.CAPS_Summary
+      ?.CAPSLast30Days,
   );
 
   if (totalCapsLast30Days !== null) {

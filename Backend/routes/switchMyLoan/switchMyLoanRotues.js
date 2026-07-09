@@ -1852,39 +1852,41 @@ router.post(
       }
 
       if (breEngineResult.decision === "REJECTED") {
-        console.log("[SML] Triggering rejection webhook", {
-          application_id,
-          reason: breEngineResult.reason,
-          amlScore: breEngineResult.amlScore,
-        });
+  const breResponse = buildPartnerBreResponse(breEngineResult);
 
-        // await sendRejectionWebhook(application_id);
+  console.log("[SML] Triggering rejection webhook", {
+    application_id,
+    reason: breEngineResult.reason,
+    amlScore: breEngineResult.aml?.score ?? null,
+  });
 
-        await connection.query(
-          `UPDATE loan_booking_switch_my_loan
-           SET status = ?,
-               sml_bre_status = ?,
-               sml_bre_reason = ?,
-               sml_credit_limit = ?
-           WHERE application_id = ?`,
-          [
-            "REJECTED",
-            "REJECTED",
-            breEngineResult.reason || "BRE_REJECT",
-            breEngineResult.creditLimit || null,
-            application_id,
-          ],
-        );
+  // await sendRejectionWebhook(application_id);
 
-        return res.status(400).json({
-          is_success: false,
-          error: {
-            message: "Rejected",
-            reason: breEngineResult.reason,
-            aml_score: breEngineResult.aml?.score ?? null,
-          },
-        });
-      }
+  await connection.query(
+    `UPDATE loan_booking_switch_my_loan
+     SET status = ?,
+         sml_bre_status = ?,
+         sml_bre_reason = ?,
+         sml_credit_limit = ?,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE application_id = ?`,
+    [
+      "REJECTED",
+      "REJECTED",
+      breEngineResult.reason || "BRE_REJECT",
+      breEngineResult.creditLimit ?? null,
+      application_id,
+    ],
+  );
+
+  return res.json({
+    is_success: true,
+    data: {
+      status: "Rejected",
+      bre_response: breResponse,
+    },
+  });
+}
 
       const approvedDisbursalAmount =
   Number(
