@@ -17,6 +17,34 @@ const {
 } = require("./rapidMoneyEligibilityEvaluator");
 const router = express.Router();
 
+const DEPLOYMENT_ENV = String(
+  process.env.DEPLOYMENT_ENV || "production",
+)
+  .trim()
+  .toLowerCase();
+
+const BANK_MODE = String(
+  process.env.BANK_MODE || "live",
+)
+  .trim()
+  .toLowerCase();
+
+/*
+ * Bank verification bypass is allowed only in test/UAT.
+ *
+ * Even when BANK_MODE=mock-clear is accidentally configured
+ * in production, the bypass will remain disabled.
+ */
+const SHOULD_MOCK_CLEAR_BANK =
+  ["test", "uat"].includes(DEPLOYMENT_ENV) &&
+  BANK_MODE === "mock-clear";
+
+console.log("SML bank verification configuration:", {
+  deploymentEnvironment: DEPLOYMENT_ENV,
+  bankMode: BANK_MODE,
+  mockClearEnabled: SHOULD_MOCK_CLEAR_BANK,
+});
+
 const parsePartnerDate = (dateStr) => {
   if (!dateStr) return null;
 
@@ -96,6 +124,7 @@ function normalizeName(name) {
 
 async function verifySmlBankInBackground({
   partnerLoanId,
+  applicationId,
   lan,
   accountName,
   accountNumber,
@@ -104,6 +133,7 @@ async function verifySmlBankInBackground({
   try {
     console.log("Starting SML bank verification:", {
       partnerLoanId,
+      applicationId,
       lan,
     });
 
@@ -129,12 +159,30 @@ async function verifySmlBankInBackground({
       result?.verified === true ||
       result?.data?.success === true ||
       result?.data?.verified === true ||
-      ["SUCCESS", "VERIFIED", "VALID"].includes(responseStatus);
+      ["SUCCESS", "VERIFIED", "VALID"].includes(
+        responseStatus,
+      );
+
+    const failureMessage = isVerified
+      ? null
+      : String(
+          result?.message ||
+            result?.data?.message ||
+            result?.error ||
+            "BANK_VERIFICATION_FAILED",
+        ).slice(0, 500);
 
     const [updateResult] = await db.promise().query(
       `UPDATE loan_booking_switch_my_loan
        SET bank_verification_status = ?,
+           bank_is_verified = ?,
            bank_verification_response = ?,
+           bank_verification_error = ?,
+           bank_verified_at = ?,
+           status = CASE
+             WHEN ? = 1 THEN status
+             ELSE 'REJECTED'
+           END,
            updated_at = NOW()
        WHERE partner_loan_id = ?
          AND bank_ac_number = ?
@@ -143,7 +191,11 @@ async function verifySmlBankInBackground({
          AND bank_verification_status = 'PENDING'`,
       [
         isVerified ? "VERIFIED" : "FAILED",
+        isVerified ? 1 : 0,
         JSON.stringify(result || {}),
+        failureMessage,
+        isVerified ? new Date() : null,
+        isVerified ? 1 : 0,
         partnerLoanId,
         accountNumber,
         ifsc,
@@ -152,50 +204,202 @@ async function verifySmlBankInBackground({
     );
 
     if (!updateResult.affectedRows) {
-      console.log(
-        "Bank verification result ignored because details changed:",
-        partnerLoanId,
+      console.warn(
+        "Bank verification result not saved because stored details did not match:",
+        {
+          partnerLoanId,
+          accountName,
+          accountNumber,
+          ifsc,
+        },
       );
+
+      return;
+    }
+
+    if (!isVerified) {
+      console.log(
+        "Loan rejected due to bank verification failure:",
+        {
+          partnerLoanId,
+          applicationId,
+          lan,
+          failureMessage,
+        },
+      );
+
+      if (!applicationId) {
+        console.error(
+          "Rejection webhook not sent because applicationId is missing:",
+          {
+            partnerLoanId,
+            lan,
+          },
+        );
+
+        return;
+      }
+
+      setImmediate(() => {
+        sendRejectionWebhook(applicationId).catch(
+          (webhookError) => {
+            console.error(
+              "SML bank verification rejection webhook failed:",
+              webhookError.message,
+            );
+          },
+        );
+      });
+
       return;
     }
 
     console.log("SML bank verification completed:", {
       partnerLoanId,
-      status: isVerified ? "VERIFIED" : "FAILED",
+      applicationId,
+      lan,
+      status: "VERIFIED",
     });
   } catch (error) {
     console.error("SML bank verification failed:", {
       partnerLoanId,
+      applicationId,
+      lan,
+      statusCode: error.response?.status || null,
       message: error.message,
     });
 
     try {
-      await db.promise().query(
-        `UPDATE loan_booking_switch_my_loan
-         SET bank_verification_status = 'FAILED',
-             bank_verification_response = ?,
-             updated_at = NOW()
-         WHERE partner_loan_id = ?
-           AND bank_ac_number = ?
-           AND bank_ifsc_code = ?
-           AND bank_ac_name = ?
-           AND bank_verification_status = 'PENDING'`,
-        [
-          JSON.stringify(
-            error.response?.data || {
-              message: error.message,
-            },
-          ),
+      const failureResponse =
+        error.response?.data || {
+          message:
+            error.message ||
+            "BANK_VERIFICATION_FAILED",
+          statusCode:
+            error.response?.status || null,
+        };
+
+      const failureMessage = String(
+        error.response?.data?.message ||
+          error.message ||
+          "BANK_VERIFICATION_FAILED",
+      ).slice(0, 500);
+
+      const [failureUpdate] =
+        await db.promise().query(
+          `UPDATE loan_booking_switch_my_loan
+           SET bank_verification_status = 'FAILED',
+               bank_is_verified = 0,
+               bank_verification_response = ?,
+               bank_verification_error = ?,
+               bank_verified_at = NULL,
+               status = 'REJECTED',
+               updated_at = NOW()
+           WHERE partner_loan_id = ?
+             AND bank_ac_number = ?
+             AND bank_ifsc_code = ?
+             AND bank_ac_name = ?
+             AND bank_verification_status = 'PENDING'`,
+          [
+            JSON.stringify(failureResponse),
+            failureMessage,
+            partnerLoanId,
+            accountNumber,
+            ifsc,
+            accountName,
+          ],
+        );
+
+      if (!failureUpdate.affectedRows) {
+        console.warn(
+          "Bank verification exception was not saved because stored details did not match:",
+          {
+            partnerLoanId,
+            accountName,
+            accountNumber,
+            ifsc,
+          },
+        );
+
+        return;
+      }
+
+      console.log(
+        "Loan rejected due to bank verification exception:",
+        {
           partnerLoanId,
-          accountNumber,
-          ifsc,
-          accountName,
-        ],
+          applicationId,
+          lan,
+          failureMessage,
+        },
       );
+
+      if (!applicationId) {
+        console.error(
+          "Rejection webhook not sent because applicationId is missing:",
+          {
+            partnerLoanId,
+            lan,
+          },
+        );
+
+        return;
+      }
+
+      setImmediate(() => {
+        sendRejectionWebhook(applicationId).catch(
+          (webhookError) => {
+            console.error(
+              "SML bank verification rejection webhook failed:",
+              webhookError.message,
+            );
+          },
+        );
+      });
     } catch (dbError) {
-      console.error("Could not save bank verification failure:", dbError);
+      console.error(
+        "Could not save bank verification failure:",
+        {
+          partnerLoanId,
+          message: dbError.message,
+        },
+      );
     }
   }
+}
+
+function bankNamesMatch(customerName, accountName) {
+  const getParts = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+
+  const customerParts = getParts(customerName);
+  const accountParts = getParts(accountName);
+
+  if (!customerParts.length || !accountParts.length) {
+    return false;
+  }
+
+  // Exact match after removing formatting.
+  if (customerParts.join("") === accountParts.join("")) {
+    return true;
+  }
+
+  // Single-name customers require exact equality.
+  if (customerParts.length === 1 || accountParts.length === 1) {
+    return customerParts[0] === accountParts[0];
+  }
+
+  // Allow middle-name differences.
+  return (
+    customerParts[0] === accountParts[0] &&
+    customerParts[customerParts.length - 1] ===
+      accountParts[accountParts.length - 1]
+  );
 }
 
 async function processRows(sheetData) {
@@ -1186,6 +1390,8 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
   let transactionStarted = false;
 
   let bankVerificationJob = null;
+  let shouldSendRejectionWebhook = false;
+  let forcedStatus = null;
 
   try {
     connection = await db.promise().getConnection();
@@ -1229,6 +1435,32 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
 
     const row = existing[0];
 
+    const BLOCKED_UPDATE_STATUSES = [
+      "APPROVED",
+      "BRE_APPROVED",
+      "DISBURSE_INITIATED",
+      "DISBURSED",
+      "REJECTED",
+      "REJECTED_BY_PARTNER",
+      "CANCELLED",
+      "CLOSED",
+      "Fully Paid",
+    ];
+
+    if (BLOCKED_UPDATE_STATUSES.includes(row.status)) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        is_success: false,
+        error: {
+          message:
+            `Loan details cannot be updated when status is '${row.status}'`,
+          code: "loan_update_not_allowed",
+        },
+      });
+    }
+
     let lan = row.lan;
     let applicationId = row.application_id;
 
@@ -1246,6 +1478,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
         connection,
         "RAPID-MONEY",
       );
+
       lan = generated.lan;
       preUpdateFields.push("lan = ?");
       preUpdateValues.push(lan);
@@ -1272,11 +1505,16 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
       }
     };
 
-    // basic fields
+    // Basic customer details
     addField("customer_name", data.full_name);
     addField("pan_number", data.pan_number);
     addField("father_name", data.father_name);
-    addField("dob", data.dob ? normalizeDate(data.dob) : undefined);
+    addField(
+      "dob",
+      data.dob
+        ? normalizeDate(data.dob)
+        : undefined,
+    );
     addField("gender", data.gender);
     addField("mobile", data.mobile);
     addField("email", data.email);
@@ -1306,11 +1544,26 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
 
     addField("is_current_address", data.is_current_address);
 
-    addField("current_address_line_1", data.current_address_line_1);
-    addField("current_address_line_2", data.current_address_line_2);
-    addField("current_address_pincode", data.current_address_pincode);
-    addField("current_address_city", data.current_address_city);
-    addField("current_address_state", data.current_address_state);
+    addField(
+      "current_address_line_1",
+      data.current_address_line_1,
+    );
+    addField(
+      "current_address_line_2",
+      data.current_address_line_2,
+    );
+    addField(
+      "current_address_pincode",
+      data.current_address_pincode,
+    );
+    addField(
+      "current_address_city",
+      data.current_address_city,
+    );
+    addField(
+      "current_address_state",
+      data.current_address_state,
+    );
 
     addField("loan_amount", data.loan_amount);
     addField("tenure", data.tenure);
@@ -1318,7 +1571,10 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
     addField("monthly_emi", data.monthly_emi);
     addField("interest_rate", data.interest_rate);
     addField("processing_fee", data.processing_fee);
-    addField("aquisition_fees_txn_id", data.aquisition_fees_txn_id);
+    addField(
+      "aquisition_fees_txn_id",
+      data.aquisition_fees_txn_id,
+    );
 
     addField("repayment_count", data.repayment_count);
     addField("payment_frequency", data.payment_frequency);
@@ -1329,172 +1585,532 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
         ? normalizeDate(data.loan_application_date)
         : undefined,
     );
+
     addField(
       "agreement_date",
-      data.agreement_date ? normalizeDate(data.agreement_date) : undefined,
+      data.agreement_date
+        ? normalizeDate(data.agreement_date)
+        : undefined,
     );
+
     addField(
       "repayment_date",
-      data.repayment_date ? normalizeDate(data.repayment_date) : undefined,
+      data.repayment_date
+        ? normalizeDate(data.repayment_date)
+        : undefined,
     );
 
-    addField("agreement_signature_type", data.agreement_signature_type);
+    addField(
+      "agreement_signature_type",
+      data.agreement_signature_type,
+    );
+
     addField("source", data.source);
     addField("preferred_language", data.preferred_language);
-
     addField("previous_loan_amount", data.previous_loan_amount);
-    addField("total_disbursed_applications", data.total_disbursed_applications);
+    addField(
+      "total_disbursed_applications",
+      data.total_disbursed_applications,
+    );
 
-    // nested bank_account payload support
-    if (data.bank_account) {
-      const bank = data.bank_account;
+    /*
+     * Bank account handling
+     */
+    /*
+ * Bank account handling
+ *
+ * Supports partial updates across multiple API calls.
+ */
+const hasBankAccountUpdate =
+  Object.prototype.hasOwnProperty.call(
+    data,
+    "bank_account",
+  );
 
-      const accountName = String(bank.ac_name || "").trim();
-      const accountNumber = String(bank.ac_number || "").trim();
-      const ifsc = String(bank.ifsc_code || "")
-        .trim()
-        .toUpperCase();
+const hasCustomerNameUpdate =
+  Object.prototype.hasOwnProperty.call(
+    data,
+    "full_name",
+  );
 
+if (
+  hasBankAccountUpdate ||
+  hasCustomerNameUpdate
+) {
+  let bank = {};
+
+  if (hasBankAccountUpdate) {
+    if (
+      !data.bank_account ||
+      typeof data.bank_account !== "object" ||
+      Array.isArray(data.bank_account)
+    ) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        is_success: false,
+        error: {
+          message:
+            "bank_account must be an object",
+          code:
+            "request_validation_error",
+        },
+      });
+    }
+
+    bank = data.bank_account;
+
+    if (Object.keys(bank).length === 0) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        is_success: false,
+        error: {
+          message:
+            "bank_account cannot be empty",
+          code:
+            "request_validation_error",
+        },
+      });
+    }
+  }
+
+  const hasBankField = (field) =>
+    Object.prototype.hasOwnProperty.call(
+      bank,
+      field,
+    );
+
+  /*
+   * Use the new value when supplied.
+   * Otherwise retain the existing database value.
+   */
+  const accountName =
+    hasBankField("ac_name")
+      ? String(bank.ac_name || "").trim()
+      : String(
+          row.bank_ac_name || "",
+        ).trim();
+
+  const accountNumber =
+    hasBankField("ac_number")
+      ? String(bank.ac_number || "").trim()
+      : String(
+          row.bank_ac_number || "",
+        ).trim();
+
+  const ifsc =
+    hasBankField("ifsc_code")
+      ? String(bank.ifsc_code || "")
+          .trim()
+          .toUpperCase()
+      : String(
+          row.bank_ifsc_code || "",
+        )
+          .trim()
+          .toUpperCase();
+
+  const customerName = String(
+    hasCustomerNameUpdate
+      ? data.full_name || ""
+      : row.customer_name || "",
+  ).trim();
+
+  const coreBankFieldProvided =
+    hasBankField("ac_name") ||
+    hasBankField("ac_number") ||
+    hasBankField("ifsc_code");
+
+  const hasCompleteBankDetails =
+    Boolean(
+      accountName &&
+        accountNumber &&
+        ifsc,
+    );
+
+  /*
+   * Update only the bank columns that
+   * were actually included in this request.
+   */
+  if (hasBankField("ac_name")) {
+    addField(
+      "bank_ac_name",
+      accountName,
+    );
+  }
+
+  if (hasBankField("bank_name")) {
+    addField(
+      "bank_name",
+      bank.bank_name,
+    );
+  }
+
+  if (hasBankField("ac_number")) {
+    addField(
+      "bank_ac_number",
+      accountNumber,
+    );
+  }
+
+  if (hasBankField("ifsc_code")) {
+    addField(
+      "bank_ifsc_code",
+      ifsc,
+    );
+  }
+
+  if (hasBankField("nach_umrn")) {
+    addField(
+      "bank_nach_umrn",
+      bank.nach_umrn,
+    );
+  }
+
+  if (hasBankField("upi_id")) {
+    addField(
+      "bank_upi_id",
+      bank.upi_id,
+    );
+  }
+
+  /*
+   * Merge the latest partial bank object
+   * into the previously stored bank_json.
+   */
+  if (hasBankAccountUpdate) {
+    let existingBankJson = {};
+
+    try {
+      existingBankJson =
+        typeof row.bank_json === "string"
+          ? JSON.parse(
+              row.bank_json || "{}",
+            )
+          : row.bank_json || {};
+    } catch (jsonError) {
+      console.warn(
+        "Existing bank_json could not be parsed",
+        {
+          partnerLoanId:
+            data.partner_loan_id,
+          message:
+            jsonError.message,
+        },
+      );
+
+      existingBankJson = {};
+    }
+
+    const mergedBankJson = {
+      ...existingBankJson,
+      ...bank,
+    };
+
+    /*
+     * Store normalized core values.
+     */
+    if (hasBankField("ac_name")) {
+      mergedBankJson.ac_name =
+        accountName;
+    }
+
+    if (hasBankField("ac_number")) {
+      mergedBankJson.ac_number =
+        accountNumber;
+    }
+
+    if (hasBankField("ifsc_code")) {
+      mergedBankJson.ifsc_code =
+        ifsc;
+    }
+
+    addField(
+      "bank_json",
+      JSON.stringify(
+        mergedBankJson,
+      ),
+    );
+  }
+
+  /*
+   * A core bank field was supplied, but the
+   * effective bank details are still incomplete.
+   *
+   * Save the partial details and wait for the
+   * remaining fields in a later API call.
+   */
+  if (
+    coreBankFieldProvided &&
+    !hasCompleteBankDetails
+  ) {
+    addField(
+      "bank_verification_status",
+      "NOT_STARTED",
+    );
+
+    addField(
+      "bank_is_verified",
+      0,
+    );
+
+    addField(
+      "bank_verification_response",
+      null,
+    );
+
+    addField(
+      "bank_verification_error",
+      "INCOMPLETE_BANK_DETAILS",
+    );
+
+    addField(
+      "bank_verified_at",
+      null,
+    );
+
+    bankVerificationJob = null;
+  }
+
+  /*
+   * Evaluate verification when:
+   * - A core bank field was supplied, or
+   * - Customer name was updated while complete
+   *   bank details already exist.
+   */
+  const shouldEvaluateBank =
+    hasCompleteBankDetails &&
+    (
+      coreBankFieldProvided ||
+      hasCustomerNameUpdate
+    );
+
+  if (shouldEvaluateBank) {
+    /*
+     * Bank details can arrive before the customer name.
+     * Save them and wait for a later name update.
+     */
+    if (!customerName) {
+      addField(
+        "bank_verification_status",
+        "NOT_STARTED",
+      );
+
+      addField(
+        "bank_is_verified",
+        0,
+      );
+
+      addField(
+        "bank_verification_response",
+        null,
+      );
+
+      addField(
+        "bank_verification_error",
+        "CUSTOMER_NAME_REQUIRED",
+      );
+
+      addField(
+        "bank_verified_at",
+        null,
+      );
+
+      bankVerificationJob = null;
+    } else if (
+      SHOULD_MOCK_CLEAR_BANK
+    ) {
       /*
-       * Customer name can come in the current request,
-       * or it may already be stored from a previous update call.
+       * UAT/test mock-clear:
+       * skip name check and external bank API.
        */
-      const customerName = String(
-        data.full_name || row.customer_name || "",
-      ).trim();
+      console.warn(
+        "SML bank verification mock-clear enabled",
+        {
+          partnerLoanId:
+            data.partner_loan_id,
+          applicationId,
+          lan,
+          deploymentEnvironment:
+            DEPLOYMENT_ENV,
+          bankMode: BANK_MODE,
+        },
+      );
 
+      addField(
+        "bank_verification_status",
+        "VERIFIED",
+      );
+
+      addField(
+        "bank_is_verified",
+        1,
+      );
+
+      addField(
+        "bank_verification_response",
+        JSON.stringify({
+          success: true,
+          verified: true,
+          status: "VERIFIED",
+          mode: "mock-clear",
+          deployment_environment:
+            DEPLOYMENT_ENV,
+          name_check_bypassed: true,
+          bank_api_bypassed: true,
+          message:
+            "Bank verification mock-cleared for test/UAT",
+          verified_at:
+            new Date().toISOString(),
+        }),
+      );
+
+      addField(
+        "bank_verification_error",
+        null,
+      );
+
+      addField(
+        "bank_verified_at",
+        new Date(),
+      );
+
+      bankVerificationJob = null;
+      forcedStatus = null;
+      shouldSendRejectionWebhook =
+        false;
+    } else {
       /*
-       * Only perform validation when the partner sends
-       * the three required bank fields.
+       * Normal live flow.
        */
-      const hasCompleteBankDetails = accountName && accountNumber && ifsc;
+      const isNameMatched =
+        bankNamesMatch(
+          customerName,
+          accountName,
+        );
 
-      if (hasCompleteBankDetails) {
-        /*
-         * Exact comparison after removing spaces, dots and case differences.
-         *
-         * "Pratik Sharma" and "pratik sharma" will match.
-         * "Pratik Sharma" and "Rohit Sharma" will not match.
-         */
-        const namesMatch =
-          normalizeName(customerName) === normalizeName(accountName);
+      if (!isNameMatched) {
+        addField(
+          "bank_verification_status",
+          "NAME_MISMATCH",
+        );
 
-        if (!namesMatch) {
-          await connection.query(
-            `UPDATE loan_booking_switch_my_loan
-         SET customer_name = COALESCE(?, customer_name),
-             bank_ac_name = ?,
-             bank_ac_number = ?,
-             bank_ifsc_code = ?,
-             bank_nach_umrn = ?,
-             bank_upi_id = ?,
-             bank_json = ?,
-             bank_verification_status = 'NAME_MISMATCH',
-             bank_verification_response = ?,
-             status = 'REJECTED',
-             updated_at = NOW()
-         WHERE partner_loan_id = ?`,
-            [
-              data.full_name || null,
+        addField(
+          "bank_is_verified",
+          0,
+        );
+
+        addField(
+          "bank_verification_response",
+          JSON.stringify({
+            reason:
+              "Customer name and bank account name do not match",
+            customer_name:
+              customerName,
+            bank_account_name:
               accountName,
-              accountNumber,
-              ifsc,
-              bank.nach_umrn || null,
-              bank.upi_id || null,
-              JSON.stringify(bank),
-              JSON.stringify({
-                reason: "Customer name and bank account name do not match",
-                customer_name: customerName,
-                bank_account_name: accountName,
-              }),
-              data.partner_loan_id,
-            ],
-          );
+          }),
+        );
 
-          await connection.commit();
-          transactionStarted = false;
+        addField(
+          "bank_verification_error",
+          "BANK_NAME_MISMATCH",
+        );
 
-          /*
-           * Send rejection webhook without making the API wait.
-           */
-          setImmediate(() => {
-            sendRejectionWebhook(applicationId).catch((error) => {
-              console.error("SML rejection webhook failed:", error.message);
-            });
-          });
+        addField(
+          "bank_verified_at",
+          null,
+        );
 
-          return res.status(400).json({
-            is_success: false,
-            error: {
-              message: "Customer name and bank account name do not match",
-              code: "bank_name_mismatch",
-            },
-          });
-        }
-
-        /*
-         * Check whether exactly the same bank details have already
-         * been verified or are currently being verified.
-         */
+        bankVerificationJob = null;
+        forcedStatus = "REJECTED";
+        shouldSendRejectionWebhook =
+          true;
+      } else {
         const sameBankDetails =
-          String(row.bank_ac_name || "").trim() === accountName &&
-          String(row.bank_ac_number || "").trim() === accountNumber &&
-          String(row.bank_ifsc_code || "")
+          String(
+            row.bank_ac_name || "",
+          ).trim() === accountName &&
+          String(
+            row.bank_ac_number || "",
+          ).trim() ===
+            accountNumber &&
+          String(
+            row.bank_ifsc_code || "",
+          )
             .trim()
-            .toUpperCase() === ifsc;
+            .toUpperCase() ===
+            ifsc;
+
+        const sameCustomerName =
+          normalizeName(
+            row.customer_name,
+          ) ===
+          normalizeName(
+            customerName,
+          );
 
         const verificationAlreadyHandled =
           sameBankDetails &&
-          ["PENDING", "VERIFIED"].includes(row.bank_verification_status);
+          sameCustomerName &&
+          [
+            "PENDING",
+            "VERIFIED",
+          ].includes(
+            row.bank_verification_status,
+          );
 
-        addField("bank_ac_name", accountName);
-        addField("bank_ac_number", accountNumber);
-        addField("bank_ifsc_code", ifsc);
-        addField("bank_nach_umrn", bank.nach_umrn);
-        addField("bank_upi_id", bank.upi_id);
-        addField("bank_json", JSON.stringify(bank));
+        if (
+          !verificationAlreadyHandled
+        ) {
+          addField(
+            "bank_verification_status",
+            "PENDING",
+          );
 
-        /*
-         * Do not verify again when:
-         * 1. Same account is already VERIFIED, or
-         * 2. Same account verification is already PENDING.
-         */
-        if (!verificationAlreadyHandled) {
-          addField("bank_verification_status", "PENDING");
-          addField("bank_verification_response", null);
+          addField(
+            "bank_is_verified",
+            0,
+          );
+
+          addField(
+            "bank_verification_response",
+            null,
+          );
+
+          addField(
+            "bank_verification_error",
+            null,
+          );
+
+          addField(
+            "bank_verified_at",
+            null,
+          );
 
           bankVerificationJob = {
-            partnerLoanId: data.partner_loan_id,
+            partnerLoanId:
+              data.partner_loan_id,
+            applicationId,
             lan,
-            customerName,
             accountName,
             accountNumber,
             ifsc,
           };
         }
-      } else {
-        /*
-         * Partner may send incomplete bank data in an earlier update call.
-         * Store whatever is provided, but do not run verification.
-         */
-        addField("bank_ac_name", bank.ac_name);
-        addField("bank_ac_number", bank.ac_number);
-        addField("bank_ifsc_code", bank.ifsc_code);
-        addField("bank_nach_umrn", bank.nach_umrn);
-        addField("bank_upi_id", bank.upi_id);
-        addField("bank_json", JSON.stringify(bank));
       }
     }
+  }
+}
 
-    // nested kyc payload support
     if (data.kyc !== undefined) {
-      addField("kyc_json", JSON.stringify(data.kyc));
+      addField(
+        "kyc_json",
+        JSON.stringify(data.kyc),
+      );
     }
-
-    // nested bank_account payload support
-    // if (data.bank_account) {
-    //   addField("bank_json", JSON.stringify(data.bank_account));
-    // }
 
     if (updateFields.length === 0) {
       await connection.rollback();
@@ -1509,32 +2125,31 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
       });
     }
 
-    // merged-state status logic
-    const effectiveLoanAmount =
-      data.loan_amount !== undefined ? data.loan_amount : row.loan_amount;
-    const effectiveTenure =
-      data.tenure !== undefined ? data.tenure : row.tenure;
+    /*
+     * Set the final status only once.
+     */
+    if (forcedStatus) {
+      addField("status", forcedStatus);
+    } else {
+      const effectiveLoanAmount =
+        data.loan_amount !== undefined
+          ? data.loan_amount
+          : row.loan_amount;
 
-    const lockedStatuses = [
-      "APPROVED",
-      "BRE_APPROVED",
-      "DISBURSE_INITIATED",
-      "DISBURSED",
-      "CLOSED",
-      "REJECTED",
-      "CANCELLED",
-    ];
+      const effectiveTenure =
+        data.tenure !== undefined
+          ? data.tenure
+          : row.tenure;
 
-    if (!lockedStatuses.includes(row.status)) {
-      const status =
+      const normalStatus =
         effectiveLoanAmount && effectiveTenure
           ? "APPLICATION_COMPLETED"
           : "DETAILS_UPDATED";
 
-      updateFields.push("status = ?");
-      updateValues.push(status);
+      addField("status", normalStatus);
     }
 
+    updateFields.push("updated_at = NOW()");
     updateValues.push(data.partner_loan_id);
 
     await connection.query(
@@ -1547,10 +2162,38 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
     await connection.commit();
     transactionStarted = false;
 
+    /*
+     * Name mismatch:
+     * - All details have already been saved.
+     * - Loan has been marked REJECTED.
+     * - Partner still receives the normal HTTP 200 response.
+     */
+    if (shouldSendRejectionWebhook) {
+      setImmediate(() => {
+        sendRejectionWebhook(applicationId).catch(
+          (error) => {
+            console.error(
+              "SML name-mismatch rejection webhook failed:",
+              error.message,
+            );
+          },
+        );
+      });
+    }
+
+    /*
+     * Normal bank verification runs after the data is committed.
+     * The partner receives the normal response immediately.
+     */
     if (bankVerificationJob) {
       setImmediate(() => {
-        verifySmlBankInBackground(bankVerificationJob).catch((error) => {
-          console.error("Unhandled SML bank verification error:", error);
+        verifySmlBankInBackground(
+          bankVerificationJob,
+        ).catch((error) => {
+          console.error(
+            "Unhandled SML bank verification error:",
+            error,
+          );
         });
       });
     }
@@ -1578,7 +2221,9 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
       },
     });
   } finally {
-    if (connection) connection.release();
+    if (connection) {
+      connection.release();
+    }
   }
 });
 
@@ -2389,6 +3034,7 @@ router.post(
           "CANCELLED",
           "CLOSED",
           "Fully Paid",
+          "REJECTED_BY_PARTNER",
         ].includes(loan.status)
       ) {
         return res.status(400).json({
@@ -2402,7 +3048,7 @@ router.post(
 
       await db.promise().query(
         `UPDATE loan_booking_switch_my_loan
-         SET status = 'REJECTED', updated_at = NOW()
+         SET status = 'REJECTED_BY_PARTNER', updated_at = NOW()
          WHERE application_id = ?`,
         [application_id],
       );

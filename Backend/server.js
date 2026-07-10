@@ -29,7 +29,7 @@ const { retryPendingValidations, autoApproveIfAllVerified } = require("./service
 const { autoApproveClayyoIfAllVerified } = require("./routes/clyooRoutes/clayyoBreEngine");
 const { autoApproveMotionCorpIfAllVerified } = require("./routes/MotionCorp/motionCorpBRE");
 const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
-//const crypto = require("crypto");
+const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
 const mobileRevocationLookup = require("./utils/mnrlApiService");
@@ -135,7 +135,219 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
 app.use("/api/helium-webhook", heliumWebhookRoutes);
-app.use("/api/rapid-money", require("./routes/switchMyLoan/switchMyLoanRotues")); // ✅ Register Switch My Loan Routes
+function safeAuditJson(value) {
+  try {
+    return JSON.stringify(value ?? null);
+  } catch (error) {
+    return JSON.stringify({
+      serialization_error: true,
+      message: error.message,
+    });
+  }
+}
+
+function parseAuditResponse(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function extractApplicationIdFromUrl(url) {
+  const match = String(url || "").match(
+    /\/v1\/loan\/([^/?]+)(?:\/|$)/,
+  );
+
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function rmlApiAuditMiddleware(req, res, next) {
+  const startedAt = Date.now();
+
+  // Always generate a unique server-side ID.
+  const requestId = crypto.randomUUID();
+
+  const requestHeaders = safeAuditJson(req.headers);
+  const requestQuery = safeAuditJson(req.query);
+  const requestBody = safeAuditJson(req.body);
+
+  let responseBody = null;
+  let capturedParams = {};
+  let capturedRoutePath =
+    `${req.baseUrl || ""}${req.path || ""}`;
+
+  res.setHeader("x-request-id", requestId);
+
+  const originalJson = res.json.bind(res);
+  const originalSend = res.send.bind(res);
+
+  function captureRouteInformation() {
+    capturedParams = {
+      ...(req.params || {}),
+    };
+
+    if (req.route?.path) {
+      capturedRoutePath =
+        `${req.baseUrl || ""}${req.route.path}`;
+    }
+  }
+
+  res.json = function auditJson(body) {
+    captureRouteInformation();
+    responseBody = body;
+    return originalJson(body);
+  };
+
+  res.send = function auditSend(body) {
+    captureRouteInformation();
+
+    if (responseBody === null) {
+      responseBody = parseAuditResponse(body);
+    }
+
+    return originalSend(body);
+  };
+
+  res.on("finish", () => {
+    setImmediate(async () => {
+      try {
+        const responseData =
+          responseBody?.data &&
+          typeof responseBody.data === "object"
+            ? responseBody.data
+            : {};
+
+        let applicationId =
+          capturedParams.application_id ||
+          req.body?.application_id ||
+          responseData.application_id ||
+          null;
+
+        let partnerLoanId =
+          req.body?.partner_loan_id ||
+          responseData.partner_loan_id ||
+          null;
+
+        let lan =
+          req.body?.lan ||
+          responseData.lan ||
+          null;
+
+        if (applicationId || partnerLoanId || lan) {
+          let lookupSql = null;
+          let lookupValue = null;
+
+          if (applicationId) {
+            lookupSql = `
+              SELECT application_id, partner_loan_id, lan
+              FROM loan_booking_switch_my_loan
+              WHERE application_id = ?
+              LIMIT 1
+            `;
+            lookupValue = applicationId;
+          } else if (partnerLoanId) {
+            lookupSql = `
+              SELECT application_id, partner_loan_id, lan
+              FROM loan_booking_switch_my_loan
+              WHERE partner_loan_id = ?
+              LIMIT 1
+            `;
+            lookupValue = partnerLoanId;
+          } else {
+            lookupSql = `
+              SELECT application_id, partner_loan_id, lan
+              FROM loan_booking_switch_my_loan
+              WHERE lan = ?
+              LIMIT 1
+            `;
+            lookupValue = lan;
+          }
+
+          const [[loanRow]] = await db.promise().query(
+            lookupSql,
+            [lookupValue],
+          );
+
+          applicationId =
+            applicationId ||
+            loanRow?.application_id ||
+            null;
+
+          partnerLoanId =
+            partnerLoanId ||
+            loanRow?.partner_loan_id ||
+            null;
+
+          lan =
+            lan ||
+            loanRow?.lan ||
+            null;
+        }
+
+        await db.promise().query(
+          `
+          INSERT INTO rml_api_audit_logs
+          (
+            request_id,
+            application_id,
+            partner_loan_id,
+            lan,
+            http_method,
+            route_path,
+            request_url,
+            request_headers,
+            request_params,
+            request_query,
+            request_body,
+            response_status,
+            response_body,
+            duration_ms,
+            ip_address,
+            user_agent
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            requestId,
+            applicationId,
+            partnerLoanId,
+            lan,
+            req.method,
+            capturedRoutePath,
+            req.originalUrl,
+            requestHeaders,
+            safeAuditJson(capturedParams),
+            requestQuery,
+            requestBody,
+            res.statusCode,
+            safeAuditJson(responseBody),
+            Date.now() - startedAt,
+            req.ip ||
+              req.socket?.remoteAddress ||
+              null,
+            req.headers["user-agent"] || null,
+          ],
+        );
+      } catch (auditError) {
+        console.error(
+          "[RML API AUDIT] Failed to save audit log:",
+          {
+            requestId,
+            message: auditError.message,
+          },
+        );
+      }
+    });
+  });
+
+  next();
+}
+app.use("/api/rapid-money", rmlApiAuditMiddleware, require("./routes/switchMyLoan/switchMyLoanRotues")); // ✅ Register Switch My Loan Routes
 app.use("/api/loan-digit", require("./routes/loanDigit/loanDigitRoutes"));
 app.use("/api/fldg", require("./routes/fldgRoutes")); // ✅ Register FLDG Routes
 
