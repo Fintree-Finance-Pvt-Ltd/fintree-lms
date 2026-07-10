@@ -13,6 +13,51 @@ const { amlCheck } = require(
   "../../utils/amlCrimescanService",
 );
 
+const DEPLOYMENT_ENV = String(
+  process.env.DEPLOYMENT_ENV ||
+  process.env.NODE_ENV ||
+  "development",
+)
+  .trim()
+  .toLowerCase();
+
+const AML_MODE = String(process.env.AML_MODE || "live")
+  .trim()
+  .toLowerCase();
+
+const BUREAU_MODE = String(process.env.BUREAU_MODE || "live")
+  .trim()
+  .toLowerCase();
+
+const VALID_SERVICE_MODES = new Set([
+  "live",
+  "mock-clear",
+]);
+
+if (!VALID_SERVICE_MODES.has(AML_MODE)) {
+  throw new Error(
+    `Invalid AML_MODE "${AML_MODE}". Expected live or mock-clear.`,
+  );
+}
+
+if (!VALID_SERVICE_MODES.has(BUREAU_MODE)) {
+  throw new Error(
+    `Invalid BUREAU_MODE "${BUREAU_MODE}". Expected live or mock-clear.`,
+  );
+}
+
+/*
+ * Never allow AML or Bureau bypass in production.
+ */
+if (
+  DEPLOYMENT_ENV === "production" &&
+  (AML_MODE !== "live" || BUREAU_MODE !== "live")
+) {
+  throw new Error(
+    "AML/Bureau bypass is not permitted in production",
+  );
+}
+
 const POLICY_VERSION = "RAPID_MONEY_POLICY_PDF_2026_07";
 
 function safeJson(value) {
@@ -551,6 +596,60 @@ function calculateNetDisbursalAmount({
 async function runOrReuseBureau(loan) {
   const pool = db.promise();
 
+  if (BUREAU_MODE === "mock-clear") {
+    console.warn("[SML BRE] Bureau bypassed in test mode", {
+      lan: loan.lan,
+      deploymentEnvironment: DEPLOYMENT_ENV,
+    });
+
+    return {
+      status: "VERIFIED",
+      source: "TEST_BYPASS",
+      bypassed: true,
+
+      reportId: null,
+      reportDate: null,
+
+      // Must be at least 650
+      score: 750,
+
+      // Only one PAN
+      panCount: 1,
+      hasDualPan: false,
+
+      // Must be below 5
+      enquiryBreakdown30Days: {
+        total: 0,
+        credit: 0,
+        nonCredit: 0,
+        source: "TEST_BYPASS",
+      },
+      enquiries30Days: 0,
+
+      // Must be below 1000
+      totalOverdueAmount: 0,
+
+      // Passing DPD values
+      maxDpdLast3Months: 0,
+      maxDpdLast9Months: 0,
+      maxDpdLast12Months: 0,
+
+      hasGt30DpdLast3Months: false,
+      hasGt60DpdLast9Months: false,
+      hasGt90DpdLast12Months: false,
+
+      /*
+       * New customers require at least Rs. 2,00,000.
+       * Keep this above that requirement.
+       */
+      unsecuredAggregate: 250000,
+      unsecuredTradelineCount: 2,
+      totalTradelines: 2,
+
+      unmappedAccountTypeCodes: [],
+    };
+  }
+
   const [kycRows] = await pool.query(
     `
     SELECT id, bureau_status, bureau_api_response
@@ -778,6 +877,22 @@ async function runOrReuseBureau(loan) {
 
 async function runOrReuseAml(loan) {
   const pool = db.promise();
+
+  if (AML_MODE === "mock-clear") {
+    console.warn("[SML BRE] AML bypassed in test mode", {
+      lan: loan.lan,
+      deploymentEnvironment: DEPLOYMENT_ENV,
+    });
+
+    return {
+      status: "CLEAR",
+      score: 100,
+      totalMatches: 0,
+      reason: null,
+      source: "TEST_BYPASS",
+      bypassed: true,
+    };
+  }
 
   /*
    * Always reload the current AML state because the loan
@@ -1085,13 +1200,26 @@ async function runBRE(data) {
    */
   const aml = await runOrReuseAml(loan);
 
+
+  // Production
+  // result.aml = {
+  //   status: aml.status,
+  //   score: aml.score,
+  //   totalMatches: aml.totalMatches,
+  //   reason: aml.reason,
+  //   source: aml.source,
+  // };
+
+
+  //  UAT 
   result.aml = {
-    status: aml.status,
-    score: aml.score,
-    totalMatches: aml.totalMatches,
-    reason: aml.reason,
-    source: aml.source,
-  };
+  status: aml.status,
+  score: aml.score,
+  totalMatches: aml.totalMatches,
+  reason: aml.reason,
+  source: aml.source,
+  bypassed: aml.bypassed === true,
+};
   result.amlScore = aml.score;
 
   if (aml.technicalReason) {
@@ -1142,12 +1270,24 @@ async function runBRE(data) {
     await updateBookingBreSnapshot(loan.lan, result);
     return result;
   }
+// Production  
+  // rules.AML_CHECK_RPM = rule(
+  //   aml.status === "CLEAR",
+  //   aml.status === "CLEAR" ? null : "AML_STATUS_INVALID",
+  //   result.aml,
+  // );
+
+
+  // UAT
 
   rules.AML_CHECK_RPM = rule(
-    aml.status === "CLEAR",
-    aml.status === "CLEAR" ? null : "AML_STATUS_INVALID",
-    result.aml,
-  );
+  aml.status === "CLEAR",
+  aml.status === "CLEAR"
+    ? null
+    : "AML_STATUS_INVALID",
+  result.aml,
+  aml.source !== "TEST_BYPASS",
+);
 
   if (aml.status !== "CLEAR") {
     result.decision = "TECHNICAL_FAILURE";
@@ -1530,6 +1670,7 @@ rules.CREDIT_LIMIT_CHECK_RPM = rule(
   result.bureau = {
     status: bureau.status,
     source: bureau.source,
+    bypassed: bureau.bypassed === true,
     reportId: bureau.reportId ?? null,
     score: bureau.score,
     panCount: bureau.panCount,
