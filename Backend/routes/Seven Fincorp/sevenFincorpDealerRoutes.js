@@ -1305,7 +1305,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
             emptyToNull(data.Driving_License),
             data.borrower_mobile_verified || 1,
             existingLan,
-          ]
+          ],
         );
 
         if (updateResult.affectedRows === 0) {
@@ -1340,7 +1340,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         ORDER BY id DESC
         LIMIT 1
         `,
-        [data.Mobile_Number, "BORROWER"]
+        [data.Mobile_Number, "BORROWER"],
       );
 
       if (!borrowerOtp.length) {
@@ -1353,8 +1353,9 @@ router.post("/save-borrower-first-section", async (req, res) => {
         });
       }
 
-      const { cust_lan, cust_partner_loan_id } =
-        await generateLoanIdentifiers( "SEVEN_FINCORP_CUSTOMER");
+      const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
+        "SEVEN_FINCORP_CUSTOMER",
+      );
 
       await connection.query(
         `
@@ -1402,7 +1403,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
           emptyToNull(data.Driving_License),
           data.borrower_mobile_verified || 1,
           emptyToNull(data.GPS_Charges),
-        ]
+        ],
       );
 
       await connection.query(
@@ -1411,7 +1412,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
         SET is_used = 1
         WHERE id = ?
         `,
-        [borrowerOtp[0].id]
+        [borrowerOtp[0].id],
       );
 
       await connection.query(
@@ -1431,7 +1432,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
           data.Customer_Name,
           data.Mobile_Number,
           data.Pan_Card,
-        ]
+        ],
       );
 
       await connection.commit();
@@ -1682,7 +1683,70 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
       ];
     }
 
-    else {
+    // SECTION 8: Insurance Details
+    else if (section === 8) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          insurance_cost = ?,
+          insurance_company_provider = ?,
+          insurance_policy_number = ?,
+          policy_issued_date = ?,
+          period_of_insurance = ?
+           WHERE lan = ?
+      `;
+
+      values = [
+        emptyToNull(data.insurance_cost),
+        emptyToNull(data.insurance_company_provider),
+        emptyToNull(data.insurance_policy_number),
+        emptyToNull(data.policy_issued_date),
+        emptyToNull(data.period_of_insurance),
+        existingLan,
+      ];
+    }
+    // SECTION 9: Vehicles Details
+    else if (section === 9) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          cost_of_vehicle = ?,
+          manufacturing_year = ?,
+          downpayment_paid_by_borrower = ?,
+          vehicle_registration_cost = ?,
+          sales_invoice_number = ?,
+          sales_invoice_date = ?
+           WHERE lan = ?
+      `;
+
+      values = [
+        emptyToNull(data.cost_of_vehicle),
+        emptyToNull(data.manufacturing_year),
+        emptyToNull(data.downpayment_paid_by_borrower),
+        emptyToNull(data.vehicle_registration_cost),
+        emptyToNull(data.sales_invoice_number),
+        emptyToNull(data.sales_invoice_date),
+        existingLan,
+      ];
+    } else if (section === 9) {
+      query = `
+        UPDATE loan_booking_seven_fincorp
+        SET
+          insurance_cost = ?,
+          insurance_company_provider = ?,
+          insurance_policy_number = ?,
+          policy_issued_date = ?,
+          period_of_insurance = ?,
+      `;
+
+      values = [
+        emptyToNull(data.insurance_cost),
+        emptyToNull(data.insurance_company_provider),
+        emptyToNull(data.insurance_policy_number),
+        emptyToNull(data.policy_issued_date),
+        emptyToNull(data.period_of_insurance),
+      ];
+    } else {
       await connection.rollback();
       transactionStarted = false;
 
@@ -1724,7 +1788,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
           data.GURANTOR,
           data.GURANTOR_MOBILE,
           data.GURANTOR_PAN,
-        ]
+        ],
       );
     }
 
@@ -1746,7 +1810,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
           data.Co_Applicant,
           data.Co_Applicant_Mobile,
           data.Co_Applicant_PAN,
-        ]
+        ],
       );
     }
 

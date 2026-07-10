@@ -232,6 +232,21 @@ const AllLoansScreen = ({
       width: 160,
     },
     {
+      key: "loan amount",
+      header: "Loan Amount",
+      sortable: true,
+      render: (r) => (
+        <span className="lan-code-badge">
+          {r.loan_amount ?? "—"}
+        </span>
+      ),
+      sortAccessor: (r) =>
+        String(r?.loan_amount || "").toLowerCase(),
+      csvAccessor: (r) => r.loan_amount ?? "",
+ 
+      width: 160,
+    },
+    {
       key: amountField,
       header: "Disbursement Amount",
       sortable: true,
