@@ -191,7 +191,6 @@ async function verifySmlBankInBackground({
         JSON.stringify(result || {}),
         failureMessage,
         isVerified ? new Date() : null,
-        isVerified ? 1 : 0,
         partnerLoanId,
         accountNumber,
         ifsc,
