@@ -2078,7 +2078,9 @@ if (
           ? "APPLICATION_COMPLETED"
           : "DETAILS_UPDATED";
 
-      addField("status", normalStatus);
+      if (String(row.status || "").toUpperCase() !== "BRE_APPROVED") {
+  addField("status", normalStatus);
+}
 
     updateFields.push("updated_at = NOW()");
     updateValues.push(data.partner_loan_id);
