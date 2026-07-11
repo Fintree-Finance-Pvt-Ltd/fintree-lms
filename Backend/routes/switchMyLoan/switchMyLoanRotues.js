@@ -1524,7 +1524,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
     addField("city", data.city);
     addField("district", data.district);
 
-    addField("residence_status", data.residence_status);
+    addField("residence_status", data.residence_type);
     addField("employment_type", data.employment_type);
     addField("company_type", data.company_type);
     addField("company_name", data.company_name);
