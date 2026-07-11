@@ -771,7 +771,7 @@ const normalizeCreateUpdatePayload = (data) => {
     city: data.city ?? null,
     district: data.district ?? null,
 
-    residence_status: data.residence_status ?? null,
+    residence_status: data.residence_type ?? null,
     employment_type: data.employment_type ?? null,
     company_type: data.company_type ?? null,
     company_name: data.company_name ?? null,
