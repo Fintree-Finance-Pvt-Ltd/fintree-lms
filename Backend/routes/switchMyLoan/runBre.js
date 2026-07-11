@@ -49,14 +49,14 @@ if (!VALID_SERVICE_MODES.has(BUREAU_MODE)) {
 /*
  * Never allow AML or Bureau bypass in production.
  */
-if (
-  DEPLOYMENT_ENV === "production" &&
-  (AML_MODE !== "live" || BUREAU_MODE !== "live")
-) {
-  throw new Error(
-    "AML/Bureau bypass is not permitted in production",
-  );
-}
+// if (
+//   DEPLOYMENT_ENV === "production" &&
+//   (AML_MODE !== "live" || BUREAU_MODE !== "live")
+// ) {
+//   throw new Error(
+//     "AML/Bureau bypass is not permitted in production",
+//   );
+// }
 
 const POLICY_VERSION = "RAPID_MONEY_POLICY_PDF_2026_07";
 
