@@ -16,90 +16,105 @@ const PARTNER_ROUTES = [
     prefix: "HEYBF1",
     table: "loan_booking_hey_ev_battery",
     rpsTable: "manual_rps_hey_ev_battery",
+    tenureUnit: "months",
   },
 
   {
     prefix: "CIRHUF",
     table: "loan_booking_circle_pe_houser",
     rpsTable: "manual_rps_circle_pe_houser",
+    tenureUnit: "months",
   },
 
   {
     prefix: "HEYEV",
     table: "loan_booking_hey_ev",
     rpsTable: "manual_rps_hey_ev",
+    tenureUnit: "months",
   },
 
   {
     prefix: "WCTL",
     table: "loan_bookings_wctl",
     rpsTable: "manual_rps_wctl",
+    tenureUnit: "months",
   },
 
   {
     prefix: "FINE",
     table: "loan_booking_emiclub",
     rpsTable: "manual_rps_emiclub",
+    tenureUnit: "months",
   },
 
   {
     prefix: "CARE",
     table: "loan_booking_carepay",
     rpsTable: "manual_rps_carepay",
+    tenureUnit: "months",
   },
 
   {
     prefix: "STRL",
     table: "loan_booking_sterlion",
     rpsTable: "manual_rps_sterlion",
+    tenureUnit: "months",
   },
 
   {
     prefix: "CLYO",
     table: "loan_booking_clayyo",
     rpsTable: "manual_rps_clayoo",
+    tenureUnit: "months",
   },
 
   {
     prefix: "GQN",
     table: "loan_booking_gq_non_fsf",
     rpsTable: "manual_rps_gq_non_fsf",
+    tenureUnit: "months",
   },
 
   {
     prefix: "GQF",
     table: "loan_booking_gq_fsf",
     rpsTable: "manual_rps_gq_fsf",
+    tenureUnit: "months",
   },
 
   {
     prefix: "ADK",
     table: "loan_booking_adikosh",
     rpsTable: "manual_rps_adikosh",
+    tenureUnit: "months",
   },
 
   {
     prefix: "HEL",
     table: "loan_booking_helium",
     rpsTable: "manual_rps_helium",
+    tenureUnit: "months",
   },
 
   {
     prefix: "FINS",
     table: "loan_booking_finso",
     rpsTable: "manual_rps_finso_loan",
+    tenureUnit: "months",
   },
 
   {
     prefix: "CIRF",
     table: "loan_booking_circle_pe",
     rpsTable: "manual_rps_circlepe",
+    tenureUnit: "months",
   },
 
   {
     prefix: "MCL",
     table: "loan_booking_motion_corp",
     rpsTable: "manual_rps_motioncorp",
+    tenureUnit: "months",
   },
 
   /*
@@ -109,12 +124,14 @@ const PARTNER_ROUTES = [
     prefix: "MC",
     table: "loan_booking_motion_corp",
     rpsTable: "manual_rps_motioncorp",
+    tenureUnit: "months",
   },
 
   {
     prefix: "ZYPF",
     table: "loan_booking_zypay_customer",
     rpsTable: "manual_rps_zypay",
+    tenureUnit: "months",
   },
 
   /*
@@ -125,30 +142,35 @@ const PARTNER_ROUTES = [
     prefix: "SFL",
     table: "seven_fincorp_dealer_booking",
     rpsTable: "manual_rps_seven_fincorp",
+    tenureUnit: "months",
   },
 
   {
     prefix: "SF",
     table: "seven_fincorp_dealer_booking",
     rpsTable: "manual_rps_seven_fincorp",
+    tenureUnit: "months",
   },
 
   {
     prefix: "BUN",
     table: "loan_booking_bundela",
     rpsTable: "manual_rps_bundela",
+    tenureUnit: "months",
   },
 
   {
     prefix: "LDF",
     table: "loan_booking_loan_digit",
     rpsTable: "manual_rps_loan_digit",
+    tenureUnit: "months",
   },
 
   {
     prefix: "RML",
     table: "loan_booking_switch_my_loan",
     rpsTable: "manual_rps_switch_my_loan",
+    tenureUnit: "days",
   },
 
   {
@@ -159,6 +181,7 @@ const PARTNER_ROUTES = [
      * No RPS table was included for ZBR in your mapping.
      */
     rpsTable: null,
+    tenureUnit: "months",
   },
 
   /*
@@ -168,24 +191,28 @@ const PARTNER_ROUTES = [
     prefix: "CLY",
     table: "loan_booking_clayyo",
     rpsTable: "manual_rps_clayoo",
+    tenureUnit: "months",
   },
 
   {
     prefix: "SH",
     table: "loan_booking_srbh",
     rpsTable: "manual_rps_srbh",
+    tenureUnit: "months",
   },
 
   {
     prefix: "E10",
     table: "loan_booking_embifi",
     rpsTable: "manual_rps_embifi_loan",
+    tenureUnit: "months",
   },
 
   {
     prefix: "E1",
     table: "loan_booking_embifi",
     rpsTable: "manual_rps_embifi_loan",
+    tenureUnit: "months",
   },
 
   /*
@@ -195,6 +222,7 @@ const PARTNER_ROUTES = [
     prefix: "HEYBF",
     table: "loan_booking_hey_ev_battery",
     rpsTable: "manual_rps_hey_ev_battery",
+    tenureUnit: "months",
   },
 
   /*
@@ -204,6 +232,7 @@ const PARTNER_ROUTES = [
     prefix: "HEY",
     table: "loan_booking_hey_ev",
     rpsTable: "manual_rps_hey_ev",
+    tenureUnit: "months",
   },
 
   {
@@ -215,12 +244,14 @@ const PARTNER_ROUTES = [
      * This is the table used elsewhere in your project.
      */
     rpsTable: "manual_rps_ev_loan",
+    tenureUnit: "months",
   },
 
   {
     prefix: "BL",
     table: "loan_bookings",
     rpsTable: "manual_rps_bl_loan",
+    tenureUnit: "months",
   },
 ];
 
@@ -357,6 +388,14 @@ const TEMPLATE_FIELD_COLUMNS = {
     "l_t",
   ],
 
+   loan_tenure_unit: [
+    "loan_tenure_unit",
+    "tenure_unit",
+    "tenure_type",
+    "duration_unit",
+    "tenure_in",
+  ],
+
   emi_amount: ["emi_amount", "monthly_emi", "monthly_emi_amount", "emi"],
 
   emi_due_date: [
@@ -478,6 +517,7 @@ function resolvePartnerByLan(lan) {
     prefix: route.prefix,
     table: route.table,
     rpsTable: route.rpsTable || null,
+    tenureUnit: route.tenureUnit || "months",
   };
 }
 
@@ -755,18 +795,66 @@ function formatRate(value) {
   }).format(numericValue);
 }
 
-function formatTenure(value) {
+function normalizeTenureUnit(value) {
+  const unit = safeString(value, "months").toLowerCase();
+
+  if (
+    [
+      "day",
+      "days",
+      "daily",
+      "d",
+    ].includes(unit)
+  ) {
+    return "days";
+  }
+
+  if (
+    [
+      "month",
+      "months",
+      "monthly",
+      "m",
+    ].includes(unit)
+  ) {
+    return "months";
+  }
+
+  return "months";
+}
+
+function formatTenure(value, unit = "months") {
   if (!hasValue(value)) {
     return "";
   }
 
   const tenure = String(value).trim();
 
-  if (/^\d+(\.0+)?$/.test(tenure)) {
-    return `${Number(tenure)} Months`;
+  /*
+   * Return the value unchanged when it already contains
+   * a tenure unit, for example "90 Days" or "12 Months".
+   */
+  if (/[a-zA-Z]/.test(tenure)) {
+    return tenure;
   }
 
-  return tenure;
+  const numericTenure = Number(tenure);
+
+  if (!Number.isFinite(numericTenure)) {
+    return tenure;
+  }
+
+  const normalizedUnit = normalizeTenureUnit(unit);
+
+  if (normalizedUnit === "days") {
+    return `${numericTenure} ${
+      numericTenure === 1 ? "Day" : "Days"
+    }`;
+  }
+
+  return `${numericTenure} ${
+    numericTenure === 1 ? "Month" : "Months"
+  }`;
 }
 
 function getOrdinalDay(day) {
@@ -877,6 +965,10 @@ function maskEmail(email) {
 ========================================================= */
 
 function prepareTemplateData(loanRecord, route) {
+  const tenureUnit = safeString(
+    loanRecord.loan_tenure_unit,
+    route.tenureUnit || "months",
+  );
   return {
     DATE: formatDate(new Date()),
 
@@ -908,9 +1000,13 @@ function prepareTemplateData(loanRecord, route) {
       ? formatRate(loanRecord.rate_of_interest)
       : "",
 
-    LOAN_TENURE: hasValue(loanRecord.loan_tenure)
-      ? formatTenure(loanRecord.loan_tenure)
-      : "",
+    LOAN_TENURE:
+      hasValue(loanRecord.loan_tenure)
+        ? formatTenure(
+            loanRecord.loan_tenure,
+            tenureUnit,
+          )
+        : "",
 
     EMI_AMOUNT: hasValue(loanRecord.emi_amount)
       ? formatCurrency(loanRecord.emi_amount, "EMI amount")
