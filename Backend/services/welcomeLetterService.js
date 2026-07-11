@@ -355,6 +355,7 @@ const TEMPLATE_FIELD_COLUMNS = {
   ],
 
   disbursed_amount: [
+    "disbursal_amount",
     "net_disbursement",
     "disbursed_amount",
     "disbursement_amount",
