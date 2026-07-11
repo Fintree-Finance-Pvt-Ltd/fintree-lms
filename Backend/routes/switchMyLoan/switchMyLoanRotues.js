@@ -179,10 +179,6 @@ async function verifySmlBankInBackground({
            bank_verification_response = ?,
            bank_verification_error = ?,
            bank_verified_at = ?,
-           status = CASE
-             WHEN ? = 1 THEN status
-             ELSE 'REJECTED'
-           END,
            updated_at = NOW()
        WHERE partner_loan_id = ?
          AND bank_ac_number = ?
@@ -217,42 +213,15 @@ async function verifySmlBankInBackground({
       return;
     }
 
-    if (!isVerified) {
-      console.log(
-        "Loan rejected due to bank verification failure:",
-        {
-          partnerLoanId,
-          applicationId,
-          lan,
-          failureMessage,
-        },
-      );
-
-      if (!applicationId) {
-        console.error(
-          "Rejection webhook not sent because applicationId is missing:",
-          {
-            partnerLoanId,
-            lan,
-          },
-        );
-
-        return;
-      }
-
-      setImmediate(() => {
-        sendRejectionWebhook(applicationId).catch(
-          (webhookError) => {
-            console.error(
-              "SML bank verification rejection webhook failed:",
-              webhookError.message,
-            );
-          },
-        );
-      });
-
-      return;
-    }
+if (!isVerified) {
+  console.log("Bank verification failed; will be evaluated at approval:", {
+    partnerLoanId,
+    applicationId,
+    lan,
+    failureMessage,
+  });
+  return;
+}
 
     console.log("SML bank verification completed:", {
       partnerLoanId,
@@ -293,7 +262,6 @@ async function verifySmlBankInBackground({
                bank_verification_response = ?,
                bank_verification_error = ?,
                bank_verified_at = NULL,
-               status = 'REJECTED',
                updated_at = NOW()
            WHERE partner_loan_id = ?
              AND bank_ac_number = ?
@@ -333,29 +301,6 @@ async function verifySmlBankInBackground({
           failureMessage,
         },
       );
-
-      if (!applicationId) {
-        console.error(
-          "Rejection webhook not sent because applicationId is missing:",
-          {
-            partnerLoanId,
-            lan,
-          },
-        );
-
-        return;
-      }
-
-      setImmediate(() => {
-        sendRejectionWebhook(applicationId).catch(
-          (webhookError) => {
-            console.error(
-              "SML bank verification rejection webhook failed:",
-              webhookError.message,
-            );
-          },
-        );
-      });
     } catch (dbError) {
       console.error(
         "Could not save bank verification failure:",
@@ -1390,8 +1335,6 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
   let transactionStarted = false;
 
   let bankVerificationJob = null;
-  let shouldSendRejectionWebhook = false;
-  let forcedStatus = null;
 
   try {
     connection = await db.promise().getConnection();
@@ -1978,9 +1921,6 @@ if (
       );
 
       bankVerificationJob = null;
-      forcedStatus = null;
-      shouldSendRejectionWebhook =
-        false;
     } else {
       /*
        * Normal live flow.
@@ -2025,9 +1965,6 @@ if (
         );
 
         bankVerificationJob = null;
-        forcedStatus = "REJECTED";
-        shouldSendRejectionWebhook =
-          true;
       } else {
         const sameBankDetails =
           String(
@@ -2128,9 +2065,6 @@ if (
     /*
      * Set the final status only once.
      */
-    if (forcedStatus) {
-      addField("status", forcedStatus);
-    } else {
       const effectiveLoanAmount =
         data.loan_amount !== undefined
           ? data.loan_amount
@@ -2147,7 +2081,6 @@ if (
           : "DETAILS_UPDATED";
 
       addField("status", normalStatus);
-    }
 
     updateFields.push("updated_at = NOW()");
     updateValues.push(data.partner_loan_id);
@@ -2162,24 +2095,6 @@ if (
     await connection.commit();
     transactionStarted = false;
 
-    /*
-     * Name mismatch:
-     * - All details have already been saved.
-     * - Loan has been marked REJECTED.
-     * - Partner still receives the normal HTTP 200 response.
-     */
-    if (shouldSendRejectionWebhook) {
-      setImmediate(() => {
-        sendRejectionWebhook(applicationId).catch(
-          (error) => {
-            console.error(
-              "SML name-mismatch rejection webhook failed:",
-              error.message,
-            );
-          },
-        );
-      });
-    }
 
     /*
      * Normal bank verification runs after the data is committed.
@@ -2479,6 +2394,74 @@ router.post(
         });
       }
 
+const hasCompleteBankDetails = Boolean(
+  String(loan.bank_ac_name || "").trim() &&
+  String(loan.bank_ac_number || "").trim() &&
+  String(loan.bank_ifsc_code || "").trim(),
+);
+
+if (hasCompleteBankDetails) {
+  const bankVerificationStatus = String(
+    loan.bank_verification_status || "",
+  )
+    .trim()
+    .toUpperCase();
+
+  /*
+   * Bank details are present and verification failed.
+   * Reject here without triggering any webhook.
+   */
+  if (
+    ["FAILED", "NAME_MISMATCH"].includes(
+      bankVerificationStatus,
+    )
+  ) {
+    await connection.query(
+      `UPDATE loan_booking_switch_my_loan
+       SET status = ?,
+           sml_bre_status = ?,
+           sml_bre_reason = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE application_id = ?`,
+      [
+        "REJECTED",
+        "REJECTED",
+        loan.bank_verification_error ||
+          "BANK_VERIFICATION_FAILED",
+        application_id,
+      ],
+    );
+
+    const breResponse = buildPartnerBreResponse({
+      decision: "REJECTED",
+    });
+
+    return res.json({
+      is_success: true,
+      data: {
+        status: "Rejected",
+        bre_response: breResponse,
+      },
+    });
+  }
+
+  /*
+   * Bank details exist, but background verification
+   * has not completed yet.
+   */
+  if (
+    bankVerificationStatus !== "VERIFIED" ||
+    Number(loan.bank_is_verified) !== 1
+  ) {
+    return res.status(400).json({
+      is_success: false,
+      error: {
+        message: "Bank verification is not completed",
+        code: "request_validation_error",
+      },
+    });
+  }
+}
       const breEngineResult = await runBRE(loan);
 
       if (
