@@ -1379,7 +1379,6 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
 
     const BLOCKED_UPDATE_STATUSES = [
       "APPROVED",
-      "BRE_APPROVED",
       "DISBURSE_INITIATED",
       "DISBURSED",
       "REJECTED",
