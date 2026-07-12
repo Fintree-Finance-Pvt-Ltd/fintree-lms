@@ -58,7 +58,9 @@ async function generateRapidMoneyRepaymentSchedule(
 
       Interest = Principal * Annual ROI * Tenure Days / 36500
     */
-    const interest = round2((principal * roi * days) / 36500);
+    // const interest = round2((principal * roi * days) / 36500);
+
+    const interest = Math.round((principal * roi * days) / 36500);   /// ROUND only 
 
     const emi = round2(principal + interest);
 
