@@ -429,6 +429,84 @@ function safeString(value, fallback = "") {
   return hasValue(value) ? String(value).trim() : fallback;
 }
 
+function getBackendRoot() {
+  return path.resolve(__dirname, "..");
+}
+
+function getUploadsDirectory() {
+  return path.resolve(getBackendRoot(), "uploads");
+}
+
+function sanitizeFileName(value) {
+  return safeString(value)
+    .replace(/[^A-Za-z0-9._-]/g, "_")
+    .replace(/_+/g, "_");
+}
+
+async function saveWelcomeLetterPdfToUploads({
+  lan,
+  utrNumber,
+  pdfBuffer,
+}) {
+  if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
+    throw createServiceError(
+      "Welcome letter PDF buffer is empty.",
+      "EMPTY_WELCOME_LETTER_PDF",
+    );
+  }
+
+  const backendRoot = getBackendRoot();
+  const uploadsDirectory = getUploadsDirectory();
+
+  await fs.promises.mkdir(uploadsDirectory, {
+    recursive: true,
+  });
+
+  const safeLan = sanitizeFileName(lan);
+  const safeUtr = sanitizeFileName(utrNumber);
+  const timestamp = Date.now();
+
+  const fileName =
+    `Fintree_Welcome_Letter_${safeLan}_${safeUtr}_${timestamp}.pdf`;
+
+  const absolutePath = path.join(uploadsDirectory, fileName);
+
+  await fs.promises.writeFile(absolutePath, pdfBuffer);
+
+  const savedBuffer = await fs.promises.readFile(absolutePath);
+
+  if (
+    !Buffer.isBuffer(savedBuffer) ||
+    savedBuffer.length === 0 ||
+    savedBuffer.subarray(0, 4).toString("utf8") !== "%PDF"
+  ) {
+    throw createServiceError(
+      "Welcome letter PDF was not saved correctly.",
+      "WELCOME_LETTER_SAVE_FAILED",
+    );
+  }
+
+  const relativePath = path
+    .relative(backendRoot, absolutePath)
+    .replace(/\\/g, "/");
+
+  console.log("[WELCOME_LETTER_PDF_SAVED_TO_UPLOADS]", {
+    lan: safeLan,
+    utrNumber: safeUtr,
+    fileName,
+    absolutePath,
+    relativePath,
+    sizeBytes: savedBuffer.length,
+  });
+
+  return {
+    fileName,
+    absolutePath,
+    relativePath,
+    sizeBytes: savedBuffer.length,
+  };
+}
+
 function createServiceError(message, code, extra = {}) {
   const error = new Error(message);
   error.code = code;
@@ -1773,14 +1851,22 @@ async function sendWelcomeLetterAfterUtrUpload({ lan, utrNumber }) {
       lan: route.lan,
     });
 
-    const pdfBuffer = await generateWelcomeLetterPdf({
-      completedHtml,
-      logoPath,
-      logoExists,
-      lan: route.lan,
-    });
+const pdfBuffer = await generateWelcomeLetterPdf({
+  completedHtml,
+  logoPath,
+  logoExists,
+  lan: route.lan,
+});
 
-    const loanAgreement = await getLoanAgreementDocument(route.lan);
+const savedWelcomeLetter = await saveWelcomeLetterPdfToUploads({
+  lan: route.lan,
+  utrNumber: normalizedUtrNumber,
+  pdfBuffer,
+});
+
+const loanAgreement = await getLoanAgreementDocument(route.lan);
+
+  
 
     console.log("[WELCOME_LETTER_ATTACHMENTS_READY]", {
       lan: route.lan,
@@ -1803,7 +1889,7 @@ async function sendWelcomeLetterAfterUtrUpload({ lan, utrNumber }) {
       subject,
     });
 
-    const pdfFileName = `Fintree_Welcome_Letter_${route.lan}.pdf`;
+    const pdfFileName = savedWelcomeLetter.fileName;
     console.log("[WELCOME_LETTER_EMAIL_SENDING]", {
       lan: route.lan,
       recipient: maskEmail(loanRecord.email_id),
@@ -1862,15 +1948,15 @@ async function sendWelcomeLetterAfterUtrUpload({ lan, utrNumber }) {
         /*
          * Generated welcome letter.
          */
-        {
-          filename: `Fintree_Welcome_Letter_${route.lan}.pdf`,
+{
+  filename: pdfFileName,
 
-          content: pdfBuffer,
+  content: pdfBuffer,
 
-          contentType: "application/pdf",
+  contentType: "application/pdf",
 
-          contentDisposition: "attachment",
-        },
+  contentDisposition: "attachment",
+},
 
         /*
          * Existing loan agreement fetched from
@@ -1894,74 +1980,55 @@ async function sendWelcomeLetterAfterUtrUpload({ lan, utrNumber }) {
       },
     });
 
-   const response = {
+const response = {
   success: true,
 
   message:
     "Welcome letter and loan agreement sent successfully.",
 
-  timestamp:
-    new Date().toISOString(),
+  timestamp: new Date().toISOString(),
 
-  lan:
-    route.lan,
+  lan: route.lan,
 
-  utrNumber:
-    normalizedUtrNumber,
+  utrNumber: normalizedUtrNumber,
 
-  recipient:
-    safeString(
-      loanRecord.email_id,
-    ),
+  recipient: safeString(loanRecord.email_id),
 
-  partnerPrefix:
-    route.prefix,
+  partnerPrefix: route.prefix,
 
-  partnerTable:
-    route.table,
+  partnerTable: route.table,
 
-  emailMessageId:
-    mailResult.messageId,
+  emailMessageId: mailResult.messageId,
 
   attachments: {
     welcomeLetter: {
-      fileName:
-        pdfFileName,
-      sizeBytes:
-        pdfBuffer.length,
+      fileName: pdfFileName,
+      filePath: savedWelcomeLetter.relativePath,
+      absolutePath: savedWelcomeLetter.absolutePath,
+      sizeBytes: savedWelcomeLetter.sizeBytes,
     },
 
     loanAgreement: {
-      documentId:
-        loanAgreement.documentId,
-      fileName:
-        loanAgreement.attachmentFileName,
-      sizeBytes:
-        loanAgreement.fileSizeBytes,
-      passwordProtected:
-        hasValue(
-          loanAgreement.docPassword,
-        ),
+      documentId: loanAgreement.documentId,
+      fileName: loanAgreement.attachmentFileName,
+      sizeBytes: loanAgreement.fileSizeBytes,
+      passwordProtected: hasValue(loanAgreement.docPassword),
     },
   },
 
-  accepted:
-    mailResult.accepted || [],
+  accepted: mailResult.accepted || [],
 
-  rejected:
-    mailResult.rejected || [],
+  rejected: mailResult.rejected || [],
 
-  executionTimeMs:
-    Date.now() - startedAt,
+  executionTimeMs: Date.now() - startedAt,
 };
 
-    console.log("[WELCOME_LETTER_SUCCESS]", {
-      ...response,
+console.log("[WELCOME_LETTER_SUCCESS]", {
+  ...response,
+  recipient: maskEmail(response.recipient),
+});
 
-      recipient: maskEmail(response.recipient),
-    });
-
-    return response;
+return response;
   } catch (error) {
     console.error("[WELCOME_LETTER_FAILED]", {
       timestamp: new Date().toISOString(),
