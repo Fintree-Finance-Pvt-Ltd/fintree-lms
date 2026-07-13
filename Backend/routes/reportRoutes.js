@@ -89,8 +89,9 @@ function resolveProcedure(rawReportId, rawLender) {
                               : lender === "helium" ? "sp_cashflow_report_helium"
                                 : lender === "finso" ? "sp_cashflow_report_fincrest"
                                   : lender === "motion corp" ? "sp_cashflow_report_motion_corp"
-                                    : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
-                                      : "sp_cashflow_report",
+                                    : lender === "RAPID-MONEY" ? "sp_cashflow_report_rapid_money"
+                                      : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
+                                        : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
 
@@ -131,6 +132,9 @@ function resolveProcedure(rawReportId, rawLender) {
                                   ? "sp_due_collection_all_report_circle_pe_houser"
                                   : lender === "finso"
                                     ? "sp_due_collection_all_report_fincrest"
+                                    
+                                  : lender === "rapid-money"
+                                    ? "sp_due_collection_all_report_rapid_money"
                                     : lender === "motion corp"
                                       ? "sp_due_collection_all_report_motion_corp"
                                       : "sp_due_collection_all_report",
@@ -170,6 +174,8 @@ function resolveProcedure(rawReportId, rawLender) {
                                 : lender === "motion corp" 
                                 ? "sp_consolidated_mis_report_motion_corp" 
                                 : lender === "finso" 
+                                ? "sp_consolidated_mis_report_rapid_money" 
+                                : lender === "RAPID-MONEY" 
                                 ? "sp_consolidated_mis_report_fincrest" 
                                 : "sp_consolidated_mis_report",
 
