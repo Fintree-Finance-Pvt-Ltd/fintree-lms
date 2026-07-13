@@ -122,7 +122,7 @@ function normalizeName(name) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-async function verifySmlBankInBackground({
+async function verifySmlBankAndStoreResult({
   partnerLoanId,
   applicationId,
   lan,
@@ -1988,14 +1988,12 @@ if (
           );
 
         const verificationAlreadyHandled =
-          sameBankDetails &&
-          sameCustomerName &&
-          [
-            "PENDING",
-            "VERIFIED",
-          ].includes(
-            row.bank_verification_status,
-          );
+  sameBankDetails &&
+  sameCustomerName &&
+  String(row.bank_verification_status || "")
+    .trim()
+    .toUpperCase() === "VERIFIED" &&
+  Number(row.bank_is_verified) === 1;
 
         if (
           !verificationAlreadyHandled
@@ -2095,23 +2093,34 @@ if (
     await connection.commit();
     transactionStarted = false;
 
+    connection.release();
+connection = null;
+
 
     /*
      * Normal bank verification runs after the data is committed.
      * The partner receives the normal response immediately.
      */
     if (bankVerificationJob) {
-      setImmediate(() => {
-        verifySmlBankInBackground(
-          bankVerificationJob,
-        ).catch((error) => {
-          console.error(
-            "Unhandled SML bank verification error:",
-            error,
-          );
-        });
-      });
-    }
+  try {
+    await verifySmlBankAndStoreResult(
+      bankVerificationJob,
+    );
+  } catch (verificationError) {
+    console.error(
+      "Unexpected bank verification error after details were saved:",
+      {
+        partnerLoanId: data.partner_loan_id,
+        message: verificationError.message,
+      },
+    );
+
+    /*
+     * Do not throw.
+     * Details have already been saved successfully.
+     */
+  }
+}
 
     return res.json({
       is_success: true,
