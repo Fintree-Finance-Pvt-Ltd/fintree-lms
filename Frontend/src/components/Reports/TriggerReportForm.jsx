@@ -510,6 +510,7 @@ const productOptions = [
   { label: "LOAN DIGIT", value: "LOAN-DIGIT" },
   { label: "Motion Corp", value: "Motion Corp" }, 
   { label: "Finso", value: "Finso" },
+  { label: "RAPID-MONEY", value: "RAPID-MONEY" },
   { label: "FFPL", value: "FFPL" },
   { label: "KITE", value: "KITE" },
   { label: "Muthoot", value: "Muthoot" }
