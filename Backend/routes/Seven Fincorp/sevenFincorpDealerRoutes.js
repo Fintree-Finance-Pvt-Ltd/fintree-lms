@@ -815,7 +815,6 @@ router.patch("/dealer/status/:lan", async (req, res) => {
 //         guarantor_state,
 //         guarantor_pincode,
 
-
 //         co_applicant_name,
 //         co_applicant_dob,
 //         co_applicant_email,
@@ -827,7 +826,6 @@ router.patch("/dealer/status/:lan", async (req, res) => {
 //         co_applicant_district,
 //         co_applicant_state,
 //         co_applicant_pincode,
-
 
 //         customer_name_as_per_bank,
 //         customer_bank_name,
@@ -1054,7 +1052,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
           borrower_mobile_verified,
           gps_charges
         )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           emptyToNull(data.lenderType),
           emptyToNull(data.lender),
@@ -1188,25 +1186,26 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
     }
 
     // SECTION 3: Guarantor
-    else if (section === 3) {
-      query = `
-        UPDATE loan_booking_seven_fincorp
-        SET
-          guarantor_name = ?,
-          guarantor_dob = ?,
-          guarantor_email = ?,
-          guarantor_pan = ?,
-          guarantor_mobile = ?,
-          relationship_with_borrower = ?,
-          guarantor_address_line_1 = ?,
-          guarantor_address_line_2 = ?,
-          guarantor_village_city = ?,
-          guarantor_district = ?,
-          guarantor_state = ?,
-          guarantor_pincode = ?,
-          guarantor_mobile_verified = ?
-        WHERE lan = ?
-      `;
+else if (section === 3) {
+  query = `
+    UPDATE loan_booking_seven_fincorp
+    SET
+      guarantor_name = COALESCE(?, guarantor_name),
+      guarantor_dob = COALESCE(?, guarantor_dob),
+      guarantor_email = COALESCE(?, guarantor_email),
+      guarantor_pan = COALESCE(?, guarantor_pan),
+      guarantor_mobile = COALESCE(?, guarantor_mobile),
+      relationship_with_borrower = COALESCE(?, relationship_with_borrower),
+      guarantor_address_line_1 = COALESCE(?, guarantor_address_line_1),
+      guarantor_address_line_2 = COALESCE(?, guarantor_address_line_2),
+      guarantor_village_city = COALESCE(?, guarantor_village_city),
+      guarantor_district = COALESCE(?, guarantor_district),
+      guarantor_state = COALESCE(?, guarantor_state),
+      guarantor_pincode = COALESCE(?, guarantor_pincode),
+      guarantor_mobile_verified = ?,
+      guarantor_driving_licence = COALESCE(?, guarantor_driving_licence)
+    WHERE lan = ?
+  `;
 
       values = [
         emptyToNull(data.GUARANTOR),
@@ -1223,7 +1222,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
         emptyToNull(data.GUARANTOR_Pincode), // ← swapped
         data.guarantor_mobile_verified || 0, // ← swapped
         emptyToNull(data.GUARANTOR_Driving_Licence), // ← swapped
-        lan,
+        existingLan,
       ];
     }
 
@@ -1243,7 +1242,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
           co_applicant_district = ?,
           co_applicant_state = ?,
           co_applicant_pincode = ?,
-          co_applicant_mobile_verified = ?
+          co_applicant_mobile_verified = ?,
+          co_applicant_driving_licence = ?
         WHERE lan = ?
       `;
 
@@ -1260,6 +1260,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
         emptyToNull(data.Co_Applicant_State),
         emptyToNull(data.Co_Applicant_Pincode),
         data.co_applicant_mobile_verified || 0,
+        emptyToNull(data.Co_Applicant_Driving_Licence),
         existingLan,
       ];
     }
@@ -1272,7 +1273,8 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
           customer_name_as_per_bank = ?,
           customer_bank_name = ?,
           customer_account_number = ?,
-          bank_ifsc_code = ?
+          bank_ifsc_code = ?,
+          branch_address = ?
         WHERE lan = ?
       `;
 
@@ -1281,6 +1283,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
         emptyToNull(data.customer_bank_name),
         emptyToNull(data.customer_account_number),
         emptyToNull(data.bank_ifsc_code),
+        emptyToNull(data.branch_address),
         existingLan,
       ];
     }
@@ -2118,9 +2121,9 @@ router.post("/save-applicant-details", async (req, res) => {
       });
     }
 
-if (applicantType === "GUARANTOR") {
-  const [result] = await db.promise().query(
-    `
+    if (applicantType === "GUARANTOR") {
+      const [result] = await db.promise().query(
+        `
     UPDATE loan_booking_seven_fincorp
     SET
       guarantor_name = ?,
@@ -2139,29 +2142,31 @@ if (applicantType === "GUARANTOR") {
       guarantor_driving_licence = ?
     WHERE lan = ?
     `,
-    [
-      emptyToNull(data.GUARANTOR),
-      emptyToNull(data.GUARANTOR_DOB),
-      emptyToNull(data.GUARANTOR_EMAIL),
-      emptyToNull(data.GUARANTOR_PAN),
-      emptyToNull(data.GUARANTOR_MOBILE),
-      emptyToNull(data.Relationship_with_Borrower),
-      emptyToNull(data.GUARANTOR_Address_Line_1),
-      emptyToNull(data.GUARANTOR_Address_Line_2),
-      emptyToNull(data.GUARANTOR_Village),
-      emptyToNull(data.GUARANTOR_District),
-      emptyToNull(data.GUARANTOR_State),
-      emptyToNull(data.GUARANTOR_Pincode),          // was 14th → now 12th
-      data.guarantor_mobile_verified || 0,          // was 15th → now 13th
-      emptyToNull(data.GUARANTOR_Driving_Licence),  // was 12th → now 14th
-      lan,
-    ],
-  );
+        [
+          emptyToNull(data.GUARANTOR),
+          emptyToNull(data.GUARANTOR_DOB),
+          emptyToNull(data.GUARANTOR_EMAIL),
+          emptyToNull(data.GUARANTOR_PAN),
+          emptyToNull(data.GUARANTOR_MOBILE),
+          emptyToNull(data.Relationship_with_Borrower),
+          emptyToNull(data.GUARANTOR_Address_Line_1),
+          emptyToNull(data.GUARANTOR_Address_Line_2),
+          emptyToNull(data.GUARANTOR_Village),
+          emptyToNull(data.GUARANTOR_District),
+          emptyToNull(data.GUARANTOR_State),
+          emptyToNull(data.GUARANTOR_Pincode), // was 14th → now 12th
+          data.guarantor_mobile_verified || 0, // was 15th → now 13th
+          emptyToNull(data.GUARANTOR_Driving_Licence), // was 12th → now 14th
+          lan,
+        ],
+      );
 
-  if (result.affectedRows === 0) {
-    return res.status(404).json({ success: false, message: "LAN not found" });
-  }
-}
+      if (result.affectedRows === 0) {
+        return res
+          .status(404)
+          .json({ success: false, message: "LAN not found" });
+      }
+    }
 
     if (applicantType === "CO_APPLICANT") {
       await db.promise().query(

@@ -2229,7 +2229,7 @@ for processing and servicing this loan application.
               {renderInput(
                 "Guarantor Mobile",
                 "GUARANTOR_MOBILE",
-                "number",
+                "text",
                 otpVerified.guarantor,
               )}
 
