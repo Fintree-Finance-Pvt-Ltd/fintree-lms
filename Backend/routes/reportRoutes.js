@@ -89,7 +89,7 @@ function resolveProcedure(rawReportId, rawLender) {
                               : lender === "helium" ? "sp_cashflow_report_helium"
                                 : lender === "finso" ? "sp_cashflow_report_fincrest"
                                   : lender === "motion corp" ? "sp_cashflow_report_motion_corp"
-                                    : lender === "RAPID-MONEY" ? "sp_cashflow_report_rapid_money"
+                                    : lender === "rapid-money" ? "sp_cashflow_report_rapid_money"
                                       : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
                                         : "sp_cashflow_report",
 
@@ -173,9 +173,9 @@ function resolveProcedure(rawReportId, rawLender) {
                                 ? "sp_consolidated_mis_report_circlepe_houser"
                                 : lender === "motion corp" 
                                 ? "sp_consolidated_mis_report_motion_corp" 
-                                : lender === "finso" 
+                                : lender === "rapid-money" 
                                 ? "sp_consolidated_mis_report_rapid_money" 
-                                : lender === "RAPID-MONEY" 
+                                : lender === "finso" 
                                 ? "sp_consolidated_mis_report_fincrest" 
                                 : "sp_consolidated_mis_report",
 
