@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import DataTable from "../ui/DataTable";
 
 const SevenFinCorpDealerLoginActions = () => {
-
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -17,7 +16,6 @@ const SevenFinCorpDealerLoginActions = () => {
   ==========================
   */
   useEffect(() => {
-
     let off = false;
 
     api
@@ -33,7 +31,6 @@ const SevenFinCorpDealerLoginActions = () => {
       });
 
     return () => (off = true);
-
   }, []);
 
   if (loading) return <p>Loading…</p>;
@@ -46,7 +43,6 @@ const SevenFinCorpDealerLoginActions = () => {
   */
   const handleStatusChange = async (lan, status) => {
     try {
-
       await api.patch(`/seven-fincorp/dealer/status/${lan}`, {
         status: status.toUpperCase(),
       });
@@ -54,10 +50,9 @@ const SevenFinCorpDealerLoginActions = () => {
       // update UI instantly
       setRows((prev) =>
         prev.map((row) =>
-          row.lan === lan ? { ...row, status: status.toUpperCase() } : row
-        )
+          row.lan === lan ? { ...row, status: status.toUpperCase() } : row,
+        ),
       );
-
     } catch (err) {
       console.error(err);
       alert("Failed to update status");
@@ -104,7 +99,6 @@ const SevenFinCorpDealerLoginActions = () => {
   ==========================
   */
   const columns = [
-
     {
       key: "business_name",
       header: "Dealer Name",
@@ -159,11 +153,7 @@ const SevenFinCorpDealerLoginActions = () => {
     {
       key: "status",
       header: "Status",
-      render: (r) => (
-        <span style={statusPillStyle(r.status)}>
-          {r.status}
-        </span>
-      ),
+      render: (r) => <span style={statusPillStyle(r.status)}>{r.status}</span>,
       width: 120,
     },
 
@@ -171,9 +161,7 @@ const SevenFinCorpDealerLoginActions = () => {
       key: "created_at",
       header: "Created At",
       render: (r) =>
-        r.created_at
-          ? new Date(r.created_at).toLocaleDateString()
-          : "—",
+        r.created_at ? new Date(r.created_at).toLocaleDateString() : "—",
       width: 140,
     },
 
@@ -221,8 +209,7 @@ const SevenFinCorpDealerLoginActions = () => {
         </div>
       ),
       width: 210,
-    }
-
+    },
   ];
 
   /*
