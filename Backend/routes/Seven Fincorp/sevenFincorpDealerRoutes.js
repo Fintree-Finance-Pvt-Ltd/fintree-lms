@@ -581,365 +581,24 @@ router.patch("/dealer/status/:lan", async (req, res) => {
   }
 });
 
-router.post("/upload/ev-customer-manual", async (req, res) => {
-  const connection = await db.promise().getConnection();
-
-  try {
-    const data = req.body;
-    console.log("Received loan booking data:", data);
-
-    const [borrowerOtp] = await connection.query(
-      `
-  SELECT *
-  FROM otp_consent_model
-  WHERE mobile_number = ?
-  AND applicant_type = ?
-  AND verified = 1
-  AND is_used = 0
-  ORDER BY id DESC
-  LIMIT 1
-  `,
-      [data.Mobile_Number, "BORROWER"],
-    );
-
-    if (!borrowerOtp.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Borrower mobile not verified",
-      });
-    }
-
-    const [guarantorOtp] = await connection.query(
-      `     SELECT *
-    FROM otp_consent_model
-    WHERE mobile_number = ?
-    AND applicant_type = 'GUARANTOR'
-    AND verified = 1
-    AND is_used = 0
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-      [data.GURANTOR_MOBILE],
-    );
-
-    if (!guarantorOtp.length) {
-      return res.status(400).json({
-        success: false,
-        message: "Guarantor mobile not verified",
-      });
-    }
-
-    if (data.Co_Applicant) {
-      const [coApplicantOtp] = await connection.query(
-        `       SELECT *
-      FROM otp_consent_model
-      WHERE mobile_number = ?
-      AND applicant_type =
-      'CO_APPLICANT'
-      AND verified = 1
-      AND is_used = 0
-      ORDER BY id DESC
-      LIMIT 1
-      `,
-        [data.Co_Applicant_Mobile],
-      );
-
-      if (!coApplicantOtp.length) {
-        return res.status(400).json({
-          success: false,
-          message: "Co-applicant mobile not verified",
-        });
-      }
-    }
-
-    const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
-      "SEVEN_FINCORP_CUSTOMER",
-    );
-
-    await connection.beginTransaction();
-
-    const values = [
-      emptyToNull(data.lenderType),
-      emptyToNull(data.lender),
-      emptyToNull(data.product),
-      emptyToNull(data.status),
-      cust_partner_loan_id,
-      cust_lan,
-
-      emptyToNull(data.LOGIN_DATE),
-      emptyToNull(data.First_Name),
-      emptyToNull(data.Last_Name),
-      emptyToNull(data.Customer_Name),
-      emptyToNull(data.Borrower_DOB),
-      emptyToNull(data.Father_Name),
-      emptyToNull(data.Mobile_Number),
-      emptyToNull(data.Email),
-      emptyToNull(data.Pan_Card),
-      emptyToNull(data.Gender),
-
-      emptyToNull(data.Address_Line_1),
-      emptyToNull(data.Address_Line_2),
-      emptyToNull(data.Village),
-      emptyToNull(data.District),
-      emptyToNull(data.State),
-      emptyToNull(data.Pincode),
-
-      numberOrNull(data.Loan_Amount),
-      numberOrNull(data.Interest_Rate),
-      numberOrNull(data.Tenure),
-      numberOrNull(data.Disbursal_Amount),
-      numberOrNull(data.Processing_Fee),
-      numberOrNull(data.Processing_Fee_Percentage),
-
-      emptyToNull(data.GURANTOR),
-      emptyToNull(data.GURANTOR_DOB),
-      emptyToNull(data.GURANTOR_EMAIL),
-      emptyToNull(data.GURANTOR_PAN),
-      emptyToNull(data.GURANTOR_MOBILE),
-      emptyToNull(data.Relationship_with_Borrower),
-      emptyToNull(data.GURANTOR_Address_Line_1),
-      emptyToNull(data.GURANTOR_Address_Line_2),
-      emptyToNull(data.GURANTOR_Village),
-      emptyToNull(data.GURANTOR_District),
-      emptyToNull(data.GURANTOR_State),
-      emptyToNull(data.GURANTOR_Pincode),
-
-      emptyToNull(data.Co_Applicant),
-      emptyToNull(data.Co_Applicant_DOB),
-      emptyToNull(data.Co_Applicant_Email),
-      emptyToNull(data.Co_Applicant_PAN),
-      emptyToNull(data.Co_Applicant_Mobile),
-      emptyToNull(data.Co_Applicant_Address_Line_1),
-      emptyToNull(data.Co_Applicant_Address_Line_2),
-      emptyToNull(data.Co_Applicant_Village),
-      emptyToNull(data.Co_Applicant_District),
-      emptyToNull(data.Co_Applicant_State),
-      emptyToNull(data.Co_Applicant_Pincode),
-
-      emptyToNull(data.customer_name_as_per_bank),
-      emptyToNull(data.customer_bank_name),
-      emptyToNull(data.customer_account_number),
-      emptyToNull(data.bank_ifsc_code),
-
-      emptyToNull(data.selected_dealer_application_id),
-      emptyToNull(data.dealer_id),
-      emptyToNull(data.trade_name),
-      emptyToNull(data.dealer_name),
-      emptyToNull(data.dealer_contact),
-      emptyToNull(data.dealer_email),
-      emptyToNull(data.gst_no),
-      emptyToNull(data.pan_number),
-      emptyToNull(data.dealer_address),
-      emptyToNull(data.dealer_city),
-      emptyToNull(data.dealer_state),
-      emptyToNull(data.dealer_pincode),
-
-      emptyToNull(data.bank_name),
-      emptyToNull(data.account_number),
-      emptyToNull(data.ifsc),
-      emptyToNull(data.name_in_bank),
-
-      numberOrNull(data.selected_product_id),
-      emptyToNull(data.Battery_Name),
-      emptyToNull(data.Battery_Type),
-      emptyToNull(data.Battery_Serial_no_1),
-      emptyToNull(data.Battery_Serial_no_2),
-      emptyToNull(data.E_Rikshaw_model),
-      emptyToNull(data.Chassis_no),
-      // Add after emptyToNull(data.Chassis_no):
-      emptyToNull(data.Driving_License),
-      numberOrNull(data.GPS_Charges),
-      emptyToNull(data.GURANTOR_Driving_Licence),
-      emptyToNull(data.Co_Applicant_Driving_Licence),
-      emptyToNull(data.branch_address),
-      numberOrNull(data.insurance_cost),
-      emptyToNull(data.insurance_company_provider),
-      emptyToNull(data.insurance_policy_number),
-      emptyToNull(data.policy_issued_date),
-      emptyToNull(data.period_of_insurance),
-      numberOrNull(data.cost_of_vehicle),
-      numberOrNull(data.manufacturing_year),
-      numberOrNull(data.downpayment_paid_by_borrower),
-      numberOrNull(data.vehicle_registration_cost),
-      emptyToNull(data.sales_invoice_number),
-      emptyToNull(data.sales_invoice_date),
-      data.borrower_mobile_verified || 0,
-      data.guarantor_mobile_verified || 0,
-      data.co_applicant_mobile_verified || 0,
-    ];
-
-    const insertQuery = `
-      INSERT INTO loan_booking_seven_fincorp (
-        lender_type,
-        lender,
-        product,
-        status,
-        partner_loan_id,
-        lan,
-
-        login_date,
-        first_name,
-        last_name,
-        customer_name,
-        dob,
-        father_name,
-        mobile_number,
-        email,
-        pan_card,
-        gender,
-
-        permanent_address_line_1,
-        permanent_address_line_2,
-        permanent_village_city,
-        permanent_district,
-        permanent_state,
-        permanent_pincode,
-
-        loan_amount,
-        interest_rate,
-        loan_tenure,
-        disbursal_amount,
-        processing_fee,
-        processing_fee_percentage,
-
-        guarantor_name,
-        guarantor_dob,
-        guarantor_email,
-        guarantor_pan,
-        guarantor_mobile,
-        relationship_with_borrower,
-        guarantor_address_line_1,
-        guarantor_address_line_2,
-        guarantor_village_city,
-        guarantor_district,
-        guarantor_state,
-        guarantor_pincode,
-
-
-        co_applicant_name,
-        co_applicant_dob,
-        co_applicant_email,
-        co_applicant_pan,
-        co_applicant_mobile,
-        co_applicant_address_line_1,
-        co_applicant_address_line_2,
-        co_applicant_village_city,
-        co_applicant_district,
-        co_applicant_state,
-        co_applicant_pincode,
-
-
-        customer_name_as_per_bank,
-        customer_bank_name,
-        customer_account_number,
-        bank_ifsc_code,
-
-        selected_dealer_application_id,
-        dealer_id,
-        trade_name,
-        dealer_name,
-        dealer_contact,
-        dealer_email,
-        gst_no,
-        pan_number,
-        dealer_address,
-        dealer_city,
-        dealer_state,
-        dealer_pincode,
-
-        dealer_bank_name,
-        dealer_account_number,
-        dealer_ifsc,
-        dealer_name_in_bank,
-
-        selected_product_id,
-        battery_name,
-        battery_type,
-        battery_serial_no_1,
-        battery_serial_no_2,
-        e_rikshaw_model,
-        chassis_no,
-        borrower_mobile_verified,
-        guarantor_mobile_verified,
-        co_applicant_mobile_verified
-      )
-      VALUES (${values.map(() => "?").join(", ")})
-    `;
-
-    await connection.query(insertQuery, values);
-
-    await connection.query(
-      `   UPDATE otp_consent_model
-  SET is_used = 1
-  WHERE mobile_number = ?
-  AND applicant_type = ?
-  `,
-      [data.Mobile_Number, "BORROWER"],
-    );
-
-    await connection.query(
-      `   UPDATE otp_consent_model
-  SET is_used = 1
-  WHERE mobile_number = ?
-  AND applicant_type = ?
-  `,
-      [data.GURANTOR_MOBILE, "GUARANTOR"],
-    );
-
-    if (data.Co_Applicant) {
-      await connection.query(
-        `     UPDATE otp_consent_model
-    SET is_used = 1
-    WHERE mobile_number = ?
-    AND applicant_type =
-    'CO_APPLICANT'
-    `,
-        [data.Co_Applicant_Mobile],
-      );
-    }
-
-    await connection.commit();
-
-    universalRunAllValidations(cust_lan);
-
-    return res.status(201).json({
-      success: true,
-      message: "Seven Fincorp loan booking saved successfully",
-      partner_loan_id: cust_partner_loan_id,
-      lan: cust_lan,
-    });
-  } catch (error) {
-    await connection.rollback();
-
-    console.error("Seven Fincorp loan booking save error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to save Seven Fincorp loan booking",
-      error: error.message,
-    });
-  } finally {
-    connection.release();
-  }
-});
-
-// router.post("/save-borrower-first-section", async (req, res) => {
+// router.post("/upload/ev-customer-manual", async (req, res) => {
 //   const connection = await db.promise().getConnection();
 
 //   try {
 //     const data = req.body;
+//     console.log("Received loan booking data:", data);
 
 //     const [borrowerOtp] = await connection.query(
 //       `
-//       SELECT *
-//       FROM otp_consent_model
-//       WHERE mobile_number = ?
-//       AND applicant_type = ?
-//       AND verified = 1
-//       AND is_used = 0
-//       ORDER BY id DESC
-//       LIMIT 1
-//       `,
+//   SELECT *
+//   FROM otp_consent_model
+//   WHERE mobile_number = ?
+//   AND applicant_type = ?
+//   AND verified = 1
+//   AND is_used = 0
+//   ORDER BY id DESC
+//   LIMIT 1
+//   `,
 //       [data.Mobile_Number, "BORROWER"],
 //     );
 
@@ -950,22 +609,174 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
 //       });
 //     }
 
+//     const [guarantorOtp] = await connection.query(
+//       `     SELECT *
+//     FROM otp_consent_model
+//     WHERE mobile_number = ?
+//     AND applicant_type = 'GUARANTOR'
+//     AND verified = 1
+//     AND is_used = 0
+//     ORDER BY id DESC
+//     LIMIT 1
+//     `,
+//       [data.GUARANTOR_MOBILE],
+//     );
+
+//     if (!guarantorOtp.length) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Guarantor mobile not verified",
+//       });
+//     }
+
+//     if (data.Co_Applicant) {
+//       const [coApplicantOtp] = await connection.query(
+//         `SELECT *
+//       FROM otp_consent_model
+//       WHERE mobile_number = ?
+//       AND applicant_type =
+//       'CO_APPLICANT'
+//       AND verified = 1
+//       AND is_used = 0
+//       ORDER BY id DESC
+//       LIMIT 1
+//       `,
+//         [data.Co_Applicant_Mobile],
+//       );
+
+//       if (!coApplicantOtp.length) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Co-applicant mobile not verified",
+//         });
+//       }
+//     }
+
 //     const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
 //       "SEVEN_FINCORP_CUSTOMER",
 //     );
 
 //     await connection.beginTransaction();
 
-//     await connection.query(
-//       `
+//     const values = [
+//       emptyToNull(data.lenderType),
+//       emptyToNull(data.lender),
+//       emptyToNull(data.product),
+//       emptyToNull(data.status),
+//       cust_partner_loan_id,
+//       cust_lan,
+
+//       emptyToNull(data.LOGIN_DATE),
+//       emptyToNull(data.First_Name),
+//       emptyToNull(data.Last_Name),
+//       emptyToNull(data.Customer_Name),
+//       emptyToNull(data.Borrower_DOB),
+//       emptyToNull(data.Father_Name),
+//       emptyToNull(data.Mobile_Number),
+//       emptyToNull(data.Email),
+//       emptyToNull(data.Pan_Card),
+//       emptyToNull(data.Gender),
+
+//       emptyToNull(data.Address_Line_1),
+//       emptyToNull(data.Address_Line_2),
+//       emptyToNull(data.Village),
+//       emptyToNull(data.District),
+//       emptyToNull(data.State),
+//       emptyToNull(data.Pincode),
+
+//       numberOrNull(data.Loan_Amount),
+//       numberOrNull(data.Interest_Rate),
+//       numberOrNull(data.Tenure),
+//       numberOrNull(data.Disbursal_Amount),
+//       numberOrNull(data.Processing_Fee),
+//       numberOrNull(data.Processing_Fee_Percentage),
+
+//       emptyToNull(data.GUARANTOR),
+//       emptyToNull(data.GUARANTOR_DOB),
+//       emptyToNull(data.GUARANTOR_EMAIL),
+//       emptyToNull(data.GUARANTOR_PAN),
+//       emptyToNull(data.GUARANTOR_MOBILE),
+//       emptyToNull(data.Relationship_with_Borrower),
+//       emptyToNull(data.GUARANTOR_Address_Line_1),
+//       emptyToNull(data.GUARANTOR_Address_Line_2),
+//       emptyToNull(data.GUARANTOR_Village),
+//       emptyToNull(data.GUARANTOR_District),
+//       emptyToNull(data.GUARANTOR_State),
+//       emptyToNull(data.GUARANTOR_Pincode),
+
+//       emptyToNull(data.Co_Applicant),
+//       emptyToNull(data.Co_Applicant_DOB),
+//       emptyToNull(data.Co_Applicant_Email),
+//       emptyToNull(data.Co_Applicant_PAN),
+//       emptyToNull(data.Co_Applicant_Mobile),
+//       emptyToNull(data.Co_Applicant_Address_Line_1),
+//       emptyToNull(data.Co_Applicant_Address_Line_2),
+//       emptyToNull(data.Co_Applicant_Village),
+//       emptyToNull(data.Co_Applicant_District),
+//       emptyToNull(data.Co_Applicant_State),
+//       emptyToNull(data.Co_Applicant_Pincode),
+
+//       emptyToNull(data.customer_name_as_per_bank),
+//       emptyToNull(data.customer_bank_name),
+//       emptyToNull(data.customer_account_number),
+//       emptyToNull(data.bank_ifsc_code),
+
+//       emptyToNull(data.selected_dealer_application_id),
+//       emptyToNull(data.dealer_id),
+//       emptyToNull(data.trade_name),
+//       emptyToNull(data.dealer_name),
+//       emptyToNull(data.dealer_contact),
+//       emptyToNull(data.dealer_email),
+//       emptyToNull(data.gst_no),
+//       emptyToNull(data.pan_number),
+//       emptyToNull(data.dealer_address),
+//       emptyToNull(data.dealer_city),
+//       emptyToNull(data.dealer_state),
+//       emptyToNull(data.dealer_pincode),
+
+//       emptyToNull(data.bank_name),
+//       emptyToNull(data.account_number),
+//       emptyToNull(data.ifsc),
+//       emptyToNull(data.name_in_bank),
+
+//       numberOrNull(data.selected_product_id),
+//       emptyToNull(data.Battery_Name),
+//       emptyToNull(data.Battery_Type),
+//       emptyToNull(data.Battery_Serial_no_1),
+//       emptyToNull(data.Battery_Serial_no_2),
+//       emptyToNull(data.E_Rikshaw_model),
+//       emptyToNull(data.Chassis_no),
+//       // Add after emptyToNull(data.Chassis_no):
+//       emptyToNull(data.Driving_License),
+//       numberOrNull(data.GPS_Charges),
+//       emptyToNull(data.GUARANTOR_Driving_Licence),
+//       emptyToNull(data.Co_Applicant_Driving_Licence),
+//       emptyToNull(data.branch_address),
+//       numberOrNull(data.insurance_cost),
+//       emptyToNull(data.insurance_company_provider),
+//       emptyToNull(data.insurance_policy_number),
+//       emptyToNull(data.policy_issued_date),
+//       emptyToNull(data.period_of_insurance),
+//       numberOrNull(data.cost_of_vehicle),
+//       numberOrNull(data.manufacturing_year),
+//       numberOrNull(data.downpayment_paid_by_borrower),
+//       numberOrNull(data.vehicle_registration_cost),
+//       emptyToNull(data.sales_invoice_number),
+//       emptyToNull(data.sales_invoice_date),
+//       data.borrower_mobile_verified || 0,
+//       data.guarantor_mobile_verified || 0,
+//       data.co_applicant_mobile_verified || 0,
+//     ];
+
+//     const insertQuery = `
 //       INSERT INTO loan_booking_seven_fincorp (
 //         lender_type,
 //         lender,
 //         product,
 //         status,
-//         stage,
 //         partner_loan_id,
 //         lan,
+
 //         login_date,
 //         first_name,
 //         last_name,
@@ -976,75 +787,135 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
 //         email,
 //         pan_card,
 //         gender,
-//         borrower_mobile_verified
+
+//         permanent_address_line_1,
+//         permanent_address_line_2,
+//         permanent_village_city,
+//         permanent_district,
+//         permanent_state,
+//         permanent_pincode,
+
+//         loan_amount,
+//         interest_rate,
+//         loan_tenure,
+//         disbursal_amount,
+//         processing_fee,
+//         processing_fee_percentage,
+
+//         guarantor_name,
+//         guarantor_dob,
+//         guarantor_email,
+//         guarantor_pan,
+//         guarantor_mobile,
+//         relationship_with_borrower,
+//         guarantor_address_line_1,
+//         guarantor_address_line_2,
+//         guarantor_village_city,
+//         guarantor_district,
+//         guarantor_state,
+//         guarantor_pincode,
+
+
+//         co_applicant_name,
+//         co_applicant_dob,
+//         co_applicant_email,
+//         co_applicant_pan,
+//         co_applicant_mobile,
+//         co_applicant_address_line_1,
+//         co_applicant_address_line_2,
+//         co_applicant_village_city,
+//         co_applicant_district,
+//         co_applicant_state,
+//         co_applicant_pincode,
+
+
+//         customer_name_as_per_bank,
+//         customer_bank_name,
+//         customer_account_number,
+//         bank_ifsc_code,
+
+//         selected_dealer_application_id,
+//         dealer_id,
+//         trade_name,
+//         dealer_name,
+//         dealer_contact,
+//         dealer_email,
+//         gst_no,
+//         pan_number,
+//         dealer_address,
+//         dealer_city,
+//         dealer_state,
+//         dealer_pincode,
+
+//         dealer_bank_name,
+//         dealer_account_number,
+//         dealer_ifsc,
+//         dealer_name_in_bank,
+
+//         selected_product_id,
+//         battery_name,
+//         battery_type,
+//         battery_serial_no_1,
+//         battery_serial_no_2,
+//         e_rikshaw_model,
+//         chassis_no,
+//         borrower_mobile_verified,
+//         guarantor_mobile_verified,
+//         co_applicant_mobile_verified
 //       )
-//       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-//       `,
-//       [
-//         emptyToNull(data.lenderType),
-//         emptyToNull(data.lender),
-//         emptyToNull(data.product),
-//         "Login",
-//         "Login",
-//         cust_partner_loan_id,
-//         cust_lan,
-//         emptyToNull(data.LOGIN_DATE),
-//         emptyToNull(data.First_Name),
-//         emptyToNull(data.Last_Name),
-//         emptyToNull(data.Customer_Name),
-//         emptyToNull(data.Borrower_DOB),
-//         emptyToNull(data.Father_Name),
-//         emptyToNull(data.Mobile_Number),
-//         emptyToNull(data.Email),
-//         emptyToNull(data.Pan_Card),
-//         emptyToNull(data.Gender),
-//         data.borrower_mobile_verified || 1,
-//       ],
+//       VALUES (${values.map(() => "?").join(", ")})
+//     `;
+
+//     await connection.query(insertQuery, values);
+
+//     await connection.query(
+//       `   UPDATE otp_consent_model
+//   SET is_used = 1
+//   WHERE mobile_number = ?
+//   AND applicant_type = ?
+//   `,
+//       [data.Mobile_Number, "BORROWER"],
 //     );
 
 //     await connection.query(
-//       `
-//       UPDATE otp_consent_model
-//       SET is_used = 1
-//       WHERE id = ?
-//       `,
-//       [borrowerOtp[0].id],
+//       `   UPDATE otp_consent_model
+//   SET is_used = 1
+//   WHERE mobile_number = ?
+//   AND applicant_type = ?
+//   `,
+//       [data.GUARANTOR_MOBILE, "GUARANTOR"],
 //     );
 
-//     await connection.query(
-//       `
-//       INSERT IGNORE INTO kyc_verification_status (
-//         lan,
-//         applicant_type,
-//         applicant_name,
-//         mobile_number,
-//         pan_number
-//       )
-//       VALUES (?, ?, ?, ?, ?)
-//       `,
-//       [
-//         cust_lan,
-//         "BORROWER",
-//         data.Customer_Name,
-//         data.Mobile_Number,
-//         data.Pan_Card,
-//       ],
-//     );
+//     if (data.Co_Applicant) {
+//       await connection.query(
+//         `     UPDATE otp_consent_model
+//     SET is_used = 1
+//     WHERE mobile_number = ?
+//     AND applicant_type =
+//     'CO_APPLICANT'
+//     `,
+//         [data.Co_Applicant_Mobile],
+//       );
+//     }
 
 //     await connection.commit();
+
+//     universalRunAllValidations(cust_lan);
 
 //     return res.status(201).json({
 //       success: true,
-//       message: "Borrower saved and LAN generated",
-//       lan: cust_lan,
+//       message: "Seven Fincorp loan booking saved successfully",
 //       partner_loan_id: cust_partner_loan_id,
+//       lan: cust_lan,
 //     });
 //   } catch (error) {
 //     await connection.rollback();
 
+//     console.error("Seven Fincorp loan booking save error:", error);
+
 //     return res.status(500).json({
 //       success: false,
-//       message: "Failed to save borrower section",
+//       message: "Failed to save Seven Fincorp loan booking",
 //       error: error.message,
 //     });
 //   } finally {
@@ -1052,204 +923,6 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
 //   }
 // });
 
-// router.post("/final-submit-ev-customer-manual", async (req, res) => {
-//   const connection = await db.promise().getConnection();
-
-//   try {
-//     const data = req.body;
-
-//     if (!data.lan) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "LAN required. Please save borrower first.",
-//       });
-//     }
-
-//     await connection.beginTransaction();
-
-//     await connection.query(
-//       `
-//       UPDATE loan_booking_seven_fincorp
-//       SET
-//         permanent_address_line_1 = ?,
-//         permanent_address_line_2 = ?,
-//         permanent_village_city = ?,
-//         permanent_district = ?,
-//         permanent_state = ?,
-//         permanent_pincode = ?,
-
-//         requested_loan_amount = ?,
-//         interest_rate = ?,
-//         loan_tenure = ?,
-//         disbursal_amount = ?,
-//         processing_fee = ?,
-//         processing_fee_percentage = ?,
-
-//         guarantor_name = ?,
-//         guarantor_dob = ?,
-//         guarantor_email = ?,
-//         guarantor_pan = ?,
-//         guarantor_mobile = ?,
-//         relationship_with_borrower = ?,
-//         guarantor_address_line_1 = ?,
-//         guarantor_address_line_2 = ?,
-//         guarantor_village_city = ?,
-//         guarantor_district = ?,
-//         guarantor_state = ?,
-//         guarantor_pincode = ?,
-
-//         co_applicant_name = ?,
-//         co_applicant_dob = ?,
-//         co_applicant_email = ?,
-//         co_applicant_pan = ?,
-//         co_applicant_mobile = ?,
-//         co_applicant_address_line_1 = ?,
-//         co_applicant_address_line_2 = ?,
-//         co_applicant_village_city = ?,
-//         co_applicant_district = ?,
-//         co_applicant_state = ?,
-//         co_applicant_pincode = ?,
-
-//         customer_name_as_per_bank = ?,
-//         customer_bank_name = ?,
-//         customer_account_number = ?,
-//         bank_ifsc_code = ?,
-
-//         selected_dealer_application_id = ?,
-//         dealer_id = ?,
-//         trade_name = ?,
-//         dealer_name = ?,
-//         dealer_contact = ?,
-//         dealer_email = ?,
-//         gst_no = ?,
-//         pan_number = ?,
-//         dealer_address = ?,
-//         dealer_city = ?,
-//         dealer_state = ?,
-//         dealer_pincode = ?,
-
-//         dealer_bank_name = ?,
-//         dealer_account_number = ?,
-//         dealer_ifsc = ?,
-//         dealer_name_in_bank = ?,
-
-//         selected_product_id = ?,
-//         battery_name = ?,
-//         battery_type = ?,
-//         battery_serial_no_1 = ?,
-//         battery_serial_no_2 = ?,
-//         e_rikshaw_model = ?,
-//         chassis_no = ?,
-
-//         borrower_mobile_verified = ?,
-//         guarantor_mobile_verified = ?,
-//         co_applicant_mobile_verified = ?
-//       WHERE lan = ?
-//       `,
-//       [
-//         emptyToNull(data.Address_Line_1),
-//         emptyToNull(data.Address_Line_2),
-//         emptyToNull(data.Village),
-//         emptyToNull(data.District),
-//         emptyToNull(data.State),
-//         emptyToNull(data.Pincode),
-
-//         numberOrNull(data.Loan_Amount),
-//         numberOrNull(data.Interest_Rate),
-//         numberOrNull(data.Tenure),
-//         numberOrNull(data.Disbursal_Amount),
-//         numberOrNull(data.Processing_Fee),
-//         numberOrNull(data.Processing_Fee_Percentage),
-
-//         emptyToNull(data.GURANTOR),
-//         emptyToNull(data.GURANTOR_DOB),
-//         emptyToNull(data.GURANTOR_EMAIL),
-//         emptyToNull(data.GURANTOR_PAN),
-//         emptyToNull(data.GURANTOR_MOBILE),
-//         emptyToNull(data.Relationship_with_Borrower),
-//         emptyToNull(data.GURANTOR_Address_Line_1),
-//         emptyToNull(data.GURANTOR_Address_Line_2),
-//         emptyToNull(data.GURANTOR_Village),
-//         emptyToNull(data.GURANTOR_District),
-//         emptyToNull(data.GURANTOR_State),
-//         emptyToNull(data.GURANTOR_Pincode),
-
-//         emptyToNull(data.Co_Applicant),
-//         emptyToNull(data.Co_Applicant_DOB),
-//         emptyToNull(data.Co_Applicant_Email),
-//         emptyToNull(data.Co_Applicant_PAN),
-//         emptyToNull(data.Co_Applicant_Mobile),
-//         emptyToNull(data.Co_Applicant_Address_Line_1),
-//         emptyToNull(data.Co_Applicant_Address_Line_2),
-//         emptyToNull(data.Co_Applicant_Village),
-//         emptyToNull(data.Co_Applicant_District),
-//         emptyToNull(data.Co_Applicant_State),
-//         emptyToNull(data.Co_Applicant_Pincode),
-
-//         emptyToNull(data.customer_name_as_per_bank),
-//         emptyToNull(data.customer_bank_name),
-//         emptyToNull(data.customer_account_number),
-//         emptyToNull(data.bank_ifsc_code),
-
-//         emptyToNull(data.selected_dealer_application_id),
-//         emptyToNull(data.dealer_id),
-//         emptyToNull(data.trade_name),
-//         emptyToNull(data.dealer_name),
-//         emptyToNull(data.dealer_contact),
-//         emptyToNull(data.dealer_email),
-//         emptyToNull(data.gst_no),
-//         emptyToNull(data.pan_number),
-//         emptyToNull(data.dealer_address),
-//         emptyToNull(data.dealer_city),
-//         emptyToNull(data.dealer_state),
-//         emptyToNull(data.dealer_pincode),
-
-//         emptyToNull(data.bank_name),
-//         emptyToNull(data.account_number),
-//         emptyToNull(data.ifsc),
-//         emptyToNull(data.name_in_bank),
-
-//         numberOrNull(data.selected_product_id),
-//         emptyToNull(data.Battery_Name),
-//         emptyToNull(data.Battery_Type),
-//         emptyToNull(data.Battery_Serial_no_1),
-//         emptyToNull(data.Battery_Serial_no_2),
-//         emptyToNull(data.E_Rikshaw_model),
-//         emptyToNull(data.Chassis_no),
-
-//         data.borrower_mobile_verified || 0,
-//         data.guarantor_mobile_verified || 0,
-//         data.co_applicant_mobile_verified || 0,
-
-//         data.lan,
-//       ],
-//     );
-
-//     await connection.commit();
-
-//     universalRunAllValidations(data.lan).catch((err) => {
-//       console.error("Validation engine failed after booking:", err);
-//     });
-
-//     return res.json({
-//       success: true,
-//       message: "Seven Fincorp loan booking submitted successfully",
-//       lan: data.lan,
-//     });
-//   } catch (error) {
-//     await connection.rollback();
-
-//     console.error("Final Motion Corp submit error:", error);
-
-//     return res.status(500).json({
-//       success: false,
-//       message: "Final submit failed",
-//       error: error.message,
-//     });
-//   } finally {
-//     connection.release();
-//   }
-// });
 router.post("/save-borrower-first-section", async (req, res) => {
   let connection;
   let transactionStarted = false;
@@ -1536,20 +1209,21 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
       `;
 
       values = [
-        emptyToNull(data.GURANTOR),
-        emptyToNull(data.GURANTOR_DOB),
-        emptyToNull(data.GURANTOR_EMAIL),
-        emptyToNull(data.GURANTOR_PAN),
-        emptyToNull(data.GURANTOR_MOBILE),
+        emptyToNull(data.GUARANTOR),
+        emptyToNull(data.GUARANTOR_DOB),
+        emptyToNull(data.GUARANTOR_EMAIL),
+        emptyToNull(data.GUARANTOR_PAN),
+        emptyToNull(data.GUARANTOR_MOBILE),
         emptyToNull(data.Relationship_with_Borrower),
-        emptyToNull(data.GURANTOR_Address_Line_1),
-        emptyToNull(data.GURANTOR_Address_Line_2),
-        emptyToNull(data.GURANTOR_Village),
-        emptyToNull(data.GURANTOR_District),
-        emptyToNull(data.GURANTOR_State),
-        emptyToNull(data.GURANTOR_Pincode),
-        data.guarantor_mobile_verified || 0,
-        existingLan,
+        emptyToNull(data.GUARANTOR_Address_Line_1),
+        emptyToNull(data.GUARANTOR_Address_Line_2),
+        emptyToNull(data.GUARANTOR_Village),
+        emptyToNull(data.GUARANTOR_District),
+        emptyToNull(data.GUARANTOR_State),
+        emptyToNull(data.GUARANTOR_Pincode), // ← swapped
+        data.guarantor_mobile_verified || 0, // ← swapped
+        emptyToNull(data.GUARANTOR_Driving_Licence), // ← swapped
+        lan,
       ];
     }
 
@@ -1728,24 +1402,6 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
         emptyToNull(data.sales_invoice_date),
         existingLan,
       ];
-    } else if (section === 9) {
-      query = `
-        UPDATE loan_booking_seven_fincorp
-        SET
-          insurance_cost = ?,
-          insurance_company_provider = ?,
-          insurance_policy_number = ?,
-          policy_issued_date = ?,
-          period_of_insurance = ?,
-      `;
-
-      values = [
-        emptyToNull(data.insurance_cost),
-        emptyToNull(data.insurance_company_provider),
-        emptyToNull(data.insurance_policy_number),
-        emptyToNull(data.policy_issued_date),
-        emptyToNull(data.period_of_insurance),
-      ];
     } else {
       await connection.rollback();
       transactionStarted = false;
@@ -1770,7 +1426,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
       });
     }
 
-    if (section === 3 && data.GURANTOR) {
+    if (section === 3 && data.GUARANTOR) {
       await connection.query(
         `
         INSERT IGNORE INTO kyc_verification_status (
@@ -1785,9 +1441,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)        `,
         [
           existingLan,
           "GUARANTOR",
-          data.GURANTOR,
-          data.GURANTOR_MOBILE,
-          data.GURANTOR_PAN,
+          data.GUARANTOR,
+          data.GUARANTOR_MOBILE,
+          data.GUARANTOR_PAN,
         ],
       );
     }
@@ -1975,19 +1631,19 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         numberOrNull(data.GPS_Charges),
 
         // Guarantor
-        emptyToNull(data.GURANTOR),
-        emptyToNull(data.GURANTOR_DOB),
-        emptyToNull(data.GURANTOR_EMAIL),
-        emptyToNull(data.GURANTOR_PAN),
-        emptyToNull(data.GURANTOR_MOBILE),
+        emptyToNull(data.GUARANTOR),
+        emptyToNull(data.GUARANTOR_DOB),
+        emptyToNull(data.GUARANTOR_EMAIL),
+        emptyToNull(data.GUARANTOR_PAN),
+        emptyToNull(data.GUARANTOR_MOBILE),
         emptyToNull(data.Relationship_with_Borrower),
-        emptyToNull(data.GURANTOR_Address_Line_1),
-        emptyToNull(data.GURANTOR_Address_Line_2),
-        emptyToNull(data.GURANTOR_Village),
-        emptyToNull(data.GURANTOR_District),
-        emptyToNull(data.GURANTOR_State),
-        emptyToNull(data.GURANTOR_Pincode),
-        emptyToNull(data.GURANTOR_Driving_Licence),
+        emptyToNull(data.GUARANTOR_Address_Line_1),
+        emptyToNull(data.GUARANTOR_Address_Line_2),
+        emptyToNull(data.GUARANTOR_Village),
+        emptyToNull(data.GUARANTOR_District),
+        emptyToNull(data.GUARANTOR_State),
+        emptyToNull(data.GUARANTOR_Pincode),
+        emptyToNull(data.GUARANTOR_Driving_Licence),
 
         // Co-Applicant
         emptyToNull(data.Co_Applicant),
@@ -2462,46 +2118,50 @@ router.post("/save-applicant-details", async (req, res) => {
       });
     }
 
-    if (applicantType === "GUARANTOR") {
-      await db.promise().query(
-        `
-        UPDATE loan_booking_seven_fincorp
-        SET
-          guarantor_name = ?,
-          guarantor_dob = ?,
-          guarantor_email = ?,
-          guarantor_pan = ?,
-          guarantor_mobile = ?,
-          relationship_with_borrower = ?,
-          guarantor_address_line_1 = ?,
-          guarantor_address_line_2 = ?,
-          guarantor_village_city = ?,
-          guarantor_district = ?,
-          guarantor_state = ?,
-          guarantor_pincode = ?,
-          guarantor_mobile_verified = ?,
-          guarantor_driving_licence = ?
-        WHERE lan = ?
-        `,
-        [
-          emptyToNull(data.GUARANTOR),
-          emptyToNull(data.GURANTOR_DOB),
-          emptyToNull(data.GURANTOR_EMAIL),
-          emptyToNull(data.GURANTOR_PAN),
-          emptyToNull(data.GURANTOR_MOBILE),
-          emptyToNull(data.Relationship_with_Borrower),
-          emptyToNull(data.GURANTOR_Address_Line_1),
-          emptyToNull(data.GURANTOR_Address_Line_2),
-          emptyToNull(data.GURANTOR_Village),
-          emptyToNull(data.GURANTOR_District),
-          emptyToNull(data.GURANTOR_State),
-          emptyToNull(data.GURANTOR_Driving_Licence),
-          emptyToNull(data.GURANTOR_Pincode),
-          data.guarantor_mobile_verified || 0,
-          lan,
-        ],
-      );
-    }
+if (applicantType === "GUARANTOR") {
+  const [result] = await db.promise().query(
+    `
+    UPDATE loan_booking_seven_fincorp
+    SET
+      guarantor_name = ?,
+      guarantor_dob = ?,
+      guarantor_email = ?,
+      guarantor_pan = ?,
+      guarantor_mobile = ?,
+      relationship_with_borrower = ?,
+      guarantor_address_line_1 = ?,
+      guarantor_address_line_2 = ?,
+      guarantor_village_city = ?,
+      guarantor_district = ?,
+      guarantor_state = ?,
+      guarantor_pincode = ?,
+      guarantor_mobile_verified = ?,
+      guarantor_driving_licence = ?
+    WHERE lan = ?
+    `,
+    [
+      emptyToNull(data.GUARANTOR),
+      emptyToNull(data.GUARANTOR_DOB),
+      emptyToNull(data.GUARANTOR_EMAIL),
+      emptyToNull(data.GUARANTOR_PAN),
+      emptyToNull(data.GUARANTOR_MOBILE),
+      emptyToNull(data.Relationship_with_Borrower),
+      emptyToNull(data.GUARANTOR_Address_Line_1),
+      emptyToNull(data.GUARANTOR_Address_Line_2),
+      emptyToNull(data.GUARANTOR_Village),
+      emptyToNull(data.GUARANTOR_District),
+      emptyToNull(data.GUARANTOR_State),
+      emptyToNull(data.GUARANTOR_Pincode),          // was 14th → now 12th
+      data.guarantor_mobile_verified || 0,          // was 15th → now 13th
+      emptyToNull(data.GUARANTOR_Driving_Licence),  // was 12th → now 14th
+      lan,
+    ],
+  );
+
+  if (result.affectedRows === 0) {
+    return res.status(404).json({ success: false, message: "LAN not found" });
+  }
+}
 
     if (applicantType === "CO_APPLICANT") {
       await db.promise().query(
@@ -3414,7 +3074,7 @@ router.post("/:lan/reject", async (req, res) => {
     // UPDATE STATUS
     await db.promise().query(
       `
-      UPDATE loan_booking_motion_corp
+      UPDATE loan_booking_seven_fincorp
       SET
         status = 'Rejected',
         stage = 'Operation Rejected',

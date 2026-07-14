@@ -43,19 +43,19 @@ const SevenFinCorpLoanBooking = ({
     GPS_Charges: "",
     Disbursal_Amount: "",
 
-    GURANTOR: "",
-    GURANTOR_DOB: "",
-    GURANTOR_EMAIL: "",
-    GURANTOR_PAN: "",
-    GURANTOR_MOBILE: "",
+    GUARANTOR: "",
+    GUARANTOR_DOB: "",
+    GUARANTOR_EMAIL: "",
+    GUARANTOR_PAN: "",
+    GUARANTOR_MOBILE: "",
     Relationship_with_Borrower: "",
-    GURANTOR_Address_Line_1: "",
-    GURANTOR_Address_Line_2: "",
-    GURANTOR_Village: "",
-    GURANTOR_District: "",
-    GURANTOR_State: "",
-    GURANTOR_Pincode: "",
-    GURANTOR_Driving_Licence: "",
+    GUARANTOR_Address_Line_1: "",
+    GUARANTOR_Address_Line_2: "",
+    GUARANTOR_Village: "",
+    GUARANTOR_District: "",
+    GUARANTOR_State: "",
+    GUARANTOR_Pincode: "",
+    GUARANTOR_Driving_Licence: "",
 
     Co_Applicant: "",
     Co_Applicant_DOB: "",
@@ -156,10 +156,10 @@ const SevenFinCorpLoanBooking = ({
     coApplicant: false,
   });
   useEffect(() => {
-  if (lan) {
-    fetchAadhaarStatuses();
-  }
-}, [lan]);
+    if (lan) {
+      fetchAadhaarStatuses();
+    }
+  }, [lan]);
 
   useEffect(() => {
     if (resumeLan) {
@@ -234,21 +234,21 @@ const SevenFinCorpLoanBooking = ({
         Processing_Fee_Percentage: d.processing_fee_percentage || "",
         GPS_Charges: d.gps_charges || "",
 
-        GURANTOR: d.guarantor_name || "",
-        GURANTOR_DOB: d.guarantor_dob
+        GUARANTOR: d.guarantor_name || "",
+        GUARANTOR_DOB: d.guarantor_dob
           ? String(d.guarantor_dob).split("T")[0]
           : "",
-        GURANTOR_EMAIL: d.guarantor_email || "",
-        GURANTOR_PAN: d.guarantor_pan || "",
-        GURANTOR_MOBILE: d.guarantor_mobile || "",
+        GUARANTOR_EMAIL: d.guarantor_email || "",
+        GUARANTOR_PAN: d.guarantor_pan || "",
+        GUARANTOR_MOBILE: d.guarantor_mobile || "",
         Relationship_with_Borrower: d.relationship_with_borrower || "",
-        GURANTOR_Address_Line_1: d.guarantor_address_line_1 || "",
-        GURANTOR_Address_Line_2: d.guarantor_address_line_2 || "",
-        GURANTOR_Village: d.guarantor_village_city || "",
-        GURANTOR_District: d.guarantor_district || "",
-        GURANTOR_State: d.guarantor_state || "",
-        GURANTOR_Pincode: d.guarantor_pincode || "",
-        GURANTOR_Driving_Licence: d.guarantor_driving_licence || "",
+        GUARANTOR_Address_Line_1: d.guarantor_address_line_1 || "",
+        GUARANTOR_Address_Line_2: d.guarantor_address_line_2 || "",
+        GUARANTOR_Village: d.guarantor_village_city || "",
+        GUARANTOR_District: d.guarantor_district || "",
+        GUARANTOR_State: d.guarantor_state || "",
+        GUARANTOR_Pincode: d.guarantor_pincode || "",
+        GUARANTOR_Driving_Licence: d.guarantor_driving_licence || "",
 
         Co_Applicant: d.co_applicant_name || "",
         Co_Applicant_DOB: d.co_applicant_dob
@@ -398,10 +398,10 @@ const SevenFinCorpLoanBooking = ({
   }, [formData.Pincode]);
 
   useEffect(() => {
-    if (formData.GURANTOR_Pincode?.length === 6) {
-      handlePincodeLookup(formData.GURANTOR_Pincode, "GUARANTOR");
+    if (formData.GUARANTOR_Pincode?.length === 6) {
+      handlePincodeLookup(formData.GUARANTOR_Pincode, "GUARANTOR");
     }
-  }, [formData.GURANTOR_Pincode]);
+  }, [formData.GUARANTOR_Pincode]);
 
   useEffect(() => {
     if (formData.Co_Applicant_Pincode?.length === 6) {
@@ -509,17 +509,17 @@ for processing and servicing this loan application.
   };
   ///// sajag
   const guarantorFields = [
-    "GURANTOR",
-    "GURANTOR_DOB",
-    "GURANTOR_EMAIL",
-    "GURANTOR_PAN",
-    "GURANTOR_MOBILE",
+    "GUARANTOR",
+    "GUARANTOR_DOB",
+    "GUARANTOR_EMAIL",
+    "GUARANTOR_PAN",
+    "GUARANTOR_MOBILE",
     "Relationship_with_Borrower",
-    "GURANTOR_Address_Line_1",
-    "GURANTOR_Village",
-    "GURANTOR_District",
-    "GURANTOR_State",
-    "GURANTOR_Pincode",
+    "GUARANTOR_Address_Line_1",
+    "GUARANTOR_Village",
+    "GUARANTOR_District",
+    "GUARANTOR_State",
+    "GUARANTOR_Pincode",
   ];
 
   const coApplicantFields = [
@@ -603,79 +603,78 @@ for processing and servicing this loan application.
   // };
   ////////
 
-
   const saveBorrowerFirstSection = async () => {
-  const sectionErrors = validateSection(activeSection);
+    const sectionErrors = validateSection(activeSection);
 
-  if (Object.keys(sectionErrors).length > 0) {
-    setErrors(sectionErrors);
+    if (Object.keys(sectionErrors).length > 0) {
+      setErrors(sectionErrors);
 
-    const newTouched = {};
-    sectionFields[activeSection].forEach((field) => {
-      newTouched[field] = true;
-    });
+      const newTouched = {};
+      sectionFields[activeSection].forEach((field) => {
+        newTouched[field] = true;
+      });
 
-    setTouched((prev) => ({ ...prev, ...newTouched }));
-    setMessage("❌ Please complete current section first.");
-    return false;
-  }
-
-  if (activeSection === 0 && !otpVerified.borrower) {
-    setMessage("❌ Borrower mobile not verified");
-    return false;
-  }
-
-  try {
-    setLoading(true);
-
-    const res = await api.post(`${apiPrefix}/save-borrower-first-section`, {
-      activeSection,
-      lan,
-      partner_loan_id: partnerLoanId,
-
-      ...formData,
-
-      borrower_mobile_verified: otpVerified.borrower ? 1 : 0,
-      guarantor_mobile_verified: otpVerified.guarantor ? 1 : 0,
-      co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
-    });
-
-    if (res.data.success) {
-      if (res.data.lan) {
-        setLan(res.data.lan);
-      }
-
-      if (res.data.partner_loan_id) {
-        setPartnerLoanId(res.data.partner_loan_id);
-      }
-
-      if (activeSection === 0) {
-        setBorrowerSaved(true);
-      }
-
-      setMessage(`✅ ${res.data.message}`);
-      return true;
+      setTouched((prev) => ({ ...prev, ...newTouched }));
+      setMessage("❌ Please complete current section first.");
+      return false;
     }
 
-    setMessage("❌ Failed to save section.");
-    return false;
-  } catch (err) {
-    console.error("SAVE ERROR:", err.response?.data || err);
+    if (activeSection === 0 && !otpVerified.borrower) {
+      setMessage("❌ Borrower mobile not verified");
+      return false;
+    }
 
-    setMessage(
-      `❌ ${
-        err.response?.data?.sqlMessage ||
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        "Failed to save current section"
-      }`
-    );
+    try {
+      setLoading(true);
 
-    return false;
-  } finally {
-    setLoading(false);
-  }
-};
+      const res = await api.post(`${apiPrefix}/save-borrower-first-section`, {
+        activeSection,
+        lan,
+        partner_loan_id: partnerLoanId,
+
+        ...formData,
+
+        borrower_mobile_verified: otpVerified.borrower ? 1 : 0,
+        guarantor_mobile_verified: otpVerified.guarantor ? 1 : 0,
+        co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
+      });
+
+      if (res.data.success) {
+        if (res.data.lan) {
+          setLan(res.data.lan);
+        }
+
+        if (res.data.partner_loan_id) {
+          setPartnerLoanId(res.data.partner_loan_id);
+        }
+
+        if (activeSection === 0) {
+          setBorrowerSaved(true);
+        }
+
+        setMessage(`✅ ${res.data.message}`);
+        return true;
+      }
+
+      setMessage("❌ Failed to save section.");
+      return false;
+    } catch (err) {
+      console.error("SAVE ERROR:", err.response?.data || err);
+
+      setMessage(
+        `❌ ${
+          err.response?.data?.sqlMessage ||
+          err.response?.data?.error ||
+          err.response?.data?.message ||
+          "Failed to save current section"
+        }`,
+      );
+
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
   const sectionFields = {
     0: [
       "LOGIN_DATE",
@@ -756,7 +755,7 @@ for processing and servicing this loan application.
     // Format validations
     switch (fieldName) {
       case "Mobile_Number":
-      case "GURANTOR_MOBILE":
+      case "GUARANTOR_MOBILE":
       case "Co_Applicant_Mobile":
       case "dealer_contact":
         if (!isValidMobile(value)) {
@@ -765,13 +764,13 @@ for processing and servicing this loan application.
         break;
 
       case "Pan_Card":
-      case "GURANTOR_PAN":
+      case "GUARANTOR_PAN":
       case "Co_Applicant_PAN":
         if (!isValidPan(value)) {
           error = "Invalid PAN format (ABCDE1234F)";
         }
         break;
-      case "GURANTOR_EMAIL":
+      case "GUARANTOR_EMAIL":
       case "Co_Applicant_Email":
       case "Email":
         if (value && !isValidEmail(value)) {
@@ -999,7 +998,7 @@ for processing and servicing this loan application.
       }
 
       if (verificationTarget === "GUARANTOR") {
-        mobile = formData.GURANTOR_MOBILE;
+        mobile = formData.GUARANTOR_MOBILE;
       }
 
       if (verificationTarget === "CO_APPLICANT") {
@@ -1054,7 +1053,7 @@ for processing and servicing this loan application.
 
     if (
       name === "Pan_Card" ||
-      name === "GURANTOR_PAN" ||
+      name === "GUARANTOR_PAN" ||
       name === "Co_Applicant_PAN" ||
       name === "bank_ifsc_code"
     ) {
@@ -1063,7 +1062,7 @@ for processing and servicing this loan application.
 
     if (
       name === "Email" ||
-      name === "GURANTOR_EMAIL" ||
+      name === "GUARANTOR_EMAIL" ||
       name === "Co_Applicant_Email"
     ) {
       finalValue = value.toLowerCase().replace(/\s/g, "");
@@ -1071,7 +1070,7 @@ for processing and servicing this loan application.
 
     if (
       name === "Pincode" ||
-      name === "GURANTOR_Pincode" ||
+      name === "GUARANTOR_Pincode" ||
       name === "Co_Applicant_Pincode"
     ) {
       finalValue = value.replace(/\D/g, "").slice(0, 6);
@@ -1125,7 +1124,11 @@ for processing and servicing this loan application.
       // }
 
       // Auto-calculate Processing Fee % and Disbursal Amount
-      if (name === "Loan_Amount" || name === "Processing_Fee" || name === "GPS_Charges") {
+      if (
+        name === "Loan_Amount" ||
+        name === "Processing_Fee" ||
+        name === "GPS_Charges"
+      ) {
         const loanAmount = Number(
           name === "Loan_Amount" ? finalValue : updated.Loan_Amount,
         );
@@ -1150,7 +1153,6 @@ for processing and servicing this loan application.
 
           const disbursalAmount = loanAmount - processingFee - gpsCharges;
           // const disbursalAmount = disbursalAmoun - gpsCharges;
-           
 
           updated.Processing_Fee_Percentage =
             processingFeePercentage.toFixed(2);
@@ -1306,7 +1308,7 @@ for processing and servicing this loan application.
       return true;
     }
 
-    await api.post(`${apiPrefix}/save-applicant-details`, {
+    const res = await api.post(`${apiPrefix}/save-applicant-details`, {
       lan,
       applicantType,
       data: {
@@ -1316,9 +1318,13 @@ for processing and servicing this loan application.
       },
     });
 
+    if (!res.data?.success) {
+      setMessage(`❌ Failed to save ${applicantType} details`);
+      return false;
+    }
+
     return true;
   };
-
   const triggerAadhaar = async (applicantType) => {
     if (!lan) {
       setMessage("❌ Please save borrower first to generate LAN.");
@@ -1340,7 +1346,7 @@ for processing and servicing this loan application.
       });
 
       if (res.data.success) {
-              await fetchAadhaarStatuses();
+        await fetchAadhaarStatuses();
 
         // setAadhaarStatus((prev) => ({
         //   ...prev,
@@ -1470,17 +1476,17 @@ for processing and servicing this loan application.
         }
 
         if (applicantType === "GUARANTOR") {
-          updated.GURANTOR_Address_Line_1 =
-            parsedAddress.addressLine1 || prev.GURANTOR_Address_Line_1;
-          updated.GURANTOR_Address_Line_2 =
-            parsedAddress.addressLine2 || prev.GURANTOR_Address_Line_2;
-          updated.GURANTOR_Village =
-            parsedAddress.village || prev.GURANTOR_Village;
-          updated.GURANTOR_District =
-            parsedAddress.district || prev.GURANTOR_District;
-          updated.GURANTOR_State = parsedAddress.state || prev.GURANTOR_State;
-          updated.GURANTOR_Pincode =
-            parsedAddress.pincode || prev.GURANTOR_Pincode;
+          updated.GUARANTOR_Address_Line_1 =
+            parsedAddress.addressLine1 || prev.GUARANTOR_Address_Line_1;
+          updated.GUARANTOR_Address_Line_2 =
+            parsedAddress.addressLine2 || prev.GUARANTOR_Address_Line_2;
+          updated.GUARANTOR_Village =
+            parsedAddress.village || prev.GUARANTOR_Village;
+          updated.GUARANTOR_District =
+            parsedAddress.district || prev.GUARANTOR_District;
+          updated.GUARANTOR_State = parsedAddress.state || prev.GUARANTOR_State;
+          updated.GUARANTOR_Pincode =
+            parsedAddress.pincode || prev.GUARANTOR_Pincode;
         }
 
         if (applicantType === "CO_APPLICANT") {
@@ -1569,10 +1575,10 @@ for processing and servicing this loan application.
           }
 
           if (type === "GUARANTOR") {
-            updated.GURANTOR_State = office.State || prev.GURANTOR_State;
+            updated.GUARANTOR_State = office.State || prev.GUARANTOR_State;
 
-            updated.GURANTOR_District =
-              office.District || prev.GURANTOR_District;
+            updated.GUARANTOR_District =
+              office.District || prev.GUARANTOR_District;
           }
 
           if (type === "CO_APPLICANT") {
@@ -1663,41 +1669,28 @@ for processing and servicing this loan application.
     );
   };
 
+  const fetchAadhaarStatuses = async () => {
+    if (!lan) return;
 
-  
-const fetchAadhaarStatuses = async () => {
-  if (!lan) return;
+    try {
+      const response = await api.get(`${apiPrefix}/customer-details/${lan}`);
 
-  try {
-    const response = await api.get(
-      `${apiPrefix}/customer-details/${lan}`,
-    );
+      const verificationStatus = response.data?.loan?.verification_status || {};
 
-    const verificationStatus =
-      response.data?.loan?.verification_status || {};
+      setAadhaarStatus((previous) => ({
+        ...previous,
 
-    setAadhaarStatus((previous) => ({
-      ...previous,
+        BORROWER: verificationStatus.borrower?.aadhaar_status || "PENDING",
 
-      BORROWER:
-        verificationStatus.borrower?.aadhaar_status ||
-        "PENDING",
+        GUARANTOR: verificationStatus.guarantor?.aadhaar_status || "PENDING",
 
-      GUARANTOR:
-        verificationStatus.guarantor?.aadhaar_status ||
-        "PENDING",
-
-      CO_APPLICANT:
-        verificationStatus.co_applicant?.aadhaar_status ||
-        "PENDING",
-    }));
-  } catch (error) {
-    console.error(
-      "Failed to fetch Aadhaar status:",
-      error,
-    );
-  }
-};
+        CO_APPLICANT:
+          verificationStatus.co_applicant?.aadhaar_status || "PENDING",
+      }));
+    } catch (error) {
+      console.error("Failed to fetch Aadhaar status:", error);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1790,19 +1783,19 @@ const fetchAadhaarStatuses = async () => {
         Processing_Fee_Percentage: "",
         Processing_Fee: "",
 
-        GURANTOR: "",
-        GURANTOR_DOB: "",
-        GURANTOR_EMAIL: "",
-        GURANTOR_PAN: "",
+        GUARANTOR: "",
+        GUARANTOR_DOB: "",
+        GUARANTOR_EMAIL: "",
+        GUARANTOR_PAN: "",
         Relationship_with_Borrower: "",
 
-        GURANTOR_MOBILE: "",
-        GURANTOR_Address_Line_1: "",
-        GURANTOR_Address_Line_2: "",
-        GURANTOR_Village: "",
-        GURANTOR_District: "",
-        GURANTOR_State: "",
-        GURANTOR_Pincode: "",
+        GUARANTOR_MOBILE: "",
+        GUARANTOR_Address_Line_1: "",
+        GUARANTOR_Address_Line_2: "",
+        GUARANTOR_Village: "",
+        GUARANTOR_District: "",
+        GUARANTOR_State: "",
+        GUARANTOR_Pincode: "",
 
         Co_Applicant_Mobile: "",
         Co_Applicant_Address_Line_1: "",
@@ -1824,7 +1817,7 @@ const fetchAadhaarStatuses = async () => {
 
         Driving_License: "",
         GPS_Charges: "",
-        GURANTOR_Driving_Licence: "",
+        GUARANTOR_Driving_Licence: "",
         Co_Applicant_Driving_Licence: "",
         branch_address: "",
 
@@ -2212,24 +2205,30 @@ const fetchAadhaarStatuses = async () => {
 
         {activeSection === 3 && (
           <div className="form-grid">
-            {renderInput("Guarantor Name", "GURANTOR")}
-            {renderInput("Guarantor DOB", "GURANTOR_DOB", "date")}
-            {renderInput("Guarantor Email", "GURANTOR_EMAIL", "email")}
-            {renderInput("Guarantor PAN", "GURANTOR_PAN")}
-                       {renderInput("Guarantor Address Line 1", "GURANTOR_Address_Line_1")}
-            {renderInput("Guarantor Address Line 2", "GURANTOR_Address_Line_2")}
-            {renderInput("Guarantor Village", "GURANTOR_Village")}
-            {renderInput("Guarantor Pincode", "GURANTOR_Pincode")}
-            {renderInput("Guarantor District", "GURANTOR_District")}
-            {renderInput("Guarantor State", "GURANTOR_State")}
+            {renderInput("Guarantor Name", "GUARANTOR")}
+            {renderInput("Guarantor DOB", "GUARANTOR_DOB", "date")}
+            {renderInput("Guarantor Email", "GUARANTOR_EMAIL", "email")}
+            {renderInput("Guarantor PAN", "GUARANTOR_PAN")}
+            {renderInput(
+              "Guarantor Address Line 1",
+              "GUARANTOR_Address_Line_1",
+            )}
+            {renderInput(
+              "Guarantor Address Line 2",
+              "GUARANTOR_Address_Line_2",
+            )}
+            {renderInput("Guarantor Village", "GUARANTOR_Village")}
+            {renderInput("Guarantor Pincode", "GUARANTOR_Pincode")}
+            {renderInput("Guarantor District", "GUARANTOR_District")}
+            {renderInput("Guarantor State", "GUARANTOR_State")}
             {renderInput(
               "Guarantor Driving Licence",
-              "GURANTOR_Driving_Licence",
+              "GUARANTOR_Driving_Licence",
             )}
             <div className="mobile-otp-wrapper">
               {renderInput(
                 "Guarantor Mobile",
-                "GURANTOR_MOBILE",
+                "GUARANTOR_MOBILE",
                 "number",
                 otpVerified.guarantor,
               )}
@@ -2238,7 +2237,10 @@ const fetchAadhaarStatuses = async () => {
                 type="button"
                 className={otpVerified.guarantor ? "verified-btn" : "otp-btn"}
                 onClick={() =>
-                  handleOpenConsentDialog(formData.GURANTOR_MOBILE, "GUARANTOR")
+                  handleOpenConsentDialog(
+                    formData.GUARANTOR_MOBILE,
+                    "GUARANTOR",
+                  )
                 }
                 disabled={otpVerified.guarantor}
               >
@@ -2495,18 +2497,18 @@ const fetchAadhaarStatuses = async () => {
               >
                 Next →
               </button> */}
-               <button
-  type="button"
-  disabled={loading}
-  onClick={async () => {
-    const saved = await saveBorrowerFirstSection();
-    if (!saved) return;
+              <button
+                type="button"
+                disabled={loading}
+                onClick={async () => {
+                  const saved = await saveBorrowerFirstSection();
+                  if (!saved) return;
 
-    setActiveSection((prev) => prev + 1);
-  }}
->
-  {loading ? "Saving..." : "Next →"}
-</button>
+                  setActiveSection((prev) => prev + 1);
+                }}
+              >
+                {loading ? "Saving..." : "Next →"}
+              </button>
             </>
           ) : (
             <button type="submit" disabled={loading}>
@@ -2601,7 +2603,7 @@ const fetchAadhaarStatuses = async () => {
                   }
 
                   if (verificationTarget === "GUARANTOR") {
-                    mobile = formData.GURANTOR_MOBILE;
+                    mobile = formData.GUARANTOR_MOBILE;
                   }
 
                   if (verificationTarget === "CO_APPLICANT") {
