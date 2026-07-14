@@ -9,6 +9,7 @@ const {
 } = require("../../utils/constant");
 const { runBureau } = require("../../services/Bueraupullapiservice");
 const createHospitalRoutes = require("./hospitalRoutes");
+const createCarePayEsignRoutes = require("./esignRoutes");
 
 const router = express.Router();
 const loanBookingRouter = express.Router();
@@ -92,6 +93,8 @@ loanBookingRouter.use(
     isCarePayPartner,
   }),
 );
+
+loanBookingRouter.use(createCarePayEsignRoutes());
 
 async function fetchCarePayCaseStatus({ lan, partnerLoanId }) {
   const whereClause = lan ? "lan = ?" : "partner_loan_id = ?";
