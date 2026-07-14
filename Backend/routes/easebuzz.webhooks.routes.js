@@ -58,6 +58,7 @@ const { sendLowBalanceAlertMail } = require("../jobs/mailer");
 const { processRapidMoneyDisbursement } = require("../services/processEmiClubDisbursement");
 
 const router = express.Router();
+const {sendWelcomeLetterAfterUtrUpload,} = require("../services/welcomeLetterService");
 
 router.post("/payout", async (req, res) => {
   let conn;
@@ -155,32 +156,61 @@ router.post("/payout", async (req, res) => {
     /* ==============================
        3️⃣ Final state handling
     ============================== */
-    if (normalizedStatus === "success") {
-      if (
-        !data.unique_transaction_reference ||
-        !data.transfer_date
-      ) {
-        throw new Error(
-          "Missing UTR or transfer_date"
-        );
-      }
+    if (normalizedStatus === "success") {if (
+  !data.unique_transaction_reference ||
+  !data.transfer_date
+) {
+  throw new Error(
+    "Missing UTR or transfer_date"
+  );
+}
 
-      const lan = transfer.lan;
+const lan = transfer.lan;
+const disbursementUtr = data.unique_transaction_reference;
+const disbursementDate = new Date(data.transfer_date);
 
-      if (lan.startsWith("RML")) {
-        await processRapidMoneyDisbursement({
-          lan,
-          disbursementUTR:
-            data.unique_transaction_reference,
-          disbursementDate:
-            new Date(data.transfer_date),
-        });
-      }
-      console.log("✅ Payout SUCCESS:", {
+if (lan.startsWith("RML")) {
+  await processRapidMoneyDisbursement({
+    lan,
+    disbursementUTR: disbursementUtr,
+    disbursementDate,
+  });
+
+  /*
+  Rapid Money disbursement is successfully processed.
+   */
+
+  try {
+    const welcomeLetterResult =
+      await sendWelcomeLetterAfterUtrUpload({
         lan,
-        utr: data.unique_transaction_reference,
+        utrNumber: disbursementUtr,
       });
-    }
+
+    console.log("✅ Welcome Letter Sent:", {
+      lan,
+      utr: disbursementUtr,
+      messageId: welcomeLetterResult?.emailMessageId,
+      recipient: welcomeLetterResult?.recipient,
+    });
+  } catch (welcomeLetterError) {
+    console.error("❌ Welcome Letter Failed:", {
+      lan,
+      utr: disbursementUtr,
+      errorCode:
+        welcomeLetterError?.code ||
+        "WELCOME_LETTER_FAILED",
+      errorMessage:
+        welcomeLetterError?.message ||
+        "Unable to send welcome letter.",
+    });
+  }
+}
+
+console.log("✅ Payout SUCCESS:", {
+  lan,
+  utr: disbursementUtr,
+});}
 
     if (
   ["failure", "failed", "rejected", "reversed"]

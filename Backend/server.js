@@ -6,6 +6,7 @@ const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
 const sterlionRoutes = require("./routes/sterlion/sterlionRoutes");
+const carePayRoutes = require("./routes/CarePay/carePayRoutes");
 const loanRoutes = require("./routes/loanRoutes");
 const repaymentRoutes = require("./routes/repaymentsRoutes");
 const loanChargesRoutes = require("./routes/loanChargesRoutes");
@@ -100,6 +101,7 @@ app.use("/reports", express.static(reportsPath));
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/loan-booking", sterlionRoutes);
+app.use("/api/loan-booking", carePayRoutes.loanBookingRouter);
 app.use("/api/loan-booking", excelUploadRoutes);
 app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅ Register WCTL-CC-OD Routes
 app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
@@ -377,7 +379,7 @@ app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ R
 
 app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
-app.use("/api/carepay", require("./routes/CarePay/index")); // ✅ Register Routes for CarePay Mandate UMRN Update
+app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Mandate UMRN Update
 app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
 app.use("/api/fundify", require("./routes/Fundify/fundifyRoutes")); // ✅ Register Routes for Fundify Loans
 
