@@ -10630,6 +10630,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_seven_fincorp";
   } else if (lan.startsWith("BUN")) {
     tableName = "manual_rps_bundela";
+  } else if (lan.startsWith("RML")) {
+    tableName = "manual_rps_switch_my_loan";
   } else if (lan.startsWith("SH")) {
     tableName = "manual_rps_srbh";
   } else if (lan.startsWith("ADK")) {

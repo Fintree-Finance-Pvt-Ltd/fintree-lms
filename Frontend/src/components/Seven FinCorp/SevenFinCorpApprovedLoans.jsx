@@ -44,16 +44,14 @@ const SevenFinCorpApprovedLoans = ({
     setErr("");
 
     api
-  .get(apiUrl)
-  .then((res) => {
-    if (off) return;
+      .get(apiUrl)
+      .then((res) => {
+        if (off) return;
 
-    const data = Array.isArray(res.data.rows)
-      ? res.data.rows
-      : [];
+        const data = Array.isArray(res.data.rows) ? res.data.rows : [];
 
-    setRows(data);
-  })
+        setRows(data);
+      })
       .catch(() => !off && setErr("Failed to fetch data."))
       .finally(() => !off && setLoading(false));
 
@@ -95,9 +93,16 @@ const SevenFinCorpApprovedLoans = ({
     const lastAttempt = new Date(row.agreement_esign_sent_at);
     const now = new Date();
 
-    const diffHours = (now - lastAttempt) / (1000 * 60 * 60);
+    const diffMinutes = (now - lastAttempt) / (1000 * 60);
 
-    return diffHours >= 3;
+    return diffMinutes >= 10;
+  };
+
+  const minutesLeft = (row) => {
+    if (!row.agreement_esign_sent_at) return 0;
+    const diff =
+      (new Date() - new Date(row.agreement_esign_sent_at)) / (1000 * 60);
+    return Math.max(0, Math.ceil(10 - diff));
   };
 
   // ---------- Bank Modal ----------
@@ -119,34 +124,23 @@ const SevenFinCorpApprovedLoans = ({
     setBankResult(null);
 
     setBankForm({
-  account_no:
-    loanRow.customer_account_number ||
-    loanRow.account_number ||
-    "",
+      account_no:
+        loanRow.customer_account_number || loanRow.account_number || "",
 
-  ifsc:
-    loanRow.bank_ifsc_code ||
-    loanRow.ifsc ||
-    "",
+      ifsc: loanRow.bank_ifsc_code || loanRow.ifsc || "",
 
-  account_type:
-    loanRow.bank_account_type || "SAVINGS",
+      account_type: loanRow.bank_account_type || "SAVINGS",
 
-  bank_name:
-    loanRow.customer_bank_name ||
-    loanRow.bank_name ||
-    "",
+      bank_name: loanRow.customer_bank_name || loanRow.bank_name || "",
 
-  account_holder_name:
-    loanRow.customer_name_as_per_bank ||
-    loanRow.customer_name ||
-    "",
+      account_holder_name:
+        loanRow.customer_name_as_per_bank || loanRow.customer_name || "",
 
-  mandate_amount: defaultAmount,
-  mandate_start_date: startDate,
-  mandate_end_date: endDate,
-  mandate_frequency: "monthly",
-});
+      mandate_amount: defaultAmount,
+      mandate_start_date: startDate,
+      mandate_end_date: endDate,
+      mandate_frequency: "monthly",
+    });
 
     setShowBankModal(true);
   };
@@ -318,7 +312,7 @@ const SevenFinCorpApprovedLoans = ({
       </span>
     );
   };
-  
+
   const handleAgreementEsign = async (row) => {
     const lan = row.lan;
 
@@ -386,17 +380,41 @@ const SevenFinCorpApprovedLoans = ({
         const stage = (r.stage || "Approved").toUpperCase();
 
         const statusMap = {
-          APPROVED: {
-            bg: "#eaf8ef",
-            border: "#9ad9b0",
-            color: "#0f7a42",
-            dot: "#16a34a",
-          },
           LOGIN: {
             bg: "#eef4ff",
             border: "#b8cdfa",
             color: "#1d4ed8",
             dot: "#2563eb",
+          },
+          "BRE APPROVED": {
+            bg: "#eef4ff",
+            border: "#b8cdfa",
+            color: "#1d4ed8",
+            dot: "#2563eb",
+          },
+          "CREDIT APPROVED": {
+            bg: "#eaf8ef",
+            border: "#9ad9b0",
+            color: "#0f7a42",
+            dot: "#16a34a",
+          },
+          "OPERATION APPROVED": {
+            bg: "#ecfdf3",
+            border: "#a7f3d0",
+            color: "#047857",
+            dot: "#10b981",
+          },
+          "OPERATION REJECTED": {
+            bg: "#fef2f2",
+            border: "#fecaca",
+            color: "#b91c1c",
+            dot: "#ef4444",
+          },
+          APPROVED: {
+            bg: "#eaf8ef",
+            border: "#9ad9b0",
+            color: "#0f7a42",
+            dot: "#16a34a",
           },
           DISBURSED: {
             bg: "#ecfdf3",
@@ -459,33 +477,34 @@ const SevenFinCorpApprovedLoans = ({
       },
     },
     {
-  key: "stage",
-  header: "Loan Stage",
-  render: (r) => (
-    <span
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        background: "rgba(59,130,246,.12)",
-        border: "1px solid rgba(59,130,246,.35)",
-        color: "#1e3a8a",
-        fontWeight: 700,
-      }}
-    >
-      ● {r.stage || "—"}
-    </span>
-  ),
-},
-  
+      key: "status",
+      header: "Loan Status",
+      render: (r) => (
+        <span
+          style={{
+            padding: "6px 10px",
+            borderRadius: 999,
+            background: "rgba(59,130,246,.12)",
+            border: "1px solid rgba(59,130,246,.35)",
+            color: "#1e3a8a",
+            fontWeight: 700,
+          }}
+        >
+          ● {r.stage || "—"}
+        </span>
+      ),
+    },
+
     // 🔹 AGREEMENT eSign
     {
       key: "agreement_esign",
       header: "Agreement eSign",
       render: (r) => {
         const status = (r.agreement_esign_status || "").toUpperCase();
+        const canRetry = canRetryAgreementEsign(r);
 
-        const disabled = actionLan === r.lan || status === "SIGNED";
-        // const disabled = true;
+        const disabled =
+          actionLan === r.lan || status === "SIGNED" || !canRetry;
 
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -494,6 +513,11 @@ const SevenFinCorpApprovedLoans = ({
             <button
               onClick={() => handleAgreementEsign(r)}
               disabled={disabled}
+              title={
+                !canRetry
+                  ? "Retry available 10 minutes after last attempt"
+                  : undefined
+              }
               style={{
                 padding: "6px 8px",
                 borderRadius: 6,
@@ -508,10 +532,11 @@ const SevenFinCorpApprovedLoans = ({
                 ? "Processing..."
                 : status === "SIGNED"
                   ? "Already Signed"
-                  : ["FAILED", "INITIATED"].includes(status)
-                    ? "Retry Agreement eSign"
-                    : "Send Agreement eSign"}
-                    {/* Coming soon */}
+                  : !canRetry
+                    ? `Retry in ${minutesLeft(r)}m`
+                    : ["FAILED", "INITIATED"].includes(status)
+                      ? "Retry Agreement eSign"
+                      : "Send Agreement eSign"}
             </button>
           </div>
         );
@@ -707,181 +732,398 @@ const SevenFinCorpApprovedLoans = ({
 
       {/* BANK MODAL remains unchanged */}
       {showBankModal && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <h3>Add Bank Details & Mandate</h3>
+        <div className="modal-backdrop" onClick={closeBankModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <h3>Add Bank Details &amp; Mandate</h3>
+                <p className="modal-sub">
+                  {selectedLoan?.customer_name} · {selectedLoan?.lan}
+                </p>
+              </div>
+              <button className="icon-btn" onClick={closeBankModal}>
+                ✕
+              </button>
+            </div>
 
             <form onSubmit={handleBankSubmit} className="bank-form">
-              <div className="field-row">
-                <label>Account Holder Name*</label>
-                <input
-                  name="account_holder_name"
-                  value={bankForm.account_holder_name}
-                  onChange={handleBankChange}
-                  readOnly
-                />
-              </div>
+              <div className="form-cols">
+                {/* LEFT — Bank Account */}
+                <div className="col">
+                  <div className="section-label">Bank Account</div>
 
-              <div className="field-row">
-                <label>Bank Name</label>
-                <input
-                  name="bank_name"
-                  value={bankForm.bank_name}
-                  onChange={handleBankChange}
-                  readOnly
-                />
-              </div>
+                  <div className="field-row">
+                    <label>
+                      Account Holder Name <span className="req">*</span>
+                    </label>
+                    <input
+                      name="account_holder_name"
+                      value={bankForm.account_holder_name}
+                      onChange={handleBankChange}
+                      readOnly
+                    />
+                  </div>
 
-              <div className="field-row">
-                <label>Account Number*</label>
-                <input
-                  name="account_no"
-                  value={bankForm.account_no}
-                  onChange={handleBankChange}
-                  readOnly
-                />
-              </div>
+                  <div className="field-row">
+                    <label>Bank Name</label>
+                    <input
+                      name="bank_name"
+                      value={bankForm.bank_name}
+                      onChange={handleBankChange}
+                      readOnly
+                    />
+                  </div>
 
-              <div className="field-row">
-                <label>IFSC*</label>
-                <input
-                  name="ifsc"
-                  value={bankForm.ifsc}
-                  onChange={handleBankChange}
-                  readOnly
-                />
-              </div>
+                  <div className="field-row">
+                    <label>
+                      Account Number <span className="req">*</span>
+                    </label>
+                    <input
+                      name="account_no"
+                      value={bankForm.account_no}
+                      onChange={handleBankChange}
+                      readOnly
+                    />
+                  </div>
 
-              <div className="field-row">
-                <label>Account Type</label>
-                <select
-                  name="account_type"
-                  value={bankForm.account_type}
-                  onChange={handleBankChange}
-                >
-                  <option value="SAVINGS">SAVINGS</option>
-                  <option value="CURRENT">CURRENT</option>
-                </select>
-              </div>
+                  <div className="grid-2">
+                    <div className="field-row">
+                      <label>
+                        IFSC <span className="req">*</span>
+                      </label>
+                      <input
+                        name="ifsc"
+                        value={bankForm.ifsc}
+                        onChange={handleBankChange}
+                        readOnly
+                      />
+                    </div>
 
-              <hr />
+                    <div className="field-row">
+                      <label>Account Type</label>
+                      <select
+                        name="account_type"
+                        value={bankForm.account_type}
+                        onChange={handleBankChange}
+                      >
+                        <option value="SAVINGS">Savings</option>
+                        <option value="CURRENT">Current</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
 
-              <div className="field-row">
-                <label>Mandate Amount (₹)*</label>
-                <input
-                  type="number"
-                  name="mandate_amount"
-                  value={bankForm.mandate_amount}
-                  onChange={handleBankChange}
-                />
-              </div>
+                {/* RIGHT — Mandate */}
+                <div className="col">
+                  <div className="section-label">Mandate</div>
 
-              <div className="field-row">
-                <label>Mandate Start Date*</label>
-                <input
-                  type="date"
-                  name="mandate_start_date"
-                  value={bankForm.mandate_start_date}
-                  onChange={handleBankChange}
-                />
-              </div>
+                  <div className="field-row">
+                    <label>
+                      Mandate Amount <span className="req">*</span>
+                    </label>
+                    <div className="input-prefix">
+                      <span>₹</span>
+                      <input
+                        type="number"
+                        name="mandate_amount"
+                        value={bankForm.mandate_amount}
+                        onChange={handleBankChange}
+                      />
+                    </div>
+                  </div>
 
-              <div className="field-row">
-                <label>Mandate End Date</label>
-                <input
-                  type="date"
-                  name="mandate_end_date"
-                  value={bankForm.mandate_end_date}
-                  onChange={handleBankChange}
-                />
-              </div>
+                  <div className="grid-2">
+                    <div className="field-row">
+                      <label>
+                        Start Date <span className="req">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        name="mandate_start_date"
+                        value={bankForm.mandate_start_date}
+                        onChange={handleBankChange}
+                      />
+                    </div>
 
-              <div className="field-row">
-                <label>Frequency</label>
-                <select
-                  name="mandate_frequency"
-                  value={bankForm.mandate_frequency}
-                  onChange={handleBankChange}
-                >
-                  <option value="monthly">Monthly</option>
-                  readOnly
-                </select>
+                    <div className="field-row">
+                      <label>End Date</label>
+                      <input
+                        type="date"
+                        name="mandate_end_date"
+                        value={bankForm.mandate_end_date}
+                        onChange={handleBankChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="field-row">
+                    <label>Frequency</label>
+                    <select
+                      name="mandate_frequency"
+                      value={bankForm.mandate_frequency}
+                      onChange={handleBankChange}
+                    >
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               {bankError && (
-                <p style={{ color: "#b91c1c", marginTop: 8 }}>{bankError}</p>
+                <div className="alert alert-error">{bankError}</div>
               )}
 
               {bankResult && (
-                <div style={{ marginTop: 8, fontSize: 13 }}>
+                <div className="alert alert-ok">
                   <div>
-                    ✅ Verified: <b>{bankResult.verified ? "YES" : "NO"}</b>
+                    Verified: <b>{bankResult.verified ? "Yes" : "No"}</b>
                   </div>
                   {bankResult.fuzzy_score != null && (
-                    <div>Fuzzy Score: {bankResult.fuzzy_score}</div>
+                    <div>Name match score: {bankResult.fuzzy_score}</div>
                   )}
                   {bankResult.mandate_created && (
                     <div>
-                      Mandate Created: <b>{bankResult.document_id}</b>
+                      Mandate ID: <b>{bankResult.document_id}</b>
                     </div>
                   )}
                 </div>
               )}
 
-              <div
-                style={{
-                  marginTop: 16,
-                  display: "flex",
-                  gap: 8,
-                  justifyContent: "flex-end",
-                }}
-              >
-                <button type="button" onClick={closeBankModal}>
+              <div className="modal-foot">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={closeBankModal}
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={bankLoading}>
-                  {bankLoading ? "Processing..." : "Verify & Create Mandate"}
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={bankLoading}
+                >
+                  {bankLoading ? "Processing…" : "Verify & Create Mandate"}
                 </button>
               </div>
             </form>
           </div>
 
           <style>{`
-            .modal-backdrop {
-              position: fixed;
-              inset: 0;
-              background: rgba(15,23,42,.45);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              z-index: 50;
-            }
-            .modal {
-              background: #fff;
-              border-radius: 12px;
-              padding: 20px 24px;
-              width: 480px;
-              max-width: 95vw;
-              box-shadow: 0 20px 40px rgba(15,23,42,.35);
-            }
-            .bank-form .field-row {
-              display: flex;
-              flex-direction: column;
-              margin-bottom: 10px;
-            }
-            .bank-form label {
-              font-size: 13px;
-              font-weight: 600;
-              margin-bottom: 4px;
-            }
-            .bank-form input,
-            .bank-form select {
-              padding: 8px;
-              border-radius: 6px;
-              border: 1px solid #d1d5db;
-              font-size: 14px;
-            }
-          `}</style>
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15,23,42,.55);
+        backdrop-filter: blur(3px);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        z-index: 50;
+        padding: 40px 20px;
+        overflow-y: auto;
+      }
+
+      .modal {
+        background: #fff;
+        border-radius: 16px;
+        width: 880px;
+        max-width: 100%;
+        margin: auto;
+        box-shadow: 0 24px 48px -12px rgba(15,23,42,.35);
+      }
+
+      .modal-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 22px 28px 18px;
+        border-bottom: 1px solid #eef2f7;
+      }
+
+      .modal-head h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      .modal-sub {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: #64748b;
+      }
+
+      .icon-btn {
+        border: none;
+        background: #f1f5f9;
+        color: #475569;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+      .icon-btn:hover { background: #e2e8f0; }
+
+      .bank-form { padding: 22px 28px 26px; }
+
+      .form-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 36px;
+      }
+
+      .col { min-width: 0; }
+
+      .section-label {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin: 0 0 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #f1f5f9;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .field-row {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 14px;
+      }
+
+      .bank-form label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 6px;
+      }
+
+      .req { color: #ef4444; }
+
+      .bank-form input,
+      .bank-form select {
+        height: 42px;
+        padding: 0 12px;
+        border-radius: 10px;
+        border: 1px solid #dbe3ec;
+        font-size: 14px;
+        color: #0f172a;
+        background: #fff;
+        transition: border-color .15s, box-shadow .15s;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .bank-form input:focus,
+      .bank-form select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+      }
+
+      .bank-form input[readonly] {
+        background: #f8fafc;
+        color: #64748b;
+        cursor: default;
+      }
+
+      .input-prefix {
+        display: flex;
+        align-items: center;
+        border: 1px solid #dbe3ec;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .input-prefix:focus-within {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+      }
+      .input-prefix span {
+        padding: 0 12px;
+        color: #64748b;
+        font-size: 14px;
+        background: #f8fafc;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        border-right: 1px solid #dbe3ec;
+        flex-shrink: 0;
+      }
+      .input-prefix input {
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        flex: 1;
+      }
+
+      .alert {
+        padding: 11px 14px;
+        border-radius: 10px;
+        font-size: 13px;
+        margin-top: 6px;
+        line-height: 1.6;
+      }
+      .alert-error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+      }
+      .alert-ok {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #14532d;
+      }
+
+      .modal-foot {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+        padding-top: 18px;
+        border-top: 1px solid #eef2f7;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: .15s;
+      }
+      .btn-ghost {
+        background: #fff;
+        border: 1px solid #dbe3ec;
+        color: #475569;
+      }
+      .btn-ghost:hover { background: #f8fafc; }
+
+      .btn-primary {
+        background: #0f172a;
+        border: 1px solid #0f172a;
+        color: #fff;
+      }
+      .btn-primary:hover:not(:disabled) { background: #1e293b; }
+      .btn-primary:disabled {
+        background: #cbd5e1;
+        border-color: #cbd5e1;
+        cursor: not-allowed;
+      }
+
+      @media (max-width: 860px) {
+        .form-cols { grid-template-columns: 1fr; }
+        .col + .col { margin-top: 20px; }
+        .grid-2 { grid-template-columns: 1fr; }
+      }
+    `}</style>
         </div>
       )}
     </>
