@@ -39,6 +39,7 @@ const ALLOWED_STATUSES = new Set([
   "active",
   "credit-approved",
   "credit_approved",
+  "Operations Initiated",
 ]);
 
 // Normalize DB variations -> canonical
