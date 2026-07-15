@@ -2764,7 +2764,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       FROM ?? lb
       WHERE
         lb.status = 'Credit Initiated'
-        AND lb.stage = 'BRE Approved'
+        AND lb.stage = 'BRE APPROVED'
         AND lb.lan LIKE ?
         ${searchClause}
     `;
@@ -2798,7 +2798,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
       FROM ?? lb
       WHERE
         lb.status = 'Credit Initiated'
-        AND lb.stage = 'BRE Approved'
+        AND lb.stage = 'BRE APPROVED'
         AND lb.lan LIKE ?
         ${searchClause}
 
