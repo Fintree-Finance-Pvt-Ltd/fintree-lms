@@ -1083,6 +1083,46 @@ function buildReportFileName(partnerKey, lan) {
   return `${safeFilePart(partnerKey)}-` + `${safeFilePart(lan)}-aml-report.pdf`;
 }
 
+/**
+ * Check if AML was already triggered for this partner + LAN.
+ * Returns the latest existing screening row, or null.
+ * Never throws — on lookup errors returns null so screening continues.
+ */
+async function findExistingScreening(partnerKey, lan) {
+  try {
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          id,
+          request_id,
+          status,
+          suggested_action,
+          hits_count,
+          confirmed_hits,
+          report_pdf IS NOT NULL AS has_report,
+          report_file_name
+        FROM screening_requests
+        WHERE partner_key = ?
+        AND status <> 'FAILED'
+          AND lan = ?
+        ORDER BY id DESC
+        LIMIT 1
+      `,
+      [partnerKey, lan],
+    );
+
+    return rows.length ? rows[0] : null;
+  } catch (error) {
+    console.error("AML existence check failed, screening fresh", {
+      partnerKey,
+      lan,
+      error: error.message,
+    });
+
+    return null;
+  }
+}
+
 /* ───────────────────── Base64 PDF conversion ───────────────────── */
 
 /**
@@ -1280,6 +1320,31 @@ async function createScreeningAudit({ requestId, lead, payload }) {
   return insertResult.insertId;
 }
 
+/* ───────────────────── Loan documents storage ───────────────────── */
+
+async function saveToLoanDocuments({ lead, screeningRequestId, fileName, filePath }) {
+  await pool.execute(
+    `
+      INSERT INTO loan_documents
+        (lan, file_name, original_name, source_url, doc_name, sub_type, meta_json, uploaded_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+    `,
+    [
+      lead.lan,
+      fileName,
+      buildReportFileName(lead.partner, lead.lan),
+      filePath,
+      "AML_REPORT",
+      "TRACKWIZZ",
+      JSON.stringify({
+        partner: lead.partner,
+        leadId: lead.leadId,
+        screeningRequestId,
+      }),
+    ],
+  );
+}
+
 /* ───────────────────── Successful response storage ───────────────────── */
 
 async function persistTrackWizzResponse({
@@ -1295,6 +1360,7 @@ async function persistTrackWizzResponse({
   let reportFileName = null;
   let reportMimeType = null;
   let reportStorageError = null;
+  let reportFilePath = null;   // ← ADD THIS
 
   /*
    * Do not fail the AML decision when the report PDF cannot
@@ -1318,7 +1384,21 @@ async function persistTrackWizzResponse({
           );
           fs.writeFileSync(filePath, reportPdf);
           reportFileName = filename; // store the actual saved name
+          reportFilePath = `/uploads/${filename}`;   // ← ADD
           console.log("AML report saved:", filePath);
+          try {
+            await saveToLoanDocuments({
+              lead,
+              screeningRequestId,
+              fileName: filename,
+              filePath: reportFilePath,
+            });
+          } catch (docError) {
+            console.error("Unable to insert into loan_documents", {
+              lan: lead.lan,
+              error: docError.message,
+            });
+          }
         } catch (fsError) {
           // disk failure must not block screening; DB copy still exists
           console.error("Unable to write AML report to disk", {
@@ -1400,6 +1480,7 @@ async function persistTrackWizzResponse({
     rawResponse,
     reportStored: Boolean(reportPdf),
     reportFileName,
+    reportFilePath,   // ← ADD
     reportStorageError,
   };
 }
@@ -1558,6 +1639,8 @@ async function screenLead(lead) {
 
         reportFileName: persisted.reportFileName,
 
+        reportFilePath: persisted.reportFilePath,   // ← ADD
+
         reportStorageError: persisted.reportStorageError,
 
         rawResponse: persisted.rawResponse,
@@ -1589,6 +1672,8 @@ async function screenLead(lead) {
       reportStored: persisted.reportStored,
 
       reportFileName: persisted.reportFileName,
+
+      reportFilePath: persisted.reportFilePath,   // ← ADD
 
       reportStorageError: persisted.reportStorageError,
 
@@ -1639,6 +1724,7 @@ async function screenLead(lead) {
       hasReport: false,
       reportStored: false,
       reportFileName: null,
+      reportFilePath: null,   // ← ADD
       reportStorageError: null,
 
       rawResponse,
@@ -1850,8 +1936,78 @@ async function updatePartnerAmlResult({ partnerKey, lead, outcome }) {
 
 /* ───────────────────── Partner-wise LAN workflow ───────────────────── */
 
-async function screenLoanBooking(partnerKey, lan) {
+async function screenLoanBooking(partnerKey, lan, options = {}) {
+  const { force = false } = options;
+
   const lead = await getLeadByLan(partnerKey, lan);
+
+  /*
+   * Validation: if AML was already triggered for this LAN,
+   * do not trigger it again. Reuse the existing result.
+   */
+  if (!force) {
+    const existing = await findExistingScreening(partnerKey, lead.lan);
+
+    if (existing) {
+      console.log(
+        `AML already triggered for ${lead.lan} ` +
+          `(screening #${existing.id}, status ${existing.status}), skipping`,
+      );
+
+      const isCompleted = existing.status === "COMPLETED";
+
+      const outcome = {
+        decision: isCompleted
+          ? getDecision(existing.suggested_action)
+          : "REVIEW",
+
+        degraded: false,
+        reused: true,
+
+        reason: `Reused screening #${existing.id} (${existing.status})`,
+
+        partner: partnerKey,
+        leadId: lead.leadId,
+        lan: lead.lan,
+
+        screeningRequestId: existing.id,
+        requestId: existing.request_id,
+
+        hitsCount: existing.hits_count ?? 0,
+        confirmedHits: equalsIgnoreCase(existing.confirmed_hits, "Yes"),
+        hits: [],
+
+        hasReport: Boolean(existing.has_report),
+        reportStored: Boolean(existing.has_report),
+        reportFileName: existing.report_file_name || null,
+        reportFilePath: existing.report_file_name
+          ? `/uploads/${existing.report_file_name}`
+          : null,
+        reportStorageError: null,
+
+        rawResponse: null,
+        result: null,
+      };
+
+      const amlResult = await updatePartnerAmlResult({
+        partnerKey,
+        lead,
+        outcome,
+      });
+
+      return {
+        ...outcome,
+
+        partner: partnerKey,
+        leadId: lead.leadId,
+        lan: lead.lan,
+
+        ...amlResult,
+      };
+    }
+  }
+
+  /* ── no existing screening: trigger fresh AML ── */
 
   const outcome = await screenLead(lead);
 
