@@ -54,7 +54,7 @@ router.post("/lead", async (req, res) => {
  * GET /api/screening/:id/report
  * Download the PDF by screening-request id.
  */
-router.get("/:id(\\d+)/report", async (req, res) => {
+router.get("/:id/report", async (req, res) => {
   try {
     const report = await getScreeningReport(req.params.id);
     if (!report?.pdfBuffer) {
@@ -69,7 +69,8 @@ router.get("/:id(\\d+)/report", async (req, res) => {
     res.setHeader("Cache-Control", "private, no-store");
     res.send(buf);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.code === "INVALID_SCREENING_REQUEST_ID" ? 400 : 500;
+    res.status(status).json({ error: err.message });
   }
 });
 
