@@ -4,7 +4,6 @@ const {
   generateRapidMoneyRepaymentSchedule,
 } = require("../utils/generateRapidMoneyRepaymentSchedule");
 const { sendLoanWebhook } = require("../utils/webhook");
-const {sendDisbursementWebhook} = require("../routes/switchMyLoan/switchMyLoanWebhook");
 
 async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDate }) {
    console.log("[EMICLUB][START] Processing disbursement", {
@@ -297,13 +296,6 @@ if (existingRps.length > 0) {
       console.log("[Rapid money][STEP 6] Sending disbursement webhook", {
       lan,
       utr: disbursementUTR,
-    });
-
-    await sendDisbursementWebhook({
-      applicationId: loan.application_id,
-      transactionId: disbursementUTR,
-      disbursementDate: new Date(disbursementDate).toISOString().split("T")[0],
-      repaymentDate: new Date(loan.repayment_date).toISOString().split("T")[0],
     });
 
  console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan });
