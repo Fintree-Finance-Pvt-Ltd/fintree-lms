@@ -38,6 +38,7 @@ const { initAadhaarKyc } = require("./services/digitapaadharservice");
 const { autoRunFinsoBreIfReady} = require("./utils/fincrestBRE");
 const { autoApproveSrbhIfAllVerified } = require("./routes/srbh/srbhBRE");
 const { universalRunAllValidations} = require("./utils/runValiationsEngine");
+const { sendDisbursementWebhook } = require("./routes/switchMyLoan/switchMyLoanWebhook");
 const {
   sendWelcomeLetterAfterUtrUpload,
 } = require("./services/welcomeLetterService");
@@ -57,6 +58,7 @@ const PORT = process.env.PORT;
 
 // ✅ Import jobs
 require("./jobs/dailyJobs");
+require("./jobs/rapidMoneyWebhookRetry");
 
 const fs = require("fs");
 const path = require("path");
@@ -380,6 +382,7 @@ app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ R
 app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Mandate UMRN Update
+// app.use("/api/claim-cure-buddy", require("./routes/ClaimCureBuddy/ClaimCureBuddyRoutes")); // ✅ Register Routes for Claim Cure Buddy
 app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
 app.use("/api/fundify", require("./routes/Fundify/fundifyRoutes")); // ✅ Register Routes for Fundify Loans
 
@@ -802,6 +805,62 @@ app.post("/api/welcome-letter/send", async (req, res) => {
     });
   }
 });
+
+app.post(
+  "/api/test-rapid-money-disbursement-webhook",
+  async (req, res) => {
+    try {
+      const {
+        lan,
+        transactionId,
+        disbursementDate,
+      } = req.body;
+
+      if (
+        !lan ||
+        !transactionId ||
+        !disbursementDate
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "lan, transactionId and disbursementDate are required",
+        });
+      }
+
+      const result =
+        await sendDisbursementWebhook({
+          lan,
+          transactionId,
+          disbursementDate,
+        });
+
+      return res
+        .status(
+          result.success ? 200 : 202,
+        )
+        .json({
+          success:
+            result.success,
+          message:
+            result.success
+              ? "Webhook sent successfully"
+              : "Webhook failed and is queued for retry",
+          result,
+        });
+    } catch (error) {
+      console.error(
+        "Rapid Money test webhook error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  },
+);
 
 app.get("/api/test-sms", async (req, res) => {
   try {

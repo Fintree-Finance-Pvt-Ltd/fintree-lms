@@ -1,131 +1,172 @@
-// const express = require("express");
-// const db = require("../config/db");
-// const { verifyWebhookHash } = require("../utils/webhookHashVerify");
-
-// const router = express.Router();
-
-// router.post("/payout", async (req, res) => {
-//   const { event, data } = req.body;
-
-//   if (!verifyWebhookHash(data)) {
-//     return res.sendStatus(401);
-//   }
-
-//   /**
-//    * TRANSFER_INITIATED (once)
-//    * TRANSFER_STATUS_UPDATE (multiple times)
-//    */
-//   await db.promise().query(
-//     `UPDATE quick_transfers
-//      SET status=?, failure_reason=?, utr=?, raw_response=?, updated_at=NOW()
-//      WHERE unique_request_number=?`,
-//     [
-//       data.status,
-//       data.failure_reason || null,
-//       data.unique_transaction_reference || null,
-//       JSON.stringify(req.body),
-//       data.unique_request_number,
-//     ]
-//   );
-
-//   /**
-//    * FINAL STATES (AUTO)
-//    */
-//   if (data.status === "success") {
-//     // ✔ Disbursement confirmed
-//     // ✔ Ledger posting
-//   }
-
-//   if (["failure", "rejected", "reversed"].includes(data.status)) {
-//     // ✔ Mark failed
-//     // ✔ Auto retry logic (optional)
-//   }
-
-//   return res.sendStatus(200);
-// });
-
-// module.exports = router;
-
-
-
-
-////////////////////////////////////////////////////////////
-
 const express = require("express");
 const db = require("../config/db");
 const { verifyWebhookHash } = require("../utils/webhookHashVerify");
 const { sendLowBalanceAlertMail } = require("../jobs/mailer");
-const { processRapidMoneyDisbursement } = require("../services/processEmiClubDisbursement");
+const {
+  processRapidMoneyDisbursement,
+} = require("../services/processEmiClubDisbursement");
+const {
+  sendDisbursementWebhook,
+} = require("../routes/switchMyLoan/switchMyLoanWebhook");
 
 const router = express.Router();
-const {sendWelcomeLetterAfterUtrUpload,} = require("../services/welcomeLetterService");
+const {
+  sendWelcomeLetterAfterUtrUpload,
+} = require("../services/welcomeLetterService");
 
 router.post("/payout", async (req, res) => {
   let conn;
+  let transactionStarted = false;
+
   try {
-    const { event, data } = req.body;
+    const { event, data } = req.body || {};
 
     console.log("Received Payout Webhook:", req.body);
 
-    /* ==============================
-       1️⃣ Verify webhook signature
-    ============================== */
+    if (!data || typeof data !== "object") {
+      return res.status(400).json({
+        success: false,
+        message: "Webhook data is required",
+      });
+    }
+
+    if (!data.unique_request_number) {
+      return res.status(400).json({
+        success: false,
+        message: "unique_request_number is required",
+      });
+    }
+
     if (!verifyWebhookHash(data)) {
       console.error("❌ Invalid webhook hash");
+
       return res.sendStatus(401);
     }
 
-    const normalizedStatus = String(
-      data.status || ""
-    ).trim().toLowerCase();
+    const normalizedStatus = String(data.status || "")
+      .trim()
+      .toLowerCase();
+
+    const successStatuses = ["success", "completed", "processed"];
+
+    const isSuccess = successStatuses.includes(normalizedStatus);
 
     console.log("📩 Payout Webhook Event:", {
-  event,
-  status: normalizedStatus,
-  unique_request_number:
-    data.unique_request_number,
-});
+      event,
+      status: normalizedStatus,
+      uniqueRequestNumber: data.unique_request_number,
+    });
 
-     conn = await db.promise().getConnection();
+    conn = await db.promise().getConnection();
 
     await conn.beginTransaction();
+    transactionStarted = true;
 
     const [[transfer]] = await conn.query(
       `
-      SELECT lan, payout_status
-      FROM quick_transfers
-      WHERE unique_request_number = ?
-      LIMIT 1
-      `,
-      [data.unique_request_number]
+        SELECT
+          lan,
+          payout_status,
+          utr,
+          transfer_date
+        FROM quick_transfers
+        WHERE unique_request_number = ?
+        LIMIT 1
+        `,
+      [data.unique_request_number],
     );
 
     if (!transfer) {
-      console.error("❌ Transfer not found");
-
       await conn.rollback();
+      transactionStarted = false;
+
+      console.error("❌ Transfer not found", {
+        uniqueRequestNumber: data.unique_request_number,
+      });
 
       return res.sendStatus(404);
     }
 
-    // IDEMPOTENCY
-    if (
-  String(transfer.payout_status || "")
-    .trim()
-    .toLowerCase() === "success"
-) {
-      console.log("⏭️ Duplicate webhook ignored");
+    const existingStatus = String(transfer.payout_status || "")
+      .trim()
+      .toLowerCase();
 
+    const effectiveUtr =
+      data.unique_transaction_reference || transfer.utr || null;
+
+    const effectiveTransferDate =
+      data.transfer_date || transfer.transfer_date || null;
+
+    /*
+     * Duplicate successful callback.
+     *
+     * Partner webhook remains idempotent.
+     * Internal processing is retried in case
+     * it failed after the first callback.
+     */
+    if (isSuccess && successStatuses.includes(existingStatus)) {
       await conn.rollback();
+      transactionStarted = false;
+
+      console.log("Duplicate successful payout callback", {
+        lan: transfer.lan,
+        utr: effectiveUtr,
+      });
+
+      if (
+        transfer.lan?.startsWith("RML") &&
+        effectiveUtr &&
+        effectiveTransferDate
+      ) {
+        const webhookResult = await sendDisbursementWebhook({
+          lan: transfer.lan,
+          transactionId: effectiveUtr,
+          disbursementDate: effectiveTransferDate,
+        });
+
+        console.log("Rapid Money partner webhook result", {
+          lan: transfer.lan,
+          utr: effectiveUtr,
+          success: webhookResult?.success,
+          alreadySent: webhookResult?.alreadySent,
+          logId: webhookResult?.logId,
+          message: webhookResult?.message,
+        });
+
+        if (!webhookResult?.success) {
+          console.log("Partner webhook failed and will be retried by cron", {
+            lan: transfer.lan,
+            logId: webhookResult?.logId,
+          });
+        }
+
+        const processingResult = await processRapidMoneyDisbursement({
+          lan: transfer.lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate: effectiveTransferDate,
+        });
+
+        console.log("Duplicate callback internal processing result", {
+          lan: transfer.lan,
+          result: processingResult,
+        });
+      }
 
       return res.sendStatus(200);
     }
 
+    /*
+     * Successful payouts must contain
+     * UTR and transfer date.
+     */
+    if (isSuccess && (!effectiveUtr || !effectiveTransferDate)) {
+      throw new Error("Successful payout is missing UTR or transfer_date");
+    }
 
-    /* ==============================
-       2️⃣ Update payout record
-    ============================== */
-      await conn.query(
+    /*
+     * This update works for all products.
+     */
+    await conn.query(
       `
       UPDATE quick_transfers
       SET
@@ -143,98 +184,172 @@ router.post("/payout", async (req, res) => {
         normalizedStatus,
         normalizedStatus,
         data.failure_reason || null,
-        data.unique_transaction_reference || null,
+        effectiveUtr,
         data.queue_on_low_balance ?? 0,
-        data.transfer_date
-          ? new Date(data.transfer_date)
-          : null,
+        effectiveTransferDate ? new Date(effectiveTransferDate) : null,
         JSON.stringify(req.body),
         data.unique_request_number,
-      ]
+      ],
     );
 
-    /* ==============================
-       3️⃣ Final state handling
-    ============================== */
-    if (normalizedStatus === "success") {if (
-  !data.unique_transaction_reference ||
-  !data.transfer_date
-) {
-  throw new Error(
-    "Missing UTR or transfer_date"
-  );
-}
+    /*
+     * Commit Easebuzz callback information
+     * before partner webhook or RPS generation.
+     */
+    await conn.commit();
+    transactionStarted = false;
 
-const lan = transfer.lan;
-const disbursementUtr = data.unique_transaction_reference;
-const disbursementDate = new Date(data.transfer_date);
+    if (isSuccess) {
+      const lan = transfer.lan;
 
-if (lan.startsWith("RML")) {
-  await processRapidMoneyDisbursement({
-    lan,
-    disbursementUTR: disbursementUtr,
-    disbursementDate,
-  });
+      const disbursementDate = new Date(effectiveTransferDate);
 
-  /*
-  Rapid Money disbursement is successfully processed.
-   */
+      if (Number.isNaN(disbursementDate.getTime())) {
+        throw new Error(`Invalid transfer_date: ${effectiveTransferDate}`);
+      }
 
-  try {
-    const welcomeLetterResult =
-      await sendWelcomeLetterAfterUtrUpload({
+      /*
+       * Rapid Money-specific processing.
+       *
+       * Other products skip this block and
+       * continue without an error.
+       */
+      if (lan?.startsWith("RML")) {
+        /*
+         * STEP 1:
+         * Easebuzz confirmed money was disbursed.
+         * Notify the partner before internal RPS.
+         */
+        try {
+          const webhookResult = await sendDisbursementWebhook({
+            lan,
+            transactionId: effectiveUtr,
+            disbursementDate: effectiveTransferDate,
+          });
+
+          console.log("Rapid Money partner webhook result", {
+            lan,
+            utr: effectiveUtr,
+            success: webhookResult?.success,
+            alreadySent: webhookResult?.alreadySent,
+            logId: webhookResult?.logId,
+            message: webhookResult?.message,
+          });
+
+          if (!webhookResult?.success) {
+            console.log("Partner webhook will be retried by cron", {
+              lan,
+              logId: webhookResult?.logId,
+            });
+          }
+        } catch (webhookError) {
+          /*
+           * Continue RPS even if creating the
+           * webhook log itself fails.
+           */
+          console.error("Rapid Money partner webhook error", {
+            lan,
+            message: webhookError.message,
+            stack: webhookError.stack,
+          });
+        }
+
+        /*
+         * STEP 2:
+         * Internal RPS, UTR and status processing.
+         */
+        const rapidMoneyResult = await processRapidMoneyDisbursement({
+          lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate,
+        });
+
+        console.log("Rapid Money internal processing result", {
+          lan,
+          utr: effectiveUtr,
+          success: rapidMoneyResult?.success,
+          skipped: rapidMoneyResult?.skipped,
+          reason: rapidMoneyResult?.reason,
+        });
+
+        /*
+         * STEP 3:
+         * Welcome letter.
+         */
+        try {
+          const welcomeLetterResult = await sendWelcomeLetterAfterUtrUpload({
+            lan,
+            utrNumber: effectiveUtr,
+          });
+
+          console.log("✅ Welcome Letter Sent", {
+            lan,
+            utr: effectiveUtr,
+            messageId: welcomeLetterResult?.emailMessageId,
+            recipient: welcomeLetterResult?.recipient,
+          });
+        } catch (welcomeLetterError) {
+          console.error("❌ Welcome Letter Failed", {
+            lan,
+            utr: effectiveUtr,
+            errorCode: welcomeLetterError?.code || "WELCOME_LETTER_FAILED",
+            errorMessage:
+              welcomeLetterError?.message || "Unable to send welcome letter",
+          });
+        }
+      } else {
+        /*
+         * Non-RML products are not affected
+         * by Rapid Money-specific logic.
+         */
+        console.log("Payout success stored for non-Rapid-Money product", {
+          lan,
+          utr: effectiveUtr,
+        });
+      }
+
+      console.log("✅ Payout SUCCESS", {
         lan,
-        utrNumber: disbursementUtr,
+        utr: effectiveUtr,
       });
-
-    console.log("✅ Welcome Letter Sent:", {
-      lan,
-      utr: disbursementUtr,
-      messageId: welcomeLetterResult?.emailMessageId,
-      recipient: welcomeLetterResult?.recipient,
-    });
-  } catch (welcomeLetterError) {
-    console.error("❌ Welcome Letter Failed:", {
-      lan,
-      utr: disbursementUtr,
-      errorCode:
-        welcomeLetterError?.code ||
-        "WELCOME_LETTER_FAILED",
-      errorMessage:
-        welcomeLetterError?.message ||
-        "Unable to send welcome letter.",
-    });
-  }
-}
-
-console.log("✅ Payout SUCCESS:", {
-  lan,
-  utr: disbursementUtr,
-});}
+    }
 
     if (
-  ["failure", "failed", "rejected", "reversed"]
-    .includes(normalizedStatus)
-) {
-  console.log("❌ Payout FAILED:", {
-    unique_request_number:
-      data.unique_request_number,
-    status: normalizedStatus,
-    reason: data.failure_reason,
-  });
-}
-
-    await conn.commit();
+      ["failure", "failed", "rejected", "reversed"].includes(normalizedStatus)
+    ) {
+      console.log("❌ Payout FAILED", {
+        uniqueRequestNumber: data.unique_request_number,
+        status: normalizedStatus,
+        reason: data.failure_reason,
+      });
+    }
 
     return res.sendStatus(200);
-  } catch (err) {
-    console.error("Webhook processing error:", err);
+  } catch (error) {
+    console.error("Webhook processing error:", {
+      message: error.message,
+      stack: error.stack,
+      responseStatus: error.response?.status || null,
+      responseData: error.response?.data || null,
+    });
 
-    if (conn) await conn.rollback();
+    if (conn && transactionStarted) {
+      try {
+        await conn.rollback();
+        transactionStarted = false;
+      } catch (rollbackError) {
+        console.error("Webhook rollback failed:", rollbackError.message);
+      }
+    }
 
-    return res.sendStatus(200);
+    return res.status(500).json({
+      success: false,
+      message: "Payout webhook processing failed",
+    });
   } finally {
-    if (conn) conn.release();
+    if (conn) {
+      conn.release();
+    }
   }
 });
 
