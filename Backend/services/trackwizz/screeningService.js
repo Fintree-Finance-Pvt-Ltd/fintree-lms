@@ -942,7 +942,7 @@
  * Store hits and update partner AML columns
  */
 
-const pool = require("../../config/db");
+const pool = require("../../config/db").promise();
 const fs = require("fs");
 const path = require("path");
 

@@ -242,7 +242,7 @@
  * Multi-partner adapter:
  * Partner loan-booking row → canonical lead object.
  */
-const pool = require("../../config/db");
+const pool = require("../../config/db").promise();
 
 /* ───────────────────────── Shared normalizers ───────────────────────── */
 
