@@ -1264,7 +1264,7 @@ async function createScreeningAudit({ requestId, lead, payload }) {
         request_payload,
         status
       )
-      VALUES (?, ?, ?, ?, ?, '01', ?, 'PENDING')
+      VALUES (?, ?, ?, ?, ?, ?, '01', ?, 'PENDING')
     `,
     [
       requestId,
