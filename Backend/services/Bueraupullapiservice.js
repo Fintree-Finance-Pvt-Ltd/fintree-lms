@@ -101,7 +101,6 @@ const STATE_CODES = {
 
 const runBureau = async (data) => {
   try {
-    console.log("🏦 Running Experian Bureau Utility...", data);
 
     // -----------------------------
     // Format required fields
@@ -139,7 +138,7 @@ const runBureau = async (data) => {
     const loanTenure = Number(data.loan_tenure);
     if (isNaN(loanTenure)) throw new Error("loan_tenure must be numeric.");
 
-    const enquiryReason = data.enquiry_reason || 13;
+    const enquiryReason = data.enquiry_reason || "05"; // Default to 05 if not provided
     const financePurpose = data.finance_purpose || 99;
 
     console.log(dobFormatted, gender_code, firstName, lastName, state_code);
