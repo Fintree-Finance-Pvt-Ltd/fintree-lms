@@ -13,7 +13,7 @@ const {
  * Screens a partner booking by LAN and writes aml_* columns back.
  * Example: POST /api/screening/switch_my_loan/lan/LDF00123
  */
-router.post("/:partnerKey/lan/:lan", async (req, res) => {
+router.post("/:partnerKey/:lan", async (req, res) => {
   try {
     const outcome = await screenLoanBooking(req.params.partnerKey, req.params.lan);
     res.status(200).json({
