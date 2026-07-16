@@ -26,23 +26,34 @@ const enachRoutes = require("./routes/enachRoutes");
 const esignRoutes = require("./routes/esignRoutes");
 const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute");
 const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
-const { retryPendingValidations, autoApproveIfAllVerified } = require("./services/heliumValidationEngine");
-const { autoApproveClayyoIfAllVerified } = require("./routes/clyooRoutes/clayyoBreEngine");
-const { autoApproveMotionCorpIfAllVerified } = require("./routes/MotionCorp/motionCorpBRE");
-const { generateForReport, generateAllPending } = require('./jobs/cibilPdfService');
+const {
+  retryPendingValidations,
+  autoApproveIfAllVerified,
+} = require("./services/heliumValidationEngine");
+const {
+  autoApproveClayyoIfAllVerified,
+} = require("./routes/clyooRoutes/clayyoBreEngine");
+const {
+  autoApproveMotionCorpIfAllVerified,
+} = require("./routes/MotionCorp/motionCorpBRE");
+const {
+  generateForReport,
+  generateAllPending,
+} = require("./jobs/cibilPdfService");
 const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
 const mobileRevocationLookup = require("./utils/mnrlApiService");
 const { initAadhaarKyc } = require("./services/digitapaadharservice");
-const { autoRunFinsoBreIfReady} = require("./utils/fincrestBRE");
+const { autoRunFinsoBreIfReady } = require("./utils/fincrestBRE");
 const { autoApproveSrbhIfAllVerified } = require("./routes/srbh/srbhBRE");
-const { universalRunAllValidations} = require("./utils/runValiationsEngine");
-const { sendDisbursementWebhook } = require("./routes/switchMyLoan/switchMyLoanWebhook");
+const { universalRunAllValidations } = require("./utils/runValiationsEngine");
+const {
+  sendDisbursementWebhook,
+} = require("./routes/switchMyLoan/switchMyLoanWebhook");
 const {
   sendWelcomeLetterAfterUtrUpload,
 } = require("./services/welcomeLetterService");
-
 
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
@@ -62,16 +73,20 @@ require("./jobs/rapidMoneyWebhookRetry");
 
 const fs = require("fs");
 const path = require("path");
-const { autoApproveLoanDigitIfAllVerified } = require("./routes/loanDigit/loanDigitBre");
+const {
+  autoApproveLoanDigitIfAllVerified,
+} = require("./routes/loanDigit/loanDigitBre");
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-app.use(cors({
-  origin: '*', // <-- Your frontend GitHub Pages URL
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: "*", // <-- Your frontend GitHub Pages URL
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+    credentials: true,
+  }),
+);
 
 initScheduler();
 
@@ -96,7 +111,7 @@ if (!fs.existsSync(reportsPath)) {
 
 app.use(
   "/agreements",
-  express.static(path.join(process.cwd(), "uploads", "agreements"))
+  express.static(path.join(process.cwd(), "uploads", "agreements")),
 );
 app.use("/generated", express.static(path.join(__dirname, "generated")));
 app.use("/reports", express.static(reportsPath));
@@ -112,27 +127,17 @@ app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ 
 
 app.use(
   "/api/motion-corp",
-  require("./routes/MotionCorp/motionCorpDealerRoutes")
+  require("./routes/MotionCorp/motionCorpDealerRoutes"),
 );
-
 
 app.use(
   "/api/seven-fincorp",
-  require("./routes/Seven Fincorp/sevenFincorpDealerRoutes")
+  require("./routes/Seven Fincorp/sevenFincorpDealerRoutes"),
 );
 
+app.use("/api/srbh", require("./routes/srbh/srbhDealerRoutes"));
 
-app.use(
-  "/api/srbh",
-  require("./routes/srbh/srbhDealerRoutes")
-);
-
-
-app.use(
-  "/api/bundela",
-  require("./routes/Bundela/bundelaDealerRoutes")
-);
-
+app.use("/api/bundela", require("./routes/Bundela/bundelaDealerRoutes"));
 
 app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
@@ -163,9 +168,7 @@ function parseAuditResponse(value) {
 }
 
 function extractApplicationIdFromUrl(url) {
-  const match = String(url || "").match(
-    /\/v1\/loan\/([^/?]+)(?:\/|$)/,
-  );
+  const match = String(url || "").match(/\/v1\/loan\/([^/?]+)(?:\/|$)/);
 
   return match ? decodeURIComponent(match[1]) : null;
 }
@@ -182,8 +185,7 @@ function rmlApiAuditMiddleware(req, res, next) {
 
   let responseBody = null;
   let capturedParams = {};
-  let capturedRoutePath =
-    `${req.baseUrl || ""}${req.path || ""}`;
+  let capturedRoutePath = `${req.baseUrl || ""}${req.path || ""}`;
 
   res.setHeader("x-request-id", requestId);
 
@@ -196,8 +198,7 @@ function rmlApiAuditMiddleware(req, res, next) {
     };
 
     if (req.route?.path) {
-      capturedRoutePath =
-        `${req.baseUrl || ""}${req.route.path}`;
+      capturedRoutePath = `${req.baseUrl || ""}${req.route.path}`;
     }
   }
 
@@ -221,8 +222,7 @@ function rmlApiAuditMiddleware(req, res, next) {
     setImmediate(async () => {
       try {
         const responseData =
-          responseBody?.data &&
-          typeof responseBody.data === "object"
+          responseBody?.data && typeof responseBody.data === "object"
             ? responseBody.data
             : {};
 
@@ -233,14 +233,9 @@ function rmlApiAuditMiddleware(req, res, next) {
           null;
 
         let partnerLoanId =
-          req.body?.partner_loan_id ||
-          responseData.partner_loan_id ||
-          null;
+          req.body?.partner_loan_id || responseData.partner_loan_id || null;
 
-        let lan =
-          req.body?.lan ||
-          responseData.lan ||
-          null;
+        let lan = req.body?.lan || responseData.lan || null;
 
         if (applicationId || partnerLoanId || lan) {
           let lookupSql = null;
@@ -272,25 +267,15 @@ function rmlApiAuditMiddleware(req, res, next) {
             lookupValue = lan;
           }
 
-          const [[loanRow]] = await db.promise().query(
-            lookupSql,
-            [lookupValue],
-          );
+          const [[loanRow]] = await db
+            .promise()
+            .query(lookupSql, [lookupValue]);
 
-          applicationId =
-            applicationId ||
-            loanRow?.application_id ||
-            null;
+          applicationId = applicationId || loanRow?.application_id || null;
 
-          partnerLoanId =
-            partnerLoanId ||
-            loanRow?.partner_loan_id ||
-            null;
+          partnerLoanId = partnerLoanId || loanRow?.partner_loan_id || null;
 
-          lan =
-            lan ||
-            loanRow?.lan ||
-            null;
+          lan = lan || loanRow?.lan || null;
         }
 
         await db.promise().query(
@@ -331,27 +316,26 @@ function rmlApiAuditMiddleware(req, res, next) {
             res.statusCode,
             safeAuditJson(responseBody),
             Date.now() - startedAt,
-            req.ip ||
-              req.socket?.remoteAddress ||
-              null,
+            req.ip || req.socket?.remoteAddress || null,
             req.headers["user-agent"] || null,
           ],
         );
       } catch (auditError) {
-        console.error(
-          "[RML API AUDIT] Failed to save audit log:",
-          {
-            requestId,
-            message: auditError.message,
-          },
-        );
+        console.error("[RML API AUDIT] Failed to save audit log:", {
+          requestId,
+          message: auditError.message,
+        });
       }
     });
   });
 
   next();
 }
-app.use("/api/rapid-money", rmlApiAuditMiddleware, require("./routes/switchMyLoan/switchMyLoanRotues")); // ✅ Register Switch My Loan Routes
+app.use(
+  "/api/rapid-money",
+  rmlApiAuditMiddleware,
+  require("./routes/switchMyLoan/switchMyLoanRotues"),
+); // ✅ Register Switch My Loan Routes
 app.use("/api/loan-digit", require("./routes/loanDigit/loanDigitRoutes"));
 app.use("/api/fldg", require("./routes/fldgRoutes")); // ✅ Register FLDG Routes
 
@@ -374,7 +358,7 @@ app.use("/api/allocate", allocationRoutes); //  routes chanegd
 app.use("/api/forecloser-collection", forecloserRoutes); // NOT foreclose-collection
 app.use("/api/forecloser", forecloserUploadRoutes); // ✅ Register Route for Forecloser Upload FC Upload
 app.use("/reports", express.static(path.join(__dirname, "/reports")));
-app.use("/api/reports", reportsRoutes);// ✅ Register Route for Reports
+app.use("/api/reports", reportsRoutes); // ✅ Register Route for Reports
 app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
 app.use("/api/dealer-onboarding", dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
 app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers
@@ -386,12 +370,17 @@ app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Manda
 app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
 app.use("/api/fundify", require("./routes/Fundify/fundifyRoutes")); // ✅ Register Routes for Fundify Loans
 
-app.use("/api/documents", require("./routes/documents"));// ✅ Register Route for Documents
+app.use("/api/documents", require("./routes/documents")); // ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 
 app.use("/bureau", require("./services/bureauretry"));
 
-app.use("/api/supply-chain", require("./routes/supplyChainRoutes/supplyChainRoutes")); // ✅ Register Routes for Supply Chain Loans
+app.use("/api/screening", require("./routes/screening.routes")); // ✅ Register Routes for Screening
+
+app.use(
+  "/api/supply-chain",
+  require("./routes/supplyChainRoutes/supplyChainRoutes"),
+); // ✅ Register Routes for Supply Chain Loans
 app.post("/api/cibil/:id/pdf", async (req, res) => {
   try {
     const doc = await generateForReport(req.params.id);
@@ -471,8 +460,8 @@ app.post("/api/runfinsovalidations", async (req, res) => {
 
 //     if (aadhaarInit.success) {
 //       await pool.query(
-//         `UPDATE kyc_verification_status 
-//          SET aadhaar_transaction_id=?, aadhaar_kyc_url=?, aadhaar_unique_id=? 
+//         `UPDATE kyc_verification_status
+//          SET aadhaar_transaction_id=?, aadhaar_kyc_url=?, aadhaar_unique_id=?
 //          WHERE lan=?`,
 //         [
 //           aadhaarInit.unifiedTransactionId,
@@ -525,7 +514,7 @@ app.post("/api/retryAadharVerification", async (req, res) => {
        FROM kyc_verification_status
        WHERE lan = ?
        LIMIT 1`,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -535,7 +524,9 @@ app.post("/api/retryAadharVerification", async (req, res) => {
       });
     }
 
-    const currentStatus = String(rows[0].aadhaar_status || "").trim().toUpperCase();
+    const currentStatus = String(rows[0].aadhaar_status || "")
+      .trim()
+      .toUpperCase();
     const retryCount = Number(rows[0].aadhaar_retry_count || 0);
 
     // 2. If Aadhaar already verified, do not retry
@@ -559,7 +550,7 @@ app.post("/api/retryAadharVerification", async (req, res) => {
       lan,
       mobile_number,
       email_id,
-      customer_name
+      customer_name,
     );
 
     if (aadhaarInit.success) {
@@ -578,7 +569,7 @@ app.post("/api/retryAadharVerification", async (req, res) => {
           aadhaarInit.kycUrl,
           aadhaarInit.uniqueId,
           lan,
-        ]
+        ],
       );
 
       console.log("📨 Aadhaar INIT successful, KYC URL:", aadhaarInit.kycUrl);
@@ -592,7 +583,7 @@ app.post("/api/retryAadharVerification", async (req, res) => {
     } else {
       console.log(
         "❌ Aadhaar INIT Failed:",
-        aadhaarInit.error || "Unknown error"
+        aadhaarInit.error || "Unknown error",
       );
 
       await pool.query(
@@ -601,7 +592,7 @@ app.post("/api/retryAadharVerification", async (req, res) => {
             aadhaar_status = 'FAILED',
             updated_at = NOW()
          WHERE lan = ?`,
-        [lan]
+        [lan],
       );
 
       return res.status(400).json({
@@ -694,7 +685,6 @@ app.post("/api/runmotioncorpvalidations", async (req, res) => {
   }
 });
 
-
 app.post("/api/universalRunAllValidations", async (req, res) => {
   try {
     const { lan } = req.body;
@@ -714,7 +704,6 @@ app.post("/api/universalRunAllValidations", async (req, res) => {
   }
 });
 
-
 // =====================================================
 // SEND WELCOME LETTER MANUALLY
 // =====================================================
@@ -725,10 +714,7 @@ app.post("/api/welcome-letter/send", async (req, res) => {
       .toUpperCase();
 
     let utrNumber = String(
-      req.body?.utrNumber ||
-      req.body?.utr ||
-      req.body?.disbursement_utr ||
-      "",
+      req.body?.utrNumber || req.body?.utr || req.body?.disbursement_utr || "",
     ).trim();
 
     if (!lan) {
@@ -797,70 +783,45 @@ app.post("/api/welcome-letter/send", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || "Welcome letter sending failed",
-      code:
-        error.code ||
-        error.context?.errorCode ||
-        "WELCOME_LETTER_FAILED",
+      code: error.code || error.context?.errorCode || "WELCOME_LETTER_FAILED",
       context: error.context || null,
     });
   }
 });
 
-app.post(
-  "/api/test-rapid-money-disbursement-webhook",
-  async (req, res) => {
-    try {
-      const {
-        lan,
-        transactionId,
-        disbursementDate,
-      } = req.body;
+app.post("/api/test-rapid-money-disbursement-webhook", async (req, res) => {
+  try {
+    const { lan, transactionId, disbursementDate } = req.body;
 
-      if (
-        !lan ||
-        !transactionId ||
-        !disbursementDate
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "lan, transactionId and disbursementDate are required",
-        });
-      }
-
-      const result =
-        await sendDisbursementWebhook({
-          lan,
-          transactionId,
-          disbursementDate,
-        });
-
-      return res
-        .status(
-          result.success ? 200 : 202,
-        )
-        .json({
-          success:
-            result.success,
-          message:
-            result.success
-              ? "Webhook sent successfully"
-              : "Webhook failed and is queued for retry",
-          result,
-        });
-    } catch (error) {
-      console.error(
-        "Rapid Money test webhook error:",
-        error,
-      );
-
-      return res.status(500).json({
+    if (!lan || !transactionId || !disbursementDate) {
+      return res.status(400).json({
         success: false,
-        message: error.message,
+        message: "lan, transactionId and disbursementDate are required",
       });
     }
-  },
-);
+
+    const result = await sendDisbursementWebhook({
+      lan,
+      transactionId,
+      disbursementDate,
+    });
+
+    return res.status(result.success ? 200 : 202).json({
+      success: result.success,
+      message: result.success
+        ? "Webhook sent successfully"
+        : "Webhook failed and is queued for retry",
+      result,
+    });
+  } catch (error) {
+    console.error("Rapid Money test webhook error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
 app.get("/api/test-sms", async (req, res) => {
   try {
@@ -879,7 +840,7 @@ app.post("/api/mobile-lookup-test", async (req, res) => {
     if (!mobile_number || !lan) {
       return res.status(400).json({
         ok: false,
-        message: "Mobile number and LAN are required"
+        message: "Mobile number and LAN are required",
       });
     }
 
@@ -896,7 +857,6 @@ app.post("/api/mobile-lookup-test", async (req, res) => {
     const result = await mobileRevocationLookup(mobile_number, lan);
 
     res.json({ ok: true, result });
-
   } catch (err) {
     console.error("Mobile lookup test error:", err);
     res.status(500).json({ ok: false, error: err.message });
@@ -910,8 +870,8 @@ app.post("/api/mobile-lookup-test", async (req, res) => {
 app.listen(PORT || 5000, () => {
   console.log(`✅ Backend server running on ${PORT}`);
   // Pre-warm dashboard column schema cache (eliminates per-request SHOW COLUMNS queries)
-  const db = require('./config/db');
-  initColumnSchemaCache(db).catch(err =>
-    console.error('[server] Dashboard schema cache init error:', err.message)
+  const db = require("./config/db");
+  initColumnSchemaCache(db).catch((err) =>
+    console.error("[server] Dashboard schema cache init error:", err.message),
   );
 });
