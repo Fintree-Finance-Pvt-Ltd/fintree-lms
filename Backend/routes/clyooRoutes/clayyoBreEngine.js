@@ -1,6 +1,7 @@
 // services/clayyoBreEngine.js
 const db = require("../../config/db");
 const { XMLParser } = require("fast-xml-parser");
+const {screenLoanBooking} = require("../../services/trackwizz/screeningService");
 
 const parser = new XMLParser({
    ignoreAttributes: false,
@@ -431,10 +432,39 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
     ? decision.reasons.join(", ")
     : "ELIGIBLE";
 
-  const finalStage =
-    decision.status === "BRE APPROVED"
-      ? "CREDIT_INITIATED"
-      : "BRE_REJECTED";
+    // 5) AML screening — runs for ALL leads (approved or rejected).
+  //    screenLoanBooking also writes the aml_* columns on
+  //    loan_booking_clayyo and full audit into screening_requests.
+  let amlStatus = "ERROR";
+  let amlReason = "";
+
+  try {
+    const aml = await screenLoanBooking("clayyo", lan);
+    amlStatus = aml.amlStatus;
+    amlReason = aml.amlReason || "";
+    console.log(`AML screening for ${lan}: ${amlStatus} | ${amlReason}`);
+  } catch (amlErr) {
+    console.error("AML screening failed for", lan, amlErr.message);
+    amlReason = `AML unavailable: ${amlErr.message}`.slice(0, 255);
+  }
+
+  // 6) Final stage/status — combine BRE + AML
+  let finalStatus = decision.status;
+  let finalStage;
+
+  if (decision.status !== "BRE APPROVED") {
+    // BRE failure wins; AML result is still recorded in aml_* columns
+    finalStage = "BRE_REJECTED";
+  } else if (amlStatus === "STOP") {
+    finalStatus = "AML REJECTED";
+    finalStage = "AML_REJECTED";
+  } else if (amlStatus === "REVIEW" || amlStatus === "ERROR") {
+    finalStatus = "AML REVIEW";
+    finalStage = "AML_REVIEW";
+  } else {
+    // BRE APPROVED + AML PROCEED
+    finalStage = "CREDIT_INITIATED";
+  }
 
   await pool.query(
     `UPDATE loan_booking_clayyo

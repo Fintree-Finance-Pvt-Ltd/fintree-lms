@@ -1047,6 +1047,9 @@
 
 const db = require("../../config/db");
 const { XMLParser } = require("fast-xml-parser");
+const {
+  screenLoanBooking,
+} = require("../../services/trackwizz/screeningService");
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -1203,7 +1206,15 @@ const extractLoanDigitBureauFacts = (reportXml) => {
     //      write-off/settlement. Note: 99 ("Clear Existing Status") does NOT.
     const SUITFILED_WRITEOFF_CODES = new Set(["4", "5", "6", "7", "8", "9"]);
     const CREDIT_FACILITY_WRITEOFF_CODES = new Set([
-      "02", "03", "04", "06", "08", "09", "13", "15", "16",
+      "02",
+      "03",
+      "04",
+      "06",
+      "08",
+      "09",
+      "13",
+      "15",
+      "16",
     ]);
 
     const suitFiledWrittenOffCode = String(
@@ -1576,8 +1587,38 @@ const autoApproveLoanDigitIfAllVerified = async (lan) => {
       ? decision.reasons.join(", ")
       : "ELIGIBLE";
 
-  const finalStatus =
-    decision.status === "BRE APPROVED" ? "CREDIT_APPROVED" : "BRE_REJECTED";
+  /**
+   * 4) AML screening — runs for ALL leads (approved or rejected).
+   *    Writes aml_* columns on loan_booking_loan_digit and the full
+   *    audit trail into screening_requests.
+   */
+  let amlStatus = "ERROR";
+  let amlReason = "";
+
+  try {
+    const aml = await screenLoanBooking("loan_digit", lan);
+    amlStatus = aml.amlStatus;
+    amlReason = aml.amlReason || "";
+    console.log(`AML screening for ${lan}: ${amlStatus} | ${amlReason}`);
+  } catch (amlErr) {
+    console.error("AML screening failed for", lan, amlErr.message);
+    amlReason = `AML unavailable: ${amlErr.message}`.slice(0, 255);
+  }
+
+  /**
+   * 5) Final status — combine BRE + AML
+   */
+  let finalStatus;
+
+  if (decision.status !== "BRE APPROVED") {
+    finalStatus = "BRE_REJECTED"; // BRE failure wins; AML still recorded
+  } else if (amlStatus === "STOP") {
+    finalStatus = "AML_REJECTED";
+  } else if (amlStatus === "REVIEW" || amlStatus === "ERROR") {
+    finalStatus = "AML_REVIEW";
+  } else {
+    finalStatus = "CREDIT_APPROVED"; // BRE approved + AML PROCEED
+  }
 
   /**
    * 4) Update LoanDigit BRE result
