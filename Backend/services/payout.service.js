@@ -9,6 +9,8 @@ const {
   processFinsoDisbursement,
 } = require("../services/processEmiClubDisbursement");
 
+const { sendDisbursementWebhook } = require("../routes/switchMyLoan/switchMyLoanWebhook");
+
 const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_emiclub",
   "loan_booking_switch_my_loan",
@@ -351,6 +353,30 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementDate: new Date(tr.transfer_date),
       });
     } else if (table === "loan_booking_switch_my_loan") {
+      const webhookResult =
+    await sendDisbursementWebhook({
+      lan,
+      transactionId:
+        tr.unique_transaction_reference,
+      disbursementDate:
+        tr.transfer_date,
+    });
+
+  console.log(
+    "Rapid Money webhook result:",
+    {
+      lan,
+      success:
+        webhookResult?.success,
+      alreadySent:
+        webhookResult?.alreadySent,
+      logId:
+        webhookResult?.logId,
+      message:
+        webhookResult?.message,
+    },
+  );
+      
       await processRapidMoneyDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
