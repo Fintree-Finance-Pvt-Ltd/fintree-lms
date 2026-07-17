@@ -2295,6 +2295,20 @@ const ClayooLimitEntry = ({
       width: 220,
     },
     {
+      key: "hospital_name",
+      header: "Hospital Name",
+      sortable: true,
+      render: (r) => (
+        <span
+          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
+        >
+          {r.hospital_name ?? "—"}
+        </span>
+      ),
+      sortAccessor: (r) => (r.hospital_name || "").toLowerCase(),
+      width: 220,
+    },
+    {
       key: "lan",
       header: "LAN",
       sortable: true,
