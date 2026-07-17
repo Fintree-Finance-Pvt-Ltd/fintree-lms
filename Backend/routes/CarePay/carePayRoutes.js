@@ -1059,7 +1059,13 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
 router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
     try {
-        const { lan, amount, umrn } = req.body;
+        const {
+            lan,
+            amount,
+            umrn,
+            fatherName,
+            motherName
+        } = req.body;
 
         if (!lan || amount == null || !umrn) {
             return res.status(400).json({
@@ -1068,10 +1074,19 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
         }
 
         const [result] = await db.promise().query(
-            `UPDATE loan_booking_carepay 
-             SET mandate_amount = ?, umrn = ? 
+            `UPDATE loan_booking_carepay
+             SET mandate_amount = ?,
+                 umrn = ?,
+                 father_name = COALESCE(?, father_name),
+                 mother_name = COALESCE(?, mother_name)
              WHERE lan = ?`,
-            [amount, umrn, lan]
+            [
+                amount,
+                umrn,
+                fatherName ?? null,
+                motherName ?? null,
+                lan
+            ]
         );
 
         if (result.affectedRows === 0) {
@@ -1083,9 +1098,9 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
         return res.status(200).json({
             message: "Mandate updated successfully"
         });
-
     } catch (error) {
         console.error("Error updating mandate UMRN:", error);
+
         return res.status(500).json({
             message: "Internal server error"
         });
