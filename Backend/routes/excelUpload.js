@@ -2055,6 +2055,13 @@ router.get("/login-loans", (req, res) => {
       WHERE status in ('Login', 'Credit Initiated')
         AND LAN LIKE ?
     `;
+  } else if (table === "loan_booking_carepay") {
+    query = `
+      SELECT *
+      FROM ??
+      WHERE status IN ('Login', 'BRE Approved')
+        AND LAN LIKE ?
+    `;
   } else {
     // ✅ Other lenders unchanged
     query = `

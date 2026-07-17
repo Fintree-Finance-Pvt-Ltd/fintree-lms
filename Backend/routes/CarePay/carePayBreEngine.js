@@ -120,7 +120,7 @@ const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null }) =>
 
   return {
     status: reasons.length ? "BRE FAILED" : "BRE APPROVED",
-    caseStatus: reasons.length ? "Rejected" : "Login",
+    caseStatus: reasons.length ? "Rejected" : "BRE Approved",
     reason: reasons.length ? reasons.join(", ") : "ELIGIBLE",
     reasons,
     bureauScore: score,
