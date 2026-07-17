@@ -10,6 +10,7 @@ const {
 const { runBureau } = require("../../services/Bueraupullapiservice");
 const createHospitalRoutes = require("./hospitalRoutes");
 const createCarePayEsignRoutes = require("./esignRoutes");
+const { evaluateCarePayLoginBre } = require("./carePayBreEngine");
 
 const router = express.Router();
 const loanBookingRouter = express.Router();
@@ -863,6 +864,10 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     // }
 
     const { lan } = await generateLoanIdentifiers(lenderType);
+    let breDecision = evaluateCarePayLoginBre({
+      data,
+      requestAmount,
+    });
 
     const customer_name = `${data.first_name || ""} ${
       data.last_name || ""
@@ -947,7 +952,7 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
         data.relation_with_policy_holder,
       ),
 
-      status: "Login",
+      status: breDecision.caseStatus,
       agreement_date,
     };
 
@@ -973,24 +978,55 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     conn.release();
     conn = null;
 
-    const bureauResult = await persistCarePayBureauResult(lan, {
-      ...data,
-      loan_amount: requestAmount,
-      request_amount: requestAmount,
+    let bureauResult = {
+      success: false,
+      score: breDecision.bureauScore,
+    };
 
-      processing_fee_percentage: processingFee.percentage,
-      processing_fee: processingFee.amount,
+    if (breDecision.status === "BRE APPROVED") {
+      bureauResult = await persistCarePayBureauResult(lan, {
+        ...data,
+        loan_amount: requestAmount,
+        request_amount: requestAmount,
 
-      subvention_percentage: subvention.percentage,
-      subvention_amount: subvention.amount,
+        processing_fee_percentage: processingFee.percentage,
+        processing_fee: processingFee.amount,
 
-      net_disbursement: netDisbursement,
-    });
+        subvention_percentage: subvention.percentage,
+        subvention_amount: subvention.amount,
+
+        net_disbursement: netDisbursement,
+      });
+
+      breDecision = evaluateCarePayLoginBre({
+        data,
+        requestAmount,
+        bureauScore: bureauResult.score,
+      });
+
+      if (breDecision.status === "BRE FAILED") {
+        await db
+          .promise()
+          .query("UPDATE loan_booking_carepay SET status = ? WHERE lan = ?", [
+            breDecision.caseStatus,
+            lan,
+          ]);
+      }
+    }
 
     return res.json({
-      message: "CAREPAY loan saved successfully.",
+      message:
+        breDecision.status === "BRE FAILED"
+          ? "CAREPAY loan rejected by BRE."
+          : "CAREPAY loan saved successfully.",
       lan,
       hospital_lan: hospitalLan,
+      status: breDecision.caseStatus,
+      bre: {
+        status: breDecision.status,
+        reason: breDecision.reason,
+        reasons: breDecision.reasons,
+      },
 
       request_amount: requestAmount,
       loan_amount: requestAmount,
