@@ -1,6 +1,5 @@
 import React from "react";
-import LoanDigitCollections from "./LoanDigitCollections";
-
+import LoanDigitCollections from "./LoanDigitCollection";
 const LoanDigitCollectionScreen = () => (
   <LoanDigitCollections
     apiEndpoint="/loan-digit/collections"
