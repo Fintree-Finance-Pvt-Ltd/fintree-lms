@@ -178,6 +178,7 @@ import LoanDigitDisbursed from "./components/Loan Digit/LoanDigitDisbursed";
 import LoanDigitApproved from "./components/Loan Digit/LoanDigitApproved";
 import LoanDigitAllLoans from "./components/Loan Digit/LoanDigitAllLoans";
 import LoanDigitDetails from "./components/Loan Digit/LoanDigitAllDetails";
+import LoanDigitCollections from "./components/Loan Digit/LoanDigitCollections";
 import UpdateUmrn from "./components/UpdateUmrn";
 import SMLDisburseInitiate from "./components/switch-my-loan/SMLDisburseInitiate";
 import SMLLoginloans from "./components/switch-my-loan/SMLLoginLoans";
