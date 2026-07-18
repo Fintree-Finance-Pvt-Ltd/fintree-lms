@@ -178,7 +178,6 @@ import LoanDigitDisbursed from "./components/Loan Digit/LoanDigitDisbursed";
 import LoanDigitApproved from "./components/Loan Digit/LoanDigitApproved";
 import LoanDigitAllLoans from "./components/Loan Digit/LoanDigitAllLoans";
 import LoanDigitDetails from "./components/Loan Digit/LoanDigitAllDetails";
-import LoanDigitCollections from "./components/Loan Digit/LoanDigitCollections";
 import UpdateUmrn from "./components/UpdateUmrn";
 import SMLDisburseInitiate from "./components/switch-my-loan/SMLDisburseInitiate";
 import SMLLoginloans from "./components/switch-my-loan/SMLLoginLoans";
@@ -258,6 +257,7 @@ import SRBHOperationApproval from "./components/Srbh/SRBHOperationApproval";
 import SRBHApprovedLoans from "./components/Srbh/SRBHApprovedLoans";
 import SRBHDetails from "./components/Srbh/SRBHDetails";
 import ClayooRejectedLoans from "./components/Clayoo/ClayooApprovedLoans";
+import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
 
 
 
@@ -647,7 +647,7 @@ function App() {
             path="/loan-digit/collections"
             element={
               <PermissionRoute pageName="Loan Digit Collections">
-                <LoanDigitCollections />
+                <LoanDigitCollectionScreen />
               </PermissionRoute>
             }
           />
