@@ -643,6 +643,14 @@ function App() {
               </PermissionRoute>
             }
           />
+           <Route
+            path="/loan-digit/collections"
+            element={
+              <PermissionRoute pageName="Loan Digit Collections">
+                <LoanDigitCollections />
+              </PermissionRoute>
+            }
+          />
           {/* ✅ Loan routes */}
           <Route
             path="/ev-loans/approved"
