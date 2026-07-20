@@ -10710,6 +10710,8 @@ router.get("/schedule/:lan", (req, res) => {
 
   if (lan.startsWith("GQN")) {
     tableName = "manual_rps_gq_non_fsf";
+  } else if (lan.startsWith("WCTLFFPL")) {
+    tableName = "manual_rps_wctl_ffpl";
   } else if (lan.startsWith("WCTL")) {
     tableName = "manual_rps_wctl ";
   } else if (lan.startsWith("GQF")) {
