@@ -480,7 +480,7 @@ if (decision.status === "BRE APPROVED") {
     finalStage = "AML_REVIEW";
   } else {
     finalStatus = "CREDIT APPROVED";
-    finalStage = "CREDIT_APPROVED";
+    finalStage = "LIMIT_APPROVAL_PENDING";
   }
 } else {
   finalStatus = "BRE FAILED";
