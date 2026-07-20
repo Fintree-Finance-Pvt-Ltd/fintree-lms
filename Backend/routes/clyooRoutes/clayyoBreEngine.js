@@ -504,7 +504,7 @@ if (decision.status === "BRE APPROVED") {
        clayyo_writtenoff_flag = ?,
        clayyo_moratorium_flag = ?,
        clayyo_restructured_flag = ?,
-      stage = ?,
+       stage = ?,
        status = ?
      WHERE lan = ?`,
     [
@@ -521,14 +521,14 @@ if (decision.status === "BRE APPROVED") {
       bureauFacts.hasWrittenOffLast3Y ? 1 : 0,
       bureauFacts.hasMoratorium ? 1 : 0,
       bureauFacts.hasRestructured ? 1 : 0,
-        finalStage,
-      decision.status,
+      finalStage,
+      finalStatus,
       lan,
     ],
   );
 
   console.log(
-    `Clayyo BRE completed for ${lan}: ${decision.status} | ${reasonText}`,
+    `Clayyo BRE completed for ${lan}: ${finalStatus} | ${reasonText}`,
   );
 };
 
