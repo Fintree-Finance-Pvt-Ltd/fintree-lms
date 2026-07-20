@@ -4883,10 +4883,16 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         // ✅ Normalize aliases just in case upstream uses different keys
         const data = {
           ...raw,
+            pan_card: raw.pan_card
+              ? String(raw.pan_card).trim().toUpperCase()
+              : null,
+              
           account_number:
             raw.account_number ?? raw.account_no ?? raw.acc_no ?? null,
           dob: raw.dob ?? raw.borrower_dob ?? null,
-          ifsc: raw.ifsc ?? raw.bank_ifsc ?? null,
+          ifsc: raw.ifsc ?? raw.bank_ifsc
+            ? String(raw.ifsc ?? raw.bank_ifsc).trim().toUpperCase()
+            : null,
           processing_fee: raw.processing_fee ?? 0.0,
         };
 
@@ -4894,11 +4900,32 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         const missingField = requiredFields.find(
           (f) => data[f] === undefined || data[f] === null || data[f] === "",
         );
+
         if (missingField) {
           results.push({ error: `${missingField} is required.`, data });
           continue;
         }
-        const customerName = `${data.first_name || ""} ${
+
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+            if (!panRegex.test(data.pan_card)) {
+              results.push({
+                error: "Invalid PAN format. PAN should be like ABCDE1234F.",
+                data,
+              });
+              continue;
+            }
+
+            const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
+            if (!ifscRegex.test(data.ifsc)) {
+              results.push({
+                error: "Invalid IFSC format.",
+                data,
+              });
+              continue;
+            }
+                    const customerName = `${data.first_name || ""} ${
           data.last_name || ""
         }`.trim();
 
@@ -8309,6 +8336,7 @@ const WCTL_FFPL_REQUIRED_FIELDS = [
 ];
 const WCTL_ALLOWED_PRODUCT_CODES = Object.keys(WCTL_ALLOWED_PRODUCTS);
 
+
 const normalizeWctlProductCode = (value) =>
   String(value || "")
     .trim()
@@ -8346,6 +8374,62 @@ const toWctlSqlDate = (value) => {
 
   return excelDateToJSDate(value);
 };
+
+const WCTLFFPL_ALLOWED_PRODUCTS = {
+  MONTHLY_360: {
+    dbValue: "Monthly_360",
+    bucket: "Monthly",
+  },
+
+  QUATERLY_360: {
+    dbValue: "Quaterly_360",
+    bucket: "Quarterly",
+  },
+
+  // Also accept the correct spelling from Excel.
+  QUARTERLY_360: {
+    dbValue: "Quaterly_360",
+    bucket: "Quarterly",
+  },
+
+  HALF_YEARLY_360: {
+    dbValue: "Half_yearly_360",
+    bucket: "Half Yearly",
+  },
+
+  HALF_YEARLY_365: {
+    dbValue: "Half_yearly_365",
+    bucket: "Half Yearly",
+  },
+
+  YEARLY_365: {
+    dbValue: "yearly_365",
+    bucket: "Yearly",
+  },
+
+  DAILY_365: {
+    dbValue: "Daily_365",
+    bucket: "Daily",
+  },
+
+  DAILY_360: {
+    dbValue: "Daily_360",
+    bucket: "Daily",
+  },
+};
+
+const WCTLFFPL_ALLOWED_PRODUCT_CODES = [
+  "Monthly_360",
+  "Quaterly_360",
+  "Half_yearly_360",
+  "Half_yearly_365",
+  "yearly_365",
+  "Daily_365",
+  "Daily_360",
+];
+
+
+
 
 // router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
 //   if (!req.file) {
@@ -8783,19 +8867,40 @@ router.post(
              PRODUCT VALIDATION
           ----------------------------------------- */
 
-          const productCode = normalizeWctlProductCode(row.product);
+          // const productCode = normalizeWctlProductCode(row.product);
 
-          if (!WCTL_ALLOWED_PRODUCTS[productCode]) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid product. Allowed values: ${WCTL_ALLOWED_PRODUCT_CODES.join(
-                ", ",
-              )}`,
-            });
+          // if (!WCTL_ALLOWED_PRODUCTS[productCode]) {
+          //   row_errors.push({
+          //     row: excelRowNumber,
+          //     stage: "validation",
+          //     reason: `Invalid product. Allowed values: ${WCTL_ALLOWED_PRODUCT_CODES.join(
+          //       ", ",
+          //     )}`,
+          //   });
 
-            continue;
-          }
+          //   continue;
+          // }
+
+          const productCode =
+  normalizeWctlProductCode(row.product);
+
+const productConfig =
+  WCTLFFPL_ALLOWED_PRODUCTS[productCode];
+
+if (!productConfig) {
+  row_errors.push({
+    row: excelRowNumber,
+    stage: "validation",
+    received_product:
+      String(row.product || "").trim(),
+    normalized_product: productCode,
+    reason: `Invalid WCTL FFPL product. Allowed values: ${WCTLFFPL_ALLOWED_PRODUCT_CODES.join(
+      ", ",
+    )}`,
+  });
+
+  continue;
+}
 
           /* -----------------------------------------
              NUMBER VALIDATION
@@ -9051,10 +9156,13 @@ router.post(
             aadhar_number: cleanWctlValue(row.aadhaarNumber),
             pan_card: panCard,
 
-            product: productCode,
-            bucket: WCTL_ALLOWED_PRODUCTS[productCode],
-            lender: WCTL_FFPL_LENDER,
+            // product: productCode,
+            // bucket: WCTL_ALLOWED_PRODUCTS[productCode],
+            // lender: WCTL_FFPL_LENDER,
 
+            product: productConfig.dbValue,
+bucket: productConfig.bucket,
+lender: WCTL_FFPL_LENDER,
             agreement_date: today,
             status: "Approved",
           };
@@ -9109,9 +9217,12 @@ router.post(
             lan,
             partnerLoanId,
             loanAmount,
-            product: productCode,
-            repaymentFrequency:
-              WCTL_ALLOWED_PRODUCTS[productCode],
+              product: productConfig.dbValue,
+  repaymentFrequency:
+    productConfig.bucket,
+            // product: productCode,
+            // repaymentFrequency:
+            //   WCTL_ALLOWED_PRODUCTS[productCode],
           });
         } catch (err) {
           if (conn && transactionStarted) {
