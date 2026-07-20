@@ -328,9 +328,9 @@ const evaluateClayyoPolicy = ({ loan, bureauFacts }) => {
     reasons.push("OVERDUE_IN_LAST_1Y");
   }
 
-  if (bureauFacts.hasWrittenOffLast3Y) {
-    reasons.push("WRITTEN_OFF_IN_LAST_3Y");
-  }
+  // if (bureauFacts.hasWrittenOffLast3Y) {
+  //   reasons.push("WRITTEN_OFF_IN_LAST_3Y");
+  // }
 
   if (bureauFacts.hasMoratorium) {
     reasons.push("MORATORIUM_FOUND");
@@ -449,22 +449,43 @@ const autoApproveClayyoIfAllVerified = async (lan) => {
   }
 
   // 6) Final stage/status — combine BRE + AML
-  let finalStatus = decision.status;
-  let finalStage;
+  // let finalStatus = decision.status;
+  // let finalStage;
 
-  if (decision.status !== "BRE APPROVED") {
-    // BRE failure wins; AML result is still recorded in aml_* columns
-    finalStage = "BRE_REJECTED";
-  } else if (amlStatus === "STOP") {
-    finalStatus = "AML REJECTED";
+  // if (decision.status !== "BRE APPROVED") {
+  //   // BRE failure wins; AML result is still recorded in aml_* columns
+  //   finalStage = "BRE_REJECTED";
+  // } else if (amlStatus === "STOP") {
+  //   finalStatus = "AML REJECTED";
+  //   finalStage = "AML_REJECTED";
+  // } else if (amlStatus === "REVIEW" || amlStatus === "ERROR") {
+  //   finalStatus = "AML REVIEW";
+  //   finalStage = "AML_REVIEW";
+  // } else {
+  //   // BRE APPROVED + AML PROCEED
+  //   finalStage = "CREDIT_INITIATED";
+  // }
+
+  // 6) Final stage/status — combine BRE + AML
+let finalStatus;
+let finalStage;
+
+if (decision.status === "BRE APPROVED") {
+  if (amlStatus === "STOP") {
+    finalStatus = "BRE FAILED";
     finalStage = "AML_REJECTED";
   } else if (amlStatus === "REVIEW" || amlStatus === "ERROR") {
-    finalStatus = "AML REVIEW";
+    // AML review → treat as BRE rejected
+    finalStatus = "BRE FAILED";
     finalStage = "AML_REVIEW";
   } else {
-    // BRE APPROVED + AML PROCEED
-    finalStage = "CREDIT_INITIATED";
+    finalStatus = "CREDIT APPROVED";
+    finalStage = "CREDIT_APPROVED";
   }
+} else {
+  finalStatus = "BRE FAILED";
+  finalStage = "BRE_REJECTED";
+}
 
   await pool.query(
     `UPDATE loan_booking_clayyo

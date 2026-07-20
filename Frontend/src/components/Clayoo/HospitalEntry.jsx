@@ -348,43 +348,43 @@ const HospitalEntry = () => {
     }
   };
 
-  const handleChequeUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // const handleChequeUpload = async (e) => {
+  //   const file = e.target.files[0];
+  //   if (!file) return;
 
-    try {
-      const uploadData = new FormData();
-      uploadData.append("imageUrl", file);
+  //   try {
+  //     const uploadData = new FormData();
+  //     uploadData.append("imageUrl", file);
 
-      const res = await axios.post(
-        "https://sandbox.fintreelms.com/ocr/v1/cheque",
-        uploadData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            "X-API-Key": "Fintree@2026",
-          },
-        },
-      );
+  //     const res = await axios.post(
+  //       "https://sandbox.fintreelms.com/ocr/v1/cheque",
+  //       uploadData,
+  //       {
+  //         headers: {
+  //           "Content-Type": "multipart/form-data",
+  //           "X-API-Key": "Fintree@2026",
+  //         },
+  //       },
+  //     );
 
-      const result = res.data.data.result?.[0]?.details;
-      if (!result) return;
+  //     const result = res.data.data.result?.[0]?.details;
+  //     if (!result) return;
 
-      setFormData((prev) => ({
-        ...prev,
-        account_number: result.account_number?.value || prev.account_number,
-        ifsc_code: result.ifsc_code?.value || prev.ifsc_code,
-        account_holder_name: result.name?.value || prev.account_holder_name,
-        bank_name: result.bank_name?.value || prev.bank_name,
-      }));
+  //     setFormData((prev) => ({
+  //       ...prev,
+  //       account_number: result.account_number?.value || prev.account_number,
+  //       ifsc_code: result.ifsc_code?.value || prev.ifsc_code,
+  //       account_holder_name: result.name?.value || prev.account_holder_name,
+  //       bank_name: result.bank_name?.value || prev.bank_name,
+  //     }));
 
-      if (result.ifsc_code?.value) {
-        fetchBankFromIFSC(result.ifsc_code.value);
-      }
-    } catch (err) {
-      console.log("Cheque OCR failed:", err);
-    }
-  };
+  //     if (result.ifsc_code?.value) {
+  //       fetchBankFromIFSC(result.ifsc_code.value);
+  //     }
+  //   } catch (err) {
+  //     console.log("Cheque OCR failed:", err);
+  //   }
+  // };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -605,10 +605,10 @@ const HospitalEntry = () => {
           <legend>Banking &amp; Financials</legend>
 
           <div className="form-grid">
-            <div className="form-group">
+            {/* <div className="form-group">
               <label>Upload Cheque (OCR)</label>
               <input type="file" onChange={handleChequeUpload} />
-            </div>
+            </div> */}
 
             {renderInput("IFSC Code", "ifsc_code")}
           </div>
