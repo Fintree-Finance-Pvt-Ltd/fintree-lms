@@ -257,6 +257,7 @@ import SRBHOperationApproval from "./components/Srbh/SRBHOperationApproval";
 import SRBHApprovedLoans from "./components/Srbh/SRBHApprovedLoans";
 import SRBHDetails from "./components/Srbh/SRBHDetails";
 import ClayooRejectedLoans from "./components/Clayoo/ClayooApprovedLoans";
+import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
 
 
 
@@ -639,6 +640,14 @@ function App() {
             element={
               <PermissionRoute pageName="Loan Digit Customer Details">
                 <LoanDigitDetails />
+              </PermissionRoute>
+            }
+          />
+           <Route
+            path="/loan-digit/collections"
+            element={
+              <PermissionRoute pageName="Loan Digit Collections">
+                <LoanDigitCollectionScreen />
               </PermissionRoute>
             }
           />

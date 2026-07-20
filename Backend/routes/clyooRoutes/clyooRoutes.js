@@ -1654,8 +1654,8 @@ router.get("/loan-info/:lan", async (req, res) => {
         lb.limit_assigned_at,
         lb.limit_assigned_by,
         lb.stage,
-lb.limit_rework_required,
-lb.limit_rework_reason,
+        lb.limit_rework_required,
+        lb.limit_rework_reason,
         lb.ops_approved_at,
         lb.ops_approved_by,
 

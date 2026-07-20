@@ -2889,6 +2889,900 @@ const generateRepaymentScheduleBL = async (
   }
 };
 
+
+
+
+
+
+// ============================================================
+// WCTL FFPL RPS HELPERS
+// ============================================================
+
+const WCTL_DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Round a numeric value to two decimal places.
+ */
+// function round2(value, fieldName = "value") {
+//   const numberValue = Number(value);
+
+//   if (!Number.isFinite(numberValue)) {
+//     throw new Error(
+//       `Invalid numeric ${fieldName}: ${value}`,
+//     );
+//   }
+
+//   return Number(numberValue.toFixed(2));
+// }
+
+/**
+ * Format JavaScript Date as YYYY-MM-DD.
+ */
+function formatDateYmd(dateValue) {
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${dateValue}`);
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(
+    2,
+    "0",
+  );
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Parse supported date formats:
+ *
+ * Date object
+ * Excel serial number
+ * 2026-07-17
+ * 17-Jul-2026
+ * 17-Jul-26
+ * 17/07/2026
+ * 17-07-2026
+ */
+function parseWctlDate(value) {
+  if (
+    value instanceof Date &&
+    !Number.isNaN(value.getTime())
+  ) {
+    return new Date(
+      value.getFullYear(),
+      value.getMonth(),
+      value.getDate(),
+    );
+  }
+
+  // Excel serial date
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  ) {
+    const excelEpoch = Date.UTC(1899, 11, 30);
+
+    const utcDate = new Date(
+      excelEpoch + value * WCTL_DAY_MS,
+    );
+
+    if (Number.isNaN(utcDate.getTime())) {
+      throw new Error(
+        `Invalid Excel date value: ${value}`,
+      );
+    }
+
+    return new Date(
+      utcDate.getUTCFullYear(),
+      utcDate.getUTCMonth(),
+      utcDate.getUTCDate(),
+    );
+  }
+
+  const text = String(value || "").trim();
+
+  if (!text) {
+    throw new Error("Disbursement date is required");
+  }
+
+  // YYYY-MM-DD
+  let match = text.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
+  );
+
+  if (match) {
+    return createValidatedDate(
+      Number(match[1]),
+      Number(match[2]),
+      Number(match[3]),
+      value,
+    );
+  }
+
+  // DD-MMM-YY / DD-MMM-YYYY
+  match = text.match(
+    /^(\d{1,2})[-/\s]([A-Za-z]{3,9})[-/\s](\d{2}|\d{4})$/,
+  );
+
+  if (match) {
+    const monthMap = {
+      jan: 1,
+      feb: 2,
+      mar: 3,
+      apr: 4,
+      may: 5,
+      jun: 6,
+      jul: 7,
+      aug: 8,
+      sep: 9,
+      oct: 10,
+      nov: 11,
+      dec: 12,
+    };
+
+    const day = Number(match[1]);
+
+    const monthName = match[2]
+      .slice(0, 3)
+      .toLowerCase();
+
+    const month = monthMap[monthName];
+
+    if (!month) {
+      throw new Error(
+        `Invalid month in date: ${value}`,
+      );
+    }
+
+    let year = Number(match[3]);
+
+    if (year < 100) {
+      year += 2000;
+    }
+
+    return createValidatedDate(
+      year,
+      month,
+      day,
+      value,
+    );
+  }
+
+  // DD/MM/YYYY / DD-MM-YYYY
+  match = text.match(
+    /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/,
+  );
+
+  if (match) {
+    return createValidatedDate(
+      Number(match[3]),
+      Number(match[2]),
+      Number(match[1]),
+      value,
+    );
+  }
+
+  const fallbackDate = new Date(text);
+
+  if (Number.isNaN(fallbackDate.getTime())) {
+    throw new Error(
+      `Invalid WCTL FFPL date: ${value}`,
+    );
+  }
+
+  return new Date(
+    fallbackDate.getFullYear(),
+    fallbackDate.getMonth(),
+    fallbackDate.getDate(),
+  );
+}
+
+/**
+ * Create and validate a JavaScript date.
+ */
+function createValidatedDate(
+  year,
+  month,
+  day,
+  originalValue,
+) {
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    throw new Error(
+      `Invalid calendar date: ${originalValue}`,
+    );
+  }
+
+  return date;
+}
+
+/**
+ * Calculate actual calendar days between dates.
+ */
+function differenceInCalendarDays(
+  startDateValue,
+  endDateValue,
+) {
+  const startDate = new Date(startDateValue);
+  const endDate = new Date(endDateValue);
+
+  const startUtc = Date.UTC(
+    startDate.getFullYear(),
+    startDate.getMonth(),
+    startDate.getDate(),
+  );
+
+  const endUtc = Date.UTC(
+    endDate.getFullYear(),
+    endDate.getMonth(),
+    endDate.getDate(),
+  );
+
+  return Math.round(
+    (endUtc - startUtc) / WCTL_DAY_MS,
+  );
+}
+
+/**
+ * Normalize product names.
+ */
+function normalizeWctlProduct(product) {
+  return String(product || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_")
+    .replace(/_+/g, "_");
+}
+
+/**
+ * Return WCTL product configuration.
+ */
+function getWctlScheduleConfig(product) {
+  const normalizedProduct =
+    normalizeWctlProduct(product);
+
+  const productConfigs = {
+    monthly_360: {
+      frequency: "MONTH",
+      intervalMonths: 1,
+      basis: 360,
+      daysPerInstallment: 30,
+    },
+
+    quaterly_360: {
+      frequency: "MONTH",
+      intervalMonths: 3,
+      basis: 360,
+      daysPerInstallment: 90,
+    },
+
+    quarterly_360: {
+      frequency: "MONTH",
+      intervalMonths: 3,
+      basis: 360,
+      daysPerInstallment: 90,
+    },
+
+    half_yearly_360: {
+      frequency: "MONTH",
+      intervalMonths: 6,
+      basis: 360,
+      daysPerInstallment: 180,
+    },
+
+    yearly_360: {
+      frequency: "MONTH",
+      intervalMonths: 12,
+      basis: 360,
+      daysPerInstallment: 360,
+    },
+
+    monthly_365: {
+      frequency: "MONTH",
+      intervalMonths: 1,
+      basis: 365,
+      daysPerInstallment: null,
+    },
+
+    quaterly_365: {
+      frequency: "MONTH",
+      intervalMonths: 3,
+      basis: 365,
+      daysPerInstallment: null,
+    },
+
+    quarterly_365: {
+      frequency: "MONTH",
+      intervalMonths: 3,
+      basis: 365,
+      daysPerInstallment: null,
+    },
+
+    half_yearly_365: {
+      frequency: "MONTH",
+      intervalMonths: 6,
+      basis: 365,
+      daysPerInstallment: null,
+    },
+
+    yearly_365: {
+      frequency: "MONTH",
+      intervalMonths: 12,
+      basis: 365,
+      daysPerInstallment: null,
+    },
+
+    daily_360: {
+      frequency: "DAY",
+      intervalMonths: 0,
+      basis: 360,
+      daysPerInstallment: 1,
+    },
+
+    daily_365: {
+      frequency: "DAY",
+      intervalMonths: 0,
+      basis: 365,
+      daysPerInstallment: 1,
+    },
+  };
+
+  const config = productConfigs[normalizedProduct];
+
+  if (!config) {
+    throw new Error(
+      `Unsupported WCTL FFPL product: ${product || ""}`,
+    );
+  }
+
+  return {
+    ...config,
+    normalizedProduct,
+  };
+}
+
+/**
+ * Generate WCTL due date.
+ *
+ * Month products:
+ * Disbursement day <= 20:
+ * first due after normal interval on the 5th.
+ *
+ * Disbursement day > 20:
+ * one extra month is added.
+ *
+ * Daily products:
+ * first installment is next day.
+ */
+function getWctlDueDate(
+  disbursementDate,
+  config,
+  installmentIndex,
+) {
+  const disbDate = new Date(disbursementDate);
+
+  if (config.frequency === "DAY") {
+    const dueDate = new Date(disbDate);
+
+    dueDate.setDate(
+      dueDate.getDate() + installmentIndex + 1,
+    );
+
+    return dueDate;
+  }
+
+  const cutoffExtraMonth =
+    disbDate.getDate() > 20 ? 1 : 0;
+
+  const monthsToAdd =
+    config.intervalMonths *
+      (installmentIndex + 1) +
+    cutoffExtraMonth;
+
+  return new Date(
+    disbDate.getFullYear(),
+    disbDate.getMonth() + monthsToAdd,
+    5,
+  );
+}
+
+/**
+ * Calculate level installment for variable period rates.
+ */
+function calculateLevelInstallment(
+  principal,
+  periodRates,
+) {
+  const principalAmount = Number(principal);
+
+  if (
+    !Number.isFinite(principalAmount) ||
+    principalAmount <= 0
+  ) {
+    throw new Error(
+      `Invalid principal for installment calculation: ${principal}`,
+    );
+  }
+
+  if (
+    !Array.isArray(periodRates) ||
+    periodRates.length === 0
+  ) {
+    throw new Error(
+      "Period rates are required for installment calculation",
+    );
+  }
+
+  let accumulatedGrowth = 1;
+  let presentValueFactor = 0;
+
+  for (const rateValue of periodRates) {
+    const rate = Number(rateValue);
+
+    if (!Number.isFinite(rate) || rate < 0) {
+      throw new Error(
+        `Invalid period interest rate: ${rateValue}`,
+      );
+    }
+
+    accumulatedGrowth *= 1 + rate;
+
+    presentValueFactor +=
+      1 / accumulatedGrowth;
+  }
+
+  if (
+    !Number.isFinite(presentValueFactor) ||
+    presentValueFactor <= 0
+  ) {
+    throw new Error(
+      "Unable to calculate WCTL installment",
+    );
+  }
+
+  return principalAmount / presentValueFactor;
+}
+
+// ============================================================
+// WCTL FFPL REPAYMENT SCHEDULE GENERATOR
+// ============================================================
+
+const generateRepaymentScheduleWctlFfpl = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender,
+) => {
+  const normalizedLan = String(lan || "")
+    .trim()
+    .toUpperCase();
+
+  const normalizedProduct = String(product || "")
+    .trim();
+
+  const normalizedLender = String(
+    lender || "WCTL FFPL",
+  ).trim();
+
+  const principalAmount = Number(loanAmount);
+  const annualInterestPercent =
+    Number(interestRate);
+  const contractTenure = Number(tenure);
+
+  console.log("WCTL FFPL RPS INPUT:", {
+    lan: normalizedLan,
+    loanAmount: principalAmount,
+    interestRate: annualInterestPercent,
+    tenure: contractTenure,
+    disbursementDate,
+    product: normalizedProduct,
+    lender: normalizedLender,
+  });
+
+  if (!conn) {
+    throw new Error(
+      "Database connection is required for WCTL FFPL RPS",
+    );
+  }
+
+  if (!normalizedLan) {
+    throw new Error("WCTL FFPL LAN is required");
+  }
+
+  if (!normalizedProduct) {
+    throw new Error(
+      `WCTL FFPL product is missing for LAN ${normalizedLan}`,
+    );
+  }
+
+  if (
+    !Number.isFinite(principalAmount) ||
+    principalAmount <= 0
+  ) {
+    throw new Error(
+      `Invalid WCTL FFPL loan amount: ${loanAmount}`,
+    );
+  }
+
+  if (
+    !Number.isFinite(annualInterestPercent) ||
+    annualInterestPercent < 0
+  ) {
+    throw new Error(
+      `Invalid WCTL FFPL interest rate: ${interestRate}`,
+    );
+  }
+
+  if (
+    !Number.isInteger(contractTenure) ||
+    contractTenure <= 0
+  ) {
+    throw new Error(
+      `Invalid WCTL FFPL tenure: ${tenure}`,
+    );
+  }
+
+  const disbDate = parseWctlDate(
+    disbursementDate,
+  );
+
+  const config = getWctlScheduleConfig(
+    normalizedProduct,
+  );
+
+  const annualRate =
+    annualInterestPercent / 100;
+
+  let numberOfInstallments;
+
+  /*
+   * Daily product tenure is considered in days.
+   * Other product tenure is considered in months.
+   */
+  if (config.frequency === "DAY") {
+    numberOfInstallments = contractTenure;
+  } else {
+    if (
+      contractTenure % config.intervalMonths !==
+      0
+    ) {
+      throw new Error(
+        `Tenure ${contractTenure} months is not valid ` +
+          `for product ${normalizedProduct}. ` +
+          `Tenure must be divisible by ${config.intervalMonths}.`,
+      );
+    }
+
+    numberOfInstallments =
+      contractTenure / config.intervalMonths;
+  }
+
+  if (
+    !Number.isInteger(numberOfInstallments) ||
+    numberOfInstallments <= 0
+  ) {
+    throw new Error(
+      `No installments calculated for LAN ${normalizedLan}`,
+    );
+  }
+
+  // Check the same table where RPS will be inserted.
+  const [existingSchedule] = await conn.query(
+    `
+    SELECT id
+    FROM manual_rps_wctl_ffpl
+    WHERE UPPER(TRIM(lan)) = ?
+    LIMIT 1
+    FOR UPDATE
+    `,
+    [normalizedLan],
+  );
+
+  if (existingSchedule.length > 0) {
+    throw new Error(
+      `WCTL FFPL repayment schedule already exists for ${normalizedLan}`,
+    );
+  }
+
+  const dueDates = [];
+  const periodDays = [];
+  const periodRates = [];
+
+  let previousDate = new Date(disbDate);
+
+  for (
+    let installmentIndex = 0;
+    installmentIndex < numberOfInstallments;
+    installmentIndex++
+  ) {
+    const dueDate = getFirstEmiDate(
+  disbDate,          // disbursementDate
+  null,              // emiDate not required for WCTL
+  normalizedLender,  // WCTL FFPL
+  normalizedProduct, // Monthly_360, Daily_365, etc.
+  installmentIndex,  // 0, 1, 2...
+);
+
+    let days;
+
+    if (config.basis === 360) {
+      days = config.daysPerInstallment;
+    } else {
+      days = differenceInCalendarDays(
+        previousDate,
+        dueDate,
+      );
+    }
+
+    if (
+      !Number.isInteger(days) ||
+      days <= 0
+    ) {
+      throw new Error(
+        `Invalid period days for installment ` +
+          `${installmentIndex + 1}: ${days}`,
+      );
+    }
+
+    const periodRate =
+      (annualRate * days) / config.basis;
+
+    dueDates.push(dueDate);
+    periodDays.push(days);
+    periodRates.push(periodRate);
+
+    previousDate = new Date(dueDate);
+  }
+
+  const levelInstallment =
+    calculateLevelInstallment(
+      principalAmount,
+      periodRates,
+    );
+
+  const schedule = [];
+
+  let outstandingPrincipal =
+    principalAmount;
+
+  for (
+    let installmentIndex = 0;
+    installmentIndex < numberOfInstallments;
+    installmentIndex++
+  ) {
+    const isFinalInstallment =
+      installmentIndex ===
+      numberOfInstallments - 1;
+
+    const openingPrincipal =
+      outstandingPrincipal;
+
+    const interestAmount =
+      openingPrincipal *
+      periodRates[installmentIndex];
+
+    let principalForRow;
+    let installmentAmount;
+    let closingPrincipal;
+
+    if (isFinalInstallment) {
+      principalForRow =
+        openingPrincipal;
+
+      installmentAmount =
+        principalForRow + interestAmount;
+
+      closingPrincipal = 0;
+    } else {
+      installmentAmount =
+        levelInstallment;
+
+      principalForRow =
+        installmentAmount -
+        interestAmount;
+
+      if (principalForRow <= 0) {
+        throw new Error(
+          `Installment ${installmentIndex + 1} ` +
+            `is not sufficient to cover interest`,
+        );
+      }
+
+      closingPrincipal =
+        openingPrincipal -
+        principalForRow;
+
+      if (closingPrincipal < 0) {
+        principalForRow =
+          openingPrincipal;
+
+        closingPrincipal = 0;
+
+        installmentAmount =
+          principalForRow +
+          interestAmount;
+      }
+    }
+
+    schedule.push({
+      installmentNumber:
+        installmentIndex + 1,
+
+      dueDate:
+        dueDates[installmentIndex],
+
+      days:
+        periodDays[installmentIndex],
+
+      openingPrincipal,
+      emi: installmentAmount,
+      interest: interestAmount,
+      principal: principalForRow,
+      closingPrincipal,
+    });
+
+    outstandingPrincipal =
+      closingPrincipal;
+  }
+
+  /*
+   * Your table meaning:
+   *
+   * remaining_emi       = emi
+   * remaining_interest  = interest
+   * remaining_principal = principal
+   * remaining_amount    = emi
+   */
+  const rpsData = schedule.map((row) => {
+    const emi = round2(
+      row.emi,
+      "EMI",
+    );
+
+    const interest = round2(
+      row.interest,
+      "interest",
+    );
+
+    const principal = round2(
+      row.principal,
+      "principal",
+    );
+
+    const opening = round2(
+      row.openingPrincipal,
+      "opening principal",
+    );
+
+    const closing = round2(
+      row.closingPrincipal,
+      "closing principal",
+    );
+
+    return [
+      normalizedLan,              // lan
+      formatDateYmd(row.dueDate), // due_date
+      "Pending",                  // status
+
+      emi,                        // emi
+      interest,                   // interest
+      principal,                  // principal
+
+      opening,                    // opening
+      closing,                    // closing
+
+      emi,                        // remaining_emi
+      interest,                   // remaining_interest
+      principal,                  // remaining_principal
+
+      null,                       // payment_date
+      0,                          // dpd
+
+      emi,                        // remaining_amount
+      0,                          // extra_paid
+    ];
+  });
+
+  console.log(
+    "WCTL FFPL RPS ROWS BEFORE INSERT:",
+    rpsData.map((row, index) => ({
+      installmentNumber: index + 1,
+      lan: row[0],
+      dueDate: row[1],
+      status: row[2],
+      emi: row[3],
+      interest: row[4],
+      principal: row[5],
+      opening: row[6],
+      closing: row[7],
+      remainingEmi: row[8],
+      remainingInterest: row[9],
+      remainingPrincipal: row[10],
+      remainingAmount: row[13],
+    })),
+  );
+
+  await conn.query(
+    `
+    INSERT INTO manual_rps_wctl_ffpl (
+      lan,
+      due_date,
+      status,
+      emi,
+      interest,
+      principal,
+      opening,
+      closing,
+      remaining_emi,
+      remaining_interest,
+      remaining_principal,
+      payment_date,
+      dpd,
+      remaining_amount,
+      extra_paid
+    )
+    VALUES ?
+    `,
+    [rpsData],
+  );
+
+  const standardInstallment =
+    round2(levelInstallment);
+
+  console.log(
+    "✅ WCTL FFPL RPS GENERATED SUCCESSFULLY:",
+    {
+      lan: normalizedLan,
+      product: normalizedProduct,
+      lender: normalizedLender,
+      normalizedProduct:
+        config.normalizedProduct,
+      basis: config.basis,
+      tenure: contractTenure,
+      numberOfInstallments,
+      standardInstallment,
+      firstDueDate: formatDateYmd(
+        dueDates[0],
+      ),
+      lastDueDate: formatDateYmd(
+        dueDates[dueDates.length - 1],
+      ),
+    },
+  );
+
+  return {
+    success: true,
+    lan: normalizedLan,
+    product: normalizedProduct,
+    lender: normalizedLender,
+    basis: config.basis,
+    tenure: contractTenure,
+    numberOfInstallments,
+    standardInstallment,
+    firstDueDate: formatDateYmd(
+      dueDates[0],
+    ),
+    lastDueDate: formatDateYmd(
+      dueDates[dueDates.length - 1],
+    ),
+    schedule,
+  };
+};
+
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////// GQ NON-FSF LOAN CALCULATION /////////////////////////////////////////
 // const generateRepaymentScheduleGQNonFSF = async (
@@ -8398,7 +9292,18 @@ console.log("checking data", {
       product,
       lender,
     );
-  } else {
+  } else if (lan.startsWith("WCTLFFPL")) {
+  return generateRepaymentScheduleWctlFfpl(
+    conn,
+    lan,
+    loanAmount,
+    interestRate,
+    tenure,
+    disbursementDate,
+    product,
+    lender,
+  );
+}else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
   }
 };
@@ -8428,5 +9333,5 @@ module.exports = {
   generateRepaymentScheduleCarepay,
   generateRepaymentScheduleSterlion,
   generateRepaymentScheduleSrbh,
-
+  generateRepaymentScheduleWctlFfpl,
 };

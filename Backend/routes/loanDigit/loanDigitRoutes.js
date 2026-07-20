@@ -715,7 +715,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 
       const encodedInnerXml =
         parsedOuter["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
-          "ns2:processResponse"
+        "ns2:processResponse"
         ]?.["ns2:out"];
 
       if (!encodedInnerXml) {
@@ -770,7 +770,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
             ON DUPLICATE KEY UPDATE 
             bureau_status = 'FAILED',
             bureau_api_response = VALUES(bureau_api_response)`,
-            [lan, err.message],
+          [lan, err.message],
         );
 
         await db.promise().query(
@@ -800,7 +800,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     if (conn) {
       try {
         await conn.rollback();
-      } catch (_) {}
+      } catch (_) { }
       conn.release();
     }
     console.error("❌ Loan Digit Error:", error);
@@ -1164,6 +1164,8 @@ router.put("/ops-approved-loan/:lan", async (req, res) => {
   }
 });
 
+
+
 router.get("/ops-maker-approved-loans", async (req, res) => {
   try {
     const [rows] = await db.promise().query(
@@ -1244,4 +1246,43 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
   }
 });
 
+//collection of all the routes for loan digit
+router.get("/collections", async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = `
+      SELECT
+        lb.customer_name,
+        lb.lan,
+        ru.utr,
+        ru.transfer_amount,
+        ru.bank_date
+      FROM loan_booking_loan_digit lb
+      INNER JOIN repayments_upload ru
+        ON lb.lan = ru.lan
+    `;
+    const params = [];
+    if (startDate && endDate) {
+      query += ` WHERE DATE(ru.bank_date) BETWEEN ? AND ?`;
+      params.push(startDate, endDate);
+    }
+    query += ` ORDER BY ru.bank_date DESC`;
+    const [rows] = await db.promise().query(query, params);
+    return res.status(200).json({
+      success: true,
+      count: rows.length,
+      data: rows,
+    });
+
+  } catch (error) {
+    console.error("Loan Digit Collection API Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch collection records.",
+      error: error.message,
+    });
+  }
+});
 module.exports = router;
