@@ -276,6 +276,17 @@ router.get("/:lan", async (req, res) => {
     subventionCol = "COALESCE(lb.subvention_amount, 0)";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+  } else if (lan.startsWith("WCTLFFPL")) {
+    tableName = "loan_booking_wctl_ffpl";
+    posTable = "manual_rps_wctl_ffpl";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.loan_tenure";
+    processingFeeCol = "lb.processing_fee";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    subventionCol = "0";
+    netDisbursementExpr = `(${loanAmountExpr})`;
   } else if (lan.startsWith("WCTL")) {
     tableName = "loan_bookings_wctl";
     posTable = "manual_rps_wctl";

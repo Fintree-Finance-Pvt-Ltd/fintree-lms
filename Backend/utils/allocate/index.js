@@ -45,7 +45,7 @@ const allocateLoanDigit = require( "./allocateLoanDigit" );
 const allocateRapidMoney = require("./allocateRapidMoney");
 const allocateMotionCorp = require("./allocateMotionCorp");
 const allocateSterlion = require("./allocateSterlion");
-
+const allocateWctlffpl = require("./allocateWctlffpl");
 
 /**
  * Utility helpers for merging allocation results.
@@ -79,8 +79,17 @@ const mergeAllocations = (a, b) => {
 };
 
 const allocateRepaymentByLAN = async (lan, payment) => {
-  if (lan.startsWith("EV") || lan.startsWith("WCTL")) {
+ 
+  // Must be before generic WCTL
+  if (lan.startsWith("WCTLFFPL")) {
+    return allocateWctlffpl(lan, payment);
+  }
+
+  // Other allocators...
+
+  else if (lan.startsWith("EV") || lan.startsWith("WCTL")) {
     return allocateEV(lan, payment);
+  
   }else if (lan.startsWith("HEYEV") || lan.startsWith("HEYBF") ) {
     return allocateHEYEV(lan, payment);
   }
@@ -108,12 +117,16 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   }
   else if (lan.startsWith("CLY")) {
 return allocateClayoo(lan, payment);
+}
+else if (lan.startsWith("WCTLFFPL")) {
+return allocateWctlffpl(lan, payment);
   }
   else if (lan.startsWith("STRL")) {
 return allocateSterlion(lan, payment);
   }
   else if (lan.startsWith("LDF")) {
 return allocateLoanDigit(lan, payment);
+
   } else if (lan.startsWith("GQN")) {
     const promises = [
       allocateGQNonFSF(lan, payment),
