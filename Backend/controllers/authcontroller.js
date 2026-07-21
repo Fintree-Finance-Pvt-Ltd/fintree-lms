@@ -18,7 +18,6 @@ exports.login = (req, res) => {
     "SELECT * FROM users WHERE email = ?",
     [email],
     async (err, results) => {
-      console.log("Inside the query");
 
       if (err) {
         console.error("Login database error:", err);

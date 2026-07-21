@@ -257,6 +257,9 @@ import SRBHOperationApproval from "./components/Srbh/SRBHOperationApproval";
 import SRBHApprovedLoans from "./components/Srbh/SRBHApprovedLoans";
 import SRBHDetails from "./components/Srbh/SRBHDetails";
 import ClayooRejectedLoans from "./components/Clayoo/ClayooApprovedLoans";
+import ClaimCureBuddyLoanBooking from "./components/ClaimCureBuddy/ClaimCureBuddyLoanBooking";
+import ClaimCureBuddyDraftCases from "./components/ClaimCureBuddy/ClaimCureBuddyDraftCases.jsx";
+import ClaimCureBuddyApprovedCases from "./components/ClaimCureBuddy/ClaimCureBuddyApprovedCases.jsx";
 
 
 
@@ -1891,6 +1894,28 @@ function App() {
                 <SevenFinCorpDetails />
             }
           />
+          {/* /////////////////////////////////////////////////////////// */}
+          {/* cLAIMcUREbUDDY rOTUES  */}
+
+            <Route
+            path="/claimcurebuddy/loan-booking"
+            element={
+              // <PermissionRoute pageName="Bundela Dealer Entry">
+                <ClaimCureBuddyLoanBooking />
+              // {/* </PermissionRoute> */}
+            }
+          />
+
+          <Route
+  path="/claimcurebuddy/draft-cases"
+  element={<ClaimCureBuddyDraftCases />}
+/>
+
+<Route
+  path="/claimcurebuddy/approved-cases"
+  element={<ClaimCureBuddyApprovedCases />}
+/>
+
           {/* =========================
    ✅ Bundela Routes
 ========================= */}

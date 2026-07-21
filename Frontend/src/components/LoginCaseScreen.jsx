@@ -73,11 +73,32 @@ const LoginCaseScreen = ({
 
   const statusPillStyle = (status) => {
     const map = {
-      approved: { bg: "#dcfce7", bd: "#bbf7d0", fg: "#166534" },
-      rejected: { bg: "#fee2e2", bd: "#fecaca", fg: "#991b1b" },
-      pending: { bg: "#fef3c7", bd: "#fde68a", fg: "#92400e" },
-      login: { bg: "#f1f5f9", bd: "#e2e8f0", fg: "#475569" },
-    };
+  approved: {
+    bg: "#dcfce7",
+    bd: "#bbf7d0",
+    fg: "#166534",
+  },
+  rejected: {
+    bg: "#fee2e2",
+    bd: "#fecaca",
+    fg: "#991b1b",
+  },
+  pending: {
+    bg: "#fef3c7",
+    bd: "#fde68a",
+    fg: "#92400e",
+  },
+  draft: {
+    bg: "#dbeafe",
+    bd: "#bfdbfe",
+    fg: "#1d4ed8",
+  },
+  login: {
+    bg: "#f1f5f9",
+    bd: "#e2e8f0",
+    fg: "#475569",
+  },
+};
     const key = (status || "pending").toString().toLowerCase();
     const c = map[key] || map.login;
     return {

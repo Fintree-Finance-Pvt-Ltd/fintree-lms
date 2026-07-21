@@ -75,6 +75,97 @@ function buildDoqfyPartyUsers(loan, esignParties = [], type) {
   return partyUsers;
 }
 
+async function buildClaimCureBuddyCoApplicantUsers(
+  lan,
+  coApplicantTable,
+  type,
+) {
+  // Currently co-applicants are added to the agreement only
+  if (type !== "AGREEMENT") {
+    return [];
+  }
+
+  const [rows] = await db.promise().query(
+    `
+    SELECT
+      party_no,
+      customer_name,
+      first_name,
+      last_name,
+      email,
+      mobile_number
+    FROM ${coApplicantTable}
+    WHERE lan = ?
+    ORDER BY party_no ASC
+    `,
+    [lan],
+  );
+
+  const partyUsers = [];
+  const singleCoApplicant = rows.length === 1;
+
+  for (const row of rows) {
+    const name = clean(
+      row.customer_name ||
+      [row.first_name, row.last_name].filter(Boolean).join(" "),
+    );
+
+    const email = clean(row.email);
+    const mobile = clean(row.mobile_number);
+
+    if (!name) {
+      throw new Error(
+        `CO_APPLICANT_${row.party_no} name is missing`,
+      );
+    }
+
+    if (!mobile && !email) {
+      throw new Error(
+        `CO_APPLICANT_${row.party_no} mobile or email is required`,
+      );
+    }
+
+    /*
+     * When only one co-applicant exists, place the signature
+     * inside the existing co-borrower signature position.
+     *
+     * When there are multiple co-applicants, use Doqfy's
+     * automatic placement to avoid using the same coordinates.
+     */
+    const useCoordinates = singleCoApplicant;
+
+    const partyUser = {
+      name,
+      email,
+      contact_number: mobile,
+      method: "AADHAAR",
+      pages: "ALL",
+      remark:
+        `${type} Signing - CO_APPLICANT_${row.party_no}`,
+
+      sign_position:
+        useCoordinates ? "DRAG_DROP" : "BOTTOM_RIGHT",
+
+      position_details: useCoordinates
+        ? {
+            ALL: [
+              {
+                x1: 191,
+                x2: 266,
+                y1: 84,
+                y2: 129,
+              },
+            ],
+          }
+        : {},
+    };
+
+    partyUsers.push(partyUser);
+  }
+
+  return partyUsers;
+}
+
 exports.initDoqfyEsign = async (lan, type) => {
   try {
     console.log("🚀 INITIATING DOQFY ESIGN:", lan, type);
@@ -91,7 +182,15 @@ exports.initDoqfyEsign = async (lan, type) => {
     /* GET LOAN CONTEXT */
     /* --------------------------------------------------- */
 
-    const { bookingTable, esignParties } = getLoanContext(lan);
+    // const { bookingTable, esignParties } = getLoanContext(lan);
+
+    const loanContext = getLoanContext(lan);
+
+const {
+  bookingTable,
+  esignParties,
+  coApplicantTable,
+} = loanContext;
 
     /* --------------------------------------------------- */
     /* FETCH LOAN */
@@ -110,6 +209,21 @@ exports.initDoqfyEsign = async (lan, type) => {
     console.log("✅ LOAN FETCHED");
 
     const partyUsers = buildDoqfyPartyUsers(loan, esignParties, type);
+
+    // ClaimCureBuddy-only multiple co-applicant handling
+if (
+  loanContext.type === "CLAIM_CURE_BUDDY" &&
+  coApplicantTable
+) {
+  const coApplicantUsers =
+    await buildClaimCureBuddyCoApplicantUsers(
+      lan,
+      coApplicantTable,
+      type,
+    );
+
+  partyUsers.push(...coApplicantUsers);
+}
 
     /* --------------------------------------------------- */
     /* GENERATE PDF */
@@ -210,6 +324,7 @@ exports.initDoqfyEsign = async (lan, type) => {
     /* --------------------------------------------------- */
 
     let signUrl = null;
+    let signUrls = [];
 
     try {
       const orderResp = await doqfyClient.get(
@@ -222,9 +337,23 @@ exports.initDoqfyEsign = async (lan, type) => {
 
       console.log("order response data", orderData);
 
-      const esignData = orderData?.esign?.[0];
+      // const esignData = orderData?.esign?.[0];
 
-      signUrl = esignData?.sign_url || null;
+      // signUrl = esignData?.sign_url || null;
+
+      const esignData = Array.isArray(orderData?.esign)
+  ? orderData.esign
+  : [];
+
+signUrls = esignData
+  .map((item, index) => ({
+    party_no: index + 1,
+    name: partyUsers[index]?.name || item?.name || "",
+    sign_url: item?.sign_url || null,
+  }))
+  .filter((item) => item.sign_url);
+
+signUrl = signUrls[0]?.sign_url || null;
 
       console.log("✅ SIGN URL:", signUrl);
     } catch (err) {
@@ -302,6 +431,9 @@ exports.initDoqfyEsign = async (lan, type) => {
       lan,
       orderId,
       sign_url: signUrl,
+       ...(loanContext.type === "CLAIM_CURE_BUDDY"
+    ? { sign_urls: signUrls }
+    : {}),
     };
   } catch (err) {
     console.error("❌ FINAL DOQFY ERROR:", err);
