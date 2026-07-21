@@ -705,7 +705,7 @@ else if (
 
   // 1st–25th: 5th of next month
   // 26th–month end: 5th of month after next
-  const initialMonthGap = disbursementDay <= 25 ? 1 : 2;
+  const initialMonthGap = disbursementDay <= 20 ? 1 : 2;
 
   const dueDate = new Date(
     disbDate.getFullYear(),

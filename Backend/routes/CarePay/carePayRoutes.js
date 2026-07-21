@@ -744,7 +744,7 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     }
 
     const netDisbursement = round2(
-      requestAmount - processingFee.amount - subvention.amount,
+      requestAmount  - subvention.amount,
     );
 
     if (netDisbursement < 0) {
@@ -954,6 +954,13 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
       status: breDecision.caseStatus,
       agreement_date,
+      bank_account_holder_name:
+        nullableString(data.bank_account_holder_name) || "",
+      bank_account_number: nullableString(data.bank_account_number) || "",
+      bank_name: nullableString(data.bank_name) || "",
+      bank_branch_name: nullableString(data.bank_branch_name) || "",
+      bank_ifsc_code: nullableString(data.bank_ifsc_code) || "",
+      bank_account_type: nullableString(data.bank_account_type) || "",
     };
 
     const columns = Object.keys(fields).join(", ");
@@ -1064,12 +1071,28 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
             amount,
             umrn,
             fatherName,
-            motherName
-        } = req.body;
+            motherName,
+            bank_account_holder_name,
+            bank_account_number,
+            bank_name,
+            bank_branch_name,
+            bank_ifsc_code,
+            bank_account_type
+        } = req.body || {};
 
-        if (!lan || amount == null || !umrn) {
+        if (
+            !lan ||
+            amount == null ||
+            !umrn ||
+            !bank_account_holder_name ||
+            !bank_account_number ||
+            !bank_name ||
+            !bank_branch_name ||
+            !bank_ifsc_code ||
+            !bank_account_type
+        ) {
             return res.status(400).json({
-                message: "Missing required fields: lan, amount, umrn"
+                message: "Missing required fields: lan, amount, umrn, bank_account_holder_name, bank_account_number, bank_name, bank_branch_name, bank_ifsc_code, bank_account_type"
             });
         }
 
@@ -1078,13 +1101,25 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
              SET mandate_amount = ?,
                  umrn = ?,
                  father_name = COALESCE(?, father_name),
-                 mother_name = COALESCE(?, mother_name)
+                 mother_name = COALESCE(?, mother_name),
+                 bank_account_holder_name = ?,
+                 bank_account_number = ?,
+                 bank_name = ?,
+                 bank_branch_name = ?,
+                 bank_ifsc_code = ?,
+                 bank_account_type = ?
              WHERE lan = ?`,
             [
                 amount,
                 umrn,
                 fatherName ?? null,
                 motherName ?? null,
+                String(bank_account_holder_name).trim(),
+                String(bank_account_number).trim(),
+                String(bank_name).trim(),
+                String(bank_branch_name).trim(),
+                String(bank_ifsc_code).trim(),
+                String(bank_account_type).trim(),
                 lan
             ]
         );
