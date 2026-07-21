@@ -198,14 +198,19 @@ function resolveProcedure(rawReportId, rawLender) {
     // CCOD LOAN DATA REPORT
     "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
 
+   
     //// PAYOUT REPORT
-    "pay-out-report": () =>
-      lender?.toLowerCase() === "gq fsf"
-        ? "sp_payout_gq_fsf"
-        : lender?.toLowerCase() === "emiclub"
-          ? "sp_emiclub_payout_report_emiclub"
-          : null,
+"pay-out-report": () => {
+  const normalizedLender = lender?.toLowerCase();
 
+  return normalizedLender === "gq fsf"
+    ? "sp_payout_gq_fsf"
+    : normalizedLender === "gq non-fsf"
+      ? "sp_payout_gq_non_fsf"
+      : normalizedLender === "emiclub"
+        ? "sp_emiclub_payout_report_emiclub"
+        : null;
+},
     // Bank Payment File Report (for EmiClub)
     "bank-payment-file-report": () => "sp_bank_payment_file",
 
