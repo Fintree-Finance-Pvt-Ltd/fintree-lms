@@ -151,6 +151,170 @@ function getFirstEmiDate(disbursementDate, emiDate, lender, product, monthOffset
 
 /////////////////// EV Loan /////////////////
 
+// ================= WCTL FFPL =================
+
+const normalizedLender = String(lender || "")
+  .trim()
+  .toUpperCase()
+  .replace(/[\s_-]/g, "");
+
+const normalizedProduct = String(product || "")
+  .trim()
+  .toLowerCase()
+  .replace(/[\s-]+/g, "_")
+  .replace(/_+/g, "_");
+
+if (normalizedLender === "WCTLFFPL") {
+  const dueDate = new Date(disbDate);
+
+  const productIntervals = {
+    monthly_360: {
+      type: "MONTH",
+      interval: 1,
+      basis: 360,
+    },
+    quaterly_360: {
+      type: "MONTH",
+      interval: 3,
+      basis: 360,
+    },
+    quarterly_360: {
+      type: "MONTH",
+      interval: 3,
+      basis: 360,
+    },
+    half_yearly_360: {
+      type: "MONTH",
+      interval: 6,
+      basis: 360,
+    },
+    yearly_360: {
+      type: "MONTH",
+      interval: 12,
+      basis: 360,
+    },
+
+    monthly_365: {
+      type: "MONTH",
+      interval: 1,
+      basis: 365,
+    },
+    quaterly_365: {
+      type: "MONTH",
+      interval: 3,
+      basis: 365,
+    },
+    quarterly_365: {
+      type: "MONTH",
+      interval: 3,
+      basis: 365,
+    },
+    half_yearly_365: {
+      type: "MONTH",
+      interval: 6,
+      basis: 365,
+    },
+    yearly_365: {
+      type: "MONTH",
+      interval: 12,
+      basis: 365,
+    },
+
+    daily_365: {
+      type: "DAY",
+      interval: 1,
+      basis: 365,
+    },
+    daily_360: {
+      type: "DAY",
+      interval: 1,
+      basis: 360,
+    },
+  };
+
+  const config = productIntervals[normalizedProduct];
+
+  if (!config) {
+    throw new Error(
+      `Unsupported WCTL FFPL product: ${product}`,
+    );
+  }
+
+  const installmentOffset = Number(monthOffset || 0);
+
+  if (
+    !Number.isInteger(installmentOffset) ||
+    installmentOffset < 0
+  ) {
+    throw new Error(
+      `Invalid WCTL FFPL monthOffset: ${monthOffset}`,
+    );
+  }
+
+  if (config.type === "DAY") {
+    /*
+     * Daily products:
+     * First repayment  → next day
+     * Second repayment → two days after disbursement
+     */
+    dueDate.setDate(
+      dueDate.getDate() +
+        config.interval * (installmentOffset + 1),
+    );
+  } else {
+    const disbursementDay = disbDate.getDate();
+
+    /*
+     * WCTL FFPL cutoff:
+     * Disbursed on or before 20th → normal frequency
+     * Disbursed after 20th        → one extra month
+     */
+    const cutoffExtraMonth =
+      disbursementDay <= 20 ? 0 : 1;
+
+    const monthsToAdd =
+      config.interval * (installmentOffset + 1) +
+      cutoffExtraMonth;
+
+    // Prevent JavaScript month rollover
+    dueDate.setDate(1);
+
+    dueDate.setMonth(
+      dueDate.getMonth() + monthsToAdd,
+    );
+
+    // Repayment is always due on the 5th
+    dueDate.setDate(5);
+  }
+
+  dueDate.setHours(12, 0, 0, 0);
+
+  console.log("[WCTL FFPL EMI DATE]", {
+    lender,
+    product,
+    normalizedProduct,
+    frequency: config.type,
+    interval: config.interval,
+    dayCountBasis: config.basis,
+    installmentNumber: installmentOffset + 1,
+    disbursementDay: disbDate.getDate(),
+    cutoffApplied:
+      config.type === "MONTH" &&
+      disbDate.getDate() > 20,
+    disbursementDate: disbDate
+      .toISOString()
+      .split("T")[0],
+    dueDate: dueDate
+      .toISOString()
+      .split("T")[0],
+  });
+
+  return dueDate;
+}
+
+
+
+
     // ✅ EV Loan: Monthly Loan EMI due based on 5th cut-off logic
     if (lender === "Embifi" && product === "Monthly Loan") {
         const dueDate = new Date(disbDate);
@@ -541,7 +705,7 @@ else if (
 
   // 1st–25th: 5th of next month
   // 26th–month end: 5th of month after next
-  const initialMonthGap = disbursementDay <= 25 ? 1 : 2;
+  const initialMonthGap = disbursementDay <= 20 ? 1 : 2;
 
   const dueDate = new Date(
     disbDate.getFullYear(),

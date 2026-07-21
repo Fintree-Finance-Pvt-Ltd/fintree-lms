@@ -260,6 +260,8 @@ import ClayooRejectedLoans from "./components/Clayoo/ClayooApprovedLoans";
 import ClaimCureBuddyLoanBooking from "./components/ClaimCureBuddy/ClaimCureBuddyLoanBooking";
 import ClaimCureBuddyDraftCases from "./components/ClaimCureBuddy/ClaimCureBuddyDraftCases.jsx";
 import ClaimCureBuddyApprovedCases from "./components/ClaimCureBuddy/ClaimCureBuddyApprovedCases.jsx";
+import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
+import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 
 
 
@@ -557,6 +559,14 @@ function App() {
             }
           />
           <Route
+            path="/clayoo-loans/review-approval-actions"
+            element={
+              <PermissionRoute pageName="Clayoo Review & Approval">
+                <ClayooVimleshScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="/clayoo-loans/fintree-operation"
             element={
               <PermissionRoute pageName="Clayyo Operation All Loans">
@@ -642,6 +652,14 @@ function App() {
             element={
               <PermissionRoute pageName="Loan Digit Customer Details">
                 <LoanDigitDetails />
+              </PermissionRoute>
+            }
+          />
+           <Route
+            path="/loan-digit/collections"
+            element={
+              <PermissionRoute pageName="Loan Digit Collections">
+                <LoanDigitCollectionScreen />
               </PermissionRoute>
             }
           />

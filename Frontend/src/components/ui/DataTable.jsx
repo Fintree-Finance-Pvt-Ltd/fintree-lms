@@ -1,5 +1,5 @@
 // import React, { useEffect, useMemo, useState } from "react";
-
+ 
 // const DataTable = ({
 //   title = "",
 //   rows = [],
@@ -20,10 +20,10 @@
 //   const [pageSize, setPageSize] = useState(initialPageSize);
 //   const [page, setPage] = useState(1);
 //   const [sort, setSort] = useState(initialSort); // { key, dir }
-
+ 
 //   // ---------- utils ----------
 //   const norm = (v) => String(v ?? "").toLowerCase().trim();
-
+ 
 //   const filtered = useMemo(() => {
 //     const q = norm(search);
 //     if (!q || globalSearchKeys.length === 0) return rows;
@@ -31,7 +31,7 @@
 //       globalSearchKeys.some((k) => norm(r?.[k]).includes(q))
 //     );
 //   }, [rows, search, globalSearchKeys]);
-
+ 
 //   const sorted = useMemo(() => {
 //     if (!sort?.key) return filtered;
 //     const col = columns.find((c) => c.key === sort.key);
@@ -54,23 +54,23 @@
 //       return 0;
 //     });
 //   }, [filtered, sort, columns]);
-
+ 
 //   // pagination
 //   const total = sorted.length;
 //   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 //   const pageSafe = Math.min(page, totalPages) || 1;
 //   const start = (pageSafe - 1) * pageSize;
 //   const visible = sorted.slice(start, start + pageSize);
-
+ 
 //   // keep page in bounds
 //   useEffect(() => setPage(1), [search, pageSize, sort]);
-
+ 
 //   const onSort = (key) => {
 //     setSort((s) =>
 //       s?.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }
 //     );
 //   };
-
+ 
 //   const exportCSV = () => {
 //     const headers = columns.map((c) => c.header ?? c.key);
 //     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
@@ -94,7 +94,7 @@
 //     a.remove();
 //     URL.revokeObjectURL(a.href);
 //   };
-
+ 
 //   // ---------- styles ----------
 //   const s = {
 //     wrap: {
@@ -198,7 +198,7 @@
 //     },
 //     rowHover: { transition: "background .12s ease" },
 //   };
-
+ 
 //   return (
 //     <div style={s.wrap}>
 //       <div style={s.header}>
@@ -216,7 +216,7 @@
 //           {renderTopRight}
 //         </div>
 //       </div>
-
+ 
 //       <div style={s.tableWrap}>
 //         <table style={s.table}>
 //           <thead>
@@ -244,7 +244,7 @@
 //                 </td>
 //               </tr>
 //             )}
-
+ 
 //             {visible.map((row, idx) => (
 //               <tr
 //                 key={row.id ?? row.lan ?? idx}
@@ -265,7 +265,7 @@
 //           </tbody>
 //         </table>
 //       </div>
-
+ 
 //       <div style={s.footer}>
 //         <div style={s.muted}>
 //           Showing <b>{visible.length}</b> of <b>{total}</b> results
@@ -288,7 +288,7 @@
 //           >
 //             Next ›
 //           </button>
-
+ 
 //           <select
 //             value={pageSize}
 //             onChange={(e) => setPageSize(Number(e.target.value))}
@@ -306,14 +306,14 @@
 //     </div>
 //   );
 // };
-
+ 
 // export default DataTable;
-
-
-
-
+ 
+ 
+ 
+ 
 import React, { useEffect, useMemo, useState } from "react";
-
+ 
 const DataTable = ({
   title = "",
   rows = [],
@@ -337,24 +337,24 @@ const DataTable = ({
   onPageChange = null,        // (newPage: number) => void
   onPageSizeChange = null,    // (newSize: number) => void
 }) => {
-
+ 
   // ---------- state ----------
   const [search, setSearch] = useState("");
   const [_pageSize, setPageSize] = useState(initialPageSize);
   const [_page, setPage] = useState(1);
   const [sort, setSort] = useState(initialSort); // { key, dir }
-
-
+ 
+ 
   // filters: { [colKey]: Set<string> } - stores normalized string values selected for that column
   const [filters, setFilters] = useState({});
   // UI state for the open filter dropdown
   const [openFilterCol, setOpenFilterCol] = useState(null);
   const [filterSearch, setFilterSearch] = useState(""); // search inside the current filter dropdown
   const [tempSelections, setTempSelections] = useState(new Set()); // local selections while dropdown open
-
+ 
   // ---------- utils ----------
   const norm = (v) => String(v ?? "").toLowerCase().trim();
-
+ 
   // produce display string for value (handles dates nicely)
   const displayFor = (v) => {
     if (v == null || v === "") return "—";
@@ -365,7 +365,7 @@ const DataTable = ({
     }
     return String(v);
   };
-
+ 
   // ---------- filter options (unique values per column) ----------
   const uniqueOptions = useMemo(() => {
     const map = {};
@@ -387,12 +387,12 @@ const DataTable = ({
     }
     return map;
   }, [rows, columns, filterOptionCap]);
-
+ 
   // ---------- filtering (global search + column filters) ----------
   const filtered = useMemo(() => {
     const q = norm(search);
     const useGlobal = !!q && globalSearchKeys.length > 0;
-
+ 
     return rows.filter((r) => {
       // global search
       if (useGlobal) {
@@ -413,7 +413,7 @@ const DataTable = ({
       return true;
     });
   }, [rows, search, globalSearchKeys, filters, columns]);
-
+ 
   // ---------- sorting ----------
   const sorted = useMemo(() => {
     if (!sort?.key) return filtered;
@@ -436,7 +436,7 @@ const DataTable = ({
       return 0;
     });
   }, [filtered, sort, columns]);
-
+ 
   // pagination
   const total = serverPagination ? totalRowsProp : sorted.length;
   const pageSize = serverPagination ? (onPageSizeChange ? initialPageSize : initialPageSize) : _pageSize;
@@ -444,18 +444,18 @@ const DataTable = ({
   const pageSafe = serverPagination ? currentPage : (Math.min(_page, Math.max(1, Math.ceil(sorted.length / _pageSize))) || 1);
   const start = serverPagination ? 0 : (pageSafe - 1) * _pageSize;
   const visible = serverPagination ? rows : sorted.slice(start, start + _pageSize);
-
-
+ 
+ 
   // keep internal page in bounds when search/pageSize/sort/filters change (client mode only)
   useEffect(() => { if (!serverPagination) setPage(1); }, [search, _pageSize, sort, filters, serverPagination]);
-
-
+ 
+ 
   const onSort = (key) => {
     setSort((s) =>
       s?.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }
     );
   };
-
+ 
   // ---------- CSV export ----------
   const exportCSV = () => {
     const headers = columns.map((c) => c.header ?? c.key);
@@ -480,7 +480,7 @@ const DataTable = ({
     a.remove();
     URL.revokeObjectURL(a.href);
   };
-
+ 
   // ---------- filter dropdown behavior ----------
   // when opening a filter for colKey, prefill tempSelections with existing filter for that col (or all)
   const openFilter = (colKey) => {
@@ -495,13 +495,13 @@ const DataTable = ({
     }
     setOpenFilterCol(colKey);
   };
-
+ 
   const closeFilter = () => {
     setOpenFilterCol(null);
     setFilterSearch("");
     setTempSelections(new Set());
   };
-
+ 
   const toggleTempSelection = (valueNorm) => {
     setTempSelections((s) => {
       const n = new Set(s);
@@ -510,13 +510,13 @@ const DataTable = ({
       return n;
     });
   };
-
+ 
   // Apply the currently selected filter values
   const applyFilter = () => {
     if (!openFilterCol) return;
     const opts = uniqueOptions[openFilterCol] || [];
     const allValues = new Set(opts.map((o) => o.valueNorm));
-
+ 
     setFilters((prev) => {
       const copy = { ...prev };
       // if everything is selected or no selection at all, treat as "no filter"
@@ -530,10 +530,10 @@ const DataTable = ({
       }
       return copy;
     });
-
+ 
     closeFilter();
   };
-
+ 
   // Clear the current column's filter entirely
   const clearFilter = (colKey) => {
     setFilters((prev) => {
@@ -548,13 +548,13 @@ const DataTable = ({
       setOpenFilterCol(null);
     }
   };
-
-
+ 
+ 
   const selectAllToggle = (colKey, selectAll) => {
     const opts = uniqueOptions[colKey] || [];
     setTempSelections(selectAll ? new Set(opts.map((o) => o.valueNorm)) : new Set());
   };
-
+ 
   // ---------- styles ----------
   // const s = {
   //   wrap: {
@@ -658,7 +658,7 @@ const DataTable = ({
   //     outline: "none",
   //   },
   //   rowHover: { transition: "background .12s ease" },
-
+ 
   //   // filter dropdown styles
   //   filterBtn: {
   //     marginLeft: 8,
@@ -703,7 +703,7 @@ const DataTable = ({
   //   filterList: { overflow: "auto", padding: 8, flex: 1 },
   //   filterFooter: { padding: 8, borderTop: "1px solid #f3f4f6", display: "flex", gap: 6, justifyContent: "flex-end" },
   // };
-
+ 
   const s = {
     wrap: {
       background: "#ffffff",
@@ -716,7 +716,7 @@ const DataTable = ({
       color: "#0f172a",
       overflow: "hidden",
     },
-
+ 
     header: {
       display: "flex",
       alignItems: "center",
@@ -725,7 +725,7 @@ const DataTable = ({
       marginBottom: 16,
       flexWrap: "wrap",
     },
-
+ 
     h2: {
       margin: 0,
       fontSize: 24,
@@ -733,14 +733,14 @@ const DataTable = ({
       color: "#0f2b5b",
       letterSpacing: "-0.02em",
     },
-
+ 
     toolbar: {
       display: "flex",
       gap: 10,
       alignItems: "center",
       flexWrap: "wrap",
     },
-
+ 
     input: {
       height: 44,
       padding: "0 14px",
@@ -752,7 +752,7 @@ const DataTable = ({
       outline: "none",
       color: "#0f172a",
     },
-
+ 
     btn: {
       height: 44,
       padding: "0 16px",
@@ -765,14 +765,14 @@ const DataTable = ({
       color: "#fff",
       boxShadow: "0 8px 18px rgba(15, 43, 91, 0.14)",
     },
-
+ 
     tableWrap: {
       overflow: "auto",
       borderRadius: 20,
       border: "1px solid #edf2f7",
       background: "#fff",
     },
-
+ 
     table: {
       width: "100%",
       borderCollapse: "separate",
@@ -780,7 +780,7 @@ const DataTable = ({
       fontSize: 14,
       minWidth: 980,
     },
-
+ 
     th: {
       position: stickyHeader ? "sticky" : "static",
       top: 0,
@@ -797,14 +797,14 @@ const DataTable = ({
       letterSpacing: "0.06em",
       textTransform: "uppercase",
     },
-
+ 
     thClickable: {
       cursor: "pointer",
       display: "inline-flex",
       alignItems: "center",
       gap: 4,
     },
-
+ 
     td: {
       padding: "16px 18px",
       borderBottom: "1px solid #f1f5f9",
@@ -812,11 +812,11 @@ const DataTable = ({
       color: "#1e293b",
       background: "transparent",
     },
-
+ 
     zebra: {
       background: "#fcfdff",
     },
-
+ 
     footer: {
       display: "flex",
       alignItems: "center",
@@ -825,19 +825,19 @@ const DataTable = ({
       paddingTop: 16,
       flexWrap: "wrap",
     },
-
+ 
     muted: {
       color: "#64748b",
       fontSize: 13,
     },
-
+ 
     pager: {
       display: "flex",
       gap: 8,
       alignItems: "center",
       flexWrap: "wrap",
     },
-
+ 
     pagerBtn: {
       padding: "8px 12px",
       borderRadius: 10,
@@ -847,7 +847,7 @@ const DataTable = ({
       fontWeight: 600,
       color: "#0f172a",
     },
-
+ 
     select: {
       padding: "9px 12px",
       borderRadius: 12,
@@ -858,11 +858,11 @@ const DataTable = ({
       outline: "none",
       color: "#0f172a",
     },
-
+ 
     rowHover: {
       transition: "background .16s ease",
     },
-
+ 
     filterBtn: {
       marginLeft: 8,
       padding: "4px 7px",
@@ -873,7 +873,7 @@ const DataTable = ({
       fontSize: 12,
       color: "#64748b",
     },
-
+ 
     filterDropdown: {
       position: "absolute",
       top: "calc(100% + 8px)",
@@ -889,7 +889,7 @@ const DataTable = ({
       display: "flex",
       flexDirection: "column",
     },
-
+ 
     filterHeader: {
       padding: "10px 12px",
       borderBottom: "1px solid #f1f5f9",
@@ -898,7 +898,7 @@ const DataTable = ({
       alignItems: "center",
       background: "#fcfdff",
     },
-
+ 
     filterSearch: {
       padding: "9px 10px",
       border: "1px solid #e2e8f0",
@@ -909,13 +909,13 @@ const DataTable = ({
       borderRadius: 10,
       color: "#0f172a",
     },
-
+ 
     filterList: {
       overflow: "auto",
       padding: 8,
       flex: 1,
     },
-
+ 
     filterFooter: {
       padding: 10,
       borderTop: "1px solid #f1f5f9",
@@ -925,8 +925,8 @@ const DataTable = ({
       background: "#fcfdff",
     },
   };
-
-
+ 
+ 
   return (
     <div style={s.wrap}>
       <div style={s.header}>
@@ -944,7 +944,7 @@ const DataTable = ({
           {renderTopRight}
         </div>
       </div>
-
+ 
       <div style={s.tableWrap}>
         <table style={s.table}>
           <thead>
@@ -964,7 +964,7 @@ const DataTable = ({
                       {c.header || c.key}
                       {sort.key === c.key ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
                     </span>
-
+ 
                     {/* filter button */}
                     {c.filterable && (
                       <button
@@ -986,7 +986,7 @@ const DataTable = ({
                         {isFiltered ? "⚑" : "▾"}
                       </button>
                     )}
-
+ 
                     {/* filter dropdown */}
                     {openFilterCol === c.key && c.filterable && (
                       <div style={s.filterDropdown} onClick={(ev) => ev.stopPropagation()}>
@@ -1013,12 +1013,12 @@ const DataTable = ({
                             None
                           </button>
                         </div>
-
+ 
                         <div style={s.filterList}>
                           {colFilterOptions.length === 0 && (
                             <div style={{ padding: 8, color: "#6b7280" }}>No values</div>
                           )}
-
+ 
                           {colFilterOptions
                             .filter((opt) => norm(opt.label).includes(norm(filterSearch)))
                             .map((opt) => {
@@ -1035,7 +1035,7 @@ const DataTable = ({
                               );
                             })}
                         </div>
-
+ 
                         <div style={s.filterFooter}>
                           <button
                             style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff" }}
@@ -1065,10 +1065,11 @@ const DataTable = ({
                 </td>
               </tr>
             )}
-
+ 
             {visible.map((row, idx) => (
               <tr
-                key={row.id ?? row.lan ?? idx}
+                // key={row.id ?? row.lan ?? idx}
+                key={`${row.collection_id ?? row.id ?? row.lan ?? "row"}-${idx}`}
                 style={{ ...(zebra && idx % 2 ? s.zebra : null), ...s.rowHover, cursor: onRowClick ? "pointer" : "default" }}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
@@ -1086,7 +1087,7 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-
+ 
       <div style={s.footer}>
         <div style={s.muted}>
           Showing <b>{visible.length}</b> of <b>{total}</b> results
@@ -1115,7 +1116,7 @@ const DataTable = ({
           >
             Next ›
           </button>
-
+ 
           <select
             value={serverPagination ? initialPageSize : _pageSize}
             onChange={(e) => {
@@ -1140,6 +1141,5 @@ const DataTable = ({
     </div>
   );
 };
-
+ 
 export default DataTable;
-

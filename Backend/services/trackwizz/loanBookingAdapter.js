@@ -381,7 +381,7 @@ const PARTNERS = {
     table: "loan_booking_switch_my_loan",
     primaryKey: "id",
     // Database columns, in customer-code priority order.
-    codeFields: ["lan", "application_id", "partner_loan_id"],
+    codeFields: ["lan", "partner_loan_id"],
 
     columns: {
       lan: "lan",
@@ -393,7 +393,7 @@ const PARTNERS = {
       dob: "dob",
       gender: "gender",
       createdAt: "created_at",
-      applicationRefNumber: "application_id",
+      applicationRefNumber: "partner_loan_id",
     },
 
     amlColumns: {

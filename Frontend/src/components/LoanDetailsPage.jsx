@@ -27,7 +27,7 @@ const LoanDetailsPage = () => {
     const [isGNonFSF, setIsGNonFSF] = useState(false);
     const [isGQFSF, setIsGQFSF] = useState(false);
     const [isSRBH, setIsSRBH] = useState(false);
-
+    const [isWctlffpl, setIsWctlffpl] = useState(false);
     useEffect(() => {
         const fetchLoanDetails = async () => {
             try {
@@ -43,7 +43,7 @@ const LoanDetailsPage = () => {
         setIsGNonFSF(lan.includes("GQNon"));
         setIsGQFSF(lan.includes("GQFSF"));
         setIsSRBH(lan.includes("SH"));
-
+        setIsWctlffpl(lan.includes("WCTLFFPL"));
     }, [lan]);
 
 
@@ -65,7 +65,7 @@ const LoanDetailsPage = () => {
 
             {/* ✅ Sidebar + Content Layout */}
             <div className="loan-content-layout">
-                <LoanSidebar onSelect={setSelectedSection} isAdikosh={isAdikosh} isGNonFSF={isGNonFSF} isGQFSF={isGQFSF}/>
+                <LoanSidebar onSelect={setSelectedSection} isAdikosh={isAdikosh} isGNonFSF={isGNonFSF} isGQFSF={isGQFSF} isWctlffpl={isWctlffpl}/>
                 <div className="loan-dynamic-section">
                     {selectedSection === "loan-details" && <LoanDetails data={loanData} />}
                     {selectedSection === "disbursement-details" && <DisbursementDetails data={loanData} />}
@@ -75,6 +75,7 @@ const LoanDetailsPage = () => {
                     {isAdikosh && selectedSection === "fintree-roi-schedule" && <FintreeROI lan={lan} isRoi={true} />}
                     {isGNonFSF && selectedSection === "gq-fintree-schedule" && <GQFintreeSchedule lan={lan} />}
                     {isGQFSF && selectedSection === "gqfsf-fintree-schedule" && <GQFSFFintreeSchedule lan={lan} />}
+                    {isWctlffpl && selectedSection === "fintree-schedule" && <FintreeSchedule lan={lan} />}
                     {/* {selectedSection === "fintree-schedule" && <FintreeSchedule lan={lan} />}
                     {selectedSection === "partner-schedule" && <PartnerSchedule lan={lan} />} */}
                     {selectedSection === "charges-cashflow" && <ChargesCashflow data={loanData} />}

@@ -10,6 +10,7 @@ const {
 const { runBureau } = require("../../services/Bueraupullapiservice");
 const createHospitalRoutes = require("./hospitalRoutes");
 const createCarePayEsignRoutes = require("./esignRoutes");
+const { evaluateCarePayLoginBre } = require("./carePayBreEngine");
 
 const router = express.Router();
 const loanBookingRouter = express.Router();
@@ -743,7 +744,7 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     }
 
     const netDisbursement = round2(
-      requestAmount - processingFee.amount - subvention.amount,
+      requestAmount  - subvention.amount,
     );
 
     if (netDisbursement < 0) {
@@ -863,6 +864,10 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     // }
 
     const { lan } = await generateLoanIdentifiers(lenderType);
+    let breDecision = evaluateCarePayLoginBre({
+      data,
+      requestAmount,
+    });
 
     const customer_name = `${data.first_name || ""} ${
       data.last_name || ""
@@ -947,8 +952,15 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
         data.relation_with_policy_holder,
       ),
 
-      status: "Login",
+      status: breDecision.caseStatus,
       agreement_date,
+      bank_account_holder_name:
+        nullableString(data.bank_account_holder_name) || "",
+      bank_account_number: nullableString(data.bank_account_number) || "",
+      bank_name: nullableString(data.bank_name) || "",
+      bank_branch_name: nullableString(data.bank_branch_name) || "",
+      bank_ifsc_code: nullableString(data.bank_ifsc_code) || "",
+      bank_account_type: nullableString(data.bank_account_type) || "",
     };
 
     const columns = Object.keys(fields).join(", ");
@@ -973,24 +985,55 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     conn.release();
     conn = null;
 
-    const bureauResult = await persistCarePayBureauResult(lan, {
-      ...data,
-      loan_amount: requestAmount,
-      request_amount: requestAmount,
+    let bureauResult = {
+      success: false,
+      score: breDecision.bureauScore,
+    };
 
-      processing_fee_percentage: processingFee.percentage,
-      processing_fee: processingFee.amount,
+    if (breDecision.status === "BRE APPROVED") {
+      bureauResult = await persistCarePayBureauResult(lan, {
+        ...data,
+        loan_amount: requestAmount,
+        request_amount: requestAmount,
 
-      subvention_percentage: subvention.percentage,
-      subvention_amount: subvention.amount,
+        processing_fee_percentage: processingFee.percentage,
+        processing_fee: processingFee.amount,
 
-      net_disbursement: netDisbursement,
-    });
+        subvention_percentage: subvention.percentage,
+        subvention_amount: subvention.amount,
+
+        net_disbursement: netDisbursement,
+      });
+
+      breDecision = evaluateCarePayLoginBre({
+        data,
+        requestAmount,
+        bureauScore: bureauResult.score,
+      });
+
+      if (breDecision.status === "BRE FAILED") {
+        await db
+          .promise()
+          .query("UPDATE loan_booking_carepay SET status = ? WHERE lan = ?", [
+            breDecision.caseStatus,
+            lan,
+          ]);
+      }
+    }
 
     return res.json({
-      message: "CAREPAY loan saved successfully.",
+      message:
+        breDecision.status === "BRE FAILED"
+          ? "CAREPAY loan rejected by BRE."
+          : "CAREPAY loan saved successfully.",
       lan,
       hospital_lan: hospitalLan,
+      status: breDecision.caseStatus,
+      bre: {
+        status: breDecision.status,
+        reason: breDecision.reason,
+        reasons: breDecision.reasons,
+      },
 
       request_amount: requestAmount,
       loan_amount: requestAmount,
@@ -1023,19 +1066,62 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
 router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
     try {
-        const { lan, amount, umrn } = req.body;
+        const {
+            lan,
+            amount,
+            umrn,
+            fatherName,
+            motherName,
+            bank_account_holder_name,
+            bank_account_number,
+            bank_name,
+            bank_branch_name,
+            bank_ifsc_code,
+            bank_account_type
+        } = req.body || {};
 
-        if (!lan || amount == null || !umrn) {
+        if (
+            !lan ||
+            amount == null ||
+            !umrn ||
+            !bank_account_holder_name ||
+            !bank_account_number ||
+            !bank_name ||
+            !bank_branch_name ||
+            !bank_ifsc_code ||
+            !bank_account_type
+        ) {
             return res.status(400).json({
-                message: "Missing required fields: lan, amount, umrn"
+                message: "Missing required fields: lan, amount, umrn, bank_account_holder_name, bank_account_number, bank_name, bank_branch_name, bank_ifsc_code, bank_account_type"
             });
         }
 
         const [result] = await db.promise().query(
-            `UPDATE loan_booking_carepay 
-             SET mandate_amount = ?, umrn = ? 
+            `UPDATE loan_booking_carepay
+             SET mandate_amount = ?,
+                 umrn = ?,
+                 father_name = COALESCE(?, father_name),
+                 mother_name = COALESCE(?, mother_name),
+                 bank_account_holder_name = ?,
+                 bank_account_number = ?,
+                 bank_name = ?,
+                 bank_branch_name = ?,
+                 bank_ifsc_code = ?,
+                 bank_account_type = ?
              WHERE lan = ?`,
-            [amount, umrn, lan]
+            [
+                amount,
+                umrn,
+                fatherName ?? null,
+                motherName ?? null,
+                String(bank_account_holder_name).trim(),
+                String(bank_account_number).trim(),
+                String(bank_name).trim(),
+                String(bank_branch_name).trim(),
+                String(bank_ifsc_code).trim(),
+                String(bank_account_type).trim(),
+                lan
+            ]
         );
 
         if (result.affectedRows === 0) {
@@ -1047,9 +1133,9 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
         return res.status(200).json({
             message: "Mandate updated successfully"
         });
-
     } catch (error) {
         console.error("Error updating mandate UMRN:", error);
+
         return res.status(500).json({
             message: "Internal server error"
         });
