@@ -258,6 +258,7 @@ import SRBHApprovedLoans from "./components/Srbh/SRBHApprovedLoans";
 import SRBHDetails from "./components/Srbh/SRBHDetails";
 import ClayooRejectedLoans from "./components/Clayoo/ClayooApprovedLoans";
 import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
+import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 
 
 
@@ -551,6 +552,14 @@ function App() {
             element={
               <PermissionRoute pageName="Clayyo BRE Rejected Loans">
                 <ClayooRejectedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/clayoo-loans/review-approval-actions"
+            element={
+              <PermissionRoute pageName="Clayoo Review & Approval">
+                <ClayooVimleshScreen />
               </PermissionRoute>
             }
           />

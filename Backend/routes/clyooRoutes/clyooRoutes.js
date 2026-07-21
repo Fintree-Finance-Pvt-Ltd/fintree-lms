@@ -1330,10 +1330,7 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
   }
 
   if (
-    ![
-      LOAN_STATUS.CREDIT_APPROVED,
-      LOAN_STATUS.CREDIT_REJECTED,
-    ].includes(status)
+    ![LOAN_STATUS.CREDIT_APPROVED, LOAN_STATUS.CREDIT_REJECTED].includes(status)
   ) {
     return res.status(400).json({
       message: "Invalid status value",
@@ -1369,10 +1366,9 @@ router.put("/approve-initiated-loans/:lan", async (req, res) => {
 
     // Prevent duplicate processing
     if (
-      [
-        LOAN_STATUS.CREDIT_APPROVED,
-        LOAN_STATUS.CREDIT_REJECTED,
-      ].includes(loan.status)
+      [LOAN_STATUS.CREDIT_APPROVED, LOAN_STATUS.CREDIT_REJECTED].includes(
+        loan.status,
+      )
     ) {
       await conn.rollback();
 
@@ -1815,22 +1811,18 @@ router.get("/:lan/pdf", async (req, res) => {
 
     let html = fs.readFileSync(templatePath, "utf-8");
 
-const signaturePath = path.join(
-  __dirname,
-  "../../public/Picture1-removebg-preview.png"
-);
+    const signaturePath = path.join(
+      __dirname,
+      "../../public/Picture1-removebg-preview.png",
+    );
 
-console.log(signaturePath);
+    console.log(signaturePath);
 
-const image = fs.readFileSync(signaturePath);
+    const image = fs.readFileSync(signaturePath);
 
-const signature = `data:image/png;base64,${image.toString("base64")}`;
+    const signature = `data:image/png;base64,${image.toString("base64")}`;
 
-html = html.replace(
-  "{{FINTREE_SIGNATURE}}",
-  signature
-);
-
+    html = html.replace("{{FINTREE_SIGNATURE}}", signature);
 
     const [rows] = await db.promise().query(
       `
@@ -1914,12 +1906,20 @@ router.get("/bre-rejected-loans", async (req, res) => {
     FROM ?? lb
     LEFT JOIN clayyo_hospital_booking ch
       ON ch.id = lb.hospital_id
-    WHERE lb.status = ? AND lb.lan LIKE ?
+    WHERE lb.status IN (?) AND lb.lan LIKE ?
     ORDER BY lb.created_at DESC, lb.lan DESC
   `;
   const values = [
     table,
-    "BRE FAILED",
+    [
+      "BRE APPROVED",
+      "BRE FAILED",
+      "CREDIT APPROVED",
+      "DISBURSEMENT INITIATED",
+      "Login",
+      "OPS APPROVED",
+      "REJECTED",
+    ],
     `${prefix}%`,
   ];
 
@@ -1934,7 +1934,7 @@ router.get("/bre-rejected-loans", async (req, res) => {
 
 router.put("/approve-bre-loan/:lan", async (req, res) => {
   const { lan } = req.params; // ✅ extract lan from params
-  const { table = "loan_booking_clayyo" , status } = req.body;
+  const { table = "loan_booking_clayyo", status } = req.body;
 
   const allowedTables = {
     loan_booking_clayyo: true,
@@ -1943,9 +1943,9 @@ router.put("/approve-bre-loan/:lan", async (req, res) => {
     return res.status(400).json({ message: "Invalid table name" });
   }
 
- if (!status) {
-  return res.status(400).json({ message: "Status is required" });
-}
+  if (!status) {
+    return res.status(400).json({ message: "Status is required" });
+  }
 
   // ✅ Derive stage based on status
   const stage = status === "BRE APPROVED" ? "CREDIT_INITIATED" : "REJECTED";
@@ -1955,7 +1955,7 @@ router.put("/approve-bre-loan/:lan", async (req, res) => {
     SET status = ?, stage = ?, updated_at = NOW()
     WHERE lan = ?
   `;
-  const values = [table, status, stage , lan];
+  const values = [table, status, stage, lan];
 
   db.query(query, values, (err, results) => {
     if (err) {

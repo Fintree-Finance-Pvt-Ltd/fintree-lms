@@ -1101,11 +1101,56 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     const status = (payload.status || "").toLowerCase();
     const data = payload.data || {};
 
+    const uniqueId =
+  data?.uniqueId ||
+  payload?.uniqueId ||
+  payload?.model?.uniqueId ||
+  null;
+
+if (uniqueId?.startsWith("LAP")) {
+  console.log(`📤 Forwarding Aadhaar webhook to LAP for ${uniqueId}`);
+
+try {
+  console.log("📤 Forwarding webhook to:", process.env.LAP_WEBHOOK_URL);
+const response = await axios.post(
+  process.env.LAP_WEBHOOK_URL,
+  payload,
+  {
+    headers: {
+      "Content-Type": "application/json",
+      "x-lap-webhook-secret": process.env.LAP_WEBHOOK_SECRET,
+      "x-webhook-source": "lms-digitap-forwarder",
+    },
+    timeout: 30000,
+    validateStatus: () => true,
+  }
+);
+
+  console.log("📥 LAP Response Status:", response.status);
+  console.log("📥 LAP Response:", response.data);
+
+  if (response.status >= 200 && response.status < 300) {
+    console.log("✅ LAP webhook forwarded successfully");
+  } else {
+    console.error("❌ LAP webhook rejected:", response.data);
+  }
+} catch (err) {
+  console.error("❌ LAP webhook forwarding failed");
+  console.error("Message:", err.message);
+  console.error("Response:", err.response?.data);
+  console.error("Status:", err.response?.status);
+}
+
+  return res.status(200).send("forwarded-to-lap");
+}
+
     // We ALWAYS return 200 to stop retries, even if we ignore the event.
     if (!transactionId) {
       console.warn("⚠️ Webhook missing transactionId, ignoring.");
       return res.status(200).send("ignored");
     }
+
+
 
     // If failure -> mark FAILED (if record exists) and exit
     if (status !== "success") {
@@ -1114,19 +1159,18 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
       const uniqueId = data.uniqueId || null;
 
       await db
-        .promise()
-        .query(
-          `UPDATE kyc_verification_status
-           SET aadhaar_status='FAILED'
-           WHERE aadhaar_transaction_id = ? OR aadhaar_unique_id = ?`,
-          [transactionId, uniqueId]
-        );
+      .promise()
+      .query(
+  `UPDATE kyc_verification_status
+   SET aadhaar_status='FAILED'
+   WHERE aadhaar_transaction_id = ? OR aadhaar_unique_id = ?`,
+  [transactionId, uniqueId]
+);
 
       return res.status(200).send("failure-processed");
     }
 
     // ✅ Success flow
-    const uniqueId = data.uniqueId;
     if (!uniqueId) {
       console.warn("⚠️ Webhook success but no uniqueId in data, ignoring.");
       return res.status(200).send("ignored");
