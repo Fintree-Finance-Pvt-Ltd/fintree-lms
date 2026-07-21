@@ -208,7 +208,12 @@ import "../styles/ApprovedLoans.css";
 
 const DEFAULT_PAGE_SIZE = 25;
 
-const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lender }) => {
+const ApprovedLoansTable = ({
+  apiUrl,
+  title = "Approved Loans",
+  lender,
+  lenderName,
+}) => {
   // --- YOUR ORIGINAL LOGIC: STATE ---
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -275,6 +280,8 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lender }) => {
   const hasADK = rows.some((r) => /^ADK/i.test(r?.lan));
   const hasGQFSF = rows.some((r) => /^GQFSF/i.test(r?.lan));
   const hasGQNonF = rows.some((r) => /^GQNonFSF/i.test(r?.lan));
+  const fixedLender = lender ?? lenderName;
+  const getLender = (row) => fixedLender ?? row?.lender ?? "";
 
   // --- MODERN COLUMN DEFINITIONS (Mapping to your logic) ---
   const columns = [
@@ -304,7 +311,7 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lender }) => {
           >
             <span className="customer-primary">{r.customer_name ?? "—"}</span>
 
-            <span className="customer-secondary">{lender ?? r.lender}</span>
+            <span className="customer-secondary">{getLender(r)}</span>
           </div>
         );
       },
@@ -315,7 +322,15 @@ const ApprovedLoansTable = ({ apiUrl, title = "Approved Loans", lender }) => {
 
       width: 220,
     },
-    { key: "lender", header: "Lender", sortable: true, width: 140 , render: (r) => lender.toUpperCase() ?? r.lender, },
+    {
+      key: "lender",
+      header: "Lender",
+      sortable: true,
+      width: 140,
+      render: (r) => String(getLender(r)).toUpperCase(),
+      sortAccessor: (r) => String(getLender(r)).toLowerCase(),
+      csvAccessor: (r) => getLender(r),
+    },
     {
       key: "partner_loan_id",
       header: "Partner Loan ID",
