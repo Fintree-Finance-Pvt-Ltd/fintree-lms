@@ -14,7 +14,7 @@ const {
   evaluateClaimCureBuddyBorrowerPreBre,
   evaluateClaimCureBuddyApplicant,
   buildFinalDecision,
-} = require("./claimCureBuddyBRE");
+} = require("./ClaimCureBuddyBre");
 
 const router = express.Router();
 
