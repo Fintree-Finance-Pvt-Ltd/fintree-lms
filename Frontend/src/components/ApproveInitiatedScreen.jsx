@@ -14,6 +14,9 @@ const ApproveInitiatedScreen = ({
   approvePayload = null,
   rejectPayload = null,
   enableApprovedLoanAmount = false,
+  includeOpsUser = false,
+  updateUrlBuilder = null,
+  removeOnSuccessStatuses = [],
 }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +114,16 @@ const ApproveInitiatedScreen = ({
         table,
       };
 
+      if (includeOpsUser) {
+        const rawUser = localStorage.getItem("user");
+
+        if (rawUser) {
+          const user = JSON.parse(rawUser);
+          finalPayload.ops_checker_id = user.userId;
+          finalPayload.ops_checker_name = user.name;
+        }
+      }
+
       if (
         enableApprovedLoanAmount &&
         payload?.status === "Operations Initiated"
@@ -129,23 +142,27 @@ const ApproveInitiatedScreen = ({
         finalPayload.loan_amount = approvedLoanAmount;
       }
 
-      await api.put(
-        `/loan-booking/approve-initiated-loans/${lan}`,
-        finalPayload,
-      );
+      const updateUrl =
+        typeof updateUrlBuilder === "function"
+          ? updateUrlBuilder(lan, row)
+          : `/loan-booking/approve-initiated-loans/${lan}`;
+
+      await api.put(updateUrl, finalPayload);
 
       setRows((prev) =>
-        prev.map((r) =>
-          r.lan === lan
-            ? {
-                ...r,
-                ...payload,
-                ...(finalPayload.loan_amount
-                  ? { loan_amount: finalPayload.loan_amount }
-                  : {}),
-              }
-            : r,
-        ),
+        removeOnSuccessStatuses.includes(payload?.status)
+          ? prev.filter((r) => r.lan !== lan)
+          : prev.map((r) =>
+              r.lan === lan
+                ? {
+                    ...r,
+                    ...payload,
+                    ...(finalPayload.loan_amount
+                      ? { loan_amount: finalPayload.loan_amount }
+                      : {}),
+                  }
+                : r,
+            ),
       );
     } catch (err) {
       console.error("Error updating status:", err);

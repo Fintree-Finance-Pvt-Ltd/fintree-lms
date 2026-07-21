@@ -224,10 +224,9 @@ import SevenFinCorpDisburseInitiate from "./components/Seven FinCorp/SevenfinCor
 import SevenFinCorpApprovedLoans from "./components/Seven FinCorp/SevenFinCorpApprovedLoans";
 import CarePayAllLoans from "./components/CarePay/CarePayAllLoans";
 import CarePayApprovedLoans from "./components/CarePay/CarePayApprovedLoans";
-import CarePayLoginLoans from "./components/CarePay/CarePayLoginLoans";
 import CarePayApproveInitiateScreen from "./components/CarePay/CarePayApproveInitiateScreen";
-import CarePayActionScreen from "./components/CarePay/CarepayActionScreen";
 import CarePayDisbursedLoans from "./components/CarePay/CarePayDisbursedLoans";
+import CarePayOpsCheckerScreen from "./components/CarePay/CarePayOpsCheckerScreen";
 // import CarePayHospitalEntry from "./components/CarePay/CarePayHospitalEntry";
 import CarePayHospitalLists from "./components/CarePay/CarePayHospitalLists";
 import CarePayHospitalLoginActions from "./components/CarePay/CarePayHospitalLoginActions";
@@ -933,25 +932,25 @@ function App() {
           />
           <Route
             path="/carepay-loans/login-cases"
-            element={
-              <PermissionRoute pageName="CarePay Login Loans">
-                <CarePayLoginLoans />
-              </PermissionRoute>
-            }
+            element={<Navigate to="/carepay-loans/approve-initiate-actions" replace />}
           />
           <Route
             path="/carepay-loans/login-actions"
-            element={
-              <PermissionRoute pageName="CarePay Login Actions">
-                <CarePayActionScreen />
-              </PermissionRoute>
-            }
+            element={<Navigate to="/carepay-loans/approve-initiate-actions" replace />}
           />
           <Route
             path="/carepay-loans/approve-initiate-actions"
             element={
               <PermissionRoute pageName="CarePay Disburse Initiated">
                 <CarePayApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/carepay-loans/ops-checker"
+            element={
+              <PermissionRoute pageName="CarePay Ops Checker">
+                <CarePayOpsCheckerScreen />
               </PermissionRoute>
             }
           />

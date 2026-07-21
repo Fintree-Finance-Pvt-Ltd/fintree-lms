@@ -4,6 +4,7 @@ const { verifyWebhookHash } = require("../utils/webhookHashVerify");
 const { sendLowBalanceAlertMail } = require("../jobs/mailer");
 const {
   processRapidMoneyDisbursement,
+  processCarePayDisbursement,
 } = require("../services/processEmiClubDisbursement");
 const {
   sendDisbursementWebhook,
@@ -113,11 +114,7 @@ router.post("/payout", async (req, res) => {
         utr: effectiveUtr,
       });
 
-      if (
-        transfer.lan?.startsWith("RML") &&
-        effectiveUtr &&
-        effectiveTransferDate
-      ) {
+      if (transfer.lan?.startsWith("RML") && effectiveUtr && effectiveTransferDate) {
         const webhookResult = await sendDisbursementWebhook({
           lan: transfer.lan,
           transactionId: effectiveUtr,
@@ -147,6 +144,19 @@ router.post("/payout", async (req, res) => {
         });
 
         console.log("Duplicate callback internal processing result", {
+          lan: transfer.lan,
+          result: processingResult,
+        });
+      }
+
+      if (transfer.lan?.startsWith("CARE") && effectiveUtr && effectiveTransferDate) {
+        const processingResult = await processCarePayDisbursement({
+          lan: transfer.lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate: new Date(effectiveTransferDate),
+        });
+
+        console.log("Duplicate callback CarePay processing result", {
           lan: transfer.lan,
           result: processingResult,
         });
@@ -297,12 +307,26 @@ router.post("/payout", async (req, res) => {
               welcomeLetterError?.message || "Unable to send welcome letter",
           });
         }
+      } else if (lan?.startsWith("CARE")) {
+        const carePayResult = await processCarePayDisbursement({
+          lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate,
+        });
+
+        console.log("CarePay internal processing result", {
+          lan,
+          utr: effectiveUtr,
+          success: carePayResult?.success,
+          skipped: carePayResult?.skipped,
+          reason: carePayResult?.reason,
+        });
       } else {
         /*
-         * Non-RML products are not affected
-         * by Rapid Money-specific logic.
+         * Remaining products only store
+         * quick_transfer success here.
          */
-        console.log("Payout success stored for non-Rapid-Money product", {
+        console.log("Payout success stored for product without final processing hook", {
           lan,
           utr: effectiveUtr,
         });

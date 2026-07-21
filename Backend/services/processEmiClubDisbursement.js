@@ -503,4 +503,130 @@ async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate
   }
 }
 
-module.exports = { processEmiClubDisbursement , processRapidMoneyDisbursement, processLoanDigitDisbursement, processFinsoDisbursement };
+async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDate }) {
+  console.log("[CarePay][START] Processing disbursement", {
+    lan,
+    disbursementUTR,
+    disbursementDate,
+  });
+
+  if (!lan || !lan.startsWith("CARE")) {
+    return { skipped: true, reason: "NOT_CAREPAY" };
+  }
+
+  if (!disbursementUTR || !disbursementDate) {
+    return { skipped: true, reason: "MISSING_UTR_OR_DATE" };
+  }
+
+  let conn;
+  try {
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    const [[loan]] = await conn.query(
+      `
+      SELECT
+        partner_loan_id,
+        loan_amount,
+        interest_rate,
+        loan_tenure,
+        processing_fee,
+        product,
+        lender,
+        status
+      FROM loan_booking_carepay
+      WHERE lan = ?
+      FOR UPDATE
+      `,
+      [lan],
+    );
+
+    if (!loan) throw new Error(`CarePay loan not found: ${lan}`);
+
+    if (String(loan.status).toLowerCase() === "disbursed") {
+      await conn.rollback();
+      return { skipped: true, reason: "ALREADY_DISBURSED" };
+    }
+
+    const [utrExists] = await conn.query(
+      `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
+      [disbursementUTR],
+    );
+
+    if (utrExists.length > 0) {
+      await conn.rollback();
+      return { skipped: true, reason: "DUPLICATE_UTR" };
+    }
+
+    await generateRepaymentSchedule(
+      conn,
+      lan,
+      loan.loan_amount,
+      null,
+      loan.interest_rate,
+      loan.loan_tenure,
+      disbursementDate,
+      null,
+      null,
+      null,
+      loan.product,
+      loan.lender || "CAREPAY",
+      null,
+      null,
+      loan.processing_fee || 0,
+    );
+
+    await conn.query(
+      `INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)`,
+      [disbursementUTR, disbursementDate, lan],
+    );
+
+    await conn.query(
+      `UPDATE loan_booking_carepay SET status = 'Disbursed' WHERE lan = ?`,
+      [lan],
+    );
+
+    await conn.commit();
+
+    try {
+      const carePayWebhookPayload = {
+        external_ref_no: String(loan.partner_loan_id || "").trim(),
+        utr: String(disbursementUTR).trim(),
+        disbursement_date: new Date(disbursementDate).toISOString().split("T")[0],
+        reference_number: lan,
+        status: "DISBURSED",
+        reject_reason: null,
+      };
+
+      const webhookResult = await sendLoanWebhook(carePayWebhookPayload);
+
+      console.log("CarePay disbursement webhook successful", {
+        lan,
+        payload: carePayWebhookPayload,
+        webhookResult,
+      });
+    } catch (webhookErr) {
+      console.error("CarePay disbursement webhook failed", {
+        lan,
+        message: webhookErr.message,
+        responseStatus: webhookErr.response?.status || null,
+        responseData: webhookErr.response?.data || null,
+      });
+    }
+
+    return { success: true };
+  } catch (err) {
+    if (conn) await conn.rollback();
+    throw err;
+  } finally {
+    if (conn) conn.release();
+  }
+}
+
+module.exports = {
+  processEmiClubDisbursement,
+  processRapidMoneyDisbursement,
+  processLoanDigitDisbursement,
+  processFinsoDisbursement,
+  processCarePayDisbursement,
+};
