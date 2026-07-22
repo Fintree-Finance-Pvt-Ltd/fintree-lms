@@ -309,7 +309,6 @@ loanBookingRouter.put("/v1/carepay-ops-checker-approved-loan/:lan", async (req, 
         });
       }
     }
-
     const payoutResult = await approveAndInitiatePayout({
       lan,
       table: "loan_booking_carepay",
