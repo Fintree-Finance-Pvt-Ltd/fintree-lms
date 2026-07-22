@@ -7,7 +7,7 @@ const SRBHLoginCases = () => {
       apiUrl={`/loan-booking/login-loans?table=loan_booking_srbh&prefix=SH`}
       title="SRBH Login Stage Cases"
       tableName="loan_booking_srbh"
-      lenderName= "Seven FinCorp"
+      lenderName="SRBH"
       showResumeButton={true}
       resumePath="/srbh/loan-booking"
     />

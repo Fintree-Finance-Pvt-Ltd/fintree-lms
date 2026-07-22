@@ -3,6 +3,37 @@ import api from "../../api/api";
 import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 
+const createEmptyBureauResult = () => ({
+  status: "",
+  reason: "",
+  reasons: [],
+  checked: false,
+  canContinue: false,
+  bureauScore: null,
+  isNtc: false,
+  facts: null,
+});
+
+const createEmptyBreResult = () => ({
+  status: "",
+  reason: "",
+  reasons: [],
+  checked: false,
+  code: "",
+  validationStatuses: null,
+  incompleteValidations: [],
+});
+
+const toReasonList = (reasons, reason) => {
+  if (Array.isArray(reasons)) return reasons.filter(Boolean);
+  if (!reason || reason === "ELIGIBLE") return [];
+
+  return String(reason)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
 const SRBHLoanBooking = ({ lenderType = "SRBH", apiPrefix = "srbh",title="SRBH Manual Entry"
  }) => {
   const [searchParams] = useSearchParams();
@@ -30,6 +61,7 @@ const resumeLan = searchParams.get("lan");
     Mobile_Number: "",
     Email: "",
     Pan_Card: "",
+    Driving_Licence: "",
 
     Loan_Amount: "",
     Interest_Rate: "",
@@ -37,6 +69,7 @@ const resumeLan = searchParams.get("lan");
     Processing_Fee_Percentage: "",
     Processing_Fee: "",
     Disbursal_Amount: "",
+    GPS_Charges: "",
 
     GURANTOR: "",
     GURANTOR_DOB: "",
@@ -50,6 +83,7 @@ const resumeLan = searchParams.get("lan");
     GURANTOR_District: "",
     GURANTOR_State: "",
     GURANTOR_Pincode: "",
+    GURANTOR_Driving_Licence: "",
 
     Co_Applicant: "",
     Co_Applicant_DOB: "",
@@ -62,11 +96,13 @@ const resumeLan = searchParams.get("lan");
     Co_Applicant_District: "",
     Co_Applicant_State: "",
     Co_Applicant_Pincode: "",
+    Co_Applicant_Driving_Licence: "",
 
     customer_name_as_per_bank: "",
     customer_bank_name: "",
     customer_account_number: "",
     bank_ifsc_code: "",
+    bank_branch_address: "",
 
     selected_dealer_application_id: "",
     dealer_id: "",
@@ -85,6 +121,7 @@ const resumeLan = searchParams.get("lan");
     ifsc: "",
     name_in_bank: "",
 
+    Product_Type: "",
     selected_product_id: "",
     Battery_Name: "",
     Battery_Type: "",
@@ -92,6 +129,19 @@ const resumeLan = searchParams.get("lan");
     Battery_Serial_no_2: "",
     E_Rikshaw_model: "",
     Chassis_no: "",
+
+    insurance_cost: "",
+    insurance_company_provider: "",
+    insurance_policy_number: "",
+    policy_issued_date: "",
+    period_of_insurance: "",
+
+    cost_of_vehicle: "",
+    manufacturing_year: "",
+    downpayment_paid_by_borrower: "",
+    vehicle_registration_cost: "",
+    sales_invoice_number: "",
+    sales_invoice_date: "",
   });
 
   const [dealers, setDealers] = useState([]);
@@ -108,6 +158,14 @@ const resumeLan = searchParams.get("lan");
   const [lan, setLan] = useState("");
   const [partnerLoanId, setPartnerLoanId] = useState("");
   const [borrowerSaved, setBorrowerSaved] = useState(false);
+
+  // Borrower bureau screening runs on Loan Details before the journey continues.
+  const [bureauResult, setBureauResult] = useState(createEmptyBureauResult);
+  const [bureauLoading, setBureauLoading] = useState(false);
+
+  // Final BRE runs synchronously when Vehicle Details is submitted.
+  const [breResult, setBreResult] = useState(createEmptyBreResult);
+  const [breLoading, setBreLoading] = useState(false);
 
   const [aadhaarStatus, setAadhaarStatus] = useState({
     BORROWER: "",
@@ -150,6 +208,8 @@ const resumeLan = searchParams.get("lan");
     "Bank Details",
     "Dealer Details",
     "Product Details",
+    "Insurance Details",
+    "Vehicle Details",
   ];
 
   const fetchResumeBooking = async (resumeLan) => {
@@ -231,6 +291,7 @@ const resumeLan = searchParams.get("lan");
       customer_bank_name: d.customer_bank_name || "",
       customer_account_number: d.customer_account_number || "",
       bank_ifsc_code: d.bank_ifsc_code || "",
+      bank_branch_address: d.bank_branch_address || "",
 
       selected_dealer_application_id: d.selected_dealer_application_id || "",
       dealer_id: d.dealer_id || "",
@@ -250,6 +311,7 @@ const resumeLan = searchParams.get("lan");
       ifsc: d.dealer_ifsc || "",
       name_in_bank: d.dealer_name_in_bank || "",
 
+      Product_Type: d.product_type || "",
       selected_product_id: d.selected_product_id || "",
       Battery_Name: d.battery_name || "",
       Battery_Type: d.battery_type || "",
@@ -257,12 +319,95 @@ const resumeLan = searchParams.get("lan");
       Battery_Serial_no_2: d.battery_serial_no_2 || "",
       E_Rikshaw_model: d.e_rikshaw_model || "",
       Chassis_no: d.chassis_no || "",
+      Driving_Licence: d.driving_licence || "",
+      GPS_Charges: d.gps_charges || "",
+      GURANTOR_Driving_Licence: d.guarantor_driving_licence || "",
+      Co_Applicant_Driving_Licence: d.co_applicant_driving_licence || "",
+
+      insurance_cost: d.insurance_cost || "",
+      insurance_company_provider: d.insurance_company_provider || "",
+      insurance_policy_number: d.insurance_policy_number || "",
+      policy_issued_date: d.policy_issued_date
+        ? String(d.policy_issued_date).split("T")[0]
+        : "",
+      period_of_insurance: d.period_of_insurance || "",
+
+      cost_of_vehicle: d.cost_of_vehicle || "",
+      manufacturing_year: d.manufacturing_year || "",
+      downpayment_paid_by_borrower: d.downpayment_paid_by_borrower || "",
+      vehicle_registration_cost: d.vehicle_registration_cost || "",
+      sales_invoice_number: d.sales_invoice_number || "",
+      sales_invoice_date: d.sales_invoice_date
+        ? String(d.sales_invoice_date).split("T")[0]
+        : "",
     }));
 
     setOtpVerified({
       borrower: Number(d.borrower_mobile_verified) === 1,
       guarantor: Number(d.guarantor_mobile_verified) === 1,
       coApplicant: Number(d.co_applicant_mobile_verified) === 1,
+    });
+
+    const screeningStatus = d.srbh_bureau_screening_status || "";
+    const screeningReason = d.srbh_bureau_screening_reason || "";
+    const screeningChecked = Boolean(
+      screeningStatus || d.srbh_bureau_screening_checked_at,
+    );
+
+    setBureauResult({
+      status: screeningStatus,
+      reason: screeningReason,
+      reasons: toReasonList(null, screeningReason),
+      checked: screeningChecked,
+      canContinue:
+        ["BUREAU APPROVED", "BUREAU REJECTED"].includes(
+          String(screeningStatus).toUpperCase(),
+        ),
+      bureauScore:
+        d.srbh_bureau_score ??
+        d.fintree_cibil_score ??
+        d.cibil_score ??
+        null,
+      isNtc: (() => {
+        const score = Number(
+          d.srbh_bureau_score ??
+            d.fintree_cibil_score ??
+            d.cibil_score,
+        );
+
+        return Number.isFinite(score) && score >= -1 && score <= 250;
+      })(),
+      facts: screeningChecked
+        ? {
+            score:
+              d.srbh_bureau_score ??
+              d.fintree_cibil_score ??
+              d.cibil_score ??
+              null,
+            enquiries30d: d.srbh_enquiries_30d ?? 0,
+            hasDpd3M: Number(d.srbh_dpd_3m_flag) === 1,
+            hasDpd6M: Number(d.srbh_dpd_6m_flag) === 1,
+            hasOverdue3M: Number(d.srbh_overdue_3m_flag) === 1,
+            hasWrittenOff3Y: Number(d.srbh_written_off_3y_flag) === 1,
+            has60Plus6M: Number(d.srbh_60plus_6m_flag) === 1,
+            has90Plus6M: Number(d.srbh_90plus_6m_flag) === 1,
+            emiOverdueAmount: d.srbh_emi_overdue_amount ?? 0,
+            ccOverdueAmount: d.srbh_cc_overdue_amount ?? 0,
+          }
+        : null,
+    });
+
+    const finalBreStatus = d.srbh_bre_status || "";
+    const finalBreReason = d.srbh_bre_reason || "";
+
+    setBreResult({
+      status: finalBreStatus,
+      reason: finalBreReason,
+      reasons: toReasonList(null, finalBreReason),
+      checked: Boolean(finalBreStatus || d.srbh_bre_checked_at),
+      code: "",
+      validationStatuses: null,
+      incompleteValidations: [],
     });
 
     setMessage(`✅ Resumed booking. LAN: ${d.lan}`);
@@ -293,19 +438,33 @@ const resumeLan = searchParams.get("lan");
     "Interest_Rate",
     "Tenure",
     "Processing_Fee_Percentage",
+    "GPS_Charges",
 
     "customer_name_as_per_bank",
     "customer_bank_name",
     "customer_account_number",
     "bank_ifsc_code",
     "Pan_Card",
+    "Driving_Licence",
     "selected_dealer_application_id",
+    "Product_Type",
     "selected_product_id",
     "Battery_Name",
     "Battery_Type",
     "Battery_Serial_no_1",
     "E_Rikshaw_model",
     "Chassis_no",
+    "insurance_cost",
+    "insurance_company_provider",
+    "insurance_policy_number",
+    "policy_issued_date",
+    "period_of_insurance",
+    "manufacturing_year",
+    "downpayment_paid_by_borrower",
+    "vehicle_registration_cost",
+    "sales_invoice_number",
+    "sales_invoice_date",
+    "cost_of_vehicle",
   ];
 
   const isValidMobile = (m) => /^[6-9]\d{9}$/.test(m);
@@ -380,6 +539,10 @@ for processing and servicing this loan application.
   const handleDealerSelect = (e) => {
     const applicationId = e.target.value;
 
+    if (breResult.checked) {
+      setBreResult(createEmptyBreResult());
+    }
+
     const selectedDealer = dealers.find(
       (dealer) => dealer.application_id === applicationId,
     );
@@ -453,6 +616,7 @@ for processing and servicing this loan application.
     "GURANTOR_District",
     "GURANTOR_State",
     "GURANTOR_Pincode",
+    "GURANTOR_Driving_Licence",
   ];
 
   const coApplicantFields = [
@@ -466,6 +630,7 @@ for processing and servicing this loan application.
     "Co_Applicant_District",
     "Co_Applicant_State",
     "Co_Applicant_Pincode",
+    "Co_Applicant_Driving_Licence",
   ];
 
   const hasAnyValue = (fields) =>
@@ -535,6 +700,91 @@ for processing and servicing this loan application.
   //   }
   // };
   ////////
+
+  // Run the advisory borrower bureau screening from Loan Details.
+  const handleRunBureauScreening = async () => {
+    if (!lan) {
+      setMessage("❌ Please save borrower details first (complete Borrower section).");
+      return false;
+    }
+
+    try {
+      setBureauLoading(true);
+      setMessage("");
+
+      const res = await api.post(`${apiPrefix}/run-bureau-screening`, {
+        lan,
+        Loan_Amount: formData.Loan_Amount,
+        Interest_Rate: formData.Interest_Rate,
+        Tenure: formData.Tenure,
+        Processing_Fee: formData.Processing_Fee,
+        Processing_Fee_Percentage: formData.Processing_Fee_Percentage,
+        GPS_Charges: formData.GPS_Charges,
+        Disbursal_Amount: formData.Disbursal_Amount,
+      });
+
+      if (res.data.success) {
+        const status =
+          res.data.screeningStatus ||
+          res.data.bureauStatus ||
+          res.data.breStatus ||
+          res.data.status ||
+          "";
+        const reasons = toReasonList(
+          res.data.reasons,
+          res.data.screeningReason ||
+            res.data.bureauReason ||
+            res.data.breReason,
+        );
+        const reason =
+          res.data.screeningReason ||
+          res.data.bureauReason ||
+          res.data.breReason ||
+          reasons.join(", ") ||
+          "ELIGIBLE";
+        const facts = res.data.bureauFacts || res.data.facts || {};
+        const canContinue =
+          res.data.canContinue === true ||
+          res.data.canContinue === 1 ||
+          res.data.canContinue === "1" ||
+          ["BUREAU APPROVED", "BUREAU REJECTED"].includes(
+            String(status).toUpperCase(),
+          );
+
+        setBureauResult({
+          status,
+          reason,
+          reasons,
+          checked: true,
+          canContinue,
+          bureauScore: res.data.bureauScore ?? facts.score ?? null,
+          isNtc: Boolean(res.data.isNtc ?? facts.isNtc),
+          facts,
+        });
+
+        setMessage(
+          String(status).toUpperCase() === "BUREAU APPROVED"
+            ? "✅ Borrower bureau screening approved. You may continue."
+            : String(status).toUpperCase() === "BUREAU REJECTED"
+              ? "⚠️ Borrower bureau screening rejected. This is advisory; you may continue to final BRE."
+              : "⚠️ Borrower bureau screening is pending. Please retry before continuing.",
+        );
+
+        return canContinue;
+      }
+
+      setMessage("❌ Bureau screening failed. Please try again.");
+      return false;
+    } catch (err) {
+      setMessage(
+        `❌ ${err.response?.data?.message || "Bureau screening failed"}`,
+      );
+      return false;
+    } finally {
+      setBureauLoading(false);
+    }
+  };
+
 const saveBorrowerFirstSection = async () => {
   const sectionErrors = validateSection(activeSection);
 
@@ -618,9 +868,16 @@ const saveBorrowerFirstSection = async () => {
       "Mobile_Number",
       "Email",
       "Pan_Card",
+      "Driving_Licence",
     ],
     1: ["Address_Line_1", "Village", "Pincode", "District", "State"],
-    2: ["Loan_Amount", "Interest_Rate", "Tenure", "Processing_Fee_Percentage"],
+    2: [
+      "Loan_Amount",
+      "Interest_Rate",
+      "Tenure",
+      "Processing_Fee_Percentage",
+      "GPS_Charges",
+    ],
     3: guarantorFields,
     4: coApplicantFields,
     5: [
@@ -631,12 +888,28 @@ const saveBorrowerFirstSection = async () => {
     ],
     6: ["selected_dealer_application_id"],
     7: [
+      "Product_Type",
       "selected_product_id",
       "Battery_Name",
       "Battery_Type",
       "Battery_Serial_no_1",
       "E_Rikshaw_model",
       "Chassis_no",
+    ],
+    8: [
+      "insurance_cost",
+      "insurance_company_provider",
+      "insurance_policy_number",
+      "policy_issued_date",
+      "period_of_insurance",
+    ],
+    9: [
+      "cost_of_vehicle",
+      "manufacturing_year",
+      "downpayment_paid_by_borrower",
+      "vehicle_registration_cost",
+      "sales_invoice_number",
+      "sales_invoice_date",
     ],
   };
 
@@ -768,6 +1041,10 @@ const saveBorrowerFirstSection = async () => {
     );
 
     if (!selectedProduct) return;
+
+    if (breResult.checked) {
+      setBreResult(createEmptyBreResult());
+    }
 
     setFormData((prev) => ({
       ...prev,
@@ -949,6 +1226,20 @@ const saveBorrowerFirstSection = async () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    const bureauInputFields = new Set([
+      ...sectionFields[0],
+      ...sectionFields[1],
+      ...sectionFields[2],
+    ]);
+
+    if (bureauInputFields.has(name) && bureauResult.checked) {
+      setBureauResult(createEmptyBureauResult());
+    }
+
+    if (breResult.checked) {
+      setBreResult(createEmptyBreResult());
+    }
+
     let finalValue = value;
 
     if (
@@ -1024,44 +1315,42 @@ const saveBorrowerFirstSection = async () => {
       // }
 
       // Auto-calculate Processing Fee % and Disbursal Amount
-if (
-  name === "Loan_Amount" ||
-  name === "Processing_Fee"
-) {
-  const loanAmount = Number(
-    name === "Loan_Amount"
-      ? finalValue
-      : updated.Loan_Amount,
-  );
+      if (
+        name === "Loan_Amount" ||
+        name === "Processing_Fee" ||
+        name === "GPS_Charges"
+      ) {
+        const loanAmount = Number(
+          name === "Loan_Amount" ? finalValue : updated.Loan_Amount,
+        );
 
-  const processingFee = Number(
-    name === "Processing_Fee"
-      ? finalValue
-      : updated.Processing_Fee,
-  );
+        const processingFee = Number(
+          name === "Processing_Fee" ? finalValue : updated.Processing_Fee,
+        );
 
-  if (
-    !Number.isNaN(loanAmount) &&
-    !Number.isNaN(processingFee) &&
-    loanAmount > 0 &&
-    processingFee >= 0
-  ) {
-    const processingFeePercentage =
-      (processingFee / loanAmount) * 100;
+        const gpsCharges = Number(
+          name === "GPS_Charges" ? finalValue : updated.GPS_Charges,
+        );
 
-    const disbursalAmount =
-      loanAmount - processingFee;
+        if (
+          !Number.isNaN(loanAmount) &&
+          !Number.isNaN(processingFee) &&
+          !Number.isNaN(gpsCharges) &&
+          loanAmount > 0 &&
+          processingFee >= 0 &&
+          gpsCharges >= 0
+        ) {
+          const processingFeePercentage = (processingFee / loanAmount) * 100;
+          const disbursalAmount = loanAmount - processingFee - gpsCharges;
 
-    updated.Processing_Fee_Percentage =
-      processingFeePercentage.toFixed(2);
-
-    updated.Disbursal_Amount =
-      disbursalAmount.toFixed(2);
-  } else {
-    updated.Processing_Fee_Percentage = "";
-    updated.Disbursal_Amount = "";
-  }
-}
+          updated.Processing_Fee_Percentage =
+            processingFeePercentage.toFixed(2);
+          updated.Disbursal_Amount = disbursalAmount.toFixed(2);
+        } else {
+          updated.Processing_Fee_Percentage = "";
+          updated.Disbursal_Amount = "";
+        }
+      }
 
       return updated;
     });
@@ -1614,6 +1903,8 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
   setLoading(false);
   return;
 }
+      setBreLoading(true);
+
       const res = await api.post(`${apiPrefix}/final-submit-ev-customer-manual`, {
   ...formData,
   lan,
@@ -1622,134 +1913,61 @@ const fetchAndPrefillAadhaarAddress = async (applicantType) => {
   co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
 });
 
-      setMessage(`✅ ${res.data.message} | LAN: ${res.data.lan}`);
+      const finalStatus = res.data.breStatus || "";
+      const finalReason = res.data.breReason || "";
 
-      // Reset form
-      setFormData((prev) => ({
-        ...prev,
-        LOGIN_DATE: new Date().toISOString().split("T")[0],
-        First_Name: "",
-        Last_Name: "",
-        Customer_Name: "",
-        Gender: "",
-        Borrower_DOB: "",
-        Father_Name: "",
-        Address_Line_1: "",
-        Address_Line_2: "",
-        Village: "",
-        District: "",
-        State: "",
-        Pincode: "",
-        Mobile_Number: "",
-        Email: "",
-        Pan_Card: "",
+      if (!finalStatus) {
+        throw new Error("Final BRE result was not returned by the server.");
+      }
 
-        Loan_Amount: "",
-        Interest_Rate: "",
-        Tenure: "",
-        Disbursal_Amount: "",
-        Processing_Fee_Percentage: "",
-        Processing_Fee: "",
-
-        GURANTOR: "",
-        GURANTOR_DOB: "",
-        GURANTOR_EMAIL: "",
-        GURANTOR_PAN: "",
-        Relationship_with_Borrower: "",
-
-        GURANTOR_MOBILE: "",
-        GURANTOR_Address_Line_1: "",
-        GURANTOR_Address_Line_2: "",
-        GURANTOR_Village: "",
-        GURANTOR_District: "",
-        GURANTOR_State: "",
-        GURANTOR_Pincode: "",
-
-        Co_Applicant_Mobile: "",
-        Co_Applicant_Address_Line_1: "",
-        Co_Applicant_Address_Line_2: "",
-        Co_Applicant_Village: "",
-        Co_Applicant_District: "",
-        Co_Applicant_State: "",
-        Co_Applicant_Pincode: "",
-
-        Co_Applicant: "",
-        Co_Applicant_DOB: "",
-        Co_Applicant_Email: "",
-        Co_Applicant_PAN: "",
-
-        customer_name_as_per_bank: "",
-        customer_bank_name: "",
-        customer_account_number: "",
-        bank_ifsc_code: "",
-
-        selected_dealer_application_id: "",
-        dealer_id: "",
-        trade_name: "",
-        dealer_name: "",
-        dealer_contact: "",
-        dealer_email: "",
-        gst_no: "",
-        pan_number: "",
-        dealer_address: "",
-        dealer_city: "",
-        dealer_state: "",
-        dealer_pincode: "",
-        bank_name: "",
-        account_number: "",
-        ifsc: "",
-        name_in_bank: "",
-
-        selected_product_id: "",
-        Battery_Name: "",
-        Battery_Type: "",
-        Battery_Serial_no_1: "",
-        Battery_Serial_no_2: "",
-        E_Rikshaw_model: "",
-        Chassis_no: "",
-      }));
-
-      setDealerProducts([]);
-      setActiveSection(0);
-      setErrors({});
-      setIsSubmitted(false);
-      setTouched({});
-      setFieldStatus({});
-      setOtpVerified({
-        borrower: false,
-        guarantor: false,
-        coApplicant: false,
+      setBreResult({
+        status: finalStatus,
+        reason: finalReason,
+        reasons: toReasonList(res.data.reasons, finalReason),
+        checked: true,
+        code: "",
+        validationStatuses: res.data.validationStatuses || null,
+        incompleteValidations: [],
       });
 
-      setResendTimers({
-        BORROWER: 0,
-        GUARANTOR: 0,
-        CO_APPLICANT: 0,
-      });
+      setMessage(
+        `${finalStatus === "BRE APPROVED" ? "✅" : finalStatus === "BRE REJECTED" ? "❌" : "⚠️"} ${res.data.message || `Final BRE: ${finalStatus}`} | LAN: ${res.data.lan || lan}`,
+      );
 
-      setLan("");
-setPartnerLoanId("");
-setBorrowerSaved(false);
-
-setAadhaarStatus({
-  BORROWER: "",
-  GUARANTOR: "",
-  CO_APPLICANT: "",
-});
-
-      setOtp("");
-      setConsentChecked(false);
-      setVerificationTarget("");
-      setShowConsentDialog(false);
     } catch (err) {
+      const payload = err.response?.data;
+
+      if (payload?.code === "KYC_VALIDATIONS_INCOMPLETE") {
+        const pendingReason =
+          payload.breReason || "KYC_VALIDATIONS_INCOMPLETE";
+
+        setBreResult({
+          status: payload.breStatus || "Pending",
+          reason: pendingReason,
+          reasons: toReasonList(null, pendingReason),
+          checked: true,
+          code: payload.code,
+          validationStatuses: payload.validationStatuses || null,
+          incompleteValidations: Array.isArray(payload.incompleteValidations)
+            ? payload.incompleteValidations
+            : [],
+        });
+        setMessage(
+          `⚠️ ${payload.message || "Final BRE was not run because required KYC validations are incomplete."}`,
+        );
+        return;
+      }
+
       setMessage(
         `❌ ${
-          err.response?.data?.message ||
+          payload?.message ||
+          err.message ||
           "Something went wrong. Please try again."
         }`,
       );
     } finally {
       setLoading(false);
+      setBreLoading(false);
     }
   };
 
@@ -1919,6 +2137,190 @@ setAadhaarStatus({
     );
   };
 
+  const renderBureauScreeningResult = () => {
+    if (!bureauResult.checked) return null;
+
+    const facts = bureauResult.facts || {};
+    const score = bureauResult.bureauScore ?? facts.score ?? null;
+    const hasScore = score !== null && score !== undefined && score !== "";
+    const isNtc =
+      Boolean(bureauResult.isNtc ?? facts.isNtc) ||
+      (hasScore && Number(score) >= -1 && Number(score) <= 250);
+    const screeningApproved =
+      String(bureauResult.status).toUpperCase() === "BUREAU APPROVED";
+    const screeningRejected =
+      String(bureauResult.status).toUpperCase() === "BUREAU REJECTED";
+    const formatAmount = (value) =>
+      value === null || value === undefined || value === ""
+        ? "Not available"
+        : `₹${Number(value).toLocaleString("en-IN")}`;
+    const flagFact = (label, value) => ({
+      label,
+      value:
+        value === null || value === undefined
+          ? "Not available"
+          : value
+            ? "Found"
+            : "Clear",
+      passed:
+        value === null || value === undefined ? null : !value,
+    });
+    const enquiries = facts.enquiries30d;
+    const emiOverdue = facts.emiOverdueAmount;
+    const ccOverdue = facts.ccOverdueAmount;
+    const factRows = [
+      {
+        label: "Bureau Score",
+        value: hasScore ? score : "Not available",
+        passed:
+          hasScore
+            ? isNtc || Number(score) >= 650
+            : null,
+      },
+      {
+        label: "NTC Customer",
+        value: hasScore ? (isNtc ? "Yes" : "No") : "Not available",
+        passed: hasScore ? true : null,
+      },
+      {
+        label: "Enquiries (Last 30 Days)",
+        value:
+          enquiries === null || enquiries === undefined
+            ? "Not available"
+            : enquiries,
+        passed:
+          enquiries === null || enquiries === undefined
+            ? null
+            : Number(enquiries) <= 3,
+      },
+      flagFact("DPD (Last 3 Months)", facts.hasDpd3M),
+      flagFact("DPD (Last 6 Months)", facts.hasDpd6M),
+      flagFact("Overdue (Last 3 Months)", facts.hasOverdue3M),
+      flagFact("Written Off (Last 3 Years)", facts.hasWrittenOff3Y),
+      flagFact("60+ DPD (Last 6 Months)", facts.has60Plus6M),
+      flagFact("90+ DPD (Last 6 Months)", facts.has90Plus6M),
+      {
+        label: "EMI Overdue",
+        value: formatAmount(emiOverdue),
+        passed:
+          emiOverdue === null || emiOverdue === undefined
+            ? null
+            : Number(emiOverdue) <= 3000,
+      },
+      {
+        label: "Credit Card Overdue",
+        value: formatAmount(ccOverdue),
+        passed:
+          ccOverdue === null || ccOverdue === undefined
+            ? null
+            : Number(ccOverdue) <= 5000,
+      },
+    ];
+    const reasons =
+      bureauResult.reasons?.length > 0
+        ? bureauResult.reasons
+        : toReasonList(null, bureauResult.reason);
+    const accentColor = screeningApproved
+      ? "#10b981"
+      : screeningRejected
+        ? "#dc2626"
+        : "#f59e0b";
+    const background = screeningApproved
+      ? "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
+      : screeningRejected
+        ? "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)"
+        : "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)";
+
+    return (
+      <div
+        style={{
+          marginTop: "24px",
+          padding: "20px 24px",
+          borderRadius: "14px",
+          border: `2px solid ${accentColor}`,
+          background,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            marginBottom: "14px",
+          }}
+        >
+          <span style={{ fontSize: "24px" }}>
+            {screeningApproved ? "✅" : screeningRejected ? "❌" : "⚠️"}
+          </span>
+          <div>
+            <div style={{ fontSize: "16px", fontWeight: "700" }}>
+              Borrower Bureau Screening: {bureauResult.status || "Pending"}
+            </div>
+            <div style={{ fontSize: "13px", marginTop: "3px" }}>
+              {screeningApproved
+                ? "All borrower bureau rules passed. You may continue."
+                : screeningRejected
+                  ? "The borrower failed bureau screening. This is advisory; you may continue to the final BRE."
+                  : "The bureau result is not ready. Retry the screening before continuing."}
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+            gap: "10px",
+          }}
+        >
+          {factRows.map((fact) => (
+            <div
+              key={fact.label}
+              style={{
+                background: "rgba(255,255,255,0.72)",
+                border: "1px solid rgba(148,163,184,0.35)",
+                borderRadius: "8px",
+                padding: "10px 12px",
+              }}
+            >
+              <div style={{ color: "#475569", fontSize: "12px" }}>
+                {fact.label}
+              </div>
+              <div
+                style={{
+                  color:
+                    fact.passed === null
+                      ? "#92400e"
+                      : fact.passed
+                        ? "#047857"
+                        : "#b91c1c",
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  marginTop: "3px",
+                }}
+              >
+                {fact.passed === null ? "•" : fact.passed ? "✓" : "✕"}{" "}
+                {fact.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {reasons.length > 0 && (
+          <div style={{ marginTop: "14px", color: "#991b1b" }}>
+            <strong>Reason(s):</strong>
+            <ul style={{ margin: "6px 0 0", paddingLeft: "20px" }}>
+              {reasons.map((reason, index) => (
+                <li key={`${reason}-${index}`}>{reason}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="manual-entry-container">
       <h2>{title}</h2>
@@ -1932,6 +2334,13 @@ setAadhaarStatus({
             onClick={() => {
               if (index <= activeSection) {
                 setActiveSection(index);
+                return;
+              }
+
+              if (index > 2 && !bureauResult.canContinue) {
+                setMessage(
+                  "❌ Complete the borrower bureau screening in Loan Details before continuing.",
+                );
                 return;
               }
 
@@ -1990,7 +2399,7 @@ setAadhaarStatus({
 
             {renderInput("Email", "Email", "email")}
             {renderInput("Pan Card", "Pan_Card")}
-            
+            {renderInput("Driving Licence No", "Driving_Licence")}
           </div>
         )}
 
@@ -2038,6 +2447,7 @@ setAadhaarStatus({
   "Processing_Fee",
   "number",
 )}
+            {renderInput("GPS Charges (₹)", "GPS_Charges", "number")}
 
 {renderInput(
   "Processing Fee (%)",
@@ -2054,6 +2464,216 @@ setAadhaarStatus({
           </div>
         )}
 
+        {activeSection === 2 && renderBureauScreeningResult()}
+
+        {/* Final BRE result stays visible on Vehicle Details after submission. */}
+        {activeSection === 9 && breResult.checked && (
+          <div
+            style={{
+              marginTop: "24px",
+              padding: "20px 24px",
+              borderRadius: "14px",
+              border: `2px solid ${
+                breResult.status === "BRE APPROVED"
+                  ? "#10b981"
+                  : breResult.status === "BRE REJECTED"
+                    ? "#dc2626"
+                    : "#f59e0b"
+              }`,
+              background:
+                breResult.status === "BRE APPROVED"
+                  ? "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)"
+                  : breResult.status === "BRE REJECTED"
+                    ? "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)"
+                    : "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
+              <span style={{ fontSize: "24px" }}>
+                {breResult.status === "BRE APPROVED"
+                  ? "✅"
+                  : breResult.status === "BRE REJECTED"
+                    ? "⚠️"
+                    : "🟡"}
+              </span>
+              <div>
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    color:
+                      breResult.status === "BRE APPROVED"
+                        ? "#065f46"
+                        : breResult.status === "BRE REJECTED"
+                          ? "#7f1d1d"
+                          : "#78350f",
+                  }}
+                >
+                  {breResult.code === "KYC_VALIDATIONS_INCOMPLETE"
+                    ? "Final BRE not run - complete KYC"
+                    : `Final BRE Status: ${breResult.status}`}
+                </div>
+                {breResult.reason && breResult.reason !== "ELIGIBLE" && (
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      marginTop: "4px",
+                      color:
+                        breResult.status === "BRE APPROVED"
+                          ? "#064e3b"
+                          : breResult.status === "BRE REJECTED"
+                            ? "#991b1b"
+                            : "#92400e",
+                      lineHeight: "1.5",
+                    }}
+                  >
+                    <strong>Reason(s):</strong>{" "}
+                    {breResult.reason
+                      .split(", ")
+                      .map((r, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            display: "inline-block",
+                            background:
+                              breResult.status === "BRE REJECTED"
+                                ? "rgba(220,38,38,0.12)"
+                                : "rgba(245,158,11,0.15)",
+                            borderRadius: "6px",
+                            padding: "2px 8px",
+                            margin: "2px 3px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                          }}
+                        >
+                          {r.trim()}
+                        </span>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            {breResult.code === "KYC_VALIDATIONS_INCOMPLETE" && (
+              <div
+                style={{
+                  marginTop: "14px",
+                  padding: "14px",
+                  background: "rgba(255,255,255,0.72)",
+                  border: "1px solid rgba(245,158,11,0.45)",
+                  borderRadius: "10px",
+                  color: "#78350f",
+                }}
+              >
+                <div style={{ fontWeight: "700", marginBottom: "10px" }}>
+                  Complete these required applicant validations, then retry
+                  Final BRE:
+                </div>
+
+                {breResult.incompleteValidations.length > 0 ? (
+                  <div style={{ display: "grid", gap: "10px" }}>
+                    {breResult.incompleteValidations.map((item, index) => {
+                      const applicantLabel = String(
+                        item.applicantType || "APPLICANT",
+                      )
+                        .replaceAll("_", " ")
+                        .toLowerCase()
+                        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+                      const statusRows = [
+                        ["PAN", item.panStatus],
+                        ["Aadhaar", item.aadhaarStatus],
+                        ["Bureau", item.bureauStatus],
+                      ];
+
+                      return (
+                        <div
+                          key={`${item.applicantType || "applicant"}-${item.partyNo || index}`}
+                          style={{
+                            padding: "12px",
+                            borderRadius: "8px",
+                            border: "1px solid rgba(148,163,184,0.35)",
+                            background: "#fff",
+                          }}
+                        >
+                          <div style={{ fontWeight: "700", marginBottom: "8px" }}>
+                            {applicantLabel}
+                            {item.partyNo ? ` (Party ${item.partyNo})` : ""}
+                          </div>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(120px, 1fr))",
+                              gap: "8px",
+                            }}
+                          >
+                            {statusRows.map(([label, status]) => {
+                              const verified =
+                                String(status).toUpperCase() === "VERIFIED";
+
+                              return (
+                                <div
+                                  key={label}
+                                  style={{
+                                    padding: "7px 9px",
+                                    borderRadius: "6px",
+                                    background: verified ? "#ecfdf5" : "#fff7ed",
+                                    color: verified ? "#047857" : "#9a3412",
+                                    fontSize: "12px",
+                                    fontWeight: "700",
+                                  }}
+                                >
+                                  {label}: {status || "PENDING"}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {Array.isArray(item.incompleteChecks) &&
+                            item.incompleteChecks.length > 0 && (
+                              <div
+                                style={{
+                                  fontSize: "12px",
+                                  marginTop: "8px",
+                                  color: "#9a3412",
+                                }}
+                              >
+                                <strong>Missing:</strong>{" "}
+                                {item.incompleteChecks
+                                  .map((check) =>
+                                    String(check).replaceAll("_", " "),
+                                  )
+                                  .join(", ")}
+                              </div>
+                            )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "13px" }}>
+                    Required KYC validations are still incomplete.
+                  </div>
+                )}
+              </div>
+            )}
+            {breResult.status === "BRE REJECTED" && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  padding: "10px 14px",
+                  background: "rgba(220,38,38,0.08)",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  color: "#991b1b",
+                  fontWeight: "500",
+                }}
+              >
+                This application has been rejected by the final SRBH BRE.
+              </div>
+            )}
+          </div>
+        )}
+
         {activeSection === 3 && (
           <div className="form-grid">
             {renderInput("Guarantor Name", "GURANTOR")}
@@ -2066,6 +2686,10 @@ setAadhaarStatus({
             {renderInput("Guarantor Pincode", "GURANTOR_Pincode")}
             {renderInput("Guarantor District", "GURANTOR_District")}
             {renderInput("Guarantor State", "GURANTOR_State")}
+            {renderInput(
+              "Guarantor Driving Licence",
+              "GURANTOR_Driving_Licence",
+            )}
             <div className="mobile-otp-wrapper">
               {renderInput(
                 "Guarantor Mobile",
@@ -2134,6 +2758,10 @@ setAadhaarStatus({
             {renderInput("Co Applicant Pincode", "Co_Applicant_Pincode")}
             {renderInput("Co Applicant District", "Co_Applicant_District")}
             {renderInput("Co Applicant State", "Co_Applicant_State")}
+            {renderInput(
+              "Co Applicant Driving Licence",
+              "Co_Applicant_Driving_Licence",
+            )}
             <div className="mobile-otp-wrapper">
               {renderInput(
                 "Co Applicant Mobile",
@@ -2189,6 +2817,7 @@ setAadhaarStatus({
             {renderInput("Bank Name", "customer_bank_name")}
             {renderInput("Account Number", "customer_account_number")}
             {renderInput("IFSC Code", "bank_ifsc_code")}
+            {renderInput("Branch Address", "bank_branch_address")}
           </div>
         )}
 
@@ -2220,6 +2849,7 @@ setAadhaarStatus({
 
         {activeSection === 7 && (
           <div className="form-grid">
+            {renderSelect("Product Type", "Product_Type", ["L3", "L5"])}
             {renderProductSelect()}
             {renderInput("Battery Name", "Battery_Name", "text", true)}
             {renderInput("Battery Type", "Battery_Type", "text", true)}
@@ -2227,6 +2857,44 @@ setAadhaarStatus({
             {renderInput("Battery Serial No 1", "Battery_Serial_no_1")}
             {renderInput("Battery Serial No 2", "Battery_Serial_no_2")}
             {renderInput("Chassis No", "Chassis_no")}
+          </div>
+        )}
+
+        {activeSection === 8 && (
+          <div className="form-grid">
+            {renderInput("Insurance Cost", "insurance_cost", "number")}
+            {renderInput(
+              "Insurance Company Provider",
+              "insurance_company_provider",
+            )}
+            {renderInput(
+              "Insurance Policy Number",
+              "insurance_policy_number",
+            )}
+            {renderInput("Policy Issued Date", "policy_issued_date", "date")}
+            {renderInput("Period of Insurance", "period_of_insurance")}
+          </div>
+        )}
+
+        {activeSection === 9 && (
+          <div className="form-grid">
+            {renderInput("Cost Of Vehicle", "cost_of_vehicle", "number")}
+            {renderInput(
+              "Manufacturing Year",
+              "manufacturing_year",
+              "number",
+            )}
+            {renderInput("Sales Invoice Number", "sales_invoice_number")}
+            {renderInput("Sales Invoice Date", "sales_invoice_date", "date")}
+            {renderInput(
+              "Downpayment Paid By The Borrower",
+              "downpayment_paid_by_borrower",
+            )}
+            {renderInput(
+              "Vehicle Registration Cost",
+              "vehicle_registration_cost",
+              "number",
+            )}
           </div>
         )}
 
@@ -2300,20 +2968,61 @@ setAadhaarStatus({
               </button> */}
               <button
   type="button"
-  disabled={loading}
+  disabled={
+    loading ||
+    (activeSection === 2 && bureauLoading)
+  }
   onClick={async () => {
+    // Loan Details: save, run bureau screening, show the result, then gate Next.
+    if (activeSection === 2) {
+      if (!bureauResult.canContinue) {
+        const saved = await saveBorrowerFirstSection();
+        if (!saved) return;
+        await handleRunBureauScreening();
+        return;
+      }
+
+      const saved = await saveBorrowerFirstSection();
+      if (!saved) return;
+      setActiveSection((prev) => prev + 1);
+      return;
+    }
+
     const saved = await saveBorrowerFirstSection();
     if (!saved) return;
 
     setActiveSection((prev) => prev + 1);
   }}
 >
-  {loading ? "Saving..." : "Next →"}
+  {activeSection === 2
+    ? bureauLoading
+      ? "🔄 Running Borrower Bureau..."
+      : bureauResult.canContinue
+        ? String(bureauResult.status).toUpperCase() === "BUREAU REJECTED"
+          ? "Continue → (Bureau Rejected - Advisory)"
+          : "Next → (Bureau Approved)"
+        : bureauResult.checked
+          ? "🔄 Retry Bureau Screening"
+          : "🔍 Run Bureau Screening"
+    : loading ? "Saving..." : "Next →"}
 </button>
             </>
           ) : (
-            <button type="submit" disabled={loading}>
-              {loading ? "Submitting..." : "Submit Loan"}
+            <button
+              type="submit"
+              disabled={
+                loading ||
+                breLoading ||
+                ["BRE APPROVED", "BRE REJECTED"].includes(breResult.status)
+              }
+            >
+              {breLoading
+                ? "🔄 Running Final BRE..."
+                : ["BRE APPROVED", "BRE REJECTED"].includes(breResult.status)
+                  ? `Final Result: ${breResult.status}`
+                  : breResult.checked
+                    ? "Retry Final BRE"
+                    : "Submit Loan & Run Final BRE"}
             </button>
           )}
         </div>
