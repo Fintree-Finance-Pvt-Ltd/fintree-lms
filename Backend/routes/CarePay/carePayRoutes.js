@@ -1091,25 +1091,25 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       partnerName,
     );
 
-    // const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-    //   conn,
-    //   partner.partner_id,
-    //   requestAmount,
-    //   month,
-    //   year,
-    // );
+    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
+      conn,
+      partner.partner_id,
+      requestAmount,
+      month,
+      year,
+    );
 
-    // if (!limitCheck.valid) {
-    //   await conn.rollback();
-    //   conn.release();
-    //   conn = null;
+    if (!limitCheck.valid) {
+      await conn.rollback();
+      conn.release();
+      conn = null;
 
-    //   return res.status(403).json({
-    //     message: "Monthly partner limit exceeded",
-    //     remaining_limit: limitCheck.remaining,
-    //     required: requestAmount,
-    //   });
-    // }
+      return res.status(403).json({
+        message: "Monthly partner limit exceeded",
+        remaining_limit: limitCheck.remaining,
+        required: requestAmount,
+      });
+    }
 
     const { lan } = await generateLoanIdentifiers(lenderType);
     let breDecision = evaluateCarePayLoginBre({
@@ -1222,12 +1222,12 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       values,
     );
 
-    // await partnerLimitService.updateBookedLimit(
-    //   conn,
-    //   limitCheck.limitId,
-    //   requestAmount,
-    //   lan,
-    // );
+    await partnerLimitService.updateBookedLimit(
+      conn,
+      limitCheck.limitId,
+      requestAmount,
+      lan,
+    );
 
     await conn.commit();
     conn.release();
