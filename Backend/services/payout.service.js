@@ -113,12 +113,14 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     if (table === "loan_booking_carepay") {
       loanQuery = `
         SELECT
-          bank_account_holder_name AS beneficiary_name,
-          net_disbursement AS loan_amount,
-          bank_account_number AS account_number,
-          bank_ifsc_code AS ifsc
-        FROM loan_booking_carepay
-        WHERE lan = ?
+          h.account_holder_name AS beneficiary_name,
+          lb.net_disbursement AS loan_amount,
+          h.account_number AS account_number,
+          h.ifsc_code AS ifsc
+        FROM loan_booking_carepay lb
+        INNER JOIN carepay_hospital_booking h
+          ON h.lan = lb.hospital_lan
+        WHERE lb.lan = ?
         LIMIT 1
       `;
     }

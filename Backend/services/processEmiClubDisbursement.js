@@ -4,6 +4,8 @@ const {
   generateRapidMoneyRepaymentSchedule,
 } = require("../utils/generateRapidMoneyRepaymentSchedule");
 const { sendLoanWebhook } = require("../utils/webhook");
+const partnerLimitService = require("./partnerLimitService");
+const { getMonthYear } = require("../utils/partnerHelpers");
 
 async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDate }) {
    console.log("[EMICLUB][START] Processing disbursement", {
@@ -527,7 +529,7 @@ async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDa
       `
       SELECT
         partner_loan_id,
-        loan_amount,
+        COALESCE(loan_amount, request_amount) AS loan_amount,
         interest_rate,
         loan_tenure,
         processing_fee,
@@ -544,8 +546,60 @@ async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDa
     if (!loan) throw new Error(`CarePay loan not found: ${lan}`);
 
     if (String(loan.status).toLowerCase() === "disbursed") {
-      await conn.rollback();
-      return { skipped: true, reason: "ALREADY_DISBURSED" };
+      const amount = Number(loan.loan_amount || 0);
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("INVALID_CAREPAY_DISBURSEMENT_AMOUNT");
+      }
+
+      const effectiveDisbursementDate = new Date(disbursementDate);
+
+      if (Number.isNaN(effectiveDisbursementDate.getTime())) {
+        throw new Error(`Invalid CarePay disbursement date: ${disbursementDate}`);
+      }
+
+      const { month, year } = getMonthYear(effectiveDisbursementDate);
+      const partnerName = "CAREPAY";
+      const partner = await partnerLimitService.getOrCreatePartner(
+        conn,
+        partnerName,
+      );
+      const limit = await partnerLimitService.getPartnerMonthlyLimit(
+        conn,
+        partner.partner_id,
+        month,
+        year,
+      );
+      let limitResult;
+
+      try {
+        limitResult = await partnerLimitService.updateDisbursedLimit(
+          conn,
+          limit.id,
+          amount,
+          lan,
+        );
+      } catch (err) {
+        if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+          err.meta = {
+            ...(err.meta || {}),
+            partnerName,
+            lan,
+            month,
+            year,
+          };
+        }
+
+        throw err;
+      }
+
+      await conn.commit();
+
+      return {
+        skipped: true,
+        reason: "ALREADY_DISBURSED",
+        limitResult,
+      };
     }
 
     const [utrExists] = await conn.query(
@@ -585,6 +639,59 @@ async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDa
       `UPDATE loan_booking_carepay SET status = 'Disbursed' WHERE lan = ?`,
       [lan],
     );
+
+    const amount = Number(loan.loan_amount || 0);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("INVALID_CAREPAY_DISBURSEMENT_AMOUNT");
+    }
+
+    const effectiveDisbursementDate = new Date(disbursementDate);
+
+    if (Number.isNaN(effectiveDisbursementDate.getTime())) {
+      throw new Error(`Invalid CarePay disbursement date: ${disbursementDate}`);
+    }
+
+    const { month, year } = getMonthYear(effectiveDisbursementDate);
+    const partnerName = "CAREPAY";
+    const partner = await partnerLimitService.getOrCreatePartner(
+      conn,
+      partnerName,
+    );
+    const limit = await partnerLimitService.getPartnerMonthlyLimit(
+      conn,
+      partner.partner_id,
+      month,
+      year,
+    );
+    let limitResult;
+
+    try {
+      limitResult = await partnerLimitService.updateDisbursedLimit(
+        conn,
+        limit.id,
+        amount,
+        lan,
+      );
+    } catch (err) {
+      if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+        err.meta = {
+          ...(err.meta || {}),
+          partnerName,
+          lan,
+          month,
+          year,
+        };
+      }
+
+      throw err;
+    }
+
+    console.log("[CarePay][LIMIT] Disbursement limit processed", {
+      lan,
+      loanAmount: loan.loan_amount,
+      limitResult,
+    });
 
     await conn.commit();
 
