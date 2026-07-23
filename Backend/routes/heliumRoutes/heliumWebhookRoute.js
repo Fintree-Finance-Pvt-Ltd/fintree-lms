@@ -850,6 +850,22 @@ router.post("/esign-webhook", async (req, res) => {
             [lan]
           );
         }
+      } if (lan.startsWith("CARE")) {
+        if (type === "SANCTION") {
+          await connection.query(
+            `UPDATE loan_booking_carepay
+             SET sanction_esign_status='SIGNED'
+             WHERE lan=?`,
+            [lan]
+          );
+        } else {
+          await connection.query(
+            `UPDATE loan_booking_carepay
+             SET agreement_esign_status='SIGNED'
+             WHERE lan=?`,
+            [lan]
+          );
+        }
       } else if (lan.startsWith("HEL")) {
         // HELIUM
         if (type === "SANCTION") {
