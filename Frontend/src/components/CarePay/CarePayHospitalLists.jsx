@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Eye } from "lucide-react";
+import { Eye, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/api";
 import DataTable from "../ui/DataTable";
@@ -174,6 +174,23 @@ const CarePayHospitalLists = () => {
       sortable: true,
       render: (row) => (row.created_at ? new Date(row.created_at).toLocaleDateString("en-IN") : "-"),
       sortAccessor: (row) => (row.created_at ? Date.parse(row.created_at) : 0),
+      width: 130,
+    },
+    {
+      key: "docs",
+      header: "Documents",
+      render: (row) => (
+        <button
+          type="button"
+          className="carepay-view-btn"
+          onClick={() => navigate(`/documents/${row.lan}`)}
+          title="Open documents"
+        >
+          <FileText size={15} />
+          Docs
+        </button>
+      ),
+      csvAccessor: () => "",
       width: 130,
     },
     {

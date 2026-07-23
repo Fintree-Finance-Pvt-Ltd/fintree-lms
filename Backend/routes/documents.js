@@ -78,6 +78,11 @@ const LAN_TABLE_MAP = {
   STRL: { table: "loan_booking_sterlion", statusCol: "status" },
   FINS: { table: "loan_booking_finso", statusCol: "status" },
   HEL: { table: "loan_booking_helium", statusCol: "status" },
+  CAREHOS: {
+    table: "carepay_hospital_booking",
+    statusCol: "status",
+    editableStatuses: new Set(["pending", "approved", "active"]),
+  },
   DLR: { table: "dealer_onboarding", statusCol: "status" },
   ZYPF: { table: "loan_booking_zypay_customer", statusCol: "status" },
   Cl: { table: "loan_booking_clayyo", statusCol: "status" },
@@ -111,8 +116,9 @@ async function getLockState(lan) {
 
   const statusRaw = (rows?.[0]?.status ?? "").toString().trim();
   const statusNormalized = normalizeStatus(statusRaw);
+  const allowedStatuses = map.editableStatuses || ALLOWED_STATUSES;
   const canEdit = statusNormalized
-    ? ALLOWED_STATUSES.has(statusNormalized)
+    ? allowedStatuses.has(statusNormalized)
     : false;
 
   const dbg = {
