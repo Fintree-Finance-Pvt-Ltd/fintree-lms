@@ -201,7 +201,7 @@ function resolveProcedure(rawReportId, rawLender) {
    
     //// PAYOUT REPORT
 "pay-out-report": () => {
-  const normalizedLender = lender?.toLowerCase();
+  const normalizedLender = lender?.trim().toLowerCase();
 
   return normalizedLender === "gq fsf"
     ? "sp_payout_gq_fsf"
@@ -209,7 +209,9 @@ function resolveProcedure(rawReportId, rawLender) {
       ? "sp_payout_gq_non_fsf"
       : normalizedLender === "emiclub"
         ? "sp_emiclub_payout_report_emiclub"
-        : null;
+        : normalizedLender === "clayoo"
+          ? "sp_payout_clayoo"
+          : null;
 },
     // Bank Payment File Report (for EmiClub)
     "bank-payment-file-report": () => "sp_bank_payment_file",
