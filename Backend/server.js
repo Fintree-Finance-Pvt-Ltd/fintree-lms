@@ -366,7 +366,7 @@ app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ R
 app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Mandate UMRN Update
-// app.use("/api/claim-cure-buddy", require("./routes/ClaimCureBuddy/ClaimCureBuddyRoutes")); // ✅ Register Routes for Claim Cure Buddy
+app.use("/api/claim-cure-buddy", require("./routes/ClaimCureBuddy/ClaimCureBuddyRoutes")); // ✅ Register Routes for Claim Cure Buddy
 app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
 app.use("/api/fundify", require("./routes/Fundify/fundifyRoutes")); // ✅ Register Routes for Fundify Loans
 
@@ -436,63 +436,6 @@ app.post("/api/runfinsovalidations", async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
-
-// autoRunFinsoBreIfReady
-
-// app.post("/api/retryAadharVerification", async (req, res) => {
-//   try {
-//     const pool = db.promise();
-//     const { lan, mobile_number, email_id, customer_name } = req.body;
-
-//      if (!lan) {
-//       return res.status(400).json({
-//         ok: false,
-//         error: "LAN is required",
-//       });
-//     }
-
-//     const aadhaarInit = await initAadhaarKyc(
-//       lan,
-//       mobile_number,
-//       email_id,
-//       customer_name
-//     );
-
-//     if (aadhaarInit.success) {
-//       await pool.query(
-//         `UPDATE kyc_verification_status
-//          SET aadhaar_transaction_id=?, aadhaar_kyc_url=?, aadhaar_unique_id=?
-//          WHERE lan=?`,
-//         [
-//           aadhaarInit.unifiedTransactionId,
-//           aadhaarInit.kycUrl,
-//           aadhaarInit.uniqueId,
-//           lan,
-//         ]
-//       );
-
-//       console.log(
-//         "📨 Aadhaar INIT successful, KYC URL:",
-//         aadhaarInit.kycUrl
-//       );
-//     } else {
-//       console.log(
-//         "❌ Aadhaar INIT Failed, marking FAILED:",
-//         aadhaarInit.error || "Unknown error"
-//       );
-//       await pool.query(
-//         "UPDATE kyc_verification_status SET aadhaar_status='FAILED' WHERE lan=?",
-//         [lan]
-//       );
-//     }
-//     res.json({
-//       ok: true,
-//       message: `Aadhaar Link reshared successfully for Clayyo where LAN = ${lan}`,
-//     });
-//   } catch (err) {
-//     res.status(500).json({ ok: false, error: err.message });
-//   }
-// });
 
 app.post("/api/retryAadharVerification", async (req, res) => {
   try {

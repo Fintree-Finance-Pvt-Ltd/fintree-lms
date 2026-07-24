@@ -53,6 +53,11 @@ function isMotionCorpLan(lan = "") {
   return s.startsWith("MCL");
 }
 
+
+function isClaimCureBuddyLan(lan = "") {
+  const s = normalizeLan(lan);
+  return s.startsWith("CCB");
+}
 /**
  * Check if LAN belongs to Helium flow
  *
@@ -69,6 +74,48 @@ function isHeliumLan(lan = "") {
  * @param {string} lan
  * @returns {object}
  */
+
+const CLAIM_CURE_BUDDY_CONTEXT = {
+  type: "CLAIM_CURE_BUDDY",
+
+  summaryTable: "claim_cure_buddy_loan_summary",
+
+  // Bullet product: repayment row comes from summary table
+  rpsTable: null,
+
+  bookingTable: "loan_booking_claim_cure_buddy",
+
+  coApplicantTable: "claim_cure_buddy_co_applicants",
+
+  agreementTemplate: "claimCureBuddyAggrement.html",
+
+  bulletRepayment: true,
+
+  // Borrower comes from the booking table
+  esignParties: [
+    {
+      role: "BORROWER",
+      required: true,
+      name: "customer_name",
+      email: "email",
+      mobile: "mobile_number",
+
+      sign_position: "DRAG_DROP",
+
+      position_details: {
+        ALL: [
+          {
+            x1: 51,
+            x2: 126,
+            y1: 85,
+            y2: 130,
+          },
+        ],
+      },
+    },
+  ],
+};
+
 function getLoanContext(lan = "") {
   if (isCustomerLan(lan)) {
     return {
@@ -129,6 +176,10 @@ function getLoanContext(lan = "") {
       ],
     };
   }
+
+  if (isClaimCureBuddyLan(lan)) {
+  return CLAIM_CURE_BUDDY_CONTEXT;
+}
 
   if (isMotionCorpLan(lan)) {
     return {
@@ -197,6 +248,8 @@ function getLoanContext(lan = "") {
     };
   }
 
+
+
   throw new Error(`Unknown LAN format: ${lan}`);
 }
 
@@ -206,5 +259,7 @@ module.exports = {
   isClayyoLan,
   isHeliumLan,
   isMotionCorpLan,
+  isClaimCureBuddyLan,
+  CLAIM_CURE_BUDDY_CONTEXT,
   getLoanContext,
 };

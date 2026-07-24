@@ -24,12 +24,10 @@ const SRBHDetails = () => {
         setErr("");
 
         const res = await api.get(`/srbh/customer-details/${lan}`);
-        console.log("SRBH API response:", res.data);
-
         setDetails(res.data);
       } catch (e) {
         console.error("Failed to fetch SRBH details:", e);
-        setErr("Failed to fetch customer details.");
+        setErr(e.response?.data?.message || "Failed to fetch customer details.");
       } finally {
         setLoading(false);
       }
@@ -92,6 +90,7 @@ const SRBHDetails = () => {
 
   const apiLoan = details.loan || details;
   const bre = details.bre || {};
+  const bureauScreening = details.bureau_screening || {};
   const verificationStatus = apiLoan.verification_status || {};
 
   const loan = {
@@ -110,6 +109,7 @@ const SRBHDetails = () => {
     flat_interest: apiLoan.loan_details?.flat_interest,
     pre_emi_interest: apiLoan.loan_details?.pre_emi_interest,
     total_repayment: apiLoan.loan_details?.total_repayment,
+    gps_charges: apiLoan.loan_details?.gps_charges,
 
     permanent_address_line_1: apiLoan.permanent_address?.address_line_1,
     permanent_address_line_2: apiLoan.permanent_address?.address_line_2,
@@ -130,6 +130,7 @@ const SRBHDetails = () => {
     guarantor_district: apiLoan.guarantor?.address?.district,
     guarantor_state: apiLoan.guarantor?.address?.state,
     guarantor_pincode: apiLoan.guarantor?.address?.pincode,
+    guarantor_driving_licence: apiLoan.guarantor?.driving_licence,
 
     co_applicant_name: apiLoan.co_applicant?.name,
     co_applicant_dob: apiLoan.co_applicant?.dob,
@@ -142,6 +143,7 @@ const SRBHDetails = () => {
     co_applicant_district: apiLoan.co_applicant?.address?.district,
     co_applicant_state: apiLoan.co_applicant?.address?.state,
     co_applicant_pincode: apiLoan.co_applicant?.address?.pincode,
+    co_applicant_driving_licence: apiLoan.co_applicant?.driving_licence,
 
     customer_name_as_per_bank: apiLoan.bank_details?.customer_name_as_per_bank,
     customer_bank_name: apiLoan.bank_details?.customer_bank_name,
@@ -149,6 +151,7 @@ const SRBHDetails = () => {
     bank_ifsc_code: apiLoan.bank_details?.bank_ifsc_code,
     bank_status: apiLoan.bank_details?.bank_status,
     bank_account_type: apiLoan.bank_details?.bank_account_type,
+    bank_branch_address: apiLoan.bank_details?.bank_branch_address,
 
     selected_dealer_application_id:
       apiLoan.dealer_details?.selected_dealer_application_id,
@@ -169,12 +172,34 @@ const SRBHDetails = () => {
     dealer_name_in_bank: apiLoan.dealer_details?.dealer_name_in_bank,
 
     selected_product_id: apiLoan.product_details?.selected_product_id,
+    product_type: apiLoan.product_details?.product_type,
     battery_name: apiLoan.product_details?.battery_name,
     battery_type: apiLoan.product_details?.battery_type,
     battery_serial_no_1: apiLoan.product_details?.battery_serial_no_1,
     battery_serial_no_2: apiLoan.product_details?.battery_serial_no_2,
     e_rikshaw_model: apiLoan.product_details?.e_rikshaw_model,
     chassis_no: apiLoan.product_details?.chassis_no,
+
+    insurance_cost: apiLoan.insurance_details?.insurance_cost,
+    insurance_company_provider:
+      apiLoan.insurance_details?.insurance_company_provider,
+    insurance_policy_number:
+      apiLoan.insurance_details?.insurance_policy_number,
+    policy_issued_date: apiLoan.insurance_details?.policy_issued_date,
+    period_of_insurance: apiLoan.insurance_details?.period_of_insurance,
+
+    cost_of_vehicle: apiLoan.vehicle_details?.cost_of_vehicle,
+    manufacturing_year: apiLoan.vehicle_details?.manufacturing_year,
+    downpayment_paid_by_borrower:
+      apiLoan.vehicle_details?.downpayment_paid_by_borrower,
+    vehicle_registration_cost:
+      apiLoan.vehicle_details?.vehicle_registration_cost,
+    sales_invoice_number: apiLoan.vehicle_details?.sales_invoice_number,
+    sales_invoice_date: apiLoan.vehicle_details?.sales_invoice_date,
+
+    srbh_bureau_screening_status: bureauScreening.status,
+    srbh_bureau_screening_reason: bureauScreening.reason,
+    srbh_bureau_screening_checked_at: bureauScreening.checked_at,
 
     borrower_mobile_verified: apiLoan.verification?.borrower_mobile_verified,
     guarantor_mobile_verified: apiLoan.verification?.guarantor_mobile_verified,
@@ -192,8 +217,11 @@ const SRBHDetails = () => {
     srbh_enquiries_30d: bre.enquiries_30d,
     srbh_dpd_3m_flag: bre.dpd_3m_flag,
     srbh_dpd_6m_flag: bre.dpd_6m_flag,
+    srbh_overdue_3m_flag: bre.overdue_3m_flag,
     srbh_overdue_12m_flag: bre.overdue_12m_flag,
     srbh_written_off_3y_flag: bre.written_off_3y_flag,
+    srbh_60plus_6m_flag: bre.dpd_60plus_6m_flag,
+    srbh_90plus_6m_flag: bre.dpd_90plus_6m_flag,
     srbh_60plus_24m_flag: bre.dpd_60plus_24m_flag,
     srbh_90plus_36m_flag: bre.dpd_90plus_36m_flag,
     srbh_emi_overdue_amount: bre.emi_overdue_amount,
@@ -268,6 +296,7 @@ const SRBHDetails = () => {
           <Field label="Last Name" value={loan.last_name} />
           <Field label="Father Name" value={loan.father_name} />
           <Field label="PAN Number" value={loan.pan_card} />
+          <Field label="Driving Licence" value={loan.driving_licence} />
           <Field label="Mobile Number" value={loan.mobile_number} />
           <Field label="Email" value={loan.email} />
           <Field label="DOB" value={formatDate(loan.dob)} />
@@ -285,6 +314,10 @@ const SRBHDetails = () => {
         <Grid>
           <Field label="Guarantor Name" value={loan.guarantor_name} />
           <Field label="Guarantor PAN" value={loan.guarantor_pan} />
+          <Field
+            label="Guarantor Driving Licence"
+            value={loan.guarantor_driving_licence}
+          />
           <Field label="Guarantor Mobile" value={loan.guarantor_mobile} />
           <Field label="Guarantor Email" value={loan.guarantor_email} />
           <Field label="Guarantor DOB" value={formatDate(loan.guarantor_dob)} />
@@ -318,6 +351,10 @@ const SRBHDetails = () => {
         <Grid>
           <Field label="Co-Applicant Name" value={loan.co_applicant_name} />
           <Field label="Co-Applicant PAN" value={loan.co_applicant_pan} />
+          <Field
+            label="Co-Applicant Driving Licence"
+            value={loan.co_applicant_driving_licence}
+          />
           <Field label="Co-Applicant Mobile" value={loan.co_applicant_mobile} />
           <Field label="Co-Applicant Email" value={loan.co_applicant_email} />
           <Field
@@ -384,6 +421,7 @@ const SRBHDetails = () => {
             label="Processing Fee %"
             value={formatPercent(loan.processing_fee_percentage)}
           />
+          <Field label="GPS Charges" value={formatCurrency(loan.gps_charges)} />
           <Field label="EMI Amount" value={formatCurrency(loan.emi_amount)} />
           <Field label="Reducing ROI" value={formatPercent(loan.reducing_roi)} />
           <Field
@@ -415,6 +453,7 @@ const SRBHDetails = () => {
           />
           <Field label="Account Number" value={loan.customer_account_number} />
           <Field label="IFSC Code" value={loan.bank_ifsc_code} />
+          <Field label="Branch Address" value={loan.bank_branch_address} />
           <Field label="Bank Account Type" value={loan.bank_account_type} />
           <Field label="Bank Status" value={loan.bank_status} isStatus />
         </Grid>
@@ -473,10 +512,11 @@ const SRBHDetails = () => {
       ),
     },
     {
-      title: "Vehicle & Product",
+      title: "Product Details",
       icon: "🛺",
       content: (
         <Grid>
+          <Field label="Product Type" value={loan.product_type} />
           <Field label="Selected Product ID" value={loan.selected_product_id} />
           <Field label="E-Rickshaw Model" value={loan.e_rikshaw_model} />
           <Field label="Battery Name" value={loan.battery_name} />
@@ -490,6 +530,64 @@ const SRBHDetails = () => {
             value={loan.battery_serial_no_2}
           />
           <Field label="Chassis No" value={loan.chassis_no} />
+        </Grid>
+      ),
+    },
+    {
+      title: "Insurance Details",
+      icon: "🛡️",
+      content: (
+        <Grid>
+          <Field
+            label="Insurance Cost"
+            value={formatCurrency(loan.insurance_cost)}
+          />
+          <Field
+            label="Insurance Provider"
+            value={loan.insurance_company_provider}
+          />
+          <Field
+            label="Policy Number"
+            value={loan.insurance_policy_number}
+          />
+          <Field
+            label="Policy Issued Date"
+            value={formatDate(loan.policy_issued_date)}
+          />
+          <Field
+            label="Period Of Insurance"
+            value={loan.period_of_insurance}
+          />
+        </Grid>
+      ),
+    },
+    {
+      title: "Vehicle Details",
+      icon: "🚚",
+      content: (
+        <Grid>
+          <Field
+            label="Cost Of Vehicle"
+            value={formatCurrency(loan.cost_of_vehicle)}
+            highlight
+          />
+          <Field label="Manufacturing Year" value={loan.manufacturing_year} />
+          <Field
+            label="Downpayment Paid By Borrower"
+            value={formatCurrency(loan.downpayment_paid_by_borrower)}
+          />
+          <Field
+            label="Vehicle Registration Cost"
+            value={formatCurrency(loan.vehicle_registration_cost)}
+          />
+          <Field
+            label="Sales Invoice Number"
+            value={loan.sales_invoice_number}
+          />
+          <Field
+            label="Sales Invoice Date"
+            value={formatDate(loan.sales_invoice_date)}
+          />
         </Grid>
       ),
     },
@@ -544,11 +642,34 @@ const SRBHDetails = () => {
           />
           <Field label="Agreement Date" value={formatDate(loan.agreement_date)} />
           <Field label="Bank Status" value={loan.bank_status} isStatus />
+          <Field label="Created At" value={formatDateTime(loan.created_at)} />
+          <Field label="Last Updated" value={formatDateTime(loan.updated_at)} />
         </Grid>
       ),
     },
     {
-      title: "Risk & BRE Decisioning",
+      title: "Borrower Bureau Pre-Screening",
+      icon: "🔎",
+      content: (
+        <Grid>
+          <Field
+            label="Pre-BRE Status"
+            value={loan.srbh_bureau_screening_status}
+            isStatus
+          />
+          <Field
+            label="Pre-BRE Reason"
+            value={loan.srbh_bureau_screening_reason}
+          />
+          <Field
+            label="Pre-BRE Checked At"
+            value={formatDateTime(loan.srbh_bureau_screening_checked_at)}
+          />
+        </Grid>
+      ),
+    },
+    {
+      title: "Final BRE Decisioning",
       icon: "⚖️",
       content: (
         <Grid>
@@ -563,14 +684,13 @@ const SRBHDetails = () => {
           <Field label="Enquiries 30D" value={loan.srbh_enquiries_30d} />
 
           <FlagField label="DPD 3M" value={loan.srbh_dpd_3m_flag} />
-          <FlagField label="DPD 6M" value={loan.srbh_dpd_6m_flag} />
-          <FlagField label="Overdue 12M" value={loan.srbh_overdue_12m_flag} />
+          <FlagField label="Overdue 3M" value={loan.srbh_overdue_3m_flag} />
           <FlagField
             label="Written Off 3Y"
             value={loan.srbh_written_off_3y_flag}
           />
-          <FlagField label="60+ DPD" value={loan.srbh_60plus_24m_flag} />
-          <FlagField label="90+ DPD" value={loan.srbh_90plus_36m_flag} />
+          <FlagField label="60+ DPD 6M" value={loan.srbh_60plus_6m_flag} />
+          <FlagField label="90+ DPD 6M" value={loan.srbh_90plus_6m_flag} />
           <FlagField label="Deviation" value={loan.srbh_deviation_flag} />
 
           <Field
@@ -725,12 +845,20 @@ const Field = ({ label, value, highlight, isStatus }) => {
     VERIFIED: { bg: "#bbf7d0", text: "#14532d" },
     COMPLETED: { bg: "#bbf7d0", text: "#14532d" },
     DISBURSED: { bg: "#dcfce7", text: "#166534" },
+    "BUREAU APPROVED": { bg: "#bbf7d0", text: "#14532d" },
+    "BRE APPROVED": { bg: "#bbf7d0", text: "#14532d" },
+    "CREDIT APPROVED": { bg: "#bbf7d0", text: "#14532d" },
 
     REJECTED: { bg: "#fecaca", text: "#7f1d1d" },
     FAILED: { bg: "#fecaca", text: "#7f1d1d" },
+    "BUREAU REJECTED": { bg: "#fecaca", text: "#7f1d1d" },
+    "BRE REJECTED": { bg: "#fecaca", text: "#7f1d1d" },
+    "CREDIT REJECTED": { bg: "#fecaca", text: "#7f1d1d" },
 
     PENDING: { bg: "#fef08a", text: "#713f12" },
     INITIATED: { bg: "#dbeafe", text: "#1e40af" },
+    "CREDIT INITIATED": { bg: "#dbeafe", text: "#1e40af" },
+    "OPERATIONS INITIATED": { bg: "#dbeafe", text: "#1e40af" },
     LOGIN: { bg: "#e0f2fe", text: "#075985" },
   };
 

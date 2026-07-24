@@ -7,8 +7,16 @@ const FormData = require("form-data");
 const db = require("../../config/db");
 const {
   universalRunAllValidations,
+  runApplicantValidation,
 } = require("../../utils/runValiationsEngine");
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
+const {
+  autoApproveSrbhIfAllVerified,
+  evaluateSrbhBureauPolicy,
+  extractSrbhBureauFacts,
+  isSrbhBureauScreeningComplete,
+  normalizeSrbhProductType,
+} = require("./srbhBRE");
 
 const router = express.Router();
 
@@ -451,7 +459,7 @@ router.get("/dealer-details/:lan", async (req, res) => {
     const { lan } = req.params;
 
     const [rows] = await db.promise().query(
-      `SELECT 
+      `SELECT
         d.*,
         p.id AS product_id,
         p.battery_type,
@@ -593,6 +601,15 @@ router.post("/upload/ev-customer-manual", async (req, res) => {
   try {
     const data = req.body;
     console.log("Received loan booking data:", data);
+
+    const productType = normalizeSrbhProductType(data.Product_Type);
+
+    if (!productType) {
+      return res.status(400).json({
+        success: false,
+        message: "Product Type must be L3 or L5",
+      });
+    }
 
     const [borrowerOtp] = await connection.query(
   `
@@ -760,6 +777,7 @@ emptyToNull(data.Co_Applicant_Pincode),
       emptyToNull(data.name_in_bank),
 
       numberOrNull(data.selected_product_id),
+      productType,
       emptyToNull(data.Battery_Name),
       emptyToNull(data.Battery_Type),
       emptyToNull(data.Battery_Serial_no_1),
@@ -856,6 +874,7 @@ co_applicant_pincode,
         dealer_name_in_bank,
 
         selected_product_id,
+        product_type,
         battery_name,
         battery_type,
         battery_serial_no_1,
@@ -1094,6 +1113,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
             email = ?,
             pan_card = ?,
             gender = ?,
+            driving_licence = ?,
             borrower_mobile_verified = ?
           WHERE lan = ?
           `,
@@ -1111,6 +1131,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
             emptyToNull(data.Email),
             emptyToNull(data.Pan_Card),
             emptyToNull(data.Gender),
+            emptyToNull(data.Driving_Licence),
             data.borrower_mobile_verified || 1,
             existingLan,
           ]
@@ -1184,9 +1205,10 @@ router.post("/save-borrower-first-section", async (req, res) => {
           email,
           pan_card,
           gender,
+          driving_licence,
           borrower_mobile_verified
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           emptyToNull(data.lenderType),
@@ -1206,6 +1228,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
           emptyToNull(data.Email),
           emptyToNull(data.Pan_Card),
           emptyToNull(data.Gender),
+          emptyToNull(data.Driving_Licence),
           data.borrower_mobile_verified || 1,
         ]
       );
@@ -1300,7 +1323,8 @@ router.post("/save-borrower-first-section", async (req, res) => {
           loan_tenure = ?,
           processing_fee = ?,
           processing_fee_percentage = ?,
-          disbursal_amount = ?
+          disbursal_amount = ?,
+          gps_charges = ?
         WHERE lan = ?
       `;
 
@@ -1312,6 +1336,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         emptyToNull(data.Processing_Fee),
         emptyToNull(data.Processing_Fee_Percentage),
         emptyToNull(data.Disbursal_Amount),
+        numberOrNull(data.GPS_Charges),
         existingLan,
       ];
     }
@@ -1333,7 +1358,8 @@ router.post("/save-borrower-first-section", async (req, res) => {
           guarantor_district = ?,
           guarantor_state = ?,
           guarantor_pincode = ?,
-          guarantor_mobile_verified = ?
+          guarantor_mobile_verified = ?,
+          guarantor_driving_licence = ?
         WHERE lan = ?
       `;
 
@@ -1351,6 +1377,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         emptyToNull(data.GURANTOR_State),
         emptyToNull(data.GURANTOR_Pincode),
         data.guarantor_mobile_verified || 0,
+        emptyToNull(data.GURANTOR_Driving_Licence),
         existingLan,
       ];
     }
@@ -1371,7 +1398,8 @@ router.post("/save-borrower-first-section", async (req, res) => {
           co_applicant_district = ?,
           co_applicant_state = ?,
           co_applicant_pincode = ?,
-          co_applicant_mobile_verified = ?
+          co_applicant_mobile_verified = ?,
+          co_applicant_driving_licence = ?
         WHERE lan = ?
       `;
 
@@ -1388,6 +1416,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         emptyToNull(data.Co_Applicant_State),
         emptyToNull(data.Co_Applicant_Pincode),
         data.co_applicant_mobile_verified || 0,
+        emptyToNull(data.Co_Applicant_Driving_Licence),
         existingLan,
       ];
     }
@@ -1400,7 +1429,8 @@ router.post("/save-borrower-first-section", async (req, res) => {
           customer_name_as_per_bank = ?,
           customer_bank_name = ?,
           customer_account_number = ?,
-          bank_ifsc_code = ?
+          bank_ifsc_code = ?,
+          bank_branch_address = ?
         WHERE lan = ?
       `;
 
@@ -1409,6 +1439,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         emptyToNull(data.customer_bank_name),
         emptyToNull(data.customer_account_number),
         emptyToNull(data.bank_ifsc_code),
+        emptyToNull(data.bank_branch_address),
         existingLan,
       ];
     }
@@ -1460,10 +1491,23 @@ router.post("/save-borrower-first-section", async (req, res) => {
 
     // SECTION 7: Product Details
     else if (section === 7) {
+      const productType = normalizeSrbhProductType(data.Product_Type);
+
+      if (!productType) {
+        await connection.rollback();
+        transactionStarted = false;
+
+        return res.status(400).json({
+          success: false,
+          message: "Product Type must be L3 or L5",
+        });
+      }
+
       query = `
         UPDATE loan_booking_srbh
         SET
           selected_product_id = ?,
+          product_type = ?,
           battery_name = ?,
           battery_type = ?,
           battery_serial_no_1 = ?,
@@ -1475,12 +1519,61 @@ router.post("/save-borrower-first-section", async (req, res) => {
 
       values = [
         emptyToNull(data.selected_product_id),
+        productType,
         emptyToNull(data.Battery_Name),
         emptyToNull(data.Battery_Type),
         emptyToNull(data.Battery_Serial_no_1),
         emptyToNull(data.Battery_Serial_no_2),
         emptyToNull(data.E_Rikshaw_model),
         emptyToNull(data.Chassis_no),
+        existingLan,
+      ];
+    }
+
+    // SECTION 8: Insurance Details
+    else if (section === 8) {
+      query = `
+        UPDATE loan_booking_srbh
+        SET
+          insurance_cost = ?,
+          insurance_company_provider = ?,
+          insurance_policy_number = ?,
+          policy_issued_date = ?,
+          period_of_insurance = ?
+        WHERE lan = ?
+      `;
+
+      values = [
+        numberOrNull(data.insurance_cost),
+        emptyToNull(data.insurance_company_provider),
+        emptyToNull(data.insurance_policy_number),
+        emptyToNull(data.policy_issued_date),
+        emptyToNull(data.period_of_insurance),
+        existingLan,
+      ];
+    }
+
+    // SECTION 9: Vehicle Details
+    else if (section === 9) {
+      query = `
+        UPDATE loan_booking_srbh
+        SET
+          cost_of_vehicle = ?,
+          manufacturing_year = ?,
+          downpayment_paid_by_borrower = ?,
+          vehicle_registration_cost = ?,
+          sales_invoice_number = ?,
+          sales_invoice_date = ?
+        WHERE lan = ?
+      `;
+
+      values = [
+        numberOrNull(data.cost_of_vehicle),
+        numberOrNull(data.manufacturing_year),
+        numberOrNull(data.downpayment_paid_by_borrower),
+        numberOrNull(data.vehicle_registration_cost),
+        emptyToNull(data.sales_invoice_number),
+        emptyToNull(data.sales_invoice_date),
         existingLan,
       ];
     }
@@ -1584,8 +1677,216 @@ router.post("/save-borrower-first-section", async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────
+// RUN BORROWER BUREAU SCREENING ON LOAN DETAILS (SRBH)
+// The final age/product/amount/tenure BRE runs only after Vehicle Details.
+// ─────────────────────────────────────────────────────────────────
+const runSrbhBureauScreening = async (req, res) => {
+  try {
+    const data = req.body;
+
+    if (!data.lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN required. Please save borrower first.",
+      });
+    }
+
+    const pool = db.promise();
+
+    // 1. Save Loan Details and invalidate any previous final BRE.
+    await pool.query(
+      `UPDATE loan_booking_srbh
+       SET
+         requested_loan_amount = ?,
+         interest_rate = ?,
+         loan_tenure = ?,
+         processing_fee = ?,
+         processing_fee_percentage = ?,
+         gps_charges = ?,
+         disbursal_amount = ?,
+         srbh_bre_status = NULL,
+         srbh_bre_reason = NULL,
+         srbh_bre_checked_at = NULL
+       WHERE lan = ?`,
+      [
+        numberOrNull(data.Loan_Amount),
+        numberOrNull(data.Interest_Rate),
+        numberOrNull(data.Tenure),
+        numberOrNull(data.Processing_Fee),
+        numberOrNull(data.Processing_Fee_Percentage),
+        numberOrNull(data.GPS_Charges),
+        numberOrNull(data.Disbursal_Amount),
+        data.lan,
+      ],
+    );
+
+    // 2. Fetch borrower inputs needed to run/reuse the bureau report.
+    const [[loanRow]] = await pool.query(
+      `SELECT
+         lan, dob, requested_loan_amount, loan_tenure, interest_rate, product_type,
+         cibil_score,
+         customer_name, first_name, last_name, gender, pan_card, mobile_number, email,
+         permanent_address_line_1, permanent_village_city, permanent_state, permanent_pincode
+       FROM loan_booking_srbh WHERE lan = ? LIMIT 1`,
+      [data.lan],
+    );
+
+    if (!loanRow) {
+      return res.status(404).json({ success: false, message: "Loan not found" });
+    }
+
+    // 2.5 Run only borrower bureau validation if it is not already verified.
+    await runApplicantValidation({
+      pool,
+      lan: data.lan,
+      table: "loan_booking_srbh",
+      applicantType: "BORROWER",
+      applicantData: {
+        customer_name: loanRow.customer_name,
+        first_name: loanRow.first_name,
+        last_name: loanRow.last_name,
+        dob: loanRow.dob,
+        gender: loanRow.gender,
+        pan_number: loanRow.pan_card,
+        mobile_number: loanRow.mobile_number,
+        email: loanRow.email,
+        current_address: loanRow.permanent_address_line_1,
+        current_village_city: loanRow.permanent_village_city,
+        current_state: loanRow.permanent_state,
+        current_pincode: loanRow.permanent_pincode,
+        loan_amount: loanRow.requested_loan_amount,
+        loan_tenure: loanRow.loan_tenure,
+      },
+      validations: {
+        pan: false,
+        aadhaar: false,
+        bureau: true,
+      },
+    });
+
+    // 3. Fetch the borrower bureau response from KYC (SRBH source of truth)
+    const [[borrowerKyc]] = await pool.query(
+      `SELECT bureau_status, bureau_api_response
+       FROM kyc_verification_status
+       WHERE lan = ? AND applicant_type = 'BORROWER'
+       ORDER BY
+         CASE WHEN party_no = 1 THEN 0 ELSE 1 END,
+         updated_at DESC,
+         id DESC
+       LIMIT 1`,
+      [data.lan],
+    );
+
+    const bureauFacts = extractSrbhBureauFacts(
+      borrowerKyc?.bureau_api_response,
+      loanRow.cibil_score,
+    );
+
+    if (borrowerKyc?.bureau_status !== "VERIFIED" || !bureauFacts.reportParsed) {
+      const pendingReason =
+        borrowerKyc?.bureau_status !== "VERIFIED"
+          ? `BUREAU_STATUS=${borrowerKyc?.bureau_status || "NA"}`
+          : "BUREAU_REPORT_MISSING_OR_INVALID";
+
+      await pool.query(
+        `UPDATE loan_booking_srbh
+         SET
+           srbh_bureau_screening_status = 'Pending',
+           srbh_bureau_screening_reason = ?,
+           srbh_bureau_screening_checked_at = NOW()
+         WHERE lan = ?`,
+        [pendingReason, data.lan],
+      );
+
+      return res.json({
+        success: true,
+        screeningStatus: "Pending",
+        screeningReason: pendingReason,
+        canContinue: false,
+        breStatus: "Pending",
+        breReason: pendingReason,
+        bureauScore: bureauFacts.score,
+        isNtc: bureauFacts.isNtc,
+        bureauFacts,
+        reasons: [pendingReason],
+        deviations: [],
+      });
+    }
+
+    // 4. Evaluate only the borrower bureau screening policy.
+    const decision = evaluateSrbhBureauPolicy(bureauFacts);
+
+    const reasonText =
+      (decision.reasons || []).join(", ") ||
+      "ELIGIBLE";
+
+    // 5. Persist screening separately from the final BRE result.
+    await pool.query(
+      `UPDATE loan_booking_srbh
+       SET
+         srbh_bureau_screening_status = ?,
+         srbh_bureau_screening_reason = ?,
+         srbh_bureau_screening_checked_at = NOW(),
+         fintree_cibil_score = ?,
+         srbh_enquiries_30d = ?,
+         srbh_dpd_3m_flag = ?,
+         srbh_dpd_6m_flag = ?,
+         srbh_overdue_3m_flag = ?,
+         srbh_written_off_3y_flag = ?,
+         srbh_60plus_6m_flag = ?,
+         srbh_90plus_6m_flag = ?,
+         srbh_emi_overdue_amount = ?,
+         srbh_cc_overdue_amount = ?
+       WHERE lan = ?`,
+      [
+        decision.status,
+        reasonText,
+        decision.bureauScore,
+        bureauFacts.enquiries30d,
+        bureauFacts.hasDpd3M ? 1 : 0,
+        bureauFacts.hasDpd6M ? 1 : 0,
+        bureauFacts.hasOverdue3M ? 1 : 0,
+        bureauFacts.hasWrittenOff3Y ? 1 : 0,
+        bureauFacts.has60Plus6M ? 1 : 0,
+        bureauFacts.has90Plus6M ? 1 : 0,
+        bureauFacts.emiOverdueAmount,
+        bureauFacts.ccOverdueAmount,
+        data.lan,
+      ],
+    );
+
+    return res.json({
+      success: true,
+      screeningStatus: decision.status,
+      screeningReason: reasonText,
+      // Pre-BRE is advisory. A completed rejection may continue to final BRE.
+      canContinue: true,
+      breStatus: decision.status,
+      breReason: reasonText,
+      bureauScore: decision.bureauScore,
+      isNtc: decision.isNtc,
+      bureauFacts,
+      reasons: decision.reasons,
+      deviations: [],
+    });
+  } catch (error) {
+    console.error("Bureau screening error (SRBH):", error);
+    return res.status(500).json({
+      success: false,
+      message: "Borrower bureau screening failed",
+      error: error.message,
+    });
+  }
+};
+
+router.post("/run-bureau-screening", runSrbhBureauScreening);
+// Backward-compatible alias. This route now performs bureau screening only.
+router.post("/run-bre-loan-details", runSrbhBureauScreening);
+
 router.post("/final-submit-ev-customer-manual", async (req, res) => {
   const connection = await db.promise().getConnection();
+  let transactionStarted = false;
 
   try {
     const data = req.body;
@@ -1597,7 +1898,51 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
       });
     }
 
+    const productType = normalizeSrbhProductType(data.Product_Type);
+
+    if (!productType) {
+      return res.status(400).json({
+        success: false,
+        message: "Product Type must be L3 or L5",
+      });
+    }
+
+    const [[screeningRow]] = await connection.query(
+      `SELECT
+         srbh_bureau_screening_status,
+         srbh_bureau_screening_reason
+       FROM loan_booking_srbh
+       WHERE lan = ?
+       LIMIT 1`,
+      [data.lan],
+    );
+
+    if (!screeningRow) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
+    }
+
+    if (
+      !isSrbhBureauScreeningComplete(
+        screeningRow.srbh_bureau_screening_status,
+      )
+    ) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Borrower bureau screening must be completed before final submission.",
+        screeningStatus:
+          screeningRow.srbh_bureau_screening_status || "NOT_RUN",
+        screeningReason:
+          screeningRow.srbh_bureau_screening_reason ||
+          "BUREAU_SCREENING_NOT_RUN",
+      });
+    }
+
     await connection.beginTransaction();
+    transactionStarted = true;
 
     await connection.query(
       `
@@ -1616,6 +1961,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         disbursal_amount = ?,
         processing_fee = ?,
         processing_fee_percentage = ?,
+        gps_charges = ?,
 
         guarantor_name = ?,
         guarantor_dob = ?,
@@ -1629,6 +1975,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         guarantor_district = ?,
         guarantor_state = ?,
         guarantor_pincode = ?,
+        guarantor_driving_licence = ?,
 
         co_applicant_name = ?,
         co_applicant_dob = ?,
@@ -1641,11 +1988,13 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         co_applicant_district = ?,
         co_applicant_state = ?,
         co_applicant_pincode = ?,
+        co_applicant_driving_licence = ?,
 
         customer_name_as_per_bank = ?,
         customer_bank_name = ?,
         customer_account_number = ?,
         bank_ifsc_code = ?,
+        bank_branch_address = ?,
 
         selected_dealer_application_id = ?,
         dealer_id = ?,
@@ -1666,12 +2015,26 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         dealer_name_in_bank = ?,
 
         selected_product_id = ?,
+        product_type = ?,
         battery_name = ?,
         battery_type = ?,
         battery_serial_no_1 = ?,
         battery_serial_no_2 = ?,
         e_rikshaw_model = ?,
         chassis_no = ?,
+
+        insurance_cost = ?,
+        insurance_company_provider = ?,
+        insurance_policy_number = ?,
+        policy_issued_date = ?,
+        period_of_insurance = ?,
+
+        cost_of_vehicle = ?,
+        manufacturing_year = ?,
+        downpayment_paid_by_borrower = ?,
+        vehicle_registration_cost = ?,
+        sales_invoice_number = ?,
+        sales_invoice_date = ?,
 
         borrower_mobile_verified = ?,
         guarantor_mobile_verified = ?,
@@ -1692,6 +2055,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         numberOrNull(data.Disbursal_Amount),
         numberOrNull(data.Processing_Fee),
         numberOrNull(data.Processing_Fee_Percentage),
+        numberOrNull(data.GPS_Charges),
 
         emptyToNull(data.GURANTOR),
         emptyToNull(data.GURANTOR_DOB),
@@ -1705,6 +2069,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.GURANTOR_District),
         emptyToNull(data.GURANTOR_State),
         emptyToNull(data.GURANTOR_Pincode),
+        emptyToNull(data.GURANTOR_Driving_Licence),
 
         emptyToNull(data.Co_Applicant),
         emptyToNull(data.Co_Applicant_DOB),
@@ -1717,11 +2082,13 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.Co_Applicant_District),
         emptyToNull(data.Co_Applicant_State),
         emptyToNull(data.Co_Applicant_Pincode),
+        emptyToNull(data.Co_Applicant_Driving_Licence),
 
         emptyToNull(data.customer_name_as_per_bank),
         emptyToNull(data.customer_bank_name),
         emptyToNull(data.customer_account_number),
         emptyToNull(data.bank_ifsc_code),
+        emptyToNull(data.bank_branch_address),
 
         emptyToNull(data.selected_dealer_application_id),
         emptyToNull(data.dealer_id),
@@ -1742,12 +2109,26 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.name_in_bank),
 
         numberOrNull(data.selected_product_id),
+        productType,
         emptyToNull(data.Battery_Name),
         emptyToNull(data.Battery_Type),
         emptyToNull(data.Battery_Serial_no_1),
         emptyToNull(data.Battery_Serial_no_2),
         emptyToNull(data.E_Rikshaw_model),
         emptyToNull(data.Chassis_no),
+
+        numberOrNull(data.insurance_cost),
+        emptyToNull(data.insurance_company_provider),
+        emptyToNull(data.insurance_policy_number),
+        emptyToNull(data.policy_issued_date),
+        emptyToNull(data.period_of_insurance),
+
+        numberOrNull(data.cost_of_vehicle),
+        numberOrNull(data.manufacturing_year),
+        numberOrNull(data.downpayment_paid_by_borrower),
+        numberOrNull(data.vehicle_registration_cost),
+        emptyToNull(data.sales_invoice_number),
+        emptyToNull(data.sales_invoice_date),
 
         data.borrower_mobile_verified || 0,
         data.guarantor_mobile_verified || 0,
@@ -1758,18 +2139,52 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
     );
 
     await connection.commit();
+    transactionStarted = false;
 
-    universalRunAllValidations(data.lan).catch((err) => {
-  console.error("Validation engine failed after booking:", err);
-});
+    // Run any pending PAN/bureau validations first. Aadhaar remains a manual
+    // completion step, and its final status is checked below before BRE.
+    await universalRunAllValidations(data.lan, {
+      skipSrbhFinalBre: true,
+    });
+
+    const finalBreResult = await autoApproveSrbhIfAllVerified(data.lan);
+
+    if (finalBreResult?.code === "KYC_VALIDATIONS_INCOMPLETE") {
+      return res.status(422).json({
+        success: false,
+        saved: true,
+        code: finalBreResult.code,
+        message:
+          "Before final BRE, please complete PAN, Aadhaar and bureau verification for the borrower and every added guarantor/co-applicant.",
+        lan: data.lan,
+        breStatus: "Pending",
+        breReason: finalBreResult.reason,
+        validationStatuses: finalBreResult.validationStatuses || [],
+        incompleteValidations:
+          finalBreResult.incompleteValidations || [],
+      });
+    }
 
     return res.json({
       success: true,
-      message: "SRBH loan booking submitted successfully",
+      message: `SRBH loan booking submitted. Final BRE: ${
+        finalBreResult?.status || "Pending"
+      }`,
       lan: data.lan,
+      breStatus: finalBreResult?.status || "Pending",
+      breReason:
+        finalBreResult?.reason || "FINAL_BRE_RESULT_NOT_AVAILABLE",
+      bureauScore: finalBreResult?.bureauScore ?? null,
+      isNtc: finalBreResult?.isNtc ?? false,
+      productType: finalBreResult?.productType || productType,
+      reasons: finalBreResult?.reasons || [],
+      deviations: finalBreResult?.deviations || [],
+      validationStatuses: finalBreResult?.validationStatuses || [],
     });
   } catch (error) {
-    await connection.rollback();
+    if (transactionStarted) {
+      await connection.rollback();
+    }
 
     console.error("Final SRBH submit error:", error);
 
@@ -2173,7 +2588,8 @@ router.post("/save-applicant-details", async (req, res) => {
           guarantor_district = ?,
           guarantor_state = ?,
           guarantor_pincode = ?,
-          guarantor_mobile_verified = ?
+          guarantor_mobile_verified = ?,
+          guarantor_driving_licence = ?
         WHERE lan = ?
         `,
         [
@@ -2190,6 +2606,7 @@ router.post("/save-applicant-details", async (req, res) => {
           emptyToNull(data.GURANTOR_State),
           emptyToNull(data.GURANTOR_Pincode),
           data.guarantor_mobile_verified || 0,
+          emptyToNull(data.GURANTOR_Driving_Licence),
           lan,
         ]
       );
@@ -2211,7 +2628,8 @@ router.post("/save-applicant-details", async (req, res) => {
           co_applicant_district = ?,
           co_applicant_state = ?,
           co_applicant_pincode = ?,
-          co_applicant_mobile_verified = ?
+          co_applicant_mobile_verified = ?,
+          co_applicant_driving_licence = ?
         WHERE lan = ?
         `,
         [
@@ -2227,6 +2645,7 @@ router.post("/save-applicant-details", async (req, res) => {
           emptyToNull(data.Co_Applicant_State),
           emptyToNull(data.Co_Applicant_Pincode),
           data.co_applicant_mobile_verified || 0,
+          emptyToNull(data.Co_Applicant_Driving_Licence),
           lan,
         ]
       );
@@ -2344,6 +2763,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         lb.dob,
         lb.gender,
         lb.father_name,
+        lb.driving_licence,
 
         lb.permanent_address_line_1,
         lb.permanent_address_line_2,
@@ -2365,6 +2785,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         lb.flat_interest,
         lb.pre_emi_interest,
         lb.total_repayment,
+        lb.gps_charges,
 
         lb.guarantor_name,
         lb.guarantor_dob,
@@ -2379,6 +2800,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         lb.guarantor_district,
         lb.guarantor_state,
         lb.guarantor_pincode,
+        lb.guarantor_driving_licence,
 
         lb.co_applicant_name,
         lb.co_applicant_dob,
@@ -2392,6 +2814,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         lb.co_applicant_district,
         lb.co_applicant_state,
         lb.co_applicant_pincode,
+        lb.co_applicant_driving_licence,
 
         lb.customer_name_as_per_bank,
         lb.customer_bank_name,
@@ -2399,6 +2822,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         lb.bank_ifsc_code,
         lb.bank_status,
         lb.bank_account_type,
+        lb.bank_branch_address,
 
         lb.selected_dealer_application_id,
         lb.dealer_id,
@@ -2420,12 +2844,26 @@ router.get("/customer-details/:lan", async (req, res) => {
         lb.dealer_name_in_bank,
 
         lb.selected_product_id,
+        lb.product_type,
         lb.battery_name,
         lb.battery_type,
         lb.battery_serial_no_1,
         lb.battery_serial_no_2,
         lb.e_rikshaw_model,
         lb.chassis_no,
+
+        lb.insurance_cost,
+        lb.insurance_company_provider,
+        lb.insurance_policy_number,
+        lb.policy_issued_date,
+        lb.period_of_insurance,
+
+        lb.cost_of_vehicle,
+        lb.manufacturing_year,
+        lb.downpayment_paid_by_borrower,
+        lb.vehicle_registration_cost,
+        lb.sales_invoice_number,
+        lb.sales_invoice_date,
 
         lb.borrower_mobile_verified,
         lb.guarantor_mobile_verified,
@@ -2447,14 +2885,21 @@ router.get("/customer-details/:lan", async (req, res) => {
         lb.srbh_bre_reason,
         lb.srbh_bre_checked_at,
 
+        lb.srbh_bureau_screening_status,
+        lb.srbh_bureau_screening_reason,
+        lb.srbh_bureau_screening_checked_at,
+
         lb.fintree_cibil_score,
         lb.cibil_score,
         lb.srbh_enquiries_30d,
 
         lb.srbh_dpd_3m_flag,
         lb.srbh_dpd_6m_flag,
+        lb.srbh_overdue_3m_flag,
         lb.srbh_overdue_12m_flag,
         lb.srbh_written_off_3y_flag,
+        lb.srbh_60plus_6m_flag,
+        lb.srbh_90plus_6m_flag,
         lb.srbh_60plus_24m_flag,
         lb.srbh_90plus_36m_flag,
         lb.srbh_emi_overdue_amount,
@@ -2478,14 +2923,17 @@ router.get("/customer-details/:lan", async (req, res) => {
       LEFT JOIN kyc_verification_status borrower_kyc
         ON borrower_kyc.lan = lb.lan
         AND borrower_kyc.applicant_type = 'BORROWER'
+        AND borrower_kyc.party_no = 1
 
       LEFT JOIN kyc_verification_status guarantor_kyc
         ON guarantor_kyc.lan = lb.lan
         AND guarantor_kyc.applicant_type = 'GUARANTOR'
+        AND guarantor_kyc.party_no = 1
 
       LEFT JOIN kyc_verification_status co_kyc
         ON co_kyc.lan = lb.lan
         AND co_kyc.applicant_type = 'CO_APPLICANT'
+        AND co_kyc.party_no = 1
 
       WHERE lb.lan = ?
       LIMIT 1
@@ -2516,6 +2964,7 @@ router.get("/customer-details/:lan", async (req, res) => {
       dob: row.dob,
       gender: row.gender,
       father_name: row.father_name,
+      driving_licence: row.driving_licence,
 
       permanent_address: {
         address_line_1: row.permanent_address_line_1,
@@ -2540,6 +2989,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         flat_interest: row.flat_interest,
         pre_emi_interest: row.pre_emi_interest,
         total_repayment: row.total_repayment,
+        gps_charges: row.gps_charges,
       },
 
       guarantor: {
@@ -2549,6 +2999,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         mobile: row.guarantor_mobile,
         email: row.guarantor_email,
         relationship_with_borrower: row.relationship_with_borrower,
+        driving_licence: row.guarantor_driving_licence,
 
         address: {
           address_line_1: row.guarantor_address_line_1,
@@ -2566,6 +3017,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         pan: row.co_applicant_pan,
         mobile: row.co_applicant_mobile,
         email: row.co_applicant_email,
+        driving_licence: row.co_applicant_driving_licence,
 
         address: {
           address_line_1: row.co_applicant_address_line_1,
@@ -2584,6 +3036,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         bank_ifsc_code: row.bank_ifsc_code,
         bank_status: row.bank_status,
         bank_account_type: row.bank_account_type,
+        bank_branch_address: row.bank_branch_address,
       },
 
       dealer_details: {
@@ -2609,12 +3062,30 @@ router.get("/customer-details/:lan", async (req, res) => {
 
       product_details: {
         selected_product_id: row.selected_product_id,
+        product_type: row.product_type,
         battery_name: row.battery_name,
         battery_type: row.battery_type,
         battery_serial_no_1: row.battery_serial_no_1,
         battery_serial_no_2: row.battery_serial_no_2,
         e_rikshaw_model: row.e_rikshaw_model,
         chassis_no: row.chassis_no,
+      },
+
+      insurance_details: {
+        insurance_cost: row.insurance_cost,
+        insurance_company_provider: row.insurance_company_provider,
+        insurance_policy_number: row.insurance_policy_number,
+        policy_issued_date: row.policy_issued_date,
+        period_of_insurance: row.period_of_insurance,
+      },
+
+      vehicle_details: {
+        cost_of_vehicle: row.cost_of_vehicle,
+        manufacturing_year: row.manufacturing_year,
+        downpayment_paid_by_borrower: row.downpayment_paid_by_borrower,
+        vehicle_registration_cost: row.vehicle_registration_cost,
+        sales_invoice_number: row.sales_invoice_number,
+        sales_invoice_date: row.sales_invoice_date,
       },
 
       verification_status: {
@@ -2671,9 +3142,12 @@ router.get("/customer-details/:lan", async (req, res) => {
 
       dpd_3m_flag: row.srbh_dpd_3m_flag,
       dpd_6m_flag: row.srbh_dpd_6m_flag,
+      overdue_3m_flag: row.srbh_overdue_3m_flag,
       overdue_12m_flag: row.srbh_overdue_12m_flag,
       written_off_3y_flag: row.srbh_written_off_3y_flag,
 
+      dpd_60plus_6m_flag: row.srbh_60plus_6m_flag,
+      dpd_90plus_6m_flag: row.srbh_90plus_6m_flag,
       dpd_60plus_24m_flag: row.srbh_60plus_24m_flag,
       dpd_90plus_36m_flag: row.srbh_90plus_36m_flag,
 
@@ -2687,9 +3161,16 @@ router.get("/customer-details/:lan", async (req, res) => {
       bre_checked_at: row.srbh_bre_checked_at,
     };
 
+    const bureauScreening = {
+      status: row.srbh_bureau_screening_status,
+      reason: row.srbh_bureau_screening_reason,
+      checked_at: row.srbh_bureau_screening_checked_at,
+    };
+
     return res.json({
       loan,
       bre,
+      bureau_screening: bureauScreening,
     });
   } catch (err) {
     console.error("❌ Error fetching SRBH details:", err);

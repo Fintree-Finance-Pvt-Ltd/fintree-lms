@@ -365,7 +365,7 @@ const SRBHApprovedLoans = ({
             fontWeight: 600,
             cursor: "pointer",
           }}
-          onClick={() => nav(`/approved-loan-details-helium/${r.lan}`)}
+          onClick={() => nav(`/srbh/customer-details?lan=${r.lan}`)}
         >
           {r.customer_name ?? "—"}
         </span>

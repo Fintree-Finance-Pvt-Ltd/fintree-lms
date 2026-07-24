@@ -88,7 +88,13 @@ const AllLoansScreen = ({
       render: (r) => (
         <span
           className="customer-name-link"
-          onClick={() => nav(`/loan-details/${r.lan}`)}
+          onClick={() => {
+            if (/^SHL/i.test(r.lan)) {
+              nav(`/srbh/customer-details?lan=${r.lan}`);
+            } else {
+              nav(`/loan-details/${r.lan}`);
+            }
+          }}
         >
           {r.customer_name ?? r.pan_name ?? "—"}
         </span>

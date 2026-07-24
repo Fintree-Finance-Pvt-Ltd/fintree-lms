@@ -10,7 +10,6 @@ console.log("🔥 Login route hit with body:", req.body);
  const { email, password } = req.body;
 
   db.query('SELECT * FROM users WHERE email = ?', [email], async (err, results) => {
-	console.log("inside the query");
     if (err) return res.status(500).json({ message: 'Database error' });
     if (!results.length) return res.status(401).json({ message: 'Invalid credentials' });
 

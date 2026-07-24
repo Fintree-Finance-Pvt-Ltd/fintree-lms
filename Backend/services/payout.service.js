@@ -7,6 +7,7 @@ const {
   processRapidMoneyDisbursement,
   processLoanDigitDisbursement,
   processFinsoDisbursement,
+  processCarePayDisbursement,
 } = require("../services/processEmiClubDisbursement");
 
 const { sendDisbursementWebhook } = require("../routes/switchMyLoan/switchMyLoanWebhook");
@@ -16,6 +17,7 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_switch_my_loan",
   "loan_booking_loan_digit",
   "loan_booking_finso",
+  "loan_booking_carepay",
 ];
 
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
@@ -104,6 +106,21 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
           ifsc
         FROM loan_booking_finso
         WHERE lan = ?
+        LIMIT 1
+      `;
+    }
+
+    if (table === "loan_booking_carepay") {
+      loanQuery = `
+        SELECT
+          h.account_holder_name AS beneficiary_name,
+          lb.net_disbursement AS loan_amount,
+          h.account_number AS account_number,
+          h.ifsc_code AS ifsc
+        FROM loan_booking_carepay lb
+        INNER JOIN carepay_hospital_booking h
+          ON h.lan = lb.hospital_lan
+        WHERE lb.lan = ?
         LIMIT 1
       `;
     }
@@ -390,6 +407,12 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       });
     } else if (table === "loan_booking_finso") {
       await processFinsoDisbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
+    } else if (table === "loan_booking_carepay") {
+      await processCarePayDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),

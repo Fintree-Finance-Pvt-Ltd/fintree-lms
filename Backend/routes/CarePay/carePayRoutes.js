@@ -11,6 +11,7 @@ const { runBureau } = require("../../services/Bueraupullapiservice");
 const createHospitalRoutes = require("./hospitalRoutes");
 const createCarePayEsignRoutes = require("./esignRoutes");
 const { evaluateCarePayLoginBre } = require("./carePayBreEngine");
+const { approveAndInitiatePayout } = require("../../services/payout.service");
 
 const router = express.Router();
 const loanBookingRouter = express.Router();
@@ -96,6 +97,253 @@ loanBookingRouter.use(
 );
 
 loanBookingRouter.use(createCarePayEsignRoutes());
+
+async function fetchCarePayOpsCheckerLoan(lan) {
+  const [[row]] = await db.promise().query(
+    `SELECT lan, partner_loan_id, status
+     FROM loan_booking_carepay
+     WHERE lan = ?
+     LIMIT 1`,
+    [lan],
+  );
+
+  return row || null;
+}
+
+async function getCarePayOpsCheckerColumns() {
+  const [rows] = await db.promise().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'loan_booking_carepay'
+       AND COLUMN_NAME IN ('ops_checker_id', 'ops_checker_name')`,
+  );
+
+  return new Set(rows.map((row) => row.COLUMN_NAME));
+}
+
+async function updateCarePayOpsCheckerStatus({
+  lan,
+  status,
+  opsCheckerId = null,
+  opsCheckerName = null,
+}) {
+  const fields = ["status = ?"];
+  const params = [status];
+  const columns = await getCarePayOpsCheckerColumns();
+
+  if (columns.has("ops_checker_id")) {
+    fields.push("ops_checker_id = ?");
+    params.push(opsCheckerId || null);
+  }
+
+  if (columns.has("ops_checker_name")) {
+    fields.push("ops_checker_name = ?");
+    params.push(opsCheckerName || null);
+  }
+
+  const [result] = await db.promise().query(
+    `UPDATE loan_booking_carepay
+     SET ${fields.join(", ")}
+     WHERE lan = ?`,
+    [...params, lan],
+  );
+
+  return result;
+}
+
+async function fetchCarePayOpsL2DisburseInitiateLoans(req, res) {
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT *
+       FROM loan_booking_carepay
+       WHERE LOWER(status) = 'disburse initiate'
+       ORDER BY LAN DESC`,
+    );
+
+    return res.json({ data: rows });
+  } catch (err) {
+    console.error("CarePay ops L2 disburse-initiate loans fetch error:", err);
+
+    return res.status(500).json({
+      status: "FAILED",
+      message: "Unable to fetch CarePay disburse initiated loans",
+    });
+  }
+}
+
+loanBookingRouter.get(
+  "/v1/carepay-ops-l2-disburse-initiate-loans",
+  fetchCarePayOpsL2DisburseInitiateLoans,
+);
+
+loanBookingRouter.get(
+  "/v1/carepay-ops-maker-approved-loans",
+  fetchCarePayOpsL2DisburseInitiateLoans,
+);
+
+loanBookingRouter.put("/v1/carepay-ops-l1-status/:lan", async (req, res) => {
+  const { lan } = req.params;
+  const { ops_checker_id, ops_checker_name, status } = req.body || {};
+  const requestedStatus = String(status || "").trim();
+  const normalizedStatus = requestedStatus.toLowerCase();
+
+  if (!["disburse initiate", "rejected"].includes(normalizedStatus)) {
+    return res.status(400).json({
+      status: "FAILED",
+      message: "Invalid CarePay Ops L1 status",
+    });
+  }
+
+  try {
+    const loan = await fetchCarePayOpsCheckerLoan(lan);
+
+    if (!loan) {
+      return res.status(404).json({
+        status: "FAILED",
+        message: "CarePay loan not found",
+      });
+    }
+
+    if (String(loan.status || "").toLowerCase() !== "approved") {
+      return res.status(409).json({
+        status: "FAILED",
+        message: "Only Approved CarePay loans can be handled by Ops L1",
+      });
+    }
+
+    const finalStatus =
+      normalizedStatus === "disburse initiate"
+        ? "Disburse initiate"
+        : "rejected";
+
+    const result = await updateCarePayOpsCheckerStatus({
+      lan,
+      status: finalStatus,
+      opsCheckerId: ops_checker_id,
+      opsCheckerName: ops_checker_name,
+    });
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        status: "FAILED",
+        message: "CarePay loan not found",
+      });
+    }
+
+    return res.json({
+      status: "SUCCESS",
+      lan,
+      final_status: finalStatus,
+      message:
+        finalStatus === "Disburse initiate"
+          ? "Loan moved to disburse initiate successfully"
+          : "Loan rejected successfully",
+    });
+  } catch (err) {
+    console.error("CarePay ops L1 status update error:", err);
+
+    return res.status(500).json({
+      status: "FAILED",
+      message: err.message || "Failed to update CarePay Ops L1 status",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+loanBookingRouter.put("/v1/carepay-ops-checker-approved-loan/:lan", async (req, res) => {
+  const { lan } = req.params;
+  const { ops_checker_id, ops_checker_name, status } = req.body || {};
+  const requestedStatus = String(status || "").trim();
+
+  try {
+    const loan = await fetchCarePayOpsCheckerLoan(lan);
+
+    if (!loan) {
+      return res.status(404).json({
+        status: "FAILED",
+        message: "CarePay loan not found",
+      });
+    }
+
+    if (String(loan.status || "").toLowerCase() !== "disburse initiate") {
+      return res.status(409).json({
+        status: "FAILED",
+        message: "Only disburse initiated CarePay loans can be handled by Ops L2",
+      });
+    }
+
+    if (requestedStatus === "OPS_REJECTED") {
+      const result = await updateCarePayOpsCheckerStatus({
+        lan,
+        status: "OPS_REJECTED",
+        opsCheckerId: ops_checker_id,
+        opsCheckerName: ops_checker_name,
+      });
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          status: "FAILED",
+          message: "CarePay loan not found",
+        });
+      }
+
+      return res.json({
+        status: "SUCCESS",
+        message: "Loan rejected by operations checker successfully",
+      });
+    }
+
+    if (ops_checker_id || ops_checker_name) {
+      const result = await updateCarePayOpsCheckerStatus({
+        lan,
+        status: "Disburse initiate",
+        opsCheckerId: ops_checker_id,
+        opsCheckerName: ops_checker_name,
+      });
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          status: "FAILED",
+          message: "CarePay loan not found",
+        });
+      }
+    }
+    const payoutResult = await approveAndInitiatePayout({
+      lan,
+      table: "loan_booking_carepay",
+    });
+
+    if (!payoutResult.success) {
+      return res.status(400).json({
+        status: "FAILED",
+        message: payoutResult.message || "Payout initiation failed",
+      });
+    }
+
+    const finalPayoutStatuses = new Set(["success", "completed", "processed"]);
+    const isPayoutFinal = finalPayoutStatuses.has(
+      String(payoutResult.payout_status || "").toLowerCase(),
+    );
+    const finalStatus = isPayoutFinal ? "Disbursed" : "Disburse initiate";
+
+    return res.json({
+      status: "SUCCESS",
+      final_status: finalStatus,
+      payout_status: payoutResult.payout_status || null,
+      message:
+        "Loan approved by operations checker and payout initiated successfully",
+    });
+  } catch (err) {
+    console.error("CarePay ops checker approve error:", err);
+
+    return res.status(500).json({
+      status: "FAILED",
+      message: err.message || "Failed to approve loan by operations checker",
+      error: err.sqlMessage || err.message,
+    });
+  }
+});
 
 async function fetchCarePayCaseStatus({ lan, partnerLoanId }) {
   const whereClause = lan ? "lan = ?" : "partner_loan_id = ?";
@@ -843,25 +1091,25 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       partnerName,
     );
 
-    // const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-    //   conn,
-    //   partner.partner_id,
-    //   requestAmount,
-    //   month,
-    //   year,
-    // );
+    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
+      conn,
+      partner.partner_id,
+      requestAmount,
+      month,
+      year,
+    );
 
-    // if (!limitCheck.valid) {
-    //   await conn.rollback();
-    //   conn.release();
-    //   conn = null;
+    if (!limitCheck.valid) {
+      await conn.rollback();
+      conn.release();
+      conn = null;
 
-    //   return res.status(403).json({
-    //     message: "Monthly partner limit exceeded",
-    //     remaining_limit: limitCheck.remaining,
-    //     required: requestAmount,
-    //   });
-    // }
+      return res.status(403).json({
+        message: "Monthly partner limit exceeded",
+        remaining_limit: limitCheck.remaining,
+        required: requestAmount,
+      });
+    }
 
     const { lan } = await generateLoanIdentifiers(lenderType);
     let breDecision = evaluateCarePayLoginBre({
@@ -974,12 +1222,12 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       values,
     );
 
-    // await partnerLimitService.updateBookedLimit(
-    //   conn,
-    //   limitCheck.limitId,
-    //   requestAmount,
-    //   lan,
-    // );
+    await partnerLimitService.updateBookedLimit(
+      conn,
+      limitCheck.limitId,
+      requestAmount,
+      lan,
+    );
 
     await conn.commit();
     conn.release();

@@ -2055,13 +2055,6 @@ router.get("/login-loans", (req, res) => {
       WHERE status in ('Login', 'Credit Initiated')
         AND LAN LIKE ?
     `;
-  } else if (table === "loan_booking_carepay") {
-    query = `
-      SELECT *
-      FROM ??
-      WHERE status IN ('Login', 'BRE Approved')
-        AND LAN LIKE ?
-    `;
   } else {
     // ✅ Other lenders unchanged
     query = `
@@ -2231,8 +2224,13 @@ router.get("/approve-initiate-loans", async (req, res) => {
       ? [`%${search}%`, `%${search}%`, `%${search}%`]
       : [];
 
-    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE lb.status = 'Disburse initiate' AND lb.LAN LIKE ?${searchClause}`;
-    const dataSql = `SELECT lb.* FROM ?? lb WHERE lb.status = 'Disburse initiate' AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
+    const statusFilter =
+      table === "loan_booking_carepay"
+        ? `LOWER(lb.status) = 'disburse initiate'`
+        : `lb.status = 'Disburse initiate'`;
+
+    const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause}`;
+    const dataSql = `SELECT lb.* FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
 
     const [[countRows], [rows]] = await Promise.all([
       db.promise().query(countSql, [table, likeVal, ...searchParams]),
@@ -2459,6 +2457,8 @@ router.get("/approved-loans", async (req, res) => {
     const statusFilter =
       table === "loan_booking_switch_my_loan"
         ? `lb.status IN ('Approved', 'BRE_APPROVED')`
+        : table === "loan_booking_carepay"
+          ? `LOWER(lb.status) = 'approved'`
         : `lb.status = 'Approved'`;
     const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause}`;
     const dataSql = `SELECT lb.* FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;

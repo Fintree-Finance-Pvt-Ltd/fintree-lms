@@ -26,9 +26,6 @@ async function main() {
 
   const loan = rows[0];
 
-  console.log("📄 Loan Data Found:");
-  console.log(loan);
-
   // Format DOB properly
   let dobStr = loan.dob;
   if (loan.dob instanceof Date) {
@@ -52,18 +49,7 @@ async function main() {
     loan_tenure: loan.loan_tenure,
   };
 
-  console.log("\n🚀 Running Bureau with Payload:");
-  console.log(payload);
-
   const result = await runBureau(payload);
-
-  console.log("\n==============================");
-  console.log("📌 BUREAU RESULT");
-  console.log("==============================");
-
-  console.log("✔ Success:", result.success);
-  console.log("✔ Score:", result.score);
-  console.log("✔ XML Report:\n", result.response);
 
    try {
     await db.promise().query(
