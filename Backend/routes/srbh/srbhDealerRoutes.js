@@ -7,7 +7,7 @@ const FormData = require("form-data");
 const db = require("../../config/db");
 const {
   universalRunAllValidations,
-  runApplicantValidation,
+  runApplicantValidation
 } = require("../../utils/runValiationsEngine");
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
 const {
