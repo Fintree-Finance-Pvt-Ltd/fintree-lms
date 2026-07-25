@@ -2101,6 +2101,7 @@ router.post("/update-umrn", (req, res) => {
     loan_booking_hey_ev_battery: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
+    loan_booking_srbh: true,
   };
 
   if (!allowedTables[table]) {
@@ -6296,7 +6297,8 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
   try {
     const [rows] = await db.promise().query(
       // `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
-      `SELECT * FROM loan_booking_clayyo WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+      // `SELECT * FROM loan_booking_loan_digit WHERE fintree_cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
+      // `SELECT * FROM loan_booking_clayyo WHERE cibil_score IS NULL ORDER BY lan DESC LIMIT ?`,
       [limit],
     );
 
