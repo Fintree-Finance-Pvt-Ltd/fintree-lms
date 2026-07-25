@@ -19,15 +19,69 @@ const {
 //   autoApproveFundifyIfAllVerified
 // } = require("../routes/Fundify/fundigyBRE");
 
+const joinAddress = (...parts) =>
+  parts
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(", ");
+
+const extractBureauReportXml = (response) => {
+  if (!response) {
+    return null;
+  }
+
+  const candidates = [
+    response,
+    response.data,
+    response.response,
+    response.result,
+    response.payload,
+
+    response.report_xml,
+    response.reportXml,
+    response.xml,
+    response.rawXml,
+    response.raw_response,
+
+    response.data?.report_xml,
+    response.data?.reportXml,
+    response.data?.xml,
+    response.data?.rawXml,
+    response.data?.response,
+
+    response.response?.report_xml,
+    response.response?.xml,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") {
+      continue;
+    }
+
+    const value = candidate.trim();
+
+    if (value.startsWith("<") && value.includes(">")) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
 async function runApplicantValidation({
   pool,
   lan,
   table,
   applicantType,
   applicantData,
+  validations = {},
 }) {
   try {
     console.log(`🚀 Running ${applicantType} validations for ${lan}`);
+
+    const runPanValidation = validations.pan !== false;
+    const runAadhaarValidation = validations.aadhaar !== false;
+    const runBureauValidation = validations.bureau !== false;
 
     // Ensure row exists
     await pool.query(
@@ -83,7 +137,10 @@ async function runApplicantValidation({
     // PAN VALIDATION
     // =========================
 
-    if (shouldRunValidation(currentStatus.pan_status)) {
+    if (
+      runPanValidation &&
+      shouldRunValidation(currentStatus.pan_status)
+    ) {
       await pool.query(
         `
         UPDATE kyc_verification_status
@@ -132,10 +189,12 @@ async function runApplicantValidation({
         `📌 ${applicantType} PAN:`,
         panResult.success ? "VERIFIED" : "FAILED",
       );
-    } else {
+    } else if (runPanValidation) {
       console.log(
         `⏭️ ${applicantType} PAN skipped. Existing status: ${currentStatus.pan_status}`,
       );
+    } else {
+      console.log(`⏭️ ${applicantType} PAN skipped for this request`);
     }
 
     // =========================
@@ -152,6 +211,7 @@ async function runApplicantValidation({
       currentStatus.aadhaar_unique_id;
 
     if (
+      runAadhaarValidation &&
       shouldRunValidation(currentAadhaarStatus) &&
       !hasExistingAadhaarSession
     ) {
@@ -207,19 +267,24 @@ async function runApplicantValidation({
 
         console.log(`❌ ${applicantType} Aadhaar Failed`);
       }
-    } else {
+    } else if (runAadhaarValidation) {
       console.log(
         `⏭️ ${applicantType} Aadhaar skipped. Existing status: ${
           currentStatus.aadhaar_status || "EMPTY"
         }`,
       );
+    } else {
+      console.log(`⏭️ ${applicantType} Aadhaar skipped for this request`);
     }
 
     // =========================
     // BUREAU
     // =========================
 
-    if (shouldRunValidation(currentStatus.bureau_status)) {
+    if (
+      runBureauValidation &&
+      shouldRunValidation(currentStatus.bureau_status)
+    ) {
       await pool.query(
         `
         UPDATE kyc_verification_status
@@ -263,6 +328,8 @@ async function runApplicantValidation({
         };
       });
 
+      const bureauReportXml = extractBureauReportXml(bureauResult.response);
+
       await pool.query(
         `
         UPDATE kyc_verification_status
@@ -297,7 +364,7 @@ async function runApplicantValidation({
           applicantType,
           applicantData.pan_number,
           bureauResult.score,
-          bureauResult.response ? String(bureauResult.response) : null,
+          bureauReportXml,
         ],
       );
 
@@ -316,17 +383,21 @@ async function runApplicantValidation({
           [bureauResult.score, lan],
         );
       }
-    } else {
+    } else if (runBureauValidation) {
       console.log(
         `⏭️ ${applicantType} Bureau skipped. Existing status: ${currentStatus.bureau_status}`,
       );
+    } else {
+      console.log(`⏭️ ${applicantType} Bureau skipped for this request`);
     }
   } catch (err) {
     console.error(`❌ ${applicantType} Validation Failed:`, err);
   }
 }
 
-exports.universalRunAllValidations = async (lan) => {
+exports.runApplicantValidation = runApplicantValidation;
+
+exports.universalRunAllValidations = async (lan, options = {}) => {
   try {
     console.log(`🚀 Starting Validation Engine for ${lan}`);
 
@@ -519,9 +590,9 @@ exports.universalRunAllValidations = async (lan) => {
       await autoApproveBundelaIfAllVerified(lan);
       console.log(`✅ Bundela BRE finished for ${lan}`);
     }
-    if (lan.startsWith("SH")) {
+    if (lan.startsWith("SH") && !options.skipSrbhFinalBre) {
       console.log(`🚀 Running SRBH BRE for ${lan}`);
-      await autoApproveBundelaIfAllVerified(lan);
+      await autoApproveSrbhIfAllVerified(lan);
       console.log(`✅ SRBH BRE finished for ${lan}`);
     }
     console.log(`✅ Validation Engine Completed for ${lan}`);
