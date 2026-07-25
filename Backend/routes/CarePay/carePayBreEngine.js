@@ -31,6 +31,84 @@ const calculateCarePayAge = (dob, fallbackAge) => {
   return age;
 };
 
+const toNumber = (value, fallback = null) => {
+  if (!isProvided(value)) return fallback;
+  const num = Number(String(value).replace(/,/g, ""));
+  return Number.isFinite(num) ? num : fallback;
+};
+
+const toArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (!isProvided(value)) return [];
+  return [value];
+};
+
+const monthsDiff = (from, to) => {
+  if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    return null;
+  }
+  return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+};
+
+const extractCarePayBureauDpd = (bureauResponse) => {
+  if (!bureauResponse || typeof bureauResponse !== "object") {
+    return null;
+  }
+
+  const profile = bureauResponse?.INProfileResponse;
+  if (!profile || typeof profile !== "object") {
+    return null;
+  }
+
+  const accounts = toArray(profile?.CAIS_Account?.CAIS_Account_DETAILS);
+  if (!accounts.length) {
+    return null;
+  }
+
+  const now = new Date();
+  let hasDpd3M = false;
+  let hasDpd6M = false;
+  let has60Plus6M = false;
+  let has90Plus6M = false;
+  let maxDpd = 0;
+
+  for (const account of accounts) {
+    const histories = toArray(account?.CAIS_Account_History);
+
+    for (const history of histories) {
+      const year = toNumber(history?.Year, null);
+      const month = toNumber(history?.Month, null);
+      const dpd = toNumber(history?.Days_Past_Due, 0);
+
+      if (!year || !month) continue;
+
+      const historyDate = new Date(year, month - 1, 1);
+      const monthsAgo = monthsDiff(historyDate, now);
+
+      if (monthsAgo === null || monthsAgo < 0) continue;
+
+      if (dpd > 0) {
+        if (monthsAgo < 3) hasDpd3M = true;
+        if (monthsAgo < 6) {
+          hasDpd6M = true;
+          if (dpd >= 60) has60Plus6M = true;
+          if (dpd >= 90) has90Plus6M = true;
+        }
+      }
+
+      if (dpd > maxDpd) maxDpd = dpd;
+    }
+  }
+
+  return {
+    has_dpd_3m: hasDpd3M,
+    has_dpd_6m: hasDpd6M,
+    has_60plus_dpd_6m: has60Plus6M,
+    has_90plus_dpd_6m: has90Plus6M,
+    max_dpd: maxDpd,
+  };
+};
+
 const getCarePayPolicy = (loanType) => {
   const normalizedLoanType = String(loanType || "")
     .trim()
@@ -128,8 +206,8 @@ const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null }) =>
 };
 
 
-const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision }) => {
-  const policy = getCarePayPolicy(data.loan_type); // export this helper or duplicate the call
+const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision, bureauResponse = null }) => {
+  const policy = getCarePayPolicy(data.loan_type);
 
   const age = calculateCarePayAge(data.dob, data.age);
   const tenure = toFiniteNumber(data.loan_tenure);
@@ -145,6 +223,8 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision })
     .trim()
     .toLowerCase()
     .includes("ntc");
+
+  const dpdFacts = extractCarePayBureauDpd(bureauResponse);
 
   return {
     evaluated_at: new Date().toISOString(),
@@ -173,6 +253,7 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision })
       annual_income: annualIncome,
       bureau_score: score,
       is_ntc_customer: isNtcCustomer,
+      dpd: dpdFacts,
     },
 
     // policy applied for this loan_type

@@ -1282,6 +1282,7 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
         requestAmount,
         bureauScore: bureauResult.score,
         decision: breDecision,
+        bureauResponse: bureauResult.response,
       });
       // always update snapshot (and status if it flipped to Rejected)
       await db.promise().query(
