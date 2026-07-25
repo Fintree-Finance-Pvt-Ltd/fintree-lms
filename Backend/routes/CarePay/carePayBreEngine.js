@@ -127,6 +127,73 @@ const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null }) =>
   };
 };
 
+
+const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision }) => {
+  const policy = getCarePayPolicy(data.loan_type); // export this helper or duplicate the call
+
+  const age = calculateCarePayAge(data.dob, data.age);
+  const tenure = toFiniteNumber(data.loan_tenure);
+  const amount = toFiniteNumber(requestAmount);
+  const annualIncome = normalizeCarePayAnnualIncome(data);
+
+  const score =
+    toFiniteNumber(bureauScore) ??
+    toFiniteNumber(data.cibil_score) ??
+    toFiniteNumber(data.cibil_score_fintree);
+
+  const isNtcCustomer = String(data.customer_type || "")
+    .trim()
+    .toLowerCase()
+    .includes("ntc");
+
+  return {
+    evaluated_at: new Date().toISOString(),
+
+    // raw inputs used by BRE
+    inputs: {
+      loan_type: data.loan_type ?? null,
+      dob: data.dob ?? null,
+      age_supplied: data.age ?? null,
+      loan_tenure: data.loan_tenure ?? null,
+      request_amount: requestAmount ?? null,
+      annual_income: data.annual_income ?? null,
+      monthly_income: data.monthly_income ?? null,
+      net_monthly_income: data.net_monthly_income ?? null,
+      cibil_score: data.cibil_score ?? null,
+      cibil_score_fintree: data.cibil_score_fintree ?? null,
+      bureau_score_used: bureauScore ?? null,
+      customer_type: data.customer_type ?? null,
+    },
+
+    // values the engine actually computed / normalised
+    computed: {
+      age,
+      tenure,
+      amount,
+      annual_income: annualIncome,
+      bureau_score: score,
+      is_ntc_customer: isNtcCustomer,
+    },
+
+    // policy applied for this loan_type
+    policy,
+
+    // decision
+    decision: {
+      status: decision.status,       // BRE APPROVED | BRE FAILED
+      caseStatus: decision.caseStatus, // Approved | Rejected
+      reason: decision.reason,
+      reasons: decision.reasons,
+    },
+  };
+};
+
 module.exports = {
   evaluateCarePayLoginBre,
+  buildBreSnapshot,
+  getCarePayPolicy,
+  calculateCarePayAge,
+  normalizeCarePayAnnualIncome,
+  toFiniteNumber,
+  isProvided,
 };
