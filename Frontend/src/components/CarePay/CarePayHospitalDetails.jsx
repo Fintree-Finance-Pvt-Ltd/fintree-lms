@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/api";
 
@@ -78,10 +78,16 @@ const CarePayHospitalDetails = () => {
   return (
     <div className="carepay-detail-page">
       <header className="carepay-detail-header">
-        <button type="button" onClick={() => navigate(-1)}>
-          <ArrowLeft size={17} />
-          Back
-        </button>
+        <div className="carepay-detail-actions">
+          <button type="button" onClick={() => navigate(-1)}>
+            <ArrowLeft size={17} />
+            Back
+          </button>
+          <button type="button" onClick={() => navigate(`/documents/${lan}`)}>
+            <FileText size={17} />
+            Upload Documents
+          </button>
+        </div>
         <div>
           <p>CarePay Hospital Profile</p>
           <h1>{hospital.hospital_legal_name || lan}</h1>
@@ -167,6 +173,13 @@ const CarePayHospitalDetails = () => {
           color: #0f2b5b;
           font-weight: 800;
           cursor: pointer;
+        }
+
+        .carepay-detail-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
         }
 
         .carepay-detail-header p {

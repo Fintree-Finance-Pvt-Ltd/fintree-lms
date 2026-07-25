@@ -238,31 +238,7 @@ const Sidebar = () => {
  
   if (!user) return null;
  
-  const hiddenPagePaths = new Set([
-    "/carepay-loans/login-cases",
-    "/carepay-loans/login-actions",
-  ]);
-
-  const visiblePages = (user.pages || []).filter(
-    (page) => !hiddenPagePaths.has(page.path),
-  );
-  const hasCarePayAccess = visiblePages.some((page) =>
-    page.path?.includes("/carepay-loans"),
-  );
-  const hasCarePayOpsChecker = visiblePages.some(
-    (page) => page.path === "/carepay-loans/ops-checker",
-  );
-  const allowedPages =
-    hasCarePayAccess && !hasCarePayOpsChecker
-      ? [
-          ...visiblePages,
-          {
-            id: "carepay-ops-checker",
-            name: "CarePay Ops Checker",
-            path: "/carepay-loans/ops-checker",
-          },
-        ]
-      : visiblePages;
+  const allowedPages = user.pages || [];
 //console.log("User Pages:", allowedPages);
   const grouped = {
     LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/motion-corp', '/loan-digit', '/rapidmoney-loans', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh'].some(prefix => p.path.includes(prefix))),

@@ -10,7 +10,10 @@ const {
 const { runBureau } = require("../../services/Bueraupullapiservice");
 const createHospitalRoutes = require("./hospitalRoutes");
 const createCarePayEsignRoutes = require("./esignRoutes");
-const { evaluateCarePayLoginBre } = require("./carePayBreEngine");
+const {
+  evaluateCarePayLoginBre,
+  buildBreSnapshot,
+} = require("./carePayBreEngine");
 const { approveAndInitiatePayout } = require("../../services/payout.service");
 
 const router = express.Router();
@@ -251,99 +254,107 @@ loanBookingRouter.put("/v1/carepay-ops-l1-status/:lan", async (req, res) => {
   }
 });
 
-loanBookingRouter.put("/v1/carepay-ops-checker-approved-loan/:lan", async (req, res) => {
-  const { lan } = req.params;
-  const { ops_checker_id, ops_checker_name, status } = req.body || {};
-  const requestedStatus = String(status || "").trim();
+loanBookingRouter.put(
+  "/v1/carepay-ops-checker-approved-loan/:lan",
+  async (req, res) => {
+    const { lan } = req.params;
+    const { ops_checker_id, ops_checker_name, status } = req.body || {};
+    const requestedStatus = String(status || "").trim();
 
-  try {
-    const loan = await fetchCarePayOpsCheckerLoan(lan);
+    try {
+      const loan = await fetchCarePayOpsCheckerLoan(lan);
 
-    if (!loan) {
-      return res.status(404).json({
-        status: "FAILED",
-        message: "CarePay loan not found",
-      });
-    }
-
-    if (String(loan.status || "").toLowerCase() !== "disburse initiate") {
-      return res.status(409).json({
-        status: "FAILED",
-        message: "Only disburse initiated CarePay loans can be handled by Ops L2",
-      });
-    }
-
-    if (requestedStatus === "OPS_REJECTED") {
-      const result = await updateCarePayOpsCheckerStatus({
-        lan,
-        status: "OPS_REJECTED",
-        opsCheckerId: ops_checker_id,
-        opsCheckerName: ops_checker_name,
-      });
-
-      if (result.affectedRows === 0) {
+      if (!loan) {
         return res.status(404).json({
           status: "FAILED",
           message: "CarePay loan not found",
         });
       }
+
+      if (String(loan.status || "").toLowerCase() !== "disburse initiate") {
+        return res.status(409).json({
+          status: "FAILED",
+          message:
+            "Only disburse initiated CarePay loans can be handled by Ops L2",
+        });
+      }
+
+      if (requestedStatus === "OPS_REJECTED") {
+        const result = await updateCarePayOpsCheckerStatus({
+          lan,
+          status: "OPS_REJECTED",
+          opsCheckerId: ops_checker_id,
+          opsCheckerName: ops_checker_name,
+        });
+
+        if (result.affectedRows === 0) {
+          return res.status(404).json({
+            status: "FAILED",
+            message: "CarePay loan not found",
+          });
+        }
+
+        return res.json({
+          status: "SUCCESS",
+          message: "Loan rejected by operations checker successfully",
+        });
+      }
+
+      if (ops_checker_id || ops_checker_name) {
+        const result = await updateCarePayOpsCheckerStatus({
+          lan,
+          status: "Disburse initiate",
+          opsCheckerId: ops_checker_id,
+          opsCheckerName: ops_checker_name,
+        });
+
+        if (result.affectedRows === 0) {
+          return res.status(404).json({
+            status: "FAILED",
+            message: "CarePay loan not found",
+          });
+        }
+      }
+      const payoutResult = await approveAndInitiatePayout({
+        lan,
+        table: "loan_booking_carepay",
+      });
+
+      if (!payoutResult.success) {
+        return res.status(400).json({
+          status: "FAILED",
+          message: payoutResult.message || "Payout initiation failed",
+        });
+      }
+
+      const finalPayoutStatuses = new Set([
+        "success",
+        "completed",
+        "processed",
+      ]);
+      const isPayoutFinal = finalPayoutStatuses.has(
+        String(payoutResult.payout_status || "").toLowerCase(),
+      );
+      const finalStatus = isPayoutFinal ? "Disbursed" : "Disburse initiate";
 
       return res.json({
         status: "SUCCESS",
-        message: "Loan rejected by operations checker successfully",
+        final_status: finalStatus,
+        payout_status: payoutResult.payout_status || null,
+        message:
+          "Loan approved by operations checker and payout initiated successfully",
       });
-    }
+    } catch (err) {
+      console.error("CarePay ops checker approve error:", err);
 
-    if (ops_checker_id || ops_checker_name) {
-      const result = await updateCarePayOpsCheckerStatus({
-        lan,
-        status: "Disburse initiate",
-        opsCheckerId: ops_checker_id,
-        opsCheckerName: ops_checker_name,
-      });
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json({
-          status: "FAILED",
-          message: "CarePay loan not found",
-        });
-      }
-    }
-    const payoutResult = await approveAndInitiatePayout({
-      lan,
-      table: "loan_booking_carepay",
-    });
-
-    if (!payoutResult.success) {
-      return res.status(400).json({
+      return res.status(500).json({
         status: "FAILED",
-        message: payoutResult.message || "Payout initiation failed",
+        message: err.message || "Failed to approve loan by operations checker",
+        error: err.sqlMessage || err.message,
       });
     }
-
-    const finalPayoutStatuses = new Set(["success", "completed", "processed"]);
-    const isPayoutFinal = finalPayoutStatuses.has(
-      String(payoutResult.payout_status || "").toLowerCase(),
-    );
-    const finalStatus = isPayoutFinal ? "Disbursed" : "Disburse initiate";
-
-    return res.json({
-      status: "SUCCESS",
-      final_status: finalStatus,
-      payout_status: payoutResult.payout_status || null,
-      message:
-        "Loan approved by operations checker and payout initiated successfully",
-    });
-  } catch (err) {
-    console.error("CarePay ops checker approve error:", err);
-
-    return res.status(500).json({
-      status: "FAILED",
-      message: err.message || "Failed to approve loan by operations checker",
-      error: err.sqlMessage || err.message,
-    });
-  }
-});
+  },
+);
 
 async function fetchCarePayCaseStatus({ lan, partnerLoanId }) {
   const whereClause = lan ? "lan = ?" : "partner_loan_id = ?";
@@ -389,45 +400,49 @@ function buildCarePayStatusResponse(row) {
 }
 
 ///////////// CARE PAY CASE STATUS FETCH BY LAN OR PARTNER LOAN ID (for excel upload) //////////
-loanBookingRouter.get("/v1/carepay-case-status", verifyApiKey, async (req, res) => {
-  try {
-    if (!isCarePayPartner(req)) {
-      return res
-        .status(403)
-        .json({ message: "This route is only for CarePay partner." });
-    }
+loanBookingRouter.get(
+  "/v1/carepay-case-status",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      if (!isCarePayPartner(req)) {
+        return res
+          .status(403)
+          .json({ message: "This route is only for CarePay partner." });
+      }
 
-    const lan = String(req.query.lan || "").trim();
-    const partnerLoanId = String(req.query.partner_loan_id || "").trim();
+      const lan = String(req.query.lan || "").trim();
+      const partnerLoanId = String(req.query.partner_loan_id || "").trim();
 
-    if (!lan && !partnerLoanId) {
-      return res.status(400).json({
-        message: "lan or partner_loan_id is required.",
+      if (!lan && !partnerLoanId) {
+        return res.status(400).json({
+          message: "lan or partner_loan_id is required.",
+        });
+      }
+
+      const row = await fetchCarePayCaseStatus({
+        lan: lan || null,
+        partnerLoanId: partnerLoanId || null,
+      });
+
+      if (!row) {
+        return res.status(404).json({ message: "CarePay case not found." });
+      }
+
+      return res.status(200).json({
+        message: "CarePay case status fetched successfully.",
+        data: buildCarePayStatusResponse(row),
+      });
+    } catch (error) {
+      console.error("CarePay case status fetch error:", error);
+
+      return res.status(500).json({
+        message: "Failed to fetch CarePay case status.",
+        error: error.sqlMessage || error.message,
       });
     }
-
-    const row = await fetchCarePayCaseStatus({
-      lan: lan || null,
-      partnerLoanId: partnerLoanId || null,
-    });
-
-    if (!row) {
-      return res.status(404).json({ message: "CarePay case not found." });
-    }
-
-    return res.status(200).json({
-      message: "CarePay case status fetched successfully.",
-      data: buildCarePayStatusResponse(row),
-    });
-  } catch (error) {
-    console.error("CarePay case status fetch error:", error);
-
-    return res.status(500).json({
-      message: "Failed to fetch CarePay case status.",
-      error: error.sqlMessage || error.message,
-    });
-  }
-});
+  },
+);
 
 async function persistCarePayBureauResult(lan, data) {
   let bureauResult = {
@@ -991,9 +1006,7 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       });
     }
 
-    const netDisbursement = round2(
-      requestAmount  - subvention.amount,
-    );
+    const netDisbursement = round2(requestAmount - subvention.amount);
 
     if (netDisbursement < 0) {
       return res.status(400).json({
@@ -1116,6 +1129,11 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       data,
       requestAmount,
     });
+    let breSnapshot = buildBreSnapshot({
+      data,
+      requestAmount,
+      decision: breDecision,
+    });
 
     const customer_name = `${data.first_name || ""} ${
       data.last_name || ""
@@ -1201,6 +1219,7 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       ),
 
       status: breDecision.caseStatus,
+      bre_snapshot: JSON.stringify(breSnapshot),
       agreement_date,
       bank_account_holder_name:
         nullableString(data.bank_account_holder_name) || "",
@@ -1258,6 +1277,20 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
         requestAmount,
         bureauScore: bureauResult.score,
       });
+      let breSnapshot = buildBreSnapshot({
+        data,
+        requestAmount,
+        bureauScore: bureauResult.score,
+        decision: breDecision,
+        bureauResponse: bureauResult.response,
+      });
+      // always update snapshot (and status if it flipped to Rejected)
+      await db.promise().query(
+        `UPDATE loan_booking_carepay
+     SET status = ?, bre_snapshot = ?
+     WHERE lan = ?`,
+        [breDecision.caseStatus, JSON.stringify(breSnapshot), lan],
+      );
 
       if (breDecision.status === "BRE FAILED") {
         await db
@@ -1313,39 +1346,40 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 });
 
 router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
-    try {
-        const {
-            lan,
-            amount,
-            umrn,
-            fatherName,
-            motherName,
-            bank_account_holder_name,
-            bank_account_number,
-            bank_name,
-            bank_branch_name,
-            bank_ifsc_code,
-            bank_account_type
-        } = req.body || {};
+  try {
+    const {
+      lan,
+      amount,
+      umrn,
+      fatherName,
+      motherName,
+      bank_account_holder_name,
+      bank_account_number,
+      bank_name,
+      bank_branch_name,
+      bank_ifsc_code,
+      bank_account_type,
+    } = req.body || {};
 
-        if (
-            !lan ||
-            amount == null ||
-            !umrn ||
-            !bank_account_holder_name ||
-            !bank_account_number ||
-            !bank_name ||
-            !bank_branch_name ||
-            !bank_ifsc_code ||
-            !bank_account_type
-        ) {
-            return res.status(400).json({
-                message: "Missing required fields: lan, amount, umrn, bank_account_holder_name, bank_account_number, bank_name, bank_branch_name, bank_ifsc_code, bank_account_type"
-            });
-        }
+    if (
+      !lan ||
+      amount == null ||
+      !umrn ||
+      !bank_account_holder_name ||
+      !bank_account_number ||
+      !bank_name ||
+      !bank_branch_name ||
+      !bank_ifsc_code ||
+      !bank_account_type
+    ) {
+      return res.status(400).json({
+        message:
+          "Missing required fields: lan, amount, umrn, bank_account_holder_name, bank_account_number, bank_name, bank_branch_name, bank_ifsc_code, bank_account_type",
+      });
+    }
 
-        const [result] = await db.promise().query(
-            `UPDATE loan_booking_carepay
+    const [result] = await db.promise().query(
+      `UPDATE loan_booking_carepay
              SET mandate_amount = ?,
                  umrn = ?,
                  father_name = COALESCE(?, father_name),
@@ -1357,37 +1391,37 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
                  bank_ifsc_code = ?,
                  bank_account_type = ?
              WHERE lan = ?`,
-            [
-                amount,
-                umrn,
-                fatherName ?? null,
-                motherName ?? null,
-                String(bank_account_holder_name).trim(),
-                String(bank_account_number).trim(),
-                String(bank_name).trim(),
-                String(bank_branch_name).trim(),
-                String(bank_ifsc_code).trim(),
-                String(bank_account_type).trim(),
-                lan
-            ]
-        );
+      [
+        amount,
+        umrn,
+        fatherName ?? null,
+        motherName ?? null,
+        String(bank_account_holder_name).trim(),
+        String(bank_account_number).trim(),
+        String(bank_name).trim(),
+        String(bank_branch_name).trim(),
+        String(bank_ifsc_code).trim(),
+        String(bank_account_type).trim(),
+        lan,
+      ],
+    );
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
-                message: "No record found for given LAN"
-            });
-        }
-
-        return res.status(200).json({
-            message: "Mandate updated successfully"
-        });
-    } catch (error) {
-        console.error("Error updating mandate UMRN:", error);
-
-        return res.status(500).json({
-            message: "Internal server error"
-        });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "No record found for given LAN",
+      });
     }
+
+    return res.status(200).json({
+      message: "Mandate updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating mandate UMRN:", error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
 });
 
 module.exports = router;
