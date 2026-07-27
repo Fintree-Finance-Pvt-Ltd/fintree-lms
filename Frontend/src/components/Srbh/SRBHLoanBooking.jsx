@@ -445,7 +445,6 @@ const resumeLan = searchParams.get("lan");
     "customer_account_number",
     "bank_ifsc_code",
     "Pan_Card",
-    "Driving_Licence",
     "selected_dealer_application_id",
     "Product_Type",
     "selected_product_id",
