@@ -1559,12 +1559,12 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
     }
 
     // 3. UMRN is correct → mark eNACH as SUCCESS
-    await db.promise().query(
-      `UPDATE enach_mandates
-         SET status = 'SUCCESS'
-       WHERE umrn = ?`,
-      [cleanUmrn],
-    );
+    // await db.promise().query(
+    //   `UPDATE enach_mandates
+    //      SET status = 'SUCCESS'
+    //    WHERE umrn = ?`,
+    //   [cleanUmrn],
+    // );
 
     // 4. Check e-sign status on CarePay loan
     const [[loan]] = await db.promise().query(
