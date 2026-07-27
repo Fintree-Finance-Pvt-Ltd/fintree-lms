@@ -86,6 +86,18 @@ function nullableString(value) {
   const trimmed = String(value).trim();
   return trimmed === "" ? null : trimmed;
 }
+
+function safeParseJson(value) {
+  if (!value) return null;
+  if (typeof value !== "string") return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 function isCarePayPartner(req) {
   return (req.partner?.name || "").toLowerCase().trim() === "carepay";
 }
@@ -443,6 +455,117 @@ loanBookingRouter.get(
     }
   },
 );
+
+router.get("/customer-details/:lan", async (req, res) => {
+  const lan = String(req.params.lan || "").trim().toUpperCase();
+
+  if (!lan || !lan.startsWith("CARE")) {
+    return res.status(400).json({
+      message: "Valid CarePay LAN is required",
+    });
+  }
+
+  try {
+    const [[loan]] = await db.promise().query(
+      `SELECT *
+       FROM loan_booking_carepay
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan],
+    );
+
+    if (!loan) {
+      return res.status(404).json({
+        message: "CarePay customer details not found",
+      });
+    }
+
+    const [[hospital]] = await db.promise().query(
+      `SELECT
+         id,
+         partner_loan_id,
+         lan,
+         hospital_legal_name,
+         brand_name,
+         hospital_type,
+         registered_city,
+         registered_district,
+         registered_state,
+         registered_pincode,
+         hospital_email,
+         hospital_phone,
+         contact_person_name,
+         contact_person_email,
+         contact_person_phone,
+         bank_name,
+         account_holder_name,
+         account_number,
+         ifsc_code,
+         status
+       FROM carepay_hospital_booking
+       WHERE lan = ?
+       LIMIT 1`,
+      [loan.hospital_lan],
+    );
+
+    const [esignDocuments] = await db.promise().query(
+      `SELECT
+         id,
+         document_id,
+         document_type,
+         status,
+         signer_identifier,
+         signed_file_path,
+         created_at,
+         updated_at
+       FROM esign_documents
+       WHERE lan = ?
+       ORDER BY COALESCE(updated_at, created_at) DESC, id DESC`,
+      [lan],
+    );
+
+    const [bankVerifications] = await db.promise().query(
+      `SELECT *
+       FROM bank_verification
+       WHERE lan = ?
+       ORDER BY verified_at DESC
+       LIMIT 1`,
+      [lan],
+    );
+
+    const [kycRows] = await db.promise().query(
+      `SELECT *
+       FROM kyc_verification_status
+       WHERE lan = ?`,
+      [lan],
+    );
+
+    return res.json({
+      data: {
+        loan,
+        hospital: hospital || null,
+        bre: safeParseJson(loan.bre_snapshot),
+        esign: {
+          documents: esignDocuments,
+          latest: esignDocuments[0] || null,
+          latest_agreement:
+            esignDocuments.find(
+              (doc) => String(doc.document_type).toUpperCase() === "AGREEMENT",
+            ) || null,
+        },
+        bank_verification: bankVerifications[0] || null,
+        kyc: kycRows,
+      },
+    });
+  } catch (error) {
+    console.error("CarePay customer details fetch error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch CarePay customer details",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
 
 async function persistCarePayBureauResult(lan, data) {
   let bureauResult = {

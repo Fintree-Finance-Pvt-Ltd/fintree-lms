@@ -48,6 +48,10 @@ if (currentPath.startsWith('/loan-details')) {
 
 
     // ✅ Exception for MIS detail pages:
+    if (currentPath === '/customer-details') {
+      return allowedPages.some(p => p.path.includes('/carepay-loans'));
+    }
+
     if (currentPath.startsWith('/mis-reports')) {
       return p.path.includes('/mis-reports');
     }

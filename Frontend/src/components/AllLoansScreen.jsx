@@ -12,6 +12,7 @@ const AllLoansScreen = ({
   apiEndpoint,
   title = "All Loans",
   amountField = "disbursement_amount",
+  lanDetailsUrlBuilder,
 }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +111,9 @@ const AllLoansScreen = ({
         <span
           className="lan-code-badge"
           onClick={() => {
-            if (/^LDF/i.test(r.lan)) {
+            if (typeof lanDetailsUrlBuilder === "function") {
+              nav(lanDetailsUrlBuilder(r));
+            } else if (/^LDF/i.test(r.lan)) {
               nav(`/loan-digit/customer-details?lan=${r.lan}`);
             } else if (/^MC/i.test(r.lan)) {
               nav(`/motion-corp/customer-details?lan=${r.lan}`);
