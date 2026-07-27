@@ -1484,10 +1484,13 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       bank_account_type,
     } = req.body || {};
 
+    const cleanLan = String(lan || "").trim().toUpperCase();
+    const cleanUmrn = String(umrn || "").trim();
+
     if (
-      !lan ||
+      !cleanLan ||
       amount == null ||
-      !umrn ||
+      !cleanUmrn ||
       !bank_account_holder_name ||
       !bank_account_number ||
       !bank_name ||
@@ -1501,22 +1504,23 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       });
     }
 
+    // 1. Update CarePay table with the UMRN + bank details
     const [result] = await db.promise().query(
       `UPDATE loan_booking_carepay
-             SET mandate_amount = ?,
-                 umrn = ?,
-                 father_name = COALESCE(?, father_name),
-                 mother_name = COALESCE(?, mother_name),
-                 bank_account_holder_name = ?,
-                 bank_account_number = ?,
-                 bank_name = ?,
-                 bank_branch_name = ?,
-                 bank_ifsc_code = ?,
-                 bank_account_type = ?
-             WHERE lan = ?`,
+         SET mandate_amount = ?,
+             umrn = ?,
+             father_name = COALESCE(?, father_name),
+             mother_name = COALESCE(?, mother_name),
+             bank_account_holder_name = ?,
+             bank_account_number = ?,
+             bank_name = ?,
+             bank_branch_name = ?,
+             bank_ifsc_code = ?,
+             bank_account_type = ?
+       WHERE lan = ?`,
       [
         amount,
-        umrn,
+        cleanUmrn,
         fatherName ?? null,
         motherName ?? null,
         String(bank_account_holder_name).trim(),
@@ -1525,7 +1529,7 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
         String(bank_branch_name).trim(),
         String(bank_ifsc_code).trim(),
         String(bank_account_type).trim(),
-        lan,
+        cleanLan,
       ],
     );
 
@@ -1535,12 +1539,68 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       });
     }
 
+    // 2. Fetch UMRN from enach_mandates – only proceed if it exists (“correct”)
+    const [[mandate]] = await db.promise().query(
+      `SELECT lan, umrn, status
+       FROM enach_mandates
+       WHERE umrn = ?
+       LIMIT 1`,
+      [cleanUmrn],
+    );
+
+    const mandateExists = Boolean(mandate);
+
+    if (!mandateExists) {
+      return res.status(200).json({
+        message: "Mandate updated in CarePay, but UMRN not found in eNACH table",
+        mandate_updated: false,
+        approved: false,
+      });
+    }
+
+    // 3. UMRN is correct → mark eNACH as SUCCESS
+    await db.promise().query(
+      `UPDATE enach_mandates
+         SET status = 'SUCCESS'
+       WHERE umrn = ?`,
+      [cleanUmrn],
+    );
+
+    // 4. Check e-sign status on CarePay loan
+    const [[loan]] = await db.promise().query(
+      `SELECT agreement_esign_status
+       FROM loan_booking_carepay
+       WHERE lan = ?
+       LIMIT 1`,
+      [cleanLan],
+    );
+
+    const isEsignDone =
+      String(loan?.agreement_esign_status || "")
+        .trim()
+        .toUpperCase() === "SIGNED";
+
+    const shouldApprove = mandateExists && isEsignDone;
+
+    // 5. Both UMRN correct + e-sign done → update CarePay status to Approved
+    if (shouldApprove) {
+      await db.promise().query(
+        `UPDATE loan_booking_carepay
+           SET status = 'Approved'
+         WHERE lan = ?`,
+        [cleanLan],
+      );
+    }
+
     return res.status(200).json({
-      message: "Mandate updated successfully",
+      message: shouldApprove
+        ? "Mandate updated and loan approved successfully"
+        : "Mandate updated successfully (waiting for e-sign)",
+      mandate_updated: true,
+      approved: shouldApprove,
     });
   } catch (error) {
     console.error("Error updating mandate UMRN:", error);
-
     return res.status(500).json({
       message: "Internal server error",
     });
