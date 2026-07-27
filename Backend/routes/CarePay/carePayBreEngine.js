@@ -1,5 +1,6 @@
 const isProvided = (value) =>
   value !== undefined && value !== null && String(value).trim() !== "";
+const CAREPAY_BRE_APPROVED_STATUS = "BRE Approved";
 
 const toFiniteNumber = (value, fallback = null) => {
   if (!isProvided(value)) return fallback;
@@ -198,7 +199,7 @@ const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null }) =>
 
   return {
     status: reasons.length ? "BRE FAILED" : "BRE APPROVED",
-    caseStatus: reasons.length ? "Rejected" : "Approved",
+    caseStatus: reasons.length ? "Rejected" : CAREPAY_BRE_APPROVED_STATUS,
     reason: reasons.length ? reasons.join(", ") : "ELIGIBLE",
     reasons,
     bureauScore: score,
@@ -262,7 +263,7 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision, b
     // decision
     decision: {
       status: decision.status,       // BRE APPROVED | BRE FAILED
-      caseStatus: decision.caseStatus, // Approved | Rejected
+      caseStatus: decision.caseStatus, // BRE Approved | Rejected
       reason: decision.reason,
       reasons: decision.reasons,
     },

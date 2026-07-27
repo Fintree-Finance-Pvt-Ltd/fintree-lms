@@ -254,6 +254,16 @@ async function upsertCarePayEsignDocument(data) {
     );
   }
 
+  await db.promise().query(
+    `
+    UPDATE loan_booking_carepay
+    SET agreement_esign_status = ?,
+        updated_at = NOW()
+    WHERE lan = ?
+    `,
+    [status, loan.lan],
+  );
+
   return {
     lan: loan.lan,
     partner_loan_id: loan.partner_loan_id,
@@ -417,6 +427,16 @@ module.exports = function createCarePayEsignRoutes() {
         WHERE document_id = ?
         `,
         [status, rawResponse, documentId],
+      );
+
+      await db.promise().query(
+        `
+        UPDATE loan_booking_carepay
+        SET agreement_esign_status = ?,
+            updated_at = NOW()
+        WHERE lan = ?
+        `,
+        [status, rows[0].lan],
       );
 
       return res.status(200).json({
