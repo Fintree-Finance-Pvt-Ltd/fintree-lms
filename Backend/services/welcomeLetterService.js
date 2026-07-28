@@ -360,6 +360,7 @@ const TEMPLATE_FIELD_COLUMNS = {
     "disbursed_amount",
     "disbursement_amount",
     "net_disbursed_amount",
+    "final_limit",
 
     /*
      * Fallback columns when separate net-disbursement
@@ -367,7 +368,6 @@ const TEMPLATE_FIELD_COLUMNS = {
      */
     "loan_amount",
     "loan_amount_sanctioned",
-    "final_limit",
     "l_a",
   ],
 
