@@ -433,29 +433,54 @@ const PARTNERS = {
   },
 
   loan_digit: {
-  table: "loan_booking_loan_digit",
-  primaryKey: "id",
-  codeFields: ["lan", "partner_loan_id"], // adjust if loan_digit has application_id etc.
-  columns: {
-    lan: "lan",
-    name: "customer_name",      // ← verify actual column names in loan_booking_loan_digit
-    pan: "pan_number",
-    mobile: "mobile_number",
-    dob: "dob",
-    gender: "gender",
-    createdAt: "created_at",
-    applicationRefNumber: "partner_loan_id",
-  },
-  amlColumns: {
-    status: "aml_status",
-    score: "aml_score",
-    totalMatches: "aml_total_matches",
-    reason: "aml_reason",
-    apiResponse: "aml_api_response",
-    checkedAt: "aml_checked_at",
-  },
-},
+    table: "loan_booking_loan_digit",
+    primaryKey: "id",
+    codeFields: ["lan", "partner_loan_id"], // adjust if loan_digit has application_id etc.
+    columns: {
+      lan: "lan",
+      name: "customer_name", // ← verify actual column names in loan_booking_loan_digit
+      pan: "pan_number",
+      mobile: "mobile_number",
+      dob: "dob",
+      gender: "gender",
+      createdAt: "created_at",
+      applicationRefNumber: "partner_loan_id",
+    },
+    amlColumns: {
+      status: "aml_status",
+      score: "aml_score",
+      totalMatches: "aml_total_matches",
+      reason: "aml_reason",
+      apiResponse: "aml_api_response",
+      checkedAt: "aml_checked_at",
+    },
 
+    motion_corp: {
+      table: "loan_booking_motion_corp",
+      primaryKey: "id",
+      codeFields: ["lan", "partner_loan_id"], // adjust if motion_corp has application_id etc.
+      columns: {
+        lan: "lan",
+        name: "customer_name", // ← match your actual motion_corp column names
+        fatherName: "father_name",
+        pan: "pan_number",
+        mobile: "mobile_number",
+        email: "email",
+        dob: "dob",
+        gender: "gender",
+        createdAt: "created_at",
+        applicationRefNumber: "partner_loan_id",
+      },
+      amlColumns: {
+        status: "aml_status",
+        score: "aml_score",
+        totalMatches: "aml_total_matches",
+        reason: "aml_reason",
+        apiResponse: "aml_api_response",
+        checkedAt: "aml_checked_at",
+      },
+    },
+  },
 };
 
 /* ───────────────────────── Configuration helpers ───────────────────────── */
