@@ -231,6 +231,7 @@ import CarePayOpsCheckerScreen from "./components/CarePay/CarePayOpsCheckerScree
 import CarePayHospitalLists from "./components/CarePay/CarePayHospitalLists";
 import CarePayHospitalLoginActions from "./components/CarePay/CarePayHospitalLoginActions";
 import CarePayHospitalDetails from "./components/CarePay/CarePayHospitalDetails";
+import CarePayCustomerDetails from "./components/CarePay/CarePayCustomerDetails";
 import SterlionAllLoans from "./components/Sterlion/SterlionAllLoans";
 import SterlionApprovedLoans from "./components/Sterlion/SterlionApprovedLoans";
 import SterlionLoginLoans from "./components/Sterlion/SterlionLoginLoans";
@@ -927,6 +928,14 @@ function App() {
             element={
               <PermissionRoute pageName="CarePay All Loans">
                 <CarePayAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/customer-details"
+            element={
+              <PermissionRoute pageName="CarePay Customer Details">
+                <CarePayCustomerDetails />
               </PermissionRoute>
             }
           />

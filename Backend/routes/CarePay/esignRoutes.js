@@ -254,6 +254,16 @@ async function upsertCarePayEsignDocument(data) {
     );
   }
 
+  await db.promise().query(
+    `
+    UPDATE loan_booking_carepay
+    SET agreement_esign_status = ?,
+        updated_at = NOW()
+    WHERE lan = ?
+    `,
+    [status, loan.lan],
+  );
+
   return {
     lan: loan.lan,
     partner_loan_id: loan.partner_loan_id,
@@ -314,29 +324,101 @@ async function getCarePayEsignStatus({ lan, documentType }) {
 module.exports = function createCarePayEsignRoutes() {
   const router = express.Router();
 
-  router.post("/v1/carepay-esign", verifyApiKey, async (req, res) => {
-    try {
-      if (!isCarePayPartner(req)) {
-        return res
-          .status(403)
-          .json({ message: "This route is only for CarePay partner." });
-      }
+router.post("/v1/carepay-esign-status-update", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const lan = normalizeCarePayLan(
+      body.lan || body.LAN || body.loan_account_number,
+    );
 
-      const data = await upsertCarePayEsignDocument(req.body || {});
-
-      return res.status(data.action === "created" ? 201 : 200).json({
-        message: "CarePay eSign data saved successfully.",
-        data,
-      });
-    } catch (error) {
-      console.error("CarePay eSign save error:", error);
-
-      return res.status(error.statusCode || 500).json({
-        message: "Failed to save CarePay eSign data.",
-        error: error.sqlMessage || error.message,
+    if (!lan) {
+      return res.status(400).json({
+        message: "lan is required.",
       });
     }
-  });
+
+    if (!lan.startsWith("CARE")) {
+      return res.status(400).json({
+        message: "This route is only for CarePay LANs.",
+      });
+    }
+
+    // Find latest status from esign_documents (read-only)
+    const [docRows] = await db.promise().query(
+      `
+      SELECT status, document_id, document_type
+      FROM esign_documents
+      WHERE lan = ?
+      ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+      LIMIT 1
+      `,
+      [lan],
+    );
+
+    if (!docRows.length) {
+      return res.status(404).json({
+        message: "No eSign document found for this LAN.",
+      });
+    }
+
+    const docStatus = normalizeCarePayEsignStatus(docRows[0].status);
+
+    // Only update carepay when esign_documents status is SIGNED
+    if (docStatus !== "SIGNED") {
+      return res.status(200).json({
+        message: "eSign document is not signed yet. Skipped carepay update.",
+        data: {
+          lan,
+          esign_status: docStatus,
+          document_id: docRows[0].document_id,
+        },
+      });
+    }
+
+    // Verify loan exists
+    const [loanRows] = await db.promise().query(
+      `SELECT lan
+       FROM loan_booking_carepay
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan],
+    );
+
+    if (!loanRows.length) {
+      return res.status(404).json({
+        message: "CarePay loan not found.",
+      });
+    }
+
+    // Update ONLY carepay table
+    await db.promise().query(
+      `
+      UPDATE loan_booking_carepay
+      SET agreement_esign_status = ?,
+          updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [docStatus, lan], // "SIGNED"
+    );
+
+    return res.status(200).json({
+      message: "CarePay eSign status updated successfully.",
+      data: {
+        lan,
+        status: docStatus,
+        document_id: docRows[0].document_id,
+        document_type: docRows[0].document_type,
+      },
+    });
+  } catch (error) {
+    console.error("CarePay eSign status update error:", error);
+
+    return res.status(error.statusCode || 500).json({
+      message: "Failed to update CarePay eSign status.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
 
   const handleCarePayEsignStatus = async (req, res) => {
     try {
@@ -376,66 +458,76 @@ module.exports = function createCarePayEsignRoutes() {
   //   handleCarePayEsignStatus,
   // );
 
-  router.post("/v1/carepay-esign-webhook", async (req, res) => {
-    try {
-      const documentId = getCarePayDocumentId(req.body || {});
+  // router.post("/v1/carepay-esign-webhook", async (req, res) => {
+  //   try {
+  //     const documentId = getCarePayDocumentId(req.body || {});
 
-      if (!documentId) {
-        return res.status(400).json({
-          message: "document_id or order_id is required.",
-        });
-      }
+  //     if (!documentId) {
+  //       return res.status(400).json({
+  //         message: "document_id or order_id is required.",
+  //       });
+  //     }
 
-      const [rows] = await db.promise().query(
-        `SELECT lan
-         FROM esign_documents
-         WHERE document_id = ?
-           AND lan LIKE 'CARE%'
-         LIMIT 1`,
-        [documentId],
-      );
+  //     const [rows] = await db.promise().query(
+  //       `SELECT lan
+  //        FROM esign_documents
+  //        WHERE document_id = ?
+  //          AND lan LIKE 'CARE%'
+  //        LIMIT 1`,
+  //       [documentId],
+  //     );
 
-      if (!rows.length) {
-        return res.status(200).send("ignored");
-      }
+  //     if (!rows.length) {
+  //       return res.status(200).send("ignored");
+  //     }
 
-      const status = normalizeCarePayEsignStatus(
-        req.body?.status ||
-          req.body?.order_status ||
-          req.body?.state ||
-          req.body?.signatory_data?.[0]?.status,
-      );
-      const rawResponse = safeJson(buildCarePayRawResponse(req.body || {}));
+  //     const status = normalizeCarePayEsignStatus(
+  //       req.body?.status ||
+  //         req.body?.order_status ||
+  //         req.body?.state ||
+  //         req.body?.signatory_data?.[0]?.status,
+  //     );
+  //     const rawResponse = safeJson(buildCarePayRawResponse(req.body || {}));
 
-      await db.promise().query(
-        `
-        UPDATE esign_documents
-        SET
-          status = ?,
-          raw_response = ?,
-          updated_at = NOW()
-        WHERE document_id = ?
-        `,
-        [status, rawResponse, documentId],
-      );
+  //     // await db.promise().query(
+  //     //   `
+  //     //   UPDATE esign_documents
+  //     //   SET
+  //     //     status = ?,
+  //     //     raw_response = ?,
+  //     //     updated_at = NOW()
+  //     //   WHERE document_id = ?
+  //     //   `,
+  //     //   [status, rawResponse, documentId],
+  //     // );
 
-      return res.status(200).json({
-        message: "CarePay eSign status updated successfully.",
-        data: {
-          lan: rows[0].lan,
-          document_id: documentId,
-          status,
-        },
-      });
-    } catch (error) {
-      console.error("CarePay eSign status update error:", error);
+  //     await db.promise().query(
+  //       `
+  //       UPDATE loan_booking_carepay
+  //       SET agreement_esign_status = ?,
+  //           updated_at = NOW()
+  //       WHERE lan = ?
+  //       `,
+  //       [status, rows[0].lan],
+  //     );
 
-      return res.status(error.statusCode || 500).json({
-        message: "Failed to update CarePay eSign status.",
-        error: error.sqlMessage || error.message,
-      });
-    }
-  });
+  //     return res.status(200).json({
+  //       message: "CarePay eSign status updated successfully.",
+  //       data: {
+  //         lan: rows[0].lan,
+  //         document_id: documentId,
+  //         status,
+  //       },
+  //     });
+  //   } catch (error) {
+  //     console.error("CarePay eSign status update error:", error);
+
+  //     return res.status(error.statusCode || 500).json({
+  //       message: "Failed to update CarePay eSign status.",
+  //       error: error.sqlMessage || error.message,
+  //     });
+  //   }
+  // });
 
   return router;
 };

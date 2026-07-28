@@ -86,6 +86,18 @@ function nullableString(value) {
   const trimmed = String(value).trim();
   return trimmed === "" ? null : trimmed;
 }
+
+function safeParseJson(value) {
+  if (!value) return null;
+  if (typeof value !== "string") return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 function isCarePayPartner(req) {
   return (req.partner?.name || "").toLowerCase().trim() === "carepay";
 }
@@ -443,6 +455,117 @@ loanBookingRouter.get(
     }
   },
 );
+
+router.get("/customer-details/:lan", async (req, res) => {
+  const lan = String(req.params.lan || "").trim().toUpperCase();
+
+  if (!lan || !lan.startsWith("CARE")) {
+    return res.status(400).json({
+      message: "Valid CarePay LAN is required",
+    });
+  }
+
+  try {
+    const [[loan]] = await db.promise().query(
+      `SELECT *
+       FROM loan_booking_carepay
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan],
+    );
+
+    if (!loan) {
+      return res.status(404).json({
+        message: "CarePay customer details not found",
+      });
+    }
+
+    const [[hospital]] = await db.promise().query(
+      `SELECT
+         id,
+         partner_loan_id,
+         lan,
+         hospital_legal_name,
+         brand_name,
+         hospital_type,
+         registered_city,
+         registered_district,
+         registered_state,
+         registered_pincode,
+         hospital_email,
+         hospital_phone,
+         contact_person_name,
+         contact_person_email,
+         contact_person_phone,
+         bank_name,
+         account_holder_name,
+         account_number,
+         ifsc_code,
+         status
+       FROM carepay_hospital_booking
+       WHERE lan = ?
+       LIMIT 1`,
+      [loan.hospital_lan],
+    );
+
+    const [esignDocuments] = await db.promise().query(
+      `SELECT
+         id,
+         document_id,
+         document_type,
+         status,
+         signer_identifier,
+         signed_file_path,
+         created_at,
+         updated_at
+       FROM esign_documents
+       WHERE lan = ?
+       ORDER BY COALESCE(updated_at, created_at) DESC, id DESC`,
+      [lan],
+    );
+
+    const [bankVerifications] = await db.promise().query(
+      `SELECT *
+       FROM bank_verification
+       WHERE lan = ?
+       ORDER BY verified_at DESC
+       LIMIT 1`,
+      [lan],
+    );
+
+    const [kycRows] = await db.promise().query(
+      `SELECT *
+       FROM kyc_verification_status
+       WHERE lan = ?`,
+      [lan],
+    );
+
+    return res.json({
+      data: {
+        loan,
+        hospital: hospital || null,
+        bre: safeParseJson(loan.bre_snapshot),
+        esign: {
+          documents: esignDocuments,
+          latest: esignDocuments[0] || null,
+          latest_agreement:
+            esignDocuments.find(
+              (doc) => String(doc.document_type).toUpperCase() === "AGREEMENT",
+            ) || null,
+        },
+        bank_verification: bankVerifications[0] || null,
+        kyc: kycRows,
+      },
+    });
+  } catch (error) {
+    console.error("CarePay customer details fetch error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch CarePay customer details",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
 
 async function persistCarePayBureauResult(lan, data) {
   let bureauResult = {
@@ -1361,10 +1484,13 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       bank_account_type,
     } = req.body || {};
 
+    const cleanLan = String(lan || "").trim().toUpperCase();
+    const cleanUmrn = String(umrn || "").trim();
+
     if (
-      !lan ||
+      !cleanLan ||
       amount == null ||
-      !umrn ||
+      !cleanUmrn ||
       !bank_account_holder_name ||
       !bank_account_number ||
       !bank_name ||
@@ -1378,22 +1504,23 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       });
     }
 
+    // 1. Update CarePay table with the UMRN + bank details
     const [result] = await db.promise().query(
       `UPDATE loan_booking_carepay
-             SET mandate_amount = ?,
-                 umrn = ?,
-                 father_name = COALESCE(?, father_name),
-                 mother_name = COALESCE(?, mother_name),
-                 bank_account_holder_name = ?,
-                 bank_account_number = ?,
-                 bank_name = ?,
-                 bank_branch_name = ?,
-                 bank_ifsc_code = ?,
-                 bank_account_type = ?
-             WHERE lan = ?`,
+         SET mandate_amount = ?,
+             umrn = ?,
+             father_name = COALESCE(?, father_name),
+             mother_name = COALESCE(?, mother_name),
+             bank_account_holder_name = ?,
+             bank_account_number = ?,
+             bank_name = ?,
+             bank_branch_name = ?,
+             bank_ifsc_code = ?,
+             bank_account_type = ?
+       WHERE lan = ?`,
       [
         amount,
-        umrn,
+        cleanUmrn,
         fatherName ?? null,
         motherName ?? null,
         String(bank_account_holder_name).trim(),
@@ -1402,7 +1529,7 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
         String(bank_branch_name).trim(),
         String(bank_ifsc_code).trim(),
         String(bank_account_type).trim(),
-        lan,
+        cleanLan,
       ],
     );
 
@@ -1412,12 +1539,68 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       });
     }
 
+    // 2. Fetch UMRN from enach_mandates – only proceed if it exists (“correct”)
+    const [[mandate]] = await db.promise().query(
+      `SELECT lan, umrn, status
+       FROM enach_mandates
+       WHERE umrn = ?
+       LIMIT 1`,
+      [cleanUmrn],
+    );
+
+    const mandateExists = Boolean(mandate);
+
+    if (!mandateExists) {
+      return res.status(200).json({
+        message: "Mandate updated in CarePay, but UMRN not found in eNACH table",
+        mandate_updated: false,
+        approved: false,
+      });
+    }
+
+    // 3. UMRN is correct → mark eNACH as SUCCESS
+    // await db.promise().query(
+    //   `UPDATE enach_mandates
+    //      SET status = 'SUCCESS'
+    //    WHERE umrn = ?`,
+    //   [cleanUmrn],
+    // );
+
+    // 4. Check e-sign status on CarePay loan
+    const [[loan]] = await db.promise().query(
+      `SELECT agreement_esign_status
+       FROM loan_booking_carepay
+       WHERE lan = ?
+       LIMIT 1`,
+      [cleanLan],
+    );
+
+    const isEsignDone =
+      String(loan?.agreement_esign_status || "")
+        .trim()
+        .toUpperCase() === "SIGNED";
+
+    const shouldApprove = mandateExists && isEsignDone;
+
+    // 5. Both UMRN correct + e-sign done → update CarePay status to Approved
+    if (shouldApprove) {
+      await db.promise().query(
+        `UPDATE loan_booking_carepay
+           SET status = 'Approved'
+         WHERE lan = ?`,
+        [cleanLan],
+      );
+    }
+
     return res.status(200).json({
-      message: "Mandate updated successfully",
+      message: shouldApprove
+        ? "Mandate updated and loan approved successfully"
+        : "Mandate updated successfully (waiting for e-sign)",
+      mandate_updated: true,
+      approved: shouldApprove,
     });
   } catch (error) {
     console.error("Error updating mandate UMRN:", error);
-
     return res.status(500).json({
       message: "Internal server error",
     });
