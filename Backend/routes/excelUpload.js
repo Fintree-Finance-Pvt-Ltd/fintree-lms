@@ -8373,6 +8373,10 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
     bucket: "Monthly",
   },
 
+  MONTHLY_365: {
+    dbValue: "Monthly_365",
+    bucket: "Monthly",
+  },
   QUATERLY_360: {
     dbValue: "Quaterly_360",
     bucket: "Quarterly",
@@ -8384,6 +8388,10 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
     bucket: "Quarterly",
   },
 
+    QUATERLY_365: {
+    dbValue: "Quaterly_365",
+    bucket: "Quarterly",
+  },
   HALF_YEARLY_360: {
     dbValue: "Half_yearly_360",
     bucket: "Half Yearly",
@@ -8412,7 +8420,12 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
 
 const WCTLFFPL_ALLOWED_PRODUCT_CODES = [
   "Monthly_360",
+    "Monthly_365",
+
   "Quaterly_360",
+    "Quaterly_365",
+  
+
   "Half_yearly_360",
   "Half_yearly_365",
   "yearly_365",
