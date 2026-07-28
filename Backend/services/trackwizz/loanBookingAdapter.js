@@ -454,6 +454,7 @@ const PARTNERS = {
       apiResponse: "aml_api_response",
       checkedAt: "aml_checked_at",
     },
+  },
 
     motion_corp: {
       table: "loan_booking_motion_corp",
@@ -480,7 +481,6 @@ const PARTNERS = {
         checkedAt: "aml_checked_at",
       },
     },
-  },
 };
 
 /* ───────────────────────── Configuration helpers ───────────────────────── */
