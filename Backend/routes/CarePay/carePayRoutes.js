@@ -1608,6 +1608,7 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 // });
 
 //// Sajag ///
+
 router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
   try {
     const {
@@ -1668,7 +1669,7 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       });
     }
 
-    // 2. Check whether all required mandate and bank values exist
+    // 2. Fetch mandate and bank values
     const [[loan]] = await db.promise().query(
       `SELECT
           mandate_amount,
@@ -1704,17 +1705,17 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       hasValue(loan?.bank_ifsc_code) &&
       hasValue(loan?.bank_account_type);
 
-    // Do not update any statuses when a required value is missing
     if (!allDetailsAvailable) {
       return res.status(200).json({
         message:
           "Mandate details updated, but some required values are missing",
         verification_updated: false,
+        documents_complete: false,
         approved: false,
       });
     }
 
-    // 3. All details exist, so update verification statuses
+    // 3. Update verification statuses
     await db.promise().query(
       `UPDATE loan_booking_carepay
        SET bank_status = 'Verified',
@@ -1724,7 +1725,7 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       [cleanLan],
     );
 
-    // 4. Cross-check all values and statuses
+    // 4. Cross-check mandate values and statuses
     const [[verifiedLoan]] = await db.promise().query(
       `SELECT
           mandate_amount,
@@ -1771,13 +1772,50 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
 
     if (!allValuesPresent || !allStatusesComplete) {
       return res.status(200).json({
-        message: "Verification completed, but approval conditions failed",
+        message: "Mandate or verification status check failed",
         verification_updated: allStatusesComplete,
+        documents_complete: false,
         approved: false,
       });
     }
 
-    // 5. Approve the loan
+    // 5. Check all required documents in loan_documents
+    const requiredDocuments = [
+      "CIBIL_REPORT",
+      "aadhaar",
+      "pan",
+      "bureauJson",
+      "explicitConsents",
+      "loanAgreement",
+    ];
+
+    const [documentRows] = await db.promise().query(
+      `SELECT DISTINCT doc_name
+       FROM loan_documents
+       WHERE lan = ?
+         AND doc_name IN (?, ?, ?, ?, ?, ?)`,
+      [cleanLan, ...requiredDocuments],
+    );
+
+    const availableDocuments = documentRows.map((row) =>
+      String(row.doc_name).trim(),
+    );
+
+    const missingDocuments = requiredDocuments.filter(
+      (docName) => !availableDocuments.includes(docName),
+    );
+
+    if (missingDocuments.length > 0) {
+      return res.status(200).json({
+        message: "Loan cannot be approved because documents are missing",
+        verification_updated: true,
+        documents_complete: false,
+        missing_documents: missingDocuments,
+        approved: false,
+      });
+    }
+
+    // 6. All mandate values, statuses and documents are available
     await db.promise().query(
       `UPDATE loan_booking_carepay
        SET status = 'Approved'
@@ -1788,6 +1826,7 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
     return res.status(200).json({
       message: "Mandate updated and loan approved successfully",
       verification_updated: true,
+      documents_complete: true,
       approved: true,
     });
   } catch (error) {
