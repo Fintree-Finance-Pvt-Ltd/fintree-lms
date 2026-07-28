@@ -146,10 +146,10 @@ import MotionCorpDealerEntry from "./components/Motion Corp/MotionCorpDealerEntr
 import MotionCorpDealerLists from "./components/Motion Corp/MotionCorpDealerLists";
 import MotionCorpDealerLoginActions from "./components/Motion Corp/MotionCorpDealerLoginActions";
 // import MotionCorpDealerBooking from "./components/Motion Corp/MotionCorpDealerBooking";
-import MotionCorpDealerLoginCases from "./components/Motion Corp/MotionCorpDealerLoginCases";
-import MotionCorpDealerCreditActions from "./components/Motion Corp/MotionCorpDealerCreditActions";
-import MotionCorpDealerApprovedLoans from "./components/Motion Corp/MotionCorpDealerApprovedLoans";
-import MotionCorpDealerAllCases from "./components/Motion Corp/MotionCorpDealerAllCases";
+// import MotionCorpDealerLoginCases from "./components/Motion Corp/MotionCorpDealerLoginCases";
+// import MotionCorpDealerCreditActions from "./components/Motion Corp/MotionCorpDealerCreditActions";
+// import MotionCorpDealerApprovedLoans from "./components/Motion Corp/MotionCorpDealerApprovedLoans";
+// import MotionCorpDealerAllCases from "./components/Motion Corp/MotionCorpDealerAllCases";
 import MotionCorpDealerDetails from "./components/Motion Corp/MotionCorpDealerDetails";
 import PartnerLimitEntry from "./components/PartnerLimitEntry";
 import FldgEntryPage from "./components/FldgEntryPage";
@@ -1690,42 +1690,42 @@ function App() {
               </PermissionRoute>
             }
           />
-          <Route
+          {/* <Route
             path="/motion-corp/dealer-login-cases"
             element={
               <PermissionRoute pageName="Motion Corp Dealer Login Cases">
                 <MotionCorpDealerLoginCases />
               </PermissionRoute>
             }
-          />
-          <Route
+          /> */}
+          {/* <Route
             path="/motion-corp/dealer-credit-actions"
             element={
               <PermissionRoute pageName="Motion Corp Dealer Credit Approval Loans">
                 <MotionCorpDealerCreditActions />
               </PermissionRoute>
             }
-          />
-          <Route
+          /> */}
+          {/* <Route
             path="/motion-corp/dealer-approved-loans"
             element={
               <PermissionRoute pageName="Motion Corp Dealer Operation Approval Loans">
                 <MotionCorpDealerApprovedLoans />
               </PermissionRoute>
             }
-          />
+          /> */}
           <Route
             path="/motion-corp/dealer-details/:lan"
             element={<MotionCorpDealerDetails />}
           />
-          <Route
+          {/* <Route
             path="/motion-corp/dealer-all-cases"
             element={
               <PermissionRoute pageName="Motion Corp Dealer All Cases Screen">
                 <MotionCorpDealerAllCases />
               </PermissionRoute>
             }
-          />
+          /> */}
           <Route
             path="/motion-corp/all-loans"
             element={
