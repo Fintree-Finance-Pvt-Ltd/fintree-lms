@@ -1,163 +1,105 @@
-import React, { useState, useRef } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 import api from "../../api/api";
- 
+
 const MotionCorpDealerEntry = () => {
- 
   /*
   ==========================
   INITIAL STATE
   ==========================
   */
-  const initialState = {
+  const getInitialState = () => ({
     business_name: "",
     trade_name: "",
     business_type: "",
     pan_number: "",
     gst_number: "",
- 
+
     owner_name: "",
     owner_mobile: "",
     owner_email: "",
- 
+
     showroom_address: "",
     city: "",
     state: "",
     pincode: "",
- 
+
     bank_name: "",
     branch_name: "",
     account_holder_name: "",
     account_number: "",
     ifsc_code: "",
- 
+
     products: [
-  {
-    battery_type: "",
-    battery_name: "",
-    e_rickshaw_model: "",
-    price: ""
-  }
-],
- 
-    cheque_file_path: "",
-    cheque_ocr_bank_name: null,
-    cheque_ocr_branch_name: null,
-    cheque_ocr_account_holder_name: null,
-    cheque_ocr_account_number: null,
-    cheque_ocr_ifsc_code: null,
-    cheque_ocr_response: {}
-  };
- 
-  const [formData, setFormData] = useState(initialState);
+      {
+        battery_type: "",
+        battery_name: "",
+        e_rickshaw_model: "",
+        price: "",
+      },
+    ],
+  });
+
+  const [formData, setFormData] = useState(getInitialState);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
- 
-  const fileInputRef = useRef(null);
- 
+
   /*
   ==========================
   VALIDATIONS
   ==========================
   */
-  const validatePAN = (pan) =>
-    /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan);
- 
+  const validatePAN = (pan) => /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan);
+
   const validateGST = (gst) =>
     /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gst);
- 
-  /*
-  ==========================
-  OCR UPLOAD
-  ==========================
-  */
-  const handleChequeUpload = async (e) => {
- 
-    const file = e.target.files[0];
-    if (!file) return;
- 
-    try {
- 
-      const uploadData = new FormData();
-      uploadData.append("imageUrl", file);
- 
-      const res = await axios.post(
-        "https://sandbox.fintreelms.com/ocr/v1/cheque",
-        uploadData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            "X-API-Key": "Fintree@2026",
-          },
-        }
-      );
- 
-      const result = res.data.data.result?.[0]?.details;
-      if (!result) return;
- 
-      setFormData(prev => ({
-        ...prev,
- 
-        cheque_file_path: file.name,
- 
-        cheque_ocr_bank_name: result.bank_name?.value ?? null,
-        cheque_ocr_branch_name: result.branch_name?.value ?? null,
-        cheque_ocr_account_holder_name: result.name?.value ?? null,
-        cheque_ocr_account_number: result.account_number?.value ?? null,
-        cheque_ocr_ifsc_code: result.ifsc_code?.value ?? null,
-        cheque_ocr_response: result,
- 
-        // Autofill but allow manual edit
-        bank_name: result.bank_name?.value || prev.bank_name,
-        branch_name: result.branch_name?.value || prev.branch_name,
-        account_holder_name: result.name?.value || prev.account_holder_name,
-        account_number: result.account_number?.value || prev.account_number,
-        ifsc_code: result.ifsc_code?.value || prev.ifsc_code
-      }));
- 
-      alert("OCR Data Captured Successfully");
- 
-    } catch (err) {
-      console.error(err);
-      alert("Cheque OCR failed");
-    }
-  };
- 
+
+  // const handleProductChange = (index, field, value) => {
+  //   const updated = [...formData.products];
+  //   updated[index][field] = value;
+
+  //   setFormData((prev) => ({
+  //     ...prev,
+  //     products: updated,
+  //   }));
+  // };
+
   const handleProductChange = (index, field, value) => {
-  const updated = [...formData.products];
-  updated[index][field] = value;
+    setFormData((prev) => ({
+      ...prev,
+      products: prev.products.map((product, productIndex) =>
+        productIndex === index
+          ? {
+              ...product,
+              [field]: value,
+            }
+          : product,
+      ),
+    }));
+  };
 
-  setFormData(prev => ({
-    ...prev,
-    products: updated
-  }));
-};
+  const addProduct = () => {
+    setFormData((prev) => ({
+      ...prev,
+      products: [
+        ...prev.products,
+        {
+          battery_type: "",
+          battery_name: "",
+          e_rickshaw_model: "",
+          price: "",
+        },
+      ],
+    }));
+  };
 
-const addProduct = () => {
-  setFormData(prev => ({
-    ...prev,
-    products: [
-      ...prev.products,
-      {
-        battery_type: "",
-        battery_name: "",
-        e_rickshaw_model: "",
-        price: ""
-      }
-    ]
-  }));
-};
-
-const removeProduct = (index) => {
-  const updated = formData.products.filter((_, i) => i !== index);
-  setFormData(prev => ({
-    ...prev,
-    products: updated
-  }));
-};
-
-
+  const removeProduct = (index) => {
+    const updated = formData.products.filter((_, i) => i !== index);
+    setFormData((prev) => ({
+      ...prev,
+      products: updated,
+    }));
+  };
 
   /*
   ==========================
@@ -165,155 +107,202 @@ const removeProduct = (index) => {
   ==========================
   */
   const handleChange = (e) => {
-    setLoading(false);
     setMessage("");
- 
+
     let { name, value } = e.target;
- 
+
     if (name === "owner_mobile") {
       value = value.replace(/\D/g, "").slice(0, 10);
     }
- 
+
     if (name === "pincode") {
       value = value.replace(/\D/g, "").slice(0, 6);
     }
- 
+
     if (name === "account_number") {
       value = value.replace(/\D/g, "");
     }
- 
+
     if (name === "pan_number" || name === "gst_number") {
       value = value.toUpperCase();
     }
- 
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
- 
+
     setErrors((prev) => {
       const updated = { ...prev };
- 
+
       // ✅ remove current field error when user edits
       delete updated[name];
- 
+
       // ✅ PAN live validation
       if (name === "pan_number" && value && !validatePAN(value)) {
         updated.pan_number = "Invalid PAN (ABCDE1234F)";
       }
- 
+
       // ✅ GST live validation
       if (name === "gst_number" && value && !validateGST(value)) {
-        updated.gst_number = "Invalid GST format";
+        updated.gst_number = "Invalid GST format (24AAAGH0289C1ZP)";
       }
- 
+
       return updated;
     });
   };
- 
-  /*
 
-  
-
-  ==========================
-  SUBMIT
-  ==========================
-  */
   const handleSubmit = async (e) => {
     e.preventDefault();
- 
+
+    setMessage("");
+
+    const normalizedProducts = formData.products
+      .map((product) => {
+        const priceValue =
+          product.price === "" ||
+          product.price === null ||
+          product.price === undefined
+            ? null
+            : Number(product.price);
+
+        return {
+          battery_type: product.battery_type?.trim() || null,
+          battery_name: product.battery_name?.trim() || null,
+          e_rickshaw_model: product.e_rickshaw_model?.trim() || null,
+          price: priceValue,
+        };
+      })
+      .filter(
+        (product) =>
+          product.battery_type ||
+          product.battery_name ||
+          product.e_rickshaw_model ||
+          product.price !== null,
+      );
+
+    const hasInvalidPrice = normalizedProducts.some(
+      (product) => product.price !== null && !Number.isFinite(product.price),
+    );
+
+    if (hasInvalidPrice) {
+      setMessage("❌ Please enter a valid product price");
+      return;
+    }
+
     const payload = {
       ...formData,
 
-        products: formData.products.map(p => ({
-    battery_type: p.battery_type || null,
-    battery_name: p.battery_name || null,
-    e_rickshaw_model: p.e_rickshaw_model || null,
-    price: p.price || null
-  })),
+      business_name: formData.business_name?.trim() || "",
+      trade_name: formData.trade_name?.trim() || null,
+      business_type: formData.business_type?.trim() || null,
+      pan_number: formData.pan_number?.trim().toUpperCase() || "",
+      gst_number: formData.gst_number?.trim().toUpperCase() || null,
+
+      owner_name: formData.owner_name?.trim() || "",
+      owner_mobile: formData.owner_mobile?.toString().trim() || null,
+      owner_email: formData.owner_email?.trim().toLowerCase() || null,
+
+      showroom_address: formData.showroom_address?.trim() || null,
+      city: formData.city?.trim() || null,
+      state: formData.state?.trim() || null,
+      pincode: formData.pincode?.toString().trim() || null,
+
       bank_name: formData.bank_name?.trim() || null,
       branch_name: formData.branch_name?.trim() || null,
       account_holder_name: formData.account_holder_name?.trim() || null,
       account_number: formData.account_number?.toString().trim() || null,
-      ifsc_code: formData.ifsc_code?.toUpperCase().trim() || null,
+      ifsc_code: formData.ifsc_code?.trim().toUpperCase() || null,
+
+      products: normalizedProducts,
     };
- 
+
+    if (!payload.business_name) {
+      setMessage("❌ Business name is required");
+      return;
+    }
+
+    if (!payload.owner_name) {
+      setMessage("❌ Owner name is required");
+      return;
+    }
+
     if (!payload.business_type) {
       setMessage("❌ Please select Business Type");
       return;
     }
- 
+
     if (Object.keys(errors).length > 0) {
       setMessage("❌ Please fix validation errors");
       return;
     }
- 
+
     if (!validatePAN(payload.pan_number)) {
       setMessage("❌ Invalid PAN format");
       return;
     }
- 
+
     if (payload.gst_number && !validateGST(payload.gst_number)) {
       setMessage("❌ Invalid GST format");
       return;
     }
- 
+
     setLoading(true);
-    setMessage("");
- 
+
     try {
- 
-      const res = await api.post(
-        "/motion-corp/dealer/create",
-        payload
+      const response = await api.post("/motion-corp/dealer/create", payload);
+
+      const created = response.data?.data;
+
+      setMessage(
+        `✅ Dealer created successfully | LAN: ${created?.lan || "N/A"}`,
       );
- 
-      setMessage(`✅ Dealer created successfully | LAN: ${res.data.lan}`);
- 
-      // reset form
-      setFormData(initialState);
- 
-      // reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
- 
+
+      setFormData(getInitialState());
+      setErrors({});
     } catch (err) {
- 
-      setLoading(false);
-      const backendMsg = err?.response?.data?.message;
-      const field = err?.response?.data?.field;
- 
-      setMessage(backendMsg || "❌ Dealer creation failed");
- 
-      // highlight field
+      const backendData = err.response?.data;
+
+      if (!err.response) {
+        setMessage(`❌ ${err.message || "Network error"}`);
+        return;
+      }
+
+      setMessage(backendData?.message || "❌ Dealer creation failed");
+
+      const field = backendData?.field;
+
       if (field) {
- 
         let fieldKey = "";
- 
-        if (field.includes("PAN")) fieldKey = "pan_number";
-        if (field.includes("GST")) fieldKey = "gst_number";
-        if (field.includes("Account")) fieldKey = "account_number";
- 
+
+        if (field.includes("PAN")) {
+          fieldKey = "pan_number";
+        } else if (field.includes("GST")) {
+          fieldKey = "gst_number";
+        } else if (field.includes("Account")) {
+          fieldKey = "account_number";
+        }
+
         if (fieldKey) {
-          setErrors(prev => ({
+          setErrors((prev) => ({
             ...prev,
-            [fieldKey]: backendMsg
+            [fieldKey]: backendData?.message || "Invalid value",
           }));
         }
       }
+    } finally {
+      setLoading(false);
     }
   };
- 
   /*
   ==========================
   INPUT RENDER
   ==========================
   */
   const renderInput = (label, name, type = "text") => (
-<div className="modern-field">
-<label>{label}</label>
-<input
+    <div className="modern-field">
+      <label>{label}</label>
+      <input
         type={type}
         name={name}
         value={formData[name] || ""}
@@ -322,43 +311,215 @@ const removeProduct = (index) => {
         placeholder={`Enter ${label.toLowerCase()}`}
         style={{
           borderColor: errors[name] ? "#d91c3e" : "#d4d4d4",
-          borderWidth: "2px"
+          borderWidth: "2px",
         }}
       />
-      {errors[name] && (
-<span className="inline-error">{errors[name]}</span>
-      )}
-</div>
+      {errors[name] && <span className="inline-error">{errors[name]}</span>}
+    </div>
   );
- 
+
   const renderSelect = (label, name, options) => (
-<div className="modern-field">
-<label>{label}</label>
-<select
+    <div className="modern-field">
+      <label>{label}</label>
+      <select
         name={name}
         value={formData[name]}
         onChange={handleChange}
         style={{
           borderColor: errors[name] ? "#d91c3e" : "#d4d4d4",
-          borderWidth: "2px"
+          borderWidth: "2px",
         }}
->
-<option value="">Select {label}</option>
+      >
+        <option value="">Select {label}</option>
         {options.map((opt) => (
-<option key={opt} value={opt}>
+          <option key={opt} value={opt}>
             {opt}
-</option>
+          </option>
         ))}
-</select>
-      {errors[name] && (
-<span className="inline-error">{errors[name]}</span>
-      )}
-</div>
+      </select>
+      {errors[name] && <span className="inline-error">{errors[name]}</span>}
+    </div>
   );
- 
+
   return (
-<div className="motion-corp-wrapper">
-<style>{`
+    <div className="motion-corp-wrapper">
+      <div className="header-banner">
+        <div>
+          <h1>Motion Corp Dealer Registration</h1>
+          <p>Complete all dealer and vehicle details to initiate the process</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="modern-form-grid">
+        {/* Business Information */}
+        <div className="ui-card">
+          <div className="card-header">
+            <span className="icon">🏢</span>
+            <h3>Business Information</h3>
+          </div>
+          <div className="grid-2">
+            {renderInput("Business Name", "business_name")}
+            {renderInput("Trade Name", "trade_name")}
+          </div>
+          <div className="grid-2">
+            {renderSelect("Business Type", "business_type", [
+              "Proprietorship",
+              "Partnership",
+              "Private Limited",
+              "LLP",
+            ])}
+            {renderInput("PAN Number", "pan_number")}
+          </div>
+          <div className="grid-2">
+            {renderInput("GST Number", "gst_number")}
+          </div>
+        </div>
+
+        {/* Owner Information */}
+        <div className="ui-card">
+          <div className="card-header">
+            <span className="icon">👤</span>
+            <h3>Owner Information</h3>
+          </div>
+          <div className="grid-2">
+            {renderInput("Owner Name", "owner_name")}
+            {renderInput("Owner Mobile", "owner_mobile")}
+          </div>
+          <div className="grid-2">
+            {renderInput("Owner Email", "owner_email")}
+          </div>
+        </div>
+
+        {/* Location Information */}
+        <div className="ui-card">
+          <div className="card-header">
+            <span className="icon">📍</span>
+            <h3>Showroom Location</h3>
+          </div>
+          <div className="grid-2">
+            {renderInput("Address", "showroom_address")}
+          </div>
+          <div className="grid-3">
+            {renderInput("City", "city")}
+            {renderInput("State", "state")}
+            {renderInput("Pincode", "pincode")}
+          </div>
+        </div>
+
+        {/* Bank Information */}
+        <div className="ui-card">
+          <div className="card-header">
+            <span className="icon">🏦</span>
+            <h3>Bank Information</h3>
+          </div>
+          <div className="grid-2">
+            {renderInput("Bank Name", "bank_name")}
+            {renderInput("Branch Name", "branch_name")}
+          </div>
+          <div className="grid-2">
+            {renderInput("Account Holder Name", "account_holder_name")}
+            {renderInput("Account Number", "account_number")}
+          </div>
+          <div className="grid-2">{renderInput("IFSC Code", "ifsc_code")}</div>
+        </div>
+
+        {/* EV Details */}
+        <div className="ui-card">
+          <div className="card-header">
+            <span className="icon">🔋</span>
+            <h3>E-Vehicle Details</h3>
+          </div>
+
+          {formData.products.map((p, index) => (
+            <div
+              key={index}
+              className="grid-3"
+              style={{ marginBottom: "15px" }}
+            >
+              <input
+                placeholder="Battery Type"
+                value={p.battery_type}
+                onChange={(e) =>
+                  handleProductChange(index, "battery_type", e.target.value)
+                }
+              />
+
+              <input
+                placeholder="Battery Name"
+                value={p.battery_name}
+                onChange={(e) =>
+                  handleProductChange(index, "battery_name", e.target.value)
+                }
+              />
+
+              <input
+                placeholder="E-Rickshaw Model"
+                value={p.e_rickshaw_model}
+                onChange={(e) =>
+                  handleProductChange(index, "e_rickshaw_model", e.target.value)
+                }
+              />
+
+              <input
+                type="number"
+                placeholder="Price"
+                value={p.price}
+                onChange={(e) =>
+                  handleProductChange(index, "price", e.target.value)
+                }
+              />
+
+              {formData.products.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeProduct(index)}
+                  style={{
+                    background: "#d91c3e",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "8px",
+                  }}
+                >
+                  ❌ Remove
+                </button>
+              )}
+            </div>
+          ))}
+
+          <button
+            type="button"
+            onClick={addProduct}
+            style={{
+              marginTop: "10px",
+              padding: "10px",
+              background: "#16a34a",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+            }}
+          >
+            ➕ Add Model
+          </button>
+        </div>
+
+        <button
+          type="submit"
+          className="main-submit-btn"
+          disabled={loading || Object.keys(errors).length > 0}
+        >
+          {loading ? "Creating Dealer..." : "Create Dealer"}
+        </button>
+      </form>
+
+      {message && (
+        <div
+          className={`message ${message.includes("❌") ? "error" : "success"}`}
+        >
+          {message}
+        </div>
+      )}
+      <style>{`
         * {
           margin: 0;
           padding: 0;
@@ -664,199 +825,8 @@ const removeProduct = (index) => {
           }
         }
       `}</style>
- 
-      <div className="header-banner">
-<div>
-<h1>Motion Corp Dealer Registration</h1>
-<p>Complete all dealer and vehicle details to initiate the process</p>
-</div>
-</div>
- 
-      <form onSubmit={handleSubmit} className="modern-form-grid">
- 
-        {/* Business Information */}
-<div className="ui-card">
-<div className="card-header">
-<span className="icon">🏢</span>
-<h3>Business Information</h3>
-</div>
-<div className="grid-2">
-            {renderInput("Business Name", "business_name")}
-            {renderInput("Trade Name", "trade_name")}
-</div>
-<div className="grid-2">
-            {renderSelect("Business Type", "business_type", [
-              "Proprietorship",
-              "Partnership",
-              "Private Limited",
-              "LLP"
-            ])}
-            {renderInput("PAN Number", "pan_number")}
-</div>
-<div className="grid-2">
-            {renderInput("GST Number", "gst_number")}
-</div>
-</div>
- 
-        {/* Owner Information */}
-<div className="ui-card">
-<div className="card-header">
-<span className="icon">👤</span>
-<h3>Owner Information</h3>
-</div>
-<div className="grid-2">
-            {renderInput("Owner Name", "owner_name")}
-            {renderInput("Owner Mobile", "owner_mobile")}
-</div>
-<div className="grid-2">
-            {renderInput("Owner Email", "owner_email")}
-</div>
-</div>
- 
-        {/* Location Information */}
-<div className="ui-card">
-<div className="card-header">
-<span className="icon">📍</span>
-<h3>Showroom Location</h3>
-</div>
-<div className="grid-2">
-            {renderInput("Address", "showroom_address")}
-</div>
-<div className="grid-3">
-            {renderInput("City", "city")}
-            {renderInput("State", "state")}
-            {renderInput("Pincode", "pincode")}
-</div>
-</div>
- 
-        {/* Bank Information */}
-<div className="ui-card">
-<div className="card-header">
-<span className="icon">🏦</span>
-<h3>Bank Information (OCR)</h3>
-</div>
-<div className="grid-2">
-<div className="modern-field">
-<label>Upload Cheque Image</label>
-<input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleChequeUpload}
-                accept="image/*"
-                style={{ borderWidth: "2px" }}
-              />
-</div>
-</div>
-<div className="grid-2">
-            {renderInput("Bank Name", "bank_name")}
-            {renderInput("Branch Name", "branch_name")}
-</div>
-<div className="grid-2">
-            {renderInput("Account Holder Name", "account_holder_name")}
-            {renderInput("Account Number", "account_number")}
-</div>
-<div className="grid-2">
-            {renderInput("IFSC Code", "ifsc_code")}
-</div>
-</div>
- 
-       {/* EV Details */}
-<div className="ui-card">
-
-  <div className="card-header">
-    <span className="icon">🔋</span>
-    <h3>E-Vehicle Details</h3>
-  </div>
-
-  {formData.products.map((p, index) => (
-    <div key={index} className="grid-3" style={{ marginBottom: "15px" }}>
-
-      <input
-        placeholder="Battery Type"
-        value={p.battery_type}
-        onChange={(e) =>
-          handleProductChange(index, "battery_type", e.target.value)
-        }
-      />
-
-      <input
-        placeholder="Battery Name"
-        value={p.battery_name}
-        onChange={(e) =>
-          handleProductChange(index, "battery_name", e.target.value)
-        }
-      />
-
-      <input
-        placeholder="E-Rickshaw Model"
-        value={p.e_rickshaw_model}
-        onChange={(e) =>
-          handleProductChange(index, "e_rickshaw_model", e.target.value)
-        }
-      />
-
-      <input
-        type="number"
-        placeholder="Price"
-        value={p.price}
-        onChange={(e) =>
-          handleProductChange(index, "price", e.target.value)
-        }
-      />
-
-      {formData.products.length > 1 && (
-        <button
-          type="button"
-          onClick={() => removeProduct(index)}
-          style={{
-            background: "#d91c3e",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            padding: "8px"
-          }}
-        >
-          ❌ Remove
-        </button>
-      )}
-
     </div>
-  ))}
-
-  <button
-    type="button"
-    onClick={addProduct}
-    style={{
-      marginTop: "10px",
-      padding: "10px",
-      background: "#16a34a",
-      color: "white",
-      border: "none",
-      borderRadius: "8px"
-    }}
-  >
-    ➕ Add Model
-  </button>
-
-</div>
- 
-        <button
-          type="submit"
-          className="main-submit-btn"
-          disabled={loading || Object.keys(errors).length > 0}
->
-          {loading ? "Creating Dealer..." : "Create Dealer"}
-</button>
- 
-      </form>
- 
-      {message && (
-<div className={`message ${message.includes("❌") ? "error" : "success"}`}>
-          {message}
-</div>
-      )}
-</div>
   );
 };
- 
+
 export default MotionCorpDealerEntry;

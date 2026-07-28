@@ -59,6 +59,15 @@ const MotionCorpDealerLists = () => {
     },
 
     {
+      key: "dealer_id",
+      header: "Dealer ID",
+      render: (r) => (
+        <span className="dealer-location">{r.dealer_id}</span>
+      ),
+      width: 150,
+    },
+
+    {
       key: "business_type",
       header: "Business Type",
       render: (r) => (
@@ -72,7 +81,7 @@ const MotionCorpDealerLists = () => {
       header: "Location",
       render: (r) => (
         <div className="dealer-location">
-          <span className="city">{r.city}</span>
+          <span className="city">{r.city}</span>/
           <span className="state">{r.state}</span>
         </div>
       ),
@@ -258,8 +267,7 @@ const MotionCorpDealerLists = () => {
         }
 
         .dealer-location .state {
-          font-size: 12px;
-          color: #64748b;
+          font-weight: 600;
         }
 
         .dealer-status {

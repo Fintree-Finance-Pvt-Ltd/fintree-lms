@@ -1,5 +1,4 @@
-import React, { useState, useRef } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 import api from "../../api/api";
 
 const SRBHDealerEntry = () => {
@@ -39,21 +38,12 @@ const SRBHDealerEntry = () => {
       },
     ],
 
-    cheque_file_path: "",
-    cheque_ocr_bank_name: null,
-    cheque_ocr_branch_name: null,
-    cheque_ocr_account_holder_name: null,
-    cheque_ocr_account_number: null,
-    cheque_ocr_ifsc_code: null,
-    cheque_ocr_response: {},
   };
 
   const [formData, setFormData] = useState(initialState);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const fileInputRef = useRef(null);
 
   /*
   ==========================
@@ -64,60 +54,6 @@ const SRBHDealerEntry = () => {
 
   const validateGST = (gst) =>
     /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gst);
-
-  /*
-  ==========================
-  OCR UPLOAD
-  ==========================
-  */
-  const handleChequeUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      const uploadData = new FormData();
-      uploadData.append("imageUrl", file);
-
-      const res = await axios.post(
-        "https://sandbox.fintreelms.com/ocr/v1/cheque",
-        uploadData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            "X-API-Key": "Fintree@2026",
-          },
-        },
-      );
-
-      const result = res.data.data.result?.[0]?.details;
-      if (!result) return;
-
-      setFormData((prev) => ({
-        ...prev,
-
-        cheque_file_path: file.name,
-
-        cheque_ocr_bank_name: result.bank_name?.value ?? null,
-        cheque_ocr_branch_name: result.branch_name?.value ?? null,
-        cheque_ocr_account_holder_name: result.name?.value ?? null,
-        cheque_ocr_account_number: result.account_number?.value ?? null,
-        cheque_ocr_ifsc_code: result.ifsc_code?.value ?? null,
-        cheque_ocr_response: result,
-
-        // Autofill but allow manual edit
-        bank_name: result.bank_name?.value || prev.bank_name,
-        branch_name: result.branch_name?.value || prev.branch_name,
-        account_holder_name: result.name?.value || prev.account_holder_name,
-        account_number: result.account_number?.value || prev.account_number,
-        ifsc_code: result.ifsc_code?.value || prev.ifsc_code,
-      }));
-
-      alert("OCR Data Captured Successfully");
-    } catch (err) {
-      console.error(err);
-      alert("Cheque OCR failed");
-    }
-  };
 
   const handleProductChange = (index, field, value) => {
     const updated = [...formData.products];
@@ -349,9 +285,6 @@ const SRBHDealerEntry = () => {
       setErrors({});
 
       // reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     } catch (err) {
       const backendMsg = err?.response?.data?.message;
       const field = err?.response?.data?.field;
@@ -825,19 +758,7 @@ const SRBHDealerEntry = () => {
         <div className="ui-card">
           <div className="card-header">
             <span className="icon">🏦</span>
-            <h3>Bank Information (OCR)</h3>
-          </div>
-          <div className="grid-2">
-            <div className="modern-field">
-              <label>Upload Cheque Image</label>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleChequeUpload}
-                accept="image/*"
-                style={{ borderWidth: "2px" }}
-              />
-            </div>
+            <h3>Bank Information</h3>
           </div>
           <div className="grid-2">
             {renderInput("Bank Name", "bank_name")}

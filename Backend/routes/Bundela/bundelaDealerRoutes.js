@@ -1,9 +1,6 @@
 ////////////////////////
 const express = require("express");
-const multer = require("multer");
 const axios = require("axios");
-const fs = require("fs");
-const FormData = require("form-data");
 const db = require("../../config/db");
 const {
   universalRunAllValidations,
@@ -80,18 +77,6 @@ const numberOrNull = (value) => {
 
 /*
 ====================================================
-MULTER CONFIG
-====================================================
-*/
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, "uploads/cheques/"),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`),
-});
-
-const uploadCheque = multer({ storage });
-
-/*
-====================================================
 CREATE DEALER + MULTIPLE PRODUCTS
 ====================================================
 */
@@ -111,13 +96,9 @@ router.post("/dealer/create", async (req, res) => {
         owner_name, owner_mobile, owner_email,
         showroom_address, city, state, pincode,
         bank_name, branch_name, account_holder_name, account_number, ifsc_code,
-        cheque_file_path, cheque_ocr_bank_name, cheque_ocr_branch_name,
-        cheque_ocr_account_holder_name, cheque_ocr_account_number,
-        cheque_ocr_ifsc_code, cheque_ocr_response,
-        cheque_uploaded_at,
         status, created_at, login_date
       )
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),'ACTIVE',NOW(),CURDATE())
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'ACTIVE',NOW(),CURDATE())
     `;
 
     const dealerValues = [
@@ -146,14 +127,6 @@ router.post("/dealer/create", async (req, res) => {
       data.account_holder_name,
       data.account_number,
       data.ifsc_code,
-
-      data.cheque_file_path || null,
-      data.cheque_ocr_bank_name || null,
-      data.cheque_ocr_branch_name || null,
-      data.cheque_ocr_account_holder_name || null,
-      data.cheque_ocr_account_number || null,
-      data.cheque_ocr_ifsc_code || null,
-      JSON.stringify(data.cheque_ocr_response || {}),
     ];
 
     await db.promise().query(dealerQuery, dealerValues);
@@ -291,56 +264,6 @@ router.get("/dealer/:application_id/products", async (req, res) => {
     res.status(500).json({ message: "Fetch failed", error: err.message });
   }
 });
-
-/*
-====================================================
-UPLOAD CHEQUE OCR
-====================================================
-*/
-router.post(
-  "/dealer/:lan/upload-cheque",
-  uploadCheque.single("cheque"),
-  async (req, res) => {
-    try {
-      const { lan } = req.params;
-
-      const formData = new FormData();
-      formData.append("file", fs.createReadStream(req.file.path));
-
-      const ocrResponse = await axios.post(
-        process.env.CHEQUE_OCR_API,
-        formData,
-        { headers: formData.getHeaders() },
-      );
-
-      const ocr = ocrResponse.data;
-
-      await db.promise().query(
-        `
-        UPDATE bundela_dealer_booking
-        SET cheque_file_path=?, cheque_ocr_bank_name=?, cheque_ocr_branch_name=?,
-            cheque_ocr_account_holder_name=?, cheque_ocr_account_number=?,
-            cheque_ocr_ifsc_code=?, cheque_ocr_response=?, cheque_uploaded_at=NOW()
-        WHERE lan=?
-      `,
-        [
-          req.file.path,
-          ocr.bank_name,
-          ocr.branch_name,
-          ocr.account_holder_name,
-          ocr.account_number,
-          ocr.ifsc_code,
-          JSON.stringify(ocr),
-          lan,
-        ],
-      );
-
-      res.json({ message: "Cheque OCR success", ocr });
-    } catch (err) {
-      res.status(500).json({ message: "OCR failed", error: err.message });
-    }
-  },
-);
 
 // /////////////// Dealer Lists & Details routes are in a separate file for better organization ///////////////
 router.get("/dealer-list", async (req, res) => {

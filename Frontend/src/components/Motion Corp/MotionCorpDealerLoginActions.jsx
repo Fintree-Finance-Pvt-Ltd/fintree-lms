@@ -167,15 +167,15 @@ const MotionCorpDealerLoginActions = () => {
       width: 120,
     },
 
-    {
-      key: "created_at",
-      header: "Created At",
-      render: (r) =>
-        r.created_at
-          ? new Date(r.created_at).toLocaleDateString()
-          : "—",
-      width: 140,
-    },
+    // {
+    //   key: "created_at",
+    //   header: "Created At",
+    //   render: (r) =>
+    //     r.created_at
+    //       ? new Date(r.created_at).toLocaleDateString()
+    //       : "—",
+    //   width: 140,
+    // },
 
     {
       key: "docs",

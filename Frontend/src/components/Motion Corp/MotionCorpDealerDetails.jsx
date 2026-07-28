@@ -207,20 +207,6 @@ const MotionCorpDealerDetails = () => {
   }
 />
 
-        <SectionCard
-          title="Cheque OCR Data"
-          icon="🧾"
-          content={
-            <Grid>
-              <Field label="OCR Bank Name" value={dealer.cheque_ocr_bank_name} />
-              <Field label="OCR Branch" value={dealer.cheque_ocr_branch_name} />
-              <Field label="OCR Holder" value={dealer.cheque_ocr_account_holder_name} />
-              <Field label="OCR Account" value={dealer.cheque_ocr_account_number} />
-              <Field label="OCR IFSC" value={dealer.cheque_ocr_ifsc_code} />
-            </Grid>
-          }
-        />
-
       </div>
     </div>
   );
