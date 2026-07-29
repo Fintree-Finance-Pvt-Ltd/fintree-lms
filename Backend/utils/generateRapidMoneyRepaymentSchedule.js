@@ -47,11 +47,15 @@ async function generateRapidMoneyRepaymentSchedule(
       throw new Error("Invalid tenure days");
     }
 
-    if (!repaymentDate) {
-      throw new Error("Repayment date missing");
-    }
+   
 
-    const dueDate = formatDateOnly(repaymentDate);
+if (!disbursementDate || !dayjs(disbursementDate).isValid()) {
+  throw new Error("Invalid disbursement date");
+}
+
+const dueDate = dayjs(disbursementDate)
+  .add(days, "day")
+  .format("YYYY-MM-DD");
 
     /*
       Single-payment short-term loan logic:
