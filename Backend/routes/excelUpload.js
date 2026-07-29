@@ -5087,7 +5087,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           data.aa_ifsc ?? null,
           // disbursal bank
           data.bank_name,
-          data.name_in_bank,
+          data.aa_name_in_bank,
           data.account_number,
           data.ifsc,
           customerName,
