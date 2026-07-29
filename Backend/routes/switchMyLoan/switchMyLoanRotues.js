@@ -13,9 +13,18 @@ const {
 const { approveAndInitiatePayout } = require("../../services/payout.service");
 const { verifyBank } = require("../../services/enachService");
 const {
+  getOrCreatePartner,
+  validatePartnerDisbursementLimit,
+  updateDisbursedLimit,
+} = require("../../services/partnerLimitService");
+
+
+const {
   evaluateRapidMoneyEligibility,
 } = require("./rapidMoneyEligibilityEvaluator");
 const router = express.Router();
+
+
 
 const DEPLOYMENT_ENV = String(
   process.env.DEPLOYMENT_ENV || "production",
@@ -2755,38 +2764,274 @@ if (
 //   },
 // );
 
+
+//////// ROHIT JOSHI
+// router.post(
+//   "/v1/loan/:application_id/disburse",
+//   verifyApiKey,
+//   async (req, res) => {
+//     let connection;
+//     let transactionStarted = false;
+
+//     try {
+//       connection = await db.promise().getConnection();
+
+//       const { application_id } = req.params;
+//       const { trigger_fund } = req.body;
+
+//       if (!application_id) {
+//         return res.status(400).json({
+//           is_success: false,
+//           error: {
+//             message: "application_id required",
+//             code: "request_validation_error",
+//           },
+//         });
+//       }
+
+//       if (trigger_fund !== true) {
+//         return res.status(400).json({
+//           is_success: false,
+//           error: {
+//             message: "trigger_fund must be true",
+//             code: "request_validation_error",
+//           },
+//         });
+//       }
+
+//       await connection.beginTransaction();
+//       transactionStarted = true;
+
+//       const [[loan]] = await connection.query(
+//         `
+//         SELECT
+//           application_id,
+//           lan,
+//           status,
+//           loan_amount,
+//           disbursal_amount,
+//           sml_credit_limit,
+//           processing_fee
+//         FROM loan_booking_switch_my_loan
+//         WHERE application_id = ?
+//         LIMIT 1
+//         FOR UPDATE
+//         `,
+//         [application_id],
+//       );
+
+//       if (!loan) {
+//         await connection.rollback();
+//         transactionStarted = false;
+
+//         return res.status(404).json({
+//           is_success: false,
+//           error: {
+//             message: "Loan case not found",
+//             code: "loan_not_found",
+//           },
+//         });
+//       }
+
+//       if (loan.status !== "BRE_APPROVED") {
+//         await connection.rollback();
+//         transactionStarted = false;
+
+//         return res.status(400).json({
+//           is_success: false,
+//           error: {
+//             message: "Loan not eligible for disbursement",
+//             code: "request_validation_error",
+//           },
+//         });
+//       }
+
+//       if (!loan.lan) {
+//         await connection.rollback();
+//         transactionStarted = false;
+
+//         return res.status(400).json({
+//           is_success: false,
+//           error: {
+//             message: "LAN missing for this loan case",
+//             code: "lan_not_generated",
+//           },
+//         });
+//       }
+
+//       const [[existingTransfer]] = await connection.query(
+//         `
+//         SELECT id, payout_status
+//         FROM quick_transfers
+//         WHERE lan = ?
+//         LIMIT 1
+//         `,
+//         [loan.lan],
+//       );
+
+//       if (existingTransfer) {
+//         await connection.rollback();
+//         transactionStarted = false;
+
+//         return res.status(409).json({
+//           is_success: false,
+//           error: {
+//             message: "Payout already initiated for this loan",
+//             code: "duplicate_payout_request",
+//           },
+//         });
+//       }
+
+//       const disbursalAmount =
+//   Number(
+//     loan.disbursal_amount ?? 0,
+//   );
+
+// const approvedCreditLimit =
+//   Number(
+//     loan.sml_credit_limit ?? 0,
+//   );
+
+//       if (!Number.isFinite(disbursalAmount) || disbursalAmount <= 0) {
+//         await connection.rollback();
+//         transactionStarted = false;
+//         return res.status(400).json({
+//           is_success: false,
+//           error: {
+//             message: "Approved net disbursal amount is missing or invalid",
+//             code: "invalid_disbursal_amount",
+//           },
+//         });
+//       }
+//       if (
+//   !Number.isFinite(
+//     approvedCreditLimit,
+//   ) ||
+//   approvedCreditLimit <= 0
+// ) {
+//   await connection.rollback();
+//   transactionStarted = false;
+
+//   return res.status(400).json({
+//     is_success: false,
+//     error: {
+//       message:
+//         "Approved credit limit is missing or invalid",
+//       code:
+//         "invalid_credit_limit",
+//     },
+//   });
+// }
+
+// if (
+//   disbursalAmount >
+//   approvedCreditLimit
+// ) {
+//   await connection.rollback();
+//   transactionStarted = false;
+
+//   return res.status(400).json({
+//     is_success: false,
+//     error: {
+//       message:
+//         "Disbursal amount exceeds approved credit limit",
+//       code:
+//         "disbursal_exceeds_credit_limit",
+//     },
+//   });
+// }
+
+//       await connection.query(
+//         `
+//         UPDATE loan_booking_switch_my_loan
+//         SET
+//           status = 'DISBURSE_INITIATED',
+//           updated_at = NOW()
+//         WHERE application_id = ?
+//         `,
+//         [application_id],
+//       );
+
+//       await connection.commit();
+//       transactionStarted = false;
+
+//       approveAndInitiatePayout({
+//         lan: loan.lan,
+//         table: "loan_booking_switch_my_loan",
+//       }).catch((payoutErr) => {
+//         console.error("Payout initiation failed for LAN:", loan.lan, payoutErr);
+//       });
+
+//       return res.json({
+//         is_success: true,
+//         data: {
+//           status: "Disbursal Initiated",
+//           amount: disbursalAmount.toFixed(2),
+//           transaction_time: null,
+//           transaction_id: null,
+//         },
+//       });
+//     } catch (err) {
+//       if (connection && transactionStarted) {
+//         await connection.rollback();
+//       }
+
+//       console.error("Disburse error:", err);
+
+//       return res.status(500).json({
+//         is_success: false,
+//         error: {
+//           message: "Internal server error",
+//           code: "internal_server_error",
+//         },
+//       });
+//     } finally {
+//       if (connection) connection.release();
+//     }
+//   },
+// );
+
+/////  Sajag 
+
 router.post(
   "/v1/loan/:application_id/disburse",
   verifyApiKey,
   async (req, res) => {
+    const { application_id } = req.params;
+    const { trigger_fund } = req.body || {};
+
+    if (!application_id) {
+      return res.status(400).json({
+        is_success: false,
+        error: {
+          message: "application_id required",
+          code: "request_validation_error",
+        },
+      });
+    }
+
+    if (trigger_fund !== true) {
+      return res.status(400).json({
+        is_success: false,
+        error: {
+          message: "trigger_fund must be true",
+          code: "request_validation_error",
+        },
+      });
+    }
+
     let connection;
     let transactionStarted = false;
 
+    const rollback = async () => {
+      if (connection && transactionStarted) {
+        await connection.rollback();
+        transactionStarted = false;
+      }
+    };
+
     try {
       connection = await db.promise().getConnection();
-
-      const { application_id } = req.params;
-      const { trigger_fund } = req.body;
-
-      if (!application_id) {
-        return res.status(400).json({
-          is_success: false,
-          error: {
-            message: "application_id required",
-            code: "request_validation_error",
-          },
-        });
-      }
-
-      if (trigger_fund !== true) {
-        return res.status(400).json({
-          is_success: false,
-          error: {
-            message: "trigger_fund must be true",
-            code: "request_validation_error",
-          },
-        });
-      }
 
       await connection.beginTransaction();
       transactionStarted = true;
@@ -2810,8 +3055,7 @@ router.post(
       );
 
       if (!loan) {
-        await connection.rollback();
-        transactionStarted = false;
+        await rollback();
 
         return res.status(404).json({
           is_success: false,
@@ -2823,8 +3067,7 @@ router.post(
       }
 
       if (loan.status !== "BRE_APPROVED") {
-        await connection.rollback();
-        transactionStarted = false;
+        await rollback();
 
         return res.status(400).json({
           is_success: false,
@@ -2836,8 +3079,7 @@ router.post(
       }
 
       if (!loan.lan) {
-        await connection.rollback();
-        transactionStarted = false;
+        await rollback();
 
         return res.status(400).json({
           is_success: false,
@@ -2850,7 +3092,9 @@ router.post(
 
       const [[existingTransfer]] = await connection.query(
         `
-        SELECT id, payout_status
+        SELECT
+          id,
+          payout_status
         FROM quick_transfers
         WHERE lan = ?
         LIMIT 1
@@ -2859,8 +3103,7 @@ router.post(
       );
 
       if (existingTransfer) {
-        await connection.rollback();
-        transactionStarted = false;
+        await rollback();
 
         return res.status(409).json({
           is_success: false,
@@ -2871,19 +3114,12 @@ router.post(
         });
       }
 
-      const disbursalAmount =
-  Number(
-    loan.disbursal_amount ?? 0,
-  );
-
-const approvedCreditLimit =
-  Number(
-    loan.sml_credit_limit ?? 0,
-  );
+      const disbursalAmount = Number(loan.disbursal_amount ?? 0);
+      const approvedCreditLimit = Number(loan.sml_credit_limit ?? 0);
 
       if (!Number.isFinite(disbursalAmount) || disbursalAmount <= 0) {
-        await connection.rollback();
-        transactionStarted = false;
+        await rollback();
+
         return res.status(400).json({
           is_success: false,
           error: {
@@ -2892,54 +3128,117 @@ const approvedCreditLimit =
           },
         });
       }
+
       if (
-  !Number.isFinite(
-    approvedCreditLimit,
-  ) ||
-  approvedCreditLimit <= 0
-) {
-  await connection.rollback();
-  transactionStarted = false;
+        !Number.isFinite(approvedCreditLimit) ||
+        approvedCreditLimit <= 0
+      ) {
+        await rollback();
 
-  return res.status(400).json({
-    is_success: false,
-    error: {
-      message:
-        "Approved credit limit is missing or invalid",
-      code:
-        "invalid_credit_limit",
-    },
-  });
-}
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "Approved credit limit is missing or invalid",
+            code: "invalid_credit_limit",
+          },
+        });
+      }
 
-if (
-  disbursalAmount >
-  approvedCreditLimit
-) {
-  await connection.rollback();
-  transactionStarted = false;
+      if (disbursalAmount > approvedCreditLimit) {
+        await rollback();
 
-  return res.status(400).json({
-    is_success: false,
-    error: {
-      message:
-        "Disbursal amount exceeds approved credit limit",
-      code:
-        "disbursal_exceeds_credit_limit",
-    },
-  });
-}
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "Disbursal amount exceeds approved credit limit",
+            code: "disbursal_exceeds_credit_limit",
+          },
+        });
+      }
 
-      await connection.query(
+      /*
+       * Rapid Money partner-limit validation.
+       */
+      const partnerName = "RAPID MONEY";
+      const today = new Date();
+      const { month, year } = getMonthYear(today);
+
+      const partner =
+        await partnerLimitService.getOrCreatePartner(
+          connection,
+          partnerName,
+        );
+
+      if (partner.status !== "active") {
+        await rollback();
+
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "Rapid Money partner is inactive",
+            code: "partner_inactive",
+          },
+        });
+      }
+
+      /*
+       * Lock and validate the Rapid Money monthly disbursement limit.
+       */
+      const limitValidation =
+        await partnerLimitService.validatePartnerDisbursementLimit(
+          connection,
+          partner.partner_id,
+          disbursalAmount,
+          month,
+          year,
+        );
+
+      if (!limitValidation.valid) {
+        await rollback();
+
+        return res.status(409).json({
+          is_success: false,
+          error: {
+            message: "Rapid Money disbursement limit exceeded",
+            code: "partner_disbursement_limit_exceeded",
+            details: {
+              assigned_limit: limitValidation.assigned,
+              used_limit: limitValidation.used,
+              remaining_limit:
+                limitValidation.disbursementRemaining,
+              required_amount: disbursalAmount,
+            },
+          },
+        });
+      }
+
+      /*
+       * Update used_limit and add a DISBURSED audit record.
+       * loan.lan prevents the same LAN from being counted twice.
+       */
+      const limitUpdate =
+        await partnerLimitService.updateDisbursedLimit(
+          connection,
+          limitValidation.limitId,
+          disbursalAmount,
+          loan.lan,
+        );
+
+      const [loanUpdate] = await connection.query(
         `
         UPDATE loan_booking_switch_my_loan
         SET
           status = 'DISBURSE_INITIATED',
           updated_at = NOW()
         WHERE application_id = ?
+          AND status = 'BRE_APPROVED'
         `,
         [application_id],
       );
+
+      if (loanUpdate.affectedRows !== 1) {
+        throw new Error("LOAN_STATUS_UPDATE_FAILED");
+      }
 
       await connection.commit();
       transactionStarted = false;
@@ -2948,7 +3247,11 @@ if (
         lan: loan.lan,
         table: "loan_booking_switch_my_loan",
       }).catch((payoutErr) => {
-        console.error("Payout initiation failed for LAN:", loan.lan, payoutErr);
+        console.error(
+          "Payout initiation failed for LAN:",
+          loan.lan,
+          payoutErr,
+        );
       });
 
       return res.json({
@@ -2958,14 +3261,63 @@ if (
           amount: disbursalAmount.toFixed(2),
           transaction_time: null,
           transaction_id: null,
+          partner: partnerName,
+          partner_limit_updated: !limitUpdate.skipped,
         },
       });
     } catch (err) {
-      if (connection && transactionStarted) {
-        await connection.rollback();
+      try {
+        await rollback();
+      } catch (rollbackErr) {
+        console.error(
+          "Disbursement rollback error:",
+          rollbackErr,
+        );
       }
 
       console.error("Disburse error:", err);
+
+      if (err.message === "No limit record for partner/month/year") {
+        return res.status(409).json({
+          is_success: false,
+          error: {
+            message:
+              "Rapid Money monthly limit is not configured for the current month",
+            code: "partner_limit_not_configured",
+          },
+        });
+      }
+
+      if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+        return res.status(409).json({
+          is_success: false,
+          error: {
+            message: "Rapid Money disbursement limit exceeded",
+            code: "partner_disbursement_limit_exceeded",
+            details: err.meta || undefined,
+          },
+        });
+      }
+
+      if (err.message === "INVALID_DISBURSEMENT_AMOUNT") {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "Invalid disbursement amount",
+            code: "invalid_disbursal_amount",
+          },
+        });
+      }
+
+      if (err.message === "LOAN_STATUS_UPDATE_FAILED") {
+        return res.status(409).json({
+          is_success: false,
+          error: {
+            message: "Loan status changed before disbursement",
+            code: "loan_status_update_failed",
+          },
+        });
+      }
 
       return res.status(500).json({
         is_success: false,
@@ -2975,7 +3327,9 @@ if (
         },
       });
     } finally {
-      if (connection) connection.release();
+      if (connection) {
+        connection.release();
+      }
     }
   },
 );
