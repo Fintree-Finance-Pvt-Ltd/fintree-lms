@@ -9,36 +9,37 @@ const {
   parseBureauReport,
 } = require("./rapidMoneyPolicy");
 
-const { amlCheck } = require(
-  "../../utils/amlCrimescanService",
-);
+const {
+  screenLoanBooking,
+} = require("../../services/trackwizz/screeningService");
+
+const AML_SCREENING_PRODUCT = "switch_my_loan";
+
+const AML_REJECT_REASON = "AML REJECT";
+
+const TRACKWIZZ_AML_STATUSES = new Set(["PROCEED", "REVIEW", "STOP"]);
 
 const DEPLOYMENT_ENV = String(
-  process.env.DEPLOYMENT_ENV ||
-  process.env.NODE_ENV ||
-  "development",
+  process.env.DEPLOYMENT_ENV || process.env.NODE_ENV || "development",
 )
   .trim()
   .toLowerCase();
 
-const AML_MODE = String(process.env.AML_MODE || "live")
-  .trim()
-  .toLowerCase();
+// const AML_MODE = String(process.env.AML_MODE || "live")
+//   .trim()
+//   .toLowerCase();
 
 const BUREAU_MODE = String(process.env.BUREAU_MODE || "live")
   .trim()
   .toLowerCase();
 
-const VALID_SERVICE_MODES = new Set([
-  "live",
-  "mock-clear",
-]);
+const VALID_SERVICE_MODES = new Set(["live", "mock-clear"]);
 
-if (!VALID_SERVICE_MODES.has(AML_MODE)) {
-  throw new Error(
-    `Invalid AML_MODE "${AML_MODE}". Expected live or mock-clear.`,
-  );
-}
+// if (!VALID_SERVICE_MODES.has(AML_MODE)) {
+//   throw new Error(
+//     `Invalid AML_MODE "${AML_MODE}". Expected live or mock-clear.`,
+//   );
+// }
 
 if (!VALID_SERVICE_MODES.has(BUREAU_MODE)) {
   throw new Error(
@@ -49,14 +50,26 @@ if (!VALID_SERVICE_MODES.has(BUREAU_MODE)) {
 /*
  * Never allow AML or Bureau bypass in production.
  */
-// if (
-//   DEPLOYMENT_ENV === "production" &&
-//   (AML_MODE !== "live" || BUREAU_MODE !== "live")
-// ) {
-//   throw new Error(
-//     "AML/Bureau bypass is not permitted in production",
-//   );
-// }
+const DEPLOYMENT_ENV = String(
+  process.env.DEPLOYMENT_ENV || process.env.NODE_ENV || "development",
+)
+  .trim()
+  .toLowerCase();
+
+const AML_MODE = String(process.env.AML_MODE || "")
+  .trim()
+  .toLowerCase();
+
+const BUREAU_MODE = String(process.env.BUREAU_MODE || "")
+  .trim()
+  .toLowerCase();
+
+if (
+  DEPLOYMENT_ENV === "production" &&
+  (AML_MODE !== "live" || BUREAU_MODE !== "live")
+) {
+  throw new Error("AML/Bureau bypass is not permitted in production");
+}
 
 const POLICY_VERSION = "RAPID_MONEY_POLICY_PDF_2026_07";
 
@@ -92,18 +105,17 @@ function splitName(fullName) {
   return {
     first_name: parts[0] || "",
     middle_name: parts.length > 2 ? parts.slice(1, -1).join(" ") : "",
-    last_name:
-      parts.length > 1 ? parts[parts.length - 1] : parts[0] || "",
+    last_name: parts.length > 1 ? parts[parts.length - 1] : parts[0] || "",
   };
 }
 
-const FINAL_AML_STATUSES = new Set([
-  "CLEAR",
-  "REJECT",
-  "REVIEW",
-]);
+// const FINAL_AML_STATUSES = new Set([
+//   "CLEAR",
+//   "REJECT",
+//   "REVIEW",
+// ]);
 
-const AML_CLEAR_THRESHOLD = 70;
+// const AML_CLEAR_THRESHOLD = 70;
 
 /**
  * This preserves your current AML interpretation:
@@ -116,20 +128,20 @@ const AML_CLEAR_THRESHOLD = 70;
  * a safer result. If a higher score means a stronger match,
  * this comparison must be reversed.
  */
-function getAmlDecision(score, totalMatches) {
-  if (Number(totalMatches) === 0) {
-    return "CLEAR";
-  }
+// function getAmlDecision(score, totalMatches) {
+//   if (Number(totalMatches) === 0) {
+//     return "CLEAR";
+//   }
 
-  if (
-    Number.isFinite(Number(score)) &&
-    Number(score) >= AML_CLEAR_THRESHOLD
-  ) {
-    return "CLEAR";
-  }
+//   if (
+//     Number.isFinite(Number(score)) &&
+//     Number(score) >= AML_CLEAR_THRESHOLD
+//   ) {
+//     return "CLEAR";
+//   }
 
-  return "REJECT";
-}
+//   return "REJECT";
+// }
 
 function createInitialRules() {
   return {
@@ -156,11 +168,7 @@ async function updateBookingBreSnapshot(lan, result) {
   const bureau = result?.bureau || {};
 
   const dualPanValue =
-    bureau.hasDualPan === true
-      ? 1
-      : bureau.hasDualPan === false
-        ? 0
-        : null;
+    bureau.hasDualPan === true ? 1 : bureau.hasDualPan === false ? 0 : null;
 
   await db.promise().query(
     `
@@ -379,14 +387,9 @@ function getLoanPincode(loan) {
 
 function getLoanStateFromDb(loan) {
   const state =
-    loan.current_address_state ||
-    loan.address_state ||
-    loan.state ||
-    "";
+    loan.current_address_state || loan.address_state || loan.state || "";
 
-  return isValidStateValue(state)
-    ? cleanText(state)
-    : "";
+  return isValidStateValue(state) ? cleanText(state) : "";
 }
 
 async function fetchStateFromPincode(pincode) {
@@ -419,9 +422,7 @@ async function fetchStateFromPincode(pincode) {
 
     const data = await response.json();
 
-    const result = Array.isArray(data)
-      ? data[0]
-      : null;
+    const result = Array.isArray(data) ? data[0] : null;
 
     const postOffice = Array.isArray(result?.PostOffice)
       ? result.PostOffice[0]
@@ -429,9 +430,7 @@ async function fetchStateFromPincode(pincode) {
 
     const state = postOffice?.State;
 
-    return isValidStateValue(state)
-      ? cleanText(state)
-      : null;
+    return isValidStateValue(state) ? cleanText(state) : null;
   } catch (error) {
     console.error("[SML BRE] Failed to fetch state from pincode", {
       pincode: cleanPincode,
@@ -459,8 +458,7 @@ async function resolveStateForBureau(loan) {
     return "";
   }
 
-  const stateFromPincode =
-    await fetchStateFromPincode(pincode);
+  const stateFromPincode = await fetchStateFromPincode(pincode);
 
   if (stateFromPincode) {
     console.log("[SML BRE] State resolved from pincode", {
@@ -487,11 +485,7 @@ function toNumberOrNull(value) {
     return null;
   }
 
-  const number = Number(
-    String(value)
-      .replace(/,/g, "")
-      .trim(),
-  );
+  const number = Number(String(value).replace(/,/g, "").trim());
 
   return Number.isFinite(number) ? number : null;
 }
@@ -548,13 +542,9 @@ function calculateNetDisbursalAmount({
 
   const gstOnProcessingFee = roundMoney(processingFeeAmount * gst);
 
-  const totalDeduction = roundMoney(
-    processingFeeAmount + gstOnProcessingFee,
-  );
+  const totalDeduction = roundMoney(processingFeeAmount + gstOnProcessingFee);
 
-  const netDisbursalAmount = roundMoney(
-    grossApprovedAmount - totalDeduction,
-  );
+  const netDisbursalAmount = roundMoney(grossApprovedAmount - totalDeduction);
 
   if (!Number.isFinite(netDisbursalAmount) || netDisbursalAmount <= 0) {
     return {
@@ -759,11 +749,9 @@ async function runOrReuseBureau(loan) {
   const currentKycId = currentKyc?.id || existingKyc?.id || null;
 
   try {
-    const resolvedStateForBureau =
-      await resolveStateForBureau(loan);
+    const resolvedStateForBureau = await resolveStateForBureau(loan);
 
-    const resolvedPincodeForBureau =
-      getLoanPincode(loan);
+    const resolvedPincodeForBureau = getLoanPincode(loan);
 
     if (!resolvedStateForBureau) {
       await setBureauStatus(
@@ -785,13 +773,9 @@ async function runOrReuseBureau(loan) {
       ...splitName(loan.customer_name),
       dob: loan.dob,
       gender: loan.gender,
-      current_address:
-        loan.current_address_line_1 || loan.address_line_1 || "",
+      current_address: loan.current_address_line_1 || loan.address_line_1 || "",
       current_village_city:
-        loan.current_address_city ||
-        loan.address_city ||
-        loan.city ||
-        "",
+        loan.current_address_city || loan.address_city || loan.city || "",
       current_state: resolvedStateForBureau,
       current_pincode: resolvedPincodeForBureau,
       mobile_number: loan.mobile,
@@ -811,11 +795,7 @@ async function runOrReuseBureau(loan) {
       };
     }
 
-    const parsed = parseBureauReport(
-      bureauResult.response,
-      null,
-      "NEW_PULL",
-    );
+    const parsed = parseBureauReport(bureauResult.response, null, "NEW_PULL");
 
     if (!parsed.ok) {
       await setBureauStatus(loan.lan, "FAILED", responseToStore);
@@ -875,268 +855,337 @@ async function runOrReuseBureau(loan) {
   }
 }
 
-async function runOrReuseAml(loan) {
-  const pool = db.promise();
+// async function runOrReuseAml(loan) {
+//   const pool = db.promise();
 
-  if (AML_MODE === "mock-clear") {
-    console.warn("[SML BRE] AML bypassed in test mode", {
-      lan: loan.lan,
-      deploymentEnvironment: DEPLOYMENT_ENV,
-    });
+//   if (AML_MODE === "mock-clear") {
+//     console.warn("[SML BRE] AML bypassed in test mode", {
+//       lan: loan.lan,
+//       deploymentEnvironment: DEPLOYMENT_ENV,
+//     });
 
-    return {
-      status: "CLEAR",
-      score: 100,
-      totalMatches: 0,
-      reason: null,
-      source: "TEST_BYPASS",
-      bypassed: true,
-    };
-  }
+//     return {
+//       status: "CLEAR",
+//       score: 100,
+//       totalMatches: 0,
+//       reason: null,
+//       source: "TEST_BYPASS",
+//       bypassed: true,
+//     };
+//   }
 
-  /*
-   * Always reload the current AML state because the loan
-   * object passed to runBRE may be old.
-   */
-  const [loanRows] = await pool.query(
-    `
-    SELECT
-      aml_score,
-      aml_status,
-      aml_checked_at,
-      aml_total_matches,
-      aml_reason,
-      aml_api_response
-    FROM loan_booking_switch_my_loan
-    WHERE lan = ?
-    LIMIT 1
-    `,
-    [loan.lan],
-  );
+//   /*
+//    * Always reload the current AML state because the loan
+//    * object passed to runBRE may be old.
+//    */
+//   const [loanRows] = await pool.query(
+//     `
+//     SELECT
+//       aml_score,
+//       aml_status,
+//       aml_checked_at,
+//       aml_total_matches,
+//       aml_reason,
+//       aml_api_response
+//     FROM loan_booking_switch_my_loan
+//     WHERE lan = ?
+//     LIMIT 1
+//     `,
+//     [loan.lan],
+//   );
 
-  const amlRow = loanRows[0] || {};
-  const currentStatus = String(
-    amlRow.aml_status || "",
-  ).toUpperCase();
+//   const amlRow = loanRows[0] || {};
+//   const currentStatus = String(
+//     amlRow.aml_status || "",
+//   ).toUpperCase();
 
-  /*
-   * Reuse a completed AML result.
-   */
-  const hasCompleteAmlAudit =
-    amlRow.aml_total_matches !== null &&
-    amlRow.aml_total_matches !== undefined &&
-    Boolean(amlRow.aml_api_response);
+//   /*
+//    * Reuse a completed AML result.
+//    */
+//   const hasCompleteAmlAudit =
+//     amlRow.aml_total_matches !== null &&
+//     amlRow.aml_total_matches !== undefined &&
+//     Boolean(amlRow.aml_api_response);
 
-  if (
-    FINAL_AML_STATUSES.has(
-      currentStatus,
-    ) &&
-    hasCompleteAmlAudit
-  ) {
-    return {
-      status: currentStatus,
-      score:
-        amlRow.aml_score === null ||
-          amlRow.aml_score === undefined
-          ? null
-          : Number(amlRow.aml_score),
+//   if (
+//     FINAL_AML_STATUSES.has(
+//       currentStatus,
+//     ) &&
+//     hasCompleteAmlAudit
+//   ) {
+//     return {
+//       status: currentStatus,
+//       score:
+//         amlRow.aml_score === null ||
+//           amlRow.aml_score === undefined
+//           ? null
+//           : Number(amlRow.aml_score),
 
-      totalMatches:
-        amlRow.aml_total_matches === null ||
-          amlRow.aml_total_matches === undefined
-          ? null
-          : Number(amlRow.aml_total_matches),
+//       totalMatches:
+//         amlRow.aml_total_matches === null ||
+//           amlRow.aml_total_matches === undefined
+//           ? null
+//           : Number(amlRow.aml_total_matches),
 
-      reason: amlRow.aml_reason || null,
-      source: "REUSED",
-    };
-  }
+//       reason: amlRow.aml_reason || null,
+//       source: "REUSED",
+//     };
+//   }
 
-  /*
-   * Any non-final status, including FAILED, is retried.
-   */
-  await pool.query(
-    `
-    UPDATE loan_booking_switch_my_loan
-    SET
-      aml_status = 'INITIATED',
-      aml_score = NULL,
-      aml_total_matches = NULL,
-      aml_reason = NULL,
-      aml_api_response = NULL,
-      aml_checked_at = NOW()
-    WHERE lan = ?
-    `,
-    [loan.lan],
-  );
+//   /*
+//    * Any non-final status, including FAILED, is retried.
+//    */
+//   await pool.query(
+//     `
+//     UPDATE loan_booking_switch_my_loan
+//     SET
+//       aml_status = 'INITIATED',
+//       aml_score = NULL,
+//       aml_total_matches = NULL,
+//       aml_reason = NULL,
+//       aml_api_response = NULL,
+//       aml_checked_at = NOW()
+//     WHERE lan = ?
+//     `,
+//     [loan.lan],
+//   );
 
+//   try {
+//     const amlResult = await amlCheck(
+//       "switch-my-loan",
+//       {
+//         customer_name:
+//           loan.customer_name || "",
+
+//         location:
+//           loan.current_address_city ||
+//           loan.address_city ||
+//           loan.city ||
+//           "",
+
+//         father_name:
+//           loan.father_name || "",
+
+//         pan_number:
+//           loan.pan_number || "",
+
+//         phone:
+//           loan.mobile || "",
+//       },
+//     );
+
+//     const totalMatches = Number(
+//       amlResult?.total ?? 0,
+//     );
+
+//     const returnedScore =
+//       amlResult?.results?.[0]?.score;
+
+//     const parsedScore =
+//       returnedScore === null ||
+//         returnedScore === undefined ||
+//         returnedScore === ""
+//         ? null
+//         : Number(returnedScore);
+
+//     /*
+//      * When no AML match exists, your existing logic assigns
+//      * a score of 100.
+//      */
+//     const amlScore =
+//       totalMatches === 0
+//         ? 100
+//         : Number.isFinite(parsedScore)
+//           ? parsedScore
+//           : null;
+
+//     /*
+//      * A match exists but no usable score was received.
+//      * Treat this as a technical failure rather than
+//      * automatically clearing or rejecting the customer.
+//      */
+//     if (
+//       totalMatches > 0 &&
+//       amlScore === null
+//     ) {
+//       await pool.query(
+//         `
+//         UPDATE loan_booking_switch_my_loan
+//         SET
+//           aml_status = 'FAILED',
+//           aml_score = NULL,
+//           aml_total_matches = ?,
+//           aml_reason = 'AML_SCORE_MISSING',
+//           aml_api_response = ?,
+//           aml_checked_at = NOW()
+//         WHERE lan = ?
+//         `,
+//         [
+//           totalMatches,
+//           safeJson(amlResult),
+//           loan.lan,
+//         ],
+//       );
+
+//       return {
+//         status: "FAILED",
+//         score: null,
+//         totalMatches,
+//         reason: "AML_SCORE_MISSING",
+//         source: "NEW_CHECK",
+//         technicalReason:
+//           "AML_TECHNICAL_FAILURE",
+//       };
+//     }
+
+//     const amlStatus = getAmlDecision(
+//       amlScore,
+//       totalMatches,
+//     );
+
+//     const amlReason =
+//       amlStatus === "CLEAR"
+//         ? null
+//         : "AML_HIGH_RISK_MATCH";
+
+//     await pool.query(
+//       `
+//       UPDATE loan_booking_switch_my_loan
+//       SET
+//         aml_status = ?,
+//         aml_score = ?,
+//         aml_total_matches = ?,
+//         aml_reason = ?,
+//         aml_api_response = ?,
+//         aml_checked_at = NOW()
+//       WHERE lan = ?
+//       `,
+//       [
+//         amlStatus,
+//         amlScore,
+//         totalMatches,
+//         amlReason,
+//         safeJson(amlResult),
+//         loan.lan,
+//       ],
+//     );
+
+//     return {
+//       status: amlStatus,
+//       score: amlScore,
+//       totalMatches,
+//       reason: amlReason,
+//       source: "NEW_CHECK",
+//     };
+//   } catch (error) {
+//     console.error("[SML BRE] AML failed", {
+//       lan: loan.lan,
+//       message: error.message,
+//     });
+
+//     await pool.query(
+//       `
+//       UPDATE loan_booking_switch_my_loan
+//       SET
+//         aml_status = 'FAILED',
+//         aml_score = NULL,
+//         aml_total_matches = NULL,
+//         aml_reason = 'AML_TECHNICAL_FAILURE',
+//         aml_api_response = ?,
+//         aml_checked_at = NOW()
+//       WHERE lan = ?
+//       `,
+//       [
+//         safeJson({
+//           error:
+//             error.message ||
+//             "AML_TECHNICAL_FAILURE",
+//         }),
+//         loan.lan,
+//       ],
+//     );
+
+//     return {
+//       status: "FAILED",
+//       score: null,
+//       totalMatches: null,
+//       reason: "AML_TECHNICAL_FAILURE",
+//       source: "NEW_CHECK",
+//       technicalReason:
+//         "AML_TECHNICAL_FAILURE",
+//     };
+//   }
+// }
+
+async function runTrackwizzAml(loan) {
   try {
-    const amlResult = await amlCheck(
-      "switch-my-loan",
-      {
-        customer_name:
-          loan.customer_name || "",
-
-        location:
-          loan.current_address_city ||
-          loan.address_city ||
-          loan.city ||
-          "",
-
-        father_name:
-          loan.father_name || "",
-
-        pan_number:
-          loan.pan_number || "",
-
-        phone:
-          loan.mobile || "",
-      },
-    );
-
-    const totalMatches = Number(
-      amlResult?.total ?? 0,
-    );
-
-    const returnedScore =
-      amlResult?.results?.[0]?.score;
-
-    const parsedScore =
-      returnedScore === null ||
-        returnedScore === undefined ||
-        returnedScore === ""
-        ? null
-        : Number(returnedScore);
+    const screening = await screenLoanBooking(AML_SCREENING_PRODUCT, loan.lan);
 
     /*
-     * When no AML match exists, your existing logic assigns
-     * a score of 100.
+     * screenLoanBooking writes the TrackWizz result into the
+     * AML columns. Reload them so the database is the source of truth.
      */
-    const amlScore =
-      totalMatches === 0
-        ? 100
-        : Number.isFinite(parsedScore)
-          ? parsedScore
-          : null;
+    const [[amlRow]] = await db.promise().query(
+      `
+      SELECT
+        aml_status,
+        aml_score,
+        aml_total_matches,
+        aml_reason
+      FROM loan_booking_switch_my_loan
+      WHERE lan = ?
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [loan.lan],
+    );
 
-    /*
-     * A match exists but no usable score was received.
-     * Treat this as a technical failure rather than
-     * automatically clearing or rejecting the customer.
-     */
-    if (
-      totalMatches > 0 &&
-      amlScore === null
-    ) {
-      await pool.query(
-        `
-        UPDATE loan_booking_switch_my_loan
-        SET
-          aml_status = 'FAILED',
-          aml_score = NULL,
-          aml_total_matches = ?,
-          aml_reason = 'AML_SCORE_MISSING',
-          aml_api_response = ?,
-          aml_checked_at = NOW()
-        WHERE lan = ?
-        `,
-        [
-          totalMatches,
-          safeJson(amlResult),
-          loan.lan,
-        ],
-      );
+    const status = String(screening?.amlStatus || amlRow?.aml_status || "")
+      .trim()
+      .toUpperCase();
 
+    const providerReason =
+      String(screening?.amlReason || amlRow?.aml_reason || "").trim() || null;
+
+    const score = toNumberOrNull(amlRow?.aml_score);
+
+    const totalMatches = toNumberOrNull(amlRow?.aml_total_matches);
+
+    if (!TRACKWIZZ_AML_STATUSES.has(status)) {
       return {
-        status: "FAILED",
-        score: null,
+        status: status || "ERROR",
+        score,
         totalMatches,
-        reason: "AML_SCORE_MISSING",
-        source: "NEW_CHECK",
-        technicalReason:
-          "AML_TECHNICAL_FAILURE",
+        reason: providerReason,
+        source: "TRACKWIZZ",
+        technicalReason: "AML_STATUS_INVALID",
       };
     }
 
-    const amlStatus = getAmlDecision(
-      amlScore,
-      totalMatches,
-    );
-
-    const amlReason =
-      amlStatus === "CLEAR"
-        ? null
-        : "AML_HIGH_RISK_MATCH";
-
-    await pool.query(
-      `
-      UPDATE loan_booking_switch_my_loan
-      SET
-        aml_status = ?,
-        aml_score = ?,
-        aml_total_matches = ?,
-        aml_reason = ?,
-        aml_api_response = ?,
-        aml_checked_at = NOW()
-      WHERE lan = ?
-      `,
-      [
-        amlStatus,
-        amlScore,
-        totalMatches,
-        amlReason,
-        safeJson(amlResult),
-        loan.lan,
-      ],
-    );
-
     return {
-      status: amlStatus,
-      score: amlScore,
+      status,
+      score,
       totalMatches,
-      reason: amlReason,
-      source: "NEW_CHECK",
+      reason: providerReason,
+      source: "TRACKWIZZ",
+      technicalReason: null,
     };
   } catch (error) {
-    console.error("[SML BRE] AML failed", {
+    console.error("[SML BRE] TrackWizz AML failed", {
       lan: loan.lan,
       message: error.message,
     });
 
-    await pool.query(
-      `
-      UPDATE loan_booking_switch_my_loan
-      SET
-        aml_status = 'FAILED',
-        aml_score = NULL,
-        aml_total_matches = NULL,
-        aml_reason = 'AML_TECHNICAL_FAILURE',
-        aml_api_response = ?,
-        aml_checked_at = NOW()
-      WHERE lan = ?
-      `,
-      [
-        safeJson({
-          error:
-            error.message ||
-            "AML_TECHNICAL_FAILURE",
-        }),
-        loan.lan,
-      ],
-    );
-
     return {
-      status: "FAILED",
+      status: "ERROR",
       score: null,
       totalMatches: null,
       reason: "AML_TECHNICAL_FAILURE",
-      source: "NEW_CHECK",
-      technicalReason:
-        "AML_TECHNICAL_FAILURE",
+      source: "TRACKWIZZ",
+      technicalReason: "AML_TECHNICAL_FAILURE",
     };
   }
 }
-
 async function runBRE(data) {
   if (!data?.lan) {
     return {
@@ -1198,8 +1247,80 @@ async function runBRE(data) {
    * - matches + score < 70 => REJECT
    * - REVIEW is treated as rejection, as in the previous BRE
    */
-  const aml = await runOrReuseAml(loan);
+  // const aml = await runOrReuseAml(loan);
 
+  /*
+   * TRACKWIZZ AML
+   *
+   * PROCEED with no hits -> pass
+   * REVIEW              -> reject
+   * STOP                -> reject
+   * Any match found     -> reject
+   */
+  const aml = await runTrackwizzAml(loan);
+
+  result.aml = {
+    status: aml.status,
+    score: aml.score,
+    totalMatches: aml.totalMatches,
+    reason: aml.reason,
+    source: aml.source,
+  };
+
+  result.amlScore = aml.score;
+
+  if (aml.technicalReason) {
+    rules.AML_CHECK_RPM = rule(false, aml.technicalReason, result.aml);
+
+    result.decision = "TECHNICAL_FAILURE";
+    result.reason = aml.technicalReason;
+    result.reasons = [aml.technicalReason];
+
+    await updateBookingBreSnapshot(loan.lan, result);
+
+    return result;
+  }
+
+  const hasAmlHit =
+    Number.isFinite(Number(aml.totalMatches)) && Number(aml.totalMatches) > 0;
+
+  const amlRejected =
+    hasAmlHit || aml.status === "REVIEW" || aml.status === "STOP";
+
+  if (amlRejected) {
+    addReason(reasons, AML_REJECT_REASON);
+
+    rules.AML_CHECK_RPM = rule(false, AML_REJECT_REASON, {
+      ...result.aml,
+      hasAmlHit,
+      rejectedByStatus: aml.status === "REVIEW" || aml.status === "STOP",
+    });
+
+    result.decision = "REJECTED";
+    result.reason = AML_REJECT_REASON;
+    result.reasons = [AML_REJECT_REASON];
+
+    await updateBookingBreSnapshot(loan.lan, result);
+
+    return result;
+  }
+
+  if (aml.status !== "PROCEED") {
+    rules.AML_CHECK_RPM = rule(false, "AML_STATUS_INVALID", result.aml);
+
+    result.decision = "TECHNICAL_FAILURE";
+    result.reason = "AML_STATUS_INVALID";
+    result.reasons = ["AML_STATUS_INVALID"];
+
+    await updateBookingBreSnapshot(loan.lan, result);
+
+    return result;
+  }
+
+  rules.AML_CHECK_RPM = rule(true, null, {
+    ...result.aml,
+    hasAmlHit: false,
+  });
 
   // Production
   // result.aml = {
@@ -1210,93 +1331,77 @@ async function runBRE(data) {
   //   source: aml.source,
   // };
 
+  //  UAT
+  //   result.aml = {
+  //     status: aml.status,
+  //     score: aml.score,
+  //     totalMatches: aml.totalMatches,
+  //     reason: aml.reason,
+  //     source: aml.source,
+  //     bypassed: aml.bypassed === true,
+  //   };
+  //   result.amlScore = aml.score;
 
-  //  UAT 
-  result.aml = {
-  status: aml.status,
-  score: aml.score,
-  totalMatches: aml.totalMatches,
-  reason: aml.reason,
-  source: aml.source,
-  bypassed: aml.bypassed === true,
-};
-  result.amlScore = aml.score;
+  //   if (aml.technicalReason) {
+  //     rules.AML_CHECK_RPM = rule(false, aml.technicalReason, result.aml);
 
-  if (aml.technicalReason) {
-    rules.AML_CHECK_RPM = rule(
-      false,
-      aml.technicalReason,
-      result.aml,
-    );
+  //     result.decision = "TECHNICAL_FAILURE";
+  //     result.reason = aml.technicalReason;
+  //     result.reasons = [aml.technicalReason];
 
-    result.decision = "TECHNICAL_FAILURE";
-    result.reason = aml.technicalReason;
-    result.reasons = [aml.technicalReason];
+  //     await updateBookingBreSnapshot(loan.lan, result);
+  //     return result;
+  //   }
 
-    await updateBookingBreSnapshot(loan.lan, result);
-    return result;
-  }
+  //   if (aml.status === "REJECT") {
+  //     addReason(reasons, "AML_HIGH_RISK_MATCH");
 
-  if (aml.status === "REJECT") {
-    addReason(reasons, "AML_HIGH_RISK_MATCH");
+  //     rules.AML_CHECK_RPM = rule(false, "AML_HIGH_RISK_MATCH", result.aml);
 
-    rules.AML_CHECK_RPM = rule(
-      false,
-      "AML_HIGH_RISK_MATCH",
-      result.aml,
-    );
+  //     result.decision = "REJECTED";
+  //     result.reason = "AML_HIGH_RISK_MATCH";
+  //     result.reasons = reasons;
 
-    result.decision = "REJECTED";
-    result.reason = "AML_HIGH_RISK_MATCH";
-    result.reasons = reasons;
+  //     await updateBookingBreSnapshot(loan.lan, result);
+  //     return result;
+  //   }
 
-    await updateBookingBreSnapshot(loan.lan, result);
-    return result;
-  }
+  //   if (aml.status === "REVIEW") {
+  //     addReason(reasons, "AML_MEDIUM_RISK_MATCH");
 
-  if (aml.status === "REVIEW") {
-    addReason(reasons, "AML_MEDIUM_RISK_MATCH");
+  //     rules.AML_CHECK_RPM = rule(false, "AML_MEDIUM_RISK_MATCH", result.aml);
 
-    rules.AML_CHECK_RPM = rule(
-      false,
-      "AML_MEDIUM_RISK_MATCH",
-      result.aml,
-    );
+  //     result.decision = "REJECTED";
+  //     result.reason = "AML_MEDIUM_RISK_MATCH";
+  //     result.reasons = reasons;
 
-    result.decision = "REJECTED";
-    result.reason = "AML_MEDIUM_RISK_MATCH";
-    result.reasons = reasons;
-
-    await updateBookingBreSnapshot(loan.lan, result);
-    return result;
-  }
-// Production  
+  //     await updateBookingBreSnapshot(loan.lan, result);
+  //     return result;
+  //   }
+  // Production
   // rules.AML_CHECK_RPM = rule(
   //   aml.status === "CLEAR",
   //   aml.status === "CLEAR" ? null : "AML_STATUS_INVALID",
   //   result.aml,
   // );
 
-
   // UAT
 
-  rules.AML_CHECK_RPM = rule(
-  aml.status === "CLEAR",
-  aml.status === "CLEAR"
-    ? null
-    : "AML_STATUS_INVALID",
-  result.aml,
-  aml.source !== "TEST_BYPASS",
-);
+  //   rules.AML_CHECK_RPM = rule(
+  //     aml.status === "CLEAR",
+  //     aml.status === "CLEAR" ? null : "AML_STATUS_INVALID",
+  //     result.aml,
+  //     aml.source !== "TEST_BYPASS",
+  //   );
 
-  if (aml.status !== "CLEAR") {
-    result.decision = "TECHNICAL_FAILURE";
-    result.reason = "AML_STATUS_INVALID";
-    result.reasons = ["AML_STATUS_INVALID"];
+  //   if (aml.status !== "CLEAR") {
+  //     result.decision = "TECHNICAL_FAILURE";
+  //     result.reason = "AML_STATUS_INVALID";
+  //     result.reasons = ["AML_STATUS_INVALID"];
 
-    await updateBookingBreSnapshot(loan.lan, result);
-    return result;
-  }
+  //     await updateBookingBreSnapshot(loan.lan, result);
+  //     return result;
+  //   }
 
   const rawTotalDisbursed = loan.total_disbursed_applications;
   const totalDisbursed = Number(rawTotalDisbursed ?? 0);
@@ -1332,34 +1437,22 @@ async function runBRE(data) {
   if (newCustomer) {
     creditLimit = POLICY.FIRST_TIME_CUSTOMER_LIMIT;
 
-
     const firstTimeLimitAdjusted =
-      Number(loan.loan_amount) >
-      POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+      Number(loan.loan_amount) > POLICY.FIRST_TIME_CUSTOMER_LIMIT;
 
-    rules.FIRST_TIME_LIMIT_CHECK_RPM =
-      rule(
-        true,
-        null,
-        {
-          applicable: true,
+    rules.FIRST_TIME_LIMIT_CHECK_RPM = rule(true, null, {
+      applicable: true,
 
-          requestedLoanAmount:
-            Number(loan.loan_amount),
+      requestedLoanAmount: Number(loan.loan_amount),
 
-          assignedCreditLimit:
-            POLICY
-              .FIRST_TIME_CUSTOMER_LIMIT,
+      assignedCreditLimit: POLICY.FIRST_TIME_CUSTOMER_LIMIT,
 
-          limitAdjusted:
-            firstTimeLimitAdjusted,
+      limitAdjusted: firstTimeLimitAdjusted,
 
-          adjustmentReason:
-            firstTimeLimitAdjusted
-              ? "REQUESTED_AMOUNT_CAPPED_TO_FIRST_TIME_LIMIT"
-              : null,
-        },
-      );
+      adjustmentReason: firstTimeLimitAdjusted
+        ? "REQUESTED_AMOUNT_CAPPED_TO_FIRST_TIME_LIMIT"
+        : null,
+    });
 
     rules.REPEAT_LIMIT_CHECK_RPM = rule(true, null, { applicable: false });
     rules.REPEAT_AGE_CAP_CHECK_RPM = rule(true, null, { applicable: false });
@@ -1370,10 +1463,7 @@ async function runBRE(data) {
       addReason(reasons, "AGE_MISSING_OR_INVALID_FOR_REPEAT_CUSTOMER");
     }
 
-    if (
-      !loan.previous_loan_amount ||
-      Number(loan.previous_loan_amount) <= 0
-    ) {
+    if (!loan.previous_loan_amount || Number(loan.previous_loan_amount) <= 0) {
       addReason(reasons, "PREVIOUS_LOAN_AMOUNT_MISSING_FOR_REPEAT_CUSTOMER");
     }
 
@@ -1418,46 +1508,29 @@ async function runBRE(data) {
     //   age < 28 &&
     //   Number(loan.loan_amount) > POLICY.REPEAT_CUSTOMER_UNDER_28_LIMIT;
 
-    const ageCapApplicable =
-      age !== null &&
-      age < 28;
+    const ageCapApplicable = age !== null && age < 28;
 
     const ageCapAdjusted =
       ageCapApplicable &&
-      Number(loan.loan_amount) >
-      POLICY
-        .REPEAT_CUSTOMER_UNDER_28_LIMIT;
+      Number(loan.loan_amount) > POLICY.REPEAT_CUSTOMER_UNDER_28_LIMIT;
 
-    rules.REPEAT_AGE_CAP_CHECK_RPM =
-      rule(
-        true,
-        null,
-        {
-          applicable:
-            ageCapApplicable,
+    rules.REPEAT_AGE_CAP_CHECK_RPM = rule(true, null, {
+      applicable: ageCapApplicable,
 
-          age,
+      age,
 
-          requestedLoanAmount:
-            Number(loan.loan_amount),
+      requestedLoanAmount: Number(loan.loan_amount),
 
-          maximumAllowedAmount:
-            POLICY
-              .REPEAT_CUSTOMER_UNDER_28_LIMIT,
+      maximumAllowedAmount: POLICY.REPEAT_CUSTOMER_UNDER_28_LIMIT,
 
-          ageCapApplied:
-            repeatLimitDetails
-              .ageCapApplied,
+      ageCapApplied: repeatLimitDetails.ageCapApplied,
 
-          limitAdjusted:
-            ageCapAdjusted,
+      limitAdjusted: ageCapAdjusted,
 
-          adjustmentReason:
-            ageCapAdjusted
-              ? "REQUESTED_AMOUNT_CAPPED_TO_UNDER_28_LIMIT"
-              : null,
-        },
-      );
+      adjustmentReason: ageCapAdjusted
+        ? "REQUESTED_AMOUNT_CAPPED_TO_UNDER_28_LIMIT"
+        : null,
+    });
   }
 
   // if (
@@ -1493,154 +1566,126 @@ async function runBRE(data) {
    *
    * The customer is approved at the lower amount.
    */
-const requestedLoanAmount = Number(loan.loan_amount);
-const numericCreditLimit = Number(creditLimit);
+  const requestedLoanAmount = Number(loan.loan_amount);
+  const numericCreditLimit = Number(creditLimit);
 
-const validCreditLimit =
-  Number.isFinite(numericCreditLimit) &&
-  numericCreditLimit >= POLICY.MIN_LOAN_AMOUNT;
+  const validCreditLimit =
+    Number.isFinite(numericCreditLimit) &&
+    numericCreditLimit >= POLICY.MIN_LOAN_AMOUNT;
 
-/**
- * Requested amount exceeding the calculated credit limit is not a rejection.
- * Customer is approved at the lower amount.
- */
-const grossApprovedLoanAmount =
-  validCreditLimit
+  /**
+   * Requested amount exceeding the calculated credit limit is not a rejection.
+   * Customer is approved at the lower amount.
+   */
+  const grossApprovedLoanAmount = validCreditLimit
     ? Math.min(requestedLoanAmount, numericCreditLimit)
     : null;
 
-const disbursalBreakup =
-  grossApprovedLoanAmount !== null
-    ? calculateNetDisbursalAmount({
-        creditLimit: grossApprovedLoanAmount,
-        processingFeeRate: loan.processing_fee,
-      })
-    : null;
+  const disbursalBreakup =
+    grossApprovedLoanAmount !== null
+      ? calculateNetDisbursalAmount({
+          creditLimit: grossApprovedLoanAmount,
+          processingFeeRate: loan.processing_fee,
+        })
+      : null;
 
-if (!validCreditLimit) {
-  addReason(
-    reasons,
-    "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED",
-  );
-}
+  if (!validCreditLimit) {
+    addReason(reasons, "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED");
+  }
 
-if (validCreditLimit && !disbursalBreakup?.ok) {
-  addReason(
-    reasons,
-    disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID",
-  );
-}
+  if (validCreditLimit && !disbursalBreakup?.ok) {
+    addReason(
+      reasons,
+      disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID",
+    );
+  }
 
-const approvedLoanAmount =
-  disbursalBreakup?.ok
+  const approvedLoanAmount = disbursalBreakup?.ok
     ? disbursalBreakup.netDisbursalAmount
     : null;
 
-const limitAdjusted =
-  validCreditLimit &&
-  requestedLoanAmount > numericCreditLimit;
+  const limitAdjusted =
+    validCreditLimit && requestedLoanAmount > numericCreditLimit;
 
-result.creditLimit =
-  validCreditLimit
-    ? numericCreditLimit
-    : null;
+  result.creditLimit = validCreditLimit ? numericCreditLimit : null;
 
-result.requestedLoanAmount = requestedLoanAmount;
+  result.requestedLoanAmount = requestedLoanAmount;
 
-/**
- * This is NET disbursal after PF + GST deduction.
- * Approve API stores this into disbursal_amount.
- */
-result.approvedLoanAmount = approvedLoanAmount;
+  /**
+   * This is NET disbursal after PF + GST deduction.
+   * Approve API stores this into disbursal_amount.
+   */
+  result.approvedLoanAmount = approvedLoanAmount;
 
-/**
- * This is gross approved amount before PF + GST.
- */
-result.grossApprovedLoanAmount = grossApprovedLoanAmount;
+  /**
+   * This is gross approved amount before PF + GST.
+   */
+  result.grossApprovedLoanAmount = grossApprovedLoanAmount;
 
-result.limitAdjusted = limitAdjusted;
+  result.limitAdjusted = limitAdjusted;
 
-/**
- * No new DB column needed.
- * This breakup will be saved inside existing sml_bre_details_json.
- */
-result.disbursalBreakup = disbursalBreakup;
+  /**
+   * No new DB column needed.
+   * This breakup will be saved inside existing sml_bre_details_json.
+   */
+  result.disbursalBreakup = disbursalBreakup;
 
-const creditLimitRulePassed =
-  validCreditLimit &&
-  Boolean(disbursalBreakup?.ok);
+  const creditLimitRulePassed =
+    validCreditLimit && Boolean(disbursalBreakup?.ok);
 
-const creditLimitRuleReason =
-  !validCreditLimit
+  const creditLimitRuleReason = !validCreditLimit
     ? "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED"
     : !disbursalBreakup?.ok
       ? disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID"
       : null;
 
-rules.CREDIT_LIMIT_CHECK_RPM = rule(
-  creditLimitRulePassed,
-  creditLimitRuleReason,
-  {
-    creditLimit:
-      validCreditLimit
-        ? numericCreditLimit
-        : null,
+  rules.CREDIT_LIMIT_CHECK_RPM = rule(
+    creditLimitRulePassed,
+    creditLimitRuleReason,
+    {
+      creditLimit: validCreditLimit ? numericCreditLimit : null,
 
-    requestedLoanAmount,
+      requestedLoanAmount,
 
-    grossApprovedLoanAmount,
+      grossApprovedLoanAmount,
 
-    approvedLoanAmount,
+      approvedLoanAmount,
 
-    netDisbursalAmount: approvedLoanAmount,
+      netDisbursalAmount: approvedLoanAmount,
 
-    processingFeeRate:
-      disbursalBreakup?.processingFeeRate ?? 0,
+      processingFeeRate: disbursalBreakup?.processingFeeRate ?? 0,
 
-    processingFeePercent:
-      disbursalBreakup?.processingFeePercent ?? 0,
+      processingFeePercent: disbursalBreakup?.processingFeePercent ?? 0,
 
-    processingFeeAmount:
-      disbursalBreakup?.processingFeeAmount ?? 0,
+      processingFeeAmount: disbursalBreakup?.processingFeeAmount ?? 0,
 
-    gstRate:
-      disbursalBreakup?.gstRate ?? GST_ON_PROCESSING_FEE_RATE,
+      gstRate: disbursalBreakup?.gstRate ?? GST_ON_PROCESSING_FEE_RATE,
 
-    gstPercent:
-      disbursalBreakup?.gstPercent ?? 18,
+      gstPercent: disbursalBreakup?.gstPercent ?? 18,
 
-    gstOnProcessingFee:
-      disbursalBreakup?.gstOnProcessingFee ?? 0,
+      gstOnProcessingFee: disbursalBreakup?.gstOnProcessingFee ?? 0,
 
-    totalDeduction:
-      disbursalBreakup?.totalDeduction ?? 0,
+      totalDeduction: disbursalBreakup?.totalDeduction ?? 0,
 
-    limitAdjusted,
+      limitAdjusted,
 
-    adjustmentReason:
-      limitAdjusted
+      adjustmentReason: limitAdjusted
         ? "REQUESTED_AMOUNT_CAPPED_TO_CREDIT_LIMIT"
         : null,
 
-    newCustomer,
+      newCustomer,
 
-    repeatLoanCount:
-      newCustomer
-        ? 0
-        : totalDisbursed,
+      repeatLoanCount: newCustomer ? 0 : totalDisbursed,
 
-    previousLoanAmount:
-      newCustomer
+      previousLoanAmount: newCustomer
         ? null
         : Number(loan.previous_loan_amount || 0),
 
-    multiplier:
-      repeatLimitDetails?.multiplier ?? null,
+      multiplier: repeatLimitDetails?.multiplier ?? null,
 
-    ageCapApplied:
-      repeatLimitDetails?.ageCapApplied ?? false,
-  },
-);
+      ageCapApplied: repeatLimitDetails?.ageCapApplied ?? false,
+    },
+  );
 
   result.decision = reasons.length ? "REJECTED" : "APPROVED";
   result.reason = reasons[0] || null;
@@ -1675,12 +1720,9 @@ rules.CREDIT_LIMIT_CHECK_RPM = rule(
     score: bureau.score,
     panCount: bureau.panCount,
     hasDualPan: bureau.hasDualPan,
-    reportDate:
-      bureau.reportDate || null,
+    reportDate: bureau.reportDate || null,
 
-    enquiryBreakdown30Days:
-      bureau.enquiryBreakdown30Days ||
-      null,
+    enquiryBreakdown30Days: bureau.enquiryBreakdown30Days || null,
     enquiries30Days: bureau.enquiries30Days,
     totalOverdueAmount: bureau.totalOverdueAmount,
     maxDpdLast3Months: bureau.maxDpdLast3Months,
@@ -1729,8 +1771,7 @@ rules.CREDIT_LIMIT_CHECK_RPM = rule(
   );
 
   const enquiries30Days = Number(bureau.enquiries30Days || 0);
-  const enquiriesFailed =
-    enquiries30Days >= POLICY.ENQUIRY_REJECT_FROM_30_DAYS;
+  const enquiriesFailed = enquiries30Days >= POLICY.ENQUIRY_REJECT_FROM_30_DAYS;
 
   if (enquiriesFailed) {
     addReason(reasons, "ENQUIRIES_GTE_5_LAST_30_DAYS");
@@ -1767,9 +1808,7 @@ rules.CREDIT_LIMIT_CHECK_RPM = rule(
 
   rules.DPD_30_LAST_3M_CHECK_RPM = rule(
     !bureau.hasGt30DpdLast3Months,
-    bureau.hasGt30DpdLast3Months
-      ? "DPD_GT_30_LAST_3_MONTHS"
-      : null,
+    bureau.hasGt30DpdLast3Months ? "DPD_GT_30_LAST_3_MONTHS" : null,
     {
       maximumObservedDpd: bureau.maxDpdLast3Months,
       rejectWhenAbove: POLICY.DPD_REJECT_ABOVE_LAST_3_MONTHS,
@@ -1782,9 +1821,7 @@ rules.CREDIT_LIMIT_CHECK_RPM = rule(
 
   rules.DPD_60_LAST_9M_CHECK_RPM = rule(
     !bureau.hasGt60DpdLast9Months,
-    bureau.hasGt60DpdLast9Months
-      ? "DPD_GT_60_LAST_9_MONTHS"
-      : null,
+    bureau.hasGt60DpdLast9Months ? "DPD_GT_60_LAST_9_MONTHS" : null,
     {
       maximumObservedDpd: bureau.maxDpdLast9Months,
       rejectWhenAbove: POLICY.DPD_REJECT_ABOVE_LAST_9_MONTHS,
@@ -1797,9 +1834,7 @@ rules.CREDIT_LIMIT_CHECK_RPM = rule(
 
   rules.DPD_90_LAST_12M_CHECK_RPM = rule(
     !bureau.hasGt90DpdLast12Months,
-    bureau.hasGt90DpdLast12Months
-      ? "DPD_GT_90_LAST_12_MONTHS"
-      : null,
+    bureau.hasGt90DpdLast12Months ? "DPD_GT_90_LAST_12_MONTHS" : null,
     {
       maximumObservedDpd: bureau.maxDpdLast12Months,
       rejectWhenAbove: POLICY.DPD_REJECT_ABOVE_LAST_12_MONTHS,
@@ -1839,7 +1874,7 @@ rules.CREDIT_LIMIT_CHECK_RPM = rule(
 runBRE.helpers = {
   safeJson,
   splitName,
-  getAmlDecision,
+  runTrackwizzAml,
 };
 
 module.exports = runBRE;
