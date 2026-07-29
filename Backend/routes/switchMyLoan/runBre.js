@@ -25,37 +25,6 @@ const DEPLOYMENT_ENV = String(
   .trim()
   .toLowerCase();
 
-// const AML_MODE = String(process.env.AML_MODE || "live")
-//   .trim()
-//   .toLowerCase();
-
-const BUREAU_MODE = String(process.env.BUREAU_MODE || "live")
-  .trim()
-  .toLowerCase();
-
-const VALID_SERVICE_MODES = new Set(["live", "mock-clear"]);
-
-// if (!VALID_SERVICE_MODES.has(AML_MODE)) {
-//   throw new Error(
-//     `Invalid AML_MODE "${AML_MODE}". Expected live or mock-clear.`,
-//   );
-// }
-
-if (!VALID_SERVICE_MODES.has(BUREAU_MODE)) {
-  throw new Error(
-    `Invalid BUREAU_MODE "${BUREAU_MODE}". Expected live or mock-clear.`,
-  );
-}
-
-/*
- * Never allow AML or Bureau bypass in production.
- */
-const DEPLOYMENT_ENV = String(
-  process.env.DEPLOYMENT_ENV || process.env.NODE_ENV || "development",
-)
-  .trim()
-  .toLowerCase();
-
 const AML_MODE = String(process.env.AML_MODE || "")
   .trim()
   .toLowerCase();
@@ -63,6 +32,20 @@ const AML_MODE = String(process.env.AML_MODE || "")
 const BUREAU_MODE = String(process.env.BUREAU_MODE || "")
   .trim()
   .toLowerCase();
+
+const VALID_SERVICE_MODES = new Set(["live", "mock-clear"]);
+
+if (!VALID_SERVICE_MODES.has(AML_MODE)) {
+  throw new Error(
+    `Invalid AML_MODE "${AML_MODE}". Expected live or mock-clear.`,
+  );
+}
+
+if (!VALID_SERVICE_MODES.has(BUREAU_MODE)) {
+  throw new Error(
+    `Invalid BUREAU_MODE "${BUREAU_MODE}". Expected live or mock-clear.`,
+  );
+}
 
 if (
   DEPLOYMENT_ENV === "production" &&
