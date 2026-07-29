@@ -4106,7 +4106,9 @@ router.get("/customer-details/:lan", async (req, res) => {
     lb.lender,
     lb.lender_type,
     lb.product,
-    lb.status,
+    
+    lb.stage,
+    lb.bank_status,
 
     lb.created_at,
     lb.updated_at,
@@ -4135,28 +4137,46 @@ router.get("/customer-details/:lan", async (req, res) => {
     borrower_kyc.pan_status AS borrower_pan_status,
     borrower_kyc.aadhaar_status AS borrower_aadhaar_status,
     borrower_kyc.bureau_status AS borrower_bureau_status,
+    borrower_kyc.aadhaar_kyc_url AS borrower_aadhaar_kyc_url,
 
     guarantor_kyc.pan_status AS guarantor_pan_status,
     guarantor_kyc.aadhaar_status AS guarantor_aadhaar_status,
     guarantor_kyc.bureau_status AS guarantor_bureau_status,
+    guarantor_kyc.aadhaar_kyc_url AS guarantor_aadhaar_kyc_url,
 
     co_kyc.pan_status AS co_applicant_pan_status,
     co_kyc.aadhaar_status AS co_applicant_aadhaar_status,
-    co_kyc.bureau_status AS co_applicant_bureau_status
+    co_kyc.bureau_status AS co_applicant_bureau_status,
+    co_kyc.aadhaar_kyc_url AS co_applicant_aadhaar_kyc_url,
+
+    em.auth_url AS nach_auth_url,
+    em.umrn AS nach_umrn
 
   FROM loan_booking_motion_corp lb
 
   LEFT JOIN kyc_verification_status borrower_kyc
     ON borrower_kyc.lan = lb.lan
     AND borrower_kyc.applicant_type = 'BORROWER'
+    AND borrower_kyc.party_no = 1
 
   LEFT JOIN kyc_verification_status guarantor_kyc
     ON guarantor_kyc.lan = lb.lan
     AND guarantor_kyc.applicant_type = 'GUARANTOR'
+    AND guarantor_kyc.party_no = 1
 
   LEFT JOIN kyc_verification_status co_kyc
     ON co_kyc.lan = lb.lan
     AND co_kyc.applicant_type = 'CO_APPLICANT'
+    AND co_kyc.party_no = 1
+
+  LEFT JOIN enach_mandates em
+  ON em.id = (
+    SELECT em2.id
+    FROM enach_mandates em2
+    WHERE em2.lan = lb.lan
+    ORDER BY em2.created_at DESC, em2.id DESC
+    LIMIT 1
+  )
 
   WHERE lb.lan = ?
   LIMIT 1
@@ -4312,10 +4332,35 @@ router.get("/customer-details/:lan", async (req, res) => {
         co_applicant_mobile_verified: row.co_applicant_mobile_verified,
       },
 
+      verification_links: {
+        borrower_aadhaar_url: row.borrower_aadhaar_kyc_url || null,
+
+        guarantor_aadhaar_url: row.guarantor_aadhaar_kyc_url || null,
+
+        co_applicant_aadhaar_url: row.co_applicant_aadhaar_kyc_url || null,
+
+        // This remains null until the actual NACH URL column is mapped.
+        nach_url: row.nach_auth_url || null,
+      },
+
+      nach_details: {
+        auth_url: row.nach_auth_url || null,
+        umrn: row.nach_umrn || null,
+      },
+
+      insurance_details: {
+        insurance_cost: row.insurance_cost ?? "",
+        insurance_company_provider: row.insurance_company_provider || "",
+        insurance_policy_number: row.insurance_policy_number || "",
+        policy_issued_date: row.policy_issued_date || "",
+        period_of_insurance: row.period_of_insurance || "",
+      },
+
       lender: row.lender,
       lender_type: row.lender_type,
       product: row.product,
       status: row.status,
+      stage: row.stage,
 
       created_at: row.created_at,
       updated_at: row.updated_at,
@@ -4359,8 +4404,104 @@ router.get("/customer-details/:lan", async (req, res) => {
     console.error("❌ Error fetching Motion Corp details:", err);
 
     return res.status(500).json({
+      success: false,
       message: "Failed to fetch Motion Corp details",
-      error: err.sqlMessage || err.message,
+    });
+  }
+});
+
+router.patch("/insurance/:lan", async (req, res) => {
+  try {
+    const lan = String(req.params.lan || "").trim();
+
+    const {
+      insurance_cost,
+      insurance_company_provider,
+      insurance_policy_number,
+      policy_issued_date,
+      period_of_insurance,
+    } = req.body || {};
+
+    const provider = String(insurance_company_provider || "").trim();
+
+    const policyNumber = String(insurance_policy_number || "").trim();
+
+    const issuedDate = String(policy_issued_date || "").trim();
+
+    const insurancePeriod = String(period_of_insurance || "").trim();
+
+    const insuranceCost = Number(insurance_cost);
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN is required",
+      });
+    }
+
+    if (
+      !provider ||
+      !policyNumber ||
+      !issuedDate ||
+      !insurancePeriod ||
+      !Number.isFinite(insuranceCost) ||
+      insuranceCost < 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all valid insurance details",
+      });
+    }
+
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(issuedDate) ||
+      Number.isNaN(Date.parse(`${issuedDate}T00:00:00Z`))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid policy issued date",
+      });
+    }
+
+    const [result] = await db.promise().query(
+      `
+      UPDATE loan_booking_motion_corp
+      SET
+        insurance_cost = ?,
+        insurance_company_provider = ?,
+        insurance_policy_number = ?,
+        policy_issued_date = ?,
+        period_of_insurance = ?,
+        updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [insuranceCost, provider, policyNumber, issuedDate, insurancePeriod, lan],
+    );
+
+    if (!result.affectedRows) {
+      return res.status(404).json({
+        success: false,
+        message: "Motion Corp loan not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Insurance details saved successfully",
+      insurance: {
+        insurance_cost: insuranceCost,
+        insurance_company_provider: provider,
+        insurance_policy_number: policyNumber,
+        policy_issued_date: issuedDate,
+        period_of_insurance: insurancePeriod,
+      },
+    });
+  } catch (error) {
+    console.error("Motion Corp insurance update failed:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save insurance details",
     });
   }
 });

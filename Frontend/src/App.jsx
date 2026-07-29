@@ -262,6 +262,7 @@ import ClaimCureBuddyDraftCases from "./components/ClaimCureBuddy/ClaimCureBuddy
 import ClaimCureBuddyApprovedCases from "./components/ClaimCureBuddy/ClaimCureBuddyApprovedCases.jsx";
 import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
 import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
+import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.jsx";
 
 
 
@@ -1687,6 +1688,14 @@ function App() {
             element={
               <PermissionRoute pageName="Motion Corp Loan Booking">
                 <MotionCorpLoanBooking />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/motion-corp/updatedata"
+            element={
+              <PermissionRoute pageName="Motion Corp Update Data">
+                <MotionCorpUpdateData />
               </PermissionRoute>
             }
           />
