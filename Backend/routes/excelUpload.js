@@ -4941,7 +4941,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         conn = await db.promise().getConnection();
         await conn.beginTransaction();
 
-        const partnerName = "Finso";
+        const partnerName = "FINCREST";
         const loanAmount = Number(data.loan_amount);
 
         const processingFeeCalc = loanAmount * 0.05;
