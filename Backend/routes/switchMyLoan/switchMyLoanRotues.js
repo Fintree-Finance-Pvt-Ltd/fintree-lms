@@ -12,11 +12,7 @@ const {
 } = require("./switchMyLoanWebhook");
 const { approveAndInitiatePayout } = require("../../services/payout.service");
 const { verifyBank } = require("../../services/enachService");
-const {
-  getOrCreatePartner,
-  validatePartnerDisbursementLimit,
-  updateDisbursedLimit,
-} = require("../../services/partnerLimitService");
+const partnerLimitService = require("../../services/partnerLimitService");
 
 const {
   extractPartnerName,
