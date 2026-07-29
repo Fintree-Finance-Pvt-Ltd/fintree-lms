@@ -580,6 +580,7 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("CIRHUF")) return "Circle Pe Houser";
   if (lan.startsWith("CIRF")) return "Circle PE";
   if (lan.startsWith("CARE")) return "CAREPAY";
+  if (lan.startsWith("SFL")) return "Seven FinCorp";
   if (lan.startsWith("STRL")) return "STERLION";
 
   if (lender && String(lender).trim()) return String(lender).trim();
@@ -809,7 +810,19 @@ WHERE lan = ?`,
              FROM loan_booking_circle_pe_houser WHERE lan = ?`,
             [lan],
           );
-        } else if (lan.startsWith("MCL")) {
+        } else if (lan.startsWith("SFL")) {
+          [loanRes] = await db.promise().query(
+            `SELECT 
+      loan_amount,
+      interest_rate,
+      loan_tenure,
+      product,
+      lender
+     FROM loan_booking_seven_fincorp
+     WHERE lan = ?`,
+            [lan],
+          );
+            } else if (lan.startsWith("MCL")) {
           [loanRes] = await db.promise().query(
             `SELECT 
       loan_amount,
@@ -1053,6 +1066,11 @@ WHERE lan = ?`,
           } else if (lan.startsWith("MCL")) {
             await conn.query(
               `UPDATE loan_booking_motion_corp SET status = 'Disbursed' WHERE lan = ?`,
+              [lan],
+            );
+            } else if (lan.startsWith("SFL")) {
+            await conn.query(
+              `UPDATE loan_booking_seven_fincorp SET status = 'Disbursed' WHERE lan = ?`,
               [lan],
             );
           } else if (lan.startsWith("SH")) {
