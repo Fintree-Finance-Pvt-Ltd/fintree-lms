@@ -88,6 +88,8 @@ function resolveProcedure(rawReportId, rawLender) {
                             : lender === "heyev battery" ? "sp_cashflow_report_heyev_battery"
                               : lender === "helium" ? "sp_cashflow_report_helium"
                                 : lender === "finso" ? "sp_cashflow_report_fincrest"
+                                 : lender === "srbh" ? "sp_cashflow_report_srbh"
+                                 : lender === "carepay" ? "sp_cashflow_report_carepay"
                                   : lender === "motion corp" ? "sp_cashflow_report_motion_corp"
                                     : lender === "rapid-money" ? "sp_cashflow_report_rapid_money"
                                       : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
@@ -132,12 +134,15 @@ function resolveProcedure(rawReportId, rawLender) {
                                   ? "sp_due_collection_all_report_circle_pe_houser"
                                   : lender === "finso"
                                     ? "sp_due_collection_all_report_fincrest"
-                                    
-                                  : lender === "rapid-money"
-                                    ? "sp_due_collection_all_report_rapid_money"
-                                    : lender === "motion corp"
-                                      ? "sp_due_collection_all_report_motion_corp"
-                                      : "sp_due_collection_all_report",
+                                    : lender === "srbh"
+                                    ? "sp_due_collection_all_report_srbh"
+                                  : lender === "carepay"
+                                    ? "sp_due_collection_all_report_carepay"
+                                    : lender === "rapid-money"
+                                      ? "sp_due_collection_all_report_rapid_money"
+                                      : lender === "motion corp"
+                                        ? "sp_due_collection_all_report_motion_corp"
+                                        : "sp_due_collection_all_report",
 
 
 
@@ -153,6 +158,8 @@ function resolveProcedure(rawReportId, rawLender) {
             ? "sp_consolidated_mis_report_gq_fsf"
             : lender === "embifi"
               ? "sp_consolidated_mis_report_embifi"
+              : lender === "srbh"
+               ? "sp_consolidated_mis_report_srbh"
               : lender === "wctl"
                 ? "sp_consolidated_mis_report_wctl"
                 : lender === "emiclub"
@@ -175,6 +182,8 @@ function resolveProcedure(rawReportId, rawLender) {
                                 ? "sp_consolidated_mis_report_motion_corp" 
                                 : lender === "rapid-money" 
                                 ? "sp_consolidated_mis_report_rapid_money" 
+                                : lender === "carepay" 
+                                ? "sp_consolidated_mis_report_carepay" 
                                 : lender === "finso" 
                                 ? "sp_consolidated_mis_report_fincrest" 
                                 : "sp_consolidated_mis_report",
