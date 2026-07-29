@@ -419,7 +419,7 @@ async function sendDisbursementWebhook({
     `
     SELECT
       application_id,
-      tenure_days,
+       tenure AS tenure_days,
       status
     FROM loan_booking_switch_my_loan
     WHERE lan = ?
