@@ -368,7 +368,7 @@ const SRBHOperationApproval = ({
             fontWeight: 600,
             cursor: "pointer",
           }}
-          onClick={() => nav(`/srbh/customer-details?lan=${r.lan}`)}
+          onClick={() => nav(`/loan-details/${r.lan}`)}
         >
           {r.customer_name ?? "—"}
         </span>
@@ -376,7 +376,17 @@ const SRBHOperationApproval = ({
     },
 
     { key: "partner_loan_id", header: "Partner Loan ID" },
-    { key: "lan", header: "LAN" },
+    { key: "lan", header: "LAN", 
+      render: (r) => (
+        <span
+          className="customer-name-link"
+          onClick={() => {
+            nav(`/srbh/customer-details?lan=${r.lan}`);
+          }}
+        >
+          {r.customer_name ?? r.pan_name ?? "—"}
+        </span>
+      ), },
     { key: "mobile_number", header: "Mobile" },
 
     {
