@@ -505,22 +505,260 @@ async function processFinsoDisbursement({ lan, disbursementUTR, disbursementDate
   }
 }
 
-async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDate }) {
+// async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDate }) {
+//   console.log("[CarePay][START] Processing disbursement", {
+//     lan,
+//     disbursementUTR,
+//     disbursementDate,
+//   });
+
+//   if (!lan || !lan.startsWith("CARE")) {
+//     return { skipped: true, reason: "NOT_CAREPAY" };
+//   }
+
+//   if (!disbursementUTR || !disbursementDate) {
+//     return { skipped: true, reason: "MISSING_UTR_OR_DATE" };
+//   }
+
+//   let conn;
+//   try {
+//     conn = await db.promise().getConnection();
+//     await conn.beginTransaction();
+
+//     const [[loan]] = await conn.query(
+//       `
+//       SELECT
+//         partner_loan_id,
+//         COALESCE(loan_amount, request_amount) AS loan_amount,
+//         interest_rate,
+//         loan_tenure,
+//         processing_fee,
+//           net_disbursement,
+//         product,
+//         lender,
+//         status
+//       FROM loan_booking_carepay
+//       WHERE lan = ?
+//       FOR UPDATE
+//       `,
+//       [lan],
+//     );
+
+//     if (!loan) throw new Error(`CarePay loan not found: ${lan}`);
+
+//     if (String(loan.status).toLowerCase() === "disbursed") {
+//       const amount = Number(loan.loan_amount || 0);
+
+//       if (!Number.isFinite(amount) || amount <= 0) {
+//         throw new Error("INVALID_CAREPAY_DISBURSEMENT_AMOUNT");
+//       }
+
+//       const effectiveDisbursementDate = new Date(disbursementDate);
+
+//       if (Number.isNaN(effectiveDisbursementDate.getTime())) {
+//         throw new Error(`Invalid CarePay disbursement date: ${disbursementDate}`);
+//       }
+
+//       const { month, year } = getMonthYear(effectiveDisbursementDate);
+//       const partnerName = "CAREPAY";
+//       const partner = await partnerLimitService.getOrCreatePartner(
+//         conn,
+//         partnerName,
+//       );
+//       const limit = await partnerLimitService.getPartnerMonthlyLimit(
+//         conn,
+//         partner.partner_id,
+//         month,
+//         year,
+//       );
+//       let limitResult;
+
+//       try {
+//         limitResult = await partnerLimitService.updateDisbursedLimit(
+//           conn,
+//           limit.id,
+//           amount,
+//           lan,
+//         );
+//       } catch (err) {
+//         if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+//           err.meta = {
+//             ...(err.meta || {}),
+//             partnerName,
+//             lan,
+//             month,
+//             year,
+//           };
+//         }
+
+//         throw err;
+//       }
+
+//       await conn.commit();
+
+//       return {
+//         skipped: true,
+//         reason: "ALREADY_DISBURSED",
+//         limitResult,
+//       };
+//     }
+
+//     const [utrExists] = await conn.query(
+//       `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
+//       [disbursementUTR],
+//     );
+
+//     if (utrExists.length > 0) {
+//       await conn.rollback();
+//       return { skipped: true, reason: "DUPLICATE_UTR" };
+//     }
+
+//     await generateRepaymentSchedule(
+//       conn,
+//       lan,
+//       loan.loan_amount,
+//       null,
+//       loan.interest_rate,
+//       loan.loan_tenure,
+//       disbursementDate,
+//       null,
+//       null,
+//       null,
+//       loan.product,
+//       loan.lender || "CAREPAY",
+//       null,
+//       null,
+//       loan.processing_fee || 0,
+//     );
+
+//     await conn.query(
+//       `INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)`,
+//       [disbursementUTR, disbursementDate, lan],
+//     );
+
+//     await conn.query(
+//       `UPDATE loan_booking_carepay SET status = 'Disbursed' WHERE lan = ?`,
+//       [lan],
+//     );
+
+//     const amount = Number(loan.loan_amount || 0);
+
+//     if (!Number.isFinite(amount) || amount <= 0) {
+//       throw new Error("INVALID_CAREPAY_DISBURSEMENT_AMOUNT");
+//     }
+
+//     const effectiveDisbursementDate = new Date(disbursementDate);
+
+//     if (Number.isNaN(effectiveDisbursementDate.getTime())) {
+//       throw new Error(`Invalid CarePay disbursement date: ${disbursementDate}`);
+//     }
+
+//     const { month, year } = getMonthYear(effectiveDisbursementDate);
+//     const partnerName = "CAREPAY";
+//     const partner = await partnerLimitService.getOrCreatePartner(
+//       conn,
+//       partnerName,
+//     );
+//     const limit = await partnerLimitService.getPartnerMonthlyLimit(
+//       conn,
+//       partner.partner_id,
+//       month,
+//       year,
+//     );
+//     let limitResult;
+
+//     try {
+//       limitResult = await partnerLimitService.updateDisbursedLimit(
+//         conn,
+//         limit.id,
+//         amount,
+//         lan,
+//       );
+//     } catch (err) {
+//       if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+//         err.meta = {
+//           ...(err.meta || {}),
+//           partnerName,
+//           lan,
+//           month,
+//           year,
+//         };
+//       }
+
+//       throw err;
+//     }
+
+//     console.log("[CarePay][LIMIT] Disbursement limit processed", {
+//       lan,
+//       loanAmount: loan.loan_amount,
+//       limitResult,
+//     });
+
+//     await conn.commit();
+
+//     try {
+//       const carePayWebhookPayload = {
+//         external_ref_no: String(loan.partner_loan_id || "").trim(),
+//         utr: String(disbursementUTR).trim(),
+//         disbursement_date: new Date(disbursementDate).toISOString().split("T")[0],
+//         reference_number: lan,
+//         status: "DISBURSED",
+//         reject_reason: null,
+//       };
+
+//       const webhookResult = await sendLoanWebhook(carePayWebhookPayload);
+
+//       console.log("CarePay disbursement webhook successful", {
+//         lan,
+//         payload: carePayWebhookPayload,
+//         webhookResult,
+//       });
+//     } catch (webhookErr) {
+//       console.error("CarePay disbursement webhook failed", {
+//         lan,
+//         message: webhookErr.message,
+//         responseStatus: webhookErr.response?.status || null,
+//         responseData: webhookErr.response?.data || null,
+//       });
+//     }
+
+//     return { success: true };
+//   } catch (err) {
+//     if (conn) await conn.rollback();
+//     throw err;
+//   } finally {
+//     if (conn) conn.release();
+//   }
+// }
+
+async function processCarePayDisbursement({
+  lan,
+  disbursementUTR,
+  disbursementDate,
+}) {
   console.log("[CarePay][START] Processing disbursement", {
     lan,
     disbursementUTR,
     disbursementDate,
   });
 
-  if (!lan || !lan.startsWith("CARE")) {
-    return { skipped: true, reason: "NOT_CAREPAY" };
+  if (!lan || !String(lan).toUpperCase().startsWith("CARE")) {
+    return {
+      skipped: true,
+      reason: "NOT_CAREPAY",
+    };
   }
 
   if (!disbursementUTR || !disbursementDate) {
-    return { skipped: true, reason: "MISSING_UTR_OR_DATE" };
+    return {
+      skipped: true,
+      reason: "MISSING_UTR_OR_DATE",
+    };
   }
 
   let conn;
+  let transactionCompleted = false;
+
   try {
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
@@ -533,6 +771,7 @@ async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDa
         interest_rate,
         loan_tenure,
         processing_fee,
+        net_disbursement,
         product,
         lender,
         status
@@ -543,42 +782,88 @@ async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDa
       [lan],
     );
 
-    if (!loan) throw new Error(`CarePay loan not found: ${lan}`);
+    if (!loan) {
+      throw new Error(`CarePay loan not found: ${lan}`);
+    }
 
+    /*
+     * Validate loan amount.
+     */
+    const loanAmount = Number(loan.loan_amount);
+
+    if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
+      throw new Error(
+        `INVALID_CAREPAY_DISBURSEMENT_AMOUNT: ${loan.loan_amount}`,
+      );
+    }
+
+    /*
+     * net_disbursement is sent to CarePay webhook as
+     * finalDisbursedAmount.
+     */
+    const rawNetDisbursement = loan.net_disbursement;
+    const finalDisbursedAmount = Number(rawNetDisbursement);
+
+    if (
+      rawNetDisbursement === null ||
+      rawNetDisbursement === undefined ||
+      String(rawNetDisbursement).trim() === "" ||
+      !Number.isFinite(finalDisbursedAmount) ||
+      finalDisbursedAmount <= 0
+    ) {
+      throw new Error(
+        `INVALID_CAREPAY_NET_DISBURSEMENT: ${rawNetDisbursement}`,
+      );
+    }
+
+    /*
+     * Validate disbursement date once and reuse it.
+     */
+    const effectiveDisbursementDate = new Date(disbursementDate);
+
+    if (Number.isNaN(effectiveDisbursementDate.getTime())) {
+      throw new Error(
+        `Invalid CarePay disbursement date: ${disbursementDate}`,
+      );
+    }
+
+    /*
+     * Existing business logic:
+     * update the partner limit even when the loan is already disbursed.
+     *
+     * Ensure updateDisbursedLimit() is idempotent by LAN.
+     */
     if (String(loan.status).toLowerCase() === "disbursed") {
-      const amount = Number(loan.loan_amount || 0);
+      const { month, year } = getMonthYear(
+        effectiveDisbursementDate,
+      );
 
-      if (!Number.isFinite(amount) || amount <= 0) {
-        throw new Error("INVALID_CAREPAY_DISBURSEMENT_AMOUNT");
-      }
-
-      const effectiveDisbursementDate = new Date(disbursementDate);
-
-      if (Number.isNaN(effectiveDisbursementDate.getTime())) {
-        throw new Error(`Invalid CarePay disbursement date: ${disbursementDate}`);
-      }
-
-      const { month, year } = getMonthYear(effectiveDisbursementDate);
       const partnerName = "CAREPAY";
-      const partner = await partnerLimitService.getOrCreatePartner(
-        conn,
-        partnerName,
-      );
-      const limit = await partnerLimitService.getPartnerMonthlyLimit(
-        conn,
-        partner.partner_id,
-        month,
-        year,
-      );
+
+      const partner =
+        await partnerLimitService.getOrCreatePartner(
+          conn,
+          partnerName,
+        );
+
+      const limit =
+        await partnerLimitService.getPartnerMonthlyLimit(
+          conn,
+          partner.partner_id,
+          month,
+          year,
+        );
+
       let limitResult;
 
       try {
-        limitResult = await partnerLimitService.updateDisbursedLimit(
-          conn,
-          limit.id,
-          amount,
-          lan,
-        );
+        limitResult =
+          await partnerLimitService.updateDisbursedLimit(
+            conn,
+            limit.id,
+            loanAmount,
+            lan,
+          );
       } catch (err) {
         if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
           err.meta = {
@@ -594,6 +879,7 @@ async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDa
       }
 
       await conn.commit();
+      transactionCompleted = true;
 
       return {
         skipped: true,
@@ -602,20 +888,36 @@ async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDa
       };
     }
 
+    /*
+     * Prevent duplicate UTR insertion.
+     */
     const [utrExists] = await conn.query(
-      `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
+      `
+      SELECT 1
+      FROM ev_disbursement_utr
+      WHERE Disbursement_UTR = ?
+      LIMIT 1
+      `,
       [disbursementUTR],
     );
 
     if (utrExists.length > 0) {
       await conn.rollback();
-      return { skipped: true, reason: "DUPLICATE_UTR" };
+      transactionCompleted = true;
+
+      return {
+        skipped: true,
+        reason: "DUPLICATE_UTR",
+      };
     }
 
+    /*
+     * Generate repayment schedule.
+     */
     await generateRepaymentSchedule(
       conn,
       lan,
-      loan.loan_amount,
+      loanAmount,
       null,
       loan.interest_rate,
       loan.loan_tenure,
@@ -630,49 +932,67 @@ async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDa
       loan.processing_fee || 0,
     );
 
+    /*
+     * Insert disbursement UTR.
+     */
     await conn.query(
-      `INSERT INTO ev_disbursement_utr (Disbursement_UTR, Disbursement_Date, LAN) VALUES (?, ?, ?)`,
+      `
+      INSERT INTO ev_disbursement_utr
+        (
+          Disbursement_UTR,
+          Disbursement_Date,
+          LAN
+        )
+      VALUES (?, ?, ?)
+      `,
       [disbursementUTR, disbursementDate, lan],
     );
 
+    /*
+     * Update CarePay loan status.
+     */
     await conn.query(
-      `UPDATE loan_booking_carepay SET status = 'Disbursed' WHERE lan = ?`,
+      `
+      UPDATE loan_booking_carepay
+      SET status = 'Disbursed'
+      WHERE lan = ?
+      `,
       [lan],
     );
 
-    const amount = Number(loan.loan_amount || 0);
+    /*
+     * Update partner monthly disbursement limit.
+     */
+    const { month, year } = getMonthYear(
+      effectiveDisbursementDate,
+    );
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new Error("INVALID_CAREPAY_DISBURSEMENT_AMOUNT");
-    }
-
-    const effectiveDisbursementDate = new Date(disbursementDate);
-
-    if (Number.isNaN(effectiveDisbursementDate.getTime())) {
-      throw new Error(`Invalid CarePay disbursement date: ${disbursementDate}`);
-    }
-
-    const { month, year } = getMonthYear(effectiveDisbursementDate);
     const partnerName = "CAREPAY";
-    const partner = await partnerLimitService.getOrCreatePartner(
-      conn,
-      partnerName,
-    );
-    const limit = await partnerLimitService.getPartnerMonthlyLimit(
-      conn,
-      partner.partner_id,
-      month,
-      year,
-    );
+
+    const partner =
+      await partnerLimitService.getOrCreatePartner(
+        conn,
+        partnerName,
+      );
+
+    const limit =
+      await partnerLimitService.getPartnerMonthlyLimit(
+        conn,
+        partner.partner_id,
+        month,
+        year,
+      );
+
     let limitResult;
 
     try {
-      limitResult = await partnerLimitService.updateDisbursedLimit(
-        conn,
-        limit.id,
-        amount,
-        lan,
-      );
+      limitResult =
+        await partnerLimitService.updateDisbursedLimit(
+          conn,
+          limit.id,
+          loanAmount,
+          lan,
+        );
     } catch (err) {
       if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
         err.meta = {
@@ -687,46 +1007,104 @@ async function processCarePayDisbursement({ lan, disbursementUTR, disbursementDa
       throw err;
     }
 
-    console.log("[CarePay][LIMIT] Disbursement limit processed", {
-      lan,
-      loanAmount: loan.loan_amount,
-      limitResult,
-    });
+    console.log(
+      "[CarePay][LIMIT] Disbursement limit processed",
+      {
+        lan,
+        loanAmount,
+        netDisbursement: finalDisbursedAmount,
+        limitResult,
+      },
+    );
 
+    /*
+     * Commit all database changes before sending webhook.
+     */
     await conn.commit();
+    transactionCompleted = true;
 
-    try {
-      const carePayWebhookPayload = {
-        external_ref_no: String(loan.partner_loan_id || "").trim(),
-        utr: String(disbursementUTR).trim(),
-        disbursement_date: new Date(disbursementDate).toISOString().split("T")[0],
-        reference_number: lan,
-        status: "DISBURSED",
-        reject_reason: null,
-      };
+    /*
+     * Send webhook after successful commit.
+     */
+    const carePayWebhookPayload = {
+      external_ref_no: String(
+        loan.partner_loan_id || "",
+      ).trim(),
+      utr: String(disbursementUTR).trim(),
+      disbursement_date: effectiveDisbursementDate
+        .toISOString()
+        .split("T")[0],
+      reference_number: String(lan).trim(),
+      status: "DISBURSED",
+      reject_reason: null,
 
-      const webhookResult = await sendLoanWebhook(carePayWebhookPayload);
+      // loan_booking_carepay.net_disbursement
+      finalDisbursedAmount,
+    };
 
-      console.log("CarePay disbursement webhook successful", {
-        lan,
-        payload: carePayWebhookPayload,
-        webhookResult,
-      });
-    } catch (webhookErr) {
-      console.error("CarePay disbursement webhook failed", {
-        lan,
-        message: webhookErr.message,
-        responseStatus: webhookErr.response?.status || null,
-        responseData: webhookErr.response?.data || null,
-      });
+    const webhookResult = await sendLoanWebhook(
+      carePayWebhookPayload,
+    );
+
+    if (webhookResult?.success) {
+      console.log(
+        "[CarePay][WEBHOOK] Webhook sent successfully",
+        {
+          lan,
+          payload: carePayWebhookPayload,
+          status: webhookResult.status,
+          responseData: webhookResult.data,
+        },
+      );
+    } else {
+      console.error(
+        "[CarePay][WEBHOOK] Webhook was not sent",
+        {
+          lan,
+          payload: carePayWebhookPayload,
+          webhookResult:
+            webhookResult || {
+              success: false,
+              reason: "EMPTY_WEBHOOK_RESULT",
+            },
+        },
+      );
     }
 
-    return { success: true };
+    return {
+      success: true,
+      limitResult,
+      webhookResult,
+    };
   } catch (err) {
-    if (conn) await conn.rollback();
+    if (conn && !transactionCompleted) {
+      try {
+        await conn.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "[CarePay][ROLLBACK] Failed to rollback transaction",
+          {
+            lan,
+            message: rollbackError.message,
+          },
+        );
+      }
+    }
+
+    console.error(
+      "[CarePay][ERROR] Disbursement processing failed",
+      {
+        lan,
+        message: err.message,
+        meta: err.meta || null,
+      },
+    );
+
     throw err;
   } finally {
-    if (conn) conn.release();
+    if (conn) {
+      conn.release();
+    }
   }
 }
 
