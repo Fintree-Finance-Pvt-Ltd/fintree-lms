@@ -8407,6 +8407,11 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
     bucket: "Yearly",
   },
 
+   YEARLY_360: {
+    dbValue: "yearly_360",
+    bucket: "Yearly",
+  },
+
   DAILY_365: {
     dbValue: "Daily_365",
     bucket: "Daily",
