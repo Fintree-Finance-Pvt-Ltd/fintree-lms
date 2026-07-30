@@ -4941,7 +4941,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         conn = await db.promise().getConnection();
         await conn.beginTransaction();
 
-        const partnerName = "Finso";
+        const partnerName = "FINCREST";
         const loanAmount = Number(data.loan_amount);
 
         const processingFeeCalc = loanAmount * 0.05;
@@ -5087,7 +5087,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           data.aa_ifsc ?? null,
           // disbursal bank
           data.bank_name,
-          data.name_in_bank,
+          data.aa_name_in_bank,
           data.account_number,
           data.ifsc,
           customerName,
@@ -8373,6 +8373,10 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
     bucket: "Monthly",
   },
 
+  MONTHLY_365: {
+    dbValue: "Monthly_365",
+    bucket: "Monthly",
+  },
   QUATERLY_360: {
     dbValue: "Quaterly_360",
     bucket: "Quarterly",
@@ -8384,6 +8388,10 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
     bucket: "Quarterly",
   },
 
+    QUATERLY_365: {
+    dbValue: "Quaterly_365",
+    bucket: "Quarterly",
+  },
   HALF_YEARLY_360: {
     dbValue: "Half_yearly_360",
     bucket: "Half Yearly",
@@ -8396,6 +8404,11 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
 
   YEARLY_365: {
     dbValue: "yearly_365",
+    bucket: "Yearly",
+  },
+
+   YEARLY_360: {
+    dbValue: "yearly_360",
     bucket: "Yearly",
   },
 
@@ -8412,7 +8425,12 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
 
 const WCTLFFPL_ALLOWED_PRODUCT_CODES = [
   "Monthly_360",
+    "Monthly_365",
+
   "Quaterly_360",
+    "Quaterly_365",
+  
+
   "Half_yearly_360",
   "Half_yearly_365",
   "yearly_365",

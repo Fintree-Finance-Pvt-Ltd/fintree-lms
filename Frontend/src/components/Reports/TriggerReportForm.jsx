@@ -511,6 +511,8 @@ const productOptions = [
   { label: "Motion Corp", value: "Motion Corp" }, 
   { label: "Finso", value: "Finso" },
   { label: "RAPID-MONEY", value: "RAPID-MONEY" },
+  {label: "SRBH", value: "SRBH"},
+  {label: "CAREPAY", value: "CAREPAY"},
   { label: "FFPL", value: "FFPL" },
   { label: "KITE", value: "KITE" },
   { label: "Muthoot", value: "Muthoot" }

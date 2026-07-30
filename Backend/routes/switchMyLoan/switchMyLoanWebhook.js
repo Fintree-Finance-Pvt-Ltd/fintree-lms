@@ -1,6 +1,6 @@
 const axios = require("axios");
 const db = require("../../config/db");
-
+const dayjs = require("dayjs");
 const BASE_URL =
   process.env.RAPID_MONEY_WEBHOOK_BASE_URL || "https://web.rapidmoney.in";
 
@@ -336,6 +336,68 @@ async function sendRejectionWebhook({ applicationId }) {
  * application_id and repayment_date are fetched from
  * loan_booking_switch_my_loan.
  */
+// async function sendDisbursementWebhook({
+//   lan,
+//   transactionId,
+//   disbursementDate,
+// }) {
+//   if (!lan) {
+//     throw new Error("LAN is required");
+//   }
+
+//   if (!transactionId) {
+//     throw new Error("transactionId/UTR is required");
+//   }
+
+//   const [[loan]] = await db.promise().query(
+//     `
+//     SELECT
+//       application_id,
+//       repayment_date,
+//       status
+//     FROM loan_booking_switch_my_loan
+//     WHERE lan = ?
+//     LIMIT 1
+//     `,
+//     [lan],
+//   );
+
+//   if (!loan) {
+//     throw new Error(`Switch My Loan case not found: ${lan}`);
+//   }
+
+//   if (!loan.application_id) {
+//     throw new Error(`application_id missing for LAN: ${lan}`);
+//   }
+
+//   if (!loan.repayment_date) {
+//     throw new Error(`repayment_date missing for LAN: ${lan}`);
+//   }
+
+//   const webhookUrl =
+//     `${BASE_URL}/api-api/v1/webhooks/fintree/` + "disbursement-status";
+
+//   const requestBody = {
+//     payload: {
+//       status: "Disbursed",
+//       lead_id: loan.application_id,
+//       transaction_id: transactionId,
+//       disbursement_date: formatDate(disbursementDate),
+//       repayment_date: formatDate(loan.repayment_date),
+//     },
+//   };
+
+//   const log = await createWebhookLog({
+//     webhookType: "DISBURSEMENT",
+//     applicationId: loan.application_id,
+//     lan,
+//     webhookUrl,
+//     requestBody,
+//   });
+
+//   return sendWebhookLog(log.id);
+// }
+
 async function sendDisbursementWebhook({
   lan,
   transactionId,
@@ -349,11 +411,15 @@ async function sendDisbursementWebhook({
     throw new Error("transactionId/UTR is required");
   }
 
+  if (!disbursementDate || !dayjs(disbursementDate).isValid()) {
+    throw new Error("Valid disbursementDate is required");
+  }
+
   const [[loan]] = await db.promise().query(
     `
     SELECT
       application_id,
-      repayment_date,
+       tenure AS tenure_days,
       status
     FROM loan_booking_switch_my_loan
     WHERE lan = ?
@@ -370,12 +436,19 @@ async function sendDisbursementWebhook({
     throw new Error(`application_id missing for LAN: ${lan}`);
   }
 
-  if (!loan.repayment_date) {
-    throw new Error(`repayment_date missing for LAN: ${lan}`);
+  const tenureDays = Number(loan.tenure_days);
+
+  if (!Number.isInteger(tenureDays) || tenureDays <= 0) {
+    throw new Error(`Invalid tenure_days for LAN: ${lan}`);
   }
 
+  const repaymentDate = dayjs(disbursementDate)
+    .add(tenureDays, "day")
+    .format("YYYY-MM-DD");
+
   const webhookUrl =
-    `${BASE_URL}/api-api/v1/webhooks/fintree/` + "disbursement-status";
+    `${BASE_URL}/api-api/v1/webhooks/fintree/` +
+    "disbursement-status";
 
   const requestBody = {
     payload: {
@@ -383,7 +456,7 @@ async function sendDisbursementWebhook({
       lead_id: loan.application_id,
       transaction_id: transactionId,
       disbursement_date: formatDate(disbursementDate),
-      repayment_date: formatDate(loan.repayment_date),
+      repayment_date: repaymentDate,
     },
   };
 
@@ -397,6 +470,7 @@ async function sendDisbursementWebhook({
 
   return sendWebhookLog(log.id);
 }
+
 
 /**
  * Retry all pending and failed webhooks.

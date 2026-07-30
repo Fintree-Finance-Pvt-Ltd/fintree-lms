@@ -860,7 +860,8 @@ exports.generateAgreementPdf = async (lan) => {
 
   if (!loanData) throw new Error("Loan summary not available");
   const templateHtml = loadTemplate(agreementTemplate);
-  const html = Handlebars.compile(templateHtml)(loanData);
+  // const html = Handlebars.compile(templateHtml)(loanData);
+  const html = fillTemplate(templateHtml, loanData);
 
   // Only CCB uses Handlebars because it has #each
 

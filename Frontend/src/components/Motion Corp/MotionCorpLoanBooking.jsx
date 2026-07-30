@@ -3,6 +3,49 @@ import api from "../../api/api";
 import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 
+const createEmptyBureauResult = () => ({
+  status: "",
+  reason: "",
+  reasons: [],
+  checked: false,
+  canContinue: false,
+  bureauScore: null,
+  isNtc: false,
+  facts: null,
+});
+
+const toReasonList = (reasons, reason) => {
+  if (Array.isArray(reasons)) return reasons.filter(Boolean);
+  if (!reason || reason === "ELIGIBLE") return [];
+
+  return String(reason)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const normalizeBureauStatus = (value) => {
+  const status = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/_/g, " ");
+
+  if (["APPROVED", "ELIGIBLE", "BUREAU APPROVED"].includes(status)) {
+    return "BUREAU APPROVED";
+  }
+
+  if (["REJECTED", "INELIGIBLE", "BUREAU REJECTED"].includes(status)) {
+    return "BUREAU REJECTED";
+  }
+
+  return status;
+};
+
+const isBureauCompleted = (status) =>
+  ["BUREAU APPROVED", "BUREAU REJECTED"].includes(
+    normalizeBureauStatus(status),
+  );
+
 const MotionCorpLoanBooking = () => {
   const [searchParams] = useSearchParams();
   const resumeLan = searchParams.get("lan");
@@ -103,13 +146,12 @@ const MotionCorpLoanBooking = () => {
     policy_issued_date: "",
     period_of_insurance: "",
 
-    cost_of_vehicle:"",
-    manufacturing_year:"",
-    downpayment_paid_by_borrower:"",
-    vehicle_registration_cost:"",
-    sales_invoice_number:"",
-    sales_invoice_date:"",
-
+    cost_of_vehicle: "",
+    manufacturing_year: "",
+    downpayment_paid_by_borrower: "",
+    vehicle_registration_cost: "",
+    sales_invoice_number: "",
+    sales_invoice_date: "",
   });
 
   const [dealers, setDealers] = useState([]);
@@ -126,6 +168,9 @@ const MotionCorpLoanBooking = () => {
   const [lan, setLan] = useState("");
   const [partnerLoanId, setPartnerLoanId] = useState("");
   const [borrowerSaved, setBorrowerSaved] = useState(false);
+
+  const [bureauResult, setBureauResult] = useState(createEmptyBureauResult);
+  const [bureauLoading, setBureauLoading] = useState(false);
 
   const [aadhaarStatus, setAadhaarStatus] = useState({
     BORROWER: "",
@@ -297,20 +342,71 @@ const MotionCorpLoanBooking = () => {
           ? String(d.policy_issued_date).split("T")[0]
           : "",
         period_of_insurance: d.period_of_insurance || "",
-      
-    cost_of_vehicle: d.cost_of_vehicle || "",
-    manufacturing_year: d.manufacturing_year || "",
-    downpayment_paid_by_borrower: d.downpayment_paid_by_borrower || "",
-    vehicle_registration_cost: d.vehicle_registration_cost || "",
-    sales_invoice_number: d.sales_invoice_number || "",
-    sales_invoice_date: d.sales_invoice_date ? String(d.sales_invoice_date).split("T")[0] : "",
 
+        cost_of_vehicle: d.cost_of_vehicle || "",
+        manufacturing_year: d.manufacturing_year || "",
+        downpayment_paid_by_borrower: d.downpayment_paid_by_borrower || "",
+        vehicle_registration_cost: d.vehicle_registration_cost || "",
+        sales_invoice_number: d.sales_invoice_number || "",
+        sales_invoice_date: d.sales_invoice_date
+          ? String(d.sales_invoice_date).split("T")[0]
+          : "",
       }));
 
       setOtpVerified({
         borrower: Number(d.borrower_mobile_verified) === 1,
         guarantor: Number(d.guarantor_mobile_verified) === 1,
         coApplicant: Number(d.co_applicant_mobile_verified) === 1,
+      });
+
+      const screeningStatus = normalizeBureauStatus(
+        d.motion_bureau_screening_status ||
+          d.bureau_screening_status ||
+          d.bureau_status,
+      );
+
+      const screeningReason =
+        d.motion_bureau_screening_reason ||
+        d.bureau_screening_reason ||
+        d.bureau_reason ||
+        "";
+
+      const screeningChecked = Boolean(
+        screeningStatus ||
+        d.motion_bureau_screening_checked_at ||
+        d.bureau_screening_checked_at,
+      );
+
+      const bureauScore =
+        d.motion_bureau_score ?? d.fintree_cibil_score ?? d.cibil_score ?? null;
+
+      setBureauResult({
+        status: screeningStatus,
+        reason: screeningReason,
+        reasons: toReasonList(null, screeningReason),
+        checked: screeningChecked,
+        canContinue: isBureauCompleted(screeningStatus),
+        bureauScore,
+        isNtc:
+          bureauScore !== null &&
+          Number(bureauScore) >= -1 &&
+          Number(bureauScore) <= 250,
+        facts: screeningChecked
+          ? {
+              score: bureauScore,
+              enquiries30d: d.motion_enquiries_30d ?? null,
+              hasDpd3M:
+                d.motion_dpd_3m_flag == null
+                  ? null
+                  : Number(d.motion_dpd_3m_flag) === 1,
+              hasDpd6M:
+                d.motion_dpd_6m_flag == null
+                  ? null
+                  : Number(d.motion_dpd_6m_flag) === 1,
+              emiOverdueAmount: d.motion_emi_overdue_amount ?? null,
+              ccOverdueAmount: d.motion_cc_overdue_amount ?? null,
+            }
+          : null,
       });
 
       setMessage(`✅ Resumed booking. LAN: ${d.lan}`);
@@ -365,7 +461,7 @@ const MotionCorpLoanBooking = () => {
     "vehicle_registration_cost",
     "sales_invoice_number",
     "sales_invoice_date",
-    "cost_of_vehicle"
+    "cost_of_vehicle",
   ];
 
   const isValidMobile = (m) => /^[6-9]\d{9}$/.test(m);
@@ -543,6 +639,104 @@ for processing and servicing this loan application.
   const isCoApplicantRequired = () =>
     activeSection === 4 && !hasGuarantorDetails();
 
+  const handleRunBureauScreening = async () => {
+    if (!lan) {
+      setMessage(
+        "❌ Please complete and save Borrower Details before running bureau.",
+      );
+      return false;
+    }
+
+    try {
+      setBureauLoading(true);
+      setMessage("");
+
+      const res = await api.post("motion-corp/run-bureau-screening", {
+        lan,
+
+        Address_Line_1: formData.Address_Line_1,
+        Address_Line_2: formData.Address_Line_2,
+        Village: formData.Village,
+        District: formData.District,
+        State: formData.State,
+        Pincode: formData.Pincode,
+
+        Loan_Amount: formData.Loan_Amount,
+        Interest_Rate: formData.Interest_Rate,
+        Tenure: formData.Tenure,
+        Processing_Fee: formData.Processing_Fee,
+        Processing_Fee_Percentage: formData.Processing_Fee_Percentage,
+        GPS_Charges: formData.GPS_Charges,
+        Disbursal_Amount: formData.Disbursal_Amount,
+      });
+
+      if (!res.data.success) {
+        setMessage(
+          `❌ ${res.data.message || "Bureau screening could not be completed."}`,
+        );
+        return false;
+      }
+
+      const facts = res.data.bureauFacts || res.data.facts || {};
+
+      const status = normalizeBureauStatus(
+        res.data.screeningStatus || res.data.bureauStatus || res.data.status,
+      );
+
+      const reasons = toReasonList(
+        res.data.reasons,
+        res.data.screeningReason || res.data.bureauReason || res.data.reason,
+      );
+
+      const reason =
+        res.data.screeningReason ||
+        res.data.bureauReason ||
+        res.data.reason ||
+        reasons.join(", ") ||
+        "ELIGIBLE";
+
+      const canContinue = isBureauCompleted(status);
+
+      setBureauResult({
+        status,
+        reason,
+        reasons,
+        checked: true,
+        canContinue,
+        bureauScore: res.data.bureauScore ?? facts.score ?? null,
+        isNtc: Boolean(res.data.isNtc ?? facts.isNtc),
+        facts,
+      });
+
+      if (status === "BUREAU APPROVED") {
+        setMessage(
+          "✅ Motion Corp bureau screening approved. Moving to the next section.",
+        );
+      } else if (status === "BUREAU REJECTED") {
+        setMessage(
+          "⚠️ Motion Corp bureau screening rejected. Screening is complete, so the case can continue as per the SRBH flow.",
+        );
+      } else {
+        setMessage(
+          "⚠️ Bureau result is pending. Please retry before continuing.",
+        );
+      }
+
+      return canContinue;
+    } catch (err) {
+      setMessage(
+        `❌ ${
+          err.response?.data?.message ||
+          "Motion Corp bureau screening failed. Please try again."
+        }`,
+      );
+
+      return false;
+    } finally {
+      setBureauLoading(false);
+    }
+  };
+
   const saveBorrowerFirstSection = async () => {
     const sectionErrors = validateSection(0);
 
@@ -612,7 +806,13 @@ for processing and servicing this loan application.
       "Driving_Licence",
     ],
     1: ["Address_Line_1", "Village", "Pincode", "District", "State"],
-    2: ["Loan_Amount", "Interest_Rate", "Tenure", "Processing_Fee_Percentage" , "GPS_Charges"],
+    2: [
+      "Loan_Amount",
+      "Interest_Rate",
+      "Tenure",
+      "Processing_Fee_Percentage",
+      "GPS_Charges",
+    ],
     3: guarantorFields,
     4: coApplicantFields,
     5: [
@@ -845,15 +1045,89 @@ for processing and servicing this loan application.
     }
   };
 
+  // const sendOtp = async (mobile, type) => {
+  //   try {
+  //     setOtpLoading(true);
+  //     const res = await api.post("motion-corp/send-otp", {
+  //       mobile,
+  //       applicantType: type,
+  //     });
+
+  //     if (res.data.success) {
+  //       setResendTimers((prev) => ({
+  //         ...prev,
+  //         [type]: 60,
+  //       }));
+
+  //       const timer = setInterval(() => {
+  //         setResendTimers((prev) => {
+  //           const current = prev[type];
+
+  //           if (current <= 1) {
+  //             clearInterval(timer);
+
+  //             return {
+  //               ...prev,
+  //               [type]: 0,
+  //             };
+  //           }
+
+  //           return {
+  //             ...prev,
+  //             [type]: current - 1,
+  //           };
+  //         });
+  //       }, 1000);
+  //     }
+  //   } catch (err) {
+  //     alert("Failed to send OTP");
+  //   } finally {
+  //     setOtpLoading(false);
+  //   }
+  // };
+
   const sendOtp = async (mobile, type) => {
     try {
       setOtpLoading(true);
+
       const res = await api.post("motion-corp/send-otp", {
         mobile,
         applicantType: type,
+        lan: lan || undefined,
       });
 
-      if (res.data.success) {
+      if (res.data.alreadyVerified) {
+        if (type === "BORROWER") {
+          setOtpVerified((prev) => ({
+            ...prev,
+            borrower: true,
+          }));
+        }
+
+        if (type === "GUARANTOR") {
+          setOtpVerified((prev) => ({
+            ...prev,
+            guarantor: true,
+          }));
+        }
+
+        if (type === "CO_APPLICANT") {
+          setOtpVerified((prev) => ({
+            ...prev,
+            coApplicant: true,
+          }));
+        }
+
+        setShowConsentDialog(false);
+        setOtp("");
+        setConsentChecked(false);
+        setMessage("✅ Number already verified");
+        return;
+      }
+
+      if (res.data.otpSent) {
+        setMessage(`✅ ${res.data.message}`);
+
         setResendTimers((prev) => ({
           ...prev,
           [type]: 60,
@@ -880,7 +1154,7 @@ for processing and servicing this loan application.
         }, 1000);
       }
     } catch (err) {
-      alert("Failed to send OTP");
+      alert(err.response?.data?.message || "Failed to send OTP");
     } finally {
       setOtpLoading(false);
     }
@@ -949,7 +1223,18 @@ for processing and servicing this loan application.
         setConsentChecked(false);
       }
     } catch (err) {
-      alert("Invalid OTP");
+      const errorData = err.response?.data;
+
+      alert(errorData?.message || "OTP verification failed");
+
+      if (errorData?.code === "OTP_EXPIRED") {
+        setOtp("");
+
+        setResendTimers((prev) => ({
+          ...prev,
+          [verificationTarget]: 0,
+        }));
+      }
     } finally {
       setOtpLoading(false);
     }
@@ -957,6 +1242,17 @@ for processing and servicing this loan application.
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    const bureauInputFields = new Set([
+      ...sectionFields[0],
+      ...sectionFields[1],
+      ...sectionFields[2],
+      "Processing_Fee",
+    ]);
+
+    if (bureauInputFields.has(name) && bureauResult.checked) {
+      setBureauResult(createEmptyBureauResult());
+    }
 
     let finalValue = value;
 
@@ -1033,7 +1329,11 @@ for processing and servicing this loan application.
       // }
 
       // Auto-calculate Processing Fee % and Disbursal Amount
-      if (name === "Loan_Amount" || name === "Processing_Fee" || name === "GPS_Charges") {
+      if (
+        name === "Loan_Amount" ||
+        name === "Processing_Fee" ||
+        name === "GPS_Charges"
+      ) {
         const loanAmount = Number(
           name === "Loan_Amount" ? finalValue : updated.Loan_Amount,
         );
@@ -1215,11 +1515,7 @@ for processing and servicing this loan application.
     await api.post("motion-corp/save-applicant-details", {
       lan,
       applicantType,
-      data: {
-        ...formData,
-        guarantor_mobile_verified: otpVerified.guarantor ? 1 : 0,
-        co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
-      },
+      data: formData,
     });
 
     return true;
@@ -1243,21 +1539,62 @@ for processing and servicing this loan application.
       const res = await api.post("motion-corp/init-aadhaar", {
         lan,
         applicantType,
+        forceRetry: aadhaarStatus[applicantType] === "FAILED",
       });
 
+      //   if (res.data.success) {
+      //     setAadhaarStatus((prev) => ({
+      //       ...prev,
+      //       [applicantType]: "INITIATED",
+      //     }));
+
+      //     setMessage(`✅ Aadhaar initiated for ${applicantType}`);
+
+      //     if (res.data.kycUrl) {
+      //       window.open(res.data.kycUrl, "_blank");
+      //     }
+      //   }
+      // } catch (err) {
+      //   setAadhaarStatus((prev) => ({
+      //     ...prev,
+      //     [applicantType]: "FAILED",
+      //   }));
+
+      //   setMessage(
+      //     `❌ ${
+      //       err.response?.data?.message || `Aadhaar failed for ${applicantType}`
+      //     }`,
+      //   );
+      // }
       if (res.data.success) {
+        const nextStatus = res.data.alreadyVerified
+          ? "VERIFIED"
+          : res.data.status || "INITIATED";
+
+        setAadhaarStatus((prev) => ({
+          ...prev,
+          [applicantType]: nextStatus,
+        }));
+
+        setMessage(`✅ ${res.data.message}`);
+
+        if (!res.data.alreadyVerified && res.data.kycUrl) {
+          window.open(res.data.kycUrl, "_blank");
+        }
+      }
+    } catch (err) {
+      const errorCode = err.response?.data?.code;
+
+      if (errorCode === "AADHAAR_IN_PROGRESS") {
         setAadhaarStatus((prev) => ({
           ...prev,
           [applicantType]: "INITIATED",
         }));
 
-        setMessage(`✅ Aadhaar initiated for ${applicantType}`);
-
-        if (res.data.kycUrl) {
-          window.open(res.data.kycUrl, "_blank");
-        }
+        setMessage("⚠️ Aadhaar initiation is already in progress.");
+        return;
       }
-    } catch (err) {
+
       setAadhaarStatus((prev) => ({
         ...prev,
         [applicantType]: "FAILED",
@@ -1563,6 +1900,14 @@ for processing and servicing this loan application.
     setIsSubmitted(true);
     setMessage("");
 
+    if (!bureauResult.canContinue) {
+      setActiveSection(2);
+      setMessage(
+        "❌ Motion Corp bureau screening must be completed before submitting the case.",
+      );
+      return;
+    }
+
     if (!validateForm()) {
       const newTouched = {};
 
@@ -1723,7 +2068,6 @@ for processing and servicing this loan application.
         vehicle_registration_cost: "",
         sales_invoice_number: "",
         sales_invoice_date: "",
-
       }));
 
       setDealerProducts([]);
@@ -1747,6 +2091,8 @@ for processing and servicing this loan application.
       setLan("");
       setPartnerLoanId("");
       setBorrowerSaved(false);
+      setBureauResult(createEmptyBureauResult());
+      setBureauLoading(false);
 
       setAadhaarStatus({
         BORROWER: "",
@@ -1936,6 +2282,70 @@ for processing and servicing this loan application.
     );
   };
 
+  const renderBureauScreeningResult = () => {
+    if (!bureauResult.checked) return null;
+
+    const approved =
+      normalizeBureauStatus(bureauResult.status) === "BUREAU APPROVED";
+
+    const rejected =
+      normalizeBureauStatus(bureauResult.status) === "BUREAU REJECTED";
+
+    const reasons =
+      bureauResult.reasons?.length > 0
+        ? bureauResult.reasons
+        : toReasonList(null, bureauResult.reason);
+
+    return (
+      <div
+        style={{
+          gridColumn: "1 / -1",
+          marginTop: "16px",
+          padding: "18px",
+          borderRadius: "12px",
+          border: `2px solid ${
+            approved ? "#10b981" : rejected ? "#dc2626" : "#f59e0b"
+          }`,
+          background: approved ? "#ecfdf5" : rejected ? "#fef2f2" : "#fffbeb",
+        }}
+      >
+        <h3 style={{ margin: "0 0 10px" }}>
+          {approved ? "✅" : rejected ? "❌" : "⚠️"} Motion Corp Bureau:{" "}
+          {bureauResult.status || "Pending"}
+        </h3>
+
+        <div>
+          <strong>Bureau score:</strong>{" "}
+          {bureauResult.bureauScore ?? "Not available"}
+        </div>
+
+        <div>
+          <strong>NTC customer:</strong> {bureauResult.isNtc ? "Yes" : "No"}
+        </div>
+
+        {reasons.length > 0 && (
+          <div style={{ marginTop: "12px" }}>
+            <strong>Reason:</strong>
+
+            <ul style={{ marginBottom: 0 }}>
+              {reasons.map((reason, index) => (
+                <li key={`${reason}-${index}`}>{reason}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <p style={{ marginBottom: 0 }}>
+          {approved
+            ? "Bureau screening passed. The case can proceed."
+            : rejected
+              ? "Bureau screening is complete. The case can proceed as per the current SRBH advisory flow."
+              : "A final bureau result was not received. Retry the screening."}
+        </p>
+      </div>
+    );
+  };
+
   return (
     <div className="manual-entry-container">
       <h2>Motion Corp Manual Entry</h2>
@@ -1945,30 +2355,17 @@ for processing and servicing this loan application.
           <div
             key={index}
             className={`tab ${activeSection === index ? "active" : ""}`}
-            onClick={() => setActiveSection(index)}
-            // onClick={() => {
-            //   if (index <= activeSection) {
-            //     setActiveSection(index);
-            //     return;
-            //   }
+            // onClick={() => setActiveSection(index)}
+            onClick={() => {
+              if (index <= activeSection) {
+                setActiveSection(index);
+                return;
+              }
 
-            //   const sectionErrors = validateSection(activeSection);
-
-            //   if (Object.keys(sectionErrors).length > 0) {
-            //     setErrors(sectionErrors);
-
-            //     const newTouched = {};
-            //     sectionFields[activeSection].forEach((field) => {
-            //       newTouched[field] = true;
-            //     });
-
-            //     setTouched((prev) => ({ ...prev, ...newTouched }));
-            //     setMessage("❌ Please complete current section first.");
-            //     return;
-            //   }
-
-            //   setActiveSection(index);
-            // }}
+              setMessage(
+                "⚠️ Please use the Next button to complete validations before moving forward.",
+              );
+            }}
           >
             {sec}
           </div>
@@ -2069,6 +2466,8 @@ for processing and servicing this loan application.
             )}
           </div>
         )}
+
+        {activeSection === 2 && renderBureauScreeningResult()}
 
         {activeSection === 3 && (
           <div className="form-grid">
@@ -2262,10 +2661,7 @@ for processing and servicing this loan application.
               "Insurance Company Provider",
               "insurance_company_provider",
             )}
-            {renderInput(
-              "Insurance Policy Number",
-              "insurance_policy_number"
-            )}
+            {renderInput("Insurance Policy Number", "insurance_policy_number")}
             {renderInput("Policy Issued Date", "policy_issued_date", "date")}
             {renderInput("Period of Insurance", "period_of_insurance")}
           </div>
@@ -2274,18 +2670,18 @@ for processing and servicing this loan application.
         {activeSection === 9 && (
           <div className="form-grid">
             {renderInput("Cost Of Vehicle", "cost_of_vehicle", "number")}
+            {renderInput("Manufacturing Year", "manufacturing_year", "number")}
+            {renderInput("Sales Invoice Number", "sales_invoice_number")}
+            {renderInput("Sales Invoice Date", "sales_invoice_date", "date")}
             {renderInput(
-              "Manufacturing Year",
-              "manufacturing_year",
+              "Downpayment Paid By The Borrower",
+              "downpayment_paid_by_borrower",
+            )}
+            {renderInput(
+              "Vehicle Registration Cost",
+              "vehicle_registration_cost",
               "number",
             )}
-            {renderInput(
-              "Sales Invoice Number",
-              "sales_invoice_number"
-            )}
-            {renderInput("Sales Invoice Date", "sales_invoice_date", "date")}
-            {renderInput("Downpayment Paid By The Borrower", "downpayment_paid_by_borrower")}
-            {renderInput("Vehicle Registration Cost", "vehicle_registration_cost", "number")}
           </div>
         )}
 
@@ -2328,9 +2724,11 @@ for processing and servicing this loan application.
 
               <button
                 type="button"
+                disabled={loading || (activeSection === 2 && bureauLoading)}
                 onClick={async () => {
                   if (activeSection === 0) {
                     const saved = await saveBorrowerFirstSection();
+
                     if (!saved) return;
 
                     setActiveSection(1);
@@ -2344,18 +2742,58 @@ for processing and servicing this loan application.
                     setIsSubmitted(true);
 
                     const newTouched = {};
+
                     sectionFields[activeSection].forEach((field) => {
                       newTouched[field] = true;
                     });
 
-                    setTouched((prev) => ({ ...prev, ...newTouched }));
+                    setTouched((prev) => ({
+                      ...prev,
+                      ...newTouched,
+                    }));
+
+                    setMessage("❌ Please complete current section first.");
                     return;
                   }
 
-                  setActiveSection(activeSection + 1);
+                  // Bureau must execute before leaving Loan Details.
+                  if (activeSection === 2 && !bureauResult.canContinue) {
+                    const canContinue = await handleRunBureauScreening();
+
+                    if (!canContinue) return;
+                  }
+
+                  if (activeSection === 3 && hasGuarantorDetails()) {
+                    const saved = await saveApplicantBeforeAadhaar("GUARANTOR");
+
+                    if (!saved) return;
+                  }
+
+                  if (
+                    activeSection === 4 &&
+                    !hasGuarantorDetails() &&
+                    hasCoApplicantDetails()
+                  ) {
+                    const saved =
+                      await saveApplicantBeforeAadhaar("CO_APPLICANT");
+
+                    if (!saved) return;
+                  }
+
+                  setActiveSection((prev) => prev + 1);
                 }}
               >
-                Next →
+                {activeSection === 2
+                  ? bureauLoading
+                    ? "🔄 Running Motion Corp Bureau..."
+                    : bureauResult.canContinue
+                      ? "Next →"
+                      : bureauResult.checked
+                        ? "🔄 Retry Bureau Screening"
+                        : "🔍 Run Bureau & Continue"
+                  : loading
+                    ? "Saving..."
+                    : "Next →"}
               </button>
             </>
           ) : (

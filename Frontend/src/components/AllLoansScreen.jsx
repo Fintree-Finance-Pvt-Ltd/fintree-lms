@@ -112,7 +112,7 @@ const AllLoansScreen = ({
             } else if (/^LDF/i.test(r.lan)) {
               nav(`/loan-digit/customer-details?lan=${r.lan}`);
             } else if (/^MC/i.test(r.lan)) {
-              nav(`/motion-corp/customer-details?lan=${r.lan}`);
+              nav(`/motion-corp/updatedata?lan=${r.lan}`);
             } else if (/^FUN/i.test(r.lan)) {
               nav(`/fundify/customer-details/${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {
