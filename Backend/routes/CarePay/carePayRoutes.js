@@ -1468,6 +1468,9 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
   }
 });
 
+
+
+
 // router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
 //   try {
 //     const {
@@ -1606,6 +1609,166 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 //     });
 //   }
 // });
+////////////// UPDATED AMOUNT AND UMRN UPDATE WITH VERIFICATION CHECKS
+router.post(
+  "/loan/update-request-amount",
+  verifyApiKey,
+  async (req, res) => {
+    let connection;
+
+    try {
+      const { lan, requestAmount } = req.body || {};
+
+      const cleanLan = String(lan || "").trim().toUpperCase();
+      const cleanRequestAmount = String(requestAmount ?? "").trim();
+
+      if (!cleanLan) {
+        return res.status(400).json({
+          message: "LAN is required",
+        });
+      }
+
+      if (!cleanRequestAmount) {
+        return res.status(400).json({
+          message: "Request amount is required",
+        });
+      }
+
+      // DECIMAL(15,2): maximum 13 digits before decimal and 2 after decimal
+      const validAmountPattern = /^\d{1,13}(\.\d{1,2})?$/;
+
+      if (
+        !validAmountPattern.test(cleanRequestAmount) ||
+        Number(cleanRequestAmount) <= 0
+      ) {
+        return res.status(400).json({
+          message:
+            "Request amount must be a valid positive amount with maximum 2 decimal places",
+        });
+      }
+
+      connection = await db.promise().getConnection();
+
+      await connection.beginTransaction();
+
+      // Lock the loan row until the validation and update are completed.
+      const [loanRows] = await connection.query(
+        `SELECT
+            id,
+            request_amount,
+            old_requestAmount,
+            umrn,
+            bank_account_holder_name,
+            bank_account_number,
+            bank_name,
+            bank_branch_name,
+            bank_ifsc_code,
+            bank_account_type
+         FROM loan_booking_carepay
+         WHERE lan = ?
+         LIMIT 1
+         FOR UPDATE`,
+        [cleanLan],
+      );
+
+      if (loanRows.length === 0) {
+        await connection.rollback();
+
+        return res.status(404).json({
+          message: "No record found for given LAN",
+        });
+      }
+
+      const loan = loanRows[0];
+
+      const hasValue = (value) =>
+        value !== null &&
+        value !== undefined &&
+        String(value).trim() !== "";
+
+      const protectedFields = {
+        umrn: loan.umrn,
+        bank_account_holder_name: loan.bank_account_holder_name,
+        bank_account_number: loan.bank_account_number,
+        bank_name: loan.bank_name,
+        bank_branch_name: loan.bank_branch_name,
+        bank_ifsc_code: loan.bank_ifsc_code,
+        bank_account_type: loan.bank_account_type,
+      };
+
+      const populatedFields = Object.entries(protectedFields)
+        .filter(([, value]) => hasValue(value))
+        .map(([fieldName]) => fieldName);
+
+      /*
+       * Block the request_amount update when even one of the
+       * UMRN or bank-detail fields is already populated.
+       */
+      if (populatedFields.length > 0) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          message:
+            "Request amount cannot be updated because UMRN or bank details are already present",
+          updated: false,
+          populated_fields: populatedFields,
+        });
+      }
+
+      const previousRequestAmount = loan.request_amount;
+
+      /*
+       * Store the current request_amount in old_requestAmount,
+       * then update request_amount with the new value.
+       */
+      const [updateResult] = await connection.query(
+        `UPDATE loan_booking_carepay
+         SET old_requestAmount = request_amount,
+             request_amount = ?
+         WHERE id = ?`,
+        [cleanRequestAmount, loan.id],
+      );
+
+      if (updateResult.affectedRows !== 1) {
+        throw new Error("Request amount update failed");
+      }
+
+      await connection.commit();
+
+      return res.status(200).json({
+        message: "Request amount updated successfully",
+        updated: true,
+        lan: cleanLan,
+        old_request_amount: previousRequestAmount,
+        request_amount: cleanRequestAmount,
+      });
+    } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.error(
+            "Request amount rollback error:",
+            rollbackError,
+          );
+        }
+      }
+
+      console.error("Error updating request amount:", error);
+
+      return res.status(500).json({
+        message: "Internal server error",
+      });
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  },
+);
+
+
+
 
 //// Sajag ///
 
