@@ -1610,8 +1610,8 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 //   }
 // });
 ////////////// UPDATED AMOUNT AND UMRN UPDATE WITH VERIFICATION CHECKS
-router.post(
-  "/loan/update-request-amount",
+loanBookingRouter.post(
+  "/v1/loan/update-request-amount",
   verifyApiKey,
   async (req, res) => {
     let connection;
@@ -1634,7 +1634,6 @@ router.post(
         });
       }
 
-      // DECIMAL(15,2): maximum 13 digits before decimal and 2 after decimal
       const validAmountPattern = /^\d{1,13}(\.\d{1,2})?$/;
 
       if (
@@ -1643,15 +1642,13 @@ router.post(
       ) {
         return res.status(400).json({
           message:
-            "Request amount must be a valid positive amount with maximum 2 decimal places",
+            "Request amount must be a positive number with maximum 2 decimal places",
         });
       }
 
       connection = await db.promise().getConnection();
-
       await connection.beginTransaction();
 
-      // Lock the loan row until the validation and update are completed.
       const [loanRows] = await connection.query(
         `SELECT
             id,
@@ -1676,6 +1673,7 @@ router.post(
 
         return res.status(404).json({
           message: "No record found for given LAN",
+          updated: false,
         });
       }
 
@@ -1700,10 +1698,7 @@ router.post(
         .filter(([, value]) => hasValue(value))
         .map(([fieldName]) => fieldName);
 
-      /*
-       * Block the request_amount update when even one of the
-       * UMRN or bank-detail fields is already populated.
-       */
+      // Do not update when any UMRN/bank value is already present.
       if (populatedFields.length > 0) {
         await connection.rollback();
 
@@ -1715,12 +1710,8 @@ router.post(
         });
       }
 
-      const previousRequestAmount = loan.request_amount;
+      const oldRequestAmount = loan.request_amount;
 
-      /*
-       * Store the current request_amount in old_requestAmount,
-       * then update request_amount with the new value.
-       */
       const [updateResult] = await connection.query(
         `UPDATE loan_booking_carepay
          SET old_requestAmount = request_amount,
@@ -1739,8 +1730,8 @@ router.post(
         message: "Request amount updated successfully",
         updated: true,
         lan: cleanLan,
-        old_request_amount: previousRequestAmount,
-        request_amount: cleanRequestAmount,
+        old_request_amount: oldRequestAmount,
+        request_amount: Number(cleanRequestAmount).toFixed(2),
       });
     } catch (error) {
       if (connection) {
@@ -1748,7 +1739,7 @@ router.post(
           await connection.rollback();
         } catch (rollbackError) {
           console.error(
-            "Request amount rollback error:",
+            "Request amount rollback failed:",
             rollbackError,
           );
         }
@@ -1758,16 +1749,13 @@ router.post(
 
       return res.status(500).json({
         message: "Internal server error",
+        updated: false,
       });
     } finally {
-      if (connection) {
-        connection.release();
-      }
+      connection?.release();
     }
   },
 );
-
-
 
 
 //// Sajag ///
