@@ -9171,6 +9171,13 @@ router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
           values,
         );
 
+        await partnerLimitService.updateBookedLimit(
+  conn,
+  limitCheck.limitId,
+  loanAmount,
+  lan,
+);
+
         /*
          * Important:
          * If validatePartnerBookingLimit() only checks the limit
