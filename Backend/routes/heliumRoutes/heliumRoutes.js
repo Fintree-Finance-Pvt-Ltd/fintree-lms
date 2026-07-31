@@ -1101,47 +1101,199 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     const status = (payload.status || "").toLowerCase();
     const data = payload.data || {};
 
-    const uniqueId =
+const uniqueId =
   data?.uniqueId ||
   payload?.uniqueId ||
   payload?.model?.uniqueId ||
   null;
 
-if (uniqueId?.startsWith("LAP")) {
-  console.log(`📤 Forwarding Aadhaar webhook to LAP for ${uniqueId}`);
+/*
+ * PL customer reference example:
+ * DLK_CUS-260730-F1CBED_1785425732121
+ */
+if (uniqueId?.startsWith("DLK_CUS-")) {
+  console.log(`📤 Forwarding Aadhaar webhook to PL for ${uniqueId}`);
 
-try {
-  console.log("📤 Forwarding webhook to:", process.env.LAP_WEBHOOK_URL);
-const response = await axios.post(
-  process.env.LAP_WEBHOOK_URL,
-  payload,
-  {
-    headers: {
-      "Content-Type": "application/json",
-      "x-lap-webhook-secret": process.env.LAP_WEBHOOK_SECRET,
-      "x-webhook-source": "lms-digitap-forwarder",
-    },
-    timeout: 30000,
-    validateStatus: () => true,
+  try {
+    if (!process.env.PL_WEBHOOK_URL) {
+      console.error("❌ PL_WEBHOOK_URL is not configured.");
+      return res.status(200).send("pl-webhook-url-not-configured");
+    }
+
+    const response = await axios.post(
+      process.env.PL_WEBHOOK_URL,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-pl-webhook-secret":
+            process.env.PL_WEBHOOK_SECRET || "",
+          "x-webhook-source":
+            "lms-digitap-forwarder",
+          "x-digitap-unique-id":
+            uniqueId,
+        },
+
+        timeout: 30000,
+
+        /*
+         * Let us inspect and log every upstream response
+         * without Axios throwing automatically.
+         */
+        validateStatus: () => true,
+      },
+    );
+
+    console.log(
+      "📥 PL webhook response status:",
+      response.status,
+    );
+
+    /*
+     * Do not log the complete response if it may
+     * contain Aadhaar or KYC information.
+     */
+    console.log(
+      "📥 PL webhook response:",
+      typeof response.data === "string"
+        ? response.data.slice(0, 300)
+        : {
+            success: response.data?.success,
+            message: response.data?.message,
+          },
+    );
+
+    if (
+      response.status >= 200 &&
+      response.status < 300
+    ) {
+      console.log(
+        "✅ PL Aadhaar webhook forwarded successfully.",
+      );
+
+      return res
+        .status(200)
+        .send("forwarded-to-pl");
+    }
+
+    console.error(
+      "❌ PL webhook rejected:",
+      response.status,
+      response.data,
+    );
+
+    /*
+     * Your current design always acknowledges Digitap
+     * with HTTP 200 to stop provider retry storms.
+     */
+    return res
+      .status(200)
+      .send("pl-forward-rejected");
+  } catch (err) {
+    console.error(
+      "❌ PL webhook forwarding failed.",
+    );
+
+    console.error(
+      "Message:",
+      err.message,
+    );
+
+    console.error(
+      "Status:",
+      err.response?.status,
+    );
+
+    return res
+      .status(200)
+      .send("pl-forward-error");
   }
-);
-
-  console.log("📥 LAP Response Status:", response.status);
-  console.log("📥 LAP Response:", response.data);
-
-  if (response.status >= 200 && response.status < 300) {
-    console.log("✅ LAP webhook forwarded successfully");
-  } else {
-    console.error("❌ LAP webhook rejected:", response.data);
-  }
-} catch (err) {
-  console.error("❌ LAP webhook forwarding failed");
-  console.error("Message:", err.message);
-  console.error("Response:", err.response?.data);
-  console.error("Status:", err.response?.status);
 }
 
-  return res.status(200).send("forwarded-to-lap");
+/*
+ * Existing LAP routing
+ */
+if (uniqueId?.startsWith("LAP")) {
+  console.log(
+    `📤 Forwarding Aadhaar webhook to LAP for ${uniqueId}`,
+  );
+
+  try {
+    if (!process.env.LAP_WEBHOOK_URL) {
+      console.error(
+        "❌ LAP_WEBHOOK_URL is not configured.",
+      );
+
+      return res
+        .status(200)
+        .send("lap-webhook-url-not-configured");
+    }
+
+    const response = await axios.post(
+      process.env.LAP_WEBHOOK_URL,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "x-lap-webhook-secret":
+            process.env.LAP_WEBHOOK_SECRET || "",
+          "x-webhook-source":
+            "lms-digitap-forwarder",
+          "x-digitap-unique-id":
+            uniqueId,
+        },
+
+        timeout: 30000,
+        validateStatus: () => true,
+      },
+    );
+
+    console.log(
+      "📥 LAP response status:",
+      response.status,
+    );
+
+    if (
+      response.status >= 200 &&
+      response.status < 300
+    ) {
+      console.log(
+        "✅ LAP webhook forwarded successfully.",
+      );
+
+      return res
+        .status(200)
+        .send("forwarded-to-lap");
+    }
+
+    console.error(
+      "❌ LAP webhook rejected:",
+      response.status,
+      response.data,
+    );
+
+    return res
+      .status(200)
+      .send("lap-forward-rejected");
+  } catch (err) {
+    console.error(
+      "❌ LAP webhook forwarding failed.",
+    );
+
+    console.error(
+      "Message:",
+      err.message,
+    );
+
+    console.error(
+      "Status:",
+      err.response?.status,
+    );
+
+    return res
+      .status(200)
+      .send("lap-forward-error");
+  }
 }
 
     // We ALWAYS return 200 to stop retries, even if we ignore the event.
