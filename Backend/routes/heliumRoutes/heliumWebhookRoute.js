@@ -47,6 +47,52 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     const status = (payload.status || "").toLowerCase();
     const data = payload.data || {};
 
+    const uniqueId =
+      data?.uniqueId ||
+      payload?.uniqueId ||
+      payload?.model?.uniqueId ||
+      null;
+
+    // Personal-loan Aadhaar callbacks must never touch the LMS database.
+    if (uniqueId?.startsWith("DLK_CUS-")) {
+      console.log(`Forwarding Aadhaar webhook to PL for ${uniqueId}`);
+
+      try {
+        if (!process.env.PL_WEBHOOK_URL) {
+          console.error("PL_WEBHOOK_URL is not configured in LMS .env");
+          return res.status(200).send("pl-webhook-url-not-configured");
+        }
+
+        const response = await axios.post(process.env.PL_WEBHOOK_URL, payload, {
+          headers: {
+            "Content-Type": "application/json",
+            "x-pl-webhook-secret": process.env.PL_WEBHOOK_SECRET || "",
+            "x-webhook-source": "lms-digitap-forwarder",
+            "x-digitap-unique-id": uniqueId,
+          },
+          timeout: 30000,
+          validateStatus: () => true,
+        });
+
+        console.log(
+          "PL webhook response status:",
+          response.status,
+          response.data,
+        );
+
+        if (response.status >= 200 && response.status < 300) {
+          console.log("PL Aadhaar webhook forwarded successfully.");
+          return res.status(200).send("forwarded-to-pl");
+        }
+
+        console.error("PL webhook rejected:", response.status, response.data);
+        return res.status(200).send("pl-forward-rejected");
+      } catch (err) {
+        console.error("PL webhook forwarding failed:", err.message);
+        return res.status(200).send("pl-forward-error");
+      }
+    }
+
     // We ALWAYS return 200 to stop retries, even if we ignore the event.
     if (!transactionId) {
       console.warn("⚠️ Webhook missing transactionId, ignoring.");
@@ -56,8 +102,6 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     // If failure -> mark FAILED (if record exists) and exit
     if (status !== "success") {
       console.log("❌ Aadhaar webhook status is failure for txn:", transactionId);
-
-      const uniqueId = data.uniqueId || null;
 
       await db
         .promise()
@@ -72,7 +116,6 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     }
 
     // ✅ Success flow
-    const uniqueId = data.uniqueId;
     if (!uniqueId) {
       console.warn("⚠️ Webhook success but no uniqueId in data, ignoring.");
       return res.status(200).send("ignored");
