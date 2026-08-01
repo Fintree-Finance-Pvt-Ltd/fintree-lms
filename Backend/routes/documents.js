@@ -23,6 +23,13 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const {
+  generateNoc,
+} = require("../services/noc.service");
+
+const {
+  generateNocForFullyPaidLoans,
+} = require("../jobs/generate-noc-for-fully-paid");
 // ---------- DB helper ----------
 function q(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -2976,6 +2983,62 @@ router.post("/generate-noc", async (req, res) => {
       .json({ error: "NOC generation failed", details: err.message });
   }
 });
+
+router.post(
+  "/generate-noc-for-fully-paid",
+  async (req, res) => {
+    try {
+      const result =
+        await generateNocForFullyPaidLoans();
+
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error(
+        "Generate Fully Paid NOC route error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to generate NOCs for Fully Paid loans",
+        error: error.message,
+      });
+    }
+  },
+);
+
+
+// router.post(
+//   "/generate-noc-for-fully-paid",
+//   async (req, res) => {
+//     try {
+//       console.log(
+//         "Starting NOC generation for Fully Paid WCTL FFPL loans",
+//       );
+
+//       const result =
+//         await generateNocForFullyPaidLoans();
+
+//       return res.status(200).json(result);
+//     } catch (error) {
+//       console.error(
+//         "Generate Fully Paid NOC route error:",
+//         {
+//           message: error.message,
+//           stack: error.stack,
+//         },
+//       );
+
+//       return res.status(500).json({
+//         success: false,
+//         message:
+//           "Failed to generate NOCs for Fully Paid loans",
+//         error: error.message,
+//       });
+//     }
+//   },
+// );
 
 router.post("/generate-foreclosure", async (req, res) => {
   const { lan } = req.body;

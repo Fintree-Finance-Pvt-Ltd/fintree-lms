@@ -12,6 +12,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    String(email || "").trim(),
+  );
+}
 async function sendLoanStatusMail({
   to,
   customerName,
@@ -381,6 +386,129 @@ Fintree Finance`;
   return transporter.sendMail(mailOptions);
 }
 
+
+
+async function sendNocEmail({
+  to,
+  customerName,
+  lan,
+  filePath,
+}) {
+  const recipient = String(to || "")
+    .trim()
+    .toLowerCase();
+
+  const senderEmail = String(
+    process.env.SMTP_USER || "",
+  )
+    .trim()
+    .toLowerCase();
+
+  const senderName = String(
+    process.env.SMTP_FROM_NAME ||
+      "FINTREE FINANCE LIMITED",
+  ).trim();
+
+  if (!recipient) {
+    throw new Error(
+      `Customer email not found for LAN ${lan}`,
+    );
+  }
+
+  if (!isValidEmail(recipient)) {
+    throw new Error(
+      `Invalid recipient email address: ${recipient}`,
+    );
+  }
+
+  if (!senderEmail) {
+    throw new Error("SMTP_USER is missing");
+  }
+
+  if (!isValidEmail(senderEmail)) {
+    throw new Error(
+      `Invalid SMTP sender email: ${senderEmail}`,
+    );
+  }
+
+  if (!filePath) {
+    throw new Error(
+      `NOC file path not found for LAN ${lan}`,
+    );
+  }
+
+  if (!fs.existsSync(filePath)) {
+    throw new Error(
+      `NOC PDF file does not exist: ${filePath}`,
+    );
+  }
+
+  const mailOptions = {
+    from: {
+      name: senderName,
+      address: senderEmail,
+    },
+
+    to: recipient,
+
+    envelope: {
+      from: senderEmail,
+      to: recipient,
+    },
+
+    subject: `No Dues Certificate - ${lan}`,
+
+    html: `
+      <p>Dear ${customerName || "Customer"},</p>
+
+      <p>Greetings from Fintree Finance Private Limited.</p>
+
+      <p>
+        We are pleased to confirm that there are no outstanding dues
+        against your loan account.
+      </p>
+
+      <p>
+        Please find attached the No Dues Certificate for your loan
+        account number <strong>${lan}</strong>.
+      </p>
+
+      <p>
+        Thank you for choosing Fintree Finance Private Limited. We appreciate your association with us and look forward to serving you again in the future.
+      </p>
+
+      <p>
+        Regards,<br>
+        Customer Support Team<br>
+        Fintree Finance Private Limited
+      </p>
+
+      <p style="font-size: 11px; color: #666;">
+        This is a system-generated email. Please do not reply to this email.
+      </p>
+    `,
+
+    attachments: [
+      {
+        filename: `NOC_${lan}.pdf`,
+        path: filePath,
+        contentType: "application/pdf",
+      },
+    ],
+  };
+
+  console.log("Sending NOC email", {
+    lan,
+    senderEmail,
+    senderName,
+    recipient,
+    filePath,
+  });
+
+  return transporter.sendMail(mailOptions);
+}
+
+
 module.exports = {
   sendLoanStatusMail,
   sendAadhaarKycMail,
@@ -388,4 +516,5 @@ module.exports = {
   sendWelcomeKitMail,
   sendLowBalanceAlertMail,
   sendResetOtp, // 🔐 NEW
+  sendNocEmail,
 };
