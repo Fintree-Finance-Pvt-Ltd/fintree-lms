@@ -246,6 +246,219 @@ function resolveProcedure(rawReportId, rawLender) {
   return procMap[key] ? procMap[key]() : null;
 }
 
+router.get(
+  "/clayoo/consolidated-mis",
+  async (req, res) => {
+    try {
+      const startDate = String(
+        req.query.startDate || "",
+      ).trim();
+
+      const endDate = String(
+        req.query.endDate || "",
+      ).trim();
+
+      const report =
+        await generateClayooConsolidatedMis(
+          startDate,
+          endDate,
+        );
+
+      const rows = report.rows || [];
+
+      if (!rows.length) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "No Clayoo Consolidated MIS records found for the selected date range.",
+        });
+      }
+
+      const workbook =
+        new ExcelJS.Workbook();
+
+      const worksheet =
+        workbook.addWorksheet(
+          "Clayoo Consolidated MIS",
+        );
+
+      const columnNames =
+        Object.keys(rows[0]);
+
+      worksheet.columns =
+        columnNames.map(
+          (columnName) => ({
+            header: columnName,
+            key: columnName,
+            width: Math.max(
+              String(columnName).length +
+                5,
+              18,
+            ),
+          }),
+        );
+
+      rows.forEach((row) => {
+        worksheet.addRow(row);
+      });
+
+      worksheet.getRow(1).font = {
+        bold: true,
+      };
+
+      worksheet.getRow(1).alignment = {
+        vertical: "middle",
+        horizontal: "center",
+      };
+
+      worksheet.views = [
+        {
+          state: "frozen",
+          ySplit: 1,
+        },
+      ];
+
+      worksheet.autoFilter = {
+        from: {
+          row: 1,
+          column: 1,
+        },
+        to: {
+          row: 1,
+          column:
+            columnNames.length,
+        },
+      };
+
+      const fileName =
+        `Clayoo_Consolidated_MIS_` +
+        `${startDate}_to_${endDate}.xlsx`;
+
+      const excelBuffer =
+        await workbook.xlsx.writeBuffer();
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${fileName}"`,
+      );
+
+      return res.status(200).send(
+        Buffer.from(excelBuffer),
+      );
+    } catch (error) {
+      console.error(
+        "Clayoo Consolidated MIS error:",
+        error,
+      );
+
+      return res
+        .status(error.statusCode || 500)
+        .json({
+          success: false,
+          message:
+            error.message ||
+            "Failed to generate Clayoo Consolidated MIS.",
+        });
+    }
+  },
+);
+function isValidReportDate(value) {
+  if (!value) {
+    return false;
+  }
+
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (!datePattern.test(value)) {
+    return false;
+  }
+
+  const parsedDate = new Date(`${value}T00:00:00`);
+
+  return !Number.isNaN(parsedDate.getTime());
+}
+
+async function generateClayooConsolidatedMis(
+  startDate,
+  endDate,
+) {
+  if (!isValidReportDate(startDate)) {
+    const error = new Error(
+      "Valid start date is required in YYYY-MM-DD format.",
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!isValidReportDate(endDate)) {
+    const error = new Error(
+      "Valid end date is required in YYYY-MM-DD format.",
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (
+    new Date(`${startDate}T00:00:00`) >
+    new Date(`${endDate}T00:00:00`)
+  ) {
+    const error = new Error(
+      "Start date cannot be greater than end date.",
+    );
+
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const lender = "clayoo";
+  const procedureName =
+    "sp_consolidated_mis_report_clayyo";
+
+  console.log(
+    "Generating Clayoo Consolidated MIS:",
+    {
+      lender,
+      startDate,
+      endDate,
+      procedureName,
+    },
+  );
+
+
+const [procedureResult] = await db
+  .promise()
+  .query(
+    `CALL sp_consolidated_mis_report_clayyo(?, ?, ?)`,
+    [startDate, endDate, lender],
+  );
+
+  /*
+   * For mysql2 stored procedure output,
+   * the first result set usually contains report rows.
+   */
+  const rows = Array.isArray(
+    procedureResult?.[0],
+  )
+    ? procedureResult[0]
+    : [];
+
+  return {
+    lender: "Clayoo",
+    startDate,
+    endDate,
+    procedureName,
+    totalRecords: rows.length,
+    rows,
+  };
+}
+
 function autofitColumns(worksheet) {
   worksheet.columns.forEach((col) => {
     let maxLen = 10;

@@ -13,6 +13,17 @@ const ALLClayyoCaseScreen = ({
   const [loading, setLoading] = useState(true);
   const [actionLan, setActionLan] = useState(null);
   const [err, setErr] = useState("");
+
+  const [showMisModal, setShowMisModal] = useState(false);
+
+const [misDates, setMisDates] = useState({
+  startDate: "",
+  endDate: new Date().toISOString().split("T")[0],
+});
+
+const [misLoading, setMisLoading] = useState(false);
+const [misError, setMisError] = useState("");
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -124,6 +135,107 @@ const ALLClayyoCaseScreen = ({
       setActionLan(null);
     }
   };
+
+  const handleClayyoConsolidatedMisDownload = async () => {
+  const { startDate, endDate } = misDates;
+
+  setMisError("");
+
+  if (!startDate || !endDate) {
+    setMisError("Please select start date and end date.");
+    return;
+  }
+
+  if (new Date(startDate) > new Date(endDate)) {
+    setMisError("Start date cannot be greater than end date.");
+    return;
+  }
+
+  try {
+    setMisLoading(true);
+
+    const response = await api.get(
+      "/reports/clayoo/consolidated-mis",
+      {
+        params: {
+          startDate,
+          endDate,
+        },
+        responseType: "blob",
+      },
+    );
+
+    const contentType =
+      response.headers["content-type"] || "";
+
+    /*
+     * The backend may return a JSON error as a Blob.
+     */
+    if (contentType.includes("application/json")) {
+      const responseText = await response.data.text();
+      const errorResponse = JSON.parse(responseText);
+
+      throw new Error(
+        errorResponse.message ||
+          "Failed to generate Consolidated MIS.",
+      );
+    }
+
+    const fileBlob = new Blob([response.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    const downloadUrl =
+      window.URL.createObjectURL(fileBlob);
+
+    const link = document.createElement("a");
+
+    link.href = downloadUrl;
+    link.download =
+      `Clayyo_Consolidated_MIS_${startDate}_to_${endDate}.xlsx`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.URL.revokeObjectURL(downloadUrl);
+
+    setShowMisModal(false);
+  } catch (error) {
+    console.error(
+      "Clayyo Consolidated MIS download error:",
+      error,
+    );
+
+    let message =
+      "Failed to generate Clayyo Consolidated MIS.";
+
+    if (error.response?.data instanceof Blob) {
+      try {
+        const responseText =
+          await error.response.data.text();
+
+        const parsedError =
+          JSON.parse(responseText);
+
+        message =
+          parsedError.message || message;
+      } catch {
+        message =
+          error.message || message;
+      }
+    } else {
+      message =
+        error.response?.data?.message ||
+        error.message ||
+        message;
+    }
+
+    setMisError(message);
+  } finally {
+    setMisLoading(false);
+  }
+};
 
   const pillStyle = (value, type = "status") => {
     const key = String(value || "")
@@ -484,6 +596,40 @@ const ALLClayyoCaseScreen = ({
       {/* Hamster Loader Overlay */}
       <LoaderOverlay show={loading} label="Fetching case data..." />
 
+ {/* Top action section */}
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "flex-end",
+        alignItems: "center",
+        marginBottom: 16,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => {
+          setMisError("");
+          setShowMisModal(true);
+        }}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 16px",
+          borderRadius: 8,
+          border: "none",
+          background: "#2563eb",
+          color: "#ffffff",
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: "pointer",
+          boxShadow:
+            "0 2px 6px rgba(37, 99, 235, 0.25)",
+        }}
+      >
+        📊 Consolidated MIS
+      </button>
+    </div>
       <DataTable
         title={title}
         rows={rows}
@@ -501,6 +647,268 @@ const ALLClayyoCaseScreen = ({
         initialSort={{ key: "lan", dir: "desc" }}
         exportFileName="clayyo_all_loans"
       />
+
+      {showMisModal && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 9999,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 20,
+      background: "rgba(0, 0, 0, 0.5)",
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 440,
+        padding: 24,
+        borderRadius: 14,
+        background: "#ffffff",
+        boxShadow:
+          "0 20px 40px rgba(0, 0, 0, 0.2)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 22,
+        }}
+      >
+        <div>
+          <h2
+            style={{
+              margin: 0,
+              color: "#111827",
+              fontSize: 20,
+              fontWeight: 700,
+            }}
+          >
+            Clayyo Consolidated MIS
+          </h2>
+
+          <p
+            style={{
+              margin: "6px 0 0",
+              color: "#6b7280",
+              fontSize: 13,
+            }}
+          >
+            Select the required report period.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          disabled={misLoading}
+          onClick={() => setShowMisModal(false)}
+          style={{
+            padding: 0,
+            border: "none",
+            background: "transparent",
+            color: "#6b7280",
+            fontSize: 26,
+            lineHeight: 1,
+            cursor: misLoading
+              ? "not-allowed"
+              : "pointer",
+          }}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Lender */}
+      <div style={{ marginBottom: 16 }}>
+        <label
+          style={{
+            display: "block",
+            marginBottom: 6,
+            color: "#374151",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Lender
+        </label>
+
+        <input
+          type="text"
+          value="CLAYOO"
+          readOnly
+          style={{
+            boxSizing: "border-box",
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            background: "#f3f4f6",
+            color: "#4b5563",
+            fontSize: 14,
+            cursor: "not-allowed",
+          }}
+        />
+      </div>
+
+      {/* Start Date */}
+      <div style={{ marginBottom: 16 }}>
+        <label
+          htmlFor="clayyo-mis-start-date"
+          style={{
+            display: "block",
+            marginBottom: 6,
+            color: "#374151",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Start Date
+        </label>
+
+        <input
+          id="clayyo-mis-start-date"
+          type="date"
+          value={misDates.startDate}
+          max={
+            misDates.endDate ||
+            new Date().toISOString().split("T")[0]
+          }
+          onChange={(event) =>
+            setMisDates((previous) => ({
+              ...previous,
+              startDate: event.target.value,
+            }))
+          }
+          style={{
+            boxSizing: "border-box",
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            background: "#ffffff",
+            color: "#111827",
+            fontSize: 14,
+          }}
+        />
+      </div>
+
+      {/* End Date */}
+      <div style={{ marginBottom: 16 }}>
+        <label
+          htmlFor="clayyo-mis-end-date"
+          style={{
+            display: "block",
+            marginBottom: 6,
+            color: "#374151",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          End Date
+        </label>
+
+        <input
+          id="clayyo-mis-end-date"
+          type="date"
+          value={misDates.endDate}
+          min={misDates.startDate || undefined}
+          max={new Date().toISOString().split("T")[0]}
+          onChange={(event) =>
+            setMisDates((previous) => ({
+              ...previous,
+              endDate: event.target.value,
+            }))
+          }
+          style={{
+            boxSizing: "border-box",
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            background: "#ffffff",
+            color: "#111827",
+            fontSize: 14,
+          }}
+        />
+      </div>
+
+      {misError && (
+        <div
+          style={{
+            marginBottom: 16,
+            padding: "10px 12px",
+            borderRadius: 8,
+            border: "1px solid #fecaca",
+            background: "#fef2f2",
+            color: "#b91c1c",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {misError}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 10,
+          marginTop: 24,
+        }}
+      >
+        <button
+          type="button"
+          disabled={misLoading}
+          onClick={() => setShowMisModal(false)}
+          style={{
+            padding: "9px 16px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            background: "#ffffff",
+            color: "#374151",
+            fontWeight: 600,
+            cursor: misLoading
+              ? "not-allowed"
+              : "pointer",
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          disabled={misLoading}
+          onClick={
+            handleClayyoConsolidatedMisDownload
+          }
+          style={{
+            padding: "9px 16px",
+            borderRadius: 8,
+            border: "none",
+            background: misLoading
+              ? "#93c5fd"
+              : "#2563eb",
+            color: "#ffffff",
+            fontWeight: 700,
+            cursor: misLoading
+              ? "not-allowed"
+              : "pointer",
+          }}
+        >
+          {misLoading
+            ? "Generating..."
+            : "Download MIS"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 };
