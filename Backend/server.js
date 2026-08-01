@@ -54,6 +54,9 @@ const {
 const {
   sendWelcomeLetterAfterUtrUpload,
 } = require("./services/welcomeLetterService");
+const sterlionUblRoutes = require(
+  "./routes/SterlionUbl/sterlionUblRoutes"
+);
 
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
@@ -124,6 +127,7 @@ app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅
 app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
 app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // ✅ Register Clayyo Routes
 app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ Register PayU Routes
+app.use("/api/sterlion-ubl", sterlionUblRoutes); // ✅ Register Sterlion UBL Routes
 
 app.use(
   "/api/motion-corp",

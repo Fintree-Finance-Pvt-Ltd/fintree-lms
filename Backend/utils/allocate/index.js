@@ -46,6 +46,7 @@ const allocateRapidMoney = require("./allocateRapidMoney");
 const allocateMotionCorp = require("./allocateMotionCorp");
 const allocateSterlion = require("./allocateSterlion");
 const allocateWctlffpl = require("./allocateWctlffpl");
+const allocateSterlionUBL = require("./allocateSterlionUBL"); //
 
 /**
  * Utility helpers for merging allocation results.
@@ -121,6 +122,9 @@ return allocateClayoo(lan, payment);
 else if (lan.startsWith("WCTLFFPL")) {
 return allocateWctlffpl(lan, payment);
   }
+  else if (lan.startsWith("UBLF")) {
+  return allocateSterlionUBL(lan, payment);
+}
   else if (lan.startsWith("STRL")) {
 return allocateSterlion(lan, payment);
   }

@@ -8,6 +8,8 @@ router.get("/:lan", async (req, res) => {
   const { lan } = req.params;
   const lanPrefix = lan.slice(0, 3).toUpperCase();
 
+  
+
   const tableMap = {
     "EV": "loan_booking_ev",
     "HC": "loan_bookings",
@@ -16,6 +18,7 @@ router.get("/:lan", async (req, res) => {
     "GQF": "loan_booking_gq_fsf",
     "ADK": "loan_booking_adikosh",
     "ADP": "loan_booking_adikosh",  // if applicable
+    "UBLF": "loan_booking_sterlion_ubl", // if applicable
   };
 
   const table = tableMap[lanPrefix];

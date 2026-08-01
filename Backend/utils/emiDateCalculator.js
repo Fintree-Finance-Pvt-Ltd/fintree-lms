@@ -315,6 +315,79 @@ if (normalizedLender === "WCTLFFPL") {
 
 
 
+// ================= STERLION UBL =================
+
+if (normalizedLender === "STERLIONUBL") {
+  const supportedProducts = [
+    "upfront_interest",
+    "monthly_360",
+  ];
+
+  if (!supportedProducts.includes(normalizedProduct)) {
+    throw new Error(
+      `Unsupported STERLION UBL product: ${product}`,
+    );
+  }
+
+  const installmentOffset = Number(monthOffset || 0);
+
+  if (
+    !Number.isInteger(installmentOffset) ||
+    installmentOffset < 0
+  ) {
+    throw new Error(
+      `Invalid STERLION UBL monthOffset: ${monthOffset}`,
+    );
+  }
+
+  const dueDate = new Date(disbDate);
+  const disbursementDay = disbDate.getDate();
+
+  /*
+   * Sterlion UBL EMI-date rule:
+   *
+   * Disbursement on/before 20th:
+   * First EMI → next month 5th
+   *
+   * Disbursement after 20th:
+   * First EMI → month after next, on 5th
+   *
+   * monthOffset:
+   * 0 → first EMI
+   * 1 → second EMI
+   * 2 → third EMI
+   */
+
+  const initialMonthGap =
+    disbursementDay <= 20 ? 1 : 2;
+
+  // Date ko 1st par set karne se month rollover issue nahi aayega
+  dueDate.setDate(1);
+
+  dueDate.setMonth(
+    dueDate.getMonth() +
+      initialMonthGap +
+      installmentOffset,
+  );
+
+  dueDate.setDate(5);
+  dueDate.setHours(12, 0, 0, 0);
+
+  console.log("[STERLION UBL EMI DATE]", {
+    lender,
+    product,
+    normalizedLender,
+    normalizedProduct,
+    installmentNumber: installmentOffset + 1,
+    disbursementDate: formatDateYMD(disbDate),
+    disbursementDay,
+    cutoffApplied: disbursementDay > 20,
+    dueDate: formatDateYMD(dueDate),
+  });
+
+  return dueDate;
+}
+
     // ✅ EV Loan: Monthly Loan EMI due based on 5th cut-off logic
     if (lender === "Embifi" && product === "Monthly Loan") {
         const dueDate = new Date(disbDate);

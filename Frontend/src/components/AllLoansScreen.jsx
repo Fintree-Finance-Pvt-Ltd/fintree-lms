@@ -74,6 +74,7 @@ const AllLoansScreen = ({
   const hasGQFSF = rows.some((r) => /^GQFSF/i.test(r?.lan));
   const hasGQNonF = rows.some((r) => /^GQNONFSF/i.test(r?.lan));
   const hasClayoo = rows.some((r) => /^CLY/i.test(r?.lan));
+  const hasUBLF = rows.some((r) => /^UBLF/i.test(r?.lan));
 
   const nf = new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -121,6 +122,8 @@ const AllLoansScreen = ({
               nav(`/srbh/customer-details?lan=${r.lan}`);
             }else if (/^SFL/i.test(r.lan)) {
               nav(`/seven-fincorp/customer-details?lan=${r.lan}`);
+            } else if (/^UBLF/i.test(r.lan)) {
+              nav(`/sterlion-ubl-loans/details/${r.lan}`);
             } else {
               nav(`/loan-details/${r.lan}`);
             }

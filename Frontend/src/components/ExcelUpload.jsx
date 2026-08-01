@@ -232,7 +232,9 @@ const CreateLoanBooking = () => {
         return `/loan-booking/wctl-upload`;
       case "WCTL FFPL":
         return `/loan-booking/v1/wctl-ffpl-upload`;
-      default:
+        case "sterlion-ubl":
+        return `/loan-booking/sterlion-ubl-upload`;  // Added endpoint for sterlion-ubl
+        default:
         return "";
     }
   }
@@ -342,6 +344,7 @@ const CreateLoanBooking = () => {
           <option value="WCTL">WCTL</option>
           <option value="HeyEV Battery">Hey EV Battery</option>
           <option value="WCTL FFPL">WCTL FFPL</option>
+          <option value="sterlion-ubl">Sterlion UBL</option> // Added option for sterlion-ubl
 
         </select>
 
