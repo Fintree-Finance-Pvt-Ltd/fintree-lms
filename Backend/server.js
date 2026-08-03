@@ -366,7 +366,10 @@ app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ R
 app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Mandate UMRN Update
-app.use("/api/claim-cure-buddy", require("./routes/ClaimCureBuddy/ClaimCureBuddyRoutes")); // ✅ Register Routes for Claim Cure Buddy
+app.use(
+  "/api/claim-cure-buddy",
+  require("./routes/ClaimCureBuddy/ClaimCureBuddyRoutes"),
+); // ✅ Register Routes for Claim Cure Buddy
 app.use("/api/whatsapp-reminder", require("./routes/whatsappReminderRoutes")); // ✅ WhatsApp Due Date Reminder
 app.use("/api/fundify", require("./routes/Fundify/fundifyRoutes")); // ✅ Register Routes for Fundify Loans
 
@@ -376,6 +379,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serv
 app.use("/bureau", require("./services/bureauretry"));
 
 app.use("/api/screening", require("./routes/screening.routes")); // ✅ Register Routes for Screening
+
+app.use("/api/sterlion-mexon-dexon", require("./routes/sterlionNexonDexon/sterlionnexon")); // ✅ Register Routes for Sterlion Nexon Dexon
 
 app.use(
   "/api/supply-chain",
