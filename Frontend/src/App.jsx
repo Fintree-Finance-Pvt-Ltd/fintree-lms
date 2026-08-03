@@ -266,7 +266,7 @@ import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.
 
 
 // Sterlion UBL Imports
-import SterlionUBLLoanBooking from "./components/SterlionUBL/SterlionUBLLoanBooking";
+import SterlionUBLLoanBooking from "./components/SterlionUbl/SterlionUBLLoanBooking";
 import SterlionUBLAllLoans from "./components/SterlionUBL/SterlionUBLAllLoans";
 import SterlionUBLDisbursedLoans from "./components/SterlionUBL/SterlionUBLDisbursedLoans";
 import SterlionUBLApprovedLoans from "./components/SterlionUBL/SterlionUBLApprovedLoans";
