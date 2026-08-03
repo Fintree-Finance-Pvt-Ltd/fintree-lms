@@ -46,7 +46,7 @@ const allocateRapidMoney = require("./allocateRapidMoney");
 const allocateMotionCorp = require("./allocateMotionCorp");
 const allocateSterlion = require("./allocateSterlion");
 const allocateWctlffpl = require("./allocateWctlffpl");
-const allocateSterlionUBL = require("./allocateSterlionUBL"); //
+const allocateSterlionUBL = require("./allocateSterlionUbl"); //
 
 /**
  * Utility helpers for merging allocation results.
