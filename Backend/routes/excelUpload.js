@@ -92,7 +92,12 @@ const generateLoanIdentifiers = async (lender) => {
     // ✅ Added for loan_booking_term_loan
     prefixPartnerLoan = "TLFFPL1";
     prefixLan = "TLF1";
-  } else {
+  } else if (lender === "sterlion-ubl") {
+    // ✅ Added for loan_booking_sterlion_ubl
+  prefixPartnerLoan = "UBL1";
+  prefixLan = "UBLF1";
+  }
+  else {
     return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
   }
 
@@ -2291,6 +2296,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_loan_digit: true,
     dealer_onboarding: true,
     loan_booking_srbh: true,
+    loan_booking_sterlion_ubl: true,
   };
 
   if (!allowedTables[table]) {
@@ -2425,6 +2431,7 @@ router.get("/approved-loans", async (req, res) => {
     loan_booking_bundela: true,
     dealer_onboarding: true,
     loan_booking_srbh: true,
+    loan_booking_sterlion_ubl: true,  
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2518,6 +2525,7 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
     loan_booking_srbh: true,
+    loan_booking_sterlion_ubl: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -2743,7 +2751,6 @@ router.put("/login-loans/:lan", (req, res) => {
     });
   });
 });
-
 // router.put("/login-loans/:lan", async (req, res) => {
 //   try {
 //     const lan = req.params.lan;
@@ -8755,10 +8762,10 @@ router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
          READ EXCEL FILE
       ===================================================== */
 
-    const workbook = xlsx.read(req.file.buffer, {
-      type: "buffer",
-      cellDates: true,
-    });
+      const workbook = xlsx.read(req.file.buffer, {
+        type: "buffer",
+        cellDates: true,
+      });
 
     const sheetName = workbook.SheetNames[0];
 
@@ -10739,6 +10746,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_srbh";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
+  }else if (lan.startsWith("UBLF")) {
+    tableName = "manual_rps_sterlion_ubl";
     // ✅ Only fetch Main Adikosh RPS - Specify columns for ADK
     selectColumns = `lan, due_date, status, emi, interest, principal, opening, closing,
                      remaining_emi, remaining_interest, remaining_principal, payment_date, dpd,
@@ -10978,4 +10987,528 @@ router.get("/uniqueid", (req, res) => {
   );
 });
 
+
+// =====================================================
+// STERLION UBL EXCEL UPLOAD
+// Endpoint: POST /loan-booking/sterlion-ubl-upload
+// =====================================================
+
+const STERLION_UBL_TABLE = "loan_booking_sterlion_ubl";
+const STERLION_UBL_LENDER = "sterlion-ubl";
+const STERLION_UBL_ALLOWED_PRODUCTS = ["MONTHLY_360" , "UPFRONT_INTEREST",];
+
+// Excel me ye saare headers hone chahiye
+const sterlionUblExpectedHeaders = [
+  "product",
+  "loanAmount",
+  "tenureMonths",
+  "interestRate",
+  "processingFee",
+  "firstName",
+  "lastName",
+  "aadhaarNumber",
+  "panNumber",
+  "mobileNumber",
+  "email",
+  "businessName",
+  "industry",
+  "accountHolderName",
+  "accountNumber",
+  "ifsc",
+  "bankName",
+  "dateOfBirth",
+  "permanentAddress",
+  "businessAddress",
+  "gstNumber",
+  "udyamNumber",
+];
+
+// added for validation 
+const sterlionUblRequiredFields = [
+  "product",
+  "loanAmount",
+  "tenureMonths",
+  "interestRate",
+  "firstName",
+  "lastName",
+  "aadhaarNumber",
+  "panNumber",
+  "mobileNumber",
+  "accountHolderName",
+  "accountNumber",
+  "ifsc",
+  "bankName",
+  "dateOfBirth",
+  "permanentAddress",
+];
+
+const isBlankSterlionUblValue = (value) => {
+  return (
+    value === undefined ||
+    value === null ||
+    String(value).trim() === ""
+  );
+};
+
+const cleanSterlionUblValue = (value) => {
+  if (isBlankSterlionUblValue(value)) {
+    return null;
+  }
+
+  return typeof value === "string"
+    ? value.trim()
+    : value;
+};
+const toSterlionUblSqlDate = (value) => {
+  if (
+    value === undefined ||
+    value === null ||
+    String(value).trim() === ""
+  ) {
+    return null;
+  }
+
+  // Excel Date object
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const year = value.getUTCFullYear();
+    const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(value.getUTCDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
+  // Excel serial number
+  if (typeof value === "number") {
+    const parsed = xlsx.SSF.parse_date_code(value);
+
+    if (!parsed) {
+      return null;
+    }
+
+    return [
+      parsed.y,
+      String(parsed.m).padStart(2, "0"),
+      String(parsed.d).padStart(2, "0"),
+    ].join("-");
+  }
+
+  const dateText = String(value).trim();
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateText)) {
+    return dateText;
+  }
+
+  // DD-MM-YYYY
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateText)) {
+    const [day, month, year] = dateText.split("-");
+    return `${year}-${month}-${day}`;
+  }
+
+  // DD/MM/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateText)) {
+    const [day, month, year] = dateText.split("/");
+    return `${year}-${month}-${day}`;
+  }
+
+  return null;
+};
+router.post(
+  "/sterlion-ubl-upload",
+  upload.single("file"),
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "No file uploaded. Please select a valid Excel file.",
+      });
+    }
+
+    if (!req.body.lenderType) {
+      return res.status(400).json({
+        message: "Lender type is required.",
+      });
+    }
+
+    try {
+      const lenderType = String(req.body.lenderType).trim();
+
+      // Frontend dropdown ki value exactly sterlion-ubl honi chahiye
+      if (lenderType !== STERLION_UBL_LENDER) {
+        return res.status(400).json({
+          message: `Invalid lender type. Expected ${STERLION_UBL_LENDER}.`,
+        });
+      }
+
+      // Excel read
+      const workbook = xlsx.read(req.file.buffer, {
+       type: "buffer",
+       cellDates: false,    // Important: Do not convert dates to JS Date objects, keep as raw values
+       });
+
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      if (!sheet) {
+        return res.status(400).json({
+          message: "Excel sheet not found.",
+        });
+      }
+
+      // Excel header row read
+      const headerRows = xlsx.utils.sheet_to_json(sheet, {
+        header: 1,
+        defval: "",
+        raw: true,
+      });
+
+      const uploadedHeaders = (headerRows[0] || []).map((header) =>
+        String(header).trim()
+      );
+
+      // Missing headers check
+      const missingHeaders = sterlionUblExpectedHeaders.filter(
+        (header) => !uploadedHeaders.includes(header)
+      );
+
+      if (missingHeaders.length > 0) {
+        return res.status(400).json({
+          message: "",
+          missing_headers: missingHeaders,
+          expected_headers: sterlionUblExpectedHeaders,
+          uploaded_headers: uploadedHeaders,
+        });
+      }
+
+      // Excel rows JSON me convert
+      const rows = xlsx.utils.sheet_to_json(sheet, {
+        defval: "",
+        raw: true,
+      });
+
+      if (!rows || rows.length === 0) {
+        return res.status(400).json({
+          message: "Uploaded Excel file is empty.",
+        });
+      }
+
+      const success_rows = [];
+      const row_errors = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const excelRowNumber = i + 2;
+
+        try {
+          // Required fields check
+          const missingFields = sterlionUblRequiredFields.filter((field) =>
+            isBlankSterlionUblValue(row[field])
+          );
+
+          if (missingFields.length > 0) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: `Missing required fields: ${missingFields.join(", ")}`,
+            });
+
+            continue;
+          }
+
+          // Only monthly product allowed
+          const product = String(row.product || "")
+            .trim()
+            .toUpperCase();
+
+          if (!STERLION_UBL_ALLOWED_PRODUCTS.includes(product)) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: `Invalid product. Allowed product: ${STERLION_UBL_ALLOWED_PRODUCTS.join(
+                ", "
+              )}`,
+            });
+
+            continue;
+          }
+
+          // Numeric fields
+          const loanAmount = Number(row.loanAmount);
+          const tenureMonths = Number(row.tenureMonths);
+          const interestRate = Number(row.interestRate);
+          const processingFee = isBlankSterlionUblValue(row.processingFee)
+            ? 0
+            : Number(row.processingFee);
+
+          if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "Valid positive loanAmount is required.",
+            });
+
+            continue;
+          }
+
+          if (
+            !Number.isInteger(tenureMonths) ||
+            tenureMonths <= 0
+          ) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "Valid positive integer tenureMonths is required.",
+            });
+
+            continue;
+          }
+
+          if (
+            !Number.isFinite(interestRate) ||
+            interestRate <= 0
+          ) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "Valid positive interestRate is required.",
+            });
+
+            continue;
+          }
+
+          if (
+            !Number.isFinite(processingFee) ||
+            processingFee < 0
+          ) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "processingFee must be zero or a positive number.",
+            });
+
+            continue;
+          }
+
+          // PAN normalize
+          const panNumber = String(row.panNumber || "")
+            .trim()
+            .toUpperCase();
+
+          // Basic PAN validation
+          const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+          if (!panRegex.test(panNumber)) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: `Invalid PAN format: ${panNumber}`,
+            });
+
+            continue;
+          }
+
+          // Aadhaar clean
+          const aadhaarNumber = String(row.aadhaarNumber || "")
+            .replace(/\s+/g, "")
+            .trim();
+
+          if (!/^\d{12}$/.test(aadhaarNumber)) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "aadhaarNumber must contain exactly 12 digits.",
+            });
+
+            continue;
+          }
+
+          // Mobile clean
+          const mobileNumber = String(row.mobileNumber || "")
+            .replace(/\s+/g, "")
+            .trim();
+
+          if (!/^[6-9]\d{9}$/.test(mobileNumber)) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "mobileNumber must be a valid 10-digit Indian mobile number.",
+            });
+
+            continue;
+          }
+
+          // IFSC normalize
+          const ifsc = String(row.ifsc || "")
+            .trim()
+            .toUpperCase();
+
+          if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: `Invalid IFSC format: ${ifsc}`,
+            });
+
+            continue;
+          }
+
+          // DOB convert
+          const dateOfBirth = toSterlionUblSqlDate(
+            row.dateOfBirth
+          );
+
+          if (!dateOfBirth) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "validation",
+              reason: "Invalid dateOfBirth.",
+            });
+
+            continue;
+          }
+
+          // Duplicate PAN check in separate Sterlion UBL table
+          const [existingRecords] = await db.promise().query(
+            `
+              SELECT lan
+              FROM ${STERLION_UBL_TABLE}
+              WHERE pan_number = ?
+              LIMIT 1
+            `,
+            [panNumber]
+          );
+
+          if (existingRecords.length > 0) {
+            row_errors.push({
+              row: excelRowNumber,
+              stage: "dup-check",
+              reason: `Duplicate PAN found: ${panNumber}`,
+            });
+
+            continue;
+          }
+
+          // Generate separate Sterlion UBL IDs
+          const { partnerLoanId, lan } =
+            await generateLoanIdentifiers(lenderType);
+
+          const insertQuery = `
+            INSERT INTO ${STERLION_UBL_TABLE} (
+              partner_loan_id,
+              lan,
+              product,
+              loan_amount,
+              tenure_months,
+              interest_rate,
+              processing_fee,
+              first_name,
+              last_name,
+              aadhaar_number,
+              pan_number,
+              mobile_number,
+              email,
+              business_name,
+              industry,
+              account_holder_name,
+              account_number,
+              ifsc,
+              bank_name,
+              date_of_birth,
+              permanent_address,
+              business_address,
+              gst_number,
+              udyam_number,
+              lender,
+              status
+            ) VALUES (
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+          `;
+
+          const insertValues = [
+            partnerLoanId,
+            lan,
+            product,
+            loanAmount,
+            tenureMonths,
+            interestRate,
+            processingFee,
+            cleanSterlionUblValue(row.firstName),
+            cleanSterlionUblValue(row.lastName),
+            aadhaarNumber,
+            panNumber,
+            mobileNumber,
+            cleanSterlionUblValue(row.email),
+            cleanSterlionUblValue(row.businessName),
+            cleanSterlionUblValue(row.industry),
+            cleanSterlionUblValue(row.accountHolderName),
+            cleanSterlionUblValue(row.accountNumber),
+            ifsc,
+            cleanSterlionUblValue(row.bankName),
+            dateOfBirth,
+            cleanSterlionUblValue(row.permanentAddress),
+            cleanSterlionUblValue(row.businessAddress),
+            cleanSterlionUblValue(row.gstNumber),
+            cleanSterlionUblValue(row.udyamNumber),
+            STERLION_UBL_LENDER,
+            "Login",
+          ];
+
+          await db.promise().query(insertQuery, insertValues);
+
+success_rows.push({
+  row: excelRowNumber,
+  lan,
+  partnerLoanId,
+  panNumber,
+  product,
+});
+
+console.log(
+  `✅ Sterlion UBL inserted | Row: ${excelRowNumber} | LAN: ${lan} | PAN: ${panNumber}`,
+);
+        } catch (rowError) {
+          console.error(
+            `❌ Sterlion UBL row ${excelRowNumber} failed:`,
+            rowError
+          );
+
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "insert",
+            reason:
+              rowError.sqlMessage ||
+              rowError.message ||
+              "Unknown row error",
+          });
+        }
+      }
+return res.status(200).json({
+  message: "Sterlion UBL file processed.",
+  total_rows: rows.length,
+
+  // Existing keys
+  inserted_rows: success_rows.length,
+  failed_rows: row_errors.length,
+
+  // UI compatibility keys
+  inserted: success_rows.length,
+  failed: row_errors.length,
+
+  success_rows,
+  row_errors,
+});
+    } catch (error) {
+      console.error("❌ Sterlion UBL upload error:", error);
+
+      return res.status(500).json({
+        message: "Sterlion UBL upload failed.",
+        error:
+          error.sqlMessage ||
+          error.message ||
+          "Unknown server error",
+      });
+    }
+  }
+);
 module.exports = router;

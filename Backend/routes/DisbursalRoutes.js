@@ -331,6 +331,18 @@ router.get("/:lan", async (req, res) => {
     retentionCol = "COALESCE(lb.retention_amount, 0)";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol} - ${retentionCol})`;
+  }else if (lan.startsWith("UBLF")) {
+    tableName = "loan_booking_sterlion_ubl";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate";
+    tenureCol = "lb.tenure_months";
+
+    processingFeeCol = "lb.processing_fee";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol} - ${retentionCol})`;
   }
 
 

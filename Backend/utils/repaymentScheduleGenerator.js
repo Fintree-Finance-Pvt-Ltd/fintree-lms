@@ -2200,6 +2200,741 @@ const generateRepaymentScheduleCarepay = async (
 };
 
 
+////////////////////// STERLION UBL ///////////////////////
+
+
+
+const normalizeSterlionUblProduct = (product) => {
+  return String(product || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+};
+
+const isSterlionUblProduct = (product) => {
+  return [
+    "UPFRONT_INTEREST",
+    "MONTHLY_360",
+  ].includes(product);
+};
+
+const generateRepaymentScheduleSterlionUbl = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender = "STERLION_UBL",
+  processingFee = 0,
+) => {
+  if (!conn) {
+    throw new Error(
+      "Database transaction connection is required",
+    );
+  }
+
+  const normalizedLan = String(lan || "")
+    .trim()
+    .toUpperCase();
+
+  const normalizedProduct =
+    normalizeSterlionUblProduct(product);
+
+  const numericLoanAmount = round2(
+    Number(loanAmount),
+  );
+
+  /*
+   * Supports values such as:
+   * 13.57
+   * "13.57"
+   * "13.57%"
+   */
+  const normalizedInterestRate = String(
+    interestRate ?? 0,
+  )
+    .trim()
+    .replace(/%$/, "");
+
+  const numericInterestRate = Number(
+    normalizedInterestRate,
+  );
+
+  const numericTenure = Number(tenure);
+
+  const numericProcessingFee = round2(
+    Number(processingFee || 0),
+  );
+
+  /*
+   * ==========================================
+   * VALIDATION
+   * ==========================================
+   */
+
+  if (!normalizedLan) {
+    throw new Error(
+      "Sterlion UBL LAN is required",
+    );
+  }
+
+  if (
+    !isSterlionUblProduct(normalizedProduct)
+  ) {
+    throw new Error(
+      `Invalid Sterlion UBL product: ${product}. ` +
+        "Allowed products: UPFRONT_INTEREST, MONTHLY_360",
+    );
+  }
+
+  if (
+    !Number.isFinite(numericLoanAmount) ||
+    numericLoanAmount <= 0
+  ) {
+    throw new Error(
+      `Invalid Sterlion UBL loan amount: ${loanAmount}`,
+    );
+  }
+
+  if (
+    !Number.isFinite(numericInterestRate) ||
+    numericInterestRate < 0
+  ) {
+    throw new Error(
+      `Invalid Sterlion UBL interest rate: ${interestRate}`,
+    );
+  }
+
+  if (
+    !Number.isInteger(numericTenure) ||
+    numericTenure <= 0
+  ) {
+    throw new Error(
+      `Invalid Sterlion UBL tenure: ${tenure}`,
+    );
+  }
+
+  if (
+    !Number.isFinite(numericProcessingFee) ||
+    numericProcessingFee < 0
+  ) {
+    throw new Error(
+      `Invalid Sterlion UBL processing fee: ${processingFee}`,
+    );
+  }
+
+  const isUpfrontInterest =
+    normalizedProduct === "UPFRONT_INTEREST";
+
+  const isMonthlyLoan =
+    normalizedProduct === "MONTHLY_360";
+
+  /*
+   * ==========================================
+   * CHECK EXISTING RPS
+   * ==========================================
+   */
+
+  const [existingRps] = await conn.query(
+    `
+      SELECT id
+      FROM manual_rps_sterlion_ubl
+      WHERE lan = ?
+      LIMIT 1
+    `,
+    [normalizedLan],
+  );
+
+  if (existingRps.length > 0) {
+    throw new Error(
+      `Sterlion UBL RPS already exists for LAN ${normalizedLan}`,
+    );
+  }
+
+  const monthlyRate =
+    numericInterestRate / 100 / 12;
+
+  let upfrontInterestAmount = 0;
+  let repayablePrincipal =
+    numericLoanAmount;
+
+  let regularEmi = 0;
+
+  /*
+   * Monthly allocation of upfront interest.
+   * This value is stored in the RPS interest
+   * column but is not included in EMI.
+   */
+  let regularUpfrontInterest = 0;
+
+  /*
+   * ==========================================
+   * UPFRONT INTEREST PRODUCT
+   * ==========================================
+   */
+
+  if (isUpfrontInterest) {
+    /*
+     * Loan amount × annual rate × tenure / 1200
+     *
+     * Example:
+     * 1800000 × 13.57 × 24 / 1200
+     * = 488520
+     */
+    upfrontInterestAmount = round2(
+      (
+        numericLoanAmount *
+        numericInterestRate *
+        numericTenure
+      ) / 1200,
+    );
+
+    /*
+     * Net amount repayable through EMI.
+     */
+    repayablePrincipal = round2(
+      numericLoanAmount -
+        upfrontInterestAmount,
+    );
+
+    if (repayablePrincipal <= 0) {
+      throw new Error(
+        `Upfront interest ${upfrontInterestAmount} ` +
+          `cannot be equal to or greater than ` +
+          `loan amount ${numericLoanAmount}`,
+      );
+    }
+
+    /*
+     * EMI contains principal only.
+     */
+    regularEmi = Math.ceil(
+      repayablePrincipal / numericTenure,
+    );
+
+    /*
+     * Reporting interest stored in each
+     * manual RPS installment.
+     */
+    regularUpfrontInterest = round2(
+      upfrontInterestAmount / numericTenure,
+    );
+  }
+
+  /*
+   * ==========================================
+   * MONTHLY_360 PRODUCT
+   * ==========================================
+   */
+
+  if (isMonthlyLoan) {
+    repayablePrincipal =
+      numericLoanAmount;
+
+    if (monthlyRate === 0) {
+      regularEmi = Math.ceil(
+        numericLoanAmount / numericTenure,
+      );
+    } else {
+      const rateFactor = Math.pow(
+        1 + monthlyRate,
+        numericTenure,
+      );
+
+      regularEmi = Math.ceil(
+        (
+          numericLoanAmount *
+          monthlyRate *
+          rateFactor
+        ) / (rateFactor - 1),
+      );
+    }
+  }
+
+  if (
+    !Number.isFinite(regularEmi) ||
+    regularEmi <= 0
+  ) {
+    throw new Error(
+      `Unable to calculate Sterlion UBL EMI ` +
+        `for LAN ${normalizedLan}`,
+    );
+  }
+
+  /*
+   * ==========================================
+   * CREATE RPS SCHEDULE
+   * ==========================================
+   */
+
+  let openingPrincipal = round2(
+    repayablePrincipal,
+  );
+
+  const schedule = [];
+
+  for (
+    let installmentNumber = 1;
+    installmentNumber <= numericTenure;
+    installmentNumber++
+  ) {
+    const dueDate = getFirstEmiDate(
+      disbursementDate,
+      null,
+      lender || "STERLION_UBL",
+      normalizedProduct,
+      installmentNumber - 1,
+    );
+
+    const installmentProcessingFee =
+      installmentNumber === 1
+        ? numericProcessingFee
+        : 0;
+
+    let normalInterest = 0;
+    let principal = 0;
+
+    /*
+     * ========================================
+     * UPFRONT INTEREST RPS
+     * ========================================
+     *
+     * interest:
+     * upfront interest / tenure
+     *
+     * emi:
+     * principal only
+     *
+     * remaining interest:
+     * always zero because interest has already
+     * been collected upfront.
+     */
+
+    if (isUpfrontInterest) {
+      /*
+       * The final installment adjusts any
+       * rounding difference.
+       *
+       * This guarantees:
+       *
+       * SUM(RPS interest)
+       * = upfrontInterestAmount
+       */
+      if (
+        installmentNumber === numericTenure
+      ) {
+        normalInterest = round2(
+          upfrontInterestAmount -
+            (
+              regularUpfrontInterest *
+              (numericTenure - 1)
+            ),
+        );
+      } else {
+        normalInterest =
+          regularUpfrontInterest;
+      }
+
+      /*
+       * EMI principal calculation.
+       */
+      if (
+        installmentNumber === numericTenure
+      ) {
+        principal =
+          openingPrincipal;
+      } else {
+        principal = Math.min(
+          regularEmi,
+          openingPrincipal,
+        );
+      }
+    }
+
+    /*
+     * ========================================
+     * MONTHLY_360 RPS
+     * ========================================
+     */
+
+    if (isMonthlyLoan) {
+      if (monthlyRate === 0) {
+        normalInterest = 0;
+
+        if (
+          installmentNumber === numericTenure
+        ) {
+          principal =
+            openingPrincipal;
+        } else {
+          principal = Math.min(
+            regularEmi,
+            openingPrincipal,
+          );
+        }
+      } else {
+        /*
+         * Monthly reducing-balance interest.
+         */
+        normalInterest = Math.ceil(
+          openingPrincipal * monthlyRate,
+        );
+
+        principal =
+          regularEmi - normalInterest;
+
+        if (principal <= 0) {
+          throw new Error(
+            `Invalid principal calculated for ` +
+              `LAN ${normalizedLan}, ` +
+              `installment ${installmentNumber}`,
+          );
+        }
+
+        /*
+         * Final installment clears outstanding
+         * principal completely.
+         */
+        if (
+          installmentNumber === numericTenure ||
+          principal > openingPrincipal
+        ) {
+          principal =
+            openingPrincipal;
+        }
+      }
+    }
+
+    principal = round2(principal);
+
+    normalInterest = round2(
+      normalInterest,
+    );
+
+    /*
+     * UPFRONT_INTEREST:
+     *
+     * Store only the allocated upfront interest.
+     * Do not add processing fee to the RPS
+     * interest allocation.
+     *
+     * MONTHLY_360:
+     *
+     * Preserve the original processing-fee
+     * handling.
+     */
+    const interest = isUpfrontInterest
+      ? normalInterest
+      : round2(
+          normalInterest +
+            installmentProcessingFee,
+        );
+
+    const closingPrincipal = Math.max(
+      0,
+      round2(
+        openingPrincipal - principal,
+      ),
+    );
+
+    /*
+     * For UPFRONT_INTEREST, EMI must not include
+     * the allocated interest.
+     *
+     * For MONTHLY_360, EMI includes principal,
+     * interest and first-installment processing
+     * fee under the existing behavior.
+     */
+    const actualEmi = isUpfrontInterest
+      ? round2(principal)
+      : round2(principal + interest);
+
+    schedule.push({
+      installmentNumber,
+      dueDate: formatDateYMD(dueDate),
+      emi: actualEmi,
+      interest,
+      principal,
+      opening: openingPrincipal,
+      closing: closingPrincipal,
+    });
+
+    openingPrincipal =
+      closingPrincipal;
+  }
+
+  /*
+   * ==========================================
+   * PRINCIPAL CLOSURE CHECK
+   * ==========================================
+   */
+
+  if (
+    Math.abs(openingPrincipal) > 0.01
+  ) {
+    throw new Error(
+      `Sterlion UBL RPS did not close correctly. ` +
+        `Remaining principal: ${openingPrincipal}`,
+    );
+  }
+
+  /*
+   * ==========================================
+   * CALCULATE REMAINING VALUES
+   * ==========================================
+   */
+
+  let runningRemainingInterest = 0;
+  let runningRemainingPrincipal = 0;
+  let runningRemainingAmount = 0;
+
+  for (
+    let index = schedule.length - 1;
+    index >= 0;
+    index--
+  ) {
+    /*
+     * For UPFRONT_INTEREST, the interest column
+     * is only an allocation for reporting.
+     *
+     * Therefore remaining_interest must always
+     * remain zero.
+     */
+    if (!isUpfrontInterest) {
+      runningRemainingInterest = round2(
+        runningRemainingInterest +
+          schedule[index].interest,
+      );
+    }
+
+    runningRemainingPrincipal = round2(
+      runningRemainingPrincipal +
+        schedule[index].principal,
+    );
+
+    /*
+     * Remaining amount is based on EMI only.
+     *
+     * For UPFRONT_INTEREST, EMI contains only
+     * principal.
+     */
+    runningRemainingAmount = round2(
+      runningRemainingAmount +
+        schedule[index].emi,
+    );
+
+    schedule[index].remainingEmi =
+      schedule.length - index;
+
+    schedule[index].remainingInterest =
+      isUpfrontInterest
+        ? 0
+        : runningRemainingInterest;
+
+    schedule[index].remainingPrincipal =
+      runningRemainingPrincipal;
+
+    schedule[index].remainingAmount =
+      runningRemainingAmount;
+  }
+
+  /*
+   * ==========================================
+   * PREPARE RPS INSERT DATA
+   * ==========================================
+   */
+
+  const rpsData = schedule.map(
+    (installment) => [
+      normalizedLan,
+      installment.dueDate,
+      "Pending",
+      installment.emi,
+      installment.interest,
+      installment.principal,
+      installment.opening,
+      installment.closing,
+
+      /*
+       * Correct remaining values.
+       */
+      installment.emi,
+      0,
+      installment.principal,
+
+      null,
+      0,
+      installment.remainingAmount,
+      0,
+    ],
+  );
+
+  /*
+   * ==========================================
+   * INSERT MANUAL RPS
+   * ==========================================
+   */
+
+  await conn.query(
+    `
+      INSERT INTO manual_rps_sterlion_ubl
+      (
+        lan,
+        due_date,
+        status,
+        emi,
+        interest,
+        principal,
+        opening,
+        closing,
+        remaining_emi,
+        remaining_interest,
+        remaining_principal,
+        payment_date,
+        dpd,
+        remaining_amount,
+        extra_paid
+      )
+      VALUES ?
+    `,
+    [rpsData],
+  );
+
+  /*
+   * ==========================================
+   * UPDATE LOAN BOOKING
+   * ==========================================
+   */
+
+  const [loanUpdateResult] = await conn.query(
+    `
+      UPDATE loan_booking_sterlion_ubl
+      SET
+        emi_amount = ?,
+        upfront_interest_amount = ?,
+        net_repayable_amount = ?
+      WHERE lan = ?
+    `,
+    [
+      regularEmi,
+      upfrontInterestAmount,
+      repayablePrincipal,
+      normalizedLan,
+    ],
+  );
+
+  if (loanUpdateResult.affectedRows !== 1) {
+    throw new Error(
+      `Unable to update booking values ` +
+        `for LAN ${normalizedLan}`,
+    );
+  }
+
+  /*
+   * ==========================================
+   * TOTALS
+   * ==========================================
+   */
+
+  const firstInstallmentAmount =
+    schedule[0]?.emi || 0;
+
+  const totalExpectedRepayment = round2(
+    schedule.reduce(
+      (total, installment) =>
+        total +
+        Number(installment.emi || 0),
+      0,
+    ),
+  );
+
+  const totalPrincipal = round2(
+    schedule.reduce(
+      (total, installment) =>
+        total +
+        Number(installment.principal || 0),
+      0,
+    ),
+  );
+
+  const totalInterestInRps = round2(
+    schedule.reduce(
+      (total, installment) =>
+        total +
+        Number(installment.interest || 0),
+      0,
+    ),
+  );
+
+  /*
+   * Validate the allocated upfront interest.
+   */
+  if (
+    isUpfrontInterest &&
+    Math.abs(
+      totalInterestInRps -
+        upfrontInterestAmount,
+    ) > 0.01
+  ) {
+    throw new Error(
+      `Upfront interest allocation mismatch. ` +
+        `Expected: ${upfrontInterestAmount}, ` +
+        `RPS total: ${totalInterestInRps}`,
+    );
+  }
+
+  console.log(
+    "✅ STERLION UBL RPS generated",
+    {
+      lan: normalizedLan,
+      product: normalizedProduct,
+      loanAmount: numericLoanAmount,
+      interestRate: numericInterestRate,
+      tenure: numericTenure,
+      processingFee: numericProcessingFee,
+      upfrontInterestAmount,
+      regularUpfrontInterest,
+      repayablePrincipal,
+      regularEmi,
+      firstInstallmentAmount,
+      totalPrincipal,
+      totalInterestInRps,
+      totalExpectedRepayment,
+      installmentCount:
+        schedule.length,
+    },
+  );
+
+  return {
+    lan: normalizedLan,
+    product: normalizedProduct,
+    loan_amount: numericLoanAmount,
+    interest_rate: numericInterestRate,
+    processing_fee:
+      numericProcessingFee,
+    upfront_interest_amount:
+      upfrontInterestAmount,
+    upfront_interest_per_installment:
+      regularUpfrontInterest,
+    repayable_principal:
+      repayablePrincipal,
+    net_repayable_amount:
+      repayablePrincipal,
+    tenure: numericTenure,
+    emi_amount: regularEmi,
+    first_installment_amount:
+      firstInstallmentAmount,
+    total_principal: totalPrincipal,
+    total_interest_in_rps:
+      totalInterestInRps,
+    total_expected_repayment:
+      totalExpectedRepayment,
+    installment_count:
+      schedule.length,
+  };
+};
 /////////// STERLION RPS ///////////////////////
 
 const generateRepaymentScheduleSterlion = async (
@@ -6458,6 +7193,8 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       );
     }
 
+
+
     await connection.commit();
 
     transactionStarted =
@@ -9292,6 +10029,41 @@ console.log("checking data", {
       product,
       lender,
     );
+
+    
+    } else if (
+  String(lender || "").trim().toLowerCase() ===
+  "sterlion-ubl"
+) {
+  console.log(
+    "➡️ Inside Sterlion UBL RPS generation",
+    {
+      lan,
+      lender,
+      product,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      processingFee,
+    },
+  );
+
+  return generateRepaymentScheduleSterlionUbl(
+    conn,
+    lan,
+    loanAmount,
+    interestRate,
+    tenure,
+    disbursementDate,
+    product,
+    "STERLION_UBL",
+    processingFee || 0,
+  );
+
+    
+
+    
   } else if (lan.startsWith("WCTLFFPL")) {
   return generateRepaymentScheduleWctlFfpl(
     conn,
@@ -9307,6 +10079,9 @@ console.log("checking data", {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
   }
 };
+
+
+
 
 module.exports = {
   generateRepaymentScheduleEV,
@@ -9334,4 +10109,5 @@ module.exports = {
   generateRepaymentScheduleSterlion,
   generateRepaymentScheduleSrbh,
   generateRepaymentScheduleWctlFfpl,
+  generateRepaymentScheduleSterlionUbl,
 };

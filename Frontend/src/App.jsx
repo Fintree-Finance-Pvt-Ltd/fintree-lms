@@ -265,6 +265,14 @@ import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.jsx";
 
 
+// Sterlion UBL Imports
+import SterlionUBLLoanBooking from "./components/SterlionUbl/SterlionUBLLoanBooking";
+import SterlionUBLAllLoans from "./components/SterlionUbl/SterlionUBLAllLoans";
+import SterlionUBLDisbursedLoans from "./components/SterlionUbl/SterlionUBLDisbursedLoans";
+import SterlionUBLApprovedLoans from "./components/SterlionUbl/SterlionUBLApprovedLoans";
+import SterlionUBLDetails from "./components/SterlionUbl/SterlionUblDetails";
+
+
 
 function App() {
   return (
@@ -2218,6 +2226,53 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          {/* STERLION UBL ROUTES */}
+
+<Route
+  path="/sterlion-ubl-loans/loan-booking"
+  element={
+    <PermissionRoute pageName="Sterlion UBL Loan Booking">
+      <SterlionUBLLoanBooking />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/sterlion-ubl-loans/all"
+  element={
+    <PermissionRoute pageName="Sterlion UBL All Loans">
+      <SterlionUBLAllLoans />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/sterlion-ubl-loans/disbursed"
+  element={
+    <PermissionRoute pageName="Sterlion UBL Disbursed Loans">
+      <SterlionUBLDisbursedLoans />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/sterlion-ubl-loans/approved"
+  element={
+    <PermissionRoute pageName="Sterlion UBL Approved Loans">
+      <SterlionUBLApprovedLoans />
+    </PermissionRoute>
+  }
+/>
+
+<Route
+  path="/sterlion-ubl-loans/details/:lan"
+  element={
+    <PermissionRoute pageName="Sterlion UBL All Loans">
+      <SterlionUBLDetails />
+    </PermissionRoute>
+  }
+/>
           
             
  

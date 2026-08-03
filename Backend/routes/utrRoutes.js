@@ -582,6 +582,7 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("CARE")) return "CAREPAY";
   if (lan.startsWith("SFL")) return "Seven FinCorp";
   if (lan.startsWith("STRL")) return "STERLION";
+  if (lan.startsWith("UBLF")) return "sterlion-ubl";  // UBLF prefix for Sterlion UBL
 
   if (lender && String(lender).trim()) return String(lender).trim();
   if (product && String(product).trim()) return String(product).trim();
@@ -739,6 +740,21 @@ WHERE lan = ?`,
      LIMIT 1`,
             [lan],
           );
+
+          } else if (lan.startsWith("UBLF")) {   // UBLF prefix for Sterlion UBL
+  [loanRes] = await db.promise().query(
+    `SELECT
+       loan_amount,
+       interest_rate,
+       tenure_months AS loan_tenure,
+       product,
+       lender,
+       partner_loan_id
+     FROM loan_booking_sterlion_ubl
+     WHERE lan = ?
+     LIMIT 1`,
+    [lan]
+  );
         } else if (lan.startsWith("STRL")) {
           [loanRes] = await db.promise().query(
             `SELECT
@@ -1058,6 +1074,11 @@ WHERE lan = ?`,
               "UPDATE loan_booking_wctl_ffpl SET status = 'Disbursed' WHERE lan = ?",
               [lan],
             );
+            } else if (lan.startsWith("UBLF")) {      // UBLF prefix for Sterlion UBL
+             await conn.query(
+            `UPDATE loan_booking_sterlion_ubl SET status = 'Disbursed' WHERE lan = ?`,
+             [lan]
+             );
           } else if (lan.startsWith("HEYBF1")) {
             await conn.query(
               "UPDATE loan_booking_hey_ev_battery SET status = 'Disbursed' WHERE lan = ?",

@@ -25,6 +25,12 @@ const PARTNER_ROUTES = [
     rpsTable: "manual_rps_circle_pe_houser",
     tenureUnit: "months",
   },
+  {
+  prefix: "UBLF",
+  table: "loan_booking_sterlion_ubl",
+  rpsTable: "manual_rps_sterlion_ubl",
+  tenureUnit: "months",
+},
 
   {
     prefix: "HEYEV",
@@ -279,13 +285,14 @@ const TEMPLATE_FIELD_COLUMNS = {
     "id",
   ],
 
-  borrower_name: [
-    "customer_name",
-    "borrower_name",
-    "applicant_name",
-    "full_name",
-    "name_in_bank",
-  ],
+ borrower_name: [
+  "customer_name",
+  "borrower_name",
+  "applicant_name",
+  "full_name",
+  "first_name",
+  "name_in_bank",
+],
 
   borrower_address: [
     "current_address",
