@@ -191,10 +191,10 @@ const CreateLoanBooking = () => {
   const [selectedFile, setSelectedFile] = useState(null);
 
   const handleFileChange = (event) => {
-  const selected = event.target.files?.[0] || null;
+    const selected = event.target.files?.[0] || null;
 
     setFile(selected);
-      setSelectedFile(selected);
+    setSelectedFile(selected);
 
     setMessage("");
     setError("");
@@ -232,9 +232,9 @@ const CreateLoanBooking = () => {
         return `/loan-booking/wctl-upload`;
       case "WCTL FFPL":
         return `/loan-booking/v1/wctl-ffpl-upload`;
-        case "sterlion-ubl":
+      case "sterlion-ubl":
         return `/loan-booking/sterlion-ubl-upload`;  // Added endpoint for sterlion-ubl
-        default:
+      default:
         return "";
     }
   }
@@ -315,13 +315,13 @@ const CreateLoanBooking = () => {
             >
               Choose File
             </button>
-{/* 
+            {/* 
             <div className="selected-file-box">
               {selectedFile?.name || "No file selected"}
             </div> */}
-               <div className="selected-file-box" title={selectedFile?.name || "No file selected"}>
-      {selectedFile?.name || "No file selected"}
-    </div>
+            <div className="selected-file-box" title={selectedFile?.name || "No file selected"}>
+              {selectedFile?.name || "No file selected"}
+            </div>
           </div>
         </div>
 
