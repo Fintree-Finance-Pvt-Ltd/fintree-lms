@@ -272,7 +272,8 @@ import SterlionUBLDisbursedLoans from "./components/SterlionUbl/SterlionUBLDisbu
 import SterlionUBLApprovedLoans from "./components/SterlionUbl/SterlionUBLApprovedLoans";
 import SterlionUBLDetails from "./components/SterlionUbl/SterlionUblDetails";
 
-
+//MEXONDEXON
+import SterlionMexonDexonAllLoans from "./components/SterlionMexonDexon/SterlionMexonDexonAllLoans";
 
 function App() {
   return (
@@ -289,7 +290,7 @@ function App() {
         {/* ✅ Public routes */}
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
-        
+
 
         {/* ✅ Protected + Layout wrapper */}
         <Route
@@ -664,7 +665,7 @@ function App() {
               </PermissionRoute>
             }
           />
-           <Route
+          <Route
             path="/loan-digit/collections"
             element={
               <PermissionRoute pageName="Loan Digit Collections">
@@ -831,7 +832,7 @@ function App() {
             path="/fincrest-loan-details/:lan"
             element={
               // <PermissionRoute pageName="Fincrest Loan Details">
-                <FincrestLoanDetails />
+              <FincrestLoanDetails />
               // {/* </PermissionRoute> */}
             }
           />
@@ -1751,7 +1752,7 @@ function App() {
               </PermissionRoute>
             }
           />
-          
+
           <Route
             path="/motion-corp/login-cases"
             element={
@@ -1793,8 +1794,8 @@ function App() {
             }
           />
 
-          <Route 
-           path="/fundify-loans/manual-entry"
+          <Route
+            path="/fundify-loans/manual-entry"
             element={
               <PermissionRoute pageName="Fundify Loan Booking">
                 <FundifyManualEntry />
@@ -1802,8 +1803,8 @@ function App() {
             }
           />
 
-          <Route 
-           path="/fundify-loans/login-loans"
+          <Route
+            path="/fundify-loans/login-loans"
             element={
               <PermissionRoute pageName="Fundify Login loans">
                 <FundifyLoginCases />
@@ -1811,8 +1812,8 @@ function App() {
             }
           />
 
-          <Route 
-           path="/fundify-loans/credit-stage-loans"
+          <Route
+            path="/fundify-loans/credit-stage-loans"
             element={
               <PermissionRoute pageName="Fundify credit stage loans">
                 <FundifyLoginActions />
@@ -1820,8 +1821,8 @@ function App() {
             }
           />
 
-          <Route 
-           path="/fundify-loans/all-loans"
+          <Route
+            path="/fundify-loans/all-loans"
             element={
               <PermissionRoute pageName="Fundify All Cases Screen">
                 <FundifyAllLoans />
@@ -1910,7 +1911,7 @@ function App() {
               </PermissionRoute>
             }
           />
-          
+
           <Route
             path="/seven-fincorp/dealer-details/:lan"
             element={<SevenFinCorpDealerDetails />}
@@ -1934,30 +1935,30 @@ function App() {
           <Route
             path="/seven-fincorp/customer-details"
             element={
-                <SevenFinCorpDetails />
+              <SevenFinCorpDetails />
             }
           />
           {/* /////////////////////////////////////////////////////////// */}
           {/* cLAIMcUREbUDDY rOTUES  */}
 
-            <Route
+          <Route
             path="/claimcurebuddy/loan-booking"
             element={
               // <PermissionRoute pageName="Bundela Dealer Entry">
-                <ClaimCureBuddyLoanBooking />
+              <ClaimCureBuddyLoanBooking />
               // {/* </PermissionRoute> */}
             }
           />
 
           <Route
-  path="/claimcurebuddy/draft-cases"
-  element={<ClaimCureBuddyDraftCases />}
-/>
+            path="/claimcurebuddy/draft-cases"
+            element={<ClaimCureBuddyDraftCases />}
+          />
 
-<Route
-  path="/claimcurebuddy/approved-cases"
-  element={<ClaimCureBuddyApprovedCases />}
-/>
+          <Route
+            path="/claimcurebuddy/approved-cases"
+            element={<ClaimCureBuddyApprovedCases />}
+          />
 
           {/* =========================
    ✅ Bundela Routes
@@ -2138,31 +2139,31 @@ function App() {
             element={<CustomerDetailsScreen />}
           />
 
-           <Route
-          path="/srbh/dealer-entry"
-          element={
-            <PermissionRoute pageName="SRBH Dealer Entry">
-              <SRBHDealerEntry/>
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/srbh/dealer-lists"
-          element={
-            <PermissionRoute pageName="SRBH Dealer Lists">
-              <SRBHDealerLists />
-            </PermissionRoute>
-          }
-        />
-        <Route
-          path="/srbh/dealer-login-actions"
-          element={
-            <PermissionRoute pageName="SRBH Dealer Credit Approval List">
-              <SRBHDealerLoginActions />
-            </PermissionRoute>
-          }
-        />
-        <Route
+          <Route
+            path="/srbh/dealer-entry"
+            element={
+              <PermissionRoute pageName="SRBH Dealer Entry">
+                <SRBHDealerEntry />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/srbh/dealer-lists"
+            element={
+              <PermissionRoute pageName="SRBH Dealer Lists">
+                <SRBHDealerLists />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/srbh/dealer-login-actions"
+            element={
+              <PermissionRoute pageName="SRBH Dealer Credit Approval List">
+                <SRBHDealerLoginActions />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="/srbh/dealer-details/:lan"
             element={<SRBHDealerDetails />}
           />
@@ -2171,8 +2172,8 @@ function App() {
             path="/srbh/customer-details"
             element={<SRBHDetails />}
           />
- 
-       <Route
+
+          <Route
             path="/srbh/loan-booking"
             element={
               <PermissionRoute pageName="SRBH Loan Booking">
@@ -2181,7 +2182,7 @@ function App() {
             }
           />
 
-           <Route
+          <Route
             path="/srbh/login-cases"
             element={
               <PermissionRoute pageName="SRBH Customer Login Cases Screen">
@@ -2189,8 +2190,8 @@ function App() {
               </PermissionRoute>
             }
           />
- 
-            <Route
+
+          <Route
             path="/srbh/credit-initiated-cases"
             element={
               <PermissionRoute pageName="SRBH Customer Credit Initiated Cases Screen">
@@ -2206,10 +2207,10 @@ function App() {
               </PermissionRoute>
             }
           />
- 
-         
-       
-     
+
+
+
+
           <Route
             path="/srbh/credit-approved-cases"
             element={
@@ -2218,7 +2219,7 @@ function App() {
               </PermissionRoute>
             }
           />
-           <Route
+          <Route
             path="/srbh/operation-approval-cases"
             element={
               <PermissionRoute pageName="SRBH Customer Operation Approval Cases Screen">
@@ -2229,53 +2230,61 @@ function App() {
 
           {/* STERLION UBL ROUTES */}
 
-<Route
-  path="/sterlion-ubl-loans/loan-booking"
-  element={
-    <PermissionRoute pageName="Sterlion UBL Loan Booking">
-      <SterlionUBLLoanBooking />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/sterlion-ubl-loans/loan-booking"
+            element={
+              <PermissionRoute pageName="Sterlion UBL Loan Booking">
+                <SterlionUBLLoanBooking />
+              </PermissionRoute>
+            }
+          />
 
-<Route
-  path="/sterlion-ubl-loans/all"
-  element={
-    <PermissionRoute pageName="Sterlion UBL All Loans">
-      <SterlionUBLAllLoans />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/sterlion-ubl-loans/all"
+            element={
+              <PermissionRoute pageName="Sterlion UBL All Loans">
+                <SterlionUBLAllLoans />
+              </PermissionRoute>
+            }
+          />
 
-<Route
-  path="/sterlion-ubl-loans/disbursed"
-  element={
-    <PermissionRoute pageName="Sterlion UBL Disbursed Loans">
-      <SterlionUBLDisbursedLoans />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/sterlion-ubl-loans/disbursed"
+            element={
+              <PermissionRoute pageName="Sterlion UBL Disbursed Loans">
+                <SterlionUBLDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
 
-<Route
-  path="/sterlion-ubl-loans/approved"
-  element={
-    <PermissionRoute pageName="Sterlion UBL Approved Loans">
-      <SterlionUBLApprovedLoans />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/sterlion-ubl-loans/approved"
+            element={
+              <PermissionRoute pageName="Sterlion UBL Approved Loans">
+                <SterlionUBLApprovedLoans />
+              </PermissionRoute>
+            }
+          />
 
-<Route
-  path="/sterlion-ubl-loans/details/:lan"
-  element={
-    <PermissionRoute pageName="Sterlion UBL All Loans">
-      <SterlionUBLDetails />
-    </PermissionRoute>
-  }
-/>
-          
-            
- 
+          <Route
+            path="/sterlion-ubl-loans/details/:lan"
+            element={
+              <PermissionRoute pageName="Sterlion UBL All Loans">
+                <SterlionUBLDetails />
+              </PermissionRoute>
+            }
+          />
+
+          {/* Sterlion Mexon Dexon */}
+
+          <Route
+            path="/sterlion-mexon-dexon/all-loans"
+            element={
+              <PermissionRoute pageName="Sterlion Mexon Dexon All Loans">
+                <SterlionMexonDexonAllLoans />
+              </PermissionRoute>
+            }
+          />
         </Route>
 
       </Routes>

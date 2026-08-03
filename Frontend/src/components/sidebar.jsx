@@ -231,6 +231,7 @@ const Sidebar = () => {
       'Dealer ALL': <Users size={iconSize} />,
       'Aldun Loans': <Landmark size={iconSize} />,
       'MIS Reports': <BarChart3 size={iconSize} />,
+      'Sterlion Mexon Dexon Loans': <Briefcase size={iconSize} />,
       
      
     };
@@ -243,7 +244,7 @@ const Sidebar = () => {
   const allowedPages = user.pages || [];
 //console.log("User Pages:", allowedPages);
   const grouped = {
-    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/motion-corp', '/loan-digit', '/rapidmoney-loans', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh' ,'/sterlion-ubl-loans',].some(prefix => p.path.includes(prefix))),
+    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/motion-corp', '/loan-digit', '/rapidmoney-loans', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh' ,'/sterlion-ubl-loans','/sterlion-mexon-dexon',].some(prefix => p.path.includes(prefix))),
     'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
     'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
@@ -278,7 +279,7 @@ const Sidebar = () => {
     'Dealer ALL': allowedPages.filter(p => p.path.includes('/dealer-onboarding')),
     'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),
     'MIS Reports': allowedPages.filter(p => p.path.includes('/mis-reports')),
-    
+    'Sterlion Mexon Dexon Loans': allowedPages.filter((p) => p.path.includes('/sterlion-mexon-dexon')),  
   };
  
   return (
