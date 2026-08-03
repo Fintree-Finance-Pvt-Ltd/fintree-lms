@@ -1,17 +1,16 @@
 const express = require("express");
+const db = require("../../config/db");
 const router = express.Router();
 const multer = require("multer");
 const XLSX = require("xlsx");
 const path = require("path");
-
 
 /*
 |--------------------------------------------------------------------------
 | Product configuration
 |--------------------------------------------------------------------------
 |
-| partnerLoanPrefix values can be changed later if the partner requires a
-| different partner-loan-ID format. LAN prefixes are exactly as requested.
+| LAN prefixes are configured separately for Sterlion, Mexon and Dexon.
 |
 */
 
@@ -20,19 +19,16 @@ const SMD_PRODUCT_CONFIG = Object.freeze({
     productName: "Sterlion",
     lenderName: "Sterlion",
     lanPrefix: "STF",
-    partnerLoanPrefix: "STFP",
   },
   MEXON: {
     productName: "Mexon",
     lenderName: "Mexon",
     lanPrefix: "MXF",
-    partnerLoanPrefix: "MXFP",
   },
   DEXON: {
     productName: "Dexon",
     lenderName: "Dexon",
     lanPrefix: "DXF",
-    partnerLoanPrefix: "DXFP",
   },
 });
 
@@ -221,15 +217,10 @@ function normalizeText(value, fieldName, maxLength, required = true) {
 function normalizeIdentifier(
   value,
   fieldName,
-  {
-    allowSafeNumericConversion = false,
-  } = {},
+  { allowSafeNumericConversion = false } = {},
 ) {
   if (isBlank(value)) {
-    throw new RowImportError(
-      "validation",
-      `${fieldName} is required.`,
-    );
+    throw new RowImportError("validation", `${fieldName} is required.`);
   }
 
   /*
@@ -243,25 +234,19 @@ function normalizeIdentifier(
         {
           field: fieldName,
           required_excel_format: "Text",
-          action:
-            `Format the complete ${fieldName} Excel column as Text and upload again.`,
+          action: `Format the complete ${fieldName} Excel column as Text and upload again.`,
         },
       );
     }
 
-    if (
-      !Number.isFinite(value) ||
-      !Number.isSafeInteger(value) ||
-      value < 0
-    ) {
+    if (!Number.isFinite(value) || !Number.isSafeInteger(value) || value < 0) {
       throw new RowImportError(
         "validation",
         `${fieldName} could not be read safely from Excel. Format the "${fieldName}" column as Text and upload the file again.`,
         {
           field: fieldName,
           required_excel_format: "Text",
-          action:
-            `Format the complete ${fieldName} Excel column as Text and upload again.`,
+          action: `Format the complete ${fieldName} Excel column as Text and upload again.`,
         },
       );
     }
@@ -286,19 +271,14 @@ function normalizeIdentifier(
    * A scientific-notation string cannot be trusted because Excel may
    * already have rounded the original value.
    */
-  if (
-    /^[+-]?\d+(\.\d+)?e[+-]?\d+$/i.test(
-      normalizedValue,
-    )
-  ) {
+  if (/^[+-]?\d+(\.\d+)?e[+-]?\d+$/i.test(normalizedValue)) {
     throw new RowImportError(
       "validation",
       `${fieldName} is in scientific notation. The original value may have been changed by Excel. Format the "${fieldName}" column as Text and upload again.`,
       {
         field: fieldName,
         required_excel_format: "Text",
-        action:
-          `Format the complete ${fieldName} Excel column as Text and upload again.`,
+        action: `Format the complete ${fieldName} Excel column as Text and upload again.`,
       },
     );
   }
@@ -417,7 +397,11 @@ function normalizeDateOfBirth(value) {
 
   const today = new Date();
 
-  if (parsedDate >= today) {
+  const todayUtc = new Date(
+    Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()),
+  );
+
+  if (parsedDate >= todayUtc) {
     throw new RowImportError("validation", "dateOfBirth must be a past date.");
   }
 
@@ -472,9 +456,13 @@ function normalizeAndValidateRow(row) {
     );
   }
 
-  const aadhaarNumber = normalizeIdentifier(row.aadhaarNumber, "aadhaarNumber",{
-    allowSafeNumericConversion: true,
-  },);
+  const aadhaarNumber = normalizeIdentifier(
+    row.aadhaarNumber,
+    "aadhaarNumber",
+    {
+      allowSafeNumericConversion: true,
+    },
+  );
 
   if (!/^[2-9][0-9]{11}$/.test(aadhaarNumber)) {
     throw new RowImportError(
@@ -492,9 +480,9 @@ function normalizeAndValidateRow(row) {
     throw new RowImportError("validation", "Invalid PAN number format.");
   }
 
-  const mobileNumber = normalizeIdentifier(row.mobileNumber, "mobileNumber",{
+  const mobileNumber = normalizeIdentifier(row.mobileNumber, "mobileNumber", {
     allowSafeNumericConversion: true,
-  },);
+  });
 
   if (!/^[6-9][0-9]{9}$/.test(mobileNumber)) {
     throw new RowImportError(
@@ -509,9 +497,13 @@ function normalizeAndValidateRow(row) {
     throw new RowImportError("validation", "Invalid email address.");
   }
 
-  const accountNumber = normalizeIdentifier(row.accountNumber, "accountNumber",{
-    allowSafeNumericConversion: false,
-  },);
+  const accountNumber = normalizeIdentifier(
+    row.accountNumber,
+    "accountNumber",
+    {
+      allowSafeNumericConversion: false,
+    },
+  );
 
   if (!/^[0-9]{8,20}$/.test(accountNumber)) {
     throw new RowImportError(
@@ -611,7 +603,7 @@ function normalizeAndValidateRow(row) {
 
 /*
 |--------------------------------------------------------------------------
-| Concurrency-safe LAN and partner loan ID generator
+| Concurrency-safe LAN generator
 |--------------------------------------------------------------------------
 |
 | IMPORTANT:
@@ -620,13 +612,7 @@ function normalizeAndValidateRow(row) {
 |
 */
 
-async function generateSterlionMexonDexonIdentifiers(conn, productConfig) {
-  /*
-   * Seed with 10999 so the first generated sequence becomes 11000.
-   * ON DUPLICATE KEY prevents two simultaneous uploads from creating
-   * separate sequence records.
-   */
-
+async function generateSterlionMexonDexonLan(conn, productConfig) {
   await conn.query(
     `
       INSERT INTO loan_sequences (
@@ -677,13 +663,7 @@ async function generateSterlionMexonDexonIdentifiers(conn, productConfig) {
     [newSequence, productConfig.lenderName],
   );
 
-  return {
-    sequence: newSequence,
-
-    partnerLoanId: `${productConfig.partnerLoanPrefix}${newSequence}`,
-
-    lan: `${productConfig.lanPrefix}${newSequence}`,
-  };
+  return `${productConfig.lanPrefix}${newSequence}`;
 }
 
 /*
@@ -796,7 +776,6 @@ function extractUploadData(req) {
 */
 
 const INSERT_COLUMNS = [
-  "partner_loan_id",
   "lan",
   "product",
   "lender",
@@ -825,7 +804,7 @@ const INSERT_COLUMNS = [
 ];
 
 const INSERT_LOAN_QUERY = `
-  INSERT INTO loan_booking_sterlion_nexon_dexon (
+  INSERT INTO loan_booking_sterlion_mexon_dexon (
     ${INSERT_COLUMNS.join(", ")}
   )
   VALUES (
@@ -841,20 +820,16 @@ async function insertSterlionMexonDexonLoan(normalizedData, productConfig) {
     await conn.beginTransaction();
 
     /*
-     * Duplicate is checked per product.
+     * Duplicate PAN check per product.
      *
      * Same PAN:
-     * Sterlion + Mexon = allowed
+     * Sterlion + Mexon    = allowed
      * Sterlion + Sterlion = blocked
-     *
-     * The database UNIQUE(product, pan_number) index remains the
-     * final protection against concurrent duplicate uploads.
      */
-
     const [duplicateRows] = await conn.query(
       `
         SELECT id, lan
-        FROM loan_booking_sterlion_nexon_dexon
+        FROM loan_booking_sterlion_mexon_dexon
         WHERE product = ?
           AND pan_number = ?
         LIMIT 1
@@ -869,123 +844,13 @@ async function insertSterlionMexonDexonLoan(normalizedData, productConfig) {
       );
     }
 
-    const partnerName = productConfig.lenderName;
-
-    const currentDate = new Date();
-    const { month, year } = getMonthYear(currentDate);
-
     /*
-     * Get the correct product/lender partner.
+     * Generate only LAN.
+     * No partner loan ID, partner limit, or FLDG.
      */
-
-    const partner = await partnerLimitService.getOrCreatePartner(
-      conn,
-      partnerName,
-    );
-
-    /*
-     * Validate monthly booking limit for the specific product.
-     */
-
-    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-      conn,
-      partner.partner_id,
-      normalizedData.loanAmount,
-      month,
-      year,
-    );
-
-    if (!limitCheck.valid) {
-      throw new RowImportError(
-        "partner_limit",
-        `Monthly booking limit exceeded for ${partnerName}.`,
-        {
-          remainingLimit: limitCheck.remaining,
-          requiredAmount: normalizedData.loanAmount,
-          month,
-          year,
-        },
-      );
-    }
-
-    /*
-     * Get the product-specific FLDG configuration.
-     */
-
-    const [partnerConfigRows] = await conn.query(
-      `
-        SELECT fldg_percent, fldg_status
-        FROM partner_master
-        WHERE partner_id = ?
-        LIMIT 1
-      `,
-      [partner.partner_id],
-    );
-
-    const partnerConfig = partnerConfigRows[0];
-
-    if (!partnerConfig) {
-      throw new RowImportError(
-        "partner_configuration",
-        `Partner configuration was not found for ${partnerName}.`,
-      );
-    }
-
-    let requiredFldg = 0;
-
-    if (Number(partnerConfig.fldg_status) === 1) {
-      const fldgPercent = Number(partnerConfig.fldg_percent || 0);
-
-      if (
-        !Number.isFinite(fldgPercent) ||
-        fldgPercent < 0 ||
-        fldgPercent > 100
-      ) {
-        throw new RowImportError(
-          "partner_configuration",
-          `Invalid FLDG percentage configured for ${partnerName}.`,
-        );
-      }
-
-      requiredFldg = Number(
-        ((normalizedData.loanAmount * fldgPercent) / 100).toFixed(2),
-      );
-    }
-
-    /*
-     * Validate FLDG balance before generating the LAN.
-     */
-
-    if (requiredFldg > 0) {
-      const fldgCheck = await partnerFldgService.validateFldgAvailability(
-        conn,
-        partner.partner_id,
-        requiredFldg,
-      );
-
-      if (!fldgCheck.valid) {
-        throw new RowImportError(
-          "fldg",
-          `Insufficient FLDG balance for ${partnerName}.`,
-          {
-            availableFldg: fldgCheck.available,
-            requiredFldg,
-          },
-        );
-      }
-    }
-
-    /*
-     * Generate the correct LAN using the locked sequence row.
-     */
-
-    const { partnerLoanId, lan } = await generateSterlionMexonDexonIdentifiers(
-      conn,
-      productConfig,
-    );
+    const lan = await generateSterlionMexonDexonLan(conn, productConfig);
 
     const insertValues = [
-      partnerLoanId,
       lan,
       normalizedData.product,
       normalizedData.lender,
@@ -1015,36 +880,10 @@ async function insertSterlionMexonDexonLoan(normalizedData, productConfig) {
 
     const [insertResult] = await conn.query(INSERT_LOAN_QUERY, insertValues);
 
-    /*
-     * Update the correct product's used booking limit.
-     */
-
-    await partnerLimitService.updateBookedLimit(
-      conn,
-      limitCheck.limitId,
-      normalizedData.loanAmount,
-      lan,
-    );
-
-    /*
-     * Reserve FLDG for the correct product.
-     */
-
-    if (requiredFldg > 0) {
-      await partnerFldgService.reserveFldg(
-        conn,
-        partner.partner_id,
-        lan,
-        requiredFldg,
-        `${partnerName} booking reservation | Amount: ${normalizedData.loanAmount}`,
-      );
-    }
-
     await conn.commit();
 
     return {
       id: insertResult.insertId,
-      partnerLoanId,
       lan,
       product: normalizedData.product,
     };
@@ -1162,10 +1001,10 @@ router.post("/upload/sterlion-mexon-dexon", (req, res) => {
       const excelDuplicateKeys = new Set();
 
       /*
-       * Process sequentially.
+       * Process rows sequentially.
        *
        * Do not replace with an uncontrolled Promise.all because each row
-       * updates LAN sequences, monthly limits and FLDG balances.
+       * updates the product-specific LAN sequence.
        */
 
       for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
@@ -1200,7 +1039,6 @@ router.post("/upload/sterlion-mexon-dexon", (req, res) => {
             row: excelRowNumber,
             product: insertedLoan.product,
             lan: insertedLoan.lan,
-            partnerLoanId: insertedLoan.partnerLoanId,
             databaseId: insertedLoan.id,
           });
 
@@ -1263,3 +1101,32 @@ router.post("/upload/sterlion-mexon-dexon", (req, res) => {
     }
   });
 });
+
+router.get("/sterlion-mexon-dexon", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(`
+      SELECT *
+      FROM loan_booking_sterlion_mexon_dexon
+      ORDER BY id DESC
+    `);
+
+    return res.status(200).json({
+      success: true,
+      message: "Loan booking details fetched successfully.",
+      total_records: rows.length,
+      data: rows,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to fetch Sterlion/Mexon/Dexon loan details:",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch loan booking details.",
+    });
+  }
+});
+
+module.exports = router;

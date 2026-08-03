@@ -343,6 +343,8 @@ app.use(
 app.use("/api/loan-digit", require("./routes/loanDigit/loanDigitRoutes"));
 app.use("/api/fldg", require("./routes/fldgRoutes")); // ✅ Register FLDG Routes
 
+app.use("/api/sterlion-mexon-dexon", require("./routes/sterlionNexonDexon/sterlionnexon")); // ✅ Register Routes for Sterlion Nexon Dexon
+
 app.use(
   "/api/webhooks/easebuzz",
   require("../Backend/routes/easebuzz.webhooks.routes"),
@@ -383,8 +385,6 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serv
 app.use("/bureau", require("./services/bureauretry"));
 
 app.use("/api/screening", require("./routes/screening.routes")); // ✅ Register Routes for Screening
-
-app.use("/api/sterlion-mexon-dexon", require("./routes/sterlionNexonDexon/sterlionnexon")); // ✅ Register Routes for Sterlion Nexon Dexon
 
 app.use(
   "/api/supply-chain",
