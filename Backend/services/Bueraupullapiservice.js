@@ -56,7 +56,7 @@ function validatePAN(pan) {
   if (!panRegex.test(normalizedPAN)) {
     throw new Error(`Invalid PAN format: ${pan}`);
   }
-  
+
   return normalizedPAN;
 }
 // State Code Mapping ( YOUR EXISTING MAPPING )
@@ -101,7 +101,6 @@ const STATE_CODES = {
 
 const runBureau = async (data) => {
   try {
-
     // -----------------------------
     // Format required fields
     //  -----------------------------
@@ -233,99 +232,6 @@ const runBureau = async (data) => {
       </urn:process>
    </soapenv:Body>
 </soapenv:Envelope>`;
-
-    /////////////  HARD coded for testing /////////////
-    // const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-    //    <soapenv:Header/>
-    //    <soapenv:Body>
-    //       <urn:process>
-    //          <urn:in>
-    //             <INProfileRequest>
-    //     <Identification>
-    //        <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-    //        <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-    //     </Identification>
-    //     <Application>
-    //         <FTReferenceNumber></FTReferenceNumber>
-    //         <CustomerReferenceID></CustomerReferenceID>
-    //         <EnquiryReason>13</EnquiryReason>
-    //         <FinancePurpose>99</FinancePurpose>
-    //         <AmountFinanced>19200</AmountFinanced>
-    //         <DurationOfAgreement>5</DurationOfAgreement>
-    //         <ScoreFlag>1</ScoreFlag>
-    //         <PSVFlag></PSVFlag>
-    //     </Application>
-    //     <Applicant>
-    //         <Surname>YERRA</Surname>
-    //         <FirstName>RAJU</FirstName>
-    //         <MiddleName1></MiddleName1>
-    //         <MiddleName2></MiddleName2>
-    //         <MiddleName3></MiddleName3>
-    //         <GenderCode>1</GenderCode>
-    //         <IncomeTaxPAN>AFIPY3624H</IncomeTaxPAN>
-    //         <PANIssueDate></PANIssueDate>
-    //         <PANExpirationDate></PANExpirationDate>
-    //         <PassportNumber></PassportNumber>
-    //         <PassportIssueDate></PassportIssueDate>
-    //         <PassportExpirationDate></PassportExpirationDate>
-    //         <VoterIdentityCard></VoterIdentityCard>
-    //         <VoterIDIssueDate></VoterIDIssueDate>
-    //         <VoterIDExpirationDate></VoterIDExpirationDate>
-    //         <DriverLicenseNumber></DriverLicenseNumber>
-    //         <DriverLicenseIssueDate></DriverLicenseIssueDate>
-    //         <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
-    //         <RationCardNumber></RationCardNumber>
-    //         <RationCardIssueDate></RationCardIssueDate>
-    //         <RationCardExpirationDate></RationCardExpirationDate>
-    //         <UniversalIDNumber></UniversalIDNumber>
-    //         <UniversalIDIssueDate></UniversalIDIssueDate>
-    //         <UniversalIDExpirationDate></UniversalIDExpirationDate>
-    //         <DateOfBirth>19840619</DateOfBirth>
-    //         <STDPhoneNumber></STDPhoneNumber>
-    //         <PhoneNumber>9869350574</PhoneNumber>
-    //         <TelephoneExtension></TelephoneExtension>
-    //         <TelephoneType></TelephoneType>
-    //         <MobilePhone></MobilePhone>
-    //         <EMailId></EMailId>
-    //     </Applicant>
-    //     <Details>
-    //         <Income></Income>
-    //         <MaritalStatus></MaritalStatus>
-    //         <EmployStatus></EmployStatus>
-    //         <TimeWithEmploy></TimeWithEmploy>
-    //         <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
-    //     </Details>
-    //     <Address>
-    //         <FlatNoPlotNoHouseNo>6 59 harijanawada nararayanapur mandal Gujja</FlatNoPlotNoHouseNo>
-    //         <BldgNoSocietyName></BldgNoSocietyName>
-    //         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-    //         <City>Gujja</City>
-    //         <Landmark></Landmark>
-    //         <State>27</State>
-    //         <PinCode>508253</PinCode>
-    //     </Address>
-    //     <AdditionalAddressFlag>
-    //         <Flag>N</Flag>
-    //     </AdditionalAddressFlag>
-    //     <AdditionalAddress>
-    //         <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
-    //         <BldgNoSocietyName></BldgNoSocietyName>
-    //         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-    //         <City></City>
-    //         <Landmark></Landmark>
-    //         <State></State>
-    //         <PinCode></PinCode>
-    //     </AdditionalAddress>
-    // </INProfileRequest>
-    // </urn:in>
-    //       </urn:process>
-    //    </soapenv:Body>
-    // </soapenv:Envelope>`;
-
-    // -----------------------------
-    // Send SOAP Request
-    // -----------------------------
-
     const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
       headers: {
         "Content-Type": "text/xml; charset=utf-8",
