@@ -148,15 +148,15 @@ async function buildClaimCureBuddyCoApplicantUsers(
 
       position_details: useCoordinates
         ? {
-            ALL: [
-              {
-                x1: 191,
-                x2: 266,
-                y1: 84,
-                y2: 129,
-              },
-            ],
-          }
+          ALL: [
+            {
+              x1: 191,
+              x2: 266,
+              y1: 84,
+              y2: 129,
+            },
+          ],
+        }
         : {},
     };
 
@@ -186,11 +186,11 @@ exports.initDoqfyEsign = async (lan, type) => {
 
     const loanContext = getLoanContext(lan);
 
-const {
-  bookingTable,
-  esignParties,
-  coApplicantTable,
-} = loanContext;
+    const {
+      bookingTable,
+      esignParties,
+      coApplicantTable,
+    } = loanContext;
 
     /* --------------------------------------------------- */
     /* FETCH LOAN */
@@ -211,19 +211,19 @@ const {
     const partyUsers = buildDoqfyPartyUsers(loan, esignParties, type);
 
     // ClaimCureBuddy-only multiple co-applicant handling
-if (
-  loanContext.type === "CLAIM_CURE_BUDDY" &&
-  coApplicantTable
-) {
-  const coApplicantUsers =
-    await buildClaimCureBuddyCoApplicantUsers(
-      lan,
-      coApplicantTable,
-      type,
-    );
+    if (
+      loanContext.type === "CLAIM_CURE_BUDDY" &&
+      coApplicantTable
+    ) {
+      const coApplicantUsers =
+        await buildClaimCureBuddyCoApplicantUsers(
+          lan,
+          coApplicantTable,
+          type,
+        );
 
-  partyUsers.push(...coApplicantUsers);
-}
+      partyUsers.push(...coApplicantUsers);
+    }
 
     /* --------------------------------------------------- */
     /* GENERATE PDF */
@@ -325,6 +325,7 @@ if (
 
     let signUrl = null;
     let signUrls = [];
+    let orderResp = null;
 
     try {
       const orderResp = await doqfyClient.get(
@@ -342,18 +343,18 @@ if (
       // signUrl = esignData?.sign_url || null;
 
       const esignData = Array.isArray(orderData?.esign)
-  ? orderData.esign
-  : [];
+        ? orderData.esign
+        : [];
 
-signUrls = esignData
-  .map((item, index) => ({
-    party_no: index + 1,
-    name: partyUsers[index]?.name || item?.name || "",
-    sign_url: item?.sign_url || null,
-  }))
-  .filter((item) => item.sign_url);
+      signUrls = esignData
+        .map((item, index) => ({
+          party_no: index + 1,
+          name: partyUsers[index]?.name || item?.name || "",
+          sign_url: item?.sign_url || null,
+        }))
+        .filter((item) => item.sign_url);
 
-signUrl = signUrls[0]?.sign_url || null;
+      signUrl = signUrls[0]?.sign_url || null;
 
       console.log("✅ SIGN URL:", signUrl);
     } catch (err) {
@@ -368,6 +369,31 @@ signUrl = signUrls[0]?.sign_url || null;
 
     const signerIdentifier =
       primarySigner.contact_number || primarySigner.email || null;
+
+    const rawResponsePayload = {
+      /*
+       * Initial Doqfy order-creation response.
+       */
+      upload_response:
+        response?.data || null,
+
+      /*
+       * Contains the eSign party details and sign_url.
+       */
+      order_details_response:
+        orderResp?.data || null,
+
+      /*
+       * Keep the primary borrower URL directly accessible.
+       */
+      sign_url:
+        signUrl || null,
+
+      sign_urls:
+        Array.isArray(signUrls)
+          ? signUrls
+          : [],
+    };
 
     await db.promise().query(
       `
@@ -390,7 +416,8 @@ signUrl = signUrls[0]?.sign_url || null;
         "INITIATED",
         signerIdentifier,
         JSON.stringify(payload),
-        JSON.stringify(response.data),
+        // JSON.stringify(response.data),
+        JSON.stringify(rawResponsePayload)
       ],
     );
 
@@ -431,9 +458,9 @@ signUrl = signUrls[0]?.sign_url || null;
       lan,
       orderId,
       sign_url: signUrl,
-       ...(loanContext.type === "CLAIM_CURE_BUDDY"
-    ? { sign_urls: signUrls }
-    : {}),
+      ...(loanContext.type === "CLAIM_CURE_BUDDY"
+        ? { sign_urls: signUrls }
+        : {}),
     };
   } catch (err) {
     console.error("❌ FINAL DOQFY ERROR:", err);

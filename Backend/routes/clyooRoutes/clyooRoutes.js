@@ -8,6 +8,7 @@ const path = require("path");
 const axios = require("axios");
 const nodemailer = require("nodemailer");
 
+
 const router = express.Router();
 
 const LOAN_STATUS = {
@@ -20,6 +21,28 @@ const LOAN_STATUS = {
   OPS_APPROVED: "OPS APPROVED",
   DISBURSEMENT_INITIATED: "DISBURSEMENT INITIATED",
   DISBURSED: "DISBURSED",
+};
+
+const normalizeText = (value) => String(value || "").trim();
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const getClayyoLoanByLan = async (lan) => {
+  const [[loan]] = await db.promise().query(
+    `
+    SELECT
+      lan,
+      email_id,
+      bank_details_updated_once,
+      applicant_email_updated_once,
+      applicant_email_updated_at
+    FROM loan_booking_clayyo
+    WHERE lan = ?
+    LIMIT 1
+    `,
+    [lan],
+  );
+
+  return loan || null;
 };
 
 const generateLoanIdentifiers = async (lender) => {
@@ -1587,213 +1610,1517 @@ router.get("/all-loans", async (req, res) => {
   }
 });
 
-router.get("/loan-info/:lan", async (req, res) => {
-  const { lan } = req.params;
+// router.get("/loan-info/:lan", async (req, res) => {
+//   const { lan } = req.params;
+
+//   try {
+//     const [rows] = await db.promise().query(
+//       `
+//       SELECT
+//         lb.lan,
+//         lb.app_id,
+//         lb.login_date,
+//         lb.customer_name,
+//         lb.gender,
+//         lb.dob,
+//         lb.mobile_number,
+//         lb.email_id,
+//         lb.pan_number,
+//         lb.patient_name,
+
+//         lb.current_address,
+//         lb.current_village_city,
+//         lb.current_district,
+//         lb.current_state,
+//         lb.current_pincode,
+
+//         lb.permanent_address,
+//         lb.permanent_village_city,
+//         lb.permanent_district,
+//         lb.permanent_state,
+//         lb.permanent_pincode,
+
+//         lb.employment_type,
+//         lb.policy_type,
+//         lb.net_monthly_income,
+
+//         lb.loan_amount,
+//         lb.interest_rate,
+//         lb.loan_tenure,
+//         lb.emi_amount,
+//         lb.cibil_score,
+//         lb.status,
+//         lb.disbursed_at,
+
+//         lb.bank_name,
+//         lb.name_in_bank,
+//         lb.account_number,
+//         lb.ifsc,
+//         lb.bank_branch,
+//         lb.bank_status,
+//         lb.enach_umrn,
+
+//         lb.insurance_company_name,
+//         lb.insurance_policy_holder_name,
+//         lb.insurance_policy_number,
+//         lb.relation_with_policy_holder,
+
+//         lb.final_limit,
+//         lb.approved_limit,
+//         lb.pf_percent,
+//         lb.subvention_percent,
+//         lb.updated_subvention,
+//         lb.limit_assigned_at,
+//         lb.limit_assigned_by,
+//         lb.stage,
+//         lb.limit_rework_required,
+//         lb.limit_rework_reason,
+//         lb.ops_approved_at,
+//         lb.ops_approved_by,
+
+//         COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_legal_name,
+//         lb.hospital_id,
+
+//         lb.clayyo_bre_status,
+//         lb.clayyo_bre_reason,
+//         lb.clayyo_bre_checked_at,
+
+//         lb.clayyo_bureau_score,
+//         lb.clayyo_enquiries_30d,
+
+//         lb.clayyo_dpd_3m_flag,
+//         lb.clayyo_dpd_12m_count,
+//         lb.clayyo_dpd_24m_60_flag,
+//         lb.clayyo_dpd_36m_90_flag,
+
+//         lb.clayyo_overdue_flag,
+//         lb.clayyo_writtenoff_flag,
+//         lb.clayyo_moratorium_flag,
+//         lb.clayyo_restructured_flag,
+//         lb.agreement_esign_status,
+//         lb.bank_status,
+
+//         k.pan_status      AS kyc_pan_status,
+//         k.aadhaar_status  AS kyc_aadhaar_status,
+//         k.bureau_status   AS kyc_bureau_status
+
+//       FROM loan_booking_clayyo lb
+//       LEFT JOIN kyc_verification_status k
+//         ON k.lan = lb.lan
+//       LEFT JOIN clayyo_hospital_booking ch
+//         ON ch.id = lb.hospital_id
+//       WHERE lb.lan = ?
+//       `,
+//       [lan],
+//     );
+
+//     if (!rows.length) {
+//       return res.status(404).json({ message: "Loan not found" });
+//     }
+
+//     const row = rows[0];
+
+//     const loan = {
+//       lan: row.lan,
+//       app_id: row.app_id,
+//       login_date: row.login_date,
+//       customer_name: row.customer_name,
+//       gender: row.gender,
+//       dob: row.dob,
+//       mobile_number: row.mobile_number,
+//       email_id: row.email_id,
+//       pan_number: row.pan_number,
+//       patient_name: row.patient_name,
+
+//       current_address: row.current_address,
+//       current_village_city: row.current_village_city,
+//       current_district: row.current_district,
+//       current_state: row.current_state,
+//       current_pincode: row.current_pincode,
+
+//       permanent_address: row.permanent_address,
+//       permanent_village_city: row.permanent_village_city,
+//       permanent_district: row.permanent_district,
+//       permanent_state: row.permanent_state,
+//       permanent_pincode: row.permanent_pincode,
+
+//       employment_type: row.employment_type,
+//       policy_type: row.policy_type,
+//       net_monthly_income: row.net_monthly_income,
+
+//       loan_amount: row.loan_amount,
+//       interest_rate: row.interest_rate,
+//       loan_tenure: row.loan_tenure,
+//       emi_amount: row.emi_amount,
+//       cibil_score: row.cibil_score,
+//       status: row.status,
+//       disbursed_at: row.disbursed_at,
+
+//       bank_name: row.bank_name,
+//       name_in_bank: row.name_in_bank,
+//       account_number: row.account_number,
+//       ifsc: row.ifsc,
+//       bank_branch: row.bank_branch,
+
+//       insurance_company_name: row.insurance_company_name,
+//       insurance_policy_holder_name: row.insurance_policy_holder_name,
+//       insurance_policy_number: row.insurance_policy_number,
+//       relation_with_policy_holder: row.relation_with_policy_holder,
+
+//       final_limit: row.final_limit,
+//       approved_limit: row.approved_limit,
+//       pf_percent: row.pf_percent,
+//       subvention_percent: row.subvention_percent,
+//       updated_subvention: row.updated_subvention,
+//       limit_assigned_at: row.limit_assigned_at,
+//       limit_assigned_by: row.limit_assigned_by,
+//       ops_approved_at: row.ops_approved_at,
+//       ops_approved_by: row.ops_approved_by,
+
+//       hospital_name: row.hospital_legal_name,
+//       hospital_id: row.hospital_id,
+
+//       clayyo_bre_status: row.clayyo_bre_status,
+//       clayyo_bre_reason: row.clayyo_bre_reason,
+//       clayyo_bre_checked_at: row.clayyo_bre_checked_at,
+
+//       clayyo_bureau_score: row.clayyo_bureau_score,
+//       clayyo_enquiries_30d: row.clayyo_enquiries_30d,
+
+//       clayyo_dpd_3m_flag: row.clayyo_dpd_3m_flag,
+//       clayyo_dpd_12m_count: row.clayyo_dpd_12m_count,
+//       clayyo_dpd_24m_60_flag: row.clayyo_dpd_24m_60_flag,
+//       clayyo_dpd_36m_90_flag: row.clayyo_dpd_36m_90_flag,
+
+//       clayyo_overdue_flag: row.clayyo_overdue_flag,
+//       clayyo_writtenoff_flag: row.clayyo_writtenoff_flag,
+//       clayyo_moratorium_flag: row.clayyo_moratorium_flag,
+//       clayyo_restructured_flag: row.clayyo_restructured_flag,
+//     };
+
+//     const kyc = {
+//       pan_status: row.kyc_pan_status || "PENDING",
+//       aadhaar_status: row.kyc_aadhaar_status || "PENDING",
+//       bureau_status: row.kyc_bureau_status || "PENDING",
+//       agreement_esign_status: row.agreement_esign_status || "PENDING",
+//       bank_status: row.bank_status || "PENDING",
+//     };
+
+//     return res.json({ loan, kyc });
+//   } catch (err) {
+//     console.error("❌ Error fetching Clayyo loan details:", err);
+//     return res.status(500).json({
+//       message: "Failed to fetch Clayyo loan details",
+//       error: err.sqlMessage || err.message,
+//     });
+//   }
+// });
+
+//// Loan Aggreement PDF Generation Route
+
+const safeParseJson = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  let parsed = value;
+
+  /*
+   * Supports normal JSON and accidentally double-stringified JSON.
+   */
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (typeof parsed !== "string") break;
+
+    const normalized = parsed.trim();
+
+    if (!normalized) return null;
+
+    try {
+      parsed = JSON.parse(normalized);
+    } catch (error) {
+      console.warn(
+        "[Clayyo Agreement] Invalid raw_response JSON:",
+        error.message,
+      );
+
+      return null;
+    }
+  }
+
+  return parsed;
+};
+
+const normalizeAgreementUrl = (value) => {
+  if (typeof value !== "string") return null;
+
+  const url = value.trim();
+
+  if (!url) return null;
+
+  /*
+   * Prevent invalid values from being sent to the frontend.
+   */
+  if (!/^https?:\/\//i.test(url)) {
+    return null;
+  }
+
+  return url;
+};
+
+const findAgreementSignUrl = (value, depth = 0) => {
+  if (!value || depth > 8) return null;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const foundUrl = findAgreementSignUrl(item, depth + 1);
+
+      if (foundUrl) return foundUrl;
+    }
+
+    return null;
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  /*
+   * Only check fields that may contain the borrower signing URL.
+   */
+  const allowedUrlKeys = [
+    "sign_url",
+    "signUrl",
+    "signing_url",
+    "signingUrl",
+    "esign_url",
+    "esignUrl",
+  ];
+
+  for (const key of allowedUrlKeys) {
+    const foundUrl = normalizeAgreementUrl(value[key]);
+
+    if (foundUrl) return foundUrl;
+  }
+
+  /*
+   * Search nested payload/content/response objects safely.
+   */
+  for (const nestedValue of Object.values(value)) {
+    const foundUrl = findAgreementSignUrl(
+      nestedValue,
+      depth + 1,
+    );
+
+    if (foundUrl) return foundUrl;
+  }
+
+  return null;
+};
+
+const cleanDoqfyAgreementUrl = (value) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
 
   try {
-    const [rows] = await db.promise().query(
+    const parsedUrl = new URL(value.trim());
+
+    const hostname = parsedUrl.hostname.toLowerCase();
+    const pathname = parsedUrl.pathname.toLowerCase();
+
+    /*
+     * Accept only the Doqfy Aadhaar signing-page URL.
+     * Do not return the nested eMudhra URL.
+     */
+    const isDoqfyUrl =
+      hostname === "prod.doqfy.in" ||
+      hostname.endsWith(".doqfy.in");
+
+    const isAadhaarLink =
+      pathname === "/aadhaarlink" ||
+      pathname.endsWith("/aadhaarlink");
+
+    if (!isDoqfyUrl || !isAadhaarLink) {
+      return null;
+    }
+
+    /*
+     * The stored signatory_id may accidentally contain encoded
+     * JSON after the real ID:
+     *
+     * SEQFYB4WGHK%22%7D,%7B...
+     *
+     * URLSearchParams decodes that value, so retain only the
+     * valid identifier at the beginning.
+     */
+    const rawEsignId =
+      parsedUrl.searchParams.get("esign_id");
+
+    const rawSignatoryId =
+      parsedUrl.searchParams.get("signatory_id");
+
+    const esignId =
+      String(rawEsignId || "")
+        .match(/^[A-Za-z0-9_-]+/)?.[0] || null;
+
+    const signatoryId =
+      String(rawSignatoryId || "")
+        .match(/^[A-Za-z0-9_-]+/)?.[0] || null;
+
+    if (!esignId || !signatoryId) {
+      return null;
+    }
+
+    /*
+     * Rebuild a clean URL containing only the required fields.
+     */
+    const cleanUrl = new URL(
+      `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}`,
+    );
+
+    cleanUrl.searchParams.set(
+      "esign_id",
+      esignId,
+    );
+
+    cleanUrl.searchParams.set(
+      "signatory_id",
+      signatoryId,
+    );
+
+    return cleanUrl.toString();
+  } catch (error) {
+    console.warn(
+      "[Clayyo Agreement] Invalid Doqfy URL:",
+      error.message,
+    );
+
+    return null;
+  }
+};
+
+const findDoqfyAgreementUrl = (
+  value,
+  depth = 0,
+) => {
+  if (
+    value === null ||
+    value === undefined ||
+    depth > 12
+  ) {
+    return null;
+  }
+
+  /*
+   * The value itself may be the URL.
+   */
+  if (typeof value === "string") {
+    return cleanDoqfyAgreementUrl(value);
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const result = findDoqfyAgreementUrl(
+        item,
+        depth + 1,
+      );
+
+      if (result) return result;
+    }
+
+    return null;
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  /*
+   * Check likely URL fields first.
+   */
+  const prioritizedKeys = [
+    "agreement_url",
+    "aadhaar_link",
+    "aadhaarLink",
+    "redirect_url",
+    "redirectUrl",
+    "sign_url",
+    "signUrl",
+    "url",
+    "link",
+  ];
+
+  for (const key of prioritizedKeys) {
+    const result = findDoqfyAgreementUrl(
+      value[key],
+      depth + 1,
+    );
+
+    if (result) return result;
+  }
+
+  /*
+   * Then safely search the remaining nested response.
+   */
+  for (const nestedValue of Object.values(value)) {
+    const result = findDoqfyAgreementUrl(
+      nestedValue,
+      depth + 1,
+    );
+
+    if (result) return result;
+  }
+
+  return null;
+};
+const extractAgreementUrl = (rawResponse) => {
+  const parsedResponse =
+    safeParseJson(rawResponse);
+
+  if (!parsedResponse) {
+    return null;
+  }
+
+  /*
+   * Returns only the Doqfy Aadhaar redirect link.
+   * It will ignore the internal eMudhra URL.
+   */
+  return findDoqfyAgreementUrl(
+    parsedResponse,
+  );
+};
+
+// router.get("/loan-info/:lan", async (req, res) => {
+//   const { lan } = req.params;
+
+//   try {
+//     const [rows] = await db.promise().query(
+//       `
+//       SELECT
+//         lb.lan,
+//         lb.app_id,
+//         lb.login_date,
+//         lb.customer_name,
+//         lb.gender,
+//         lb.dob,
+//         lb.mobile_number,
+//         lb.email_id,
+//         lb.pan_number,
+//         lb.patient_name,
+
+//         lb.current_address,
+//         lb.current_village_city,
+//         lb.current_district,
+//         lb.current_state,
+//         lb.current_pincode,
+
+//         lb.permanent_address,
+//         lb.permanent_village_city,
+//         lb.permanent_district,
+//         lb.permanent_state,
+//         lb.permanent_pincode,
+
+//         lb.employment_type,
+//         lb.policy_type,
+//         lb.net_monthly_income,
+
+//         lb.loan_amount,
+//         lb.interest_rate,
+//         lb.loan_tenure,
+//         lb.emi_amount,
+//         lb.cibil_score,
+//         lb.status,
+//         lb.disbursed_at,
+
+//         lb.bank_name,
+//         lb.name_in_bank,
+//         lb.account_number,
+//         lb.ifsc,
+//         lb.bank_branch,
+//         lb.bank_status,
+
+//         lb.enach_umrn,
+//         lb.enach_auth_url,
+
+//         lb.bank_details_updated_once,
+//         lb.bank_details_updated_at,
+
+//         lb.applicant_email_updated_once,
+//         lb.applicant_email_updated_at,
+
+//         lb.insurance_cost,
+//         lb.insurance_company_name,
+//         lb.insurance_policy_holder_name,
+//         lb.insurance_policy_number,
+//         lb.insurance_policy_issued_date,
+//         lb.insurance_period,
+//         lb.insurance_details_submitted_once,
+//         lb.insurance_details_submitted_at,
+//         lb.relation_with_policy_holder,
+
+//         lb.final_limit,
+//         lb.approved_limit,
+//         lb.pf_percent,
+//         lb.subvention_percent,
+//         lb.updated_subvention,
+//         lb.limit_assigned_at,
+//         lb.limit_assigned_by,
+//         lb.stage,
+//         lb.limit_rework_required,
+//         lb.limit_rework_reason,
+//         lb.ops_approved_at,
+//         lb.ops_approved_by,
+
+//         COALESCE(
+//           ch.hospital_legal_name,
+//           lb.hospital_name
+//         ) AS hospital_legal_name,
+
+//         lb.hospital_id,
+
+//         lb.clayyo_bre_status,
+//         lb.clayyo_bre_reason,
+//         lb.clayyo_bre_checked_at,
+
+//         lb.clayyo_bureau_score,
+//         lb.clayyo_enquiries_30d,
+
+//         lb.clayyo_dpd_3m_flag,
+//         lb.clayyo_dpd_12m_count,
+//         lb.clayyo_dpd_24m_60_flag,
+//         lb.clayyo_dpd_36m_90_flag,
+
+//         lb.clayyo_overdue_flag,
+//         lb.clayyo_writtenoff_flag,
+//         lb.clayyo_moratorium_flag,
+//         lb.clayyo_restructured_flag,
+
+//         lb.agreement_esign_status,
+
+//         (
+//   SELECT ed.raw_response
+//   FROM esign_documents ed
+//   WHERE ed.lan = lb.lan
+//     AND ed.document_type = 'AGREEMENT'
+//   ORDER BY ed.id DESC
+//   LIMIT 1
+// ) AS agreement_raw_response,
+
+//         k.pan_status AS kyc_pan_status,
+//         k.aadhaar_status AS kyc_aadhaar_status,
+//         k.bureau_status AS kyc_bureau_status,
+//         k.aadhaar_kyc_url AS borrower_aadhaar_url
+
+//       FROM loan_booking_clayyo lb
+
+//       LEFT JOIN kyc_verification_status k
+//         ON k.lan = lb.lan
+
+//       LEFT JOIN clayyo_hospital_booking ch
+//         ON ch.id = lb.hospital_id
+
+//       WHERE lb.lan = ?
+//       LIMIT 1
+//       `,
+//       [lan],
+//     );
+
+//     if (!rows.length) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Loan not found",
+//       });
+//     }
+
+//     const row = rows[0];
+
+//     /*
+//      * Returns the signing URL or null.
+//      * Missing/invalid raw_response will not crash this API.
+//      */
+//     const agreementUrl = extractAgreementUrl(
+//       row.agreement_raw_response,
+//     );
+
+//     const loan = {
+//       lan: row.lan,
+//       app_id: row.app_id,
+//       login_date: row.login_date,
+//       customer_name: row.customer_name,
+//       gender: row.gender,
+//       dob: row.dob,
+//       mobile_number: row.mobile_number,
+//       email_id: row.email_id,
+//       pan_number: row.pan_number,
+//       patient_name: row.patient_name,
+
+//       current_address: row.current_address,
+//       current_village_city: row.current_village_city,
+//       current_district: row.current_district,
+//       current_state: row.current_state,
+//       current_pincode: row.current_pincode,
+
+//       permanent_address: row.permanent_address,
+//       permanent_village_city: row.permanent_village_city,
+//       permanent_district: row.permanent_district,
+//       permanent_state: row.permanent_state,
+//       permanent_pincode: row.permanent_pincode,
+
+//       employment_type: row.employment_type,
+//       policy_type: row.policy_type,
+//       net_monthly_income: row.net_monthly_income,
+
+//       loan_amount: row.loan_amount,
+//       interest_rate: row.interest_rate,
+//       loan_tenure: row.loan_tenure,
+//       emi_amount: row.emi_amount,
+//       cibil_score: row.cibil_score,
+//       status: row.status,
+//       stage: row.stage,
+//       disbursed_at: row.disbursed_at,
+
+//       bank_name: row.bank_name,
+//       name_in_bank: row.name_in_bank,
+//       account_number: row.account_number,
+//       ifsc: row.ifsc,
+//       bank_branch: row.bank_branch,
+
+//       /*
+//        * Guarantor and co-applicant URLs are currently
+//        * not available in the Clayyo backend.
+//        * Returning null makes the frontend display
+//        * "Not Available" without breaking.
+//        */
+//       verification_links: {
+//         borrower_aadhaar_url:
+//           row.borrower_aadhaar_url || null,
+
+//         agreement_url:
+//           agreementUrl || null,
+//       },
+
+//       nach_details: {
+//         auth_url:
+//           row.enach_auth_url || null,
+
+//         umrn:
+//           row.enach_umrn || null,
+//       },
+
+//       update_status: {
+//         bank_details_updated_once: Boolean(
+//           Number(
+//             row.bank_details_updated_once || 0,
+//           ),
+//         ),
+
+//         bank_details_updated_at:
+//           row.bank_details_updated_at || null,
+
+//         applicant_email_updated_once: Boolean(
+//           Number(
+//             row.applicant_email_updated_once || 0,
+//           ),
+//         ),
+
+//         applicant_email_updated_at:
+//           row.applicant_email_updated_at || null,
+//       },
+
+//       /*
+//        * Structure required by ClayyoUpdateData.jsx.
+//        */
+//       insurance_details: {
+//         insurance_cost:
+//           row.insurance_cost ?? "0.00",
+
+//         insurance_provider:
+//           row.insurance_company_name || null,
+
+//         policy_number:
+//           row.insurance_policy_number || null,
+
+//         policy_issued_date:
+//           row.insurance_policy_issued_date || null,
+
+//         period_of_insurance:
+//           row.insurance_period || null,
+
+//         submitted: Boolean(
+//           Number(
+//             row.insurance_details_submitted_once || 0,
+//           ),
+//         ),
+
+//         submitted_at:
+//           row.insurance_details_submitted_at || null,
+//       },
+
+//       /*
+//        * Existing insurance fields retained.
+//        */
+//       insurance_company_name:
+//         row.insurance_company_name,
+
+//       insurance_policy_holder_name:
+//         row.insurance_policy_holder_name,
+
+//       insurance_policy_number:
+//         row.insurance_policy_number,
+
+//       relation_with_policy_holder:
+//         row.relation_with_policy_holder,
+
+//       final_limit: row.final_limit,
+//       approved_limit: row.approved_limit,
+//       pf_percent: row.pf_percent,
+//       subvention_percent: row.subvention_percent,
+//       updated_subvention: row.updated_subvention,
+//       limit_assigned_at: row.limit_assigned_at,
+//       limit_assigned_by: row.limit_assigned_by,
+
+//       limit_rework_required:
+//         row.limit_rework_required,
+
+//       limit_rework_reason:
+//         row.limit_rework_reason,
+
+//       ops_approved_at:
+//         row.ops_approved_at,
+
+//       ops_approved_by:
+//         row.ops_approved_by,
+
+//       hospital_name:
+//         row.hospital_legal_name,
+
+//       hospital_id:
+//         row.hospital_id,
+
+//       clayyo_bre_status:
+//         row.clayyo_bre_status,
+
+//       clayyo_bre_reason:
+//         row.clayyo_bre_reason,
+
+//       clayyo_bre_checked_at:
+//         row.clayyo_bre_checked_at,
+
+//       clayyo_bureau_score:
+//         row.clayyo_bureau_score,
+
+//       clayyo_enquiries_30d:
+//         row.clayyo_enquiries_30d,
+
+//       clayyo_dpd_3m_flag:
+//         row.clayyo_dpd_3m_flag,
+
+//       clayyo_dpd_12m_count:
+//         row.clayyo_dpd_12m_count,
+
+//       clayyo_dpd_24m_60_flag:
+//         row.clayyo_dpd_24m_60_flag,
+
+//       clayyo_dpd_36m_90_flag:
+//         row.clayyo_dpd_36m_90_flag,
+
+//       clayyo_overdue_flag:
+//         row.clayyo_overdue_flag,
+
+//       clayyo_writtenoff_flag:
+//         row.clayyo_writtenoff_flag,
+
+//       clayyo_moratorium_flag:
+//         row.clayyo_moratorium_flag,
+
+//       clayyo_restructured_flag:
+//         row.clayyo_restructured_flag,
+//     };
+
+//     const kyc = {
+//       pan_status:
+//         row.kyc_pan_status || "PENDING",
+
+//       aadhaar_status:
+//         row.kyc_aadhaar_status || "PENDING",
+
+//       bureau_status:
+//         row.kyc_bureau_status || "PENDING",
+
+//       agreement_esign_status:
+//         row.agreement_esign_status || "PENDING",
+
+//       bank_status:
+//         row.bank_status || "PENDING",
+//     };
+
+//     return res.json({
+//       success: true,
+//       loan,
+//       kyc,
+//     });
+//   } catch (err) {
+//     console.error(
+//       "❌ Error fetching Clayyo loan details:",
+//       err,
+//     );
+
+//     return res.status(500).json({
+//       success: false,
+//       message:
+//         "Failed to fetch Clayyo loan details",
+//       error:
+//         err.sqlMessage || err.message,
+//     });
+//   }
+// });
+
+router.get("/loan-info/:lan", async (req, res) => {
+  const lan = normalizeText(req.params.lan).toUpperCase();
+
+  if (!lan) {
+    return res.status(400).json({
+      success: false,
+      message: "LAN is required",
+    });
+  }
+
+  /*
+   * Allows the same code to work when UAT and production
+   * database schemas are not completely identical.
+   */
+  const runOptionalQuery = async (
+    label,
+    sql,
+    params = [],
+  ) => {
+    try {
+      const [rows] = await db
+        .promise()
+        .query(sql, params);
+
+      return rows;
+    } catch (error) {
+      if (
+        error.code === "ER_NO_SUCH_TABLE" ||
+        error.code === "ER_BAD_FIELD_ERROR"
+      ) {
+        console.warn(
+          `[Clayyo loan-info] Optional ${label} data unavailable:`,
+          error.message,
+        );
+
+        return [];
+      }
+
+      throw error;
+    }
+  };
+
+  try {
+    /*
+     * SELECT * is intentional.
+     *
+     * Missing optional columns in production will not
+     * cause an Unknown column error.
+     */
+    const [loanRows] = await db.promise().query(
       `
-      SELECT
-        lb.lan,
-        lb.app_id,
-        lb.login_date,
-        lb.customer_name,
-        lb.gender,
-        lb.dob,
-        lb.mobile_number,
-        lb.email_id,
-        lb.pan_number,
-        lb.patient_name,
-
-        lb.current_address,
-        lb.current_village_city,
-        lb.current_district,
-        lb.current_state,
-        lb.current_pincode,
-
-        lb.permanent_address,
-        lb.permanent_village_city,
-        lb.permanent_district,
-        lb.permanent_state,
-        lb.permanent_pincode,
-
-        lb.employment_type,
-        lb.policy_type,
-        lb.net_monthly_income,
-
-        lb.loan_amount,
-        lb.interest_rate,
-        lb.loan_tenure,
-        lb.emi_amount,
-        lb.cibil_score,
-        lb.status,
-        lb.disbursed_at,
-
-        lb.bank_name,
-        lb.name_in_bank,
-        lb.account_number,
-        lb.ifsc,
-        lb.bank_branch,
-        lb.bank_status,
-        lb.enach_umrn,
-
-        lb.insurance_company_name,
-        lb.insurance_policy_holder_name,
-        lb.insurance_policy_number,
-        lb.relation_with_policy_holder,
-
-        lb.final_limit,
-        lb.approved_limit,
-        lb.pf_percent,
-        lb.subvention_percent,
-        lb.updated_subvention,
-        lb.limit_assigned_at,
-        lb.limit_assigned_by,
-        lb.stage,
-        lb.limit_rework_required,
-        lb.limit_rework_reason,
-        lb.ops_approved_at,
-        lb.ops_approved_by,
-
-        COALESCE(ch.hospital_legal_name, lb.hospital_name) AS hospital_legal_name,
-        lb.hospital_id,
-
-        lb.clayyo_bre_status,
-        lb.clayyo_bre_reason,
-        lb.clayyo_bre_checked_at,
-
-        lb.clayyo_bureau_score,
-        lb.clayyo_enquiries_30d,
-
-        lb.clayyo_dpd_3m_flag,
-        lb.clayyo_dpd_12m_count,
-        lb.clayyo_dpd_24m_60_flag,
-        lb.clayyo_dpd_36m_90_flag,
-
-        lb.clayyo_overdue_flag,
-        lb.clayyo_writtenoff_flag,
-        lb.clayyo_moratorium_flag,
-        lb.clayyo_restructured_flag,
-        lb.agreement_esign_status,
-        lb.bank_status,
-
-        k.pan_status      AS kyc_pan_status,
-        k.aadhaar_status  AS kyc_aadhaar_status,
-        k.bureau_status   AS kyc_bureau_status
-
-      FROM loan_booking_clayyo lb
-      LEFT JOIN kyc_verification_status k
-        ON k.lan = lb.lan
-      LEFT JOIN clayyo_hospital_booking ch
-        ON ch.id = lb.hospital_id
-      WHERE lb.lan = ?
+      SELECT *
+      FROM loan_booking_clayyo
+      WHERE lan = ?
+      LIMIT 1
       `,
       [lan],
     );
 
-    if (!rows.length) {
-      return res.status(404).json({ message: "Loan not found" });
+    if (!loanRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Loan not found",
+      });
     }
 
-    const row = rows[0];
+    const row = loanRows[0];
+
+    const [
+      kycRows,
+      agreementRows,
+      nachRows,
+      hospitalRows,
+    ] = await Promise.all([
+      runOptionalQuery(
+        "KYC",
+        `
+        SELECT *
+        FROM kyc_verification_status
+        WHERE lan = ?
+        LIMIT 1
+        `,
+        [lan],
+      ),
+
+      runOptionalQuery(
+        "agreement",
+        `
+        SELECT raw_response
+        FROM esign_documents
+        WHERE lan = ?
+          AND document_type = 'AGREEMENT'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [lan],
+      ),
+
+      /*
+       * NACH authentication link still comes from
+       * enach_mandates.auth_url.
+       *
+       * UMRN from this query is only a fallback because
+       * loan_booking_clayyo.enach_umrn is preferred below.
+       */
+      runOptionalQuery(
+        "NACH",
+        `
+        SELECT
+          (
+            SELECT em1.auth_url
+            FROM enach_mandates em1
+            WHERE em1.lan = ?
+              AND em1.auth_url IS NOT NULL
+              AND TRIM(em1.auth_url) <> ''
+            ORDER BY em1.id DESC
+            LIMIT 1
+          ) AS auth_url,
+
+          (
+            SELECT em2.umrn
+            FROM enach_mandates em2
+            WHERE em2.lan = ?
+              AND em2.umrn IS NOT NULL
+              AND TRIM(em2.umrn) <> ''
+            ORDER BY em2.id DESC
+            LIMIT 1
+          ) AS umrn,
+
+          (
+            SELECT em3.status
+            FROM enach_mandates em3
+            WHERE em3.lan = ?
+            ORDER BY em3.id DESC
+            LIMIT 1
+          ) AS status,
+
+          (
+            SELECT em4.document_id
+            FROM enach_mandates em4
+            WHERE em4.lan = ?
+            ORDER BY em4.id DESC
+            LIMIT 1
+          ) AS document_id
+        `,
+        [
+          lan,
+          lan,
+          lan,
+          lan,
+        ],
+      ),
+
+      row.hospital_id
+        ? runOptionalQuery(
+            "hospital",
+            `
+            SELECT hospital_legal_name
+            FROM clayyo_hospital_booking
+            WHERE id = ?
+            LIMIT 1
+            `,
+            [row.hospital_id],
+          )
+        : Promise.resolve([]),
+    ]);
+
+    const kycRow = kycRows[0] || {};
+    const agreementRow = agreementRows[0] || {};
+    const nachRow = nachRows[0] || {};
+    const hospitalRow = hospitalRows[0] || {};
+
+    /*
+     * Agreement URL.
+     */
+    const agreementUrl = extractAgreementUrl(
+      agreementRow.raw_response,
+    );
+
+    const hospitalName =
+      hospitalRow.hospital_legal_name ||
+      row.hospital_name ||
+      null;
+
+    /*
+     * --------------------------------------------------
+     * NACH values
+     * --------------------------------------------------
+     */
+
+    /*
+     * UMRN priority:
+     *
+     * 1. loan_booking_clayyo.enach_umrn
+     * 2. enach_mandates.umrn
+     */
+    const loanTableUmrn = normalizeText(
+      row.enach_umrn,
+    );
+
+    const mandateTableUmrn = normalizeText(
+      nachRow.umrn,
+    );
+
+    const resolvedNachUmrn =
+      loanTableUmrn ||
+      mandateTableUmrn ||
+      null;
+
+    /*
+     * Authentication URL priority:
+     *
+     * 1. enach_mandates.auth_url
+     * 2. loan_booking_clayyo.enach_auth_url
+     */
+    const mandateAuthUrl = normalizeText(
+      nachRow.auth_url,
+    );
+
+    const loanTableAuthUrl = normalizeText(
+      row.enach_auth_url,
+    );
+
+    const resolvedNachAuthUrl =
+      mandateAuthUrl ||
+      loanTableAuthUrl ||
+      null;
+
+    /*
+     * --------------------------------------------------
+     * Insurance lock rules
+     * --------------------------------------------------
+     *
+     * Disable Update Insurance button when:
+     *
+     * 1. insurance_cost is greater than zero, OR
+     * 2. insurance_details_submitted_once is true.
+     */
+
+    const insuranceCostValue =
+      row.insurance_cost;
+
+    const parsedInsuranceCost = Number(
+      insuranceCostValue,
+    );
+
+    const hasExistingInsuranceCost =
+      insuranceCostValue !== undefined &&
+      insuranceCostValue !== null &&
+      String(insuranceCostValue).trim() !== "" &&
+      Number.isFinite(parsedInsuranceCost) &&
+      parsedInsuranceCost > 0;
+
+    const insuranceAlreadySubmitted = Boolean(
+      Number(
+        row.insurance_details_submitted_once || 0,
+      ),
+    );
+
+    const insuranceUpdateDisabled =
+      hasExistingInsuranceCost ||
+      insuranceAlreadySubmitted;
+
+    console.log("[CLAYYO LOAN INFO]", {
+      lan,
+
+      agreementUrlFound:
+        Boolean(agreementUrl),
+
+      nachAuthUrlFound:
+        Boolean(resolvedNachAuthUrl),
+
+      nachUmrnFound:
+        Boolean(resolvedNachUmrn),
+
+      nachStatus:
+        nachRow.status || null,
+
+      nachDocumentId:
+        nachRow.document_id || null,
+
+      nachUmrnSource:
+        loanTableUmrn
+          ? "loan_booking_clayyo"
+          : mandateTableUmrn
+            ? "enach_mandates"
+            : null,
+
+      insuranceCost:
+        row.insurance_cost ?? null,
+
+      insuranceAlreadySubmitted,
+
+      insuranceUpdateDisabled,
+    });
 
     const loan = {
-      lan: row.lan,
-      app_id: row.app_id,
-      login_date: row.login_date,
-      customer_name: row.customer_name,
-      gender: row.gender,
-      dob: row.dob,
-      mobile_number: row.mobile_number,
-      email_id: row.email_id,
-      pan_number: row.pan_number,
-      patient_name: row.patient_name,
+      lan:
+        row.lan,
 
-      current_address: row.current_address,
-      current_village_city: row.current_village_city,
-      current_district: row.current_district,
-      current_state: row.current_state,
-      current_pincode: row.current_pincode,
+      app_id:
+        row.app_id || null,
 
-      permanent_address: row.permanent_address,
-      permanent_village_city: row.permanent_village_city,
-      permanent_district: row.permanent_district,
-      permanent_state: row.permanent_state,
-      permanent_pincode: row.permanent_pincode,
+      login_date:
+        row.login_date || null,
 
-      employment_type: row.employment_type,
-      policy_type: row.policy_type,
-      net_monthly_income: row.net_monthly_income,
+      customer_name:
+        row.customer_name || null,
 
-      loan_amount: row.loan_amount,
-      interest_rate: row.interest_rate,
-      loan_tenure: row.loan_tenure,
-      emi_amount: row.emi_amount,
-      cibil_score: row.cibil_score,
-      status: row.status,
-      disbursed_at: row.disbursed_at,
+      gender:
+        row.gender || null,
 
-      bank_name: row.bank_name,
-      name_in_bank: row.name_in_bank,
-      account_number: row.account_number,
-      ifsc: row.ifsc,
-      bank_branch: row.bank_branch,
+      dob:
+        row.dob || null,
 
-      insurance_company_name: row.insurance_company_name,
-      insurance_policy_holder_name: row.insurance_policy_holder_name,
-      insurance_policy_number: row.insurance_policy_number,
-      relation_with_policy_holder: row.relation_with_policy_holder,
+      mobile_number:
+        row.mobile_number || null,
 
-      final_limit: row.final_limit,
-      approved_limit: row.approved_limit,
-      pf_percent: row.pf_percent,
-      subvention_percent: row.subvention_percent,
-      updated_subvention: row.updated_subvention,
-      limit_assigned_at: row.limit_assigned_at,
-      limit_assigned_by: row.limit_assigned_by,
-      ops_approved_at: row.ops_approved_at,
-      ops_approved_by: row.ops_approved_by,
+      email_id:
+        row.email_id || null,
 
-      hospital_name: row.hospital_legal_name,
-      hospital_id: row.hospital_id,
+      pan_number:
+        row.pan_number || null,
 
-      clayyo_bre_status: row.clayyo_bre_status,
-      clayyo_bre_reason: row.clayyo_bre_reason,
-      clayyo_bre_checked_at: row.clayyo_bre_checked_at,
+      patient_name:
+        row.patient_name || null,
 
-      clayyo_bureau_score: row.clayyo_bureau_score,
-      clayyo_enquiries_30d: row.clayyo_enquiries_30d,
+      current_address:
+        row.current_address || null,
 
-      clayyo_dpd_3m_flag: row.clayyo_dpd_3m_flag,
-      clayyo_dpd_12m_count: row.clayyo_dpd_12m_count,
-      clayyo_dpd_24m_60_flag: row.clayyo_dpd_24m_60_flag,
-      clayyo_dpd_36m_90_flag: row.clayyo_dpd_36m_90_flag,
+      current_village_city:
+        row.current_village_city || null,
 
-      clayyo_overdue_flag: row.clayyo_overdue_flag,
-      clayyo_writtenoff_flag: row.clayyo_writtenoff_flag,
-      clayyo_moratorium_flag: row.clayyo_moratorium_flag,
-      clayyo_restructured_flag: row.clayyo_restructured_flag,
+      current_district:
+        row.current_district || null,
+
+      current_state:
+        row.current_state || null,
+
+      current_pincode:
+        row.current_pincode || null,
+
+      permanent_address:
+        row.permanent_address || null,
+
+      permanent_village_city:
+        row.permanent_village_city || null,
+
+      permanent_district:
+        row.permanent_district || null,
+
+      permanent_state:
+        row.permanent_state || null,
+
+      permanent_pincode:
+        row.permanent_pincode || null,
+
+      employment_type:
+        row.employment_type || null,
+
+      policy_type:
+        row.policy_type || null,
+
+      net_monthly_income:
+        row.net_monthly_income ?? null,
+
+      loan_amount:
+        row.loan_amount ?? null,
+
+      interest_rate:
+        row.interest_rate ?? null,
+
+      loan_tenure:
+        row.loan_tenure ?? null,
+
+      emi_amount:
+        row.emi_amount ?? null,
+
+      cibil_score:
+        row.cibil_score ?? null,
+
+      status:
+        row.status || null,
+
+      stage:
+        row.stage || null,
+
+      disbursed_at:
+        row.disbursed_at || null,
+
+      bank_name:
+        row.bank_name || null,
+
+      name_in_bank:
+        row.name_in_bank || null,
+
+      account_number:
+        row.account_number || null,
+
+      ifsc:
+        row.ifsc || null,
+
+      bank_branch:
+        row.bank_branch || null,
+
+      verification_links: {
+        borrower_aadhaar_url:
+          kycRow.aadhaar_kyc_url || null,
+
+        agreement_url:
+          agreementUrl || null,
+      },
+
+      /*
+       * NACH section returned to frontend.
+       */
+      nach_details: {
+        auth_url:
+          resolvedNachAuthUrl,
+
+        /*
+         * Primarily fetched from:
+         * loan_booking_clayyo.enach_umrn
+         */
+        umrn:
+          resolvedNachUmrn,
+
+        /*
+         * NACH is treated as completed when a UMRN exists.
+         */
+        completed:
+          Boolean(resolvedNachUmrn),
+
+        status:
+          nachRow.status || null,
+
+        document_id:
+          nachRow.document_id || null,
+
+        umrn_source:
+          loanTableUmrn
+            ? "loan_booking_clayyo"
+            : mandateTableUmrn
+              ? "enach_mandates"
+              : null,
+      },
+
+      update_status: {
+        bank_details_updated_once:
+          Boolean(
+            Number(
+              row.bank_details_updated_once || 0,
+            ),
+          ),
+
+        bank_details_updated_at:
+          row.bank_details_updated_at || null,
+
+        applicant_email_updated_once:
+          Boolean(
+            Number(
+              row.applicant_email_updated_once || 0,
+            ),
+          ),
+
+        applicant_email_updated_at:
+          row.applicant_email_updated_at || null,
+      },
+
+      /*
+       * Insurance details and frontend button controls.
+       */
+      insurance_details: {
+        insurance_cost:
+          row.insurance_cost ?? "0.00",
+
+        insurance_provider:
+          row.insurance_company_name || null,
+
+        policy_number:
+          row.insurance_policy_number || null,
+
+        policy_issued_date:
+          row.insurance_policy_issued_date || null,
+
+        period_of_insurance:
+          row.insurance_period || null,
+
+        submitted:
+          insuranceAlreadySubmitted,
+
+        submitted_at:
+          row.insurance_details_submitted_at || null,
+
+        /*
+         * True when insurance_cost > 0.
+         */
+        has_existing_cost:
+          hasExistingInsuranceCost,
+
+        /*
+         * Use this field to disable the JSX button.
+         */
+        update_disabled:
+          insuranceUpdateDisabled,
+
+        can_update:
+          !insuranceUpdateDisabled,
+
+        lock_reason:
+          insuranceUpdateDisabled
+            ? insuranceAlreadySubmitted
+              ? "Insurance details have already been submitted"
+              : "Insurance cost already exists for this loan"
+            : null,
+      },
+
+      insurance_company_name:
+        row.insurance_company_name || null,
+
+      insurance_policy_holder_name:
+        row.insurance_policy_holder_name || null,
+
+      insurance_policy_number:
+        row.insurance_policy_number || null,
+
+      relation_with_policy_holder:
+        row.relation_with_policy_holder || null,
+
+      final_limit:
+        row.final_limit ?? null,
+
+      approved_limit:
+        row.approved_limit ?? null,
+
+      pf_percent:
+        row.pf_percent ?? null,
+
+      subvention_percent:
+        row.subvention_percent ?? null,
+
+      updated_subvention:
+        row.updated_subvention ?? null,
+
+      limit_assigned_at:
+        row.limit_assigned_at || null,
+
+      limit_assigned_by:
+        row.limit_assigned_by || null,
+
+      limit_rework_required:
+        row.limit_rework_required ?? null,
+
+      limit_rework_reason:
+        row.limit_rework_reason || null,
+
+      ops_approved_at:
+        row.ops_approved_at || null,
+
+      ops_approved_by:
+        row.ops_approved_by || null,
+
+      hospital_name:
+        hospitalName,
+
+      hospital_id:
+        row.hospital_id || null,
+
+      clayyo_bre_status:
+        row.clayyo_bre_status || null,
+
+      clayyo_bre_reason:
+        row.clayyo_bre_reason || null,
+
+      clayyo_bre_checked_at:
+        row.clayyo_bre_checked_at || null,
+
+      clayyo_bureau_score:
+        row.clayyo_bureau_score ?? null,
+
+      clayyo_enquiries_30d:
+        row.clayyo_enquiries_30d ?? null,
+
+      clayyo_dpd_3m_flag:
+        row.clayyo_dpd_3m_flag ?? null,
+
+      clayyo_dpd_12m_count:
+        row.clayyo_dpd_12m_count ?? null,
+
+      clayyo_dpd_24m_60_flag:
+        row.clayyo_dpd_24m_60_flag ?? null,
+
+      clayyo_dpd_36m_90_flag:
+        row.clayyo_dpd_36m_90_flag ?? null,
+
+      clayyo_overdue_flag:
+        row.clayyo_overdue_flag ?? null,
+
+      clayyo_writtenoff_flag:
+        row.clayyo_writtenoff_flag ?? null,
+
+      clayyo_moratorium_flag:
+        row.clayyo_moratorium_flag ?? null,
+
+      clayyo_restructured_flag:
+        row.clayyo_restructured_flag ?? null,
     };
 
     const kyc = {
-      pan_status: row.kyc_pan_status || "PENDING",
-      aadhaar_status: row.kyc_aadhaar_status || "PENDING",
-      bureau_status: row.kyc_bureau_status || "PENDING",
-      agreement_esign_status: row.agreement_esign_status || "PENDING",
-      bank_status: row.bank_status || "PENDING",
+      pan_status:
+        kycRow.pan_status || "PENDING",
+
+      aadhaar_status:
+        kycRow.aadhaar_status || "PENDING",
+
+      bureau_status:
+        kycRow.bureau_status || "PENDING",
+
+      agreement_esign_status:
+        row.agreement_esign_status || "PENDING",
+
+      bank_status:
+        row.bank_status || "PENDING",
     };
 
-    return res.json({ loan, kyc });
+    return res.status(200).json({
+      success: true,
+      loan,
+      kyc,
+    });
   } catch (err) {
-    console.error("❌ Error fetching Clayyo loan details:", err);
+    console.error(
+      "❌ Error fetching Clayyo loan details:",
+      err,
+    );
+
     return res.status(500).json({
-      message: "Failed to fetch Clayyo loan details",
-      error: err.sqlMessage || err.message,
+      success: false,
+      message:
+        "Failed to fetch Clayyo loan details",
+      error:
+        err.sqlMessage || err.message,
     });
   }
 });
 
-//// Loan Aggreement PDF Generation Route
 router.get("/:lan/pdf", async (req, res) => {
   const { lan } = req.params;
 
@@ -1970,5 +3297,603 @@ router.put("/approve-bre-loan/:lan", async (req, res) => {
     res.json({ message: "Loan approved successfully", lan });
   });
 });
+
+router.patch("/bank-details/:lan", async (req, res) => {
+  try {
+    const { lan } = req.params;
+
+    const bankName = normalizeText(
+      req.body.bank_name,
+    );
+
+    const accountHolderName = normalizeText(
+      req.body.name_in_bank,
+    );
+
+    const accountNumber = normalizeText(
+      req.body.account_number,
+    ).replace(/\s+/g, "");
+
+    const ifsc = normalizeText(
+      req.body.ifsc,
+    ).toUpperCase();
+
+    const bankBranch = normalizeText(
+      req.body.bank_branch,
+    );
+
+    if (
+      !bankName ||
+      !accountHolderName ||
+      !accountNumber ||
+      !ifsc
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Bank name, account holder name, account number and IFSC are required.",
+      });
+    }
+
+    /*
+     * Indian bank account numbers normally contain
+     * between 6 and 30 numeric digits.
+     */
+    if (!/^\d{6,30}$/.test(accountNumber)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid bank account number.",
+      });
+    }
+
+    /*
+     * Indian IFSC format:
+     * 4 letters + 0 + 6 alphanumeric characters.
+     */
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid IFSC code.",
+      });
+    }
+
+    /*
+     * The updated_once condition prevents a second
+     * update, even if two requests arrive together.
+     */
+    const [result] = await db.promise().query(
+      `
+      UPDATE loan_booking_clayyo
+      SET
+        bank_name = ?,
+        name_in_bank = ?,
+        account_number = ?,
+        ifsc = ?,
+        bank_branch = ?,
+        bank_details_updated_once = 1,
+        bank_details_updated_at = NOW()
+      WHERE lan = ?
+        AND COALESCE(
+          bank_details_updated_once,
+          0
+        ) = 0
+      `,
+      [
+        bankName,
+        accountHolderName,
+        accountNumber,
+        ifsc,
+        bankBranch || null,
+        lan,
+      ],
+    );
+
+    if (!result.affectedRows) {
+      const loan = await getClayyoLoanByLan(lan);
+
+      if (!loan) {
+        return res.status(404).json({
+          success: false,
+          message: "Clayyo loan not found.",
+        });
+      }
+
+      if (
+        Number(
+          loan.bank_details_updated_once || 0,
+        ) === 1
+      ) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Bank details have already been updated once.",
+        });
+      }
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "Bank details could not be updated.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message:
+        "Bank details updated successfully.",
+
+      bank_details: {
+        bank_name: bankName,
+        name_in_bank: accountHolderName,
+        account_number: accountNumber,
+        ifsc,
+        bank_branch: bankBranch || null,
+      },
+
+      update_status: {
+        bank_details_updated_once: true,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Clayyo bank details update error:",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to update bank details.",
+      error:
+        error.sqlMessage || error.message,
+    });
+  }
+});
+
+// Applicant email can be updated only once.
+router.patch("/applicant-email/:lan", async (req, res) => {
+  try {
+    const lan = normalizeText(req.params.lan);
+
+    const email = normalizeText(
+      req.body?.email,
+    ).toLowerCase();
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN is required.",
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Applicant email is required.",
+      });
+    }
+
+    /*
+     * email_id is VARCHAR(150) in loan_booking_clayyo.
+     */
+    if (
+      email.length > 150 ||
+      !EMAIL_REGEX.test(email)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid applicant email address.",
+      });
+    }
+
+    /*
+     * Atomic one-time update.
+     *
+     * The WHERE condition prevents two requests from
+     * updating the email more than once.
+     */
+    const [result] = await db.promise().query(
+      `
+      UPDATE loan_booking_clayyo
+      SET
+        email_id = ?,
+        applicant_email_updated_once = 1,
+        applicant_email_updated_at = NOW()
+      WHERE lan = ?
+        AND COALESCE(
+          applicant_email_updated_once,
+          0
+        ) = 0
+      `,
+      [email, lan],
+    );
+
+    /*
+     * affectedRows = 0 can mean:
+     * 1. The LAN does not exist.
+     * 2. The applicant email was already updated once.
+     */
+    if (result.affectedRows === 0) {
+      const [[existingLoan]] =
+        await db.promise().query(
+          `
+          SELECT
+            lan,
+            email_id,
+            applicant_email_updated_once,
+            applicant_email_updated_at
+          FROM loan_booking_clayyo
+          WHERE lan = ?
+          LIMIT 1
+          `,
+          [lan],
+        );
+
+      if (!existingLoan) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Clayyo loan not found.",
+        });
+      }
+
+      if (
+        Number(
+          existingLoan.applicant_email_updated_once ||
+          0,
+        ) === 1
+      ) {
+        return res.status(409).json({
+          success: false,
+
+          message:
+            "Applicant email has already been updated once.",
+
+          lan: existingLoan.lan,
+
+          email:
+            existingLoan.email_id ||
+            null,
+
+          update_status: {
+            applicant_email_updated_once:
+              true,
+
+            applicant_email_updated_at:
+              existingLoan.applicant_email_updated_at ||
+              null,
+          },
+        });
+      }
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "Applicant email could not be updated.",
+      });
+    }
+
+    /*
+     * Read the final database value so the frontend
+     * receives the exact saved email and timestamp.
+     */
+    const [[updatedLoan]] =
+      await db.promise().query(
+        `
+        SELECT
+          lan,
+          email_id,
+          applicant_email_updated_once,
+          applicant_email_updated_at
+        FROM loan_booking_clayyo
+        WHERE lan = ?
+        LIMIT 1
+        `,
+        [lan],
+      );
+
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "Applicant email updated successfully.",
+
+      lan:
+        updatedLoan?.lan || lan,
+
+      email:
+        updatedLoan?.email_id ||
+        email,
+
+      update_status: {
+        applicant_email_updated_once:
+          Boolean(
+            Number(
+              updatedLoan?.applicant_email_updated_once ||
+              0,
+            ),
+          ),
+
+        applicant_email_updated_at:
+          updatedLoan?.applicant_email_updated_at ||
+          null,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Clayyo applicant email update error:",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        "Failed to update applicant email.",
+
+      error:
+        error.sqlMessage ||
+        error.message,
+    });
+  }
+});
+
+//insurance lan
+router.patch(
+  "/insurance/:lan",
+  async (req, res) => {
+    try {
+      const { lan } = req.params;
+
+      const insuranceCost = Number(
+        req.body.insurance_cost,
+      );
+
+      const insuranceProvider =
+        normalizeText(
+          req.body.insurance_provider,
+        );
+
+      const policyNumber =
+        normalizeText(
+          req.body.policy_number,
+        );
+
+      const policyIssuedDate =
+        normalizeText(
+          req.body.policy_issued_date,
+        );
+
+      const periodOfInsurance =
+        normalizeText(
+          req.body.period_of_insurance,
+        );
+
+      if (
+        !Number.isFinite(insuranceCost) ||
+        insuranceCost < 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please enter a valid insurance cost.",
+        });
+      }
+
+      if (!insuranceProvider) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Insurance provider is required.",
+        });
+      }
+
+      if (insuranceProvider.length > 255) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Insurance provider must not exceed 255 characters.",
+        });
+      }
+
+      if (!policyNumber) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Policy number is required.",
+        });
+      }
+
+      if (policyNumber.length > 255) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Policy number must not exceed 255 characters.",
+        });
+      }
+
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(
+          policyIssuedDate,
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please enter a valid policy issued date.",
+        });
+      }
+
+      const parsedPolicyDate =
+        new Date(
+          `${policyIssuedDate}T00:00:00Z`,
+        );
+
+      if (
+        Number.isNaN(
+          parsedPolicyDate.getTime(),
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please enter a valid policy issued date.",
+        });
+      }
+
+      if (!periodOfInsurance) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Period of insurance is required.",
+        });
+      }
+
+      if (
+        periodOfInsurance.length > 100
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Period of insurance must not exceed 100 characters.",
+        });
+      }
+
+      /*
+       * Atomic one-time submission.
+       */
+      const [result] =
+        await db.promise().query(
+          `
+          UPDATE loan_booking_clayyo
+          SET
+            insurance_cost = ?,
+            insurance_company_name = ?,
+            insurance_policy_number = ?,
+            insurance_policy_issued_date = ?,
+            insurance_period = ?,
+            insurance_details_submitted_once = 1,
+            insurance_details_submitted_at = NOW()
+          WHERE lan = ?
+            AND COALESCE(
+              insurance_details_submitted_once,
+              0
+            ) = 0
+          `,
+          [
+            insuranceCost,
+            insuranceProvider,
+            policyNumber,
+            policyIssuedDate,
+            periodOfInsurance,
+            lan,
+          ],
+        );
+
+      if (!result.affectedRows) {
+        const loan =
+          await getClayyoLoanByLan(lan);
+
+        if (!loan) {
+          return res.status(404).json({
+            success: false,
+            message:
+              "Clayyo loan not found.",
+          });
+        }
+
+        if (
+          Number(
+            loan.insurance_details_submitted_once ||
+            0,
+          ) === 1
+        ) {
+          return res.status(409).json({
+            success: false,
+            message:
+              "Insurance details have already been submitted.",
+          });
+        }
+
+        return res.status(409).json({
+          success: false,
+          message:
+            "Insurance details could not be submitted.",
+        });
+      }
+
+      const [[updatedInsurance]] =
+        await db.promise().query(
+          `
+          SELECT
+            insurance_cost,
+            insurance_company_name,
+            insurance_policy_number,
+            insurance_policy_issued_date,
+            insurance_period,
+            insurance_details_submitted_at
+          FROM loan_booking_clayyo
+          WHERE lan = ?
+          LIMIT 1
+          `,
+          [lan],
+        );
+
+      return res.json({
+        success: true,
+
+        message:
+          "Insurance details submitted successfully.",
+
+        insurance: {
+          insurance_cost:
+            updatedInsurance?.insurance_cost ??
+            insuranceCost,
+
+          insurance_provider:
+            updatedInsurance?.insurance_company_name ||
+            insuranceProvider,
+
+          policy_number:
+            updatedInsurance?.insurance_policy_number ||
+            policyNumber,
+
+          policy_issued_date:
+            updatedInsurance?.insurance_policy_issued_date ||
+            policyIssuedDate,
+
+          period_of_insurance:
+            updatedInsurance?.insurance_period ||
+            periodOfInsurance,
+
+          submitted: true,
+
+          submitted_at:
+            updatedInsurance?.insurance_details_submitted_at ||
+            null,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Clayyo insurance update error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+
+        message:
+          "Failed to submit insurance details.",
+
+        error:
+          error.sqlMessage ||
+          error.message,
+      });
+    }
+  },
+);
 
 module.exports = router;
