@@ -13,10 +13,15 @@ const ClayooRejectedLoans = ({
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+
   const navigate = useNavigate();
 
-  const openClayyoDetails = (lan) => {
-    navigate(`/approved-loan-details-clayoo/${encodeURIComponent(lan)}`);
+  const openApprovedLoanDetails = (lan) => {
+    if (!lan) return;
+
+    navigate(
+      `/approved-loan-details-clayoo-approved/${encodeURIComponent(lan)}`,
+    );
   };
 
   useEffect(() => {
@@ -29,15 +34,27 @@ const ClayooRejectedLoans = ({
       .get(apiUrl)
       .then((response) => {
         if (!cancelled) {
-          setRows(Array.isArray(response.data) ? response.data : []);
+          setRows(
+            Array.isArray(response.data)
+              ? response.data
+              : [],
+          );
         }
       })
       .catch((error) => {
-        console.error("Clayyo loans fetch failed:", error);
-        if (!cancelled) setErr("Failed to fetch data.");
+        console.error(
+          "Clayyo loans fetch failed:",
+          error,
+        );
+
+        if (!cancelled) {
+          setErr("Failed to fetch data.");
+        }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       });
 
     return () => {
@@ -45,22 +62,41 @@ const ClayooRejectedLoans = ({
     };
   }, [apiUrl]);
 
-  const handleStatusChange = async (lan, newStatus, table) => {
+  const handleStatusChange = async (
+    lan,
+    newStatus,
+    table,
+  ) => {
     try {
-      await api.put(`/clayyo-loans/approve-bre-loan/${encodeURIComponent(lan)}`, {
-        status: newStatus,
-        table,
-      });
+      await api.put(
+        `/clayyo-loans/approve-bre-loan/${encodeURIComponent(
+          lan,
+        )}`,
+        {
+          status: newStatus,
+          table,
+        },
+      );
 
-      setRows((previous) => previous.filter((row) => row.lan !== lan));
+      setRows((previous) =>
+        previous.filter((row) => row.lan !== lan),
+      );
     } catch (error) {
-      console.error("Error updating status:", error);
-      alert("Failed to update status. Try again.");
+      console.error(
+        "Error updating status:",
+        error,
+      );
+
+      alert(
+        "Failed to update status. Try again.",
+      );
     }
   };
 
   const pill = (status) => {
-    const normalizedStatus = String(status || "pending")
+    const normalizedStatus = String(
+      status || "pending",
+    )
       .toLowerCase()
       .replaceAll("_", " ");
 
@@ -107,7 +143,8 @@ const ClayooRejectedLoans = ({
       },
     };
 
-    const selected = map[normalizedStatus] || map.pending;
+    const selected =
+      map[normalizedStatus] || map.pending;
 
     return {
       display: "inline-flex",
@@ -130,8 +167,14 @@ const ClayooRejectedLoans = ({
     cursor: "pointer",
     fontSize: 13,
     fontWeight: 700,
-    background: type === "approve" ? "#10b981" : "#ef4444",
-    borderColor: type === "approve" ? "#059669" : "#dc2626",
+    background:
+      type === "approve"
+        ? "#10b981"
+        : "#ef4444",
+    borderColor:
+      type === "approve"
+        ? "#059669"
+        : "#dc2626",
     color: "#fff",
   });
 
@@ -141,6 +184,12 @@ const ClayooRejectedLoans = ({
     fontWeight: 600,
   };
 
+  const clickableTextStyle = {
+    color: "#2563eb",
+    fontWeight: 600,
+    cursor: "pointer",
+  };
+
   const baseColumns = [
     {
       key: "customer_name",
@@ -148,13 +197,19 @@ const ClayooRejectedLoans = ({
       sortable: true,
       render: (row) => (
         <span
-          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => openClayyoDetails(row.lan)}
+          style={clickableTextStyle}
+          onClick={() =>
+            openApprovedLoanDetails(row.lan)
+          }
+          title="View Clayyo approved loan details"
         >
           {row.customer_name ?? "—"}
         </span>
       ),
-      sortAccessor: (row) => (row.customer_name || "").toLowerCase(),
+      sortAccessor: (row) =>
+        (
+          row.customer_name || ""
+        ).toLowerCase(),
       width: 220,
     },
     {
@@ -163,13 +218,19 @@ const ClayooRejectedLoans = ({
       sortable: true,
       render: (row) => (
         <span
-          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => openClayyoDetails(row.lan)}
+          style={clickableTextStyle}
+          onClick={() =>
+            openApprovedLoanDetails(row.lan)
+          }
+          title="View Clayyo approved loan details"
         >
           {row.patient_name ?? "—"}
         </span>
       ),
-      sortAccessor: (row) => (row.patient_name || "").toLowerCase(),
+      sortAccessor: (row) =>
+        (
+          row.patient_name || ""
+        ).toLowerCase(),
       width: 220,
     },
     {
@@ -185,13 +246,17 @@ const ClayooRejectedLoans = ({
       sortable: true,
       render: (row) => (
         <span
-          style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => openClayyoDetails(row.lan)}
+          style={clickableTextStyle}
+          onClick={() =>
+            openApprovedLoanDetails(row.lan)
+          }
+          title="View Clayyo approved loan details"
         >
           {row.lan ?? "—"}
         </span>
       ),
-      sortAccessor: (row) => (row.lan || "").toLowerCase(),
+      sortAccessor: (row) =>
+        (row.lan || "").toLowerCase(),
       width: 140,
     },
     {
@@ -200,12 +265,17 @@ const ClayooRejectedLoans = ({
       sortable: true,
       render: (row) =>
         row.mobile_number ? (
-          <a href={`tel:${row.mobile_number}`} style={link}>
+          <a
+            href={`tel:${row.mobile_number}`}
+            style={link}
+          >
             {row.mobile_number}
           </a>
         ) : (
           "—"
         ),
+      sortAccessor: (row) =>
+        String(row.mobile_number || ""),
       width: 160,
     },
     {
@@ -213,10 +283,14 @@ const ClayooRejectedLoans = ({
       header: "Status",
       sortable: true,
       render: (row) => (
-        <span style={pill(row.status)}>{row.status || "Pending"}</span>
+        <span style={pill(row.status)}>
+          {row.status || "Pending"}
+        </span>
       ),
-      sortAccessor: (row) => (row.status || "").toLowerCase(),
-      csvAccessor: (row) => row.status || "Pending",
+      sortAccessor: (row) =>
+        (row.status || "").toLowerCase(),
+      csvAccessor: (row) =>
+        row.status || "Pending",
       width: 140,
     },
     {
@@ -224,6 +298,8 @@ const ClayooRejectedLoans = ({
       header: "Stage",
       sortable: true,
       render: (row) => row.stage || "—",
+      sortAccessor: (row) =>
+        (row.stage || "").toLowerCase(),
       width: 160,
     },
     {
@@ -232,7 +308,13 @@ const ClayooRejectedLoans = ({
       render: (row) => (
         <button
           type="button"
-          onClick={() => navigate(`/documents/${encodeURIComponent(row.lan)}`)}
+          onClick={() =>
+            navigate(
+              `/documents/${encodeURIComponent(
+                row.lan,
+              )}`,
+            )
+          }
           style={{
             padding: "8px 10px",
             borderRadius: 8,
@@ -255,12 +337,21 @@ const ClayooRejectedLoans = ({
       key: "actions",
       header: "Actions",
       render: (row) => (
-        <div style={{ display: "flex", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+          }}
+        >
           <button
             type="button"
             style={actionBtn("approve")}
             onClick={() =>
-              handleStatusChange(row.lan, "BRE APPROVED", tableName)
+              handleStatusChange(
+                row.lan,
+                "BRE APPROVED",
+                tableName,
+              )
             }
           >
             ✅ Approve
@@ -269,7 +360,13 @@ const ClayooRejectedLoans = ({
           <button
             type="button"
             style={actionBtn("reject")}
-            onClick={() => handleStatusChange(row.lan, "REJECTED", tableName)}
+            onClick={() =>
+              handleStatusChange(
+                row.lan,
+                "REJECTED",
+                tableName,
+              )
+            }
           >
             ❌ Reject
           </button>
@@ -282,16 +379,31 @@ const ClayooRejectedLoans = ({
 
   const globalSearchKeys = [
     "customer_name",
+    "patient_name",
     "partner_loan_id",
     "lan",
     "mobile_number",
     "status",
+    "stage",
   ];
 
   return (
     <>
-      <LoaderOverlay show={loading} label="Fetching data…" />
-      {err && <p style={{ color: "#b91c1c", marginBottom: 12 }}>{err}</p>}
+      <LoaderOverlay
+        show={loading}
+        label="Fetching data…"
+      />
+
+      {err && (
+        <p
+          style={{
+            color: "#b91c1c",
+            marginBottom: 12,
+          }}
+        >
+          {err}
+        </p>
+      )}
 
       <DataTable
         title={title}

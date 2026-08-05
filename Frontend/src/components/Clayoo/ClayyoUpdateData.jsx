@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import {  Navigate, useNavigate, useParams, } from "react-router-dom";
 import api from "../../api/api";
 
 const EMPTY_BANK_FORM = {

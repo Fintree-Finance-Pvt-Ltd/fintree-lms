@@ -26,6 +26,19 @@ const [misError, setMisError] = useState("");
 
   const navigate = useNavigate();
 
+  const openClayyoLoanDetails = (lan) => {
+    if (!lan) return;
+
+    navigate(
+      `/approved-loan-details-clayoo/${encodeURIComponent(lan)}`,
+      {
+        state: {
+          source: "clayyo-all-loans",
+        },
+      },
+    );
+  };
+
   useEffect(() => {
     let off = false;
     setLoading(true);
@@ -383,7 +396,7 @@ const [misError, setMisError] = useState("");
       render: (r) => (
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details-clayoo/${r.lan}`)}
+          onClick={() => openClayyoLoanDetails(r.lan)}
           title="View loan details"
         >
           {r.customer_name ?? "—"}
@@ -400,7 +413,9 @@ const [misError, setMisError] = useState("");
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
           onClick={() =>
-            navigate(`/approved-loan-details-clayoo-hospital/${r.lan}`)
+            navigate(
+              `/approved-loan-details-clayoo-hospital/${encodeURIComponent(r.lan)}`,
+            )
           }
           title="View hospital details"
         >
@@ -417,7 +432,7 @@ const [misError, setMisError] = useState("");
       render: (r) => (
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details/${r.lan}`)}
+         onClick={() => openClayyoLoanDetails(r.lan)}
           title="View LAN details"
         >
           {r.lan ?? "—"}
@@ -570,7 +585,9 @@ const [misError, setMisError] = useState("");
       header: "Documents",
       render: (r) => (
         <button
-          onClick={() => navigate(`/documents/${r.lan}`)}
+          onClick={() =>
+            navigate(`/documents/${encodeURIComponent(r.lan)}`)
+          }
           style={{
             padding: "8px 10px",
             borderRadius: 8,
