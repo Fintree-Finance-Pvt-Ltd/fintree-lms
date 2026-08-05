@@ -1427,8 +1427,61 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
    * 2. JSON string containing report_xml/reportXml/xml
    * 3. MySQL JSON object containing report_xml/reportXml/xml
    */
-  const getBureauXml = (value) => {
-    if (!hasValue(value)) return null;
+  // const getBureauXml = (value) => {
+  //   if (!hasValue(value)) return null;
+
+  //   let parsedValue = value;
+
+  //   if (Buffer.isBuffer(parsedValue)) {
+  //     parsedValue = parsedValue.toString("utf8");
+  //   }
+
+  //   if (typeof parsedValue === "string") {
+  //     const trimmedValue = parsedValue.trim();
+
+  //     // Direct XML
+  //     if (trimmedValue.startsWith("<")) {
+  //       return trimmedValue;
+  //     }
+
+  //     // Possibly JSON stored as text
+  //     try {
+  //       parsedValue = JSON.parse(trimmedValue);
+  //     } catch {
+  //       return null;
+  //     }
+  //   }
+
+  //   if (!parsedValue || typeof parsedValue !== "object") {
+  //     return null;
+  //   }
+
+  //   // Change/add paths here if your API stores XML under another key
+  //   const xml =
+  //     parsedValue.report_xml ??
+  //     parsedValue.reportXml ??
+  //     parsedValue.xml ??
+  //     parsedValue.data?.report_xml ??
+  //     parsedValue.data?.reportXml ??
+  //     parsedValue.data?.xml ??
+  //     parsedValue.response?.report_xml ??
+  //     parsedValue.response?.reportXml ??
+  //     parsedValue.response?.xml ??
+  //     null;
+
+  //   if (typeof xml !== "string") {
+  //     return null;
+  //   }
+
+  //   const trimmedXml = xml.trim();
+
+  //   return trimmedXml.startsWith("<") ? trimmedXml : null;
+  // };
+
+  const getBureauXml = (value, depth = 0) => {
+    if (!hasValue(value) || depth > 8) {
+      return null;
+    }
 
     let parsedValue = value;
 
@@ -1437,51 +1490,87 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
     }
 
     if (typeof parsedValue === "string") {
-      const trimmedValue = parsedValue.trim();
+      let text = parsedValue.replace(/^\uFEFF/, "").trim();
 
-      // Direct XML
-      if (trimmedValue.startsWith("<")) {
-        return trimmedValue;
-      }
-
-      // Possibly JSON stored as text
+      // Try JSON parsing first
       try {
-        parsedValue = JSON.parse(trimmedValue);
+        const parsedJson = JSON.parse(text);
+
+        if (parsedJson !== text) {
+          return getBureauXml(parsedJson, depth + 1);
+        }
       } catch {
-        return null;
+        // Not valid JSON, continue as normal text
+      }
+
+      // Remove extra wrapping quotes
+      if (
+        (text.startsWith("'") && text.endsWith("'")) ||
+        (text.startsWith('"') && text.endsWith('"'))
+      ) {
+        text = text.slice(1, -1);
+      } else if (text.startsWith("'")) {
+        text = text.slice(1);
+      }
+
+      // Convert escaped XML characters
+      text = text
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'")
+        .replace(/\\r\\n/g, "\n")
+        .replace(/\\n/g, "\n")
+        .replace(/\\t/g, "\t")
+        .trim();
+
+      const xmlDeclarationIndex = text.indexOf("<?xml");
+      const profileIndex = text.indexOf("<INProfileResponse");
+
+      const xmlStartIndex =
+        xmlDeclarationIndex >= 0 ? xmlDeclarationIndex : profileIndex;
+
+      if (xmlStartIndex >= 0) {
+        return text.slice(xmlStartIndex);
+      }
+
+      return null;
+    }
+
+    if (Array.isArray(parsedValue)) {
+      for (const item of parsedValue) {
+        const xml = getBureauXml(item, depth + 1);
+
+        if (xml) return xml;
+      }
+
+      return null;
+    }
+
+    if (parsedValue && typeof parsedValue === "object") {
+      for (const nestedValue of Object.values(parsedValue)) {
+        const xml = getBureauXml(nestedValue, depth + 1);
+
+        if (xml) return xml;
       }
     }
 
-    if (!parsedValue || typeof parsedValue !== "object") {
-      return null;
-    }
-
-    // Change/add paths here if your API stores XML under another key
-    const xml =
-      parsedValue.report_xml ??
-      parsedValue.reportXml ??
-      parsedValue.xml ??
-      parsedValue.data?.report_xml ??
-      parsedValue.data?.reportXml ??
-      parsedValue.data?.xml ??
-      parsedValue.response?.report_xml ??
-      parsedValue.response?.reportXml ??
-      parsedValue.response?.xml ??
-      null;
-
-    if (typeof xml !== "string") {
-      return null;
-    }
-
-    const trimmedXml = xml.trim();
-
-    return trimmedXml.startsWith("<") ? trimmedXml : null;
+    return null;
   };
 
   // First preference: loan_cibil_reports XML
   // Second preference: XML found inside KYC bureau_api_response
   const reportXml =
     getBureauXml(loanCibilRow?.report_xml) ?? getBureauXml(bureauApiResponse);
+
+  console.log("Bureau XML extraction result:", {
+    lan,
+    rawPreview:
+      typeof bureauApiResponse === "string"
+        ? bureauApiResponse.slice(0, 150)
+        : bureauApiResponse,
+    extractedPreview:
+      typeof reportXml === "string" ? reportXml.slice(0, 150) : null,
+    hasReportXml: hasValue(reportXml),
+  });
 
   console.log("Motion Corp borrower bureau check:", {
     lan,
