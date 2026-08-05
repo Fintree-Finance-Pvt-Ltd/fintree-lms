@@ -35,9 +35,7 @@ CREATE TABLE IF NOT EXISTS `pl_partner_idempotency_records` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_pl_partner_idempotency` (`client_id`,`idempotency_key`),
   KEY `idx_pl_partner_idempotency_status` (`processing_status`,`locked_until`),
-  CONSTRAINT `fk_pl_partner_idempotency_client`
-    FOREIGN KEY (`client_id`) REFERENCES `pl_partner_api_clients` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE
+  -- client_id foreign key removed (clients table managed separately)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `pl_partner_applications` (
@@ -73,6 +71,67 @@ CREATE TABLE IF NOT EXISTS `pl_partner_applications` (
   `pan_provider_reference` VARCHAR(150) NULL,
   `pan_verified_at` DATETIME(3) NULL,
 
+  -- Employment & business details
+  `employment_employment_type` VARCHAR(60) NULL,
+  `employment_company_type` VARCHAR(60) NULL,
+  `employment_company_name` VARCHAR(150) NULL,
+  `employment_designation` VARCHAR(120) NULL,
+  `employment_business_name` VARCHAR(150) NULL,
+  `employment_business_constitution` VARCHAR(120) NULL,
+  `employment_monthly_income` DECIMAL(18,2) NULL,
+  `employment_annual_turnover` DECIMAL(18,2) NULL,
+  `employment_employment_vintage` INT NULL,
+  `employment_business_vintage` INT NULL,
+  `employment_salary_mode` VARCHAR(60) NULL,
+  `employment_completed_at` DATETIME(3) NULL,
+
+  -- Aadhaar KYC
+  `aadhaar_status` VARCHAR(30) NULL,
+  `aadhaar_masked` VARCHAR(50) NULL,
+  `aadhaar_verified_name` VARCHAR(150) NULL,
+  `aadhaar_date_of_birth` DATE NULL,
+  `aadhaar_gender` VARCHAR(10) NULL,
+  `aadhaar_provider` VARCHAR(100) NULL,
+  `aadhaar_provider_reference` VARCHAR(150) NULL,
+  `aadhaar_verified_at` DATETIME(3) NULL,
+
+  -- Permanent address
+  `perm_address_line1` VARCHAR(255) NULL,
+  `perm_address_line2` VARCHAR(255) NULL,
+  `perm_landmark` VARCHAR(255) NULL,
+  `perm_locality` VARCHAR(255) NULL,
+  `perm_district` VARCHAR(120) NULL,
+  `perm_city` VARCHAR(120) NULL,
+  `perm_state` VARCHAR(120) NULL,
+  `perm_country` VARCHAR(80) NULL,
+  `perm_pincode` VARCHAR(20) NULL,
+  `perm_source` VARCHAR(80) NULL,
+
+  -- Current address
+  `curr_same_as_perm` TINYINT(1) NULL,
+  `curr_address_line1` VARCHAR(255) NULL,
+  `curr_address_line2` VARCHAR(255) NULL,
+  `curr_landmark` VARCHAR(255) NULL,
+  `curr_locality` VARCHAR(255) NULL,
+  `curr_district` VARCHAR(120) NULL,
+  `curr_city` VARCHAR(120) NULL,
+  `curr_state` VARCHAR(120) NULL,
+  `curr_country` VARCHAR(80) NULL,
+  `curr_pincode` VARCHAR(20) NULL,
+  `curr_source` VARCHAR(80) NULL,
+
+  -- Evidence / liveness
+  `evidence_live_photo_document_reference` VARCHAR(150) NULL,
+  `liveness_provider` VARCHAR(100) NULL,
+  `liveness_reference` VARCHAR(150) NULL,
+  `liveness_status` VARCHAR(60) NULL,
+  `liveness_score` DECIMAL(6,5) NULL,
+  `evidence_reference` VARCHAR(150) NULL,
+  `evidence_latitude` DECIMAL(10,7) NULL,
+  `evidence_longitude` DECIMAL(10,7) NULL,
+  `evidence_captured_at` DATETIME(3) NULL,
+  `evidence_verified_at` DATETIME(3) NULL,
+
   `latest_details_version` INT NULL,
   `details_updated_at` DATETIME(3) NULL,
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -83,9 +142,7 @@ CREATE TABLE IF NOT EXISTS `pl_partner_applications` (
   UNIQUE KEY `uk_pl_partner_external_reference` (`client_id`,`external_application_reference`),
   UNIQUE KEY `uk_pl_partner_lan` (`client_id`,`lan`),
   KEY `idx_pl_partner_application_status` (`status`,`updated_at`),
-  CONSTRAINT `fk_pl_partner_application_client`
-    FOREIGN KEY (`client_id`) REFERENCES `pl_partner_api_clients` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE
+  -- client_id foreign key removed (clients table managed separately)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `pl_partner_application_consents` (
@@ -108,9 +165,7 @@ CREATE TABLE IF NOT EXISTS `pl_partner_application_consents` (
   UNIQUE KEY `uk_pl_partner_consent_id` (`client_id`,`consent_id`),
   UNIQUE KEY `uk_pl_partner_consent_reference` (`consent_reference`),
   KEY `idx_pl_partner_consent_application` (`application_id`,`consent_type`),
-  CONSTRAINT `fk_pl_partner_consent_client`
-    FOREIGN KEY (`client_id`) REFERENCES `pl_partner_api_clients` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE,
+  -- client_id foreign key removed (clients table managed separately),
   CONSTRAINT `fk_pl_partner_consent_application`
     FOREIGN KEY (`application_id`) REFERENCES `pl_partner_applications` (`id`)
     ON DELETE RESTRICT ON UPDATE CASCADE
@@ -121,6 +176,76 @@ CREATE TABLE IF NOT EXISTS `pl_partner_application_detail_versions` (
   `application_id` BIGINT UNSIGNED NOT NULL,
   `details_version` INT NOT NULL,
   `request_hash` CHAR(64) NOT NULL,
+
+  -- Flattened detail columns (copied from incoming partner payload)
+  `customer_full_name` VARCHAR(150) NULL,
+  `customer_first_name` VARCHAR(60) NULL,
+  `customer_middle_name` VARCHAR(60) NULL,
+  `customer_last_name` VARCHAR(60) NULL,
+  `customer_father_name` VARCHAR(150) NULL,
+  `customer_pan_number` VARCHAR(20) NULL,
+  `customer_date_of_birth` DATE NULL,
+  `customer_gender` VARCHAR(10) NULL,
+  `customer_mobile_number` VARCHAR(20) NULL,
+  `customer_email` VARCHAR(254) NULL,
+
+  `employment_employment_type` VARCHAR(60) NULL,
+  `employment_company_type` VARCHAR(60) NULL,
+  `employment_company_name` VARCHAR(150) NULL,
+  `employment_designation` VARCHAR(120) NULL,
+  `employment_business_name` VARCHAR(150) NULL,
+  `employment_business_constitution` VARCHAR(120) NULL,
+  `employment_monthly_income` DECIMAL(18,2) NULL,
+  `employment_annual_turnover` DECIMAL(18,2) NULL,
+  `employment_employment_vintage` INT NULL,
+  `employment_business_vintage` INT NULL,
+  `employment_salary_mode` VARCHAR(60) NULL,
+  `employment_completed_at` DATETIME(3) NULL,
+
+  `aadhaar_status` VARCHAR(30) NULL,
+  `aadhaar_masked` VARCHAR(50) NULL,
+  `aadhaar_verified_name` VARCHAR(150) NULL,
+  `aadhaar_date_of_birth` DATE NULL,
+  `aadhaar_gender` VARCHAR(10) NULL,
+  `aadhaar_provider` VARCHAR(100) NULL,
+  `aadhaar_provider_reference` VARCHAR(150) NULL,
+  `aadhaar_verified_at` DATETIME(3) NULL,
+
+  `perm_address_line1` VARCHAR(255) NULL,
+  `perm_address_line2` VARCHAR(255) NULL,
+  `perm_landmark` VARCHAR(255) NULL,
+  `perm_locality` VARCHAR(255) NULL,
+  `perm_district` VARCHAR(120) NULL,
+  `perm_city` VARCHAR(120) NULL,
+  `perm_state` VARCHAR(120) NULL,
+  `perm_country` VARCHAR(80) NULL,
+  `perm_pincode` VARCHAR(20) NULL,
+  `perm_source` VARCHAR(80) NULL,
+
+  `curr_same_as_perm` TINYINT(1) NULL,
+  `curr_address_line1` VARCHAR(255) NULL,
+  `curr_address_line2` VARCHAR(255) NULL,
+  `curr_landmark` VARCHAR(255) NULL,
+  `curr_locality` VARCHAR(255) NULL,
+  `curr_district` VARCHAR(120) NULL,
+  `curr_city` VARCHAR(120) NULL,
+  `curr_state` VARCHAR(120) NULL,
+  `curr_country` VARCHAR(80) NULL,
+  `curr_pincode` VARCHAR(20) NULL,
+  `curr_source` VARCHAR(80) NULL,
+
+  `evidence_live_photo_document_reference` VARCHAR(150) NULL,
+  `liveness_provider` VARCHAR(100) NULL,
+  `liveness_reference` VARCHAR(150) NULL,
+  `liveness_status` VARCHAR(60) NULL,
+  `liveness_score` DECIMAL(6,5) NULL,
+  `evidence_reference` VARCHAR(150) NULL,
+  `evidence_latitude` DECIMAL(10,7) NULL,
+  `evidence_longitude` DECIMAL(10,7) NULL,
+  `evidence_captured_at` DATETIME(3) NULL,
+  `evidence_verified_at` DATETIME(3) NULL,
+
+  -- Keep full JSON blob for backward compatibility
   `details_json` LONGTEXT NOT NULL,
   `accepted_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -175,7 +300,5 @@ CREATE TABLE IF NOT EXISTS `pl_partner_api_audit_logs` (
   KEY `idx_pl_partner_audit_client_created` (`client_id`,`created_at`),
   KEY `idx_pl_partner_audit_correlation` (`correlation_id`),
   KEY `idx_pl_partner_audit_application` (`partner_application_id`,`created_at`),
-  CONSTRAINT `fk_pl_partner_audit_client`
-    FOREIGN KEY (`client_id`) REFERENCES `pl_partner_api_clients` (`id`)
-    ON DELETE RESTRICT ON UPDATE CASCADE
+  -- client_id foreign key removed (clients table managed separately)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

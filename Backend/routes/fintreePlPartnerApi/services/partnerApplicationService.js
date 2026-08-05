@@ -350,11 +350,259 @@ async function updateDetails({ clientId, partnerApplicationId, payload }) {
       );
     }
 
+    // Flatten payload into individual columns for easier querying and reporting
+    const cust = payload.customer || {};
+    const emp = payload.employment || {};
+    const aad = payload.aadhaarKyc || {};
+    const perm = payload.permanentAddress || {};
+    const curr = payload.currentAddress || {};
+    const ev = payload.currentAddressEvidence || {};
+
     await connection.query(
       `INSERT INTO pl_partner_application_detail_versions
-       (application_id, details_version, request_hash, details_json, accepted_at, created_at)
-       VALUES (?, ?, ?, ?, NOW(), NOW())`,
-      [application.id, payload.detailsVersion, payloadHash, JSON.stringify(payload)],
+       (
+         application_id, details_version, request_hash,
+         customer_full_name, customer_first_name, customer_middle_name, customer_last_name, customer_father_name,
+         customer_pan_number, customer_date_of_birth, customer_gender, customer_mobile_number, customer_email,
+         employment_employment_type, employment_company_type, employment_company_name, employment_designation,
+         employment_business_name, employment_business_constitution, employment_monthly_income, employment_annual_turnover,
+         employment_employment_vintage, employment_business_vintage, employment_salary_mode, employment_completed_at,
+         aadhaar_status, aadhaar_masked, aadhaar_verified_name, aadhaar_date_of_birth, aadhaar_gender, aadhaar_provider,
+         aadhaar_provider_reference, aadhaar_verified_at,
+         perm_address_line1, perm_address_line2, perm_landmark, perm_locality, perm_district, perm_city, perm_state, perm_country, perm_pincode, perm_source,
+         curr_same_as_perm, curr_address_line1, curr_address_line2, curr_landmark, curr_locality, curr_district, curr_city, curr_state, curr_country, curr_pincode, curr_source,
+         evidence_live_photo_document_reference, liveness_provider, liveness_reference, liveness_status, liveness_score,
+         evidence_reference, evidence_latitude, evidence_longitude, evidence_captured_at, evidence_verified_at,
+         details_json, accepted_at, created_at
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [
+        application.id,
+        payload.detailsVersion,
+        payloadHash,
+
+        cust.fullName || null,
+        cust.firstName || null,
+        cust.middleName || null,
+        cust.lastName || null,
+        cust.fatherName || null,
+
+        cust.panNumber || null,
+        cust.dateOfBirth ? new Date(cust.dateOfBirth) : null,
+        cust.gender || null,
+        cust.mobileNumber || null,
+        cust.email || null,
+
+        emp.employmentType || null,
+        emp.companyType || null,
+        emp.companyName || null,
+        emp.designation || null,
+
+        emp.businessName || null,
+        emp.businessConstitution || null,
+        emp.monthlyIncome != null ? emp.monthlyIncome : null,
+        emp.annualTurnover != null ? emp.annualTurnover : null,
+
+        emp.employmentVintage != null ? emp.employmentVintage : null,
+        emp.businessVintage != null ? emp.businessVintage : null,
+        emp.salaryMode || null,
+        emp.completedAt ? new Date(emp.completedAt) : null,
+
+        aad.status || null,
+        aad.maskedAadhaar || null,
+        aad.verifiedName || null,
+        aad.dateOfBirth ? new Date(aad.dateOfBirth) : null,
+        aad.gender || null,
+        aad.provider || null,
+
+        aad.providerReference || null,
+        aad.verifiedAt ? new Date(aad.verifiedAt) : null,
+
+        perm.addressLine1 || null,
+        perm.addressLine2 || null,
+        perm.landmark || null,
+        perm.locality || null,
+        perm.district || null,
+        perm.city || null,
+        perm.state || null,
+        perm.country || null,
+        perm.pincode || null,
+        perm.source || null,
+
+        curr.sameAsPermanent ? 1 : 0,
+        curr.addressLine1 || null,
+        curr.addressLine2 || null,
+        curr.landmark || null,
+        curr.locality || null,
+        curr.district || null,
+        curr.city || null,
+        curr.state || null,
+        curr.country || null,
+        curr.pincode || null,
+        curr.source || null,
+
+        ev.livePhotoDocumentReference || null,
+        ev.livenessProvider || null,
+        ev.livenessReference || null,
+        ev.livenessStatus || null,
+        ev.livenessScore != null ? Number(ev.livenessScore) : null,
+
+        ev.evidenceReference || null,
+        ev.latitude != null ? Number(ev.latitude) : null,
+        ev.longitude != null ? Number(ev.longitude) : null,
+        ev.capturedAt ? new Date(ev.capturedAt) : null,
+        ev.verifiedAt ? new Date(ev.verifiedAt) : null,
+
+        JSON.stringify(payload),
+      ],
+    );
+
+    // Also persist key fields on the main application row for quick access
+    await connection.query(
+      `UPDATE pl_partner_applications
+       SET
+         customer_full_name = ?,
+         customer_first_name = ?,
+         customer_middle_name = ?,
+         customer_last_name = ?,
+         customer_father_name = ?,
+         pan_number = ?,
+         date_of_birth = ?,
+         gender = ?,
+         mobile_number = ?,
+         email = ?,
+
+         employment_employment_type = ?,
+         employment_company_type = ?,
+         employment_company_name = ?,
+         employment_designation = ?,
+         employment_business_name = ?,
+         employment_business_constitution = ?,
+         employment_monthly_income = ?,
+         employment_annual_turnover = ?,
+         employment_employment_vintage = ?,
+         employment_business_vintage = ?,
+         employment_salary_mode = ?,
+         employment_completed_at = ?,
+
+         aadhaar_status = ?,
+         aadhaar_masked = ?,
+         aadhaar_verified_name = ?,
+         aadhaar_date_of_birth = ?,
+         aadhaar_gender = ?,
+         aadhaar_provider = ?,
+         aadhaar_provider_reference = ?,
+         aadhaar_verified_at = ?,
+
+         perm_address_line1 = ?,
+         perm_address_line2 = ?,
+         perm_landmark = ?,
+         perm_locality = ?,
+         perm_district = ?,
+         perm_city = ?,
+         perm_state = ?,
+         perm_country = ?,
+         perm_pincode = ?,
+         perm_source = ?,
+
+         curr_same_as_perm = ?,
+         curr_address_line1 = ?,
+         curr_address_line2 = ?,
+         curr_landmark = ?,
+         curr_locality = ?,
+         curr_district = ?,
+         curr_city = ?,
+         curr_state = ?,
+         curr_country = ?,
+         curr_pincode = ?,
+         curr_source = ?,
+
+         evidence_live_photo_document_reference = ?,
+         liveness_provider = ?,
+         liveness_reference = ?,
+         liveness_status = ?,
+         liveness_score = ?,
+         evidence_reference = ?,
+         evidence_latitude = ?,
+         evidence_longitude = ?,
+         evidence_captured_at = ?,
+         evidence_verified_at = ?,
+
+         latest_details_version = ?,
+         details_updated_at = NOW(),
+         updated_at = NOW()
+       WHERE id = ?`,
+      [
+        cust.fullName || null,
+        cust.firstName || null,
+        cust.middleName || null,
+        cust.lastName || null,
+        cust.fatherName || null,
+        cust.panNumber || null,
+        cust.dateOfBirth ? new Date(cust.dateOfBirth) : null,
+        cust.gender || null,
+        cust.mobileNumber || null,
+        cust.email || null,
+
+        emp.employmentType || null,
+        emp.companyType || null,
+        emp.companyName || null,
+        emp.designation || null,
+        emp.businessName || null,
+        emp.businessConstitution || null,
+        emp.monthlyIncome != null ? emp.monthlyIncome : null,
+        emp.annualTurnover != null ? emp.annualTurnover : null,
+        emp.employmentVintage != null ? emp.employmentVintage : null,
+        emp.businessVintage != null ? emp.businessVintage : null,
+        emp.salaryMode || null,
+        emp.completedAt ? new Date(emp.completedAt) : null,
+
+        aad.status || null,
+        aad.maskedAadhaar || null,
+        aad.verifiedName || null,
+        aad.dateOfBirth ? new Date(aad.dateOfBirth) : null,
+        aad.gender || null,
+        aad.provider || null,
+        aad.providerReference || null,
+        aad.verifiedAt ? new Date(aad.verifiedAt) : null,
+
+        perm.addressLine1 || null,
+        perm.addressLine2 || null,
+        perm.landmark || null,
+        perm.locality || null,
+        perm.district || null,
+        perm.city || null,
+        perm.state || null,
+        perm.country || null,
+        perm.pincode || null,
+        perm.source || null,
+
+        curr.sameAsPermanent ? 1 : 0,
+        curr.addressLine1 || null,
+        curr.addressLine2 || null,
+        curr.landmark || null,
+        curr.locality || null,
+        curr.district || null,
+        curr.city || null,
+        curr.state || null,
+        curr.country || null,
+        curr.pincode || null,
+        curr.source || null,
+
+        ev.livePhotoDocumentReference || null,
+        ev.livenessProvider || null,
+        ev.livenessReference || null,
+        ev.livenessStatus || null,
+        ev.livenessScore != null ? Number(ev.livenessScore) : null,
+        ev.evidenceReference || null,
+        ev.latitude != null ? Number(ev.latitude) : null,
+        ev.longitude != null ? Number(ev.longitude) : null,
+        ev.capturedAt ? new Date(ev.capturedAt) : null,
+        ev.verifiedAt ? new Date(ev.verifiedAt) : null,
+
+        payload.detailsVersion,
+        application.id,
+      ],
     );
 
     await connection.query(
@@ -598,9 +846,40 @@ async function uploadDocument({ clientId, partnerApplicationId, payload }) {
   }
 }
 
+async function approveApplication({ clientId, partnerApplicationId, payload }) {
+  // Minimal stub: validate application exists and return a fixed Approved response
+  const connection = await db.promise().getConnection();
+  try {
+    const [rows] = await connection.query(
+      `SELECT id FROM pl_partner_applications WHERE client_id = ? AND partner_application_id = ? LIMIT 1`,
+      [clientId, partnerApplicationId],
+    );
+
+    if (!rows.length) {
+      throw new PartnerApiError(404, "APPLICATION_NOT_FOUND", "Partner application was not found.");
+    }
+
+    return {
+      statusCode: 200,
+      data: {
+        status: "Approved",
+        CREDIT_LIMIT_CHECK_RPM: {
+          derived_values: {
+            LIMIT_ASSIGNMENT_IS_NEW_CUSTOMER_RPM: 8000,
+            LIMIT_ASSIGNMENT_IS_REPEAT_CUSTOMER_RPM: 0,
+          },
+        },
+      },
+    };
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   createApplication,
   recordConsent,
   updateDetails,
   uploadDocument,
+  approveApplication,
 };

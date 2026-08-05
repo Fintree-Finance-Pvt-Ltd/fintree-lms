@@ -146,9 +146,19 @@ const uploadDocumentHandler = execute({
   getPartnerApplicationId: (req) => String(req.params.partnerApplicationId || "").trim(),
 });
 
+const { validateApprovePayload } = require("../utils/validation");
+const { approveApplication } = require("../services/partnerApplicationService");
+
+const approveHandler = execute({
+  validator: validateApprovePayload,
+  service: approveApplication,
+  getPartnerApplicationId: (req) => String(req.params.partnerApplicationId || "").trim(),
+});
+
 module.exports = {
   createApplicationHandler,
   recordConsentHandler,
   updateDetailsHandler,
   uploadDocumentHandler,
+  approveHandler,
 };

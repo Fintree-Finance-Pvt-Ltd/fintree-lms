@@ -8,6 +8,7 @@ const {
   recordConsentHandler,
   updateDetailsHandler,
   uploadDocumentHandler,
+  approveHandler,
 } = require("./controllers/partnerApplicationController");
 
 const router = express.Router();
@@ -38,6 +39,13 @@ router.post(
   verifyApiKey,
   requestContext,
   uploadDocumentHandler,
+);
+
+router.post(
+  "/applications/:partnerApplicationId/approve",
+  verifyApiKey,
+  requestContext,
+  approveHandler,
 );
 
 router.use((error, req, res, _next) => {

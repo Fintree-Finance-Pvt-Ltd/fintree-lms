@@ -471,4 +471,24 @@ module.exports = {
   validateConsentPayload,
   validateDetailsPayload,
   validateDocumentPayload,
+  // simple approve payload validator
+  validateApprovePayload: (input) => {
+    const body = requireObject(input, "body");
+    return {
+      externalApplicationReference: requiredString(
+        body.externalApplicationReference,
+        "externalApplicationReference",
+        100,
+      ),
+      productCode: requiredString(body.productCode, "productCode", 60),
+      bureauConsent: {
+        reference: requiredString(body.bureauConsent?.reference, "bureauConsent.reference", 150),
+        hash: requireSha256(body.bureauConsent?.hash, "bureauConsent.hash"),
+      },
+      decisionConsent: {
+        reference: requiredString(body.decisionConsent?.reference, "decisionConsent.reference", 150),
+        hash: requireSha256(body.decisionConsent?.hash, "decisionConsent.hash"),
+      },
+    };
+  },
 };
