@@ -276,6 +276,7 @@ import SterlionMexonDexonAllLoans from "./components/SterlionMexonDexon/Sterlion
 // import SterlionMexonDexonLoginActions from "./components/SterlionMexonDexon/SterlionMexonDexonLoginActions";
 import SterlionMexonDexonInvoiceUpload from "./components/SterlionMexonDexon/SterlionMexonDexonInvoiceUpload.jsx";
 import SterlionMexonDexonCollectionUpload from "./components/SterlionMexonDexon/SterlionMexonDexonCollectionUpload.jsx";
+import SterlionMexonDexonAllInvoices from "./components/SterlionMexonDexon/SterlionMexonDexonAllInvoice.jsx";
 
 function App() {
   return (
@@ -2271,42 +2272,60 @@ function App() {
               </PermissionRoute>
             }
           />
+{/* Sterlion Mexon Dexon */}
 
-          {/* Sterlion Mexon Dexon */}
+<Route
+  path="/sterlion-mexon-dexon/all-loans"
+  element={
+    <PermissionRoute pageName="Sterlion Mexon Dexon All Loans">
+      <SterlionMexonDexonAllLoans />
+    </PermissionRoute>
+  }
+/>
 
-          <Route
-            path="/sterlion-mexon-dexon/all-loans"
-            element={
-              <PermissionRoute pageName="Sterlion Mexon Dexon All Loans">
-                <SterlionMexonDexonAllLoans />
-              </PermissionRoute>
-            }
-          />
+<Route
+  path="/sterlion-mexon-dexon/collection-upload"
+  element={
+    <PermissionRoute pageName="Sterlion Mexon Dexon Collection Upload">
+      <SterlionMexonDexonCollectionUpload />
+    </PermissionRoute>
+  }
+/>
 
-          <Route
-            path="/sterlion-mexon-dexon/collection-upload"
-            element={
-              <PermissionRoute pageName="Sterlion Mexon Dexon Collection Upload">
-                <SterlionMexonDexonCollectionUpload />
-              </PermissionRoute>
-            }
-          />
-        </Route>
+<Route
+  path="/sterlion-mexon-dexon/invoice-upload"
+  element={
+    <PermissionRoute pageName="Sterlion Mexon Dexon Invoice Upload">
+      <SterlionMexonDexonInvoiceUpload />
+    </PermissionRoute>
+  }
+/>
 
-        {/* <Route
-            path="/sterlion-mexon-dexon/login-actions"
-            element={
-              <PermissionRoute pageName="Sterlion Mexon Dexon Login Actions">
-                <SterlionMexonDexonLoginActions />
-              </PermissionRoute>
-            }
-          /> */}
+<Route
+  path="/sterlion-mexon-dexon/all-invoices"
+  element={
+    <PermissionRoute pageName="Sterlion Mexon Dexon All Invoices">
+      <SterlionMexonDexonAllInvoices />
+    </PermissionRoute>
+  }
+/>
 
-        <Route
-          path="/sterlion-mexon-dexon/invoice-upload"
-          element={<SterlionMexonDexonInvoiceUpload />}
-        />
-      </Routes>
+{/* Protected Layout parent yahan close hoga */}
+</Route>
+
+{/* Optional commented route */}
+{/* 
+<Route
+  path="/sterlion-mexon-dexon/login-actions"
+  element={
+    <PermissionRoute pageName="Sterlion Mexon Dexon Login Actions">
+      <SterlionMexonDexonLoginActions />
+    </PermissionRoute>
+  }
+/>
+*/}
+
+</Routes>
     </Router>
   );
 }
