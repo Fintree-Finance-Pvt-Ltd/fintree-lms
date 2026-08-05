@@ -241,7 +241,6 @@ import FundifyManualEntry from "./components/Fundify/FundifyLoanBooking";
 import FundifyLoginCases from "./components/Fundify/FundifyLoginCases";
 import FundifyLoginActions from "./components/Fundify/FundifyLoginActions";
 
-
 //SRBH Imports
 import SRBHDealerEntry from "./components/Srbh/SRBHDealerEntry";
 import SRBHDealerLists from "./components/Srbh/SRBHDealerLists";
@@ -263,7 +262,6 @@ import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollecti
 import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.jsx";
 
-
 // Sterlion UBL Imports
 import SterlionUBLLoanBooking from "./components/SterlionUbl/SterlionUBLLoanBooking";
 import SterlionUBLAllLoans from "./components/SterlionUbl/SterlionUBLAllLoans";
@@ -275,7 +273,9 @@ import ClayyoUpdateData from "./components/Clayoo/ClayyoUpdateData";
 
 //MEXONDEXON
 import SterlionMexonDexonAllLoans from "./components/SterlionMexonDexon/SterlionMexonDexonAllLoans";
-import SterlionMexonDexonLoginActions from "./components/SterlionMexonDexon/SterlionMexonDexonLoginActions";
+// import SterlionMexonDexonLoginActions from "./components/SterlionMexonDexon/SterlionMexonDexonLoginActions";
+import SterlionMexonDexonInvoiceUpload from "./components/SterlionMexonDexon/SterlionMexonDexonInvoiceUpload.jsx";
+import SterlionMexonDexonCollectionUpload from "./components/SterlionMexonDexon/SterlionMexonDexonCollectionUpload.jsx";
 
 function App() {
   return (
@@ -292,7 +292,6 @@ function App() {
         {/* ✅ Public routes */}
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
-
 
         {/* ✅ Protected + Layout wrapper */}
         <Route
@@ -953,11 +952,15 @@ function App() {
           />
           <Route
             path="/carepay-loans/login-cases"
-            element={<Navigate to="/carepay-loans/approve-initiate-actions" replace />}
+            element={
+              <Navigate to="/carepay-loans/approve-initiate-actions" replace />
+            }
           />
           <Route
             path="/carepay-loans/login-actions"
-            element={<Navigate to="/carepay-loans/approve-initiate-actions" replace />}
+            element={
+              <Navigate to="/carepay-loans/approve-initiate-actions" replace />
+            }
           />
           <Route
             path="/carepay-loans/approve-initiate-actions"
@@ -1936,9 +1939,7 @@ function App() {
           />
           <Route
             path="/seven-fincorp/customer-details"
-            element={
-              <SevenFinCorpDetails />
-            }
+            element={<SevenFinCorpDetails />}
           />
           {/* /////////////////////////////////////////////////////////// */}
           {/* cLAIMcUREbUDDY rOTUES  */}
@@ -2170,10 +2171,7 @@ function App() {
             element={<SRBHDealerDetails />}
           />
 
-          <Route
-            path="/srbh/customer-details"
-            element={<SRBHDetails />}
-          />
+          <Route path="/srbh/customer-details" element={<SRBHDetails />} />
 
           <Route
             path="/srbh/loan-booking"
@@ -2209,9 +2207,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
-
-
 
           <Route
             path="/srbh/credit-approved-cases"
@@ -2289,15 +2284,28 @@ function App() {
           />
 
           <Route
+            path="/sterlion-mexon-dexon/collection-upload"
+            element={
+              <PermissionRoute pageName="Sterlion Mexon Dexon Collection Upload">
+                <SterlionMexonDexonCollectionUpload />
+              </PermissionRoute>
+            }
+          />
+        </Route>
+
+        {/* <Route
             path="/sterlion-mexon-dexon/login-actions"
             element={
               <PermissionRoute pageName="Sterlion Mexon Dexon Login Actions">
                 <SterlionMexonDexonLoginActions />
               </PermissionRoute>
             }
-          />
-        </Route>
+          /> */}
 
+        <Route
+          path="/sterlion-mexon-dexon/invoice-upload"
+          element={<SterlionMexonDexonInvoiceUpload />}
+        />
       </Routes>
     </Router>
   );

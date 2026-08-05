@@ -51,9 +51,7 @@ const formatCurrency = (value) => {
 
   const amount = Number(value);
 
-  return Number.isFinite(amount)
-    ? currencyFormatter.format(amount)
-    : "—";
+  return Number.isFinite(amount) ? currencyFormatter.format(amount) : "—";
 };
 
 const formatDate = (value) => {
@@ -91,11 +89,7 @@ const formatDateTime = (value) => {
 };
 
 const maskSensitiveValue = (value, visibleDigits = 4) => {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
+  if (value === null || value === undefined || value === "") {
     return "—";
   }
 
@@ -110,17 +104,12 @@ const maskSensitiveValue = (value, visibleDigits = 4) => {
   )}${text.slice(-visibleDigits)}`;
 };
 
-const createTextColumn = (
-  key,
-  header,
-  width = 170,
-) => ({
+const createTextColumn = (key, header, width = 170) => ({
   key,
   header,
   sortable: true,
   render: (row) => displayValue(row?.[key]),
-  sortAccessor: (row) =>
-    String(row?.[key] ?? "").toLowerCase(),
+  sortAccessor: (row) => String(row?.[key] ?? "").toLowerCase(),
   csvAccessor: (row) => row?.[key] ?? "",
   width,
 });
@@ -152,8 +141,7 @@ const createAddressColumn = (key, header) => ({
       </span>
     );
   },
-  sortAccessor: (row) =>
-    String(row?.[key] ?? "").toLowerCase(),
+  sortAccessor: (row) => String(row?.[key] ?? "").toLowerCase(),
   csvAccessor: (row) => row?.[key] ?? "",
   width: 300,
 });
@@ -255,17 +243,14 @@ const SterlionMexonDexonAllLoans = ({
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] =
-    useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] =
-    useState(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [totalRows, setTotalRows] = useState(0);
 
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] =
-    useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -313,9 +298,7 @@ const SterlionMexonDexonAllLoans = ({
             responseData.total ??
             responseData.rows.length,
         );
-      } else if (
-        Array.isArray(responseData?.data?.rows)
-      ) {
+      } else if (Array.isArray(responseData?.data?.rows)) {
         fetchedRows = responseData.data.rows;
 
         fetchedTotal = Number(
@@ -341,9 +324,7 @@ const SterlionMexonDexonAllLoans = ({
       setRows(fetchedRows);
 
       setTotalRows(
-        Number.isFinite(fetchedTotal)
-          ? fetchedTotal
-          : fetchedRows.length,
+        Number.isFinite(fetchedTotal) ? fetchedTotal : fetchedRows.length,
       );
     } catch (error) {
       if (
@@ -354,10 +335,7 @@ const SterlionMexonDexonAllLoans = ({
         return;
       }
 
-      console.error(
-        "Failed to fetch Sterlion Mexon Dexon loans:",
-        error,
-      );
+      console.error("Failed to fetch Sterlion Mexon Dexon loans:", error);
 
       setRows([]);
       setTotalRows(0);
@@ -368,18 +346,11 @@ const SterlionMexonDexonAllLoans = ({
           "Failed to fetch Sterlion Mexon Dexon loan records.",
       );
     } finally {
-      if (
-        abortControllerRef.current === controller
-      ) {
+      if (abortControllerRef.current === controller) {
         setLoading(false);
       }
     }
-  }, [
-    apiEndpoint,
-    page,
-    pageSize,
-    debouncedSearch,
-  ]);
+  }, [apiEndpoint, page, pageSize, debouncedSearch]);
 
   useEffect(() => {
     fetchLoans();
@@ -407,12 +378,9 @@ const SterlionMexonDexonAllLoans = ({
             {getCustomerName(row)}
           </span>
         ),
-        sortAccessor: (row) =>
-          getCustomerName(row).toLowerCase(),
+        sortAccessor: (row) => getCustomerName(row).toLowerCase(),
         csvAccessor: (row) =>
-          getCustomerName(row) === "—"
-            ? ""
-            : getCustomerName(row),
+          getCustomerName(row) === "—" ? "" : getCustomerName(row),
         width: 220,
       },
 
@@ -421,42 +389,12 @@ const SterlionMexonDexonAllLoans = ({
         header: "LAN",
         sortable: true,
         render: (row) => (
-          <span className="lan-code-badge">
-            {displayValue(row?.lan)}
-          </span>
+          <span className="lan-code-badge">{displayValue(row?.lan)}</span>
         ),
-        sortAccessor: (row) =>
-          String(row?.lan ?? "").toLowerCase(),
+        sortAccessor: (row) => String(row?.lan ?? "").toLowerCase(),
         csvAccessor: (row) => row?.lan ?? "",
         width: 170,
       },
-
-      {
-        key: "id",
-        header: "ID",
-        sortable: true,
-        render: (row) => displayValue(row?.id),
-        sortAccessor: (row) =>
-          Number(row?.id ?? 0),
-        csvAccessor: (row) => row?.id ?? "",
-        width: 90,
-      },
-
-      {
-        key: "product",
-        header: "Product",
-        sortable: true,
-        render: (row) => (
-          <span className="lan-code-badge">
-            {displayValue(row?.product)}
-          </span>
-        ),
-        sortAccessor: (row) =>
-          String(row?.product ?? "").toLowerCase(),
-        csvAccessor: (row) => row?.product ?? "",
-        width: 160,
-      },
-
       {
         key: "lender",
         header: "Lender",
@@ -471,8 +409,7 @@ const SterlionMexonDexonAllLoans = ({
             {displayValue(row?.lender)}
           </span>
         ),
-        sortAccessor: (row) =>
-          String(row?.lender ?? "").toLowerCase(),
+        sortAccessor: (row) => String(row?.lender ?? "").toLowerCase(),
         csvAccessor: (row) => row?.lender ?? "",
         width: 170,
       },
@@ -486,197 +423,16 @@ const SterlionMexonDexonAllLoans = ({
             {formatCurrency(row?.loan_amount)}
           </span>
         ),
-        sortAccessor: (row) =>
-          Number(row?.loan_amount ?? 0),
-        csvAccessor: (row) =>
-          row?.loan_amount ?? "",
+        sortAccessor: (row) => Number(row?.loan_amount ?? 0),
+        csvAccessor: (row) => row?.loan_amount ?? "",
         width: 180,
       },
-
-      {
-        key: "tenure_months",
-        header: "Tenure",
-        sortable: true,
-        render: (row) => {
-          if (
-            row?.tenure_months === null ||
-            row?.tenure_months === undefined ||
-            row?.tenure_months === ""
-          ) {
-            return "—";
-          }
-
-          return `${row.tenure_months} months`;
-        },
-        sortAccessor: (row) =>
-          Number(row?.tenure_months ?? 0),
-        csvAccessor: (row) =>
-          row?.tenure_months ?? "",
-        width: 130,
-      },
-
-      {
-        key: "interest_rate",
-        header: "Interest Rate",
-        sortable: true,
-        render: (row) => {
-          const rate = Number(row?.interest_rate);
-
-          return Number.isFinite(rate)
-            ? `${rate.toFixed(2)}%`
-            : "—";
-        },
-        sortAccessor: (row) =>
-          Number(row?.interest_rate ?? 0),
-        csvAccessor: (row) =>
-          row?.interest_rate ?? "",
-        width: 150,
-      },
-
-      {
-        key: "processing_fee",
-        header: "Processing Fee",
-        sortable: true,
-        render: (row) =>
-          formatCurrency(row?.processing_fee),
-        sortAccessor: (row) =>
-          Number(row?.processing_fee ?? 0),
-        csvAccessor: (row) =>
-          row?.processing_fee ?? "",
-        width: 175,
-      },
-
-      createTextColumn(
-        "first_name",
-        "First Name",
-        160,
-      ),
-
-      createTextColumn(
-        "last_name",
-        "Last Name",
-        160,
-      ),
-
-      {
-        key: "aadhaar_number",
-        header: "Aadhaar Number",
-        sortable: true,
-        render: (row) =>
-          maskSensitiveValue(row?.aadhaar_number),
-        sortAccessor: (row) =>
-          String(
-            row?.aadhaar_number ?? "",
-          ).toLowerCase(),
-        csvAccessor: (row) =>
-          maskSensitiveValue(
-            row?.aadhaar_number,
-          ),
-        width: 175,
-      },
-
-      createTextColumn(
-        "pan_number",
-        "PAN Number",
-        150,
-      ),
-
-      createTextColumn(
-        "mobile_number",
-        "Mobile Number",
-        165,
-      ),
-
-      createTextColumn("email", "Email", 230),
-
-      createTextColumn(
-        "business_name",
-        "Business Name",
-        220,
-      ),
-
-      createTextColumn(
-        "industry",
-        "Industry",
-        180,
-      ),
-
-      createTextColumn(
-        "account_holder_name",
-        "Account Holder Name",
-        220,
-      ),
-
-      {
-        key: "account_number",
-        header: "Account Number",
-        sortable: true,
-        render: (row) =>
-          maskSensitiveValue(row?.account_number),
-        sortAccessor: (row) =>
-          String(
-            row?.account_number ?? "",
-          ).toLowerCase(),
-        csvAccessor: (row) =>
-          maskSensitiveValue(
-            row?.account_number,
-          ),
-        width: 185,
-      },
-
-      createTextColumn("ifsc", "IFSC", 150),
-
-      createTextColumn(
-        "bank_name",
-        "Bank Name",
-        210,
-      ),
-
-      {
-        key: "date_of_birth",
-        header: "Date of Birth",
-        sortable: true,
-        render: (row) =>
-          formatDate(row?.date_of_birth),
-        sortAccessor: (row) =>
-          row?.date_of_birth
-            ? Date.parse(row.date_of_birth)
-            : 0,
-        csvAccessor: (row) =>
-          row?.date_of_birth ?? "",
-        width: 160,
-      },
-
-      createAddressColumn(
-        "permanent_address",
-        "Permanent Address",
-      ),
-
-      createAddressColumn(
-        "business_address",
-        "Business Address",
-      ),
-
-      createTextColumn(
-        "gst_number",
-        "GST Number",
-        175,
-      ),
-
-      createTextColumn(
-        "udyam_number",
-        "Udyam Number",
-        185,
-      ),
-
       {
         key: "status",
         header: "Status",
         sortable: true,
         render: (row) => {
-          const statusStyle = getStatusStyle(
-            row?.status,
-          );
+          const statusStyle = getStatusStyle(row?.status);
 
           return (
             <span
@@ -690,8 +446,7 @@ const SterlionMexonDexonAllLoans = ({
                 fontWeight: 800,
                 textTransform: "uppercase",
                 whiteSpace: "nowrap",
-                background:
-                  statusStyle.background,
+                background: statusStyle.background,
                 color: statusStyle.color,
                 border: `1px solid ${statusStyle.border}`,
               }}
@@ -700,43 +455,10 @@ const SterlionMexonDexonAllLoans = ({
             </span>
           );
         },
-        sortAccessor: (row) =>
-          String(row?.status ?? "").toLowerCase(),
-        csvAccessor: (row) =>
-          row?.status ?? "",
+        sortAccessor: (row) => String(row?.status ?? "").toLowerCase(),
+        csvAccessor: (row) => row?.status ?? "",
         width: 145,
       },
-
-      {
-        key: "created_at",
-        header: "Created At",
-        sortable: true,
-        render: (row) =>
-          formatDateTime(row?.created_at),
-        sortAccessor: (row) =>
-          row?.created_at
-            ? Date.parse(row.created_at)
-            : 0,
-        csvAccessor: (row) =>
-          row?.created_at ?? "",
-        width: 190,
-      },
-
-      {
-        key: "updated_at",
-        header: "Updated At",
-        sortable: true,
-        render: (row) =>
-          formatDateTime(row?.updated_at),
-        sortAccessor: (row) =>
-          row?.updated_at
-            ? Date.parse(row.updated_at)
-            : 0,
-        csvAccessor: (row) =>
-          row?.updated_at ?? "",
-        width: 190,
-      },
-
       {
         key: "documents",
         header: "Action",
@@ -747,11 +469,7 @@ const SterlionMexonDexonAllLoans = ({
             onClick={() => {
               if (!row?.lan) return;
 
-              navigate(
-                `/documents/${encodeURIComponent(
-                  row.lan,
-                )}`,
-              );
+              navigate(`/documents/${encodeURIComponent(row.lan)}`);
             }}
             style={{
               padding: "8px 14px",
@@ -759,9 +477,7 @@ const SterlionMexonDexonAllLoans = ({
               border: "1px solid #e2e8f0",
               color: "#0f172a",
               background: "#ffffff",
-              cursor: row?.lan
-                ? "pointer"
-                : "not-allowed",
+              cursor: row?.lan ? "pointer" : "not-allowed",
               fontSize: "12px",
               fontWeight: 700,
               display: "inline-flex",
@@ -769,23 +485,18 @@ const SterlionMexonDexonAllLoans = ({
               gap: "6px",
               opacity: row?.lan ? 1 : 0.6,
               whiteSpace: "nowrap",
-              boxShadow:
-                "0 1px 2px rgba(0, 0, 0, 0.05)",
+              boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
               transition: "0.2s",
             }}
             onMouseOver={(event) => {
               if (!row?.lan) return;
 
-              event.currentTarget.style.background =
-                "#f8fafc";
-              event.currentTarget.style.borderColor =
-                "#cbd5e1";
+              event.currentTarget.style.background = "#f8fafc";
+              event.currentTarget.style.borderColor = "#cbd5e1";
             }}
             onMouseOut={(event) => {
-              event.currentTarget.style.background =
-                "#ffffff";
-              event.currentTarget.style.borderColor =
-                "#e2e8f0";
+              event.currentTarget.style.background = "#ffffff";
+              event.currentTarget.style.borderColor = "#e2e8f0";
             }}
           >
             <span>📂</span>
@@ -861,14 +572,11 @@ const SterlionMexonDexonAllLoans = ({
                 className="search-input-modern"
                 placeholder="Search LAN, customer, mobile, PAN, product…"
                 value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
+                onChange={(event) => setSearch(event.target.value)}
               />
 
               <span className="record-count-badge">
-                {totalRows.toLocaleString("en-IN")}{" "}
-                Records
+                {totalRows.toLocaleString("en-IN")} Records
               </span>
             </div>
           }

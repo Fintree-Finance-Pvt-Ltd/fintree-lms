@@ -8395,7 +8395,7 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
     bucket: "Quarterly",
   },
 
-    QUATERLY_365: {
+  QUATERLY_365: {
     dbValue: "Quaterly_365",
     bucket: "Quarterly",
   },
@@ -8414,7 +8414,7 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
     bucket: "Yearly",
   },
 
-   YEARLY_360: {
+  YEARLY_360: {
     dbValue: "yearly_360",
     bucket: "Yearly",
   },
@@ -8432,11 +8432,10 @@ const WCTLFFPL_ALLOWED_PRODUCTS = {
 
 const WCTLFFPL_ALLOWED_PRODUCT_CODES = [
   "Monthly_360",
-    "Monthly_365",
+  "Monthly_365",
 
   "Quaterly_360",
-    "Quaterly_365",
-  
+  "Quaterly_365",
 
   "Half_yearly_360",
   "Half_yearly_365",
@@ -9179,11 +9178,11 @@ router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
         );
 
         await partnerLimitService.updateBookedLimit(
-  conn,
-  limitCheck.limitId,
-  loanAmount,
-  lan,
-);
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          lan,
+        );
 
         /*
          * Important:
