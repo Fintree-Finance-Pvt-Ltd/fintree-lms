@@ -226,14 +226,12 @@ const Sidebar = () => {
       'Seven FinCorp': <Users size={iconSize} />,
       'SRBH ':<BarChart3 size={iconSize} />,
       'Bundela': <Users size={iconSize} />,
+      'Sterlion Mexon Dexon Loans': <Briefcase size={iconSize} />,
       'Fundify': <Wallet size={iconSize} />,
       'Supply Chain Loans': <Repeat size={iconSize} />,
       'Dealer ALL': <Users size={iconSize} />,
       'Aldun Loans': <Landmark size={iconSize} />,
       'MIS Reports': <BarChart3 size={iconSize} />,
-      'Sterlion Mexon Dexon Loans': <Briefcase size={iconSize} />,
-      
-     
     };
     // Return the icon or the first letter if not found
     return icons[group] || <span className="fallback-char">{group.charAt(0)}</span>;
@@ -275,11 +273,11 @@ const Sidebar = () => {
     'Loan Digit': allowedPages.filter(p => p.path.includes('/loan-digit')),
     'RapidMoney Loans': allowedPages.filter(p => p.path.includes('/rapidmoney-loans')),
     'Switch My Loans': allowedPages.filter(p => p.path.includes('/sml-loans')),
+    'Sterlion Mexon Dexon Loans': allowedPages.filter((p) => p.path.includes('/sterlion-mexon-dexon')),
     'Supply Chain Loans': allowedPages.filter(p => p.path.includes('/supply-chain-loans')),
     'Dealer ALL': allowedPages.filter(p => p.path.includes('/dealer-onboarding')),
     'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),
-    'MIS Reports': allowedPages.filter(p => p.path.includes('/mis-reports')),
-    'Sterlion Mexon Dexon Loans': allowedPages.filter((p) => p.path.includes('/sterlion-mexon-dexon')),  
+    'MIS Reports': allowedPages.filter(p => p.path.includes('/mis-reports')),  
   };
  
   return (

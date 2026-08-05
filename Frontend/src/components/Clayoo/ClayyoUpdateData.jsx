@@ -15,11 +15,12 @@ const EMPTY_EMAIL_FORM = {
 };
 
 const EMPTY_INSURANCE_FORM = {
-  insurance_cost: "0.00",
-  insurance_provider: "",
+  insurance_card_company: "",
   policy_number: "",
-  policy_issued_date: "",
-  period_of_insurance: "",
+  policy_holder_name: "",
+  patient_name: "",
+  father_name: "",
+  mother_name: "",
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,6 +29,39 @@ const hasValue = (value) =>
   value !== null &&
   value !== undefined &&
   String(value).trim() !== "";
+
+const firstAvailableValue = (...values) =>
+  values.find((value) => hasValue(value)) ?? "";
+
+const hasStoredInsuranceDetails = (
+  insurance = {},
+) => {
+  const oldInsuranceCost = Number(
+    insurance.insurance_cost,
+  );
+
+  return Boolean(
+    [
+      insurance.insurance_card_company,
+      insurance.insurance_company,
+      insurance.insurance_provider,
+      insurance.policy_number,
+      insurance.policy_holder_name,
+      insurance.patient_name,
+      insurance.father_name,
+      insurance.fathers_name,
+      insurance.mother_name,
+      insurance.mothers_name,
+      insurance.policy_issued_date,
+      insurance.period_of_insurance,
+    ].some(hasValue) ||
+    (
+      hasValue(insurance.insurance_cost) &&
+      Number.isFinite(oldInsuranceCost) &&
+      oldInsuranceCost > 0
+    ),
+  );
+};
 
 const formatDate = (value) => {
   if (!value) return "—";
@@ -467,7 +501,6 @@ const ClayyoUpdateData = () => {
       );
 
       setLoading(false);
-
       return;
     }
 
@@ -475,71 +508,220 @@ const ClayyoUpdateData = () => {
       setLoading(true);
       setErrorMessage("");
 
-      const response = await api.get(
-        `/clayyo-loans/loan-info/${encodeURIComponent(
-          lan,
-        )}`,
-      );
+      const [
+        loanResponse,
+        hospitalResponse,
+      ] = await Promise.all([
+        api.get(
+          `/clayyo-loans/loan-info/${encodeURIComponent(
+            lan,
+          )}`,
+        ),
+
+        api
+          .get(
+            "/clayyo-loans/hospitals-list",
+          )
+          .catch((error) => {
+            console.warn(
+              "Clayyo hospital list fetch failed:",
+              error,
+            );
+
+            return {
+              data: [],
+            };
+          }),
+      ]);
 
       const responseData =
-        response.data;
+        loanResponse.data;
 
       const loanData =
         responseData?.loan || {};
 
-      const insuranceDetails =
-        loanData.insurance_details || {};
+      const hospitalResponseData =
+        hospitalResponse?.data;
 
-      setDetails(responseData);
+      const hospitalList =
+        Array.isArray(hospitalResponseData)
+          ? hospitalResponseData
+          : Array.isArray(
+            hospitalResponseData?.hospitals,
+          )
+            ? hospitalResponseData.hospitals
+            : Array.isArray(
+              hospitalResponseData?.data,
+            )
+              ? hospitalResponseData.data
+              : [];
+
+      const selectedHospitalId =
+        loanData.hospital_id ??
+        loanData.hospitalId ??
+        loanData.hospital_code ??
+        "";
+
+      const selectedHospital =
+        hospitalList.find((hospital) => {
+          const hospitalId =
+            hospital.id ??
+            hospital.hospital_id ??
+            hospital.hospitalId ??
+            hospital.hospital_code ??
+            "";
+
+          return (
+            String(hospitalId) ===
+            String(selectedHospitalId)
+          );
+        });
+
+      const hospitalName =
+        firstAvailableValue(
+          loanData.hospital_name,
+          loanData.hospitalName,
+          loanData.hospital,
+          selectedHospital?.hospital_name,
+          selectedHospital?.hospitalName,
+          selectedHospital?.name,
+        );
+
+      const normalizedLoanData = {
+        ...loanData,
+        hospital_name: hospitalName,
+      };
+
+      const insuranceDetails =
+        normalizedLoanData.insurance_details ||
+        normalizedLoanData.insuranceDetails ||
+        {};
+
+      setDetails({
+        ...responseData,
+        hospitals: hospitalList,
+        loan: normalizedLoanData,
+      });
 
       setBankForm({
         bank_name:
-          loanData.bank_name || "",
+          normalizedLoanData.bank_name ||
+          "",
 
         name_in_bank:
-          loanData.name_in_bank || "",
+          normalizedLoanData.name_in_bank ||
+          "",
 
         account_number:
-          loanData.account_number || "",
+          normalizedLoanData.account_number ||
+          "",
 
         ifsc:
-          loanData.ifsc || "",
+          normalizedLoanData.ifsc ||
+          "",
 
         bank_branch:
-          loanData.bank_branch || "",
+          normalizedLoanData.bank_branch ||
+          "",
       });
 
       setEmailForm({
         email:
-          loanData.email_id || "",
+          normalizedLoanData.email_id ||
+          "",
       });
 
       setInsuranceForm({
-        insurance_cost:
-          insuranceDetails.insurance_cost ??
-          "0.00",
+        insurance_card_company:
+          firstAvailableValue(
+            insuranceDetails
+              .insurance_card_company,
 
-        insurance_provider:
-          insuranceDetails.insurance_provider ||
-          "",
+            insuranceDetails
+              .insuranceCardCompany,
 
-        policy_number:
-          insuranceDetails.policy_number ||
-          "",
+            insuranceDetails
+              .insurance_company,
 
-        policy_issued_date:
-          toDateInputValue(
-            insuranceDetails.policy_issued_date,
+            insuranceDetails
+              .insuranceCompany,
+
+            insuranceDetails
+              .insurance_provider,
+
+            normalizedLoanData
+              .insurance_card_company,
+
+            normalizedLoanData
+              .insuranceCardCompany,
+
+            normalizedLoanData
+              .insurance_company,
+
+            normalizedLoanData
+              .insuranceCompany,
+
+            normalizedLoanData
+              .insurance_provider,
           ),
 
-        period_of_insurance:
-          insuranceDetails.period_of_insurance ||
-          "",
+        policy_number:
+          firstAvailableValue(
+            insuranceDetails.policy_number,
+            insuranceDetails.policyNumber,
+            normalizedLoanData.policy_number,
+            normalizedLoanData.policyNumber,
+          ),
+
+        policy_holder_name:
+          firstAvailableValue(
+            insuranceDetails
+              .policy_holder_name,
+
+            insuranceDetails
+              .policyHolderName,
+
+            normalizedLoanData
+              .policy_holder_name,
+
+            normalizedLoanData
+              .policyHolderName,
+          ),
+
+        patient_name:
+          firstAvailableValue(
+            insuranceDetails.patient_name,
+            insuranceDetails.patientName,
+            normalizedLoanData.patient_name,
+            normalizedLoanData.patientName,
+          ),
+
+        father_name:
+          firstAvailableValue(
+            insuranceDetails.father_name,
+            insuranceDetails.fatherName,
+            insuranceDetails.fathers_name,
+            normalizedLoanData.father_name,
+            normalizedLoanData.fatherName,
+            normalizedLoanData.fathers_name,
+          ),
+
+        mother_name:
+          firstAvailableValue(
+            insuranceDetails.mother_name,
+            insuranceDetails.motherName,
+            insuranceDetails.mothers_name,
+            normalizedLoanData.mother_name,
+            normalizedLoanData.motherName,
+            normalizedLoanData.mothers_name,
+          ),
       });
 
       setInsuranceSubmitted(
         Boolean(
-          insuranceDetails.submitted,
+          insuranceDetails.submitted ||
+          insuranceDetails
+            .update_disabled,
         ),
       );
     } catch (error) {
@@ -801,26 +983,17 @@ const ClayyoUpdateData = () => {
 
       const currentInsurance =
         details?.loan?.insurance_details ||
+        details?.loan?.insuranceDetails ||
         {};
-
-      const currentInsuranceCost =
-        Number(
-          currentInsurance.insurance_cost,
-        );
 
       const insuranceLockedNow =
         Boolean(
           insuranceSubmitted ||
-          currentInsurance.update_disabled ||
+          currentInsurance
+            .update_disabled ||
           currentInsurance.submitted ||
-          (
-            hasValue(
-              currentInsurance.insurance_cost,
-            ) &&
-            Number.isFinite(
-              currentInsuranceCost,
-            ) &&
-            currentInsuranceCost > 0
+          hasStoredInsuranceDetails(
+            currentInsurance,
           ),
         );
 
@@ -833,14 +1006,10 @@ const ClayyoUpdateData = () => {
       }
 
       const payload = {
-        insurance_cost:
-          Number(
-            insuranceForm.insurance_cost,
-          ),
-
-        insurance_provider:
+        insurance_card_company:
           String(
-            insuranceForm.insurance_provider ||
+            insuranceForm
+              .insurance_card_company ||
             "",
           ).trim(),
 
@@ -850,62 +1019,57 @@ const ClayyoUpdateData = () => {
             "",
           ).trim(),
 
-        policy_issued_date:
-          insuranceForm.policy_issued_date,
-
-        period_of_insurance:
+        policy_holder_name:
           String(
-            insuranceForm.period_of_insurance ||
+            insuranceForm
+              .policy_holder_name ||
+            "",
+          ).trim(),
+
+        patient_name:
+          String(
+            insuranceForm.patient_name ||
+            "",
+          ).trim(),
+
+        father_name:
+          String(
+            insuranceForm.father_name ||
+            "",
+          ).trim(),
+
+        mother_name:
+          String(
+            insuranceForm.mother_name ||
             "",
           ).trim(),
       };
 
-      if (
-        !Number.isFinite(
-          payload.insurance_cost,
-        ) ||
-        payload.insurance_cost < 0
-      ) {
-        setInsuranceMessage(
-          "Please enter a valid insurance cost.",
+      const requiredFields = [
+        {
+          key: "insurance_card_company",
+          label:
+            "Insurance card / company",
+        },
+        {
+          key: "policy_number",
+          label: "Policy number",
+        },
+        {
+          key: "policy_holder_name",
+          label: "Policy holder name",
+        },
+      ];
+
+      const missingField =
+        requiredFields.find(
+          ({ key }) =>
+            !hasValue(payload[key]),
         );
 
-        return;
-      }
-
-      if (
-        !payload.insurance_provider
-      ) {
+      if (missingField) {
         setInsuranceMessage(
-          "Insurance provider is required.",
-        );
-
-        return;
-      }
-
-      if (!payload.policy_number) {
-        setInsuranceMessage(
-          "Policy number is required.",
-        );
-
-        return;
-      }
-
-      if (
-        !payload.policy_issued_date
-      ) {
-        setInsuranceMessage(
-          "Policy issued date is required.",
-        );
-
-        return;
-      }
-
-      if (
-        !payload.period_of_insurance
-      ) {
-        setInsuranceMessage(
-          "Period of insurance is required.",
+          `${missingField.label} is required.`,
         );
 
         return;
@@ -924,11 +1088,17 @@ const ClayyoUpdateData = () => {
             payload,
           );
 
-        const savedInsurance =
-          response.data?.insurance || {
-            ...payload,
-            submitted: true,
-          };
+        const responseInsurance =
+          response.data
+            ?.insurance_details ||
+          response.data?.insurance ||
+          {};
+
+        const savedInsurance = {
+          ...payload,
+          ...responseInsurance,
+          submitted: true,
+        };
 
         setDetails((previous) => ({
           ...previous,
@@ -936,34 +1106,70 @@ const ClayyoUpdateData = () => {
           loan: {
             ...previous.loan,
 
-            insurance_details: {
-              ...savedInsurance,
-              submitted: true,
-            },
+            patient_name:
+              savedInsurance.patient_name,
+
+            father_name:
+              savedInsurance.father_name,
+
+            mother_name:
+              savedInsurance.mother_name,
+
+            insurance_details:
+              savedInsurance,
           },
         }));
 
         setInsuranceForm({
-          insurance_cost:
-            savedInsurance.insurance_cost ??
-            "0.00",
+          insurance_card_company:
+            firstAvailableValue(
+              savedInsurance
+                .insurance_card_company,
 
-          insurance_provider:
-            savedInsurance.insurance_provider ||
-            "",
+              savedInsurance
+                .insuranceCardCompany,
 
-          policy_number:
-            savedInsurance.policy_number ||
-            "",
+              savedInsurance
+                .insurance_company,
 
-          policy_issued_date:
-            toDateInputValue(
-              savedInsurance.policy_issued_date,
+              savedInsurance
+                .insurance_provider,
             ),
 
-          period_of_insurance:
-            savedInsurance.period_of_insurance ||
-            "",
+          policy_number:
+            firstAvailableValue(
+              savedInsurance.policy_number,
+              savedInsurance.policyNumber,
+            ),
+
+          policy_holder_name:
+            firstAvailableValue(
+              savedInsurance
+                .policy_holder_name,
+
+              savedInsurance
+                .policyHolderName,
+            ),
+
+          patient_name:
+            firstAvailableValue(
+              savedInsurance.patient_name,
+              savedInsurance.patientName,
+            ),
+
+          father_name:
+            firstAvailableValue(
+              savedInsurance.father_name,
+              savedInsurance.fatherName,
+              savedInsurance.fathers_name,
+            ),
+
+          mother_name:
+            firstAvailableValue(
+              savedInsurance.mother_name,
+              savedInsurance.motherName,
+              savedInsurance.mothers_name,
+            ),
         });
 
         setInsuranceSubmitted(true);
@@ -1696,10 +1902,118 @@ const ClayyoUpdateData = () => {
             <div className="section-divider" />
 
             <h3 className="insurance-title">
+              <span className="insurance-title-icon">
+                💳
+              </span>
+
               Insurance Details
             </h3>
 
             <form
+              onSubmit={
+                handleInsuranceSubmit
+              }
+            >
+              <div className="insurance-grid">
+                <div className="insurance-input-card">
+                  <FormInput
+                    label="Insurance Card / Company"
+                    name="insurance_card_company"
+                    value={
+                      insuranceForm
+                        .insurance_card_company
+                    }
+                    onChange={
+                      handleInsuranceChange
+                    }
+                    disabled={
+                      insuranceSaving ||
+                      insuranceLocked
+                    }
+                    placeholder="Enter insurance card or company"
+                    maxLength={150}
+                  />
+                </div>
+
+                <div className="insurance-input-card">
+                  <FormInput
+                    label="Policy Number"
+                    name="policy_number"
+                    value={
+                      insuranceForm.policy_number
+                    }
+                    onChange={
+                      handleInsuranceChange
+                    }
+                    disabled={
+                      insuranceSaving ||
+                      insuranceLocked
+                    }
+                    placeholder="Enter policy number"
+                    maxLength={100}
+                  />
+                </div>
+
+                <div className="insurance-input-card">
+                  <FormInput
+                    label="Policy Holder Name"
+                    name="policy_holder_name"
+                    value={
+                      insuranceForm
+                        .policy_holder_name
+                    }
+                    onChange={
+                      handleInsuranceChange
+                    }
+                    disabled={
+                      insuranceSaving ||
+                      insuranceLocked
+                    }
+                    placeholder="Enter policy holder name"
+                    maxLength={150}
+                  />
+                </div>
+
+              </div>
+
+              {insuranceMessage && (
+                <div
+                  className={
+                    insuranceLocked
+                      ? "form-message form-message-success"
+                      : "form-message form-message-error"
+                  }
+                >
+                  {insuranceMessage}
+                </div>
+              )}
+
+              <div className="insurance-action">
+                {insuranceLocked ? (
+                  <PrimaryButton
+                    disabled
+                    success
+                  >
+                    ✓ Insurance Details Available
+                  </PrimaryButton>
+                ) : (
+                  <PrimaryButton
+                    type="submit"
+                    disabled={
+                      insuranceSaving
+                    }
+                  >
+                    {insuranceSaving
+                      ? "Submitting..."
+                      : "Submit Insurance Details"}
+                  </PrimaryButton>
+                )}
+              </div>
+            </form>
+
+
+
+            {/* <form
               onSubmit={
                 handleInsuranceSubmit
               }
@@ -1835,7 +2149,7 @@ const ClayyoUpdateData = () => {
                   </PrimaryButton>
                 )}
               </div>
-            </form>
+            </form> */}
           </SectionCard>
         </div>
       </div>
@@ -2198,14 +2512,12 @@ const PAGE_CSS = `
   }
 
   .insurance-grid {
-    grid-template-columns:
-      repeat(
-        auto-fit,
-        minmax(250px, 1fr)
-      );
-    gap: 28px;
-    align-items: start;
-  }
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 22px 24px;
+  align-items: start;
+}
 
   .field,
   .link-field {
@@ -2371,19 +2683,48 @@ const PAGE_CSS = `
     background: #e2e8f0;
   }
 
-  .insurance-title {
-    margin: 0 0 18px;
-    color: #0f172a;
-    font-size: 17px;
-    font-weight: 900;
-  }
+.insurance-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 22px;
+  color: #009688;
+  font-size: 18px;
+  font-weight: 900;
+}
 
-  .insurance-input-card {
-    padding: 16px;
-    border: 1px solid #dbe4f0;
-    border-radius: 16px;
-    background: #f8fafc;
-  }
+.insurance-title-icon {
+  font-size: 17px;
+}
+
+.insurance-input-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.insurance-grid .form-label {
+  color: #53698f;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.insurance-grid .form-input {
+  min-height: 43px;
+  border: 1px solid #d6deeb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.insurance-grid .form-input:focus {
+  border-color: #009688;
+  box-shadow:
+    0 0 0 3px
+    rgba(0, 150, 136, 0.12);
+}
 
   .form-control {
     display: flex;
@@ -2579,6 +2920,16 @@ const PAGE_CSS = `
     .clayyo-page {
       padding: 20px 12px;
     }
+      .insurance-grid {
+  grid-template-columns: 1fr;
+}
+
+    @media (max-width: 1000px) {
+  .insurance-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
 
     .section-card {
       padding: 20px;

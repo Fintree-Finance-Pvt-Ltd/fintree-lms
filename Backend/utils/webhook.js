@@ -136,6 +136,9 @@ const STERLION_WEBHOOK_URL = process.env.STERLION_WEBHOOK_URL;
 const FINSO_WEBHOOK_USERNAME = process.env.FINSO_WEBHOOK_USERNAME;
 const FINSO_WEBHOOK_PASSWORD = process.env.FINSO_WEBHOOK_PASSWORD;
 
+// circlepe houser webhook url
+const CIRCLE_PE_HOUSER_WEBHOOK_URL = process.env.CIRCLE_PE_HOUSER_WEBHOOK_URL;
+
 /**
  * Sends webhook notification when loan status changes.
  *
@@ -218,6 +221,8 @@ async function sendLoanWebhook(data) {
       url = STERLION_WEBHOOK_URL;
     } else if (ref.startsWith("FINS")) {
       url = FINSO_WEBHOOK_URL;
+      } else if (ref.startsWith("CIRHUF")) {
+       url = CIRCLE_PE_HOUSER_WEBHOOK_URL;
 
       // Enable this when Finso basic authentication is required.
       // config.auth = {
