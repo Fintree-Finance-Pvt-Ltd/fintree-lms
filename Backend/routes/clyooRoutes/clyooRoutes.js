@@ -3646,15 +3646,13 @@ router.patch(
   "/insurance/:lan",
   async (req, res) => {
     try {
-      const { lan } = req.params;
-
-      const insuranceCost = Number(
-        req.body.insurance_cost,
+      const lan = normalizeText(
+        req.params.lan,
       );
 
-      const insuranceProvider =
+      const insuranceCardCompany =
         normalizeText(
-          req.body.insurance_provider,
+          req.body.insurance_card_company,
         );
 
       const policyNumber =
@@ -3662,119 +3660,138 @@ router.patch(
           req.body.policy_number,
         );
 
-      const policyIssuedDate =
+      const policyHolderName =
         normalizeText(
-          req.body.policy_issued_date,
+          req.body.policy_holder_name,
         );
 
-      const periodOfInsurance =
+      const patientName =
         normalizeText(
-          req.body.period_of_insurance,
+          req.body.patient_name,
         );
 
-      if (
-        !Number.isFinite(insuranceCost) ||
-        insuranceCost < 0
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Please enter a valid insurance cost.",
-        });
-      }
-
-      if (!insuranceProvider) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Insurance provider is required.",
-        });
-      }
-
-      if (insuranceProvider.length > 255) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Insurance provider must not exceed 255 characters.",
-        });
-      }
-
-      if (!policyNumber) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Policy number is required.",
-        });
-      }
-
-      if (policyNumber.length > 255) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Policy number must not exceed 255 characters.",
-        });
-      }
-
-      if (
-        !/^\d{4}-\d{2}-\d{2}$/.test(
-          policyIssuedDate,
-        )
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Please enter a valid policy issued date.",
-        });
-      }
-
-      const parsedPolicyDate =
-        new Date(
-          `${policyIssuedDate}T00:00:00Z`,
+      const fatherName =
+        normalizeText(
+          req.body.father_name,
         );
 
-      if (
-        Number.isNaN(
-          parsedPolicyDate.getTime(),
-        )
-      ) {
+      const motherName =
+        normalizeText(
+          req.body.mother_name,
+        );
+
+      if (!lan) {
         return res.status(400).json({
           success: false,
-          message:
-            "Please enter a valid policy issued date.",
+          message: "LAN is required.",
         });
       }
 
-      if (!periodOfInsurance) {
+      const requiredFields = [
+        {
+          value: insuranceCardCompany,
+          label:
+            "Insurance card / company",
+        },
+        {
+          value: policyNumber,
+          label: "Policy number",
+        },
+        {
+          value: policyHolderName,
+          label: "Policy holder name",
+        },
+        {
+          value: patientName,
+          label: "Patient name",
+        },
+        {
+          value: fatherName,
+          label: "Father's name",
+        },
+        {
+          value: motherName,
+          label: "Mother's name",
+        },
+      ];
+
+      const missingField =
+        requiredFields.find(
+          ({ value }) => !value,
+        );
+
+      if (missingField) {
         return res.status(400).json({
           success: false,
-          message:
-            "Period of insurance is required.",
+          message: `${missingField.label} is required.`,
         });
       }
 
-      if (
-        periodOfInsurance.length > 100
-      ) {
+      const lengthValidations = [
+        {
+          value: insuranceCardCompany,
+          label:
+            "Insurance card / company",
+          maxLength: 255,
+        },
+        {
+          value: policyNumber,
+          label: "Policy number",
+          maxLength: 255,
+        },
+        {
+          value: policyHolderName,
+          label: "Policy holder name",
+          maxLength: 255,
+        },
+        {
+          value: patientName,
+          label: "Patient name",
+          maxLength: 255,
+        },
+        {
+          value: fatherName,
+          label: "Father's name",
+          maxLength: 255,
+        },
+        {
+          value: motherName,
+          label: "Mother's name",
+          maxLength: 255,
+        },
+      ];
+
+      const invalidLength =
+        lengthValidations.find(
+          ({ value, maxLength }) =>
+            value.length > maxLength,
+        );
+
+      if (invalidLength) {
         return res.status(400).json({
           success: false,
           message:
-            "Period of insurance must not exceed 100 characters.",
+            `${invalidLength.label} must not exceed ` +
+            `${invalidLength.maxLength} characters.`,
         });
       }
 
       /*
-       * Atomic one-time submission.
+       * Atomic one-time submission:
+       * the update succeeds only when insurance
+       * details have not already been submitted.
        */
       const [result] =
         await db.promise().query(
           `
           UPDATE loan_booking_clayyo
           SET
-            insurance_cost = ?,
             insurance_company_name = ?,
             insurance_policy_number = ?,
-            insurance_policy_issued_date = ?,
-            insurance_period = ?,
+            insurance_policy_holder_name = ?,
+            patient_name = ?,
+            father_name = ?,
+            mother_name = ?,
             insurance_details_submitted_once = 1,
             insurance_details_submitted_at = NOW()
           WHERE lan = ?
@@ -3784,11 +3801,12 @@ router.patch(
             ) = 0
           `,
           [
-            insuranceCost,
-            insuranceProvider,
+            insuranceCardCompany,
             policyNumber,
-            policyIssuedDate,
-            periodOfInsurance,
+            policyHolderName,
+            patientName,
+            fatherName,
+            motherName,
             lan,
           ],
         );
@@ -3807,8 +3825,9 @@ router.patch(
 
         if (
           Number(
-            loan.insurance_details_submitted_once ||
-            0,
+            loan
+              .insurance_details_submitted_once ||
+              0,
           ) === 1
         ) {
           return res.status(409).json({
@@ -3829,11 +3848,20 @@ router.patch(
         await db.promise().query(
           `
           SELECT
-            insurance_cost,
-            insurance_company_name,
-            insurance_policy_number,
-            insurance_policy_issued_date,
-            insurance_period,
+            insurance_company_name
+              AS insurance_card_company,
+
+            insurance_policy_number
+              AS policy_number,
+
+            insurance_policy_holder_name
+              AS policy_holder_name,
+
+            patient_name,
+            father_name,
+            mother_name,
+
+            insurance_details_submitted_once,
             insurance_details_submitted_at
           FROM loan_booking_clayyo
           WHERE lan = ?
@@ -3842,39 +3870,57 @@ router.patch(
           [lan],
         );
 
-      return res.json({
+      const insuranceDetails = {
+        insurance_card_company:
+          updatedInsurance
+            ?.insurance_card_company ||
+          insuranceCardCompany,
+
+        policy_number:
+          updatedInsurance
+            ?.policy_number ||
+          policyNumber,
+
+        policy_holder_name:
+          updatedInsurance
+            ?.policy_holder_name ||
+          policyHolderName,
+
+        patient_name:
+          updatedInsurance
+            ?.patient_name ||
+          patientName,
+
+        father_name:
+          updatedInsurance
+            ?.father_name ||
+          fatherName,
+
+        mother_name:
+          updatedInsurance
+            ?.mother_name ||
+          motherName,
+
+        submitted: true,
+
+        update_disabled: true,
+
+        submitted_at:
+          updatedInsurance
+            ?.insurance_details_submitted_at ||
+          null,
+      };
+
+      return res.status(200).json({
         success: true,
 
         message:
           "Insurance details submitted successfully.",
 
-        insurance: {
-          insurance_cost:
-            updatedInsurance?.insurance_cost ??
-            insuranceCost,
+        insurance: insuranceDetails,
 
-          insurance_provider:
-            updatedInsurance?.insurance_company_name ||
-            insuranceProvider,
-
-          policy_number:
-            updatedInsurance?.insurance_policy_number ||
-            policyNumber,
-
-          policy_issued_date:
-            updatedInsurance?.insurance_policy_issued_date ||
-            policyIssuedDate,
-
-          period_of_insurance:
-            updatedInsurance?.insurance_period ||
-            periodOfInsurance,
-
-          submitted: true,
-
-          submitted_at:
-            updatedInsurance?.insurance_details_submitted_at ||
-            null,
-        },
+        insurance_details:
+          insuranceDetails,
       });
     } catch (error) {
       console.error(
