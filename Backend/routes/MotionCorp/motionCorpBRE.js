@@ -1330,18 +1330,24 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
     (
       SELECT kvs.bureau_api_response
       FROM kyc_verification_status AS kvs
-      WHERE kvs.lan = lcr.lan
+      WHERE TRIM(kvs.lan) = TRIM(lcr.lan)
       ORDER BY kvs.created_at DESC, kvs.id DESC
       LIMIT 1
     ) AS bureau_api_response
   FROM loan_cibil_reports AS lcr
-  WHERE lcr.lan = ?
-    AND lcr.applicant_type = 'BORROWER'
+  WHERE TRIM(lcr.lan) = TRIM(?)
+    AND UPPER(TRIM(lcr.applicant_type)) = 'BORROWER'
   ORDER BY lcr.created_at DESC, lcr.id DESC
   LIMIT 1
   `,
     [lan],
   );
+
+  console.log("Motion Corp borrower CIBIL check:", {
+    lan,
+    rowCount: cibilRows.length,
+    row: cibilRows[0] || null,
+  });
 
   if (!cibilRows.length || !cibilRows[0].report_xml) {
     await setPending("BUREAU_REPORT_MISSING");
