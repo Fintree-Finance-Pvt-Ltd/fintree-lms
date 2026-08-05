@@ -135,7 +135,6 @@ import SCAllLoans from "./components/SCAllLoans"; // Supply Chain All Loans
 import ClayooManualEntry from "./components/Clayoo/ClayooLoanBooking";
 import ClayooDiburseInitiateScreen from "./components/Clayoo/ClayooDiburseInitiateScreen";
 import HospitalEntry from "./components/Clayoo/HospitalEntry";
-import ClayyoApprovedLoanDetails from "./components/Clayoo/ClayooApprovedLoanDetails";
 import ClayooLoginLoans from "./components/Clayoo/ClayooLoginLoans";
 import HospitalList from "./components/Clayoo/ClayooHospitalLists";
 import HospitalLoginActions from "./components/Clayoo/ClayooHospitalLoginActions";
@@ -272,8 +271,11 @@ import SterlionUBLDisbursedLoans from "./components/SterlionUbl/SterlionUBLDisbu
 import SterlionUBLApprovedLoans from "./components/SterlionUbl/SterlionUBLApprovedLoans";
 import SterlionUBLDetails from "./components/SterlionUbl/SterlionUblDetails";
 
+import ClayyoUpdateData from "./components/Clayoo/ClayyoUpdateData";
+
 //MEXONDEXON
 import SterlionMexonDexonAllLoans from "./components/SterlionMexonDexon/SterlionMexonDexonAllLoans";
+import SterlionMexonDexonLoginActions from "./components/SterlionMexonDexon/SterlionMexonDexonLoginActions";
 
 function App() {
   return (
@@ -526,7 +528,7 @@ function App() {
           />
           <Route
             path="/approved-loan-details-clayoo/:lan"
-            element={<ClayyoApprovedLoanDetails />}
+            element={<ClayyoUpdateData />}
           />
           <Route
             path="/clayoo-loans/login-cases"
@@ -2282,6 +2284,15 @@ function App() {
             element={
               <PermissionRoute pageName="Sterlion Mexon Dexon All Loans">
                 <SterlionMexonDexonAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/sterlion-mexon-dexon/login-actions"
+            element={
+              <PermissionRoute pageName="Sterlion Mexon Dexon Login Actions">
+                <SterlionMexonDexonLoginActions />
               </PermissionRoute>
             }
           />
