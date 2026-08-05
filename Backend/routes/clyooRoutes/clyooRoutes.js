@@ -23,6 +23,96 @@ const LOAN_STATUS = {
   DISBURSED: "DISBURSED",
 };
 
+let clayyoBankTrackerReadyPromise = null;
+
+/*
+ * Production may not have the update-tracking columns.
+ * This tracker table provides the same one-time-update
+ * protection without changing loan_booking_clayyo.
+ */
+const ensureClayyoBankTrackerTable =
+  async () => {
+    if (!clayyoBankTrackerReadyPromise) {
+      clayyoBankTrackerReadyPromise =
+        db
+          .promise()
+          .query(
+            `
+            CREATE TABLE IF NOT EXISTS
+              clayyo_bank_details_update_tracker
+            (
+              id BIGINT NOT NULL AUTO_INCREMENT,
+              lan VARCHAR(200) NOT NULL,
+              updated_at DATETIME NOT NULL
+                DEFAULT CURRENT_TIMESTAMP,
+
+              PRIMARY KEY (id),
+              UNIQUE KEY uk_clayyo_bank_tracker_lan
+                (lan)
+            )
+            ENGINE = InnoDB
+            DEFAULT CHARSET = utf8mb4
+            COLLATE = utf8mb4_unicode_ci
+            `,
+          )
+          .catch((error) => {
+            /*
+             * Reset so a later request can retry if
+             * the first table creation attempt fails.
+             */
+            clayyoBankTrackerReadyPromise =
+              null;
+
+            throw error;
+          });
+    }
+
+    await clayyoBankTrackerReadyPromise;
+  };
+
+/*
+ * Check which update-tracking columns exist in the
+ * current database. This allows the same code to run
+ * against both UAT and production schemas.
+ */
+const getClayyoBankTrackingColumns =
+  async () => {
+    const [rows] =
+      await db.promise().query(
+        `
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME =
+            'loan_booking_clayyo'
+          AND COLUMN_NAME IN (
+            'bank_details_updated_once',
+            'bank_details_updated_at'
+          )
+        `,
+      );
+
+    const columns = new Set(
+      rows.map(
+        (row) =>
+          row.COLUMN_NAME ||
+          row.column_name,
+      ),
+    );
+
+    return {
+      hasUpdatedOnceColumn:
+        columns.has(
+          "bank_details_updated_once",
+        ),
+
+      hasUpdatedAtColumn:
+        columns.has(
+          "bank_details_updated_at",
+        ),
+    };
+  };
+
 const normalizeText = (value) => String(value || "").trim();
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -3298,159 +3388,337 @@ router.put("/approve-bre-loan/:lan", async (req, res) => {
   });
 });
 
-router.patch("/bank-details/:lan", async (req, res) => {
-  try {
-    const { lan } = req.params;
+router.patch(
+  "/bank-details/:lan",
+  async (req, res) => {
+    let connection;
 
-    const bankName = normalizeText(
-      req.body.bank_name,
-    );
+    try {
+      const lan = normalizeText(
+        req.params.lan,
+      );
 
-    const accountHolderName = normalizeText(
-      req.body.name_in_bank,
-    );
+      const bankName = normalizeText(
+        req.body.bank_name,
+      );
 
-    const accountNumber = normalizeText(
-      req.body.account_number,
-    ).replace(/\s+/g, "");
+      const accountHolderName =
+        normalizeText(
+          req.body.name_in_bank,
+        );
 
-    const ifsc = normalizeText(
-      req.body.ifsc,
-    ).toUpperCase();
+      const accountNumber =
+        normalizeText(
+          req.body.account_number,
+        ).replace(/\s+/g, "");
 
-    const bankBranch = normalizeText(
-      req.body.bank_branch,
-    );
+      const ifsc = normalizeText(
+        req.body.ifsc,
+      ).toUpperCase();
 
-    if (
-      !bankName ||
-      !accountHolderName ||
-      !accountNumber ||
-      !ifsc
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Bank name, account holder name, account number and IFSC are required.",
-      });
-    }
+      const bankBranch = normalizeText(
+        req.body.bank_branch,
+      );
 
-    /*
-     * Indian bank account numbers normally contain
-     * between 6 and 30 numeric digits.
-     */
-    if (!/^\d{6,30}$/.test(accountNumber)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Please enter a valid bank account number.",
-      });
-    }
-
-    /*
-     * Indian IFSC format:
-     * 4 letters + 0 + 6 alphanumeric characters.
-     */
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Please enter a valid IFSC code.",
-      });
-    }
-
-    /*
-     * The updated_once condition prevents a second
-     * update, even if two requests arrive together.
-     */
-    const [result] = await db.promise().query(
-      `
-      UPDATE loan_booking_clayyo
-      SET
-        bank_name = ?,
-        name_in_bank = ?,
-        account_number = ?,
-        ifsc = ?,
-        bank_branch = ?,
-        bank_details_updated_once = 1,
-        bank_details_updated_at = NOW()
-      WHERE lan = ?
-        AND COALESCE(
-          bank_details_updated_once,
-          0
-        ) = 0
-      `,
-      [
-        bankName,
-        accountHolderName,
-        accountNumber,
-        ifsc,
-        bankBranch || null,
-        lan,
-      ],
-    );
-
-    if (!result.affectedRows) {
-      const loan = await getClayyoLoanByLan(lan);
-
-      if (!loan) {
-        return res.status(404).json({
+      if (!lan) {
+        return res.status(400).json({
           success: false,
-          message: "Clayyo loan not found.",
+          message: "LAN is required.",
         });
       }
 
       if (
+        !bankName ||
+        !accountHolderName ||
+        !accountNumber ||
+        !ifsc
+      ) {
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "Bank name, account holder name, account number and IFSC are required.",
+        });
+      }
+
+      /*
+       * Indian bank account numbers normally
+       * contain between 6 and 30 digits.
+       */
+      if (
+        !/^\d{6,30}$/.test(
+          accountNumber,
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "Please enter a valid bank account number.",
+        });
+      }
+
+      /*
+       * Indian IFSC:
+       * 4 letters + 0 + 6 alphanumeric characters.
+       */
+      if (
+        !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
+          ifsc,
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "Please enter a valid IFSC code.",
+        });
+      }
+
+      /*
+       * Ensure the fallback tracker is available.
+       * It is used when production does not have
+       * bank_details_updated_once.
+       */
+      await ensureClayyoBankTrackerTable();
+
+      const {
+        hasUpdatedOnceColumn,
+        hasUpdatedAtColumn,
+      } =
+        await getClayyoBankTrackingColumns();
+
+      connection =
+        await db
+          .promise()
+          .getConnection();
+
+      await connection.beginTransaction();
+
+      /*
+       * Lock the loan row so simultaneous requests
+       * cannot both update the same LAN.
+       */
+      const selectColumns = ["id"];
+
+      if (hasUpdatedOnceColumn) {
+        selectColumns.push(
+          "bank_details_updated_once",
+        );
+      }
+
+      const [loanRows] =
+        await connection.query(
+          `
+          SELECT
+            ${selectColumns.join(", ")}
+          FROM loan_booking_clayyo
+          WHERE lan = ?
+          LIMIT 1
+          FOR UPDATE
+          `,
+          [lan],
+        );
+
+      if (!loanRows.length) {
+        await connection.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "Clayyo loan not found.",
+        });
+      }
+
+      const loan = loanRows[0];
+
+      /*
+       * UAT check:
+       * use the column when it exists.
+       */
+      if (
+        hasUpdatedOnceColumn &&
         Number(
-          loan.bank_details_updated_once || 0,
+          loan.bank_details_updated_once ||
+            0,
         ) === 1
       ) {
+        await connection.rollback();
+
         return res.status(409).json({
           success: false,
+
           message:
             "Bank details have already been updated once.",
         });
       }
 
-      return res.status(409).json({
-        success: false,
-        message:
-          "Bank details could not be updated.",
-      });
-    }
+      /*
+       * Common one-time tracker:
+       *
+       * INSERT IGNORE succeeds only for the first
+       * update request for a LAN.
+       */
+      const [trackerResult] =
+        await connection.query(
+          `
+          INSERT IGNORE INTO
+            clayyo_bank_details_update_tracker
+          (
+            lan,
+            updated_at
+          )
+          VALUES (?, NOW())
+          `,
+          [lan],
+        );
 
-    return res.json({
-      success: true,
-      message:
-        "Bank details updated successfully.",
+      if (!trackerResult.affectedRows) {
+        await connection.rollback();
 
-      bank_details: {
-        bank_name: bankName,
-        name_in_bank: accountHolderName,
-        account_number: accountNumber,
+        return res.status(409).json({
+          success: false,
+
+          message:
+            "Bank details have already been updated once.",
+        });
+      }
+
+      /*
+       * Build the UPDATE according to the current
+       * database schema.
+       */
+      const updateFields = [
+        "bank_name = ?",
+        "name_in_bank = ?",
+        "account_number = ?",
+        "ifsc = ?",
+        "bank_branch = ?",
+      ];
+
+      const updateValues = [
+        bankName,
+        accountHolderName,
+        accountNumber,
         ifsc,
-        bank_branch: bankBranch || null,
-      },
+        bankBranch || null,
+      ];
 
-      update_status: {
-        bank_details_updated_once: true,
-      },
-    });
-  } catch (error) {
-    console.error(
-      "Clayyo bank details update error:",
-      error,
-    );
+      /*
+       * UAT has this column, production may not.
+       */
+      if (hasUpdatedOnceColumn) {
+        updateFields.push(
+          "bank_details_updated_once = 1",
+        );
+      }
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to update bank details.",
-      error:
-        error.sqlMessage || error.message,
-    });
-  }
-});
+      /*
+       * UAT has this column, production may not.
+       */
+      if (hasUpdatedAtColumn) {
+        updateFields.push(
+          "bank_details_updated_at = NOW()",
+        );
+      }
+
+      updateValues.push(lan);
+
+      const [updateResult] =
+        await connection.query(
+          `
+          UPDATE loan_booking_clayyo
+          SET
+            ${updateFields.join(",\n")}
+          WHERE lan = ?
+          `,
+          updateValues,
+        );
+
+      /*
+       * Because the loan was already found and
+       * locked, this mainly protects against an
+       * unexpected deletion or database issue.
+       */
+      if (
+        hasUpdatedOnceColumn &&
+        !updateResult.affectedRows
+      ) {
+        await connection.rollback();
+
+        return res.status(409).json({
+          success: false,
+
+          message:
+            "Bank details could not be updated.",
+        });
+      }
+
+      await connection.commit();
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          "Bank details updated successfully.",
+
+        bank_details: {
+          bank_name: bankName,
+
+          name_in_bank:
+            accountHolderName,
+
+          account_number:
+            accountNumber,
+
+          ifsc,
+
+          bank_branch:
+            bankBranch || null,
+        },
+
+        update_status: {
+          bank_details_updated_once:
+            true,
+
+          bank_details_updated_at:
+            new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.error(
+            "Clayyo bank rollback error:",
+            rollbackError,
+          );
+        }
+      }
+
+      console.error(
+        "Clayyo bank details update error:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+
+        message:
+          "Failed to update bank details.",
+
+        error:
+          error.sqlMessage ||
+          error.message,
+      });
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  },
+);
 
 // Applicant email can be updated only once.
 router.patch("/applicant-email/:lan", async (req, res) => {
