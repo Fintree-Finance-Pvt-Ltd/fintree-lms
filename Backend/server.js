@@ -58,6 +58,9 @@ const {
 const sterlionUblRoutes = require(
   "./routes/SterlionUbl/sterlionUblRoutes"
 );
+const circlePeHouserRoutes = require(
+  "./routes/CirclepeHouser/CirclepeHouserRoutes"
+);
 
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
@@ -129,6 +132,7 @@ app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // 
 app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // ✅ Register Clayyo Routes
 app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ Register PayU Routes
 app.use("/api/sterlion-ubl", sterlionUblRoutes); // ✅ Register Sterlion UBL Routes
+app.use("/api/loan-booking", circlePeHouserRoutes); // ✅ Register Circlepe Houser Routes
 
 app.use(
   "/api/motion-corp",
@@ -644,7 +648,7 @@ app.post("/api/runmotioncorpvalidations", async (req, res) => {
   }
 });
 
-app.post("/api/universalRunAllValidations", async (req, res) => {
+app.post("/api/universalRunAllValidations", async (req, res) => { 
   try {
     const { lan } = req.body;
 

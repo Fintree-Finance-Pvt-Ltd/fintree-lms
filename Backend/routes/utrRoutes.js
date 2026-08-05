@@ -821,12 +821,19 @@ WHERE lan = ?`,
             [lan],
           );
         } else if (lan.startsWith("CIRHUF")) {
-          [loanRes] = await db.promise().query(
-            `SELECT loan_amount, interest_rate, loan_tenure, product, lender 
-             FROM loan_booking_circle_pe_houser WHERE lan = ?`,
-            [lan],
-          );
-        } else if (lan.startsWith("SFL")) {
+       [loanRes] = await db.promise().query(
+       `SELECT
+       loan_amount,
+       interest_rate,
+       loan_tenure,
+       product,
+       lender,
+       partner_loan_id
+     FROM loan_booking_circle_pe_houser
+     WHERE lan = ?`,
+    [lan],
+     );
+} else if (lan.startsWith("SFL")) {
           [loanRes] = await db.promise().query(
             `SELECT 
       loan_amount,
@@ -1438,6 +1445,69 @@ WHERE lan = ?`,
           }
         }
 
+
+        // ✅ Call webhook for CIRCLE PE HOUSER loans only
+if (lan.startsWith("CIRHUF")) {
+  let partnerLoanId = null;
+
+  try {
+    partnerLoanId = String(partner_loan_id || "").trim();
+
+    if (!partnerLoanId) {
+      throw new Error(
+        `partner_loan_id not found for Circle Pe Houser loan ${lan}`,
+      );
+    }
+
+    const webhookResult = await sendLoanWebhook({
+      external_ref_no: partnerLoanId,
+      utr: String(disbursementUTR).trim(),
+      disbursement_date: disbursementDate
+        .toISOString()
+        .split("T")[0],
+      reference_number: lan,
+      status: "DISBURSED",
+      reject_reason: null,
+    });
+
+    if (!webhookResult) {
+      throw new Error(
+        "Circle Pe Houser webhook returned no response",
+      );
+    }
+
+    console.log("✅ Circle Pe Houser webhook successful", {
+      lan,
+      partnerLoanId,
+      webhookResult,
+    });
+  } catch (webhookErr) {
+    const responseStatus =
+      webhookErr.response?.status || null;
+
+    const responseData =
+      webhookErr.response?.data || null;
+
+    console.error("❌ Circle Pe Houser webhook failed", {
+      lan,
+      partnerLoanId,
+      message: webhookErr.message,
+      responseStatus,
+      responseData,
+    });
+
+    rowErrors.push({
+      partnerLoanId: partnerLoanId || null,
+      lan,
+      utr: disbursementUTR,
+      reason: responseData
+        ? `Circle Pe Houser webhook failed: ${JSON.stringify(responseData)}`
+        : `Circle Pe Houser webhook failed: ${webhookErr.message}`,
+      http_status: responseStatus,
+      stage: "webhook",
+    });
+  }
+}
         // ✅ Call webhook for FINE (Finso) loans only
         if (lan.startsWith("FINS")) {
           try {

@@ -11512,3 +11512,4 @@ return res.status(200).json({
   }
 );
 module.exports = router;
+module.exports.generateLoanIdentifiers = generateLoanIdentifiers;
