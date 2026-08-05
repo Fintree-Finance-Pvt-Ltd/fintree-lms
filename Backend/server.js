@@ -20,6 +20,7 @@ const forecloserRoutes = require("./routes/forecloserRoutes");
 const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const fintreePlPartnerApiRoutes = require("./routes/fintreePlPartnerApi");
 const { initColumnSchemaCache } = require("./services/dashboardService");
 const collectionApiRoutes = require("./routes/collectionApi");
 const enachRoutes = require("./routes/enachRoutes");
@@ -56,6 +57,9 @@ const {
 } = require("./services/welcomeLetterService");
 const sterlionUblRoutes = require(
   "./routes/SterlionUbl/sterlionUblRoutes"
+);
+const circlePeHouserRoutes = require(
+  "./routes/CirclepeHouser/CirclepeHouserRoutes"
 );
 
 // function generateApiKey() {
@@ -128,6 +132,7 @@ app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // 
 app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // ✅ Register Clayyo Routes
 app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ Register PayU Routes
 app.use("/api/sterlion-ubl", sterlionUblRoutes); // ✅ Register Sterlion UBL Routes
+app.use("/api/loan-booking", circlePeHouserRoutes); // ✅ Register Circlepe Houser Routes
 
 app.use(
   "/api/motion-corp",
@@ -148,6 +153,12 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
 app.use("/api/helium-webhook", heliumWebhookRoutes);
+app.use(
+  "/api/partner/v1",
+  express.json({ limit: process.env.PL_PARTNER_JSON_LIMIT || "6mb" }),
+  fintreePlPartnerApiRoutes,
+);
+
 function safeAuditJson(value) {
   try {
     return JSON.stringify(value ?? null);
@@ -637,7 +648,7 @@ app.post("/api/runmotioncorpvalidations", async (req, res) => {
   }
 });
 
-app.post("/api/universalRunAllValidations", async (req, res) => {
+app.post("/api/universalRunAllValidations", async (req, res) => { 
   try {
     const { lan } = req.body;
 
