@@ -9,8 +9,13 @@ const {
   performFuzzyMatch,
   createMandate,
 } = require("../../services/enachService");
-const { sendWelcomeKitMail} = require("../../jobs/mailer");
-const { autoApproveClayyoIfAllVerified } = require("../clyooRoutes/clayyoBreEngine");
+const { sendWelcomeKitMail } = require("../../jobs/mailer");
+const {
+  autoApproveClayyoIfAllVerified,
+} = require("../clyooRoutes/clayyoBreEngine");
+const {
+  autoApproveMotionCorpIfAllVerified,
+} = require("../MotionCorp/motionCorpBRE");
 const router = express.Router();
 
 const uploadPath = path.join(__dirname, "../../uploads");
@@ -22,7 +27,10 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 async function downloadAndSaveFile(url, baseName) {
   if (!url) return null;
   try {
-    const res = await axios.get(url, { responseType: "arraybuffer", timeout: 30000 });
+    const res = await axios.get(url, {
+      responseType: "arraybuffer",
+      timeout: 30000,
+    });
 
     const safeBase = baseName.replace(/[^a-zA-Z0-9_.-]/g, "_");
     const fileName = `${Date.now()}_${safeBase}`;
@@ -33,7 +41,10 @@ async function downloadAndSaveFile(url, baseName) {
     // We will store just the fileName in DB (same as your manual upload route)
     return fileName;
   } catch (err) {
-    console.error("❌ Error downloading Aadhaar file:", err.response?.data || err.message);
+    console.error(
+      "❌ Error downloading Aadhaar file:",
+      err.response?.data || err.message,
+    );
     return null;
   }
 }
@@ -41,17 +52,17 @@ async function downloadAndSaveFile(url, baseName) {
 router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
   try {
     const payload = req.body || {};
-    console.log("📥 Digitap Aadhaar Webhook Payload:", JSON.stringify(payload).slice(0, 500));
+    console.log(
+      "📥 Digitap Aadhaar Webhook Payload:",
+      JSON.stringify(payload).slice(0, 500),
+    );
 
     const transactionId = payload.transactionId;
     const status = (payload.status || "").toLowerCase();
     const data = payload.data || {};
 
     const uniqueId =
-      data?.uniqueId ||
-      payload?.uniqueId ||
-      payload?.model?.uniqueId ||
-      null;
+      data?.uniqueId || payload?.uniqueId || payload?.model?.uniqueId || null;
 
     // Personal-loan Aadhaar callbacks must never touch the LMS database.
     if (uniqueId?.startsWith("DLK_CUS-")) {
@@ -101,16 +112,17 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
 
     // If failure -> mark FAILED (if record exists) and exit
     if (status !== "success") {
-      console.log("❌ Aadhaar webhook status is failure for txn:", transactionId);
+      console.log(
+        "❌ Aadhaar webhook status is failure for txn:",
+        transactionId,
+      );
 
-      await db
-        .promise()
-        .query(
-          `UPDATE kyc_verification_status
+      await db.promise().query(
+        `UPDATE kyc_verification_status
            SET aadhaar_status='FAILED'
            WHERE aadhaar_transaction_id = ? OR aadhaar_unique_id = ?`,
-          [transactionId, uniqueId]
-        );
+        [transactionId, uniqueId],
+      );
 
       return res.status(200).send("failure-processed");
     }
@@ -126,7 +138,7 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
       .promise()
       .query(
         `SELECT lan, applicant_type FROM kyc_verification_status WHERE aadhaar_transaction_id = ? OR aadhaar_unique_id = ? LIMIT 1`,
-        [transactionId, uniqueId]
+        [transactionId, uniqueId],
       );
 
     if (!rows.length) {
@@ -140,37 +152,33 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
 
     // PDF + XML links from webhook data
     const pdfLink = data.pdfLink || null; // presigned PDF URL
-    const xmlLink = data.link || null;    // zip/xml presigned URL
+    const xmlLink = data.link || null; // zip/xml presigned URL
 
     // Download & save locally
     const pdfFilePath = await downloadAndSaveFile(
       pdfLink,
-      `aadhaar_${lan}_${Date.now()}.pdf`
+      `aadhaar_${lan}_${Date.now()}.pdf`,
     );
     const xmlFilePath = await downloadAndSaveFile(
       xmlLink,
-      `aadhaar_${lan}_${Date.now()}.xml`
+      `aadhaar_${lan}_${Date.now()}.xml`,
     );
 
     // Insert docs into loan_documents (like manual upload)
     if (pdfFilePath) {
-      await db
-        .promise()
-        .query(
-          `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
+      await db.promise().query(
+        `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
            VALUES (?, ?, ?, NOW())`,
-          [lan, path.basename(pdfFilePath), "AADHAAR_DIGI_KYC_PDF"]
-        );
+        [lan, path.basename(pdfFilePath), "AADHAAR_DIGI_KYC_PDF"],
+      );
     }
 
     if (xmlFilePath) {
-      await db
-        .promise()
-        .query(
-          `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
+      await db.promise().query(
+        `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at)
            VALUES (?, ?, ?, NOW())`,
-          [lan, path.basename(xmlFilePath), "AADHAAR_DIGI_KYC_XML"]
-        );
+        [lan, path.basename(xmlFilePath), "AADHAAR_DIGI_KYC_XML"],
+      );
     }
 
     // Extract Aadhaar basic fields from webhook data
@@ -187,18 +195,17 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
 
     const addr = data.address || {};
     const aadhaarAddressStr = addr
-      ? `${addr.house || ""}, ${addr.street || ""}, ${addr.loc || ""}, ${addr.dist || ""
+      ? `${addr.house || ""}, ${addr.street || ""}, ${addr.loc || ""}, ${
+          addr.dist || ""
         }, ${addr.state || ""} - ${addr.pc || ""}`
-        .replace(/,\s*,/g, ",")
-        .replace(/^,\s*/g, "")
-        .trim()
+          .replace(/,\s*,/g, ",")
+          .replace(/^,\s*/g, "")
+          .trim()
       : null;
 
     // Update KYC table with webhook JSON + paths + fields
-    await db
-      .promise()
-      .query(
-        `UPDATE kyc_verification_status
+    await db.promise().query(
+      `UPDATE kyc_verification_status
          SET aadhaar_status='VERIFIED',
              aadhaar_api_response=?,
              aadhaar_pdf_path=?,
@@ -209,37 +216,37 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
              aadhaar_address=?
          WHERE lan=?
           AND applicant_type=?`,
-        [
-          JSON.stringify(payload),  // full webhook payload
-          pdfFilePath || null,
-          xmlFilePath || null,
-          aadhaarName,
-          aadhaarMasked,
-          aadhaarDob,
-          aadhaarAddressStr,
-          lan,
-          applicantType,
-        ]
-      );
+      [
+        JSON.stringify(payload), // full webhook payload
+        pdfFilePath || null,
+        xmlFilePath || null,
+        aadhaarName,
+        aadhaarMasked,
+        aadhaarDob,
+        aadhaarAddressStr,
+        lan,
+        applicantType,
+      ],
+    );
 
     console.log("✅ Aadhaar VERIFIED via webhook for LAN:", lan);
 
     // Optionally run auto-approval if all checks done
-        if (lan.startsWith("HEL")){
-          console.log("Triggering Helium auto-approval check for LAN:", lan);
-          await autoApproveIfAllVerified(lan);
-        }
-        else if(lan.startsWith("CLY")){
-          console.log("Triggering CLAYYO auto-approval check for LAN:", lan);
-          await autoApproveClayyoIfAllVerified(lan);
-        }
-        else if(lan.startsWith("MC")){
-          console.log("Triggering Motion Corp auto-approval check for LAN:", lan);
-          await autoApproveMotionCorpIfAllVerified(lan);
-        }
-        else {
-          console.log("⚠️ LAN does not start with HEL, skipping auto-approval:", lan);
-        }
+    if (lan.startsWith("HEL")) {
+      console.log("Triggering Helium auto-approval check for LAN:", lan);
+      await autoApproveIfAllVerified(lan);
+    } else if (lan.startsWith("CLY")) {
+      console.log("Triggering CLAYYO auto-approval check for LAN:", lan);
+      await autoApproveClayyoIfAllVerified(lan);
+    } else if (lan.startsWith("MC")) {
+      console.log("Triggering Motion Corp auto-approval check for LAN:", lan);
+      await autoApproveMotionCorpIfAllVerified(lan);
+    } else {
+      console.log(
+        "⚠️ LAN does not start with HEL, skipping auto-approval:",
+        lan,
+      );
+    }
 
     return res.status(200).send("ok");
   } catch (err) {
@@ -248,8 +255,6 @@ router.post("/v1/digi-aadhaar-webhook", async (req, res) => {
     return res.status(200).send("error-logged");
   }
 });
-
-
 
 // 🔐 Digio credentials for downloading signed file
 const DIGIO_USERNAME = process.env.DIGIO_ESIGN_CLIENT_ID;
@@ -276,7 +281,9 @@ async function downloadSignedPdfFromDigio(documentId) {
       Authorization:
         "Basic " +
         Buffer.from(
-          process.env.DIGIO_ESIGN_CLIENT_ID + ":" + process.env.DIGIO_ESIGN_CLIENT_SECRET
+          process.env.DIGIO_ESIGN_CLIENT_ID +
+            ":" +
+            process.env.DIGIO_ESIGN_CLIENT_SECRET,
         ).toString("base64"),
     },
   });
@@ -291,12 +298,14 @@ function parseDigioError(err) {
       return JSON.parse(text);
     }
   } catch (e) {
-    return { message: "Failed to parse Digio error buffer", raw: err.response.data.toString("utf8") };
+    return {
+      message: "Failed to parse Digio error buffer",
+      raw: err.response.data.toString("utf8"),
+    };
   }
 
   return err.response?.data || { message: err.message };
 }
-
 
 // ---------------------------
 // 🔔 DIGIO WEBHOOK LISTENER
@@ -375,8 +384,8 @@ function parseDigioError(err) {
 
 //     // Update esign table
 //     await db.promise().query(
-//       `UPDATE esign_documents 
-//        SET status='SIGNED', signed_file_path=? 
+//       `UPDATE esign_documents
+//        SET status='SIGNED', signed_file_path=?
 //        WHERE document_id=?`,
 //       [savePath, documentId]
 //     );
@@ -391,13 +400,13 @@ function parseDigioError(err) {
 //     // Update loan table
 //     if (type === "SANCTION") {
 //       await db.promise().query(
-//         `UPDATE loan_booking_helium 
+//         `UPDATE loan_booking_helium
 //          SET sanction_esign_status='SIGNED' WHERE lan=?`,
 //         [lan]
 //       );
 //     } else {
 //       await db.promise().query(
-//         `UPDATE loan_booking_helium 
+//         `UPDATE loan_booking_helium
 //          SET agreement_esign_status='SIGNED' WHERE lan=?`,
 //         [lan]
 //       );
@@ -428,8 +437,6 @@ function parseDigioError(err) {
 //       [documentId]
 //     );
 
-
-
 //     if (!rows.length) return res.status(200).send("ignored");
 
 //     const lan = rows[0].lan;
@@ -459,7 +466,6 @@ function parseDigioError(err) {
 
 //     console.log("✅ Document SIGNED. Fetching signed PDF…");
 
-
 //     // 🔥 Download signed PDF from Digio API
 //     const pdfBinary = await downloadSignedPdfFromDigio(documentId);
 
@@ -476,8 +482,8 @@ function parseDigioError(err) {
 
 //     // Update Document Table
 //     await db.promise().query(
-//       `UPDATE esign_documents 
-//        SET status='SIGNED', signed_file_path=? 
+//       `UPDATE esign_documents
+//        SET status='SIGNED', signed_file_path=?
 //        WHERE document_id=?`,
 //       [savePath, documentId]
 //     );
@@ -492,29 +498,29 @@ function parseDigioError(err) {
 //     // Update loan status
 //     if (type === "SANCTION") {
 //       await db.promise().query(
-//         `UPDATE loan_booking_helium 
-//      SET sanction_esign_status = 'SIGNED' 
+//         `UPDATE loan_booking_helium
+//      SET sanction_esign_status = 'SIGNED'
 //      WHERE lan = ?`,
 //         [lan]
 //       );
 
 //       await db.promise().query(
-//         `UPDATE loan_booking_zypay_customer 
-//      SET sanction_esign_status = 'SIGNED' 
+//         `UPDATE loan_booking_zypay_customer
+//      SET sanction_esign_status = 'SIGNED'
 //      WHERE lan = ?`,
 //         [lan]
 //       );
 //     } else {
 //       await db.promise().query(
-//         `UPDATE loan_booking_helium 
-//      SET agreement_esign_status = 'SIGNED' 
+//         `UPDATE loan_booking_helium
+//      SET agreement_esign_status = 'SIGNED'
 //      WHERE lan = ?`,
 //         [lan]
 //       );
 
 //       await db.promise().query(
-//         `UPDATE loan_booking_zypay_customer 
-//      SET agreement_esign_status = 'SIGNED' 
+//         `UPDATE loan_booking_zypay_customer
+//      SET agreement_esign_status = 'SIGNED'
 //      WHERE lan = ?`,
 //         [lan]
 //       );
@@ -532,7 +538,6 @@ function parseDigioError(err) {
 //         doc.bank_beneficiary_name = rows[0].name_in_bank;
 //         doc.mandate_amount = rows[0].loan_amount;
 //       }
-
 
 // console.log(doc);
 
@@ -568,8 +573,6 @@ function parseDigioError(err) {
 //       },
 //     });
 
-
-
 //     return res.status(200).send("ok");
 //   } catch (err) {
 //     const digioError = parseDigioError(err);
@@ -579,7 +582,6 @@ function parseDigioError(err) {
 //     return res.status(200).send("error-logged");
 //   }
 // });
-
 
 // router.post("/esign-webhook", async (req, res) => {
 //   try {
@@ -598,9 +600,9 @@ function parseDigioError(err) {
 
 //     // Fetch LAN & document type
 //     const [docs] = await db.promise().query(
-//       `SELECT lan, document_type 
-//        FROM esign_documents 
-//        WHERE document_id = ? 
+//       `SELECT lan, document_type
+//        FROM esign_documents
+//        WHERE document_id = ?
 //        LIMIT 1`,
 //       [documentId]
 //     );
@@ -803,7 +805,7 @@ router.post("/esign-webhook", async (req, res) => {
        FROM esign_documents
        WHERE document_id = ?
        LIMIT 1`,
-      [documentId]
+      [documentId],
     );
 
     if (!docs.length) {
@@ -818,13 +820,7 @@ router.post("/esign-webhook", async (req, res) => {
       `INSERT INTO esign_webhooks
        (document_id, lan, event, raw_payload, digio_timestamp)
        VALUES (?, ?, ?, ?, ?)`,
-      [
-        documentId,
-        lan,
-        event,
-        JSON.stringify(body),
-        body.created_at || null,
-      ]
+      [documentId, lan, event, JSON.stringify(body), body.created_at || null],
     );
 
     /**
@@ -864,14 +860,14 @@ router.post("/esign-webhook", async (req, res) => {
         `UPDATE esign_documents
          SET status='SIGNED', signed_file_path=?
          WHERE document_id=?`,
-        [savePath, documentId]
+        [savePath, documentId],
       );
 
       await connection.query(
         `INSERT INTO loan_documents
          (lan, file_name, original_name, uploaded_at)
          VALUES (?, ?, ?, NOW())`,
-        [lan, fileName, `${type}_SIGNED`]
+        [lan, fileName, `${type}_SIGNED`],
       );
 
       /**
@@ -883,30 +879,31 @@ router.post("/esign-webhook", async (req, res) => {
             `UPDATE loan_booking_zypay_customer
              SET sanction_esign_status='SIGNED'
              WHERE lan=?`,
-            [lan]
+            [lan],
           );
         } else {
           await connection.query(
             `UPDATE loan_booking_zypay_customer
              SET agreement_esign_status='SIGNED'
              WHERE lan=?`,
-            [lan]
+            [lan],
           );
         }
-      } if (lan.startsWith("CARE")) {
+      }
+      if (lan.startsWith("CARE")) {
         if (type === "SANCTION") {
           await connection.query(
             `UPDATE loan_booking_carepay
              SET sanction_esign_status='SIGNED'
              WHERE lan=?`,
-            [lan]
+            [lan],
           );
         } else {
           await connection.query(
             `UPDATE loan_booking_carepay
              SET agreement_esign_status='SIGNED'
              WHERE lan=?`,
-            [lan]
+            [lan],
           );
         }
       } else if (lan.startsWith("HEL")) {
@@ -916,36 +913,34 @@ router.post("/esign-webhook", async (req, res) => {
             `UPDATE loan_booking_helium
              SET sanction_esign_status='SIGNED'
              WHERE lan=?`,
-            [lan]
+            [lan],
           );
         } else {
           await connection.query(
             `UPDATE loan_booking_helium
              SET agreement_esign_status='SIGNED'
              WHERE lan=?`,
-            [lan]
+            [lan],
           );
         }
-      }
-      else if (lan.startsWith("CLY")) {
+      } else if (lan.startsWith("CLY")) {
         // CLAYYO
         if (type === "SANCTION") {
           await connection.query(
             `UPDATE loan_booking_clayyo
              SET sanction_esign_status='SIGNED'
               WHERE lan=?`,
-            [lan]
+            [lan],
           );
         } else {
           await connection.query(
             `UPDATE loan_booking_clayyo
               SET agreement_esign_status='SIGNED'
               WHERE lan=?`,
-            [lan]
+            [lan],
           );
         }
-      }
-       else {
+      } else {
         console.log("⚠️ LAN prefix not recognized for status update:", lan);
       }
 
@@ -956,7 +951,7 @@ router.post("/esign-webhook", async (req, res) => {
       if (lan.startsWith("ZYP")) {
         const [customers] = await connection.query(
           `SELECT * FROM loan_booking_zypay_customer WHERE lan=?`,
-          [lan]
+          [lan],
         );
 
         if (!customers.length) {
@@ -978,8 +973,8 @@ router.post("/esign-webhook", async (req, res) => {
           lan,
           accountNumber: customer.lan,
           pdfPath: savePath,
-        }).catch(err =>
-          console.error("⚠️ Welcome Kit mail failed:", err.message)
+        }).catch((err) =>
+          console.error("⚠️ Welcome Kit mail failed:", err.message),
         );
       }
 
@@ -1003,18 +998,16 @@ router.post("/esign-webhook", async (req, res) => {
           targetText: customer.name_in_bank,
         });
 
-       await createMandate({
-  lan,
-  customer_identifier: customer.mobile_number, // PAN only
-  amount: customer.loan_amount,
-  account_no: customer.account_number,
-  ifsc: customer.ifsc,
-  bank_name: customer.bank_name,
-  customer_name: customer.name_in_bank,
-});
-
+        await createMandate({
+          lan,
+          customer_identifier: customer.mobile_number, // PAN only
+          amount: customer.loan_amount,
+          account_no: customer.account_number,
+          ifsc: customer.ifsc,
+          bank_name: customer.bank_name,
+          customer_name: customer.name_in_bank,
+        });
       }
-
     } catch (dbErr) {
       await connection.rollback();
       throw dbErr;
@@ -1029,14 +1022,16 @@ router.post("/esign-webhook", async (req, res) => {
   }
 });
 
-
 router.post("/enach-webhook", async (req, res) => {
   try {
     const event = req.body.event;
     const mandate = req.body?.payload?.api_mandate;
     const mandateId = mandate?.id;
-    const outsideId =req.body?.id;// This is the LA    console.log("📥 eNACH WEBHOOK:", event, "Mandate:", mandateId);
-    console.log("loggind full webhook payload:", JSON.stringify(req.body).slice(0, 800));
+    const outsideId = req.body?.id; // This is the LA    console.log("📥 eNACH WEBHOOK:", event, "Mandate:", mandateId);
+    console.log(
+      "loggind full webhook payload:",
+      JSON.stringify(req.body).slice(0, 800),
+    );
 
     if (!mandateId) return res.status(200).send("ignored");
     console.log(" madate Id:", mandateId);
@@ -1047,14 +1042,13 @@ router.post("/enach-webhook", async (req, res) => {
       `UPDATE enach_mandates 
        SET webhook_payload=? 
        WHERE document_id=?`,
-      [JSON.stringify(req.body), mandateId]
+      [JSON.stringify(req.body), mandateId],
     );
 
     // Fetch LAN
-    const [rows] = await db.promise().query(
-      `SELECT lan FROM enach_mandates WHERE document_id=?`,
-      [mandateId]
-    );
+    const [rows] = await db
+      .promise()
+      .query(`SELECT lan FROM enach_mandates WHERE document_id=?`, [mandateId]);
 
     if (!rows.length) return res.status(200).send("unknown-mandate");
 
@@ -1069,11 +1063,7 @@ router.post("/enach-webhook", async (req, res) => {
       `UPDATE enach_mandates 
        SET status=?, umrn=?
        WHERE document_id=?`,
-      [
-        newStatus,
-        umrn,
-        mandateId
-      ]
+      [newStatus, umrn, mandateId],
     );
 
     // Update loan table status
@@ -1081,57 +1071,48 @@ router.post("/enach-webhook", async (req, res) => {
 
     if (event === "apimndt.authsuccess") bankStatus = "MANDATE_CREATED";
     if (event === "apimndt.registersuccess") bankStatus = "MANDATE_CREATED";
-    if (event === "apimndt.authfail" || event === "apimndt.registerfailed") bankStatus = "FAILED";
-
-    
+    if (event === "apimndt.authfail" || event === "apimndt.registerfailed")
+      bankStatus = "FAILED";
 
     if (lan.startsWith("HEL")) {
       await db.promise().query(
-      `UPDATE loan_booking_helium 
+        `UPDATE loan_booking_helium 
    SET bank_status = ?, enach_umrn = ? 
    WHERE lan = ?`,
-      [bankStatus, umrn, lan]
-    );
-    }
-    else if (lan.startsWith("MC")) {
+        [bankStatus, umrn, lan],
+      );
+    } else if (lan.startsWith("MC")) {
       await db.promise().query(
-      `UPDATE loan_booking_motion_corp 
+        `UPDATE loan_booking_motion_corp 
    SET bank_status = ?, enach_umrn = ? 
    WHERE lan = ?`,
-      [bankStatus, umrn, lan]
-    );
-    }
-    else if (lan.startsWith("ZYP")) {
+        [bankStatus, umrn, lan],
+      );
+    } else if (lan.startsWith("ZYP")) {
       await db.promise().query(
-      `UPDATE loan_booking_zypay_customer 
+        `UPDATE loan_booking_zypay_customer 
    SET bank_status = ?, enach_umrn = ? 
    WHERE lan = ?`,
-      [bankStatus, umrn, lan]
-    );
-    }
-    else if (lan.startsWith("CLY")) {
+        [bankStatus, umrn, lan],
+      );
+    } else if (lan.startsWith("CLY")) {
       await db.promise().query(
-      `UPDATE loan_booking_clayyo 
+        `UPDATE loan_booking_clayyo 
    SET bank_status = ?, enach_umrn = ? 
    WHERE lan = ?`,
-      [bankStatus, umrn, lan]
-    );
-    }
-
-    else {
+        [bankStatus, umrn, lan],
+      );
+    } else {
       console.log("⚠️ LAN prefix not recognized for bank status update:", lan);
     }
-
 
     console.log("✅ Loan updated =>", lan, bankStatus);
 
     return res.status(200).send("ok");
-
   } catch (err) {
     console.error("❌ Webhook error:", err);
     return res.status(200).send("error");
   }
 });
-
 
 module.exports = router;

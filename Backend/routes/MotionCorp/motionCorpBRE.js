@@ -1323,13 +1323,23 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
    */
   const [cibilRows] = await pool.query(
     `
-    SELECT score, report_xml, created_at
-    FROM loan_cibil_reports
-    WHERE lan = ?
-      AND applicant_type = 'BORROWER'
-    ORDER BY created_at DESC, id DESC
-    LIMIT 1
-    `,
+  SELECT
+    lcr.score,
+    lcr.report_xml,
+    lcr.created_at,
+    (
+      SELECT kvs.bureau_api_response
+      FROM kyc_verification_status AS kvs
+      WHERE kvs.lan = lcr.lan
+      ORDER BY kvs.created_at DESC, kvs.id DESC
+      LIMIT 1
+    ) AS bureau_api_response
+  FROM loan_cibil_reports AS lcr
+  WHERE lcr.lan = ?
+    AND lcr.applicant_type = 'BORROWER'
+  ORDER BY lcr.created_at DESC, lcr.id DESC
+  LIMIT 1
+  `,
     [lan],
   );
 
@@ -1338,6 +1348,12 @@ const autoApproveMotionCorpIfAllVerified = async (lan) => {
 
     return;
   }
+
+  const {
+    score,
+    report_xml: reportXml,
+    bureau_api_response: bureauApiResponse,
+  } = cibilRows[0];
 
   /**
    * PAN DUPLICATION (DB)
