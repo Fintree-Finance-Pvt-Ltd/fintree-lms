@@ -583,6 +583,7 @@ function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("SFL")) return "Seven FinCorp";
   if (lan.startsWith("STRL")) return "STERLION";
   if (lan.startsWith("UBLF")) return "sterlion-ubl";  // UBLF prefix for Sterlion UBL
+  if (lan.startsWith("SW")) return "Saswat";
 
   if (lender && String(lender).trim()) return String(lender).trim();
   if (product && String(product).trim()) return String(product).trim();
@@ -898,6 +899,12 @@ WHERE lan = ?`,
      FROM loan_booking_helium WHERE lan = ?`,
             [lan],
           );
+        }else if(lan.startsWith("SW")){
+          [loanRes]= await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender
+             FROM loan_booking_saswat WHERE lan = ?`,
+            [lan],
+          )
         } else {
           [loanRes] = await db.promise().query(
             `SELECT loan_amount, interest_rate, loan_tenure, product, lender 

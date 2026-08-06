@@ -1644,11 +1644,44 @@ router.get("/all-loans", async (req, res) => {
     const page = Number(req.query.page || 1);
     const pageSize = Number(req.query.pageSize || 1500);
     const offset = (page - 1) * pageSize;
+    const search = String(req.query.search || "").trim();
+    const prefix = String(req.query.prefix || "").trim();
 
-    const [[{ total }]] = await db.promise().query(`
-      SELECT COUNT(*) AS total
-      FROM loan_booking_clayyo
-    `);
+    const conditions = [];
+    const params = [];
+
+    if (prefix) {
+      conditions.push("lb.lan LIKE ?");
+      params.push(`${prefix}%`);
+    }
+
+    if (search) {
+      const value = `%${search}%`;
+
+      conditions.push(`
+    (
+      lb.lan LIKE ?
+      OR lb.app_id LIKE ?
+      OR lb.customer_name LIKE ?
+      OR lb.mobile_number LIKE ?
+      OR lb.status LIKE ?
+    )
+  `);
+
+      params.push(value, value, value, value, value);
+    }
+
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
+    const [[{ total }]] = await db.promise().query(
+      `
+  SELECT COUNT(*) AS total
+  FROM loan_booking_clayyo lb
+  ${whereClause}
+  `,
+      params,
+    );
 
     const [rows] = await db.promise().query(
       `
@@ -1680,10 +1713,11 @@ router.get("/all-loans", async (req, res) => {
         ON ch.id = lb.hospital_id
       LEFT JOIN kyc_verification_status kyc
         ON kyc.lan = lb.lan
+        ${whereClause}
       ORDER BY lb.login_date DESC, lb.lan DESC
       LIMIT ? OFFSET ?
       `,
-      [pageSize, offset],
+      [...params, pageSize, offset],
     );
 
     res.json({
@@ -2720,15 +2754,15 @@ router.get("/loan-info/:lan", async (req, res) => {
 
       row.hospital_id
         ? runOptionalQuery(
-            "hospital",
-            `
+          "hospital",
+          `
             SELECT hospital_legal_name
             FROM clayyo_hospital_booking
             WHERE id = ?
             LIMIT 1
             `,
-            [row.hospital_id],
-          )
+          [row.hospital_id],
+        )
         : Promise.resolve([]),
     ]);
 
@@ -3540,7 +3574,7 @@ router.patch(
         hasUpdatedOnceColumn &&
         Number(
           loan.bank_details_updated_once ||
-            0,
+          0,
         ) === 1
       ) {
         await connection.rollback();
@@ -4095,7 +4129,7 @@ router.patch(
           Number(
             loan
               .insurance_details_submitted_once ||
-              0,
+            0,
           ) === 1
         ) {
           return res.status(409).json({

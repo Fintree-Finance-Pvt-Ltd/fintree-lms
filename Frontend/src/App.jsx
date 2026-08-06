@@ -270,6 +270,7 @@ import SterlionUBLApprovedLoans from "./components/SterlionUbl/SterlionUBLApprov
 import SterlionUBLDetails from "./components/SterlionUbl/SterlionUblDetails";
 
 import ClayyoUpdateData from "./components/Clayoo/ClayyoUpdateData";
+import ClayooApprovedLoanDetails from "./components/Clayoo/ClayooApprovedLoanDetails";
 
 //MEXONDEXON
 import SterlionMexonDexonAllLoans from "./components/SterlionMexonDexon/SterlionMexonDexonAllLoans";
@@ -1502,6 +1503,16 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          <Route
+            path="/approved-loan-details-clayoo-approved/:lan"
+            element={
+              <PermissionRoute pageName="Clayoo Approved Loan Details">
+                <ClayooApprovedLoanDetails />
+              </PermissionRoute>
+            }
+          />
+
           {/* MIS */}
           <Route
             path="/mis-reports/listing"

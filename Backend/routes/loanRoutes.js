@@ -120,6 +120,10 @@ router.get("/loan-booking/:lan", (req, res) => {
     table = "loan_booking_sterlion_ubl";
     posTable = "manual_rps_sterlion_ubl";
   }
+  else if (lan.startsWith("SW")) {
+    table = "loan_booking_saswat";
+    posTable = "manual_rps_saswat";
+  }
 
   const query = `SELECT * FROM ${table} WHERE lan = ?`;
 

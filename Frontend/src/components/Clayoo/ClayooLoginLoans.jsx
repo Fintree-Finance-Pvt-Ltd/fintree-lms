@@ -209,10 +209,10 @@
 
 
 import React, { useEffect, useState } from "react";
-import api from "../../api/api";
 import { useNavigate } from "react-router-dom";
+import api from "../../api/api";
 import DataTable from "../ui/DataTable";
- 
+
 const LoginCaseScreen = ({
   apiUrl = `/loan-booking/login-loans?table=loan_booking_clayyo&prefix=CLY`,
   title = "CLAYYO Login Stage Loans",
@@ -221,124 +221,302 @@ const LoginCaseScreen = ({
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+
   const navigate = useNavigate();
- 
+
+  const openApprovedLoanDetails = (lan) => {
+    if (!lan) return;
+
+    navigate(
+      `/approved-loan-details-clayoo-approved/${encodeURIComponent(lan)}`,
+    );
+  };
+
   useEffect(() => {
     let off = false;
+
     setLoading(true);
+    setErr("");
+
     api
       .get(apiUrl)
-      .then((res) => !off && setRows(Array.isArray(res.data) ? res.data : []))
-      .catch(() => !off && setErr("Failed to fetch data."))
-      .finally(() => !off && setLoading(false));
-    return () => (off = true);
+      .then((res) => {
+        if (!off) {
+          setRows(Array.isArray(res.data) ? res.data : []);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to fetch Clayyo login cases:", error);
+
+        if (!off) {
+          setErr("Failed to fetch data.");
+        }
+      })
+      .finally(() => {
+        if (!off) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      off = true;
+    };
   }, [apiUrl]);
- 
-  if (loading) return (
-    <div style={{ display: 'grid', placeItems: 'center', height: '200px' }}>
-      <div className="medical-spinner"></div>
-      <p style={{ marginTop: '10px', color: '#0d9488', fontWeight: 600 }}>Accessing Records...</p>
-    </div>
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "grid",
+          placeItems: "center",
+          height: "200px",
+        }}
+      >
+        <div className="medical-spinner" />
+
+        <p
+          style={{
+            marginTop: "10px",
+            color: "#0d9488",
+            fontWeight: 600,
+          }}
+        >
+          Accessing Records...
+        </p>
+
+        <style>{`
+          .medical-spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #ccfbf1;
+            border-top: 3px solid #0d9488;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+          }
+
+          @keyframes spin {
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (err) {
+    return (
+      <div
+        style={{
+          padding: "20px",
+          background: "#fef2f2",
+          borderRadius: "12px",
+          borderLeft: "4px solid #ef4444",
+        }}
+      >
+        <p
+          style={{
+            color: "#b91c1c",
+            fontWeight: 600,
+            margin: 0,
+          }}
+        >
+          {err}
+        </p>
+      </div>
+    );
+  }
+
+  const hasClayyo = rows.some(
+    (row) =>
+      typeof row?.lan === "string" &&
+      /^CLY/i.test(row.lan),
   );
- 
-  if (err) return (
-    <div style={{ padding: '20px', background: '#fef2f2', borderRadius: '12px', borderLeft: '4px solid #ef4444' }}>
-      <p style={{ color: "#b91c1c", fontWeight: 600, margin: 0 }}>{err}</p>
-    </div>
-  );
- 
-  const hasclyoo = rows.some((r) => typeof r?.lan === "string" && /^CLY/i.test(r.lan));
- 
-  // Updated Status Pill logic to use the new "Hospital" theme
+
   const statusPillStyle = (status) => {
     const map = {
-      approved: { bg: "#dcfce7", bd: "#bbf7d0", fg: "#166534" },
-      rejected: { bg: "#fee2e2", bd: "#fecaca", fg: "#991b1b" },
-      pending:  { bg: "#fef3c7", bd: "#fde68a", fg: "#92400e" },
-      login:    { bg: "#f1f5f9", bd: "#e2e8f0", fg: "#475569" },
+      approved: {
+        bg: "#dcfce7",
+        bd: "#bbf7d0",
+        fg: "#166534",
+      },
+      rejected: {
+        bg: "#fee2e2",
+        bd: "#fecaca",
+        fg: "#991b1b",
+      },
+      pending: {
+        bg: "#fef3c7",
+        bd: "#fde68a",
+        fg: "#92400e",
+      },
+      login: {
+        bg: "#f1f5f9",
+        bd: "#e2e8f0",
+        fg: "#475569",
+      },
     };
-    const key = (status || "pending").toString().toLowerCase();
-    const c = map[key] || map.login;
+
+    const key = String(status || "pending")
+      .trim()
+      .toLowerCase();
+
+    const selected = map[key] || map.login;
+
     return {
       display: "inline-flex",
       alignItems: "center",
       padding: "4px 12px",
       borderRadius: "6px",
       fontSize: "11px",
-      fontWeight: "800",
+      fontWeight: 800,
       textTransform: "uppercase",
       letterSpacing: "0.5px",
-      background: c.bg,
-      color: c.fg,
-      border: `1px solid ${c.bd}`,
+      background: selected.bg,
+      color: selected.fg,
+      border: `1px solid ${selected.bd}`,
     };
   };
- 
+
   const phoneLink = {
-    color: "#0d9488", // Hospital Teal
+    color: "#0d9488",
     textDecoration: "none",
     fontWeight: 700,
-    fontSize: "13px"
+    fontSize: "13px",
   };
- 
+
+  const clickableText = {
+    color: "#0d9488",
+    fontWeight: 700,
+    cursor: "pointer",
+  };
+
   const columns = [
     {
       key: "customer_name",
       header: "Patient / Borrower",
       sortable: true,
-      render: (r) => (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+      render: (row) => (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <span
-            style={{ color: "#0d9488", fontWeight: 700, cursor: "pointer", fontSize: '14px' }}
-            onClick={() => navigate(`/approved-loan-details-clayoo/${r.lan}`)}
+            style={{
+              ...clickableText,
+              fontSize: "14px",
+            }}
+            onClick={() =>
+              openApprovedLoanDetails(row.lan)
+            }
+            title="View approved loan details"
           >
-            {r.customer_name ?? "—"}
+            {row.customer_name ?? "—"}
           </span>
-          <span style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>Case ID: {r.lan}</span>
+
+          <span
+            style={{
+              fontSize: "10px",
+              color: "#64748b",
+              textTransform: "uppercase",
+            }}
+          >
+            Case ID: {row.lan ?? "—"}
+          </span>
         </div>
       ),
-      sortAccessor: (r) => (r.customer_name || "").toLowerCase(),
+      sortAccessor: (row) =>
+        (row.customer_name || "").toLowerCase(),
       width: 220,
     },
     {
       key: "hospital_name",
       header: "Medical Facility",
       sortable: true,
-      render: (r) => (
+      render: (row) => (
         <span
-          style={{ color: "#475569", fontWeight: 600, cursor: "pointer", fontSize: '13px' }}
-          onClick={() => navigate(`/approved-loan-details-clayoo-hospital/${r.lan}`)}
+          style={{
+            color: "#475569",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontSize: "13px",
+          }}
+          onClick={() =>
+            navigate(
+              `/approved-loan-details-clayoo-hospital/${encodeURIComponent(
+                row.lan,
+              )}`,
+            )
+          }
+          title="View hospital details"
         >
-          🏥 {r.hospital_name}
+          🏥 {row.hospital_name ?? "—"}
         </span>
       ),
+      sortAccessor: (row) =>
+        (row.hospital_name || "").toLowerCase(),
       width: 220,
     },
     {
       key: "lender",
       header: "Lender",
-      render: () => <span style={{ fontWeight: 700, color: '#0f172a' }}>{lenderName}</span>,
+      render: () => (
+        <span
+          style={{
+            fontWeight: 700,
+            color: "#0f172a",
+          }}
+        >
+          {lenderName}
+        </span>
+      ),
+      csvAccessor: () => lenderName,
       width: 120,
     },
     {
       key: "lan",
       header: "LAN",
       sortable: true,
-      render: (r) => (
-        <code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', color: '#0f172a', fontWeight: 'bold' }}>
-          {r.lan ?? "—"}
+      render: (row) => (
+        <code
+          style={{
+            background: "#f1f5f9",
+            padding: "4px 7px",
+            borderRadius: "4px",
+            color: "#0d9488",
+            fontWeight: "bold",
+            cursor: "pointer",
+          }}
+          onClick={() =>
+            openApprovedLoanDetails(row.lan)
+          }
+          title="View approved loan details"
+        >
+          {row.lan ?? "—"}
         </code>
       ),
-      sortAccessor: (r) => (r.lan || "").toLowerCase(),
+      sortAccessor: (row) =>
+        (row.lan || "").toLowerCase(),
       width: 140,
     },
-    ...(hasclyoo
+    ...(hasClayyo
       ? [
           {
             key: "application_id",
             header: "APP ID",
             sortable: true,
-            render: (r) => (/^CLY/i.test(r?.lan) ? <span style={{ fontWeight: 600 }}>{r.app_id ?? "—"}</span> : "—"),
+            render: (row) =>
+              /^CLY/i.test(row?.lan) ? (
+                <span style={{ fontWeight: 600 }}>
+                  {row.app_id ?? "—"}
+                </span>
+              ) : (
+                "—"
+              ),
+            sortAccessor: (row) =>
+              String(row.app_id || "").toLowerCase(),
             width: 140,
           },
         ]
@@ -347,33 +525,47 @@ const LoginCaseScreen = ({
       key: "mobile_number",
       header: "Contact",
       sortable: true,
-      render: (r) =>
-        r.mobile_number ? (
-          <a href={`tel:${r.mobile_number}`} style={phoneLink}>
-            📞 {r.mobile_number}
+      render: (row) =>
+        row.mobile_number ? (
+          <a
+            href={`tel:${row.mobile_number}`}
+            style={phoneLink}
+          >
+            📞 {row.mobile_number}
           </a>
-        ) : "—",
+        ) : (
+          "—"
+        ),
+      sortAccessor: (row) =>
+        String(row.mobile_number || ""),
       width: 160,
     },
     {
       key: "status",
       header: "Stage",
       sortable: true,
-      render: (r) => (
-        <span style={statusPillStyle(r.status)}>
-          {r.status || "Pending"}
+      render: (row) => (
+        <span style={statusPillStyle(row.status)}>
+          {row.status || "Pending"}
         </span>
       ),
-      sortAccessor: (r) => (r.status || "").toLowerCase(),
-      csvAccessor: (r) => r.status || "Pending",
+      sortAccessor: (row) =>
+        (row.status || "").toLowerCase(),
+      csvAccessor: (row) =>
+        row.status || "Pending",
       width: 140,
     },
     {
       key: "docs",
       header: "Medical Files",
-      render: (r) => (
+      render: (row) => (
         <button
-          onClick={() => navigate(`/documents/${r.lan}`)}
+          type="button"
+          onClick={() =>
+            navigate(
+              `/documents/${encodeURIComponent(row.lan)}`,
+            )
+          }
           style={{
             padding: "6px 12px",
             borderRadius: "6px",
@@ -382,18 +574,20 @@ const LoginCaseScreen = ({
             background: "#fff",
             cursor: "pointer",
             fontSize: "12px",
-            fontWeight: "700",
-            transition: '0.2s'
+            fontWeight: 700,
+            transition: "0.2s",
           }}
           className="medical-btn-docs"
+          title="Open medical records"
         >
           📋 Records
         </button>
       ),
+      csvAccessor: () => "",
       width: 120,
     },
   ];
- 
+
   return (
     <div className="hospital-ui-wrapper">
       <style>{`
@@ -402,32 +596,33 @@ const LoginCaseScreen = ({
           background: #f8fafc;
           min-height: 100vh;
         }
-        .medical-spinner {
-          width: 30px;
-          height: 30px;
-          border: 3px solid #ccfbf1;
-          border-top: 3px solid #0d9488;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-       
+
         .medical-btn-docs:hover {
           background: #0d9488 !important;
-          color: #fff !important;
+          color: #ffffff !important;
         }
       `}</style>
+
       <DataTable
         title={title}
         rows={rows}
         columns={columns}
-        globalSearchKeys={["customer_name", "lan", "mobile_number", "status"]}
-        initialSort={{ key: "lan", dir: "desc" }}
+        globalSearchKeys={[
+          "customer_name",
+          "hospital_name",
+          "lan",
+          "app_id",
+          "mobile_number",
+          "status",
+        ]}
+        initialSort={{
+          key: "lan",
+          dir: "desc",
+        }}
         exportFileName="clayyo_login_records"
       />
     </div>
   );
 };
- 
+
 export default LoginCaseScreen;
- 

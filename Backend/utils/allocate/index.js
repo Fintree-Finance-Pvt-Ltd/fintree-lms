@@ -47,6 +47,7 @@ const allocateMotionCorp = require("./allocateMotionCorp");
 const allocateSterlion = require("./allocateSterlion");
 const allocateWctlffpl = require("./allocateWctlffpl");
 const allocateSterlionUBL = require("./allocateSterlionUbl"); //
+const allocateSaswat = require("./allocateSaswat");
 
 /**
  * Utility helpers for merging allocation results.
@@ -131,7 +132,10 @@ return allocateSterlion(lan, payment);
   else if (lan.startsWith("LDF")) {
 return allocateLoanDigit(lan, payment);
 
-  } else if (lan.startsWith("GQN")) {
+  } else if (lan.startsWith("SW")) {
+return allocateSaswat(lan, payment);
+  }
+  else if (lan.startsWith("GQN")) {
     const promises = [
       allocateGQNonFSF(lan, payment),
       allocateGQNonFSFFintree(lan, payment)

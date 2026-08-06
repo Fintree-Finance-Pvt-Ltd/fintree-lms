@@ -1832,6 +1832,14 @@ const ClayooLimitEntry = ({
 
   const navigate = useNavigate();
 
+  const openApprovedLoanDetails = (lan) => {
+    if (!lan) return;
+
+    navigate(
+      `/approved-loan-details-clayoo-approved/${encodeURIComponent(lan)}`,
+    );
+  };
+
   useEffect(() => {
     let off = false;
     setLoading(true);
@@ -2286,7 +2294,7 @@ const ClayooLimitEntry = ({
       render: (r) => (
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details-clayoo/${r.lan}`)}
+          onClick={() => openApprovedLoanDetails(r.lan)}
         >
           {r.customer_name ?? "—"}
         </span>
@@ -2315,7 +2323,7 @@ const ClayooLimitEntry = ({
       render: (r) => (
         <span
           style={{ color: "#2563eb", fontWeight: 600, cursor: "pointer" }}
-          onClick={() => navigate(`/approved-loan-details-clayoo/${r.lan}`)}
+          onClick={() => openApprovedLoanDetails(r.lan)}
         >
           {r.lan ?? "—"}
         </span>
