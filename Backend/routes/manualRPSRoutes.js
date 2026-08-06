@@ -195,9 +195,10 @@ const TABLES = {
     bl:     { bookings: "loan_bookings",        rps: "manual_rps_bl_loan" }, // default / EV/BL
     circlepe: { bookings: "loan_booking_circle_pe",  rps: "manual_rps_circlepe" },
     srbh:{ bookings:"loan_booking_srbh",   rps:"manual_rps_srbh"},
+    saswat:{ bookings:"loan_booking_saswat", rps:"manual_rps_saswat"},
 };
 // Priority when a LAN could exist in multiple places (adjust if needed)
-const CATEGORY_ORDER = ["bl", "wctl", "embifi", "circlepe"];
+const CATEGORY_ORDER = ["bl", "wctl", "embifi", "circlepe", "saswat"];
 
 // Small promisified query helper
 const queryAsync = (sql, params = []) =>

@@ -543,6 +543,82 @@ if (lender === "ZYPAY" && product === "Monthly Loan") {
   return dueDate;
 }
 
+if (normalizedLender === "SASWAT") {
+  
+  const supportedProducts = [
+    "lap",
+    "monthly",
+    "monthly_365",
+  ];
+
+  if (!supportedProducts.includes(normalizedProduct)) {
+    throw new Error(
+      `Unsupported Saswat product: ${product}`,
+    );
+  }
+
+  const installmentOffset = Number(monthOffset || 0);
+
+  if (
+    !Number.isInteger(installmentOffset) ||
+    installmentOffset < 0
+  ) {
+    throw new Error(
+      `Invalid Saswat monthOffset: ${monthOffset}`,
+    );
+  }
+
+  const dueDate = new Date(disbDate);
+  const disbursementDay = disbDate.getDate();
+
+  /*
+   * SASWAT LAP EMI-date rule:
+   *
+   * Disbursement on or before 20th:
+   * First EMI => next month 5th
+   *
+   * Disbursement after 20th:
+   * First EMI => month after next, 5th
+   *
+   * monthOffset:
+   * 0 => first EMI
+   * 1 => second EMI
+   * 2 => third EMI
+   */
+
+  const initialMonthGap =
+    disbursementDay <= 20 ? 1 : 2;
+
+  /*
+   * Set the day to 1 before changing month.
+   * This avoids month rollover issues for
+   * dates such as 29th, 30th and 31st.
+   */
+  dueDate.setDate(1);
+
+  dueDate.setMonth(
+    dueDate.getMonth() +
+      initialMonthGap +
+      installmentOffset,
+  );
+
+  dueDate.setDate(5);
+  dueDate.setHours(12, 0, 0, 0);
+
+  console.log("[SASWAT LAP EMI DATE]", {
+    lender,
+    product,
+    normalizedLender,
+    normalizedProduct,
+    installmentNumber: installmentOffset + 1,
+    disbursementDate: formatDateYMD(disbDate),
+    disbursementDay,
+    cutoffApplied: disbursementDay > 20,
+    dueDate: formatDateYMD(dueDate),
+  });
+
+  return dueDate;
+}
 
 ///////////////////// ADIKOSH /////////////////
 

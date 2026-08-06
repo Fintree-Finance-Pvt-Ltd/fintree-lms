@@ -10075,13 +10075,791 @@ console.log("checking data", {
     product,
     lender,
   );
-}else {
+}else if (lan.startsWith("SW")) {
+  console.log("[SASWAT RPS GENERATION START]", {
+    lan,
+    loanAmount,
+    interestRate,
+    tenure,
+    disbursementDate,
+    product,
+    lender,
+  });
+
+  await generateRepaymentScheduleSaswat(
+    conn,
+    lan,
+    loanAmount,
+    interestRate,
+    Number(tenure),
+    disbursementDate,
+    product,
+  );
+} 
+else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
   }
 };
 
 
+const roundSaswat2 = (value) => {
+  const number = Number(value);
 
+  if (!Number.isFinite(number)) {
+    return 0;
+  }
+
+  return Number(
+    (Math.round((number + Number.EPSILON) * 100) / 100).toFixed(2),
+  );
+};
+
+const formatSaswatDateYMD = (value) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${value}`);
+  }
+
+  const year = date.getFullYear();
+
+  const month = String(
+    date.getMonth() + 1,
+  ).padStart(2, "0");
+
+  const day = String(
+    date.getDate(),
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeSaswatProduct = (product) => {
+  const normalizedProduct = String(
+    product || "monthly",
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_")
+    .replace(/_+/g, "_");
+
+  const supportedProducts = [
+    "lap",
+    "monthly",
+    "monthly_365",
+  ];
+
+  if (
+    !supportedProducts.includes(
+      normalizedProduct,
+    )
+  ) {
+    throw new Error(
+      `Unsupported Saswat product: ${product}. ` +
+        `Allowed products: ${supportedProducts.join(", ")}`,
+    );
+  }
+
+  return normalizedProduct;
+};
+
+/**
+ * Generate Saswat LAP repayment schedule.
+ *
+ * This function is called after UTR upload.
+ * The UTR date is treated as the disbursement date.
+ *
+ * @param {object} conn MySQL transaction connection
+ * @param {string} lan Loan account number
+ * @param {number|string} loanAmount Loan principal
+ * @param {number|string} interestRate Annual reducing ROI
+ * @param {number|string} tenure Tenure in months
+ * @param {Date|string} disbursementDate UTR/disbursement date
+ * @param {string} product Saswat product
+ * @param {string} lender Lender name
+ */
+const generateRepaymentScheduleSaswat = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product = "monthly",
+  lender = "Saswat",
+) => {
+  /*
+   * ==========================================
+   * BASIC VALIDATION
+   * ==========================================
+   */
+
+  if (!conn) {
+    throw new Error(
+      "Database transaction connection is required for Saswat RPS.",
+    );
+  }
+
+  const normalizedLan = String(
+    lan || "",
+  )
+    .trim()
+    .toUpperCase();
+
+  if (!normalizedLan) {
+    throw new Error(
+      "Saswat LAN is required.",
+    );
+  }
+
+  const numericLoanAmount =
+    roundSaswat2(
+      Number(
+        String(loanAmount ?? "")
+          .replace(/,/g, "")
+          .trim(),
+      ),
+    );
+
+  const numericInterestRate = Number(
+    String(interestRate ?? "")
+      .replace(/%/g, "")
+      .replace(/,/g, "")
+      .trim(),
+  );
+
+  const numericTenure = Number(tenure);
+
+  if (
+    !Number.isFinite(numericLoanAmount) ||
+    numericLoanAmount <= 0
+  ) {
+    throw new Error(
+      `Invalid Saswat loan amount: ${loanAmount}`,
+    );
+  }
+
+  if (
+    !Number.isFinite(
+      numericInterestRate,
+    ) ||
+    numericInterestRate < 0
+  ) {
+    throw new Error(
+      `Invalid Saswat interest rate: ${interestRate}`,
+    );
+  }
+
+  if (
+    !Number.isInteger(numericTenure) ||
+    numericTenure <= 0
+  ) {
+    throw new Error(
+      `Invalid Saswat tenure: ${tenure}`,
+    );
+  }
+
+  const parsedDisbursementDate =
+    disbursementDate instanceof Date
+      ? new Date(
+          disbursementDate.getTime(),
+        )
+      : new Date(disbursementDate);
+
+  if (
+    Number.isNaN(
+      parsedDisbursementDate.getTime(),
+    )
+  ) {
+    throw new Error(
+      `Invalid Saswat disbursement date: ${disbursementDate}`,
+    );
+  }
+
+  const normalizedProduct =
+    normalizeSaswatProduct(product);
+
+  /*
+   * ==========================================
+   * CHECK EXISTING RPS
+   * ==========================================
+   */
+
+  const [existingRpsRows] =
+    await conn.query(
+      `
+        SELECT id
+        FROM manual_rps_saswat
+        WHERE lan = ?
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [normalizedLan],
+    );
+
+  /*
+   * Make UTR retry idempotent.
+   * Do not insert duplicate RPS rows.
+   */
+  if (existingRpsRows.length > 0) {
+    console.log(
+      "[SASWAT RPS SKIPPED]",
+      {
+        lan: normalizedLan,
+        reason:
+          "RPS_ALREADY_EXISTS",
+      },
+    );
+
+    return {
+      success: true,
+      skipped: true,
+      reason:
+        "RPS_ALREADY_EXISTS",
+      lan: normalizedLan,
+    };
+  }
+
+  /*
+   * ==========================================
+   * CALCULATE FIRST EMI DATE
+   * ==========================================
+   *
+   * firstEmiDate is declared here.
+   * It is not expected from the UTR route.
+   */
+
+  const firstEmiDate =
+    getFirstEmiDate(
+      parsedDisbursementDate,
+      null,
+      lender || "Saswat",
+      normalizedProduct,
+      0,
+    );
+
+  if (
+    !(firstEmiDate instanceof Date) ||
+    Number.isNaN(
+      firstEmiDate.getTime(),
+    )
+  ) {
+    throw new Error(
+      `Unable to calculate Saswat first EMI date for LAN ${normalizedLan}.`,
+    );
+  }
+
+  console.log(
+    "[SASWAT RPS DATE DETAILS]",
+    {
+      lan: normalizedLan,
+      lender,
+      product,
+      normalizedProduct,
+      disbursementDate:
+        formatSaswatDateYMD(
+          parsedDisbursementDate,
+        ),
+      firstEmiDate:
+        formatSaswatDateYMD(
+          firstEmiDate,
+        ),
+    },
+  );
+
+  /*
+   * ==========================================
+   * EMI CALCULATION
+   * ==========================================
+   */
+
+  const monthlyRate =
+    numericInterestRate /
+    100 /
+    12;
+
+  let regularEmi;
+
+  if (monthlyRate === 0) {
+    regularEmi = roundSaswat2(
+      numericLoanAmount /
+        numericTenure,
+    );
+  } else {
+    const rateFactor = Math.pow(
+      1 + monthlyRate,
+      numericTenure,
+    );
+
+    regularEmi = roundSaswat2(
+      (
+        numericLoanAmount *
+        monthlyRate *
+        rateFactor
+      ) /
+        (rateFactor - 1),
+    );
+  }
+
+  if (
+    !Number.isFinite(regularEmi) ||
+    regularEmi <= 0
+  ) {
+    throw new Error(
+      `Unable to calculate Saswat EMI for LAN ${normalizedLan}.`,
+    );
+  }
+
+  /*
+   * ==========================================
+   * BUILD SCHEDULE
+   * ==========================================
+   */
+
+  const schedule = [];
+
+  let openingBalance =
+    numericLoanAmount;
+
+  for (
+    let installmentNumber = 1;
+    installmentNumber <=
+      numericTenure;
+    installmentNumber++
+  ) {
+    /*
+     * Generate every installment date using
+     * the Saswat date rule.
+     *
+     * monthOffset:
+     * installment 1 => 0
+     * installment 2 => 1
+     */
+    const dueDate =
+      getFirstEmiDate(
+        parsedDisbursementDate,
+        null,
+        lender || "Saswat",
+        normalizedProduct,
+        installmentNumber - 1,
+      );
+
+    if (
+      !(dueDate instanceof Date) ||
+      Number.isNaN(
+        dueDate.getTime(),
+      )
+    ) {
+      throw new Error(
+        `Invalid Saswat EMI date for installment ${installmentNumber}.`,
+      );
+    }
+
+    const opening =
+      roundSaswat2(
+        openingBalance,
+      );
+
+    let interest =
+      monthlyRate === 0
+        ? 0
+        : roundSaswat2(
+            opening *
+              monthlyRate,
+          );
+
+    let principal;
+    let actualEmi;
+
+    /*
+     * Final installment must close the
+     * outstanding balance completely.
+     */
+    if (
+      installmentNumber ===
+      numericTenure
+    ) {
+      principal = opening;
+
+      actualEmi =
+        roundSaswat2(
+          principal +
+            interest,
+        );
+    } else {
+      principal =
+        roundSaswat2(
+          regularEmi -
+            interest,
+        );
+
+      if (principal <= 0) {
+        throw new Error(
+          `Invalid Saswat principal for LAN ${normalizedLan}, ` +
+            `installment ${installmentNumber}. ` +
+            `EMI: ${regularEmi}, interest: ${interest}`,
+        );
+      }
+
+      /*
+       * Defensive closure in case EMI rounding
+       * causes the principal to exceed the balance.
+       */
+      if (principal >= opening) {
+        principal = opening;
+
+        actualEmi =
+          roundSaswat2(
+            principal +
+              interest,
+          );
+      } else {
+        actualEmi =
+          regularEmi;
+      }
+    }
+
+    let closing =
+      roundSaswat2(
+        opening -
+          principal,
+      );
+
+    if (
+      installmentNumber ===
+        numericTenure ||
+      closing < 0.01
+    ) {
+      closing = 0;
+    }
+
+    schedule.push({
+      installmentNumber,
+      dueDate:
+        formatSaswatDateYMD(
+          dueDate,
+        ),
+      emi: actualEmi,
+      interest,
+      principal,
+      opening,
+      closing,
+
+      /*
+       * These are populated below.
+       */
+      remainingEmi:
+        actualEmi,
+      remainingInterest:
+        interest,
+      remainingPrincipal:
+        principal,
+      remainingAmount: 0,
+    });
+
+    openingBalance =
+      closing;
+  }
+
+  /*
+   * ==========================================
+   * PRINCIPAL CLOSURE VALIDATION
+   * ==========================================
+   */
+
+  const finalClosing =
+    schedule[
+      schedule.length - 1
+    ]?.closing;
+
+  if (
+    Math.abs(
+      Number(finalClosing || 0),
+    ) > 0.01
+  ) {
+    throw new Error(
+      `Saswat RPS did not close correctly for LAN ${normalizedLan}. ` +
+        `Final balance: ${finalClosing}`,
+    );
+  }
+
+  /*
+   * ==========================================
+   * CALCULATE REMAINING AMOUNT
+   * ==========================================
+   *
+   * remaining_emi:
+   * unpaid EMI for the current installment
+   *
+   * remaining_interest:
+   * unpaid interest for the current installment
+   *
+   * remaining_principal:
+   * unpaid principal for the current installment
+   *
+   * remaining_amount:
+   * cumulative EMI outstanding from the current
+   * installment until the final installment
+   */
+
+  let runningRemainingAmount = 0;
+
+  for (
+    let index =
+      schedule.length - 1;
+    index >= 0;
+    index--
+  ) {
+    runningRemainingAmount =
+      roundSaswat2(
+        runningRemainingAmount +
+          schedule[index].emi,
+      );
+
+    schedule[index].remainingAmount =
+      runningRemainingAmount;
+  }
+
+  /*
+   * ==========================================
+   * PREPARE BULK INSERT
+   * ==========================================
+   */
+
+  const rpsData =
+    schedule.map(
+      (installment) => [
+        normalizedLan,
+        installment.dueDate,
+        "Pending",
+        installment.emi,
+        installment.interest,
+        installment.principal,
+        installment.opening,
+        installment.closing,
+        installment.remainingEmi,
+        installment.remainingInterest,
+        installment.remainingPrincipal,
+        null,
+        0,
+        installment.remainingAmount,
+        0,
+      ],
+    );
+
+  /*
+   * ==========================================
+   * INSERT MANUAL RPS
+   * ==========================================
+   */
+
+  const [rpsInsertResult] =
+    await conn.query(
+      `
+        INSERT INTO manual_rps_saswat
+        (
+          lan,
+          due_date,
+          status,
+          emi,
+          interest,
+          principal,
+          opening,
+          closing,
+          remaining_emi,
+          remaining_interest,
+          remaining_principal,
+          payment_date,
+          dpd,
+          remaining_amount,
+          extra_paid
+        )
+        VALUES ?
+      `,
+      [rpsData],
+    );
+
+  if (
+    rpsInsertResult.affectedRows !==
+    numericTenure
+  ) {
+    throw new Error(
+      `Saswat RPS insert mismatch for LAN ${normalizedLan}. ` +
+        `Expected ${numericTenure} rows, ` +
+        `inserted ${rpsInsertResult.affectedRows}.`,
+    );
+  }
+
+  /*
+   * ==========================================
+   * TOTALS
+   * ==========================================
+   */
+
+  const totalPrincipal =
+    roundSaswat2(
+      schedule.reduce(
+        (
+          total,
+          installment,
+        ) =>
+          total +
+          Number(
+            installment.principal ||
+              0,
+          ),
+        0,
+      ),
+    );
+
+  const totalInterest =
+    roundSaswat2(
+      schedule.reduce(
+        (
+          total,
+          installment,
+        ) =>
+          total +
+          Number(
+            installment.interest ||
+              0,
+          ),
+        0,
+      ),
+    );
+
+  const totalExpectedRepayment =
+    roundSaswat2(
+      schedule.reduce(
+        (
+          total,
+          installment,
+        ) =>
+          total +
+          Number(
+            installment.emi ||
+              0,
+          ),
+        0,
+      ),
+    );
+
+  const firstDueDate =
+    schedule[0]?.dueDate ||
+    formatSaswatDateYMD(
+      firstEmiDate,
+    );
+
+  const tenureEndDate =
+    schedule[
+      schedule.length - 1
+    ]?.dueDate;
+
+  /*
+   * Principal should equal loan amount.
+   */
+  if (
+    Math.abs(
+      totalPrincipal -
+        numericLoanAmount,
+    ) > 0.01
+  ) {
+    throw new Error(
+      `Saswat principal mismatch for LAN ${normalizedLan}. ` +
+        `Loan amount: ${numericLoanAmount}, ` +
+        `RPS principal: ${totalPrincipal}.`,
+    );
+  }
+
+  /*
+   * ==========================================
+   * UPDATE LOAN BOOKING
+   * ==========================================
+   */
+
+  const [loanUpdateResult] =
+    await conn.query(
+      `
+        UPDATE loan_booking_saswat
+        SET
+          emi_amount = ?,
+          interest_amount = ?,
+          first_emi_date = ?,
+          tenure_end_date = ?
+        WHERE lan = ?
+      `,
+      [
+        regularEmi,
+        totalInterest,
+        firstDueDate,
+        tenureEndDate,
+        normalizedLan,
+      ],
+    );
+
+  if (
+    loanUpdateResult.affectedRows !==
+    1
+  ) {
+    throw new Error(
+      `Unable to update Saswat booking values for LAN ${normalizedLan}.`,
+    );
+  }
+
+  console.log(
+    "✅ SASWAT RPS generated successfully",
+    {
+      lan: normalizedLan,
+      lender,
+      product:
+        normalizedProduct,
+      loanAmount:
+        numericLoanAmount,
+      interestRate:
+        numericInterestRate,
+      tenure:
+        numericTenure,
+      regularEmi,
+      firstEmiDate:
+        firstDueDate,
+      tenureEndDate,
+      totalPrincipal,
+      totalInterest,
+      totalExpectedRepayment,
+      installmentCount:
+        schedule.length,
+    },
+  );
+
+  return {
+    success: true,
+    skipped: false,
+    lan: normalizedLan,
+    lender,
+    product:
+      normalizedProduct,
+    loan_amount:
+      numericLoanAmount,
+    interest_rate:
+      numericInterestRate,
+    tenure:
+      numericTenure,
+    emi_amount:
+      regularEmi,
+    first_emi_date:
+      firstDueDate,
+    tenure_end_date:
+      tenureEndDate,
+    total_principal:
+      totalPrincipal,
+    total_interest:
+      totalInterest,
+    total_expected_repayment:
+      totalExpectedRepayment,
+    installment_count:
+      schedule.length,
+  };
+};
 
 module.exports = {
   generateRepaymentScheduleEV,
@@ -10110,4 +10888,5 @@ module.exports = {
   generateRepaymentScheduleSrbh,
   generateRepaymentScheduleWctlFfpl,
   generateRepaymentScheduleSterlionUbl,
+  generateRepaymentScheduleSaswat,
 };
