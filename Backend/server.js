@@ -55,12 +55,8 @@ const {
 const {
   sendWelcomeLetterAfterUtrUpload,
 } = require("./services/welcomeLetterService");
-const sterlionUblRoutes = require(
-  "./routes/SterlionUbl/sterlionUblRoutes"
-);
-const circlePeHouserRoutes = require(
-  "./routes/CirclepeHouser/CirclepeHouserRoutes"
-);
+const sterlionUblRoutes = require("./routes/SterlionUbl/sterlionUblRoutes");
+const circlePeHouserRoutes = require("./routes/CirclepeHouser/CirclepeHouserRoutes");
 
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
@@ -354,7 +350,10 @@ app.use(
 app.use("/api/loan-digit", require("./routes/loanDigit/loanDigitRoutes"));
 app.use("/api/fldg", require("./routes/fldgRoutes")); // ✅ Register FLDG Routes
 
-app.use("/api/sterlion-mexon-dexon", require("./routes/sterlionNexonDexon/sterlionnexon")); // ✅ Register Routes for Sterlion Nexon Dexon
+app.use(
+  "/api/sterlion-mexon-dexon",
+  require("./routes/sterlionNexonDexon/sterlionnexon"),
+); // ✅ Register Routes for Sterlion Nexon Dexon
 
 app.use(
   "/api/webhooks/easebuzz",
@@ -591,6 +590,25 @@ app.post("/api/runclayyovalidations", async (req, res) => {
   }
 });
 
+app.post("/api/runsevenfincorpvalidations", async (req, res) => {
+  try {
+    const { lan } = req.body;
+
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+
+    await autoApproveSevenFinCorpIfAllVerified(lan);
+
+    res.json({
+      ok: true,
+      message: `Seven FinCorp validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.post("/api/srbhvalidation", async (req, res) => {
   try {
     const { lan } = req.body;
@@ -648,7 +666,7 @@ app.post("/api/runmotioncorpvalidations", async (req, res) => {
   }
 });
 
-app.post("/api/universalRunAllValidations", async (req, res) => { 
+app.post("/api/universalRunAllValidations", async (req, res) => {
   try {
     const { lan } = req.body;
 
