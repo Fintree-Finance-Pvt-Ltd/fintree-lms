@@ -2329,38 +2329,62 @@ router.get("/all-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
 
-    const isGqTable =
-      table === "loan_booking_gq_non_fsf" || table === "loan_booking_gq_fsf";
+   const isGqTable =
+  table === "loan_booking_gq_non_fsf" ||
+  table === "loan_booking_gq_fsf";
 
-    const searchClause = search
-      ? isGqTable
-        ? ` AND (
-            lb.LAN LIKE ?
-            OR lb.customer_name LIKE ?
-            OR lb.partner_loan_id LIKE ?
-            OR lb.app_id LIKE ?
-            OR lb.status LIKE ?
-          )`
-        : ` AND (
-            lb.LAN LIKE ?
-            OR lb.customer_name LIKE ?
-            OR lb.partner_loan_id LIKE ?
-            OR lb.status LIKE ?
-          )`
-      : "";
+let searchClause = "";
+let searchParams = [];
 
-    const searchParams = search
-      ? isGqTable
-        ? [
-            `%${search}%`,
-            `%${search}%`,
-            `%${search}%`,
-            `%${search}%`,
-            `%${search}%`,
-          ]
-        : [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
-      : [];
+if (search) {
+  const searchValue = `%${search}%`;
 
+  if (table === "loan_booking_clayyo") {
+    searchClause = ` AND (
+      lb.LAN LIKE ?
+      OR lb.customer_name LIKE ?
+      OR lb.app_id LIKE ?
+      OR lb.status LIKE ?
+    )`;
+
+    searchParams = [
+      searchValue,
+      searchValue,
+      searchValue,
+      searchValue,
+    ];
+  } else if (isGqTable) {
+    searchClause = ` AND (
+      lb.LAN LIKE ?
+      OR lb.customer_name LIKE ?
+      OR lb.partner_loan_id LIKE ?
+      OR lb.app_id LIKE ?
+      OR lb.status LIKE ?
+    )`;
+
+    searchParams = [
+      searchValue,
+      searchValue,
+      searchValue,
+      searchValue,
+      searchValue,
+    ];
+  } else {
+    searchClause = ` AND (
+      lb.LAN LIKE ?
+      OR lb.customer_name LIKE ?
+      OR lb.partner_loan_id LIKE ?
+      OR lb.status LIKE ?
+    )`;
+
+    searchParams = [
+      searchValue,
+      searchValue,
+      searchValue,
+      searchValue,
+    ];
+  }
+}
     const countSql = `
       SELECT COUNT(*) AS total
       FROM ?? lb
