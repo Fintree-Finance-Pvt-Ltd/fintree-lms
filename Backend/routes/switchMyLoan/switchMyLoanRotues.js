@@ -20,7 +20,7 @@ const {
   validatePartnerName,
 } = require("../../utils/partnerHelpers");
 
-
+const net = require("net");
 const {
   evaluateRapidMoneyEligibility,
 } = require("./rapidMoneyEligibilityEvaluator");
@@ -2162,23 +2162,165 @@ connection = null;
   }
 });
 
+// router.post(
+//   "/v1/loan/:application_id/consent",
+//   verifyApiKey,
+//   async (req, res) => {
+//     let connection;
+
+//     try {
+//       connection = await db.promise().getConnection();
+
+//       const { application_id } = req.params;
+
+//       const { consent_id, timestamp, consent, ip_address } = req.body;
+
+//       /* --------------------------------------------------- */
+//       /* VALIDATION */
+//       /* --------------------------------------------------- */
+
+//       if (!application_id) {
+//         return res.status(400).json({
+//           is_success: false,
+//           error: {
+//             message: "application_id is required",
+//             code: "request_validation_error",
+//           },
+//         });
+//       }
+
+//       if (!consent_id) {
+//         return res.status(400).json({
+//           is_success: false,
+//           error: {
+//             message: "consent_id is required",
+//             code: "request_validation_error",
+//           },
+//         });
+//       }
+
+//       if (!timestamp) {
+//         return res.status(400).json({
+//           is_success: false,
+//           error: {
+//             message: "timestamp is required",
+//             code: "request_validation_error",
+//           },
+//         });
+//       }
+
+//       if (!consent) {
+//         return res.status(400).json({
+//           is_success: false,
+//           error: {
+//             message: "consent is required",
+//             code: "request_validation_error",
+//           },
+//         });
+//       }
+
+//       /* --------------------------------------------------- */
+//       /* CHECK APPLICATION */
+//       /* --------------------------------------------------- */
+
+//       const [loanRows] = await connection.query(
+//         `
+//         SELECT id, lan
+//         FROM loan_booking_switch_my_loan
+//         WHERE application_id = ?
+//         LIMIT 1
+//         `,
+//         [application_id],
+//       );
+
+//       if (!loanRows.length) {
+//         return res.status(404).json({
+//           is_success: false,
+//           error: {
+//             message: "Application not found",
+//             code: "application_not_found",
+//           },
+//         });
+//       }
+
+//       /* --------------------------------------------------- */
+//       /* GENERATE CONSENT ID */
+//       /* --------------------------------------------------- */
+
+//       const loanConsentId = crypto.randomUUID();
+
+//       /* --------------------------------------------------- */
+//       /* SAVE CONSENT */
+//       /* --------------------------------------------------- */
+
+//       await connection.query(
+//         `
+//   UPDATE loan_booking_switch_my_loan
+//   SET
+//     assessment_fee_consent_id = ?,
+//     assessment_fee_consent = ?,
+//     assessment_fee_consent_timestamp = ?,
+//     assessment_fee_consent_ip = ?,
+//     loan_consent_id = ?,
+//     consent_version = ?
+//   WHERE application_id = ?
+//   `,
+//         [
+//           consent_id,
+//           consent,
+//           timestamp,
+//           ip_address || null,
+//           loanConsentId,
+//           null,
+//           application_id,
+//         ],
+//       );
+
+//       /* --------------------------------------------------- */
+//       /* RESPONSE */
+//       /* --------------------------------------------------- */
+
+//       return res.json({
+//         is_success: true,
+//         data: {
+//           loan_consent_id: loanConsentId,
+//           consent_version: null,
+//         },
+//       });
+//     } catch (err) {
+//       console.error("Consent API Error:", err);
+
+//       return res.status(500).json({
+//         is_success: false,
+//         error: toClientError(err),
+//       });
+//     } finally {
+//       if (connection) {
+//         connection.release();
+//       }
+//     }
+//   },
+// );
+
+///        4)      approve api
+
+
+
+
 router.post(
   "/v1/loan/:application_id/consent",
   verifyApiKey,
   async (req, res) => {
     let connection;
+    let transactionStarted = false;
 
     try {
-      connection = await db.promise().getConnection();
-
       const { application_id } = req.params;
+      const consentPayload = req.body;
 
-      const { consent_id, timestamp, consent, ip_address } = req.body;
-
-      /* --------------------------------------------------- */
-      /* VALIDATION */
-      /* --------------------------------------------------- */
-
+      /*
+       * Validate application ID.
+       */
       if (!application_id) {
         return res.status(400).json({
           is_success: false,
@@ -2189,51 +2331,204 @@ router.post(
         });
       }
 
-      if (!consent_id) {
+      /*
+       * The new request body must be an array.
+       */
+      if (!Array.isArray(consentPayload)) {
         return res.status(400).json({
           is_success: false,
           error: {
-            message: "consent_id is required",
+            message:
+              "Consent payload must be an array",
             code: "request_validation_error",
           },
         });
       }
 
-      if (!timestamp) {
+      if (consentPayload.length === 0) {
         return res.status(400).json({
           is_success: false,
           error: {
-            message: "timestamp is required",
+            message:
+              "At least one consent is required",
             code: "request_validation_error",
           },
         });
       }
 
-      if (!consent) {
-        return res.status(400).json({
-          is_success: false,
-          error: {
-            message: "consent is required",
-            code: "request_validation_error",
-          },
+      const normalizedConsents = [];
+
+      /*
+       * Validate every consent object.
+       */
+      for (
+        let index = 0;
+        index < consentPayload.length;
+        index += 1
+      ) {
+        const item = consentPayload[index];
+
+        if (
+          !item ||
+          typeof item !== "object" ||
+          Array.isArray(item)
+        ) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                `Consent at index ${index} must be an object`,
+              code: "request_validation_error",
+            },
+          });
+        }
+
+        const consentId = String(
+          item.consent_id || "",
+        ).trim();
+
+        const consentValue = String(
+          item.consent || "",
+        )
+          .trim()
+          .toUpperCase();
+
+        const timestampValue = String(
+          item.timestamp || "",
+        ).trim();
+
+        const ipAddress = String(
+          item.ip_address || "",
+        ).trim();
+
+        const consentVersion =
+          item.consent_version === undefined ||
+          item.consent_version === null ||
+          String(item.consent_version).trim() === ""
+            ? null
+            : String(
+                item.consent_version,
+              ).trim();
+
+        if (!consentId) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                `consent_id is required at index ${index}`,
+              code: "request_validation_error",
+            },
+          });
+        }
+
+        if (!["Y", "N"].includes(consentValue)) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                `consent must be Y or N at index ${index}`,
+              code: "request_validation_error",
+            },
+          });
+        }
+
+        if (!timestampValue) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                `timestamp is required at index ${index}`,
+              code: "request_validation_error",
+            },
+          });
+        }
+
+        const parsedTimestamp =
+          new Date(timestampValue);
+
+        if (
+          Number.isNaN(
+            parsedTimestamp.getTime(),
+          )
+        ) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                `Invalid timestamp at index ${index}`,
+              code: "request_validation_error",
+            },
+          });
+        }
+
+        if (!ipAddress) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                `ip_address is required at index ${index}`,
+              code: "request_validation_error",
+            },
+          });
+        }
+
+        if (net.isIP(ipAddress) === 0) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                `Invalid ip_address at index ${index}`,
+              code: "request_validation_error",
+            },
+          });
+        }
+
+        const databaseTimestamp =
+          parsedTimestamp
+            .toISOString()
+            .slice(0, 23)
+            .replace("T", " ");
+
+        normalizedConsents.push({
+          consent_id: consentId,
+          consent: consentValue,
+          consent_timestamp:
+            databaseTimestamp,
+          consent_version:
+            consentVersion,
+          ip_address: ipAddress,
         });
       }
 
-      /* --------------------------------------------------- */
-      /* CHECK APPLICATION */
-      /* --------------------------------------------------- */
+      connection =
+        await db.promise().getConnection();
 
-      const [loanRows] = await connection.query(
-        `
-        SELECT id, lan
-        FROM loan_booking_switch_my_loan
-        WHERE application_id = ?
-        LIMIT 1
-        `,
-        [application_id],
-      );
+      await connection.beginTransaction();
+      transactionStarted = true;
+
+      /*
+       * Check and lock the loan application.
+       */
+      const [loanRows] =
+        await connection.query(
+          `
+          SELECT
+            id,
+            application_id,
+            partner_loan_id,
+            lan
+          FROM loan_booking_switch_my_loan
+          WHERE application_id = ?
+          LIMIT 1
+          FOR UPDATE
+          `,
+          [application_id],
+        );
 
       if (!loanRows.length) {
+        await connection.rollback();
+        transactionStarted = false;
+
         return res.status(404).json({
           is_success: false,
           error: {
@@ -2243,56 +2538,116 @@ router.post(
         });
       }
 
-      /* --------------------------------------------------- */
-      /* GENERATE CONSENT ID */
-      /* --------------------------------------------------- */
+      const loan = loanRows[0];
 
-      const loanConsentId = crypto.randomUUID();
+      /*
+       * All records from one request share this batch ID.
+       */
+      const consentBatchId =
+        generateConsentId();
 
-      /* --------------------------------------------------- */
-      /* SAVE CONSENT */
-      /* --------------------------------------------------- */
+      const savedConsents = [];
 
-      await connection.query(
-        `
-  UPDATE loan_booking_switch_my_loan
-  SET
-    assessment_fee_consent_id = ?,
-    assessment_fee_consent = ?,
-    assessment_fee_consent_timestamp = ?,
-    assessment_fee_consent_ip = ?,
-    loan_consent_id = ?,
-    consent_version = ?
-  WHERE application_id = ?
-  `,
-        [
-          consent_id,
-          consent,
-          timestamp,
-          ip_address || null,
-          loanConsentId,
-          null,
-          application_id,
-        ],
-      );
+      /*
+       * Insert every consent into the separate table.
+       */
+      for (const consentItem of normalizedConsents) {
+        const consentRecordId =
+          generateConsentId();
 
-      /* --------------------------------------------------- */
-      /* RESPONSE */
-      /* --------------------------------------------------- */
+        await connection.query(
+          `
+          INSERT INTO switch_my_loan_consents
+          (
+            consent_record_id,
+            consent_batch_id,
+            loan_booking_id,
+            application_id,
+            partner_loan_id,
+            lan,
+            consent_id,
+            consent,
+            consent_timestamp,
+            consent_version,
+            ip_address
+          )
+          VALUES
+          (
+            ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?
+          )
+          `,
+          [
+            consentRecordId,
+            consentBatchId,
+            loan.id,
+            loan.application_id,
+            loan.partner_loan_id || null,
+            loan.lan || null,
+            consentItem.consent_id,
+            consentItem.consent,
+            consentItem.consent_timestamp,
+            consentItem.consent_version,
+            consentItem.ip_address,
+          ],
+        );
 
-      return res.json({
+        savedConsents.push({
+          loan_consent_id:
+            consentRecordId,
+
+          consent_version:
+            consentItem.consent_version,
+        });
+      }
+
+      await connection.commit();
+      transactionStarted = false;
+
+      return res.status(200).json({
         is_success: true,
-        data: {
-          loan_consent_id: loanConsentId,
-          consent_version: null,
-        },
+        data: savedConsents,
       });
     } catch (err) {
-      console.error("Consent API Error:", err);
+      if (
+        connection &&
+        transactionStarted
+      ) {
+        await connection.rollback();
+        transactionStarted = false;
+      }
+
+      console.error(
+        "Switch My Loan Consent API Error:",
+        {
+          message: err.message,
+          code: err.code,
+          sqlMessage: err.sqlMessage,
+          applicationId:
+            req.params.application_id,
+        },
+      );
+
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({
+          is_success: false,
+          error: {
+            message:
+              "One or more consents already exist",
+            code: "duplicate_consent",
+          },
+        });
+      }
 
       return res.status(500).json({
         is_success: false,
-        error: toClientError(err),
+        error: {
+          message:
+            err.sqlMessage ||
+            err.message ||
+            "Failed to save consents",
+          code: "server_error",
+        },
       });
     } finally {
       if (connection) {
@@ -2302,7 +2657,6 @@ router.post(
   },
 );
 
-///        4)      approve api
 
 function buildPartnerBreResponse(breResult = {}) {
   const decision = String(breResult?.decision || "").toUpperCase();
