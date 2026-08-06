@@ -55,6 +55,7 @@ const {
 const {
   sendWelcomeLetterAfterUtrUpload,
 } = require("./services/welcomeLetterService");
+const { autoApproveSevenFinCorpIfAllVerified } = require("./routes/Seven Fincorp/sevenFincorpBRE");
 const sterlionUblRoutes = require("./routes/SterlionUbl/sterlionUblRoutes");
 const circlePeHouserRoutes = require("./routes/CirclepeHouser/CirclepeHouserRoutes");
 
