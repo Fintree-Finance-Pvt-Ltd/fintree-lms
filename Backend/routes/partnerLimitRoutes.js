@@ -73,6 +73,10 @@ const RPS_POS_SOURCES = [
     partnerName: "SRBH",
     tableName: "manual_rps_srbh",
   },
+   {
+    partnerName: "SASWAT",
+    tableName: "manual_rps_saswat",
+  },
 ];
 
 async function getPartnerPOSMap(conn) {

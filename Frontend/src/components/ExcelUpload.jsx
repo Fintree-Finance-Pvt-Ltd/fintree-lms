@@ -236,7 +236,10 @@ const CreateLoanBooking = () => {
         return `/loan-booking/sterlion-ubl-upload`;  // Added endpoint for sterlion-ubl
       case "sterlion-mexon-dexon":
         return `/sterlion-mexon-dexon/upload/sterlion-mexon-dexon`;  // Added endpoint for sterlion-mexon-dexon
-      default:
+     
+       case "Saswat":
+        return `/loan-booking/saswat-upload`;
+        default:
         return "";
     }
   }
@@ -348,6 +351,8 @@ const CreateLoanBooking = () => {
           <option value="WCTL FFPL">WCTL FFPL</option>
           <option value="sterlion-ubl">Sterlion UBL</option> // Added option for sterlion-ubl
           <option value="sterlion-mexon-dexon">Sterlion Mexon Dexion</option> // Added option for sterlion-mexon-dexon
+          <option value="Saswat">Saswat</option>
+
 
         </select>
 

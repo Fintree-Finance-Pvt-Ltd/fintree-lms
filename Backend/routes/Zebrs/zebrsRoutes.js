@@ -5,6 +5,13 @@ const initAadhaarKyc = require("../../services/digitapaadharservice");
 const { getPanCardDetails } = require("../../services/pancardapiservice");
 const router = express.Router();
 
+// const { runBureau } = require("../../services/Bueraupullapiservice");
+const { runBureau } = require("../../services/Bueraupullapiservice");
+
+const {
+  autoApproveZebrsIfBureauVerified,
+} = require("../Zebrs/zebrsBre");
+
 const ZEBRS_LOAN_TABLE = "loan_booking_zebrs";
 
 const emptyToNull = (value) => {
@@ -13,6 +20,26 @@ const emptyToNull = (value) => {
   }
   return value;
 };
+
+function stringifyForDb(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch (error) {
+    console.error("Failed to stringify bureau response:", error);
+
+    return JSON.stringify({
+      error: "Unable to serialize bureau response",
+    });
+  }
+}
 
 const numberOrNull = (value) => {
   if (value === undefined || value === null || value === "") {
@@ -74,6 +101,9 @@ const buildCustomerOnboardPayload = (data, lan, partnerLoanId, dealer) => ({
   permanent_state: emptyToNull(data.State),
   permanent_pincode: emptyToNull(data.Pincode),
 
+  residence_ownership: emptyToNull(
+  data.Residence_Ownership,
+),
   requested_loan_amount: numberOrNull(data.Loan_Amount),
   loan_amount: numberOrNull(data.Loan_Amount),
   interest_rate: numberOrNull(data.Interest_Rate),
@@ -138,6 +168,16 @@ const buildCustomerOnboardPayload = (data, lan, partnerLoanId, dealer) => ({
   battery_serial_no_2: emptyToNull(data.Battery_Serial_no_2),
   e_rikshaw_model: emptyToNull(data.E_Rikshaw_model),
   chassis_no: emptyToNull(data.Chassis_no),
+
+  manufacturing_year: numberOrNull(data.Manufacturing_Year),
+sales_invoice_number: emptyToNull(data.Sales_Invoice_Number),
+sales_invoice_date: emptyToNull(data.Sales_Invoice_Date),
+downpayment_paid_by_borrower: numberOrNull(
+  data.Downpayment_Paid_By_The_Borrower,
+),
+vehicle_registration_cost: numberOrNull(
+  data.Vehicle_Registration_Cost,
+),
 
   borrower_mobile_verified: 0,
   guarantor_mobile_verified: 0,
@@ -346,6 +386,62 @@ router.post("/login/zebrs-customer", verifyApiKey, async (req, res) => {
     }
 
     const dealer = dealerRows[0];
+
+    const selectedProductId = Number(data.selected_product_id);
+
+if (
+  !Number.isInteger(selectedProductId) ||
+  selectedProductId <= 0
+) {
+  await conn.rollback();
+
+  return res.status(400).json({
+    success: false,
+    message: "Valid selected_product_id is required",
+  });
+}
+
+const [productRows] = await conn.query(
+  `
+  SELECT
+    id,
+    application_id,
+    battery_type,
+    battery_name,
+    e_rickshaw_model,
+    e_rickshaw_model_price
+  FROM zebrs_dealer_products
+  WHERE id = ?
+    AND application_id = ?
+  LIMIT 1
+  `,
+  [
+     Number(data.selected_product_id),
+    dealer.application_id,
+  ],
+);
+
+if (!productRows.length) {
+  await conn.rollback();
+
+  return res.status(404).json({
+    success: false,
+    message:
+      "Selected product was not found for this Zebrs dealer",
+  });
+}
+
+const selectedProduct = productRows[0];
+
+/*
+ * Use product-master values instead of trusting frontend values.
+ */
+data.selected_product_id = selectedProduct.id;
+data.Battery_Type = selectedProduct.battery_type;
+data.Battery_Name = selectedProduct.battery_name;
+data.E_Rikshaw_model = selectedProduct.e_rickshaw_model;
+
+
     const normalizedPan = normalizePan(data.Pan_Card);
     const normalizedMobile = normalizeMobile(data.Mobile_Number);
     const duplicateConditions = [];
@@ -407,20 +503,137 @@ router.post("/login/zebrs-customer", verifyApiKey, async (req, res) => {
       "ZEBRS_CUSTOMER",
     );
 
-    await insertExistingColumns(
-      conn,
-      ZEBRS_LOAN_TABLE,
-      buildCustomerOnboardPayload(data, cust_lan, cust_partner_loan_id, dealer),
+   const customerPayload = buildCustomerOnboardPayload(
+  data,
+  cust_lan,
+  cust_partner_loan_id,
+  dealer,
+);
+
+await insertExistingColumns(
+  conn,
+  ZEBRS_LOAN_TABLE,
+  customerPayload,
+);
+
+/*
+ * First save the Zebrs loan.
+ */
+await conn.commit();
+
+/*
+ * Then run bureau only for the borrower.
+ */
+let bureauResult;
+
+try {
+  bureauResult = await runZebrsBureauValidation({
+    pool: conn,
+    lan: cust_lan,
+    applicantType: "BORROWER",
+    partyNo: 1,
+
+    applicantData: {
+      customer_name:
+        customerPayload.customer_name ||
+        [
+          customerPayload.first_name,
+          customerPayload.last_name,
+        ]
+          .filter(Boolean)
+          .join(" "),
+
+      first_name: customerPayload.first_name,
+      last_name: customerPayload.last_name,
+      dob: customerPayload.dob,
+      gender: customerPayload.gender,
+      pan_number: customerPayload.pan_card,
+      mobile_number: customerPayload.mobile_number,
+
+      current_address: [
+        customerPayload.permanent_address_line_1,
+        customerPayload.permanent_address_line_2,
+      ]
+        .filter(Boolean)
+        .join(", "),
+
+      current_village_city:
+        customerPayload.permanent_village_city,
+
+      current_state:
+        customerPayload.permanent_state,
+
+      current_pincode:
+        customerPayload.permanent_pincode,
+
+      loan_amount:
+        customerPayload.loan_amount,
+
+      loan_tenure:
+        customerPayload.loan_tenure,
+    },
+  });
+
+
+} catch (bureauError) {
+  console.error(
+    `Zebrs borrower bureau failed for LAN ${cust_lan}:`,
+    bureauError,
+  );
+
+  bureauResult = {
+    success: false,
+    status: "FAILED",
+    score: null,
+    error: bureauError.message || String(bureauError),
+  };
+}
+
+
+let breResult;
+
+try {
+    console.log(`🚀 Starting Zebrs BRE for LAN: ${cust_lan}`);
+
+  breResult =
+    await autoApproveZebrsIfBureauVerified(
+      cust_lan,
     );
+      console.log(
+    `✅ Zebrs BRE completed for LAN ${cust_lan}:`,
+    breResult,
+  );
+} catch (breError) {
+  console.error(
+    `Zebrs BRE failed for LAN ${cust_lan}:`,
+    breError,
+  );
 
-    await conn.commit();
+  breResult = {
+    success: false,
+    status: "ERROR",
+    reason:
+      breError.message ||
+      String(breError),
+  };
+}
 
-    return res.status(201).json({
-      success: true,
-      message: "Zebrs customer onboarded successfully",
-      partner_loan_id: cust_partner_loan_id,
-      lan: cust_lan,
-    });
+return res.status(201).json({
+  success: true,
+  message: "Zebrs customer onboarded successfully",
+  partner_loan_id: cust_partner_loan_id,
+  lan: cust_lan,
+    bureau: {
+      success: bureauResult?.success || false,
+    status: bureauResult?.status || "FAILED",
+  },
+
+  bre: {
+    success: breResult?.success || false,
+    status: breResult?.status || "NOT_EXECUTED",
+  },
+
+});
   } catch (err) {
     await conn.rollback();
     console.error("Zebrs customer onboard error:", err);
@@ -547,6 +760,315 @@ router.post("/esign-initiate", verifyApiKey, async (req, res) => {
 });
 
 // "/:lan/esign/:type" for esign
+
+async function runZebrsBureauValidation({
+  pool,
+  lan,
+  applicantType,
+  partyNo,
+  applicantData,
+}) {
+  const panNumber = String(applicantData?.pan_number || "")
+    .trim()
+    .toUpperCase();
+
+  if (!panNumber) {
+    await pool.query(
+      `
+      UPDATE kyc_verification_status
+      SET
+        bureau_status = 'FAILED',
+        bureau_api_response = ?
+      WHERE lan = ?
+        AND applicant_type = ?
+        AND party_no = ?
+      `,
+      [
+        stringifyForDb({
+          error: "PAN number missing for bureau",
+        }),
+        lan,
+        applicantType,
+        partyNo,
+      ],
+    );
+
+    return {
+      success: false,
+      skipped: false,
+      applicantType,
+      partyNo,
+      reason: "PAN number missing for bureau",
+      score: null,
+    };
+  }
+
+  const [existingKycRows] = await pool.query(
+  `
+  SELECT id
+  FROM kyc_verification_status
+  WHERE lan = ?
+    AND applicant_type = ?
+    AND party_no = ?
+  LIMIT 1
+  `,
+  [lan, applicantType, partyNo],
+);
+
+if (!existingKycRows.length) {
+  await pool.query(
+    `
+    INSERT INTO kyc_verification_status (
+      lan,
+      applicant_type,
+      party_no,
+      bureau_status,
+      bureau_api_response
+    )
+    VALUES (?, ?, ?, 'PENDING', NULL)
+    `,
+    [lan, applicantType, partyNo],
+  );
+}
+
+  await pool.query(
+    `
+    UPDATE kyc_verification_status
+    SET
+      bureau_status = 'INITIATED',
+      bureau_api_response = NULL
+    WHERE lan = ?
+      AND applicant_type = ?
+      AND party_no = ?
+    `,
+    [lan, applicantType, partyNo],
+  );
+
+  const bureauResult = await runBureau({
+    enquiry_reason: 3,
+    finance_purpose: 11,
+
+    customer_name: applicantData.customer_name,
+    first_name: applicantData.first_name,
+    last_name: applicantData.last_name,
+    dob: applicantData.dob,
+    gender: applicantData.gender,
+
+    pan_number: panNumber,
+    mobile_number: applicantData.mobile_number,
+
+    current_address: applicantData.current_address,
+    current_village_city: applicantData.current_village_city,
+    current_state: applicantData.current_state,
+    current_pincode: applicantData.current_pincode,
+
+    loan_amount: applicantData.loan_amount,
+    loan_tenure: applicantData.loan_tenure,
+  }).catch((error) => {
+    console.error(
+      `❌ Zebrs ${applicantType}-${partyNo} Bureau Error:`,
+      error,
+    );
+
+    return {
+      success: false,
+      score: null,
+      response: {
+        error: error.message || String(error),
+      },
+    };
+  });
+
+
+/*
+ * Dummy bureau response for Zebrs testing.
+ * This does not call the actual bureau provider.
+ */
+
+// this is dummy bureau response for testing purposes.
+// const bureauResult = {
+//   success: true,
+//   score: 750,
+//   response: {
+//     provider: "DUMMY_BUREAU",
+//     status: "SUCCESS",
+//     message: "Dummy bureau report generated successfully",
+//     score: 750,
+//     pan_number: applicantData.pan_number,
+//     customer_name: applicantData.customer_name,
+//     enquiry_id: `DUMMY-${lan}-${Date.now()}`,
+//     generated_at: new Date().toISOString(),
+//   },
+// };
+
+  // const bureauStatus = bureauResult.success ? "VERIFIED" : "FAILED";
+  const bureauScore =
+  bureauResult?.score !== undefined &&
+  bureauResult?.score !== null &&
+  Number.isFinite(Number(bureauResult.score))
+    ? Number(bureauResult.score)
+    : null;
+
+const bureauStatus =
+  bureauResult?.success === true &&
+  bureauScore !== null
+    ? "VERIFIED"
+    : "FAILED";
+
+  const bureauResponse = stringifyForDb(
+    bureauResult.response || {
+      success: bureauResult.success,
+          score: bureauScore,
+      // score: bureauResult.score ?? null,
+    },
+  );
+
+  // const bureauScore =
+  //   bureauResult.score !== undefined && bureauResult.score !== null
+  //     ? Number(bureauResult.score)
+  //     : null;
+
+  await pool.query(
+    `
+    UPDATE kyc_verification_status
+    SET
+      bureau_status = ?,
+      bureau_api_response = ?
+    WHERE lan = ?
+      AND applicant_type = ?
+      AND party_no = ?
+    `,
+    [
+      bureauStatus,
+      bureauResponse,
+      lan,
+      applicantType,
+      partyNo,
+    ],
+  );
+
+  await pool.query(
+    `
+    INSERT INTO loan_cibil_reports (
+      lan,
+      applicant_type,
+      party_no,
+      source_applicant_id,
+      pan_number,
+      score,
+      report_xml,
+      created_at
+    )
+    VALUES (?, ?, ?, NULL, ?, ?, ?, NOW())
+    `,
+    [
+      lan,
+      applicantType,
+      partyNo,
+      panNumber,
+      bureauScore,
+      bureauResponse,
+    ],
+  );
+
+  /*
+   * Save the borrower score directly in loan_booking_zebrs.
+   * Guarantor and co-applicant scores remain available in
+   * loan_cibil_reports.
+   */
+  if (bureauScore !== null && applicantType === "BORROWER") {
+    await pool.query(
+      `
+      UPDATE ${ZEBRS_LOAN_TABLE}
+      SET
+        cibil_score = ?,
+        bureau_score = ?
+      WHERE lan = ?
+      `,
+      [bureauScore, bureauScore, lan],
+    );
+  }
+
+  console.log(
+    `📌 Zebrs ${applicantType}-${partyNo} Bureau: ${bureauStatus}`,
+  );
+
+  return {
+    success: Boolean(bureauResult.success),
+    status: bureauStatus,
+    applicantType,
+    partyNo,
+    score: bureauScore,
+  };
+}
+
+
+  router.post(
+  "/bre/zebrs/:lan",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      const lan = String(req.params.lan || "")
+        .trim()
+        .toUpperCase();
+
+      if (!lan) {
+        return res.status(400).json({
+          success: false,
+          message: "LAN is required",
+        });
+      }
+
+      const [loanRows] = await db.promise().query(
+        `
+        SELECT lan
+        FROM loan_booking_zebrs
+        WHERE lan = ?
+        LIMIT 1
+        `,
+        [lan],
+      );
+
+      if (!loanRows.length) {
+        return res.status(404).json({
+          success: false,
+          message: `Zebrs loan not found for LAN ${lan}`,
+        });
+      }
+
+      console.log(`🚀 Manually running Zebrs BRE for ${lan}`);
+
+      const breResult =
+        await autoApproveZebrsIfBureauVerified(lan);
+
+      console.log(
+        `✅ Manual Zebrs BRE completed for ${lan}:`,
+        breResult,
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Zebrs BRE executed successfully",
+        lan,
+        bre: breResult,
+      });
+    } catch (error) {
+      console.error(
+        "Manual Zebrs BRE execution failed:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message: "Zebrs BRE execution failed",
+        error:
+          error.sqlMessage ||
+          error.message ||
+          String(error),
+      });
+    }
+  },
+);
 
 
 module.exports = router;

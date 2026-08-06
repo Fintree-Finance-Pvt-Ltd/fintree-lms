@@ -1645,20 +1645,20 @@ router.get("/all-loans", async (req, res) => {
     const pageSize = Number(req.query.pageSize || 1500);
     const offset = (page - 1) * pageSize;
     const search = String(req.query.search || "").trim();
-const prefix = String(req.query.prefix || "").trim();
+    const prefix = String(req.query.prefix || "").trim();
 
-const conditions = [];
-const params = [];
+    const conditions = [];
+    const params = [];
 
-if (prefix) {
-  conditions.push("lb.lan LIKE ?");
-  params.push(`${prefix}%`);
-}
+    if (prefix) {
+      conditions.push("lb.lan LIKE ?");
+      params.push(`${prefix}%`);
+    }
 
-if (search) {
-  const value = `%${search}%`;
+    if (search) {
+      const value = `%${search}%`;
 
-  conditions.push(`
+      conditions.push(`
     (
       lb.lan LIKE ?
       OR lb.app_id LIKE ?
@@ -1668,20 +1668,20 @@ if (search) {
     )
   `);
 
-  params.push(value, value, value, value, value);
-}
+      params.push(value, value, value, value, value);
+    }
 
-const whereClause = conditions.length
-  ? `WHERE ${conditions.join(" AND ")}`
-  : "";
-const [[{ total }]] = await db.promise().query(
-  `
+    const whereClause = conditions.length
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
+    const [[{ total }]] = await db.promise().query(
+      `
   SELECT COUNT(*) AS total
   FROM loan_booking_clayyo lb
   ${whereClause}
   `,
-  params,
-);
+      params,
+    );
 
     const [rows] = await db.promise().query(
       `
@@ -2754,15 +2754,15 @@ router.get("/loan-info/:lan", async (req, res) => {
 
       row.hospital_id
         ? runOptionalQuery(
-            "hospital",
-            `
+          "hospital",
+          `
             SELECT hospital_legal_name
             FROM clayyo_hospital_booking
             WHERE id = ?
             LIMIT 1
             `,
-            [row.hospital_id],
-          )
+          [row.hospital_id],
+        )
         : Promise.resolve([]),
     ]);
 
@@ -3574,7 +3574,7 @@ router.patch(
         hasUpdatedOnceColumn &&
         Number(
           loan.bank_details_updated_once ||
-            0,
+          0,
         ) === 1
       ) {
         await connection.rollback();
@@ -4129,7 +4129,7 @@ router.patch(
           Number(
             loan
               .insurance_details_submitted_once ||
-              0,
+            0,
           ) === 1
         ) {
           return res.status(409).json({
