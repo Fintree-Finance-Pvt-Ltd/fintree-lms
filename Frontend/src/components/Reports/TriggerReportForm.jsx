@@ -515,7 +515,10 @@ const productOptions = [
   {label: "CAREPAY", value: "CAREPAY"},
   { label: "FFPL", value: "FFPL" },
   { label: "KITE", value: "KITE" },
-  { label: "Muthoot", value: "Muthoot" }
+  { label: "Muthoot", value: "Muthoot" },
+  { label: "WCTL FFPL", value: "wctl_ffpl" },
+
+  {label: "Saswat", value: "Saswat" }
 
 ];
 

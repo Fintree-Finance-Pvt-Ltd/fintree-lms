@@ -546,7 +546,7 @@ const DownloadedReports = ({ reportIdFromParent }) => {
           <tbody>
             {Array.isArray(downloads) && downloads.length > 0 ? (
               downloads.map((report, index) => (
-                <tr key={report.report_id || index} style={trStyle}>
+                <tr key={report.id ?? report.file_name ?? index} style={trStyle}>
                   <td style={tdStyle}>
                     {String(report.status || "").toLowerCase() === "completed" &&
                     report.downloadUrl ? (

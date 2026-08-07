@@ -1336,9 +1336,9 @@ const runMotionCorpBureauScreening = async (req, res) => {
       const storedReasons =
         storedReason && storedReason !== "ELIGIBLE"
           ? storedReason
-              .split(",")
-              .map((reason) => reason.trim())
-              .filter(Boolean)
+            .split(",")
+            .map((reason) => reason.trim())
+            .filter(Boolean)
           : [];
 
       return res.json({
@@ -1722,7 +1722,7 @@ const runMotionCorpBureauScreening = async (req, res) => {
           lan,
         ],
       )
-      .catch(() => {});
+      .catch(() => { });
 
     return res.status(500).json({
       success: false,
@@ -2166,7 +2166,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
      */
     if (
       String(loan.final_submission_status || "").toUpperCase() ===
-        "SUBMITTED" ||
+      "SUBMITTED" ||
       loan.final_submitted_at
     ) {
       await connection.commit();
@@ -2395,7 +2395,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
     });
   } catch (error) {
     if (transactionStarted) {
-      await connection.rollback().catch(() => {});
+      await connection.rollback().catch(() => { });
     }
 
     console.error("Final Motion Corp submit failed:", {
@@ -3004,7 +3004,7 @@ router.post("/verify-otp", async (req, res) => {
       message: "Mobile number verified successfully",
     });
   } catch (error) {
-    await connection.rollback().catch(() => {});
+    await connection.rollback().catch(() => { });
 
     console.error("Motion Corp OTP verification failed:", {
       applicantType,
@@ -3174,371 +3174,1650 @@ router.post("/verify-otp", async (req, res) => {
 //   }
 // });
 
-router.post("/init-aadhaar", async (req, res) => {
-  const connection = await db.promise().getConnection();
-
-  const { lan, applicantType, forceRetry = false } = req.body;
-  const partyNo = 1;
-
-  let transactionOpen = false;
-  let aadhaarClaimed = false;
-  let providerSucceeded = false;
-
-  try {
-    if (!lan) {
-      return res.status(400).json({
-        success: false,
-        message: "LAN required",
-      });
-    }
-
-    const allowedApplicantTypes = ["BORROWER", "GUARANTOR", "CO_APPLICANT"];
-
-    if (!allowedApplicantTypes.includes(applicantType)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid applicant type",
-      });
-    }
-
-    await connection.beginTransaction();
-    transactionOpen = true;
-
-    /*
-     * Lock the loan row so simultaneous requests for the same LAN
-     * cannot both initiate Aadhaar.
-     */
-    const [loanRows] = await connection.query(
-      `
-      SELECT *
-      FROM loan_booking_motion_corp
-      WHERE lan = ?
-      LIMIT 1
-      FOR UPDATE
-      `,
-      [lan],
-    );
-
-    if (!loanRows.length) {
-      await connection.rollback();
-      transactionOpen = false;
-
-      return res.status(404).json({
-        success: false,
-        message: "Loan not found",
-      });
-    }
-
-    const loan = loanRows[0];
-
-    let applicantData;
-
-    if (applicantType === "BORROWER") {
-      applicantData = {
-        name: loan.customer_name,
-        mobile: loan.mobile_number,
-        email: loan.email,
-        pan: loan.pan_card,
-      };
-    } else if (applicantType === "GUARANTOR") {
-      applicantData = {
-        name: loan.guarantor_name,
-        mobile: loan.guarantor_mobile,
-        email: loan.guarantor_email,
-        pan: loan.guarantor_pan,
-      };
-    } else {
-      applicantData = {
-        name: loan.co_applicant_name,
-        mobile: loan.co_applicant_mobile,
-        email: loan.co_applicant_email,
-        pan: loan.co_applicant_pan,
-      };
-    }
-
-    if (!applicantData.name || !applicantData.mobile) {
-      await connection.rollback();
-      transactionOpen = false;
-
-      return res.status(400).json({
-        success: false,
-        message: `${applicantType} details not saved`,
-      });
-    }
-
-    const cleanedMobile = String(applicantData.mobile).replace(/\D/g, "");
-
-    if (!/^[6-9]\d{9}$/.test(cleanedMobile)) {
-      await connection.rollback();
-      transactionOpen = false;
-
-      return res.status(400).json({
-        success: false,
-        message: `${applicantType} mobile number is invalid`,
-      });
-    }
-
-    /*
-     * Always use the exact party row.
-     */
-    const [kycRows] = await connection.query(
-      `
-      SELECT
-        aadhaar_status,
-        aadhaar_transaction_id,
-        aadhaar_kyc_url,
-        aadhaar_unique_id
-      FROM kyc_verification_status
-      WHERE lan = ?
-        AND applicant_type = ?
-        AND party_no = ?
-      LIMIT 1
-      FOR UPDATE
-      `,
-      [lan, applicantType, partyNo],
-    );
-
-    let currentKyc = kycRows[0] || null;
-
-    if (!currentKyc) {
-      await connection.query(
-        `
-        INSERT INTO kyc_verification_status (
-          lan,
-          applicant_type,
-          party_no,
-          applicant_name,
-          mobile_number,
-          pan_number,
-          aadhaar_status
-        )
-        VALUES (?, ?, ?, ?, ?, ?, 'PENDING')
-        `,
-        [
-          lan,
-          applicantType,
-          partyNo,
-          applicantData.name,
-          cleanedMobile,
-          applicantData.pan || null,
-        ],
-      );
-
-      currentKyc = {
-        aadhaar_status: "PENDING",
-        aadhaar_transaction_id: null,
-        aadhaar_kyc_url: null,
-        aadhaar_unique_id: null,
-      };
-    }
-
-    const currentStatus = String(
-      currentKyc.aadhaar_status || "PENDING",
-    ).toUpperCase();
-
-    /*
-     * Never retry an already verified Aadhaar.
-     */
-    if (currentStatus === "VERIFIED") {
-      await connection.commit();
-      transactionOpen = false;
-
-      return res.json({
-        success: true,
-        status: "VERIFIED",
-        alreadyVerified: true,
-        message: `${applicantType} Aadhaar is already verified`,
-      });
-    }
-
-    /*
-     * Reuse an existing initiated Aadhaar session.
-     */
-    if (currentStatus === "INITIATED" && currentKyc.aadhaar_kyc_url) {
-      await connection.commit();
-      transactionOpen = false;
-
-      return res.json({
-        success: true,
-        status: "INITIATED",
-        alreadyInitiated: true,
-        message: `${applicantType} Aadhaar is already initiated`,
-        kycUrl: currentKyc.aadhaar_kyc_url,
-        transactionId: currentKyc.aadhaar_transaction_id,
-        uniqueId: currentKyc.aadhaar_unique_id,
-      });
-    }
-
-    /*
-     * An INITIATED record without provider details can mean another
-     * request is currently running. Do not create another provider call.
-     */
-    if (currentStatus === "INITIATED") {
-      await connection.commit();
-      transactionOpen = false;
-
-      return res.status(409).json({
-        success: false,
-        code: "AADHAAR_IN_PROGRESS",
-        status: "INITIATED",
-        message: `${applicantType} Aadhaar initiation is already in progress`,
-      });
-    }
-
-    /*
-     * FAILED Aadhaar sessions require an explicit retry request.
-     */
-    if (currentStatus === "FAILED" && forceRetry !== true) {
-      await connection.commit();
-      transactionOpen = false;
-
-      return res.status(409).json({
-        success: false,
-        code: "AADHAAR_RETRY_REQUIRED",
-        status: "FAILED",
-        message: `${applicantType} Aadhaar failed previously. Retry is required.`,
-      });
-    }
-
-    /*
-     * Atomically claim this Aadhaar initiation.
-     */
-    await connection.query(
-      `
-      UPDATE kyc_verification_status
-      SET
-        applicant_name = ?,
-        mobile_number = ?,
-        pan_number = ?,
-        aadhaar_status = 'INITIATED',
-        aadhaar_transaction_id = NULL,
-        aadhaar_kyc_url = NULL,
-        aadhaar_unique_id = NULL
-      WHERE lan = ?
-        AND applicant_type = ?
-        AND party_no = ?
-      `,
-      [
-        applicantData.name,
-        cleanedMobile,
-        applicantData.pan || null,
-        lan,
-        applicantType,
-        partyNo,
-      ],
-    );
-
-    aadhaarClaimed = true;
-
-    await connection.commit();
-    transactionOpen = false;
-
-    /*
-     * Do not use only LAN as the provider reference.
-     */
-    const providerReference = `${lan}_${applicantType}_${partyNo}_${Date.now()}`;
-
-    const aadhaarInit = await initAadhaarKyc(
-      providerReference,
-      cleanedMobile,
-      applicantData.email || "",
-      applicantData.name,
-    );
-
-    providerSucceeded = aadhaarInit?.success === true;
-
-    if (!providerSucceeded) {
-      await db.promise().query(
-        `
-        UPDATE kyc_verification_status
-        SET aadhaar_status = 'FAILED'
-        WHERE lan = ?
-          AND applicant_type = ?
-          AND party_no = ?
-          AND aadhaar_status <> 'VERIFIED'
-        `,
-        [lan, applicantType, partyNo],
-      );
-
-      return res.status(502).json({
-        success: false,
-        status: "FAILED",
-        message: `${applicantType} Aadhaar initiation failed`,
-      });
-    }
-
-    await db.promise().query(
-      `
-      UPDATE kyc_verification_status
-      SET
-        aadhaar_status = 'INITIATED',
-        aadhaar_transaction_id = ?,
-        aadhaar_kyc_url = ?,
-        aadhaar_unique_id = ?
-      WHERE lan = ?
-        AND applicant_type = ?
-        AND party_no = ?
-        AND aadhaar_status <> 'VERIFIED'
-      `,
-      [
-        aadhaarInit.unifiedTransactionId,
-        aadhaarInit.kycUrl,
-        aadhaarInit.uniqueId,
-        lan,
-        applicantType,
-        partyNo,
-      ],
-    );
-
-    return res.json({
-      success: true,
-      status: "INITIATED",
-      message: `${applicantType} Aadhaar initiated successfully`,
-      kycUrl: aadhaarInit.kycUrl,
-      transactionId: aadhaarInit.unifiedTransactionId,
-      uniqueId: aadhaarInit.uniqueId,
-    });
-  } catch (error) {
-    if (transactionOpen) {
-      await connection.rollback().catch(() => {});
-    }
-
-    /*
-     * Mark FAILED only when the provider request itself failed.
-     * If the provider succeeded but saving its response failed,
-     * keep INITIATED to prevent another chargeable request.
-     */
-    if (aadhaarClaimed && !providerSucceeded) {
+router.post(
+  "/init-aadhaar",
+  async (req, res) => {
+    const connection =
       await db
         .promise()
-        .query(
+        .getConnection();
+
+    const lan = String(
+      req.body?.lan || "",
+    ).trim();
+
+    const applicantType = String(
+      req.body?.applicantType ||
+        "",
+    )
+      .trim()
+      .toUpperCase();
+
+    const isRetry =
+      req.body?.forceRetry ===
+        true ||
+      req.body?.forceRetry ===
+        "true";
+
+    const partyNo = 1;
+    const maxRetries = 2;
+    const retryWaitHours = 24;
+
+    let transactionOpen =
+      false;
+
+    let aadhaarClaimed =
+      false;
+
+    let providerSucceeded =
+      false;
+
+    let kycId = null;
+    let claimToken = null;
+    let nextRetryCount = 0;
+
+    const normalizeStatus = (
+      value,
+      fallback = "PENDING",
+    ) =>
+      String(
+        value || fallback,
+      )
+        .trim()
+        .toUpperCase();
+
+    const getRemainingHours = (
+      seconds,
+    ) =>
+      Math.max(
+        0,
+        Math.ceil(
+          Number(
+            seconds || 0,
+          ) / 3600,
+        ),
+      );
+
+    const readLatestKyc =
+      async () => {
+        const [[row]] =
+          await db
+            .promise()
+            .query(
+              `
+              SELECT
+                id,
+                lan,
+                applicant_type,
+                party_no,
+
+                pan_status,
+                aadhaar_status,
+                bureau_status,
+
+                aadhaar_retry_count,
+                aadhaar_initiated_at,
+                aadhaar_transaction_id,
+                aadhaar_kyc_url,
+                aadhaar_unique_id,
+                aadhaar_api_response,
+                updated_at,
+
+                CASE
+                  WHEN aadhaar_initiated_at
+                    IS NULL
+                  THEN NULL
+
+                  ELSE DATE_ADD(
+                    aadhaar_initiated_at,
+                    INTERVAL 24 HOUR
+                  )
+                END AS
+                  retry_available_at,
+
+                CASE
+                  WHEN aadhaar_initiated_at
+                    IS NULL
+                  THEN 0
+
+                  ELSE GREATEST(
+                    0,
+                    TIMESTAMPDIFF(
+                      SECOND,
+                      NOW(),
+                      DATE_ADD(
+                        aadhaar_initiated_at,
+                        INTERVAL 24 HOUR
+                      )
+                    )
+                  )
+                END AS
+                  retry_seconds_remaining
+
+              FROM kyc_verification_status
+
+              WHERE lan = ?
+                AND applicant_type = ?
+                AND party_no = ?
+
+              ORDER BY id DESC
+              LIMIT 1
+              `,
+              [
+                lan,
+                applicantType,
+                partyNo,
+              ],
+            );
+
+        return row || null;
+      };
+
+    try {
+      if (!lan) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "LAN is required.",
+        });
+      }
+
+      const allowedTypes = [
+        "BORROWER",
+        "GUARANTOR",
+        "CO_APPLICANT",
+      ];
+
+      if (
+        !allowedTypes.includes(
+          applicantType,
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid applicant type.",
+        });
+      }
+
+      await connection
+        .beginTransaction();
+
+      transactionOpen = true;
+
+      const [loanRows] =
+        await connection.query(
           `
-          UPDATE kyc_verification_status
-          SET aadhaar_status = 'FAILED'
+          SELECT *
+          FROM loan_booking_motion_corp
+          WHERE lan = ?
+          LIMIT 1
+          FOR UPDATE
+          `,
+          [lan],
+        );
+
+      if (!loanRows.length) {
+        await connection.rollback();
+        transactionOpen = false;
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "Loan not found.",
+        });
+      }
+
+      const loan = loanRows[0];
+      let applicantData;
+
+      if (
+        applicantType ===
+        "BORROWER"
+      ) {
+        applicantData = {
+          name:
+            loan.customer_name,
+
+          mobile:
+            loan.mobile_number,
+
+          email:
+            loan.email,
+
+          pan:
+            loan.pan_card,
+        };
+      } else if (
+        applicantType ===
+        "GUARANTOR"
+      ) {
+        applicantData = {
+          name:
+            loan.guarantor_name,
+
+          mobile:
+            loan.guarantor_mobile,
+
+          email:
+            loan.guarantor_email,
+
+          pan:
+            loan.guarantor_pan,
+        };
+      } else {
+        applicantData = {
+          name:
+            loan.co_applicant_name,
+
+          mobile:
+            loan.co_applicant_mobile,
+
+          email:
+            loan.co_applicant_email,
+
+          pan:
+            loan.co_applicant_pan,
+        };
+      }
+
+      if (
+        !applicantData.name ||
+        !applicantData.mobile
+      ) {
+        await connection.rollback();
+        transactionOpen = false;
+
+        return res.status(400).json({
+          success: false,
+
+          message:
+            `${applicantType} details are not saved.`,
+        });
+      }
+
+      const cleanedMobile =
+        String(
+          applicantData.mobile,
+        ).replace(/\D/g, "");
+
+      if (
+        !/^[6-9]\d{9}$/.test(
+          cleanedMobile,
+        )
+      ) {
+        await connection.rollback();
+        transactionOpen = false;
+
+        return res.status(400).json({
+          success: false,
+
+          message:
+            `${applicantType} mobile number is invalid.`,
+        });
+      }
+
+      /*
+       * Read latest exact applicant row.
+       */
+      const [kycRows] =
+        await connection.query(
+          `
+          SELECT
+            id,
+            lan,
+            applicant_type,
+            party_no,
+
+            aadhaar_status,
+            aadhaar_transaction_id,
+            aadhaar_kyc_url,
+            aadhaar_unique_id,
+            aadhaar_initiated_at,
+
+            COALESCE(
+              aadhaar_retry_count,
+              0
+            ) AS aadhaar_retry_count,
+
+            CASE
+              WHEN aadhaar_initiated_at
+                IS NULL
+              THEN 1
+
+              WHEN aadhaar_initiated_at <=
+                DATE_SUB(
+                  NOW(),
+                  INTERVAL 24 HOUR
+                )
+              THEN 1
+
+              ELSE 0
+            END AS
+              retry_wait_completed,
+
+            CASE
+              WHEN aadhaar_initiated_at
+                IS NULL
+              THEN 0
+
+              ELSE GREATEST(
+                0,
+                TIMESTAMPDIFF(
+                  SECOND,
+                  NOW(),
+                  DATE_ADD(
+                    aadhaar_initiated_at,
+                    INTERVAL 24 HOUR
+                  )
+                )
+              )
+            END AS
+              retry_seconds_remaining,
+
+            CASE
+              WHEN aadhaar_initiated_at
+                IS NULL
+              THEN NULL
+
+              ELSE DATE_ADD(
+                aadhaar_initiated_at,
+                INTERVAL 24 HOUR
+              )
+            END AS
+              retry_available_at
+
+          FROM kyc_verification_status
+
           WHERE lan = ?
             AND applicant_type = ?
             AND party_no = ?
-            AND aadhaar_status <> 'VERIFIED'
+
+          ORDER BY id DESC
+          LIMIT 1
+          FOR UPDATE
           `,
-          [lan, applicantType, partyNo],
+          [
+            lan,
+            applicantType,
+            partyNo,
+          ],
+        );
+
+      let currentKyc =
+        kycRows[0] || null;
+
+      /*
+       * Initial PENDING row.
+       */
+      if (!currentKyc) {
+        const [insertResult] =
+          await connection.query(
+            `
+            INSERT INTO
+              kyc_verification_status (
+                lan,
+                applicant_type,
+                party_no,
+                applicant_name,
+                mobile_number,
+                pan_number,
+                aadhaar_status,
+                aadhaar_retry_count
+              )
+            VALUES (
+              ?, ?, ?, ?, ?, ?,
+              'PENDING',
+              0
+            )
+            `,
+            [
+              lan,
+              applicantType,
+              partyNo,
+
+              applicantData.name,
+              cleanedMobile,
+
+              applicantData.pan ||
+                null,
+            ],
+          );
+
+        currentKyc = {
+          id:
+            insertResult.insertId,
+
+          lan,
+
+          applicant_type:
+            applicantType,
+
+          party_no:
+            partyNo,
+
+          aadhaar_status:
+            "PENDING",
+
+          aadhaar_transaction_id:
+            null,
+
+          aadhaar_kyc_url:
+            null,
+
+          aadhaar_unique_id:
+            null,
+
+          aadhaar_initiated_at:
+            null,
+
+          aadhaar_retry_count:
+            0,
+
+          retry_wait_completed:
+            1,
+
+          retry_seconds_remaining:
+            0,
+
+          retry_available_at:
+            null,
+        };
+      }
+
+      kycId = Number(
+        currentKyc.id,
+      );
+
+      if (!kycId) {
+        throw new Error(
+          "KYC verification row ID was not found.",
+        );
+      }
+
+      const currentStatus =
+        normalizeStatus(
+          currentKyc
+            .aadhaar_status,
+        );
+
+      const retryCount =
+        Number(
+          currentKyc
+            .aadhaar_retry_count ||
+            0,
+        );
+
+      const retryWaitCompleted =
+        Number(
+          currentKyc
+            .retry_wait_completed ||
+            0,
+        ) === 1;
+
+      const retrySecondsRemaining =
+        Number(
+          currentKyc
+            .retry_seconds_remaining ||
+            0,
+        );
+
+      const retryHoursRemaining =
+        getRemainingHours(
+          retrySecondsRemaining,
+        );
+
+      /*
+       * VERIFIED is final.
+       */
+      if (
+        currentStatus ===
+        "VERIFIED"
+      ) {
+        await connection.commit();
+        transactionOpen = false;
+
+        return res.json({
+          success: true,
+
+          kycId,
+
+          status:
+            "VERIFIED",
+
+          databaseStatus:
+            "VERIFIED",
+
+          alreadyVerified:
+            true,
+
+          canRetry: false,
+
+          message:
+            `${applicantType} Aadhaar is already verified.`,
+
+          kycUrl:
+            currentKyc
+              .aadhaar_kyc_url ||
+            null,
+
+          transactionId:
+            currentKyc
+              .aadhaar_transaction_id ||
+            null,
+
+          uniqueId:
+            currentKyc
+              .aadhaar_unique_id ||
+            null,
+
+          aadhaar_initiated_at:
+            currentKyc
+              .aadhaar_initiated_at ||
+            null,
+
+          retry_available_at:
+            currentKyc
+              .retry_available_at ||
+            null,
+
+          retry_seconds_remaining:
+            0,
+
+          retry_hours_remaining:
+            0,
+
+          aadhaar_retry_count:
+            retryCount,
+
+          aadhaar_retries_remaining:
+            Math.max(
+              0,
+              maxRetries -
+                retryCount,
+            ),
+        });
+      }
+
+      const retryableStatuses = [
+        "PENDING",
+        "FAILED",
+        "INITIATED",
+      ];
+
+      if (
+        !retryableStatuses.includes(
+          currentStatus,
         )
-        .catch(() => {});
+      ) {
+        await connection.commit();
+        transactionOpen = false;
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+
+            code:
+              "AADHAAR_STATUS_NOT_SUPPORTED",
+
+            status:
+              currentStatus,
+
+            databaseStatus:
+              currentStatus,
+
+            canRetry: false,
+
+            message:
+              `Aadhaar cannot be initiated from status ${currentStatus}.`,
+          });
+      }
+
+      /*
+       * First initiation does not consume
+       * retry count.
+       */
+      const hasPreviousAttempt =
+        Boolean(
+          currentKyc
+            .aadhaar_initiated_at ||
+
+          currentKyc
+            .aadhaar_transaction_id ||
+
+          currentKyc
+            .aadhaar_kyc_url ||
+
+          currentKyc
+            .aadhaar_unique_id ||
+
+          retryCount > 0 ||
+
+          currentStatus !==
+            "PENDING",
+        );
+
+      const isFirstInitiation =
+        currentStatus ===
+          "PENDING" &&
+        !hasPreviousAttempt;
+
+      /*
+       * 24-hour lock after previous
+       * initiation/retry.
+       */
+      if (
+        !isFirstInitiation &&
+        !retryWaitCompleted
+      ) {
+        await connection.commit();
+        transactionOpen = false;
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+
+            code:
+              "AADHAAR_RETRY_WAIT_ACTIVE",
+
+            kycId,
+
+            status:
+              currentStatus,
+
+            databaseStatus:
+              currentStatus,
+
+            canRetry: false,
+
+            message:
+              `${applicantType} Aadhaar can be retried only after ` +
+              `${retryWaitHours} hours. ` +
+              `${retryHoursRemaining} hour(s) remaining.`,
+
+            kycUrl:
+              currentKyc
+                .aadhaar_kyc_url ||
+              null,
+
+            transactionId:
+              currentKyc
+                .aadhaar_transaction_id ||
+              null,
+
+            uniqueId:
+              currentKyc
+                .aadhaar_unique_id ||
+              null,
+
+            aadhaar_initiated_at:
+              currentKyc
+                .aadhaar_initiated_at ||
+              null,
+
+            retry_available_at:
+              currentKyc
+                .retry_available_at ||
+              null,
+
+            retry_seconds_remaining:
+              retrySecondsRemaining,
+
+            retry_hours_remaining:
+              retryHoursRemaining,
+
+            aadhaar_retry_count:
+              retryCount,
+
+            aadhaar_retries_remaining:
+              Math.max(
+                0,
+                maxRetries -
+                  retryCount,
+              ),
+          });
+      }
+
+      /*
+       * Old attempt requires
+       * forceRetry=true.
+       */
+      if (
+        !isFirstInitiation &&
+        !isRetry
+      ) {
+        await connection.commit();
+        transactionOpen = false;
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+
+            code:
+              "AADHAAR_RETRY_REQUIRED",
+
+            kycId,
+
+            status:
+              currentStatus,
+
+            databaseStatus:
+              currentStatus,
+
+            canRetry:
+              retryCount <
+              maxRetries,
+
+            message:
+              `${applicantType} Aadhaar is ${currentStatus}. ` +
+              "Use the retry option to generate a fresh Aadhaar link.",
+
+            kycUrl:
+              currentKyc
+                .aadhaar_kyc_url ||
+              null,
+
+            transactionId:
+              currentKyc
+                .aadhaar_transaction_id ||
+              null,
+
+            uniqueId:
+              currentKyc
+                .aadhaar_unique_id ||
+              null,
+
+            aadhaar_initiated_at:
+              currentKyc
+                .aadhaar_initiated_at ||
+              null,
+
+            retry_available_at:
+              currentKyc
+                .retry_available_at ||
+              null,
+
+            retry_seconds_remaining:
+              0,
+
+            retry_hours_remaining:
+              0,
+
+            aadhaar_retry_count:
+              retryCount,
+
+            aadhaar_retries_remaining:
+              Math.max(
+                0,
+                maxRetries -
+                  retryCount,
+              ),
+          });
+      }
+
+      /*
+       * Maximum two retries.
+       */
+      if (
+        !isFirstInitiation &&
+        retryCount >= maxRetries
+      ) {
+        await connection.commit();
+        transactionOpen = false;
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+
+            code:
+              "AADHAAR_RETRY_LIMIT_REACHED",
+
+            kycId,
+
+            status:
+              currentStatus,
+
+            databaseStatus:
+              currentStatus,
+
+            canRetry: false,
+
+            message:
+              `Maximum Aadhaar retry limit of ${maxRetries} ` +
+              "has been reached.",
+
+            aadhaar_retry_count:
+              retryCount,
+
+            aadhaar_retries_remaining:
+              0,
+          });
+      }
+
+      nextRetryCount =
+        isFirstInitiation
+          ? retryCount
+          : retryCount + 1;
+
+      claimToken =
+        `MC_AADHAAR_${lan}_` +
+        `${applicantType}_` +
+        `${partyNo}_` +
+        `${Date.now()}_` +
+        Math.random()
+          .toString(36)
+          .slice(2, 10);
+
+      /*
+       * Sync every matching duplicate row.
+       *
+       * Nothing is deleted.
+       */
+      const [claimResult] =
+        await connection.query(
+          `
+          UPDATE
+            kyc_verification_status
+
+          SET
+            applicant_name = ?,
+            mobile_number = ?,
+            pan_number = ?,
+
+            aadhaar_status =
+              'INITIATED',
+
+            aadhaar_initiated_at =
+              NOW(),
+
+            aadhaar_transaction_id =
+              NULL,
+
+            aadhaar_kyc_url =
+              NULL,
+
+            aadhaar_unique_id = ?,
+
+            aadhaar_api_response =
+              NULL,
+
+            aadhaar_name = NULL,
+            aadhaar_dob = NULL,
+
+            aadhaar_masked_number =
+              NULL,
+
+            aadhaar_address = NULL,
+
+            aadhaar_pdf_path =
+              NULL,
+
+            aadhaar_xml_path =
+              NULL,
+
+            aadhaar_retry_count = ?
+
+          WHERE lan = ?
+            AND applicant_type = ?
+            AND party_no = ?
+          `,
+          [
+            applicantData.name,
+            cleanedMobile,
+
+            applicantData.pan ||
+              null,
+
+            claimToken,
+            nextRetryCount,
+
+            lan,
+            applicantType,
+            partyNo,
+          ],
+        );
+
+      if (
+        claimResult.affectedRows <
+        1
+      ) {
+        await connection.rollback();
+        transactionOpen = false;
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+
+            code:
+              "AADHAAR_STATUS_UPDATE_FAILED",
+
+            status:
+              currentStatus,
+
+            databaseStatus:
+              currentStatus,
+
+            message:
+              "Database Aadhaar status could not be changed to INITIATED.",
+          });
+      }
+
+      /*
+       * Verify same latest row that
+       * customer-details reads.
+       */
+      const [[claimedKyc]] =
+        await connection.query(
+          `
+          SELECT
+            id,
+            aadhaar_status,
+            aadhaar_retry_count,
+            aadhaar_initiated_at,
+            aadhaar_unique_id
+
+          FROM kyc_verification_status
+
+          WHERE lan = ?
+            AND applicant_type = ?
+            AND party_no = ?
+
+          ORDER BY id DESC
+          LIMIT 1
+          FOR UPDATE
+          `,
+          [
+            lan,
+            applicantType,
+            partyNo,
+          ],
+        );
+
+      const claimedStatus =
+        normalizeStatus(
+          claimedKyc
+            ?.aadhaar_status,
+          "",
+        );
+
+      if (
+        claimedStatus !==
+          "INITIATED" ||
+        claimedKyc
+          ?.aadhaar_unique_id !==
+          claimToken
+      ) {
+        await connection.rollback();
+        transactionOpen = false;
+
+        return res
+          .status(409)
+          .json({
+            success: false,
+
+            code:
+              "AADHAAR_STATUS_NOT_PERSISTED",
+
+            status:
+              claimedStatus ||
+              currentStatus,
+
+            databaseStatus:
+              claimedStatus ||
+              currentStatus,
+
+            message:
+              "Aadhaar status was not persisted as INITIATED.",
+          });
+      }
+
+      kycId = Number(
+        claimedKyc.id,
+      );
+
+      /*
+       * INITIATED is committed in DB
+       * before provider call.
+       */
+      await connection.commit();
+      transactionOpen = false;
+      aadhaarClaimed = true;
+
+      const providerReference =
+        `${lan}_${applicantType}_` +
+        `${partyNo}_${Date.now()}`;
+
+      const aadhaarInit =
+        await initAadhaarKyc(
+          providerReference,
+          cleanedMobile,
+          applicantData.email ||
+            "",
+          applicantData.name,
+        );
+
+      providerSucceeded =
+        aadhaarInit?.success ===
+        true;
+
+      const providerResponseJson =
+        JSON.stringify(
+          aadhaarInit ?? null,
+        );
+
+      /*
+       * Provider initiation failed:
+       * DB becomes FAILED.
+       */
+      if (!providerSucceeded) {
+        await db
+          .promise()
+          .query(
+            `
+            UPDATE
+              kyc_verification_status
+
+            SET
+              aadhaar_status =
+                'FAILED',
+
+              aadhaar_kyc_url =
+                NULL,
+
+              aadhaar_transaction_id =
+                NULL,
+
+              aadhaar_api_response = ?
+
+            WHERE lan = ?
+              AND applicant_type = ?
+              AND party_no = ?
+              AND aadhaar_unique_id = ?
+            `,
+            [
+              providerResponseJson,
+
+              lan,
+              applicantType,
+              partyNo,
+              claimToken,
+            ],
+          );
+
+        const failedKyc =
+          await readLatestKyc();
+
+        const failedStatus =
+          normalizeStatus(
+            failedKyc
+              ?.aadhaar_status,
+            "FAILED",
+          );
+
+        const failedRetryCount =
+          Number(
+            failedKyc
+              ?.aadhaar_retry_count ??
+              nextRetryCount,
+          );
+
+        const failedSeconds =
+          Number(
+            failedKyc
+              ?.retry_seconds_remaining ||
+              0,
+          );
+
+        return res
+          .status(502)
+          .json({
+            success: false,
+
+            kycId:
+              failedKyc?.id ||
+              kycId,
+
+            status:
+              failedStatus,
+
+            databaseStatus:
+              failedStatus,
+
+            canRetry: false,
+
+            message:
+              `${applicantType} Aadhaar initiation failed. ` +
+              `Retry will be available after ${retryWaitHours} hours.`,
+
+            kycUrl: null,
+
+            transactionId:
+              null,
+
+            aadhaar_initiated_at:
+              failedKyc
+                ?.aadhaar_initiated_at ||
+              null,
+
+            retry_available_at:
+              failedKyc
+                ?.retry_available_at ||
+              null,
+
+            retry_seconds_remaining:
+              failedSeconds,
+
+            retry_hours_remaining:
+              getRemainingHours(
+                failedSeconds,
+              ),
+
+            aadhaar_retry_count:
+              failedRetryCount,
+
+            aadhaar_retries_remaining:
+              Math.max(
+                0,
+                maxRetries -
+                  failedRetryCount,
+              ),
+          });
+      }
+
+      const providerTransactionId =
+        String(
+          aadhaarInit
+            ?.unifiedTransactionId ||
+            "",
+        ).trim();
+
+      const providerKycUrl =
+        String(
+          aadhaarInit?.kycUrl ||
+            "",
+        ).trim();
+
+      const providerUniqueId =
+        String(
+          aadhaarInit?.uniqueId ||
+            claimToken,
+        ).trim();
+
+      /*
+       * Provider did not send usable
+       * link/transaction.
+       */
+      if (
+        !providerTransactionId ||
+        !providerKycUrl
+      ) {
+        await db
+          .promise()
+          .query(
+            `
+            UPDATE
+              kyc_verification_status
+
+            SET
+              aadhaar_status =
+                'FAILED',
+
+              aadhaar_kyc_url =
+                NULL,
+
+              aadhaar_transaction_id =
+                NULL,
+
+              aadhaar_api_response = ?
+
+            WHERE lan = ?
+              AND applicant_type = ?
+              AND party_no = ?
+              AND aadhaar_unique_id = ?
+            `,
+            [
+              providerResponseJson,
+
+              lan,
+              applicantType,
+              partyNo,
+              claimToken,
+            ],
+          );
+
+        const failedKyc =
+          await readLatestKyc();
+
+        const failedCount =
+          Number(
+            failedKyc
+              ?.aadhaar_retry_count ??
+              nextRetryCount,
+          );
+
+        const failedSeconds =
+          Number(
+            failedKyc
+              ?.retry_seconds_remaining ||
+              retryWaitHours *
+                60 *
+                60,
+          );
+
+        return res
+          .status(502)
+          .json({
+            success: false,
+
+            kycId:
+              failedKyc?.id ||
+              kycId,
+
+            status:
+              "FAILED",
+
+            databaseStatus:
+              "FAILED",
+
+            canRetry: false,
+
+            message:
+              "Aadhaar provider did not return a valid " +
+              "transaction ID or KYC URL. " +
+              `Retry will be available after ${retryWaitHours} hours.`,
+
+            kycUrl: null,
+
+            transactionId:
+              null,
+
+            aadhaar_initiated_at:
+              failedKyc
+                ?.aadhaar_initiated_at ||
+              null,
+
+            retry_available_at:
+              failedKyc
+                ?.retry_available_at ||
+              null,
+
+            retry_seconds_remaining:
+              failedSeconds,
+
+            retry_hours_remaining:
+              getRemainingHours(
+                failedSeconds,
+              ),
+
+            aadhaar_retry_count:
+              failedCount,
+
+            aadhaar_retries_remaining:
+              Math.max(
+                0,
+                maxRetries -
+                  failedCount,
+              ),
+          });
+      }
+
+      /*
+       * Provider link successfully
+       * generated.
+       *
+       * DB remains INITIATED.
+       */
+      const [saveResult] =
+        await db.promise().query(
+          `
+          UPDATE
+            kyc_verification_status
+
+          SET
+            aadhaar_status =
+              'INITIATED',
+
+            aadhaar_transaction_id =
+              ?,
+
+            aadhaar_kyc_url = ?,
+
+            aadhaar_unique_id = ?,
+
+            aadhaar_api_response = ?
+
+          WHERE lan = ?
+            AND applicant_type = ?
+            AND party_no = ?
+            AND aadhaar_status =
+              'INITIATED'
+
+            AND aadhaar_unique_id = ?
+          `,
+          [
+            providerTransactionId,
+            providerKycUrl,
+            providerUniqueId,
+            providerResponseJson,
+
+            lan,
+            applicantType,
+            partyNo,
+            claimToken,
+          ],
+        );
+
+      if (
+        saveResult.affectedRows <
+        1
+      ) {
+        throw new Error(
+          "Provider Aadhaar link could not be saved in the database.",
+        );
+      }
+
+      /*
+       * Read final actual DB status.
+       */
+      const savedKyc =
+        await readLatestKyc();
+
+      if (!savedKyc) {
+        throw new Error(
+          "Aadhaar KYC row was not found after provider save.",
+        );
+      }
+
+      const databaseStatus =
+        normalizeStatus(
+          savedKyc
+            .aadhaar_status,
+          "",
+        );
+
+      if (
+        databaseStatus !==
+        "INITIATED"
+      ) {
+        throw new Error(
+          `Database Aadhaar status is ${
+            databaseStatus ||
+            "EMPTY"
+          }, expected INITIATED.`,
+        );
+      }
+
+      const savedRetryCount =
+        Number(
+          savedKyc
+            .aadhaar_retry_count ??
+            nextRetryCount,
+        );
+
+      const savedSeconds =
+        Number(
+          savedKyc
+            .retry_seconds_remaining ||
+            0,
+        );
+
+      console.log(
+        "[Motion Corp Aadhaar DB status synced]",
+        {
+          lan,
+          applicantType,
+          partyNo,
+
+          kycId:
+            savedKyc.id,
+
+          status:
+            databaseStatus,
+
+          transactionId:
+            savedKyc
+              .aadhaar_transaction_id,
+
+          retryCount:
+            savedRetryCount,
+
+          updatedAt:
+            savedKyc.updated_at,
+        },
+      );
+
+      return res.json({
+        success: true,
+
+        kycId:
+          savedKyc.id,
+
+        status:
+          databaseStatus,
+
+        databaseStatus,
+
+        /*
+         * New attempt locked for
+         * 24 hours.
+         */
+        canRetry: false,
+
+        message:
+          `${applicantType} Aadhaar initiated successfully.`,
+
+        kycUrl:
+          savedKyc
+            .aadhaar_kyc_url,
+
+        transactionId:
+          savedKyc
+            .aadhaar_transaction_id,
+
+        uniqueId:
+          savedKyc
+            .aadhaar_unique_id,
+
+        aadhaar_initiated_at:
+          savedKyc
+            .aadhaar_initiated_at,
+
+        retry_available_at:
+          savedKyc
+            .retry_available_at,
+
+        retry_seconds_remaining:
+          savedSeconds,
+
+        retry_hours_remaining:
+          getRemainingHours(
+            savedSeconds,
+          ),
+
+        aadhaar_retry_count:
+          savedRetryCount,
+
+        aadhaar_retries_remaining:
+          Math.max(
+            0,
+            maxRetries -
+              savedRetryCount,
+          ),
+      });
+    } catch (error) {
+      if (transactionOpen) {
+        await connection
+          .rollback()
+          .catch(() => {});
+      }
+
+      /*
+       * Exception after claim:
+       * status becomes FAILED.
+       */
+      if (
+        aadhaarClaimed &&
+        !providerSucceeded &&
+        claimToken
+      ) {
+        await db
+          .promise()
+          .query(
+            `
+            UPDATE
+              kyc_verification_status
+
+            SET
+              aadhaar_status =
+                'FAILED',
+
+              aadhaar_kyc_url =
+                NULL,
+
+              aadhaar_transaction_id =
+                NULL
+
+            WHERE lan = ?
+              AND applicant_type = ?
+              AND party_no = ?
+              AND aadhaar_unique_id = ?
+            `,
+            [
+              lan,
+              applicantType,
+              partyNo,
+              claimToken,
+            ],
+          )
+          .catch(() => {});
+      }
+
+      let databaseKyc = null;
+
+      try {
+        databaseKyc =
+          await readLatestKyc();
+      } catch (readError) {
+        console.error(
+          "Failed to read Aadhaar status after error:",
+          readError,
+        );
+      }
+
+      const databaseStatus =
+        databaseKyc
+          ? normalizeStatus(
+              databaseKyc
+                .aadhaar_status,
+              "",
+            )
+          : null;
+
+      const databaseRetryCount =
+        Number(
+          databaseKyc
+            ?.aadhaar_retry_count ??
+            nextRetryCount ??
+            0,
+        );
+
+      const remainingSeconds =
+        Number(
+          databaseKyc
+            ?.retry_seconds_remaining ||
+            0,
+        );
+
+      console.error(
+        "Motion Corp Aadhaar initialization failed:",
+        {
+          lan,
+          applicantType,
+
+          kycId:
+            databaseKyc?.id ||
+            kycId,
+
+          claimToken,
+          databaseStatus,
+
+          error:
+            error.message,
+        },
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          kycId:
+            databaseKyc?.id ||
+            kycId ||
+            undefined,
+
+          status:
+            databaseStatus ||
+            undefined,
+
+          databaseStatus:
+            databaseStatus ||
+            undefined,
+
+          canRetry: false,
+
+          message:
+            error.message ||
+            "Aadhaar initiation failed.",
+
+          kycUrl:
+            databaseKyc
+              ?.aadhaar_kyc_url ||
+            null,
+
+          transactionId:
+            databaseKyc
+              ?.aadhaar_transaction_id ||
+            null,
+
+          aadhaar_initiated_at:
+            databaseKyc
+              ?.aadhaar_initiated_at ||
+            null,
+
+          retry_available_at:
+            databaseKyc
+              ?.retry_available_at ||
+            null,
+
+          retry_seconds_remaining:
+            remainingSeconds,
+
+          retry_hours_remaining:
+            getRemainingHours(
+              remainingSeconds,
+            ),
+
+          aadhaar_retry_count:
+            databaseRetryCount,
+
+          aadhaar_retries_remaining:
+            Math.max(
+              0,
+              maxRetries -
+                databaseRetryCount,
+            ),
+        });
+    } finally {
+      connection.release();
     }
-
-    console.error("Motion Corp Aadhaar initialization failed:", {
-      lan,
-      applicantType,
-      error: error.message,
-    });
-
-    return res.status(500).json({
-      success: false,
-      message: "Aadhaar initiation failed",
-    });
-  } finally {
-    connection.release();
-  }
-});
+  },
+);
 
 // router.post("/save-applicant-details", async (req, res) => {
 //   try {
@@ -3891,7 +5170,7 @@ router.post("/save-applicant-details", async (req, res) => {
         : `${applicantType} mobile verified and applicant saved successfully`,
     });
   } catch (error) {
-    await connection.rollback().catch(() => {});
+    await connection.rollback().catch(() => { });
 
     console.error("Motion Corp applicant save failed:", {
       lan,
@@ -3986,429 +5265,1178 @@ router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
   }
 });
 
-router.get("/customer-details/:lan", async (req, res) => {
-  const { lan } = req.params;
+router.get(
+  "/customer-details/:lan",
+  async (req, res) => {
+    res.set({
+      "Cache-Control":
+        "no-store, no-cache, must-revalidate, proxy-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+      "Surrogate-Control":
+        "no-store",
+    });
 
-  try {
-    const [rows] = await db.promise().query(
-      `
-  SELECT
-    lb.lan,
-    lb.partner_loan_id,
-    lb.login_date,
+    const lan = String(
+      req.params?.lan || "",
+    ).trim();
 
-    lb.first_name,
-    lb.last_name,
-    lb.customer_name,
-
-    lb.mobile_number,
-    lb.email,
-    lb.pan_card,
-    lb.dob,
-    lb.gender,
-    lb.father_name,
-
-    lb.permanent_address_line_1,
-    lb.permanent_address_line_2,
-    lb.permanent_village_city,
-    lb.permanent_district,
-    lb.permanent_state,
-    lb.permanent_pincode,
-
-    lb.loan_amount,
-    lb.requested_loan_amount,
-    lb.processing_fee,
-    lb.processing_fee_percentage,
-    lb.disbursal_amount,
-    lb.interest_rate,
-    lb.loan_tenure,
-
-    lb.guarantor_name,
-    lb.guarantor_dob,
-    lb.guarantor_pan,
-    lb.guarantor_mobile,
-    lb.guarantor_email,
-    lb.relationship_with_borrower,
-
-    lb.guarantor_address_line_1,
-    lb.guarantor_address_line_2,
-    lb.guarantor_village_city,
-    lb.guarantor_district,
-    lb.guarantor_state,
-    lb.guarantor_pincode,
-
-    lb.co_applicant_name,
-    lb.co_applicant_dob,
-    lb.co_applicant_pan,
-    lb.co_applicant_mobile,
-    lb.co_applicant_email,
-
-    lb.co_applicant_address_line_1,
-    lb.co_applicant_address_line_2,
-    lb.co_applicant_village_city,
-    lb.co_applicant_district,
-    lb.co_applicant_state,
-    lb.co_applicant_pincode,
-
-    lb.customer_name_as_per_bank,
-    lb.customer_bank_name,
-    lb.customer_account_number,
-    lb.bank_ifsc_code,
-
-    lb.selected_dealer_application_id,
-    lb.dealer_id,
-    lb.trade_name,
-    lb.dealer_name,
-    lb.dealer_contact,
-    lb.dealer_email,
-    lb.gst_no,
-    lb.pan_number,
-
-    lb.dealer_address,
-    lb.dealer_city,
-    lb.dealer_state,
-    lb.dealer_pincode,
-
-    lb.gps_charges,
-    lb.driving_licence,
-    lb.guarantor_driving_licence,
-    lb.co_applicant_driving_licence,
-    lb.bank_branch_address,
-    lb.insurance_cost,
-    lb.insurance_company_provider,
-    lb.insurance_policy_number,
-    lb.policy_issued_date,
-    lb.period_of_insurance,
-    lb.cost_of_vehicle,
-    lb.manufacturing_year,
-    lb.sales_invoice_number,
-    lb.sales_invoice_date,
-    lb.downpayment_paid_by_borrower,
-    lb.vehicle_registration_cost,
-
-    lb.dealer_bank_name,
-    lb.dealer_account_number,
-    lb.dealer_ifsc,
-    lb.dealer_name_in_bank,
-
-    lb.selected_product_id,
-    lb.battery_name,
-    lb.battery_type,
-    lb.battery_serial_no_1,
-    lb.battery_serial_no_2,
-    lb.e_rikshaw_model,
-    lb.chassis_no,
-
-    lb.borrower_mobile_verified,
-    lb.guarantor_mobile_verified,
-    lb.co_applicant_mobile_verified,
-
-    lb.lender,
-    lb.lender_type,
-    lb.product,
-    
-    lb.stage,
-    lb.bank_status,
-
-    lb.created_at,
-    lb.updated_at,
-
-    lb.motioncorp_bre_status,
-    lb.motioncorp_bre_reason,
-    lb.motioncorp_bre_checked_at,
-
-    lb.fintree_cibil_score,
-    lb.motioncorp_enquiries_30d,
-
-    lb.motioncorp_dpd_3m_flag,
-    lb.motioncorp_dpd_6m_flag,
-    lb.motioncorp_overdue_12m_flag,
-
-    lb.motioncorp_written_off_3y_flag,
-
-    lb.motioncorp_60plus_24m_flag,
-    lb.motioncorp_90plus_36m_flag,
-
-    lb.motioncorp_emi_overdue_amount,
-    lb.motioncorp_cc_overdue_amount,
-
-    lb.motioncorp_deviation_flag,
-
-    borrower_kyc.pan_status AS borrower_pan_status,
-    borrower_kyc.aadhaar_status AS borrower_aadhaar_status,
-    borrower_kyc.bureau_status AS borrower_bureau_status,
-    borrower_kyc.aadhaar_kyc_url AS borrower_aadhaar_kyc_url,
-
-    guarantor_kyc.pan_status AS guarantor_pan_status,
-    guarantor_kyc.aadhaar_status AS guarantor_aadhaar_status,
-    guarantor_kyc.bureau_status AS guarantor_bureau_status,
-    guarantor_kyc.aadhaar_kyc_url AS guarantor_aadhaar_kyc_url,
-
-    co_kyc.pan_status AS co_applicant_pan_status,
-    co_kyc.aadhaar_status AS co_applicant_aadhaar_status,
-    co_kyc.bureau_status AS co_applicant_bureau_status,
-    co_kyc.aadhaar_kyc_url AS co_applicant_aadhaar_kyc_url,
-
-    em.auth_url AS nach_auth_url,
-    em.umrn AS nach_umrn
-
-  FROM loan_booking_motion_corp lb
-
-  LEFT JOIN kyc_verification_status borrower_kyc
-    ON borrower_kyc.lan = lb.lan
-    AND borrower_kyc.applicant_type = 'BORROWER'
-    AND borrower_kyc.party_no = 1
-
-  LEFT JOIN kyc_verification_status guarantor_kyc
-    ON guarantor_kyc.lan = lb.lan
-    AND guarantor_kyc.applicant_type = 'GUARANTOR'
-    AND guarantor_kyc.party_no = 1
-
-  LEFT JOIN kyc_verification_status co_kyc
-    ON co_kyc.lan = lb.lan
-    AND co_kyc.applicant_type = 'CO_APPLICANT'
-    AND co_kyc.party_no = 1
-
-  LEFT JOIN enach_mandates em
-  ON em.id = (
-    SELECT em2.id
-    FROM enach_mandates em2
-    WHERE em2.lan = lb.lan
-    ORDER BY em2.created_at DESC, em2.id DESC
-    LIMIT 1
-  )
-
-  WHERE lb.lan = ?
-  LIMIT 1
-  `,
-      [lan],
-    );
-
-    if (!rows.length) {
-      return res.status(404).json({
-        message: "Motion Corp loan not found",
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN is required.",
       });
     }
 
-    const row = rows[0];
+    try {
+      const [rows] =
+        await db.promise().query(
+          `
+          SELECT
+            lb.lan,
+            lb.partner_loan_id,
+            lb.login_date,
 
-    const loan = {
-      lan: row.lan,
-      partner_loan_id: row.partner_loan_id,
-      login_date: row.login_date,
+            lb.first_name,
+            lb.last_name,
+            lb.customer_name,
 
-      first_name: row.first_name,
-      last_name: row.last_name,
-      customer_name: row.customer_name,
+            lb.mobile_number,
+            lb.email,
+            lb.pan_card,
+            lb.dob,
+            lb.gender,
+            lb.father_name,
 
-      mobile_number: row.mobile_number,
-      email: row.email,
-      pan_card: row.pan_card,
-      dob: row.dob,
-      gender: row.gender,
-      father_name: row.father_name,
+            lb.permanent_address_line_1,
+            lb.permanent_address_line_2,
+            lb.permanent_village_city,
+            lb.permanent_district,
+            lb.permanent_state,
+            lb.permanent_pincode,
 
-      permanent_address: {
-        address_line_1: row.permanent_address_line_1,
-        address_line_2: row.permanent_address_line_2,
-        city: row.permanent_village_city,
-        district: row.permanent_district,
-        state: row.permanent_state,
-        pincode: row.permanent_pincode,
-      },
+            lb.loan_amount,
+            lb.requested_loan_amount,
+            lb.processing_fee,
+            lb.processing_fee_percentage,
+            lb.disbursal_amount,
+            lb.interest_rate,
+            lb.loan_tenure,
 
-      loan_details: {
-        requested_loan_amount: row.requested_loan_amount,
-        loan_amount: row.loan_amount,
-        processing_fee: row.processing_fee,
-        processing_fee_percentage: row.processing_fee_percentage,
-        disbursal_amount: row.disbursal_amount,
-        interest_rate: row.interest_rate,
-        loan_tenure: row.loan_tenure,
-      },
+            lb.guarantor_name,
+            lb.guarantor_dob,
+            lb.guarantor_pan,
+            lb.guarantor_mobile,
+            lb.guarantor_email,
+            lb.relationship_with_borrower,
 
-      guarantor: {
-        name: row.guarantor_name,
-        dob: row.guarantor_dob,
-        pan: row.guarantor_pan,
-        mobile: row.guarantor_mobile,
-        email: row.guarantor_email,
-        relationship_with_borrower: row.relationship_with_borrower,
+            lb.guarantor_address_line_1,
+            lb.guarantor_address_line_2,
+            lb.guarantor_village_city,
+            lb.guarantor_district,
+            lb.guarantor_state,
+            lb.guarantor_pincode,
 
-        address: {
-          address_line_1: row.guarantor_address_line_1,
-          address_line_2: row.guarantor_address_line_2,
-          city: row.guarantor_village_city,
-          district: row.guarantor_district,
-          state: row.guarantor_state,
-          pincode: row.guarantor_pincode,
+            lb.co_applicant_name,
+            lb.co_applicant_dob,
+            lb.co_applicant_pan,
+            lb.co_applicant_mobile,
+            lb.co_applicant_email,
+
+            lb.co_applicant_address_line_1,
+            lb.co_applicant_address_line_2,
+            lb.co_applicant_village_city,
+            lb.co_applicant_district,
+            lb.co_applicant_state,
+            lb.co_applicant_pincode,
+
+            lb.customer_name_as_per_bank,
+            lb.customer_bank_name,
+            lb.customer_account_number,
+            lb.bank_ifsc_code,
+
+            lb.selected_dealer_application_id,
+            lb.dealer_id,
+            lb.trade_name,
+            lb.dealer_name,
+            lb.dealer_contact,
+            lb.dealer_email,
+            lb.gst_no,
+            lb.pan_number,
+
+            lb.dealer_address,
+            lb.dealer_city,
+            lb.dealer_state,
+            lb.dealer_pincode,
+
+            lb.gps_charges,
+            lb.driving_licence,
+            lb.guarantor_driving_licence,
+            lb.co_applicant_driving_licence,
+            lb.bank_branch_address,
+
+            lb.insurance_cost,
+            lb.insurance_company_provider,
+            lb.insurance_policy_number,
+            lb.policy_issued_date,
+            lb.period_of_insurance,
+
+            lb.cost_of_vehicle,
+            lb.manufacturing_year,
+            lb.sales_invoice_number,
+            lb.sales_invoice_date,
+            lb.downpayment_paid_by_borrower,
+            lb.vehicle_registration_cost,
+
+            lb.dealer_bank_name,
+            lb.dealer_account_number,
+            lb.dealer_ifsc,
+            lb.dealer_name_in_bank,
+
+            lb.selected_product_id,
+            lb.battery_name,
+            lb.battery_type,
+            lb.battery_serial_no_1,
+            lb.battery_serial_no_2,
+            lb.e_rikshaw_model,
+            lb.chassis_no,
+
+            lb.borrower_mobile_verified,
+            lb.guarantor_mobile_verified,
+            lb.co_applicant_mobile_verified,
+
+            lb.lender,
+            lb.lender_type,
+            lb.product,
+
+            lb.status,
+            lb.stage,
+            lb.bank_status,
+
+            lb.created_at,
+            lb.updated_at,
+
+            lb.motioncorp_bre_status,
+            lb.motioncorp_bre_reason,
+            lb.motioncorp_bre_checked_at,
+
+            lb.fintree_cibil_score,
+            lb.motioncorp_enquiries_30d,
+
+            lb.motioncorp_dpd_3m_flag,
+            lb.motioncorp_dpd_6m_flag,
+            lb.motioncorp_overdue_12m_flag,
+
+            lb.motioncorp_written_off_3y_flag,
+
+            lb.motioncorp_60plus_24m_flag,
+            lb.motioncorp_90plus_36m_flag,
+
+            lb.motioncorp_emi_overdue_amount,
+            lb.motioncorp_cc_overdue_amount,
+
+            lb.motioncorp_deviation_flag,
+
+            /*
+             * Borrower KYC
+             */
+            borrower_kyc.id
+              AS borrower_kyc_id,
+
+            borrower_kyc.pan_status
+              AS borrower_pan_status,
+
+            borrower_kyc.aadhaar_status
+              AS borrower_aadhaar_status,
+
+            borrower_kyc.bureau_status
+              AS borrower_bureau_status,
+
+            borrower_kyc.aadhaar_kyc_url
+              AS borrower_aadhaar_kyc_url,
+
+            borrower_kyc.aadhaar_transaction_id
+              AS borrower_aadhaar_transaction_id,
+
+            borrower_kyc.aadhaar_unique_id
+              AS borrower_aadhaar_unique_id,
+
+            borrower_kyc.aadhaar_initiated_at
+              AS borrower_aadhaar_initiated_at,
+
+            COALESCE(
+              borrower_kyc.aadhaar_retry_count,
+              0
+            ) AS borrower_aadhaar_retry_count,
+
+            CASE
+              WHEN borrower_kyc.id IS NULL
+              THEN 1
+
+              WHEN borrower_kyc.aadhaar_status =
+                'VERIFIED'
+              THEN 0
+
+              WHEN COALESCE(
+                borrower_kyc.aadhaar_retry_count,
+                0
+              ) >= 2
+              THEN 0
+
+              WHEN borrower_kyc.aadhaar_status =
+                'PENDING'
+                AND borrower_kyc
+                  .aadhaar_initiated_at IS NULL
+              THEN 1
+
+              WHEN borrower_kyc.aadhaar_status IN (
+                'PENDING',
+                'FAILED',
+                'INITIATED'
+              )
+                AND borrower_kyc
+                  .aadhaar_initiated_at IS NOT NULL
+                AND borrower_kyc
+                  .aadhaar_initiated_at <=
+                    DATE_SUB(
+                      NOW(),
+                      INTERVAL 24 HOUR
+                    )
+              THEN 1
+
+              ELSE 0
+            END AS borrower_aadhaar_can_retry,
+
+            CASE
+              WHEN borrower_kyc
+                .aadhaar_initiated_at IS NULL
+              THEN 0
+
+              ELSE GREATEST(
+                0,
+                TIMESTAMPDIFF(
+                  SECOND,
+                  NOW(),
+                  DATE_ADD(
+                    borrower_kyc
+                      .aadhaar_initiated_at,
+                    INTERVAL 24 HOUR
+                  )
+                )
+              )
+            END AS
+              borrower_retry_seconds_remaining,
+
+            CASE
+              WHEN borrower_kyc
+                .aadhaar_initiated_at IS NULL
+              THEN NULL
+
+              ELSE DATE_ADD(
+                borrower_kyc
+                  .aadhaar_initiated_at,
+                INTERVAL 24 HOUR
+              )
+            END AS
+              borrower_retry_available_at,
+
+            /*
+             * Guarantor KYC
+             */
+            guarantor_kyc.id
+              AS guarantor_kyc_id,
+
+            guarantor_kyc.pan_status
+              AS guarantor_pan_status,
+
+            guarantor_kyc.aadhaar_status
+              AS guarantor_aadhaar_status,
+
+            guarantor_kyc.bureau_status
+              AS guarantor_bureau_status,
+
+            guarantor_kyc.aadhaar_kyc_url
+              AS guarantor_aadhaar_kyc_url,
+
+            guarantor_kyc.aadhaar_transaction_id
+              AS guarantor_aadhaar_transaction_id,
+
+            guarantor_kyc.aadhaar_unique_id
+              AS guarantor_aadhaar_unique_id,
+
+            guarantor_kyc.aadhaar_initiated_at
+              AS guarantor_aadhaar_initiated_at,
+
+            COALESCE(
+              guarantor_kyc.aadhaar_retry_count,
+              0
+            ) AS guarantor_aadhaar_retry_count,
+
+            CASE
+              WHEN guarantor_kyc.id IS NULL
+              THEN 1
+
+              WHEN guarantor_kyc.aadhaar_status =
+                'VERIFIED'
+              THEN 0
+
+              WHEN COALESCE(
+                guarantor_kyc.aadhaar_retry_count,
+                0
+              ) >= 2
+              THEN 0
+
+              WHEN guarantor_kyc.aadhaar_status =
+                'PENDING'
+                AND guarantor_kyc
+                  .aadhaar_initiated_at IS NULL
+              THEN 1
+
+              WHEN guarantor_kyc.aadhaar_status IN (
+                'PENDING',
+                'FAILED',
+                'INITIATED'
+              )
+                AND guarantor_kyc
+                  .aadhaar_initiated_at IS NOT NULL
+                AND guarantor_kyc
+                  .aadhaar_initiated_at <=
+                    DATE_SUB(
+                      NOW(),
+                      INTERVAL 24 HOUR
+                    )
+              THEN 1
+
+              ELSE 0
+            END AS guarantor_aadhaar_can_retry,
+
+            CASE
+              WHEN guarantor_kyc
+                .aadhaar_initiated_at IS NULL
+              THEN 0
+
+              ELSE GREATEST(
+                0,
+                TIMESTAMPDIFF(
+                  SECOND,
+                  NOW(),
+                  DATE_ADD(
+                    guarantor_kyc
+                      .aadhaar_initiated_at,
+                    INTERVAL 24 HOUR
+                  )
+                )
+              )
+            END AS
+              guarantor_retry_seconds_remaining,
+
+            CASE
+              WHEN guarantor_kyc
+                .aadhaar_initiated_at IS NULL
+              THEN NULL
+
+              ELSE DATE_ADD(
+                guarantor_kyc
+                  .aadhaar_initiated_at,
+                INTERVAL 24 HOUR
+              )
+            END AS
+              guarantor_retry_available_at,
+
+            /*
+             * Co-applicant KYC
+             */
+            co_kyc.id
+              AS co_applicant_kyc_id,
+
+            co_kyc.pan_status
+              AS co_applicant_pan_status,
+
+            co_kyc.aadhaar_status
+              AS co_applicant_aadhaar_status,
+
+            co_kyc.bureau_status
+              AS co_applicant_bureau_status,
+
+            co_kyc.aadhaar_kyc_url
+              AS co_applicant_aadhaar_kyc_url,
+
+            co_kyc.aadhaar_transaction_id
+              AS co_applicant_aadhaar_transaction_id,
+
+            co_kyc.aadhaar_unique_id
+              AS co_applicant_aadhaar_unique_id,
+
+            co_kyc.aadhaar_initiated_at
+              AS co_applicant_aadhaar_initiated_at,
+
+            COALESCE(
+              co_kyc.aadhaar_retry_count,
+              0
+            ) AS co_applicant_aadhaar_retry_count,
+
+            CASE
+              WHEN co_kyc.id IS NULL
+              THEN 1
+
+              WHEN co_kyc.aadhaar_status =
+                'VERIFIED'
+              THEN 0
+
+              WHEN COALESCE(
+                co_kyc.aadhaar_retry_count,
+                0
+              ) >= 2
+              THEN 0
+
+              WHEN co_kyc.aadhaar_status =
+                'PENDING'
+                AND co_kyc
+                  .aadhaar_initiated_at IS NULL
+              THEN 1
+
+              WHEN co_kyc.aadhaar_status IN (
+                'PENDING',
+                'FAILED',
+                'INITIATED'
+              )
+                AND co_kyc
+                  .aadhaar_initiated_at IS NOT NULL
+                AND co_kyc
+                  .aadhaar_initiated_at <=
+                    DATE_SUB(
+                      NOW(),
+                      INTERVAL 24 HOUR
+                    )
+              THEN 1
+
+              ELSE 0
+            END AS co_applicant_aadhaar_can_retry,
+
+            CASE
+              WHEN co_kyc
+                .aadhaar_initiated_at IS NULL
+              THEN 0
+
+              ELSE GREATEST(
+                0,
+                TIMESTAMPDIFF(
+                  SECOND,
+                  NOW(),
+                  DATE_ADD(
+                    co_kyc
+                      .aadhaar_initiated_at,
+                    INTERVAL 24 HOUR
+                  )
+                )
+              )
+            END AS
+              co_applicant_retry_seconds_remaining,
+
+            CASE
+              WHEN co_kyc
+                .aadhaar_initiated_at IS NULL
+              THEN NULL
+
+              ELSE DATE_ADD(
+                co_kyc
+                  .aadhaar_initiated_at,
+                INTERVAL 24 HOUR
+              )
+            END AS
+              co_applicant_retry_available_at,
+
+            em.auth_url AS nach_auth_url,
+            em.umrn AS nach_umrn
+
+          FROM loan_booking_motion_corp lb
+
+          /*
+           * Always read latest row for exact
+           * applicant.
+           */
+          LEFT JOIN kyc_verification_status
+            borrower_kyc
+            ON borrower_kyc.id = (
+              SELECT k.id
+              FROM kyc_verification_status k
+              WHERE k.lan = lb.lan
+                AND k.applicant_type =
+                  'BORROWER'
+                AND k.party_no = 1
+              ORDER BY k.id DESC
+              LIMIT 1
+            )
+
+          LEFT JOIN kyc_verification_status
+            guarantor_kyc
+            ON guarantor_kyc.id = (
+              SELECT k.id
+              FROM kyc_verification_status k
+              WHERE k.lan = lb.lan
+                AND k.applicant_type =
+                  'GUARANTOR'
+                AND k.party_no = 1
+              ORDER BY k.id DESC
+              LIMIT 1
+            )
+
+          LEFT JOIN kyc_verification_status
+            co_kyc
+            ON co_kyc.id = (
+              SELECT k.id
+              FROM kyc_verification_status k
+              WHERE k.lan = lb.lan
+                AND k.applicant_type =
+                  'CO_APPLICANT'
+                AND k.party_no = 1
+              ORDER BY k.id DESC
+              LIMIT 1
+            )
+
+          LEFT JOIN enach_mandates em
+            ON em.id = (
+              SELECT em2.id
+              FROM enach_mandates em2
+              WHERE em2.lan = lb.lan
+              ORDER BY
+                em2.created_at DESC,
+                em2.id DESC
+              LIMIT 1
+            )
+
+          WHERE lb.lan = ?
+          LIMIT 1
+          `,
+          [lan],
+        );
+
+      if (!rows.length) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Motion Corp loan not found.",
+        });
+      }
+
+      const row = rows[0];
+
+      const loan = {
+        lan: row.lan,
+
+        partner_loan_id:
+          row.partner_loan_id,
+
+        login_date:
+          row.login_date,
+
+        first_name:
+          row.first_name,
+
+        last_name:
+          row.last_name,
+
+        customer_name:
+          row.customer_name,
+
+        mobile_number:
+          row.mobile_number,
+
+        email: row.email,
+
+        pan_card:
+          row.pan_card,
+
+        dob: row.dob,
+
+        gender:
+          row.gender,
+
+        father_name:
+          row.father_name,
+
+        permanent_address: {
+          address_line_1:
+            row.permanent_address_line_1,
+
+          address_line_2:
+            row.permanent_address_line_2,
+
+          city:
+            row.permanent_village_city,
+
+          district:
+            row.permanent_district,
+
+          state:
+            row.permanent_state,
+
+          pincode:
+            row.permanent_pincode,
         },
-      },
 
-      co_applicant: {
-        name: row.co_applicant_name,
-        dob: row.co_applicant_dob,
-        pan: row.co_applicant_pan,
-        mobile: row.co_applicant_mobile,
-        email: row.co_applicant_email,
+        loan_details: {
+          requested_loan_amount:
+            row.requested_loan_amount,
 
-        address: {
-          address_line_1: row.co_applicant_address_line_1,
-          address_line_2: row.co_applicant_address_line_2,
-          city: row.co_applicant_village_city,
-          district: row.co_applicant_district,
-          state: row.co_applicant_state,
-          pincode: row.co_applicant_pincode,
-        },
-      },
+          loan_amount:
+            row.loan_amount,
 
-      bank_details: {
-        customer_name_as_per_bank: row.customer_name_as_per_bank,
-        customer_bank_name: row.customer_bank_name,
-        customer_account_number: row.customer_account_number,
-        bank_ifsc_code: row.bank_ifsc_code,
-      },
+          processing_fee:
+            row.processing_fee,
 
-      dealer_details: {
-        selected_dealer_application_id: row.selected_dealer_application_id,
-        dealer_id: row.dealer_id,
-        trade_name: row.trade_name,
-        dealer_name: row.dealer_name,
-        dealer_contact: row.dealer_contact,
-        dealer_email: row.dealer_email,
-        gst_no: row.gst_no,
-        pan_number: row.pan_number,
+          processing_fee_percentage:
+            row.processing_fee_percentage,
 
-        dealer_address: row.dealer_address,
-        dealer_city: row.dealer_city,
-        dealer_state: row.dealer_state,
-        dealer_pincode: row.dealer_pincode,
+          disbursal_amount:
+            row.disbursal_amount,
 
-        dealer_bank_name: row.dealer_bank_name,
-        dealer_account_number: row.dealer_account_number,
-        dealer_ifsc: row.dealer_ifsc,
-      },
+          interest_rate:
+            row.interest_rate,
 
-      product_details: {
-        selected_product_id: row.selected_product_id,
-        battery_name: row.battery_name,
-        battery_type: row.battery_type,
-        battery_serial_no_1: row.battery_serial_no_1,
-        battery_serial_no_2: row.battery_serial_no_2,
-        e_rikshaw_model: row.e_rikshaw_model,
-        chassis_no: row.chassis_no,
-      },
-
-      // ADD HERE
-      verification_status: {
-        borrower: {
-          pan_status: row.borrower_pan_status || "PENDING",
-          aadhaar_status: row.borrower_aadhaar_status || "PENDING",
-          bureau_status: row.borrower_bureau_status || "PENDING",
+          loan_tenure:
+            row.loan_tenure,
         },
 
-        guarantor: row.guarantor_name
-          ? {
-              pan_status: row.guarantor_pan_status || "PENDING",
-              aadhaar_status: row.guarantor_aadhaar_status || "PENDING",
-              bureau_status: row.guarantor_bureau_status || "PENDING",
-            }
-          : null,
+        guarantor: {
+          name:
+            row.guarantor_name,
 
-        co_applicant: row.co_applicant_name
-          ? {
-              pan_status: row.co_applicant_pan_status || "PENDING",
-              aadhaar_status: row.co_applicant_aadhaar_status || "PENDING",
-              bureau_status: row.co_applicant_bureau_status || "PENDING",
-            }
-          : null,
-      },
+          dob:
+            row.guarantor_dob,
 
-      verification: {
-        borrower_mobile_verified: row.borrower_mobile_verified,
+          pan:
+            row.guarantor_pan,
 
-        guarantor_mobile_verified: row.guarantor_mobile_verified,
+          mobile:
+            row.guarantor_mobile,
 
-        co_applicant_mobile_verified: row.co_applicant_mobile_verified,
-      },
+          email:
+            row.guarantor_email,
 
-      verification_links: {
-        borrower_aadhaar_url: row.borrower_aadhaar_kyc_url || null,
+          relationship_with_borrower:
+            row.relationship_with_borrower,
 
-        guarantor_aadhaar_url: row.guarantor_aadhaar_kyc_url || null,
+          address: {
+            address_line_1:
+              row.guarantor_address_line_1,
 
-        co_applicant_aadhaar_url: row.co_applicant_aadhaar_kyc_url || null,
+            address_line_2:
+              row.guarantor_address_line_2,
 
-        // This remains null until the actual NACH URL column is mapped.
-        nach_url: row.nach_auth_url || null,
-      },
+            city:
+              row.guarantor_village_city,
 
-      nach_details: {
-        auth_url: row.nach_auth_url || null,
-        umrn: row.nach_umrn || null,
-      },
+            district:
+              row.guarantor_district,
 
-      insurance_details: {
-        insurance_cost: row.insurance_cost ?? "",
-        insurance_company_provider: row.insurance_company_provider || "",
-        insurance_policy_number: row.insurance_policy_number || "",
-        policy_issued_date: row.policy_issued_date || "",
-        period_of_insurance: row.period_of_insurance || "",
-      },
+            state:
+              row.guarantor_state,
 
-      lender: row.lender,
-      lender_type: row.lender_type,
-      product: row.product,
-      status: row.status,
-      stage: row.stage,
+            pincode:
+              row.guarantor_pincode,
+          },
+        },
 
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    };
+        co_applicant: {
+          name:
+            row.co_applicant_name,
 
-    const bre = {
-      fintree_cibil_score: row.fintree_cibil_score,
+          dob:
+            row.co_applicant_dob,
 
-      enquiries_30d: row.motioncorp_enquiries_30d,
+          pan:
+            row.co_applicant_pan,
 
-      dpd_3m_flag: row.motioncorp_dpd_3m_flag,
+          mobile:
+            row.co_applicant_mobile,
 
-      dpd_6m_flag: row.motioncorp_dpd_6m_flag,
+          email:
+            row.co_applicant_email,
 
-      overdue_12m_flag: row.motioncorp_overdue_12m_flag,
+          address: {
+            address_line_1:
+              row.co_applicant_address_line_1,
 
-      written_off_3y_flag: row.motioncorp_written_off_3y_flag,
+            address_line_2:
+              row.co_applicant_address_line_2,
 
-      dpd_60plus_24m_flag: row.motioncorp_60plus_24m_flag,
+            city:
+              row.co_applicant_village_city,
 
-      dpd_90plus_36m_flag: row.motioncorp_90plus_36m_flag,
+            district:
+              row.co_applicant_district,
 
-      emi_overdue_amount: row.motioncorp_emi_overdue_amount,
+            state:
+              row.co_applicant_state,
 
-      cc_overdue_amount: row.motioncorp_cc_overdue_amount,
+            pincode:
+              row.co_applicant_pincode,
+          },
+        },
 
-      deviation_flag: row.motioncorp_deviation_flag,
+        bank_details: {
+          customer_name_as_per_bank:
+            row.customer_name_as_per_bank,
 
-      bre_status: row.motioncorp_bre_status,
+          customer_bank_name:
+            row.customer_bank_name,
 
-      bre_reason: row.motioncorp_bre_reason,
+          customer_account_number:
+            row.customer_account_number,
 
-      bre_checked_at: row.motioncorp_bre_checked_at,
-    };
+          bank_ifsc_code:
+            row.bank_ifsc_code,
+        },
 
-    return res.json({
-      loan,
-      bre,
-    });
-  } catch (err) {
-    console.error("❌ Error fetching Motion Corp details:", err);
+        dealer_details: {
+          selected_dealer_application_id:
+            row.selected_dealer_application_id,
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch Motion Corp details",
-    });
-  }
-});
+          dealer_id:
+            row.dealer_id,
+
+          trade_name:
+            row.trade_name,
+
+          dealer_name:
+            row.dealer_name,
+
+          dealer_contact:
+            row.dealer_contact,
+
+          dealer_email:
+            row.dealer_email,
+
+          gst_no:
+            row.gst_no,
+
+          pan_number:
+            row.pan_number,
+
+          dealer_address:
+            row.dealer_address,
+
+          dealer_city:
+            row.dealer_city,
+
+          dealer_state:
+            row.dealer_state,
+
+          dealer_pincode:
+            row.dealer_pincode,
+
+          dealer_bank_name:
+            row.dealer_bank_name,
+
+          dealer_account_number:
+            row.dealer_account_number,
+
+          dealer_ifsc:
+            row.dealer_ifsc,
+        },
+
+        product_details: {
+          selected_product_id:
+            row.selected_product_id,
+
+          battery_name:
+            row.battery_name,
+
+          battery_type:
+            row.battery_type,
+
+          battery_serial_no_1:
+            row.battery_serial_no_1,
+
+          battery_serial_no_2:
+            row.battery_serial_no_2,
+
+          e_rikshaw_model:
+            row.e_rikshaw_model,
+
+          chassis_no:
+            row.chassis_no,
+        },
+
+        verification_status: {
+          borrower: {
+            kyc_id:
+              row.borrower_kyc_id ||
+              null,
+
+            pan_status:
+              row.borrower_pan_status ||
+              "PENDING",
+
+            aadhaar_status:
+              row.borrower_aadhaar_status ||
+              "PENDING",
+
+            bureau_status:
+              row.borrower_bureau_status ||
+              "PENDING",
+
+            aadhaar_retry_count:
+              Number(
+                row
+                  .borrower_aadhaar_retry_count ||
+                  0,
+              ),
+
+            aadhaar_initiated_at:
+              row
+                .borrower_aadhaar_initiated_at ||
+              null,
+
+            aadhaar_can_retry:
+              Number(
+                row
+                  .borrower_aadhaar_can_retry ||
+                  0,
+              ) === 1,
+
+            retry_seconds_remaining:
+              Number(
+                row
+                  .borrower_retry_seconds_remaining ||
+                  0,
+              ),
+
+            retry_hours_remaining:
+              Math.max(
+                0,
+                Math.ceil(
+                  Number(
+                    row
+                      .borrower_retry_seconds_remaining ||
+                      0,
+                  ) / 3600,
+                ),
+              ),
+
+            retry_available_at:
+              row
+                .borrower_retry_available_at ||
+              null,
+
+            aadhaar_transaction_id:
+              row
+                .borrower_aadhaar_transaction_id ||
+              null,
+
+            aadhaar_unique_id:
+              row
+                .borrower_aadhaar_unique_id ||
+              null,
+          },
+
+          guarantor:
+            row.guarantor_name
+              ? {
+                  kyc_id:
+                    row.guarantor_kyc_id ||
+                    null,
+
+                  pan_status:
+                    row.guarantor_pan_status ||
+                    "PENDING",
+
+                  aadhaar_status:
+                    row
+                      .guarantor_aadhaar_status ||
+                    "PENDING",
+
+                  bureau_status:
+                    row
+                      .guarantor_bureau_status ||
+                    "PENDING",
+
+                  aadhaar_retry_count:
+                    Number(
+                      row
+                        .guarantor_aadhaar_retry_count ||
+                        0,
+                    ),
+
+                  aadhaar_initiated_at:
+                    row
+                      .guarantor_aadhaar_initiated_at ||
+                    null,
+
+                  aadhaar_can_retry:
+                    Number(
+                      row
+                        .guarantor_aadhaar_can_retry ||
+                        0,
+                    ) === 1,
+
+                  retry_seconds_remaining:
+                    Number(
+                      row
+                        .guarantor_retry_seconds_remaining ||
+                        0,
+                    ),
+
+                  retry_hours_remaining:
+                    Math.max(
+                      0,
+                      Math.ceil(
+                        Number(
+                          row
+                            .guarantor_retry_seconds_remaining ||
+                            0,
+                        ) / 3600,
+                      ),
+                    ),
+
+                  retry_available_at:
+                    row
+                      .guarantor_retry_available_at ||
+                    null,
+
+                  aadhaar_transaction_id:
+                    row
+                      .guarantor_aadhaar_transaction_id ||
+                    null,
+
+                  aadhaar_unique_id:
+                    row
+                      .guarantor_aadhaar_unique_id ||
+                    null,
+                }
+              : null,
+
+          co_applicant:
+            row.co_applicant_name
+              ? {
+                  kyc_id:
+                    row
+                      .co_applicant_kyc_id ||
+                    null,
+
+                  pan_status:
+                    row
+                      .co_applicant_pan_status ||
+                    "PENDING",
+
+                  aadhaar_status:
+                    row
+                      .co_applicant_aadhaar_status ||
+                    "PENDING",
+
+                  bureau_status:
+                    row
+                      .co_applicant_bureau_status ||
+                    "PENDING",
+
+                  aadhaar_retry_count:
+                    Number(
+                      row
+                        .co_applicant_aadhaar_retry_count ||
+                        0,
+                    ),
+
+                  aadhaar_initiated_at:
+                    row
+                      .co_applicant_aadhaar_initiated_at ||
+                    null,
+
+                  aadhaar_can_retry:
+                    Number(
+                      row
+                        .co_applicant_aadhaar_can_retry ||
+                        0,
+                    ) === 1,
+
+                  retry_seconds_remaining:
+                    Number(
+                      row
+                        .co_applicant_retry_seconds_remaining ||
+                        0,
+                    ),
+
+                  retry_hours_remaining:
+                    Math.max(
+                      0,
+                      Math.ceil(
+                        Number(
+                          row
+                            .co_applicant_retry_seconds_remaining ||
+                            0,
+                        ) / 3600,
+                      ),
+                    ),
+
+                  retry_available_at:
+                    row
+                      .co_applicant_retry_available_at ||
+                    null,
+
+                  aadhaar_transaction_id:
+                    row
+                      .co_applicant_aadhaar_transaction_id ||
+                    null,
+
+                  aadhaar_unique_id:
+                    row
+                      .co_applicant_aadhaar_unique_id ||
+                    null,
+                }
+              : null,
+        },
+
+        verification: {
+          borrower_mobile_verified:
+            row.borrower_mobile_verified,
+
+          guarantor_mobile_verified:
+            row.guarantor_mobile_verified,
+
+          co_applicant_mobile_verified:
+            row.co_applicant_mobile_verified,
+        },
+
+        verification_links: {
+          borrower_aadhaar_url:
+            row
+              .borrower_aadhaar_kyc_url ||
+            null,
+
+          guarantor_aadhaar_url:
+            row
+              .guarantor_aadhaar_kyc_url ||
+            null,
+
+          co_applicant_aadhaar_url:
+            row
+              .co_applicant_aadhaar_kyc_url ||
+            null,
+
+          nach_url:
+            row.nach_auth_url ||
+            null,
+        },
+
+        nach_details: {
+          auth_url:
+            row.nach_auth_url ||
+            null,
+
+          umrn:
+            row.nach_umrn ||
+            null,
+        },
+
+        insurance_details: {
+          insurance_cost:
+            row.insurance_cost ??
+            "",
+
+          insurance_company_provider:
+            row
+              .insurance_company_provider ||
+            "",
+
+          insurance_policy_number:
+            row
+              .insurance_policy_number ||
+            "",
+
+          policy_issued_date:
+            row.policy_issued_date ||
+            "",
+
+          period_of_insurance:
+            row.period_of_insurance ||
+            "",
+        },
+
+        lender:
+          row.lender,
+
+        lender_type:
+          row.lender_type,
+
+        product:
+          row.product,
+
+        status:
+          row.status,
+
+        stage:
+          row.stage,
+
+        created_at:
+          row.created_at,
+
+        updated_at:
+          row.updated_at,
+      };
+
+      const bre = {
+        fintree_cibil_score:
+          row.fintree_cibil_score,
+
+        enquiries_30d:
+          row.motioncorp_enquiries_30d,
+
+        dpd_3m_flag:
+          row.motioncorp_dpd_3m_flag,
+
+        dpd_6m_flag:
+          row.motioncorp_dpd_6m_flag,
+
+        overdue_12m_flag:
+          row.motioncorp_overdue_12m_flag,
+
+        written_off_3y_flag:
+          row.motioncorp_written_off_3y_flag,
+
+        dpd_60plus_24m_flag:
+          row.motioncorp_60plus_24m_flag,
+
+        dpd_90plus_36m_flag:
+          row.motioncorp_90plus_36m_flag,
+
+        emi_overdue_amount:
+          row.motioncorp_emi_overdue_amount,
+
+        cc_overdue_amount:
+          row.motioncorp_cc_overdue_amount,
+
+        deviation_flag:
+          row.motioncorp_deviation_flag,
+
+        bre_status:
+          row.motioncorp_bre_status,
+
+        bre_reason:
+          row.motioncorp_bre_reason,
+
+        bre_checked_at:
+          row.motioncorp_bre_checked_at,
+      };
+
+      return res.json({
+        success: true,
+        loan,
+        bre,
+      });
+    } catch (error) {
+      console.error(
+        "❌ Error fetching Motion Corp details:",
+        error,
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to fetch Motion Corp details.",
+      });
+    }
+  },
+);
 
 router.patch("/insurance/:lan", async (req, res) => {
   try {
