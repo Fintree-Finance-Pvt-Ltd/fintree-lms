@@ -94,8 +94,8 @@ const generateLoanIdentifiers = async (lender) => {
     prefixLan = "TLF1";
   } else if (lender === "sterlion-ubl") {
     // ✅ Added for loan_booking_sterlion_ubl
-  prefixPartnerLoan = "UBL1";
-  prefixLan = "UBLF1";
+    prefixPartnerLoan = "UBL1";
+    prefixLan = "UBLF1";
   }  else if (lender === "Saswat") {
     prefixPartnerLoan = "SW";
     prefixLan = "SW";
@@ -2317,6 +2317,7 @@ router.get("/all-loans", async (req, res) => {
 
   const allowedSort = [
     "LAN",
+    "app_id",
     "partner_loan_id",
     "customer_name",
     "mobile_number",
@@ -2329,32 +2330,32 @@ router.get("/all-loans", async (req, res) => {
   try {
     const likeVal = `${prefix}%`;
 
-   const isGqTable =
-  table === "loan_booking_gq_non_fsf" ||
-  table === "loan_booking_gq_fsf";
+    const isGqTable =
+      table === "loan_booking_gq_non_fsf" ||
+      table === "loan_booking_gq_fsf";
 
-let searchClause = "";
-let searchParams = [];
+    let searchClause = "";
+    let searchParams = [];
 
-if (search) {
-  const searchValue = `%${search}%`;
+    if (search) {
+      const searchValue = `%${search}%`;
 
-  if (table === "loan_booking_clayyo") {
-    searchClause = ` AND (
+      if (table === "loan_booking_clayyo") {
+        searchClause = ` AND (
       lb.LAN LIKE ?
       OR lb.customer_name LIKE ?
       OR lb.app_id LIKE ?
       OR lb.status LIKE ?
     )`;
 
-    searchParams = [
-      searchValue,
-      searchValue,
-      searchValue,
-      searchValue,
-    ];
-  } else if (isGqTable) {
-    searchClause = ` AND (
+        searchParams = [
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        ];
+      } else if (isGqTable) {
+        searchClause = ` AND (
       lb.LAN LIKE ?
       OR lb.customer_name LIKE ?
       OR lb.partner_loan_id LIKE ?
@@ -2362,29 +2363,29 @@ if (search) {
       OR lb.status LIKE ?
     )`;
 
-    searchParams = [
-      searchValue,
-      searchValue,
-      searchValue,
-      searchValue,
-      searchValue,
-    ];
-  } else {
-    searchClause = ` AND (
+        searchParams = [
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        ];
+      } else {
+        searchClause = ` AND (
       lb.LAN LIKE ?
       OR lb.customer_name LIKE ?
       OR lb.partner_loan_id LIKE ?
       OR lb.status LIKE ?
     )`;
 
-    searchParams = [
-      searchValue,
-      searchValue,
-      searchValue,
-      searchValue,
-    ];
-  }
-}
+        searchParams = [
+          searchValue,
+          searchValue,
+          searchValue,
+          searchValue,
+        ];
+      }
+    }
     const countSql = `
       SELECT COUNT(*) AS total
       FROM ?? lb
@@ -2463,7 +2464,7 @@ router.get("/approved-loans", async (req, res) => {
     dealer_onboarding: true,
     loan_booking_srbh: true,
     loan_booking_saswat: true,
-    loan_booking_sterlion_ubl: true,  
+    loan_booking_sterlion_ubl: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -4688,7 +4689,7 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
 
     const customerName = `${data.firstName || ""} ${
       data.lastName || ""
-    }`.trim();
+      }`.trim();
     // const agreement_date = excelDateToJSDate(data.sanctionDate);
     // ��� Insert into DB
     await conn.query(
@@ -4936,8 +4937,8 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           ifsc:
             (raw.ifsc ?? raw.bank_ifsc)
               ? String(raw.ifsc ?? raw.bank_ifsc)
-                  .trim()
-                  .toUpperCase()
+                .trim()
+                .toUpperCase()
               : null,
           processing_fee: raw.processing_fee ?? 0.0,
         };
@@ -4963,7 +4964,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
         }
         const customerName = `${data.first_name || ""} ${
           data.last_name || ""
-        }`.trim();
+          }`.trim();
 
         // ✅ Duplicate check on PAN or Aadhar
         const [existing] = await db
@@ -5346,7 +5347,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
 
           const encodedInnerXml =
             soapParsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
-              "ns2:processResponse"
+            "ns2:processResponse"
             ]?.["ns2:out"];
 
           if (encodedInnerXml) {
@@ -5944,7 +5945,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
 
     const customer_name = `${data.first_name || ""} ${
       data.last_name || ""
-    }`.trim();
+      }`.trim();
     const agreement_date = data.login_date;
 
     // --- Determine interest rate ---
@@ -6232,7 +6233,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       const soapParsed = parser.parse(response.data);
       const encodedInnerXml =
         soapParsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
-          "ns2:processResponse"
+        "ns2:processResponse"
         ]?.["ns2:out"];
 
       if (!encodedInnerXml)
@@ -6597,7 +6598,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
         const parsed = parser.parse(response.data);
         const encodedInnerXml =
           parsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
-            "ns2:processResponse"
+          "ns2:processResponse"
           ]?.["ns2:out"];
 
         if (!encodedInnerXml) throw new Error("Missing ns2:out in response");
@@ -8798,10 +8799,10 @@ router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
          READ EXCEL FILE
       ===================================================== */
 
-      const workbook = xlsx.read(req.file.buffer, {
-        type: "buffer",
-        cellDates: true,
-      });
+    const workbook = xlsx.read(req.file.buffer, {
+      type: "buffer",
+      cellDates: true,
+    });
 
     const sheetName = workbook.SheetNames[0];
 
@@ -9733,899 +9734,899 @@ const getCurrentMysqlDate = () =>
 
 
 router.post("/saswat-upload", upload.single("file"),async (req, res) => {
-    console.log(
-      "Saswat LAP upload request received:",
-      req.body,
-    );
+  console.log(
+    "Saswat LAP upload request received:",
+    req.body,
+  );
 
-    if (!req.file) {
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      message: "No file uploaded.",
+    });
+  }
+
+  /*
+   * Do not require lenderType from frontend.
+   * This endpoint is specifically for Saswat LAP.
+   */
+  const lenderType = String(
+    req.body.lenderType || "LAP",
+  ).trim();
+
+  const partnerName = "Saswat";
+
+  try {
+    const workbook = xlsx.read(req.file.buffer, {
+      type: "buffer",
+      cellDates: false,
+    });
+
+    const sheetName = workbook.SheetNames[0];
+
+    if (!sheetName) {
       return res.status(400).json({
         success: false,
-        message: "No file uploaded.",
+        message:
+          "No worksheet found in the uploaded file.",
       });
     }
 
     /*
-     * Do not require lenderType from frontend.
-     * This endpoint is specifically for Saswat LAP.
+     * raw:false helps preserve account numbers, PAN,
+     * Aadhaar and other text-formatted Excel cells.
      */
-    const lenderType = String(
-      req.body.lenderType || "LAP",
-    ).trim();
+    const sheetRaw = xlsx.utils.sheet_to_json(
+      workbook.Sheets[sheetName],
+      {
+        defval: "",
+        raw: false,
+        dateNF: "yyyy-mm-dd",
+      },
+    );
 
-    const partnerName = "Saswat";
+    /*
+     * Trim headers and support old udyamNumb typo.
+     */
+    const sheetData = sheetRaw
+      .map((row) => {
+        const cleanedRow = {};
 
-    try {
-      const workbook = xlsx.read(req.file.buffer, {
-        type: "buffer",
-        cellDates: false,
+        for (const [key, value] of Object.entries(row)) {
+          const cleanKey = String(key).trim();
+
+          const finalKey =
+            SASWAT_HEADER_ALIASES[cleanKey] ||
+            cleanKey;
+
+          cleanedRow[finalKey] = value;
+        }
+
+        return cleanedRow;
+      })
+      .filter((row) =>
+        Object.values(row).some(
+          (value) =>
+            String(value ?? "").trim() !== "",
+        ),
+      );
+
+    if (sheetData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Uploaded Excel file is empty or invalid.",
       });
+    }
 
-      const sheetName = workbook.SheetNames[0];
+    /*
+     * Validate template headers before processing.
+     */
+    const receivedHeaders = Object.keys(
+      sheetData[0],
+    );
 
-      if (!sheetName) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "No worksheet found in the uploaded file.",
-        });
-      }
-
-      /*
-       * raw:false helps preserve account numbers, PAN,
-       * Aadhaar and other text-formatted Excel cells.
-       */
-      const sheetRaw = xlsx.utils.sheet_to_json(
-        workbook.Sheets[sheetName],
-        {
-          defval: "",
-          raw: false,
-          dateNF: "yyyy-mm-dd",
-        },
+    const missingHeaders =
+      SASWAT_LAP_HEADERS.filter(
+        (header) =>
+          !receivedHeaders.includes(header),
       );
 
-      /*
-       * Trim headers and support old udyamNumb typo.
-       */
-      const sheetData = sheetRaw
-        .map((row) => {
-          const cleanedRow = {};
+    if (missingHeaders.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Saswat LAP Excel headers are invalid.",
+        missing_headers: missingHeaders,
+        received_headers: receivedHeaders,
+        expected_headers: SASWAT_LAP_HEADERS,
+      });
+    }
 
-          for (const [key, value] of Object.entries(row)) {
-            const cleanKey = String(key).trim();
+    let insertedRows = 0;
+    let rejectedLimit = 0;
+    let rejectedFldg = 0;
+    let rejectedValidation = 0;
+    let rejectedDatabase = 0;
 
-            const finalKey =
-              SASWAT_HEADER_ALIASES[cleanKey] ||
-              cleanKey;
+    const successRows = [];
+    const rowErrors = [];
 
-            cleanedRow[finalKey] = value;
-          }
+    for (
+      let index = 0;
+      index < sheetData.length;
+      index++
+    ) {
+      const row = sheetData[index];
+      const excelRowNumber = index + 2;
 
-          return cleanedRow;
-        })
-        .filter((row) =>
-          Object.values(row).some(
-            (value) =>
-              String(value ?? "").trim() !== "",
-          ),
-        );
+      let conn;
+      let transactionStarted = false;
 
-      if (sheetData.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Uploaded Excel file is empty or invalid.",
-        });
-      }
+      try {
+        /*
+         * Loan details.
+         */
+        const product =
+          normalizeOptionalValue(row.product);
 
-      /*
-       * Validate template headers before processing.
-       */
-      const receivedHeaders = Object.keys(
-        sheetData[0],
-      );
+        const loanAmount =
+          parseSaswatNumber(row.loanAmount);
 
-      const missingHeaders =
-        SASWAT_LAP_HEADERS.filter(
-          (header) =>
-            !receivedHeaders.includes(header),
-        );
+        const loanTenure =
+          parseSaswatInteger(row.tenureMonths);
 
-      if (missingHeaders.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Saswat LAP Excel headers are invalid.",
-          missing_headers: missingHeaders,
-          received_headers: receivedHeaders,
-          expected_headers: SASWAT_LAP_HEADERS,
-        });
-      }
+        const interestRate =
+          parseSaswatNumber(row.interestRate);
 
-      let insertedRows = 0;
-      let rejectedLimit = 0;
-      let rejectedFldg = 0;
-      let rejectedValidation = 0;
-      let rejectedDatabase = 0;
+        const processingFeeRaw =
+          normalizeOptionalValue(
+            row.processingFee,
+          );
 
-      const successRows = [];
-      const rowErrors = [];
+        const processingFee =
+          parseSaswatNumber(row.processingFee) ||
+          0;
 
-      for (
-        let index = 0;
-        index < sheetData.length;
-        index++
-      ) {
-        const row = sheetData[index];
-        const excelRowNumber = index + 2;
+        /*
+         * Borrower details.
+         */
+        const firstName =
+          normalizeOptionalValue(row.firstName);
 
-        let conn;
-        let transactionStarted = false;
+        const lastName =
+          normalizeOptionalValue(row.lastName);
 
-        try {
-          /*
-           * Loan details.
-           */
-          const product =
-            normalizeOptionalValue(row.product);
+        const customerName = [
+          firstName,
+          lastName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
 
-          const loanAmount =
-            parseSaswatNumber(row.loanAmount);
+        const panNumber =
+          normalizeUppercaseValue(
+            row.panNumber,
+          );
 
-          const loanTenure =
-            parseSaswatInteger(row.tenureMonths);
+        const aadhaarNumber =
+          normalizeOptionalValue(
+            row.aadhaarNumber,
+          );
 
-          const interestRate =
-            parseSaswatNumber(row.interestRate);
+        const mobileNumber =
+          normalizeOptionalValue(
+            row.mobileNumber,
+          );
 
-          const processingFeeRaw =
-            normalizeOptionalValue(
-              row.processingFee,
-            );
+        const email =
+          normalizeOptionalValue(row.email);
 
-          const processingFee =
-            parseSaswatNumber(row.processingFee) ||
-            0;
+        const dateOfBirthRaw =
+          normalizeOptionalValue(
+            row.dateOfBirth,
+          );
 
-          /*
-           * Borrower details.
-           */
-          const firstName =
-            normalizeOptionalValue(row.firstName);
+        const dateOfBirth = dateOfBirthRaw
+          ? parseSaswatExcelDate(
+            row.dateOfBirth,
+          )
+          : null;
 
-          const lastName =
-            normalizeOptionalValue(row.lastName);
+        /*
+         * Business and address details.
+         */
+        const businessName =
+          normalizeOptionalValue(
+            row.businessName,
+          );
 
-          const customerName = [
-            firstName,
-            lastName,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .replace(/\s+/g, " ")
-            .trim();
+        const industry =
+          normalizeOptionalValue(row.industry);
 
-          const panNumber =
-            normalizeUppercaseValue(
-              row.panNumber,
-            );
+        const permanentAddress =
+          normalizeOptionalValue(
+            row.permanentAddress,
+          );
 
-          const aadhaarNumber =
-            normalizeOptionalValue(
-              row.aadhaarNumber,
-            );
+        const businessAddress =
+          normalizeOptionalValue(
+            row.businessAddress,
+          );
 
-          const mobileNumber =
-            normalizeOptionalValue(
-              row.mobileNumber,
-            );
+        const gstNumber =
+          normalizeUppercaseValue(
+            row.gstNumber,
+          );
 
-          const email =
-            normalizeOptionalValue(row.email);
+        const udyamNumber =
+          normalizeUppercaseValue(
+            row.udyamNumber,
+          );
 
-          const dateOfBirthRaw =
-            normalizeOptionalValue(
-              row.dateOfBirth,
-            );
+        /*
+         * Bank details.
+         */
+        const accountHolderName =
+          normalizeOptionalValue(
+            row.accountHolderName,
+          );
 
-          const dateOfBirth = dateOfBirthRaw
+        const accountNumber =
+          normalizeOptionalValue(
+            row.accountNumber,
+          );
+
+        const ifsc =
+          normalizeUppercaseValue(row.ifsc);
+
+        const bankName =
+          normalizeOptionalValue(row.bankName);
+
+        /*
+         * LAP property details.
+         */
+        const propertyType =
+          normalizeOptionalValue(
+            row.propertyType,
+          );
+
+        const propertyUsage =
+          normalizeOptionalValue(
+            row.propertyUsage,
+          );
+
+        const propertyOwnershipType =
+          normalizeOptionalValue(
+            row.propertyOwnershipType,
+          );
+
+        const propertyOwnerName =
+          normalizeOptionalValue(
+            row.propertyOwnerName,
+          );
+
+        const propertyOwnerRelation =
+          normalizeOptionalValue(
+            row.propertyOwnerRelation,
+          );
+
+        const propertyAddressLine1 =
+          normalizeOptionalValue(
+            row.propertyAddressLine1,
+          );
+
+        const propertyAddressLine2 =
+          normalizeOptionalValue(
+            row.propertyAddressLine2,
+          );
+
+        const propertyLandmark =
+          normalizeOptionalValue(
+            row.propertyLandmark,
+          );
+
+        const propertyCity =
+          normalizeOptionalValue(
+            row.propertyCity,
+          );
+
+        const propertyDistrict =
+          normalizeOptionalValue(
+            row.propertyDistrict,
+          );
+
+        const propertyState =
+          normalizeOptionalValue(
+            row.propertyState,
+          );
+
+        const propertyPincode =
+          normalizeOptionalValue(
+            row.propertyPincode,
+          );
+
+        const propertyAreaSqft =
+          parseSaswatNumber(
+            row.propertyAreaSqft,
+          );
+
+        const propertyAgeYears =
+          parseSaswatInteger(
+            row.propertyAgeYears,
+          );
+
+        const propertyMarketValue =
+          parseSaswatNumber(
+            row.propertyMarketValue,
+          );
+
+        const propertyAgreementValue =
+          parseSaswatNumber(
+            row.propertyAgreementValue,
+          );
+
+        const propertyValuationValue =
+          parseSaswatNumber(
+            row.propertyValuationValue,
+          );
+
+        const propertyDistressValue =
+          parseSaswatNumber(
+            row.propertyDistressValue,
+          );
+
+        const propertyValuationDateRaw =
+          normalizeOptionalValue(
+            row.propertyValuationDate,
+          );
+
+        const propertyValuationDate =
+          propertyValuationDateRaw
             ? parseSaswatExcelDate(
-                row.dateOfBirth,
-              )
+              row.propertyValuationDate,
+            )
             : null;
 
-          /*
-           * Business and address details.
-           */
-          const businessName =
-            normalizeOptionalValue(
-              row.businessName,
-            );
-
-          const industry =
-            normalizeOptionalValue(row.industry);
-
-          const permanentAddress =
-            normalizeOptionalValue(
-              row.permanentAddress,
-            );
-
-          const businessAddress =
-            normalizeOptionalValue(
-              row.businessAddress,
-            );
-
-          const gstNumber =
-            normalizeUppercaseValue(
-              row.gstNumber,
-            );
-
-          const udyamNumber =
-            normalizeUppercaseValue(
-              row.udyamNumber,
-            );
-
-          /*
-           * Bank details.
-           */
-          const accountHolderName =
-            normalizeOptionalValue(
-              row.accountHolderName,
-            );
-
-          const accountNumber =
-            normalizeOptionalValue(
-              row.accountNumber,
-            );
-
-          const ifsc =
-            normalizeUppercaseValue(row.ifsc);
-
-          const bankName =
-            normalizeOptionalValue(row.bankName);
-
-          /*
-           * LAP property details.
-           */
-          const propertyType =
-            normalizeOptionalValue(
-              row.propertyType,
-            );
-
-          const propertyUsage =
-            normalizeOptionalValue(
-              row.propertyUsage,
-            );
-
-          const propertyOwnershipType =
-            normalizeOptionalValue(
-              row.propertyOwnershipType,
-            );
-
-          const propertyOwnerName =
-            normalizeOptionalValue(
-              row.propertyOwnerName,
-            );
-
-          const propertyOwnerRelation =
-            normalizeOptionalValue(
-              row.propertyOwnerRelation,
-            );
-
-          const propertyAddressLine1 =
-            normalizeOptionalValue(
-              row.propertyAddressLine1,
-            );
-
-          const propertyAddressLine2 =
-            normalizeOptionalValue(
-              row.propertyAddressLine2,
-            );
-
-          const propertyLandmark =
-            normalizeOptionalValue(
-              row.propertyLandmark,
-            );
-
-          const propertyCity =
-            normalizeOptionalValue(
-              row.propertyCity,
-            );
-
-          const propertyDistrict =
-            normalizeOptionalValue(
-              row.propertyDistrict,
-            );
-
-          const propertyState =
-            normalizeOptionalValue(
-              row.propertyState,
-            );
-
-          const propertyPincode =
-            normalizeOptionalValue(
-              row.propertyPincode,
-            );
-
-          const propertyAreaSqft =
-            parseSaswatNumber(
-              row.propertyAreaSqft,
-            );
-
-          const propertyAgeYears =
-            parseSaswatInteger(
-              row.propertyAgeYears,
-            );
-
-          const propertyMarketValue =
-            parseSaswatNumber(
-              row.propertyMarketValue,
-            );
-
-          const propertyAgreementValue =
-            parseSaswatNumber(
-              row.propertyAgreementValue,
-            );
-
-          const propertyValuationValue =
-            parseSaswatNumber(
-              row.propertyValuationValue,
-            );
-
-          const propertyDistressValue =
-            parseSaswatNumber(
-              row.propertyDistressValue,
-            );
-
-          const propertyValuationDateRaw =
-            normalizeOptionalValue(
-              row.propertyValuationDate,
-            );
-
-          const propertyValuationDate =
-            propertyValuationDateRaw
-              ? parseSaswatExcelDate(
-                  row.propertyValuationDate,
-                )
-              : null;
-
-          const propertyValuatorName =
-            normalizeOptionalValue(
-              row.propertyValuatorName,
-            );
-
-          const propertyMortgageStatus =
-            normalizeOptionalValue(
-              row.propertyMortgageStatus,
-            );
-
-          const existingMortgageLender =
-            normalizeOptionalValue(
-              row.existingMortgageLender,
-            );
-
-          const existingMortgageOutstanding =
-            parseSaswatNumber(
-              row.existingMortgageOutstanding,
-            );
-
-          const propertyRemarks =
-            normalizeOptionalValue(
-              row.propertyRemarks,
-            );
-
-          /*
-           * Loan validation.
-           */
-          if (!product) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: "product is required.",
-            });
-
-            continue;
-          }
-
-          if (
-            loanAmount === null ||
-            loanAmount <= 0
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid loanAmount: ${row.loanAmount}`,
-            });
-
-            continue;
-          }
-
-          if (
-            loanTenure === null ||
-            loanTenure <= 0
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid tenureMonths: ${row.tenureMonths}`,
-            });
-
-            continue;
-          }
-
-          if (
-            interestRate === null ||
-            interestRate < 0
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid interestRate: ${row.interestRate}`,
-            });
-
-            continue;
-          }
-
-          if (
-            processingFeeRaw !== null &&
-            parseSaswatNumber(
-              row.processingFee,
-            ) === null
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid processingFee: ${row.processingFee}`,
-            });
-
-            continue;
-          }
-
-          if (processingFee < 0) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason:
-                "processingFee cannot be negative.",
-            });
-
-            continue;
-          }
-
-          if (!firstName) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: "firstName is required.",
-            });
-
-            continue;
-          }
-
-          if (!customerName) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason:
-                "Customer name could not be generated.",
-            });
-
-            continue;
-          }
-
-          /*
-           * PAN is required for LAP.
-           */
-          if (!panNumber) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason:
-                "panNumber is required for LAP.",
-            });
-
-            continue;
-          }
-
-          const panRegex =
-            /^[A-Z]{5}[0-9]{4}[A-Z]$/;
-
-          if (!panRegex.test(panNumber)) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid PAN number: ${panNumber}`,
-            });
-
-            continue;
-          }
-
-          /*
-           * Optional Aadhaar validation.
-           */
-          const normalizedAadhaar =
-            aadhaarNumber
-              ? aadhaarNumber.replace(/\D/g, "")
-              : null;
-
-          if (
-            normalizedAadhaar &&
-            !/^\d{12}$/.test(
-              normalizedAadhaar,
-            )
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason:
-                "aadhaarNumber must contain exactly 12 digits.",
-            });
-
-            continue;
-          }
-
-          /*
-           * Optional mobile validation.
-           */
-          const normalizedMobile =
-            mobileNumber
-              ? mobileNumber.replace(/\D/g, "")
-              : null;
-
-          if (
-            normalizedMobile &&
-            !/^[6-9]\d{9}$/.test(
-              normalizedMobile,
-            )
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid mobileNumber: ${mobileNumber}`,
-            });
-
-            continue;
-          }
-
-          if (
-            email &&
-            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-              email,
-            )
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid email: ${email}`,
-            });
-
-            continue;
-          }
-
-          if (
-            dateOfBirthRaw &&
-            !dateOfBirth
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid dateOfBirth: ${row.dateOfBirth}`,
-            });
-
-            continue;
-          }
-
-          if (
-            ifsc &&
-            !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
-              ifsc,
-            )
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid IFSC: ${ifsc}`,
-            });
-
-            continue;
-          }
-
-          if (
-            gstNumber &&
-            !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(
-              gstNumber,
-            )
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid GST number: ${gstNumber}`,
-            });
-
-            continue;
-          }
-
-          /*
-           * Required LAP property validation.
-           */
-          if (!propertyType) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason:
-                "propertyType is required for LAP.",
-            });
-
-            continue;
-          }
-
-          if (!propertyOwnershipType) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason:
-                "propertyOwnershipType is required for LAP.",
-            });
-
-            continue;
-          }
-
-          if (!propertyOwnerName) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason:
-                "propertyOwnerName is required for LAP.",
-            });
-
-            continue;
-          }
-
-          if (!propertyAddressLine1) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason:
-                "propertyAddressLine1 is required for LAP.",
-            });
-
-            continue;
-          }
-
-          if (!propertyCity) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason:
-                "propertyCity is required for LAP.",
-            });
-
-            continue;
-          }
-
-          if (!propertyState) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason:
-                "propertyState is required for LAP.",
-            });
-
-            continue;
-          }
-
-          if (
-            !propertyPincode ||
-            !/^\d{6}$/.test(propertyPincode)
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason: `Invalid propertyPincode: ${row.propertyPincode}`,
-            });
-
-            continue;
-          }
-
-          if (
-            propertyAreaSqft !== null &&
-            propertyAreaSqft <= 0
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason: `Invalid propertyAreaSqft: ${row.propertyAreaSqft}`,
-            });
-
-            continue;
-          }
-
-          if (
-            propertyMarketValue === null ||
-            propertyMarketValue <= 0
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason: `Invalid propertyMarketValue: ${row.propertyMarketValue}`,
-            });
-
-            continue;
-          }
-
-          if (
-            loanAmount >
-            propertyMarketValue
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason:
-                "loanAmount cannot exceed propertyMarketValue.",
-            });
-
-            continue;
-          }
-
-          if (
-            propertyValuationDateRaw &&
-            !propertyValuationDate
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason: `Invalid propertyValuationDate: ${row.propertyValuationDate}`,
-            });
-
-            continue;
-          }
-
-          if (
-            existingMortgageOutstanding !==
-              null &&
-            existingMortgageOutstanding < 0
-          ) {
-            rejectedValidation++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "property-validation",
-              reason:
-                "existingMortgageOutstanding cannot be negative.",
-            });
-
-            continue;
-          }
-
-          /*
-           * Start database transaction.
-           */
-          conn =
-            await db.promise().getConnection();
-
-          await conn.beginTransaction();
-          transactionStarted = true;
-
-          const loginDate =
-            getCurrentMysqlDate();
-
-          const { month, year } =
-            getMonthYear(new Date());
-
-          /*
-           * Get Saswat partner.
-           */
-          const partner =
-            await partnerLimitService.getOrCreatePartner(
-              conn,
-              partnerName,
-            );
-
-          if (!partner?.partner_id) {
-            throw new Error(
-              "Unable to resolve Saswat partner ID.",
-            );
-          }
-
-          console.log("[SASWAT BOOKING LIMIT DEBUG]", {
-  row: excelRowNumber,
-  partnerName,
-  partner,
-  partnerId: partner.partner_id,
-  loanAmount,
-  month,
-  year,
-  loginDate,
-});
-          /*
-           * Check monthly booking limit.
-           */
-          const limitCheck =
-            await partnerLimitService.validatePartnerBookingLimit(
-              conn,
-              partner.partner_id,
-              loanAmount,
-              month,
-              year,
-            );
-
-          if (!limitCheck.valid) {
-            rejectedLimit++;
-
-            rowErrors.push({
-              row: excelRowNumber,
-              stage: "partner-limit",
-              reason:
-                limitCheck.message ||
-                `Booking limit exceeded for loan amount ${loanAmount}.`,
-            });
-
-            await conn.rollback();
-            transactionStarted = false;
-
-            continue;
-          }
-
-          /*
-           * Read FLDG configuration.
-           */
-          const [partnerConfigRows] =
-            await conn.query(
-              `
+        const propertyValuatorName =
+          normalizeOptionalValue(
+            row.propertyValuatorName,
+          );
+
+        const propertyMortgageStatus =
+          normalizeOptionalValue(
+            row.propertyMortgageStatus,
+          );
+
+        const existingMortgageLender =
+          normalizeOptionalValue(
+            row.existingMortgageLender,
+          );
+
+        const existingMortgageOutstanding =
+          parseSaswatNumber(
+            row.existingMortgageOutstanding,
+          );
+
+        const propertyRemarks =
+          normalizeOptionalValue(
+            row.propertyRemarks,
+          );
+
+        /*
+         * Loan validation.
+         */
+        if (!product) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "product is required.",
+          });
+
+          continue;
+        }
+
+        if (
+          loanAmount === null ||
+          loanAmount <= 0
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid loanAmount: ${row.loanAmount}`,
+          });
+
+          continue;
+        }
+
+        if (
+          loanTenure === null ||
+          loanTenure <= 0
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid tenureMonths: ${row.tenureMonths}`,
+          });
+
+          continue;
+        }
+
+        if (
+          interestRate === null ||
+          interestRate < 0
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid interestRate: ${row.interestRate}`,
+          });
+
+          continue;
+        }
+
+        if (
+          processingFeeRaw !== null &&
+          parseSaswatNumber(
+            row.processingFee,
+          ) === null
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid processingFee: ${row.processingFee}`,
+          });
+
+          continue;
+        }
+
+        if (processingFee < 0) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason:
+              "processingFee cannot be negative.",
+          });
+
+          continue;
+        }
+
+        if (!firstName) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "firstName is required.",
+          });
+
+          continue;
+        }
+
+        if (!customerName) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason:
+              "Customer name could not be generated.",
+          });
+
+          continue;
+        }
+
+        /*
+         * PAN is required for LAP.
+         */
+        if (!panNumber) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason:
+              "panNumber is required for LAP.",
+          });
+
+          continue;
+        }
+
+        const panRegex =
+          /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+        if (!panRegex.test(panNumber)) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid PAN number: ${panNumber}`,
+          });
+
+          continue;
+        }
+
+        /*
+         * Optional Aadhaar validation.
+         */
+        const normalizedAadhaar =
+          aadhaarNumber
+            ? aadhaarNumber.replace(/\D/g, "")
+            : null;
+
+        if (
+          normalizedAadhaar &&
+          !/^\d{12}$/.test(
+            normalizedAadhaar,
+          )
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason:
+              "aadhaarNumber must contain exactly 12 digits.",
+          });
+
+          continue;
+        }
+
+        /*
+         * Optional mobile validation.
+         */
+        const normalizedMobile =
+          mobileNumber
+            ? mobileNumber.replace(/\D/g, "")
+            : null;
+
+        if (
+          normalizedMobile &&
+          !/^[6-9]\d{9}$/.test(
+            normalizedMobile,
+          )
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid mobileNumber: ${mobileNumber}`,
+          });
+
+          continue;
+        }
+
+        if (
+          email &&
+          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+            email,
+          )
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid email: ${email}`,
+          });
+
+          continue;
+        }
+
+        if (
+          dateOfBirthRaw &&
+          !dateOfBirth
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid dateOfBirth: ${row.dateOfBirth}`,
+          });
+
+          continue;
+        }
+
+        if (
+          ifsc &&
+          !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
+            ifsc,
+          )
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid IFSC: ${ifsc}`,
+          });
+
+          continue;
+        }
+
+        if (
+          gstNumber &&
+          !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(
+            gstNumber,
+          )
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid GST number: ${gstNumber}`,
+          });
+
+          continue;
+        }
+
+        /*
+         * Required LAP property validation.
+         */
+        if (!propertyType) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason:
+              "propertyType is required for LAP.",
+          });
+
+          continue;
+        }
+
+        if (!propertyOwnershipType) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason:
+              "propertyOwnershipType is required for LAP.",
+          });
+
+          continue;
+        }
+
+        if (!propertyOwnerName) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason:
+              "propertyOwnerName is required for LAP.",
+          });
+
+          continue;
+        }
+
+        if (!propertyAddressLine1) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason:
+              "propertyAddressLine1 is required for LAP.",
+          });
+
+          continue;
+        }
+
+        if (!propertyCity) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason:
+              "propertyCity is required for LAP.",
+          });
+
+          continue;
+        }
+
+        if (!propertyState) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason:
+              "propertyState is required for LAP.",
+          });
+
+          continue;
+        }
+
+        if (
+          !propertyPincode ||
+          !/^\d{6}$/.test(propertyPincode)
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason: `Invalid propertyPincode: ${row.propertyPincode}`,
+          });
+
+          continue;
+        }
+
+        if (
+          propertyAreaSqft !== null &&
+          propertyAreaSqft <= 0
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason: `Invalid propertyAreaSqft: ${row.propertyAreaSqft}`,
+          });
+
+          continue;
+        }
+
+        if (
+          propertyMarketValue === null ||
+          propertyMarketValue <= 0
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason: `Invalid propertyMarketValue: ${row.propertyMarketValue}`,
+          });
+
+          continue;
+        }
+
+        if (
+          loanAmount >
+          propertyMarketValue
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason:
+              "loanAmount cannot exceed propertyMarketValue.",
+          });
+
+          continue;
+        }
+
+        if (
+          propertyValuationDateRaw &&
+          !propertyValuationDate
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason: `Invalid propertyValuationDate: ${row.propertyValuationDate}`,
+          });
+
+          continue;
+        }
+
+        if (
+          existingMortgageOutstanding !==
+          null &&
+          existingMortgageOutstanding < 0
+        ) {
+          rejectedValidation++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "property-validation",
+            reason:
+              "existingMortgageOutstanding cannot be negative.",
+          });
+
+          continue;
+        }
+
+        /*
+         * Start database transaction.
+         */
+        conn =
+          await db.promise().getConnection();
+
+        await conn.beginTransaction();
+        transactionStarted = true;
+
+        const loginDate =
+          getCurrentMysqlDate();
+
+        const { month, year } =
+          getMonthYear(new Date());
+
+        /*
+         * Get Saswat partner.
+         */
+        const partner =
+          await partnerLimitService.getOrCreatePartner(
+            conn,
+            partnerName,
+          );
+
+        if (!partner?.partner_id) {
+          throw new Error(
+            "Unable to resolve Saswat partner ID.",
+          );
+        }
+
+        console.log("[SASWAT BOOKING LIMIT DEBUG]", {
+          row: excelRowNumber,
+          partnerName,
+          partner,
+          partnerId: partner.partner_id,
+          loanAmount,
+          month,
+          year,
+          loginDate,
+        });
+        /*
+         * Check monthly booking limit.
+         */
+        const limitCheck =
+          await partnerLimitService.validatePartnerBookingLimit(
+            conn,
+            partner.partner_id,
+            loanAmount,
+            month,
+            year,
+          );
+
+        if (!limitCheck.valid) {
+          rejectedLimit++;
+
+          rowErrors.push({
+            row: excelRowNumber,
+            stage: "partner-limit",
+            reason:
+              limitCheck.message ||
+              `Booking limit exceeded for loan amount ${loanAmount}.`,
+          });
+
+          await conn.rollback();
+          transactionStarted = false;
+
+          continue;
+        }
+
+        /*
+         * Read FLDG configuration.
+         */
+        const [partnerConfigRows] =
+          await conn.query(
+            `
                 SELECT
                   fldg_percent,
                   fldg_status
@@ -10633,386 +10634,386 @@ router.post("/saswat-upload", upload.single("file"),async (req, res) => {
                 WHERE partner_id = ?
                 LIMIT 1
               `,
-              [partner.partner_id],
-            );
-
-          const partnerConfig =
-            partnerConfigRows[0];
-
-          if (!partnerConfig) {
-            throw new Error(
-              `Partner configuration not found for partner ID ${partner.partner_id}.`,
-            );
-          }
-
-          let requiredFldg = 0;
-
-          if (
-            Number(
-              partnerConfig.fldg_status,
-            ) === 1
-          ) {
-            const fldgPercent = Number(
-              partnerConfig.fldg_percent || 0,
-            );
-
-            requiredFldg = Number(
-              (
-                (loanAmount * fldgPercent) /
-                100
-              ).toFixed(2),
-            );
-          }
-
-          /*
-           * Check FLDG availability.
-           */
-          if (requiredFldg > 0) {
-            const fldgCheck =
-              await partnerFldgService.validateFldgAvailability(
-                conn,
-                partner.partner_id,
-                requiredFldg,
-              );
-
-            if (!fldgCheck.valid) {
-              rejectedFldg++;
-
-              rowErrors.push({
-                row: excelRowNumber,
-                stage: "fldg-check",
-                reason:
-                  `Insufficient FLDG. ` +
-                  `Available: ${fldgCheck.available}, ` +
-                  `Required: ${requiredFldg}`,
-              });
-
-              await conn.rollback();
-              transactionStarted = false;
-
-              continue;
-            }
-          }
-
-          /*
-           * Use Saswat for identifier mapping.
-           * Do not use lenderType here because it may be LAP.
-           */
-          const identifiers =
-            await generateLoanIdentifiers(
-              partnerName,
-            );
-
-          const partnerLoanId =
-            identifiers?.partnerLoanId;
-
-          const lan = identifiers?.lan;
-
-          if (!partnerLoanId || !lan) {
-            throw new Error(
-              "Saswat loan identifier generation failed.",
-            );
-          }
-
-          /*
-           * processingFeeGst and otherCharges are zero
-           * because they are not present in the Excel.
-           */
-          const processingFeeGst = 0;
-          const otherCharges = 0;
-
-          const netDisbursement = Number(
-            Math.max(
-              loanAmount -
-                processingFee -
-                processingFeeGst -
-                otherCharges,
-              0,
-            ).toFixed(2),
+            [partner.partner_id],
           );
 
-          /*
-           * Dynamic columns avoid SQL placeholder mismatch.
-           */
-          const insertPayload = {
-            lender_type: lenderType,
-            lender: partnerName,
-            product,
-            status: "Login",
-            partner_loan_id: partnerLoanId,
-            lan,
-            login_date: loginDate,
+        const partnerConfig =
+          partnerConfigRows[0];
 
-            first_name: firstName,
-            last_name: lastName,
-            customer_name: customerName,
-            date_of_birth: dateOfBirth,
-            mobile_number: normalizedMobile,
-            email,
+        if (!partnerConfig) {
+          throw new Error(
+            `Partner configuration not found for partner ID ${partner.partner_id}.`,
+          );
+        }
 
-            pan_number: panNumber,
-            aadhaar_number: normalizedAadhaar,
-            gst_number: gstNumber,
-            udyam_number: udyamNumber,
+        let requiredFldg = 0;
 
-            permanent_address: permanentAddress,
-            business_address: businessAddress,
+        if (
+          Number(
+            partnerConfig.fldg_status,
+          ) === 1
+        ) {
+          const fldgPercent = Number(
+            partnerConfig.fldg_percent || 0,
+          );
 
-            business_name: businessName,
-            industry,
+          requiredFldg = Number(
+            (
+              (loanAmount * fldgPercent) /
+              100
+            ).toFixed(2),
+          );
+        }
 
-            account_holder_name: accountHolderName,
-            account_number: accountNumber,
-            ifsc,
-            bank_name: bankName,
+        /*
+         * Check FLDG availability.
+         */
+        if (requiredFldg > 0) {
+          const fldgCheck =
+            await partnerFldgService.validateFldgAvailability(
+              conn,
+              partner.partner_id,
+              requiredFldg,
+            );
 
-            property_type: propertyType,
-            property_usage: propertyUsage,
-            property_ownership_type:
-              propertyOwnershipType,
-            property_owner_name:
-              propertyOwnerName,
-            property_owner_relation:
-              propertyOwnerRelation,
+          if (!fldgCheck.valid) {
+            rejectedFldg++;
 
-            property_address_line_1:
-              propertyAddressLine1,
-            property_address_line_2:
-              propertyAddressLine2,
-            property_landmark:
-              propertyLandmark,
-            property_city: propertyCity,
-            property_district:
-              propertyDistrict,
-            property_state: propertyState,
-            property_pincode:
-              propertyPincode,
+            rowErrors.push({
+              row: excelRowNumber,
+              stage: "fldg-check",
+              reason:
+                `Insufficient FLDG. ` +
+                `Available: ${fldgCheck.available}, ` +
+                `Required: ${requiredFldg}`,
+            });
 
-            property_area_sqft:
-              propertyAreaSqft,
-            property_age_years:
-              propertyAgeYears,
-            property_market_value:
-              propertyMarketValue,
-            property_agreement_value:
-              propertyAgreementValue,
-            property_valuation_value:
-              propertyValuationValue,
-            property_distress_value:
-              propertyDistressValue,
+            await conn.rollback();
+            transactionStarted = false;
 
-            property_valuation_date:
-              propertyValuationDate,
-            property_valuator_name:
-              propertyValuatorName,
+            continue;
+          }
+        }
 
-            property_mortgage_status:
-              propertyMortgageStatus,
-            existing_mortgage_lender:
-              existingMortgageLender,
-            existing_mortgage_outstanding:
-              existingMortgageOutstanding,
-            property_remarks:
-              propertyRemarks,
+        /*
+         * Use Saswat for identifier mapping.
+         * Do not use lenderType here because it may be LAP.
+         */
+        const identifiers =
+          await generateLoanIdentifiers(
+            partnerName,
+          );
 
-            loan_amount: loanAmount,
-            net_disbursement:
-              netDisbursement,
-            interest_rate: interestRate,
-            loan_tenure: loanTenure,
-            processing_fee: processingFee,
-            processing_fee_gst:
-              processingFeeGst,
-            other_charges: otherCharges,
+        const partnerLoanId =
+          identifiers?.partnerLoanId;
 
-            fldg_required: requiredFldg,
-            source_file:
-              req.file.originalname,
-          };
+        const lan = identifiers?.lan;
 
-          const insertColumns =
-            Object.keys(insertPayload);
+        if (!partnerLoanId || !lan) {
+          throw new Error(
+            "Saswat loan identifier generation failed.",
+          );
+        }
 
-          const insertValues =
-            Object.values(insertPayload);
+        /*
+         * processingFeeGst and otherCharges are zero
+         * because they are not present in the Excel.
+         */
+        const processingFeeGst = 0;
+        const otherCharges = 0;
 
-          const insertQuery = `
+        const netDisbursement = Number(
+          Math.max(
+            loanAmount -
+            processingFee -
+            processingFeeGst -
+            otherCharges,
+            0,
+          ).toFixed(2),
+        );
+
+        /*
+         * Dynamic columns avoid SQL placeholder mismatch.
+         */
+        const insertPayload = {
+          lender_type: lenderType,
+          lender: partnerName,
+          product,
+          status: "Login",
+          partner_loan_id: partnerLoanId,
+          lan,
+          login_date: loginDate,
+
+          first_name: firstName,
+          last_name: lastName,
+          customer_name: customerName,
+          date_of_birth: dateOfBirth,
+          mobile_number: normalizedMobile,
+          email,
+
+          pan_number: panNumber,
+          aadhaar_number: normalizedAadhaar,
+          gst_number: gstNumber,
+          udyam_number: udyamNumber,
+
+          permanent_address: permanentAddress,
+          business_address: businessAddress,
+
+          business_name: businessName,
+          industry,
+
+          account_holder_name: accountHolderName,
+          account_number: accountNumber,
+          ifsc,
+          bank_name: bankName,
+
+          property_type: propertyType,
+          property_usage: propertyUsage,
+          property_ownership_type:
+            propertyOwnershipType,
+          property_owner_name:
+            propertyOwnerName,
+          property_owner_relation:
+            propertyOwnerRelation,
+
+          property_address_line_1:
+            propertyAddressLine1,
+          property_address_line_2:
+            propertyAddressLine2,
+          property_landmark:
+            propertyLandmark,
+          property_city: propertyCity,
+          property_district:
+            propertyDistrict,
+          property_state: propertyState,
+          property_pincode:
+            propertyPincode,
+
+          property_area_sqft:
+            propertyAreaSqft,
+          property_age_years:
+            propertyAgeYears,
+          property_market_value:
+            propertyMarketValue,
+          property_agreement_value:
+            propertyAgreementValue,
+          property_valuation_value:
+            propertyValuationValue,
+          property_distress_value:
+            propertyDistressValue,
+
+          property_valuation_date:
+            propertyValuationDate,
+          property_valuator_name:
+            propertyValuatorName,
+
+          property_mortgage_status:
+            propertyMortgageStatus,
+          existing_mortgage_lender:
+            existingMortgageLender,
+          existing_mortgage_outstanding:
+            existingMortgageOutstanding,
+          property_remarks:
+            propertyRemarks,
+
+          loan_amount: loanAmount,
+          net_disbursement:
+            netDisbursement,
+          interest_rate: interestRate,
+          loan_tenure: loanTenure,
+          processing_fee: processingFee,
+          processing_fee_gst:
+            processingFeeGst,
+          other_charges: otherCharges,
+
+          fldg_required: requiredFldg,
+          source_file:
+            req.file.originalname,
+        };
+
+        const insertColumns =
+          Object.keys(insertPayload);
+
+        const insertValues =
+          Object.values(insertPayload);
+
+        const insertQuery = `
             INSERT INTO loan_booking_saswat (
               ${insertColumns
-                .map(
-                  (column) => `\`${column}\``,
-                )
-                .join(", ")}
+            .map(
+              (column) => `\`${column}\``,
+            )
+            .join(", ")}
             )
             VALUES (
               ${insertColumns
-                .map(() => "?")
-                .join(", ")}
+            .map(() => "?")
+            .join(", ")}
             )
           `;
 
-          const [insertResult] =
-            await conn.query(
-              insertQuery,
-              insertValues,
-            );
+        const [insertResult] =
+          await conn.query(
+            insertQuery,
+            insertValues,
+          );
 
-          if (
-            insertResult.affectedRows !== 1
-          ) {
-            throw new Error(
-              `Saswat loan insert failed. Affected rows: ${insertResult.affectedRows}`,
-            );
-          }
+        if (
+          insertResult.affectedRows !== 1
+        ) {
+          throw new Error(
+            `Saswat loan insert failed. Affected rows: ${insertResult.affectedRows}`,
+          );
+        }
 
-          /*
-           * Update partner booked limit.
-           */
-          await partnerLimitService.updateBookedLimit(
+        /*
+         * Update partner booked limit.
+         */
+        await partnerLimitService.updateBookedLimit(
+          conn,
+          limitCheck.limitId,
+          loanAmount,
+          lan,
+        );
+
+        /*
+         * Reserve FLDG.
+         */
+        if (requiredFldg > 0) {
+          await partnerFldgService.reserveFldg(
             conn,
-            limitCheck.limitId,
-            loanAmount,
+            partner.partner_id,
             lan,
+            requiredFldg,
+            `Saswat LAP reservation | Loan amount: ${loanAmount}`,
           );
+        }
 
-          /*
-           * Reserve FLDG.
-           */
-          if (requiredFldg > 0) {
-            await partnerFldgService.reserveFldg(
-              conn,
-              partner.partner_id,
-              lan,
-              requiredFldg,
-              `Saswat LAP reservation | Loan amount: ${loanAmount}`,
-            );
-          }
+        await conn.commit();
+        transactionStarted = false;
 
-          await conn.commit();
-          transactionStarted = false;
+        insertedRows++;
 
-          insertedRows++;
+        successRows.push({
+          row: excelRowNumber,
+          id: insertResult.insertId,
+          lan,
+          partner_loan_id:
+            partnerLoanId,
+          customer_name: customerName,
+          product,
+          loan_amount: loanAmount,
+          property_type: propertyType,
+          property_market_value:
+            propertyMarketValue,
+        });
 
-          successRows.push({
+        console.log(
+          "Saswat LAP inserted successfully:",
+          {
             row: excelRowNumber,
-            id: insertResult.insertId,
+            insertId:
+              insertResult.insertId,
             lan,
-            partner_loan_id:
-              partnerLoanId,
-            customer_name: customerName,
-            product,
-            loan_amount: loanAmount,
-            property_type: propertyType,
-            property_market_value:
-              propertyMarketValue,
-          });
-
-          console.log(
-            "Saswat LAP inserted successfully:",
-            {
-              row: excelRowNumber,
-              insertId:
-                insertResult.insertId,
-              lan,
-              partnerLoanId,
-            },
-          );
-        } catch (error) {
-          if (conn && transactionStarted) {
-            try {
-              await conn.rollback();
-            } catch (rollbackError) {
-              console.error(
-                "Saswat transaction rollback failed:",
-                rollbackError,
-              );
-            }
-          }
-
-          const isDatabaseError =
-            Boolean(error.sqlMessage) ||
-            String(error.code || "").startsWith(
-              "ER_",
+            partnerLoanId,
+          },
+        );
+      } catch (error) {
+        if (conn && transactionStarted) {
+          try {
+            await conn.rollback();
+          } catch (rollbackError) {
+            console.error(
+              "Saswat transaction rollback failed:",
+              rollbackError,
             );
-
-          if (isDatabaseError) {
-            rejectedDatabase++;
-          } else {
-            rejectedValidation++;
-          }
-
-          rowErrors.push({
-            row: excelRowNumber,
-            stage: isDatabaseError
-              ? "database"
-              : "processing",
-            code: error.code || null,
-            reason:
-              error.sqlMessage ||
-              error.message ||
-              "Unknown Saswat LAP processing error.",
-          });
-
-          console.error(
-            "Saswat LAP row failed:",
-            {
-              row: excelRowNumber,
-              code: error.code,
-              message: error.message,
-              sqlMessage: error.sqlMessage,
-              sql: error.sql,
-            },
-          );
-        } finally {
-          if (conn) {
-            conn.release();
           }
         }
-      }
 
-      const hasInsertedRows =
-        insertedRows > 0;
+        const isDatabaseError =
+          Boolean(error.sqlMessage) ||
+          String(error.code || "").startsWith(
+            "ER_",
+          );
 
-      const partialSuccess =
-        insertedRows > 0 &&
-        insertedRows < sheetData.length;
+        if (isDatabaseError) {
+          rejectedDatabase++;
+        } else {
+          rejectedValidation++;
+        }
 
-      return res
-        .status(hasInsertedRows ? 200 : 422)
-        .json({
-          success: hasInsertedRows,
-          partial_success: partialSuccess,
-          message: hasInsertedRows
-            ? "Saswat LAP upload processed successfully."
-            : "No Saswat LAP loans were inserted.",
-          total_rows: sheetData.length,
-          inserted_rows: insertedRows,
-          failed_rows:
-            sheetData.length - insertedRows,
-          rejected_limit_exceeded:
-            rejectedLimit,
-          rejected_fldg: rejectedFldg,
-          rejected_validation:
-            rejectedValidation,
-          rejected_database:
-            rejectedDatabase,
-          success_rows: successRows,
-          row_errors: rowErrors,
+        rowErrors.push({
+          row: excelRowNumber,
+          stage: isDatabaseError
+            ? "database"
+            : "processing",
+          code: error.code || null,
+          reason:
+            error.sqlMessage ||
+            error.message ||
+            "Unknown Saswat LAP processing error.",
         });
-    } catch (error) {
-      console.error(
-        "Error processing Saswat LAP upload:",
-        error,
-      );
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Error processing Saswat LAP upload.",
-        error: error.message,
-      });
+        console.error(
+          "Saswat LAP row failed:",
+          {
+            row: excelRowNumber,
+            code: error.code,
+            message: error.message,
+            sqlMessage: error.sqlMessage,
+            sql: error.sql,
+          },
+        );
+      } finally {
+        if (conn) {
+          conn.release();
+        }
+      }
     }
-  },
+
+    const hasInsertedRows =
+      insertedRows > 0;
+
+    const partialSuccess =
+      insertedRows > 0 &&
+      insertedRows < sheetData.length;
+
+    return res
+      .status(hasInsertedRows ? 200 : 422)
+      .json({
+        success: hasInsertedRows,
+        partial_success: partialSuccess,
+        message: hasInsertedRows
+          ? "Saswat LAP upload processed successfully."
+          : "No Saswat LAP loans were inserted.",
+        total_rows: sheetData.length,
+        inserted_rows: insertedRows,
+        failed_rows:
+          sheetData.length - insertedRows,
+        rejected_limit_exceeded:
+          rejectedLimit,
+        rejected_fldg: rejectedFldg,
+        rejected_validation:
+          rejectedValidation,
+        rejected_database:
+          rejectedDatabase,
+        success_rows: successRows,
+        row_errors: rowErrors,
+      });
+  } catch (error) {
+    console.error(
+      "Error processing Saswat LAP upload:",
+      error,
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Error processing Saswat LAP upload.",
+      error: error.message,
+    });
+  }
+},
 );
 
 ////////////////// SASWAT LOAN BOOKIN END /////////////////////////////
@@ -12659,9 +12660,9 @@ router.post(
 
       // Excel read
       const workbook = xlsx.read(req.file.buffer, {
-       type: "buffer",
-       cellDates: false,    // Important: Do not convert dates to JS Date objects, keep as raw values
-       });
+        type: "buffer",
+        cellDates: false,    // Important: Do not convert dates to JS Date objects, keep as raw values
+      });
 
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
@@ -12829,15 +12830,6 @@ router.post(
             .replace(/\s+/g, "")
             .trim();
 
-          if (!/^\d{12}$/.test(aadhaarNumber)) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: "aadhaarNumber must contain exactly 12 digits.",
-            });
-
-            continue;
-          }
 
           // Mobile clean
           const mobileNumber = String(row.mobileNumber || "")
@@ -12974,17 +12966,17 @@ router.post(
 
           await db.promise().query(insertQuery, insertValues);
 
-success_rows.push({
-  row: excelRowNumber,
-  lan,
-  partnerLoanId,
-  panNumber,
-  product,
-});
+          success_rows.push({
+            row: excelRowNumber,
+            lan,
+            partnerLoanId,
+            panNumber,
+            product,
+          });
 
-console.log(
-  `✅ Sterlion UBL inserted | Row: ${excelRowNumber} | LAN: ${lan} | PAN: ${panNumber}`,
-);
+          console.log(
+            `✅ Sterlion UBL inserted | Row: ${excelRowNumber} | LAN: ${lan} | PAN: ${panNumber}`,
+          );
         } catch (rowError) {
           console.error(
             `❌ Sterlion UBL row ${excelRowNumber} failed:`,
@@ -13001,21 +12993,21 @@ console.log(
           });
         }
       }
-return res.status(200).json({
-  message: "Sterlion UBL file processed.",
-  total_rows: rows.length,
+      return res.status(200).json({
+        message: "Sterlion UBL file processed.",
+        total_rows: rows.length,
 
-  // Existing keys
-  inserted_rows: success_rows.length,
-  failed_rows: row_errors.length,
+        // Existing keys
+        inserted_rows: success_rows.length,
+        failed_rows: row_errors.length,
 
-  // UI compatibility keys
-  inserted: success_rows.length,
-  failed: row_errors.length,
+        // UI compatibility keys
+        inserted: success_rows.length,
+        failed: row_errors.length,
 
-  success_rows,
-  row_errors,
-});
+        success_rows,
+        row_errors,
+      });
     } catch (error) {
       console.error("❌ Sterlion UBL upload error:", error);
 
