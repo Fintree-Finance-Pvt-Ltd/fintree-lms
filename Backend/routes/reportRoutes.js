@@ -46,7 +46,7 @@ function resolveProcedure(rawReportId, rawLender) {
     "Due Demand vs Collection Report(Fintree)":
       "due-demand-vs-collection-report(fintree)",
     "consolidated-mis": "consolidated-mis",
-    "consolidated mis": "consolidated-mis",
+    "consolidated-mis-fintree": "consolidated-mis-fintree",
     "delayed-interest-report": "delayed-interest-report",
     "rps-generate-report": "rps-generate-report",
     "irr-report": "irr-report",
@@ -80,20 +80,21 @@ function resolveProcedure(rawReportId, rawLender) {
             : lender === "clayoo" ? "sp_cashflow_report_clayyo"
               : lender === "gq fsf" ? "sp_cashflow_report_gq_fsf"
                 : lender === "wctl" ? "sp_cashflow_report_wctl"
-                  : lender === "ev loan" ? "sp_cashflow_report_ev"
-                    : lender === "hey ev" ? "sp_cashflow_report_hey_ev"
-                      : lender === "emiclub" ? "sp_cashflow_report_emiclub"
-                        : lender === "circlepe" ? "sp_cashflow_report_circlepe"
-                          : lender === "circlepe houser" ? "sp_cashflow_report_circle_pe_houser"
-                            : lender === "heyev battery" ? "sp_cashflow_report_heyev_battery"
-                              : lender === "helium" ? "sp_cashflow_report_helium"
-                                : lender === "finso" ? "sp_cashflow_report_fincrest"
-                                 : lender === "srbh" ? "sp_cashflow_report_srbh"
-                                 : lender === "carepay" ? "sp_cashflow_report_carepay"
-                                  : lender === "motion corp" ? "sp_cashflow_report_motion_corp"
-                                    : lender === "rapid-money" ? "sp_cashflow_report_rapid_money"
-                                      : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
-                                        : "sp_cashflow_report",
+                  : lender === "wctl_ffpl" ? "sp_cashflow_report_wctl_ffpl"
+                    : lender === "ev loan" ? "sp_cashflow_report_ev"
+                      : lender === "hey ev" ? "sp_cashflow_report_hey_ev"
+                        : lender === "emiclub" ? "sp_cashflow_report_emiclub"
+                          : lender === "circlepe" ? "sp_cashflow_report_circlepe"
+                            : lender === "circlepe houser" ? "sp_cashflow_report_circle_pe_houser"
+                              : lender === "heyev battery" ? "sp_cashflow_report_heyev_battery"
+                                : lender === "helium" ? "sp_cashflow_report_helium"
+                                  : lender === "finso" ? "sp_cashflow_report_fincrest"
+                                    : lender === "srbh" ? "sp_cashflow_report_srbh"
+                                      : lender === "carepay" ? "sp_cashflow_report_carepay"
+                                        : lender === "motion corp" ? "sp_cashflow_report_motion_corp"
+                                          : lender === "rapid-money" ? "sp_cashflow_report_rapid_money"
+                                            : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
+                                              : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
 
@@ -116,33 +117,35 @@ function resolveProcedure(rawReportId, rawLender) {
                 ? "sp_due_collection_all_report_embifi"
                 : lender === "wctl"
                   ? "sp_due_collection_all_report_wctl"
-                  : lender === "hey ev"
-                    ? "sp_due_collection_all_report_hey_ev"
-                    : lender === "heyev battery"
-                      ? "sp_due_collection_all_report_heyev_battery"
-                      : lender === "helium"
-                        ? "sp_due_collection_all_report_helium"
-                        : lender === "emiclub"
-                          ? "sp_due_collection_all_report_emiclub"
-                          : lender === "clayoo"
-                            ? "sp_due_collection_all_report_clayoo"
-                            : lender === "loan-digit"
-                              ? "sp_due_collection_all_report_loan_digit"
-                              : lender === "circlepe"
-                                ? "sp_due_collection_all_report_circlepe"
-                                : lender === "circlepe houser"
-                                  ? "sp_due_collection_all_report_circle_pe_houser"
-                                  : lender === "finso"
-                                    ? "sp_due_collection_all_report_fincrest"
-                                    : lender === "srbh"
-                                    ? "sp_due_collection_all_report_srbh"
-                                  : lender === "carepay"
-                                    ? "sp_due_collection_all_report_carepay"
-                                    : lender === "rapid-money"
-                                      ? "sp_due_collection_all_report_rapid_money"
-                                      : lender === "motion corp"
-                                        ? "sp_due_collection_all_report_motion_corp"
-                                        : "sp_due_collection_all_report",
+                  : lender === "wctl_ffpl"
+                    ? "sp_due_collection_all_report_wctl_ffpl"
+                    : lender === "hey ev"
+                      ? "sp_due_collection_all_report_hey_ev"
+                      : lender === "heyev battery"
+                        ? "sp_due_collection_all_report_heyev_battery"
+                        : lender === "helium"
+                          ? "sp_due_collection_all_report_helium"
+                          : lender === "emiclub"
+                            ? "sp_due_collection_all_report_emiclub"
+                            : lender === "clayoo"
+                              ? "sp_due_collection_all_report_clayoo"
+                              : lender === "loan-digit"
+                                ? "sp_due_collection_all_report_loan_digit"
+                                : lender === "circlepe"
+                                  ? "sp_due_collection_all_report_circlepe"
+                                  : lender === "circlepe houser"
+                                    ? "sp_due_collection_all_report_circle_pe_houser"
+                                    : lender === "finso"
+                                      ? "sp_due_collection_all_report_fincrest"
+                                      : lender === "srbh"
+                                        ? "sp_due_collection_all_report_srbh"
+                                        : lender === "carepay"
+                                          ? "sp_due_collection_all_report_carepay"
+                                          : lender === "rapid-money"
+                                            ? "sp_due_collection_all_report_rapid_money"
+                                            : lender === "motion corp"
+                                              ? "sp_due_collection_all_report_motion_corp"
+                                              : "sp_due_collection_all_report",
 
 
 
@@ -159,34 +162,36 @@ function resolveProcedure(rawReportId, rawLender) {
             : lender === "embifi"
               ? "sp_consolidated_mis_report_embifi"
               : lender === "srbh"
-               ? "sp_consolidated_mis_report_srbh"
-              : lender === "wctl"
-                ? "sp_consolidated_mis_report_wctl"
-                : lender === "emiclub"
-                  ? "sp_consolidated_mis_report_emiclub"
-                  : lender === "hey ev"
-                    ? "sp_consolidated_mis_report_hey_ev"
-                    : lender === "heyev battery"
-                      ? "sp_consolidated_mis_report_heyev_battery"
-                      : lender === "helium"
-                        ? "sp_consolidated_mis_report_helium"
-                        : lender === "loan-digit"
-                          ? "sp_consolidated_mis_report_loan_digit"
-                          : lender === "clayoo"
-                            ? "sp_consolidated_mis_report_clayyo"
-                            : lender === "circlepe"
-                              ? "sp_consolidated_mis_report_circlepe"
-                              : lender === "circlepe houser"
-                                ? "sp_consolidated_mis_report_circlepe_houser"
-                                : lender === "motion corp" 
-                                ? "sp_consolidated_mis_report_motion_corp" 
-                                : lender === "rapid-money" 
-                                ? "sp_consolidated_mis_report_rapid_money" 
-                                : lender === "carepay" 
-                                ? "sp_consolidated_mis_report_carepay" 
-                                : lender === "finso" 
-                                ? "sp_consolidated_mis_report_fincrest" 
-                                : "sp_consolidated_mis_report",
+                ? "sp_consolidated_mis_report_srbh"
+                : lender === "wctl"
+                  ? "sp_consolidated_mis_report_wctl"
+                  : lender === "wctl_ffpl"
+                    ? "sp_consolidated_mis_report_wctl_ffpl"
+                    : lender === "emiclub"
+                      ? "sp_consolidated_mis_report_emiclub"
+                      : lender === "hey ev"
+                        ? "sp_consolidated_mis_report_hey_ev"
+                        : lender === "heyev battery"
+                          ? "sp_consolidated_mis_report_heyev_battery"
+                          : lender === "helium"
+                            ? "sp_consolidated_mis_report_helium"
+                            : lender === "loan-digit"
+                              ? "sp_consolidated_mis_report_loan_digit"
+                              : lender === "clayoo"
+                                ? "sp_consolidated_mis_report_clayyo"
+                                : lender === "circlepe"
+                                  ? "sp_consolidated_mis_report_circlepe"
+                                  : lender === "circlepe houser"
+                                    ? "sp_consolidated_mis_report_circlepe_houser"
+                                    : lender === "motion corp"
+                                      ? "sp_consolidated_mis_report_motion_corp"
+                                      : lender === "rapid-money"
+                                        ? "sp_consolidated_mis_report_rapid_money"
+                                        : lender === "carepay"
+                                          ? "sp_consolidated_mis_report_carepay"
+                                          : lender === "finso"
+                                            ? "sp_consolidated_mis_report_fincrest"
+                                            : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
     "irr-report": () =>
@@ -207,21 +212,21 @@ function resolveProcedure(rawReportId, rawLender) {
     // CCOD LOAN DATA REPORT
     "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
 
-   
-    //// PAYOUT REPORT
-"pay-out-report": () => {
-  const normalizedLender = lender?.trim().toLowerCase();
 
-  return normalizedLender === "gq fsf"
-    ? "sp_payout_gq_fsf"
-    : normalizedLender === "gq non-fsf"
-      ? "sp_payout_gq_non_fsf"
-      : normalizedLender === "emiclub"
-        ? "sp_emiclub_payout_report_emiclub"
-        : normalizedLender === "clayoo"
-          ? "sp_payout_clayoo"
-          : null;
-},
+    //// PAYOUT REPORT
+    "pay-out-report": () => {
+      const normalizedLender = lender?.trim().toLowerCase();
+
+      return normalizedLender === "gq fsf"
+        ? "sp_payout_gq_fsf"
+        : normalizedLender === "gq non-fsf"
+          ? "sp_payout_gq_non_fsf"
+          : normalizedLender === "emiclub"
+            ? "sp_emiclub_payout_report_emiclub"
+            : normalizedLender === "clayoo"
+              ? "sp_payout_clayoo"
+              : null;
+    },
     // Bank Payment File Report (for EmiClub)
     "bank-payment-file-report": () => "sp_bank_payment_file",
 
@@ -292,7 +297,7 @@ router.get(
             key: columnName,
             width: Math.max(
               String(columnName).length +
-                5,
+              5,
               18,
             ),
           }),
@@ -432,12 +437,12 @@ async function generateClayooConsolidatedMis(
   );
 
 
-const [procedureResult] = await db
-  .promise()
-  .query(
-    `CALL sp_consolidated_mis_report_clayyo(?, ?, ?)`,
-    [startDate, endDate, lender],
-  );
+  const [procedureResult] = await db
+    .promise()
+    .query(
+      `CALL sp_consolidated_mis_report_clayyo(?, ?, ?)`,
+      [startDate, endDate, lender],
+    );
 
   /*
    * For mysql2 stored procedure output,
@@ -806,6 +811,7 @@ const templateMap = {
   fc_upload: "fc_upload_template.xlsx",
   settled_upload: "settled_upload_template.xlsx",
   gq_20_upload: "gq_20_upload.xlsx",
+  wctl_ffpl: "wctl_ffpl.xlsx",
 };
 
 router.get("/download-template/:product", (req, res) => {

@@ -398,6 +398,7 @@ const products = [
   { key: "fc_upload", name: "Forecloser Upload" },
   { key: "settled_upload", name: "Settled Upload" },
   { key: "gq_20_upload", name: "GQ 20% Upload" },
+  { key: "wctl_ffpl", name: "FFPL WCTL" },
 ];
 
 const DownloadTemplatePage = () => {
