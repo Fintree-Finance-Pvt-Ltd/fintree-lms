@@ -518,6 +518,7 @@ const productOptions = [
   { label: "Muthoot", value: "Muthoot" },
   { label: "WCTL FFPL", value: "wctl_ffpl" },
 
+  {label: "Saswat", value: "Saswat" }
 
 ];
 
