@@ -95,8 +95,10 @@ function resolveProcedure(rawReportId, rawLender) {
                                           : lender === "rapid-money" ? "sp_cashflow_report_rapid_money"
                                             : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
                                               : lender === "saswat" ? "sp_cashflow_report_saswat"
+                                                : lender === "sterlion ubl"
+                                                  ? "sp_cashflow_report_sterlion_ubl"
 
-                                              : "sp_cashflow_report",
+                                                  : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
 
@@ -147,9 +149,11 @@ function resolveProcedure(rawReportId, rawLender) {
                                             ? "sp_due_collection_all_report_rapid_money"
                                             : lender === "motion corp"
                                               ? "sp_due_collection_all_report_motion_corp"
-                                               : lender === "saswat"
-                                                 ? "sp_due_collection_all_report_saswat"
-                                              : "sp_due_collection_all_report",
+                                              : lender === "saswat"
+                                                ? "sp_due_collection_all_report_saswat"
+                                                : lender === "sterlion ubl"
+                                                  ? "sp_due_collection_all_report_sterlion_ubl"
+                                                  : "sp_due_collection_all_report",
 
 
 
@@ -197,7 +201,9 @@ function resolveProcedure(rawReportId, rawLender) {
                                             ? "sp_consolidated_mis_report_fincrest"
                                             : lender === "saswat"
                                               ? "sp_consolidated_mis_report_saswat"
-                                            : "sp_consolidated_mis_report",
+                                              : lender === "sterlion ubl"
+                                                ? "sp_consolidated_mis_report_sterlion_ubl"
+                                                : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
     "irr-report": () =>
