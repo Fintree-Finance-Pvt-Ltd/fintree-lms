@@ -54,7 +54,7 @@ if (!disbursementDate || !dayjs(disbursementDate).isValid()) {
 }
 
 const dueDate = dayjs(disbursementDate)
-  .add(days, "day")
+  .add(days - 1, "day")
   .format("YYYY-MM-DD");
 
     /*
