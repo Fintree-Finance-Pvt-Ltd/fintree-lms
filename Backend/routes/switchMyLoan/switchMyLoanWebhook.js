@@ -443,7 +443,7 @@ async function sendDisbursementWebhook({
   }
 
   const repaymentDate = dayjs(disbursementDate)
-    .add(tenureDays, "day")
+    .add(tenureDays - 1, "day")
     .format("YYYY-MM-DD");
 
   const webhookUrl =
