@@ -513,9 +513,13 @@ const productOptions = [
   { label: "RAPID-MONEY", value: "RAPID-MONEY" },
   {label: "SRBH", value: "SRBH"},
   {label: "CAREPAY", value: "CAREPAY"},
+  { label: "Sterlion UBL", value: "Sterlion UBL" },
   { label: "FFPL", value: "FFPL" },
   { label: "KITE", value: "KITE" },
-  { label: "Muthoot", value: "Muthoot" }
+  { label: "Muthoot", value: "Muthoot" },
+  { label: "WCTL FFPL", value: "wctl_ffpl" },
+
+  {label: "Saswat", value: "Saswat" }
 
 ];
 
@@ -524,6 +528,9 @@ const REPORT_ID_MAP = {
   "consolidated-mis": "Consolidated MIS",
   "due-demand-vs-collection-all-products": "Due Demand vs Collection Report(All products)",
   "cashflow-report": "CashFlow Report",
+  "sterlion-ubl-consolidated-mis": "Sterlion UBL Consolidated MIS",
+  "sterlion-ubl-due-demand-vs-collection-report(all-products)": "Sterlion UBL Due Demand vs Collection Report",
+  "sterlion-ubl-cashflow-report": "Sterlion UBL CashFlow Report",
   "rps-generate-report": "RPS Generate Report",
   "delayed-interest-report": "Delayed Interest Report",
   "irr-report": "IRR Report",
