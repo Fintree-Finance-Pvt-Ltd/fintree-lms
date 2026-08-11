@@ -84,8 +84,8 @@ const AllLoansScreen = ({
 
   const columns = [
     {
-      key: "customer_name",
-      header: "Customer Name",
+      key: hasUBLF ? "business_name" : "customer_name",
+      header: hasUBLF ? "Business Name" : "Customer Name",
       sortable: true,
       render: (r) => (
         <span
@@ -94,10 +94,19 @@ const AllLoansScreen = ({
             nav(`/loan-details/${r.lan}`);
           }}
         >
-          {r.customer_name ?? r.pan_name ?? "—"}
+          {/^UBLF/i.test(r?.lan)
+            ? r.business_name ?? "—"
+            : r.customer_name ?? r.pan_name ?? "—"}
         </span>
       ),
-      sortAccessor: (r) => (r.customer_name || r.pan_name || "").toLowerCase(),
+
+      sortAccessor: (r) =>
+        String(
+          /^UBLF/i.test(r?.lan)
+            ? r.business_name ?? ""
+            : r.customer_name ?? r.pan_name ?? ""
+        ).toLowerCase(),
+
       width: 220,
     },
     {

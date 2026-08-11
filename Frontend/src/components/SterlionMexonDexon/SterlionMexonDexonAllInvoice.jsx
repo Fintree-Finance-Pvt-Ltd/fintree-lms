@@ -390,6 +390,45 @@ const STYLES = `
   text-align: center;
 }
 
+.smd-invoice-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.smd-invoice-export-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--smd-success-border);
+  border-radius: var(--smd-radius-sm);
+  background: var(--smd-success-bg);
+  color: var(--smd-success);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+}
+
+.smd-invoice-export-button:hover:not(:disabled) {
+  background: #d3f4e2;
+  border-color: var(--smd-success);
+}
+
+.smd-invoice-export-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.smd-invoice-export-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 @media (max-width: 900px) {
   .smd-invoice-search-form {
     grid-template-columns: 1fr;
@@ -424,6 +463,15 @@ const STYLES = `
 
   .smd-invoice-action-row {
     flex-direction: column;
+  }
+
+  .smd-invoice-card-header {
+    flex-wrap: wrap;
+  }
+
+  .smd-invoice-header-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 `;
@@ -554,6 +602,127 @@ const getCustomerName = (loan) => {
 
   return combinedName || "-";
 };
+
+const CSV_BOM = "﻿";
+
+const CSV_INVOICE_HEADERS = [
+  "LAN",
+  "Customer Name",
+  "Product",
+  "Lender",
+  "Invoice Number",
+  "Invoice Amount",
+  "Disbursement Amount",
+  "Annual Interest Rate",
+  "Tenure Months",
+  "Day Count Basis",
+  "Disbursement Date",
+  "Disbursement UTR",
+  "Maturity Date",
+  "Contractual Upfront Interest",
+  "Opening Carry Forward Pool",
+  "Carry Forward Applied",
+  "New Upfront Interest Charged",
+  "Net Disbursement Amount",
+  "Principal Allocated",
+  "Outstanding Principal",
+  "Exact Interest Accrued",
+  "Posted Interest Accrued",
+  "Current DPD",
+  "Status",
+  "Created At",
+  "Updated At",
+];
+
+const isBlankCsvValue = (value) => {
+  if (value === null || value === undefined) {
+    return true;
+  }
+
+  const text = String(value).trim();
+
+  return (
+    text === "" ||
+    text.toLowerCase() === "null" ||
+    text.toLowerCase() === "undefined"
+  );
+};
+
+// Excel's CSV importer auto-converts plain numeric-looking cells (dropping
+// leading zeros / using scientific notation for long digit strings). The
+// ="value" formula form forces Excel to render the identifier as literal text.
+const csvIdentifierValue = (value) => {
+  if (isBlankCsvValue(value)) {
+    return "";
+  }
+
+  return `="${String(value).trim().replace(/"/g, '""')}"`;
+};
+
+const csvTextValue = (value) => (isBlankCsvValue(value) ? "" : String(value).trim());
+
+const csvStatusValue = (value) =>
+  isBlankCsvValue(value) ? "" : formatStatus(value);
+
+const csvNumericValue = (value) => {
+  if (isBlankCsvValue(value)) {
+    return "";
+  }
+
+  const amount = Number(value);
+
+  return Number.isFinite(amount) ? String(amount) : "";
+};
+
+const csvRateValue = (value) => {
+  if (isBlankCsvValue(value)) {
+    return "";
+  }
+
+  const rate = Number(value);
+
+  return Number.isFinite(rate) ? rate.toFixed(4) : "";
+};
+
+const csvDateValue = (value) => (isBlankCsvValue(value) ? "" : formatDate(value));
+
+const csvDateTimeValue = (value) =>
+  isBlankCsvValue(value) ? "" : formatDateTime(value);
+
+const escapeCsvField = (value) => {
+  const text = value === null || value === undefined ? "" : String(value);
+
+  return `"${text.replace(/"/g, '""')}"`;
+};
+
+const buildInvoiceCsvRow = (loan, invoice) => [
+  csvIdentifierValue(loan?.lan),
+  csvTextValue(getCustomerName(loan)),
+  csvTextValue(loan?.product),
+  csvTextValue(loan?.lender),
+  csvIdentifierValue(invoice?.invoice_number),
+  csvNumericValue(invoice?.invoice_amount),
+  csvNumericValue(invoice?.disbursement_amount),
+  csvRateValue(invoice?.annual_interest_rate),
+  csvNumericValue(invoice?.tenure_months),
+  csvTextValue(invoice?.day_count_basis),
+  csvDateValue(invoice?.disbursement_date),
+  csvIdentifierValue(invoice?.disbursement_utr),
+  csvDateValue(invoice?.maturity_date),
+  csvNumericValue(invoice?.contractual_upfront_interest),
+  csvNumericValue(invoice?.opening_carry_forward_pool),
+  csvNumericValue(invoice?.carry_forward_applied),
+  csvNumericValue(invoice?.new_upfront_interest_charged),
+  csvNumericValue(invoice?.net_disbursement_amount),
+  csvNumericValue(invoice?.principal_allocated),
+  csvNumericValue(invoice?.outstanding_principal),
+  csvNumericValue(invoice?.exact_interest_accrued),
+  csvNumericValue(invoice?.posted_interest_accrued),
+  csvNumericValue(invoice?.current_dpd ?? 0),
+  csvStatusValue(invoice?.status),
+  csvDateTimeValue(invoice?.created_at),
+  csvDateTimeValue(invoice?.updated_at),
+];
 
 const extractLoanRows = (responseData) => {
   if (Array.isArray(responseData?.rows)) {
@@ -755,6 +924,39 @@ const SterlionMexonDexonAllInvoices = () => {
   const invoices = Array.isArray(invoiceResponse?.invoices)
     ? invoiceResponse.invoices
     : [];
+
+  const handleExportCsv = () => {
+    if (!invoiceResponse || !loan || invoices.length === 0) {
+      return;
+    }
+
+    const csvRows = invoices.map((invoice) =>
+      buildInvoiceCsvRow(loan, invoice),
+    );
+
+    const csvLines = [CSV_INVOICE_HEADERS, ...csvRows].map((row) =>
+      row.map(escapeCsvField).join(","),
+    );
+
+    const csvContent = CSV_BOM + csvLines.join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const downloadUrl = URL.createObjectURL(blob);
+
+    const fileDate = new Date().toISOString().slice(0, 10);
+    const safeLan =
+      String(loan.lan || "UNKNOWN")
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]/g, "_") || "UNKNOWN";
+
+    const downloadLink = document.createElement("a");
+    downloadLink.href = downloadUrl;
+    downloadLink.download = `invoices_${safeLan}_${fileDate}.csv`;
+
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(downloadUrl);
+  };
 
   return (
     <div className="smd-invoice-page">
@@ -994,9 +1196,20 @@ const SterlionMexonDexonAllInvoices = () => {
           <div className="smd-invoice-card">
             <div className="smd-invoice-card-header">
               <h3>Invoice Details - {displayValue(loan.lan)}</h3>
-              <span className="smd-invoice-count-pill">
-                {invoices.length.toLocaleString("en-IN")} Records
-              </span>
+              <div className="smd-invoice-header-actions">
+                <span className="smd-invoice-count-pill">
+                  {invoices.length.toLocaleString("en-IN")} Records
+                </span>
+                {invoices.length > 0 && (
+                  <button
+                    type="button"
+                    className="smd-invoice-export-button"
+                    onClick={handleExportCsv}
+                  >
+                    Export CSV
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="smd-invoice-table-wrap">
