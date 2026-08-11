@@ -513,7 +513,7 @@ async function sendFintreePlDisbursementWebhook({
   await axios.post(webhookUrl, body, {
     headers: {
       "Content-Type": "application/json",
-      ...(webhookSecret ? { "X-PL-Webhook-Secret": webhookSecret } : {}),
+      ...(webhookSecret ? { "x-pl-webhook-secret": webhookSecret } : {}),
     },
     timeout: 15000,
   });
