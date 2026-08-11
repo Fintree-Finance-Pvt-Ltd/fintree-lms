@@ -3,6 +3,7 @@ const {
   validateConsentPayload,
   validateDetailsPayload,
   validateDocumentPayload,
+  validateDisbursePayload,
 } = require("../utils/validation");
 const { PartnerApiError } = require("../utils/partnerApiError");
 const { successEnvelope, errorEnvelope } = require("../utils/response");
@@ -17,6 +18,8 @@ const {
   recordConsent,
   updateDetails,
   uploadDocument,
+  approveApplication,
+  disburseApplication,
 } = require("../services/partnerApplicationService");
 
 const normalizeError = (error) => {
@@ -146,8 +149,13 @@ const uploadDocumentHandler = execute({
   getPartnerApplicationId: (req) => String(req.params.partnerApplicationId || "").trim(),
 });
 
+const disburseHandler = execute({
+  validator: validateDisbursePayload,
+  service: disburseApplication,
+  getPartnerApplicationId: (req) => String(req.params.partnerApplicationId || "").trim(),
+});
+
 const { validateApprovePayload } = require("../utils/validation");
-const { approveApplication } = require("../services/partnerApplicationService");
 
 const approveHandler = execute({
   validator: validateApprovePayload,
@@ -160,5 +168,6 @@ module.exports = {
   recordConsentHandler,
   updateDetailsHandler,
   uploadDocumentHandler,
+  disburseHandler,
   approveHandler,
 };

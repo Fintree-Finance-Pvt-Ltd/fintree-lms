@@ -260,6 +260,18 @@ const validateDetailsPayload = (input) => {
   const employment = requireObject(body.employment, "employment");
   const aadhaarKyc = requireObject(body.aadhaarKyc, "aadhaarKyc");
   const evidence = requireObject(body.currentAddressEvidence, "currentAddressEvidence");
+  const selectedOffer =
+    body.selectedOffer === null || body.selectedOffer === undefined
+      ? null
+      : requireObject(body.selectedOffer, "selectedOffer");
+  const bankDetails =
+    body.bankDetails === null || body.bankDetails === undefined
+      ? null
+      : requireObject(body.bankDetails, "bankDetails");
+  const mandate =
+    body.mandate === null || body.mandate === undefined
+      ? null
+      : requireObject(body.mandate, "mandate");
 
   const maskedAadhaar = requiredString(aadhaarKyc.maskedAadhaar, "aadhaarKyc.maskedAadhaar", 20);
   const compactMaskedAadhaar = maskedAadhaar.replace(/[-\s]/g, "");
@@ -420,6 +432,57 @@ const validateDetailsPayload = (input) => {
       capturedAt: requireDateTime(evidence.capturedAt, "currentAddressEvidence.capturedAt"),
       verifiedAt: requireDateTime(evidence.verifiedAt, "currentAddressEvidence.verifiedAt"),
     },
+    selectedOffer: selectedOffer
+      ? {
+          amount: requiredString(selectedOffer.amount, "selectedOffer.amount", 30),
+          tenure: requirePositiveInteger(selectedOffer.tenure, "selectedOffer.tenure"),
+          selectedAt: requireDateTime(selectedOffer.selectedAt, "selectedOffer.selectedAt"),
+        }
+      : null,
+    bankDetails: bankDetails
+      ? {
+          accountHolderName: requiredString(
+            bankDetails.accountHolderName,
+            "bankDetails.accountHolderName",
+            200,
+          ),
+          accountNumber: requiredString(
+            bankDetails.accountNumber,
+            "bankDetails.accountNumber",
+            100,
+          ),
+          ifscCode: requiredString(
+            bankDetails.ifscCode,
+            "bankDetails.ifscCode",
+            11,
+          ).toUpperCase(),
+          bankName: requiredString(bankDetails.bankName, "bankDetails.bankName", 150),
+          accountType: requiredString(
+            bankDetails.accountType,
+            "bankDetails.accountType",
+            30,
+          ),
+          verifiedAt: requireDateTime(
+            bankDetails.verifiedAt,
+            "bankDetails.verifiedAt",
+          ),
+        }
+      : null,
+    mandate: mandate
+      ? {
+          umrn: requiredString(mandate.umrn, "mandate.umrn", 100),
+          provider: requiredString(mandate.provider, "mandate.provider", 50),
+          mandateType: requiredString(
+            mandate.mandateType,
+            "mandate.mandateType",
+            50,
+          ),
+          authorizedAt: requireDateTime(
+            mandate.authorizedAt,
+            "mandate.authorizedAt",
+          ),
+        }
+      : null,
   };
 };
 
@@ -466,11 +529,33 @@ const validateDocumentPayload = (input) => {
   };
 };
 
+const validateDisbursePayload = (input) => {
+  const body = requireObject(input, "body");
+  const amount = requiredString(body.amount, "amount", 30);
+  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(amount)) {
+    throw new PartnerApiError(400, "VALIDATION_ERROR", "amount must be a valid positive number.", {
+      field: "amount",
+    });
+  }
+
+  return {
+    externalApplicationReference: requiredString(
+      body.externalApplicationReference,
+      "externalApplicationReference",
+      100,
+    ),
+    lan: requiredString(body.lan, "lan", 50),
+    amount,
+    triggerFund: requireBoolean(body.trigger_fund, "trigger_fund"),
+  };
+};
+
 module.exports = {
   validateCreatePayload,
   validateConsentPayload,
   validateDetailsPayload,
   validateDocumentPayload,
+  validateDisbursePayload,
   // simple approve payload validator
   validateApprovePayload: (input) => {
     const body = requireObject(input, "body");

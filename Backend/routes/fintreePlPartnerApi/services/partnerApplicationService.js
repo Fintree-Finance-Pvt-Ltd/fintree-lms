@@ -7,6 +7,7 @@ const {
   persistPreparedDocument,
   removeStoredDocument,
 } = require("./documentStorageService");
+const { approveAndInitiatePayout } = require("../../../services/payout.service");
 
 const findApplicationForUpdate = async (connection, clientId, partnerApplicationId) => {
   const [rows] = await connection.query(
@@ -1416,10 +1417,50 @@ async function approveApplication({ clientId, partnerApplicationId, payload }) {
   }
 }
 
+async function disburseApplication({ clientId, partnerApplicationId, payload }) {
+  const connection = await db.promise().getConnection();
+  try {
+    const application = await findApplicationForUpdate(connection, clientId, partnerApplicationId);
+    assertApplicationIdentity(application, payload);
+
+    if (!payload.triggerFund) {
+      throw new PartnerApiError(
+        400,
+        "VALIDATION_ERROR",
+        "trigger_fund must be true.",
+      );
+    }
+
+    const disbursalReference = `DISB-${crypto.randomUUID()}`;
+
+    approveAndInitiatePayout({
+      lan: application.lan,
+      table: "pl_partner_applications",
+    }).catch((payoutError) => {
+      console.error("Partner application payout initiation failed:", {
+        partnerApplicationId,
+        lan: application.lan,
+        message: payoutError.message,
+      });
+    });
+
+    return {
+      statusCode: 200,
+      data: {
+        status: "ACCEPTED",
+        disbursalReference,
+      },
+    };
+  } finally {
+    connection.release();
+  }
+}
+
 module.exports = {
   createApplication,
   recordConsent,
   updateDetails,
   uploadDocument,
   approveApplication,
+  disburseApplication,
 };

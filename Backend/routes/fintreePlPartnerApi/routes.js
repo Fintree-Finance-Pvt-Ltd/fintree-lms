@@ -8,6 +8,7 @@ const {
   recordConsentHandler,
   updateDetailsHandler,
   uploadDocumentHandler,
+  disburseHandler,
   approveHandler,
 } = require("./controllers/partnerApplicationController");
 
@@ -39,6 +40,13 @@ router.post(
   verifyApiKey,
   requestContext,
   uploadDocumentHandler,
+);
+
+router.post(
+  "/applications/:partnerApplicationId/disburse",
+  verifyApiKey,
+  requestContext,
+  disburseHandler,
 );
 
 router.post(
