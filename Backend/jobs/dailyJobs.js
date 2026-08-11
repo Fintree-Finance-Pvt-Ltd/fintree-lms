@@ -817,6 +817,250 @@ cron.schedule("*/2 * * * *", async () => {
   }
 });
 
+/////////////////   RAPID MONEY WEBHOOK CALL FOR INACTIVE CASES ////////
+
+/**
+ * Loan Rejection Webhook
+ * Existing function - NO CHANGES
+ */
+async function sendRejectionWebhook({ applicationId }) {
+  if (!applicationId) {
+    throw new Error("applicationId is required");
+  }
+
+  const [[loan]] = await db.promise().query(
+    `
+      SELECT lan
+      FROM loan_booking_switch_my_loan
+      WHERE application_id = ?
+      LIMIT 1
+    `,
+    [applicationId],
+  );
+
+  const webhookUrl =
+    `${BASE_URL}/api-api/v1/webhooks/fintree/` + "loan-rejected";
+
+  const requestBody = {
+    payload: {
+      status: "Rejected",
+      lead_id: applicationId,
+    },
+  };
+
+  const log = await createWebhookLog({
+    webhookType: "REJECTION",
+    applicationId,
+    lan: loan?.lan || null,
+    webhookUrl,
+    requestBody,
+  });
+
+  return sendWebhookLog(log.id);
+}
+
+
+/**
+ * Reject loans inactive for more than 30 days.
+ *
+ * Excluded statuses:
+ * - DISBURSED
+ * - Fully Paid
+ * - REJECTED
+ *
+ * Updates:
+ * - status = REJECTED
+ * - sml_bre_status = INACTIVITY
+ */
+async function rejectInactiveLoans() {
+  const connection = await db.promise().getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    /**
+     * First fetch the loans.
+     *
+     * Important:
+     * updated_at has ON UPDATE CURRENT_TIMESTAMP,
+     * so we need application_id before updating the records.
+     */
+    const [loans] = await connection.query(`
+      SELECT
+        id,
+        lan,
+        application_id,
+        status,
+        sml_bre_status,
+        updated_at
+      FROM loan_booking_switch_my_loan
+      WHERE updated_at < NOW() - INTERVAL 30 DAY
+        AND (
+          status IS NULL
+          OR status NOT IN (
+            'DISBURSED',
+            'DISBURSE_INITIATED',
+            'Fully Paid',
+            'REJECTED'
+          )
+        )
+      FOR UPDATE
+    `);
+
+    if (loans.length === 0) {
+      await connection.commit();
+
+      return {
+        updated: 0,
+        loans: [],
+      };
+    }
+
+    const ids = loans.map((loan) => loan.id);
+
+    /**
+     * Update all selected inactive loans.
+     */
+    const [updateResult] = await connection.query(
+      `
+        UPDATE loan_booking_switch_my_loan
+        SET
+          status = 'REJECTED',
+          sml_bre_status = 'INACTIVITY'
+        WHERE id IN (?)
+      `,
+      [ids],
+    );
+
+    await connection.commit();
+
+    return {
+      updated: updateResult.affectedRows,
+      loans,
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+
+/**
+ * Inactive Loan Rejection Cron
+ *
+ * Runs every day at 11:40 AM IST.
+ */
+cron.schedule(
+  "40 11 * * *",
+  async () => {
+    console.log(
+      "🚫 Running inactive loan rejection cron...",
+    );
+
+    try {
+      /**
+       * 1. Find loans inactive for > 30 days
+       * 2. Update status = REJECTED
+       * 3. Update sml_bre_status = INACTIVITY
+       */
+      const result = await rejectInactiveLoans();
+
+      if (result.loans.length === 0) {
+        console.log(
+          "ℹ️ No applications inactive for more than 30 days found.",
+        );
+        return;
+      }
+
+      console.log(
+        `✅ Inactive applications updated | count: ${result.updated}`,
+      );
+
+      let webhookSuccess = 0;
+      let webhookFailed = 0;
+      let webhookSkipped = 0;
+
+      /**
+       * Call rejection webhook for every updated loan.
+       */
+      for (const loan of result.loans) {
+        /**
+         * Webhook requires application_id.
+         */
+        if (!loan.application_id) {
+          webhookSkipped++;
+
+          console.error(
+            `⚠️ Rejection webhook skipped | ` +
+            `id=${loan.id} | ` +
+            `lan=${loan.lan || "NULL"} | ` +
+            `application_id missing`,
+          );
+
+          continue;
+        }
+
+        try {
+          /**
+           * Existing webhook function.
+           * Do not pass LAN because the function itself
+           * gets LAN using application_id.
+           */
+          await sendRejectionWebhook({
+            applicationId: loan.application_id,
+          });
+
+          webhookSuccess++;
+
+          console.log(
+            `✅ Rejection webhook sent | ` +
+            `id=${loan.id} | ` +
+            `lan=${loan.lan || "NULL"} | ` +
+            `applicationId=${loan.application_id}`,
+          );
+        } catch (webhookError) {
+          webhookFailed++;
+
+          /**
+           * One webhook failure will NOT stop
+           * webhooks for the remaining loans.
+           */
+          console.error(
+            `❌ Rejection webhook failed | ` +
+            `id=${loan.id} | ` +
+            `lan=${loan.lan || "NULL"} | ` +
+            `applicationId=${loan.application_id} | ` +
+            `error=${webhookError.message}`,
+          );
+        }
+      }
+
+      console.log(
+        `✅ Inactive loan rejection cron finished | ` +
+        `updated=${result.updated} | ` +
+        `webhook_success=${webhookSuccess} | ` +
+        `webhook_failed=${webhookFailed} | ` +
+        `webhook_skipped=${webhookSkipped}`,
+      );
+    } catch (error) {
+      console.error(
+        "❌ Inactive loan rejection cron failed:",
+        error.message,
+      );
+    }
+  },
+  {
+    timezone: "Asia/Kolkata",
+  },
+);
+
+
+
+
+
+
 // 5️⃣ WCTL CCOD Interest Accrual Cron
 
 cron.schedule("*/2 * * * *", () => {

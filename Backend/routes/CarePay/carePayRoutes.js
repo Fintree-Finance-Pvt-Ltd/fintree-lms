@@ -1826,7 +1826,6 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
           mandate_amount,
           umrn,
           father_name,
-          mother_name,
           bank_account_holder_name,
           bank_account_number,
           bank_name,
@@ -1848,7 +1847,6 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       hasValue(loan?.mandate_amount) &&
       hasValue(loan?.umrn) &&
       hasValue(loan?.father_name) &&
-      hasValue(loan?.mother_name) &&
       hasValue(loan?.bank_account_holder_name) &&
       hasValue(loan?.bank_account_number) &&
       hasValue(loan?.bank_name) &&
@@ -1882,7 +1880,6 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
           mandate_amount,
           umrn,
           father_name,
-          mother_name,
           bank_account_holder_name,
           bank_account_number,
           bank_name,
@@ -1902,7 +1899,6 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       hasValue(verifiedLoan?.mandate_amount) &&
       hasValue(verifiedLoan?.umrn) &&
       hasValue(verifiedLoan?.father_name) &&
-      hasValue(verifiedLoan?.mother_name) &&
       hasValue(verifiedLoan?.bank_account_holder_name) &&
       hasValue(verifiedLoan?.bank_account_number) &&
       hasValue(verifiedLoan?.bank_name) &&
