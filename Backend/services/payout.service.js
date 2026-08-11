@@ -510,13 +510,34 @@ async function sendFintreePlDisbursementWebhook({
 
   const webhookSecret = String(process.env.PLP_DISBURSAL_WEBHOOK_SECRET || "").trim();
 
-  await axios.post(webhookUrl, body, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(webhookSecret ? { "x-pl-webhook-secret": webhookSecret } : {}),
-    },
-    timeout: 15000,
+  console.log("📤 Fintree PL disbursement webhook REQUEST:", {
+    webhookUrl,
+    PLP_BASE_URL: process.env.PLP_BASE_URL || null,
+    PLP_DISBURSAL_WEBHOOK_URL: process.env.PLP_DISBURSAL_WEBHOOK_URL || null,
+    webhookSecret,
+    webhookSecretLength: webhookSecret.length,
+    body,
   });
+
+  try {
+    await axios.post(webhookUrl, body, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(webhookSecret ? { "x-pl-webhook-secret": webhookSecret } : {}),
+      },
+      timeout: 15000,
+    });
+  } catch (err) {
+    console.error("📥 Fintree PL disbursement webhook RESPONSE (failure):", {
+      webhookUrl,
+      status: err.response?.status || null,
+      statusText: err.response?.statusText || null,
+      responseHeaders: err.response?.headers || null,
+      responseData: err.response?.data || null,
+      errorMessage: err.message,
+    });
+    throw err;
+  }
 
   console.log("Fintree PL disbursement webhook sent:", {
     lan,
