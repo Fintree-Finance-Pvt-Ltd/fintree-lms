@@ -12255,7 +12255,7 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_loan_digit";
   } else if (lan.startsWith("MC")) {
     tableName = "manual_rps_motioncorp";
-  } else if (lan.startsWith("SF")) {
+  } else if (lan.startsWith("SFL")) {
     tableName = "manual_rps_seven_fincorp";
   } else if (lan.startsWith("BUN")) {
     tableName = "manual_rps_bundela";

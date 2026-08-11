@@ -69,7 +69,7 @@ if (normalizedLan.startsWith("WCTLFFPL")) {
   } else if (normalizedLan.startsWith("MCL")) {
     loanTable = "loan_booking_motion_corp";
   } else if (normalizedLan.startsWith("SFL")) {
-    loanTable = "loan_booking_zypay_customer";
+    loanTable = "loan_booking_seven_fincorp";
   } else if (normalizedLan.startsWith("BUN")) {
     loanTable = "loan_booking_bundela";
   } else if (normalizedLan.startsWith("LDF")) {

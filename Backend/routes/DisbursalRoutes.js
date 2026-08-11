@@ -201,7 +201,7 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
   } 
 
-  if (lan.startsWith("SF")) {
+  if (lan.startsWith("SFL")) {
     tableName = "loan_booking_seven_fincorp";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";

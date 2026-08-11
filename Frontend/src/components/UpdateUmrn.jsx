@@ -29,7 +29,7 @@ const UpdateUmrn = () => {
     else if (form.lan.startsWith("CL")) {
       table = "loan_booking_clayyo";
     }
-    else if (form.lan.startsWith("SF")) {
+    else if (form.lan.startsWith("SFL")) {
       table = "loan_booking_seven_fincorp";
     }
     else if (form.lan.startsWith("LD")) {

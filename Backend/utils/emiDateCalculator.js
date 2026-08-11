@@ -620,6 +620,75 @@ if (normalizedLender === "SASWAT") {
   return dueDate;
 }
 
+
+if (normalizedLender === "SEVEN FINCORP") {
+  const supportedProducts = [
+    "monthly_360",
+  ];
+
+  if (!supportedProducts.includes(normalizedProduct)) {
+    throw new Error(
+      `Unsupported Seven Fincorp product: ${product}`,
+    );
+  }
+
+  const installmentOffset = Number(monthOffset || 0);
+
+  if (
+    !Number.isInteger(installmentOffset) ||
+    installmentOffset < 0
+  ) {
+    throw new Error(
+      `Invalid Seven Fincorp monthOffset: ${monthOffset}`,
+    );
+  }
+
+  const dueDate = new Date(disbDate);
+
+  /*
+   * SEVEN FINCORP EMI DATE RULE
+   *
+   * First EMI:
+   * Always next month 5th
+   *
+   * Example:
+   * Disbursement: 12-12-2025
+   * First Due:    05-01-2026
+   *
+   * monthOffset:
+   * 0 => first EMI
+   * 1 => second EMI
+   * 2 => third EMI
+   */
+
+  dueDate.setDate(1);
+
+  dueDate.setMonth(
+    dueDate.getMonth() +
+      1 +
+      installmentOffset,
+  );
+
+  dueDate.setDate(5);
+
+  // Same handling as existing RPS date logic
+  dueDate.setHours(12, 0, 0, 0);
+
+  console.log("[SEVEN FINCORP EMI DATE]", {
+    lender,
+    product,
+    normalizedLender,
+    normalizedProduct,
+    installmentNumber:
+      installmentOffset + 1,
+    disbursementDate:
+      formatDateYMD(disbDate),
+    dueDate:
+      formatDateYMD(dueDate),
+  });
+
+  return dueDate;
+}
 ///////////////////// ADIKOSH /////////////////
 
     // ✅ Adikosh Logic: EMI day based on salaryDay + 2
