@@ -1109,75 +1109,75 @@ cron.schedule("5 0 * * *", async () => {
 // Bureau FAILED Retry Cron
 // Runs every 1 minutes
 // ============================================================
-let isBureauRetryRunning = false;
+// let isBureauRetryRunning = false;
 
-cron.schedule(
-  "* * * * *",
-  async () => {
-    if (isBureauRetryRunning) {
-      console.log(
-        "⏭️ [BUREAU-RETRY] Previous retry still running. Skipping."
-      );
-      return;
-    }
+// cron.schedule(
+//   "* * * * *",
+//   async () => {
+//     if (isBureauRetryRunning) {
+//       console.log(
+//         "⏭️ [BUREAU-RETRY] Previous retry still running. Skipping."
+//       );
+//       return;
+//     }
 
-    isBureauRetryRunning = true;
+//     isBureauRetryRunning = true;
 
-    console.log(
-      "🔄 [BUREAU-RETRY] Automatic FAILED bureau retry started"
-    );
+//     console.log(
+//       "🔄 [BUREAU-RETRY] Automatic FAILED bureau retry started"
+//     );
 
-    try {
-      for (const partnerKey of Object.keys(PARTNERS)) {
-        try {
-          const result = await retriggerFailedBureauBatch(
-            partnerKey,
-            10
-          );
+//     try {
+//       for (const partnerKey of Object.keys(PARTNERS)) {
+//         try {
+//           const result = await retriggerFailedBureauBatch(
+//             partnerKey,
+//             10
+//           );
 
-          console.log(
-            `✅ [BUREAU-RETRY] ${partnerKey}`,
-            {
-              selected: result.selected,
-              processed: result.processed,
-              successful: result.successful,
-              failed: result.failed,
-              skipped: result.skipped,
-            }
-          );
+//           console.log(
+//             `✅ [BUREAU-RETRY] ${partnerKey}`,
+//             {
+//               selected: result.selected,
+//               processed: result.processed,
+//               successful: result.successful,
+//               failed: result.failed,
+//               skipped: result.skipped,
+//             }
+//           );
 
-          if (result.failed > 0) {
-            console.log(
-              `⚠️ [BUREAU-RETRY] ${partnerKey} failed cases:`,
-              result.results
-                .filter(
-                  (r) =>
-                    !r.success &&
-                    !r.skipped
-                )
-                .map((r) => ({
-                  lan: r.lan,
-                  reason: r.reason,
-                }))
-            );
-          }
-        } catch (err) {
-          console.error(
-            `❌ [BUREAU-RETRY] ${partnerKey}:`,
-            err.message
-          );
-        }
-      }
-    } catch (err) {
-      console.error(
-        "❌ [BUREAU-RETRY] Cron failed:",
-        err.message
-      );
-    } finally {
-      isBureauRetryRunning = false;
-    }
-  },
-  {
-    timezone: "Asia/Kolkata",
-  }
-);
+//           if (result.failed > 0) {
+//             console.log(
+//               `⚠️ [BUREAU-RETRY] ${partnerKey} failed cases:`,
+//               result.results
+//                 .filter(
+//                   (r) =>
+//                     !r.success &&
+//                     !r.skipped
+//                 )
+//                 .map((r) => ({
+//                   lan: r.lan,
+//                   reason: r.reason,
+//                 }))
+//             );
+//           }
+//         } catch (err) {
+//           console.error(
+//             `❌ [BUREAU-RETRY] ${partnerKey}:`,
+//             err.message
+//           );
+//         }
+//       }
+//     } catch (err) {
+//       console.error(
+//         "❌ [BUREAU-RETRY] Cron failed:",
+//         err.message
+//       );
+//     } finally {
+//       isBureauRetryRunning = false;
+//     }
+//   },
+//   {
+//     timezone: "Asia/Kolkata",
+//   }
+// );
