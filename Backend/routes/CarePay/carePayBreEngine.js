@@ -270,6 +270,241 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision, b
   };
 };
 
+const autoApproveCarePayIfBureauVerified = async (lan) => {
+  const pool = db.promise();
+  /**  1) Check bureau status */
+  const [kycRows] = await pool.query(
+    `SELECT bureau_status, bureau_api_response
+     FROM kyc_verification_status
+     WHERE lan = ?
+     LIMIT 1`,
+    [lan],
+  );
+
+  if (!kycRows.length) {
+    console.log(`[CAREPAY-BRE] No KYC row found for LAN: ${lan}`);
+
+    return {
+      success: false,
+      reason: "KYC_ROW_NOT_FOUND",
+    };
+  }
+
+  const kyc = kycRows[0];
+
+  if (
+    String(kyc.bureau_status || "")
+      .trim()
+      .toUpperCase() !== "VERIFIED"
+  ) {
+    console.log(
+      `[CAREPAY-BRE] Bureau not verified for ${lan}:`,
+      kyc.bureau_status,
+    );
+
+    return {
+      success: false,
+      reason: `BUREAU_STATUS=${kyc.bureau_status || "NA"}`,
+    };
+  }
+
+  /**
+   * 2) Fetch CarePay loan
+   */
+  const [loanRows] = await pool.query(
+    `SELECT
+       lan,
+       product,
+       dob,
+       age,
+       loan_tenure,
+       request_amount,
+       loan_amount,
+       annual_income,
+       cibil_score,
+       cibil_score_fintree,
+       customer_type
+     FROM loan_booking_carepay
+     WHERE lan = ?
+     LIMIT 1`,
+    [lan],
+  );
+
+  if (!loanRows.length) {
+    console.log(`[CAREPAY-BRE] Loan not found for LAN: ${lan}`);
+
+    return {
+      success: false,
+      reason: "LOAN_NOT_FOUND",
+    };
+  }
+
+  const loan = loanRows[0];
+
+  /**
+   * 3) Get latest bureau result
+   */
+  const [cibilRows] = await pool.query(
+    `SELECT
+       score,
+       report_xml,
+       created_at
+     FROM loan_cibil_reports
+     WHERE lan = ?
+     ORDER BY created_at DESC, id DESC
+     LIMIT 1`,
+    [lan],
+  );
+
+  if (!cibilRows.length) {
+    console.log(
+      `[CAREPAY-BRE] Bureau report not found for LAN: ${lan}`,
+    );
+
+    return {
+      success: false,
+      reason: "BUREAU_REPORT_MISSING",
+    };
+  }
+
+  const latestBureau = cibilRows[0];
+
+  /**
+   * Score inserted by retriggerBureau()
+   */
+  const bureauScore =
+    toFiniteNumber(latestBureau.score) ??
+    toFiniteNumber(loan.cibil_score) ??
+    toFiniteNumber(loan.cibil_score_fintree);
+
+  if (bureauScore === null) {
+    console.log(
+      `[CAREPAY-BRE] Bureau score missing for LAN: ${lan}`,
+    );
+
+    return {
+      success: false,
+      reason: "BUREAU_SCORE_MISSING",
+    };
+  }
+
+  /**
+   * 4) Parse Experian XML for BRE snapshot / DPD facts
+   */
+  let bureauResponse = null;
+
+  if (latestBureau.report_xml) {
+    try {
+      if (typeof latestBureau.report_xml === "object") {
+        bureauResponse = latestBureau.report_xml;
+      } else {
+        const parser = new XMLParser({
+          ignoreAttributes: false,
+          attributeNamePrefix: "",
+          trimValues: true,
+        });
+
+        bureauResponse = parser.parse(
+          String(latestBureau.report_xml),
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[CAREPAY-BRE] Bureau XML parse warning for ${lan}:`,
+        err.message,
+      );
+
+      // BRE can still run because current CarePay decision
+      // mainly uses score + loan fields.
+      bureauResponse = null;
+    }
+  }
+
+  /**
+   * 5) Prepare data expected by CarepayBreEngine
+   *
+   * IMPORTANT:
+   * loan_type was saved in DB column "product"
+   */
+  const data = {
+    ...loan,
+
+    loan_type: loan.product,
+
+    cibil_score: bureauScore,
+  };
+
+  const requestAmount =
+    toFiniteNumber(loan.request_amount) ??
+    toFiniteNumber(loan.loan_amount);
+
+  if (requestAmount === null) {
+    return {
+      success: false,
+      reason: "REQUEST_AMOUNT_MISSING",
+    };
+  }
+
+  /**
+   * 6) RUN CAREPAY BRE
+   */
+  const decision = evaluateCarePayLoginBre({
+    data,
+    requestAmount,
+    bureauScore,
+  });
+
+  /**
+   * 7) Build snapshot
+   */
+  const breSnapshot = buildBreSnapshot({
+    data,
+    requestAmount,
+    bureauScore,
+    decision,
+    bureauResponse,
+  });
+
+  /**
+   * 8) Update final CarePay status
+   */
+  await pool.query(
+    `UPDATE loan_booking_carepay
+     SET
+       cibil_score = ?,
+       status = ?,
+       bre_snapshot = ?,
+       updated_at = NOW()
+     WHERE lan = ?`,
+    [
+      bureauScore,
+      decision.caseStatus,
+      JSON.stringify(breSnapshot),
+      lan,
+    ],
+  );
+
+  console.log(
+    `✅ [CAREPAY-BRE] Completed for ${lan}:`,
+    {
+      bureauScore,
+      breStatus: decision.status,
+      status: decision.caseStatus,
+      reasons: decision.reasons,
+    },
+  );
+
+  return {
+    success: true,
+    lan,
+    bureauScore,
+    breStatus: decision.status,
+    status: decision.caseStatus,
+    reason: decision.reason,
+    reasons: decision.reasons,
+  };
+};
+
 module.exports = {
   evaluateCarePayLoginBre,
   buildBreSnapshot,
@@ -278,4 +513,5 @@ module.exports = {
   normalizeCarePayAnnualIncome,
   toFiniteNumber,
   isProvided,
+  autoApproveCarePayIfBureauVerified,
 };

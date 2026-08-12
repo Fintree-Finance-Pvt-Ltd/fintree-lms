@@ -8,6 +8,7 @@ const {
 } = require("../routes/loanDigit/loanDigitBre");
 // Import BRE trigger functions for other partners as they get added:
 const { autoApproveClayyoIfAllVerified } = require("../routes/clyooRoutes/clayyoBreEngine");
+const { autoApproveCarePayIfBureauVerified } = require("../routes/CarePay/carePayBreEngine");
 
 /* ============================================================ */
 /*                     STATE CODES (shared)                     */
@@ -96,6 +97,29 @@ const PARTNERS = {
       current_state: "current_state",
       current_pincode: "current_pincode",
       monthly_salary: "net_monthly_income",
+      loan_amount: "loan_amount",
+      loan_tenure: "loan_tenure",
+    },
+  },
+  carepay: {
+    key: "carepay",
+    lanPrefix: "CARE",
+    table: "loan_booking_carepay",
+    scoreColumn: "cibil_score",
+    breTrigger: autoApproveCarePayIfBureauVerified,
+    columns: {
+      first_name: "first_name",
+      middle_name: "middle_name",
+      last_name: "last_name",
+      mobile_number: "mobile_number",
+      pan_number: "pan_number",
+      dob: "dob",
+      gender: "gender",
+      current_address: "current_address",
+      current_city: "current_village_city",
+      current_state: "current_state",
+      current_pincode: "current_pincode",
+      annual_income: "annual_income",
       loan_amount: "loan_amount",
       loan_tenure: "loan_tenure",
     },
@@ -256,185 +280,185 @@ async function retriggerBureau(lan, opts = {}) {
   });
 
   /* ── 6. Call Experian ── */
-let response;
+  let response;
 
-try {
-  response = await callBureauApi(soapBody);
-} catch (err) {
-  await markBureauFailed(
-    partner,
-    lan,
-    `NETWORK: ${err.message}`
-  );
+  try {
+    response = await callBureauApi(soapBody);
+  } catch (err) {
+    await markBureauFailed(
+      partner,
+      lan,
+      `NETWORK: ${err.message}`
+    );
 
-  return {
-    success: false,
-    reason: `NETWORK: ${err.message}`,
-    partner: partner.key,
-  };
-}
+    return {
+      success: false,
+      reason: `NETWORK: ${err.message}`,
+      partner: partner.key,
+    };
+  }
 
-/* Validate HTTP response */
-if (
-  !response ||
-  response.status < 200 ||
-  response.status >= 300
-) {
-  const reason = `EXPERIAN_HTTP_${response?.status || "UNKNOWN"}`;
+  /* Validate HTTP response */
+  if (
+    !response ||
+    response.status < 200 ||
+    response.status >= 300
+  ) {
+    const reason = `EXPERIAN_HTTP_${response?.status || "UNKNOWN"}`;
 
-  await markBureauFailed(
-    partner,
-    lan,
-    reason
-  );
+    await markBureauFailed(
+      partner,
+      lan,
+      reason
+    );
 
-  return {
-    success: false,
-    reason,
-    partner: partner.key,
-  };
-}
+    return {
+      success: false,
+      reason,
+      partner: partner.key,
+    };
+  }
 
-/* ── 7. Parse SOAP envelope ── */
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "",
-  trimValues: true,
-  processEntities: {
-    enabled: true,
-    maxTotalExpansions: 200000,
-    maxExpandedLength: 20_000_000,
-    maxEntityCount: 200000,
-    maxEntitySize: 200000,
-  },
-});
+  /* ── 7. Parse SOAP envelope ── */
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "",
+    trimValues: true,
+    processEntities: {
+      enabled: true,
+      maxTotalExpansions: 200000,
+      maxExpandedLength: 20_000_000,
+      maxEntityCount: 200000,
+      maxEntitySize: 200000,
+    },
+  });
 
-let decodedXml;
-try {
-  const parsedOuter = parser.parse(response.data);
+  let decodedXml;
+  try {
+    const parsedOuter = parser.parse(response.data);
 
-  const envelope =
-    parsedOuter["SOAP-ENV:Envelope"] ||
-    parsedOuter["soap:Envelope"] ||
-    parsedOuter["soapenv:Envelope"] ||
-    parsedOuter["S:Envelope"];
-  const body =
-    envelope?.["SOAP-ENV:Body"] ||
-    envelope?.["soap:Body"] ||
-    envelope?.["soapenv:Body"] ||
-    envelope?.["S:Body"];
-  if (!body) throw new Error("SOAP body missing");
+    const envelope =
+      parsedOuter["SOAP-ENV:Envelope"] ||
+      parsedOuter["soap:Envelope"] ||
+      parsedOuter["soapenv:Envelope"] ||
+      parsedOuter["S:Envelope"];
+    const body =
+      envelope?.["SOAP-ENV:Body"] ||
+      envelope?.["soap:Body"] ||
+      envelope?.["soapenv:Body"] ||
+      envelope?.["S:Body"];
+    if (!body) throw new Error("SOAP body missing");
 
-  const responseNode = Object.entries(body).find(
-    ([k]) => k === "processResponse" || k.endsWith(":processResponse"),
-  )?.[1];
-  if (!responseNode) throw new Error("processResponse missing");
+    const responseNode = Object.entries(body).find(
+      ([k]) => k === "processResponse" || k.endsWith(":processResponse"),
+    )?.[1];
+    if (!responseNode) throw new Error("processResponse missing");
 
-  const outNode = Object.entries(responseNode).find(
-    ([k]) => k === "out" || k.endsWith(":out"),
-  )?.[1];
-  if (!outNode) throw new Error("out node missing");
+    const outNode = Object.entries(responseNode).find(
+      ([k]) => k === "out" || k.endsWith(":out"),
+    )?.[1];
+    if (!outNode) throw new Error("out node missing");
 
-  decodedXml = he.decode(String(outNode));
-} catch (err) {
-  await markBureauFailed(partner, lan, `PARSE: ${err.message}`);
-  return {
-    success: false,
-    reason: `PARSE: ${err.message}`,
-    partner: partner.key,
-  };
-}
+    decodedXml = he.decode(String(outNode));
+  } catch (err) {
+    await markBureauFailed(partner, lan, `PARSE: ${err.message}`);
+    return {
+      success: false,
+      reason: `PARSE: ${err.message}`,
+      partner: partner.key,
+    };
+  }
 
-/* ── 8. Parse & validate inner XML ── */
-let parsedInner;
-try {
-  parsedInner = parser.parse(decodedXml);
-} catch (err) {
-  await markBureauFailed(partner, lan, `INNER_PARSE: ${err.message}`);
-  return {
-    success: false,
-    reason: `INNER_PARSE: ${err.message}`,
-    partner: partner.key,
-  };
-}
+  /* ── 8. Parse & validate inner XML ── */
+  let parsedInner;
+  try {
+    parsedInner = parser.parse(decodedXml);
+  } catch (err) {
+    await markBureauFailed(partner, lan, `INNER_PARSE: ${err.message}`);
+    return {
+      success: false,
+      reason: `INNER_PARSE: ${err.message}`,
+      partner: partner.key,
+    };
+  }
 
-const errorNode = parsedInner?.INProfileResponse?.ERROR;
-if (errorNode) {
-  const errText =
-    typeof errorNode === "object"
-      ? JSON.stringify(errorNode).slice(0, 300)
-      : String(errorNode).slice(0, 300);
-  await markBureauFailed(partner, lan, `EXPERIAN_ERROR: ${errText}`);
-  return {
-    success: false,
-    reason: `EXPERIAN_ERROR: ${errText}`,
-    partner: partner.key,
-  };
-}
+  const errorNode = parsedInner?.INProfileResponse?.ERROR;
+  if (errorNode) {
+    const errText =
+      typeof errorNode === "object"
+        ? JSON.stringify(errorNode).slice(0, 300)
+        : String(errorNode).slice(0, 300);
+    await markBureauFailed(partner, lan, `EXPERIAN_ERROR: ${errText}`);
+    return {
+      success: false,
+      reason: `EXPERIAN_ERROR: ${errText}`,
+      partner: partner.key,
+    };
+  }
 
-if (!parsedInner?.INProfileResponse) {
-  await markBureauFailed(partner, lan, "INVALID_RESPONSE_STRUCTURE");
-  return {
-    success: false,
-    reason: "INVALID_RESPONSE_STRUCTURE",
-    partner: partner.key,
-  };
-}
+  if (!parsedInner?.INProfileResponse) {
+    await markBureauFailed(partner, lan, "INVALID_RESPONSE_STRUCTURE");
+    return {
+      success: false,
+      reason: "INVALID_RESPONSE_STRUCTURE",
+      partner: partner.key,
+    };
+  }
 
-/* ── 9. Extract score ── */
-const scoreRaw =
-  parsedInner?.INProfileResponse?.SCORE?.BureauScore ??
-  parsedInner?.INProfileResponse?.Score?.BureauScore ??
-  null;
-const scoreNum = Number(scoreRaw);
-const score =
-  Number.isFinite(scoreNum) && scoreNum > 0 ? scoreNum : null;
+  /* ── 9. Extract score ── */
+  const scoreRaw =
+    parsedInner?.INProfileResponse?.SCORE?.BureauScore ??
+    parsedInner?.INProfileResponse?.Score?.BureauScore ??
+    null;
+  const scoreNum = Number(scoreRaw);
+  const score =
+    Number.isFinite(scoreNum) && scoreNum > 0 ? scoreNum : null;
 
-/* ── 10. Persist ── */
-try {
-  await pool.query(
-    `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+  /* ── 10. Persist ── */
+  try {
+    await pool.query(
+      `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
        VALUES (?, ?, ?, ?, NOW())`,
-    [lan, loan.pan_number, score, decodedXml],
-  );
+      [lan, loan.pan_number, score, decodedXml],
+    );
 
-  await pool.query(
-    `INSERT INTO kyc_verification_status (lan, bureau_status, bureau_api_response)
+    await pool.query(
+      `INSERT INTO kyc_verification_status (lan, bureau_status, bureau_api_response)
        VALUES (?, 'VERIFIED', ?)
        ON DUPLICATE KEY UPDATE
          bureau_status = 'VERIFIED',
          bureau_api_response = VALUES(bureau_api_response)`,
-    [lan, decodedXml],
-  );
-
-  if (score !== null && partner.scoreColumn) {
-    await pool.query(
-      `UPDATE \`${partner.table}\` SET \`${partner.scoreColumn}\` = ? WHERE lan = ?`,
-      [score, lan],
+      [lan, decodedXml],
     );
-  }
-} catch (err) {
-  await markBureauFailed(partner, lan, `DB_PERSIST: ${err.message}`);
-  return {
-    success: false,
-    reason: `DB_PERSIST: ${err.message}`,
-    partner: partner.key,
-  };
-}
 
-/* ── 11. Trigger BRE (partner-specific) ── */
-if (typeof partner.breTrigger === "function") {
-  try {
-    await partner.breTrigger(lan);
+    if (score !== null && partner.scoreColumn) {
+      await pool.query(
+        `UPDATE \`${partner.table}\` SET \`${partner.scoreColumn}\` = ? WHERE lan = ?`,
+        [score, lan],
+      );
+    }
   } catch (err) {
-    console.error(
-      `[${partner.key}] BRE trigger failed for ${lan}:`,
-      err.message,
-    );
+    await markBureauFailed(partner, lan, `DB_PERSIST: ${err.message}`);
+    return {
+      success: false,
+      reason: `DB_PERSIST: ${err.message}`,
+      partner: partner.key,
+    };
   }
-}
 
-return { success: true, score, partner: partner.key };
+  /* ── 11. Trigger BRE (partner-specific) ── */
+  if (typeof partner.breTrigger === "function") {
+    try {
+      await partner.breTrigger(lan);
+    } catch (err) {
+      console.error(
+        `[${partner.key}] BRE trigger failed for ${lan}:`,
+        err.message,
+      );
+    }
+  }
+
+  return { success: true, score, partner: partner.key };
 }
 
 /* ============================================================ */
@@ -461,15 +485,15 @@ async function retriggerFailedBureauBatch(partnerKey, requestedLimit = 50) {
   );
 
   const [rows] = await pool.query(
-  `SELECT l.lan
+    `SELECT l.lan
    FROM \`${partner.table}\` l
    INNER JOIN kyc_verification_status k
      ON k.lan = l.lan
    WHERE k.bureau_status = 'FAILED'
    ORDER BY k.updated_at ASC
    LIMIT ?`,
-  [limit],
-);
+    [limit],
+  );
 
   const results = [];
 
@@ -558,6 +582,11 @@ async function callBureauApi(soapBody) {
 }
 
 function buildSoapBody({ ftRef, loan, gender_code, dobFormatted, state_code }) {
+  const incomeForBureau =
+    Number(loan.monthly_salary) ||
+    (Number(loan.annual_income)
+      ? Number(loan.annual_income) / 12
+      : 0);
   return `
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
   <soapenv:Header/>
@@ -627,7 +656,7 @@ function buildSoapBody({ ftRef, loan, gender_code, dobFormatted, state_code }) {
           </Applicant>
 
           <Details>
-            <Income>${Number(loan.monthly_salary) || 0}</Income>
+          <Income>${Math.round(incomeForBureau)}</Income>
             <MaritalStatus/>
             <EmployStatus/>
             <TimeWithEmploy/>
