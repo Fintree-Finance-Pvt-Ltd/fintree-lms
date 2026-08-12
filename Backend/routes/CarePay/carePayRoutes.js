@@ -475,7 +475,7 @@ loanBookingRouter.get(
         `
         SELECT
           lan,
-          Disbursement_Date AS disbursement_date,
+          DATE_FORMAT(Disbursement_Date, '%Y-%m-%d') AS disbursement_date,
           COALESCE(utr, Disbursement_UTR) AS utr
         FROM ev_disbursement_utr
         WHERE lan = ?
