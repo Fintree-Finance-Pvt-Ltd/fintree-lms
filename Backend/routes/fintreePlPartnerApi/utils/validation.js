@@ -165,6 +165,16 @@ const validateCreatePayload = (input) => {
     });
   }
 
+  const requestedAmount = requiredString(body.requestedAmount, "requestedAmount", 30);
+  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(requestedAmount)) {
+    throw new PartnerApiError(
+      400,
+      "VALIDATION_ERROR",
+      "requestedAmount must be a valid positive number.",
+      { field: "requestedAmount" },
+    );
+  }
+
   return {
     externalApplicationReference: requiredString(
       body.externalApplicationReference,
@@ -174,6 +184,9 @@ const validateCreatePayload = (input) => {
     lan: requiredString(body.lan, "lan", 50),
     sourceSystem,
     productCode: requiredString(body.productCode, "productCode", 60),
+    requestedAmount,
+    requestedTenure: requirePositiveInteger(body.requestedTenure, "requestedTenure"),
+    tenureType: requiredString(body.tenureType, "tenureType", 20),
     customer: {
       fullName: requiredString(customer.fullName, "customer.fullName", 150),
       firstName: requiredString(customer.firstName, "customer.firstName", 60),

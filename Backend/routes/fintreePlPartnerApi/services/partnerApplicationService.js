@@ -8,6 +8,7 @@ const {
   removeStoredDocument,
 } = require("./documentStorageService");
 const { approveAndInitiatePayout } = require("../../../services/payout.service");
+const { runPlPartnerBre } = require("./plPartnerBre");
 
 const findApplicationForUpdate = async (connection, clientId, partnerApplicationId) => {
   const [rows] = await connection.query(
@@ -93,12 +94,13 @@ async function createApplication({ clientId, payload, correlationId }) {
     const [insertResult] = await connection.query(
       `INSERT INTO pl_partner_applications
        (client_id, partner_application_id, partner_application_number,
-        external_application_reference, lan, source_system, product_code, create_request_hash, status,
+        external_application_reference, lan, source_system, product_code,
+        requested_amount, requested_tenure, tenure_type, create_request_hash, status,
         customer_full_name, customer_first_name, customer_middle_name,
         customer_last_name, customer_father_name, pan_number, date_of_birth,
         gender, mobile_number, email, pan_verified, pan_provider_reference,
         pan_verified_at, created_at, updated_at)
-       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         clientId,
         partnerApplicationId,
@@ -106,6 +108,9 @@ async function createApplication({ clientId, payload, correlationId }) {
         payload.lan,
         payload.sourceSystem,
         payload.productCode,
+        payload.requestedAmount,
+        payload.requestedTenure,
+        payload.tenureType,
         createRequestHash,
         payload.customer.fullName,
         payload.customer.firstName,
@@ -756,10 +761,13 @@ async function updateDetails({
       payload.currentAddress || {};
     const ev =
       payload.currentAddressEvidence || {};
+    const off = payload.selectedOffer || {};
+    const bank = payload.bankDetails || {};
+    const man = payload.mandate || {};
 
     /*
-     * There are 65 dynamic values in this array.
-     * The SQL below generates exactly 65 question-mark
+     * There are 78 dynamic values in this array.
+     * The SQL below generates exactly 78 question-mark
      * placeholders from this array.
      *
      * accepted_at and created_at are populated using NOW().
@@ -866,6 +874,28 @@ async function updateDetails({
         ? new Date(ev.verifiedAt)
         : null,
 
+      off.amount || null,
+      off.tenure || null,
+      off.selectedAt
+        ? new Date(off.selectedAt)
+        : null,
+
+      bank.accountHolderName || null,
+      bank.accountNumber || null,
+      bank.ifscCode || null,
+      bank.bankName || null,
+      bank.accountType || null,
+      bank.verifiedAt
+        ? new Date(bank.verifiedAt)
+        : null,
+
+      man.umrn || null,
+      man.provider || null,
+      man.mandateType || null,
+      man.authorizedAt
+        ? new Date(man.authorizedAt)
+        : null,
+
       JSON.stringify(payload),
     ];
 
@@ -949,6 +979,22 @@ async function updateDetails({
          evidence_captured_at,
          evidence_verified_at,
 
+         selected_offer_amount,
+         selected_offer_tenure,
+         selected_offer_selected_at,
+
+         bank_account_holder_name,
+         bank_account_number,
+         bank_ifsc_code,
+         bank_name,
+         bank_account_type,
+         bank_verified_at,
+
+         mandate_umrn,
+         mandate_provider,
+         mandate_type,
+         mandate_authorized_at,
+
          details_json,
          accepted_at,
          created_at
@@ -1030,6 +1076,22 @@ async function updateDetails({
          evidence_longitude = ?,
          evidence_captured_at = ?,
          evidence_verified_at = ?,
+
+         selected_offer_amount = COALESCE(?, selected_offer_amount),
+         selected_offer_tenure = COALESCE(?, selected_offer_tenure),
+         selected_offer_selected_at = COALESCE(?, selected_offer_selected_at),
+
+         bank_account_holder_name = COALESCE(?, bank_account_holder_name),
+         bank_account_number = COALESCE(?, bank_account_number),
+         bank_ifsc_code = COALESCE(?, bank_ifsc_code),
+         bank_name = COALESCE(?, bank_name),
+         bank_account_type = COALESCE(?, bank_account_type),
+         bank_verified_at = COALESCE(?, bank_verified_at),
+
+         mandate_umrn = COALESCE(?, mandate_umrn),
+         mandate_provider = COALESCE(?, mandate_provider),
+         mandate_type = COALESCE(?, mandate_type),
+         mandate_authorized_at = COALESCE(?, mandate_authorized_at),
 
          latest_details_version = ?,
          details_updated_at = NOW(),
@@ -1127,6 +1189,28 @@ async function updateDetails({
           : null,
         ev.verifiedAt
           ? new Date(ev.verifiedAt)
+          : null,
+
+        off.amount || null,
+        off.tenure || null,
+        off.selectedAt
+          ? new Date(off.selectedAt)
+          : null,
+
+        bank.accountHolderName || null,
+        bank.accountNumber || null,
+        bank.ifscCode || null,
+        bank.bankName || null,
+        bank.accountType || null,
+        bank.verifiedAt
+          ? new Date(bank.verifiedAt)
+          : null,
+
+        man.umrn || null,
+        man.provider || null,
+        man.mandateType || null,
+        man.authorizedAt
+          ? new Date(man.authorizedAt)
           : null,
 
         payload.detailsVersion,
@@ -1387,34 +1471,71 @@ async function uploadDocument({ clientId, partnerApplicationId, payload }) {
   }
 }
 
-async function approveApplication({ clientId, partnerApplicationId, payload }) {
-  // Minimal stub: validate application exists and return a fixed Approved response
-  const connection = await db.promise().getConnection();
-  try {
-    const [rows] = await connection.query(
-      `SELECT id FROM pl_partner_applications WHERE client_id = ? AND partner_application_id = ? LIMIT 1`,
-      [clientId, partnerApplicationId],
-    );
+function buildPlPartnerBreResponse(breResult = {}) {
+  const decision = String(breResult?.decision || "").toUpperCase();
 
-    if (!rows.length) {
-      throw new PartnerApiError(404, "APPLICATION_NOT_FOUND", "Partner application was not found.");
-    }
-
+  if (decision !== "APPROVED") {
     return {
-      statusCode: 200,
-      data: {
-        status: "Approved",
-        CREDIT_LIMIT_CHECK_RPM: {
-          derived_values: {
-            LIMIT_ASSIGNMENT_IS_NEW_CUSTOMER_RPM: 8000,
-            LIMIT_ASSIGNMENT_IS_REPEAT_CUSTOMER_RPM: 0,
-          },
+      CREDIT_LIMIT_CHECK_RPM: {
+        derived_values: {
+          LIMIT_ASSIGNMENT_IS_NEW_CUSTOMER_RPM: 0,
+          LIMIT_ASSIGNMENT_IS_REPEAT_CUSTOMER_RPM: 0,
         },
       },
     };
+  }
+
+  const creditLimit = Number(breResult?.creditLimit || 0);
+  const newCustomer = breResult?.newCustomer === true;
+
+  return {
+    CREDIT_LIMIT_CHECK_RPM: {
+      derived_values: {
+        LIMIT_ASSIGNMENT_IS_NEW_CUSTOMER_RPM: newCustomer ? creditLimit : 0,
+        LIMIT_ASSIGNMENT_IS_REPEAT_CUSTOMER_RPM: newCustomer ? 0 : creditLimit,
+      },
+    },
+  };
+}
+
+async function approveApplication({ clientId, partnerApplicationId, payload }) {
+  const connection = await db.promise().getConnection();
+  let application;
+
+  try {
+    application = await findApplicationForUpdate(connection, clientId, partnerApplicationId);
+
+    if (application.external_application_reference !== payload.externalApplicationReference) {
+      throw new PartnerApiError(
+        409,
+        "APPLICATION_REFERENCE_MISMATCH",
+        "externalApplicationReference does not match the application.",
+      );
+    }
   } finally {
     connection.release();
   }
+
+  const phase = application.selected_offer_amount === null ? "PRE_APPROVAL" : "FINAL_APPROVAL";
+
+  if (phase === "PRE_APPROVAL" && !application.latest_details_version) {
+    throw new PartnerApiError(
+      422,
+      "DETAILS_REQUIRED",
+      "Application details must be submitted before requesting a decision.",
+    );
+  }
+
+  const breResult = await runPlPartnerBre(application, { phase });
+  const decision = String(breResult.decision || "").toUpperCase();
+
+  return {
+    statusCode: 200,
+    data: {
+      status: decision === "APPROVED" ? "Approved" : "Rejected",
+      ...buildPlPartnerBreResponse(breResult),
+    },
+  };
 }
 
 async function disburseApplication({ clientId, partnerApplicationId, payload }) {
