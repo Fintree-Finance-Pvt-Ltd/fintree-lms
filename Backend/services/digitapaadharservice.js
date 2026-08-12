@@ -26,7 +26,7 @@ exports.initAadhaarKyc = async (lan, mobile_number, email_id, customer_name) => 
     ).toString("base64");
 
     const response = await axios.post(
-  `${process.env.DIGITAP_SMS_BASE_URL}/ent/v1/kyc/generate-url`,
+  `${process.env.DIGITAP_SMS_BASE_URL}/kyc-unified/v1/generate-url/`,
   payload,
   {
     headers: {
