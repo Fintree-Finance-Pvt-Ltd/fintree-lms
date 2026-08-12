@@ -32,220 +32,255 @@ const JOIN_COLLATE = "utf8mb4_unicode_ci";
  */
 const PRODUCT_MAP = {
   BL: {
-    rpsTable:      "manual_rps_bl_loan",
-    bookTable:     "loan_bookings",
-    disbField:     "loan_amount",
-    collType:      "join",
-    collBook:      "loan_bookings",
-    allocTable:    "allocation",
-    allocLike:     "BL%",
-    label:         "BL Loan",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_bl_loan",
+    bookTable: "loan_bookings",
+    disbField: "loan_amount",
+    collType: "join",
+    collBook: "loan_bookings",
+    allocTable: "allocation",
+    allocLike: "BL%",
+    label: "BL Loan",
+    disbDateSource: "utr",
   },
   EV: {
-    rpsTable:      "manual_rps_ev_loan",
-    bookTable:     "loan_booking_ev",
-    disbField:     "loan_amount",
-    collType:      "join",
-    collBook:      "loan_booking_ev",
-    allocTable:    "allocation",
-    allocLike:     "EV%",
-    label:         "EV Loan",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_ev_loan",
+    bookTable: "loan_booking_ev",
+    disbField: "loan_amount",
+    collType: "join",
+    collBook: "loan_booking_ev",
+    allocTable: "allocation",
+    allocLike: "EV%",
+    label: "EV Loan",
+    disbDateSource: "utr",
   },
   Adikosh: {
-    rpsTable:      "manual_rps_adikosh",
-    bookTable:     "loan_booking_adikosh",
-    disbField:     "net_disbursement",
-    collType:      "direct",
-    collBook:      "repayments_upload_adikosh",
-    allocTable:    "allocation_adikosh",
-    allocLike:     "ADK%",
-    label:         "Adikosh",
-    disbDateSource:"book",   // Adikosh does NOT use ev_disbursement_utr
+    rpsTable: "manual_rps_adikosh",
+    bookTable: "loan_booking_adikosh",
+    disbField: "net_disbursement",
+    collType: "direct",
+    collBook: "repayments_upload_adikosh",
+    allocTable: "allocation_adikosh",
+    allocLike: "ADK%",
+    label: "Adikosh",
+    disbDateSource: "book",   // Adikosh does NOT use ev_disbursement_utr
     disbDateField: "agreement_date",
   },
   "GQ Non-FSF": {
-    rpsTable:      "manual_rps_gq_non_fsf",
-    bookTable:     "loan_booking_gq_non_fsf",
-    disbField:     "disbursal_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%GQN%",
-    label:         "GQ Non-FSF",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_gq_non_fsf",
+    bookTable: "loan_booking_gq_non_fsf",
+    disbField: "disbursal_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%GQN%",
+    label: "GQ Non-FSF",
+    disbDateSource: "utr",
   },
   "GQ FSF": {
-    rpsTable:      "manual_rps_gq_fsf",
-    bookTable:     "loan_booking_gq_fsf",
-    disbField:     "disbursal_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%GQF%",
-    label:         "GQ FSF",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_gq_fsf",
+    bookTable: "loan_booking_gq_fsf",
+    disbField: "disbursal_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%GQF%",
+    label: "GQ FSF",
+    disbDateSource: "utr",
   },
   Embifi: {
-    rpsTable:      "manual_rps_embifi_loan",
-    bookTable:     "loan_booking_embifi",
-    disbField:     "approved_loan_amount",
-    collType:      "join",
-    collBook:      "loan_booking_embifi",
-    allocTable:    "allocation",
-    allocLike:     "E1%",
-    label:         "Embifi",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_embifi_loan",
+    bookTable: "loan_booking_embifi",
+    disbField: "approved_loan_amount",
+    collType: "join",
+    collBook: "loan_booking_embifi",
+    allocTable: "allocation",
+    allocLike: "E1%",
+    label: "Embifi",
+    disbDateSource: "utr",
   },
   WCTL: {
-    rpsTable:      "manual_rps_wctl",
-    bookTable:     "loan_bookings_wctl",
-    disbField:     "loan_amount",
-    collType:      "join",
-    collBook:      "loan_bookings_wctl",
-    allocTable:    "allocation",
-    allocLike:     "WCTL%",
-    label:         "WCTL",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_wctl",
+    bookTable: "loan_bookings_wctl",
+    disbField: "loan_amount",
+    collType: "join",
+    collBook: "loan_bookings_wctl",
+    allocTable: "allocation",
+    allocLike: "WCTL%",
+    label: "WCTL",
+    disbDateSource: "utr",
   },
   EMICLUB: {
-    rpsTable:      "manual_rps_emiclub",
-    bookTable:     "loan_booking_emiclub",
-    disbField:     "net_disbursement",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%FINE%",
-    label:         "EMICLUB",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_emiclub",
+    bookTable: "loan_booking_emiclub",
+    disbField: "net_disbursement",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%FINE%",
+    label: "EMICLUB",
+    disbDateSource: "utr",
   },
-  // CAREPAY: {
-  //   rpsTable:      "manual_rps_carepay",
-  //   bookTable:     "loan_booking_carepay",
-  //   disbField:     "net_disbursement",
-  //   collType:      "subquery",
-  //   allocTable:    "allocation",
-  //   allocLike:     "%CARE%",
-  //   label:         "CAREPAY",
-  //   disbDateSource:"utr",
-  // },
+  CAREPAY: {
+    rpsTable: "manual_rps_carepay",
+    bookTable: "loan_booking_carepay",
+    disbField: "net_disbursement",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%CARE%",
+    label: "CAREPAY",
+    disbDateSource: "utr",
+  },
   Finso: {
-    rpsTable:      "manual_rps_finso_loan",
-    bookTable:     "loan_booking_finso",
-    disbField:     "disbursal_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%FINS%",
-    label:         "Finso",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_finso_loan",
+    bookTable: "loan_booking_finso",
+    disbField: "disbursal_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%FINS%",
+    label: "Finso",
+    disbDateSource: "utr",
   },
   "Hey EV Battery": {
-    rpsTable:      "manual_rps_hey_ev_battery",
-    bookTable:     "loan_booking_hey_ev_battery",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%HEYBF%",
-    label:         "Hey EV Battery",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_hey_ev",
+    bookTable: "loan_booking_hey_ev_battery",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%HEYBF%",
+    label: "Hey EV Battery",
+    disbDateSource: "utr",
   },
   "Hey EV": {
-    rpsTable:      "manual_rps_hey_ev",
-    bookTable:     "loan_booking_hey_ev",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%HEY%",
-    label:         "Hey EV",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_hey_ev",
+    bookTable: "loan_booking_hey_ev",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%HEY%",
+    label: "Hey EV",
+    disbDateSource: "utr",
   },
   "Circle Pe": {
-    rpsTable:      "manual_rps_circlepe",
-    bookTable:     "loan_booking_circle_pe",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%CIR%",
-    label:         "Circle Pe",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_circlepe",
+    bookTable: "loan_booking_circle_pe",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%CIR%",
+    label: "Circle Pe",
+    disbDateSource: "utr",
   },
   HELIUM: {
-    rpsTable:      "manual_rps_helium",
-    bookTable:     "loan_booking_helium",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%HEL%",
-    label:         "Helium",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_helium",
+    bookTable: "loan_booking_helium",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%HEL%",
+    label: "Helium",
+    disbDateSource: "utr",
   },
   Clayoo: {
-    rpsTable:      "manual_rps_clayoo",
-    bookTable:     "loan_booking_clayyo",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%CLY%",
-    label:         "Clayoo",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_clayoo",
+    bookTable: "loan_booking_clayyo",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%CLY%",
+    label: "Clayoo",
+    disbDateSource: "utr",
   },
   "Loan Digit": {
-    rpsTable:      "manual_rps_loan_digit",
-    bookTable:     "loan_booking_loan_digit",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%LDF%",
-    label:         "Loan Digit",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_loan_digit",
+    bookTable: "loan_booking_loan_digit",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%LDF%",
+    label: "Loan Digit",
+    disbDateSource: "utr",
   },
   "Motion Corp": {
-    rpsTable:      "manual_rps_motioncorp",
-    bookTable:     "loan_booking_motion_corp",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%MOT%",
-    label:         "Motion Corp",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_motioncorp",
+    bookTable: "loan_booking_motion_corp",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%MOT%",
+    label: "Motion Corp",
+    disbDateSource: "utr",
   },
   "Seven Fincorp": {
-    rpsTable:      "manual_rps_seven_fincorp",
-    bookTable:     "loan_booking_seven_fincorp",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%SEV%",
-    label:         "Seven Fincorp",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_seven_fincorp",
+    bookTable: "loan_booking_seven_fincorp",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%SEV%",
+    label: "Seven Fincorp",
+    disbDateSource: "utr",
   },
   Bundela: {
-    rpsTable:      "manual_rps_bundela",
-    bookTable:     "loan_booking_bundela",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%BUN%",
-    label:         "Bundela",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_bundela",
+    bookTable: "loan_booking_bundela",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%BUN%",
+    label: "Bundela",
+    disbDateSource: "utr",
   },
   Zebrs: {
-    rpsTable:      "manual_rps_zebrs",
-    bookTable:     "loan_booking_zebrs",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%ZEB%",
-    label:         "Zebrs",
-    disbDateSource:"utr",
+    rpsTable: "manual_rps_zebrs",
+    bookTable: "loan_booking_zebrs",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%ZEB%",
+    label: "Zebrs",
+    disbDateSource: "utr",
   },
-    SRBH: {
-    rpsTable:      "manual_rps_srbh",
-    bookTable:     "loan_booking_srbh",
-    disbField:     "loan_amount",
-    collType:      "subquery",
-    allocTable:    "allocation",
-    allocLike:     "%SH%",
-    label:         "SRBH",
-    disbDateSource:"utr",
+  SRBH: {
+    rpsTable: "manual_rps_srbh",
+    bookTable: "loan_booking_srbh",
+    disbField: "loan_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%SH%",
+    label: "SRBH",
+    disbDateSource: "utr",
+  },
+  SterlionUBL: {
+    rpsTable: "manual_rps_sterlion_ubl",
+    bookTable: "loan_booking_sterlion_ubl",
+    disbField: "loan_amount",
+    collType: "join",
+    collBook: "loan_booking_sterlion_ubl",
+    allocTable: "allocation",
+    allocLike: "%UBLF%",
+    label: "Sterlion UBL",
+    disbDateSource: "utr",
+  },
+  // Circle Pe Houser: 
+  "Circle Pe Houser": {
+    rpsTable: "manual_rps_circle_pe_houser",
+    bookTable: "loan_booking_circle_pe_houser",
+    disbField: "loan_amount",
+    collType: "join",
+    collBook: "loan_booking_circle_pe_houser",
+    allocTable: "allocation",
+    allocLike: "%CIRHUF%",
+    label: "Circle Pe Houser",
+    disbDateSource: "utr",
+  },
+  // Rapid Money:
+  "Rapid Money": {
+    rpsTable: "manual_rps_switch_my_loan",
+    bookTable: "loan_booking_switch_my_loan",
+    disbField: "loan_amount",
+    collType: "join",
+    collBook: "loan_booking_switch_my_loan",
+    allocTable: "allocation",
+    allocLike: "%RML%",
+    label: "Rapid Money",
+    disbDateSource: "utr",
   },
 };
 
@@ -257,33 +292,38 @@ function normalizeProduct(p) {
   if (!p || p === "ALL") return "ALL";
   const s = String(p).toLowerCase().replace(/\s+/g, "").replace(/-/g, "");
   const map = {
-    evloan:       "EV",
-    "ev_loan":    "EV",
-    blloan:       "BL",
-    "bl_loan":    "BL",
-    adikosh:      "Adikosh",
-    gqnonfsf:     "GQ Non-FSF",
-    "gqnon-fsf":  "GQ Non-FSF",
-    gqfsf:        "GQ FSF",
-    "gq-fsf":     "GQ FSF",
-    embifi:       "Embifi",
-    wctl:         "WCTL",
-    circlepe:     "Circle Pe",
-    emiclub:      "EMICLUB",
-    carepay:      "CAREPAY",
-    finso:        "Finso",
-    heyev:        "Hey EV",
-    "hey_ev":     "Hey EV",
-    helium:       "HELIUM",
-    clayoo:       "Clayoo",
-    "loan_digit":  "Loan Digit",
-    "loandigit":   "Loan Digit",
-    motioncorp:   "Motion Corp",
+    evloan: "EV",
+    "ev_loan": "EV",
+    blloan: "BL",
+    "bl_loan": "BL",
+    adikosh: "Adikosh",
+    gqnonfsf: "GQ Non-FSF",
+    "gqnon-fsf": "GQ Non-FSF",
+    gqfsf: "GQ FSF",
+    "gq-fsf": "GQ FSF",
+    embifi: "Embifi",
+    wctl: "WCTL",
+    circlepe: "Circle Pe",
+    emiclub: "EMICLUB",
+    carepay: "CAREPAY",
+    finso: "Finso",
+    heyev: "Hey EV",
+    "hey_ev": "Hey EV",
+    helium: "HELIUM",
+    clayoo: "Clayoo",
+    "loan_digit": "Loan Digit",
+    "loandigit": "Loan Digit",
+    motioncorp: "Motion Corp",
     "motion_corp": "Motion Corp",
     sevenfincorp: "Seven Fincorp",
-    "seven_fincorp":"Seven Fincorp",
-    bundela:      "Bundela",
-      zebrs:        "Zebrs",
+    "seven_fincorp": "Seven Fincorp",
+    bundela: "Bundela",
+    zebrs: "Zebrs",
+    srbh: "SRBH",
+    circlepehouser: "Circle Pe Houser",
+    rapidmoney: "Rapid Money",
+    switchmyloan: "Rapid Money",
+    sterlionubl: "SterlionUBL"
   };
   return map[s] || p;
 }
@@ -307,7 +347,7 @@ function buildDateRangeClause(field, start, end) {
   const parts = [];
   const params = [];
   if (start) { parts.push(`${field} >= ?`); params.push(start); }
-  if (end)   { parts.push(`${field} < ?`);  params.push(end); }
+  if (end) { parts.push(`${field} < ?`); params.push(end); }
   return { clause: parts.length ? ` AND ${parts.join(" AND ")}` : "", params };
 }
 
@@ -371,25 +411,25 @@ function getColumnExpressions(bookTable) {
   // that will work for any table — will degrade gracefully.
   if (!cols) {
     return {
-      dealerExpr:   "'-'",
+      dealerExpr: "'-'",
       districtExpr: "'-'",
-      schemaKnown:  false,
+      schemaKnown: false,
     };
   }
 
   let dealerExpr;
-  if (cols.has("trade_name"))             dealerExpr = "MAX(b.trade_name)";
-  else if (cols.has("dealer_name"))       dealerExpr = "MAX(b.dealer_name)";
-  else if (cols.has("beneficiary_name"))  dealerExpr = "MAX(b.beneficiary_name)";
-  else                                    dealerExpr = "'-'";
+  if (cols.has("trade_name")) dealerExpr = "MAX(b.trade_name)";
+  else if (cols.has("dealer_name")) dealerExpr = "MAX(b.dealer_name)";
+  else if (cols.has("beneficiary_name")) dealerExpr = "MAX(b.beneficiary_name)";
+  else dealerExpr = "'-'";
 
   let districtExpr;
   const hasDist = cols.has("district");
   const hasCity = cols.has("current_address_city");
   if (hasDist && hasCity) districtExpr = "COALESCE(MAX(b.district), MAX(b.current_address_city))";
-  else if (hasDist)       districtExpr = "MAX(b.district)";
-  else if (hasCity)       districtExpr = "MAX(b.current_address_city)";
-  else                    districtExpr = "'-'";
+  else if (hasDist) districtExpr = "MAX(b.district)";
+  else if (hasCity) districtExpr = "MAX(b.current_address_city)";
+  else districtExpr = "'-'";
 
   return { dealerExpr, districtExpr, schemaKnown: true };
 }
@@ -456,13 +496,13 @@ async function buildMetricCards(prod, start, end, db) {
   const pclA = buildDateRangeClause("payment_date", start, end);
 
   const disburseQueries = [];
-  const disburseParams  = [];
-  const collectQueries  = [];
-  const collectParams   = [];
-  const pniQueries      = [];
-  const pniParams       = [];
-  const dpdQueries      = [];
-  const dpdParams       = [];
+  const disburseParams = [];
+  const collectQueries = [];
+  const collectParams = [];
+  const pniQueries = [];
+  const pniParams = [];
+  const dpdQueries = [];
+  const dpdParams = [];
 
   for (const [key, cfg] of Object.entries(PRODUCT_MAP)) {
     if (prod !== "ALL" && prod !== key) continue;
@@ -550,29 +590,29 @@ async function buildMetricCards(prod, start, end, db) {
   ] = await Promise.all([
     db.promise().query(disburseQueries.join(" UNION ALL "), disburseParams),
     db.promise().query(collectQueries.join(" UNION ALL "), collectParams),
-    db.promise().query(pniQueries.join(" UNION ALL ")    , pniParams),
-    db.promise().query(dpdQueries.join(" UNION ALL ")    , dpdParams),
+    db.promise().query(pniQueries.join(" UNION ALL "), pniParams),
+    db.promise().query(dpdQueries.join(" UNION ALL "), dpdParams),
   ]);
 
-  const totalDisbursed  = disbRows.reduce((s, r) => s + Number(r.amount || 0), 0);
-  const totalCollected  = collRows.reduce((s, r) => s + Number(r.amount || 0), 0);
-  const totalPrincipal  = pniRows.reduce((s, r) => s + Number(r.principal || 0), 0);
-  const totalInterest   = pniRows.reduce((s, r) => s + Number(r.interest || 0), 0);
-  const dpd_0           = dpdRows.reduce((s, r) => s + Number(r.dpd_0 || 0), 0);
-  const dpd_0_30        = dpdRows.reduce((s, r) => s + Number(r.dpd_0_30 || 0), 0);
-  const dpd_31_60       = dpdRows.reduce((s, r) => s + Number(r.dpd_31_60 || 0), 0);
-  const dpd_61_90       = dpdRows.reduce((s, r) => s + Number(r.dpd_61_90 || 0), 0);
-  const dpd_91_plus     = dpdRows.reduce((s, r) => s + Number(r.dpd_91_plus || 0), 0);
+  const totalDisbursed = disbRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const totalCollected = collRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const totalPrincipal = pniRows.reduce((s, r) => s + Number(r.principal || 0), 0);
+  const totalInterest = pniRows.reduce((s, r) => s + Number(r.interest || 0), 0);
+  const dpd_0 = dpdRows.reduce((s, r) => s + Number(r.dpd_0 || 0), 0);
+  const dpd_0_30 = dpdRows.reduce((s, r) => s + Number(r.dpd_0_30 || 0), 0);
+  const dpd_31_60 = dpdRows.reduce((s, r) => s + Number(r.dpd_31_60 || 0), 0);
+  const dpd_61_90 = dpdRows.reduce((s, r) => s + Number(r.dpd_61_90 || 0), 0);
+  const dpd_91_plus = dpdRows.reduce((s, r) => s + Number(r.dpd_91_plus || 0), 0);
   const totalRemainingPrincipal = dpdRows.reduce((s, r) => s + Number(r.remaining_principal || 0), 0);
-  const collectionRate  = totalDisbursed ? (totalCollected / totalDisbursed) * 100 : 0;
+  const collectionRate = totalDisbursed ? (totalCollected / totalDisbursed) * 100 : 0;
 
   const lenderWiseDPD = dpdRows.map(row => ({
-    lender:             row.lender,
-    dpd_0:              Number(row.dpd_0 || 0),
-    dpd_0_30:           Number(row.dpd_0_30 || 0),
-    dpd_31_60:          Number(row.dpd_31_60 || 0),
-    dpd_61_90:          Number(row.dpd_61_90 || 0),
-    dpd_91_plus:        Number(row.dpd_91_plus || 0),
+    lender: row.lender,
+    dpd_0: Number(row.dpd_0 || 0),
+    dpd_0_30: Number(row.dpd_0_30 || 0),
+    dpd_31_60: Number(row.dpd_31_60 || 0),
+    dpd_61_90: Number(row.dpd_61_90 || 0),
+    dpd_91_plus: Number(row.dpd_91_plus || 0),
     remainingPrincipal: Number(row.remaining_principal || 0),
   }));
 
@@ -583,9 +623,9 @@ async function buildMetricCards(prod, start, end, db) {
     totalPrincipal,
     totalInterest,
     principalOutstanding: totalRemainingPrincipal,
-    interestOutstanding:  0,
-    posOutstanding:       totalRemainingPrincipal,
-    dpdCases:             { dpd_0, dpd_0_30, dpd_31_60, dpd_61_90, dpd_91_plus },
+    interestOutstanding: 0,
+    posOutstanding: totalRemainingPrincipal,
+    dpdCases: { dpd_0, dpd_0_30, dpd_31_60, dpd_61_90, dpd_91_plus },
     lenderWiseDPD,
   };
 }
@@ -677,20 +717,20 @@ async function buildDpdBuckets(prod, db) {
   const [rows] = await db.promise().query(sql);
 
   const map = {
-    ALL:     { bucket: "ALL",     loans: 0, overdue_emi: 0 },
-    active:  { bucket: "active",  loans: 0, overdue_emi: 0 },
-    "0":     { bucket: "0",       loans: 0, overdue_emi: 0 },
-    "0-30":  { bucket: "0-30",    loans: 0, overdue_emi: 0 },
-    "30-60": { bucket: "30-60",   loans: 0, overdue_emi: 0 },
-    "60-90": { bucket: "60-90",   loans: 0, overdue_emi: 0 },
-    "90+":   { bucket: "90+",     loans: 0, overdue_emi: 0 },
-    closed:  { bucket: "closed",  loans: 0, overdue_emi: 0 },
+    ALL: { bucket: "ALL", loans: 0, overdue_emi: 0 },
+    active: { bucket: "active", loans: 0, overdue_emi: 0 },
+    "0": { bucket: "0", loans: 0, overdue_emi: 0 },
+    "0-30": { bucket: "0-30", loans: 0, overdue_emi: 0 },
+    "30-60": { bucket: "30-60", loans: 0, overdue_emi: 0 },
+    "60-90": { bucket: "60-90", loans: 0, overdue_emi: 0 },
+    "90+": { bucket: "90+", loans: 0, overdue_emi: 0 },
+    closed: { bucket: "closed", loans: 0, overdue_emi: 0 },
   };
 
   rows.forEach(r => {
     map[r.bucket] = {
-      bucket:      r.bucket,
-      loans:       Number(r.loans || 0),
+      bucket: r.bucket,
+      loans: Number(r.loans || 0),
       overdue_emi: Number(r.overdue_emi || 0),
     };
   });
@@ -718,24 +758,24 @@ async function buildDpdBuckets(prod, db) {
    ================================================================ */
 
 const SORT_MAP = {
-  pos:      "pos_principal",
-  emi:      "overdue_emi",
-  dpd:      "max_dpd",
-  due:      "last_due_date",
-  ageing:   "ageing_days",
+  pos: "pos_principal",
+  emi: "overdue_emi",
+  dpd: "max_dpd",
+  due: "last_due_date",
+  ageing: "ageing_days",
   customer: "customer_name",
-  dealer:   "dealer_name",
+  dealer: "dealer_name",
   district: "district",
 };
 
 async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, db) {
   const ranges = { "0-30": [1, 30], "30-60": [31, 60], "60-90": [61, 90] };
   let bucketWhere = "";
-  let isClosed    = false;
-  let isActive    = false;
+  let isClosed = false;
+  let isActive = false;
 
-  if (bucket === "0")          bucketWhere = `AND p.max_dpd = 0`;
-  else if (bucket === "90+")   bucketWhere = `AND p.max_dpd >= 91`;
+  if (bucket === "0") bucketWhere = `AND p.max_dpd = 0`;
+  else if (bucket === "90+") bucketWhere = `AND p.max_dpd >= 91`;
   else if (ranges[bucket]) {
     const [mn, mx] = ranges[bucket];
     bucketWhere = `AND p.max_dpd BETWEEN ${mn} AND ${mx}`;
@@ -811,17 +851,17 @@ async function buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, d
     return { rows: [], pagination: { page, pageSize, total: 0 } };
   }
 
-  const sortKey     = typeof sortBy === "string" ? sortBy.toLowerCase() : "dpd";
-  const sortCol     = SORT_MAP[sortKey] || SORT_MAP.dpd;
+  const sortKey = typeof sortBy === "string" ? sortBy.toLowerCase() : "dpd";
+  const sortCol = SORT_MAP[sortKey] || SORT_MAP.dpd;
   const sortDirSafe = String(sortDir || "desc").toLowerCase() === "asc" ? "ASC" : "DESC";
-  const offset      = (page - 1) * pageSize;
+  const offset = (page - 1) * pageSize;
 
   // ── Split query: COUNT runs separately (no UTR join, no ordering)
   // This eliminates the COUNT(*) OVER() window function that forced full
   // materialization of the UNION ALL before LIMIT — root cause of the timeout.
   const countBranches = products.map(([, cfg]) => {
     const appliedBucketWhere = (isActive || isClosed) ? "" : bucketWhere;
-    const whereClause  = isClosed
+    const whereClause = isClosed
       ? `WHERE LOWER(b.status) NOT IN ('disbursed', 'login', 'disburse initiate')`
       : `WHERE LOWER(b.status) = 'disbursed'`;
 
