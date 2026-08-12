@@ -25,6 +25,7 @@ const { initColumnSchemaCache } = require("./services/dashboardService");
 const collectionApiRoutes = require("./routes/collectionApi");
 const enachRoutes = require("./routes/enachRoutes");
 const esignRoutes = require("./routes/esignRoutes");
+const { initEmailKyc } = require("./services/digitapSmsService");
 const heliumWebhookRoutes = require("./routes/heliumRoutes/heliumWebhookRoute");
 const dealerOnboardingRoutes = require("./routes/Dealer/dealerOnboardingRoutes");
 const {
@@ -393,7 +394,7 @@ app.use("/api/fundify", require("./routes/Fundify/fundifyRoutes")); // ✅ Regis
 app.use("/api/documents", require("./routes/documents")); // ✅ Register Route for Documents
 app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // To serve uploaded files
 
-app.use("/bureau", require("./services/bureauretry"));
+app.use("/api/bureau", require("./services/bureauretry"));
 
 app.use("/api/screening", require("./routes/screening.routes")); // ✅ Register Routes for Screening
 
@@ -683,6 +684,50 @@ app.post("/api/universalRunAllValidations", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+//Send kyc sms
+app.post("/api/send-kyc", async (req, res) => {
+  try {
+    const {
+      lan,
+      mobile_number,
+      email_id,
+      customer_name,
+    } = req.body;
+
+    if (!lan || !mobile_number || !email_id || !customer_name) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "lan, mobile_number, email_id and customer_name are required",
+      });
+    }
+
+    const result = await initEmailKyc(
+      lan,
+      mobile_number,
+      email_id,
+      customer_name
+    );
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "KYC link generated successfully",
+      data: result,
+    });
+  } catch (err) {
+    console.error("❌ Send KYC Error:", err);
+
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 });
 

@@ -1102,6 +1102,22 @@ async function runOrReuseBureau(loan) {
 
 async function runTrackwizzAml(loan) {
   try {
+
+    if (AML_MODE === "mock-clear") {
+      console.warn("[SML BRE] AML bypassed in test mode", {
+        lan: loan.lan,
+        deploymentEnvironment: DEPLOYMENT_ENV,
+      });
+
+      return {
+        status: "PROCEED",
+        score: 100,
+        totalMatches: 0,
+        reason: null,
+        source: "TEST_BYPASS",
+        bypassed: true,
+      };
+    }
     const screening = await screenLoanBooking(AML_SCREENING_PRODUCT, loan.lan);
 
     /*
@@ -1567,9 +1583,9 @@ async function runBRE(data) {
   const disbursalBreakup =
     grossApprovedLoanAmount !== null
       ? calculateNetDisbursalAmount({
-          creditLimit: grossApprovedLoanAmount,
-          processingFeeRate: loan.processing_fee,
-        })
+        creditLimit: grossApprovedLoanAmount,
+        processingFeeRate: loan.processing_fee,
+      })
       : null;
 
   if (!validCreditLimit) {

@@ -500,13 +500,13 @@ function normalizeAndValidateRow(row) {
     },
   );
 
-  if (!/^[2-9][0-9]{11}$/.test(aadhaarNumber)) {
-    throw new RowImportError(
-      "validation",
+  // if (!/^[2-9][0-9]{11}$/.test(aadhaarNumber)) {
+  //   throw new RowImportError(
+  //     "validation",
 
-      "aadhaarNumber must contain 12 valid digits.",
-    );
-  }
+  //     "aadhaarNumber must contain 12 valid digits.",
+  //   );
+  // }
 
   const panNumber = normalizeIdentifier(
     row.panNumber,

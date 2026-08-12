@@ -104,6 +104,10 @@ const { generateAllPending } = require("./cibilPdfService");
 const { runDailyInterestAccrual } = require( "./wctlccodinterestengine");
 const startAadhaarCron = require("./aadhaarPdfCron");
 const { sendLoanWebhook } = require("../utils/webhook");
+const {
+  retriggerFailedBureauBatch,
+  PARTNERS,
+} = require("../services/bureauRetriggerService");
 
 // 1️⃣ DPD + OOD Cron
 // cron.schedule("*/2 * * * *", async () => {
@@ -1101,5 +1105,79 @@ cron.schedule("5 0 * * *", async () => {
   console.log("✅ Daily supply chain demand cron completed");
 });
 
+// ============================================================
+// Bureau FAILED Retry Cron
+// Runs every 1 minutes
+// ============================================================
+let isBureauRetryRunning = false;
 
-require('../server');
+cron.schedule(
+  "* * * * *",
+  async () => {
+    if (isBureauRetryRunning) {
+      console.log(
+        "⏭️ [BUREAU-RETRY] Previous retry still running. Skipping."
+      );
+      return;
+    }
+
+    isBureauRetryRunning = true;
+
+    console.log(
+      "🔄 [BUREAU-RETRY] Automatic FAILED bureau retry started"
+    );
+
+    try {
+      for (const partnerKey of Object.keys(PARTNERS)) {
+        try {
+          const result = await retriggerFailedBureauBatch(
+            partnerKey,
+            10
+          );
+
+          console.log(
+            `✅ [BUREAU-RETRY] ${partnerKey}`,
+            {
+              selected: result.selected,
+              processed: result.processed,
+              successful: result.successful,
+              failed: result.failed,
+              skipped: result.skipped,
+            }
+          );
+
+          if (result.failed > 0) {
+            console.log(
+              `⚠️ [BUREAU-RETRY] ${partnerKey} failed cases:`,
+              result.results
+                .filter(
+                  (r) =>
+                    !r.success &&
+                    !r.skipped
+                )
+                .map((r) => ({
+                  lan: r.lan,
+                  reason: r.reason,
+                }))
+            );
+          }
+        } catch (err) {
+          console.error(
+            `❌ [BUREAU-RETRY] ${partnerKey}:`,
+            err.message
+          );
+        }
+      }
+    } catch (err) {
+      console.error(
+        "❌ [BUREAU-RETRY] Cron failed:",
+        err.message
+      );
+    } finally {
+      isBureauRetryRunning = false;
+    }
+  },
+  {
+    timezone: "Asia/Kolkata",
+  }
+);
