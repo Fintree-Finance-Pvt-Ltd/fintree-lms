@@ -456,6 +456,56 @@ loanBookingRouter.get(
   },
 );
 
+/////////////   DISBURSEMNT UTR FATCH API FOR CAREPAY CASES  //////////
+
+loanBookingRouter.get(
+  "/v1/disbursement-data",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      const lan = String(req.query.lan || "").trim();
+
+      if (!lan) {
+        return res.status(400).json({
+          message: "lan is required.",
+        });
+      }
+
+      const [rows] = await db.promise().query(
+        `
+        SELECT
+          lan,
+          Disbursement_Date AS disbursement_date,
+          COALESCE(utr, Disbursement_UTR) AS utr
+        FROM ev_disbursement_utr
+        WHERE lan = ?
+        LIMIT 1
+        `,
+        [lan],
+      );
+
+      if (!rows.length) {
+        return res.status(404).json({
+          message: "Disbursement data not found.",
+        });
+      }
+
+      return res.status(200).json({
+        message: "Disbursement data fetched successfully.",
+        data: rows[0],
+      });
+    } catch (error) {
+      console.error("Disbursement data fetch error:", error);
+
+      return res.status(500).json({
+        message: "Failed to fetch disbursement data.",
+        error: error.sqlMessage || error.message,
+      });
+    }
+  },
+);
+
+
 router.get("/customer-details/:lan", async (req, res) => {
   const lan = String(req.params.lan || "").trim().toUpperCase();
 
