@@ -129,13 +129,15 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     if (table === "pl_partner_applications") {
       loanQuery = `
         SELECT
-          'TEST BENEFICIARY' AS beneficiary_name,
-          1000 AS loan_amount,
-          '000000000000' AS account_number,
-          'HDFC0000001' AS ifsc,
-          30 AS tenure_days
+          bank_account_holder_name AS beneficiary_name,
+          bre_approved_loan_amount AS loan_amount,
+          bank_account_number AS account_number,
+          bank_ifsc_code AS ifsc,
+          selected_offer_tenure AS tenure_days
+        FROM pl_partner_applications
+        WHERE lan = ?
+        LIMIT 1
       `;
-      loanParams = [];
     }
 
     const [[loan]] = await db.promise().query(loanQuery, loanParams);
