@@ -169,12 +169,92 @@ function calculateRepeatCreditLimit(
   };
 }
 
+// GST is a fixed government rate, not lender-specific — same constant runBre.js uses.
+const GST_ON_PROCESSING_FEE_RATE = 0.18;
+
+/**
+ * Ported from Backend/routes/switchMyLoan/runBre.js's calculateNetDisbursalAmount.
+ * Nets the processing fee + GST on the fee off the gross approved amount,
+ * the same way switchMyLoan does before disbursal.
+ */
+function calculateNetDisbursalAmount({
+  creditLimit,
+  processingFeeRate,
+  gstRate = GST_ON_PROCESSING_FEE_RATE,
+}) {
+  const grossApprovedAmount = toFiniteNumber(creditLimit);
+  const pfRate = toFiniteNumber(processingFeeRate);
+  const gst = toFiniteNumber(gstRate) ?? GST_ON_PROCESSING_FEE_RATE;
+
+  if (!Number.isFinite(grossApprovedAmount) || grossApprovedAmount <= 0) {
+    return {
+      ok: false,
+      reason: "INVALID_GROSS_APPROVED_AMOUNT",
+      grossApprovedAmount: grossApprovedAmount ?? 0,
+      processingFeeRate: pfRate ?? 0,
+      processingFeeAmount: 0,
+      gstRate: gst,
+      gstOnProcessingFee: 0,
+      totalDeduction: 0,
+      netDisbursalAmount: null,
+    };
+  }
+
+  // processing_fee is stored as a fraction (0.15 = 15%), so valid values are 0-1.
+  if (!Number.isFinite(pfRate) || pfRate < 0 || pfRate > 1) {
+    return {
+      ok: false,
+      reason: "INVALID_PROCESSING_FEE_RATE",
+      grossApprovedAmount,
+      processingFeeRate: pfRate ?? 0,
+      processingFeeAmount: 0,
+      gstRate: gst,
+      gstOnProcessingFee: 0,
+      totalDeduction: 0,
+      netDisbursalAmount: null,
+    };
+  }
+
+  const processingFeeAmount = round2(grossApprovedAmount * pfRate);
+  const gstOnProcessingFee = round2(processingFeeAmount * gst);
+  const totalDeduction = round2(processingFeeAmount + gstOnProcessingFee);
+  const netDisbursalAmount = round2(grossApprovedAmount - totalDeduction);
+
+  if (!Number.isFinite(netDisbursalAmount) || netDisbursalAmount <= 0) {
+    return {
+      ok: false,
+      reason: "NET_DISBURSAL_AMOUNT_INVALID",
+      grossApprovedAmount,
+      processingFeeRate: pfRate,
+      processingFeeAmount,
+      gstRate: gst,
+      gstOnProcessingFee,
+      totalDeduction,
+      netDisbursalAmount,
+    };
+  }
+
+  return {
+    ok: true,
+    reason: null,
+    grossApprovedAmount,
+    processingFeeRate: pfRate,
+    processingFeeAmount,
+    gstRate: gst,
+    gstOnProcessingFee,
+    totalDeduction,
+    netDisbursalAmount,
+  };
+}
+
 module.exports = {
   POLICY,
+  GST_ON_PROCESSING_FEE_RATE,
   calculateAge,
   validateLoanAmount,
   isNewCustomer,
   getRepeatMultiplier,
   calculateRepeatCreditLimit,
+  calculateNetDisbursalAmount,
   round2,
 };

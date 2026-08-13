@@ -50,6 +50,10 @@ CREATE TABLE IF NOT EXISTS `pl_partner_applications` (
   `requested_amount` DECIMAL(18,2) NULL,
   `requested_tenure` INT NULL,
   `tenure_type` VARCHAR(20) NULL,
+  -- Annual percentage as a plain number, e.g. 36.00 = 36% p.a.
+  `interest_rate` DECIMAL(8,2) NULL,
+  -- Decimal fraction, e.g. 0.15 = 15% (matches loan_booking_switch_my_loan.processing_fee)
+  `processing_fee` DECIMAL(8,2) NULL,
   `create_request_hash` CHAR(64) NOT NULL,
   `status` ENUM(
     'CREATED',
@@ -163,6 +167,9 @@ CREATE TABLE IF NOT EXISTS `pl_partner_applications` (
   `bre_status` VARCHAR(30) NULL,
   `bre_reason` VARCHAR(100) NULL,
   `bre_credit_limit` DECIMAL(18,2) NULL,
+  -- Gross approved amount (pre PF/GST) — the RPS principal, what the customer owes back.
+  `bre_gross_approved_amount` DECIMAL(18,2) NULL,
+  -- Net disbursal amount (post PF/GST) — what actually gets wired to the customer.
   `bre_approved_loan_amount` DECIMAL(18,2) NULL,
   `bre_checked_at` DATETIME(3) NULL,
   `bre_details_json` LONGTEXT NULL,
@@ -355,4 +362,36 @@ CREATE TABLE IF NOT EXISTS `pl_partner_api_audit_logs` (
   KEY `idx_pl_partner_audit_correlation` (`correlation_id`),
   KEY `idx_pl_partner_audit_application` (`partner_application_id`,`created_at`),
   -- client_id foreign key removed (clients table managed separately)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Repayment schedule (RPS) for disbursed PL Partner loans. Same single-payment
+-- short-term-loan shape as switchMyLoan's manual_rps_switch_my_loan, but kept
+-- as its own dedicated table so PL Partner data never mixes with RapidMoney's.
+-- Populated by generatePlPartnerRepaymentSchedule (see
+-- Backend/routes/fintreePlPartnerApi/services/generatePlPartnerRepaymentSchedule.js),
+-- called from plPartnerDisbursement.js on disbursement.
+CREATE TABLE IF NOT EXISTS `manual_rps_fintree_personal_loan` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `lan` VARCHAR(255) NULL,
+  `due_date` DATE NOT NULL,
+  `status` VARCHAR(50) NULL,
+  `emi` DECIMAL(10,2) NULL,
+  `interest` DECIMAL(10,2) NULL,
+  `principal` DECIMAL(10,2) NULL,
+  `opening` DECIMAL(10,2) NULL,
+  `closing` DECIMAL(10,2) NULL,
+  `remaining_emi` DECIMAL(10,2) NULL,
+  `remaining_interest` DECIMAL(10,2) NULL,
+  `remaining_principal` DECIMAL(10,2) NULL,
+  `payment_date` DATE NULL,
+  `dpd` INT NULL DEFAULT 0,
+  `remaining_amount` DECIMAL(10,2) NULL,
+  `extra_paid` DECIMAL(10,2) NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_lan_due_date` (`lan`,`due_date`),
+  KEY `idx_lan` (`lan`),
+  KEY `idx_due_date` (`due_date`),
+  KEY `idx_status` (`status`),
+  KEY `idx_lan_status_due` (`lan`,`status`,`due_date`),
+  KEY `idx_lan_dpd` (`lan`,`dpd`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
