@@ -2248,6 +2248,7 @@ const generateRepaymentScheduleSterlionUbl = async (
 
   /*
    * Supports:
+   *
    * 37.54
    * "37.54"
    * "37.54%"
@@ -2354,93 +2355,100 @@ const generateRepaymentScheduleSterlionUbl = async (
   }
 
   /*
-   * Monthly PMT rate.
-   *
-   * Example:
-   * 37.54 / 100 / 12
+   * ==========================================
+   * COMMON VALUES
+   * ==========================================
    */
+
   const monthlyRate =
     numericInterestRate / 100 / 12;
 
   let upfrontInterestAmount = 0;
 
   /*
-   * RPS principal is ALWAYS full loan amount.
+   * Full loan amount is always used
+   * as RPS principal.
    */
   let repayablePrincipal =
     numericLoanAmount;
 
   /*
-   * PMT EMI for UPFRONT_INTEREST.
+   * IMPORTANT:
    *
-   * For MONTHLY_360 this retains the existing EMI.
+   * UPFRONT_INTEREST:
+   * regularEmi = PRINCIPAL ONLY
+   *
+   * MONTHLY_360:
+   * regularEmi = normal reducing-balance EMI
    */
   let regularEmi = 0;
 
   /*
-   * Flat interest allocation for UPFRONT_INTEREST.
+   * Flat allocated upfront interest.
    */
   let regularUpfrontInterest = 0;
 
   /*
-   * Flat principal allocation for UPFRONT_INTEREST.
+   * Flat principal amount.
    */
   let regularUpfrontPrincipal = 0;
 
   /*
-   * Raw PMT EMI before 2-decimal rounding.
+   * PMT values.
    *
-   * Important because:
-   *
-   * total repayment =
-   * raw PMT EMI × tenure
+   * For UPFRONT_INTEREST these are used
+   * ONLY to calculate total interest.
    */
   let rawPmtEmi = 0;
-
+  let pmtCalculatedEmi = 0;
   let pmtTotalRepayment = 0;
 
   /*
    * ==========================================
-   * UPFRONT INTEREST PRODUCT
+   * UPFRONT_INTEREST
    * ==========================================
    *
-   * REQUIRED BUSINESS LOGIC:
+   * Required logic:
    *
    * 1. Calculate PMT EMI
    *
    * 2. PMT EMI × tenure
-   *    = Total repayment
+   *    = total repayment
    *
-   * 3. Total repayment - loan amount
-   *    = Total interest
+   * 3. total repayment - loan amount
+   *    = total interest
    *
-   * 4. Total interest / tenure
-   *    = Monthly flat interest
+   * 4. total interest / tenure
+   *    = monthly interest
    *
-   * 5. Loan amount / tenure
-   *    = Monthly principal
+   * 5. loan amount / tenure
+   *    = principal-only RPS EMI
    *
-   * 6. RPS EMI
-   *    = Principal + flat interest
+   * 6. EMI COLUMN
+   *    = principal only
    *
-   * IMPORTANT:
+   * 7. REMAINING AMOUNT
+   *    = remaining principal + allocated interest
    *
-   * RPS opening principal starts from
-   * FULL loan amount.
+   * 8. REMAINING INTEREST
+   *    = always 0
    * ==========================================
    */
 
   if (isUpfrontInterest) {
     /*
-     * Full loan amount is used for RPS.
+     * RPS starts from full loan amount.
      */
     repayablePrincipal =
       numericLoanAmount;
 
     /*
-     * STEP 1:
-     * Calculate normal PMT EMI.
+     * ========================================
+     * STEP 1
+     * CALCULATE PMT EMI
+     * ========================================
      */
+
     if (monthlyRate === 0) {
       rawPmtEmi =
         numericLoanAmount /
@@ -2461,40 +2469,38 @@ const generateRepaymentScheduleSterlionUbl = async (
     }
 
     /*
-     * Booking EMI value.
-     *
      * Example:
-     * 412998.53
+     *
+     * Loan  = 3500000
+     * Rate  = 37.54
+     * Tenure = 10
+     *
+     * PMT ≈ 412998.53
      */
-    regularEmi = round2(
-      rawPmtEmi,
-    );
+    pmtCalculatedEmi =
+      round2(rawPmtEmi);
 
     /*
-     * STEP 2:
+     * ========================================
+     * STEP 2
+     * TOTAL PMT REPAYMENT
+     * ========================================
      *
-     * PMT EMI × tenure
-     *
-     * Use RAW EMI here.
-     *
-     * Example:
-     *
-     * 412998.525...
-     * × 10
-     * =
-     * 4129985.25
+     * Use raw PMT before rounding.
      */
+
     pmtTotalRepayment = round2(
       rawPmtEmi *
         numericTenure,
     );
 
     /*
-     * STEP 3:
+     * ========================================
+     * STEP 3
+     * TOTAL INTEREST
+     * ========================================
      *
-     * Total Interest
-     * =
-     * Total repayment - Loan amount
+     * total repayment - loan amount
      *
      * Example:
      *
@@ -2504,37 +2510,31 @@ const generateRepaymentScheduleSterlionUbl = async (
      * =
      * 629985.25
      */
+
     upfrontInterestAmount = round2(
       pmtTotalRepayment -
         numericLoanAmount,
     );
 
     /*
-     * STEP 4:
-     *
-     * Monthly flat interest.
-     *
-     * Example:
-     *
-     * 629985.25 / 10
-     * =
-     * 62998.525
-     *
-     * Rounded monthly:
-     * 62998.53
-     *
-     * Final installment adjusts difference.
+     * ========================================
+     * STEP 4
+     * MONTHLY INTEREST
+     * ========================================
      */
+
     regularUpfrontInterest = round2(
       upfrontInterestAmount /
         numericTenure,
     );
 
     /*
-     * STEP 5:
+     * ========================================
+     * STEP 5
+     * PRINCIPAL EMI
+     * ========================================
      *
-     * Principal is divided from
-     * FULL loan amount.
+     * Loan amount / tenure
      *
      * Example:
      *
@@ -2542,18 +2542,28 @@ const generateRepaymentScheduleSterlionUbl = async (
      * =
      * 350000
      */
+
     regularUpfrontPrincipal = round2(
       numericLoanAmount /
         numericTenure,
     );
+
+    /*
+     * IMPORTANT:
+     *
+     * EMI stored in booking and RPS
+     * is PRINCIPAL ONLY.
+     */
+    regularEmi =
+      regularUpfrontPrincipal;
   }
 
   /*
    * ==========================================
-   * MONTHLY_360 PRODUCT
+   * MONTHLY_360
    * ==========================================
    *
-   * Existing logic remains unchanged.
+   * Existing reducing balance logic.
    */
 
   if (isMonthlyLoan) {
@@ -2624,8 +2634,8 @@ const generateRepaymentScheduleSterlionUbl = async (
     );
 
     /*
-     * Processing fee only applies to
-     * first installment for MONTHLY_360.
+     * Processing fee only for
+     * first MONTHLY_360 installment.
      */
     const installmentProcessingFee =
       installmentNumber === 1
@@ -2647,19 +2657,14 @@ const generateRepaymentScheduleSterlionUbl = async (
        * INTEREST
        * ======================================
        *
-       * Equal interest every month.
+       * Equal allocated interest.
        *
-       * Final month adjusts rounding.
-       *
-       * Guarantees:
-       *
-       * SUM(interest)
-       * =
-       * upfrontInterestAmount
+       * Last installment adjusts rounding.
        */
 
       if (
-        installmentNumber === numericTenure
+        installmentNumber ===
+        numericTenure
       ) {
         normalInterest = round2(
           upfrontInterestAmount -
@@ -2678,14 +2683,14 @@ const generateRepaymentScheduleSterlionUbl = async (
        * PRINCIPAL
        * ======================================
        *
-       * Principal is always based on
-       * FULL loan amount.
+       * Equal principal installment.
        *
        * Final installment clears balance.
        */
 
       if (
-        installmentNumber === numericTenure
+        installmentNumber ===
+        numericTenure
       ) {
         principal =
           openingPrincipal;
@@ -2708,7 +2713,8 @@ const generateRepaymentScheduleSterlionUbl = async (
         normalInterest = 0;
 
         if (
-          installmentNumber === numericTenure
+          installmentNumber ===
+          numericTenure
         ) {
           principal =
             openingPrincipal;
@@ -2741,12 +2747,13 @@ const generateRepaymentScheduleSterlionUbl = async (
 
         /*
          * Final installment clears
-         * remaining principal.
+         * outstanding principal.
          */
         if (
           installmentNumber ===
             numericTenure ||
-          principal > openingPrincipal
+          principal >
+            openingPrincipal
         ) {
           principal =
             openingPrincipal;
@@ -2754,73 +2761,121 @@ const generateRepaymentScheduleSterlionUbl = async (
       }
     }
 
-    principal = round2(
-      principal,
-    );
+    principal =
+      round2(principal);
 
-    normalInterest = round2(
-      normalInterest,
-    );
+    normalInterest =
+      round2(normalInterest);
 
     /*
-     * ==========================================
-     * INTEREST STORED IN RPS
-     * ==========================================
-     */
-
-    const interest = isUpfrontInterest
-      ? normalInterest
-      : round2(
-          normalInterest +
-            installmentProcessingFee,
-        );
-
-    /*
-     * ==========================================
-     * CLOSING PRINCIPAL
-     * ==========================================
-     */
-
-    const closingPrincipal = Math.max(
-      0,
-      round2(
-        openingPrincipal -
-          principal,
-      ),
-    );
-
-    /*
-     * ==========================================
-     * EMI
-     * ==========================================
+     * ========================================
+     * INTEREST COLUMN
+     * ========================================
      *
      * UPFRONT_INTEREST:
+     * allocated interest only
      *
-     * EMI =
-     * principal + flat interest
+     * MONTHLY_360:
+     * normal interest + first processing fee
+     */
+
+    const interest =
+      isUpfrontInterest
+        ? normalInterest
+        : round2(
+            normalInterest +
+              installmentProcessingFee,
+          );
+
+    /*
+     * ========================================
+     * CLOSING PRINCIPAL
+     * ========================================
+     */
+
+    const closingPrincipal =
+      Math.max(
+        0,
+        round2(
+          openingPrincipal -
+            principal,
+        ),
+      );
+
+    /*
+     * ========================================
+     * EMI
+     * ========================================
+     *
+     * IMPORTANT:
+     *
+     * UPFRONT_INTEREST
+     *
+     * EMI COLUMN = PRINCIPAL ONLY
      *
      * Example:
      *
-     * 350000
-     * +
-     * 62998.53
+     * principal = 350000
+     * interest  = 62998.53
+     *
+     * emi column = 350000
+     */
+
+    const actualEmi =
+      isUpfrontInterest
+        ? round2(principal)
+        : round2(
+            principal +
+              interest,
+          );
+
+    /*
+     * ========================================
+     * PAYMENT AMOUNT
+     * ========================================
+     *
+     * This is NOT stored in EMI.
+     *
+     * It is used to calculate
+     * remaining_amount.
+     *
+     * UPFRONT:
+     *
+     * principal + allocated interest
+     *
+     * Example:
+     *
+     * 350000 + 62998.53
      * =
      * 412998.53
      */
 
-    const actualEmi = round2(
-      principal +
-        interest,
-    );
+    const paymentAmount =
+      isUpfrontInterest
+        ? round2(
+            principal +
+              interest,
+          )
+        : actualEmi;
 
     schedule.push({
       installmentNumber,
-      dueDate:
-        formatDateYMD(dueDate),
 
+      dueDate:
+        formatDateYMD(
+          dueDate,
+        ),
+
+      /*
+       * Principal-only EMI
+       * for UPFRONT_INTEREST.
+       */
       emi:
         actualEmi,
 
+      /*
+       * Allocated interest.
+       */
       interest,
 
       principal,
@@ -2830,6 +2885,14 @@ const generateRepaymentScheduleSterlionUbl = async (
 
       closing:
         closingPrincipal,
+
+      /*
+       * Principal + interest.
+       *
+       * Used only for
+       * remaining_amount.
+       */
+      paymentAmount,
     });
 
     openingPrincipal =
@@ -2843,7 +2906,9 @@ const generateRepaymentScheduleSterlionUbl = async (
    */
 
   if (
-    Math.abs(openingPrincipal) > 0.01
+    Math.abs(
+      openingPrincipal,
+    ) > 0.01
   ) {
     throw new Error(
       `Sterlion UBL RPS did not close correctly. ` +
@@ -2855,10 +2920,31 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    * CALCULATE REMAINING VALUES
    * ==========================================
+   *
+   * UPFRONT_INTEREST:
+   *
+   * remaining_emi
+   * =
+   * number of installments remaining
+   *
+   * remaining_interest
+   * =
+   * ALWAYS 0
+   *
+   * remaining_principal
+   * =
+   * remaining principal only
+   *
+   * remaining_amount
+   * =
+   * remaining principal +
+   * allocated interest payments
    */
 
   let runningRemainingInterest = 0;
+
   let runningRemainingPrincipal = 0;
+
   let runningRemainingAmount = 0;
 
   for (
@@ -2868,99 +2954,185 @@ const generateRepaymentScheduleSterlionUbl = async (
     index--
   ) {
     /*
-     * Remaining interest.
+     * ========================================
+     * REMAINING INTEREST
+     * ========================================
+     *
+     * UPFRONT_INTEREST:
+     *
+     * DO NOT accumulate.
+     *
+     * Always 0.
      */
-    runningRemainingInterest =
+
+    if (!isUpfrontInterest) {
+      runningRemainingInterest =
+        round2(
+          runningRemainingInterest +
+            schedule[index]
+              .interest,
+        );
+    }
+
+    /*
+     * ========================================
+     * REMAINING PRINCIPAL
+     * ========================================
+     */
+
+    runningRemainingPrincipal =
       round2(
-        runningRemainingInterest +
-          schedule[index].interest,
+        runningRemainingPrincipal +
+          schedule[index]
+            .principal,
       );
+
+    /*
+     * ========================================
+     * REMAINING AMOUNT
+     * ========================================
+     *
+     * IMPORTANT:
+     *
+     * Do NOT use schedule[index].emi
+     * for upfront product.
+     *
+     * EMI contains only principal.
+     *
+     * paymentAmount contains:
+     *
+     * principal + allocated interest.
+     */
+
+    runningRemainingAmount =
+      round2(
+        runningRemainingAmount +
+          schedule[index]
+            .paymentAmount,
+      );
+
+    /*
+     * Number of installments remaining.
+     */
+    schedule[index].remainingEmi =
+      schedule.length -
+      index;
+
+    /*
+     * IMPORTANT:
+     *
+     * UPFRONT_INTEREST:
+     * remaining_interest = 0
+     */
+    schedule[index]
+      .remainingInterest =
+        isUpfrontInterest
+          ? 0
+          : runningRemainingInterest;
 
     /*
      * Remaining principal.
      */
-    runningRemainingPrincipal =
-      round2(
-        runningRemainingPrincipal +
-          schedule[index].principal,
-      );
+    schedule[index]
+      .remainingPrincipal =
+        runningRemainingPrincipal;
 
     /*
-     * Remaining total EMI amount.
+     * Remaining payment amount.
      */
-    runningRemainingAmount =
-      round2(
-        runningRemainingAmount +
-          schedule[index].emi,
-      );
-
-    /*
-     * Number of EMIs remaining.
-     */
-    schedule[index].remainingEmi =
-      schedule.length - index;
-
-    schedule[index].remainingInterest =
-      runningRemainingInterest;
-
-    schedule[index].remainingPrincipal =
-      runningRemainingPrincipal;
-
-    schedule[index].remainingAmount =
-      runningRemainingAmount;
+    schedule[index]
+      .remainingAmount =
+        runningRemainingAmount;
   }
 
   /*
    * ==========================================
-   * PREPARE RPS INSERT DATA
+   * PREPARE RPS INSERT
    * ==========================================
    */
 
-  const rpsData = schedule.map(
-    (installment) => [
-      normalizedLan,
+  const rpsData =
+    schedule.map(
+      (installment) => [
+        normalizedLan,
 
-      installment.dueDate,
+        installment.dueDate,
 
-      "Pending",
+        "Pending",
 
-      installment.emi,
+        /*
+         * EMI:
+         *
+         * UPFRONT =
+         * principal only
+         */
+        installment.emi,
 
-      installment.interest,
+        /*
+         * Allocated interest.
+         */
+        installment.interest,
 
-      installment.principal,
+        /*
+         * Principal.
+         */
+        installment.principal,
 
-      installment.opening,
+        /*
+         * Opening principal.
+         */
+        installment.opening,
 
-      installment.closing,
+        /*
+         * Closing principal.
+         */
+        installment.closing,
 
-      /*
-       * FIXED:
-       *
-       * Previously current EMI/principal
-       * values were being inserted here.
-       *
-       * Now actual remaining values are used.
-       */
-      installment.remainingEmi,
+        /*
+         * Number of remaining EMIs.
+         */
+        installment.emi,
 
-      installment.remainingInterest,
+        /*
+         * UPFRONT = always 0.
+         */
+        installment
+          .remainingInterest,
 
-      installment.remainingPrincipal,
+        /*
+         * Remaining principal.
+         */
+        installment
+          .remainingPrincipal,
 
-      null,
+        /*
+         * payment_date
+         */
+        null,
 
-      0,
+        /*
+         * dpd
+         */
+        0,
 
-      installment.remainingAmount,
+        /*
+         * Remaining actual amount:
+         *
+         * principal + allocated interest.
+         */
+        installment
+          .remainingAmount,
 
-      0,
-    ],
-  );
+        /*
+         * extra_paid
+         */
+        0,
+      ],
+    );
 
   /*
    * ==========================================
-   * INSERT RPS
+   * INSERT MANUAL RPS
    * ==========================================
    */
 
@@ -3007,17 +3179,24 @@ const generateRepaymentScheduleSterlionUbl = async (
       `,
       [
         /*
-         * PMT EMI.
+         * IMPORTANT:
+         *
+         * UPFRONT_INTEREST:
+         *
+         * emi_amount =
+         * PRINCIPAL ONLY
          *
          * Example:
-         * 412998.53
+         *
+         * 350000
          */
         regularEmi,
 
         /*
-         * Total PMT-derived interest.
+         * PMT-derived total interest.
          *
          * Example:
+         *
          * 629985.25
          */
         upfrontInterestAmount,
@@ -3026,6 +3205,7 @@ const generateRepaymentScheduleSterlionUbl = async (
          * Full loan principal.
          *
          * Example:
+         *
          * 3500000
          */
         repayablePrincipal,
@@ -3035,7 +3215,8 @@ const generateRepaymentScheduleSterlionUbl = async (
     );
 
   if (
-    loanUpdateResult.affectedRows !== 1
+    loanUpdateResult
+      .affectedRows !== 1
   ) {
     throw new Error(
       `Unable to update booking values ` +
@@ -3049,51 +3230,52 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
+  /*
+   * First EMI.
+   *
+   * UPFRONT:
+   * principal only.
+   */
   const firstInstallmentAmount =
-    schedule[0]?.emi || 0;
+    schedule[0]?.emi ||
+    0;
 
   /*
-   * Total EMI amount in RPS.
+   * Actual first payment.
+   *
+   * UPFRONT:
+   *
+   * principal + interest.
    */
+  const firstPaymentAmount =
+    schedule[0]
+      ?.paymentAmount ||
+    0;
+
+  /*
+   * ==========================================
+   * TOTAL EXPECTED REPAYMENT
+   * ==========================================
+   *
+   * Use paymentAmount,
+   * NOT EMI.
+   *
+   * UPFRONT EMI contains
+   * principal only.
+   */
+
   const totalExpectedRepayment =
     round2(
       schedule.reduce(
-        (total, installment) =>
+        (
+          total,
+          installment,
+        ) =>
           total +
           Number(
-            installment.emi || 0,
-          ),
-        0,
-      ),
-    );
-
-  /*
-   * Total principal.
-   *
-   * Must equal full loan amount.
-   */
-  const totalPrincipal =
-    round2(
-      schedule.reduce(
-        (total, installment) =>
-          total +
-          Number(
-            installment.principal || 0,
-          ),
-        0,
-      ),
-    );
-
-  /*
-   * Total allocated interest.
-   */
-  const totalInterestInRps =
-    round2(
-      schedule.reduce(
-        (total, installment) =>
-          total +
-          Number(
-            installment.interest || 0,
+            installment
+              .paymentAmount ||
+              0,
           ),
         0,
       ),
@@ -3101,7 +3283,53 @@ const generateRepaymentScheduleSterlionUbl = async (
 
   /*
    * ==========================================
-   * VALIDATE PRINCIPAL
+   * TOTAL PRINCIPAL
+   * ==========================================
+   */
+
+  const totalPrincipal =
+    round2(
+      schedule.reduce(
+        (
+          total,
+          installment,
+        ) =>
+          total +
+          Number(
+            installment
+              .principal ||
+              0,
+          ),
+        0,
+      ),
+    );
+
+  /*
+   * ==========================================
+   * TOTAL INTEREST
+   * ==========================================
+   */
+
+  const totalInterestInRps =
+    round2(
+      schedule.reduce(
+        (
+          total,
+          installment,
+        ) =>
+          total +
+          Number(
+            installment
+              .interest ||
+              0,
+          ),
+        0,
+      ),
+    );
+
+  /*
+   * ==========================================
+   * PRINCIPAL VALIDATION
    * ==========================================
    */
 
@@ -3120,7 +3348,7 @@ const generateRepaymentScheduleSterlionUbl = async (
 
   /*
    * ==========================================
-   * VALIDATE UPFRONT INTEREST
+   * INTEREST VALIDATION
    * ==========================================
    */
 
@@ -3135,6 +3363,26 @@ const generateRepaymentScheduleSterlionUbl = async (
       `Upfront interest allocation mismatch. ` +
         `Expected: ${upfrontInterestAmount}, ` +
         `RPS total: ${totalInterestInRps}`,
+    );
+  }
+
+  /*
+   * ==========================================
+   * TOTAL PAYMENT VALIDATION
+   * ==========================================
+   */
+
+  if (
+    isUpfrontInterest &&
+    Math.abs(
+      totalExpectedRepayment -
+        pmtTotalRepayment,
+    ) > 0.01
+  ) {
+    throw new Error(
+      `Total repayment mismatch. ` +
+        `Expected: ${pmtTotalRepayment}, ` +
+        `RPS total: ${totalExpectedRepayment}`,
     );
   }
 
@@ -3168,30 +3416,59 @@ const generateRepaymentScheduleSterlionUbl = async (
         numericProcessingFee,
 
       /*
-       * UPFRONT_INTEREST values
+       * PMT EMI.
+       *
+       * Used only to derive interest.
+       */
+      pmtCalculatedEmi:
+        isUpfrontInterest
+          ? pmtCalculatedEmi
+          : undefined,
+
+      /*
+       * Raw PMT.
        */
       rawPmtEmi:
         isUpfrontInterest
           ? rawPmtEmi
           : undefined,
 
-      pmtEmi:
-        regularEmi,
-
+      /*
+       * Total principal + interest.
+       */
       pmtTotalRepayment:
         isUpfrontInterest
           ? pmtTotalRepayment
           : undefined,
 
+      /*
+       * Total derived interest.
+       */
       upfrontInterestAmount,
 
+      /*
+       * Monthly allocated interest.
+       */
       regularUpfrontInterest,
 
+      /*
+       * Monthly principal.
+       */
       regularUpfrontPrincipal,
+
+      /*
+       * EMI stored in DB.
+       *
+       * UPFRONT:
+       * principal only.
+       */
+      regularEmi,
 
       repayablePrincipal,
 
       firstInstallmentAmount,
+
+      firstPaymentAmount,
 
       totalPrincipal,
 
@@ -3233,7 +3510,7 @@ const generateRepaymentScheduleSterlionUbl = async (
       upfrontInterestAmount,
 
     /*
-     * Flat monthly RPS interest.
+     * Monthly allocated interest.
      */
     upfront_interest_per_installment:
       regularUpfrontInterest,
@@ -3245,8 +3522,7 @@ const generateRepaymentScheduleSterlionUbl = async (
       repayablePrincipal,
 
     /*
-     * Full loan principal because RPS
-     * is created on loan amount basis.
+     * Full loan amount.
      */
     net_repayable_amount:
       repayablePrincipal,
@@ -3255,13 +3531,43 @@ const generateRepaymentScheduleSterlionUbl = async (
       numericTenure,
 
     /*
-     * Original PMT-calculated EMI.
+     * IMPORTANT:
+     *
+     * UPFRONT_INTEREST:
+     *
+     * EMI = principal only.
+     *
+     * Example:
+     * 350000
      */
     emi_amount:
       regularEmi,
 
+    /*
+     * PMT EMI used to derive interest.
+     *
+     * Example:
+     * 412998.53
+     */
+    pmt_calculated_emi:
+      isUpfrontInterest
+        ? pmtCalculatedEmi
+        : regularEmi,
+
+    /*
+     * First EMI.
+     *
+     * Principal only for upfront.
+     */
     first_installment_amount:
       firstInstallmentAmount,
+
+    /*
+     * Actual principal + interest
+     * payment amount.
+     */
+    first_payment_amount:
+      firstPaymentAmount,
 
     total_principal:
       totalPrincipal,
@@ -3269,15 +3575,15 @@ const generateRepaymentScheduleSterlionUbl = async (
     total_interest_in_rps:
       totalInterestInRps,
 
+    /*
+     * Principal + interest total.
+     */
     total_expected_repayment:
       totalExpectedRepayment,
 
     installment_count:
       schedule.length,
 
-    /*
-     * Helpful PMT calculation values.
-     */
     pmt_total_repayment:
       isUpfrontInterest
         ? pmtTotalRepayment
