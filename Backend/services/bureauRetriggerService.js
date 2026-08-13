@@ -47,7 +47,7 @@ const PARTNERS = {
     key: "loan_digit",
     lanPrefix: "LDF",
     table: "loan_booking_loan_digit",
-    scoreColumn: "cibil_score",
+    scoreColumn: "fintree_cibil_score",
     breStatusColumn: "loandigit_bre_status",
     breReasonColumn: "loandigit_bre_reason",
     breCheckedAtColumn: "loandigit_bre_checked_at",
@@ -248,7 +248,58 @@ async function retriggerBureau(lan, opts = {}) {
   // );
 
   /* ── 5. Build request ── */
-  const dobFormatted = String(loan.dob || "").replace(/-/g, "").slice(0, 8);
+  const formatDobForBureau = (dob) => {
+    if (!dob) return "";
+
+    // MySQL/mysql2 Date object
+    if (dob instanceof Date && !isNaN(dob.getTime())) {
+      const year = dob.getFullYear();
+      const month = String(dob.getMonth() + 1).padStart(2, "0");
+      const day = String(dob.getDate()).padStart(2, "0");
+
+      return `${year}${month}${day}`;
+    }
+
+    const value = String(dob).trim();
+
+    // YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss...
+    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+    if (isoMatch) {
+      return `${isoMatch[1]}${isoMatch[2]}${isoMatch[3]}`;
+    }
+
+    // Already YYYYMMDD
+    if (/^\d{8}$/.test(value)) {
+      return value;
+    }
+
+    return "";
+  };
+
+  const dobFormatted = formatDobForBureau(loan.dob);
+
+  console.log("[BUREAU] DOB DEBUG", {
+    lan,
+    rawDob: loan.dob,
+    rawDobType: typeof loan.dob,
+    isDateObject: loan.dob instanceof Date,
+    dobFormatted,
+  });
+
+  if (!/^\d{8}$/.test(dobFormatted)) {
+    await markBureauFailed(
+      partner,
+      lan,
+      `INVALID_DOB: ${loan.dob}`
+    );
+
+    return {
+      success: false,
+      reason: `INVALID_DOB: ${loan.dob}`,
+      partner: partner.key,
+    };
+  }
   const genderValue = String(loan.gender || "Male").trim().toLowerCase();
   const gender_code = genderValue === "female" ? 2 : 1;
 
@@ -278,6 +329,14 @@ async function retriggerBureau(lan, opts = {}) {
     dobFormatted,
     state_code,
   });
+
+  console.log("[BUREAU] OUTGOING REQUEST", {
+  lan,
+  dobFormatted,
+  dobTagPresent: soapBody.includes(
+    `<DateOfBirth>${dobFormatted}</DateOfBirth>`
+  ),
+});
 
   /* ── 6. Call Experian ── */
   let response;
@@ -413,6 +472,20 @@ async function retriggerBureau(lan, opts = {}) {
   const scoreNum = Number(scoreRaw);
   const score =
     Number.isFinite(scoreNum) && scoreNum > 0 ? scoreNum : null;
+
+  if (score === null) {
+    await markBureauFailed(
+      partner,
+      lan,
+      "BUREAU_SCORE_MISSING"
+    );
+
+    return {
+      success: false,
+      reason: "BUREAU_SCORE_MISSING",
+      partner: partner.key,
+    };
+  }
 
   /* ── 10. Persist ── */
   try {
