@@ -3091,7 +3091,7 @@ const generateRepaymentScheduleSterlionUbl = async (
         /*
          * Number of remaining EMIs.
          */
-        installment.remainingEmi,
+        installment.emi,
 
         /*
          * UPFRONT = always 0.
