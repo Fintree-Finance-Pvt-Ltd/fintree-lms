@@ -674,6 +674,7 @@ async function processRows(sheetData, res) {
 
         queryDB(`SELECT lan FROM loan_booking_wctl_ffpl WHERE lan IN (?)`, [uniqueLANs]),
         queryDB(`SELECT lan FROM loan_booking_saswat WHERE lan IN (?)`, [uniqueLANs]),
+        queryDB(`SELECT lan FROM loan_booking_seven_fincorp WHERE lan IN (?)`, [uniqueLANs]),
 
         queryDB(`SELECT lan FROM loan_booking_sterlion_ubl WHERE lan IN (?)`,[uniqueLANs],), // Added for sterlion ubl
 

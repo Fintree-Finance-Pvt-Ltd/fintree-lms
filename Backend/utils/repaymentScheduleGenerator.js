@@ -10096,6 +10096,30 @@ console.log("checking data", {
     product,
   );
 } 
+else if (lan.startsWith("SFL")) {
+  console.log(
+    "[SEVEN FINCORP RPS GENERATION START]",
+    {
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    },
+  );
+
+  await generateRepaymentScheduleSevenFincorp(
+    conn,
+    lan,
+    loanAmount,
+    interestRate,
+    Number(tenure),
+    disbursementDate,
+    product,
+  );
+}
 else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
   }
@@ -10861,6 +10885,432 @@ const generateRepaymentScheduleSaswat = async (
   };
 };
 
+
+const getDayDifference = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  // Remove time impact
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+
+  return Math.round(
+    (end.getTime() - start.getTime()) / ONE_DAY
+  );
+};
+
+// First due date = 5th of next month
+const getSevenFincorpFirstDueDate = (disbursementDate) => {
+  const date = new Date(disbursementDate);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(
+      `Invalid disbursement date: ${disbursementDate}`
+    );
+  }
+
+  return new Date(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    5
+  );
+};
+
+const addMonthsToDueDate = (date, months) => {
+  return new Date(
+    date.getFullYear(),
+    date.getMonth() + months,
+    5
+  );
+};
+
+const calculateSevenFincorpEmi = (
+  principal,
+  annualRate,
+  tenure
+) => {
+  const monthlyRate =
+    Number(annualRate) / 100 / 12;
+
+  if (monthlyRate === 0) {
+    return round2(
+      Number(principal) / Number(tenure)
+    );
+  }
+
+  const factor = Math.pow(
+    1 + monthlyRate,
+    tenure
+  );
+
+  return round2(
+    (Number(principal) *
+      monthlyRate *
+      factor) /
+      (factor - 1)
+  );
+};
+
+const generateRepaymentScheduleSevenFincorp = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+) => {
+  loanAmount = Number(loanAmount);
+  interestRate = Number(interestRate);
+  tenure = Number(tenure);
+
+  console.log("[SF RPS RECEIVED]", {
+    lan,
+    loanAmount,
+    interestRate,
+    tenure,
+    disbursementDate,
+    product,
+  });
+
+  if (!lan) {
+    throw new Error("Seven Fincorp LAN is required");
+  }
+
+  if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
+    throw new Error(
+      `Invalid Seven Fincorp loan amount: ${loanAmount}`,
+    );
+  }
+
+  if (
+    !Number.isFinite(interestRate) ||
+    interestRate < 0
+  ) {
+    throw new Error(
+      `Invalid Seven Fincorp ROI: ${interestRate}`,
+    );
+  }
+
+  if (
+    !Number.isInteger(tenure) ||
+    tenure <= 0
+  ) {
+    throw new Error(
+      `Invalid Seven Fincorp tenure: ${tenure}`,
+    );
+  }
+
+  const disbDate = new Date(disbursementDate);
+
+  if (Number.isNaN(disbDate.getTime())) {
+    throw new Error(
+      `Invalid Seven Fincorp disbursement date: ${disbursementDate}`,
+    );
+  }
+
+  /*
+   * ========================================
+   * FIRST DUE DATE
+   * ========================================
+   *
+   * Example:
+   * Disbursement: 12-12-2025
+   * First Due:    05-01-2026
+   */
+  const firstDueDate =
+    getSevenFincorpFirstDueDate(disbDate);
+
+  /*
+   * ========================================
+   * PRE-EMI DAYS
+   * ========================================
+   */
+  const preEmiDays = getDayDifference(
+    disbDate,
+    firstDueDate,
+  );
+
+  /*
+   * ========================================
+   * PRE-EMI - 360 DAY BASIS
+   * ========================================
+   */
+  const preEmi = round2(
+    loanAmount *
+      (interestRate / 100) *
+      (preEmiDays / 360),
+  );
+
+  /*
+   * Monthly_360:
+   *
+   * annual rate × 30 / 360
+   * =
+   * annual rate / 12
+   */
+  const monthlyRate =
+    interestRate / 100 / 12;
+
+  const normalEmi =
+    calculateSevenFincorpEmi(
+      loanAmount,
+      interestRate,
+      tenure,
+    );
+
+  console.log("[SF PRE EMI]", {
+    lan,
+    disbursementDate:
+      formatDateYMD(disbDate),
+    firstDueDate:
+      formatDateYMD(firstDueDate),
+    preEmiDays,
+    preEmi,
+    normalEmi,
+  });
+
+  let opening = loanAmount;
+
+  const schedule = [];
+
+  /*
+   * ========================================
+   * GENERATE EMI SCHEDULE
+   * ========================================
+   */
+  for (
+    let installment = 1;
+    installment <= tenure;
+    installment++
+  ) {
+    const dueDate =
+      addMonthsToDueDate(
+        firstDueDate,
+        installment - 1,
+      );
+
+    const regularInterest = round2(
+      opening * monthlyRate,
+    );
+
+    let regularEmi = normalEmi;
+    let principal;
+
+    /*
+     * Last EMI adjusted for rounding.
+     */
+    if (installment === tenure) {
+      principal = round2(opening);
+
+      regularEmi = round2(
+        principal + regularInterest,
+      );
+    } else {
+      principal = round2(
+        regularEmi - regularInterest,
+      );
+    }
+
+    /*
+     * PRE-EMI ONLY IN FIRST INSTALLMENT
+     */
+    const currentPreEmi =
+      installment === 1
+        ? preEmi
+        : 0;
+
+    /*
+     * First EMI:
+     *
+     * regular EMI + pre EMI
+     */
+    const totalDue = round2(
+      regularEmi + currentPreEmi,
+    );
+
+    /*
+     * First interest:
+     *
+     * regular interest + pre EMI
+     */
+    const totalInterest = round2(
+      regularInterest + currentPreEmi,
+    );
+
+    /*
+     * IMPORTANT:
+     *
+     * Pre EMI must NOT reduce principal.
+     *
+     * Example:
+     *
+     * Total Due       = 19,369.76
+     * Total Interest  = 3,600.00
+     * Principal       = 15,769.76
+     */
+    principal = round2(
+      totalDue - totalInterest,
+    );
+
+    let closing = round2(
+      opening - principal,
+    );
+
+    if (
+      installment === tenure ||
+      Math.abs(closing) < 0.01
+    ) {
+      closing = 0;
+    }
+
+    schedule.push({
+      lan,
+
+      due_date:
+        formatDateYMD(dueDate),
+
+      status: "Pending",
+
+      emi: totalDue,
+
+      interest: totalInterest,
+
+      principal,
+
+      opening: round2(opening),
+
+      closing,
+
+      remaining_emi: totalDue,
+
+      remaining_interest:
+        totalInterest,
+
+      remaining_principal:
+        principal,
+
+      payment_date: null,
+
+      dpd: 0,
+
+      remaining_amount: 0,
+
+      extra_paid: 0,
+    });
+
+    opening = closing;
+  }
+
+  /*
+   * ========================================
+   * REMAINING AMOUNT
+   * ========================================
+   */
+  let remainingAmount = 0;
+
+  for (
+    let i = schedule.length - 1;
+    i >= 0;
+    i--
+  ) {
+    remainingAmount = round2(
+      remainingAmount +
+        schedule[i].emi,
+    );
+
+    schedule[i].remaining_amount =
+      remainingAmount;
+  }
+
+  /*
+   * ========================================
+   * DELETE OLD RPS
+   * ========================================
+   *
+   * Useful if UTR upload is retried.
+   */
+  await conn.query(
+    `
+    DELETE FROM manual_rps_seven_fincorp
+    WHERE lan = ?
+    `,
+    [lan],
+  );
+
+  /*
+   * ========================================
+   * INSERT INTO MANUAL RPS
+   * ========================================
+   */
+  for (const row of schedule) {
+    await conn.query(
+  `
+  INSERT INTO manual_rps_seven_fincorp
+  (
+    lan,
+    due_date,
+    status,
+    emi,
+    interest,
+    principal,
+    opening,
+    closing,
+    remaining_emi,
+    remaining_interest,
+    remaining_principal,
+    payment_date,
+    dpd,
+    remaining_amount,
+    extra_paid
+  )
+  VALUES
+  (
+    ?, ?, ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?, ?
+  )
+  `,
+  [
+    row.lan,
+    row.due_date,
+    row.status,
+    row.emi,
+    row.interest,
+    row.principal,
+    row.opening,
+    row.closing,
+    row.remaining_emi,
+    row.remaining_interest,
+    row.remaining_principal,
+    row.payment_date,
+    row.dpd,
+    row.remaining_amount,
+    row.extra_paid,
+  ],
+);
+  }
+
+  console.log(
+    "[SEVEN FINCORP RPS GENERATED]",
+    {
+      lan,
+      rowsInserted: schedule.length,
+      firstDueDate:
+        formatDateYMD(firstDueDate),
+      preEmiDays,
+      preEmi,
+      normalEmi,
+      firstDueAmount:
+        schedule[0]?.emi,
+    },
+  );
+
+  return schedule;
+};
+
+
 module.exports = {
   generateRepaymentScheduleEV,
   generateRepaymentScheduleHEYEV,
@@ -10889,4 +11339,5 @@ module.exports = {
   generateRepaymentScheduleWctlFfpl,
   generateRepaymentScheduleSterlionUbl,
   generateRepaymentScheduleSaswat,
+  generateRepaymentScheduleSevenFincorp,
 };

@@ -834,19 +834,23 @@ WHERE lan = ?`,
      WHERE lan = ?`,
     [lan],
      );
-} else if (lan.startsWith("SFL")) {
-          [loanRes] = await db.promise().query(
-            `SELECT 
+} 
+else if (lan.startsWith("SFL")) {
+  [loanRes] = await db.promise().query(
+    `
+    SELECT
       loan_amount,
       interest_rate,
       loan_tenure,
       product,
       lender
-     FROM loan_booking_seven_fincorp
-     WHERE lan = ?`,
-            [lan],
-          );
-            } else if (lan.startsWith("MCL")) {
+    FROM loan_booking_seven_fincorp
+    WHERE lan = ?
+    `,
+    [lan],
+  );
+}
+ else if (lan.startsWith("MCL")) {
           [loanRes] = await db.promise().query(
             `SELECT 
       loan_amount,

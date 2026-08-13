@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS `pl_partner_applications` (
   `lan` VARCHAR(50) NOT NULL,
   `source_system` VARCHAR(100) NOT NULL,
   `product_code` VARCHAR(60) NOT NULL,
+  `requested_amount` DECIMAL(18,2) NULL,
+  `requested_tenure` INT NULL,
+  `tenure_type` VARCHAR(20) NULL,
   `create_request_hash` CHAR(64) NOT NULL,
   `status` ENUM(
     'CREATED',
@@ -134,6 +137,38 @@ CREATE TABLE IF NOT EXISTS `pl_partner_applications` (
 
   `latest_details_version` INT NULL,
   `details_updated_at` DATETIME(3) NULL,
+
+  -- Selected offer (populated at details V2+)
+  `selected_offer_amount` DECIMAL(18,2) NULL,
+  `selected_offer_tenure` INT NULL,
+  `selected_offer_selected_at` DATETIME(3) NULL,
+
+  -- Bank details (populated at details V3+)
+  `bank_account_holder_name` VARCHAR(200) NULL,
+  `bank_account_number` VARCHAR(100) NULL,
+  `bank_ifsc_code` VARCHAR(11) NULL,
+  `bank_name` VARCHAR(150) NULL,
+  `bank_account_type` VARCHAR(30) NULL,
+  `bank_verified_at` DATETIME(3) NULL,
+
+  -- eNACH mandate (populated at details V4+)
+  `mandate_umrn` VARCHAR(100) NULL,
+  `mandate_provider` VARCHAR(50) NULL,
+  `mandate_type` VARCHAR(50) NULL,
+  `mandate_authorized_at` DATETIME(3) NULL,
+
+  -- BRE (approve endpoint) snapshot. See Backend/routes/fintreePlPartnerApi/services/plPartnerBre.js
+  `bre_policy_version` VARCHAR(60) NULL,
+  `bre_decision_stage` VARCHAR(30) NULL,
+  `bre_status` VARCHAR(30) NULL,
+  `bre_reason` VARCHAR(100) NULL,
+  `bre_credit_limit` DECIMAL(18,2) NULL,
+  `bre_approved_loan_amount` DECIMAL(18,2) NULL,
+  `bre_checked_at` DATETIME(3) NULL,
+  `bre_details_json` LONGTEXT NULL,
+  `bre_final_status` VARCHAR(30) NULL,
+  `bre_final_reason` VARCHAR(100) NULL,
+
   `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
@@ -244,6 +279,25 @@ CREATE TABLE IF NOT EXISTS `pl_partner_application_detail_versions` (
   `evidence_longitude` DECIMAL(10,7) NULL,
   `evidence_captured_at` DATETIME(3) NULL,
   `evidence_verified_at` DATETIME(3) NULL,
+
+  -- Selected offer (populated at V2+)
+  `selected_offer_amount` DECIMAL(18,2) NULL,
+  `selected_offer_tenure` INT NULL,
+  `selected_offer_selected_at` DATETIME(3) NULL,
+
+  -- Bank details (populated at V3+)
+  `bank_account_holder_name` VARCHAR(200) NULL,
+  `bank_account_number` VARCHAR(100) NULL,
+  `bank_ifsc_code` VARCHAR(11) NULL,
+  `bank_name` VARCHAR(150) NULL,
+  `bank_account_type` VARCHAR(30) NULL,
+  `bank_verified_at` DATETIME(3) NULL,
+
+  -- eNACH mandate (populated at V4+)
+  `mandate_umrn` VARCHAR(100) NULL,
+  `mandate_provider` VARCHAR(50) NULL,
+  `mandate_type` VARCHAR(50) NULL,
+  `mandate_authorized_at` DATETIME(3) NULL,
 
   -- Keep full JSON blob for backward compatibility
   `details_json` LONGTEXT NOT NULL,

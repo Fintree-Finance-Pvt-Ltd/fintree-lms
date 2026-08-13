@@ -9538,10 +9538,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
 
 const SASWAT_LAP_HEADERS = [
   "product",
-  "loanAmount",
-  "tenureMonths",
-  "interestRate",
-  "processingFee",
+  
   "firstName",
   "lastName",
   "aadhaarNumber",
@@ -9559,7 +9556,17 @@ const SASWAT_LAP_HEADERS = [
   "businessAddress",
   "gstNumber",
   "udyamNumber",
-
+  "loanAmount",
+  "tenureMonths",
+  "interestRate",
+  "processingFee",
+  "ckycCharges",
+  "ckycChargesGst",
+  "documentCharges",
+  "documentChargesGst",
+  "insuranceCharges",
+  "preEmi",
+  "deductionAmount",
   // Property details
   "propertyType",
   "propertyUsage",
@@ -9870,24 +9877,6 @@ router.post("/saswat-upload", upload.single("file"),async (req, res) => {
         const product =
           normalizeOptionalValue(row.product);
 
-        const loanAmount =
-          parseSaswatNumber(row.loanAmount);
-
-        const loanTenure =
-          parseSaswatInteger(row.tenureMonths);
-
-        const interestRate =
-          parseSaswatNumber(row.interestRate);
-
-        const processingFeeRaw =
-          normalizeOptionalValue(
-            row.processingFee,
-          );
-
-        const processingFee =
-          parseSaswatNumber(row.processingFee) ||
-          0;
-
         /*
          * Borrower details.
          */
@@ -9966,6 +9955,45 @@ router.post("/saswat-upload", upload.single("file"),async (req, res) => {
             row.udyamNumber,
           );
 
+          
+        const loanAmount =
+          parseSaswatNumber(row.loanAmount);
+
+        const loanTenure =
+          parseSaswatInteger(row.tenureMonths);
+
+        const interestRate =
+          parseSaswatNumber(row.interestRate);
+
+        const processingFeeRaw =
+          normalizeOptionalValue(
+            row.processingFee,
+          );
+
+        const processingFee =
+          parseSaswatNumber(row.processingFee) ||
+          0;
+
+          const ckycCharges =
+  parseSaswatNumber(row.ckycCharges) ?? 0;
+
+const ckycChargesGst =
+  parseSaswatNumber(row.ckycChargesGst) ?? 0;
+
+const documentCharges =
+  parseSaswatNumber(row.documentCharges) ?? 0;
+
+const documentChargesGst =
+  parseSaswatNumber(row.documentChargesGst) ?? 0;
+
+const insuranceCharges =
+  parseSaswatNumber(row.insuranceCharges) ?? 0;
+
+const preEmi =
+  parseSaswatNumber(row.preEmi) ?? 0;
+
+const deductionAmount =
+  parseSaswatNumber(row.deductionAmount) ?? 0;
         /*
          * Bank details.
          */
@@ -10824,6 +10852,22 @@ router.post("/saswat-upload", upload.single("file"),async (req, res) => {
           processing_fee: processingFee,
           processing_fee_gst:
             processingFeeGst,
+            ckyc_charges: ckycCharges,
+ckyc_charges_gst: ckycChargesGst,
+
+document_charges:
+  documentCharges,
+
+document_charges_gst:
+  documentChargesGst,
+
+insurance_charges:
+  insuranceCharges,
+
+pre_emi: preEmi,
+
+deduction_amount:
+  deductionAmount,
           other_charges: otherCharges,
 
           fldg_required: requiredFldg,
@@ -12255,7 +12299,7 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_loan_digit";
   } else if (lan.startsWith("MC")) {
     tableName = "manual_rps_motioncorp";
-  } else if (lan.startsWith("SF")) {
+  } else if (lan.startsWith("SFL")) {
     tableName = "manual_rps_seven_fincorp";
   } else if (lan.startsWith("BUN")) {
     tableName = "manual_rps_bundela";

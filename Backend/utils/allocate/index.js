@@ -48,6 +48,7 @@ const allocateSterlion = require("./allocateSterlion");
 const allocateWctlffpl = require("./allocateWctlffpl");
 const allocateSterlionUBL = require("./allocateSterlionUbl"); //
 const allocateSaswat = require("./allocateSaswat");
+const allocateSevenFincorp = require("./allocateSevenFincorp");
 
 /**
  * Utility helpers for merging allocation results.
@@ -86,7 +87,9 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   if (lan.startsWith("WCTLFFPL")) {
     return allocateWctlffpl(lan, payment);
   }
-
+ else if (lan.startsWith("SFL")) {
+return allocateSevenFincorp(lan, payment);
+  }
   // Other allocators...
 
   else if (lan.startsWith("EV") || lan.startsWith("WCTL")) {

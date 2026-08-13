@@ -15,7 +15,7 @@ const {
   buildBreSnapshot,
 } = require("./carePayBreEngine");
 const { approveAndInitiatePayout } = require("../../services/payout.service");
-
+const { XMLParser } = require("fast-xml-parser");
 const router = express.Router();
 const loanBookingRouter = express.Router();
 
@@ -393,9 +393,9 @@ function buildCarePayStatusResponse(row) {
   const parsedCreditLimit = Number(row.loan_amount);
   const creditLimit =
     row.loan_amount === null ||
-    row.loan_amount === undefined ||
-    row.loan_amount === "" ||
-    !Number.isFinite(parsedCreditLimit)
+      row.loan_amount === undefined ||
+      row.loan_amount === "" ||
+      !Number.isFinite(parsedCreditLimit)
       ? null
       : parsedCreditLimit;
 
@@ -455,6 +455,56 @@ loanBookingRouter.get(
     }
   },
 );
+
+/////////////   DISBURSEMNT UTR FATCH API FOR CAREPAY CASES  //////////
+
+loanBookingRouter.get(
+  "/v1/disbursement-data",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      const lan = String(req.query.lan || "").trim();
+
+      if (!lan) {
+        return res.status(400).json({
+          message: "lan is required.",
+        });
+      }
+
+      const [rows] = await db.promise().query(
+        `
+        SELECT
+          lan,
+          DATE_FORMAT(Disbursement_Date, '%Y-%m-%d') AS disbursement_date,
+          COALESCE(utr, Disbursement_UTR) AS utr
+        FROM ev_disbursement_utr
+        WHERE lan = ?
+        LIMIT 1
+        `,
+        [lan],
+      );
+
+      if (!rows.length) {
+        return res.status(404).json({
+          message: "Disbursement data not found.",
+        });
+      }
+
+      return res.status(200).json({
+        message: "Disbursement data fetched successfully.",
+        data: rows[0],
+      });
+    } catch (error) {
+      console.error("Disbursement data fetch error:", error);
+
+      return res.status(500).json({
+        message: "Failed to fetch disbursement data.",
+        error: error.sqlMessage || error.message,
+      });
+    }
+  },
+);
+
 
 router.get("/customer-details/:lan", async (req, res) => {
   const lan = String(req.params.lan || "").trim().toUpperCase();
@@ -1258,9 +1308,8 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       decision: breDecision,
     });
 
-    const customer_name = `${data.first_name || ""} ${
-      data.last_name || ""
-    }`.trim();
+    const customer_name = `${data.first_name || ""} ${data.last_name || ""
+      }`.trim();
 
     const agreement_date = data.login_date;
 
@@ -1467,9 +1516,207 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     });
   }
 });
+//BRE Trigger for CarePay loan booking
+loanBookingRouter.post("/v1/carepay-bre/:lan", verifyApiKey, async (req, res) => {
+  try {
+    const lan = String(req.params.lan || "").trim();
 
+    if (!lan) {
+      return res.status(400).json({
+        message: "LAN is required",
+      });
+    }
 
+    // 1. Fetch CarePay loan
+    const [loanRows] = await db.promise().query(
+      `
+        SELECT *
+        FROM loan_booking_carepay
+        WHERE lan = ?
+        LIMIT 1
+        `,
+      [lan],
+    );
 
+    if (!loanRows.length) {
+      return res.status(404).json({
+        message: "CarePay loan not found",
+        lan,
+      });
+    }
+
+    const loan = loanRows[0];
+
+    // 2. Bureau must already be VERIFIED
+    const [kycRows] = await db.promise().query(
+      `
+  SELECT bureau_status, bureau_api_response
+  FROM kyc_verification_status
+  WHERE lan = ?
+  LIMIT 1
+  `,
+      [lan],
+    );
+
+    if (!kycRows.length) {
+      return res.status(400).json({
+        message: "Bureau record not found",
+        lan,
+      });
+    }
+
+    const kyc = kycRows[0];
+
+    if (
+      String(kyc.bureau_status || "").trim().toUpperCase() !== "VERIFIED"
+    ) {
+      return res.status(400).json({
+        message: "BRE cannot run until bureau is VERIFIED",
+        lan,
+        bureau_status: kyc.bureau_status,
+      });
+    }
+
+    // 3. Get latest bureau report
+    const [bureauRows] = await db.promise().query(
+      `
+  SELECT score, report_xml
+  FROM loan_cibil_reports
+  WHERE lan = ?
+  ORDER BY created_at DESC, id DESC
+  LIMIT 1
+  `,
+      [lan],
+    );
+
+    const bureauReport = bureauRows[0] || {};
+
+    // Prefer latest bureau score
+    const bureauScore =
+      toFiniteNumber(bureauReport.score) ??
+      toFiniteNumber(loan.cibil_score);
+
+    if (bureauScore === null) {
+      return res.status(400).json({
+        message: "Bureau is VERIFIED but CIBIL score not found",
+        lan,
+      });
+    }
+
+    // 4. Get stored bureau response for snapshot / DPD extraction
+    let bureauResponse = null;
+
+    const parseBureauResponse = (value) => {
+      if (!value) return null;
+
+      if (typeof value === "object") {
+        return value;
+      }
+
+      // First support old JSON values if any
+      try {
+        return JSON.parse(value);
+      } catch { }
+
+      // Experian XML
+      try {
+        const parser = new XMLParser({
+          ignoreAttributes: false,
+          attributeNamePrefix: "",
+          trimValues: true,
+        });
+
+        return parser.parse(String(value));
+      } catch {
+        return null;
+      }
+    };
+
+    bureauResponse =
+      parseBureauResponse(bureauReport.report_xml) ||
+      parseBureauResponse(kyc.bureau_api_response);
+
+    // IMPORTANT:
+    // DB me loan_type "product" column me save ho raha hai
+    const data = {
+      ...loan,
+
+      loan_type: loan.product,
+
+      cibil_score: bureauScore,
+    };
+
+    const requestAmount =
+      toFiniteNumber(loan.request_amount) ??
+      toFiniteNumber(loan.loan_amount);
+
+    if (requestAmount === null) {
+      return res.status(400).json({
+        message: "Loan amount not found",
+        lan,
+      });
+    }
+
+    // 5. RUN BRE
+    const breDecision = evaluateCarePayLoginBre({
+      data,
+      requestAmount,
+      bureauScore,
+    });
+
+    // 6. Build BRE snapshot
+    const breSnapshot = buildBreSnapshot({
+      data,
+      requestAmount,
+      bureauScore,
+      decision: breDecision,
+      bureauResponse,
+    });
+
+    // 7. Update loan
+    await db.promise().query(
+      `
+        UPDATE loan_booking_carepay
+        SET
+          status = ?,
+          cibil_score = ?,
+          bre_snapshot = ?
+        WHERE lan = ?
+        `,
+      [
+        breDecision.caseStatus,
+        bureauScore,
+        JSON.stringify(breSnapshot),
+        lan,
+      ],
+    );
+
+    return res.json({
+      is_success: true,
+      lan,
+
+      bureau_status: "VERIFIED",
+      cibil_score: bureauScore,
+
+      status: breDecision.caseStatus,
+
+      bre: {
+        status: breDecision.status,
+        reason: breDecision.reason,
+        reasons: breDecision.reasons,
+      },
+    });
+  } catch (error) {
+    console.error("CarePay BRE Error:", error);
+
+    return res.status(500).json({
+      is_success: false,
+      message: "Failed to run CarePay BRE",
+      error: error.sqlMessage || error.message,
+    });
+  }
+},
+);
 
 // router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
 //   try {
@@ -1826,7 +2073,6 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
           mandate_amount,
           umrn,
           father_name,
-          mother_name,
           bank_account_holder_name,
           bank_account_number,
           bank_name,
@@ -1848,7 +2094,6 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       hasValue(loan?.mandate_amount) &&
       hasValue(loan?.umrn) &&
       hasValue(loan?.father_name) &&
-      hasValue(loan?.mother_name) &&
       hasValue(loan?.bank_account_holder_name) &&
       hasValue(loan?.bank_account_number) &&
       hasValue(loan?.bank_name) &&
@@ -1882,7 +2127,6 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
           mandate_amount,
           umrn,
           father_name,
-          mother_name,
           bank_account_holder_name,
           bank_account_number,
           bank_name,
@@ -1902,7 +2146,6 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       hasValue(verifiedLoan?.mandate_amount) &&
       hasValue(verifiedLoan?.umrn) &&
       hasValue(verifiedLoan?.father_name) &&
-      hasValue(verifiedLoan?.mother_name) &&
       hasValue(verifiedLoan?.bank_account_holder_name) &&
       hasValue(verifiedLoan?.bank_account_number) &&
       hasValue(verifiedLoan?.bank_name) &&

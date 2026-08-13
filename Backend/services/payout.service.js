@@ -18,6 +18,7 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_loan_digit",
   "loan_booking_finso",
   "loan_booking_carepay",
+  "pl_partner_applications",
 ];
 
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
@@ -121,6 +122,20 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         INNER JOIN carepay_hospital_booking h
           ON h.lan = lb.hospital_lan
         WHERE lb.lan = ?
+        LIMIT 1
+      `;
+    }
+
+    if (table === "pl_partner_applications") {
+      loanQuery = `
+        SELECT
+          bank_account_holder_name AS beneficiary_name,
+          bre_approved_loan_amount AS loan_amount,
+          bank_account_number AS account_number,
+          bank_ifsc_code AS ifsc,
+          selected_offer_tenure AS tenure_days
+        FROM pl_partner_applications
+        WHERE lan = ?
         LIMIT 1
       `;
     }
@@ -417,6 +432,15 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
+    } else if (table === "pl_partner_applications") {
+      await sendFintreePlDisbursementWebhook({
+        lan,
+        utr: tr.unique_transaction_reference,
+        disbursementDate: tr.transfer_date,
+        amount,
+        tenureDays: loan.tenure_days,
+        eventId: "evt-" + unique_request_number,
+      });
     }
 
     console.log("🎉 PAYOUT FLOW COMPLETE", {
@@ -441,3 +465,85 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     throw err;
   }
 };
+
+async function sendFintreePlDisbursementWebhook({
+  lan,
+  utr,
+  disbursementDate,
+  amount,
+  tenureDays,
+  eventId,
+}) {
+  if (!Number.isInteger(tenureDays) || tenureDays <= 0) {
+    throw new Error("Invalid repayment tenure for LAN: " + lan);
+  }
+
+  const baseUrl = String(process.env.PLP_BASE_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+  const webhookUrl =
+    String(process.env.PLP_DISBURSAL_WEBHOOK_URL || "").trim() ||
+    (baseUrl ? baseUrl + "/api/webhooks/lenders/FFPL2026/disbursal" : "");
+
+  if (!webhookUrl) {
+    throw new Error(
+      "PLP_DISBURSAL_WEBHOOK_URL or PLP_BASE_URL is required for partner disbursement.",
+    );
+  }
+
+  const parsedDisbursementDate = new Date(disbursementDate);
+  if (Number.isNaN(parsedDisbursementDate.getTime())) {
+    throw new Error("Invalid disbursement date for LAN: " + lan);
+  }
+
+  const disbursementDateOnly = parsedDisbursementDate.toISOString().split("T")[0];
+  const firstRepayment = new Date(disbursementDateOnly + "T00:00:00.000Z");
+  firstRepayment.setUTCDate(firstRepayment.getUTCDate() + tenureDays);
+
+  const body = {
+    lan,
+    utr,
+    disbursement_date: disbursementDateOnly,
+    amount: String(amount),
+    firstRepaymentDate: firstRepayment.toISOString().split("T")[0],
+    status: "SUCCESS",
+    eventId,
+  };
+
+  const webhookSecret = String(process.env.PLP_DISBURSAL_WEBHOOK_SECRET || "").trim();
+
+  console.log("📤 Fintree PL disbursement webhook REQUEST:", {
+    webhookUrl,
+    PLP_BASE_URL: process.env.PLP_BASE_URL || null,
+    PLP_DISBURSAL_WEBHOOK_URL: process.env.PLP_DISBURSAL_WEBHOOK_URL || null,
+    webhookSecret,
+    webhookSecretLength: webhookSecret.length,
+    body,
+  });
+
+  try {
+    await axios.post(webhookUrl, body, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(webhookSecret ? { "x-pl-webhook-secret": webhookSecret } : {}),
+      },
+      timeout: 15000,
+    });
+  } catch (err) {
+    console.error("📥 Fintree PL disbursement webhook RESPONSE (failure):", {
+      webhookUrl,
+      status: err.response?.status || null,
+      statusText: err.response?.statusText || null,
+      responseHeaders: err.response?.headers || null,
+      responseData: err.response?.data || null,
+      errorMessage: err.message,
+    });
+    throw err;
+  }
+
+  console.log("Fintree PL disbursement webhook sent:", {
+    lan,
+    webhookUrl,
+    eventId,
+  });
+}

@@ -26,14 +26,24 @@ exports.initAadhaarKyc = async (lan, mobile_number, email_id, customer_name) => 
     ).toString("base64");
 
     const response = await axios.post(
-      `${process.env.DIGITAP_BASE_URL}/kyc-unified/v1/generate-url/`,
-      payload,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Basic ${authHeader}`,
-        },
-      }
+  `${process.env.DIGITAP_BASE_URL}/kyc-unified/v1/generate-url/`,
+  payload,
+  {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Basic ${authHeader}`,
+    },
+  }
+);
+
+    console.log("CLIENT ID:", process.env.DIGITAP_CLIENT_ID);
+    console.log(
+      "CLIENT SECRET EXISTS:",
+      !!process.env.DIGITAP_CLIENT_SECRET
+    );
+    console.log(
+      "BASE URL:",
+      process.env.DIGITAP_SMS_BASE_URL
     );
 
     const model = response.data.model;
@@ -41,7 +51,7 @@ exports.initAadhaarKyc = async (lan, mobile_number, email_id, customer_name) => 
     console.log("model", model);
     console.log("kycurl", kycUrl);
     const loanName = "Personal Loan";      // dynamic
-const validityMinutes = 10; 
+    const validityMinutes = 10;
     // -------------------------
     // SEND SMS TO CUSTOMER
     // -------------------------

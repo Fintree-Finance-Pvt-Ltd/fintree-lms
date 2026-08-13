@@ -112,18 +112,18 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = "lb.disbursal_amount";
   } 
-  // if (lan.startsWith("CARE")) {
-  //   tableName = "loan_booking_carepay";
-  //   loanAmountCol = "lb.loan_amount";
-  //   loanAmountExpr = "lb.loan_amount";
-  //   interestRateCol = "lb.interest_rate AS interest_rate";
-  //   tenureCol = "lb.loan_tenure";
-  //   processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
-  //   subventionCol = "0";
-  //   retentionCol = "0";
-  //   partnerLoanIdCol = "lb.partner_loan_id";
-  //   netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
-  // }
+  if (lan.startsWith("CARE")) {
+    tableName = "loan_booking_carepay";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate AS interest_rate";
+    tenureCol = "lb.loan_tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+  }
   // if (lan.startsWith("STRL")) {
   //   tableName = "loan_booking_sterlion";
   //   loanAmountCol = "COALESCE(lb.loan_amount, lb.request_amount) AS loan_amount";
@@ -201,7 +201,7 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(${loanAmountExpr} - ${processingFeeCol} - ${preEmi})`;
   } 
 
-  if (lan.startsWith("SF")) {
+  if (lan.startsWith("SFL")) {
     tableName = "loan_booking_seven_fincorp";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";
