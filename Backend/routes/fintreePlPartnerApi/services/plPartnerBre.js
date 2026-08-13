@@ -26,6 +26,7 @@ const {
   POLICY,
   calculateAge,
   validateLoanAmount,
+  calculateNetDisbursalAmount,
 } = require("./plPartnerPolicy");
 
 const POLICY_VERSION = "PL_PARTNER_POLICY_PLACEHOLDER_2026_08";
@@ -100,6 +101,7 @@ function createInitialRules() {
     UNSECURED_AGGREGATION_CHECK_RPM: rule(false, null, {}, false),
     CREDIT_LIMIT_CHECK_RPM: rule(false, null, {}, false),
     SELECTED_OFFER_CHECK_RPM: rule(false, null, {}, false),
+    PROCESSING_FEE_CHECK_RPM: rule(false, null, {}, false),
   };
 }
 
@@ -203,6 +205,7 @@ async function persistBreSnapshot(applicationId, stage, result) {
     SET
       bre_final_status = ?,
       bre_final_reason = ?,
+      bre_gross_approved_amount = ?,
       bre_approved_loan_amount = ?,
       bre_checked_at = NOW(),
       bre_details_json = ?
@@ -211,6 +214,7 @@ async function persistBreSnapshot(applicationId, stage, result) {
     [
       result.decision,
       result.reason,
+      result.grossApprovedLoanAmount,
       result.approvedLoanAmount,
       safeJson(result),
       applicationId,
@@ -225,7 +229,9 @@ function buildBaseResult() {
     reason: null,
     reasons: [],
     creditLimit: null,
-    approvedLoanAmount: null,
+    grossApprovedLoanAmount: null,
+    approvedLoanAmount: null, // net, after PF + GST deduction
+    disbursalBreakup: null,
     age: null,
     newCustomer: null,
     aml: null,
@@ -450,10 +456,36 @@ async function runFinalApproval(application) {
     },
   );
 
+  let disbursalBreakup = null;
+
+  if (selectedOfferValid) {
+    disbursalBreakup = calculateNetDisbursalAmount({
+      creditLimit: selectedOfferAmount,
+      processingFeeRate: application.processing_fee,
+    });
+
+    if (!disbursalBreakup.ok) {
+      addReason(reasons, disbursalBreakup.reason || "NET_DISBURSAL_AMOUNT_INVALID");
+    }
+  }
+
+  rules.PROCESSING_FEE_CHECK_RPM = rule(
+    selectedOfferValid && Boolean(disbursalBreakup?.ok),
+    !selectedOfferValid
+      ? null // already covered by SELECTED_OFFER_CHECK_RPM
+      : disbursalBreakup?.ok
+        ? null
+        : disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID",
+    disbursalBreakup || { applicable: selectedOfferValid },
+  );
+
   result.decision = reasons.length ? "REJECTED" : "APPROVED";
   result.reason = reasons[0] || null;
   result.reasons = reasons;
-  result.approvedLoanAmount = result.decision === "APPROVED" ? selectedOfferAmount : null;
+  result.disbursalBreakup = disbursalBreakup;
+  result.grossApprovedLoanAmount = result.decision === "APPROVED" ? selectedOfferAmount : null;
+  result.approvedLoanAmount =
+    result.decision === "APPROVED" ? disbursalBreakup.netDisbursalAmount : null;
 
   return result;
 }

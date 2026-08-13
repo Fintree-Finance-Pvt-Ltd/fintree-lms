@@ -95,12 +95,13 @@ async function createApplication({ clientId, payload, correlationId }) {
       `INSERT INTO pl_partner_applications
        (client_id, partner_application_id, partner_application_number,
         external_application_reference, lan, source_system, product_code,
-        requested_amount, requested_tenure, tenure_type, create_request_hash, status,
+        requested_amount, requested_tenure, tenure_type,
+        interest_rate, processing_fee, create_request_hash, status,
         customer_full_name, customer_first_name, customer_middle_name,
         customer_last_name, customer_father_name, pan_number, date_of_birth,
         gender, mobile_number, email, pan_verified, pan_provider_reference,
         pan_verified_at, created_at, updated_at)
-       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CREATED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         clientId,
         partnerApplicationId,
@@ -111,6 +112,8 @@ async function createApplication({ clientId, payload, correlationId }) {
         payload.requestedAmount,
         payload.requestedTenure,
         payload.tenureType,
+        payload.interestRate,
+        payload.processingFee,
         createRequestHash,
         payload.customer.fullName,
         payload.customer.firstName,

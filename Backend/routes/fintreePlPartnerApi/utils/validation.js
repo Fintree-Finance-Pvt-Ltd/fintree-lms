@@ -175,6 +175,30 @@ const validateCreatePayload = (input) => {
     );
   }
 
+  // Annual percentage as a plain number, e.g. 36.00 for 36% p.a. (matches
+  // loan_booking_switch_my_loan.interest_rate convention).
+  const interestRate = requiredString(body.interestRate, "interestRate", 10);
+  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(interestRate) || Number(interestRate) <= 0 || Number(interestRate) > 100) {
+    throw new PartnerApiError(
+      400,
+      "VALIDATION_ERROR",
+      "interestRate must be a valid annual percentage between 0 and 100.",
+      { field: "interestRate" },
+    );
+  }
+
+  // Decimal fraction, e.g. 0.15 for 15% (matches
+  // loan_booking_switch_my_loan.processing_fee convention).
+  const processingFee = requiredString(body.processingFee, "processingFee", 10);
+  if (!/^[0-9]+(\.[0-9]{1,6})?$/.test(processingFee) || Number(processingFee) < 0 || Number(processingFee) > 1) {
+    throw new PartnerApiError(
+      400,
+      "VALIDATION_ERROR",
+      "processingFee must be a decimal fraction between 0 and 1.",
+      { field: "processingFee" },
+    );
+  }
+
   return {
     externalApplicationReference: requiredString(
       body.externalApplicationReference,
@@ -187,6 +211,8 @@ const validateCreatePayload = (input) => {
     requestedAmount,
     requestedTenure: requirePositiveInteger(body.requestedTenure, "requestedTenure"),
     tenureType: requiredString(body.tenureType, "tenureType", 20),
+    interestRate,
+    processingFee,
     customer: {
       fullName: requiredString(customer.fullName, "customer.fullName", 150),
       firstName: requiredString(customer.firstName, "customer.firstName", 60),

@@ -11,6 +11,9 @@ const {
 } = require("../services/processEmiClubDisbursement");
 
 const { sendDisbursementWebhook } = require("../routes/switchMyLoan/switchMyLoanWebhook");
+const {
+  processPlPartnerDisbursement,
+} = require("../routes/fintreePlPartnerApi/services/plPartnerDisbursement");
 
 const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_emiclub",
@@ -440,6 +443,12 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         amount,
         tenureDays: loan.tenure_days,
         eventId: "evt-" + unique_request_number,
+      });
+
+      await processPlPartnerDisbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
       });
     }
 
