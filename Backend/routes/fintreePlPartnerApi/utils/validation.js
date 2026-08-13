@@ -175,27 +175,40 @@ const validateCreatePayload = (input) => {
     );
   }
 
-  // Annual percentage as a plain number, e.g. 36.00 for 36% p.a. (matches
-  // loan_booking_switch_my_loan.interest_rate convention).
+  // Partner sends interestRate as an annual percentage number, e.g. "24.0000"
+  // for 24% p.a. Stored as-is (percentage number) — matches
+  // loan_booking_switch_my_loan.interest_rate's convention that the RPS
+  // calculation already relies on directly.
   const interestRate = requiredString(body.interestRate, "interestRate", 10);
-  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(interestRate) || Number(interestRate) <= 0 || Number(interestRate) > 100) {
+  if (
+    !/^[0-9]+(\.[0-9]{1,4})?$/.test(interestRate) ||
+    Number(interestRate) <= 0 ||
+    Number(interestRate) > 100
+  ) {
     throw new PartnerApiError(
       400,
       "VALIDATION_ERROR",
-      "interestRate must be a valid annual percentage between 0 and 100.",
+      "interestRate must be a valid annual percentage between 0 and 100 (e.g. 24.0000 for 24% p.a.).",
       { field: "interestRate" },
     );
   }
 
-  // Decimal fraction, e.g. 0.15 for 15% (matches
-  // loan_booking_switch_my_loan.processing_fee convention).
-  const processingFee = requiredString(body.processingFee, "processingFee", 10);
-  if (!/^[0-9]+(\.[0-9]{1,6})?$/.test(processingFee) || Number(processingFee) < 0 || Number(processingFee) > 1) {
+  // Partner sends processingFeePercent as a percentage number, e.g. "2.0000"
+  // for 2%. Stored as-is (percentage number, in payload.processingFee /
+  // the processing_fee column) — converted to a decimal fraction only at the
+  // point of use in the net-disbursal calculation (plPartnerBre.js), since
+  // calculateNetDisbursalAmount expects a 0-1 fraction.
+  const processingFee = requiredString(body.processingFeePercent, "processingFeePercent", 10);
+  if (
+    !/^[0-9]+(\.[0-9]{1,4})?$/.test(processingFee) ||
+    Number(processingFee) < 0 ||
+    Number(processingFee) > 100
+  ) {
     throw new PartnerApiError(
       400,
       "VALIDATION_ERROR",
-      "processingFee must be a decimal fraction between 0 and 1.",
-      { field: "processingFee" },
+      "processingFeePercent must be a valid percentage between 0 and 100 (e.g. 2.0000 for 2%).",
+      { field: "processingFeePercent" },
     );
   }
 

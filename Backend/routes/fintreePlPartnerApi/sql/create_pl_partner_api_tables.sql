@@ -50,10 +50,11 @@ CREATE TABLE IF NOT EXISTS `pl_partner_applications` (
   `requested_amount` DECIMAL(18,2) NULL,
   `requested_tenure` INT NULL,
   `tenure_type` VARCHAR(20) NULL,
-  -- Annual percentage as a plain number, e.g. 36.00 = 36% p.a.
-  `interest_rate` DECIMAL(8,2) NULL,
-  -- Decimal fraction, e.g. 0.15 = 15% (matches loan_booking_switch_my_loan.processing_fee)
-  `processing_fee` DECIMAL(8,2) NULL,
+  -- Annual percentage as sent by the partner, e.g. 24.0000 = 24% p.a.
+  `interest_rate` DECIMAL(8,4) NULL,
+  -- Percentage as sent by the partner (processingFeePercent), e.g. 2.0000 = 2%.
+  -- Converted to a 0-1 fraction only at the point of use in plPartnerBre.js.
+  `processing_fee` DECIMAL(8,4) NULL,
   `create_request_hash` CHAR(64) NOT NULL,
   `status` ENUM(
     'CREATED',

@@ -459,9 +459,17 @@ async function runFinalApproval(application) {
   let disbursalBreakup = null;
 
   if (selectedOfferValid) {
+    // application.processing_fee is stored as a percentage number (e.g. 2.0000
+    // for 2%, per the partner's format) — calculateNetDisbursalAmount expects
+    // a 0-1 fraction, so convert here at the point of use.
+    const processingFeeRate =
+      application.processing_fee === null || application.processing_fee === undefined
+        ? null
+        : Number(application.processing_fee) / 100;
+
     disbursalBreakup = calculateNetDisbursalAmount({
       creditLimit: selectedOfferAmount,
-      processingFeeRate: application.processing_fee,
+      processingFeeRate,
     });
 
     if (!disbursalBreakup.ok) {
