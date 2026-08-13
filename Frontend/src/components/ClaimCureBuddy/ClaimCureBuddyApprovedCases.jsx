@@ -421,6 +421,7 @@ export default function ClaimCureBuddyApprovedCases() {
                 <th>Bank</th>
                 <th>eNACH</th>
                 <th>Agreement Signing</th>
+                <th>Document</th>
                 <th>Approved</th>
               </tr>
             </thead>
@@ -456,6 +457,25 @@ export default function ClaimCureBuddyApprovedCases() {
                     </td>
                     <td>{renderEnachAction(row)}</td>
                     <td>{renderAgreementAction(row)}</td>
+
+                    <td>
+                      <button
+                        onClick={() => navigate(`/documents/${row.lan}`)}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: "8px",
+                          border: "1px solid #e2e8f0",
+                          color: "#0f172a",
+                          background: "#fff",
+                          cursor: "pointer",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                        }}
+                      >
+                        📂 Documents
+                      </button>
+                    </td>
+
                     <td>{formatDate(row.approved_at || row.updated_at)}</td>
                   </tr>
                 ))

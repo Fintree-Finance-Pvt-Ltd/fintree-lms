@@ -1,3 +1,5 @@
+const db = require("../../config/db");
+
 const isProvided = (value) =>
   value !== undefined && value !== null && String(value).trim() !== "";
 const CAREPAY_BRE_APPROVED_STATUS = "BRE Approved";

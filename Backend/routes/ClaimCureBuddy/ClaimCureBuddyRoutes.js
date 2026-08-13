@@ -2817,23 +2817,23 @@ router.get("/loan-booking/:lan", async (req, res) => {
   }
 });
 
-// operastion approval loans list
+//operation approval loans list
 
-// router.get("/ops-approvals-loans", async (req, res) => {
-//   try {
-//     const [rows] = await db
-//       .promise()
-//       .query(
-//         `Select * from loan_booking_claim_cure_buddy where status = 'Approved'`,
-//       );
-//     return res.status(200).json(rows);
-//   } catch (error) {
-//     console.error("ClaimCureBuddy ops approvals error:", error);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Unable to fetch ClaimCureBuddy ops approvals",
-//     });
-//   }
-// });
+router.get("/ops-approvals-loans", async (req, res) => {
+  try {
+    const [rows] = await db
+      .promise()
+      .query(
+        `Select * from loan_booking_claim_cure_buddy where status = 'Approved'`,
+      );
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error("ClaimCureBuddy ops approvals error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch ClaimCureBuddy ops approvals",
+    });
+  }
+});
 
 module.exports = router;

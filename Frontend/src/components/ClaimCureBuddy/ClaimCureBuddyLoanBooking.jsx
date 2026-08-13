@@ -43,9 +43,9 @@ const blankAddress = {
 
 const blankLoan = {
   loanAmount: "",
-  interestRate: "",
-  tenure: "",
-  processingFee: "",
+  interestRate: "0",
+  tenure: "90",
+  processingFee: "0",
   disbursalAmount: "",
 };
 
@@ -272,9 +272,9 @@ export default function ClaimCureBuddyLoanBooking() {
     });
     setLoan({
       loanAmount: saved.loan_amount || "",
-      interestRate: saved.interest_rate || "",
-      tenure: saved.loan_tenure || "",
-      processingFee: saved.processing_fee || "",
+      interestRate: "0",
+      tenure: "90",
+      processingFee: "0",
       disbursalAmount: saved.disbursal_amount || "",
     });
     setBank({
@@ -636,11 +636,15 @@ export default function ClaimCureBuddyLoanBooking() {
   const saveLoan = async () => {
     const response = await api.patch(
       `${API}/loan-booking/${lan}/loan-details`,
-      loan,
+      {
+        ...loan,
+        interestRate: "0",
+        tenure: "90",
+        processingFee: "0",
+      },
     );
 
     setBorrowerPreBreStatus(response.data.borrowerPreBreStatus || "PENDING");
-
     setBorrowerPreBreResult(response.data.preBreDecision || null);
 
     if (response.data.status) {
@@ -1041,25 +1045,22 @@ export default function ClaimCureBuddyLoanBooking() {
       <Field
         label="Interest Rate (%)"
         type="number"
-        value={loan.interestRate}
-        onChange={(value) => updateLoan("interestRate", value)}
+        value="0"
+        onChange={() => {}}
         required
       />
       <Field
         label="Tenure (days)"
         type="number"
-        value={loan.tenure}
-        onChange={(value) => updateLoan("tenure", value)}
-        min="1"
-        max="90"
-        step="1"
+        value="90"
+        onChange={() => {}}
         required
       />
       <Field
         label="Processing Fee"
         type="number"
-        value={loan.processingFee}
-        onChange={(value) => updateLoan("processingFee", value)}
+        value="0"
+        onChange={()=>{}}
         required
       />
       <div className="ccb-inline-field">
