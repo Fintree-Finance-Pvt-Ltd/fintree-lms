@@ -2374,54 +2374,28 @@ const generateRepaymentScheduleSterlionUbl = async (
    * UPFRONT INTEREST PRODUCT
    * ==========================================
    */
+if (isUpfrontInterest) {
+  upfrontInterestAmount = round2(
+    (
+      numericLoanAmount *
+      numericInterestRate *
+      numericTenure
+    ) / 1200,
+  );
 
-  if (isUpfrontInterest) {
-    /*
-     * Loan amount × annual rate × tenure / 1200
-     *
-     * Example:
-     * 1800000 × 13.57 × 24 / 1200
-     * = 488520
-     */
-    upfrontInterestAmount = round2(
-      (
-        numericLoanAmount *
-        numericInterestRate *
-        numericTenure
-      ) / 1200,
-    );
+  // RPS must be generated on full loan amount
+  repayablePrincipal = numericLoanAmount;
 
-    /*
-     * Net amount repayable through EMI.
-     */
-    repayablePrincipal = round2(
-      numericLoanAmount -
-        upfrontInterestAmount,
-    );
+  // EMI = loan amount / tenure
+  regularEmi = Math.ceil(
+    repayablePrincipal / numericTenure,
+  );
 
-    if (repayablePrincipal <= 0) {
-      throw new Error(
-        `Upfront interest ${upfrontInterestAmount} ` +
-          `cannot be equal to or greater than ` +
-          `loan amount ${numericLoanAmount}`,
-      );
-    }
-
-    /*
-     * EMI contains principal only.
-     */
-    regularEmi = Math.ceil(
-      repayablePrincipal / numericTenure,
-    );
-
-    /*
-     * Reporting interest stored in each
-     * manual RPS installment.
-     */
-    regularUpfrontInterest = round2(
-      upfrontInterestAmount / numericTenure,
-    );
-  }
+  // Only for reporting interest in RPS
+  regularUpfrontInterest = round2(
+    upfrontInterestAmount / numericTenure,
+  );
+}
 
   /*
    * ==========================================
