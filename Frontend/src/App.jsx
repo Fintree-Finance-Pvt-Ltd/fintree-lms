@@ -258,6 +258,7 @@ import ClayooRejectedLoans from "./components/Clayoo/ClayooApprovedLoans";
 import ClaimCureBuddyLoanBooking from "./components/ClaimCureBuddy/ClaimCureBuddyLoanBooking";
 import ClaimCureBuddyDraftCases from "./components/ClaimCureBuddy/ClaimCureBuddyDraftCases.jsx";
 import ClaimCureBuddyApprovedCases from "./components/ClaimCureBuddy/ClaimCureBuddyApprovedCases.jsx";
+import ClaimCureBuddyOpsScreen from "./components/ClaimCureBuddy/ClaimCureBuddyOpsScreen.jsx";
 import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
 import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.jsx";
@@ -1975,6 +1976,11 @@ function App() {
             element={<ClaimCureBuddyApprovedCases />}
           />
 
+          <Route
+            path="/claimcurebuddy/ops-screen"
+            element={<ClaimCureBuddyOpsScreen />}
+          />
+
           {/* =========================
    ✅ Bundela Routes
 ========================= */}
@@ -2283,49 +2289,49 @@ function App() {
               </PermissionRoute>
             }
           />
-{/* Sterlion Mexon Dexon */}
+          {/* Sterlion Mexon Dexon */}
 
-<Route
-  path="/sterlion-mexon-dexon/all-loans"
-  element={
-    <PermissionRoute pageName="Sterlion Mexon Dexon All Loans">
-      <SterlionMexonDexonAllLoans />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/sterlion-mexon-dexon/all-loans"
+            element={
+              <PermissionRoute pageName="Sterlion Mexon Dexon All Loans">
+                <SterlionMexonDexonAllLoans />
+              </PermissionRoute>
+            }
+          />
 
-<Route
-  path="/sterlion-mexon-dexon/collection-upload"
-  element={
-    <PermissionRoute pageName="Sterlion Mexon Dexon Collection Upload">
-      <SterlionMexonDexonCollectionUpload />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/sterlion-mexon-dexon/collection-upload"
+            element={
+              <PermissionRoute pageName="Sterlion Mexon Dexon Collection Upload">
+                <SterlionMexonDexonCollectionUpload />
+              </PermissionRoute>
+            }
+          />
 
-<Route
-  path="/sterlion-mexon-dexon/invoice-upload"
-  element={
-    <PermissionRoute pageName="Sterlion Mexon Dexon Invoice Upload">
-      <SterlionMexonDexonInvoiceUpload />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/sterlion-mexon-dexon/invoice-upload"
+            element={
+              <PermissionRoute pageName="Sterlion Mexon Dexon Invoice Upload">
+                <SterlionMexonDexonInvoiceUpload />
+              </PermissionRoute>
+            }
+          />
 
-<Route
-  path="/sterlion-mexon-dexon/all-invoices"
-  element={
-    <PermissionRoute pageName="Sterlion Mexon Dexon All Invoices">
-      <SterlionMexonDexonAllInvoices />
-    </PermissionRoute>
-  }
-/>
+          <Route
+            path="/sterlion-mexon-dexon/all-invoices"
+            element={
+              <PermissionRoute pageName="Sterlion Mexon Dexon All Invoices">
+                <SterlionMexonDexonAllInvoices />
+              </PermissionRoute>
+            }
+          />
 
-{/* Protected Layout parent yahan close hoga */}
-</Route>
+          {/* Protected Layout parent yahan close hoga */}
+        </Route>
 
-{/* Optional commented route */}
-{/* 
+        {/* Optional commented route */}
+        {/* 
 <Route
   path="/sterlion-mexon-dexon/login-actions"
   element={
@@ -2336,7 +2342,7 @@ function App() {
 />
 */}
 
-</Routes>
+      </Routes>
     </Router>
   );
 }
