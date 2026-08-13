@@ -316,7 +316,7 @@ const ClaimCureBuddyScreen = () => {
       )}
 
       <DataTable
-        title="Loan Digit OPS Checker Screen"
+        title="ClaimCureBuddy OPS Checker Screen"
         rows={rows}
         columns={columns}
         globalSearchKeys={[
@@ -326,7 +326,7 @@ const ClaimCureBuddyScreen = () => {
           "mobile_number",
           "status",
         ]}
-        exportFileName="loan_digit_ops_checker"
+        exportFileName="claimcurebuddy_ops_checker"
       />
     </>
   );
