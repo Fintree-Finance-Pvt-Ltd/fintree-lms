@@ -4170,9 +4170,10 @@ async function runSterlionMexonDexonDailyAccrualJob() {
         WHERE status <> 'CANCELLED'
           AND outstanding_principal > 0
           AND disbursement_date < ?
-        ORDER BY id ASC
-      `,
-      [targetAccrualDate],
+          AND id = 5
+          ORDER BY id ASC                   
+      `,                            
+      [targetAccrualDate],       
     );
 
     let processedInvoices = 0;
@@ -4325,7 +4326,8 @@ function startSterlionMexonDexonDailyAccrualCron() {
    * 12:05 AM Asia/Kolkata.
    */
   cron.schedule(
-    "5 0 * * *",
+    // "5 0 * * *",
+    "48 11 * * *",
     async () => {
       console.log(
         "SMD daily accrual cron started:",
