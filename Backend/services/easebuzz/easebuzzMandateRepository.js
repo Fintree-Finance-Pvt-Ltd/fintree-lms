@@ -264,6 +264,79 @@ async function findByTransactionId(
   return rows[0] || null;
 }
 
+async function findWebhookTargetForUpdate(
+  {
+    transactionId = null,
+    easycollectLinkId = null,
+    easebuzzMandateId = null,
+    easebuzzRequestId = null,
+    lan = null,
+  } = {},
+  connection,
+) {
+  if (!connection) {
+    throw new Error(
+      "A database transaction connection is required",
+    );
+  }
+
+  const lookups = [];
+
+  if (clean(transactionId)) {
+    lookups.push({
+      where: "transaction_id = ?",
+      params: [clean(transactionId)],
+    });
+  }
+
+  if (clean(easycollectLinkId)) {
+    lookups.push({
+      where: "easycollect_link_id = ?",
+      params: [clean(easycollectLinkId)],
+    });
+  }
+
+  if (clean(easebuzzMandateId)) {
+    lookups.push({
+      where: "easebuzz_mandate_id = ?",
+      params: [clean(easebuzzMandateId)],
+    });
+  }
+
+  if (clean(easebuzzRequestId)) {
+    lookups.push({
+      where: "easebuzz_request_id = ?",
+      params: [clean(easebuzzRequestId)],
+    });
+  }
+
+  if (clean(lan)) {
+    lookups.push({
+      where: "lan = ?",
+      params: [clean(lan)],
+    });
+  }
+
+  for (const lookup of lookups) {
+    const [rows] =
+      await connection.query(
+        `SELECT *
+         FROM easebuzz_mandates
+         WHERE ${lookup.where}
+         ORDER BY id DESC
+         LIMIT 1
+         FOR UPDATE`,
+        lookup.params,
+      );
+
+    if (rows[0]) {
+      return rows[0];
+    }
+  }
+
+  return null;
+}
+
 async function findForUpdate(
   transactionId,
   connection,
@@ -865,6 +938,355 @@ async function markError(
   );
 }
 
+/**
+ * Store an EasyCollect mandate webhook.
+ */
+async function markWebhookUpdate({
+  identifiers = {},
+  nextStatus = null,
+  providerStatus = null,
+  linkState = null,
+  easycollectLinkId = null,
+  easebuzzMandateId = null,
+  easebuzzRequestId = null,
+  umrn = null,
+  mandateType = null,
+  authMode = null,
+  amount = null,
+  amountRule = null,
+  frequency = null,
+  startDate = null,
+  endDate = null,
+  customerName = null,
+  customerEmail = null,
+  customerPhone = null,
+  accountLastFour = null,
+  accountType = null,
+  ifsc = null,
+  bankCode = null,
+  tpvValidationStatus = null,
+  mandateSubmittedAt = null,
+  authorizedAt = null,
+  failedAt = null,
+  cancelledAt = null,
+  revokedAt = null,
+  lastErrorCode = null,
+  lastErrorMessage = null,
+  providerEventId = null,
+  signatureVerified = null,
+  payload = {},
+} = {}) {
+  return withTransaction(
+    async (connection) => {
+      let mandate =
+        await findWebhookTargetForUpdate(
+          identifiers,
+          connection,
+        );
+
+      const safePayload =
+        sanitizeEasebuzzData(
+          payload ?? {},
+        );
+
+      if (!mandate) {
+        const canInsertFromWebhook =
+          clean(identifiers.transactionId) &&
+          clean(identifiers.lan) &&
+          amount !== null &&
+          amount !== undefined &&
+          clean(frequency) &&
+          (startDate || endDate) &&
+          clean(customerPhone);
+
+        if (!canInsertFromWebhook) {
+          return {
+            mandate: null,
+            event: null,
+          };
+        }
+
+        const [insertResult] =
+          await connection.query(
+            `INSERT INTO easebuzz_mandates
+             (
+               lan,
+               transaction_id,
+               easebuzz_request_id,
+               easycollect_link_id,
+               easebuzz_mandate_id,
+               umrn,
+               mandate_type,
+               auth_mode,
+               request_type,
+               amount,
+               link_amount,
+               amount_rule,
+               upfront_presentment_amount,
+               frequency,
+               start_date,
+               end_date,
+               customer_name,
+               customer_email,
+               customer_phone,
+               account_last_four,
+               account_type,
+               ifsc,
+               bank_code,
+               message,
+               is_auto_debit_link,
+               is_auto_debit_seamless,
+               status,
+               provider_status,
+               link_state,
+               tpv_validation_status,
+               mandate_submitted_at,
+               authorized_at,
+               failed_at,
+               cancelled_at,
+               revoked_at,
+               latest_response,
+               last_error_code,
+               last_error_message
+             )
+             VALUES
+             (
+               ?, ?, ?, ?, ?, ?,
+               ?, ?, 'WEBHOOK',
+               ?, 1.00, ?, 0.00, ?,
+               ?, ?,
+               ?, ?, ?, ?, ?, ?, ?, ?,
+               1, 1,
+               ?, ?, ?,
+               ?, ?, ?, ?, ?, ?,
+               ?, ?, ?
+             )
+             ON DUPLICATE KEY UPDATE
+               id = LAST_INSERT_ID(id)`,
+            [
+              clean(identifiers.lan),
+              clean(identifiers.transactionId),
+              nullable(easebuzzRequestId),
+              nullable(easycollectLinkId),
+              nullable(easebuzzMandateId),
+              nullable(umrn),
+              nullable(mandateType) || "UPI",
+              nullable(authMode),
+              amount,
+              nullable(amountRule) || "MAX",
+              nullable(frequency),
+              startDate ?? null,
+              endDate ?? startDate ?? null,
+              nullable(customerName),
+              nullable(customerEmail),
+              nullable(customerPhone),
+              nullable(accountLastFour),
+              nullable(accountType),
+              nullable(ifsc),
+              nullable(bankCode),
+              "Easebuzz mandate webhook",
+              nullable(nextStatus) ||
+                MANDATE_STATUSES.UNKNOWN,
+              nullable(providerStatus),
+              nullable(linkState),
+              nullable(tpvValidationStatus),
+              mandateSubmittedAt,
+              authorizedAt,
+              failedAt,
+              cancelledAt,
+              revokedAt,
+              safeJson(safePayload),
+              nullable(lastErrorCode),
+              nullable(lastErrorMessage),
+            ],
+          );
+
+        mandate =
+          await findById(
+            insertResult.insertId,
+            connection,
+          );
+      }
+
+      await connection.query(
+        `UPDATE easebuzz_mandates
+         SET easebuzz_request_id =
+               COALESCE(easebuzz_request_id, ?),
+             easycollect_link_id =
+               COALESCE(easycollect_link_id, ?),
+             easebuzz_mandate_id =
+               COALESCE(easebuzz_mandate_id, ?),
+             umrn =
+               COALESCE(umrn, ?),
+             mandate_type =
+               COALESCE(?, mandate_type),
+             auth_mode =
+               COALESCE(?, auth_mode),
+             amount =
+               COALESCE(?, amount),
+             amount_rule =
+               COALESCE(?, amount_rule),
+             frequency =
+               COALESCE(?, frequency),
+             start_date =
+               COALESCE(?, start_date),
+             end_date =
+               COALESCE(?, end_date),
+             customer_name =
+               COALESCE(?, customer_name),
+             customer_email =
+               COALESCE(?, customer_email),
+             customer_phone =
+               COALESCE(?, customer_phone),
+             account_last_four =
+               COALESCE(?, account_last_four),
+             account_type =
+               COALESCE(?, account_type),
+             ifsc =
+               COALESCE(?, ifsc),
+             bank_code =
+               COALESCE(?, bank_code),
+             tpv_validation_status =
+               COALESCE(?, tpv_validation_status),
+             status =
+               CASE
+                 WHEN ? IS NULL
+                 THEN status
+                 WHEN ? = ?
+                      AND status <> ?
+                 THEN status
+                 ELSE ?
+               END,
+             provider_status =
+               COALESCE(?, provider_status),
+             link_state =
+               COALESCE(?, link_state),
+             mandate_submitted_at =
+               COALESCE(?, mandate_submitted_at),
+             authorized_at =
+               COALESCE(?, authorized_at),
+             failed_at =
+               COALESCE(?, failed_at),
+             cancelled_at =
+               COALESCE(?, cancelled_at),
+             revoked_at =
+               COALESCE(?, revoked_at),
+             latest_response = ?,
+             last_error_code =
+               CASE
+                 WHEN ? IS NOT NULL
+                 THEN ?
+                 WHEN ? = ?
+                 THEN NULL
+                 ELSE last_error_code
+               END,
+             last_error_message =
+               CASE
+                 WHEN ? IS NOT NULL
+                 THEN ?
+                 WHEN ? = ?
+                 THEN NULL
+                 ELSE last_error_message
+               END,
+             updated_by =
+               COALESCE(updated_by, created_by),
+             updated_at = NOW()
+         WHERE id = ?`,
+        [
+          nullable(easebuzzRequestId),
+          nullable(easycollectLinkId),
+          nullable(easebuzzMandateId),
+          nullable(umrn),
+          nullable(mandateType),
+          nullable(authMode),
+          amount ?? null,
+          nullable(amountRule),
+          nullable(frequency),
+          startDate ?? null,
+          endDate ?? null,
+          nullable(customerName),
+          nullable(customerEmail),
+          nullable(customerPhone),
+          nullable(accountLastFour),
+          nullable(accountType),
+          nullable(ifsc),
+          nullable(bankCode),
+          nullable(tpvValidationStatus),
+
+          nullable(nextStatus),
+          nullable(nextStatus),
+          MANDATE_STATUSES.UNKNOWN,
+          MANDATE_STATUSES.UNKNOWN,
+          nullable(nextStatus),
+
+          nullable(providerStatus),
+          nullable(linkState),
+          mandateSubmittedAt,
+          authorizedAt,
+          failedAt,
+          cancelledAt,
+          revokedAt,
+          safeJson(safePayload),
+
+          nullable(lastErrorCode),
+          nullable(lastErrorCode),
+          nullable(nextStatus),
+          MANDATE_STATUSES.ACTIVE,
+
+          nullable(lastErrorMessage),
+          nullable(lastErrorMessage),
+          nullable(nextStatus),
+          MANDATE_STATUSES.ACTIVE,
+
+          mandate.id,
+        ],
+      );
+
+      const event =
+        await insertEvent(
+          {
+            mandateId:
+              mandate.id,
+
+            lan:
+              mandate.lan,
+
+            transactionId:
+              mandate.transaction_id,
+
+            eventType:
+              MANDATE_EVENT_TYPES.WEBHOOK,
+
+            eventSource:
+              "EASEBUZZ",
+
+            providerEventId:
+              nullable(providerEventId),
+
+            providerStatus:
+              nullable(providerStatus),
+
+            signatureVerified,
+
+            payload:
+              safePayload,
+          },
+          connection,
+        );
+
+      return {
+        mandate:
+          await findById(
+            mandate.id,
+            connection,
+          ),
+
+        event,
+      };
+    },
+  );
+}
+
 module.exports = {
   withTransaction,
   withLanInitiationLock,
@@ -876,10 +1298,12 @@ module.exports = {
   markLinkPending,
   markLinkCreated,
   markError,
+  markWebhookUpdate,
 
   findById,
   findLatestByLan,
   findAllByLan,
   findByTransactionId,
+  findWebhookTargetForUpdate,
   findTimeline,
 };
