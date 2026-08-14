@@ -1341,6 +1341,7 @@ router.get(
 
 const BUSINESS_TIME_ZONE = "Asia/Kolkata";
 const SMD_DAY_COUNT_BASIS = 360;
+const MAX_SMD_CATCH_UP_DAYS_PER_INVOICE = 4000;
 
 const INVOICE_HEADER_DEFINITIONS = [
   {
@@ -3986,38 +3987,172 @@ async function insertAndAllocateSterlionMexonDexonCollection(collectionData) {
   }
 }
 
+async function getSmdAccrualCatchUpWindow(
+  conn,
+  invoice,
+  targetAccrualDate,
+) {
+  const disbursementDate = databaseDateToSqlDate(
+    invoice.disbursement_date,
+  );
+
+  const firstAccrualDate = addDaysSqlDate(
+    disbursementDate,
+    1,
+  );
+
+  if (firstAccrualDate > targetAccrualDate) {
+    return {
+      nextAccrualDate: null,
+      missingDays: 0,
+    };
+  }
+
+  const [accrualRows] = await conn.query(
+    `
+      SELECT
+        COUNT(*) AS total_rows,
+        COUNT(DISTINCT accrual_date) AS distinct_days,
+        MAX(accrual_date) AS last_accrual_date
+      FROM loan_invoice_daily_accruals_sterlion_mexon_dexon
+      WHERE invoice_id = ?
+        AND accrual_date <= ?
+    `,
+    [
+      invoice.id,
+      targetAccrualDate,
+    ],
+  );
+
+  const totalRows = Number(
+    accrualRows[0]?.total_rows || 0,
+  );
+
+  const distinctDays = Number(
+    accrualRows[0]?.distinct_days || 0,
+  );
+
+  const lastAccrualValue =
+    accrualRows[0]?.last_accrual_date || null;
+
+  /*
+   * Detect duplicate dates before inserting anything.
+   */
+  if (totalRows !== distinctDays) {
+    throw new RowImportError(
+      "daily_accrual_duplicate",
+      `Invoice ${invoice.invoice_number} contains duplicate daily accrual dates.`,
+    );
+  }
+
+  let nextAccrualDate = firstAccrualDate;
+
+  if (lastAccrualValue) {
+    const lastAccrualDate = databaseDateToSqlDate(
+      lastAccrualValue,
+    );
+
+    const expectedExistingDays = diffSqlDates(
+      lastAccrualDate,
+      disbursementDate,
+    );
+
+    /*
+     * Example:
+     * Disbursement: 10 August
+     * Last accrual: 13 August
+     * Expected existing rows: 3
+     */
+    if (distinctDays !== expectedExistingDays) {
+      throw new RowImportError(
+        "daily_accrual_gap",
+        `Invoice ${invoice.invoice_number} has a missing daily accrual date. Expected ${expectedExistingDays} continuous rows but found ${distinctDays}.`,
+      );
+    }
+
+    nextAccrualDate = addDaysSqlDate(
+      lastAccrualDate,
+      1,
+    );
+  }
+
+  if (nextAccrualDate > targetAccrualDate) {
+    return {
+      nextAccrualDate: null,
+      missingDays: 0,
+    };
+  }
+
+  const missingDays =
+    diffSqlDates(
+      targetAccrualDate,
+      nextAccrualDate,
+    ) + 1;
+
+  if (
+    missingDays >
+    MAX_SMD_CATCH_UP_DAYS_PER_INVOICE
+  ) {
+    throw new RowImportError(
+      "daily_accrual_backlog",
+      `Invoice ${invoice.invoice_number} has ${missingDays} missing accrual days. The allowed limit is ${MAX_SMD_CATCH_UP_DAYS_PER_INVOICE}.`,
+    );
+  }
+
+  return {
+    nextAccrualDate,
+    missingDays,
+  };
+}
+
 let smdDailyAccrualCronStarted = false;
 
 async function runSterlionMexonDexonDailyAccrualJob() {
   let conn;
-
   let lockAcquired = false;
+  let lockName = null;
 
-  const accrualDate = getTodaySqlDate();
-
-  const lockName = "smd_daily_accrual_0005_ist";
+  const targetAccrualDate = getTodaySqlDate();
 
   try {
     conn = await db.promise().getConnection();
 
     /*
-     * Prevent duplicate cron execution
-     * when PM2 has multiple processes.
+     * MySQL named locks are server-wide.
+     * Including the database name prevents
+     * UAT and production from blocking each other.
      */
+    const [databaseRows] = await conn.query(
+      `SELECT DATABASE() AS database_name`,
+    );
+
+    const databaseName = String(
+      databaseRows[0]?.database_name || "",
+    ).trim();
+
+    if (!databaseName) {
+      throw new Error(
+        "Unable to identify the current database.",
+      );
+    }
+
+    lockName =
+      `smd_daily_accrual_${databaseName}`.slice(
+        0,
+        64,
+      );
+
     const [lockRows] = await conn.query(
-      `
-          SELECT
-            GET_LOCK(?, 0)
-              AS acquired
-        `,
+      `SELECT GET_LOCK(?, 0) AS acquired`,
       [lockName],
     );
 
-    lockAcquired = Number(lockRows[0]?.acquired) === 1;
+    lockAcquired =
+      Number(lockRows[0]?.acquired) === 1;
 
     if (!lockAcquired) {
       console.log(
-        `SMD daily accrual cron skipped because another process owns the lock | Date: ${accrualDate}`,
+        `SMD daily accrual cron skipped because another process owns the lock | Database: ${databaseName} | Date: ${targetAccrualDate}`,
       );
 
       return;
@@ -4025,100 +4160,148 @@ async function runSterlionMexonDexonDailyAccrualJob() {
 
     const [invoiceRows] = await conn.query(
       `
-          SELECT
-            id,
-            loan_booking_id,
-            lan,
-            invoice_number
-          FROM loan_invoices_sterlion_mexon_dexon
-          WHERE status <> 'CANCELLED'
-            AND outstanding_principal > 0
-            AND disbursement_date < ?
-          ORDER BY id ASC
-        `,
-      [accrualDate],
+        SELECT
+          id,
+          loan_booking_id,
+          lan,
+          invoice_number,
+          disbursement_date
+        FROM loan_invoices_sterlion_mexon_dexon
+        WHERE status <> 'CANCELLED'
+          AND outstanding_principal > 0
+          AND disbursement_date < ?
+        ORDER BY id ASC
+      `,
+      [targetAccrualDate],
     );
 
+    let processedInvoices = 0;
+    let upToDateInvoices = 0;
     let insertedRows = 0;
-
-    let skippedRows = 0;
-
-    let failedRows = 0;
+    let failedInvoices = 0;
 
     for (const invoice of invoiceRows) {
+      let processingDate = null;
+
       try {
         await conn.beginTransaction();
 
-        /*
-         * Exactly one row for today's
-         * accrual date.
-         */
-        const result = await insertInvoiceDailyAccrualForDate(
-          conn,
-          invoice.id,
-          accrualDate,
-        );
+        const catchUpWindow =
+          await getSmdAccrualCatchUpWindow(
+            conn,
+            invoice,
+            targetAccrualDate,
+          );
 
-        if (result.inserted) {
+        if (
+          !catchUpWindow.nextAccrualDate ||
+          catchUpWindow.missingDays === 0
+        ) {
+          upToDateInvoices += 1;
+
+          await conn.commit();
+
+          continue;
+        }
+
+        let currentAccrualDate =
+          catchUpWindow.nextAccrualDate;
+
+        let invoiceInsertedRows = 0;
+
+        while (
+          currentAccrualDate <=
+          targetAccrualDate
+        ) {
+          processingDate = currentAccrualDate;
+
+          const result =
+            await insertInvoiceDailyAccrualForDate(
+              conn,
+              invoice.id,
+              currentAccrualDate,
+            );
+
+          if (!result.inserted) {
+            throw new RowImportError(
+              "daily_accrual_catch_up",
+              `Unable to insert accrual for invoice ${invoice.invoice_number} on ${currentAccrualDate}: ${result.reason}`,
+            );
+          }
+
+          invoiceInsertedRows += 1;
+
+          currentAccrualDate = addDaysSqlDate(
+            currentAccrualDate,
+            1,
+          );
+        }
+
+        if (invoiceInsertedRows > 0) {
           await recalculateInvoiceCarryForwardChain(
             conn,
             invoice.loan_booking_id,
           );
-
-          insertedRows += 1;
-        } else {
-          skippedRows += 1;
         }
 
         await conn.commit();
+
+        insertedRows += invoiceInsertedRows;
+        processedInvoices += 1;
+
+        console.log(
+          `SMD invoice accrual completed | LAN: ${invoice.lan} | Invoice: ${invoice.invoice_number} | Inserted: ${invoiceInsertedRows}`,
+        );
       } catch (invoiceError) {
-        failedRows += 1;
+        failedInvoices += 1;
 
         try {
           await conn.rollback();
         } catch (rollbackError) {
           console.error(
-            "SMD daily accrual cron rollback failed:",
+            "SMD daily accrual rollback failed:",
             rollbackError,
           );
         }
 
-        console.error("SMD daily accrual row failed:", {
-          invoiceId: invoice.id,
-
-          lan: invoice.lan,
-
-          invoiceNumber: invoice.invoice_number,
-
-          accrualDate,
-
-          stage: invoiceError?.stage || null,
-
-          code: invoiceError?.code || null,
-
-          message: invoiceError?.message || null,
-        });
+        console.error(
+          "SMD daily accrual invoice failed:",
+          {
+            invoiceId: invoice.id,
+            lan: invoice.lan,
+            invoiceNumber: invoice.invoice_number,
+            processingDate,
+            targetAccrualDate,
+            stage: invoiceError?.stage || null,
+            code: invoiceError?.code || null,
+            message: invoiceError?.message || null,
+          },
+        );
       }
     }
 
     console.log(
-      `SMD daily accrual cron completed | Date: ${accrualDate} | Inserted: ${insertedRows} | Skipped: ${skippedRows} | Failed: ${failedRows}`,
+      `SMD daily accrual cron completed | Database: ${databaseName} | Target: ${targetAccrualDate} | Processed invoices: ${processedInvoices} | Up-to-date invoices: ${upToDateInvoices} | Inserted rows: ${insertedRows} | Failed invoices: ${failedInvoices}`,
     );
   } catch (error) {
-    console.error("SMD daily accrual cron failed:", error);
+    console.error(
+      "SMD daily accrual cron failed:",
+      error,
+    );
   } finally {
-    if (conn && lockAcquired) {
+    if (
+      conn &&
+      lockAcquired &&
+      lockName
+    ) {
       try {
         await conn.query(
-          `
-            SELECT
-              RELEASE_LOCK(?)
-          `,
+          `SELECT RELEASE_LOCK(?)`,
           [lockName],
         );
       } catch (releaseError) {
         console.error(
-          "SMD daily accrual cron lock release failed:",
+          "SMD daily accrual lock release failed:",
           releaseError,
         );
       }
@@ -4138,26 +4321,34 @@ function startSterlionMexonDexonDailyAccrualCron() {
   smdDailyAccrualCronStarted = true;
 
   /*
-   * Runs every day at:
-   * 12:05 AM Asia/Kolkata
+   * Executes every day at exactly
+   * 12:05 AM Asia/Kolkata.
    */
   cron.schedule(
     "5 0 * * *",
-
     async () => {
+      console.log(
+        "SMD daily accrual cron started:",
+        new Date().toLocaleString(
+          "en-IN",
+          {
+            timeZone: BUSINESS_TIME_ZONE,
+          },
+        ),
+      );
+
       await runSterlionMexonDexonDailyAccrualJob();
     },
-
     {
       name: "smd-daily-accrual-0005-ist",
-
       timezone: BUSINESS_TIME_ZONE,
-
       noOverlap: true,
     },
   );
 
-  console.log("SMD daily accrual cron scheduled for 12:05 AM Asia/Kolkata.");
+  console.log(
+    "SMD daily accrual cron scheduled for 12:05 AM Asia/Kolkata.",
+  );
 }
 
 router.post(
