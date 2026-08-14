@@ -4327,7 +4327,7 @@ function startSterlionMexonDexonDailyAccrualCron() {
    */
   cron.schedule(
     // "5 0 * * *",
-    "50 11 * * *",
+    "55 11 * * *",
     async () => {
       console.log(
         "SMD daily accrual cron started:",
