@@ -15,6 +15,7 @@
     "exceljs": "^4.4.0",
     "html-pdf-node": "^1.0.8",
     "multer": "^2.0.1",
+    "node-cron": "^4.6.0",
     "pdfmake": "^0.2.20",
     "react-datepicker": "^8.4.0",
     "react-select": "^5.10.1",
