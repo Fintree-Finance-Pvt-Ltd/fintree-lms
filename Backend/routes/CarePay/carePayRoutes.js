@@ -1431,30 +1431,30 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     };
 
     if (breDecision.status === "BRE APPROVED") {
-      // bureauResult = await persistCarePayBureauResult(lan, {
-      //   ...data,
-      //   loan_amount: requestAmount,
-      //   request_amount: requestAmount,
+      bureauResult = await persistCarePayBureauResult(lan, {
+        ...data,
+        loan_amount: requestAmount,
+        request_amount: requestAmount,
 
-      //   processing_fee_percentage: processingFee.percentage,
-      //   processing_fee: processingFee.amount,
+        processing_fee_percentage: processingFee.percentage,
+        processing_fee: processingFee.amount,
 
-      //   subvention_percentage: subvention.percentage,
-      //   subvention_amount: subvention.amount,
+        subvention_percentage: subvention.percentage,
+        subvention_amount: subvention.amount,
 
-      //   net_disbursement: netDisbursement,
-      // });
+        net_disbursement: netDisbursement,
+      });
 // ✅ DUMMY BUREAU FOR TESTING
-bureauResult = {
-  success: true,
-  score: 680,
-  response: {
-    provider: "DUMMY_BUREAU",
-    status: "SUCCESS",
-    score: 750,
-    enquiry_id: `DUMMY-${lan}-${Date.now()}`,
-  },
-};
+// bureauResult = {
+//   success: true,
+//   score: 680,
+//   response: {
+//     provider: "DUMMY_BUREAU",
+//     status: "SUCCESS",
+//     score: 750,
+//     enquiry_id: `DUMMY-${lan}-${Date.now()}`,
+//   },
+// };
 
 console.log("✅ CAREPAY DUMMY BUREAU:", {
   lan,
