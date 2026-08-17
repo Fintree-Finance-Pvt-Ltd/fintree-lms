@@ -602,12 +602,88 @@ const validateDisbursePayload = (input) => {
   };
 };
 
+const validateRepaymentPayload = (input) => {
+  const body = requireObject(input, "body");
+  const amount = requiredString(body.amount, "amount", 30);
+  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(amount) || Number(amount) <= 0) {
+    throw new PartnerApiError(400, "VALIDATION_ERROR", "amount must be a valid positive number.", {
+      field: "amount",
+    });
+  }
+
+  const paymentId = requiredString(body.paymentId, "paymentId", 100);
+
+  return {
+    externalApplicationReference: requiredString(
+      body.externalApplicationReference,
+      "externalApplicationReference",
+      100,
+    ),
+    lan: requiredString(body.lan, "lan", 50),
+    amount,
+    paymentDate: requireDate(body.paymentDate, "paymentDate"),
+    paymentId,
+    paymentMode: optionalString(body.paymentMode, "paymentMode", 50) || "API",
+    utr: optionalString(body.utr, "utr", 100) || paymentId,
+  };
+};
+
+const validateExtraChargePayload = (input) => {
+  const body = requireObject(input, "body");
+  const amount = requiredString(body.amount, "amount", 30);
+  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(amount) || Number(amount) <= 0) {
+    throw new PartnerApiError(400, "VALIDATION_ERROR", "amount must be a valid positive number.", {
+      field: "amount",
+    });
+  }
+
+  return {
+    externalApplicationReference: requiredString(
+      body.externalApplicationReference,
+      "externalApplicationReference",
+      100,
+    ),
+    lan: requiredString(body.lan, "lan", 50),
+    chargeType: requiredString(body.chargeType, "chargeType", 100),
+    amount,
+    dueDate: requireDate(body.dueDate, "dueDate"),
+    remarks: optionalString(body.remarks, "remarks", 255),
+  };
+};
+
+const validateWaiverPayload = (input) => {
+  const body = requireObject(input, "body");
+  const waiverAmount = requiredString(body.waiverAmount, "waiverAmount", 30);
+  if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(waiverAmount) || Number(waiverAmount) <= 0) {
+    throw new PartnerApiError(
+      400,
+      "VALIDATION_ERROR",
+      "waiverAmount must be a valid positive number.",
+      { field: "waiverAmount" },
+    );
+  }
+
+  return {
+    externalApplicationReference: requiredString(
+      body.externalApplicationReference,
+      "externalApplicationReference",
+      100,
+    ),
+    lan: requiredString(body.lan, "lan", 50),
+    chargeType: requiredString(body.chargeType, "chargeType", 100),
+    waiverAmount,
+  };
+};
+
 module.exports = {
   validateCreatePayload,
   validateConsentPayload,
   validateDetailsPayload,
   validateDocumentPayload,
   validateDisbursePayload,
+  validateRepaymentPayload,
+  validateExtraChargePayload,
+  validateWaiverPayload,
   // simple approve payload validator
   validateApprovePayload: (input) => {
     const body = requireObject(input, "body");
