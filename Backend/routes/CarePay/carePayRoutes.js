@@ -1379,6 +1379,7 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       employment: data.employment,
       customer_type: data.customer_type,
       annual_income: data.annual_income,
+      abb: isProvided(data.abb) ? Number(data.abb) : null,
 
       patient_name: nullableString(data.patient_name),
       insurance_company_name: nullableString(data.insurance_company_name),
@@ -1443,7 +1444,23 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
         net_disbursement: netDisbursement,
       });
+// ✅ DUMMY BUREAU FOR TESTING
+// bureauResult = {
+//   success: true,
+//   score: 180,
+//   response: {
+//     provider: "DUMMY_BUREAU",
+//     status: "SUCCESS",
+//     score: 750,
+//     enquiry_id: `DUMMY-${lan}-${Date.now()}`,
+//   },
+// };
 
+// console.log("✅ CAREPAY DUMMY BUREAU:", {
+//   lan,
+//   score: bureauResult.score,
+//   status: "VERIFIED",
+// });
       breDecision = evaluateCarePayLoginBre({
         data,
         requestAmount,
@@ -1499,6 +1516,19 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
 
       net_disbursement: netDisbursement,
 
+      abbCheck: {
+      applicable: requestAmount > 100000,
+      emi_amount: data.emi_amount || null,
+      abb: data.abb || null,
+      required_abb:
+        requestAmount > 100000 && data.emi_amount
+          ? Number(data.emi_amount) * 1.5
+          : null,
+      passed:
+        requestAmount > 100000
+          ? Number(data.abb) > Number(data.emi_amount) * 1.5
+          : true,
+  },
       cibilScore: bureauResult.score || "Not Found",
       bureauStatus: bureauResult.success ? "VERIFIED" : "FAILED",
     });
@@ -2078,13 +2108,24 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
           bank_name,
           bank_branch_name,
           bank_ifsc_code,
-          bank_account_type
+          bank_account_type,
+          loan_amount,
+          abb,
+          cibil_score
        FROM loan_booking_carepay
        WHERE lan = ?
        LIMIT 1`,
       [cleanLan],
     );
 
+    const loanAmount = Number(loan?.loan_amount || 0);
+    const cibilScore = Number(loan?.cibil_score || 0);
+
+    const abbRequired =
+      loanAmount > 100000 ||
+      (cibilScore >= 1 && cibilScore <= 200);
+
+    const bankStatementRequired = loanAmount > 100000;
     const hasValue = (value) =>
       value !== null &&
       value !== undefined &&
@@ -2099,12 +2140,17 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       hasValue(loan?.bank_name) &&
       hasValue(loan?.bank_branch_name) &&
       hasValue(loan?.bank_ifsc_code) &&
-      hasValue(loan?.bank_account_type);
+      hasValue(loan?.bank_account_type) &&
+  (!abbRequired || hasValue(loan?.abb));
 
     if (!allDetailsAvailable) {
       return res.status(200).json({
-        message:
-          "Mandate details updated, but some required values are missing",
+          message:
+      abbRequired && !hasValue(loan?.abb)
+        ? "ABB is required for this loan"
+        : "Mandate details updated, but some required values are missing",
+      abb_required: abbRequired,
+      abb_available: hasValue(loan?.abb),
         verification_updated: false,
         documents_complete: false,
         approved: false,
@@ -2133,6 +2179,9 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
           bank_branch_name,
           bank_ifsc_code,
           bank_account_type,
+          loan_amount,
+          abb,
+          cibil_score,
           bank_status,
           agreement_esign_status,
           sanction_esign_status
@@ -2151,7 +2200,8 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       hasValue(verifiedLoan?.bank_name) &&
       hasValue(verifiedLoan?.bank_branch_name) &&
       hasValue(verifiedLoan?.bank_ifsc_code) &&
-      hasValue(verifiedLoan?.bank_account_type);
+      hasValue(verifiedLoan?.bank_account_type)  &&
+      (!abbRequired || hasValue(verifiedLoan?.abb));
 
     const allStatusesComplete =
       String(verifiedLoan?.bank_status || "")
@@ -2198,6 +2248,27 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
     const missingDocuments = requiredDocuments.filter(
       (docName) => !availableDocuments.includes(docName),
     );
+    // ✅ Bank statement mandatory only when loan > ₹1 lakh
+    if (bankStatementRequired) {
+      const [bankStatementRows] = await db.promise().query(
+        `SELECT id
+         FROM loan_documents
+         WHERE lan = ?
+           AND doc_name = ?
+         LIMIT 1`,
+        [cleanLan, "bankStatement"],
+      );
+    
+      if (!bankStatementRows.length) {
+        return res.status(200).json({
+          message: "Bank statement is required for loan amount above ₹1,00,000",
+          verification_updated: true,
+          documents_complete: false,
+          missing_documents: ["bankStatement"],
+          approved: false,
+        });
+      }
+    }
 
     if (missingDocuments.length > 0) {
       return res.status(200).json({

@@ -179,6 +179,23 @@ const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null }) =>
     reasons.push(`REQUEST_AMOUNT_NOT_IN_${policy.minAmount}_${policy.maxAmount}`);
   }
 
+  if (amount !== null && amount > 100000) {
+  const emiAmount = toFiniteNumber(data.emi_amount);
+  const abb = toFiniteNumber(data.abb);
+
+  if (emiAmount === null) {
+    reasons.push("EMI_AMOUNT_MISSING_FOR_ABB_CHECK");
+  } else if (abb === null) {
+    reasons.push("ABB_MISSING");
+  } else {
+    const requiredAbb = emiAmount * 1.5;
+
+    if (abb < requiredAbb) {
+  reasons.push("ABB_BELOW_1_5X_EMI");
+}
+  }
+}
+
   const annualIncome = normalizeCarePayAnnualIncome(data);
   if (annualIncome === null) {
     reasons.push("INCOME_MISSING");
@@ -228,7 +245,13 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision, b
     .includes("ntc");
 
   const dpdFacts = extractCarePayBureauDpd(bureauResponse);
+  const emiAmount = toFiniteNumber(data.emi_amount);
+  const abb = toFiniteNumber(data.abb);
 
+  const requiredAbb =
+  amount !== null && amount > 100000 && emiAmount !== null
+    ? emiAmount * 1.5
+    : null;
   return {
     evaluated_at: new Date().toISOString(),
 
@@ -239,6 +262,7 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision, b
       age_supplied: data.age ?? null,
       loan_tenure: data.loan_tenure ?? null,
       request_amount: requestAmount ?? null,
+      abb: data.abb ?? null,
       annual_income: data.annual_income ?? null,
       monthly_income: data.monthly_income ?? null,
       net_monthly_income: data.net_monthly_income ?? null,
@@ -257,6 +281,16 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision, b
       bureau_score: score,
       is_ntc_customer: isNtcCustomer,
       dpd: dpdFacts,
+      emi_amount: emiAmount,
+      abb,
+      required_abb: requiredAbb,
+      abb_check_applicable: amount !== null && amount > 100000,
+      abb_check_passed:
+        amount !== null && amount > 100000
+          ? abb !== null &&
+            requiredAbb !== null &&
+            abb > requiredAbb
+          : true,
     },
 
     // policy applied for this loan_type
