@@ -9,11 +9,114 @@ const {
 const {
   sendDisbursementWebhook,
 } = require("../routes/switchMyLoan/switchMyLoanWebhook");
+const {
+  processMandateWebhook,
+} = require("../services/easebuzz/easebuzzMandateService");
 
 const router = express.Router();
 const {
   sendWelcomeLetterAfterUtrUpload,
 } = require("../services/welcomeLetterService");
+
+async function handleMandateWebhook(req, res) {
+  try {
+    const result =
+      await processMandateWebhook(
+        req.body || {},
+        req.headers || {},
+      );
+
+    if (result.ignored) {
+      console.warn(
+        "Easebuzz mandate webhook ignored",
+        {
+          reason: result.reason,
+          identifiers:
+            result.identifiers,
+        },
+      );
+
+      return res.status(200).json({
+        received: true,
+        ignored: true,
+        reason: result.reason,
+      });
+    }
+
+    console.log(
+      "Easebuzz mandate webhook processed",
+      {
+        lan: result.mandate?.lan,
+        transactionId:
+          result.mandate?.transactionId,
+        status:
+          result.mandate?.status,
+        providerStatus:
+          result.mandate?.providerStatus,
+        umrn:
+          result.mandate?.umrn,
+        duplicate:
+          result.event?.duplicate,
+      },
+    );
+
+    return res.status(200).json({
+      received: true,
+      success: true,
+      data: {
+        lan: result.mandate?.lan,
+        transactionId:
+          result.mandate?.transactionId,
+        status:
+          result.mandate?.status,
+        providerStatus:
+          result.mandate?.providerStatus,
+        umrn:
+          result.mandate?.umrn,
+        duplicate:
+          result.event?.duplicate,
+      },
+    });
+  } catch (error) {
+    if (Number(error.statusCode) === 401) {
+      console.error(
+        "Easebuzz mandate webhook unauthorized",
+        {
+          message: error.message,
+        },
+      );
+
+      return res.status(401).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    console.error(
+      "Easebuzz mandate webhook processing error",
+      {
+        message: error.message,
+        stack: error.stack,
+      },
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Mandate webhook processing failed",
+    });
+  }
+}
+
+router.post(
+  "/mandate",
+  handleMandateWebhook,
+);
+
+router.post(
+  "/easycollect/mandate",
+  handleMandateWebhook,
+);
 
 router.post("/payout", async (req, res) => {
   let conn;
