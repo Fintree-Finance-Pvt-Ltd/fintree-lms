@@ -1431,36 +1431,36 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     };
 
     if (breDecision.status === "BRE APPROVED") {
-      bureauResult = await persistCarePayBureauResult(lan, {
-        ...data,
-        loan_amount: requestAmount,
-        request_amount: requestAmount,
+      // bureauResult = await persistCarePayBureauResult(lan, {
+      //   ...data,
+      //   loan_amount: requestAmount,
+      //   request_amount: requestAmount,
 
-        processing_fee_percentage: processingFee.percentage,
-        processing_fee: processingFee.amount,
+      //   processing_fee_percentage: processingFee.percentage,
+      //   processing_fee: processingFee.amount,
 
-        subvention_percentage: subvention.percentage,
-        subvention_amount: subvention.amount,
+      //   subvention_percentage: subvention.percentage,
+      //   subvention_amount: subvention.amount,
 
-        net_disbursement: netDisbursement,
-      });
+      //   net_disbursement: netDisbursement,
+      // });
 // ✅ DUMMY BUREAU FOR TESTING
-// bureauResult = {
-//   success: true,
-//   score: 180,
-//   response: {
-//     provider: "DUMMY_BUREAU",
-//     status: "SUCCESS",
-//     score: 750,
-//     enquiry_id: `DUMMY-${lan}-${Date.now()}`,
-//   },
-// };
+bureauResult = {
+  success: true,
+  score: 680,
+  response: {
+    provider: "DUMMY_BUREAU",
+    status: "SUCCESS",
+    score: 750,
+    enquiry_id: `DUMMY-${lan}-${Date.now()}`,
+  },
+};
 
-// console.log("✅ CAREPAY DUMMY BUREAU:", {
-//   lan,
-//   score: bureauResult.score,
-//   status: "VERIFIED",
-// });
+console.log("✅ CAREPAY DUMMY BUREAU:", {
+  lan,
+  score: bureauResult.score,
+  status: "VERIFIED",
+});
       breDecision = evaluateCarePayLoginBre({
         data,
         requestAmount,
@@ -1491,6 +1491,13 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       }
     }
 
+    const finalBureauScore = Number(bureauResult.score);
+
+const abbRequiredForResponse =
+  requestAmount > 300000 ||
+  (finalBureauScore >= 1 && finalBureauScore <= 200) ||
+  finalBureauScore === 680;
+
     return res.json({
       message:
         breDecision.status === "BRE FAILED"
@@ -1517,13 +1524,14 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
       net_disbursement: netDisbursement,
 
       abbCheck: {
-      applicable: requestAmount > 100000,
+      applicable: abbRequiredForResponse,
       emi_amount: data.emi_amount || null,
       abb: data.abb || null,
-      required_abb:
-        requestAmount > 100000 && data.emi_amount
-          ? Number(data.emi_amount) * 1.5
-          : null,
+       required_abb:
+    abbRequiredForResponse && data.emi_amount
+      ? Number(data.emi_amount) * 1.5
+      : null,
+
       passed:
         requestAmount > 100000
           ? Number(data.abb) > Number(data.emi_amount) * 1.5
@@ -2122,10 +2130,13 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
     const cibilScore = Number(loan?.cibil_score || 0);
 
     const abbRequired =
-      loanAmount > 100000 ||
-      (cibilScore >= 1 && cibilScore <= 200);
+      loanAmount > 300000 ||
+      (cibilScore >= 1 && cibilScore <= 200) ||
+  cibilScore === 680;
+;
 
-    const bankStatementRequired = loanAmount > 100000;
+    const bankStatementRequired = loanAmount > 300000 ||
+  cibilScore === 680;
     const hasValue = (value) =>
       value !== null &&
       value !== undefined &&
@@ -2261,8 +2272,10 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
     
       if (!bankStatementRows.length) {
         return res.status(200).json({
-          message: "Bank statement is required for loan amount above ₹1,00,000",
-          verification_updated: true,
+          message:
+            cibilScore === 680
+              ? "Bank statement is required because CIBIL score is 680"
+              : "Bank statement is required for loan amount above ₹3,00,000",          verification_updated: true,
           documents_complete: false,
           missing_documents: ["bankStatement"],
           approved: false,
