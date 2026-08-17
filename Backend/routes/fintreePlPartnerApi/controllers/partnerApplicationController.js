@@ -4,6 +4,9 @@ const {
   validateDetailsPayload,
   validateDocumentPayload,
   validateDisbursePayload,
+  validateRepaymentPayload,
+  validateExtraChargePayload,
+  validateWaiverPayload,
 } = require("../utils/validation");
 const { PartnerApiError } = require("../utils/partnerApiError");
 const { successEnvelope, errorEnvelope } = require("../utils/response");
@@ -21,6 +24,11 @@ const {
   approveApplication,
   disburseApplication,
 } = require("../services/partnerApplicationService");
+const {
+  recordRepayment,
+  addExtraCharge,
+  waiveExtraCharge,
+} = require("../services/plPartnerRepayment");
 
 const normalizeError = (error) => {
   if (error instanceof PartnerApiError) return error;
@@ -163,6 +171,24 @@ const approveHandler = execute({
   getPartnerApplicationId: (req) => String(req.params.partnerApplicationId || "").trim(),
 });
 
+const repaymentHandler = execute({
+  validator: validateRepaymentPayload,
+  service: recordRepayment,
+  getPartnerApplicationId: (req) => String(req.params.partnerApplicationId || "").trim(),
+});
+
+const extraChargeHandler = execute({
+  validator: validateExtraChargePayload,
+  service: addExtraCharge,
+  getPartnerApplicationId: (req) => String(req.params.partnerApplicationId || "").trim(),
+});
+
+const chargeWaiverHandler = execute({
+  validator: validateWaiverPayload,
+  service: waiveExtraCharge,
+  getPartnerApplicationId: (req) => String(req.params.partnerApplicationId || "").trim(),
+});
+
 module.exports = {
   createApplicationHandler,
   recordConsentHandler,
@@ -170,4 +196,7 @@ module.exports = {
   uploadDocumentHandler,
   disburseHandler,
   approveHandler,
+  repaymentHandler,
+  extraChargeHandler,
+  chargeWaiverHandler,
 };

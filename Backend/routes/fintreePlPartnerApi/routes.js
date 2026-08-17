@@ -10,6 +10,9 @@ const {
   uploadDocumentHandler,
   disburseHandler,
   approveHandler,
+  repaymentHandler,
+  extraChargeHandler,
+  chargeWaiverHandler,
 } = require("./controllers/partnerApplicationController");
 
 const router = express.Router();
@@ -54,6 +57,27 @@ router.post(
   verifyApiKey,
   requestContext,
   approveHandler,
+);
+
+router.post(
+  "/applications/:partnerApplicationId/repayment",
+  verifyApiKey,
+  requestContext,
+  repaymentHandler,
+);
+
+router.post(
+  "/applications/:partnerApplicationId/charges",
+  verifyApiKey,
+  requestContext,
+  extraChargeHandler,
+);
+
+router.post(
+  "/applications/:partnerApplicationId/charges/waiver",
+  verifyApiKey,
+  requestContext,
+  chargeWaiverHandler,
 );
 
 router.use((error, req, res, _next) => {
