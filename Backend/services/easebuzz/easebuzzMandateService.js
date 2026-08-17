@@ -1044,6 +1044,8 @@ async function createEnachAuthorizationLink(input = {}) {
   });
 
   const createdBy = input.createdBy ?? null;
+  const allowRetryWithoutUmrn =
+    Boolean(input.allowRetryWithoutUmrn);
 
   const payload =
   buildEasyCollectPayload(validated);
@@ -1056,9 +1058,23 @@ const mandate =
   await repository.withLanInitiationLock(
     lan,
     async () => {
+      const existingMandates =
+        allowRetryWithoutUmrn
+          ? await repository
+              .findAllByLan(lan)
+          : [];
+
       const existing =
+        existingMandates[0] ||
         await repository
           .findLatestByLan(lan);
+
+      const hasExistingUmrn =
+        existingMandates.some(
+          (mandateRow) =>
+            clean(mandateRow.umrn),
+        ) ||
+        clean(existing?.umrn);
 
       if (
         existing &&
@@ -1070,6 +1086,10 @@ const mandate =
           "UNKNOWN",
         ].includes(
           existing.status,
+        ) &&
+        (
+          !allowRetryWithoutUmrn ||
+          hasExistingUmrn
         )
       ) {
         const error = new Error(

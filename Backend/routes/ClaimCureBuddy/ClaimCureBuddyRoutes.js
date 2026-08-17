@@ -138,6 +138,180 @@ const safeJson = (value) => {
   }
 };
 
+const extractXmlString = (value, depth = 0) => {
+  if (depth > 8 || value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    if (trimmed.startsWith("<") && trimmed.includes(">")) {
+      return trimmed;
+    }
+
+    if (
+      trimmed.startsWith("{") ||
+      trimmed.startsWith("[") ||
+      trimmed.startsWith('"')
+    ) {
+      try {
+        return extractXmlString(JSON.parse(trimmed), depth + 1);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  const preferredKeys = [
+    "report_xml",
+    "reportXml",
+    "xml",
+    "rawXml",
+    "raw_response",
+    "response",
+    "data",
+    "result",
+    "payload",
+  ];
+
+  for (const key of preferredKeys) {
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      const match = extractXmlString(value[key], depth + 1);
+
+      if (match) {
+        return match;
+      }
+    }
+  }
+
+  return null;
+};
+
+const serializeCibilReport = (value) => {
+  const xml = extractXmlString(value);
+
+  if (xml) {
+    return xml;
+  }
+
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return clean(value) || null;
+  }
+
+  return safeJson(value);
+};
+
+const positiveIntegerOrNull = (value) => {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const persistClaimCureBuddyCibilReport = async ({
+  pool,
+  loan,
+  applicant,
+  applicantType,
+  partyNo,
+  sourceApplicantId,
+  panNumber,
+  score,
+  rawResponse,
+  bureauReused,
+}) => {
+  const reportXml = serializeCibilReport(rawResponse);
+
+  if (!reportXml) {
+    return;
+  }
+
+  const normalizedPartyNo = Number(partyNo) || 1;
+  const reportPan = nullable(
+    panNumber || applicant?.pan_number || applicant?.pan_card,
+  );
+  const reportScore = score === null || score === undefined ? null : score;
+  const reportSourceApplicantId =
+    positiveIntegerOrNull(sourceApplicantId) ||
+    positiveIntegerOrNull(applicant?.id) ||
+    positiveIntegerOrNull(applicantType === "BORROWER" ? loan?.id : null);
+
+  if (bureauReused) {
+    const [existingReports] = await pool.query(
+      `SELECT id, report_xml
+       FROM loan_cibil_reports
+       WHERE lan = ?
+         AND applicant_type = ?
+         AND party_no = ?
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1`,
+      [loan.lan, applicantType, normalizedPartyNo],
+    );
+
+    if (existingReports.length) {
+      if (!existingReports[0].report_xml) {
+        await pool.query(
+          `UPDATE loan_cibil_reports
+           SET
+             pan_number = COALESCE(?, pan_number),
+             score = COALESCE(?, score),
+             report_xml = ?,
+             source_applicant_id =
+               COALESCE(?, source_applicant_id)
+           WHERE id = ?`,
+          [
+            reportPan,
+            reportScore,
+            reportXml,
+            reportSourceApplicantId,
+            existingReports[0].id,
+          ],
+        );
+      }
+
+      return;
+    }
+  }
+
+  await pool.query(
+    `INSERT INTO loan_cibil_reports
+     (
+       lan,
+       pan_number,
+       score,
+       report_xml,
+       applicant_type,
+       party_no,
+       source_applicant_id,
+       created_at
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [
+      loan.lan,
+      reportPan,
+      reportScore,
+      reportXml,
+      applicantType,
+      normalizedPartyNo,
+      reportSourceApplicantId,
+    ],
+  );
+};
+
 const errorResponse = (res, error, fallbackMessage) => {
   const status = Number(error.statusCode) || 500;
 
@@ -915,8 +1089,8 @@ router.post("/pan/verify", async (req, res) => {
     let panResult;
 
     try {
-      // PAN service remains unchanged.
-      // Both PAN and entered customer name are passed.
+      // Customer name is passed for provider payload/profile extraction only.
+      // ClaimCureBuddy PAN verification should not fail on PAN-name mismatch.
       panResult = await getPanCardDetails(panNumber, customerName);
     } catch (apiError) {
       panResult = {
@@ -937,9 +1111,7 @@ router.post("/pan/verify", async (req, res) => {
       customerName: apiProfile.customerName || enteredNameProfile.customerName,
     };
 
-    const verified = Boolean(
-      panResult?.success && panResult?.nameMatch !== false,
-    );
+    const verified = Boolean(panResult?.success);
 
     await connection.query(
       `UPDATE kyc_verification_status
@@ -965,10 +1137,7 @@ router.post("/pan/verify", async (req, res) => {
     if (!verified) {
       return res.status(422).json({
         success: false,
-        message:
-          panResult?.nameMatch === false
-            ? "Customer name does not match the PAN holder name"
-            : "PAN verification failed",
+        message: "PAN verification failed",
         reason: panResult?.reason || "PAN_API_FAILURE",
       });
     }
@@ -2039,7 +2208,9 @@ const runApplicantBureau = async ({
   const [[kyc]] = await pool.query(
     `SELECT
        bureau_status,
-       bureau_api_response
+       bureau_api_response,
+       source_applicant_id,
+       pan_number
      FROM kyc_verification_status
      WHERE lan = ?
        AND applicant_type = ?
@@ -2137,6 +2308,19 @@ const runApplicantBureau = async ({
   }
 
   const facts = extractClaimCureBuddyBureauFacts(rawResponse, fallbackScore);
+
+  await persistClaimCureBuddyCibilReport({
+    pool,
+    loan,
+    applicant,
+    applicantType,
+    partyNo,
+    sourceApplicantId: kyc?.source_applicant_id,
+    panNumber: kyc?.pan_number,
+    score: facts.score,
+    rawResponse,
+    bureauReused,
+  });
 
   const decision =
     evaluationMode === "PRE_BRE" && applicantType === "BORROWER"
@@ -2533,6 +2717,22 @@ router.get("/approved-cases", async (_req, res) => {
              ) AS enach_status,
              em.transaction_id
                AS enach_transaction_id,
+             em.easycollect_link_id
+               AS enach_easycollect_link_id,
+             em.easebuzz_request_id
+               AS enach_request_id,
+             em.easebuzz_mandate_id
+               AS enach_mandate_id,
+             em.umrn
+               AS enach_umrn,
+             em.mandate_type
+               AS enach_mandate_type,
+             em.auth_mode
+               AS enach_auth_mode,
+             em.request_type
+               AS enach_request_type,
+             em.amount
+               AS enach_amount,
              em.payment_url
                AS enach_payment_url,
              em.short_url
@@ -2549,7 +2749,14 @@ router.get("/approved-cases", async (_req, res) => {
                SELECT em2.id
                FROM easebuzz_mandates em2
                WHERE em2.lan = lb.lan
-               ORDER BY em2.id DESC
+               ORDER BY
+                 CASE
+                   WHEN em2.umrn IS NOT NULL
+                    AND TRIM(em2.umrn) <> ''
+                   THEN 0
+                   ELSE 1
+                 END,
+                 em2.id DESC
                LIMIT 1
              )
            WHERE lb.status = 'Approved'
@@ -2635,7 +2842,6 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
     const maxDebitAmount = numeric(data.maxDebitAmount, "maxDebitAmount", {
       min: 1,
     });
-
     const finalCollectionDate = clean(data.finalCollectionDate);
 
     const expiryDate = nullable(data.expiryDate);
@@ -2694,6 +2900,7 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
       udf2: "ClaimCureBuddy",
       udf3: loan.partner_loan_id || "",
       createdBy: actorId(req),
+      allowRetryWithoutUmrn: true,
     });
 
     return res.status(201).json({

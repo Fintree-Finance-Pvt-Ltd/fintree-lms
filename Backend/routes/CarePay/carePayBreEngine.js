@@ -154,7 +154,8 @@ const normalizeCarePayAnnualIncome = (data) => {
   return monthlyIncome * 12;
 };
 
-const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null }) => {
+const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null,
+}) => {
   const policy = getCarePayPolicy(data.loan_type);
   const reasons = [];
 
@@ -179,6 +180,33 @@ const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null }) =>
     reasons.push(`REQUEST_AMOUNT_NOT_IN_${policy.minAmount}_${policy.maxAmount}`);
   }
 
+  const score =
+    toFiniteNumber(bureauScore) ??
+    toFiniteNumber(data.cibil_score) ??
+    toFiniteNumber(data.cibil_score_fintree);
+
+  const emiAmount = toFiniteNumber(data.emi_amount);
+  const abb = toFiniteNumber(data.abb);
+
+  const abbRequired =
+    (amount !== null && amount > 300000) ||
+    (score !== null && score >= 1 && score <= 200) ||
+    score === 680;
+
+  if (abbRequired) {
+    if (emiAmount === null) {
+      reasons.push("EMI_AMOUNT_MISSING_FOR_ABB_CHECK");
+    } else if (abb === null) {
+      reasons.push("ABB_MISSING");
+    } else {
+      const requiredAbb = emiAmount * 1.5;
+
+      if (abb < requiredAbb) {
+        reasons.push("ABB_BELOW_1_5X_EMI");
+      }
+    }
+  }
+
   const annualIncome = normalizeCarePayAnnualIncome(data);
   if (annualIncome === null) {
     reasons.push("INCOME_MISSING");
@@ -186,10 +214,6 @@ const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null }) =>
     reasons.push(`INCOME_BELOW_${policy.minAnnualIncome}`);
   }
 
-  const score =
-    toFiniteNumber(bureauScore) ??
-    toFiniteNumber(data.cibil_score) ??
-    toFiniteNumber(data.cibil_score_fintree);
   const isNtcCustomer = String(data.customer_type || "")
     .trim()
     .toLowerCase()
@@ -200,9 +224,9 @@ const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null }) =>
   }
 
   return {
-    status: reasons.length ? "BRE FAILED" : "BRE APPROVED",
-    caseStatus: reasons.length ? "Rejected" : CAREPAY_BRE_APPROVED_STATUS,
-    reason: reasons.length ? reasons.join(", ") : "ELIGIBLE",
+    status: reasons.length > 0 ? "BRE FAILED" : "BRE APPROVED",
+    caseStatus: reasons.length > 0 ? "Rejected" : CAREPAY_BRE_APPROVED_STATUS,
+    reason: reasons.length > 0 ? reasons.join(", ") : "ELIGIBLE",
     reasons,
     bureauScore: score,
   };
@@ -228,7 +252,22 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision, b
     .includes("ntc");
 
   const dpdFacts = extractCarePayBureauDpd(bureauResponse);
+  const emiAmount = toFiniteNumber(data.emi_amount);
+  const abb = toFiniteNumber(data.abb);
+  const abbRequired =
+  (amount !== null && amount > 300000) ||
+  (score !== null && score >= 1 && score <= 200) ||
+  score === 680;
 
+const bankStatementRequired =
+  (amount !== null && amount > 300000) ||
+  score === 680;
+
+const requiredAbb =
+  abbRequired && emiAmount !== null
+    ? emiAmount * 1.5
+    : null;
+  
   return {
     evaluated_at: new Date().toISOString(),
 
@@ -239,6 +278,7 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision, b
       age_supplied: data.age ?? null,
       loan_tenure: data.loan_tenure ?? null,
       request_amount: requestAmount ?? null,
+      abb: data.abb ?? null,
       annual_income: data.annual_income ?? null,
       monthly_income: data.monthly_income ?? null,
       net_monthly_income: data.net_monthly_income ?? null,
@@ -257,6 +297,17 @@ const buildBreSnapshot = ({ data, requestAmount, bureauScore = null, decision, b
       bureau_score: score,
       is_ntc_customer: isNtcCustomer,
       dpd: dpdFacts,
+      emi_amount: emiAmount,
+      abb,
+      required_abb: requiredAbb,
+      abb_check_applicable: amount !== null && amount > 100000,
+      abb_check_passed:
+        amount !== null && amount > 100000
+          ? abb !== null &&
+            requiredAbb !== null &&
+            abb > requiredAbb
+          : true,
+      bank_statement_required: abbRequired,
     },
 
     // policy applied for this loan_type
