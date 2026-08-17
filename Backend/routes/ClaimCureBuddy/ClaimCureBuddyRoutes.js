@@ -138,6 +138,180 @@ const safeJson = (value) => {
   }
 };
 
+const extractXmlString = (value, depth = 0) => {
+  if (depth > 8 || value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    if (trimmed.startsWith("<") && trimmed.includes(">")) {
+      return trimmed;
+    }
+
+    if (
+      trimmed.startsWith("{") ||
+      trimmed.startsWith("[") ||
+      trimmed.startsWith('"')
+    ) {
+      try {
+        return extractXmlString(JSON.parse(trimmed), depth + 1);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  const preferredKeys = [
+    "report_xml",
+    "reportXml",
+    "xml",
+    "rawXml",
+    "raw_response",
+    "response",
+    "data",
+    "result",
+    "payload",
+  ];
+
+  for (const key of preferredKeys) {
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      const match = extractXmlString(value[key], depth + 1);
+
+      if (match) {
+        return match;
+      }
+    }
+  }
+
+  return null;
+};
+
+const serializeCibilReport = (value) => {
+  const xml = extractXmlString(value);
+
+  if (xml) {
+    return xml;
+  }
+
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    return clean(value) || null;
+  }
+
+  return safeJson(value);
+};
+
+const positiveIntegerOrNull = (value) => {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const persistClaimCureBuddyCibilReport = async ({
+  pool,
+  loan,
+  applicant,
+  applicantType,
+  partyNo,
+  sourceApplicantId,
+  panNumber,
+  score,
+  rawResponse,
+  bureauReused,
+}) => {
+  const reportXml = serializeCibilReport(rawResponse);
+
+  if (!reportXml) {
+    return;
+  }
+
+  const normalizedPartyNo = Number(partyNo) || 1;
+  const reportPan = nullable(
+    panNumber || applicant?.pan_number || applicant?.pan_card,
+  );
+  const reportScore = score === null || score === undefined ? null : score;
+  const reportSourceApplicantId =
+    positiveIntegerOrNull(sourceApplicantId) ||
+    positiveIntegerOrNull(applicant?.id) ||
+    positiveIntegerOrNull(applicantType === "BORROWER" ? loan?.id : null);
+
+  if (bureauReused) {
+    const [existingReports] = await pool.query(
+      `SELECT id, report_xml
+       FROM loan_cibil_reports
+       WHERE lan = ?
+         AND applicant_type = ?
+         AND party_no = ?
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1`,
+      [loan.lan, applicantType, normalizedPartyNo],
+    );
+
+    if (existingReports.length) {
+      if (!existingReports[0].report_xml) {
+        await pool.query(
+          `UPDATE loan_cibil_reports
+           SET
+             pan_number = COALESCE(?, pan_number),
+             score = COALESCE(?, score),
+             report_xml = ?,
+             source_applicant_id =
+               COALESCE(?, source_applicant_id)
+           WHERE id = ?`,
+          [
+            reportPan,
+            reportScore,
+            reportXml,
+            reportSourceApplicantId,
+            existingReports[0].id,
+          ],
+        );
+      }
+
+      return;
+    }
+  }
+
+  await pool.query(
+    `INSERT INTO loan_cibil_reports
+     (
+       lan,
+       pan_number,
+       score,
+       report_xml,
+       applicant_type,
+       party_no,
+       source_applicant_id,
+       created_at
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [
+      loan.lan,
+      reportPan,
+      reportScore,
+      reportXml,
+      applicantType,
+      normalizedPartyNo,
+      reportSourceApplicantId,
+    ],
+  );
+};
+
 const errorResponse = (res, error, fallbackMessage) => {
   const status = Number(error.statusCode) || 500;
 
@@ -2034,7 +2208,9 @@ const runApplicantBureau = async ({
   const [[kyc]] = await pool.query(
     `SELECT
        bureau_status,
-       bureau_api_response
+       bureau_api_response,
+       source_applicant_id,
+       pan_number
      FROM kyc_verification_status
      WHERE lan = ?
        AND applicant_type = ?
@@ -2132,6 +2308,19 @@ const runApplicantBureau = async ({
   }
 
   const facts = extractClaimCureBuddyBureauFacts(rawResponse, fallbackScore);
+
+  await persistClaimCureBuddyCibilReport({
+    pool,
+    loan,
+    applicant,
+    applicantType,
+    partyNo,
+    sourceApplicantId: kyc?.source_applicant_id,
+    panNumber: kyc?.pan_number,
+    score: facts.score,
+    rawResponse,
+    bureauReused,
+  });
 
   const decision =
     evaluationMode === "PRE_BRE" && applicantType === "BORROWER"
@@ -2653,7 +2842,6 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
     const maxDebitAmount = numeric(data.maxDebitAmount, "maxDebitAmount", {
       min: 1,
     });
-
     const finalCollectionDate = clean(data.finalCollectionDate);
 
     const expiryDate = nullable(data.expiryDate);
