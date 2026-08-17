@@ -190,11 +190,30 @@ const ClaimCureBuddyScreen = () => {
     },
 
     {
-      key: "lan",
-      header: "LAN",
-      sortable: true,
-      width: 140,
-    },
+  key: "lan",
+  header: "LAN",
+  sortable: true,
+
+  render: (r) => (
+    <span
+      onClick={() =>
+        navigate(
+          `/claim-cure-buddy/customer-details?lan=${encodeURIComponent(r.lan)}`
+        )
+      }
+      style={{
+        color: "#2563eb",
+        fontWeight: 700,
+        cursor: "pointer",
+        textDecoration: "underline",
+      }}
+    >
+      {r.lan || "—"}
+    </span>
+  ),
+
+  width: 140,
+},
 
     {
       key: "mobile_number",
