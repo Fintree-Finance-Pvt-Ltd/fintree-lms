@@ -915,8 +915,8 @@ router.post("/pan/verify", async (req, res) => {
     let panResult;
 
     try {
-      // PAN service remains unchanged.
-      // Both PAN and entered customer name are passed.
+      // Customer name is passed for provider payload/profile extraction only.
+      // ClaimCureBuddy PAN verification should not fail on PAN-name mismatch.
       panResult = await getPanCardDetails(panNumber, customerName);
     } catch (apiError) {
       panResult = {
@@ -937,9 +937,7 @@ router.post("/pan/verify", async (req, res) => {
       customerName: apiProfile.customerName || enteredNameProfile.customerName,
     };
 
-    const verified = Boolean(
-      panResult?.success && panResult?.nameMatch !== false,
-    );
+    const verified = Boolean(panResult?.success);
 
     await connection.query(
       `UPDATE kyc_verification_status
@@ -965,10 +963,7 @@ router.post("/pan/verify", async (req, res) => {
     if (!verified) {
       return res.status(422).json({
         success: false,
-        message:
-          panResult?.nameMatch === false
-            ? "Customer name does not match the PAN holder name"
-            : "PAN verification failed",
+        message: "PAN verification failed",
         reason: panResult?.reason || "PAN_API_FAILURE",
       });
     }

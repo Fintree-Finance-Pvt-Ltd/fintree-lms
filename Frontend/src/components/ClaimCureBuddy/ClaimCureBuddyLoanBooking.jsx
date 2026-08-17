@@ -522,7 +522,7 @@ export default function ClaimCureBuddyLoanBooking() {
       setNotice(
         `✅ ${
           applicantType === "BORROWER" ? "Borrower" : `Co-applicant ${partyNo}`
-        } PAN and customer name verified.`,
+        } PAN verified.`,
       );
     } catch (error) {
       setNotice(`❌ ${getError(error, "PAN verification failed")}`);
@@ -849,7 +849,7 @@ export default function ClaimCureBuddyLoanBooking() {
         </button>
       </div>
       <Field
-        label="Customer Name (As Per PAN)"
+        label="Customer Name"
         value={basic.customerName}
         onChange={(value) => {
           setBasic((previous) => ({
@@ -1143,7 +1143,7 @@ export default function ClaimCureBuddyLoanBooking() {
           </button>
         </div>
         <Field
-          label="Customer Name (As Per PAN)"
+          label="Customer Name"
           value={item.customerName}
           onChange={(value) => {
             setCoApplicants((previous) =>
