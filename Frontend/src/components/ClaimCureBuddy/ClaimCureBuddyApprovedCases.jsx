@@ -18,10 +18,10 @@ const formatDate = (value) => {
   return Number.isNaN(date.getTime())
     ? "—"
     : date.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      });
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
 };
 
 const toLocalYmd = (value = new Date()) => {
@@ -300,10 +300,10 @@ export default function ClaimCureBuddyApprovedCases() {
         current.map((item) =>
           item.lan === row.lan
             ? {
-                ...item,
-                agreement_esign_status: "INITIATED",
-                agreement_esign_sent_at: new Date().toISOString(),
-              }
+              ...item,
+              agreement_esign_status: "INITIATED",
+              agreement_esign_sent_at: new Date().toISOString(),
+            }
             : item,
         ),
       );
@@ -503,7 +503,20 @@ export default function ClaimCureBuddyApprovedCases() {
                     </td>
                     <td>
                       <div className="ccb-ops-loan">
-                        <strong>{row.lan}</strong>
+                        <strong
+                          onClick={() =>
+                            navigate(
+                              `/claim-cure-buddy/customer-details?lan=${encodeURIComponent(row.lan)}`
+                            )
+                          }
+                          style={{
+                            color: "#0284c7",
+                            cursor: "pointer",
+                            textDecoration: "underline",
+                          }}
+                        >
+                          {row.lan}
+                        </strong>
                         <span>{row.partner_loan_id || "—"}</span>
                         <small>{money(row.loan_amount)} · {row.loan_tenure || "—"} months</small>
                       </div>

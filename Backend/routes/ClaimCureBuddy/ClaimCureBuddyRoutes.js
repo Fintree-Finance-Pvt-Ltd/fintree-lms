@@ -2372,6 +2372,166 @@ const runApplicantBureau = async ({
   };
 };
 
+
+
+
+// ============================================================
+// Claim Cure Buddy - Credit Team Decision
+// ============================================================
+
+router.post(
+  "/credit-approval/:lan",
+  async (req, res) => {
+    const connection =
+      await db.promise().getConnection();
+
+    try {
+      const lan =
+        clean(req.params.lan);
+
+      const decision =
+        upper(req.body?.decision);
+
+      if (!lan) {
+        return res.status(400).json({
+          success: false,
+          message: "LAN is required",
+        });
+      }
+
+      if (
+        ![
+          "APPROVED",
+          "REJECTED",
+        ].includes(decision)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "decision must be APPROVED or REJECTED",
+        });
+      }
+
+      await connection.beginTransaction();
+
+      const loan =
+        await getLoan(
+          connection,
+          lan,
+          {
+            lock: true,
+          }
+        );
+
+      if (!loan) {
+        const error =
+          new Error(
+            "Claim Cure Buddy loan not found"
+          );
+
+        error.statusCode = 404;
+
+        throw error;
+      }
+
+      // BRE must already be approved
+      if (
+        loan.bre_status !==
+        "APPROVED"
+      ) {
+        const error =
+          new Error(
+            "Only BRE approved cases can be processed by Credit Team"
+          );
+
+        error.statusCode = 409;
+
+        throw error;
+      }
+
+      const finalStatus =
+        decision === "APPROVED"
+          ? "Approved"
+          : "Rejected";
+
+      const finalStage =
+        decision === "APPROVED"
+          ? "Credit Approved"
+          : "Credit Rejected";
+
+      await connection.query(
+        `
+          UPDATE loan_booking_claim_cure_buddy
+
+          SET
+            status = ?,
+
+            stage = ?,
+
+            approved_at =
+              CASE
+                WHEN ? = 'APPROVED'
+                THEN NOW()
+                ELSE NULL
+              END,
+
+            rejected_at =
+              CASE
+                WHEN ? = 'REJECTED'
+                THEN NOW()
+                ELSE NULL
+              END,
+
+            updated_by = ?
+
+          WHERE lan = ?
+        `,
+        [
+          finalStatus,
+          finalStage,
+          decision,
+          decision,
+          actorId(req),
+          lan,
+        ]
+      );
+
+      await connection.commit();
+
+      return res.status(200).json({
+        success: true,
+
+        message:
+          decision === "APPROVED"
+            ? "Case approved by Credit Team"
+            : "Case rejected by Credit Team",
+
+        lan,
+
+        status: finalStatus,
+
+        stage: finalStage,
+
+        decision,
+      });
+
+    } catch (error) {
+      await connection.rollback();
+
+      return errorResponse(
+        res,
+        error,
+        "Unable to update Credit decision"
+      );
+
+    } finally {
+      connection.release();
+    }
+  }
+);
+
+
+
 router.post("/loan-booking/:lan/final-submit", async (req, res) => {
   const connection = await db.promise().getConnection();
 
@@ -2478,35 +2638,35 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
 
     coApplicants = coRows;
 
-    const coRequired = [
-      "mobile_number",
-      "pan_number",
-      "first_name",
-      "customer_name",
-      "gender",
-      "dob",
-      "email",
-      "address_line_1",
-      "city",
-      "district",
-      "state",
-      "pincode",
-    ];
+    //   const coRequired = [
+    //   "mobile_number",
+    //   "pan_number",
+    //   "first_name",
+    //   "customer_name",
+    //   "gender",
+    //   "dob",
+    //   "email",
+    //   "address_line_1",
+    //   "city",
+    //   "district",
+    //   "state",
+    //   "pincode",
+    // ];
 
-    for (const co of coApplicants) {
-      const missing = applicantMissingFields(co, coRequired);
+    // for (const co of coApplicants) {
+    //   const missing = applicantMissingFields(co, coRequired);
 
-      if (!co.mobile_verified || missing.length) {
-        const error = new Error(
-          `Co-applicant ${co.party_no} is incomplete: ${
-            missing.join(", ") || "mobile verification"
-          }`,
-        );
+    //   if (!co.mobile_verified || missing.length) {
+    //     const error = new Error(
+    //       `Co-applicant ${co.party_no} is incomplete: ${
+    //         missing.join(", ") || "mobile verification"
+    //       }`,
+    //     );
 
-        error.statusCode = 422;
-        throw error;
-      }
-    }
+    //     error.statusCode = 422;
+    //     throw error;
+    //   }
+    // }
 
     const [kycRows] = await connection.query(
       `SELECT
@@ -2518,17 +2678,12 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
            WHERE lan = ?`,
       [lan],
     );
-
-    const requiredParties = [
-      {
-        applicantType: "BORROWER",
-        partyNo: 1,
-      },
-      ...coApplicants.map((co) => ({
-        applicantType: "CO_APPLICANT",
-        partyNo: Number(co.party_no),
-      })),
-    ];
+const requiredParties = [
+  {
+    applicantType: "BORROWER",
+    partyNo: 1,
+  },
+];
 
     const kycErrors = [];
 
@@ -2555,8 +2710,8 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
 
     if (kycErrors.length) {
       const error = new Error(
-        "Borrower and every added co-applicant must have verified PAN and Aadhaar",
-      );
+  "Borrower must have verified PAN and Aadhaar",
+);
 
       error.statusCode = 422;
       error.kycErrors = kycErrors;
@@ -2597,54 +2752,74 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
       }),
     );
 
-    for (const coApplicant of coApplicants) {
-      decisions.push(
-        await runApplicantBureau({
-          loan,
-          applicant: coApplicant,
-          applicantType: "CO_APPLICANT",
-          partyNo: Number(coApplicant.party_no),
-        }),
-      );
-    }
+    // for (const coApplicant of coApplicants) {
+    //   decisions.push(
+    //     await runApplicantBureau({
+    //       loan,
+    //       applicant: coApplicant,
+    //       applicantType: "CO_APPLICANT",
+    //       partyNo: Number(coApplicant.party_no),
+    //     }),
+    //   );
+    // }
 
-    const finalDecision = buildFinalDecision(decisions);
+   const finalDecision = buildFinalDecision(decisions);
 
-    const finalStatus =
-      finalDecision.status === "APPROVED" ? "Approved" : "Rejected";
+const breApproved =
+  finalDecision.status === "APPROVED";
 
-    await db.promise().query(
-      `UPDATE loan_booking_claim_cure_buddy
-         SET
-           status = ?,
-           stage = 'Completed',
-           bre_status = ?,
-           bre_reason = ?,
-           bre_checked_at = NOW(),
-           approved_at =
-             IF(? = 'Approved', NOW(), NULL),
-           rejected_at =
-             IF(? = 'Rejected', NOW(), NULL)
-         WHERE lan = ?
-           AND bre_status = 'RUNNING'`,
-      [
-        finalStatus,
-        finalDecision.status,
-        safeJson(finalDecision),
-        finalStatus,
-        finalStatus,
-        loan.lan,
-      ],
-    );
+const nextStatus = breApproved
+  ? "BRE Approved"
+  : "Login";
 
-    return res.json({
-      success: true,
-      message: `Final BRE completed. Case ${finalStatus}`,
-      lan: loan.lan,
-      status: finalStatus,
-      breStatus: finalDecision.status,
-      breDecision: finalDecision,
-    });
+const nextStage = breApproved
+  ? "BRE Approved"
+  : "BRE Deviation";
+
+await db.promise().query(
+  `
+    UPDATE loan_booking_claim_cure_buddy
+    SET
+      status = ?,
+      stage = ?,
+      bre_status = ?,
+      bre_reason = ?,
+      bre_checked_at = NOW(),
+
+      approved_at = NULL,
+
+      rejected_at = NULL
+
+    WHERE lan = ?
+      AND bre_status = 'RUNNING'
+  `,
+  [
+    nextStatus,
+    nextStage,
+    finalDecision.status,
+    safeJson(finalDecision),
+    loan.lan,
+  ]
+);
+if (updateResult.affectedRows !== 1) {
+  throw new Error(
+    `BRE completed but case ${loan.lan} could not be moved to Credit`
+  );
+}
+
+return res.json({
+  success: true,
+
+  message: breApproved
+    ? "BRE approved. Case sent to Credit Team"
+     :"BRE rejected. Case sent to Credit Team for review",
+
+  lan: loan.lan,
+  status: nextStatus,
+  stage: nextStage,
+  breStatus: finalDecision.status,
+  breDecision: finalDecision,
+});
   } catch (error) {
     await db.promise().query(
       `UPDATE loan_booking_claim_cure_buddy
@@ -2917,6 +3092,349 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
   }
 });
 
+
+
+
+//claim cure buddy customer details
+
+router.get("/customer-details/:lan", async (req, res) => {
+  res.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+    "Surrogate-Control": "no-store",
+  });
+
+  const lan = String(req.params?.lan || "").trim();
+
+  if (!lan) {
+    return res.status(400).json({
+      success: false,
+      message: "LAN is required.",
+    });
+  }
+
+  try {
+    const [rows] = await db.promise().query(
+      `
+        SELECT
+          id,
+          application_id,
+          partner_loan_id,
+          lan,
+
+          lender_type,
+          lender,
+          product,
+
+          status,
+          stage,
+          login_date,
+
+          mobile_number,
+          borrower_mobile_verified,
+
+          pan_card,
+          first_name,
+          last_name,
+          customer_name,
+          gender,
+          dob,
+          father_name,
+          email,
+
+          permanent_address_line_1,
+          permanent_address_line_2,
+          permanent_city,
+          permanent_district,
+          permanent_state,
+          permanent_pincode,
+
+          current_address_line_1,
+          current_address_line_2,
+          current_city,
+          current_district,
+          current_state,
+          current_pincode,
+          current_same_as_permanent,
+
+          loan_amount,
+          interest_rate,
+          loan_tenure,
+          processing_fee,
+          disbursal_amount,
+
+          customer_name_as_per_bank,
+          customer_bank_name,
+          customer_account_number,
+          bank_ifsc_code,
+          bank_branch_address,
+          bank_verification_status,
+          bank_verification_response,
+
+          borrower_bureau_score,
+          borrower_bureau_facts,
+
+          borrower_pre_bre_status,
+          borrower_pre_bre_reason,
+          borrower_pre_bre_checked_at,
+
+          bre_status,
+          bre_reason,
+          bre_checked_at,
+
+          submitted_at,
+          approved_at,
+          rejected_at,
+
+          created_by,
+          updated_by,
+          created_at,
+          updated_at,
+
+          sanction_esign_status,
+          sanction_esign_document_id,
+
+          agreement_esign_status,
+          agreement_esign_sent_at,
+          agreement_esign_signed_at,
+          agreement_esign_reference,
+          agreement_esign_response,
+          agreement_esign_document_id
+
+        FROM loan_booking_claim_cure_buddy
+        WHERE lan = ?
+        LIMIT 1
+      `,
+      [lan]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Claim Cure Buddy loan not found.",
+      });
+    }
+
+    const row = rows[0];
+
+    const loan = {
+      id: row.id,
+
+      application_id: row.application_id,
+      partner_loan_id: row.partner_loan_id,
+      lan: row.lan,
+
+      lender_type: row.lender_type,
+      lender: row.lender,
+      product: row.product,
+
+      status: row.status,
+      stage: row.stage,
+      login_date: row.login_date,
+
+      mobile_number: row.mobile_number,
+      borrower_mobile_verified:
+        Number(row.borrower_mobile_verified || 0) === 1,
+
+      pan_card: row.pan_card,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      customer_name: row.customer_name,
+      gender: row.gender,
+      dob: row.dob,
+      father_name: row.father_name,
+      email: row.email,
+
+      permanent_address: {
+        address_line_1: row.permanent_address_line_1,
+        address_line_2: row.permanent_address_line_2,
+        city: row.permanent_city,
+        district: row.permanent_district,
+        state: row.permanent_state,
+        pincode: row.permanent_pincode,
+      },
+
+      current_address: {
+        address_line_1: row.current_address_line_1,
+        address_line_2: row.current_address_line_2,
+        city: row.current_city,
+        district: row.current_district,
+        state: row.current_state,
+        pincode: row.current_pincode,
+
+        same_as_permanent:
+          Number(row.current_same_as_permanent || 0) === 1,
+      },
+
+      loan_details: {
+        loan_amount: row.loan_amount,
+        interest_rate: row.interest_rate,
+        loan_tenure: row.loan_tenure,
+        processing_fee: row.processing_fee,
+        disbursal_amount: row.disbursal_amount,
+      },
+
+      bank_details: {
+        customer_name_as_per_bank:
+          row.customer_name_as_per_bank,
+
+        customer_bank_name:
+          row.customer_bank_name,
+
+        customer_account_number:
+          row.customer_account_number,
+
+        bank_ifsc_code:
+          row.bank_ifsc_code,
+
+        bank_branch_address:
+          row.bank_branch_address,
+
+        bank_verification_status:
+          row.bank_verification_status,
+
+        bank_verification_response:
+          parseMaybeJson(
+            row.bank_verification_response
+          ),
+      },
+
+      borrower_bureau: {
+        score:
+          row.borrower_bureau_score,
+
+        facts:
+          parseMaybeJson(
+            row.borrower_bureau_facts
+          ),
+      },
+    };
+
+    const preBre = {
+      status:
+        row.borrower_pre_bre_status,
+
+      reason:
+        row.borrower_pre_bre_reason,
+
+      checked_at:
+        row.borrower_pre_bre_checked_at,
+    };
+
+    const bre = {
+      status:
+        row.bre_status,
+
+      reason:
+        parseMaybeJson(row.bre_reason),
+
+      checked_at:
+        row.bre_checked_at,
+    };
+
+    const esign = {
+      sanction: {
+        status:
+          row.sanction_esign_status,
+
+        document_id:
+          row.sanction_esign_document_id,
+      },
+
+      agreement: {
+        status:
+          row.agreement_esign_status,
+
+        sent_at:
+          row.agreement_esign_sent_at,
+
+        signed_at:
+          row.agreement_esign_signed_at,
+
+        reference:
+          row.agreement_esign_reference,
+
+        response:
+          parseMaybeJson(
+            row.agreement_esign_response
+          ),
+
+        document_id:
+          row.agreement_esign_document_id,
+      },
+    };
+
+    const audit = {
+      submitted_at:
+        row.submitted_at,
+
+      approved_at:
+        row.approved_at,
+
+      rejected_at:
+        row.rejected_at,
+
+      created_by:
+        row.created_by,
+
+      updated_by:
+        row.updated_by,
+
+      created_at:
+        row.created_at,
+
+      updated_at:
+        row.updated_at,
+    };
+
+    return res.status(200).json({
+      success: true,
+      loan,
+      preBre,
+      bre,
+      esign,
+      audit,
+    });
+
+  } catch (error) {
+    console.error(
+      "❌ Error fetching Claim Cure Buddy details:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch Claim Cure Buddy details.",
+      error: error.message,
+    });
+  }
+});
+
+
+/**
+ * JSON / LONGTEXT safe parser
+ */
+function parseMaybeJson(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return value;
+  }
+
+  if (typeof value === "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return value;
+  }
+}
 // Keep this static route above /loan-booking/:lan.
 // Otherwise Express treats "draft-cases" as a LAN.
 // Keep this route ABOVE router.get("/loan-booking/:lan")
@@ -3039,6 +3557,122 @@ router.get("/ops-approvals-loans", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Unable to fetch ClaimCureBuddy ops approvals",
+    });
+  }
+});
+
+router.get("/credit-initiated-loans", async (req, res) => {
+  try {
+    const page = Math.max(
+      1,
+      Number(req.query.page) || 1
+    );
+
+    const pageSize = Math.max(
+      1,
+      Number(req.query.pageSize) || 10
+    );
+
+    const search = clean(req.query.search);
+    const offset = (page - 1) * pageSize;
+
+    let whereClause = `
+  WHERE status = 'BRE Approved'
+`;
+
+    const params = [];
+
+    if (search) {
+      const term = `%${search}%`;
+
+      whereClause += `
+        AND (
+          lan LIKE ?
+          OR application_id LIKE ?
+          OR partner_loan_id LIKE ?
+          OR customer_name LIKE ?
+          OR mobile_number LIKE ?
+        )
+      `;
+
+      params.push(
+        term,
+        term,
+        term,
+        term,
+        term
+      );
+    }
+
+    // Count
+    const [countRows] = await db.promise().query(
+      `
+        SELECT COUNT(*) AS total
+        FROM loan_booking_claim_cure_buddy
+        ${whereClause}
+      `,
+      params
+    );
+
+    const total = Number(
+      countRows[0]?.total || 0
+    );
+
+    // Fetch cases
+    const [rows] = await db.promise().query(
+      `
+        SELECT
+          id,
+          application_id,
+          partner_loan_id,
+          lan,
+          customer_name,
+          mobile_number,
+          loan_amount,
+          borrower_bureau_score,
+          bank_verification_status,
+          bre_status,
+          bre_reason,
+          status,
+          stage,
+          created_at,
+          updated_at
+        FROM loan_booking_claim_cure_buddy
+        ${whereClause}
+        ORDER BY updated_at DESC, id DESC
+        LIMIT ? OFFSET ?
+      `,
+      [
+        ...params,
+        pageSize,
+        offset
+      ]
+    );
+
+    return res.status(200).json({
+      success: true,
+      rows,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(
+          1,
+          Math.ceil(total / pageSize)
+        ),
+      },
+    });
+
+  } catch (error) {
+    console.error(
+      "Credit loans fetch error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch Credit cases",
+      error: error.message,
     });
   }
 });

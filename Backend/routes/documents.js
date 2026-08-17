@@ -152,26 +152,285 @@ function safeUnlink(fp) {
 
 // ---------------------------- Routes (unchanged) ----------------------------
 
-// ✅ Upload a Document
+
+const checkAndApproveCarePayLoan = async (lan) => {
+  const cleanLan = String(lan || "").trim().toUpperCase();
+
+  const [[loan]] = await db.promise().query(
+    `SELECT
+        lan,
+        status,
+        mandate_amount,
+        umrn,
+        father_name,
+        bank_account_holder_name,
+        bank_account_number,
+        bank_name,
+        bank_branch_name,
+        bank_ifsc_code,
+        bank_account_type,
+        loan_amount,
+        abb,
+        cibil_score
+     FROM loan_booking_carepay
+     WHERE lan = ?
+     LIMIT 1`,
+    [cleanLan],
+  );
+
+  if (!loan) {
+    return {
+      approved: false,
+      reason: "NOT_CAREPAY_LOAN",
+    };
+  }
+
+  const hasValue = (value) =>
+    value !== null &&
+    value !== undefined &&
+    String(value).trim() !== "";
+
+  // Don't accidentally approve an already BRE rejected case
+  if (
+    String(loan.status || "").trim().toUpperCase() === "REJECTED"
+  ) {
+    return {
+      approved: false,
+      reason: "BRE_REJECTED",
+    };
+  }
+
+  const loanAmount = Number(loan.loan_amount || 0);
+  const cibilScore = Number(loan.cibil_score || 0);
+
+  // ABB required:
+  // loan > 3L OR score 1-200 OR score exactly 680
+  const abbRequired =
+    loanAmount > 300000 ||
+    (cibilScore >= 1 && cibilScore <= 200) ||
+    cibilScore === 680;
+
+  // Bank statement:
+  // loan > 3L OR score exactly 680
+  const bankStatementRequired =
+    loanAmount > 300000 ||
+    cibilScore === 680;
+
+  // ----------------------------
+  // 1. MANDATE DETAILS
+  // ----------------------------
+  const mandateComplete =
+    hasValue(loan.mandate_amount) &&
+    hasValue(loan.umrn) &&
+    hasValue(loan.father_name) &&
+    hasValue(loan.bank_account_holder_name) &&
+    hasValue(loan.bank_account_number) &&
+    hasValue(loan.bank_name) &&
+    hasValue(loan.bank_branch_name) &&
+    hasValue(loan.bank_ifsc_code) &&
+    hasValue(loan.bank_account_type);
+
+  if (!mandateComplete) {
+    return {
+      approved: false,
+      reason: "MANDATE_DETAILS_MISSING",
+    };
+  }
+
+  // ----------------------------
+  // 2. ABB CHECK
+  // ----------------------------
+  if (abbRequired && !hasValue(loan.abb)) {
+    return {
+      approved: false,
+      reason: "ABB_MISSING",
+      abb_required: true,
+    };
+  }
+
+  // ----------------------------
+  // 3. DOCUMENT CHECK
+  // ----------------------------
+  const requiredDocuments = [
+    "CIBIL_REPORT",
+    "aadhaar",
+    "pan",
+    "bureauJson",
+    "explicitConsents",
+    "loanAgreement",
+  ];
+
+  if (bankStatementRequired) {
+    requiredDocuments.push("bankStatement");
+  }
+
+  const [documentRows] = await db.promise().query(
+    `SELECT doc_name, original_name
+     FROM loan_documents
+     WHERE lan = ?`,
+    [cleanLan],
+  );
+
+  const availableDocuments = new Set();
+
+  for (const row of documentRows) {
+    // System generated documents like CIBIL_REPORT
+    if (row.doc_name) {
+      availableDocuments.add(
+        String(row.doc_name).trim(),
+      );
+    }
+
+    // Frontend uploaded docs:
+    // aadhaar, pan, bureauJson etc.
+    if (row.original_name) {
+      const normalizedOriginalName = String(row.original_name)
+        .trim()
+        .replace(/\.[^/.]+$/, "");
+
+      availableDocuments.add(normalizedOriginalName);
+    }
+  }
+
+  const missingDocuments = requiredDocuments.filter(
+    (doc) => !availableDocuments.has(doc),
+  );
+
+  console.log("CAREPAY DOCUMENT CHECK:", {
+    lan: cleanLan,
+    loanAmount,
+    cibilScore,
+    abbRequired,
+    bankStatementRequired,
+    availableDocuments: [...availableDocuments],
+    requiredDocuments,
+    missingDocuments,
+  });
+
+  if (missingDocuments.length > 0) {
+    return {
+      approved: false,
+      reason: "DOCUMENTS_MISSING",
+      missing_documents: missingDocuments,
+      abb_required: abbRequired,
+      bank_statement_required: bankStatementRequired,
+    };
+  }
+
+  // ----------------------------
+  // 4. EVERYTHING COMPLETE
+  // ----------------------------
+  await db.promise().query(
+    `UPDATE loan_booking_carepay
+     SET status = 'Approved',
+         bank_status = 'Verified',
+         agreement_esign_status = 'Signed',
+         sanction_esign_status = 'Signed'
+     WHERE lan = ?`,
+    [cleanLan],
+  );
+
+  return {
+    approved: true,
+    reason: "ALL_REQUIREMENTS_COMPLETE",
+    documents_complete: true,
+    message: "Loan approved successfully",
+  };
+};
+
+
+// ✅ Upload a Document - COMMON FOR ALL PARTNERS
 router.post("/upload", upload.single("document"), (req, res) => {
   const { lan, filename } = req.body;
 
   if (!req.file || !lan) {
-    return res.status(400).json({ error: "LAN and file are required." });
+    return res.status(400).json({
+      error: "LAN and file are required.",
+    });
   }
 
   const storedName = req.file.filename;
   const originalName = filename || req.file.originalname;
 
+  // ✅ SAME COMMON INSERT AS BEFORE
   db.query(
-    `INSERT INTO loan_documents (lan, file_name, original_name, uploaded_at) VALUES (?, ?, ?, NOW())`,
-    [lan.trim(), storedName, originalName.trim()],
-    (err) => {
+    `INSERT INTO loan_documents
+     (lan, file_name, original_name, uploaded_at)
+     VALUES (?, ?, ?, NOW())`,
+    [
+      lan.trim(),
+      storedName,
+      originalName.trim(),
+    ],
+
+    async (err) => {
       if (err) {
         console.error("❌ DB Insert Error:", err);
-        return res.status(500).json({ error: "Database insert failed" });
+
+        return res.status(500).json({
+          error: "Database insert failed",
+        });
       }
-      res.status(200).json({ message: "✅ Document uploaded successfully" });
+
+      const cleanLan = String(lan)
+        .trim()
+        .toUpperCase();
+
+      // ==========================================
+      // ONLY CAREPAY GETS EXTRA LOGIC
+      // ==========================================
+      if (cleanLan.startsWith("CARE")) {
+        try {
+          const [[carePayLoan]] = await db.promise().query(
+            `SELECT lan
+             FROM loan_booking_carepay
+             WHERE lan = ?
+             LIMIT 1`,
+            [cleanLan],
+          );
+
+          // Actual CarePay loan only
+          if (carePayLoan) {
+            const approvalResult =
+              await checkAndApproveCarePayLoan(cleanLan);
+
+            console.log("CAREPAY APPROVAL RESULT:", {
+              lan: cleanLan,
+              uploaded_document: originalName,
+              result: approvalResult,
+            });
+
+            return res.status(200).json({
+              message: "✅ Document uploaded successfully",
+              carepay_approval: approvalResult,
+            });
+          }
+        } catch (carePayError) {
+          console.error(
+            "❌ CAREPAY approval check failed:",
+            carePayError,
+          );
+
+          // IMPORTANT:
+          // File already uploaded successfully
+          return res.status(200).json({
+            message: "✅ Document uploaded successfully",
+            carepay_approval: {
+              approved: false,
+              reason: "APPROVAL_CHECK_FAILED",
+              error: carePayError.message,
+            },
+          });
+        }
+      }
+
+      // ==========================================
+      // ALL OTHER PARTNERS:
+      // EXACT SAME OLD RESPONSE
+      // ==========================================
+      return res.status(200).json({
+        message: "✅ Document uploaded successfully",
+      });
     },
   );
 });
@@ -214,7 +473,9 @@ router.post("/upload", upload.single("document"), (req, res) => {
 // );
 
 
-//new document upload
+
+
+
 router.post(
   "/upload-files",
   verifyApiKey,

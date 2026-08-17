@@ -259,6 +259,8 @@ import ClaimCureBuddyLoanBooking from "./components/ClaimCureBuddy/ClaimCureBudd
 import ClaimCureBuddyDraftCases from "./components/ClaimCureBuddy/ClaimCureBuddyDraftCases.jsx";
 import ClaimCureBuddyApprovedCases from "./components/ClaimCureBuddy/ClaimCureBuddyApprovedCases.jsx";
 import ClaimCureBuddyOpsScreen from "./components/ClaimCureBuddy/ClaimCureBuddyOpsScreen.jsx";
+import ClaimCureBuddyDetails from "./components/ClaimCureBuddy/ClaimCureBuddyDetails.jsx";
+import ClaimCureBuddyCreditApproval from "./components/ClaimCureBuddy/ClaimCureBuddyCreditApproval.jsx";
 import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
 import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.jsx";
@@ -1958,12 +1960,25 @@ function App() {
           {/* cLAIMcUREbUDDY rOTUES  */}
 
           <Route
+            path="/claim-cure-buddy/customer-details"
+            element={<ClaimCureBuddyDetails />}
+          />
+          <Route
+            path="/claimcurebuddy/credit-approval"
+            element={<ClaimCureBuddyCreditApproval />}
+          />
+
+          <Route
             path="/claimcurebuddy/loan-booking"
             element={
               // <PermissionRoute pageName="Bundela Dealer Entry">
               <ClaimCureBuddyLoanBooking />
               // {/* </PermissionRoute> */}
             }
+
+
+
+
           />
 
           <Route
