@@ -18,10 +18,14 @@ const {
  * - Loan amount Rs 5,000 to Rs 15,000, in multiples of Rs 1,000
  * - First-time RapidMoney borrower maximum Rs 8,000
  * - Repeat borrower below age 28 maximum Rs 10,000
- * - New-customer unsecured aggregate >= Rs 2,00,000 for Rs 8,000 limit
+ * - Unsecured aggregate >= Rs 2,00,000, else secured tradeline aggregate
+ *   >= Rs 5,00,000 (fallback) — required for every customer, new or repeat
  * - Repeat-customer multiplier and Rs 15,000 cap
  *
- * Only the rules explicitly present in the supplied policy PDF are evaluated.
+ * The unsecured/secured aggregate + fallback rule and its extension to
+ * repeat customers are additions beyond the original policy PDF (which only
+ * specified the unsecured check for new customers) — everything else below
+ * still reflects only what's in that PDF.
  */
 const POLICY = Object.freeze({
   MIN_BUREAU_SCORE: 650,
@@ -33,7 +37,10 @@ const POLICY = Object.freeze({
   FIRST_TIME_CUSTOMER_LIMIT: 8000,
   REPEAT_CUSTOMER_UNDER_28_LIMIT: 10000,
   MAX_REPEAT_CUSTOMER_LIMIT: 15000,
-  MIN_UNSECURED_AGGREGATE: 200000,
+  MIN_UNSECURED_AGGREGATE: 100000,
+  // Fallback when unsecured aggregate is below MIN_UNSECURED_AGGREGATE: a new
+  // customer with secured tradelines totalling at least this much is still approved.
+  MIN_SECURED_AGGREGATE: 500000,
 
   ENQUIRY_REJECT_FROM_30_DAYS: 5,
   OVERDUE_REJECT_FROM: 1000,
@@ -107,6 +114,32 @@ const UNSECURED_CATEGORIES = [
   "Short Term Personal Loan",
 ];
 
+// Collateral-backed loan types, sourced from Backend/utils/experian_description.js's
+// ACCOUNT_TYPE code table (the same source of truth already used for account-type
+// mapping elsewhere in this codebase) — only codes that unambiguously denote a
+// secured loan. Anything ambiguous is deliberately left out of both this list and
+// UNSECURED_CATEGORIES rather than guessed.
+const SECURED_CATEGORIES = [
+  "Auto Loan",
+  "Housing Loan",
+  "Property Loan",
+  "Loan Against Shares Securities",
+  "Gold Loan",
+  "Two-Wheeler Loan",
+  "Loan Against Bank Deposits",
+  "Commercial Vehicle Loan",
+  "Gecl Secured",
+  "Secured Credit Card",
+  "Used Car Loan",
+  "Construction Equipment Loan",
+  "Tractor Loan",
+  "Microfinance Housing Loan",
+  "P2P Auto Loan",
+  "Business Loan - Secured",
+  "Business Loans Against Bank Deposits",
+  "Priority Sector Gold Loan Secured",
+];
+
 const XML_PARSER = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "",
@@ -150,6 +183,10 @@ function normalizeName(value) {
 
 const NORMALIZED_UNSECURED_CATEGORIES = new Set(
   UNSECURED_CATEGORIES.map(normalizeName),
+);
+
+const NORMALIZED_SECURED_CATEGORIES = new Set(
+  SECURED_CATEGORIES.map(normalizeName),
 );
 
 function calculateAge(dob, asOf = new Date()) {
@@ -960,6 +997,7 @@ const enquiries30Days =
     const accounts = extractAccounts(parsedReport);
 
     const matchedTradelines = [];
+    const matchedSecuredTradelines = [];
     const unmappedAccountTypeCodes = [];
     const seenUnmappedCodes = new Set();
 
@@ -993,6 +1031,17 @@ const enquiries30Days =
         });
       }
 
+      if (
+        accountName &&
+        NORMALIZED_SECURED_CATEGORIES.has(normalizedAccountName)
+      ) {
+        matchedSecuredTradelines.push({
+          accountTypeCode: code,
+          normalizedAccountName,
+          amount: originalAmount,
+        });
+      }
+
       totalOverdueAmount += extractOverdueAmount(account);
       readStructuredDpdHistory(
   account,
@@ -1009,6 +1058,13 @@ readProfileDpdHistory(
 
     const unsecuredAggregate = round2(
       matchedTradelines.reduce(
+        (sum, tradeline) => sum + Number(tradeline.amount || 0),
+        0,
+      ),
+    );
+
+    const securedAggregate = round2(
+      matchedSecuredTradelines.reduce(
         (sum, tradeline) => sum + Number(tradeline.amount || 0),
         0,
       ),
@@ -1063,6 +1119,9 @@ totalOverdueAmount:
       unsecuredTradelineCount: matchedTradelines.length,
       unsecuredAggregate,
       matchedTradelines,
+      securedTradelineCount: matchedSecuredTradelines.length,
+      securedAggregate,
+      matchedSecuredTradelines,
       unmappedAccountTypeCodes,
 
       reportId,
@@ -1088,6 +1147,9 @@ totalOverdueAmount:
       unsecuredTradelineCount: 0,
       unsecuredAggregate: 0,
       matchedTradelines: [],
+      securedTradelineCount: 0,
+      securedAggregate: 0,
+      matchedSecuredTradelines: [],
       unmappedAccountTypeCodes: [],
       reportId,
       source,
@@ -1098,6 +1160,7 @@ totalOverdueAmount:
 module.exports = {
   POLICY,
   UNSECURED_CATEGORIES,
+  SECURED_CATEGORIES,
   calculateAge,
   validateLoanAmount,
   isNewCustomer,

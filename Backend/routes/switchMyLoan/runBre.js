@@ -617,6 +617,10 @@ async function runOrReuseBureau(loan) {
        */
       unsecuredAggregate: 250000,
       unsecuredTradelineCount: 2,
+      // Irrelevant in test mode since unsecuredAggregate above already clears
+      // the primary threshold, so the secured fallback never triggers here.
+      securedAggregate: 0,
+      securedTradelineCount: 0,
       totalTradelines: 2,
 
       unmappedAccountTypeCodes: [],
@@ -1732,6 +1736,8 @@ async function runBRE(data) {
     hasGt90DpdLast12Months: bureau.hasGt90DpdLast12Months,
     unsecuredAggregate: bureau.unsecuredAggregate,
     unsecuredTradelineCount: bureau.unsecuredTradelineCount,
+    securedAggregate: bureau.securedAggregate,
+    securedTradelineCount: bureau.securedTradelineCount,
     totalTradelines: bureau.totalTradelines,
     unmappedAccountTypeCodes: bureau.unmappedAccountTypeCodes || [],
   };
@@ -1841,23 +1847,44 @@ async function runBRE(data) {
   );
 
   const unsecuredAggregate = Number(bureau.unsecuredAggregate || 0);
-  const unsecuredAggregationFailed =
-    newCustomer && unsecuredAggregate < POLICY.MIN_UNSECURED_AGGREGATE;
+  const securedAggregate = Number(bureau.securedAggregate || 0);
+  const unsecuredBelowMinimum = unsecuredAggregate < POLICY.MIN_UNSECURED_AGGREGATE;
+
+  /*
+   * Applies to every customer, new or repeat (extended beyond the original
+   * policy PDF, which only specified this for new customers — repeat
+   * customers keep their existing multiplier/age-cap credit-limit logic
+   * untouched; this is an additional gate on top of it, not a replacement).
+   *
+   * A customer below the unsecured-aggregate minimum is no longer an
+   * automatic reject: fall back to checking their secured tradeline
+   * aggregate. Only reject when both are below their respective thresholds.
+   */
+  const securedFallbackPassed =
+    unsecuredBelowMinimum && securedAggregate >= POLICY.MIN_SECURED_AGGREGATE;
+
+  const unsecuredAggregationFailed = unsecuredBelowMinimum && !securedFallbackPassed;
 
   if (unsecuredAggregationFailed) {
-    addReason(reasons, "UNSECURED_TRADELINE_AGGREGATE_BELOW_200000");
+    addReason(reasons, "UNSECURED_AND_SECURED_TRADELINE_AGGREGATE_BELOW_MINIMUM");
   }
 
   rules.UNSECURED_AGGREGATION_CHECK_RPM = rule(
     !unsecuredAggregationFailed,
     unsecuredAggregationFailed
-      ? "UNSECURED_TRADELINE_AGGREGATE_BELOW_200000"
+      ? "UNSECURED_AND_SECURED_TRADELINE_AGGREGATE_BELOW_MINIMUM"
       : null,
     {
-      applicable: newCustomer,
+      applicable: true,
+      newCustomer,
       unsecuredAggregate,
       unsecuredTradelineCount: bureau.unsecuredTradelineCount,
-      minimumRequiredAggregate: POLICY.MIN_UNSECURED_AGGREGATE,
+      minimumRequiredUnsecuredAggregate: POLICY.MIN_UNSECURED_AGGREGATE,
+      securedAggregate,
+      securedTradelineCount: bureau.securedTradelineCount,
+      minimumRequiredSecuredAggregate: POLICY.MIN_SECURED_AGGREGATE,
+      securedFallbackApplied: unsecuredBelowMinimum,
+      securedFallbackPassed,
       unmappedAccountTypeCodes: bureau.unmappedAccountTypeCodes || [],
     },
   );
