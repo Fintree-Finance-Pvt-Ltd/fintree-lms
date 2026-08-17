@@ -2533,6 +2533,22 @@ router.get("/approved-cases", async (_req, res) => {
              ) AS enach_status,
              em.transaction_id
                AS enach_transaction_id,
+             em.easycollect_link_id
+               AS enach_easycollect_link_id,
+             em.easebuzz_request_id
+               AS enach_request_id,
+             em.easebuzz_mandate_id
+               AS enach_mandate_id,
+             em.umrn
+               AS enach_umrn,
+             em.mandate_type
+               AS enach_mandate_type,
+             em.auth_mode
+               AS enach_auth_mode,
+             em.request_type
+               AS enach_request_type,
+             em.amount
+               AS enach_amount,
              em.payment_url
                AS enach_payment_url,
              em.short_url
@@ -2549,7 +2565,14 @@ router.get("/approved-cases", async (_req, res) => {
                SELECT em2.id
                FROM easebuzz_mandates em2
                WHERE em2.lan = lb.lan
-               ORDER BY em2.id DESC
+               ORDER BY
+                 CASE
+                   WHEN em2.umrn IS NOT NULL
+                    AND TRIM(em2.umrn) <> ''
+                   THEN 0
+                   ELSE 1
+                 END,
+                 em2.id DESC
                LIMIT 1
              )
            WHERE lb.status = 'Approved'
@@ -2694,6 +2717,7 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
       udf2: "ClaimCureBuddy",
       udf3: loan.partner_loan_id || "",
       createdBy: actorId(req),
+      allowRetryWithoutUmrn: true,
     });
 
     return res.status(201).json({

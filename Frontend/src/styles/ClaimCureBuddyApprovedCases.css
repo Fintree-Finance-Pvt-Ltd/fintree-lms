@@ -139,7 +139,7 @@
 .ccb-ops-toolbar input:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.16); }
 
 .ccb-ops-table-wrap { overflow-x: auto; }
-.ccb-ops-table { width: 100%; min-width: 1220px; border-collapse: collapse; }
+.ccb-ops-table { width: 100%; min-width: 1280px; border-collapse: collapse; }
 .ccb-ops-table th {
   padding: 13px 16px;
   color: #64748b;
@@ -157,6 +157,26 @@
 .ccb-ops-loan,
 .ccb-ops-bank,
 .ccb-ops-action-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.ccb-ops-mandate {
+  display: flex;
+  min-width: 170px;
+  max-width: 220px;
+  flex-direction: column;
+  gap: 7px;
+}
+.ccb-ops-mandate div { display: flex; flex-direction: column; gap: 2px; }
+.ccb-ops-mandate span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.ccb-ops-mandate strong {
+  color: #0f172a;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
 .ccb-ops-customer strong,
 .ccb-ops-loan strong,
 .ccb-ops-bank strong { font-size: 13px; }

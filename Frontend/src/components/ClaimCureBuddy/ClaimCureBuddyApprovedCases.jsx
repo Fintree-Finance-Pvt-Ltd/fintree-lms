@@ -49,6 +49,9 @@ const addMonths = (value, months) => {
 const getError = (error, fallback) =>
   error?.response?.data?.message || error?.message || fallback;
 
+const presentValue = (value) => String(value ?? "").trim();
+const hasUmrn = (row) => Boolean(presentValue(row.enach_umrn));
+
 const StatusPill = ({ value, type = "neutral" }) => (
   <span className={`ccb-ops-pill ccb-ops-pill-${type}`}>
     <span />
@@ -137,19 +140,26 @@ export default function ClaimCureBuddyApprovedCases() {
         row.mobile_number,
         row.pan_card,
         row.enach_status,
+        row.enach_transaction_id,
+        row.enach_easycollect_link_id,
+        row.enach_request_id,
+        row.enach_mandate_id,
+        row.enach_umrn,
         row.agreement_esign_status,
       ].some((value) => String(value || "").toLowerCase().includes(query)),
     );
   }, [rows, search]);
 
+  useEffect(() => {
+    const refreshOnFocus = () => fetchCases();
+    window.addEventListener("focus", refreshOnFocus);
+    return () => window.removeEventListener("focus", refreshOnFocus);
+  }, [fetchCases]);
+
   const summary = useMemo(
     () => ({
       approved: rows.length,
-      enachReady: rows.filter((row) =>
-        ["LINK_CREATED", "ACTIVE"].includes(
-          String(row.enach_status || "").toUpperCase(),
-        ),
-      ).length,
+      enachReady: rows.filter((row) => hasUmrn(row)).length,
       signed: rows.filter(
         (row) =>
           String(row.agreement_esign_status || "").toUpperCase() === "SIGNED",
@@ -162,7 +172,7 @@ export default function ClaimCureBuddyApprovedCases() {
     const enach = enachPresentation(row.enach_status);
     const existingUrl = row.enach_short_url || row.enach_payment_url;
 
-    if (enach.status === "LINK_CREATED" && existingUrl) {
+    if (hasUmrn(row) && enach.status === "LINK_CREATED" && existingUrl) {
       window.open(existingUrl, "_blank", "noopener,noreferrer");
       return;
     }
@@ -228,6 +238,10 @@ export default function ClaimCureBuddyApprovedCases() {
                 ...row,
                 enach_status: result.status || "LINK_CREATED",
                 enach_transaction_id: result.merchantTxn,
+                enach_easycollect_link_id: result.easycollectLinkId,
+                enach_request_id: "",
+                enach_mandate_id: "",
+                enach_umrn: "",
                 enach_payment_url: result.paymentUrl,
                 enach_short_url: result.shortUrl,
               }
@@ -312,33 +326,80 @@ export default function ClaimCureBuddyApprovedCases() {
     }
   };
 
+  const renderMandateDetails = (row) => {
+    const mandateId = presentValue(row.enach_mandate_id);
+    const umrn = presentValue(row.enach_umrn);
+    const easycollectId = presentValue(row.enach_easycollect_link_id);
+    const transactionId = presentValue(row.enach_transaction_id);
+
+    if (!mandateId && !umrn && !easycollectId && !transactionId) return null;
+
+    return (
+      <div className="ccb-ops-mandate">
+        {umrn && (
+          <div>
+            <span>UMRN</span>
+            <strong>{umrn}</strong>
+          </div>
+        )}
+        {mandateId && (
+          <div>
+            <span>Mandate ID</span>
+            <strong>{mandateId}</strong>
+          </div>
+        )}
+        {!mandateId && easycollectId && (
+          <div>
+            <span>EasyCollect ID</span>
+            <strong>{easycollectId}</strong>
+          </div>
+        )}
+        {!mandateId && !easycollectId && transactionId && (
+          <div>
+            <span>Txn ID</span>
+            <strong>{transactionId}</strong>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderEnachAction = (row) => {
-    const present = enachPresentation(row.enach_status);
+    const completed = hasUmrn(row);
+    const rawPresentation = enachPresentation(row.enach_status);
+    const present = completed
+      ? { status: "ACTIVE", label: "Success", type: "success" }
+      : rawPresentation;
     const processing = action.lan === row.lan && action.type === "ENACH";
-    const waiting = ["CREATED", "LINK_CREATE_PENDING", "UNKNOWN"].includes(
+    const waiting = !completed && ["CREATED", "LINK_CREATE_PENDING"].includes(
       present.status,
     );
-    const active = present.status === "ACTIVE";
-    const hasLink =
-      present.status === "LINK_CREATED" &&
-      Boolean(row.enach_short_url || row.enach_payment_url);
+    const hasAttempt = Boolean(
+      presentValue(row.enach_transaction_id) ||
+        presentValue(row.enach_easycollect_link_id) ||
+        presentValue(row.enach_mandate_id) ||
+        present.status !== "NOT_STARTED",
+    );
 
     let label = "Start eNACH";
     if (processing) label = "Creating…";
-    else if (hasLink) label = "Open eNACH Link";
-    else if (active) label = "eNACH Active";
+    else if (completed) label = "eNACH Success";
     else if (waiting) label = "Processing";
-    else if (["FAILED", "CANCELLED", "EXPIRED"].includes(present.status)) {
+    else if (
+      hasAttempt ||
+      ["FAILED", "CANCELLED", "EXPIRED"].includes(present.status)
+    ) {
       label = "Retry eNACH";
     }
 
     return (
       <div className="ccb-ops-action-cell">
         <StatusPill value={present.label} type={present.type} />
+        {renderMandateDetails(row)}
         <button
           type="button"
           className="ccb-ops-button ccb-ops-button-enach"
-          disabled={processing || waiting || active}
+          disabled={processing || waiting || completed}
           onClick={() => openEnachModal(row)}
         >
           {label}
@@ -394,7 +455,7 @@ export default function ClaimCureBuddyApprovedCases() {
 
       <section className="ccb-ops-summary">
         <article><span>Total BRE Approved</span><strong>{summary.approved}</strong></article>
-        <article><span>eNACH Ready / Active</span><strong>{summary.enachReady}</strong></article>
+        <article><span>eNACH Success</span><strong>{summary.enachReady}</strong></article>
         <article><span>Agreements Signed</span><strong>{summary.signed}</strong></article>
       </section>
 
@@ -407,7 +468,7 @@ export default function ClaimCureBuddyApprovedCases() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search customer, LAN, PAN or mobile"
+            placeholder="Search customer, LAN, PAN, mobile or mandate"
           />
         </div>
 
@@ -427,9 +488,9 @@ export default function ClaimCureBuddyApprovedCases() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7" className="ccb-ops-empty">Loading approved cases…</td></tr>
+                <tr><td colSpan="8" className="ccb-ops-empty">Loading approved cases…</td></tr>
               ) : !filteredRows.length ? (
-                <tr><td colSpan="7" className="ccb-ops-empty">No BRE-approved ClaimCureBuddy cases found.</td></tr>
+                <tr><td colSpan="8" className="ccb-ops-empty">No BRE-approved ClaimCureBuddy cases found.</td></tr>
               ) : (
                 filteredRows.map((row) => (
                   <tr key={row.lan}>
