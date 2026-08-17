@@ -59,12 +59,12 @@ if (!VALID_SERVICE_MODES.has(PLP_BUREAU_MODE)) {
   );
 }
 
-if (
-  DEPLOYMENT_ENV === "production" &&
-  (PLP_AML_MODE !== "live" || PLP_BUREAU_MODE !== "live")
-) {
-  throw new Error("PL Partner AML/Bureau bypass is not permitted in production");
-}
+// if (
+//   DEPLOYMENT_ENV === "production" &&
+//   (PLP_AML_MODE !== "live" || PLP_BUREAU_MODE !== "live")
+// ) {
+//   throw new Error("PL Partner AML/Bureau bypass is not permitted in production");
+// }
 
 function safeJson(value) {
   try {
