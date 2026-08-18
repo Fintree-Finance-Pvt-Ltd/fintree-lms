@@ -64,12 +64,20 @@ const enachPresentation = (rawStatus) => {
   const map = {
     NOT_STARTED: { label: "Not Started", type: "pending" },
     CREATED: { label: "Creating", type: "progress" },
+    INITIATED: { label: "Creating", type: "progress" },
+    REQUESTED: { label: "Link Created", type: "ready" },
+    PARTIAL: { label: "Link Created", type: "ready" },
     LINK_CREATE_PENDING: { label: "Creating Link", type: "progress" },
     LINK_CREATED: { label: "Link Created", type: "ready" },
     ACTIVE: { label: "Active", type: "success" },
+    SUCCESS: { label: "Active", type: "success" },
+    REGISTERED: { label: "Active", type: "success" },
+    COMPLETED: { label: "Active", type: "success" },
     FAILED: { label: "Failed", type: "danger" },
     CANCELLED: { label: "Cancelled", type: "danger" },
+    CANCELED: { label: "Cancelled", type: "danger" },
     EXPIRED: { label: "Expired", type: "danger" },
+    REJECTED: { label: "Rejected", type: "danger" },
     UNKNOWN: { label: "Check Required", type: "warning" },
   };
   return { status, ...(map[status] || map.NOT_STARTED) };
@@ -97,12 +105,9 @@ export default function ClaimCureBuddyApprovedCases() {
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [enachForm, setEnachForm] = useState({
     accountType: "SAVINGS",
-    authMode: "NetBanking",
     maxDebitAmount: "",
     finalCollectionDate: "",
-    expiryDate: "",
     frequency: "AS_PRESENTED",
-    amountRule: "MAX",
   });
 
   const showToast = (type, message) => {
@@ -171,8 +176,9 @@ export default function ClaimCureBuddyApprovedCases() {
   const openEnachModal = (row) => {
     const enach = enachPresentation(row.enach_status);
     const existingUrl = row.enach_short_url || row.enach_payment_url;
+    const failedStatuses = ["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"];
 
-    if (hasUmrn(row) && enach.status === "LINK_CREATED" && existingUrl) {
+    if (existingUrl && !hasUmrn(row) && !failedStatuses.includes(enach.status)) {
       window.open(existingUrl, "_blank", "noopener,noreferrer");
       return;
     }
@@ -183,12 +189,9 @@ export default function ClaimCureBuddyApprovedCases() {
     setSelectedLoan(row);
     setEnachForm({
       accountType: "SAVINGS",
-      authMode: "NetBanking",
       maxDebitAmount: String(row.loan_amount || ""),
       finalCollectionDate: addMonths(baseDate, tenure),
-      expiryDate: "",
       frequency: "MONTHLY",
-      amountRule: "MAX",
     });
   };
 
@@ -218,9 +221,9 @@ export default function ClaimCureBuddyApprovedCases() {
       authorizationWindow = window.open("about:blank", "_blank");
       if (authorizationWindow) {
         authorizationWindow.opener = null;
-        authorizationWindow.document.title = "Creating Easebuzz eNACH link";
+        authorizationWindow.document.title = "Creating Digio eNACH link";
         authorizationWindow.document.body.innerHTML =
-          "<p style='font-family:Arial;padding:24px'>Creating your secure Easebuzz authorization link…</p>";
+          "<p style='font-family:Arial;padding:24px'>Creating your secure Digio authorization link...</p>";
       }
 
       setAction({ lan, type: "ENACH" });
@@ -229,7 +232,8 @@ export default function ClaimCureBuddyApprovedCases() {
         enachForm,
       );
       const result = response.data?.data || {};
-      const authorizationUrl = result.shortUrl || result.paymentUrl;
+      const authorizationUrl =
+        result.shortUrl || result.paymentUrl || result.authUrl || result.auth_url;
 
       setRows((current) =>
         current.map((row) =>
@@ -237,20 +241,20 @@ export default function ClaimCureBuddyApprovedCases() {
             ? {
                 ...row,
                 enach_status: result.status || "LINK_CREATED",
-                enach_transaction_id: result.merchantTxn,
-                enach_easycollect_link_id: result.easycollectLinkId,
-                enach_request_id: "",
-                enach_mandate_id: "",
-                enach_umrn: "",
-                enach_payment_url: result.paymentUrl,
-                enach_short_url: result.shortUrl,
+                enach_transaction_id: result.merchantTxn || result.documentId,
+                enach_easycollect_link_id: result.easycollectLinkId || "",
+                enach_request_id: result.requestId || result.documentId || "",
+                enach_mandate_id: result.mandateId || result.documentId || "",
+                enach_umrn: result.umrn || "",
+                enach_payment_url: result.paymentUrl || result.authUrl || result.auth_url,
+                enach_short_url: result.shortUrl || result.authUrl || result.auth_url,
               }
             : row,
         ),
       );
 
       setSelectedLoan(null);
-      showToast("success", "Easebuzz eNACH link created successfully.");
+      showToast("success", "Digio eNACH link created successfully.");
 
       if (authorizationUrl && authorizationWindow) {
         authorizationWindow.location.replace(authorizationUrl);
@@ -263,7 +267,7 @@ export default function ClaimCureBuddyApprovedCases() {
       if (authorizationWindow) authorizationWindow.close();
       showToast(
         "error",
-        getError(requestError, "Unable to create the Easebuzz eNACH link."),
+        getError(requestError, "Unable to create the Digio eNACH link."),
       );
     } finally {
       setAction({ lan: null, type: null });
@@ -374,6 +378,9 @@ export default function ClaimCureBuddyApprovedCases() {
     const waiting = !completed && ["CREATED", "LINK_CREATE_PENDING"].includes(
       present.status,
     );
+    const existingUrl = row.enach_short_url || row.enach_payment_url;
+    const failedStatuses = ["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"];
+    const canOpenMandate = Boolean(existingUrl) && !failedStatuses.includes(present.status);
     const hasAttempt = Boolean(
       presentValue(row.enach_transaction_id) ||
         presentValue(row.enach_easycollect_link_id) ||
@@ -384,10 +391,11 @@ export default function ClaimCureBuddyApprovedCases() {
     let label = "Start eNACH";
     if (processing) label = "Creating…";
     else if (completed) label = "eNACH Success";
+    else if (canOpenMandate) label = "Open eNACH";
     else if (waiting) label = "Processing";
     else if (
       hasAttempt ||
-      ["FAILED", "CANCELLED", "EXPIRED"].includes(present.status)
+      failedStatuses.includes(present.status)
     ) {
       label = "Retry eNACH";
     }
@@ -443,7 +451,7 @@ export default function ClaimCureBuddyApprovedCases() {
         <div>
           <span className="ccb-ops-eyebrow">ClaimCureBuddy Operations</span>
           <h1>BRE Approved Cases</h1>
-          <p>Create the Easebuzz eNACH authorization and send the loan agreement for signing.</p>
+          <p>Create the Digio eNACH mandate and send the loan agreement for signing.</p>
         </div>
         <button className="ccb-ops-refresh" onClick={fetchCases} disabled={loading}>
           {loading ? "Refreshing…" : "Refresh"}
@@ -563,7 +571,7 @@ export default function ClaimCureBuddyApprovedCases() {
         <div className="ccb-ops-modal-backdrop" role="presentation" onMouseDown={closeEnachModal}>
           <div className="ccb-ops-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <div className="ccb-ops-modal-heading">
-              <div><span>Easebuzz eNACH</span><h2>{selectedLoan.lan}</h2></div>
+              <div><span>Digio eNACH</span><h2>{selectedLoan.lan}</h2></div>
               <button type="button" onClick={closeEnachModal} aria-label="Close">×</button>
             </div>
 
@@ -580,14 +588,6 @@ export default function ClaimCureBuddyApprovedCases() {
                 <select value={enachForm.accountType} onChange={(event) => setEnachForm((old) => ({ ...old, accountType: event.target.value }))}>
                   <option value="SAVINGS">Savings</option>
                   <option value="CURRENT">Current</option>
-                </select>
-              </label>
-
-              <label>
-                <span>Authentication Mode</span>
-                <select value={enachForm.authMode} onChange={(event) => setEnachForm((old) => ({ ...old, authMode: event.target.value }))}>
-                  <option value="NetBanking">Net Banking</option>
-                  <option value="DebitCard">Debit Card</option>
                 </select>
               </label>
 
@@ -612,19 +612,14 @@ export default function ClaimCureBuddyApprovedCases() {
                 <input type="date" min={toLocalYmd()} value={enachForm.finalCollectionDate} onChange={(event) => setEnachForm((old) => ({ ...old, finalCollectionDate: event.target.value }))} required />
               </label>
 
-              <label>
-                <span>Link Expiry Date (optional)</span>
-                <input type="date" min={toLocalYmd()} max={enachForm.finalCollectionDate || undefined} value={enachForm.expiryDate} onChange={(event) => setEnachForm((old) => ({ ...old, expiryDate: event.target.value }))} />
-              </label>
-
               <div className="ccb-ops-note">
-                Easebuzz collects a ₹1 authorization amount. The maximum debit amount above controls the mandate cap.
+                Digio creates the mandate using the maximum debit amount above as the mandate cap.
               </div>
 
               <div className="ccb-ops-modal-actions">
                 <button type="button" className="ccb-ops-cancel" onClick={closeEnachModal} disabled={action.type === "ENACH"}>Cancel</button>
                 <button type="submit" className="ccb-ops-submit" disabled={action.type === "ENACH"}>
-                  {action.type === "ENACH" ? "Creating Secure Link…" : "Create & Open eNACH Link"}
+                  {action.type === "ENACH" ? "Creating Secure Link..." : "Create & Open eNACH Link"}
                 </button>
               </div>
             </form>

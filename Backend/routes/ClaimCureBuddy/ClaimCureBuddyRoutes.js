@@ -6,9 +6,10 @@ const db = require("../../config/db");
 const { getPanCardDetails } = require("../../services/pancardapiservice");
 const { runBureau } = require("../../services/Bueraupullapiservice");
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
+const digio = require("../../services/digioClient");
 const {
-  createEnachAuthorizationLink,
-} = require("../../services/easebuzz/easebuzzMandateService");
+  triggerClaimCureBuddyAutoDisbursement,
+} = require("../../services/claimCureBuddyAutoDisbursement");
 const {
   extractClaimCureBuddyBureauFacts,
   evaluateClaimCureBuddyBorrowerPreBre,
@@ -64,6 +65,142 @@ const isPan = (value) => /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(value);
 const isPincode = (value) => /^\d{6}$/.test(value);
 const isIfsc = (value) => /^[A-Z]{4}0[A-Z0-9]{6}$/.test(value);
 const isEmail = (value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const normalizeDigioResponseKey = (key) =>
+  String(key ?? "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toLowerCase();
+
+const normalizeNachAuthUrl = (value) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(value.trim());
+
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+      return null;
+    }
+
+    return parsedUrl.toString();
+  } catch (_) {
+    return null;
+  }
+};
+
+const NACH_AUTH_URL_KEY_PRIORITY = [
+  "authenticationurl",
+  "mandateauthenticationurl",
+  "authurl",
+  "redirecturl",
+  "mandateurl",
+  "paymenturl",
+  "shorturl",
+  "customerurl",
+  "customerlink",
+  "authenticationlink",
+  "redirectlink",
+  "url",
+  "link",
+];
+
+const findNachAuthUrl = (value, depth = 0) => {
+  if (value === null || value === undefined || depth > 12) {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const foundUrl = findNachAuthUrl(item, depth + 1);
+
+      if (foundUrl) {
+        return foundUrl;
+      }
+    }
+
+    return null;
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  const entries = Object.entries(value);
+
+  for (const expectedKey of NACH_AUTH_URL_KEY_PRIORITY) {
+    for (const [key, fieldValue] of entries) {
+      if (normalizeDigioResponseKey(key) !== expectedKey) {
+        continue;
+      }
+
+      const directUrl = normalizeNachAuthUrl(fieldValue);
+
+      if (directUrl) {
+        return directUrl;
+      }
+
+      if (fieldValue && typeof fieldValue === "object") {
+        const nestedUrl = findNachAuthUrl(fieldValue, depth + 1);
+
+        if (nestedUrl) {
+          return nestedUrl;
+        }
+      }
+    }
+  }
+
+  for (const [, nestedValue] of entries) {
+    if (nestedValue && typeof nestedValue === "object") {
+      const foundUrl = findNachAuthUrl(nestedValue, depth + 1);
+
+      if (foundUrl) {
+        return foundUrl;
+      }
+    }
+  }
+
+  return null;
+};
+
+const extractMandateDocumentId = (data) =>
+  data?.id ||
+  data?.document_id ||
+  data?.documentId ||
+  data?.data?.id ||
+  data?.data?.document_id ||
+  data?.data?.documentId ||
+  data?.content?.id ||
+  data?.content?.document_id ||
+  data?.content?.documentId ||
+  null;
+
+const extractMandateState = (data) =>
+  data?.state ||
+  data?.status ||
+  data?.data?.state ||
+  data?.data?.status ||
+  data?.content?.state ||
+  data?.content?.status ||
+  "partial";
+
+const normalizeDigioMandateFrequency = (value) => {
+  const normalized = clean(value).toLowerCase().replace(/[\s_-]+/g, "");
+
+  const frequencyMap = {
+    monthly: "Monthly",
+    quarterly: "Quarterly",
+    halfyearly: "Half Yearly",
+    yearly: "Yearly",
+    annually: "Yearly",
+    weekly: "Weekly",
+    daily: "Daily",
+    aspresented: "As and when presented",
+    asandwhenpresented: "As and when presented",
+  };
+
+  return frequencyMap[normalized] || "Monthly";
+};
 
 const isDate = (value) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
@@ -325,6 +462,28 @@ const errorResponse = (res, error, fallbackMessage) => {
     ...(error.missingFields ? { missingFields: error.missingFields } : {}),
     ...(error.kycErrors ? { kycErrors: error.kycErrors } : {}),
   });
+};
+
+const runClaimCureBuddyAutoDisbursement = async (options) => {
+  try {
+    return await triggerClaimCureBuddyAutoDisbursement(options);
+  } catch (error) {
+    console.error("ClaimCureBuddy auto disbursement trigger failed", {
+      lan: options?.lan,
+      source: options?.source,
+      message: error.message,
+      stack: error.stack,
+    });
+
+    return {
+      success: false,
+      skipped: false,
+      reason: "AUTO_DISBURSEMENT_TRIGGER_ERROR",
+      lan: options?.lan,
+      source: options?.source,
+      message: error.message,
+    };
+  }
 };
 
 const requireFields = (data, fields, label = "request") => {
@@ -2372,95 +2531,64 @@ const runApplicantBureau = async ({
   };
 };
 
-
-
-
 // ============================================================
-// Claim Cure Buddy - Credit Team Decision
+// Claim Cure Buddy - legacy manual decision endpoint
 // ============================================================
 
-router.post(
-  "/credit-approval/:lan",
-  async (req, res) => {
-    const connection =
-      await db.promise().getConnection();
+router.post("/credit-approval/:lan", async (req, res) => {
+  const connection = await db.promise().getConnection();
 
-    try {
-      const lan =
-        clean(req.params.lan);
+  try {
+    const lan = clean(req.params.lan);
 
-      const decision =
-        upper(req.body?.decision);
+    const decision = upper(req.body?.decision);
 
-      if (!lan) {
-        return res.status(400).json({
-          success: false,
-          message: "LAN is required",
-        });
-      }
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN is required",
+      });
+    }
 
-      if (
-        ![
-          "APPROVED",
-          "REJECTED",
-        ].includes(decision)
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "decision must be APPROVED or REJECTED",
-        });
-      }
+    if (!["APPROVED", "REJECTED"].includes(decision)) {
+      return res.status(400).json({
+        success: false,
+        message: "decision must be APPROVED or REJECTED",
+      });
+    }
 
-      await connection.beginTransaction();
+    await connection.beginTransaction();
 
-      const loan =
-        await getLoan(
-          connection,
-          lan,
-          {
-            lock: true,
-          }
-        );
+    const loan = await getLoan(connection, lan, {
+      lock: true,
+    });
 
-      if (!loan) {
-        const error =
-          new Error(
-            "Claim Cure Buddy loan not found"
-          );
+    if (!loan) {
+      const error = new Error("Claim Cure Buddy loan not found");
 
-        error.statusCode = 404;
+      error.statusCode = 404;
 
-        throw error;
-      }
+      throw error;
+    }
 
-      // BRE must already be approved
-      if (
-        loan.bre_status !==
-        "APPROVED"
-      ) {
-        const error =
-          new Error(
-            "Only BRE approved cases can be processed by Credit Team"
-          );
+    // BRE must already be approved
+    if (loan.bre_status !== "APPROVED") {
+      const error = new Error(
+        "Only BRE approved cases can be processed",
+      );
 
-        error.statusCode = 409;
+      error.statusCode = 409;
 
-        throw error;
-      }
+      throw error;
+    }
 
-      const finalStatus =
-        decision === "APPROVED"
-          ? "Approved"
-          : "Rejected";
+    const finalStatus = decision === "APPROVED" ? "Approved" : "Rejected";
 
-      const finalStage =
-        decision === "APPROVED"
-          ? "Credit Approved"
-          : "Credit Rejected";
+    const finalStage =
+      decision === "APPROVED" ? "Credit Approved" : "Credit Rejected";
 
-      await connection.query(
-        `
+    await connection.query(
+      `
           UPDATE loan_booking_claim_cure_buddy
 
           SET
@@ -2486,51 +2614,35 @@ router.post(
 
           WHERE lan = ?
         `,
-        [
-          finalStatus,
-          finalStage,
-          decision,
-          decision,
-          actorId(req),
-          lan,
-        ]
-      );
+      [finalStatus, finalStage, decision, decision, actorId(req), lan],
+    );
 
-      await connection.commit();
+    await connection.commit();
 
-      return res.status(200).json({
-        success: true,
+    return res.status(200).json({
+      success: true,
 
-        message:
-          decision === "APPROVED"
-            ? "Case approved by Credit Team"
-            : "Case rejected by Credit Team",
+      message:
+        decision === "APPROVED"
+          ? "Case approved"
+          : "Case rejected",
 
-        lan,
+      lan,
 
-        status: finalStatus,
+      status: finalStatus,
 
-        stage: finalStage,
+      stage: finalStage,
 
-        decision,
-      });
+      decision,
+    });
+  } catch (error) {
+    await connection.rollback();
 
-    } catch (error) {
-      await connection.rollback();
-
-      return errorResponse(
-        res,
-        error,
-        "Unable to update Credit decision"
-      );
-
-    } finally {
-      connection.release();
-    }
+    return errorResponse(res, error, "Unable to update Credit decision");
+  } finally {
+    connection.release();
   }
-);
-
-
+});
 
 router.post("/loan-booking/:lan/final-submit", async (req, res) => {
   const connection = await db.promise().getConnection();
@@ -2678,12 +2790,12 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
            WHERE lan = ?`,
       [lan],
     );
-const requiredParties = [
-  {
-    applicantType: "BORROWER",
-    partyNo: 1,
-  },
-];
+    const requiredParties = [
+      {
+        applicantType: "BORROWER",
+        partyNo: 1,
+      },
+    ];
 
     const kycErrors = [];
 
@@ -2709,9 +2821,7 @@ const requiredParties = [
     }
 
     if (kycErrors.length) {
-      const error = new Error(
-  "Borrower must have verified PAN and Aadhaar",
-);
+      const error = new Error("Borrower must have verified PAN and Aadhaar");
 
       error.statusCode = 422;
       error.kycErrors = kycErrors;
@@ -2763,21 +2873,16 @@ const requiredParties = [
     //   );
     // }
 
-   const finalDecision = buildFinalDecision(decisions);
+    const finalDecision = buildFinalDecision(decisions);
 
-const breApproved =
-  finalDecision.status === "APPROVED";
+    const breApproved = finalDecision.status === "APPROVED";
 
-const nextStatus = breApproved
-  ? "BRE Approved"
-  : "Login";
+    const nextStatus = breApproved ? "BRE Approved" : "Login";
 
-const nextStage = breApproved
-  ? "BRE Approved"
-  : "BRE Deviation";
+    const nextStage = breApproved ? "BRE Approved" : "BRE Deviation";
 
-await db.promise().query(
-  `
+    const [updateResult] = await db.promise().query(
+      `
     UPDATE loan_booking_claim_cure_buddy
     SET
       status = ?,
@@ -2793,33 +2898,41 @@ await db.promise().query(
     WHERE lan = ?
       AND bre_status = 'RUNNING'
   `,
-  [
-    nextStatus,
-    nextStage,
-    finalDecision.status,
-    safeJson(finalDecision),
-    loan.lan,
-  ]
-);
-if (updateResult.affectedRows !== 1) {
-  throw new Error(
-    `BRE completed but case ${loan.lan} could not be moved to Credit`
-  );
-}
+      [
+        nextStatus,
+        nextStage,
+        finalDecision.status,
+        safeJson(finalDecision),
+        loan.lan,
+      ],
+    );
+    if (updateResult.affectedRows !== 1) {
+      throw new Error(
+        `BRE completed but case ${loan.lan} could not be moved forward`,
+      );
+    }
 
-return res.json({
-  success: true,
+    const autoDisbursement = breApproved
+      ? await runClaimCureBuddyAutoDisbursement({
+          lan: loan.lan,
+          source: "CLAIM_CURE_BUDDY_FINAL_BRE",
+        })
+      : null;
 
-  message: breApproved
-    ? "BRE approved. Case sent to Credit Team"
-     :"BRE rejected. Case sent to Credit Team for review",
+    return res.json({
+      success: true,
 
-  lan: loan.lan,
-  status: nextStatus,
-  stage: nextStage,
-  breStatus: finalDecision.status,
-  breDecision: finalDecision,
-});
+      message: breApproved
+        ? "BRE approved. Case moved to agreement and eNACH"
+        : "BRE rejected. Case remains at Login for review",
+
+      lan: loan.lan,
+      status: nextStatus,
+      stage: nextStage,
+      breStatus: finalDecision.status,
+      breDecision: finalDecision,
+      ...(autoDisbursement ? { autoDisbursement } : {}),
+    });
   } catch (error) {
     await db.promise().query(
       `UPDATE loan_booking_claim_cure_buddy
@@ -2886,43 +2999,64 @@ router.get("/approved-cases", async (_req, res) => {
              lb.agreement_esign_sent_at,
              lb.agreement_esign_signed_at,
              lb.agreement_esign_reference,
-             COALESCE(
-               em.status,
-               'NOT_STARTED'
-             ) AS enach_status,
-             em.transaction_id
+             CASE
+               WHEN em.umrn IS NOT NULL
+                AND TRIM(em.umrn) <> ''
+               THEN 'ACTIVE'
+               WHEN UPPER(COALESCE(em.status, '')) IN (
+                 'ACTIVE',
+                 'SUCCESS',
+                 'REGISTERED',
+                 'AUTH_SUCCESS',
+                 'AUTHSUCCESS',
+                 'APPROVED',
+                 'COMPLETED'
+               )
+               THEN 'ACTIVE'
+               WHEN em.document_id IS NOT NULL
+                AND em.auth_url IS NOT NULL
+                AND TRIM(em.auth_url) <> ''
+               THEN 'LINK_CREATED'
+               WHEN em.document_id IS NOT NULL
+               THEN COALESCE(
+                 NULLIF(UPPER(em.status), ''),
+                 'CREATED'
+               )
+               ELSE 'NOT_STARTED'
+             END AS enach_status,
+             em.document_id
                AS enach_transaction_id,
-             em.easycollect_link_id
+             NULL
                AS enach_easycollect_link_id,
-             em.easebuzz_request_id
+             em.document_id
                AS enach_request_id,
-             em.easebuzz_mandate_id
+             em.document_id
                AS enach_mandate_id,
              em.umrn
                AS enach_umrn,
-             em.mandate_type
+             'DIGIO'
                AS enach_mandate_type,
-             em.auth_mode
+             'api'
                AS enach_auth_mode,
-             em.request_type
+             NULL
                AS enach_request_type,
-             em.amount
+             em.mandate_amount
                AS enach_amount,
-             em.payment_url
+             em.auth_url
                AS enach_payment_url,
-             em.short_url
+             em.auth_url
                AS enach_short_url,
-             em.provider_status
+             em.status
                AS enach_provider_status,
-             em.created_at
+             NULL
                AS enach_created_at,
              lb.created_at,
              lb.updated_at
            FROM loan_booking_claim_cure_buddy lb
-           LEFT JOIN easebuzz_mandates em
+           LEFT JOIN enach_mandates em
              ON em.id = (
                SELECT em2.id
-               FROM easebuzz_mandates em2
+               FROM enach_mandates em2
                WHERE em2.lan = lb.lan
                ORDER BY
                  CASE
@@ -2931,10 +3065,23 @@ router.get("/approved-cases", async (_req, res) => {
                    THEN 0
                    ELSE 1
                  END,
+                 CASE
+                   WHEN UPPER(COALESCE(em2.status, '')) IN (
+                     'ACTIVE',
+                     'SUCCESS',
+                     'REGISTERED',
+                     'AUTH_SUCCESS',
+                     'AUTHSUCCESS',
+                     'APPROVED',
+                     'COMPLETED'
+                   )
+                   THEN 0
+                   ELSE 1
+                 END,
                  em2.id DESC
                LIMIT 1
              )
-           WHERE lb.status = 'Approved'
+           WHERE lb.status IN ('BRE Approved', 'Approved')
              AND lb.bre_status = 'APPROVED'
            ORDER BY
              COALESCE(
@@ -2971,7 +3118,10 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
       });
     }
 
-    if (loan.status !== "Approved" || loan.bre_status !== "APPROVED") {
+    if (
+      !["BRE Approved", "Approved"].includes(loan.status) ||
+      loan.bre_status !== "APPROVED"
+    ) {
       return res.status(409).json({
         success: false,
         message: "eNACH can be initiated only after the case is BRE approved",
@@ -3008,11 +3158,9 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
 
     const accountType = upper(data.accountType || "SAVINGS");
 
-    const authMode = clean(data.authMode || "NetBanking");
-
-    const frequency = upper("AS_PRESENTED");
-
-    const amountRule = upper(data.amountRule || "MAX");
+    const frequency = normalizeDigioMandateFrequency(
+      data.frequency || "MONTHLY",
+    );
 
     const maxDebitAmount = numeric(data.maxDebitAmount, "maxDebitAmount", {
       min: 1,
@@ -3052,35 +3200,236 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
 
     const ifsc = upper(loan.bank_ifsc_code);
 
-    const bankCode = ifsc.slice(0, 4);
+    if (!isIfsc(ifsc)) {
+      return res.status(422).json({
+        success: false,
+        message: "Saved IFSC is invalid for eNACH",
+      });
+    }
 
-    const result = await createEnachAuthorizationLink({
-      lan: loan.lan,
-      name: clean(loan.customer_name_as_per_bank || loan.customer_name),
-      phone: clean(loan.mobile_number),
-      email: lower(loan.email),
-      linkAmount: "1.00",
-      maxDebitAmount,
-      finalCollectionDate,
-      expiryDate,
-      accountNumber: clean(loan.customer_account_number),
-      accountType,
-      ifsc,
-      bankCode,
-      authMode,
-      amountRule,
-      frequency,
-      message: `ClaimCureBuddy eNACH authorization for ${loan.lan}`,
-      udf1: loan.lan,
-      udf2: "ClaimCureBuddy",
-      udf3: loan.partner_loan_id || "",
-      createdBy: actorId(req),
-      allowRetryWithoutUmrn: true,
+    if (!process.env.DIGIO_CORPORATE_CONFIG_ID) {
+      return res.status(500).json({
+        success: false,
+        message: "DIGIO_CORPORATE_CONFIG_ID is not configured",
+      });
+    }
+
+    const buildMandateResponse = ({
+      documentId,
+      status,
+      authUrl,
+      umrn,
+    }) => {
+      const normalizedDocumentId = clean(documentId);
+      const normalizedAuthUrl = normalizeNachAuthUrl(authUrl);
+      const normalizedUmrn = clean(umrn);
+      const providerStatus = clean(status) || "partial";
+      const clientStatus = normalizedUmrn
+        ? "ACTIVE"
+        : normalizedAuthUrl
+          ? "LINK_CREATED"
+          : providerStatus;
+
+      return {
+        provider: "DIGIO",
+        lan: loan.lan,
+        documentId: normalizedDocumentId,
+        mandateId: normalizedDocumentId,
+        merchantTxn: normalizedDocumentId,
+        requestId: normalizedDocumentId,
+        status: clientStatus,
+        providerStatus,
+        umrn: normalizedUmrn,
+        authUrl: normalizedAuthUrl,
+        auth_url: normalizedAuthUrl,
+        paymentUrl: normalizedAuthUrl,
+        shortUrl: normalizedAuthUrl,
+        authentication_url_available: Boolean(normalizedAuthUrl),
+      };
+    };
+
+    const [[existingMandate]] = await connection.query(
+      `SELECT
+         id,
+         document_id,
+         status,
+         umrn,
+         auth_url
+       FROM enach_mandates
+       WHERE lan = ?
+       ORDER BY
+         CASE
+           WHEN umrn IS NOT NULL
+            AND TRIM(umrn) <> ''
+           THEN 0
+           ELSE 1
+         END,
+         CASE
+           WHEN UPPER(COALESCE(status, '')) IN (
+             'ACTIVE',
+             'SUCCESS',
+             'REGISTERED',
+             'AUTH_SUCCESS',
+             'AUTHSUCCESS',
+             'APPROVED',
+             'COMPLETED'
+           )
+           THEN 0
+           ELSE 1
+         END,
+         id DESC
+       LIMIT 1`,
+      [loan.lan],
+    );
+
+    const existingStatus = upper(existingMandate?.status);
+    const retryableMandateStatuses = new Set([
+      "FAILED",
+      "FAILURE",
+      "CANCELLED",
+      "CANCELED",
+      "EXPIRED",
+      "REJECTED",
+    ]);
+
+    if (
+      existingMandate &&
+      !retryableMandateStatuses.has(existingStatus) &&
+      (clean(existingMandate.umrn) || normalizeNachAuthUrl(existingMandate.auth_url))
+    ) {
+      const responseData = buildMandateResponse({
+        documentId: existingMandate.document_id,
+        status: existingMandate.status,
+        authUrl: existingMandate.auth_url,
+        umrn: existingMandate.umrn,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Digio eNACH mandate already exists",
+        data: responseData,
+      });
+    }
+
+    const payload = {
+      customer_identifier: clean(loan.mobile_number),
+      auth_mode: "api",
+      mandate_type: "create",
+      corporate_config_id: process.env.DIGIO_CORPORATE_CONFIG_ID,
+      notify_customer: true,
+      include_authentication_url: true,
+      mandate_data: {
+        maximum_amount: maxDebitAmount,
+        instrument_type: "debit",
+        first_collection_date: dateOnly(new Date()),
+        final_collection_date: finalCollectionDate,
+        is_recurring: true,
+        frequency,
+        management_category: "L001",
+        name_in_bank: clean(
+          loan.customer_name_as_per_bank || loan.customer_name,
+        ),
+        customer_account_number: clean(loan.customer_account_number),
+        customer_account_type: lower(accountType),
+        destination_bank_id: ifsc,
+        destination_bank_name: clean(loan.customer_bank_name) || undefined,
+        customer_ref_number: loan.lan,
+        scheme_ref_number: loan.lan,
+      },
+    };
+
+    Object.keys(payload.mandate_data).forEach((key) => {
+      if (payload.mandate_data[key] === undefined) {
+        delete payload.mandate_data[key];
+      }
+    });
+
+    const digioResponse = await digio.post(
+      "/v3/client/mandate/create_form",
+      payload,
+    );
+
+    const providerData = digioResponse?.data || {};
+
+    const documentId = extractMandateDocumentId(providerData);
+    const mandateState = extractMandateState(providerData);
+    const authUrl =
+      findNachAuthUrl(providerData) ||
+      normalizeNachAuthUrl(digioResponse?.headers?.location) ||
+      null;
+
+    if (!documentId) {
+      return res.status(502).json({
+        success: false,
+        message: "Digio did not return a mandate document ID",
+      });
+    }
+
+    await connection.query(
+      `INSERT INTO enach_mandates
+       (
+         lan,
+         document_id,
+         customer_identifier,
+         status,
+         mandate_amount,
+         account_no,
+         ifsc,
+         account_type,
+         bank_name,
+         auth_url,
+         raw_response
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         customer_identifier =
+           VALUES(customer_identifier),
+         status =
+           VALUES(status),
+         mandate_amount =
+           VALUES(mandate_amount),
+         account_no =
+           VALUES(account_no),
+         ifsc =
+           VALUES(ifsc),
+         account_type =
+           VALUES(account_type),
+         bank_name =
+           VALUES(bank_name),
+         auth_url =
+           COALESCE(
+             NULLIF(VALUES(auth_url), ''),
+             auth_url
+           ),
+         raw_response =
+           VALUES(raw_response)`,
+      [
+        loan.lan,
+        String(documentId),
+        clean(loan.mobile_number),
+        mandateState,
+        maxDebitAmount,
+        clean(loan.customer_account_number),
+        ifsc,
+        lower(accountType),
+        clean(loan.customer_bank_name) || null,
+        authUrl,
+        safeJson(providerData),
+      ],
+    );
+
+    const result = buildMandateResponse({
+      documentId,
+      status: mandateState,
+      authUrl,
+      umrn: "",
     });
 
     return res.status(201).json({
       success: true,
-      message: "Easebuzz eNACH authorization link created",
+      message: authUrl
+        ? "Digio eNACH mandate created"
+        : "Digio eNACH mandate created, but no authentication URL was returned",
       data: result,
     });
   } catch (error) {
@@ -3091,9 +3440,6 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
     );
   }
 });
-
-
-
 
 //claim cure buddy customer details
 
@@ -3206,7 +3552,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         WHERE lan = ?
         LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
     if (!rows.length) {
@@ -3234,8 +3580,7 @@ router.get("/customer-details/:lan", async (req, res) => {
       login_date: row.login_date,
 
       mobile_number: row.mobile_number,
-      borrower_mobile_verified:
-        Number(row.borrower_mobile_verified || 0) === 1,
+      borrower_mobile_verified: Number(row.borrower_mobile_verified || 0) === 1,
 
       pan_card: row.pan_card,
       first_name: row.first_name,
@@ -3263,8 +3608,7 @@ router.get("/customer-details/:lan", async (req, res) => {
         state: row.current_state,
         pincode: row.current_pincode,
 
-        same_as_permanent:
-          Number(row.current_same_as_permanent || 0) === 1,
+        same_as_permanent: Number(row.current_same_as_permanent || 0) === 1,
       },
 
       loan_details: {
@@ -3276,116 +3620,82 @@ router.get("/customer-details/:lan", async (req, res) => {
       },
 
       bank_details: {
-        customer_name_as_per_bank:
-          row.customer_name_as_per_bank,
+        customer_name_as_per_bank: row.customer_name_as_per_bank,
 
-        customer_bank_name:
-          row.customer_bank_name,
+        customer_bank_name: row.customer_bank_name,
 
-        customer_account_number:
-          row.customer_account_number,
+        customer_account_number: row.customer_account_number,
 
-        bank_ifsc_code:
-          row.bank_ifsc_code,
+        bank_ifsc_code: row.bank_ifsc_code,
 
-        bank_branch_address:
-          row.bank_branch_address,
+        bank_branch_address: row.bank_branch_address,
 
-        bank_verification_status:
-          row.bank_verification_status,
+        bank_verification_status: row.bank_verification_status,
 
-        bank_verification_response:
-          parseMaybeJson(
-            row.bank_verification_response
-          ),
+        bank_verification_response: parseMaybeJson(
+          row.bank_verification_response,
+        ),
       },
 
       borrower_bureau: {
-        score:
-          row.borrower_bureau_score,
+        score: row.borrower_bureau_score,
 
-        facts:
-          parseMaybeJson(
-            row.borrower_bureau_facts
-          ),
+        facts: parseMaybeJson(row.borrower_bureau_facts),
       },
     };
 
     const preBre = {
-      status:
-        row.borrower_pre_bre_status,
+      status: row.borrower_pre_bre_status,
 
-      reason:
-        row.borrower_pre_bre_reason,
+      reason: row.borrower_pre_bre_reason,
 
-      checked_at:
-        row.borrower_pre_bre_checked_at,
+      checked_at: row.borrower_pre_bre_checked_at,
     };
 
     const bre = {
-      status:
-        row.bre_status,
+      status: row.bre_status,
 
-      reason:
-        parseMaybeJson(row.bre_reason),
+      reason: parseMaybeJson(row.bre_reason),
 
-      checked_at:
-        row.bre_checked_at,
+      checked_at: row.bre_checked_at,
     };
 
     const esign = {
       sanction: {
-        status:
-          row.sanction_esign_status,
+        status: row.sanction_esign_status,
 
-        document_id:
-          row.sanction_esign_document_id,
+        document_id: row.sanction_esign_document_id,
       },
 
       agreement: {
-        status:
-          row.agreement_esign_status,
+        status: row.agreement_esign_status,
 
-        sent_at:
-          row.agreement_esign_sent_at,
+        sent_at: row.agreement_esign_sent_at,
 
-        signed_at:
-          row.agreement_esign_signed_at,
+        signed_at: row.agreement_esign_signed_at,
 
-        reference:
-          row.agreement_esign_reference,
+        reference: row.agreement_esign_reference,
 
-        response:
-          parseMaybeJson(
-            row.agreement_esign_response
-          ),
+        response: parseMaybeJson(row.agreement_esign_response),
 
-        document_id:
-          row.agreement_esign_document_id,
+        document_id: row.agreement_esign_document_id,
       },
     };
 
     const audit = {
-      submitted_at:
-        row.submitted_at,
+      submitted_at: row.submitted_at,
 
-      approved_at:
-        row.approved_at,
+      approved_at: row.approved_at,
 
-      rejected_at:
-        row.rejected_at,
+      rejected_at: row.rejected_at,
 
-      created_by:
-        row.created_by,
+      created_by: row.created_by,
 
-      updated_by:
-        row.updated_by,
+      updated_by: row.updated_by,
 
-      created_at:
-        row.created_at,
+      created_at: row.created_at,
 
-      updated_at:
-        row.updated_at,
+      updated_at: row.updated_at,
     };
 
     return res.status(200).json({
@@ -3396,32 +3706,22 @@ router.get("/customer-details/:lan", async (req, res) => {
       esign,
       audit,
     });
-
   } catch (error) {
-    console.error(
-      "❌ Error fetching Claim Cure Buddy details:",
-      error
-    );
+    console.error("❌ Error fetching Claim Cure Buddy details:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to fetch Claim Cure Buddy details.",
+      message: "Failed to fetch Claim Cure Buddy details.",
       error: error.message,
     });
   }
 });
 
-
 /**
  * JSON / LONGTEXT safe parser
  */
 function parseMaybeJson(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
+  if (value === null || value === undefined || value === "") {
     return value;
   }
 
@@ -3563,15 +3863,9 @@ router.get("/ops-approvals-loans", async (req, res) => {
 
 router.get("/credit-initiated-loans", async (req, res) => {
   try {
-    const page = Math.max(
-      1,
-      Number(req.query.page) || 1
-    );
+    const page = Math.max(1, Number(req.query.page) || 1);
 
-    const pageSize = Math.max(
-      1,
-      Number(req.query.pageSize) || 10
-    );
+    const pageSize = Math.max(1, Number(req.query.pageSize) || 10);
 
     const search = clean(req.query.search);
     const offset = (page - 1) * pageSize;
@@ -3595,13 +3889,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
         )
       `;
 
-      params.push(
-        term,
-        term,
-        term,
-        term,
-        term
-      );
+      params.push(term, term, term, term, term);
     }
 
     // Count
@@ -3611,12 +3899,10 @@ router.get("/credit-initiated-loans", async (req, res) => {
         FROM loan_booking_claim_cure_buddy
         ${whereClause}
       `,
-      params
+      params,
     );
 
-    const total = Number(
-      countRows[0]?.total || 0
-    );
+    const total = Number(countRows[0]?.total || 0);
 
     // Fetch cases
     const [rows] = await db.promise().query(
@@ -3642,11 +3928,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
         ORDER BY updated_at DESC, id DESC
         LIMIT ? OFFSET ?
       `,
-      [
-        ...params,
-        pageSize,
-        offset
-      ]
+      [...params, pageSize, offset],
     );
 
     return res.status(200).json({
@@ -3656,18 +3938,11 @@ router.get("/credit-initiated-loans", async (req, res) => {
         page,
         pageSize,
         total,
-        totalPages: Math.max(
-          1,
-          Math.ceil(total / pageSize)
-        ),
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
       },
     });
-
   } catch (error) {
-    console.error(
-      "Credit loans fetch error:",
-      error
-    );
+    console.error("Credit loans fetch error:", error);
 
     return res.status(500).json({
       success: false,

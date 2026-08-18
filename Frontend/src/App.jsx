@@ -258,9 +258,7 @@ import ClayooRejectedLoans from "./components/Clayoo/ClayooApprovedLoans";
 import ClaimCureBuddyLoanBooking from "./components/ClaimCureBuddy/ClaimCureBuddyLoanBooking";
 import ClaimCureBuddyDraftCases from "./components/ClaimCureBuddy/ClaimCureBuddyDraftCases.jsx";
 import ClaimCureBuddyApprovedCases from "./components/ClaimCureBuddy/ClaimCureBuddyApprovedCases.jsx";
-import ClaimCureBuddyOpsScreen from "./components/ClaimCureBuddy/ClaimCureBuddyOpsScreen.jsx";
 import ClaimCureBuddyDetails from "./components/ClaimCureBuddy/ClaimCureBuddyDetails.jsx";
-import ClaimCureBuddyCreditApproval from "./components/ClaimCureBuddy/ClaimCureBuddyCreditApproval.jsx";
 import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
 import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.jsx";
@@ -1965,7 +1963,7 @@ function App() {
           />
           <Route
             path="/claimcurebuddy/credit-approval"
-            element={<ClaimCureBuddyCreditApproval />}
+            element={<Navigate to="/claimcurebuddy/approved-cases" replace />}
           />
 
           <Route
@@ -1993,7 +1991,7 @@ function App() {
 
           <Route
             path="/claimcurebuddy/ops-screen"
-            element={<ClaimCureBuddyOpsScreen />}
+            element={<Navigate to="/claimcurebuddy/approved-cases" replace />}
           />
 
           {/* =========================
