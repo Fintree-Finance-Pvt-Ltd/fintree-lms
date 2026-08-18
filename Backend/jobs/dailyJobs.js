@@ -222,6 +222,7 @@ const tables = [
   "manual_rps_switch_my_loan",
   "manual_rps_wctl_ffpl",
   "manual_rps_sterlion_ubl",
+  "manual_rps_claim_cure_buddy",
 ];
 
 const tableColumnsCache = new Map();

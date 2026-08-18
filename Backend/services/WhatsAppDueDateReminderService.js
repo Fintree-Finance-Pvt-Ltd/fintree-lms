@@ -41,6 +41,7 @@ const RPS_TABLES = [
   "manual_rps_sterlion",
   "manual_rps_gq_fsf",
   "manual_rps_hey_ev",
+  "manual_rps_claim_cure_buddy",
 ];
 
 // LAN prefix to loan booking table mapping
@@ -61,6 +62,7 @@ const LAN_TABLE_MAP = {
   CIRCLE: "loan_booking_circle_pe",
   HELIUM: "loan_booking_helium",
   FINSO: "loan_booking_finso",
+  CCB: "loan_booking_claim_cure_buddy",
 };
 
 /**
@@ -90,6 +92,7 @@ function getLoanTableByLAN(lan) {
   if (prefix.startsWith("HEL")) return "loan_booking_helium";
   //   if (prefix.startsWith("ZYP")) return "loan_booking_zypay_customer";
   if (prefix.startsWith("FIN")) return "loan_booking_finso";
+  if (prefix.startsWith("CCB")) return "loan_booking_claim_cure_buddy";
 
   // Default fallback
   return "loan_bookings";

@@ -80,8 +80,8 @@ const CLAIM_CURE_BUDDY_CONTEXT = {
 
   summaryTable: "claim_cure_buddy_loan_summary",
 
-  // Bullet product: repayment row comes from summary table
-  rpsTable: null,
+  // Bullet product: a single operational RPS row is generated on disbursement.
+  rpsTable: "manual_rps_claim_cure_buddy",
 
   bookingTable: "loan_booking_claim_cure_buddy",
 

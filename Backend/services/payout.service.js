@@ -14,6 +14,9 @@ const { sendDisbursementWebhook } = require("../routes/switchMyLoan/switchMyLoan
 const {
   processPlPartnerDisbursement,
 } = require("../routes/fintreePlPartnerApi/services/plPartnerDisbursement");
+const {
+  processClaimCureBuddyDisbursement,
+} = require("./processClaimCureBuddyDisbursement");
 
 const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_emiclub",
@@ -450,17 +453,11 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementDate: new Date(tr.transfer_date),
       });
     } else if (table === "loan_booking_claim_cure_buddy") {
-      await db.promise().query(
-        `
-        UPDATE loan_booking_claim_cure_buddy
-        SET
-          status = 'Disbursed',
-          stage = 'Disbursed',
-          updated_at = NOW()
-        WHERE lan = ?
-        `,
-        [lan],
-      );
+      await processClaimCureBuddyDisbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
     } else if (table === "pl_partner_applications") {
       try {
         await sendFintreePlDisbursementWebhook({
