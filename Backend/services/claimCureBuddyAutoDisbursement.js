@@ -19,18 +19,6 @@ const COMPLETED_ESIGN_STATUSES = new Set([
   "SIGN_COMPLETE",
 ]);
 
-const COMPLETED_MANDATE_STATUSES = new Set([
-  "ACTIVE",
-  "SUCCESS",
-  "REGISTERED",
-  "AUTH_SUCCESS",
-  "AUTHSUCCESS",
-  "AUTHORIZED",
-  "AUTHORISED",
-  "APPROVED",
-  "COMPLETED",
-]);
-
 const ACTIVE_PAYOUT_STATUSES = new Set([
   "INITIATED",
   "PENDING",
@@ -50,8 +38,7 @@ function isAgreementSigned(status) {
 }
 
 function isMandateComplete(mandate) {
-  return Boolean(clean(mandate?.umrn)) ||
-    COMPLETED_MANDATE_STATUSES.has(upper(mandate?.status));
+  return Boolean(clean(mandate?.umrn));
 }
 
 function isPayoutActiveOrDone(transfer) {

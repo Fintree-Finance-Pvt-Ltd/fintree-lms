@@ -6,10 +6,93 @@ import "../../styles/ClaimCureBuddyLoanBooking.css";
 const API = "claim-cure-buddy";
 const CONSENT_TEXT = `I/We authorise Fintree Finance Private Limited and its service providers to verify my identity, PAN, Aadhaar, credit bureau and contact details for processing this loan application. I/We consent to receive OTP, SMS, calls and email related to this application.`;
 
-const localToday = () => {
-  const now = new Date();
+const localToday = (value = new Date()) => {
+  const now = value instanceof Date ? value : new Date(value);
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 10);
+};
+
+const addDays = (value, days) => {
+  const source = value ? new Date(`${value}T12:00:00`) : new Date();
+  if (Number.isNaN(source.getTime())) return "";
+  source.setDate(source.getDate() + Number(days || 0));
+  return localToday(source);
+};
+
+const money = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+
+const presentValue = (value) => String(value ?? "").trim();
+const hasUmrn = (enach) => Boolean(presentValue(enach?.umrn));
+
+const enachPresentation = (rawStatus) => {
+  const status = String(rawStatus || "NOT_STARTED").toUpperCase();
+  const map = {
+    NOT_STARTED: { label: "Not Started", type: "pending" },
+    CREATED: { label: "Creating", type: "progress" },
+    INITIATED: { label: "Creating", type: "progress" },
+    REQUESTED: { label: "Link Created", type: "ready" },
+    PARTIAL: { label: "Link Created", type: "ready" },
+    LINK_CREATE_PENDING: { label: "Creating Link", type: "progress" },
+    LINK_CREATED: { label: "Link Created", type: "ready" },
+    ACTIVE: { label: "Awaiting UMRN", type: "progress" },
+    SUCCESS: { label: "Awaiting UMRN", type: "progress" },
+    REGISTERED: { label: "Awaiting UMRN", type: "progress" },
+    COMPLETED: { label: "Awaiting UMRN", type: "progress" },
+    AUTH_SUCCESS: { label: "Awaiting UMRN", type: "progress" },
+    AUTHSUCCESS: { label: "Awaiting UMRN", type: "progress" },
+    AUTHORIZED: { label: "Awaiting UMRN", type: "progress" },
+    AUTHORISED: { label: "Awaiting UMRN", type: "progress" },
+    APPROVED: { label: "Awaiting UMRN", type: "progress" },
+    AWAITING_UMRN: { label: "Awaiting UMRN", type: "progress" },
+    FAILED: { label: "Failed", type: "danger" },
+    CANCELLED: { label: "Cancelled", type: "danger" },
+    CANCELED: { label: "Cancelled", type: "danger" },
+    EXPIRED: { label: "Expired", type: "danger" },
+    REJECTED: { label: "Rejected", type: "danger" },
+  };
+
+  return { status, ...(map[status] || map.NOT_STARTED) };
+};
+
+const agreementPresentation = (rawStatus) => {
+  const status = String(rawStatus || "PENDING").toUpperCase();
+  const map = {
+    PENDING: { label: "Pending", type: "pending" },
+    INITIATED: { label: "Sent for Signing", type: "progress" },
+    SIGNED: { label: "Signed", type: "success" },
+    COMPLETED: { label: "Signed", type: "success" },
+    SIGN_COMPLETE: { label: "Signed", type: "success" },
+    FAILED: { label: "Failed", type: "danger" },
+    REJECTED: { label: "Rejected", type: "danger" },
+    EXPIRED: { label: "Expired", type: "danger" },
+  };
+
+  return { status, ...(map[status] || map.PENDING) };
+};
+
+const payoutPresentation = (loanStatus, payout) => {
+  const status = String(
+    payout?.payoutStatus || payout?.status || loanStatus || "PENDING",
+  ).toUpperCase();
+
+  if (status === "DISBURSED" || ["SUCCESS", "COMPLETED", "PROCESSED"].includes(status)) {
+    return { status, label: "Disbursed", type: "success" };
+  }
+
+  if (["DISBURSE INITIATE", "INITIATED", "PENDING", "PROCESSING", "QUEUED"].includes(status)) {
+    return { status, label: "Disbursement Initiated", type: "progress" };
+  }
+
+  if (["FAILED", "FAILURE", "REJECTED", "REVERSED"].includes(status)) {
+    return { status, label: "Failed", type: "danger" };
+  }
+
+  return { status, label: "Waiting", type: "pending" };
 };
 
 const blankBasic = {
@@ -149,6 +232,15 @@ function StatusBadge({ value }) {
   );
 }
 
+function FlowPill({ label, type = "pending" }) {
+  return (
+    <span className={`ccb-flow-pill ccb-flow-pill-${type}`}>
+      <span />
+      {label}
+    </span>
+  );
+}
+
 export default function ClaimCureBuddyLoanBooking() {
   const [searchParams] = useSearchParams();
   const resumeLan = searchParams.get("lan");
@@ -162,8 +254,10 @@ export default function ClaimCureBuddyLoanBooking() {
 
   const [activeSection, setActiveSection] = useState(0);
   const [lan, setLan] = useState("");
+  const [resumeSearch, setResumeSearch] = useState("");
   const [partnerLoanId, setPartnerLoanId] = useState("");
   const [caseStatus, setCaseStatus] = useState("Draft");
+  const [breStatus, setBreStatus] = useState("PENDING");
   const [basic, setBasic] = useState(blankBasic);
   const [address, setAddress] = useState(blankAddress);
   const [loan, setLoan] = useState(blankLoan);
@@ -174,8 +268,20 @@ export default function ClaimCureBuddyLoanBooking() {
   const [borrowerAadhaarStatus, setBorrowerAadhaarStatus] = useState("PENDING");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [postAction, setPostAction] = useState("");
   const [breResult, setBreResult] = useState(null);
   const [borrowerPreBreStatus, setBorrowerPreBreStatus] = useState("PENDING");
+  const [agreementStatus, setAgreementStatus] = useState("PENDING");
+  const [postFlow, setPostFlow] = useState({
+    enach: { status: "NOT_STARTED" },
+    payout: null,
+  });
+  const [enachForm, setEnachForm] = useState({
+    accountType: "SAVINGS",
+    maxDebitAmount: "",
+    finalCollectionDate: addDays(localToday(), 90),
+    frequency: "MONTHLY",
+  });
 
   const [borrowerPreBreResult, setBorrowerPreBreResult] = useState(null);
   const [otpDialog, setOtpDialog] = useState({
@@ -188,7 +294,26 @@ export default function ClaimCureBuddyLoanBooking() {
   });
 
   const isTerminal = useMemo(
-    () => ["Approved", "Rejected"].includes(caseStatus),
+    () =>
+      [
+        "Approved",
+        "Rejected",
+        "BRE Approved",
+        "Disburse initiate",
+        "Disbursed",
+      ].includes(caseStatus),
+    [caseStatus],
+  );
+  const isBreApproved = useMemo(
+    () =>
+      breStatus === "APPROVED" ||
+      ["BRE Approved", "Approved", "Disburse initiate", "Disbursed"].includes(
+        caseStatus,
+      ),
+    [breStatus, caseStatus],
+  );
+  const isDisbursed = useMemo(
+    () => String(caseStatus || "").toUpperCase() === "DISBURSED",
     [caseStatus],
   );
   const kycKey = (type, partyNo) => `${type}-${partyNo}`;
@@ -203,6 +328,8 @@ export default function ClaimCureBuddyLoanBooking() {
       loan: saved,
       coApplicants: savedCoApplicants = [],
       kycStatuses: savedKyc = [],
+      enach = { status: "NOT_STARTED" },
+      payout = null,
     } = payload;
     const sectionByStage = {
       "Basic Details": 0,
@@ -210,6 +337,10 @@ export default function ClaimCureBuddyLoanBooking() {
       "Loan Details": 2,
       "Co-Applicants": 3,
       "Bank Details": 4,
+      BRE: 4,
+      "BRE Approved": 4,
+      "Disbursement Initiated": 4,
+      Disbursed: 4,
     };
 
     setActiveSection(sectionByStage[saved.stage] ?? 0);
@@ -220,8 +351,12 @@ export default function ClaimCureBuddyLoanBooking() {
     const borrowerKyc = statusMap[kycKey("BORROWER", 1)] || {};
 
     setLan(saved.lan);
+    setResumeSearch(saved.lan || "");
     setPartnerLoanId(saved.partner_loan_id);
     setCaseStatus(saved.status);
+    setBreStatus(saved.bre_status || "PENDING");
+    setAgreementStatus(saved.agreement_esign_status || "PENDING");
+    setPostFlow({ enach, payout });
     setBorrowerMobileVerified(Number(saved.borrower_mobile_verified) === 1);
     setBorrowerPanVerified(borrowerKyc.pan_status === "VERIFIED");
     setBorrowerAadhaarStatus(borrowerKyc.aadhaar_status || "PENDING");
@@ -277,6 +412,18 @@ export default function ClaimCureBuddyLoanBooking() {
       processingFee: "0",
       disbursalAmount: saved.disbursal_amount || "",
     });
+    setEnachForm((previous) => ({
+      ...previous,
+      maxDebitAmount: String(saved.loan_amount || saved.disbursal_amount || ""),
+      finalCollectionDate:
+        addDays(
+          String(saved.approved_at || saved.updated_at || localToday()).slice(
+            0,
+            10,
+        ),
+          Number(saved.loan_tenure || 90),
+        ),
+    }));
     setBank({
       accountHolderName: saved.customer_name_as_per_bank || "",
       bankName: saved.customer_bank_name || "",
@@ -325,21 +472,44 @@ export default function ClaimCureBuddyLoanBooking() {
     }
   };
 
-  const fetchBooking = async (targetLan) => {
-    setLoading(true);
+  const fetchBooking = async (targetLan, { silent = false } = {}) => {
+    if (!silent) setLoading(true);
     try {
       const response = await api.get(`${API}/loan-booking/${targetLan}`);
       mapResumeData(response.data.data);
+      return response.data.data;
     } catch (error) {
       setNotice(`❌ ${getError(error, "Unable to resume booking")}`);
+      return null;
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
+  };
+
+  const loadBookingByLan = async () => {
+    const targetLan = resumeSearch.trim().toUpperCase();
+
+    if (!targetLan) {
+      setNotice("Enter a LAN to load the ClaimCureBuddy case.");
+      return;
+    }
+
+    await fetchBooking(targetLan);
   };
 
   useEffect(() => {
     if (resumeLan) fetchBooking(resumeLan);
   }, [resumeLan]);
+
+  useEffect(() => {
+    if (!lan || !isBreApproved || isDisbursed) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      fetchBooking(lan, { silent: true });
+    }, 15000);
+
+    return () => window.clearInterval(intervalId);
+  }, [lan, isBreApproved, isDisbursed]);
 
   const updateBasic = (name, value) =>
     setBasic((previous) => ({ ...previous, [name]: value }));
@@ -800,9 +970,11 @@ export default function ClaimCureBuddyLoanBooking() {
         `${API}/loan-booking/${lan}/final-submit`,
       );
       setCaseStatus(response.data.status);
+      setBreStatus(response.data.breStatus || "PENDING");
       setBreResult(response.data.breDecision);
+      await fetchBooking(lan);
       setNotice(
-        `${response.data.status === "Approved" ? "✅" : "❌"} ${response.data.message}`,
+        `${response.data.breStatus === "APPROVED" ? "Done." : "Rejected."} ${response.data.message}`,
       );
     } catch (error) {
       const serverStatus = error.response?.data?.status;
@@ -810,6 +982,138 @@ export default function ClaimCureBuddyLoanBooking() {
       setNotice(`❌ ${getError(error, "Case submission or BRE failed")}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshCurrentCase = async () => {
+    if (!lan) return;
+    await fetchBooking(lan);
+  };
+
+  const updateEnachForm = (name, value) =>
+    setEnachForm((previous) => ({ ...previous, [name]: value }));
+
+  const createEnach = async () => {
+    if (!isBreApproved) {
+      setNotice("Run final BRE before creating eNACH.");
+      return;
+    }
+
+    if (!enachForm.maxDebitAmount || Number(enachForm.maxDebitAmount) <= 0) {
+      setNotice("Enter a valid maximum debit amount for eNACH.");
+      return;
+    }
+
+    if (!enachForm.finalCollectionDate) {
+      setNotice("Select the eNACH final collection date.");
+      return;
+    }
+
+    let authorizationWindow = null;
+
+    try {
+      setPostAction("ENACH");
+      authorizationWindow = window.open("about:blank", "_blank");
+
+      if (authorizationWindow) {
+        authorizationWindow.opener = null;
+        authorizationWindow.document.title = "Creating Digio eNACH link";
+        authorizationWindow.document.body.innerHTML =
+          "<p style='font-family:Arial;padding:24px'>Creating secure Digio authorization link...</p>";
+      }
+
+      const response = await api.post(
+        `${API}/loan-booking/${lan}/enach`,
+        enachForm,
+      );
+
+      const result = response.data?.data || {};
+      const authorizationUrl =
+        result.shortUrl || result.paymentUrl || result.authUrl || result.auth_url;
+
+      setPostFlow((previous) => ({
+        ...previous,
+        enach: {
+          status: result.status || "LINK_CREATED",
+          providerStatus: result.providerStatus || result.status || null,
+          documentId: result.documentId || result.mandateId || "",
+          mandateId: result.mandateId || result.documentId || "",
+          umrn: result.umrn || "",
+          amount: enachForm.maxDebitAmount,
+          authUrl: authorizationUrl || "",
+          paymentUrl: authorizationUrl || "",
+          shortUrl: authorizationUrl || "",
+        },
+      }));
+
+      setNotice("Digio eNACH link sent to the customer.");
+
+      if (authorizationUrl && authorizationWindow) {
+        authorizationWindow.location.replace(authorizationUrl);
+      } else if (authorizationUrl) {
+        window.open(authorizationUrl, "_blank", "noopener,noreferrer");
+      } else if (authorizationWindow) {
+        authorizationWindow.close();
+      }
+    } catch (error) {
+      if (authorizationWindow) authorizationWindow.close();
+      setNotice(`âŒ ${getError(error, "Unable to create Digio eNACH link")}`);
+    } finally {
+      setPostAction("");
+    }
+  };
+
+  const openExistingEnach = () => {
+    const url =
+      postFlow.enach?.shortUrl ||
+      postFlow.enach?.paymentUrl ||
+      postFlow.enach?.authUrl;
+
+    if (!url) {
+      setNotice("No active Digio eNACH link is available.");
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const startAgreementSigning = async () => {
+    if (!isBreApproved) {
+      setNotice("Run final BRE before sending agreement.");
+      return;
+    }
+
+    const agreement = agreementPresentation(agreementStatus);
+
+    if (["SIGNED", "COMPLETED", "SIGN_COMPLETE"].includes(agreement.status)) {
+      setNotice("Agreement is already signed.");
+      return;
+    }
+
+    if (agreement.status === "INITIATED") {
+      setNotice("Agreement signing is already in progress.");
+      return;
+    }
+
+    try {
+      setPostAction("AGREEMENT");
+      const response = await api.post(`/esign/${lan}/esign/agreement`);
+      const signingUrl =
+        response.data?.signingUrl ||
+        response.data?.url ||
+        response.data?.data?.signingUrl ||
+        null;
+
+      setAgreementStatus("INITIATED");
+      setNotice(response.data?.message || "Agreement sent for signing.");
+
+      if (signingUrl) {
+        window.open(signingUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      setNotice(`âŒ ${getError(error, "Unable to start agreement signing")}`);
+    } finally {
+      setPostAction("");
     }
   };
 
@@ -1415,6 +1719,250 @@ export default function ClaimCureBuddyLoanBooking() {
     </>
   );
 
+  const renderPostBreFlow = () => {
+    const enach = postFlow.enach || { status: "NOT_STARTED" };
+    const enachRaw = enachPresentation(enach.status);
+    const enachPresent = hasUmrn(enach)
+      ? { status: "ACTIVE", label: "Success", type: "success" }
+      : enachRaw;
+    const agreement = agreementPresentation(agreementStatus);
+    const agreementDone = ["SIGNED", "COMPLETED", "SIGN_COMPLETE"].includes(
+      agreement.status,
+    );
+  const enachDone =
+      hasUmrn(enach);
+    const payout = payoutPresentation(caseStatus, postFlow.payout);
+    const enachUrl = enach.shortUrl || enach.paymentUrl || enach.authUrl;
+    const disbursementWaitingFor = [];
+    const enachFailed = [
+      "FAILED",
+      "FAILURE",
+      "CANCELLED",
+      "CANCELED",
+      "EXPIRED",
+      "REJECTED",
+    ].includes(enachPresent.status);
+    const enachWaitingForUmrn =
+      !enachDone &&
+      [
+        "AWAITING_UMRN",
+        "ACTIVE",
+        "SUCCESS",
+        "REGISTERED",
+        "COMPLETED",
+        "AUTH_SUCCESS",
+        "AUTHSUCCESS",
+        "AUTHORIZED",
+        "AUTHORISED",
+        "APPROVED",
+      ].includes(enachPresent.status);
+    const disbursementAmount =
+      postFlow.payout?.amount || loan.disbursalAmount || loan.loanAmount;
+
+    if (!enachDone) disbursementWaitingFor.push("UMRN");
+    if (!agreementDone) disbursementWaitingFor.push("eSign");
+
+    return (
+      <section className="ccb-post-flow">
+        <div className="ccb-post-header">
+          <div>
+            <span>Post BRE Flow</span>
+            <h2>eNACH, eSign and Disbursement</h2>
+          </div>
+          <button
+            type="button"
+            className="ccb-secondary"
+            disabled={loading || !lan}
+            onClick={refreshCurrentCase}
+          >
+            Refresh Status
+          </button>
+        </div>
+
+        <div className="ccb-disbursement-strip">
+          <div>
+            <span>Final Disbursement Amount</span>
+            <strong>{money(disbursementAmount)}</strong>
+          </div>
+          <FlowPill label={payout.label} type={payout.type} />
+        </div>
+
+        <div className="ccb-flow-grid">
+          <article className="ccb-flow-card">
+            <div className="ccb-flow-card-title">
+              <h3>Digio eNACH</h3>
+              <FlowPill label={enachPresent.label} type={enachPresent.type} />
+            </div>
+
+            <div className="ccb-grid ccb-flow-form">
+              <SelectField
+                label="Account Type"
+                value={enachForm.accountType}
+                onChange={(value) => updateEnachForm("accountType", value)}
+                required
+                options={[
+                  { value: "SAVINGS", label: "Savings" },
+                  { value: "CURRENT", label: "Current" },
+                ]}
+              />
+              <Field
+                label="Maximum Debit Amount"
+                type="number"
+                min="1"
+                step="0.01"
+                value={enachForm.maxDebitAmount}
+                onChange={(value) => updateEnachForm("maxDebitAmount", value)}
+                required
+              />
+              <Field
+                label="Final Collection Date"
+                type="date"
+                min={localToday()}
+                value={enachForm.finalCollectionDate}
+                onChange={(value) =>
+                  updateEnachForm("finalCollectionDate", value)
+                }
+                required
+              />
+              <SelectField
+                label="Frequency"
+                value={enachForm.frequency}
+                onChange={(value) => updateEnachForm("frequency", value)}
+                required
+                options={[
+                  { value: "MONTHLY", label: "Monthly" },
+                  { value: "QUARTERLY", label: "Quarterly" },
+                  { value: "HALFYEARLY", label: "Half-Yearly" },
+                  { value: "YEARLY", label: "Yearly" },
+                  { value: "AS_PRESENTED", label: "As Presented" },
+                ]}
+              />
+            </div>
+
+            <div className="ccb-flow-meta">
+              {enach.umrn && (
+                <div>
+                  <span>UMRN</span>
+                  <strong>{enach.umrn}</strong>
+                </div>
+              )}
+              {enach.mandateId && (
+                <div>
+                  <span>Mandate ID</span>
+                  <strong>{enach.mandateId}</strong>
+                </div>
+              )}
+            </div>
+
+            <div className="ccb-action-row ccb-flow-actions">
+              {enachUrl && !enachDone && !enachFailed ? (
+                <button
+                  type="button"
+                  className="ccb-primary"
+                  disabled={loading || postAction === "ENACH"}
+                  onClick={openExistingEnach}
+                >
+                  Open eNACH Link
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="ccb-primary"
+                  disabled={
+                    loading ||
+                    postAction === "ENACH" ||
+                    !isBreApproved ||
+                    enachDone ||
+                    enachWaitingForUmrn ||
+                    isDisbursed
+                  }
+                  onClick={createEnach}
+                >
+                  {postAction === "ENACH"
+                    ? "Sending Link..."
+                    : enachFailed
+                      ? "Retry eNACH Link"
+                      : enachDone
+                        ? "eNACH UMRN Done"
+                        : enachWaitingForUmrn
+                          ? "Awaiting UMRN"
+                        : "Send eNACH Link"}
+                </button>
+              )}
+            </div>
+          </article>
+
+          <article className="ccb-flow-card">
+            <div className="ccb-flow-card-title">
+              <h3>Agreement eSign</h3>
+              <FlowPill label={agreement.label} type={agreement.type} />
+            </div>
+            <div className="ccb-flow-summary">
+              <div>
+                <span>Agreement Status</span>
+                <strong>{agreement.label}</strong>
+              </div>
+              <div>
+                <span>LAN</span>
+                <strong>{lan}</strong>
+              </div>
+            </div>
+            <div className="ccb-action-row ccb-flow-actions">
+              <button
+                type="button"
+                className="ccb-primary"
+                disabled={
+                  loading ||
+                  postAction === "AGREEMENT" ||
+                  !isBreApproved ||
+                  agreementDone ||
+                  agreement.status === "INITIATED" ||
+                  isDisbursed
+                }
+                onClick={startAgreementSigning}
+              >
+                {postAction === "AGREEMENT"
+                  ? "Sending..."
+                  : agreementDone
+                    ? "Agreement Signed"
+                    : agreement.status === "INITIATED"
+                      ? "Awaiting eSign"
+                      : "Send eSign Link"}
+              </button>
+            </div>
+          </article>
+
+          <article className="ccb-flow-card">
+            <div className="ccb-flow-card-title">
+              <h3>Final Disbursement</h3>
+              <FlowPill label={payout.label} type={payout.type} />
+            </div>
+            <div className="ccb-flow-summary">
+              <div>
+                <span>Amount</span>
+                <strong>{money(disbursementAmount)}</strong>
+              </div>
+              <div>
+                <span>UTR</span>
+                <strong>{postFlow.payout?.utr || "Pending"}</strong>
+              </div>
+              <div>
+                <span>Request No.</span>
+                <strong>{postFlow.payout?.uniqueRequestNumber || "Pending"}</strong>
+              </div>
+              {disbursementWaitingFor.length > 0 && (
+                <div>
+                  <span>Waiting For</span>
+                  <strong>{disbursementWaitingFor.join(" + ")}</strong>
+                </div>
+              )}
+            </div>
+          </article>
+        </div>
+      </section>
+    );
+  };
+
   return (
     <div className="ccb-page">
       <div className="ccb-header">
@@ -1422,8 +1970,8 @@ export default function ClaimCureBuddyLoanBooking() {
           <span className="ccb-eyebrow">New Product</span>
           <h1>ClaimCureBuddy Loan Booking</h1>
           <p>
-            Mobile verification creates the LAN. Final BRE runs after bank
-            submission.
+            Mobile verification creates the LAN. Final BRE, eNACH, eSign and
+            disbursement status stay on this page.
           </p>
         </div>
         <div className="ccb-case-meta">
@@ -1437,6 +1985,33 @@ export default function ClaimCureBuddyLoanBooking() {
           </div>
           <StatusBadge value={caseStatus} />
         </div>
+      </div>
+
+      <div className="ccb-resume-bar">
+        <Field
+          label="Load ClaimCureBuddy LAN"
+          value={resumeSearch}
+          onChange={(value) => setResumeSearch(value.toUpperCase())}
+          placeholder="CCB..."
+        />
+        <button
+          type="button"
+          className="ccb-secondary"
+          disabled={loading}
+          onClick={loadBookingByLan}
+        >
+          Load Case
+        </button>
+        {lan && (
+          <button
+            type="button"
+            className="ccb-secondary"
+            disabled={loading}
+            onClick={refreshCurrentCase}
+          >
+            Refresh
+          </button>
+        )}
       </div>
 
       {message && (
@@ -1560,6 +2135,8 @@ export default function ClaimCureBuddyLoanBooking() {
           )}
         </div>
       </section>
+
+      {isBreApproved && renderPostBreFlow()}
 
       {otpDialog.open && (
         <div className="ccb-modal-backdrop">
