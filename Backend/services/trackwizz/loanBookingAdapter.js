@@ -481,6 +481,32 @@ const PARTNERS = {
         checkedAt: "aml_checked_at",
       },
     },
+
+    fintreepl: {
+      table: "pl_partner_applications",
+      primaryKey: "id",
+      codeFields: ["lan","partner_application_id"], // adjust if motion_corp has application_id etc.
+      columns: {
+        lan: "lan",
+        name: "customer_full_name", // ← match your actual motion_corp column names
+        fatherName: "customer_father_name",
+        pan: "pan_number",
+        mobile: "mobile_number",
+        email: "email",
+        dob: "date_of_birth",
+        gender: "gender",
+        createdAt: "created_at",
+        applicationRefNumber: "partner_application_id",
+      },
+      amlColumns: {
+        status: "aml_status",
+        score: "aml_score",
+        totalMatches: "aml_total_matches",
+        reason: "aml_reason",
+        apiResponse: "aml_api_response",
+        checkedAt: "aml_checked_at",
+      },
+    },
 };
 
 /* ───────────────────────── Configuration helpers ───────────────────────── */

@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("../../config/db");
 const { clayooRunAllValidations } = require("./clyooValidationEngine");
 const partnerBookingWrapper = require("../../services/partnerBookingWrapper");
+const partnerLimitService = require("../../services/partnerLimitService");
 const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
@@ -746,15 +747,15 @@ router.post("/manual-entry", async (req, res) => {
       lan,
     ]);
 
-    // await partnerBookingWrapper.finalizeBooking(
-    //   conn,
-    //   validation.partnerId,
-    //   validation.limitId,
-    //   lan,
-    //   loanAmount,
-    //   validation.requiredFldg,
-    //   `CLAYOO booking reservation`,
-    // );
+    await partnerBookingWrapper.finalizeBooking(
+      conn,
+      validation.partnerId,
+      validation.limitId,
+      lan,
+      loanAmount,
+      validation.requiredFldg,
+      `CLAYOO booking reservation`,
+    );
 
     await conn.commit();
     conn.release();
@@ -1079,25 +1080,83 @@ router.put("/set-limit/:lan", async (req, res) => {
 
 // initiate disbursement + send email
 router.post("/initiate-disbursement/:lan", async (req, res) => {
+  let conn;
+  let transactionStarted = false;
+
   try {
     const { lan } = req.params;
 
-    const [[loan]] = await db.promise().query(
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+    transactionStarted = true;
+
+    const [[loan]] = await conn.query(
       `
       SELECT customer_name, approved_limit , hospital_name , subvention_percent , updated_subvention ,final_limit
       FROM loan_booking_clayyo
       WHERE lan = ?
+      FOR UPDATE
       `,
       [lan],
     );
 
     if (!loan) {
+      await conn.rollback();
+      transactionStarted = false;
+
       return res.status(404).json({
         message: "Loan not found",
       });
     }
 
-    await db.promise().query(
+    const disbursementAmount = Number(
+      loan.final_limit || loan.approved_limit || 0,
+    );
+
+    if (disbursementAmount <= 0) {
+      await conn.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        code: "INVALID_DISBURSEMENT_AMOUNT",
+        message: "Approved disbursement amount is missing or invalid",
+      });
+    }
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const partner = await partnerLimitService.getOrCreatePartner(
+      conn,
+      "CLAYOO",
+    );
+    const limitCheck =
+      await partnerLimitService.validatePartnerDisbursementLimit(
+        conn,
+        partner.partner_id,
+        disbursementAmount,
+        month,
+        year,
+      );
+
+    if (!limitCheck.valid) {
+      await conn.rollback();
+      transactionStarted = false;
+
+      return res.status(403).json({
+        code: "DISBURSEMENT_LIMIT_EXCEEDED",
+        message: "CLAYOO disbursement limit exceeded",
+        partner_name: "CLAYOO",
+        assigned_limit: limitCheck.assigned,
+        used_limit: limitCheck.used,
+        remaining_limit: limitCheck.remaining,
+        required_amount: disbursementAmount,
+        month,
+        year,
+      });
+    }
+
+    await conn.query(
       `
       UPDATE loan_booking_clayyo
       SET status = ?,
@@ -1106,6 +1165,9 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
       `,
       [LOAN_STATUS.DISBURSEMENT_INITIATED, lan],
     );
+
+    await conn.commit();
+    transactionStarted = false;
 
     // EMAIL SEND
 
@@ -1253,9 +1315,24 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
   } catch (err) {
     console.error(err);
 
+    if (transactionStarted && conn) {
+      await conn.rollback().catch(() => {});
+    }
+
+    if (err.message === "No limit record for partner/month/year") {
+      return res.status(409).json({
+        code: "DISBURSEMENT_LIMIT_NOT_CONFIGURED",
+        message: "CLAYOO disbursement limit is not configured for this month",
+      });
+    }
+
     res.status(500).json({
       message: "Failed to initiate disbursement",
     });
+  } finally {
+    if (conn) {
+      conn.release();
+    }
   }
 });
 

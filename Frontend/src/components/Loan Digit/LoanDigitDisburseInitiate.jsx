@@ -68,7 +68,7 @@ const LoanDigitOpsScreen = () => {
 
     try {
 
-      await api.put(
+      const response = await api.put(
         `/loan-digit/ops-approved-loan/${lan}`,
         payload
       );
@@ -76,7 +76,10 @@ const LoanDigitOpsScreen = () => {
       setRows((prev) =>
         prev.map((r) =>
           r.lan === lan
-            ? { ...r, ...payload }
+            ? {
+                ...r,
+                status: response.data?.loan_status || payload.status,
+              }
             : r
         )
       );
@@ -85,7 +88,15 @@ const LoanDigitOpsScreen = () => {
 
       console.error("Error updating status:", err);
 
-      alert("Failed to update status.");
+      const errorData = err.response?.data;
+
+      if (errorData?.code === "DISBURSEMENT_LIMIT_EXCEEDED") {
+        alert(
+          `Loan Digit disbursement limit exceeded.\n\nAssigned: ₹${Number(errorData.assigned_limit || 0).toLocaleString("en-IN")}\nUsed: ₹${Number(errorData.used_limit || 0).toLocaleString("en-IN")}\nRemaining: ₹${Number(errorData.remaining_limit || 0).toLocaleString("en-IN")}\nRequired: ₹${Number(errorData.required_amount || 0).toLocaleString("en-IN")}`,
+        );
+      } else {
+        alert(errorData?.message || "Failed to update status.");
+      }
 
     }
   };

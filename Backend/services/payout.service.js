@@ -21,6 +21,7 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_loan_digit",
   "loan_booking_finso",
   "loan_booking_carepay",
+  "loan_booking_claim_cure_buddy",
   "pl_partner_applications",
 ];
 
@@ -125,6 +126,19 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         INNER JOIN carepay_hospital_booking h
           ON h.lan = lb.hospital_lan
         WHERE lb.lan = ?
+        LIMIT 1
+      `;
+    }
+
+    if (table === "loan_booking_claim_cure_buddy") {
+      loanQuery = `
+        SELECT
+          customer_name_as_per_bank AS beneficiary_name,
+          disbursal_amount AS loan_amount,
+          customer_account_number AS account_number,
+          bank_ifsc_code AS ifsc
+        FROM loan_booking_claim_cure_buddy
+        WHERE lan = ?
         LIMIT 1
       `;
     }
@@ -435,6 +449,18 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
+    } else if (table === "loan_booking_claim_cure_buddy") {
+      await db.promise().query(
+        `
+        UPDATE loan_booking_claim_cure_buddy
+        SET
+          status = 'Disbursed',
+          stage = 'Disbursed',
+          updated_at = NOW()
+        WHERE lan = ?
+        `,
+        [lan],
+      );
     } else if (table === "pl_partner_applications") {
       try {
         await sendFintreePlDisbursementWebhook({

@@ -253,7 +253,12 @@ const Sidebar = () => {
     'GQ Non-FSF Loans': allowedPages.filter(p => p.path.includes('/gq-non-fsf-loans')),
     'Embifi Loans': allowedPages.filter(p => p.path.includes('/embifi-loans')),
     'Adikosh Loans': allowedPages.filter(p => p.path.includes('/adikosh-loans')),
-    'ClaimCureBuddy Loans': allowedPages.filter(p => p.path.includes('/claimcurebuddy')),
+    'ClaimCureBuddy Loans': allowedPages.filter(
+      p =>
+        p.path.includes('/claimcurebuddy') &&
+        !p.path.includes('/claimcurebuddy/credit-approval') &&
+        !p.path.includes('/claimcurebuddy/ops-screen')
+    ),
     'CirclePe Loans': allowedPages.filter(p => p.path.includes('/circlepe-loans')),
     'CirclePe Houser Loans': allowedPages.filter(p => p.path.includes('/circlepe-houser-loans')),
     'CarePay Loans': allowedPages.filter(p => p.path.includes('/carepay-loans')),

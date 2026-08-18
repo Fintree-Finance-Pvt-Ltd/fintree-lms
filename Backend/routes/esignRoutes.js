@@ -13,8 +13,40 @@ const {
 const { initDoqfyEsign } = require("../services/doqfyEsignService");
 const { getLoanContext } = require("../utils/lanHelper");
 const { initEsign } = require("../services/esignService");
+const {
+  triggerClaimCureBuddyAutoDisbursement,
+  isClaimCureBuddyLan,
+  isAgreementSigned,
+} = require("../services/claimCureBuddyAutoDisbursement");
 
 const router = express.Router();
+
+function triggerClaimCureBuddyAutoDisbursementAfterEsign({
+  lan,
+  documentType,
+  status,
+  source,
+}) {
+  if (
+    !isClaimCureBuddyLan(lan) ||
+    String(documentType || "").toUpperCase() !== "AGREEMENT" ||
+    !isAgreementSigned(status)
+  ) {
+    return;
+  }
+
+  triggerClaimCureBuddyAutoDisbursement({
+    lan,
+    source,
+  }).catch((error) => {
+    console.error("ClaimCureBuddy auto disbursement trigger failed", {
+      lan,
+      source,
+      message: error.message,
+      stack: error.stack,
+    });
+  });
+}
 
 /* ======================================================
    TEMPLATE LOADER
@@ -500,6 +532,13 @@ router.post("/v1/digio-esign-webhook", async (req, res) => {
       ]);
 
     console.log("[DB] Booking table updated successfully");
+    triggerClaimCureBuddyAutoDisbursementAfterEsign({
+      lan,
+      documentType: document_type,
+      status: finalStatus,
+      source: "DIGIO_ESIGN_WEBHOOK",
+    });
+
     console.log("[Webhook] Processing completed successfully");
 
     res.send("ok");
@@ -623,6 +662,7 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
     /* --------------------------------------------------- */
     /* UPDATE BOOKING TABLE */
     /* --------------------------------------------------- */
+    let bookingTableUpdated = false;
 
     /* --------------------------------------------------- */
 /* HANDLE SIGNED DOCUMENT */
@@ -737,6 +777,7 @@ if (
       `,
       [lan]
     );
+    bookingTableUpdated = true;
 
     await connection.commit();
 
@@ -760,6 +801,29 @@ if (
     connection.release();
   }
 }
+
+    if (!bookingTableUpdated) {
+      const col =
+        document_type === "SANCTION"
+          ? "sanction_esign_status"
+          : "agreement_esign_status";
+
+      await db.promise().query(
+        `
+        UPDATE ${bookingTable}
+        SET ${col} = ?
+        WHERE lan = ?
+        `,
+        [finalStatus, lan],
+      );
+    }
+
+    triggerClaimCureBuddyAutoDisbursementAfterEsign({
+      lan,
+      documentType: document_type,
+      status: finalStatus,
+      source: "DOQFY_ESIGN_WEBHOOK",
+    });
 
     console.log("[DOQFY WEBHOOK] Completed successfully");
 

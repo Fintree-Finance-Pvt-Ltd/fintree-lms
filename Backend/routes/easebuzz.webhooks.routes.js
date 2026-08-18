@@ -265,6 +265,18 @@ router.post("/payout", async (req, res) => {
         });
       }
 
+      if (transfer.lan?.startsWith("CCB")) {
+        await db.promise().query(
+          `UPDATE loan_booking_claim_cure_buddy
+           SET
+             status = 'Disbursed',
+             stage = 'Disbursed',
+             updated_at = NOW()
+           WHERE lan = ?`,
+          [transfer.lan],
+        );
+      }
+
       return res.sendStatus(200);
     }
 
@@ -423,6 +435,21 @@ router.post("/payout", async (req, res) => {
           success: carePayResult?.success,
           skipped: carePayResult?.skipped,
           reason: carePayResult?.reason,
+        });
+      } else if (lan?.startsWith("CCB")) {
+        await db.promise().query(
+          `UPDATE loan_booking_claim_cure_buddy
+           SET
+             status = 'Disbursed',
+             stage = 'Disbursed',
+             updated_at = NOW()
+           WHERE lan = ?`,
+          [lan],
+        );
+
+        console.log("ClaimCureBuddy payout success stored", {
+          lan,
+          utr: effectiveUtr,
         });
       } else {
         /*

@@ -440,10 +440,17 @@ const MotionCorpApprovedLoans = ({
             });
             resetToastAfterDelay();
           } catch (error) {
+            const errorData = error.response?.data;
+            const limitMessage =
+              errorData?.code === "DISBURSEMENT_LIMIT_EXCEEDED"
+                ? `Motion Corp disbursement limit exceeded. Assigned: ₹${Number(errorData.assigned_limit || 0).toLocaleString("en-IN")}, Used: ₹${Number(errorData.used_limit || 0).toLocaleString("en-IN")}, Remaining: ₹${Number(errorData.remaining_limit || 0).toLocaleString("en-IN")}, Required: ₹${Number(errorData.required_amount || 0).toLocaleString("en-IN")}.`
+                : null;
+
             setToast({
               type: "error",
               msg:
-                error.response?.data?.message ||
+                limitMessage ||
+                errorData?.message ||
                 "Failed to update stamp paper number.",
             });
             resetToastAfterDelay();

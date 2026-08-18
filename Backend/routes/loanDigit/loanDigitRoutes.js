@@ -1134,8 +1134,114 @@ router.get("/credit-approved-loans", async (req, res) => {
 
 router.put("/ops-approved-loan/:lan", async (req, res) => {
   const { lan } = req.params;
+  const requestedStatus = String(req.body?.status || "APPROVED").toUpperCase();
+  let conn;
+  let transactionStarted = false;
+
   try {
-    const [result] = await db.promise().query(
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+    transactionStarted = true;
+
+    const [[loan]] = await conn.query(
+      `
+      SELECT loan_amount, status
+      FROM loan_booking_loan_digit
+      WHERE lan = ?
+      FOR UPDATE
+      `,
+      [lan],
+    );
+
+    if (!loan || loan.status !== "CREDIT_APPROVED") {
+      await conn.rollback();
+      transactionStarted = false;
+
+      return res.status(404).json({
+        status: "FAILED",
+        message: "Loan not found or not in CREDIT_APPROVED status",
+      });
+    }
+
+    if (requestedStatus === "OPS_REJECTED") {
+      await conn.query(
+        `
+        UPDATE loan_booking_loan_digit
+        SET status = 'OPS_REJECTED'
+        WHERE lan = ? AND status = 'CREDIT_APPROVED'
+        `,
+        [lan],
+      );
+
+      await conn.commit();
+      transactionStarted = false;
+
+      return res.json({
+        status: "SUCCESS",
+        loan_status: "OPS_REJECTED",
+        message: "Loan rejected by operations maker successfully",
+      });
+    }
+
+    if (requestedStatus !== "APPROVED") {
+      await conn.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        status: "FAILED",
+        message: "Status must be APPROVED or OPS_REJECTED",
+      });
+    }
+
+    // Only approvals are subject to the partner disbursement limit.
+    const disbursementAmount = Number(loan.loan_amount || 0);
+
+    if (disbursementAmount <= 0) {
+      await conn.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        status: "FAILED",
+        code: "INVALID_DISBURSEMENT_AMOUNT",
+        message: "Loan amount is missing or invalid",
+      });
+    }
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const partner = await partnerLimitService.getOrCreatePartner(
+      conn,
+      "Loan Digit",
+    );
+    const limitCheck =
+      await partnerLimitService.validatePartnerDisbursementLimit(
+        conn,
+        partner.partner_id,
+        disbursementAmount,
+        month,
+        year,
+      );
+
+    if (!limitCheck.valid) {
+      await conn.rollback();
+      transactionStarted = false;
+
+      return res.status(403).json({
+        status: "FAILED",
+        code: "DISBURSEMENT_LIMIT_EXCEEDED",
+        message: "Loan Digit disbursement limit exceeded",
+        partner_name: "Loan Digit",
+        assigned_limit: limitCheck.assigned,
+        used_limit: limitCheck.used,
+        remaining_limit: limitCheck.remaining,
+        required_amount: disbursementAmount,
+        month,
+        year,
+      });
+    }
+
+    await conn.query(
       `
       UPDATE loan_booking_loan_digit
       SET status = 'OPS_MAKER_APPROVED'
@@ -1143,24 +1249,40 @@ router.put("/ops-approved-loan/:lan", async (req, res) => {
       `,
       [lan],
     );
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        status: "FAILED",
-        message: "Loan not found or not in CREDIT_APPROVED status",
-      });
-    }
+
+    await conn.commit();
+    transactionStarted = false;
 
     return res.json({
       status: "SUCCESS",
+      loan_status: "OPS_MAKER_APPROVED",
       message: "Loan approved by operations maker successfully",
     });
   } catch (err) {
     console.error("❌ Error approving Loan Digit by operations maker:", err);
+
+    if (transactionStarted && conn) {
+      await conn.rollback().catch(() => {});
+    }
+
+    if (err.message === "No limit record for partner/month/year") {
+      return res.status(409).json({
+        status: "FAILED",
+        code: "DISBURSEMENT_LIMIT_NOT_CONFIGURED",
+        message:
+          "Loan Digit disbursement limit is not configured for this month",
+      });
+    }
+
     return res.status(500).json({
       status: "FAILED",
       message: "Failed to approve loan by operations maker",
       error: err.sqlMessage || err.message,
     });
+  } finally {
+    if (conn) {
+      conn.release();
+    }
   }
 });
 

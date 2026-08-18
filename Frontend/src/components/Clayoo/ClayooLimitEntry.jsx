@@ -2615,7 +2615,17 @@ const ClayooLimitEntry = ({
                   alert("Disbursement initiated successfully");
                 } catch (err) {
                   console.error(err);
-                  alert("Failed to initiate disbursement");
+                  const errorData = err.response?.data;
+
+                  if (errorData?.code === "DISBURSEMENT_LIMIT_EXCEEDED") {
+                    alert(
+                      `Disbursement limit exceeded for CLAYOO.\n\nAssigned: ₹${Number(errorData.assigned_limit || 0).toLocaleString("en-IN")}\nUsed: ₹${Number(errorData.used_limit || 0).toLocaleString("en-IN")}\nRemaining: ₹${Number(errorData.remaining_limit || 0).toLocaleString("en-IN")}\nRequired: ₹${Number(errorData.required_amount || 0).toLocaleString("en-IN")}`,
+                    );
+                  } else {
+                    alert(
+                      errorData?.message || "Failed to initiate disbursement",
+                    );
+                  }
                 }
               }}
               disabled={!canEditSubvention || isDisbursementInitiated}

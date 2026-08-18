@@ -249,10 +249,13 @@ async function validatePartnerBookingLimit(
   const bookingRemaining =
     Number(limit.assigned_limit || 0) - Number(limit.booked_limit || 0);
 
-  const valid = bookingRemaining >= amount;
+  // Partner limits are tracking/monitoring values only. A booking must still be
+  // accepted when it takes the partner above the assigned monthly limit.
+  const limitExceeded = bookingRemaining < amount;
 
   return {
-    valid,
+    valid: true,
+    limitExceeded,
     remaining: bookingRemaining,
     bookingRemaining,
     limitId: limit.id,
@@ -298,6 +301,86 @@ async function validatePartnerDisbursementLimit(
 // Existing booking code calling validatePartnerLimit will now validate booking capacity.
 async function validatePartnerLimit(conn, partnerId, loanAmount, month, year) {
   return validatePartnerBookingLimit(conn, partnerId, loanAmount, month, year);
+}
+
+// Record a login case without ever blocking the partner's case flow. This is
+// intended for routes where partner limits are informational/monitoring only.
+async function trackPartnerBookingNonBlocking(
+  conn,
+  partnerName,
+  loanAmount,
+  bookingLan,
+  bookingDate = new Date()
+) {
+  try {
+    const amount = Number(loanAmount || 0);
+
+    if (amount <= 0 || !bookingLan) {
+      return { tracked: false, reason: "INVALID_BOOKING_DETAILS" };
+    }
+
+    const date = new Date(bookingDate);
+    const effectiveDate = Number.isNaN(date.getTime()) ? new Date() : date;
+    const month = effectiveDate.getMonth() + 1;
+    const year = effectiveDate.getFullYear();
+
+    const partner = await getOrCreatePartner(conn, partnerName);
+    let limitCheck;
+
+    try {
+      limitCheck = await validatePartnerBookingLimit(
+        conn,
+        partner.partner_id,
+        amount,
+        month,
+        year
+      );
+    } catch (error) {
+      if (error.message !== "No limit record for partner/month/year") {
+        throw error;
+      }
+
+      // Tracking must work even before an assigned limit is configured.
+      await conn.query(
+        `
+        INSERT IGNORE INTO partner_monthly_limit
+          (partner_id, month, year, assigned_limit, booked_limit, used_limit)
+        VALUES (?, ?, ?, 0, 0, 0)
+        `,
+        [partner.partner_id, month, year]
+      );
+
+      limitCheck = await validatePartnerBookingLimit(
+        conn,
+        partner.partner_id,
+        amount,
+        month,
+        year
+      );
+    }
+
+    const result = await updateBookedLimit(
+      conn,
+      limitCheck.limitId,
+      amount,
+      bookingLan
+    );
+
+    return {
+      tracked: true,
+      limitExceeded: limitCheck.limitExceeded,
+      ...result,
+    };
+  } catch (error) {
+    console.error("Non-blocking partner booking tracking failed:", {
+      partnerName,
+      bookingLan,
+      loanAmount,
+      error: error.message,
+    });
+
+    return { tracked: false, reason: error.message };
+  }
 }
 
 // Increase booked/login pipeline
@@ -346,18 +429,6 @@ async function updateBookedLimit(conn, limitId, loanAmount, bookingLan = null) {
         reason: "BOOKED_LIMIT_ALREADY_UPDATED",
       };
     }
-  }
-
-  const bookingRemaining =
-    Number(limit.assigned_limit || 0) - Number(limit.booked_limit || 0);
-
-  if (bookingRemaining < amount) {
-    const err = new Error("BOOKING_LIMIT_EXCEEDED");
-    err.meta = {
-      remaining: bookingRemaining,
-      required: amount,
-    };
-    throw err;
   }
 
   await conn.query(
@@ -583,6 +654,7 @@ module.exports = {
   validatePartnerLimit,
   validatePartnerBookingLimit,
   validatePartnerDisbursementLimit,
+  trackPartnerBookingNonBlocking,
 
   updateBookedLimit,
   updateDisbursedLimit,

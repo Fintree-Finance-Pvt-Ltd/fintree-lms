@@ -8,6 +8,11 @@ const {
   verifyBankAccount,
   fuzzyMatch,
 } = require("../services/bankVerificationService");
+const {
+  triggerClaimCureBuddyAutoDisbursement,
+  isClaimCureBuddyLan,
+  isMandateComplete,
+} = require("../services/claimCureBuddyAutoDisbursement");
 
 const digio = require("../services/digioClient");
 
@@ -389,6 +394,13 @@ const extractWebhookData = (event) => {
     event?.content ||
     null;
 
+  const mandateData =
+    eventData?.api_mandate ||
+    eventData?.apiMandate ||
+    eventData?.mandate ||
+    eventData?.api_mandates ||
+    null;
+
   return {
     status: normalizeText(
       event?.status ||
@@ -400,6 +412,9 @@ const extractWebhookData = (event) => {
       eventData?.documentId ||
       eventData?.document_id ||
       eventData?.id ||
+      mandateData?.id ||
+      mandateData?.documentId ||
+      mandateData?.document_id ||
       event?.documentId ||
       event?.document_id ||
       null,
@@ -409,6 +424,10 @@ const extractWebhookData = (event) => {
       eventData?.customerRefNumber ||
       eventData?.customer_reference ||
       eventData?.customerReference ||
+      mandateData?.customer_ref_number ||
+      mandateData?.customerRefNumber ||
+      mandateData?.customer_reference ||
+      mandateData?.customerReference ||
       null,
 
     registrationStatus:
@@ -416,11 +435,18 @@ const extractWebhookData = (event) => {
       eventData?.registration_status ||
       eventData?.state ||
       eventData?.status ||
+      mandateData?.registrationStatus ||
+      mandateData?.registration_status ||
+      mandateData?.current_status ||
+      mandateData?.state ||
+      mandateData?.status ||
       null,
 
     umrn:
       eventData?.umrn ||
       eventData?.UMRN ||
+      mandateData?.umrn ||
+      mandateData?.UMRN ||
       null,
 
     data: eventData,
@@ -1265,10 +1291,37 @@ router.post(
           event,
         );
 
-      const isSuccess =
+      const webhookStatus =
         webhook.status
-          .toLowerCase() ===
-        "success";
+          .toLowerCase();
+
+      const registrationStatus =
+        normalizeText(
+          webhook
+            .registrationStatus,
+        )
+          .toLowerCase();
+
+      const isSuccess =
+        [
+          "success",
+          "apimndt.authsuccess",
+          "apimndt.registersuccess",
+          "authsuccess",
+          "registersuccess",
+        ].includes(webhookStatus) ||
+        [
+          "success",
+          "active",
+          "registered",
+          "auth_success",
+          "authsuccess",
+          "completed",
+        ].includes(registrationStatus) ||
+        Boolean(
+          webhook.umrn &&
+          webhook.documentId,
+        );
 
       /*
        * Always return 200 to Digio so that invalid or
@@ -1337,11 +1390,33 @@ router.post(
         ],
       );
 
-      const customerReference =
+      let customerReference =
         normalizeLan(
           webhook
             .customerReference,
         );
+
+      if (!customerReference) {
+        const [[mandateRow]] =
+          await db.promise().query(
+            `
+            SELECT lan
+            FROM enach_mandates
+            WHERE document_id = ?
+            LIMIT 1
+            `,
+            [
+              String(
+                webhook.documentId,
+              ),
+            ],
+          );
+
+        customerReference =
+          normalizeLan(
+            mandateRow?.lan,
+          );
+      }
 
       if (customerReference) {
         await updateLoanTableStatus(
@@ -1385,7 +1460,44 @@ router.post(
                 webhook.umrn,
                 customerReference,
               ],
+              );
+        }
+
+        if (
+          isClaimCureBuddyLan(
+            customerReference,
+          ) &&
+          isMandateComplete({
+            status:
+              webhook
+                .registrationStatus ||
+              "SUCCESS",
+
+            umrn:
+              webhook.umrn,
+          })
+        ) {
+          triggerClaimCureBuddyAutoDisbursement({
+            lan:
+              customerReference,
+
+            source:
+              "DIGIO_MANDATE_WEBHOOK",
+          }).catch((autoDisbursementError) => {
+            console.error(
+              "ClaimCureBuddy auto disbursement trigger failed",
+              {
+                lan:
+                  customerReference,
+
+                message:
+                  autoDisbursementError.message,
+
+                stack:
+                  autoDisbursementError.stack,
+              },
             );
+          });
         }
       }
 
