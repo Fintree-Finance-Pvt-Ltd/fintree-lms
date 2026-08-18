@@ -69,6 +69,23 @@ const cleanPdfText = (value) =>
         .replace(/\n{3,}/g, "\n\n")
         .trim();
 
+ const detectDigioSignature = (pdfText) => {
+  const text = String(pdfText || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  
+  const signedByPresent =
+    /\bsigned\s*by\b\s*[:\-]?/i.test(text);
+
+  return {
+    signature_present: signedByPresent,
+    signature_type: signedByPresent
+      ? "SIGNED_BY_MARKER"
+      : null,
+    detection_method: "PDF_TEXT",
+  };
+};
 /*
 |--------------------------------------------------------------------------
 | PDF-PARSE COMPATIBILITY
@@ -504,7 +521,8 @@ const validateCarePayLoanAgreement = async ({
      SET agreement_validation_status = 'PENDING',
          agreement_validation_reason = NULL,
          agreement_validation_details = NULL,
-         agreement_validated_at = NULL
+         agreement_validated_at = NULL,
+          agreement_esign_status = 'PENDING'
      WHERE lan = ?`,
         [cleanLan],
     );
@@ -543,6 +561,40 @@ const validateCarePayLoanAgreement = async ({
             );
         }
 
+        const signatureValidation =
+  detectDigioSignature(pdfText);
+
+if (!signatureValidation.signature_present) {
+  const details = {
+    signature_validation:
+      signatureValidation,
+  };
+
+  await db.promise().query(
+    `UPDATE loan_booking_carepay
+     SET agreement_validation_status = 'FAILED',
+         agreement_validation_reason =
+           'Digio Aadhaar e-sign stamp not detected in loan agreement.',
+         agreement_validation_details = ?,
+         agreement_validated_at = NOW(),
+         agreement_esign_status = 'PENDING'
+     WHERE lan = ?`,
+    [
+      JSON.stringify(details),
+      cleanLan,
+    ],
+  );
+
+  return {
+    matched: false,
+    status: "FAILED",
+    reason: "LOAN_AGREEMENT_NOT_SIGNED",
+    signature_present: false,
+    signature_validation:
+      signatureValidation,
+    mismatches: [],
+  };
+}
         const extractedValues =
             extractAgreementValues(pdfText);
 
@@ -626,20 +678,38 @@ const validateCarePayLoanAgreement = async ({
             matched_fields: requiredFields,
         };
 
-        await updateAgreementValidation({
-            lan: cleanLan,
-            status: "MATCHED",
-            reason: null,
-            details,
-        });
+       await db.promise().query(
+  `UPDATE loan_booking_carepay
+   SET agreement_validation_status = 'MATCHED',
+       agreement_validation_reason = NULL,
+       agreement_validation_details = ?,
+       agreement_validated_at = NOW(),
+       agreement_esign_status = 'Signed'
+   WHERE lan = ?`,
+  [
+    JSON.stringify({
+      ...details,
+      signature_validation:
+        signatureValidation,
+    }),
+    cleanLan,
+  ],
+);
 
         return {
-            matched: true,
-            status: "MATCHED",
-            reason: null,
-            matched_fields: requiredFields,
-            mismatches: [],
-        };
+  matched: true,
+  status: "MATCHED",
+  reason: null,
+  signature_present: true,
+  signature_type:
+    signatureValidation.signature_type,
+  signed_by:
+    signatureValidation.signed_by,
+  signed_at:
+    signatureValidation.signed_at,
+  matched_fields: requiredFields,
+  mismatches: [],
+};
     } catch (error) {
         console.error(
             "CarePay agreement validation error:",

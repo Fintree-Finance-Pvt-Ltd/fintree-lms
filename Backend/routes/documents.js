@@ -183,7 +183,8 @@ const checkAndApproveCarePayLoan = async (lan) => {
         abb,
         cibil_score,
         agreement_validation_status,
-        agreement_validation_reason
+        agreement_validation_reason,
+        agreement_esign_status
      FROM loan_booking_carepay
      WHERE lan = ?
      LIMIT 1`,
@@ -238,7 +239,35 @@ const checkAndApproveCarePayLoan = async (lan) => {
         loan.agreement_validation_reason || null,
     };
   }
+  /*
+|--------------------------------------------------------------------------
+| AGREEMENT SIGNATURE CHECK
+|--------------------------------------------------------------------------
+*/
 
+const agreementEsignStatus = String(
+  loan.agreement_esign_status || "PENDING",
+)
+  .trim()
+  .toUpperCase();
+
+if (agreementEsignStatus !== "SIGNED") {
+  console.log(
+    "CAREPAY APPROVAL BLOCKED: AGREEMENT NOT SIGNED",
+    {
+      lan: cleanLan,
+      agreement_esign_status:
+        loan.agreement_esign_status,
+    },
+  );
+
+  return {
+    approved: false,
+    reason: "LOAN_AGREEMENT_NOT_SIGNED",
+    agreement_esign_status:
+      loan.agreement_esign_status || "PENDING",
+  };
+}
   const loanAmount = Number(loan.loan_amount || 0);
   const cibilScore = Number(loan.cibil_score || 0);
 
@@ -365,17 +394,16 @@ const checkAndApproveCarePayLoan = async (lan) => {
     };
   }
 
-  const [approvalUpdate] = await db.promise().query(
-    `UPDATE loan_booking_carepay
-     SET status = 'Approved',
-         bank_status = 'Verified',
-         agreement_esign_status = 'Signed',
-         sanction_esign_status = 'Signed'
-     WHERE lan = ?
-       AND agreement_validation_status = 'MATCHED'
-       AND UPPER(TRIM(status)) <> 'REJECTED'`,
-    [cleanLan],
-  );
+ const [approvalUpdate] = await db.promise().query(
+  `UPDATE loan_booking_carepay
+   SET status = 'Approved',
+       bank_status = 'Verified'
+   WHERE lan = ?
+     AND agreement_validation_status = 'MATCHED'
+     AND UPPER(TRIM(agreement_esign_status)) = 'SIGNED'
+     AND UPPER(TRIM(status)) <> 'REJECTED'`,
+  [cleanLan],
+);
 
   if (approvalUpdate.affectedRows === 0) {
     const [[latestLoan]] = await db.promise().query(
@@ -3800,3 +3828,6 @@ router.post("/generate-foreclosure", async (req, res) => {
 });
 
 module.exports = router;
+
+module.exports.checkAndApproveCarePayLoan =
+  checkAndApproveCarePayLoan;

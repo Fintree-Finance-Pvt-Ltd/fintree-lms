@@ -18,6 +18,9 @@ const { approveAndInitiatePayout } = require("../../services/payout.service");
 const { XMLParser } = require("fast-xml-parser");
 const router = express.Router();
 const loanBookingRouter = express.Router();
+const {
+  checkAndApproveCarePayLoan,
+} = require("../documents");
 
 const generateLoanIdentifiers = async (lender) => {
   lender = lender.trim(); // normalize input
@@ -2045,24 +2048,27 @@ loanBookingRouter.post(
 
 //// Sajag ///
 
-router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
-  try {
-    const {
-      lan,
-      amount,
-      umrn,
-      fatherName,
-      motherName,
-      bank_account_holder_name,
-      bank_account_number,
-      bank_name,
-      bank_branch_name,
-      bank_ifsc_code,
-      bank_account_type,
-    } = req.body || {};
+router.post(
+  "/mandate/update-umrn",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      const {
+        lan,
+        amount,
+        umrn,
+        fatherName,
+        motherName,
+        bank_account_holder_name,
+        bank_account_number,
+        bank_name,
+        bank_branch_name,
+        bank_ifsc_code,
+        bank_account_type,
+      } = req.body || {};
 
-    const cleanLan = String(lan || "").trim().toUpperCase();
-    const cleanUmrn = String(umrn || "").trim();
+      const cleanLan = String(lan || "").trim().toUpperCase();
+      const cleanUmrn = String(umrn || "").trim();
 
     if (!cleanLan) {
       return res.status(400).json({
@@ -2070,248 +2076,122 @@ router.post("/mandate/update-umrn", verifyApiKey, async (req, res) => {
       });
     }
 
-    // 1. Update mandate and bank details
-    const [updateResult] = await db.promise().query(
-      `UPDATE loan_booking_carepay
-       SET mandate_amount = ?,
-           umrn = ?,
-           father_name = COALESCE(NULLIF(TRIM(?), ''), father_name),
-           mother_name = COALESCE(NULLIF(TRIM(?), ''), mother_name),
-           bank_account_holder_name = ?,
-           bank_account_number = ?,
-           bank_name = ?,
-           bank_branch_name = ?,
-           bank_ifsc_code = ?,
-           bank_account_type = ?
-       WHERE lan = ?`,
-      [
-        amount ?? null,
-        cleanUmrn || null,
-        fatherName ?? null,
-        motherName ?? null,
-        String(bank_account_holder_name || "").trim() || null,
-        String(bank_account_number || "").trim() || null,
-        String(bank_name || "").trim() || null,
-        String(bank_branch_name || "").trim() || null,
-        String(bank_ifsc_code || "").trim() || null,
-        String(bank_account_type || "").trim() || null,
-        cleanLan,
-      ],
-    );
+      const [[existingLoan]] =
+        await db.promise().query(
+          `SELECT
+              lan,
+              status
+           FROM loan_booking_carepay
+           WHERE lan = ?
+           LIMIT 1`,
+          [cleanLan],
+        );
 
-    if (updateResult.affectedRows === 0) {
-      return res.status(404).json({
-        message: "No record found for given LAN",
-      });
-    }
-
-    // 2. Fetch mandate and bank values
-    const [[loan]] = await db.promise().query(
-      `SELECT
-          mandate_amount,
-          umrn,
-          father_name,
-          bank_account_holder_name,
-          bank_account_number,
-          bank_name,
-          bank_branch_name,
-          bank_ifsc_code,
-          bank_account_type,
-          loan_amount,
-          abb,
-          cibil_score
-       FROM loan_booking_carepay
-       WHERE lan = ?
-       LIMIT 1`,
-      [cleanLan],
-    );
-
-    const loanAmount = Number(loan?.loan_amount || 0);
-    const cibilScore = Number(loan?.cibil_score || 0);
-
-    const abbRequired =
-      loanAmount > 300000 ||
-      (cibilScore >= 1 && cibilScore <= 200) ||
-  cibilScore === 680;
-;
-
-    const bankStatementRequired = loanAmount > 300000 ||
-  cibilScore === 680;
-    const hasValue = (value) =>
-      value !== null &&
-      value !== undefined &&
-      String(value).trim() !== "";
-
-    const allDetailsAvailable =
-      hasValue(loan?.mandate_amount) &&
-      hasValue(loan?.umrn) &&
-      hasValue(loan?.father_name) &&
-      hasValue(loan?.bank_account_holder_name) &&
-      hasValue(loan?.bank_account_number) &&
-      hasValue(loan?.bank_name) &&
-      hasValue(loan?.bank_branch_name) &&
-      hasValue(loan?.bank_ifsc_code) &&
-      hasValue(loan?.bank_account_type) &&
-  (!abbRequired || hasValue(loan?.abb));
-
-    if (!allDetailsAvailable) {
-      return res.status(200).json({
-          message:
-      abbRequired && !hasValue(loan?.abb)
-        ? "ABB is required for this loan"
-        : "Mandate details updated, but some required values are missing",
-      abb_required: abbRequired,
-      abb_available: hasValue(loan?.abb),
-        verification_updated: false,
-        documents_complete: false,
-        approved: false,
-      });
-    }
-
-    // 3. Update verification statuses
-    await db.promise().query(
-      `UPDATE loan_booking_carepay
-       SET bank_status = 'Verified',
-           agreement_esign_status = 'Signed',
-           sanction_esign_status = 'Signed'
-       WHERE lan = ?`,
-      [cleanLan],
-    );
-
-    // 4. Cross-check mandate values and statuses
-    const [[verifiedLoan]] = await db.promise().query(
-      `SELECT
-          mandate_amount,
-          umrn,
-          father_name,
-          bank_account_holder_name,
-          bank_account_number,
-          bank_name,
-          bank_branch_name,
-          bank_ifsc_code,
-          bank_account_type,
-          loan_amount,
-          abb,
-          cibil_score,
-          bank_status,
-          agreement_esign_status,
-          sanction_esign_status
-       FROM loan_booking_carepay
-       WHERE lan = ?
-       LIMIT 1`,
-      [cleanLan],
-    );
-
-    const allValuesPresent =
-      hasValue(verifiedLoan?.mandate_amount) &&
-      hasValue(verifiedLoan?.umrn) &&
-      hasValue(verifiedLoan?.father_name) &&
-      hasValue(verifiedLoan?.bank_account_holder_name) &&
-      hasValue(verifiedLoan?.bank_account_number) &&
-      hasValue(verifiedLoan?.bank_name) &&
-      hasValue(verifiedLoan?.bank_branch_name) &&
-      hasValue(verifiedLoan?.bank_ifsc_code) &&
-      hasValue(verifiedLoan?.bank_account_type)  &&
-      (!abbRequired || hasValue(verifiedLoan?.abb));
-
-    const allStatusesComplete =
-      String(verifiedLoan?.bank_status || "")
-        .trim()
-        .toUpperCase() === "VERIFIED" &&
-      String(verifiedLoan?.agreement_esign_status || "")
-        .trim()
-        .toUpperCase() === "SIGNED" &&
-      String(verifiedLoan?.sanction_esign_status || "")
-        .trim()
-        .toUpperCase() === "SIGNED";
-
-    if (!allValuesPresent || !allStatusesComplete) {
-      return res.status(200).json({
-        message: "Mandate or verification status check failed",
-        verification_updated: allStatusesComplete,
-        documents_complete: false,
-        approved: false,
-      });
-    }
-
-    // 5. Check all required documents in loan_documents
-    const requiredDocuments = [
-      "CIBIL_REPORT",
-      "aadhaar",
-      "pan",
-      "bureauJson",
-      "explicitConsents",
-      "loanAgreement",
-    ];
-
-    const [documentRows] = await db.promise().query(
-      `SELECT DISTINCT doc_name
-       FROM loan_documents
-       WHERE lan = ?
-         AND doc_name IN (?, ?, ?, ?, ?, ?)`,
-      [cleanLan, ...requiredDocuments],
-    );
-
-    const availableDocuments = documentRows.map((row) =>
-      String(row.doc_name).trim(),
-    );
-
-    const missingDocuments = requiredDocuments.filter(
-      (docName) => !availableDocuments.includes(docName),
-    );
-    // ✅ Bank statement mandatory only when loan > ₹1 lakh
-    if (bankStatementRequired) {
-      const [bankStatementRows] = await db.promise().query(
-        `SELECT id
-         FROM loan_documents
-         WHERE lan = ?
-           AND doc_name = ?
-         LIMIT 1`,
-        [cleanLan, "bankStatement"],
-      );
-    
-      if (!bankStatementRows.length) {
-        return res.status(200).json({
-          message:
-            cibilScore === 680
-              ? "Bank statement is required because CIBIL score is 680"
-              : "Bank statement is required for loan amount above ₹3,00,000",          verification_updated: true,
-          documents_complete: false,
-          missing_documents: ["bankStatement"],
-          approved: false,
+      if (!existingLoan) {
+        return res.status(404).json({
+          message: "No CarePay record found for given LAN",
         });
       }
-    }
+      await db.promise().query(
+        `UPDATE loan_booking_carepay
+         SET mandate_amount =
+               COALESCE(?, mandate_amount),
 
-    if (missingDocuments.length > 0) {
+             umrn =
+               COALESCE(
+                 NULLIF(TRIM(?), ''),
+                 umrn
+               ),
+
+             father_name =
+               COALESCE(
+                 NULLIF(TRIM(?), ''),
+                 father_name
+               ),
+
+             mother_name =
+               COALESCE(
+                 NULLIF(TRIM(?), ''),
+                 mother_name
+               ),
+
+             bank_account_holder_name =
+               COALESCE(
+                 NULLIF(TRIM(?), ''),
+                 bank_account_holder_name
+               ),
+
+             bank_account_number =
+               COALESCE(
+                 NULLIF(TRIM(?), ''),
+                 bank_account_number
+               ),
+
+             bank_name =
+               COALESCE(
+                 NULLIF(TRIM(?), ''),
+                 bank_name
+               ),
+
+             bank_branch_name =
+               COALESCE(
+                 NULLIF(TRIM(?), ''),
+                 bank_branch_name
+               ),
+
+             bank_ifsc_code =
+               COALESCE(
+                 NULLIF(TRIM(?), ''),
+                 bank_ifsc_code
+               ),
+
+             bank_account_type =
+               COALESCE(
+                 NULLIF(TRIM(?), ''),
+                 bank_account_type
+               ),
+
+             updated_at = NOW()
+         WHERE lan = ?`,
+        [
+          amount ?? null,
+          cleanUmrn || null,
+          fatherName ?? null,
+          motherName ?? null,
+          bank_account_holder_name ?? null,
+          bank_account_number ?? null,
+          bank_name ?? null,
+          bank_branch_name ?? null,
+          bank_ifsc_code ?? null,
+          bank_account_type ?? null,
+          cleanLan,
+        ],
+      );
+
+      const approvalResult =
+        await checkAndApproveCarePayLoan(cleanLan);
+
       return res.status(200).json({
-        message: "Loan cannot be approved because documents are missing",
-        verification_updated: true,
-        documents_complete: false,
-        missing_documents: missingDocuments,
-        approved: false,
+        message: approvalResult.approved
+          ? "Mandate updated and loan approved successfully"
+          : "Mandate updated, but loan approval is pending",
+
+        mandate_updated: true,
+        approved: approvalResult.approved,
+        carepay_approval: approvalResult,
       });
-    }
-
-    // 6. All mandate values, statuses and documents are available
-    await db.promise().query(
-      `UPDATE loan_booking_carepay
-       SET status = 'Approved'
-       WHERE lan = ?`,
-      [cleanLan],
-    );
-
-    return res.status(200).json({
-      message: "Mandate updated and loan approved successfully",
-      verification_updated: true,
-      documents_complete: true,
-      approved: true,
-    });
-  } catch (error) {
-    console.error("Error updating mandate UMRN:", error);
+    } catch (error) {
+      console.error(
+        "Error updating CarePay mandate UMRN:",
+        {
+          message: error.message,
+          stack: error.stack,
+        },
+      );
 
     return res.status(500).json({
       message: "Internal server error",
+      error: error.message,
     });
   }
 });
