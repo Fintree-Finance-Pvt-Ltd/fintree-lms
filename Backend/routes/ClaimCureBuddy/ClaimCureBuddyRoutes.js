@@ -2873,7 +2873,7 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
       }),
       
     );
-    console.log("FINAL BRE RESULT =>", borrowerDecision);
+    console.log("FINAL BRE RESULT =>", decisions);
 
     // for (const coApplicant of coApplicants) {
     //   decisions.push(
