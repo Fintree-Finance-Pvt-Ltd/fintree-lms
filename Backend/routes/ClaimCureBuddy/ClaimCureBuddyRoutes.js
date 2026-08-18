@@ -7,6 +7,7 @@ const { getPanCardDetails } = require("../../services/pancardapiservice");
 const { runBureau } = require("../../services/Bueraupullapiservice");
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
 const digio = require("../../services/digioClient");
+const partnerLimitService = require("../../services/partnerLimitService");
 const {
   triggerClaimCureBuddyAutoDisbursement,
 } = require("../../services/claimCureBuddyAutoDisbursement");
@@ -2838,6 +2839,14 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
            updated_by = ?
          WHERE lan = ?`,
       [actorId(req), lan],
+    );
+
+    await partnerLimitService.trackPartnerBookingNonBlocking(
+      connection,
+      "Claim Cure Buddy",
+      loan.loan_amount,
+      lan,
+      loan.login_date,
     );
 
     await connection.commit();
