@@ -467,6 +467,7 @@ const errorResponse = (res, error, fallbackMessage) => {
 
 const runClaimCureBuddyAutoDisbursement = async (options) => {
   try {
+    console.log("Triggering ClaimCureBuddy auto disbursement")
     return await triggerClaimCureBuddyAutoDisbursement(options);
   } catch (error) {
     console.error("ClaimCureBuddy auto disbursement trigger failed", {
@@ -1867,7 +1868,7 @@ router.patch("/loan-booking/:lan/loan-details", async (req, res) => {
       { min: 0 },
     );
 
-    if (loanAmount < 25000 || loanAmount > 100000) {
+    if (loanAmount < 100 || loanAmount > 100000) {
       return res.status(400).json({
         success: false,
         message: "Loan amount must be between 25000 and 100000",
@@ -2843,7 +2844,7 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
     );
 
     await partnerLimitService.trackPartnerBookingNonBlocking(
-      connection,
+      connection, 
       "Claim Cure Buddy",
       loan.loan_amount,
       lan,
