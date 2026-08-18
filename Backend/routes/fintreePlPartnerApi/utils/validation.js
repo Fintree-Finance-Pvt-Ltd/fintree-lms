@@ -212,6 +212,44 @@ const validateCreatePayload = (input) => {
     );
   }
 
+  // Both optional: absent for genuine first-time customers. When present,
+  // feeds calculateRepeatCreditLimit's multiplier-based credit limit in
+  // plPartnerBre.js (same policy as RapidMoney's repeat-customer branch).
+  let previousDisbursedApplicationCount = null;
+  if (
+    body.previousDisbursedApplicationCount !== null &&
+    body.previousDisbursedApplicationCount !== undefined
+  ) {
+    const value = body.previousDisbursedApplicationCount;
+    if (!Number.isInteger(value) || value < 0) {
+      throw new PartnerApiError(
+        400,
+        "VALIDATION_ERROR",
+        "previousDisbursedApplicationCount must be a non-negative integer.",
+        { field: "previousDisbursedApplicationCount" },
+      );
+    }
+    previousDisbursedApplicationCount = value;
+  }
+
+  let previousLoanAmount = null;
+  if (
+    body.previousLoanAmount !== null &&
+    body.previousLoanAmount !== undefined &&
+    body.previousLoanAmount !== ""
+  ) {
+    const normalized = String(body.previousLoanAmount).trim();
+    if (!/^[0-9]+(\.[0-9]{1,2})?$/.test(normalized) || Number(normalized) <= 0) {
+      throw new PartnerApiError(
+        400,
+        "VALIDATION_ERROR",
+        "previousLoanAmount must be a valid positive number.",
+        { field: "previousLoanAmount" },
+      );
+    }
+    previousLoanAmount = normalized;
+  }
+
   return {
     externalApplicationReference: requiredString(
       body.externalApplicationReference,
@@ -226,6 +264,8 @@ const validateCreatePayload = (input) => {
     tenureType: requiredString(body.tenureType, "tenureType", 20),
     interestRate,
     processingFee,
+    previousDisbursedApplicationCount,
+    previousLoanAmount,
     customer: {
       fullName: requiredString(customer.fullName, "customer.fullName", 150),
       firstName: requiredString(customer.firstName, "customer.firstName", 60),

@@ -11,10 +11,10 @@
  * Deliberately kept separate from runBre.js/rapidMoneyPolicy.js so RapidMoney's
  * BRE is untouched. Known simplifications for this pass (see the PL Partner
  * plan discussion):
- *  - No repeat-customer signal exists in the PLP contract, so every applicant
- *    is treated as a new customer (FIRST_TIME_CUSTOMER_LIMIT). The repeat
- *    branch is not implemented here; add it if/when PLP starts sending prior
- *    disbursal history.
+ *  - Repeat customers are detected from previousDisbursedApplicationCount
+ *    (Create payload) and get the same multiplier-based credit limit as
+ *    RapidMoney's repeat-customer branch (calculateRepeatCreditLimit in
+ *    plPartnerPolicy.js), keyed off previousLoanAmount + age.
  *  - No processing-fee field exists anywhere in the PLP contract/schema, so
  *    approved amounts are gross (no PF/GST netting like switchMyLoan does).
  *  - AML is still always mocked (PLP_AML_MODE, forced to "mock-clear" —
@@ -33,6 +33,8 @@ const {
   calculateAge,
   validateLoanAmount,
   calculateNetDisbursalAmount,
+  isNewCustomer,
+  calculateRepeatCreditLimit,
 } = require("./plPartnerPolicy");
 const { parseBureauReport } = require("./plPartnerBureauParser");
 const {
@@ -1132,24 +1134,103 @@ async function runPreApproval(application) {
     },
   );
 
-  // PL Partner currently has no repeat-customer signal.
-  const newCustomer = true;
-  const age = calculateAge(application.date_of_birth, new Date());
-  const creditLimit = POLICY.FIRST_TIME_CUSTOMER_LIMIT;
-  const requestedLoanAmount = Number(application.requested_amount);
-  const limitAdjusted = requestedLoanAmount > creditLimit;
+  const rawTotalDisbursed = application.previous_disbursed_application_count;
+  const totalDisbursed = Number(rawTotalDisbursed ?? 0);
 
-  rules.FIRST_TIME_LIMIT_CHECK_RPM = rule(true, null, {
-    applicable: true,
-    requestedLoanAmount,
-    assignedCreditLimit: creditLimit,
-    limitAdjusted,
-    adjustmentReason: limitAdjusted
-      ? "REQUESTED_AMOUNT_CAPPED_TO_FIRST_TIME_LIMIT"
-      : null,
-  });
-  rules.REPEAT_LIMIT_CHECK_RPM = rule(true, null, { applicable: false });
-  rules.REPEAT_AGE_CAP_CHECK_RPM = rule(true, null, { applicable: false });
+  if (
+    rawTotalDisbursed !== null &&
+    rawTotalDisbursed !== undefined &&
+    (!Number.isInteger(totalDisbursed) || totalDisbursed < 0)
+  ) {
+    addReason(reasons, "TOTAL_DISBURSED_APPLICATIONS_INVALID");
+  }
+
+  const newCustomer = isNewCustomer(totalDisbursed);
+  const age = calculateAge(application.date_of_birth, new Date());
+  const requestedLoanAmount = Number(application.requested_amount);
+
+  let creditLimit = null;
+  let repeatLimitDetails = null;
+  let limitAdjusted = false;
+
+  if (newCustomer) {
+    creditLimit = POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+    limitAdjusted = requestedLoanAmount > creditLimit;
+
+    rules.FIRST_TIME_LIMIT_CHECK_RPM = rule(true, null, {
+      applicable: true,
+      requestedLoanAmount,
+      assignedCreditLimit: creditLimit,
+      limitAdjusted,
+      adjustmentReason: limitAdjusted
+        ? "REQUESTED_AMOUNT_CAPPED_TO_FIRST_TIME_LIMIT"
+        : null,
+    });
+
+    rules.REPEAT_LIMIT_CHECK_RPM = rule(true, null, { applicable: false });
+    rules.REPEAT_AGE_CAP_CHECK_RPM = rule(true, null, { applicable: false });
+  } else {
+    rules.FIRST_TIME_LIMIT_CHECK_RPM = rule(true, null, { applicable: false });
+
+    if (age === null) {
+      addReason(reasons, "AGE_MISSING_OR_INVALID_FOR_REPEAT_CUSTOMER");
+    }
+
+    if (
+      !application.previous_loan_amount ||
+      Number(application.previous_loan_amount) <= 0
+    ) {
+      addReason(reasons, "PREVIOUS_LOAN_AMOUNT_MISSING_FOR_REPEAT_CUSTOMER");
+    }
+
+    repeatLimitDetails = calculateRepeatCreditLimit(
+      totalDisbursed,
+      application.previous_loan_amount,
+      age,
+    );
+    creditLimit = repeatLimitDetails.creditLimit;
+
+    if (!creditLimit || creditLimit < POLICY.MIN_LOAN_AMOUNT) {
+      addReason(reasons, "REPEAT_CUSTOMER_CREDIT_LIMIT_BELOW_MINIMUM_LOAN");
+    }
+
+    rules.REPEAT_LIMIT_CHECK_RPM = rule(
+      Boolean(creditLimit && creditLimit >= POLICY.MIN_LOAN_AMOUNT),
+      !creditLimit || creditLimit < POLICY.MIN_LOAN_AMOUNT
+        ? "REPEAT_CUSTOMER_CREDIT_LIMIT_BELOW_MINIMUM_LOAN"
+        : null,
+      {
+        applicable: true,
+        previousLoanAmount: Number(application.previous_loan_amount || 0),
+        repeatLoanCount: totalDisbursed,
+        multiplier: repeatLimitDetails.multiplier,
+        rawLimit: repeatLimitDetails.rawLimit,
+        cappedLimit: repeatLimitDetails.cappedLimit,
+        roundedLimit: repeatLimitDetails.roundedLimit,
+        maximumPolicyCap: POLICY.MAX_REPEAT_CUSTOMER_LIMIT,
+      },
+    );
+
+    const ageCapApplicable = age !== null && age < 28;
+    const ageCapAdjusted =
+      ageCapApplicable && requestedLoanAmount > POLICY.REPEAT_CUSTOMER_UNDER_28_LIMIT;
+
+    limitAdjusted =
+      Number.isFinite(Number(creditLimit)) && requestedLoanAmount > Number(creditLimit);
+
+    rules.REPEAT_AGE_CAP_CHECK_RPM = rule(true, null, {
+      applicable: ageCapApplicable,
+      age,
+      requestedLoanAmount,
+      maximumAllowedAmount: POLICY.REPEAT_CUSTOMER_UNDER_28_LIMIT,
+      ageCapApplied: repeatLimitDetails.ageCapApplied,
+      limitAdjusted: ageCapAdjusted,
+      adjustmentReason: ageCapAdjusted
+        ? "REQUESTED_AMOUNT_CAPPED_TO_UNDER_28_LIMIT"
+        : null,
+    });
+  }
+
   rules.CREDIT_LIMIT_CHECK_RPM = rule(true, null, {
     creditLimit,
     requestedLoanAmount,

@@ -55,6 +55,11 @@ CREATE TABLE IF NOT EXISTS `pl_partner_applications` (
   -- Percentage as sent by the partner (processingFeePercent), e.g. 2.0000 = 2%.
   -- Converted to a 0-1 fraction only at the point of use in plPartnerBre.js.
   `processing_fee` DECIMAL(8,4) NULL,
+  -- Optional repeat-customer signal from the Create payload. When present,
+  -- feeds calculateRepeatCreditLimit (plPartnerBre.js) the same way
+  -- RapidMoney's total_disbursed_applications/previous_loan_amount do.
+  `previous_disbursed_application_count` INT NULL,
+  `previous_loan_amount` DECIMAL(18,2) NULL,
   `create_request_hash` CHAR(64) NOT NULL,
   `status` ENUM(
     'CREATED',
