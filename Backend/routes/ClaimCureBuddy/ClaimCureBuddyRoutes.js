@@ -2646,6 +2646,7 @@ router.post("/credit-approval/:lan", async (req, res) => {
 });
 
 router.post("/loan-booking/:lan/final-submit", async (req, res) => {
+  console.log("FINAL SUBMIT CLICKED =>", req.params.lan);
   const connection = await db.promise().getConnection();
 
   let loan;
@@ -2861,6 +2862,7 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
 
   try {
     const decisions = [];
+    console.log("FINAL BRE STARTED =>", loan.lan);
 
     decisions.push(
       await runApplicantBureau({
@@ -2869,7 +2871,9 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
         applicantType: "BORROWER",
         partyNo: 1,
       }),
+      
     );
+    console.log("FINAL BRE RESULT =>", borrowerDecision);
 
     // for (const coApplicant of coApplicants) {
     //   decisions.push(
@@ -2920,6 +2924,8 @@ router.post("/loan-booking/:lan/final-submit", async (req, res) => {
         `BRE completed but case ${loan.lan} could not be moved forward`,
       );
     }
+
+    console.log("final bre-->",breApproved, finalDecision, nextStatus, nextStage);
 
     const autoDisbursement = breApproved
       ? await runClaimCureBuddyAutoDisbursement({
