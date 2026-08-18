@@ -153,6 +153,8 @@ function resolveProcedure(rawReportId, rawLender) {
                                                 ? "sp_due_collection_all_report_saswat"
                                                 : lender === "sterlion ubl"
                                                   ? "sp_due_collection_all_report_sterlion_ubl"
+                                                  : lender === "seven fincorp"
+                                                    ? "sp_due_collection_all_report_seven_fincorp"
                                                   : "sp_due_collection_all_report",
 
 
