@@ -68,7 +68,7 @@ const POLICY = Object.freeze({
 
   minLoanAmount: envNumber(
     "CCB_MIN_LOAN_AMOUNT",
-    100,
+    20000,
   ),
 
   maxLoanAmount: envNumber(
