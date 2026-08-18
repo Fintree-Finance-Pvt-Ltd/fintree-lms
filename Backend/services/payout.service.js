@@ -436,14 +436,24 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementDate: new Date(tr.transfer_date),
       });
     } else if (table === "pl_partner_applications") {
-      await sendFintreePlDisbursementWebhook({
-        lan,
-        utr: tr.unique_transaction_reference,
-        disbursementDate: tr.transfer_date,
-        amount,
-        tenureDays: loan.tenure_days,
-        eventId: "evt-" + unique_request_number,
-      });
+      try {
+        await sendFintreePlDisbursementWebhook({
+          lan,
+          utr: tr.unique_transaction_reference,
+          disbursementDate: tr.transfer_date,
+          amount,
+          tenureDays: loan.tenure_days,
+          eventId: "evt-" + unique_request_number,
+        });
+      } catch (webhookError) {
+        // Notifying the partner must never block RPS generation below — the loan
+        // is disbursed either way. Log and continue; the webhook can be resent
+        // manually (see sendFintreePlDisbursementWebhook's request body/URL).
+        console.error("🔥 Fintree PL disbursement webhook failed (non-blocking)", {
+          lan,
+          error: webhookError.message,
+        });
+      }
 
       await processPlPartnerDisbursement({
         lan,
