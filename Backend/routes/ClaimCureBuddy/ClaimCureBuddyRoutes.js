@@ -3024,10 +3024,12 @@ router.get("/approved-cases", async (_req, res) => {
                  'REGISTERED',
                  'AUTH_SUCCESS',
                  'AUTHSUCCESS',
+                 'AUTHORIZED',
+                 'AUTHORISED',
                  'APPROVED',
                  'COMPLETED'
                )
-               THEN 'ACTIVE'
+               THEN 'AWAITING_UMRN'
                WHEN em.document_id IS NOT NULL
                 AND em.auth_url IS NOT NULL
                 AND TRIM(em.auth_url) <> ''
@@ -3065,6 +3067,18 @@ router.get("/approved-cases", async (_req, res) => {
                AS enach_provider_status,
              NULL
                AS enach_created_at,
+             qt.unique_request_number
+               AS payout_request_no,
+             qt.amount
+               AS payout_amount,
+             qt.status
+               AS payout_status,
+             qt.payout_status
+               AS payout_provider_status,
+             qt.utr
+               AS payout_utr,
+             qt.failure_reason
+               AS payout_failure_reason,
              lb.created_at,
              lb.updated_at
            FROM loan_booking_claim_cure_buddy lb
@@ -3087,6 +3101,8 @@ router.get("/approved-cases", async (_req, res) => {
                      'REGISTERED',
                      'AUTH_SUCCESS',
                      'AUTHSUCCESS',
+                     'AUTHORIZED',
+                     'AUTHORISED',
                      'APPROVED',
                      'COMPLETED'
                    )
@@ -3096,7 +3112,20 @@ router.get("/approved-cases", async (_req, res) => {
                  em2.id DESC
                LIMIT 1
              )
-           WHERE lb.status IN ('BRE Approved', 'Approved')
+           LEFT JOIN quick_transfers qt
+             ON qt.id = (
+               SELECT qt2.id
+               FROM quick_transfers qt2
+               WHERE qt2.lan = lb.lan
+               ORDER BY qt2.id DESC
+               LIMIT 1
+             )
+           WHERE lb.status IN (
+             'BRE Approved',
+             'Approved',
+             'Disburse initiate',
+             'Disbursed'
+           )
              AND lb.bre_status = 'APPROVED'
            ORDER BY
              COALESCE(
@@ -3809,7 +3838,7 @@ router.get("/loan-booking/:lan", async (req, res) => {
       });
     }
 
-    const [coApplicants, kyc] = await Promise.all([
+    const [coApplicants, kyc, mandates, transfers] = await Promise.all([
       pool.query(
         `SELECT *
              FROM claim_cure_buddy_co_applicants
@@ -3842,7 +3871,64 @@ router.get("/loan-booking/:lan", async (req, res) => {
                party_no`,
         [lan],
       ),
+      pool.query(
+        `SELECT
+           id,
+           document_id,
+           status,
+           umrn,
+           mandate_amount,
+           auth_url,
+           updated_at
+         FROM enach_mandates
+         WHERE lan = ?
+         ORDER BY
+           CASE
+             WHEN umrn IS NOT NULL
+              AND TRIM(umrn) <> ''
+             THEN 0
+             ELSE 1
+           END,
+           CASE
+             WHEN UPPER(COALESCE(status, '')) IN (
+               'ACTIVE',
+               'SUCCESS',
+               'REGISTERED',
+               'AUTH_SUCCESS',
+               'AUTHSUCCESS',
+               'AUTHORIZED',
+               'AUTHORISED',
+               'APPROVED',
+               'COMPLETED'
+             )
+             THEN 0
+             ELSE 1
+           END,
+           id DESC
+         LIMIT 1`,
+        [lan],
+      ),
+      pool.query(
+        `SELECT
+           id,
+           unique_request_number,
+           amount,
+           status,
+           payout_status,
+           utr,
+           transfer_date,
+           failure_reason,
+           updated_at
+         FROM quick_transfers
+         WHERE lan = ?
+         ORDER BY id DESC
+         LIMIT 1`,
+        [lan],
+      ),
     ]);
+
+    const mandate = mandates[0][0] || null;
+    const transfer = transfers[0][0] || null;
 
     return res.json({
       success: true,
@@ -3850,6 +3936,60 @@ router.get("/loan-booking/:lan", async (req, res) => {
         loan,
         coApplicants: coApplicants[0],
         kycStatuses: kyc[0],
+        enach: mandate
+          ? {
+              status:
+                clean(mandate.umrn)
+                  ? "ACTIVE"
+                  : [
+                      "ACTIVE",
+                      "SUCCESS",
+                      "REGISTERED",
+                      "AUTH_SUCCESS",
+                      "AUTHSUCCESS",
+                      "AUTHORIZED",
+                      "AUTHORISED",
+                      "APPROVED",
+                      "COMPLETED",
+                    ].includes(upper(mandate.status))
+                    ? "AWAITING_UMRN"
+                    : clean(mandate.auth_url)
+                      ? "LINK_CREATED"
+                      : upper(mandate.status || "CREATED"),
+              providerStatus: mandate.status,
+              documentId: mandate.document_id,
+              mandateId: mandate.document_id,
+              umrn: mandate.umrn,
+              amount: mandate.mandate_amount,
+              authUrl: mandate.auth_url,
+              paymentUrl: mandate.auth_url,
+              shortUrl: mandate.auth_url,
+              updatedAt: mandate.updated_at,
+            }
+          : {
+              status: "NOT_STARTED",
+              providerStatus: null,
+              documentId: null,
+              mandateId: null,
+              umrn: null,
+              amount: null,
+              authUrl: null,
+              paymentUrl: null,
+              shortUrl: null,
+              updatedAt: null,
+            },
+        payout: transfer
+          ? {
+              uniqueRequestNumber: transfer.unique_request_number,
+              amount: transfer.amount,
+              status: transfer.status,
+              payoutStatus: transfer.payout_status,
+              utr: transfer.utr,
+              transferDate: transfer.transfer_date,
+              failureReason: transfer.failure_reason,
+              updatedAt: transfer.updated_at,
+            }
+          : null,
       },
     });
   } catch (error) {

@@ -256,8 +256,10 @@ const Sidebar = () => {
     'ClaimCureBuddy Loans': allowedPages.filter(
       p =>
         p.path.includes('/claimcurebuddy') &&
-        !p.path.includes('/claimcurebuddy/credit-approval') &&
-        !p.path.includes('/claimcurebuddy/ops-screen')
+        (
+          p.path.includes('/claimcurebuddy/loan-booking') ||
+          p.path.includes('/claimcurebuddy/draft-cases')
+        )
     ),
     'CirclePe Loans': allowedPages.filter(p => p.path.includes('/circlepe-loans')),
     'CirclePe Houser Loans': allowedPages.filter(p => p.path.includes('/circlepe-houser-loans')),

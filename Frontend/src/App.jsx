@@ -1959,11 +1959,16 @@ function App() {
 
           <Route
             path="/claim-cure-buddy/customer-details"
-            element={<ClaimCureBuddyDetails />}
+            element={
+              <Navigate
+                to={`/claimcurebuddy/loan-booking${window.location.search || ""}`}
+                replace
+              />
+            }
           />
           <Route
             path="/claimcurebuddy/credit-approval"
-            element={<Navigate to="/claimcurebuddy/approved-cases" replace />}
+            element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
           />
 
           <Route
@@ -1986,12 +1991,12 @@ function App() {
 
           <Route
             path="/claimcurebuddy/approved-cases"
-            element={<ClaimCureBuddyApprovedCases />}
+            element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
           />
 
           <Route
             path="/claimcurebuddy/ops-screen"
-            element={<Navigate to="/claimcurebuddy/approved-cases" replace />}
+            element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
           />
 
           {/* =========================
