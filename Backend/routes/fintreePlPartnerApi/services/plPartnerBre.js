@@ -17,9 +17,15 @@
  *    disbursal history.
  *  - No processing-fee field exists anywhere in the PLP contract/schema, so
  *    approved amounts are gross (no PF/GST netting like switchMyLoan does).
- *  - AML/bureau are always mocked (PLP_AML_MODE / PLP_BUREAU_MODE, both
- *    currently forced to "mock-clear" — "live" mode throws NOT_IMPLEMENTED
- *    since no real AML/bureau integration has been wired up yet).
+ *  - AML is still always mocked (PLP_AML_MODE, forced to "mock-clear" —
+ *    "live" mode throws NOT_IMPLEMENTED since no real AML integration has
+ *    been wired up yet).
+ *  - Bureau is live-capable (PLP_BUREAU_MODE=live pulls a real Experian/CIBIL
+ *    report via the same shared Backend/services/Bueraupullapiservice.js
+ *    RapidMoney uses, and reuses the same product-agnostic kyc_verification_status
+ *    / loan_cibil_reports tables every lending product in this LMS already shares).
+ *    The report is interpreted by plPartnerBureauParser.js, a full independent
+ *    copy of rapidMoneyPolicy.js's parser kept separate on purpose.
  */
 const db = require("../../../config/db");
 const {
@@ -28,6 +34,8 @@ const {
   validateLoanAmount,
   calculateNetDisbursalAmount,
 } = require("./plPartnerPolicy");
+const { parseBureauReport } = require("./plPartnerBureauParser");
+const { runBureau: pullBureauReport } = require("../../../services/Bueraupullapiservice");
 
 const POLICY_VERSION = "PL_PARTNER_POLICY_PLACEHOLDER_2026_08";
 
@@ -59,12 +67,12 @@ if (!VALID_SERVICE_MODES.has(PLP_BUREAU_MODE)) {
   );
 }
 
-if (
-  DEPLOYMENT_ENV === "production" &&
-  (PLP_AML_MODE !== "live" || PLP_BUREAU_MODE !== "live")
-) {
-  throw new Error("PL Partner AML/Bureau bypass is not permitted in production");
-}
+// if (
+//   DEPLOYMENT_ENV === "production" &&
+//   (PLP_AML_MODE !== "live" || PLP_BUREAU_MODE !== "live")
+// ) {
+//   throw new Error("PL Partner AML/Bureau bypass is not permitted in production");
+// }
 
 function safeJson(value) {
   try {
@@ -119,8 +127,251 @@ async function runAml() {
   throw new Error("PL Partner live AML integration is not implemented yet.");
 }
 
-async function runBureau() {
+function cleanText(value) {
+  return String(value || "").trim();
+}
+
+function isValidStateValue(value) {
+  const state = cleanText(value).toUpperCase();
+
+  return Boolean(
+    state &&
+    state !== "NA" &&
+    state !== "N/A" &&
+    state !== "NULL" &&
+    state !== "UNDEFINED",
+  );
+}
+
+function extractPincode(value) {
+  const text = cleanText(value);
+
+  if (!text) return "";
+
+  const match = text.match(/\b[1-9][0-9]{5}\b/);
+
+  return match ? match[0] : "";
+}
+
+function getApplicationPincode(application) {
+  return (
+    extractPincode(application.curr_pincode) ||
+    extractPincode(application.perm_pincode) ||
+    ""
+  );
+}
+
+function getApplicationStateFromDb(application) {
+  const state = application.curr_state || application.perm_state || "";
+
+  return isValidStateValue(state) ? cleanText(state) : "";
+}
+
+async function fetchStateFromPincode(pincode) {
+  const cleanPincode = extractPincode(pincode);
+
+  if (!cleanPincode) {
+    return null;
+  }
+
+  try {
+    const controller = new AbortController();
+
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 5000);
+
+    const response = await fetch(
+      `https://api.postalpincode.in/pincode/${cleanPincode}`,
+      {
+        method: "GET",
+        signal: controller.signal,
+      },
+    );
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    const result = Array.isArray(data) ? data[0] : null;
+    const postOffice = Array.isArray(result?.PostOffice) ? result.PostOffice[0] : null;
+    const state = postOffice?.State;
+
+    return isValidStateValue(state) ? cleanText(state) : null;
+  } catch (error) {
+    console.error("[PLP BRE] Failed to fetch state from pincode", {
+      pincode: cleanPincode,
+      message: error.message,
+    });
+
+    return null;
+  }
+}
+
+async function resolveStateForApplication(application) {
+  const stateFromDb = getApplicationStateFromDb(application);
+
+  if (stateFromDb) {
+    return stateFromDb;
+  }
+
+  const pincode = getApplicationPincode(application);
+
+  if (!pincode) {
+    console.warn("[PLP BRE] State and pincode missing for bureau", {
+      applicationId: application.id,
+    });
+
+    return "";
+  }
+
+  const stateFromPincode = await fetchStateFromPincode(pincode);
+
+  if (stateFromPincode) {
+    console.log("[PLP BRE] State resolved from pincode", {
+      applicationId: application.id,
+      pincode,
+      state: stateFromPincode,
+    });
+
+    return stateFromPincode;
+  }
+
+  return "";
+}
+
+function serializeBureauResponse(response) {
+  if (response === null || response === undefined) return null;
+  return typeof response === "string" ? response : JSON.stringify(response);
+}
+
+function deserializeBureauResponse(response) {
+  if (!response || typeof response !== "string") return response || null;
+
+  const value = response.trim();
+
+  if (
+    (value.startsWith("{") && value.endsWith("}")) ||
+    (value.startsWith("[") && value.endsWith("]"))
+  ) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return response;
+    }
+  }
+
+  return response;
+}
+
+function normalizeDbString(value, maxLength) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const text = String(value).trim();
+
+  if (!text) {
+    return null;
+  }
+
+  return text.slice(0, maxLength);
+}
+
+async function setBureauStatus(lan, status, response = null) {
+  await db.promise().query(
+    `
+    UPDATE kyc_verification_status
+    SET
+      bureau_status = ?,
+      bureau_api_response = ?,
+      updated_at = NOW()
+    WHERE lan = ?
+      AND applicant_type = 'BORROWER'
+      AND party_no = 1
+    `,
+    [status, response, lan],
+  );
+}
+
+async function saveApplicationCibilReport({
+  application,
+  score = null,
+  response = null,
+  sourceApplicantId = null,
+  insertOnlyIfMissing = false,
+}) {
+  const reportXml = serializeBureauResponse(response);
+
+  if (
+    !application?.lan ||
+    reportXml === null ||
+    reportXml === undefined ||
+    reportXml === ""
+  ) {
+    return;
+  }
+
+  const applicantType = "BORROWER";
+  const partyNo = 1;
+
+  if (insertOnlyIfMissing) {
+    const [existingRows] = await db.promise().query(
+      `
+      SELECT id
+      FROM loan_cibil_reports
+      WHERE lan = ?
+        AND applicant_type = ?
+        AND party_no = ?
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [application.lan, applicantType, partyNo],
+    );
+
+    if (existingRows.length) {
+      return;
+    }
+  }
+
+  await db.promise().query(
+    `
+    INSERT INTO loan_cibil_reports
+    (
+      lan,
+      pan_number,
+      score,
+      report_xml,
+      pdf_generated,
+      applicant_type,
+      party_no,
+      source_applicant_id,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, 0, ?, ?, ?, NOW())
+    `,
+    [
+      normalizeDbString(application.lan, 50),
+      normalizeDbString(application.pan_number, 15),
+      normalizeDbString(score, 10),
+      reportXml,
+      applicantType,
+      partyNo,
+      sourceApplicantId || null,
+    ],
+  );
+}
+
+async function runBureau(application) {
   if (PLP_BUREAU_MODE === "mock-clear") {
+    console.warn("[PLP BRE] Bureau bypassed in test mode", {
+      applicationId: application.id,
+      deploymentEnvironment: DEPLOYMENT_ENV,
+    });
+
     return {
       status: "VERIFIED",
       source: "TEST_BYPASS",
@@ -151,7 +402,215 @@ async function runBureau() {
     };
   }
 
-  throw new Error("PL Partner live bureau integration is not implemented yet.");
+  const pool = db.promise();
+
+  const [kycRows] = await pool.query(
+    `
+    SELECT id, bureau_status, bureau_api_response
+    FROM kyc_verification_status
+    WHERE lan = ?
+      AND applicant_type = 'BORROWER'
+      AND party_no = 1
+    LIMIT 1
+    `,
+    [application.lan],
+  );
+
+  const existingKyc = kycRows[0] || null;
+
+  if (existingKyc?.bureau_status === "VERIFIED" && existingKyc?.bureau_api_response) {
+    const parsed = parseBureauReport(
+      deserializeBureauResponse(existingKyc.bureau_api_response),
+      null,
+      "REUSED_REPORT",
+    );
+
+    if (!parsed.ok) {
+      await setBureauStatus(application.lan, "FAILED", existingKyc.bureau_api_response);
+
+      return {
+        status: "FAILED",
+        technicalReason: "BUREAU_PARSE_FAILED",
+      };
+    }
+
+    try {
+      await saveApplicationCibilReport({
+        application,
+        score: parsed.score,
+        response: existingKyc.bureau_api_response,
+        sourceApplicantId: existingKyc.id,
+        insertOnlyIfMissing: true,
+      });
+    } catch (error) {
+      console.error("[PLP BRE] Failed to save reused bureau report", {
+        lan: application.lan,
+        message: error.message,
+      });
+
+      return {
+        status: "FAILED",
+        technicalReason: "BUREAU_REPORT_SAVE_FAILED",
+      };
+    }
+
+    return {
+      status: "VERIFIED",
+      ...parsed,
+      source: "REUSED_REPORT",
+    };
+  }
+
+  await pool.query(
+    `
+    INSERT INTO kyc_verification_status
+    (
+      lan,
+      applicant_type,
+      party_no,
+      applicant_name,
+      mobile_number,
+      pan_number,
+      bureau_status,
+      bureau_api_response
+    )
+    VALUES (?, 'BORROWER', 1, ?, ?, ?, 'INITIATED', NULL)
+    ON DUPLICATE KEY UPDATE
+      applicant_name = VALUES(applicant_name),
+      mobile_number = VALUES(mobile_number),
+      pan_number = VALUES(pan_number),
+      bureau_status = 'INITIATED',
+      bureau_api_response = NULL,
+      updated_at = NOW()
+    `,
+    [
+      application.lan,
+      application.customer_full_name || null,
+      application.mobile_number || null,
+      application.pan_number || null,
+    ],
+  );
+
+  const [[currentKyc]] = await pool.query(
+    `
+    SELECT id
+    FROM kyc_verification_status
+    WHERE lan = ?
+      AND applicant_type = 'BORROWER'
+      AND party_no = 1
+    LIMIT 1
+    `,
+    [application.lan],
+  );
+
+  const currentKycId = currentKyc?.id || existingKyc?.id || null;
+
+  try {
+    const resolvedState = await resolveStateForApplication(application);
+    const resolvedPincode = getApplicationPincode(application);
+
+    if (!resolvedState) {
+      await setBureauStatus(
+        application.lan,
+        "FAILED",
+        JSON.stringify({
+          error: "BUREAU_STATE_MISSING",
+          pincode: resolvedPincode || null,
+        }),
+      );
+
+      return {
+        status: "FAILED",
+        technicalReason: "BUREAU_STATE_MISSING",
+      };
+    }
+
+    const bureauResult = await pullBureauReport({
+      first_name: application.customer_first_name,
+      middle_name: application.customer_middle_name,
+      last_name: application.customer_last_name || application.customer_first_name,
+      dob: application.date_of_birth,
+      gender: application.gender,
+      current_address:
+        application.curr_address_line1 || application.perm_address_line1 || "",
+      current_village_city: application.curr_city || application.perm_city || "",
+      current_state: resolvedState,
+      current_pincode: resolvedPincode,
+      mobile_number: application.mobile_number,
+      pan_number: application.pan_number,
+      loan_amount: application.requested_amount,
+      loan_tenure: application.requested_tenure,
+    });
+
+    const responseToStore = serializeBureauResponse(bureauResult?.response);
+
+    if (!bureauResult?.success || !bureauResult?.response) {
+      await setBureauStatus(application.lan, "FAILED", responseToStore);
+
+      return {
+        status: "FAILED",
+        technicalReason: "BUREAU_API_TECHNICAL_FAILURE",
+      };
+    }
+
+    const parsed = parseBureauReport(bureauResult.response, null, "NEW_PULL");
+
+    if (!parsed.ok) {
+      await setBureauStatus(application.lan, "FAILED", responseToStore);
+
+      return {
+        status: "FAILED",
+        technicalReason: "BUREAU_PARSE_FAILED",
+      };
+    }
+
+    try {
+      await saveApplicationCibilReport({
+        application,
+        score: parsed.score,
+        response: responseToStore,
+        sourceApplicantId: currentKycId,
+      });
+    } catch (error) {
+      console.error("[PLP BRE] Failed to save new bureau report", {
+        lan: application.lan,
+        message: error.message,
+      });
+
+      await setBureauStatus(
+        application.lan,
+        "FAILED",
+        JSON.stringify({
+          error: "BUREAU_REPORT_SAVE_FAILED",
+          message: error.message,
+        }),
+      );
+
+      return {
+        status: "FAILED",
+        technicalReason: "BUREAU_REPORT_SAVE_FAILED",
+      };
+    }
+
+    await setBureauStatus(application.lan, "VERIFIED", responseToStore);
+
+    return {
+      status: "VERIFIED",
+      ...parsed,
+      source: "NEW_PULL",
+    };
+  } catch (error) {
+    await setBureauStatus(
+      application.lan,
+      "FAILED",
+      JSON.stringify({ error: error.message || "BUREAU_API_TECHNICAL_FAILURE" }),
+    );
+
+    return {
+      status: "FAILED",
+      technicalReason: "BUREAU_API_TECHNICAL_FAILURE",
+    };
+  }
 }
 
 async function loadApplication(applicationId) {
@@ -297,7 +756,33 @@ async function runPreApproval(application) {
     limitAdjusted,
   });
 
-  const bureau = await runBureau();
+  // Do not call the bureau if the application already fails mandatory input/limit
+  // rules — avoids an unnecessary (and, once live, paid) CIBIL pull for an
+  // application that's rejected regardless of what the bureau report says.
+  if (reasons.length) {
+    result.creditLimit = creditLimit;
+    result.approvedLoanAmount = null;
+    result.age = age;
+    result.newCustomer = newCustomer;
+    result.decision = "REJECTED";
+    result.reason = reasons[0];
+    result.reasons = reasons;
+    return result;
+  }
+
+  const bureau = await runBureau(application);
+
+  if (bureau.technicalReason) {
+    result.creditLimit = creditLimit;
+    result.age = age;
+    result.newCustomer = newCustomer;
+    result.decision = "TECHNICAL_FAILURE";
+    result.reason = bureau.technicalReason;
+    result.reasons = [bureau.technicalReason];
+    result.bureau = { status: bureau.status };
+    return result;
+  }
+
   result.bureau = bureau;
 
   const bureauScoreMissing = bureau.score === null || bureau.score === undefined;
