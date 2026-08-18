@@ -5460,11 +5460,10 @@ const generateRepaymentScheduleWctlFfpl = async (
   ).trim();
 
   const principalAmount = Number(loanAmount);
-  const annualInterestPercent =
-    Number(interestRate);
+  const annualInterestPercent = Number(interestRate);
   const contractTenure = Number(tenure);
 
-  console.log("WCTL FFPL RPS INPUT:", {
+  console.log("WCTL FFPL BULLET RPS INPUT:", {
     lan: normalizedLan,
     loanAmount: principalAmount,
     interestRate: annualInterestPercent,
@@ -5517,9 +5516,7 @@ const generateRepaymentScheduleWctlFfpl = async (
     );
   }
 
-  const disbDate = parseWctlDate(
-    disbursementDate,
-  );
+  const disbDate = parseWctlDate(disbursementDate);
 
   const config = getWctlScheduleConfig(
     normalizedProduct,
@@ -5528,18 +5525,17 @@ const generateRepaymentScheduleWctlFfpl = async (
   const annualRate =
     annualInterestPercent / 100;
 
-  let numberOfInstallments;
-
   /*
-   * Daily product tenure is considered in days.
-   * Other product tenure is considered in months.
+   * =====================================================
+   * CALCULATE NUMBER OF INSTALLMENTS
+   * =====================================================
    */
+  let numberOfInstallments;
   if (config.frequency === "DAY") {
     numberOfInstallments = contractTenure;
   } else {
     if (
-      contractTenure % config.intervalMonths !==
-      0
+      contractTenure % config.intervalMonths !== 0
     ) {
       throw new Error(
         `Tenure ${contractTenure} months is not valid ` +
@@ -5561,7 +5557,12 @@ const generateRepaymentScheduleWctlFfpl = async (
     );
   }
 
-  // Check the same table where RPS will be inserted.
+  /*
+   * =====================================================
+   * CHECK EXISTING RPS
+   * =====================================================
+   */
+
   const [existingSchedule] = await conn.query(
     `
     SELECT id
@@ -5591,36 +5592,38 @@ const generateRepaymentScheduleWctlFfpl = async (
     installmentIndex++
   ) {
     const dueDate = getFirstEmiDate(
-  disbDate,          // disbursementDate
-  null,              // emiDate not required for WCTL
-  normalizedLender,  // WCTL FFPL
-  normalizedProduct, // Monthly_360, Daily_365, etc.
-  installmentIndex,  // 0, 1, 2...
-);
+      disbDate,
+      null,
+      normalizedLender,
+      normalizedProduct,
+      installmentIndex,
+    );
 
-    let days;
+let days;
+let calculationBasis;
 
-    if (config.basis === 360) {
-      days = config.daysPerInstallment;
-    } else {
-      days = differenceInCalendarDays(
-        previousDate,
-        dueDate,
-      );
-    }
+if (config.frequency === "MONTH") {
+  days = config.intervalMonths * 30;
+  calculationBasis = 360;
+} else {
+  days = 1;
+  calculationBasis = config.basis;
+}
 
-    if (
-      !Number.isInteger(days) ||
-      days <= 0
-    ) {
-      throw new Error(
-        `Invalid period days for installment ` +
-          `${installmentIndex + 1}: ${days}`,
-      );
-    }
+if (
+  !Number.isInteger(days) ||
+  days <= 0
+) {
+  throw new Error(
+    `Invalid period days for installment ${
+      installmentIndex + 1
+    }: ${days}`,
+  );
+}
 
-    const periodRate =
-      (annualRate * days) / config.basis;
+const periodRate =
+  (annualRate * days) /
+  calculationBasis;
 
     dueDates.push(dueDate);
     periodDays.push(days);
@@ -5629,16 +5632,9 @@ const generateRepaymentScheduleWctlFfpl = async (
     previousDate = new Date(dueDate);
   }
 
-  const levelInstallment =
-    calculateLevelInstallment(
-      principalAmount,
-      periodRates,
-    );
-
   const schedule = [];
 
-  let outstandingPrincipal =
-    principalAmount;
+  let outstandingPrincipal = principalAmount;
 
   for (
     let installmentIndex = 0;
@@ -5661,42 +5657,22 @@ const generateRepaymentScheduleWctlFfpl = async (
     let closingPrincipal;
 
     if (isFinalInstallment) {
-      principalForRow =
+       principalForRow =
         openingPrincipal;
 
       installmentAmount =
-        principalForRow + interestAmount;
+        interestAmount +
+        principalForRow;
 
       closingPrincipal = 0;
     } else {
-      installmentAmount =
-        levelInstallment;
+          principalForRow = 0;
 
-      principalForRow =
-        installmentAmount -
+      installmentAmount =
         interestAmount;
 
-      if (principalForRow <= 0) {
-        throw new Error(
-          `Installment ${installmentIndex + 1} ` +
-            `is not sufficient to cover interest`,
-        );
-      }
-
       closingPrincipal =
-        openingPrincipal -
-        principalForRow;
-
-      if (closingPrincipal < 0) {
-        principalForRow =
-          openingPrincipal;
-
-        closingPrincipal = 0;
-
-        installmentAmount =
-          principalForRow +
-          interestAmount;
-      }
+        openingPrincipal;
     }
 
     schedule.push({
@@ -5716,19 +5692,11 @@ const generateRepaymentScheduleWctlFfpl = async (
       closingPrincipal,
     });
 
-    outstandingPrincipal =
+        outstandingPrincipal =
       closingPrincipal;
   }
 
-  /*
-   * Your table meaning:
-   *
-   * remaining_emi       = emi
-   * remaining_interest  = interest
-   * remaining_principal = principal
-   * remaining_amount    = emi
-   */
-  const rpsData = schedule.map((row) => {
+   const rpsData = schedule.map((row) => {
     const emi = round2(
       row.emi,
       "EMI",
@@ -5755,36 +5723,30 @@ const generateRepaymentScheduleWctlFfpl = async (
     );
 
     return [
-      normalizedLan,              // lan
-      formatDateYmd(row.dueDate), // due_date
-      "Pending",                  // status
-
-      emi,                        // emi
-      interest,                   // interest
-      principal,                  // principal
-
-      opening,                    // opening
-      closing,                    // closing
-
-      emi,                        // remaining_emi
-      interest,                   // remaining_interest
-      principal,                  // remaining_principal
-
-      null,                       // payment_date
-      0,                          // dpd
-
-      emi,                        // remaining_amount
-      0,                          // extra_paid
+      normalizedLan,  // due_date
+      formatDateYmd(row.dueDate), // status
+      "Pending",     // Original scheduled EMI
+      emi,         // Original interest
+      interest,     // Original principal
+      principal, // Opening balance
+      opening,  // Closing balance
+      closing,    // Remaining EMI
+      emi,      // Remaining interest
+      interest, // Remaining principal
+      principal,  // payment_date
+      null,     // dpd
+      0,          // remaining_amount
+      emi,     // extra_paid
+      0,
     ];
   });
 
   console.log(
-    "WCTL FFPL RPS ROWS BEFORE INSERT:",
+    "WCTL FFPL BULLET RPS BEFORE INSERT:",
     rpsData.map((row, index) => ({
       installmentNumber: index + 1,
       lan: row[0],
       dueDate: row[1],
-      status: row[2],
       emi: row[3],
       interest: row[4],
       principal: row[5],
@@ -5821,27 +5783,33 @@ const generateRepaymentScheduleWctlFfpl = async (
     [rpsData],
   );
 
-  const standardInstallment =
-    round2(levelInstallment);
+  const regularInstallment =
+    schedule.length > 1
+      ? round2(schedule[0].emi)
+      : round2(schedule[0].interest);
+
+  const finalInstallment =
+    round2(
+      schedule[schedule.length - 1].emi,
+    );
 
   console.log(
-    "✅ WCTL FFPL RPS GENERATED SUCCESSFULLY:",
+    "✅ WCTL FFPL BULLET RPS GENERATED:",
     {
       lan: normalizedLan,
       product: normalizedProduct,
       lender: normalizedLender,
-      normalizedProduct:
-        config.normalizedProduct,
       basis: config.basis,
       tenure: contractTenure,
       numberOfInstallments,
-      standardInstallment,
-      firstDueDate: formatDateYmd(
-        dueDates[0],
-      ),
-      lastDueDate: formatDateYmd(
-        dueDates[dueDates.length - 1],
-      ),
+      regularInstallment,
+      finalInstallment,
+      firstDueDate:
+        formatDateYmd(dueDates[0]),
+      lastDueDate:
+        formatDateYmd(
+          dueDates[dueDates.length - 1],
+        ),
     },
   );
 
@@ -5853,18 +5821,17 @@ const generateRepaymentScheduleWctlFfpl = async (
     basis: config.basis,
     tenure: contractTenure,
     numberOfInstallments,
-    standardInstallment,
-    firstDueDate: formatDateYmd(
-      dueDates[0],
-    ),
-    lastDueDate: formatDateYmd(
-      dueDates[dueDates.length - 1],
-    ),
+    regularInstallment,
+    finalInstallment,
+    firstDueDate:
+      formatDateYmd(dueDates[0]),
+    lastDueDate:
+      formatDateYmd(
+        dueDates[dueDates.length - 1],
+      ),
     schedule,
   };
 };
-
-
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////// GQ NON-FSF LOAN CALCULATION /////////////////////////////////////////
