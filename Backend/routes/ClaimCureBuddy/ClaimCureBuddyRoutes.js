@@ -196,8 +196,10 @@ const normalizeDigioMandateFrequency = (value) => {
     annually: "Yearly",
     weekly: "Weekly",
     daily: "Daily",
-    aspresented: "As and when presented",
-    asandwhenpresented: "As and when presented",
+    // Digio's API enum for "as and when presented" is Adhoc.
+    aspresented: "Adhoc",
+    asandwhenpresented: "Adhoc",
+    adhoc: "Adhoc",
   };
 
   return frequencyMap[normalized] || "Monthly";
@@ -454,7 +456,15 @@ const errorResponse = (res, error, fallbackMessage) => {
   const status = Number(error.statusCode) || 500;
 
   if (status >= 500) {
-    console.error(fallbackMessage, error);
+    // Do not log the complete Axios error because it contains the Basic Auth
+    // header and the full customer mandate payload.
+    console.error(fallbackMessage, {
+      message: error.message,
+      status: error.response?.status || status,
+      providerCode: error.response?.data?.code || null,
+      providerMessage: error.response?.data?.message || null,
+      providerDetails: error.response?.data?.details || null,
+    });
   }
 
   return res.status(status).json({
