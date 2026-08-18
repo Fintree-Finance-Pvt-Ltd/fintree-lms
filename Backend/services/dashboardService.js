@@ -282,6 +282,16 @@ const PRODUCT_MAP = {
     label: "Rapid Money",
     disbDateSource: "utr",
   },
+  ClaimCureBuddy: {
+    rpsTable: "manual_rps_claim_cure_buddy",
+    bookTable: "loan_booking_claim_cure_buddy",
+    disbField: "disbursal_amount",
+    collType: "subquery",
+    allocTable: "allocation",
+    allocLike: "%CCB%",
+    label: "Claim Cure Buddy",
+    disbDateSource: "utr",
+  },
 };
 
 /* ================================================================
@@ -323,7 +333,9 @@ function normalizeProduct(p) {
     circlepehouser: "Circle Pe Houser",
     rapidmoney: "Rapid Money",
     switchmyloan: "Rapid Money",
-    sterlionubl: "SterlionUBL"
+    sterlionubl: "SterlionUBL",
+    claimcurebuddy: "ClaimCureBuddy",
+    ccb: "ClaimCureBuddy",
   };
   return map[s] || p;
 }
