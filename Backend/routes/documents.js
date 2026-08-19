@@ -467,6 +467,13 @@ router.post("/upload", upload.single("document"), async (req, res) => {
         .trim()
         .toLowerCase()
         .replace(/[\s_-]/g, "");
+//       const documentType = String(
+//   filename || req.file.originalname || "",
+// )
+//   .trim()
+//   .replace(/\.[^/.]+$/, "")
+//   .toLowerCase()
+//   .replace(/[\s_-]/g, "");
 
       const isLoanAgreement =
         documentType === "loanagreement";
