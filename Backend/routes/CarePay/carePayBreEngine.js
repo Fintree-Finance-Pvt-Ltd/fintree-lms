@@ -219,9 +219,19 @@ const evaluateCarePayLoginBre = ({ data, requestAmount, bureauScore = null,
     .toLowerCase()
     .includes("ntc");
 
-  if (!isNtcCustomer && score !== null && score < policy.minBureauScore) {
-    reasons.push(`CIBIL_SCORE_BELOW_${policy.minBureauScore}`);
-  }
+  const isSpecialCibilRange =
+  score !== null &&
+  score >= 1 &&
+  score <= 200;
+
+if (
+  !isNtcCustomer &&
+  score !== null &&
+  !isSpecialCibilRange &&
+  score < policy.minBureauScore
+) {
+  reasons.push(`CIBIL_SCORE_BELOW_${policy.minBureauScore}`);
+}
 
   return {
     status: reasons.length > 0 ? "BRE FAILED" : "BRE APPROVED",
