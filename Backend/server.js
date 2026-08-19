@@ -92,7 +92,15 @@ app.use(
     credentials: true,
   }),
 );
+const digitapAadhaarService = require(
+  "./services/digitapaadharservice",
+);
 
+
+app.use(
+  "/api/test-kyc",
+  digitapAadhaarService.router,
+);
 initScheduler();
 
 // // Auto-generate API key once when server starts

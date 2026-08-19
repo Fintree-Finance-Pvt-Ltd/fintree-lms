@@ -3817,7 +3817,7 @@ router.get("/loan-booking/draft-cases", async (req, res) => {
           created_at,
           updated_at
        FROM loan_booking_claim_cure_buddy
-       WHERE status IN ('Draft', 'Login')
+       WHERE status IN ('Draft', 'Login' , 'Bre Approved')
          AND lan LIKE 'CCB%'
        ORDER BY updated_at DESC, id DESC`,
     );
@@ -3829,6 +3829,27 @@ router.get("/loan-booking/draft-cases", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Unable to fetch ClaimCureBuddy draft cases",
+    });
+  }
+});
+
+router.get("/loan-booking/disbursed-loans", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT *
+       FROM loan_booking_claim_cure_buddy
+       WHERE status = 'Disbursed'
+         AND lan LIKE 'CCB%'
+       ORDER BY updated_at DESC, id DESC`
+    );
+
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error("ClaimCureBuddy disbursed loans error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch ClaimCureBuddy disbursed loans",
     });
   }
 });

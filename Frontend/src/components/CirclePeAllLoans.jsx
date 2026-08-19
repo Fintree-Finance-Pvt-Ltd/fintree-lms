@@ -1,6 +1,5 @@
 import React from 'react'
-import AllLoans from './AllLoansScreen'
-import AllLoansScreen from './AllLoansScreen'
+import AllLoansScreen from '../components/AllLoansScreen'
 
 
 const CirclePeAllLoans = () => {

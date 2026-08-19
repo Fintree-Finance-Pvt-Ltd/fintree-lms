@@ -60,6 +60,9 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("CARE")) {
     table = "loan_booking_carepay";
     posTable = "manual_rps_carepay";
+  } else if (lan.startsWith("CCB")) {
+    table = "loan_booking_claim_cure_buddy";
+    posTable = "manual_rps_claim_cure_buddy";
   } else if (lan.startsWith("STRL")) {
     table = "loan_booking_sterlion";
     posTable = "manual_rps_sterlion";
