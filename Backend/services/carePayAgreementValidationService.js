@@ -1,5 +1,10 @@
-const fs = require("fs/promises");
+// const fs = require("fs/promises");
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const db = require("../config/db");
+const pdfParseModule = require("pdf-parse");
+const router = express.Router();
 
 /*
 |--------------------------------------------------------------------------
@@ -98,48 +103,213 @@ const cleanPdfText = (value) =>
 */
 
 const extractPdfText = async (filePath) => {
-    const pdfBuffer = await fs.readFile(filePath);
-
-    if (!pdfBuffer.length) {
-        throw new Error("Uploaded agreement PDF is empty.");
+    if (!filePath) {
+        throw new Error(
+            "PDF file path is required.",
+        );
     }
 
-    const pdfParseModule = require("pdf-parse");
+    const resolvedFilePath =
+        path.resolve(filePath);
 
-    // Older pdf-parse versions
+    if (!fs.existsSync(resolvedFilePath)) {
+        throw new Error(
+            `Agreement PDF not found at ${resolvedFilePath}.`,
+        );
+    }
+
+    const fileStats =
+        fs.statSync(resolvedFilePath);
+
+    if (!fileStats.isFile()) {
+        throw new Error(
+            "Agreement file path does not point to a file.",
+        );
+    }
+
+    if (fileStats.size === 0) {
+        throw new Error(
+            "Agreement PDF file is empty.",
+        );
+    }
+
+    let pdfBuffer;
+
+    try {
+        pdfBuffer =
+            fs.readFileSync(resolvedFilePath);
+    } catch (error) {
+        throw new Error(
+            `Unable to read agreement PDF: ${error.message}`,
+        );
+    }
+
+    let parsedPdf;
+    let pdfParser = null;
+
+    try {
+        // pdf-parse 1.x CommonJS export
+        if (
+            typeof pdfParseModule ===
+            "function"
+        ) {
+           let pdfParser = null;
+
+try {
+    /*
+    |--------------------------------------------------------------------------
+    | PDF-PARSE VERSION 1.x
+    |--------------------------------------------------------------------------
+    */
+
     if (typeof pdfParseModule === "function") {
-        const result = await pdfParseModule(pdfBuffer);
-
-        return cleanPdfText(result?.text);
+        parsedPdf =
+            await pdfParseModule(pdfBuffer);
     }
 
-    // Some CommonJS exports provide the function under default
-    if (typeof pdfParseModule.default === "function") {
-        const result = await pdfParseModule.default(pdfBuffer);
+    /*
+    |--------------------------------------------------------------------------
+    | PDF-PARSE VERSION 1.x DEFAULT EXPORT
+    |--------------------------------------------------------------------------
+    */
 
-        return cleanPdfText(result?.text);
+    else if (
+        typeof pdfParseModule.default ===
+        "function"
+    ) {
+        parsedPdf =
+            await pdfParseModule.default(
+                pdfBuffer,
+            );
     }
 
-    // Newer pdf-parse versions
-    if (typeof pdfParseModule.PDFParse === "function") {
-        const parser = new pdfParseModule.PDFParse({
-            data: pdfBuffer,
-        });
+    /*
+    |--------------------------------------------------------------------------
+    | PDF-PARSE VERSION 2.x
+    |--------------------------------------------------------------------------
+    */
 
-        try {
-            const result = await parser.getText();
+    else if (
+        typeof pdfParseModule.PDFParse ===
+        "function"
+    ) {
+        pdfParser =
+            new pdfParseModule.PDFParse({
+                data: pdfBuffer,
+            });
 
-            return cleanPdfText(result?.text);
-        } finally {
-            if (typeof parser.destroy === "function") {
-                await parser.destroy();
+        parsedPdf =
+            await pdfParser.getText();
+    } else {
+        throw new Error(
+            "Unsupported pdf-parse export format.",
+        );
+    }
+} finally {
+    /*
+     * pdf-parse 2.x creates a parser instance that
+     * should be destroyed after text extraction.
+     */
+
+    if (
+        pdfParser &&
+        typeof pdfParser.destroy ===
+            "function"
+    ) {
+        await pdfParser.destroy();
+    }
+}
+        }
+
+        // pdf-parse default export
+        else if (
+            typeof pdfParseModule.default ===
+            "function"
+        ) {
+            parsedPdf =
+                await pdfParseModule.default(
+                    pdfBuffer,
+                );
+        }
+
+        // pdf-parse 2.x class API
+        else if (
+            typeof pdfParseModule.PDFParse ===
+            "function"
+        ) {
+            pdfParser =
+                new pdfParseModule.PDFParse({
+                    data: pdfBuffer,
+                });
+
+            parsedPdf =
+                await pdfParser.getText();
+        } else {
+            throw new Error(
+                "Unsupported pdf-parse export format.",
+            );
+        }
+    } catch (error) {
+        const message = String(
+            error.message || error,
+        );
+
+        if (
+            message
+                .toLowerCase()
+                .includes("password")
+        ) {
+            throw new Error(
+                "The agreement PDF is password-protected.",
+            );
+        }
+
+        throw new Error(
+            `Unable to parse agreement PDF: ${message}`,
+        );
+    } finally {
+        if (
+            pdfParser &&
+            typeof pdfParser.destroy ===
+                "function"
+        ) {
+            try {
+                await pdfParser.destroy();
+            } catch (destroyError) {
+                console.error(
+                    "PDF parser cleanup error:",
+                    destroyError.message,
+                );
             }
         }
     }
 
-    throw new Error(
-        "Unsupported pdf-parse version. Unable to find PDF parser.",
+    const extractedText = String(
+        parsedPdf?.text || "",
+    )
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .replace(/\u00A0/g, " ")
+        .replace(/[ \t]+/g, " ")
+        .replace(/ *\n */g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
+    console.log(
+        "CAREPAY AGREEMENT PDF EXTRACTED:",
+        {
+            file_path: resolvedFilePath,
+            file_size: fileStats.size,
+            pages: Number(
+                parsedPdf?.numpages ||
+                parsedPdf?.total ||
+                0,
+            ),
+            text_length:
+                extractedText.length,
+        },
     );
+    return extractedText;
 };
 
 /*
