@@ -758,6 +758,47 @@ router.post("/esign-initiate", verifyApiKey, async (req, res) => {
         res.status(500).json({ error: "Failed to initiate eSign" });
     }
 });
+// GET ZEBRS record by application_id
+router.get("/product/:applicationId", async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+
+    const [rows] = await db.promise().query(
+      `SELECT
+          id,
+          application_id,
+          battery_type,
+          battery_name,
+          e_rickshaw_model,
+          e_rickshaw_model_price,
+          created_at
+       FROM zebrs_dealer_products
+       WHERE application_id = ?
+       LIMIT 1`,
+      [applicationId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found for this application ID",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: rows[0],
+    });
+
+  } catch (error) {
+    console.error("Error fetching ZEBRS product:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
 
 // "/:lan/esign/:type" for esign
 
