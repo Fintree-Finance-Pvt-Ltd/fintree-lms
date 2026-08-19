@@ -1967,12 +1967,7 @@ function App() {
 
           <Route
             path="/claim-cure-buddy/customer-details"
-            element={
-              <Navigate
-                to={`/claimcurebuddy/loan-booking${window.location.search || ""}`}
-                replace
-              />
-            }
+            element={<ClaimCureBuddyDetails />}
           />
           <Route
             path="/claimcurebuddy/credit-approval"

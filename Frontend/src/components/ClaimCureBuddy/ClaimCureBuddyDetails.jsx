@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import api from "../../api/api";
 
 const ClaimCureBuddyDetails = () => {
+    const { lan: routeLan } = useParams();
     const [searchParams] = useSearchParams();
-    const lan = searchParams.get("lan") || "";
+    const lan = routeLan || searchParams.get("lan") || "";
     const navigate = useNavigate();
     const [details, setDetails] = useState(null);
     const [err, setErr] = useState("");

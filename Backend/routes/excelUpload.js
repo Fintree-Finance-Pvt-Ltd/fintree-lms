@@ -12278,6 +12278,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_emiclub";
   } else if (lan.startsWith("CARE")) {
     tableName = "manual_rps_carepay";
+  } else if (lan.startsWith("CCB")) {
+    tableName = "manual_rps_claim_cure_buddy";
   } else if (lan.startsWith("STRL")) {
     tableName = "manual_rps_sterlion";
   } else if (lan.startsWith("ZYPF")) {
