@@ -4,9 +4,8 @@ import api from "../../api/api";
 
 const ClaimCureBuddyDetails = () => {
     const [searchParams] = useSearchParams();
-    const lan = searchParams.get("lan");
+    const lan = searchParams.get("lan") || "";
     const navigate = useNavigate();
-
     const [details, setDetails] = useState(null);
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(true);

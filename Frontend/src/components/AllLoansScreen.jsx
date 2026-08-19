@@ -133,6 +133,8 @@ const AllLoansScreen = ({
               nav(`/seven-fincorp/customer-details?lan=${r.lan}`);
             } else if (/^UBLF/i.test(r.lan)) {
               nav(`/sterlion-ubl-loans/details/${r.lan}`);
+            } else if (/^CCB/i.test(r.lan)) { 
+              nav(`/claimcurebuddy/customer-details/${r.lan}`)
             } else {
               nav(`/loan-details/${r.lan}`);
             }

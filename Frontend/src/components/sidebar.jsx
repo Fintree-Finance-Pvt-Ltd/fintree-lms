@@ -258,7 +258,8 @@ const Sidebar = () => {
         p.path.includes('/claimcurebuddy') &&
         (
           p.path.includes('/claimcurebuddy/loan-booking') ||
-          p.path.includes('/claimcurebuddy/draft-cases')
+          p.path.includes('/claimcurebuddy/draft-cases')||
+          p.path.includes('/claimcurebuddy/all-loans') 
         )
     ),
     'CirclePe Loans': allowedPages.filter(p => p.path.includes('/circlepe-loans')),

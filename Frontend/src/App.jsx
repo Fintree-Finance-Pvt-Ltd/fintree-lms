@@ -255,10 +255,14 @@ import SRBHOperationApproval from "./components/Srbh/SRBHOperationApproval";
 import SRBHApprovedLoans from "./components/Srbh/SRBHApprovedLoans";
 import SRBHDetails from "./components/Srbh/SRBHDetails";
 import ClayooRejectedLoans from "./components/Clayoo/ClayooApprovedLoans";
+//claimcurebuddy
 import ClaimCureBuddyLoanBooking from "./components/ClaimCureBuddy/ClaimCureBuddyLoanBooking";
 import ClaimCureBuddyDraftCases from "./components/ClaimCureBuddy/ClaimCureBuddyDraftCases.jsx";
 import ClaimCureBuddyApprovedCases from "./components/ClaimCureBuddy/ClaimCureBuddyApprovedCases.jsx";
 import ClaimCureBuddyDetails from "./components/ClaimCureBuddy/ClaimCureBuddyDetails.jsx";
+import ClaimCureBuddyAllLoans from "./components/ClaimCureBuddy/ClaimCureBuddyAllLoans.jsx";
+
+
 import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
 import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.jsx";
@@ -1956,6 +1960,10 @@ function App() {
           />
           {/* /////////////////////////////////////////////////////////// */}
           {/* cLAIMcUREbUDDY rOTUES  */}
+          <Route
+            path="/claimcurebuddy/all-loans"
+            element={<ClaimCureBuddyAllLoans />}
+          />
 
           <Route
             path="/claim-cure-buddy/customer-details"
@@ -1969,6 +1977,10 @@ function App() {
           <Route
             path="/claimcurebuddy/credit-approval"
             element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
+          />
+          <Route
+          path="/claimcurebuddy/customer-details/:lan"
+          element={<ClaimCureBuddyDetails/>}
           />
 
           <Route
