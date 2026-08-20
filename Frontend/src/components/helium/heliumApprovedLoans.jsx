@@ -288,58 +288,66 @@ setBankResult(null);
   };
 
   // ---------- Status Chip ----------
-  const EsignChip = ({ status }) => {
-    const st = (status || "PENDING").toUpperCase();
+ const EsignChip = ({ status }) => {
+  const st = String(status ?? "PENDING")
+    .trim()
+    .toUpperCase();
 
-    const map = {
-      SIGNED: {
-        bg: "rgba(16,185,129,.12)",
-        bd: "rgba(16,185,129,.35)",
-        fg: "#065f46",
-        label: "Signed",
-      },
-      INITIATED: {
-        bg: "rgba(59,130,246,.12)",
-        bd: "rgba(59,130,246,.35)",
-        fg: "#1e3a8a",
-        label: "Initiated",
-      },
-      FAILED: {
-        bg: "rgba(239,68,68,.12)",
-        bd: "rgba(239,68,68,.35)",
-        fg: "#7f1d1d",
-        label: "Failed",
-      },
-      PENDING: {
-        bg: "rgba(234,179,8,.12)",
-        bd: "rgba(234,179,8,.35)",
-        fg: "#713f12",
-        label: "Pending",
-      },
-    };
-
-    const c = map[st];
-
-    return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "3px 8px",
-          borderRadius: 999,
-          fontSize: 11,
-          fontWeight: 600,
-          background: c.bg,
-          color: c.fg,
-          border: `1px solid ${c.bd}`,
-          textTransform: "uppercase",
-        }}
-      >
-        ● {c.label}
-      </span>
-    );
+  const map = {
+    SIGNED: {
+      bg: "rgba(16,185,129,.12)",
+      bd: "rgba(16,185,129,.35)",
+      fg: "#065f46",
+      label: "Signed",
+    },
+    INITIATED: {
+      bg: "rgba(59,130,246,.12)",
+      bd: "rgba(59,130,246,.35)",
+      fg: "#1e3a8a",
+      label: "Initiated",
+    },
+    FAILED: {
+      bg: "rgba(239,68,68,.12)",
+      bd: "rgba(239,68,68,.35)",
+      fg: "#7f1d1d",
+      label: "Failed",
+    },
+    PENDING: {
+      bg: "rgba(234,179,8,.12)",
+      bd: "rgba(234,179,8,.35)",
+      fg: "#713f12",
+      label: "Pending",
+    },
   };
+
+  // Safe fallback for unexpected backend statuses
+  const c = map[st] || {
+    bg: "rgba(107,114,128,.12)",
+    bd: "rgba(107,114,128,.35)",
+    fg: "#374151",
+    label: st || "Unknown",
+  };
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "3px 8px",
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 600,
+        background: c.bg,
+        color: c.fg,
+        border: `1px solid ${c.bd}`,
+        textTransform: "uppercase",
+      }}
+    >
+      ● {c.label}
+    </span>
+  );
+};
 
   // ---------- SANCTION ESIGN ----------
   // const handleSanctionEsign = async (row) => {
