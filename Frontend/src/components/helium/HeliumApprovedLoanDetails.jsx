@@ -88,51 +88,60 @@ const HeliumApprovedLoanDetails = () => {
       score: loan.avg_monthly_rent, 
     },
   ];
+const pillForStatus = (status) => {
+  const normalizedStatus = String(status ?? "PENDING")
+    .trim()
+    .toUpperCase();
 
-  const pillForStatus = (status) => {
-    const s = status || "PENDING";
-    const map = {
-      VERIFIED: {
-        bg: "rgba(16,185,129,.12)",
-        bd: "rgba(16,185,129,.35)",
-        fg: "#065f46",
-      },
-      FAILED: {
-        bg: "rgba(239,68,68,.12)",
-        bd: "rgba(239,68,68,.35)",
-        fg: "#7f1d1d",
-      },
-      INITIATED: {
-        bg: "rgba(59,130,246,.12)",
-        bd: "rgba(59,130,246,.35)",
-        fg: "#1d4ed8",
-      },
-      PENDING: {
-        bg: "rgba(234,179,8,.12)",
-        bd: "rgba(234,179,8,.35)",
-        fg: "#713f12",
-      },
-    };
-    const c = map[s] || map.PENDING;
-    return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "4px 10px",
-          borderRadius: 999,
-          fontSize: 12,
-          fontWeight: 700,
-          background: c.bg,
-          color: c.fg,
-          border: `1px solid ${c.bd}`,
-        }}
-      >
-        {s}
-      </span>
-    );
+  const statusMap = {
+    VERIFIED: {
+      bg: "rgba(16,185,129,.12)",
+      bd: "rgba(16,185,129,.35)",
+      fg: "#065f46",
+    },
+    FAILED: {
+      bg: "rgba(239,68,68,.12)",
+      bd: "rgba(239,68,68,.35)",
+      fg: "#7f1d1d",
+    },
+    INITIATED: {
+      bg: "rgba(59,130,246,.12)",
+      bd: "rgba(59,130,246,.35)",
+      fg: "#1d4ed8",
+    },
+    PENDING: {
+      bg: "rgba(234,179,8,.12)",
+      bd: "rgba(234,179,8,.35)",
+      fg: "#713f12",
+    },
   };
+
+  // Always guaranteed fallback
+  const c = statusMap[normalizedStatus] ?? {
+    bg: "rgba(107,114,128,.12)",
+    bd: "rgba(107,114,128,.35)",
+    fg: "#374151",
+  };
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 10px",
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 700,
+        background: c.bg,
+        color: c.fg,
+        border: `1px solid ${c.bd}`,
+      }}
+    >
+      {normalizedStatus}
+    </span>
+  );
+};
 
   const pillForFlag = (flag) => {
     if (flag === 1) {
