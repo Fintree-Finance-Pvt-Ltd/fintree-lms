@@ -1903,7 +1903,7 @@ router.patch("/loan-booking/:lan/loan-details", async (req, res) => {
       { min: 0 },
     );
 
-    if (loanAmount < 20000 || loanAmount > 100000) {
+    if (loanAmount < 10000 || loanAmount > 100000) {
       return res.status(400).json({
         success: false,
         message: "Loan amount must be between 20000 and 100000",
