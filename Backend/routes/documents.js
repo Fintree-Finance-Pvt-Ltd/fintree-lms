@@ -218,56 +218,56 @@ const checkAndApproveCarePayLoan = async (lan) => {
     .trim()
     .toUpperCase();
 
-  if (agreementValidationStatus !== "MATCHED") {
-    console.log(
-      "CAREPAY APPROVAL BLOCKED: AGREEMENT NOT MATCHED",
-      {
-        lan: cleanLan,
-        agreement_validation_status:
-          agreementValidationStatus,
-        agreement_validation_reason:
-          loan.agreement_validation_reason,
-      },
-    );
+  // if (agreementValidationStatus !== "MATCHED") {
+  //   console.log(
+  //     "CAREPAY APPROVAL BLOCKED: AGREEMENT NOT MATCHED",
+  //     {
+  //       lan: cleanLan,
+  //       agreement_validation_status:
+  //         agreementValidationStatus,
+  //       agreement_validation_reason:
+  //         loan.agreement_validation_reason,
+  //     },
+  //   );
 
-    return {
-      approved: false,
-      reason: "LOAN_AGREEMENT_NOT_MATCHED",
-      agreement_validation_status:
-        agreementValidationStatus,
-      agreement_validation_reason:
-        loan.agreement_validation_reason || null,
-    };
-  }
+  //   return {
+  //     approved: false,
+  //     reason: "LOAN_AGREEMENT_NOT_MATCHED",
+  //     agreement_validation_status:
+  //       agreementValidationStatus,
+  //     agreement_validation_reason:
+  //       loan.agreement_validation_reason || null,
+  //   };
+  // }
   /*
 |--------------------------------------------------------------------------
 | AGREEMENT SIGNATURE CHECK
 |--------------------------------------------------------------------------
 */
 
-const agreementEsignStatus = String(
-  loan.agreement_esign_status || "PENDING",
-)
-  .trim()
-  .toUpperCase();
+// const agreementEsignStatus = String(
+//   loan.agreement_esign_status || "PENDING",
+// )
+//   .trim()
+//   .toUpperCase();
 
-if (agreementEsignStatus !== "SIGNED") {
-  console.log(
-    "CAREPAY APPROVAL BLOCKED: AGREEMENT NOT SIGNED",
-    {
-      lan: cleanLan,
-      agreement_esign_status:
-        loan.agreement_esign_status,
-    },
-  );
+// if (agreementEsignStatus !== "SIGNED") {
+//   console.log(
+//     "CAREPAY APPROVAL BLOCKED: AGREEMENT NOT SIGNED",
+//     {
+//       lan: cleanLan,
+//       agreement_esign_status:
+//         loan.agreement_esign_status,
+//     },
+//   );
 
-  return {
-    approved: false,
-    reason: "LOAN_AGREEMENT_NOT_SIGNED",
-    agreement_esign_status:
-      loan.agreement_esign_status || "PENDING",
-  };
-}
+//   return {
+//     approved: false,
+//     reason: "LOAN_AGREEMENT_NOT_SIGNED",
+//     agreement_esign_status:
+//       loan.agreement_esign_status || "PENDING",
+//   };
+// }
   const loanAmount = Number(loan.loan_amount || 0);
   const cibilScore = Number(loan.cibil_score || 0);
 
@@ -394,13 +394,23 @@ if (agreementEsignStatus !== "SIGNED") {
     };
   }
 
- const [approvalUpdate] = await db.promise().query(
+//  const [approvalUpdate] = await db.promise().query(
+//   `UPDATE loan_booking_carepay
+//    SET status = 'Approved',
+//        bank_status = 'Verified'
+//    WHERE lan = ?
+//      AND agreement_validation_status = 'MATCHED'
+//      AND UPPER(TRIM(agreement_esign_status)) = 'SIGNED'
+//      AND UPPER(TRIM(status)) <> 'REJECTED'`,
+//   [cleanLan],
+// );
+
+// TEMPORARY: Agreement validation conditions bypassed
+const [approvalUpdate] = await db.promise().query(
   `UPDATE loan_booking_carepay
    SET status = 'Approved',
        bank_status = 'Verified'
    WHERE lan = ?
-     AND agreement_validation_status = 'MATCHED'
-     AND UPPER(TRIM(agreement_esign_status)) = 'SIGNED'
      AND UPPER(TRIM(status)) <> 'REJECTED'`,
   [cleanLan],
 );
@@ -434,7 +444,7 @@ if (agreementEsignStatus !== "SIGNED") {
     approved: true,
     reason: "ALL_REQUIREMENTS_COMPLETE",
     documents_complete: true,
-    agreement_validation_status: "MATCHED",
+    // agreement_validation_status: "MATCHED",
     message: "Loan approved successfully",
   };
 };
@@ -527,76 +537,76 @@ router.post("/upload", upload.single("document"), async (req, res) => {
      
       let agreementValidation = null;
 
-      if (isLoanAgreement) {
+      // if (isLoanAgreement) {
        
-        const uploadedFilePath =
-          req.file.path ||
-          (req.file.destination
-            ? require("path").join(
-                req.file.destination,
-                req.file.filename,
-              )
-            : null);
+      //   const uploadedFilePath =
+      //     req.file.path ||
+      //     (req.file.destination
+      //       ? require("path").join(
+      //           req.file.destination,
+      //           req.file.filename,
+      //         )
+      //       : null);
 
-        if (!uploadedFilePath) {
-          await db.promise().query(
-            `UPDATE loan_booking_carepay
-             SET agreement_validation_status = 'FAILED',
-                 agreement_validation_reason =
-                   'Uploaded agreement file path is unavailable.',
-                 agreement_validation_details = NULL,
-                 agreement_validated_at = NOW()
-             WHERE lan = ?`,
-            [cleanLan],
-          );
+      //   if (!uploadedFilePath) {
+      //     await db.promise().query(
+      //       `UPDATE loan_booking_carepay
+      //        SET agreement_validation_status = 'FAILED',
+      //            agreement_validation_reason =
+      //              'Uploaded agreement file path is unavailable.',
+      //            agreement_validation_details = NULL,
+      //            agreement_validated_at = NOW()
+      //        WHERE lan = ?`,
+      //       [cleanLan],
+      //     );
 
-          return res.status(200).json({
-            message:
-              "Document uploaded, but agreement validation failed",
-            agreement_validation: {
-              matched: false,
-              status: "FAILED",
-              reason: "FILE_PATH_NOT_AVAILABLE",
-            },
-            carepay_approval: {
-              approved: false,
-              reason:
-                "LOAN_AGREEMENT_VALIDATION_FAILED",
-            },
-          });
-        }
+      //     return res.status(200).json({
+      //       message:
+      //         "Document uploaded, but agreement validation failed",
+      //       agreement_validation: {
+      //         matched: false,
+      //         status: "FAILED",
+      //         reason: "FILE_PATH_NOT_AVAILABLE",
+      //       },
+      //       carepay_approval: {
+      //         approved: false,
+      //         reason:
+      //           "LOAN_AGREEMENT_VALIDATION_FAILED",
+      //       },
+      //     });
+      //   }
 
-        agreementValidation =
-          await validateCarePayLoanAgreement({
-            lan: cleanLan,
-            filePath: uploadedFilePath,
-          });
+      //   agreementValidation =
+      //     await validateCarePayLoanAgreement({
+      //       lan: cleanLan,
+      //       filePath: uploadedFilePath,
+      //     });
 
-        console.log(
-          "CAREPAY AGREEMENT VALIDATION RESULT:",
-          {
-            lan: cleanLan,
-            result: agreementValidation,
-          },
-        );
+      //   console.log(
+      //     "CAREPAY AGREEMENT VALIDATION RESULT:",
+      //     {
+      //       lan: cleanLan,
+      //       result: agreementValidation,
+      //     },
+      //   );
 
-        if (!agreementValidation.matched) {
-          return res.status(200).json({
-            message:
-              "Document uploaded, but agreement validation failed",
-            agreement_validation:
-              agreementValidation,
-            carepay_approval: {
-              approved: false,
-              reason:
-                agreementValidation.status ===
-                "MISMATCHED"
-                  ? "LOAN_AGREEMENT_MISMATCH"
-                  : "LOAN_AGREEMENT_VALIDATION_FAILED",
-            },
-          });
-        }
-      }
+      //   if (!agreementValidation.matched) {
+      //     return res.status(200).json({
+      //       message:
+      //         "Document uploaded, but agreement validation failed",
+      //       agreement_validation:
+      //         agreementValidation,
+      //       carepay_approval: {
+      //         approved: false,
+      //         reason:
+      //           agreementValidation.status ===
+      //           "MISMATCHED"
+      //             ? "LOAN_AGREEMENT_MISMATCH"
+      //             : "LOAN_AGREEMENT_VALIDATION_FAILED",
+      //       },
+      //     });
+      //   }
+      // }
 
           const approvalResult =
         await checkAndApproveCarePayLoan(cleanLan);
