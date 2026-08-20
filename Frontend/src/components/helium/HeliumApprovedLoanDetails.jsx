@@ -93,35 +93,40 @@ const pillForStatus = (status) => {
     .trim()
     .toUpperCase();
 
-  const statusMap = {
+  const statusStyles = {
     VERIFIED: {
-      bg: "rgba(16,185,129,.12)",
-      bd: "rgba(16,185,129,.35)",
-      fg: "#065f46",
+      background: "rgba(16,185,129,.12)",
+      color: "#065f46",
+      border: "1px solid rgba(16,185,129,.35)",
     },
+
     FAILED: {
-      bg: "rgba(239,68,68,.12)",
-      bd: "rgba(239,68,68,.35)",
-      fg: "#7f1d1d",
+      background: "rgba(239,68,68,.12)",
+      color: "#7f1d1d",
+      border: "1px solid rgba(239,68,68,.35)",
     },
+
     INITIATED: {
-      bg: "rgba(59,130,246,.12)",
-      bd: "rgba(59,130,246,.35)",
-      fg: "#1d4ed8",
+      background: "rgba(59,130,246,.12)",
+      color: "#1d4ed8",
+      border: "1px solid rgba(59,130,246,.35)",
     },
+
     PENDING: {
-      bg: "rgba(234,179,8,.12)",
-      bd: "rgba(234,179,8,.35)",
-      fg: "#713f12",
+      background: "rgba(234,179,8,.12)",
+      color: "#713f12",
+      border: "1px solid rgba(234,179,8,.35)",
+    },
+
+    DEFAULT: {
+      background: "rgba(107,114,128,.12)",
+      color: "#374151",
+      border: "1px solid rgba(107,114,128,.35)",
     },
   };
 
-  // Always guaranteed fallback
-  const c = statusMap[normalizedStatus] ?? {
-    bg: "rgba(107,114,128,.12)",
-    bd: "rgba(107,114,128,.35)",
-    fg: "#374151",
-  };
+  const statusStyle =
+    statusStyles[normalizedStatus] || statusStyles.DEFAULT;
 
   return (
     <span
@@ -133,9 +138,8 @@ const pillForStatus = (status) => {
         borderRadius: 999,
         fontSize: 12,
         fontWeight: 700,
-        background: c.bg,
-        color: c.fg,
-        border: `1px solid ${c.bd}`,
+
+        ...statusStyle,
       }}
     >
       {normalizedStatus}
