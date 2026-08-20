@@ -1,4 +1,6 @@
 const db = require("../config/db");
+const partnerLimitService = require("./partnerLimitService");
+const { getMonthYear } = require("../utils/partnerHelpers");
 
 const RPS_TABLE = "manual_rps_claim_cure_buddy";
 
@@ -39,6 +41,7 @@ async function processClaimCureBuddyDisbursement({
     const [[loan]] = await connection.query(
       `SELECT
          lb.loan_amount,
+         lb.disbursal_amount,
          lb.interest_rate,
          lb.loan_tenure,
          lb.status,
@@ -57,12 +60,19 @@ async function processClaimCureBuddyDisbursement({
     }
 
     const principal = Number(loan.loan_amount);
+    const disbursementAmount = Number(loan.disbursal_amount);
     const tenureDays = Number(loan.loan_tenure);
     const interest = Number(loan.total_interest_amount);
     const totalRepayment = Number(loan.total_repayment_amount);
 
     if (!Number.isFinite(principal) || principal <= 0) {
       throw new Error(`Invalid ClaimCureBuddy loan amount: ${loan.loan_amount}`);
+    }
+
+    if (!Number.isFinite(disbursementAmount) || disbursementAmount <= 0) {
+      throw new Error(
+        `Invalid ClaimCureBuddy disbursal amount: ${loan.disbursal_amount}`,
+      );
     }
 
     if (!Number.isInteger(tenureDays) || tenureDays <= 0) {
@@ -101,6 +111,43 @@ async function processClaimCureBuddyDisbursement({
         reason: existingRps.length ? "RPS_ALREADY_EXISTS" : "DISBURSEMENT_ALREADY_RECORDED",
       };
     }
+
+    const { month, year } = getMonthYear(effectiveDisbursementDate);
+    const partnerName = "Claim Cure Buddy";
+    const partner = await partnerLimitService.getOrCreatePartner(
+      connection,
+      partnerName,
+    );
+    const limitCheck =
+      await partnerLimitService.validatePartnerDisbursementLimit(
+        connection,
+        partner.partner_id,
+        disbursementAmount,
+        month,
+        year,
+      );
+
+    if (!limitCheck.valid) {
+      const limitError = new Error("DISBURSEMENT_LIMIT_EXCEEDED");
+      limitError.meta = {
+        partnerName,
+        lan: normalizedLan,
+        assigned: limitCheck.assigned,
+        used: limitCheck.used,
+        remaining: limitCheck.disbursementRemaining,
+        required: disbursementAmount,
+        month,
+        year,
+      };
+      throw limitError;
+    }
+
+    const limitResult = await partnerLimitService.updateDisbursedLimit(
+      connection,
+      limitCheck.limitId,
+      disbursementAmount,
+      normalizedLan,
+    );
 
     const disbursementDateOnly = effectiveDisbursementDate
       .toISOString()
@@ -158,9 +205,11 @@ async function processClaimCureBuddyDisbursement({
       principal,
       interest,
       totalRepayment,
+      disbursementAmount,
+      partnerLimitUpdated: !limitResult.skipped,
     });
 
-    return { success: true, dueDate };
+    return { success: true, dueDate, limitResult };
   } catch (error) {
     if (connection && !transactionCompleted) {
       await connection.rollback();

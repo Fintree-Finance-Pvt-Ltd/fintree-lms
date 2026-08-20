@@ -31,18 +31,10 @@ const toLocalYmd = (value = new Date()) => {
   return local.toISOString().slice(0, 10);
 };
 
-const addMonths = (value, months) => {
+const addDays = (value, days) => {
   const source = value ? new Date(`${value}T12:00:00`) : new Date();
   if (Number.isNaN(source.getTime())) return "";
-  const originalDay = source.getDate();
-  source.setDate(1);
-  source.setMonth(source.getMonth() + Number(months || 0));
-  const lastDay = new Date(
-    source.getFullYear(),
-    source.getMonth() + 1,
-    0,
-  ).getDate();
-  source.setDate(Math.min(originalDay, lastDay));
+  source.setDate(source.getDate() + Number(days || 0));
   return toLocalYmd(source);
 };
 
@@ -190,8 +182,8 @@ export default function ClaimCureBuddyApprovedCases() {
     setEnachForm({
       accountType: "SAVINGS",
       maxDebitAmount: String(row.loan_amount || ""),
-      finalCollectionDate: addMonths(baseDate, tenure),
-      frequency: "MONTHLY",
+      finalCollectionDate: addDays(baseDate, tenure),
+      frequency: "AS_PRESENTED",
     });
   };
 
