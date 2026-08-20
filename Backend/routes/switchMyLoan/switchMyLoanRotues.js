@@ -165,7 +165,7 @@ async function verifySmlBankAndStoreResult({
         "",
     ).toUpperCase();
 
-    const isVerified =
+    const accountVerified =
       result?.success === true ||
       result?.verified === true ||
       result?.data?.success === true ||
@@ -174,14 +174,58 @@ async function verifySmlBankAndStoreResult({
         responseStatus,
       );
 
+    /*
+     * accountVerified only means the account number/IFSC exist and are
+     * active — it says nothing about whose account it is. fuzzy_match_result
+     * is the actual name-match signal from the bank verification provider.
+     * A false here means the beneficiary name on record does NOT match the
+     * name we sent, i.e. this is very likely someone else's account.
+     * Treating accountVerified alone as "VERIFIED" previously let a
+     * mismatched-name account pass straight through to disbursal approval.
+     */
+    const fuzzyMatchResult =
+      result?.fuzzy_match_result ??
+      result?.data?.fuzzy_match_result ??
+      null;
+    const fuzzyMatchScore =
+      result?.fuzzy_match_score ??
+      result?.data?.fuzzy_match_score ??
+      null;
+    const beneficiaryNameWithBank =
+      result?.beneficiary_name_with_bank ||
+      result?.data?.beneficiary_name_with_bank ||
+      null;
+
+    const nameMismatch = fuzzyMatchResult === false;
+    const isVerified = accountVerified && !nameMismatch;
+
+    const verificationStatus = nameMismatch
+      ? "NAME_MISMATCH"
+      : isVerified
+        ? "VERIFIED"
+        : "FAILED";
+
     const failureMessage = isVerified
       ? null
-      : String(
-          result?.message ||
-            result?.data?.message ||
-            result?.error ||
-            "BANK_VERIFICATION_FAILED",
-        ).slice(0, 500);
+      : nameMismatch
+        ? `BANK_NAME_MISMATCH: entered "${accountName}" but bank record shows "${beneficiaryNameWithBank || "unknown"}" (fuzzy_match_score=${fuzzyMatchScore ?? "n/a"})`
+        : String(
+            result?.message ||
+              result?.data?.message ||
+              result?.error ||
+              "BANK_VERIFICATION_FAILED",
+          ).slice(0, 500);
+
+    if (nameMismatch) {
+      console.error("🚨 SML bank verification NAME MISMATCH — blocking disbursal", {
+        partnerLoanId,
+        applicationId,
+        lan,
+        accountName,
+        beneficiaryNameWithBank,
+        fuzzyMatchScore,
+      });
+    }
 
     const [updateResult] = await db.promise().query(
       `UPDATE loan_booking_switch_my_loan
@@ -197,7 +241,7 @@ async function verifySmlBankAndStoreResult({
          AND bank_ac_name = ?
          AND bank_verification_status = 'PENDING'`,
       [
-        isVerified ? "VERIFIED" : "FAILED",
+        verificationStatus,
         isVerified ? 1 : 0,
         JSON.stringify(result || {}),
         failureMessage,

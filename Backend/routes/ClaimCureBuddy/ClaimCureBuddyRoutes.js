@@ -1484,11 +1484,19 @@ router.patch("/loan-booking/:lan/basic-details", async (req, res) => {
 router.post("/aadhaar/init", async (req, res) => {
   try {
     const lan = clean(req.body.lan);
+    const retrigger = req.body.retrigger === true;
 
     const { applicantType, partyNo } = validateParty(
       req.body.applicantType,
       req.body.partyNo,
     );
+
+    if (retrigger && applicantType !== "BORROWER") {
+      return res.status(400).json({
+        success: false,
+        message: "Aadhaar retrigger is available only for the borrower",
+      });
+    }
 
     if (!lan) {
       return res.status(400).json({
@@ -1553,7 +1561,21 @@ router.post("/aadhaar/init", async (req, res) => {
       });
     }
 
-    if (kyc?.aadhaar_status === "INITIATED" && kyc?.aadhaar_kyc_url) {
+    const aadhaarRetryCount = Number(kyc?.aadhaar_retry_count || 0);
+
+    if (retrigger && aadhaarRetryCount >= 2) {
+      return res.status(429).json({
+        success: false,
+        message: "Maximum Aadhaar retrigger limit of 2 has been reached",
+        aadhaarRetryCount,
+      });
+    }
+
+    if (
+      !retrigger &&
+      kyc?.aadhaar_status === "INITIATED" &&
+      kyc?.aadhaar_kyc_url
+    ) {
       return res.json({
         success: true,
         message: "Aadhaar already initiated",
@@ -1630,7 +1652,8 @@ router.post("/aadhaar/init", async (req, res) => {
          aadhaar_status = 'INITIATED',
          aadhaar_transaction_id = ?,
          aadhaar_kyc_url = ?,
-         aadhaar_unique_id = ?
+         aadhaar_unique_id = ?,
+         aadhaar_retry_count = COALESCE(aadhaar_retry_count, 0) + ?
        WHERE lan = ?
          AND applicant_type = ?
          AND party_no = ?`,
@@ -1638,6 +1661,7 @@ router.post("/aadhaar/init", async (req, res) => {
         result.unifiedTransactionId,
         result.kycUrl,
         result.uniqueId,
+        retrigger ? 1 : 0,
         lan,
         applicantType,
         partyNo,
@@ -1646,11 +1670,12 @@ router.post("/aadhaar/init", async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Aadhaar initiated",
+      message: retrigger ? "Aadhaar retriggered" : "Aadhaar initiated",
       status: "INITIATED",
       kycUrl: result.kycUrl,
       transactionId: result.unifiedTransactionId,
       uniqueId: result.uniqueId,
+      aadhaarRetryCount: aadhaarRetryCount + (retrigger ? 1 : 0),
       partyNo,
     });
   } catch (error) {
@@ -1878,7 +1903,7 @@ router.patch("/loan-booking/:lan/loan-details", async (req, res) => {
       { min: 0 },
     );
 
-    if (loanAmount < 20000 || loanAmount > 100000) {
+    if (loanAmount < 10000 || loanAmount > 100000) {
       return res.status(400).json({
         success: false,
         message: "Loan amount must be between 20000 and 100000",
@@ -3891,7 +3916,7 @@ router.get("/loan-booking/draft-cases", async (req, res) => {
           created_at,
           updated_at
        FROM loan_booking_claim_cure_buddy
-       WHERE status IN ('Draft', 'Login')
+       WHERE status IN ('Draft', 'Login' , 'Bre Approved')
          AND lan LIKE 'CCB%'
        ORDER BY updated_at DESC, id DESC`,
     );
@@ -3903,6 +3928,27 @@ router.get("/loan-booking/draft-cases", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Unable to fetch ClaimCureBuddy draft cases",
+    });
+  }
+});
+
+router.get("/loan-booking/disbursed-loans", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT *
+       FROM loan_booking_claim_cure_buddy
+       WHERE status = 'Disbursed'
+         AND lan LIKE 'CCB%'
+       ORDER BY updated_at DESC, id DESC`
+    );
+
+    return res.status(200).json(rows);
+  } catch (error) {
+    console.error("ClaimCureBuddy disbursed loans error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch ClaimCureBuddy disbursed loans",
     });
   }
 });
@@ -3943,6 +3989,7 @@ router.get("/loan-booking/:lan", async (req, res) => {
                pan_number,
                pan_status,
                aadhaar_status,
+               aadhaar_retry_count,
                bureau_status,
                aadhaar_kyc_url,
                aadhaar_name,

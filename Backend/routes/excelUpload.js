@@ -2561,6 +2561,7 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_srbh: true,
     loan_booking_saswat: true,
     loan_booking_sterlion_ubl: true,
+    loan_booking_claim_cure_buddy : true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });

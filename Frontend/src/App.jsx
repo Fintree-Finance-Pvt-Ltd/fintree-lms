@@ -261,6 +261,7 @@ import ClaimCureBuddyDraftCases from "./components/ClaimCureBuddy/ClaimCureBuddy
 import ClaimCureBuddyApprovedCases from "./components/ClaimCureBuddy/ClaimCureBuddyApprovedCases.jsx";
 import ClaimCureBuddyDetails from "./components/ClaimCureBuddy/ClaimCureBuddyDetails.jsx";
 import ClaimCureBuddyAllLoans from "./components/ClaimCureBuddy/ClaimCureBuddyAllLoans.jsx";
+import ClaimCureBuddyDisbursedLoans from "./components/ClaimCureBuddy/ClaimCureBuddyDisbursedLoans.jsx";
 
 
 import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
@@ -1966,6 +1967,11 @@ function App() {
           />
 
           <Route
+            path="/claimcurebuddy/disbursed-loans"
+            element={<ClaimCureBuddyDisbursedLoans />}
+          />
+
+          <Route
             path="/claim-cure-buddy/customer-details"
             element={<ClaimCureBuddyDetails />}
           />
@@ -1974,8 +1980,8 @@ function App() {
             element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
           />
           <Route
-          path="/claimcurebuddy/customer-details/:lan"
-          element={<ClaimCureBuddyDetails/>}
+            path="/claimcurebuddy/customer-details/:lan"
+            element={<ClaimCureBuddyDetails />}
           />
 
           <Route

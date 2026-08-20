@@ -266,6 +266,7 @@ export default function ClaimCureBuddyLoanBooking() {
   const [borrowerMobileVerified, setBorrowerMobileVerified] = useState(false);
   const [borrowerPanVerified, setBorrowerPanVerified] = useState(false);
   const [borrowerAadhaarStatus, setBorrowerAadhaarStatus] = useState("PENDING");
+  const [borrowerAadhaarRetryCount, setBorrowerAadhaarRetryCount] = useState(0);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [postAction, setPostAction] = useState("");
@@ -360,6 +361,9 @@ export default function ClaimCureBuddyLoanBooking() {
     setBorrowerMobileVerified(Number(saved.borrower_mobile_verified) === 1);
     setBorrowerPanVerified(borrowerKyc.pan_status === "VERIFIED");
     setBorrowerAadhaarStatus(borrowerKyc.aadhaar_status || "PENDING");
+    setBorrowerAadhaarRetryCount(
+      Number(borrowerKyc.aadhaar_retry_count || 0),
+    );
     setBorrowerPreBreStatus(saved.borrower_pre_bre_status || "PENDING");
 
     if (saved.borrower_pre_bre_reason) {
@@ -701,13 +705,18 @@ export default function ClaimCureBuddyLoanBooking() {
     }
   };
 
-  const triggerAadhaar = async (applicantType, partyNo = 1) => {
+  const triggerAadhaar = async (
+    applicantType,
+    partyNo = 1,
+    retrigger = false,
+  ) => {
     try {
       setLoading(true);
       const response = await api.post(`${API}/aadhaar/init`, {
         lan,
         applicantType,
         partyNo,
+        retrigger,
       });
       if (applicantType === "BORROWER")
         setBorrowerAadhaarStatus(response.data.status || "INITIATED");
@@ -717,6 +726,14 @@ export default function ClaimCureBuddyLoanBooking() {
           "aadhaarStatus",
           response.data.status || "INITIATED",
         );
+      if (
+        applicantType === "BORROWER" &&
+        response.data.aadhaarRetryCount !== undefined
+      ) {
+        setBorrowerAadhaarRetryCount(
+          Number(response.data.aadhaarRetryCount || 0),
+        );
+      }
       if (response.data.kycUrl)
         window.open(response.data.kycUrl, "_blank", "noopener,noreferrer");
       setNotice(`✅ ${response.data.message}`);
@@ -1305,15 +1322,30 @@ export default function ClaimCureBuddyLoanBooking() {
         <button
           type="button"
           className="ccb-secondary"
-          disabled={loading || !lan || borrowerAadhaarStatus === "VERIFIED"}
+          disabled={
+            loading ||
+            !lan ||
+            borrowerAadhaarStatus === "VERIFIED" ||
+            borrowerAadhaarStatus === "INITIATED"
+          }
           onClick={() => triggerAadhaar("BORROWER", 1)}
         >
-          {borrowerAadhaarStatus === "INITIATED"
-            ? "Aadhaar Initiated ✓"
-            : borrowerAadhaarStatus === "VERIFIED"
+          {borrowerAadhaarStatus === "VERIFIED"
               ? "Aadhaar Verified ✓"
               : "Trigger Aadhaar"}
         </button>
+        {borrowerAadhaarStatus === "INITIATED" && (
+          <button
+            type="button"
+            className="ccb-secondary"
+            disabled={loading || !lan || borrowerAadhaarRetryCount >= 2}
+            onClick={() => triggerAadhaar("BORROWER", 1, true)}
+          >
+            {borrowerAadhaarRetryCount >= 2
+              ? "Aadhaar Retry Limit Reached"
+              : `Retrigger Aadhaar (${borrowerAadhaarRetryCount}/2)`}
+          </button>
+        )}
         <button
           type="button"
           className="ccb-secondary"
