@@ -103,82 +103,96 @@ async function processClaimCureBuddyDisbursement({
       [String(disbursementUTR).trim(), normalizedLan],
     );
 
-    if (existingRps.length || existingUtr.length) {
-      await connection.rollback();
-      transactionCompleted = true;
-      return {
-        skipped: true,
-        reason: existingRps.length ? "RPS_ALREADY_EXISTS" : "DISBURSEMENT_ALREADY_RECORDED",
-      };
-    }
-
     const { month, year } = getMonthYear(effectiveDisbursementDate);
     const partnerName = "Claim Cure Buddy";
     const partner = await partnerLimitService.getOrCreatePartner(
       connection,
       partnerName,
     );
-    const limitCheck =
-      await partnerLimitService.validatePartnerDisbursementLimit(
-        connection,
-        partner.partner_id,
-        disbursementAmount,
-        month,
-        year,
-      );
-
-    if (!limitCheck.valid) {
-      const limitError = new Error("DISBURSEMENT_LIMIT_EXCEEDED");
-      limitError.meta = {
-        partnerName,
-        lan: normalizedLan,
-        assigned: limitCheck.assigned,
-        used: limitCheck.used,
-        remaining: limitCheck.disbursementRemaining,
-        required: disbursementAmount,
-        month,
-        year,
-      };
-      throw limitError;
-    }
-
-    const limitResult = await partnerLimitService.updateDisbursedLimit(
-      connection,
-      limitCheck.limitId,
-      disbursementAmount,
-      normalizedLan,
+    const [[existingDisbursedAudit]] = await connection.query(
+      `SELECT id
+       FROM partner_limit_audit
+       WHERE partner_id = ?
+         AND booking_lan = ?
+         AND action_type = 'DISBURSED'
+       LIMIT 1`,
+      [partner.partner_id, normalizedLan],
     );
+
+    let limitResult;
+
+    if (existingDisbursedAudit) {
+      limitResult = {
+        skipped: true,
+        reason: "DISBURSED_LIMIT_ALREADY_UPDATED",
+      };
+    } else {
+      const limitCheck =
+        await partnerLimitService.validatePartnerDisbursementLimit(
+          connection,
+          partner.partner_id,
+          disbursementAmount,
+          month,
+          year,
+        );
+
+      if (!limitCheck.valid) {
+        const limitError = new Error("DISBURSEMENT_LIMIT_EXCEEDED");
+        limitError.meta = {
+          partnerName,
+          lan: normalizedLan,
+          assigned: limitCheck.assigned,
+          used: limitCheck.used,
+          remaining: limitCheck.disbursementRemaining,
+          required: disbursementAmount,
+          month,
+          year,
+        };
+        throw limitError;
+      }
+
+      limitResult = await partnerLimitService.updateDisbursedLimit(
+        connection,
+        limitCheck.limitId,
+        disbursementAmount,
+        normalizedLan,
+      );
+    }
 
     const disbursementDateOnly = effectiveDisbursementDate
       .toISOString()
       .split("T")[0];
     const dueDate = addUtcDays(effectiveDisbursementDate, tenureDays);
 
-    await connection.query(
-      `INSERT INTO ${RPS_TABLE}
-       (lan, emi_no, due_date, emi, interest, principal,
-        remaining_principal, remaining_interest, remaining_emi,
-        opening, closing, status, dpd)
-       VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Pending', 0)`,
-      [
-        normalizedLan,
-        dueDate,
-        totalRepayment,
-        interest,
-        principal,
-        principal,
-        interest,
-        totalRepayment,
-        principal,
-      ],
-    );
+    if (!existingRps.length) {
+      await connection.query(
+        `INSERT INTO ${RPS_TABLE}
+         (lan, emi_no, due_date, emi, interest, principal,
+          remaining_principal, remaining_interest, remaining_emi,
+          opening, closing, status, dpd)
+         VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Pending', 0)`,
+        [
+          normalizedLan,
+          dueDate,
+          totalRepayment,
+          interest,
+          principal,
+          principal,
+          interest,
+          totalRepayment,
+          principal,
+        ],
+      );
+    }
 
-    await connection.query(
-      `INSERT INTO ev_disbursement_utr
-       (Disbursement_UTR, Disbursement_Date, LAN)
-       VALUES (?, ?, ?)`,
-      [String(disbursementUTR).trim(), disbursementDateOnly, normalizedLan],
-    );
+    if (!existingUtr.length) {
+      await connection.query(
+        `INSERT INTO ev_disbursement_utr
+         (Disbursement_UTR, Disbursement_Date, LAN)
+         VALUES (?, ?, ?)`,
+        [String(disbursementUTR).trim(), disbursementDateOnly, normalizedLan],
+      );
+    }
 
     await connection.query(
       `UPDATE claim_cure_buddy_loan_summary
