@@ -1,7 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const crypto = require("crypto");
-
+const authenticateUser = require("../../middleware/verifyToken");
 const db = require("../../config/db");
 const { getPanCardDetails } = require("../../services/pancardapiservice");
 const { runBureau } = require("../../services/Bueraupullapiservice");
@@ -1903,7 +1903,7 @@ router.patch("/loan-booking/:lan/loan-details", async (req, res) => {
       { min: 0 },
     );
 
-    if (loanAmount < 20000 || loanAmount > 100000) {
+    if (loanAmount < 10000 || loanAmount > 100000) {
       return res.status(400).json({
         success: false,
         message: "Loan amount must be between 20000 and 100000",
@@ -3391,6 +3391,80 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
       });
     }
 
+    /*
+     * Do not create a new mandate if this case cannot fit within the current
+     * month's remaining Claim Cure Buddy disbursement limit. The actual
+     * used_limit is updated only after payout succeeds.
+     */
+    const disbursementAmount = Number(loan.disbursal_amount);
+
+    if (!Number.isFinite(disbursementAmount) || disbursementAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_DISBURSEMENT_AMOUNT",
+        message: "Claim Cure Buddy disbursal amount is missing or invalid",
+      });
+    }
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const partnerName = "Claim Cure Buddy";
+    const partner = await partnerLimitService.getOrCreatePartner(
+      connection,
+      partnerName,
+    );
+
+    if (String(partner.status || "").toLowerCase() !== "active") {
+      return res.status(409).json({
+        success: false,
+        code: "PARTNER_INACTIVE",
+        message: "Claim Cure Buddy partner is inactive",
+      });
+    }
+
+    let limitCheck;
+
+    try {
+      limitCheck =
+        await partnerLimitService.validatePartnerDisbursementLimit(
+          connection,
+          partner.partner_id,
+          disbursementAmount,
+          month,
+          year,
+        );
+    } catch (limitError) {
+      if (limitError.message === "No limit record for partner/month/year") {
+        return res.status(409).json({
+          success: false,
+          code: "DISBURSEMENT_LIMIT_NOT_CONFIGURED",
+          message:
+            "Claim Cure Buddy disbursement limit is not configured for this month",
+          partner_name: partnerName,
+          month,
+          year,
+        });
+      }
+
+      throw limitError;
+    }
+
+    if (!limitCheck.valid) {
+      return res.status(409).json({
+        success: false,
+        code: "DISBURSEMENT_LIMIT_EXCEEDED",
+        message: "Claim Cure Buddy disbursement limit exceeded",
+        partner_name: partnerName,
+        assigned_limit: limitCheck.assigned,
+        used_limit: limitCheck.used,
+        remaining_limit: limitCheck.disbursementRemaining,
+        required_amount: disbursementAmount,
+        month,
+        year,
+      });
+    }
+
     const payload = {
       customer_identifier: clean(loan.mobile_number),
       auth_mode: "api",
@@ -4161,6 +4235,68 @@ router.get("/credit-initiated-loans", async (req, res) => {
       success: false,
       message: "Unable to fetch Credit cases",
       error: error.message,
+    });
+  }
+});
+
+
+// Reject a case
+router.patch("/:lan/reject", authenticateUser, async (req, res) => {
+  try {
+    const lan = String(req.params.lan || "").trim().toUpperCase();
+
+    const [rows] = await db.promise().query(
+      `SELECT lan, status
+       FROM loan_booking_claim_cure_buddy
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        message: "Case not found",
+      });
+    }
+
+    const status = String(rows[0].status || "")
+      .trim()
+      .toUpperCase();
+
+    if (!["DRAFT", "BRE APPROVED"].includes(status)) {
+      return res.status(409).json({
+        message: "This case cannot be rejected",
+      });
+    }
+
+    // await db.promise().query(
+    //   `UPDATE loan_booking_claim_cure_buddy
+    //    SET status = 'PARTNER REJECTED',
+    //        updated_at = NOW()
+    //    WHERE lan = ?`,
+    //   [lan],
+    // );
+    await db.promise().query(
+  `UPDATE loan_booking_claim_cure_buddy
+   SET status = 'PARTNER REJECTED',
+       stage = 'Partner Rejected',
+       rejected_at = NOW(),
+       updated_by = ?,
+       updated_at = NOW()
+   WHERE lan = ?`,
+  [actorId(req), lan],
+);
+
+    return res.json({
+      message: "Case rejected successfully",
+      status: "PARTNER REJECTED",
+      lan,
+    });
+  } catch (error) {
+    console.error("CCB reject error:", error);
+
+    return res.status(500).json({
+      message: "Unable to reject case",
     });
   }
 });
