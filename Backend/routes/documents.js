@@ -323,9 +323,11 @@ if (agreementEsignStatus !== "SIGNED") {
     "CIBIL_REPORT",
     "aadhaar",
     "pan",
-    "bureauJson",
+    "bureauXlsx",
     "explicitConsents",
     "loanAgreement",
+    "selfi",
+    
   ];
 
   if (bankStatementRequired) {
