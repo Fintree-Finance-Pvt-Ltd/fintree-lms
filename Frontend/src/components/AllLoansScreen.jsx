@@ -13,6 +13,9 @@ const AllLoansScreen = ({
   title = "All Loans",
   amountField = "disbursement_amount",
   lanDetailsUrlBuilder,
+  enableReject = false,
+  canRejectRow,
+  rejectEndpointBuilder,
 }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +72,30 @@ const AllLoansScreen = ({
   useEffect(() => {
     fetchPage();
   }, [fetchPage]);
+
+  const handleRejectCase = async (row) => {
+  const confirmed = window.confirm(
+    `Are you sure you want to reject case ${row.lan}?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setLoading(true);
+    setErr("");
+
+    await api.patch(rejectEndpointBuilder(row));
+
+    fetchPage();
+  } catch (error) {
+    setErr(
+      error.response?.data?.message ||
+      "Unable to reject case."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const hasADK = rows.some((r) => /^ADK/i.test(r?.lan));
   const hasGQFSF = rows.some((r) => /^GQFSF/i.test(r?.lan));
@@ -358,35 +385,98 @@ const AllLoansScreen = ({
       sortAccessor: (r) => (r.status || "").toLowerCase(),
       width: 130,
     },
+    // {
+    //   key: "docs",
+    //   header: "Action",
+    //   render: (r) => (
+    //     <button
+    //       onClick={() => nav(`/documents/${r.lan}`)}
+    //       style={{
+    //         padding: "8px 14px",
+    //         borderRadius: "8px",
+    //         border: "1px solid #e2e8f0",
+    //         color: "#0f172a",
+    //         background: "#fff",
+    //         cursor: "pointer",
+    //         fontSize: "12px",
+    //         fontWeight: "700",
+    //         display: 'flex',
+    //         alignItems: 'center',
+    //         gap: '6px',
+    //         transition: '0.2s',
+    //         boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+    //       }}
+    //       onMouseOver={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
+    //       onMouseOut={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
+    //     >
+    //       <span>📂</span> Documents
+    //     </button>
+    //   ),
+    //   width: 130,
+    // },
     {
-      key: "docs",
-      header: "Action",
-      render: (r) => (
-        <button
-          onClick={() => nav(`/documents/${r.lan}`)}
-          style={{
-            padding: "8px 14px",
-            borderRadius: "8px",
-            border: "1px solid #e2e8f0",
-            color: "#0f172a",
-            background: "#fff",
-            cursor: "pointer",
-            fontSize: "12px",
-            fontWeight: "700",
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: '0.2s',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-          }}
-          onMouseOver={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#cbd5e1"; }}
-          onMouseOut={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e2e8f0"; }}
-        >
-          <span>📂</span> Documents
-        </button>
-      ),
-      width: 130,
-    },
+  key: "docs",
+  header: "Action",
+  render: (r) => (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+      }}
+    >
+      <button
+        onClick={() => nav(`/documents/${r.lan}`)}
+        style={{
+          padding: "8px 14px",
+          borderRadius: "8px",
+          border: "1px solid #e2e8f0",
+          color: "#0f172a",
+          background: "#fff",
+          cursor: "pointer",
+          fontSize: "12px",
+          fontWeight: "700",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          transition: "0.2s",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+        }}
+        onMouseOver={(e) => {
+          e.currentTarget.style.background = "#f8fafc";
+          e.currentTarget.style.borderColor = "#cbd5e1";
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.background = "#fff";
+          e.currentTarget.style.borderColor = "#e2e8f0";
+        }}
+      >
+        <span>📂</span> Documents
+      </button>
+
+      {enableReject &&
+        (!canRejectRow || canRejectRow(r)) && (
+          <button
+            type="button"
+            onClick={() => handleRejectCase(r)}
+            style={{
+              padding: "8px 14px",
+              borderRadius: "8px",
+              border: "1px solid #fecaca",
+              color: "#b91c1c",
+              background: "#fff",
+              cursor: "pointer",
+              fontSize: "12px",
+              fontWeight: "700",
+            }}
+          >
+            Reject
+          </button>
+        )}
+    </div>
+  ),
+  width: 240,
+},
   ];
 
   return (
