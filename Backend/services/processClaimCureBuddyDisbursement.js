@@ -1,4 +1,6 @@
 const db = require("../config/db");
+const partnerLimitService = require("./partnerLimitService");
+const { getMonthYear } = require("../utils/partnerHelpers");
 
 const RPS_TABLE = "manual_rps_claim_cure_buddy";
 
@@ -39,6 +41,7 @@ async function processClaimCureBuddyDisbursement({
     const [[loan]] = await connection.query(
       `SELECT
          lb.loan_amount,
+         lb.disbursal_amount,
          lb.interest_rate,
          lb.loan_tenure,
          lb.status,
@@ -57,12 +60,19 @@ async function processClaimCureBuddyDisbursement({
     }
 
     const principal = Number(loan.loan_amount);
+    const disbursementAmount = Number(loan.disbursal_amount);
     const tenureDays = Number(loan.loan_tenure);
     const interest = Number(loan.total_interest_amount);
     const totalRepayment = Number(loan.total_repayment_amount);
 
     if (!Number.isFinite(principal) || principal <= 0) {
       throw new Error(`Invalid ClaimCureBuddy loan amount: ${loan.loan_amount}`);
+    }
+
+    if (!Number.isFinite(disbursementAmount) || disbursementAmount <= 0) {
+      throw new Error(
+        `Invalid ClaimCureBuddy disbursal amount: ${loan.disbursal_amount}`,
+      );
     }
 
     if (!Number.isInteger(tenureDays) || tenureDays <= 0) {
@@ -93,13 +103,60 @@ async function processClaimCureBuddyDisbursement({
       [String(disbursementUTR).trim(), normalizedLan],
     );
 
-    if (existingRps.length || existingUtr.length) {
-      await connection.rollback();
-      transactionCompleted = true;
-      return {
+    const { month, year } = getMonthYear(effectiveDisbursementDate);
+    const partnerName = "Claim Cure Buddy";
+    const partner = await partnerLimitService.getOrCreatePartner(
+      connection,
+      partnerName,
+    );
+    const [[existingDisbursedAudit]] = await connection.query(
+      `SELECT id
+       FROM partner_limit_audit
+       WHERE partner_id = ?
+         AND booking_lan = ?
+         AND action_type = 'DISBURSED'
+       LIMIT 1`,
+      [partner.partner_id, normalizedLan],
+    );
+
+    let limitResult;
+
+    if (existingDisbursedAudit) {
+      limitResult = {
         skipped: true,
-        reason: existingRps.length ? "RPS_ALREADY_EXISTS" : "DISBURSEMENT_ALREADY_RECORDED",
+        reason: "DISBURSED_LIMIT_ALREADY_UPDATED",
       };
+    } else {
+      const limitCheck =
+        await partnerLimitService.validatePartnerDisbursementLimit(
+          connection,
+          partner.partner_id,
+          disbursementAmount,
+          month,
+          year,
+        );
+
+      if (!limitCheck.valid) {
+        const limitError = new Error("DISBURSEMENT_LIMIT_EXCEEDED");
+        limitError.meta = {
+          partnerName,
+          lan: normalizedLan,
+          assigned: limitCheck.assigned,
+          used: limitCheck.used,
+          remaining: limitCheck.disbursementRemaining,
+          required: disbursementAmount,
+          month,
+          year,
+        };
+        throw limitError;
+      }
+
+      limitResult = await partnerLimitService.updateDisbursedLimit(
+        connection,
+        limitCheck.limitId,
+        disbursementAmount,
+        normalizedLan,
+      );
     }
 
     const disbursementDateOnly = effectiveDisbursementDate
@@ -107,31 +164,35 @@ async function processClaimCureBuddyDisbursement({
       .split("T")[0];
     const dueDate = addUtcDays(effectiveDisbursementDate, tenureDays);
 
-    await connection.query(
-      `INSERT INTO ${RPS_TABLE}
-       (lan, emi_no, due_date, emi, interest, principal,
-        remaining_principal, remaining_interest, remaining_emi,
-        opening, closing, status, dpd)
-       VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Pending', 0)`,
-      [
-        normalizedLan,
-        dueDate,
-        totalRepayment,
-        interest,
-        principal,
-        principal,
-        interest,
-        totalRepayment,
-        principal,
-      ],
-    );
+    if (!existingRps.length) {
+      await connection.query(
+        `INSERT INTO ${RPS_TABLE}
+         (lan, emi_no, due_date, emi, interest, principal,
+          remaining_principal, remaining_interest, remaining_emi,
+          opening, closing, status, dpd)
+         VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'Pending', 0)`,
+        [
+          normalizedLan,
+          dueDate,
+          totalRepayment,
+          interest,
+          principal,
+          principal,
+          interest,
+          totalRepayment,
+          principal,
+        ],
+      );
+    }
 
-    await connection.query(
-      `INSERT INTO ev_disbursement_utr
-       (Disbursement_UTR, Disbursement_Date, LAN)
-       VALUES (?, ?, ?)`,
-      [String(disbursementUTR).trim(), disbursementDateOnly, normalizedLan],
-    );
+    if (!existingUtr.length) {
+      await connection.query(
+        `INSERT INTO ev_disbursement_utr
+         (Disbursement_UTR, Disbursement_Date, LAN)
+         VALUES (?, ?, ?)`,
+        [String(disbursementUTR).trim(), disbursementDateOnly, normalizedLan],
+      );
+    }
 
     await connection.query(
       `UPDATE claim_cure_buddy_loan_summary
@@ -158,9 +219,11 @@ async function processClaimCureBuddyDisbursement({
       principal,
       interest,
       totalRepayment,
+      disbursementAmount,
+      partnerLimitUpdated: !limitResult.skipped,
     });
 
-    return { success: true, dueDate };
+    return { success: true, dueDate, limitResult };
   } catch (error) {
     if (connection && !transactionCompleted) {
       await connection.rollback();
