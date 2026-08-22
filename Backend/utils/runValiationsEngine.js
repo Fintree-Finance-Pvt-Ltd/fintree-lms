@@ -9,6 +9,9 @@ const {
   autoApproveMotionCorpIfAllVerified,
 } = require("../routes/MotionCorp/motionCorpBRE");
 const {
+  autoApproveSampadaIfAllVerified,
+} = require("../routes/Sampada/sampadaBRE");
+const {
   autoApproveSevenFinCorpIfAllVerified,
 } = require("../routes/Seven Fincorp/sevenFincorpBRE");
 const { autoApproveSrbhIfAllVerified } = require("../routes/srbh/srbhBRE");
@@ -617,6 +620,8 @@ exports.universalRunAllValidations = async (lan, options = {}) => {
       table = "loan_booking_helium";
     } else if (lan.startsWith("MC")) {
       table = "loan_booking_motion_corp";
+    } else if (lan.startsWith("SPL")) {
+      table = "loan_booking_sampada";
     } else if (lan.startsWith("SFL")) {
       table = "loan_booking_seven_fincorp";
     } else if (lan.startsWith("SBU")) {
@@ -788,6 +793,14 @@ exports.universalRunAllValidations = async (lan, options = {}) => {
       await autoApproveMotionCorpIfAllVerified(lan);
 
       console.log(`✅ Motion Corp BRE finished for ${lan}`);
+    }
+
+    if (lan.startsWith("SPL")) {
+      console.log(`Running Sampada BRE for ${lan}`);
+
+      await autoApproveSampadaIfAllVerified(lan);
+
+      console.log(`Sampada BRE finished for ${lan}`);
     }
 
     if (lan.startsWith("SFL")) {
