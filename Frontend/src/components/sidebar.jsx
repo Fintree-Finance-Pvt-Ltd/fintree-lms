@@ -224,6 +224,7 @@ const Sidebar = () => {
       'RapidMoney Loans': <Layers size={iconSize} />,
       'Switch My Loans': <Layers size={iconSize} />,
       'Motion Corp': <Users size={iconSize} />,
+      'Sampada': <Users size={iconSize} />,
       'Seven FinCorp': <Users size={iconSize} />,
       'SRBH ':<BarChart3 size={iconSize} />,
       'Bundela': <Users size={iconSize} />,
@@ -243,7 +244,7 @@ const Sidebar = () => {
   const allowedPages = user.pages || [];
 //console.log("User Pages:", allowedPages);
   const grouped = {
-    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/claimcurebuddy', '/motion-corp', '/loan-digit', '/rapidmoney-loans', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh' ,'/sterlion-ubl-loans','/sterlion-mexon-dexon','/claimcurebuddy'].some(prefix => p.path.includes(prefix))),
+    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/claimcurebuddy', '/motion-corp', '/sampada', '/loan-digit', '/rapidmoney-loans', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh' ,'/sterlion-ubl-loans','/sterlion-mexon-dexon','/claimcurebuddy'].some(prefix => p.path.includes(prefix))),
     'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
     'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
@@ -277,6 +278,7 @@ const Sidebar = () => {
     'Helium Loans': allowedPages.filter(p => p.path.includes('/helium-loans')),
     'Clayoo Loans': allowedPages.filter(p => p.path.includes('/clayoo-loans')),
     'Motion Corp': allowedPages.filter(p => p.path.includes('/motion-corp')),
+    'Sampada': allowedPages.filter(p => p.path.includes('/sampada')),
     'Seven FinCorp': allowedPages.filter(p => p.path.includes('/seven-fincorp')),
     'SRBH ': allowedPages.filter(p => p.path.includes('/srbh')),
     'Bundela': allowedPages.filter(p => p.path.includes('/bundela')),

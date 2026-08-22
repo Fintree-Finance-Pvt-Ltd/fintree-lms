@@ -39,6 +39,9 @@ const {
   autoApproveMotionCorpIfAllVerified,
 } = require("./routes/MotionCorp/motionCorpBRE");
 const {
+  autoApproveSampadaIfAllVerified,
+} = require("./routes/Sampada/sampadaBRE");
+const {
   generateForReport,
   generateAllPending,
 } = require("./jobs/cibilPdfService");
@@ -144,6 +147,7 @@ app.use(
   "/api/motion-corp",
   require("./routes/MotionCorp/motionCorpDealerRoutes"),
 );
+app.use("/api/sampada", require("./routes/Sampada/sampadaDealerRoutes"));
 
 app.use(
   "/api/seven-fincorp",
@@ -670,6 +674,22 @@ app.post("/api/runmotioncorpvalidations", async (req, res) => {
     res.json({
       ok: true,
       message: `Motion Corp validations executed successfully for LAN ${lan}`,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/runsampadavalidations", async (req, res) => {
+  try {
+    const { lan } = req.body;
+    if (!lan) {
+      return res.status(400).json({ ok: false, message: "LAN is required" });
+    }
+    await autoApproveSampadaIfAllVerified(lan);
+    res.json({
+      ok: true,
+      message: `Sampada validations executed successfully for LAN ${lan}`,
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

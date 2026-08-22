@@ -267,6 +267,18 @@ import ClaimCureBuddyDisbursedLoans from "./components/ClaimCureBuddy/ClaimCureB
 import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
 import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.jsx";
+import SampadaDealerEntry from "./components/Sampada/SampadaDealerEntry";
+import SampadaDealerLists from "./components/Sampada/SampadaDealerLists";
+import SampadaDealerLoginActions from "./components/Sampada/SampadaDealerLoginActions";
+import SampadaDealerDetails from "./components/Sampada/SampadaDealerDetails";
+import SampadaLoanBooking from "./components/Sampada/SampadaLoanBooking";
+import SampadaAllLoans from "./components/Sampada/sampadaAllLoans";
+import SampadaLoginCases from "./components/Sampada/SampadaLoginCases";
+import SampadaDisburseInitiate from "./components/Sampada/sampadaDisburseInitiate";
+import SampadaDetails from "./components/Sampada/sampadaDetails";
+import SampadaApprovedLoans from "./components/Sampada/SampadaApprovedLoans";
+import SampadaOperationApproval from "./components/Sampada/SampadaOperationApproval";
+import SampadaUpdateData from "./components/Sampada/SampadaUpdateData.jsx";
 
 // Sterlion UBL Imports
 import SterlionUBLLoanBooking from "./components/SterlionUbl/SterlionUBLLoanBooking";
@@ -1816,6 +1828,20 @@ function App() {
               </PermissionRoute>
             }
           />
+
+          {/* Sampada routes mirror the Motion Corp workflow. */}
+          <Route path="/sampada/dealer-entry" element={<PermissionRoute pageName="Sampada Dealer Entry"><SampadaDealerEntry /></PermissionRoute>} />
+          <Route path="/sampada/dealer-lists" element={<PermissionRoute pageName="Sampada Dealer Lists"><SampadaDealerLists /></PermissionRoute>} />
+          <Route path="/sampada/dealer-login-actions" element={<PermissionRoute pageName="Sampada Dealer Credit Approval List"><SampadaDealerLoginActions /></PermissionRoute>} />
+          <Route path="/sampada/dealer-details/:lan" element={<SampadaDealerDetails />} />
+          <Route path="/sampada/loan-booking" element={<PermissionRoute pageName="Sampada Loan Booking"><SampadaLoanBooking /></PermissionRoute>} />
+          <Route path="/sampada/updatedata" element={<PermissionRoute pageName="Sampada Update Data"><SampadaUpdateData /></PermissionRoute>} />
+          <Route path="/sampada/all-loans" element={<PermissionRoute pageName="Sampada Customer All Cases Screen"><SampadaAllLoans /></PermissionRoute>} />
+          <Route path="/sampada/login-cases" element={<PermissionRoute pageName="Sampada Customer Login Cases Screen"><SampadaLoginCases /></PermissionRoute>} />
+          <Route path="/sampada/credit-initiated-cases" element={<PermissionRoute pageName="Sampada Customer Credit Initiated Cases Screen"><SampadaDisburseInitiate /></PermissionRoute>} />
+          <Route path="/sampada/credit-approved-cases" element={<PermissionRoute pageName="Sampada Customer Credit Approved Cases Screen"><SampadaApprovedLoans /></PermissionRoute>} />
+          <Route path="/sampada/operation-approval-cases" element={<PermissionRoute pageName="Sampada Customer Operation Approval Cases Screen"><SampadaOperationApproval /></PermissionRoute>} />
+          <Route path="/sampada/customer-details" element={<PermissionRoute pageName="Sampada Customer Details"><SampadaDetails /></PermissionRoute>} />
 
           <Route
             path="/fundify-loans/manual-entry"
