@@ -2305,6 +2305,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_saswat: true,
     loan_booking_sterlion_ubl: true,
     loan_booking_claim_cure_buddy: true,
+    loan_booking_sampada: true,
   };
 
   if (!allowedTables[table]) {
