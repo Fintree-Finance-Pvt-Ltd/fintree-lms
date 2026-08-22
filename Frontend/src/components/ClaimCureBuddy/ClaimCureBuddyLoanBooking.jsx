@@ -248,7 +248,8 @@ export default function ClaimCureBuddyLoanBooking() {
     "Basic Details",
     "Address",
     "Loan Details",
-    "Co-Applicants",
+    //"Co- Applicant"
+    "Documents",
     "Bank Details",
   ];
 
@@ -262,6 +263,14 @@ export default function ClaimCureBuddyLoanBooking() {
   const [address, setAddress] = useState(blankAddress);
   const [loan, setLoan] = useState(blankLoan);
   const [bank, setBank] = useState(blankBank);
+  // const [documents, setDocuments] = useState({
+  //   customerSelfie: null,
+  //   ownershipProof: null,
+  // });
+  // const [uploadedDocuments, setUploadedDocuments] = useState({
+  //   customerSelfie: false,
+  //   ownershipProof: false,
+  // });
   const [coApplicants, setCoApplicants] = useState([]);
   const [borrowerMobileVerified, setBorrowerMobileVerified] = useState(false);
   const [borrowerPanVerified, setBorrowerPanVerified] = useState(false);
@@ -323,6 +332,29 @@ export default function ClaimCureBuddyLoanBooking() {
     setMessage(text);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // const fetchUploadedDocuments = async (targetLan) => {
+  //   try {
+  //     const response = await api.get(`documents/${targetLan}`);
+
+  //     const rows = Array.isArray(response.data) ? response.data : [];
+
+  //     setUploadedDocuments({
+  //       customerSelfie: rows.some(
+  //         (doc) =>
+  //           String(doc.doc_name || "").trim().toUpperCase() ===
+  //           "CUSTOMER_SELFIE",
+  //       ),
+  //       ownershipProof: rows.some(
+  //         (doc) =>
+  //           String(doc.doc_name || "").trim().toUpperCase() ===
+  //           "OWNERSHIP_PROOF",
+  //       ),
+  //     });
+  //   } catch (error) {
+  //     console.error("Document fetch failed:", error);
+  //   }
+  // };
 
   const mapResumeData = (payload) => {
     const {
@@ -481,6 +513,7 @@ export default function ClaimCureBuddyLoanBooking() {
     try {
       const response = await api.get(`${API}/loan-booking/${targetLan}`);
       mapResumeData(response.data.data);
+      // await fetchUploadedDocuments(targetLan);
       return response.data.data;
     } catch (error) {
       setNotice(`❌ ${getError(error, "Unable to resume booking")}`);
@@ -918,13 +951,17 @@ export default function ClaimCureBuddyLoanBooking() {
         sectionResponse = await saveLoan();
       }
 
-      if (activeSection === 3) {
-        for (const item of coApplicants) {
-          if (!item.saved) {
-            await saveCoApplicant(item.partyNo);
-          }
-        }
-      }
+      // if (activeSection === 3) {
+      //   for (const item of coApplicants) {
+      //     if (!item.saved) {
+      //       await saveCoApplicant(item.partyNo);
+      //     }
+      //   }
+      // }
+      // if (activeSection === 3) {
+      //   await saveDocuments();
+      // }
+
 
       setActiveSection((previous) =>
         Math.min(previous + 1, sections.length - 1),
@@ -1430,6 +1467,80 @@ export default function ClaimCureBuddyLoanBooking() {
       </div>
     </div>
   );
+  // const renderDocuments = () => (
+  //   <>
+  //     <div className="ccb-section-intro">
+  //       <div>
+  //         <h3>Documents</h3>
+  //         <p>
+  //           Upload the required borrower documents before continuing.
+  //         </p>
+  //       </div>
+  //     {/* </div> */}
+{/* 
+      <div className="ccb-grid">
+        <div className="ccb-document-card">
+          <label>
+            <strong>Customer Selfie *</strong>
+          </label>
+
+          <input
+            type="file"
+            accept="image/*" */}
+        //     disabled={loading || uploadedDocuments.customerSelfie}
+        //     onChange={(event) =>
+        //       handleDocumentChange(
+        //         "customerSelfie",
+        //         event.target.files?.[0] || null,
+        //       )
+        //     }
+        //   />
+
+        //   {uploadedDocuments.customerSelfie ? (
+        //     <span className="ccb-document-success">
+        //       Uploaded ✓
+        //     </span>
+        //   ) : documents.customerSelfie ? (
+        //     <span>
+        //       Selected: {documents.customerSelfie.name}
+        //     </span>
+        //   ) : (
+        //     <span>Not uploaded</span>
+        //   )}
+        // </div>
+
+        // <div className="ccb-document-card">
+        //   <label>
+        //     <strong>Ownership Proof *</strong>
+        //   </label>
+
+        //   <input
+        //     type="file"
+        //     accept=".pdf,image/*"
+        //     disabled={loading || uploadedDocuments.ownershipProof}
+        //     onChange={(event) =>
+        //       handleDocumentChange(
+        //         "ownershipProof",
+        //         event.target.files?.[0] || null,
+        //       )
+        //     }
+        //   />
+
+        //   {uploadedDocuments.ownershipProof ? (
+        //     <span className="ccb-document-success">
+        //       Uploaded ✓
+        //     </span>
+        //   ) : documents.ownershipProof ? (
+        //     <span>
+        //       Selected: {documents.ownershipProof.name}
+        //     </span>
+        //   ) : (
+        //     <span>Not uploaded</span>
+        //   )}
+        // </div>
+  //     </div>
+  //   </>
+  // );
 
   const renderCoApplicant = (item) => (
     <div className="ccb-coapp-card" key={item.partyNo}>
@@ -1761,7 +1872,7 @@ export default function ClaimCureBuddyLoanBooking() {
     const agreementDone = ["SIGNED", "COMPLETED", "SIGN_COMPLETE"].includes(
       agreement.status,
     );
-  const enachDone =
+    const enachDone =
       hasUmrn(enach);
     const payout = payoutPresentation(caseStatus, postFlow.payout);
     const enachUrl = enach.shortUrl || enach.paymentUrl || enach.authUrl;
@@ -1918,7 +2029,7 @@ export default function ClaimCureBuddyLoanBooking() {
                         ? "eNACH UMRN Done"
                         : enachWaitingForUmrn
                           ? "Awaiting UMRN"
-                        : "Send eNACH Link"}
+                          : "Send eNACH Link"}
                 </button>
               )}
             </div>
@@ -2082,9 +2193,8 @@ export default function ClaimCureBuddyLoanBooking() {
         {activeSection === 2 && renderLoan()}
         {activeSection === 2 && borrowerPreBreStatus !== "PENDING" && (
           <div
-            className={`ccb-decision ${
-              borrowerPreBreStatus === "APPROVED" ? "approved" : "rejected"
-            }`}
+            className={`ccb-decision ${borrowerPreBreStatus === "APPROVED" ? "approved" : "rejected"
+              }`}
           >
             <h3>Borrower Pre-BRE: {borrowerPreBreStatus}</h3>
 
@@ -2116,11 +2226,15 @@ export default function ClaimCureBuddyLoanBooking() {
           </div>
         )}
         {activeSection === 3 && renderCoApplicants()}
+        {/* {activeSection === 3 && renderDocuments()} */}
         {activeSection === 4 && renderBank()}
 
         {breResult && (
           <div
-            className={`ccb-decision ${caseStatus === "Approved" ? "approved" : "rejected"}`}
+            className={`ccb-decision ${["Approved", "BRE Approved"].includes(caseStatus)
+                ? "approved"
+                : "rejected"
+              }`}
           >
             <h3>BRE Decision: {caseStatus}</h3>
             {breResult.reasons?.length ? (

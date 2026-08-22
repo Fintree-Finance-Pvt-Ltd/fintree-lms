@@ -1,7 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const crypto = require("crypto");
-
+const authenticateUser = require("../../middleware/verifyToken");
 const db = require("../../config/db");
 const { getPanCardDetails } = require("../../services/pancardapiservice");
 const { runBureau } = require("../../services/Bueraupullapiservice");
@@ -4235,6 +4235,68 @@ router.get("/credit-initiated-loans", async (req, res) => {
       success: false,
       message: "Unable to fetch Credit cases",
       error: error.message,
+    });
+  }
+});
+
+
+// Reject a case
+router.patch("/:lan/reject", authenticateUser, async (req, res) => {
+  try {
+    const lan = String(req.params.lan || "").trim().toUpperCase();
+
+    const [rows] = await db.promise().query(
+      `SELECT lan, status
+       FROM loan_booking_claim_cure_buddy
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        message: "Case not found",
+      });
+    }
+
+    const status = String(rows[0].status || "")
+      .trim()
+      .toUpperCase();
+
+    if (!["DRAFT", "BRE APPROVED"].includes(status)) {
+      return res.status(409).json({
+        message: "This case cannot be rejected",
+      });
+    }
+
+    // await db.promise().query(
+    //   `UPDATE loan_booking_claim_cure_buddy
+    //    SET status = 'PARTNER REJECTED',
+    //        updated_at = NOW()
+    //    WHERE lan = ?`,
+    //   [lan],
+    // );
+    await db.promise().query(
+  `UPDATE loan_booking_claim_cure_buddy
+   SET status = 'PARTNER REJECTED',
+       stage = 'Partner Rejected',
+       rejected_at = NOW(),
+       updated_by = ?,
+       updated_at = NOW()
+   WHERE lan = ?`,
+  [actorId(req), lan],
+);
+
+    return res.json({
+      message: "Case rejected successfully",
+      status: "PARTNER REJECTED",
+      lan,
+    });
+  } catch (error) {
+    console.error("CCB reject error:", error);
+
+    return res.status(500).json({
+      message: "Unable to reject case",
     });
   }
 });

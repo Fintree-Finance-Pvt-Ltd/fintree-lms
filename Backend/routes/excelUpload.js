@@ -12597,7 +12597,7 @@ const sterlionUblRequiredFields = [
   "tenureMonths",
   "interestRate",
   "firstName",
-  "lastName",
+  // "lastName",
   "aadhaarNumber",
   "panNumber",
   "mobileNumber",

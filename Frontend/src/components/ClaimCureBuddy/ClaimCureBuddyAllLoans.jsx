@@ -9,6 +9,21 @@ const ClaimCureBuddyAllLoans = () => {
       lanDetailsUrlBuilder={(row) =>
         `/claimcurebuddy/customer-details/${encodeURIComponent(row.lan || "")}`
       }
+        enableReject={true}
+
+      canRejectRow={(row) =>
+        ["DRAFT", "BRE APPROVED"].includes(
+          String(row.status || "")
+            .trim()
+            .toUpperCase()
+        )
+      }
+
+      rejectEndpointBuilder={(row) =>
+        `/claim-cure-buddy/${encodeURIComponent(
+          row.lan || ""
+        )}/reject`
+      }
     />
   );
 };  
