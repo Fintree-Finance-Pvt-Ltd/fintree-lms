@@ -323,9 +323,11 @@ const checkAndApproveCarePayLoan = async (lan) => {
     "CIBIL_REPORT",
     "aadhaar",
     "pan",
-    "bureauJson",
+    "bureauXlsx",
     "explicitConsents",
     "loanAgreement",
+    "selfi",
+    
   ];
 
   if (bankStatementRequired) {
