@@ -803,7 +803,6 @@ for processing and servicing this loan application.
       "Mobile_Number",
       "Email",
       "Pan_Card",
-      "Driving_Licence",
     ],
     1: ["Address_Line_1", "Village", "Pincode", "District", "State"],
     2: [
@@ -831,7 +830,7 @@ for processing and servicing this loan application.
       "Chassis_no",
     ],
     8: [
-      // Insurance details fields to be added here
+      "Driving_Licence",
       "insurance_cost",
       "insurance_company_provider",
       "insurance_policy_number",
@@ -2404,7 +2403,6 @@ for processing and servicing this loan application.
 
             {renderInput("Email", "Email", "email")}
             {renderInput("Pan Card", "Pan_Card")}
-            {renderInput("Driving Licence No", "Driving_Licence")}
           </div>
         )}
 
@@ -2656,6 +2654,7 @@ for processing and servicing this loan application.
 
         {activeSection === 8 && (
           <div className="form-grid">
+            {renderInput("Driving Licence No", "Driving_Licence")}
             {renderInput("Insurance Cost", "insurance_cost", "number")}
             {renderInput(
               "Insurance Company Provider",

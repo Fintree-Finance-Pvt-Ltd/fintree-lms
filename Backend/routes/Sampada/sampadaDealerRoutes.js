@@ -2390,6 +2390,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         e_rikshaw_model = ?,
         chassis_no = ?,
 
+        driving_licence = ?,
         insurance_cost = ?,
         insurance_company_provider = ?,
         insurance_policy_number = ?,
@@ -2441,6 +2442,7 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.E_Rikshaw_model),
         emptyToNull(data.Chassis_no),
 
+        emptyToNull(data.Driving_Licence),
         numberOrNull(data.insurance_cost),
         emptyToNull(data.insurance_company_provider),
         emptyToNull(data.insurance_policy_number),
