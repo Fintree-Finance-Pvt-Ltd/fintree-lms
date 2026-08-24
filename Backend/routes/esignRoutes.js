@@ -560,7 +560,8 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
     /* EXTRACT DATA */
     /* --------------------------------------------------- */
 
-    const orderId = event.order_id;
+    // const orderId = event.order_id;
+    const orderId = String(event.order_id ?? "").trim();
     const orderStatus = event.order_status;
 
     console.log("[DOQFY WEBHOOK] Order ID:", orderId);
