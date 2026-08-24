@@ -543,15 +543,15 @@ export default function ClaimCureBuddyLoanBooking() {
     if (resumeLan) fetchBooking(resumeLan);
   }, [resumeLan]);
 
-  useEffect(() => {
-    if (!lan || !isBreApproved || isDisbursed) return undefined;
+  // useEffect(() => {
+  //   if (!lan || !isBreApproved || isDisbursed) return undefined;
 
-    const intervalId = window.setInterval(() => {
-      fetchBooking(lan, { silent: true });
-    }, 15000);
+  //   const intervalId = window.setInterval(() => {
+  //     fetchBooking(lan, { silent: true });
+  //   }, 15000);
 
-    return () => window.clearInterval(intervalId);
-  }, [lan, isBreApproved, isDisbursed]);
+  //   return () => window.clearInterval(intervalId);
+  // }, [lan, isBreApproved, isDisbursed]);
 
   const updateBasic = (name, value) =>
     setBasic((previous) => ({ ...previous, [name]: value }));

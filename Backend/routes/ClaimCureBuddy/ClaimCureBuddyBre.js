@@ -88,7 +88,7 @@ ntcMaxScore: envNumber(
 
 ntcMaxLoanAmount: envNumber(
   "CCB_NTC_MAX_LOAN_AMOUNT",
-  50000,
+  100000,
 ),
 
   minAge: envNumber(
