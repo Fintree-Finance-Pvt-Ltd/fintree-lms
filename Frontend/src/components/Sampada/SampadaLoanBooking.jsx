@@ -221,7 +221,9 @@ const SampadaLoanBooking = () => {
     try {
       setLoading(true);
 
-      const res = await api.get(`sampada/loan-booking/${resumeLan}`);
+      const res = await api.get(
+        `/sampada/loan-booking/${encodeURIComponent(resumeLan)}`,
+      );
 
       if (!res.data.success) {
         setMessage("❌ Could not resume booking");
@@ -394,26 +396,36 @@ const SampadaLoanBooking = () => {
         facts: screeningChecked
           ? {
               score: bureauScore,
-              enquiries30d: d.motion_enquiries_30d ?? null,
+              enquiries30d:
+                d.motion_enquiries_30d ?? d.motioncorp_enquiries_30d ?? null,
               hasDpd3M:
-                d.motion_dpd_3m_flag == null
+                (d.motion_dpd_3m_flag ?? d.motioncorp_dpd_3m_flag) == null
                   ? null
-                  : Number(d.motion_dpd_3m_flag) === 1,
+                  : Number(
+                      d.motion_dpd_3m_flag ?? d.motioncorp_dpd_3m_flag,
+                    ) === 1,
               hasDpd6M:
-                d.motion_dpd_6m_flag == null
+                (d.motion_dpd_6m_flag ?? d.motioncorp_dpd_6m_flag) == null
                   ? null
-                  : Number(d.motion_dpd_6m_flag) === 1,
-              emiOverdueAmount: d.motion_emi_overdue_amount ?? null,
-              ccOverdueAmount: d.motion_cc_overdue_amount ?? null,
+                  : Number(
+                      d.motion_dpd_6m_flag ?? d.motioncorp_dpd_6m_flag,
+                    ) === 1,
+              emiOverdueAmount:
+                d.motion_emi_overdue_amount ??
+                d.motioncorp_emi_overdue_amount ??
+                null,
+              ccOverdueAmount:
+                d.motion_cc_overdue_amount ??
+                d.motioncorp_cc_overdue_amount ??
+                null,
             }
           : null,
       });
 
       setMessage(`✅ Resumed booking. LAN: ${d.lan}`);
     } catch (err) {
-      setMessage(
-        `❌ ${err.response?.data?.message || "Failed to resume booking"}`,
-      );
+      const apiMessage = err.response?.data?.error || err.response?.data?.message;
+      setMessage(`❌ ${apiMessage || "Failed to resume booking"}`);
     } finally {
       setLoading(false);
     }

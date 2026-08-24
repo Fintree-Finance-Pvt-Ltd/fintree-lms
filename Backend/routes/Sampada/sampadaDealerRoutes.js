@@ -2513,16 +2513,7 @@ router.get("/loan-booking/:lan", async (req, res) => {
 
     const [rows] = await db.promise().query(
       `
-SELECT
-  lb.*,
-
-  lb.fintree_cibil_score AS motion_bureau_score,
-  lb.motioncorp_enquiries_30d AS motion_enquiries_30d,
-  lb.motioncorp_dpd_3m_flag AS motion_dpd_3m_flag,
-  lb.motioncorp_dpd_6m_flag AS motion_dpd_6m_flag,
-  lb.motioncorp_emi_overdue_amount AS motion_emi_overdue_amount,
-  lb.motioncorp_cc_overdue_amount AS motion_cc_overdue_amount
-
+SELECT lb.*
 FROM loan_booking_sampada lb
 WHERE lb.lan = ?
 LIMIT 1
