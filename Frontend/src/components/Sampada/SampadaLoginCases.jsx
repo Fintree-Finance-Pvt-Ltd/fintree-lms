@@ -4,7 +4,7 @@ import LoginCaseScreen from '../LoginCaseScreen'
 const SampadaLoginCases = () => {
   return (
     <LoginCaseScreen
-      apiUrl={`/loan-booking/login-loans?table=loan_booking_sampada&prefix=SPL`}
+      apiUrl="/sampada/login-loans"
       title="Sampada Login Stage Cases"
       tableName="loan_booking_sampada"
       lenderName= "Sampada"

@@ -2543,6 +2543,27 @@ LIMIT 1
   }
 });
 
+router.get("/login-loans", async (_req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `SELECT *
+       FROM loan_booking_sampada
+       WHERE status = 'Login'
+         AND lan LIKE 'SPL%'
+       ORDER BY created_at DESC`,
+    );
+
+    return res.json(rows);
+  } catch (error) {
+    console.error("Fetch Sampada login loans error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Sampada login cases",
+      error: error.message,
+    });
+  }
+});
+
 // router.post("/send-otp", async (req, res) => {
 //   try {
 //     console.log("Incoming body:", req.body);
