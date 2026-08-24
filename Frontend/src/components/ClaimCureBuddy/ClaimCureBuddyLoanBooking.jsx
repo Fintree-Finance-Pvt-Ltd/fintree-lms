@@ -248,8 +248,8 @@ export default function ClaimCureBuddyLoanBooking() {
     "Basic Details",
     "Address",
     "Loan Details",
-    //"Co- Applicant"
-    "Documents",
+    "Co- Applicant",
+    // "Documents"
     "Bank Details",
   ];
 
@@ -563,6 +563,28 @@ export default function ClaimCureBuddyLoanBooking() {
   };
   const updateBank = (name, value) =>
     setBank((previous) => ({ ...previous, [name]: value }));
+  const saveBankDetailsOnly = async () => {
+  try {
+    setLoading(true);
+
+    await api.patch(
+      `${API}/loan-booking/${lan}/update-bank-details`,
+      bank
+    );
+
+    setNotice("✅ Bank details updated successfully");
+
+  await fetchBooking(lan);
+setActiveSection(4);
+
+  } catch(error){
+    setNotice(
+      `❌ ${getError(error,"Bank update failed")}`
+    );
+  } finally {
+    setLoading(false);
+  }
+};
   const updateCoApplicant = (partyNo, name, value) => {
     setCoApplicants((previous) =>
       previous.map((item) =>
@@ -1302,7 +1324,6 @@ export default function ClaimCureBuddyLoanBooking() {
         type="email"
         value={basic.email}
         onChange={(value) => updateBasic("email", value)}
-        required
       />
     </div>
   );
@@ -1859,8 +1880,18 @@ export default function ClaimCureBuddyLoanBooking() {
           bureau score, DPD and 30-day enquiries.
         </span>
       </div>
+       <button
+  type="button"
+  className="ccb-primary"
+  disabled={loading || !lan}
+  onClick={saveBankDetailsOnly}
+>
+  Save Bank Details
+</button>
     </>
+    
   );
+
 
   const renderPostBreFlow = () => {
     const enach = postFlow.enach || { status: "NOT_STARTED" };
