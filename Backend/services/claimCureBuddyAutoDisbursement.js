@@ -222,7 +222,7 @@ async function triggerClaimCureBuddyAutoDisbursement({
     await connection.query(
       `UPDATE ${BOOKING_TABLE}
        SET
-         status = 'Disburse initiate',
+         status = 'Approved',
          stage = 'Disbursement Initiated',
          updated_by = COALESCE(?, updated_by),
          updated_at = NOW()
