@@ -468,6 +468,13 @@ function decodeDoqfyPdf(orderDocument) {
   return pdfBuffer;
 }
 
+function normalizeDoqfyEsignStatus(value) {
+  return String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+}
+
 router.post("/v1/digio-esign-webhook", async (req, res) => {
   console.log("[Webhook] Received Digio eSign webhook");
 
@@ -614,6 +621,12 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
     const signatory = event.signatory_data?.[0];
 
     const signStatus = signatory?.status || "";
+    const normalizedOrderStatus = normalizeDoqfyEsignStatus(orderStatus);
+    const normalizedSignStatus = normalizeDoqfyEsignStatus(signStatus);
+    const statusCandidates = [
+      normalizedSignStatus,
+      normalizedOrderStatus,
+    ].filter(Boolean);
 
     console.log("[DOQFY WEBHOOK] Signatory Status:", signStatus);
 
@@ -627,18 +640,27 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
     */
 
     if (
-  orderStatus === "Completed" ||
-  orderStatus === "COMPLETED" ||
-  signStatus === "SIGNED" ||
-  signStatus === "COMPLETED"
-) {
+      statusCandidates.some((status) =>
+        ["COMPLETED", "SIGNED", "SIGN_COMPLETE"].includes(status),
+      )
+    ) {
       finalStatus = "SIGNED";
-    } else if (signStatus === "REJECTED") {
+    } else if (statusCandidates.includes("REJECTED")) {
       finalStatus = "REJECTED";
-    } else if (signStatus === "EXPIRED") {
+    } else if (statusCandidates.includes("EXPIRED")) {
       finalStatus = "EXPIRED";
-    } else {
-      finalStatus = orderStatus;
+    } else if (statusCandidates.includes("ERROR")) {
+      finalStatus = "ERROR";
+    } else if (statusCandidates.includes("IN_PROGRESS")) {
+      finalStatus = "IN_PROGRESS";
+    } else if (
+      statusCandidates.some((status) =>
+        ["REQUESTED", "PENDING", "INITIATED", "NOT_INITIATED"].includes(
+          status,
+        ),
+      )
+    ) {
+      finalStatus = "INITIATED";
     }
 
     console.log("[DOQFY WEBHOOK] Final Status:", finalStatus);

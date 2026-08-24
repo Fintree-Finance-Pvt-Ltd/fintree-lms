@@ -10,7 +10,6 @@ const upper = (value) => clean(value).toUpperCase();
 const READY_LOAN_STATUSES = new Set([
   "BRE APPROVED",
   "APPROVED",
-  "DISBURSE INITIATE",
 ]);
 
 const COMPLETED_ESIGN_STATUSES = new Set([
