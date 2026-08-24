@@ -728,7 +728,7 @@ const evaluateClaimCureBuddyApplicant = ({
     reasons.push(
       `${label}_AGE_BELOW_${POLICY.minAge}`,
     );
-  } else if (age > POLICY.maxAge) {
+  } else if (age >= POLICY.maxAge) {
     reasons.push(
       `${label}_AGE_ABOVE_${POLICY.maxAge}`,
     );
