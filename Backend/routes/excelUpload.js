@@ -12573,7 +12573,7 @@ const sterlionUblExpectedHeaders = [
   "interestRate",
   "processingFee",
   "firstName",
-  "lastName",
+  //"lastName",
   "aadhaarNumber",
   "panNumber",
   "mobileNumber",

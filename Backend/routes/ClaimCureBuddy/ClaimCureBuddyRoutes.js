@@ -4301,4 +4301,116 @@ router.patch("/:lan/reject", authenticateUser, async (req, res) => {
   }
 });
 
+// Update Bank Details 
+router.patch("/loan-booking/:lan/update-bank-details", async (req, res) => {
+  const connection = await db.promise().getConnection();
+
+  try {
+    const { lan } = req.params;
+
+    const {
+      accountHolderName,
+      bankName,
+      accountNumber,
+      ifscCode,
+      branchAddress,
+    } = req.body;
+
+    await connection.query(
+      `UPDATE loan_booking_claim_cure_buddy
+       SET
+        customer_name_as_per_bank = ?,
+        customer_bank_name = ?,
+        customer_account_number = ?,
+        bank_ifsc_code = ?,
+        bank_branch_address = ?,
+        updated_by = ?,
+        updated_at = NOW()
+       WHERE lan = ?`,
+      [
+        clean(accountHolderName),
+        clean(bankName),
+        clean(accountNumber),
+        clean(ifscCode),
+        clean(branchAddress),
+        actorId(req),
+        lan,
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: "Bank details updated successfully",
+    });
+
+  } catch(error) {
+    return errorResponse(
+      res,
+      error,
+      "Unable to update bank details"
+    );
+  } finally {
+    connection.release();
+  }
+});
+
+// generic  pan api route 
+
+router.post("/loan-booking/:lan/generate-pan-document", async(req,res)=>{
+  try {
+    const {lan} = req.params;
+
+    const [kyc] = await db.query(
+      `
+      SELECT *
+      FROM kyc_verifications
+      WHERE lan = ?
+      AND verification_type = 'PAN'
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+    if(!kyc.length){
+      return res.status(404).json({
+        message:"PAN verification not found"
+      });
+    }
+
+    const filePath = await generatePanPdf(kyc[0]);
+
+    await db.query(
+      `
+      INSERT INTO documents
+      (
+        lan,
+        document_type,
+        file_path,
+        uploaded_by
+      )
+      VALUES(?,?,?,?)
+      `,
+      [
+        lan,
+        "PAN_VERIFICATION_RESPONSE",
+        filePath,
+        "SYSTEM"
+      ]
+    );
+
+    res.json({
+      success:true,
+      message:"PAN document generated"
+    });
+
+  } catch(error) {
+    console.error("PAN document generation failed:", error);
+
+    res.status(500).json({
+      message:"Unable to generate PAN document"
+    });
+  }
+});
+
 module.exports = router;
