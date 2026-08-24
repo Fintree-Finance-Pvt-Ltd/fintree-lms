@@ -356,7 +356,8 @@ export default function ClaimCureBuddyLoanBooking() {
   //   }
   // };
 
-  const mapResumeData = (payload) => {
+  // const mapResumeData = (payload) => {
+    const mapResumeData = (payload, keepCurrentSection = false) => {
     const {
       loan: saved,
       coApplicants: savedCoApplicants = [],
@@ -376,7 +377,10 @@ export default function ClaimCureBuddyLoanBooking() {
       Disbursed: 4,
     };
 
-    setActiveSection(sectionByStage[saved.stage] ?? 0);
+    // setActiveSection(sectionByStage[saved.stage] ?? 0);
+    if (!keepCurrentSection) {
+  setActiveSection(sectionByStage[saved.stage] ?? 0);
+}
     const statusMap = {};
     savedKyc.forEach((row) => {
       statusMap[kycKey(row.applicant_type, Number(row.party_no))] = row;
@@ -512,7 +516,8 @@ export default function ClaimCureBuddyLoanBooking() {
     if (!silent) setLoading(true);
     try {
       const response = await api.get(`${API}/loan-booking/${targetLan}`);
-      mapResumeData(response.data.data);
+      // mapResumeData(response.data.data);
+      mapResumeData(response.data.data, silent);
       // await fetchUploadedDocuments(targetLan);
       return response.data.data;
     } catch (error) {
@@ -1881,7 +1886,7 @@ setActiveSection(4);
         </span>
       </div>
        <button
-  type="button"
+  type="button" 
   className="ccb-primary"
   disabled={loading || !lan}
   onClick={saveBankDetailsOnly}
