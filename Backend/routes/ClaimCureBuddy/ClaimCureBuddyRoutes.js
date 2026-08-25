@@ -3334,10 +3334,18 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
          document_id,
          status,
          umrn,
-         auth_url
+         auth_url,
+         account_no,
+         ifsc
        FROM enach_mandates
        WHERE lan = ?
        ORDER BY
+         CASE
+           WHEN TRIM(COALESCE(account_no, '')) = ?
+            AND UPPER(TRIM(COALESCE(ifsc, ''))) = ?
+           THEN 0
+           ELSE 1
+         END,
          CASE
            WHEN umrn IS NOT NULL
             AND TRIM(umrn) <> ''
@@ -3359,7 +3367,11 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
          END,
          id DESC
        LIMIT 1`,
-      [loan.lan],
+      [
+        loan.lan,
+        clean(loan.customer_account_number),
+        upper(loan.bank_ifsc_code),
+      ],
     );
 
     const existingStatus = upper(existingMandate?.status);
@@ -3371,9 +3383,14 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
       "EXPIRED",
       "REJECTED",
     ]);
+    const mandateBankDetailsMatch =
+      clean(existingMandate?.account_no) ===
+        clean(loan.customer_account_number) &&
+      upper(existingMandate?.ifsc) === upper(loan.bank_ifsc_code);
 
     if (
       existingMandate &&
+      mandateBankDetailsMatch &&
       !retryableMandateStatuses.has(existingStatus) &&
       (clean(existingMandate.umrn) || normalizeNachAuthUrl(existingMandate.auth_url))
     ) {
