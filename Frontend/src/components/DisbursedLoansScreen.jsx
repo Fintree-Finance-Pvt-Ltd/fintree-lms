@@ -237,6 +237,7 @@ const DisbursedLoansTable = ({
   const [totalRows, setTotalRows] = useState(0);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterDate, setFilterDate] = useState("");
   const navigate = useNavigate();
   const abortRef = useRef(null);
  
@@ -245,7 +246,7 @@ const DisbursedLoansTable = ({
     return () => clearTimeout(t);
   }, [search]);
  
-  useEffect(() => { setPage(1); }, [debouncedSearch, pageSize]);
+  useEffect(() => { setPage(1); }, [debouncedSearch,filterDate,  pageSize]);
  
   const fetchPage = useCallback(() => {
     if (abortRef.current) abortRef.current.abort();
@@ -277,7 +278,7 @@ const DisbursedLoansTable = ({
         setErr("Failed to fetch data.");
       })
       .finally(() => setLoading(false));
-  }, [apiEndpoint, page, pageSize, debouncedSearch]);
+  }, [apiEndpoint, page, pageSize, debouncedSearch ]);
  
   useEffect(() => { fetchPage(); }, [fetchPage]);
  
@@ -295,8 +296,24 @@ const DisbursedLoansTable = ({
     const n = Number(r?.[amountField] ?? r?.loan_amount);
     return Number.isFinite(n) ? nf.format(n) : "—";
   };
- 
-  const columns = [
+    
+    const filteredRows = useMemo(() => {
+      if (!filterDate) {
+        return rows;
+      }
+    
+      return rows.filter((row) => {
+        if (!row?.updated_at) {
+          return false;
+        }
+      
+        const updatedDate = String(row.updated_at).substring(0, 10);
+      
+        return updatedDate === filterDate;
+      });
+    }, [rows, filterDate]);
+    
+      const columns = [
     {
       key: "customer_name", header: "Customer Details", sortable: true,
       render: (r) => (
@@ -374,12 +391,37 @@ const DisbursedLoansTable = ({
  
         <div className="search-container-modern">
           <input
-            className="modern-input"
+            className="modern-input search-input"
             placeholder="Search by LAN, name..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <kbd className="search-kbd">⌘ K</kbd>
+
+        <div className="date-filter-wrapper">
+          <input
+            type="date"
+            className="modern-input date-filter-input"
+            value={filterDate}
+            onChange={(e) => {
+              setFilterDate(e.target.value);
+              setPage(1);
+            }}
+          />
+
+          {filterDate && (
+            <button
+              type="button"
+              className="clear-date-btn"
+              onClick={() => {
+                setFilterDate("");
+                setPage(1);
+              }}
+              title="Clear date"
+            >
+              ×
+            </button>
+          )}
+        </div>
         </div>
       </div>
  
@@ -388,7 +430,8 @@ const DisbursedLoansTable = ({
       <div className="disbursed-table-card">
         <DataTable
         title={title}
-          rows={rows}
+          // rows={rows}
+          rows={filteredRows}
           columns={columns}
           globalSearchKeys={[]}
           initialSort={{ key: "disbursement_date", dir: "desc" }}
@@ -396,7 +439,8 @@ const DisbursedLoansTable = ({
           initialPageSize={pageSize}
           pageSizeOptions={[10, 25, 50, 100]}
           serverPagination={true}
-          totalRows={totalRows}
+          // totalRows={totalRows}
+          totalRows={filterDate ? filteredRows.length : totalRows}
           currentPage={page}
           onPageChange={setPage}
           onPageSizeChange={(n) => setPageSize(n)}
