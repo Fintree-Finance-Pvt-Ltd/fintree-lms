@@ -18,6 +18,10 @@ const RPS_POS_SOURCES = [
     tableName: "manual_rps_motioncorp",
   },
   {
+    partnerName: "Sampada",
+    tableName: "manual_rps_sampada",
+  },
+  {
     partnerName: "Adikosh",
     tableName: "manual_rps_adikosh",
   },

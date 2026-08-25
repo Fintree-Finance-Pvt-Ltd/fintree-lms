@@ -561,6 +561,7 @@ function toClientError(err) {
 
 function getPartnerNameByLan(lan, lender, product) {
   if (lan.startsWith("MCL")) return "Motion Corp";
+  if (lan.startsWith("SPL")) return "Sampada";
   if (lan.startsWith("GQN")) return "GQ NON FSF";
   if (lan.startsWith("GQF")) return "GQ FSF";
   if (lan.startsWith("ADK")) return "Adikosh";
@@ -862,6 +863,12 @@ else if (lan.startsWith("SFL")) {
      WHERE lan = ?`,
             [lan],
           );
+        } else if (lan.startsWith("SPL")) {
+          [loanRes] = await db.promise().query(
+            `SELECT loan_amount, interest_rate, loan_tenure, product, lender
+             FROM loan_booking_sampada WHERE lan = ?`,
+            [lan],
+          );
         } else if (lan.startsWith("CLYO")) {
           [loanRes] = await db.promise().query(
             `SELECT final_limit AS loan_amount, interest_rate, loan_tenure, product, lender 
@@ -1105,6 +1112,11 @@ else if (lan.startsWith("SFL")) {
           } else if (lan.startsWith("MCL")) {
             await conn.query(
               `UPDATE loan_booking_motion_corp SET status = 'Disbursed' WHERE lan = ?`,
+              [lan],
+            );
+          } else if (lan.startsWith("SPL")) {
+            await conn.query(
+              `UPDATE loan_booking_sampada SET status = 'Disbursed' WHERE lan = ?`,
               [lan],
             );
             } else if (lan.startsWith("SFL")) {

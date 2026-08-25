@@ -585,7 +585,7 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
 
     const [rows] = await db.promise().query(
       `
-      SELECT lan, document_type
+      SELECT lan, document_type, raw_response
       FROM esign_documents
       WHERE document_id = ?
       `,
@@ -599,6 +599,30 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
     }
 
     const { lan, document_type } = rows[0];
+
+    let previousRawResponse = {};
+
+    try {
+      const storedResponse = rows[0].raw_response;
+      previousRawResponse =
+        typeof storedResponse === "string"
+          ? JSON.parse(storedResponse)
+          : storedResponse || {};
+    } catch (error) {
+      console.warn(
+        "[DOQFY WEBHOOK] Could not parse previous raw_response:",
+        error.message,
+      );
+    }
+
+    // Keep the order response and sign_url captured during initiation. The
+    // webhook must add status/PDF data without deleting the signing link.
+    const mergedRawResponse = {
+      ...(previousRawResponse && typeof previousRawResponse === "object"
+        ? previousRawResponse
+        : {}),
+      webhook_response: event,
+    };
 
     console.log("[DOQFY WEBHOOK] LAN:", lan);
     console.log("[DOQFY WEBHOOK] Document Type:", document_type);
@@ -677,7 +701,7 @@ router.post("/v1/doqfy-esign-webhook", async (req, res) => {
         raw_response = ?
       WHERE document_id = ?
       `,
-      [finalStatus, JSON.stringify(event), orderId],
+      [finalStatus, JSON.stringify(mergedRawResponse), orderId],
     );
 
     console.log("[DOQFY WEBHOOK] esign_documents updated");
@@ -757,7 +781,7 @@ if (
       `,
       [
         savePath,
-        JSON.stringify(event),
+        JSON.stringify(mergedRawResponse),
         orderId
       ]
     );

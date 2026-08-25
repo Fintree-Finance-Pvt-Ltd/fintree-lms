@@ -3318,6 +3318,7 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("FINS")) loanTable = "loan_booking_finso";
   else if (lan.startsWith("CIRF")) loanTable = "loan_booking_circle_pe";
   else if (lan.startsWith("MCL")) loanTable = "loan_booking_motion_corp";
+  else if (lan.startsWith("SPL")) loanTable = "loan_booking_sampada";
   else if (lan.startsWith("SFL")) loanTable = "loan_booking_seven_fincorp";
   else if (lan.startsWith("BUN")) loanTable = "loan_booking_bundela";
   else if (lan.startsWith("LDF")) loanTable = "loan_booking_loan_digit";

@@ -2113,8 +2113,16 @@ const cleanDoqfyAgreementUrl = (value) => {
     return null;
   }
 
+  const candidate = value.trim();
+
+  // Recursive response traversal also encounters names, statuses, IDs, and
+  // messages. They are not malformed URLs and should be ignored silently.
+  if (!/^https?:\/\//i.test(candidate)) {
+    return null;
+  }
+
   try {
-    const parsedUrl = new URL(value.trim());
+    const parsedUrl = new URL(candidate);
 
     const hostname = parsedUrl.hostname.toLowerCase();
     const pathname = parsedUrl.pathname.toLowerCase();

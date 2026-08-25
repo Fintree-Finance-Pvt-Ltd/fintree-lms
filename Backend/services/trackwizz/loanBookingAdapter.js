@@ -482,6 +482,32 @@ const PARTNERS = {
       },
     },
 
+    sampada: {
+      table: "loan_booking_sampada",
+      primaryKey: "id",
+      codeFields: ["lan", "partner_loan_id"],
+      columns: {
+        lan: "lan",
+        name: "customer_name",
+        fatherName: "father_name",
+        pan: "pan_number",
+        mobile: "mobile_number",
+        email: "email",
+        dob: "dob",
+        gender: "gender",
+        createdAt: "created_at",
+        applicationRefNumber: "partner_loan_id",
+      },
+      amlColumns: {
+        status: "aml_status",
+        score: "aml_score",
+        totalMatches: "aml_total_matches",
+        reason: "aml_reason",
+        apiResponse: "aml_api_response",
+        checkedAt: "aml_checked_at",
+      },
+    },
+
     fintreepl: {
       table: "pl_partner_applications",
       primaryKey: "id",

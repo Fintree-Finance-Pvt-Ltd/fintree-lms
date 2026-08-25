@@ -9924,8 +9924,13 @@ const generateRepaymentScheduleMotionCorp = async (
   interestRate,
   tenure,
   disbursementDate,
+  product,
+  lender,
 ) => {
   console.log("inside MotionCorp RPS generate final");
+  const isSampada = lender === "Sampada";
+  const rpsTable = isSampada ? "manual_rps_sampada" : "manual_rps_motioncorp";
+  const bookingTable = isSampada ? "loan_booking_sampada" : "loan_booking_motion_corp";
 
   // =====================================================
   // HELPERS
@@ -10271,7 +10276,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
   await conn.query(
     `
-    INSERT INTO manual_rps_motioncorp
+    INSERT INTO ${rpsTable}
     (
       lan,
       due_date,
@@ -10297,7 +10302,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
   await conn.query(
     `
-    UPDATE loan_booking_motion_corp
+    UPDATE ${bookingTable}
     SET
       emi_amount = ?,
       reducing_roi = ?,
@@ -11301,7 +11306,7 @@ console.log("checking data", {
       product,
       lender,
     );
-  }else if (lender === "Motion Corp" && product === "Monthly Loan") {
+  }else if ((lender === "Motion Corp" || lender === "Sampada") && product === "Monthly Loan") {
 
     console.log("inside rps genration");
 

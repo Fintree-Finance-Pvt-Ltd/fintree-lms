@@ -217,6 +217,7 @@ const tables = [
   "manual_rps_zypay",
   "manual_rps_clayoo",
   "manual_rps_motioncorp",
+  "manual_rps_sampada",
   "manual_rps_loan_digit",
   "manual_rps_circle_pe_houser",
   "manual_rps_switch_my_loan",

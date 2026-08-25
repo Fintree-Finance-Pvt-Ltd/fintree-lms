@@ -53,6 +53,10 @@ function isMotionCorpLan(lan = "") {
   return s.startsWith("MCL");
 }
 
+function isSampadaLan(lan = "") {
+  return normalizeLan(lan).startsWith("SPL");
+}
+
 
 function isClaimCureBuddyLan(lan = "") {
   const s = normalizeLan(lan);
@@ -117,6 +121,15 @@ const CLAIM_CURE_BUDDY_CONTEXT = {
 };
 
 function getLoanContext(lan = "") {
+  if (isSampadaLan(lan)) {
+    return {
+      ...getLoanContext("MCL"),
+      type: "SAMPADA",
+      summaryTable: "sampada_loan_summary",
+      rpsTable: "manual_rps_sampada",
+      bookingTable: "loan_booking_sampada",
+    };
+  }
   if (isCustomerLan(lan)) {
     return {
       type: "CUSTOMER",
@@ -259,6 +272,7 @@ module.exports = {
   isClayyoLan,
   isHeliumLan,
   isMotionCorpLan,
+  isSampadaLan,
   isClaimCureBuddyLan,
   CLAIM_CURE_BUDDY_CONTEXT,
   getLoanContext,

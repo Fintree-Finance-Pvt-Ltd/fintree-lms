@@ -25,6 +25,8 @@ const UpdateUmrn = () => {
     }
     else if (form.lan.startsWith("MC")) {
       table = "loan_booking_motion_corp";
+    } else if (lan.startsWith("SPL")) {
+      table = "loan_booking_sampada";
     }
     else if (form.lan.startsWith("CL")) {
       table = "loan_booking_clayyo";

@@ -336,7 +336,9 @@ const LoginActionScreen = ({
           if (isLoanDigit) {
             navigate(`/loan-digit/customer-details?lan=${r.lan}`);
           } else if (/^MC/i.test(r?.lan || "")) {
-            navigate(`/motion-corp/customer-details?lan=${r.lan}`);
+            navigate(r.lan?.startsWith("SPL")
+              ? `/sampada/customer-details?lan=${r.lan}`
+              : `/motion-corp/customer-details?lan=${r.lan}`);
           } else if (isFundify) {
             navigate(`/fundify/customer-details/${r.lan}`);
           } else if (/^FINS/i.test(r?.lan || "")) {
@@ -389,7 +391,9 @@ const LoginActionScreen = ({
             if (/^LDF/i.test(r.lan)) {
               navigate(`/loan-digit/customer-details?lan=${r.lan}`);
             } else if (/^MC/i.test(r.lan)) {
-              navigate(`/motion-corp/customer-details?lan=${r.lan}`);
+              navigate(r.lan?.startsWith("SPL")
+                ? `/sampada/customer-details?lan=${r.lan}`
+                : `/motion-corp/customer-details?lan=${r.lan}`);
             } else if (/^FUN/i.test(r.lan)) {
               navigate(`/fundify/customer-details/${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {

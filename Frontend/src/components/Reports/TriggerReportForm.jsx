@@ -509,6 +509,7 @@ const productOptions = [
   { label: "CLAYOO", value: "CLAYOO" },
   { label: "LOAN DIGIT", value: "LOAN-DIGIT" },
   { label: "Motion Corp", value: "Motion Corp" }, 
+  { label: "Sampada", value: "Sampada" },
   { label: "Finso", value: "Finso" },
   { label: "RAPID-MONEY", value: "RAPID-MONEY" },
   {label: "SRBH", value: "SRBH"},

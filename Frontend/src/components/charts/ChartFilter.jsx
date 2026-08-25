@@ -33,6 +33,7 @@ const ChartFilter = ({ onFilterChange }) => {
           <option value="Clayoo">Clayoo</option>
           <option value="Loan Digit">Loan Digit</option>
           <option value="Motion Corp">Motion Corp</option>
+          <option value="Sampada">Sampada</option>
           <option value="Seven Fincorp">Seven Fincorp</option>
           <option value="Bundela">Bundela </option>
           <option value="Zebrs">Zebrs </option>

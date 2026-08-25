@@ -2018,7 +2018,10 @@ const ClayooLimitEntry = ({
   const handleAgreementEsign = async (row) => {
     const lan = row.lan;
 
-    if (row.agreement_esign_status === "SIGNED") {
+    if (
+      String(row.agreement_esign_status || "").trim().toUpperCase() ===
+      "SIGNED"
+    ) {
       alert("Agreement already signed");
       return;
     }
@@ -2688,20 +2691,24 @@ const ClayooLimitEntry = ({
       header: "Agreement & Mandate",
       render: (r) => {
         const opsApproved = isOpsApproved(r);
+        const agreementStatus = String(r.agreement_esign_status || "PENDING")
+          .trim()
+          .toUpperCase();
+        const bankStatus = String(r.bank_status || "PENDING")
+          .trim()
+          .toUpperCase();
 
         const disableBank =
           !opsApproved ||
-          r.bank_status === "MANDATE_INITIATED" ||
-          r.bank_status === "VERIFIED" ||
-          r.bank_status === "MANDATE_CREATED";
+          bankStatus === "MANDATE_INITIATED" ||
+          bankStatus === "VERIFIED" ||
+          bankStatus === "MANDATE_CREATED";
 
         const isAgreementDisabled =
           !opsApproved ||
           actionLan === r.lan ||
-          r.agreement_esign_status === "INITIATED" ||
-          r.agreement_esign_status === "SIGNED";
-
-        const bankStatus = (r.bank_status || "PENDING").toUpperCase();
+          agreementStatus === "INITIATED" ||
+          agreementStatus === "SIGNED";
 
         const bankChipMap = {
           PENDING: {
@@ -2753,9 +2760,9 @@ const ClayooLimitEntry = ({
             >
               {actionLan === r.lan
                 ? "Processing..."
-                : r.agreement_esign_status === "INITIATED"
+                : agreementStatus === "INITIATED"
                   ? "Pending Signature…"
-                  : r.agreement_esign_status === "SIGNED"
+                  : agreementStatus === "SIGNED"
                     ? "Already Signed"
                     : "Send Agreement eSign"}
             </button>

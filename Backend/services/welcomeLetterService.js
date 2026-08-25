@@ -122,6 +122,12 @@ const PARTNER_ROUTES = [
     rpsTable: "manual_rps_motioncorp",
     tenureUnit: "months",
   },
+  {
+    prefix: "SPL",
+    table: "loan_booking_sampada",
+    rpsTable: "manual_rps_sampada",
+    tenureUnit: "months",
+  },
 
   /*
    * Supports LANs beginning with MC where MCL is not used.

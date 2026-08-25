@@ -1950,13 +1950,14 @@ async function recalculateLoanUtilization(conn, loanBookingId) {
    */
   const utilizedCents = totalDisbursementCents - totalPrincipalAllocatedCents;
 
-  const unutilizedCents = loanLimitCents - utilizedCents;
+  // Historical imports may already be above the sanctioned limit. Keep the
+  // true utilization visible while preventing the available limit from going
+  // negative. New invoice uploads remain blocked by the pre-insert limit check.
+  const unutilizedCents = Math.max(loanLimitCents - utilizedCents, 0);
 
   if (
     utilizedCents < 0 ||
-    utilizedCents > loanLimitCents ||
-    unutilizedCents < 0 ||
-    unutilizedCents > loanLimitCents
+    unutilizedCents < 0
   ) {
     throw new RowImportError(
       "loan_limit",
@@ -2003,6 +2004,39 @@ async function recalculateLoanUtilization(conn, loanBookingId) {
 
     unutilizedAmount: centsToAmount(unutilizedCents),
   };
+}
+
+async function reconcileSterlionMexonDexonUtilizationByLan(lan) {
+  let conn;
+
+  try {
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    const [loanRows] = await conn.query(
+      `SELECT id
+       FROM loan_booking_sterlion_mexon_dexon
+       WHERE lan = ?
+       LIMIT 1
+       FOR UPDATE`,
+      [lan],
+    );
+
+    if (loanRows.length > 0) {
+      await recalculateLoanUtilization(conn, loanRows[0].id);
+    }
+
+    await conn.commit();
+  } catch (error) {
+    if (conn) {
+      await conn.rollback();
+    }
+    throw error;
+  } finally {
+    if (conn) {
+      conn.release();
+    }
+  }
 }
 
 async function calculateOpeningCarryPoolExact(
@@ -4852,6 +4886,10 @@ router.get(
           message: "LAN is required.",
         });
       }
+
+      // Self-heal stored limit figures before returning this page. Utilized is
+      // active invoice principal; principal collections restore availability.
+      await reconcileSterlionMexonDexonUtilizationByLan(lan);
 
       const [loanRows] = await db.promise().query(
         `
