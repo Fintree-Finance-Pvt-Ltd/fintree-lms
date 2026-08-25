@@ -158,6 +158,8 @@ function resolveProcedure(rawReportId, rawLender) {
                                                   ? "sp_due_collection_all_report_sterlion_ubl"
                                                   : lender === "seven fincorp"
                                                     ? "sp_due_collection_all_report_seven_fincorp"
+                                                 : lender === "claimcurebuddy"
+                                                    ? "sp_due_collection_all_report_claim_cure_buddy"
                                                   : "sp_due_collection_all_report",
 
 
