@@ -70,6 +70,7 @@ const enachPresentation = (rawStatus) => {
     CANCELED: { label: "Cancelled", type: "danger" },
     EXPIRED: { label: "Expired", type: "danger" },
     REJECTED: { label: "Rejected", type: "danger" },
+    BANK_DETAILS_CHANGED: { label: "Bank Changed", type: "warning" },
     UNKNOWN: { label: "Check Required", type: "warning" },
   };
   return { status, ...(map[status] || map.NOT_STARTED) };
@@ -168,7 +169,14 @@ export default function ClaimCureBuddyApprovedCases() {
   const openEnachModal = (row) => {
     const enach = enachPresentation(row.enach_status);
     const existingUrl = row.enach_short_url || row.enach_payment_url;
-    const failedStatuses = ["FAILED", "CANCELLED", "CANCELED", "EXPIRED", "REJECTED"];
+    const failedStatuses = [
+      "FAILED",
+      "CANCELLED",
+      "CANCELED",
+      "EXPIRED",
+      "REJECTED",
+      "BANK_DETAILS_CHANGED",
+    ];
 
     if (existingUrl && !hasUmrn(row) && !failedStatuses.includes(enach.status)) {
       window.open(existingUrl, "_blank", "noopener,noreferrer");

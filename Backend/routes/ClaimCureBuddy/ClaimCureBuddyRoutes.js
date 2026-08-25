@@ -3334,10 +3334,18 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
          document_id,
          status,
          umrn,
-         auth_url
+         auth_url,
+         account_no,
+         ifsc
        FROM enach_mandates
        WHERE lan = ?
        ORDER BY
+         CASE
+           WHEN TRIM(COALESCE(account_no, '')) = ?
+            AND UPPER(TRIM(COALESCE(ifsc, ''))) = ?
+           THEN 0
+           ELSE 1
+         END,
          CASE
            WHEN umrn IS NOT NULL
             AND TRIM(umrn) <> ''
@@ -3359,7 +3367,11 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
          END,
          id DESC
        LIMIT 1`,
-      [loan.lan],
+      [
+        loan.lan,
+        clean(loan.customer_account_number),
+        upper(loan.bank_ifsc_code),
+      ],
     );
 
     const existingStatus = upper(existingMandate?.status);
@@ -3371,9 +3383,14 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
       "EXPIRED",
       "REJECTED",
     ]);
+    const mandateBankDetailsMatch =
+      clean(existingMandate?.account_no) ===
+        clean(loan.customer_account_number) &&
+      upper(existingMandate?.ifsc) === upper(loan.bank_ifsc_code);
 
     if (
       existingMandate &&
+      mandateBankDetailsMatch &&
       !retryableMandateStatuses.has(existingStatus) &&
       (clean(existingMandate.umrn) || normalizeNachAuthUrl(existingMandate.auth_url))
     ) {
@@ -4073,6 +4090,8 @@ router.get("/loan-booking/:lan", async (req, res) => {
               status:
                 clean(mandate.umrn)
                   ? "ACTIVE"
+                  : upper(mandate.status) === "BANK_DETAILS_CHANGED"
+                    ? "BANK_DETAILS_CHANGED"
                   : [
                       "ACTIVE",
                       "SUCCESS",
@@ -4306,7 +4325,7 @@ router.patch("/loan-booking/:lan/update-bank-details", async (req, res) => {
   const connection = await db.promise().getConnection();
 
   try {
-    const { lan } = req.params;
+    const lan = upper(req.params.lan);
 
     const {
       accountHolderName,
@@ -4315,6 +4334,22 @@ router.patch("/loan-booking/:lan/update-bank-details", async (req, res) => {
       ifscCode,
       branchAddress,
     } = req.body;
+
+    await connection.beginTransaction();
+
+    const loan = await getLoan(connection, lan, { lock: true });
+
+    if (!loan) {
+      const error = new Error("ClaimCureBuddy loan booking not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const normalizedAccountNumber = clean(accountNumber);
+    const normalizedIfsc = upper(ifscCode);
+    const bankDetailsChanged =
+      clean(loan.customer_account_number) !== normalizedAccountNumber ||
+      upper(loan.bank_ifsc_code) !== normalizedIfsc;
 
     await connection.query(
       `UPDATE loan_booking_claim_cure_buddy
@@ -4330,20 +4365,47 @@ router.patch("/loan-booking/:lan/update-bank-details", async (req, res) => {
       [
         clean(accountHolderName),
         clean(bankName),
-        clean(accountNumber),
-        clean(ifscCode),
+        normalizedAccountNumber,
+        normalizedIfsc,
         clean(branchAddress),
         actorId(req),
         lan,
       ]
     );
 
+    if (bankDetailsChanged) {
+      await connection.query(
+        `UPDATE enach_mandates
+         SET status = 'BANK_DETAILS_CHANGED'
+         WHERE lan = ?
+           AND (umrn IS NULL OR TRIM(umrn) = '')
+           AND UPPER(COALESCE(status, '')) NOT IN (
+             'ACTIVE',
+             'SUCCESS',
+             'REGISTERED',
+             'AUTH_SUCCESS',
+             'AUTHSUCCESS',
+             'AUTHORIZED',
+             'AUTHORISED',
+             'APPROVED',
+             'COMPLETED'
+           )`,
+        [lan],
+      );
+    }
+
+    await connection.commit();
+
     res.json({
       success: true,
-      message: "Bank details updated successfully",
+      message: bankDetailsChanged
+        ? "Bank details updated. Create a new eNACH link for this account."
+        : "Bank details updated successfully",
+      bankDetailsChanged,
     });
 
   } catch(error) {
+    await connection.rollback();
     return errorResponse(
       res,
       error,
