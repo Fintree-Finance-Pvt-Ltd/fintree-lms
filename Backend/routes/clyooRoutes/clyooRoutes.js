@@ -1020,22 +1020,22 @@ router.put("/set-limit/:lan", async (req, res) => {
     let limitReworkRequired = 0;
     let limitReworkReason = null;
 
-    // ✅ loan_amount > assignedLimit  →  OPS APPROVED
-    // ✅ loan_amount <= assignedLimit →  Credit Recheck
-    if (requestedAmount > assignedLimit) {
+    // final_limit > loan_amount  -> Credit Recheck
+    // final_limit <= loan_amount -> OPS APPROVED
+    if (assignedLimit > requestedAmount) {
       console.log(
-        "✅ Requested amount is greater than assigned limit → OPS APPROVED",
+        "Assigned limit exceeds requested amount -> Credit Recheck",
       );
-      newStatus = "OPS APPROVED";
-      newStage = "OPS_APPROVED";
-    } else {
-      console.log(
-        "🔁 Assigned limit exceeds requested amount → Credit Recheck",
-      );
-      newStatus = "Credit Recheck"; // matches your frontend pill + query string exactly
+      newStatus = "Credit Recheck";
       newStage = "CREDIT_REWORK";
       limitReworkRequired = 1;
       limitReworkReason = `Assigned limit ₹${assignedLimit} exceeds requested amount ₹${requestedAmount}`;
+    } else {
+      console.log(
+        "Assigned limit is within requested amount -> OPS APPROVED",
+      );
+      newStatus = "OPS APPROVED";
+      newStage = "OPS_APPROVED";
     }
 
     const [result] = await db.promise().query(
@@ -1092,7 +1092,15 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
 
     const [[loan]] = await conn.query(
       `
-      SELECT customer_name, approved_limit , hospital_name , subvention_percent , updated_subvention ,final_limit
+      SELECT customer_name,
+             approved_limit,
+             hospital_name,
+             subvention_percent,
+             updated_subvention,
+             final_limit,
+             status,
+             agreement_esign_status,
+             enach_umrn
       FROM loan_booking_clayyo
       WHERE lan = ?
       FOR UPDATE
@@ -1106,6 +1114,27 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
 
       return res.status(404).json({
         message: "Loan not found",
+      });
+    }
+
+    const agreementSigned =
+      String(loan.agreement_esign_status || "").toUpperCase() === "SIGNED";
+    const nachCompleted = Boolean(String(loan.enach_umrn || "").trim());
+
+    if (!agreementSigned || !nachCompleted) {
+      await conn.rollback();
+      transactionStarted = false;
+
+      return res.status(400).json({
+        code: "DISBURSEMENT_PREREQUISITES_INCOMPLETE",
+        message:
+          !agreementSigned && !nachCompleted
+            ? "Signed agreement and completed NACH are required before initiating disbursement"
+            : !agreementSigned
+              ? "Signed agreement is required before initiating disbursement"
+              : "Completed NACH with UMRN is required before initiating disbursement",
+        agreement_signed: agreementSigned,
+        nach_completed: nachCompleted,
       });
     }
 

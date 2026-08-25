@@ -2497,6 +2497,11 @@ const ClayooLimitEntry = ({
         const isSubventionSaved = !!r.updated_subvention;
         const canEditSubvention = r.status === "OPS APPROVED";
         const isDisbursementInitiated = r.status === "DISBURSEMENT INITIATED";
+        const isAgreementSigned =
+          (r.agreement_esign_status || "").toUpperCase() === "SIGNED";
+        const isNachCompleted = Boolean(String(r.enach_umrn || "").trim());
+        const canInitiateDisbursement =
+          canEditSubvention && isAgreementSigned && isNachCompleted;
 
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -2589,6 +2594,17 @@ const ClayooLimitEntry = ({
 
             <button
               onClick={async () => {
+                if (!isAgreementSigned || !isNachCompleted) {
+                  alert(
+                    !isAgreementSigned && !isNachCompleted
+                      ? "Complete agreement signing and NACH before initiating disbursement"
+                      : !isAgreementSigned
+                        ? "Complete agreement signing before initiating disbursement"
+                        : "Complete NACH and obtain the UMRN before initiating disbursement",
+                  );
+                  return;
+                }
+
                 if (!window.confirm(`Initiate disbursement for ${r.lan}?`))
                   return;
 
@@ -2628,20 +2644,39 @@ const ClayooLimitEntry = ({
                   }
                 }
               }}
-              disabled={!canEditSubvention || isDisbursementInitiated}
+              disabled={!canInitiateDisbursement || isDisbursementInitiated}
+              title={
+                isDisbursementInitiated
+                  ? "Disbursement already initiated"
+                  : !isAgreementSigned && !isNachCompleted
+                    ? "Agreement signing and NACH are pending"
+                    : !isAgreementSigned
+                      ? "Agreement signing is pending"
+                      : !isNachCompleted
+                        ? "NACH completion (UMRN) is pending"
+                        : "Initiate disbursement"
+              }
               style={{
                 padding: "6px 10px",
                 borderRadius: 6,
-                background: isDisbursementInitiated ? "#9ca3af" : "#16a34a",
+                background:
+                  !canInitiateDisbursement || isDisbursementInitiated
+                    ? "#9ca3af"
+                    : "#16a34a",
                 color: "#fff",
                 border: "none",
                 fontWeight: 600,
-                cursor: isDisbursementInitiated ? "not-allowed" : "pointer",
+                cursor:
+                  !canInitiateDisbursement || isDisbursementInitiated
+                    ? "not-allowed"
+                    : "pointer",
               }}
             >
               {isDisbursementInitiated
                 ? "Disbursement Initiated"
-                : "Initiate Disbursement"}
+                : !isAgreementSigned || !isNachCompleted
+                  ? "Complete Agreement & NACH"
+                  : "Initiate Disbursement"}
             </button>
           </div>
         );
