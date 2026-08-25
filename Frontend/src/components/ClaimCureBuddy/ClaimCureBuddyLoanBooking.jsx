@@ -1920,6 +1920,7 @@ setActiveSection(4);
       "CANCELED",
       "EXPIRED",
       "REJECTED",
+      "BANK_DETAILS_CHANGED",
     ].includes(enachPresent.status);
     const enachWaitingForUmrn =
       !enachDone &&
