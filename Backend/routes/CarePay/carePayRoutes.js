@@ -3242,5 +3242,144 @@ router.post(
   }
 });
 
+
+loanBookingRouter.get("/v1/carepay-rps",verifyApiKey,
+  async (req, res) => {
+    try {
+      const cleanLan = String(req.query.lan || "")
+        .trim()
+        .toUpperCase();
+
+      if (!cleanLan) {
+        return res.status(400).json({
+          message: "LAN is required.",
+        });
+      }
+
+      // Fetch CarePay loan
+      const [[loan]] = await db.promise().query(
+        `
+        SELECT
+          lan,
+          partner_loan_id,
+          customer_name,
+          status,
+          loan_amount,
+          emi_amount
+        FROM loan_booking_carepay
+        WHERE lan = ?
+        LIMIT 1
+        `,
+        [cleanLan],
+      );
+
+      if (!loan) {
+        return res.status(404).json({
+          message: "CarePay loan not found.",
+        });
+      }
+
+      // Fetch repayment schedule
+      const [rpsRows] = await db.promise().query(
+        `
+        SELECT
+          id,
+          due_date,
+          emi,
+          principal,
+          interest,
+          opening,
+          closing,
+          remaining_principal,
+          remaining_interest,
+          remaining_emi,
+          status
+        FROM manual_rps_carepay
+        WHERE lan = ?
+        ORDER BY due_date ASC, id ASC
+        `,
+        [cleanLan],
+      );
+
+      if (!rpsRows.length) {
+        return res.status(404).json({
+          message: "CarePay repayment schedule not found.",
+        });
+      }
+
+      // Summary
+      const totalExpectedRepayment = rpsRows.reduce(
+        (sum, row) => sum + Number(row.emi || 0),
+        0,
+      );
+
+      const totalPrincipal = rpsRows.reduce(
+        (sum, row) => sum + Number(row.principal || 0),
+        0,
+      );
+
+      const totalInterest = rpsRows.reduce(
+        (sum, row) => sum + Number(row.interest || 0),
+        0,
+      );
+
+      // Format installments
+      const installments = rpsRows.map((row, index) => ({
+        installment_number: index + 1,
+
+        due_date: row.due_date
+          ? new Date(row.due_date).toISOString().split("T")[0]
+          : null,
+
+        emi: Number(row.emi || 0),
+        principal: Number(row.principal || 0),
+        interest: Number(row.interest || 0),
+
+        opening_principal: Number(row.opening || 0),
+        closing_principal: Number(row.closing || 0),
+
+        remaining_principal: Number(row.remaining_principal || 0),
+        remaining_interest: Number(row.remaining_interest || 0),
+        remaining_emi: Number(row.remaining_emi || 0),
+
+        status: row.status,
+      }));
+
+      return res.status(200).json({
+        message: "CarePay repayment schedule fetched successfully.",
+        data: {
+          lan: loan.lan,
+          partner_loan_id: loan.partner_loan_id,
+          customer_name: loan.customer_name,
+          case_status: loan.status,
+
+          loan_amount: Number(loan.loan_amount || 0),
+
+          regular_emi_amount: Number(
+            loan.emi_amount || rpsRows[0]?.emi || 0,
+          ),
+
+          summary: {
+            installment_count: rpsRows.length,
+            total_expected_repayment: totalExpectedRepayment,
+            total_principal: totalPrincipal,
+            total_interest: totalInterest,
+          },
+
+          installments,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching CarePay RPS:", error);
+
+      return res.status(500).json({
+        message: "Internal server error.",
+        error: error.message,
+      });
+    }
+  },
+);
+
+
 module.exports = router;
 module.exports.loanBookingRouter = loanBookingRouter;
