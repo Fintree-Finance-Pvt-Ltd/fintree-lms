@@ -321,7 +321,7 @@ const checkAndApproveCarePayLoan = async (lan) => {
 
   const requiredDocuments = [
     "CIBIL_REPORT",
-    "aadhaar",
+    "aadhaarXml",
     "pan",
     "bureauXlsx",
     "explicitConsents",
