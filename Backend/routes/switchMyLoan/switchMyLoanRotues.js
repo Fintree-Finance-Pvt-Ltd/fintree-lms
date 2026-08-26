@@ -323,39 +323,499 @@ if (!isVerified) {
   }
 }
 
-function bankNamesMatch(customerName, accountName) {
-  const getParts = (value) =>
-    String(value || "")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter(Boolean);
+// function bankNamesMatch(customerName, accountName) {
+//   const getParts = (value) =>
+//     String(value || "")
+//       .trim()
+//       .toLowerCase()
+//       .replace(/[^a-z0-9\s]/g, " ")
+//       .split(/\s+/)
+//       .filter(Boolean);
 
-  const customerParts = getParts(customerName);
-  const accountParts = getParts(accountName);
+//   const customerParts = getParts(customerName);
+//   const accountParts = getParts(accountName);
 
-  if (!customerParts.length || !accountParts.length) {
+//   if (!customerParts.length || !accountParts.length) {
+//     return false;
+//   }
+
+//   // Exact match after removing formatting.
+//   if (customerParts.join("") === accountParts.join("")) {
+//     return true;
+//   }
+
+//   // Single-name customers require exact equality.
+//   if (customerParts.length === 1 || accountParts.length === 1) {
+//     return customerParts[0] === accountParts[0];
+//   }
+
+//   // Allow middle-name differences.
+//   return (
+//     customerParts[0] === accountParts[0] &&
+//     customerParts[customerParts.length - 1] ===
+//       accountParts[accountParts.length - 1]
+//   );
+// }
+
+//// new fuzzy match logic 
+// ============================================================
+// BANK NAME MATCHING
+// ============================================================
+
+function getBankNameParts(value) {
+  const ignoredWords = new Set([
+    "mr",
+    "mrs",
+    "ms",
+    "miss",
+    "master",
+    "shri",
+    "smt",
+    "dr",
+  ]);
+
+  let name = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  /*
+   * Remove relationship details.
+   *
+   * Example:
+   * RAMBHAJAN SAINI S/O BADRI NARAYAN SAINI
+   *
+   * becomes:
+   * RAMBHAJAN SAINI
+   */
+  name = name.replace(
+    /\b(?:s\/o|d\/o|w\/o|c\/o|son\s+of|daughter\s+of|wife\s+of|care\s+of)\b.*$/i,
+    "",
+  );
+
+  return name
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((part) => !ignoredWords.has(part));
+}
+
+
+function bankNameTokenMatches(a, b) {
+  if (!a || !b) {
     return false;
   }
 
-  // Exact match after removing formatting.
-  if (customerParts.join("") === accountParts.join("")) {
+  // Exact match
+  if (a === b) {
     return true;
   }
 
-  // Single-name customers require exact equality.
-  if (customerParts.length === 1 || accountParts.length === 1) {
-    return customerParts[0] === accountParts[0];
+  /*
+   * Initial matching
+   *
+   * S ↔ SANTOSH
+   * C ↔ CHANDRANNA
+   * A ↔ ADESH
+   */
+
+  if (
+    a.length === 1 &&
+    b.startsWith(a)
+  ) {
+    return true;
   }
 
-  // Allow middle-name differences.
-  return (
-    customerParts[0] === accountParts[0] &&
-    customerParts[customerParts.length - 1] ===
-      accountParts[accountParts.length - 1]
+  if (
+    b.length === 1 &&
+    a.startsWith(b)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+
+function bankNameSequenceMatches(
+  customerParts,
+  bankParts,
+  customerIndex = 0,
+  bankIndex = 0,
+) {
+  if (
+    customerIndex === customerParts.length &&
+    bankIndex === bankParts.length
+  ) {
+    return true;
+  }
+
+  if (
+    customerIndex >= customerParts.length ||
+    bankIndex >= bankParts.length
+  ) {
+    return false;
+  }
+
+  /*
+   * Allow maximum 3 words to be joined.
+   *
+   * Examples:
+   *
+   * VEENA + RAJ = VEENARAJ
+   *
+   * SHIVA + SHANKAR = SHIVASHANKAR
+   *
+   * MANOJ + KUMAR = MANOJKUMAR
+   */
+
+  const maxCustomerJoin = Math.min(
+    3,
+    customerParts.length - customerIndex,
+  );
+
+  const maxBankJoin = Math.min(
+    3,
+    bankParts.length - bankIndex,
+  );
+
+  for (
+    let customerCount = 1;
+    customerCount <= maxCustomerJoin;
+    customerCount++
+  ) {
+    const customerJoined = customerParts
+      .slice(
+        customerIndex,
+        customerIndex + customerCount,
+      )
+      .join("");
+
+    for (
+      let bankCount = 1;
+      bankCount <= maxBankJoin;
+      bankCount++
+    ) {
+      const bankJoined = bankParts
+        .slice(
+          bankIndex,
+          bankIndex + bankCount,
+        )
+        .join("");
+
+      let currentMatch = false;
+
+      /*
+       * For single words allow initials.
+       */
+      if (
+        customerCount === 1 &&
+        bankCount === 1
+      ) {
+        currentMatch =
+          bankNameTokenMatches(
+            customerJoined,
+            bankJoined,
+          );
+      } else {
+        /*
+         * For joined words require exact equality.
+         */
+        currentMatch =
+          customerJoined === bankJoined;
+      }
+
+      if (!currentMatch) {
+        continue;
+      }
+
+      if (
+        bankNameSequenceMatches(
+          customerParts,
+          bankParts,
+          customerIndex + customerCount,
+          bankIndex + bankCount,
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+/*
+ * Handles:
+ *
+ * SAJANAAYYAPPANASARI
+ * A SAJANA
+ */
+function compoundBankNameInitialMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length !== 1 ||
+    bankParts.length !== 2
+  ) {
+    return false;
+  }
+
+  const compoundCustomerName =
+    customerParts[0];
+
+  const possibleOrders = [
+    bankParts,
+    [...bankParts].reverse(),
+  ];
+
+  for (const parts of possibleOrders) {
+    const first = parts[0];
+    const second = parts[1];
+
+    if (
+      first.length >= 4 &&
+      second.length === 1 &&
+      compoundCustomerName.startsWith(
+        `${first}${second}`,
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/*
+ * Handles:
+ *
+ * RAM BHAJAN
+ *
+ * RAMBHAJAN SAINI
+ */
+function extraBankSurnameMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length < 2 ||
+    bankParts.length < 2
+  ) {
+    return false;
+  }
+
+  /*
+   * Allow only one additional bank name.
+   */
+  if (
+    bankParts.length >
+    customerParts.length + 1
+  ) {
+    return false;
+  }
+
+  /*
+   * Remove final additional surname.
+   *
+   * RAMBHAJAN SAINI
+   *
+   * becomes:
+   *
+   * RAMBHAJAN
+   */
+  const bankWithoutLast =
+    bankParts.slice(0, -1);
+
+  return bankNameSequenceMatches(
+    customerParts,
+    bankWithoutLast,
   );
 }
+
+
+/*
+ * Handles omitted middle name:
+ *
+ * SAJAG SANTOSH JAIN
+ * SAJAG JAIN
+ */
+function omittedBankMiddleNameMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length < 2 ||
+    bankParts.length < 2
+  ) {
+    return false;
+  }
+
+  /*
+   * At least one side must contain
+   * first + last only.
+   */
+  if (
+    customerParts.length !== 2 &&
+    bankParts.length !== 2
+  ) {
+    return false;
+  }
+
+  const customerFirst =
+    customerParts[0];
+
+  const customerLast =
+    customerParts[
+      customerParts.length - 1
+    ];
+
+  const bankFirst =
+    bankParts[0];
+
+  const bankLast =
+    bankParts[
+      bankParts.length - 1
+    ];
+
+  return (
+    bankNameTokenMatches(
+      customerFirst,
+      bankFirst,
+    ) &&
+    bankNameTokenMatches(
+      customerLast,
+      bankLast,
+    )
+  );
+}
+
+
+/*
+ * FINAL FUNCTION
+ */
+function bankNamesMatch(
+  customerName,
+  accountName,
+) {
+  const customerParts =
+    getBankNameParts(customerName);
+
+  const bankParts =
+    getBankNameParts(accountName);
+
+  if (
+    !customerParts.length ||
+    !bankParts.length
+  ) {
+    return false;
+  }
+
+  /*
+   * ==================================================
+   * 1. NORMAL ORDER
+   * ==================================================
+   *
+   * SAJAG SANTOSH JAIN
+   * SAJAG S JAIN
+   *
+   * VEENARAJ C
+   * VEENA RAJ C
+   *
+   * SHIVASHANKAR CHANDRANNA
+   * SHIVA SHANKAR C
+   */
+
+  if (
+    bankNameSequenceMatches(
+      customerParts,
+      bankParts,
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * ==================================================
+   * 2. REVERSED BANK NAME
+   * ==================================================
+   *
+   * ADESH KUMAR
+   * KUMAR A
+   *
+   * reverse:
+   *
+   * A KUMAR
+   */
+
+  if (
+    bankNameSequenceMatches(
+      customerParts,
+      [...bankParts].reverse(),
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * ==================================================
+   * 3. MIDDLE NAME OMITTED
+   * ==================================================
+   */
+
+  if (
+    omittedBankMiddleNameMatch(
+      customerParts,
+      bankParts,
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * ==================================================
+   * 4. EXTRA BANK SURNAME
+   * ==================================================
+   *
+   * RAM BHAJAN
+   * RAMBHAJAN SAINI
+   */
+
+  if (
+    extraBankSurnameMatch(
+      customerParts,
+      bankParts,
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * ==================================================
+   * 5. COMPOUND NAME
+   * ==================================================
+   *
+   * SAJANAAYYAPPANASARI
+   * A SAJANA
+   */
+
+  if (
+    compoundBankNameInitialMatch(
+      customerParts,
+      bankParts,
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+
+
+
 
 async function processRows(sheetData) {
   const successRows = [];
@@ -1340,827 +1800,830 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
   }
 });
 
-router.put("/v1/update-details", verifyApiKey, async (req, res) => {
-  let connection;
-  let transactionStarted = false;
-
-  let bankVerificationJob = null;
-
-  try {
-    connection = await db.promise().getConnection();
-
-    const data = req.body || {};
-
-    if (!data.partner_loan_id) {
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message: "partner_loan_id is required",
-          code: "request_validation_error",
-        },
-      });
-    }
-
-    await connection.beginTransaction();
-    transactionStarted = true;
-
-    const [existing] = await connection.query(
-      `SELECT *
-       FROM loan_booking_switch_my_loan
-       WHERE partner_loan_id = ?
-       LIMIT 1
-       FOR UPDATE`,
-      [data.partner_loan_id],
-    );
-
-    if (!existing.length) {
-      await connection.rollback();
-      transactionStarted = false;
-
-      return res.status(404).json({
-        is_success: false,
-        error: {
-          message: "Loan case not found",
-          code: "loan_not_found",
-        },
-      });
-    }
-
-    const row = existing[0];
-
-    const BLOCKED_UPDATE_STATUSES = [
-      "APPROVED",
-      "DISBURSE_INITIATED",
-      "DISBURSED",
-      "REJECTED",
-      "REJECTED_BY_PARTNER",
-      "CANCELLED",
-      "CLOSED",
-      "Fully Paid",
-    ];
-
-    if (BLOCKED_UPDATE_STATUSES.includes(row.status)) {
-      await connection.rollback();
-      transactionStarted = false;
-
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message:
-            `Loan details cannot be updated when status is '${row.status}'`,
-          code: "loan_update_not_allowed",
-        },
-      });
-    }
-
-    let lan = row.lan;
-    let applicationId = row.application_id;
-
-    const preUpdateFields = [];
-    const preUpdateValues = [];
-
-    if (!applicationId) {
-      applicationId = generateApplicationId();
-      preUpdateFields.push("application_id = ?");
-      preUpdateValues.push(applicationId);
-    }
-
-    if (!lan) {
-      const generated = await generateLoanIdentifiers(
-        connection,
-        "RAPID-MONEY",
-      );
-
-      lan = generated.lan;
-      preUpdateFields.push("lan = ?");
-      preUpdateValues.push(lan);
-    }
-
-    if (preUpdateFields.length > 0) {
-      preUpdateValues.push(data.partner_loan_id);
-
-      await connection.query(
-        `UPDATE loan_booking_switch_my_loan
-         SET ${preUpdateFields.join(", ")}
-         WHERE partner_loan_id = ?`,
-        preUpdateValues,
-      );
-    }
-
-    const updateFields = [];
-    const updateValues = [];
-
-    const addField = (column, value) => {
-      if (value !== undefined) {
-        updateFields.push(`${column} = ?`);
-        updateValues.push(value);
-      }
-    };
-
-    // Basic customer details
-    addField("customer_name", data.full_name);
-    addField("pan_number", data.pan_number);
-    addField("father_name", data.father_name);
-    addField(
-      "dob",
-      data.dob
-        ? normalizeDate(data.dob)
-        : undefined,
-    );
-    addField("gender", data.gender);
-    addField("mobile", data.mobile);
-    addField("email", data.email);
-
-    addField("pincode", data.pincode);
-    addField("state", data.state);
-    addField("city", data.city);
-    addField("district", data.district);
-
-    addField("residence_status", data.residence_type);
-    addField("employment_type", data.employment_type);
-    addField("company_type", data.company_type);
-    addField("company_name", data.company_name);
-    addField("designation", data.designation);
-    addField("salary_range", data.salary_range);
-    addField("salary_mode", data.salary_mode);
-
-    addField("nature_of_business", data.nature_of_business);
-    addField("industry_type", data.industry_type);
-    addField("monthly_income", data.monthly_income);
-
-    addField("address_line_1", data.address_line_1);
-    addField("address_line_2", data.address_line_2);
-    addField("address_pincode", data.address_pincode);
-    addField("address_city", data.address_city);
-    addField("address_state", data.address_state);
-
-    addField("is_current_address", data.is_current_address);
-
-    addField(
-      "current_address_line_1",
-      data.current_address_line_1,
-    );
-    addField(
-      "current_address_line_2",
-      data.current_address_line_2,
-    );
-    addField(
-      "current_address_pincode",
-      data.current_address_pincode,
-    );
-    addField(
-      "current_address_city",
-      data.current_address_city,
-    );
-    addField(
-      "current_address_state",
-      data.current_address_state,
-    );
-
-    addField("loan_amount", data.loan_amount);
-    addField("tenure", data.tenure);
-    addField("loan_type", data.loan_type);
-    addField("monthly_emi", data.monthly_emi);
-    addField("interest_rate", data.interest_rate);
-    addField("processing_fee", data.processing_fee);
-    addField(
-      "aquisition_fees_txn_id",
-      data.aquisition_fees_txn_id,
-    );
-
-    addField("repayment_count", data.repayment_count);
-    addField("payment_frequency", data.payment_frequency);
-
-    addField(
-      "loan_application_date",
-      data.loan_application_date
-        ? normalizeDate(data.loan_application_date)
-        : undefined,
-    );
-
-    addField(
-      "agreement_date",
-      data.agreement_date
-        ? normalizeDate(data.agreement_date)
-        : undefined,
-    );
-
-    addField(
-      "repayment_date",
-      data.repayment_date
-        ? normalizeDate(data.repayment_date)
-        : undefined,
-    );
-
-    addField(
-      "agreement_signature_type",
-      data.agreement_signature_type,
-    );
-
-    addField("source", data.source);
-    addField("preferred_language", data.preferred_language);
-    addField("previous_loan_amount", data.previous_loan_amount);
-    addField(
-      "total_disbursed_applications",
-      data.total_disbursed_applications,
-    );
-
-    /*
-     * Bank account handling
-     */
-    /*
- * Bank account handling
- *
- * Supports partial updates across multiple API calls.
- */
-const hasBankAccountUpdate =
-  Object.prototype.hasOwnProperty.call(
-    data,
-    "bank_account",
-  );
-
-const hasCustomerNameUpdate =
-  Object.prototype.hasOwnProperty.call(
-    data,
-    "full_name",
-  );
-
-if (
-  hasBankAccountUpdate ||
-  hasCustomerNameUpdate
-) {
-  let bank = {};
-
-  if (hasBankAccountUpdate) {
-    if (
-      !data.bank_account ||
-      typeof data.bank_account !== "object" ||
-      Array.isArray(data.bank_account)
-    ) {
-      await connection.rollback();
-      transactionStarted = false;
-
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message:
-            "bank_account must be an object",
-          code:
-            "request_validation_error",
-        },
-      });
-    }
-
-    bank = data.bank_account;
-
-    if (Object.keys(bank).length === 0) {
-      await connection.rollback();
-      transactionStarted = false;
-
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message:
-            "bank_account cannot be empty",
-          code:
-            "request_validation_error",
-        },
-      });
-    }
-  }
-
-  const hasBankField = (field) =>
-    Object.prototype.hasOwnProperty.call(
-      bank,
-      field,
-    );
-
-  /*
-   * Use the new value when supplied.
-   * Otherwise retain the existing database value.
-   */
-  const accountName =
-    hasBankField("ac_name")
-      ? String(bank.ac_name || "").trim()
-      : String(
-          row.bank_ac_name || "",
-        ).trim();
-
-  const accountNumber =
-    hasBankField("ac_number")
-      ? String(bank.ac_number || "").trim()
-      : String(
-          row.bank_ac_number || "",
-        ).trim();
-
-  const ifsc =
-    hasBankField("ifsc_code")
-      ? String(bank.ifsc_code || "")
-          .trim()
-          .toUpperCase()
-      : String(
-          row.bank_ifsc_code || "",
-        )
-          .trim()
-          .toUpperCase();
-
-  const customerName = String(
-    hasCustomerNameUpdate
-      ? data.full_name || ""
-      : row.customer_name || "",
-  ).trim();
-
-  const coreBankFieldProvided =
-    hasBankField("ac_name") ||
-    hasBankField("ac_number") ||
-    hasBankField("ifsc_code");
-
-  const hasCompleteBankDetails =
-    Boolean(
-      accountName &&
-        accountNumber &&
-        ifsc,
-    );
-
-  /*
-   * Update only the bank columns that
-   * were actually included in this request.
-   */
-  if (hasBankField("ac_name")) {
-    addField(
-      "bank_ac_name",
-      accountName,
-    );
-  }
-
-  if (hasBankField("bank_name")) {
-    addField(
-      "bank_name",
-      bank.bank_name,
-    );
-  }
-
-  if (hasBankField("ac_number")) {
-    addField(
-      "bank_ac_number",
-      accountNumber,
-    );
-  }
-
-  if (hasBankField("ifsc_code")) {
-    addField(
-      "bank_ifsc_code",
-      ifsc,
-    );
-  }
-
-  if (hasBankField("nach_umrn")) {
-    addField(
-      "bank_nach_umrn",
-      bank.nach_umrn,
-    );
-  }
-
-  if (hasBankField("upi_id")) {
-    addField(
-      "bank_upi_id",
-      bank.upi_id,
-    );
-  }
-
-  /*
-   * Merge the latest partial bank object
-   * into the previously stored bank_json.
-   */
-  if (hasBankAccountUpdate) {
-    let existingBankJson = {};
-
-    try {
-      existingBankJson =
-        typeof row.bank_json === "string"
-          ? JSON.parse(
-              row.bank_json || "{}",
-            )
-          : row.bank_json || {};
-    } catch (jsonError) {
-      console.warn(
-        "Existing bank_json could not be parsed",
-        {
-          partnerLoanId:
-            data.partner_loan_id,
-          message:
-            jsonError.message,
-        },
-      );
-
-      existingBankJson = {};
-    }
-
-    const mergedBankJson = {
-      ...existingBankJson,
-      ...bank,
-    };
-
-    /*
-     * Store normalized core values.
-     */
-    if (hasBankField("ac_name")) {
-      mergedBankJson.ac_name =
-        accountName;
-    }
-
-    if (hasBankField("ac_number")) {
-      mergedBankJson.ac_number =
-        accountNumber;
-    }
-
-    if (hasBankField("ifsc_code")) {
-      mergedBankJson.ifsc_code =
-        ifsc;
-    }
-
-    addField(
-      "bank_json",
-      JSON.stringify(
-        mergedBankJson,
-      ),
-    );
-  }
-
-  /*
-   * A core bank field was supplied, but the
-   * effective bank details are still incomplete.
-   *
-   * Save the partial details and wait for the
-   * remaining fields in a later API call.
-   */
-  if (
-    coreBankFieldProvided &&
-    !hasCompleteBankDetails
-  ) {
-    addField(
-      "bank_verification_status",
-      "NOT_STARTED",
-    );
-
-    addField(
-      "bank_is_verified",
-      0,
-    );
-
-    addField(
-      "bank_verification_response",
-      null,
-    );
-
-    addField(
-      "bank_verification_error",
-      "INCOMPLETE_BANK_DETAILS",
-    );
-
-    addField(
-      "bank_verified_at",
-      null,
-    );
-
-    bankVerificationJob = null;
-  }
-
-  /*
-   * Evaluate verification when:
-   * - A core bank field was supplied, or
-   * - Customer name was updated while complete
-   *   bank details already exist.
-   */
-  const shouldEvaluateBank =
-    hasCompleteBankDetails &&
-    (
-      coreBankFieldProvided ||
-      hasCustomerNameUpdate
-    );
-
-  if (shouldEvaluateBank) {
-    /*
-     * Bank details can arrive before the customer name.
-     * Save them and wait for a later name update.
-     */
-    if (!customerName) {
-      addField(
-        "bank_verification_status",
-        "NOT_STARTED",
-      );
-
-      addField(
-        "bank_is_verified",
-        0,
-      );
-
-      addField(
-        "bank_verification_response",
-        null,
-      );
-
-      addField(
-        "bank_verification_error",
-        "CUSTOMER_NAME_REQUIRED",
-      );
-
-      addField(
-        "bank_verified_at",
-        null,
-      );
-
-      bankVerificationJob = null;
-    } else if (
-      SHOULD_MOCK_CLEAR_BANK
-    ) {
-      /*
-       * UAT/test mock-clear:
-       * skip name check and external bank API.
-       */
-      console.warn(
-        "SML bank verification mock-clear enabled",
-        {
-          partnerLoanId:
-            data.partner_loan_id,
-          applicationId,
-          lan,
-          deploymentEnvironment:
-            DEPLOYMENT_ENV,
-          bankMode: BANK_MODE,
-        },
-      );
-
-      addField(
-        "bank_verification_status",
-        "VERIFIED",
-      );
-
-      addField(
-        "bank_is_verified",
-        1,
-      );
-
-      addField(
-        "bank_verification_response",
-        JSON.stringify({
-          success: true,
-          verified: true,
-          status: "VERIFIED",
-          mode: "mock-clear",
-          deployment_environment:
-            DEPLOYMENT_ENV,
-          name_check_bypassed: true,
-          bank_api_bypassed: true,
-          message:
-            "Bank verification mock-cleared for test/UAT",
-          verified_at:
-            new Date().toISOString(),
-        }),
-      );
-
-      addField(
-        "bank_verification_error",
-        null,
-      );
-
-      addField(
-        "bank_verified_at",
-        new Date(),
-      );
-
-      bankVerificationJob = null;
-    } else {
-      /*
-       * Normal live flow.
-       */
-      const isNameMatched =
-        bankNamesMatch(
-          customerName,
-          accountName,
-        );
-
-      if (!isNameMatched) {
-        addField(
-          "bank_verification_status",
-          "NAME_MISMATCH",
-        );
-
-        addField(
-          "bank_is_verified",
-          0,
-        );
-
-        addField(
-          "bank_verification_response",
-          JSON.stringify({
-            reason:
-              "Customer name and bank account name do not match",
-            customer_name:
-              customerName,
-            bank_account_name:
-              accountName,
-          }),
-        );
-
-        addField(
-          "bank_verification_error",
-          "BANK_NAME_MISMATCH",
-        );
-
-        addField(
-          "bank_verified_at",
-          null,
-        );
-
-        bankVerificationJob = null;
-      } else {
-        const sameBankDetails =
-          String(
-            row.bank_ac_name || "",
-          ).trim() === accountName &&
-          String(
-            row.bank_ac_number || "",
-          ).trim() ===
-            accountNumber &&
-          String(
-            row.bank_ifsc_code || "",
-          )
-            .trim()
-            .toUpperCase() ===
-            ifsc;
-
-        const sameCustomerName =
-          normalizeName(
-            row.customer_name,
-          ) ===
-          normalizeName(
-            customerName,
-          );
-
-        const verificationAlreadyHandled =
-  sameBankDetails &&
-  sameCustomerName &&
-  String(row.bank_verification_status || "")
-    .trim()
-    .toUpperCase() === "VERIFIED" &&
-  Number(row.bank_is_verified) === 1;
-
-        if (
-          !verificationAlreadyHandled
-        ) {
-          addField(
-            "bank_verification_status",
-            "PENDING",
-          );
-
-          addField(
-            "bank_is_verified",
-            0,
-          );
-
-          addField(
-            "bank_verification_response",
-            null,
-          );
-
-          addField(
-            "bank_verification_error",
-            null,
-          );
-
-          addField(
-            "bank_verified_at",
-            null,
-          );
-
-          bankVerificationJob = {
-            partnerLoanId:
-              data.partner_loan_id,
-            applicationId,
-            lan,
-            accountName,
-            accountNumber,
-            ifsc,
-          };
-        }
-      }
-    }
-  }
-}
-
-    if (data.kyc !== undefined) {
-      addField(
-        "kyc_json",
-        JSON.stringify(data.kyc),
-      );
-    }
-
-    if (updateFields.length === 0) {
-      await connection.rollback();
-      transactionStarted = false;
-
-      return res.status(400).json({
-        is_success: false,
-        error: {
-          message: "No fields provided for update",
-          code: "request_validation_error",
-        },
-      });
-    }
-
-    /*
-     * Set the final status only once.
-     */
-      const effectiveLoanAmount =
-        data.loan_amount !== undefined
-          ? data.loan_amount
-          : row.loan_amount;
-
-      const effectiveTenure =
-        data.tenure !== undefined
-          ? data.tenure
-          : row.tenure;
-
-      const normalStatus =
-        effectiveLoanAmount && effectiveTenure
-          ? "APPLICATION_COMPLETED"
-          : "DETAILS_UPDATED";
-
-      if (String(row.status || "").toUpperCase() !== "BRE_APPROVED") {
-  addField("status", normalStatus);
-}
-
-    updateFields.push("updated_at = NOW()");
-    updateValues.push(data.partner_loan_id);
-
-    await connection.query(
-      `UPDATE loan_booking_switch_my_loan
-       SET ${updateFields.join(", ")}
-       WHERE partner_loan_id = ?`,
-      updateValues,
-    );
-
-    await connection.commit();
-    transactionStarted = false;
-
-    connection.release();
-connection = null;
-
-
-    /*
-     * Normal bank verification runs after the data is committed.
-     * The partner receives the normal response immediately.
-     */
-    if (bankVerificationJob) {
-  try {
-    await verifySmlBankAndStoreResult(
-      bankVerificationJob,
-    );
-  } catch (verificationError) {
-    console.error(
-      "Unexpected bank verification error after details were saved:",
-      {
-        partnerLoanId: data.partner_loan_id,
-        message: verificationError.message,
-      },
-    );
-
-    /*
-     * Do not throw.
-     * Details have already been saved successfully.
-     */
-  }
-}
-
-    return res.json({
-      is_success: true,
-      data: {
-        status: "loan details updated successfully",
-        lan,
-        application_id: applicationId,
-      },
-    });
-  } catch (error) {
-    if (connection && transactionStarted) {
-      await connection.rollback();
-    }
-
-    console.error("Update details error:", error);
-
-    return res.status(500).json({
-      is_success: false,
-      error: {
-        message: "Internal server error",
-        code: "internal_server_error",
-      },
-    });
-  } finally {
-    if (connection) {
-      connection.release();
-    }
-  }
-});
+// router.put("/v1/update-details", verifyApiKey, async (req, res) => {
+//   let connection;
+//   let transactionStarted = false;
+
+//   let bankVerificationJob = null;
+
+//     // NEW
+//   let bankNameMismatchDetected = false;
+
+//   try {
+//     connection = await db.promise().getConnection();
+
+//     const data = req.body || {};
+
+//     if (!data.partner_loan_id) {
+//       return res.status(400).json({
+//         is_success: false,
+//         error: {
+//           message: "partner_loan_id is required",
+//           code: "request_validation_error",
+//         },
+//       });
+//     }
+
+//     await connection.beginTransaction();
+//     transactionStarted = true;
+
+//     const [existing] = await connection.query(
+//       `SELECT *
+//        FROM loan_booking_switch_my_loan
+//        WHERE partner_loan_id = ?
+//        LIMIT 1
+//        FOR UPDATE`,
+//       [data.partner_loan_id],
+//     );
+
+//     if (!existing.length) {
+//       await connection.rollback();
+//       transactionStarted = false;
+
+//       return res.status(404).json({
+//         is_success: false,
+//         error: {
+//           message: "Loan case not found",
+//           code: "loan_not_found",
+//         },
+//       });
+//     }
+
+//     const row = existing[0];
+
+//     const BLOCKED_UPDATE_STATUSES = [
+//       "APPROVED",
+//       "DISBURSE_INITIATED",
+//       "DISBURSED",
+//       "REJECTED",
+//       "REJECTED_BY_PARTNER",
+//       "CANCELLED",
+//       "CLOSED",
+//       "Fully Paid",
+//     ];
+
+//     if (BLOCKED_UPDATE_STATUSES.includes(row.status)) {
+//       await connection.rollback();
+//       transactionStarted = false;
+
+//       return res.status(400).json({
+//         is_success: false,
+//         error: {
+//           message:
+//             `Loan details cannot be updated when status is '${row.status}'`,
+//           code: "loan_update_not_allowed",
+//         },
+//       });
+//     }
+
+//     let lan = row.lan;
+//     let applicationId = row.application_id;
+
+//     const preUpdateFields = [];
+//     const preUpdateValues = [];
+
+//     if (!applicationId) {
+//       applicationId = generateApplicationId();
+//       preUpdateFields.push("application_id = ?");
+//       preUpdateValues.push(applicationId);
+//     }
+
+//     if (!lan) {
+//       const generated = await generateLoanIdentifiers(
+//         connection,
+//         "RAPID-MONEY",
+//       );
+
+//       lan = generated.lan;
+//       preUpdateFields.push("lan = ?");
+//       preUpdateValues.push(lan);
+//     }
+
+//     if (preUpdateFields.length > 0) {
+//       preUpdateValues.push(data.partner_loan_id);
+
+//       await connection.query(
+//         `UPDATE loan_booking_switch_my_loan
+//          SET ${preUpdateFields.join(", ")}
+//          WHERE partner_loan_id = ?`,
+//         preUpdateValues,
+//       );
+//     }
+
+//     const updateFields = [];
+//     const updateValues = [];
+
+//     const addField = (column, value) => {
+//       if (value !== undefined) {
+//         updateFields.push(`${column} = ?`);
+//         updateValues.push(value);
+//       }
+//     };
+
+//     // Basic customer details
+//     addField("customer_name", data.full_name);
+//     addField("pan_number", data.pan_number);
+//     addField("father_name", data.father_name);
+//     addField(
+//       "dob",
+//       data.dob
+//         ? normalizeDate(data.dob)
+//         : undefined,
+//     );
+//     addField("gender", data.gender);
+//     addField("mobile", data.mobile);
+//     addField("email", data.email);
+
+//     addField("pincode", data.pincode);
+//     addField("state", data.state);
+//     addField("city", data.city);
+//     addField("district", data.district);
+
+//     addField("residence_status", data.residence_type);
+//     addField("employment_type", data.employment_type);
+//     addField("company_type", data.company_type);
+//     addField("company_name", data.company_name);
+//     addField("designation", data.designation);
+//     addField("salary_range", data.salary_range);
+//     addField("salary_mode", data.salary_mode);
+
+//     addField("nature_of_business", data.nature_of_business);
+//     addField("industry_type", data.industry_type);
+//     addField("monthly_income", data.monthly_income);
+
+//     addField("address_line_1", data.address_line_1);
+//     addField("address_line_2", data.address_line_2);
+//     addField("address_pincode", data.address_pincode);
+//     addField("address_city", data.address_city);
+//     addField("address_state", data.address_state);
+
+//     addField("is_current_address", data.is_current_address);
+
+//     addField(
+//       "current_address_line_1",
+//       data.current_address_line_1,
+//     );
+//     addField(
+//       "current_address_line_2",
+//       data.current_address_line_2,
+//     );
+//     addField(
+//       "current_address_pincode",
+//       data.current_address_pincode,
+//     );
+//     addField(
+//       "current_address_city",
+//       data.current_address_city,
+//     );
+//     addField(
+//       "current_address_state",
+//       data.current_address_state,
+//     );
+
+//     addField("loan_amount", data.loan_amount);
+//     addField("tenure", data.tenure);
+//     addField("loan_type", data.loan_type);
+//     addField("monthly_emi", data.monthly_emi);
+//     addField("interest_rate", data.interest_rate);
+//     addField("processing_fee", data.processing_fee);
+//     addField(
+//       "aquisition_fees_txn_id",
+//       data.aquisition_fees_txn_id,
+//     );
+
+//     addField("repayment_count", data.repayment_count);
+//     addField("payment_frequency", data.payment_frequency);
+
+//     addField(
+//       "loan_application_date",
+//       data.loan_application_date
+//         ? normalizeDate(data.loan_application_date)
+//         : undefined,
+//     );
+
+//     addField(
+//       "agreement_date",
+//       data.agreement_date
+//         ? normalizeDate(data.agreement_date)
+//         : undefined,
+//     );
+
+//     addField(
+//       "repayment_date",
+//       data.repayment_date
+//         ? normalizeDate(data.repayment_date)
+//         : undefined,
+//     );
+
+//     addField(
+//       "agreement_signature_type",
+//       data.agreement_signature_type,
+//     );
+
+//     addField("source", data.source);
+//     addField("preferred_language", data.preferred_language);
+//     addField("previous_loan_amount", data.previous_loan_amount);
+//     addField(
+//       "total_disbursed_applications",
+//       data.total_disbursed_applications,
+//     );
+
+//     /*
+//      * Bank account handling
+//      */
+//     /*
+//  * Bank account handling
+//  *
+//  * Supports partial updates across multiple API calls.
+//  */
+// const hasBankAccountUpdate =
+//   Object.prototype.hasOwnProperty.call(
+//     data,
+//     "bank_account",
+//   );
+
+// const hasCustomerNameUpdate =
+//   Object.prototype.hasOwnProperty.call(
+//     data,
+//     "full_name",
+//   );
+
+// if (
+//   hasBankAccountUpdate ||
+//   hasCustomerNameUpdate
+// ) {
+//   let bank = {};
+
+//   if (hasBankAccountUpdate) {
+//     if (
+//       !data.bank_account ||
+//       typeof data.bank_account !== "object" ||
+//       Array.isArray(data.bank_account)
+//     ) {
+//       await connection.rollback();
+//       transactionStarted = false;
+
+//       return res.status(400).json({
+//         is_success: false,
+//         error: {
+//           message:
+//             "bank_account must be an object",
+//           code:
+//             "request_validation_error",
+//         },
+//       });
+//     }
+
+//     bank = data.bank_account;
+
+//     if (Object.keys(bank).length === 0) {
+//       await connection.rollback();
+//       transactionStarted = false;
+
+//       return res.status(400).json({
+//         is_success: false,
+//         error: {
+//           message:
+//             "bank_account cannot be empty",
+//           code:
+//             "request_validation_error",
+//         },
+//       });
+//     }
+//   }
+
+//   const hasBankField = (field) =>
+//     Object.prototype.hasOwnProperty.call(
+//       bank,
+//       field,
+//     );
+
+//   /*
+//    * Use the new value when supplied.
+//    * Otherwise retain the existing database value.
+//    */
+//   const accountName =
+//     hasBankField("ac_name")
+//       ? String(bank.ac_name || "").trim()
+//       : String(
+//           row.bank_ac_name || "",
+//         ).trim();
+
+//   const accountNumber =
+//     hasBankField("ac_number")
+//       ? String(bank.ac_number || "").trim()
+//       : String(
+//           row.bank_ac_number || "",
+//         ).trim();
+
+//   const ifsc =
+//     hasBankField("ifsc_code")
+//       ? String(bank.ifsc_code || "")
+//           .trim()
+//           .toUpperCase()
+//       : String(
+//           row.bank_ifsc_code || "",
+//         )
+//           .trim()
+//           .toUpperCase();
+
+//   const customerName = String(
+//     hasCustomerNameUpdate
+//       ? data.full_name || ""
+//       : row.customer_name || "",
+//   ).trim();
+
+//   const coreBankFieldProvided =
+//     hasBankField("ac_name") ||
+//     hasBankField("ac_number") ||
+//     hasBankField("ifsc_code");
+
+//   const hasCompleteBankDetails =
+//     Boolean(
+//       accountName &&
+//         accountNumber &&
+//         ifsc,
+//     );
+
+//   /*
+//    * Update only the bank columns that
+//    * were actually included in this request.
+//    */
+//   if (hasBankField("ac_name")) {
+//     addField(
+//       "bank_ac_name",
+//       accountName,
+//     );
+//   }
+
+//   if (hasBankField("bank_name")) {
+//     addField(
+//       "bank_name",
+//       bank.bank_name,
+//     );
+//   }
+
+//   if (hasBankField("ac_number")) {
+//     addField(
+//       "bank_ac_number",
+//       accountNumber,
+//     );
+//   }
+
+//   if (hasBankField("ifsc_code")) {
+//     addField(
+//       "bank_ifsc_code",
+//       ifsc,
+//     );
+//   }
+
+//   if (hasBankField("nach_umrn")) {
+//     addField(
+//       "bank_nach_umrn",
+//       bank.nach_umrn,
+//     );
+//   }
+
+//   if (hasBankField("upi_id")) {
+//     addField(
+//       "bank_upi_id",
+//       bank.upi_id,
+//     );
+//   }
+
+//   /*
+//    * Merge the latest partial bank object
+//    * into the previously stored bank_json.
+//    */
+//   if (hasBankAccountUpdate) {
+//     let existingBankJson = {};
+
+//     try {
+//       existingBankJson =
+//         typeof row.bank_json === "string"
+//           ? JSON.parse(
+//               row.bank_json || "{}",
+//             )
+//           : row.bank_json || {};
+//     } catch (jsonError) {
+//       console.warn(
+//         "Existing bank_json could not be parsed",
+//         {
+//           partnerLoanId:
+//             data.partner_loan_id,
+//           message:
+//             jsonError.message,
+//         },
+//       );
+
+//       existingBankJson = {};
+//     }
+
+//     const mergedBankJson = {
+//       ...existingBankJson,
+//       ...bank,
+//     };
+
+//     /*
+//      * Store normalized core values.
+//      */
+//     if (hasBankField("ac_name")) {
+//       mergedBankJson.ac_name =
+//         accountName;
+//     }
+
+//     if (hasBankField("ac_number")) {
+//       mergedBankJson.ac_number =
+//         accountNumber;
+//     }
+
+//     if (hasBankField("ifsc_code")) {
+//       mergedBankJson.ifsc_code =
+//         ifsc;
+//     }
+
+//     addField(
+//       "bank_json",
+//       JSON.stringify(
+//         mergedBankJson,
+//       ),
+//     );
+//   }
+
+//   /*
+//    * A core bank field was supplied, but the
+//    * effective bank details are still incomplete.
+//    *
+//    * Save the partial details and wait for the
+//    * remaining fields in a later API call.
+//    */
+//   if (
+//     coreBankFieldProvided &&
+//     !hasCompleteBankDetails
+//   ) {
+//     addField(
+//       "bank_verification_status",
+//       "NOT_STARTED",
+//     );
+
+//     addField(
+//       "bank_is_verified",
+//       0,
+//     );
+
+//     addField(
+//       "bank_verification_response",
+//       null,
+//     );
+
+//     addField(
+//       "bank_verification_error",
+//       "INCOMPLETE_BANK_DETAILS",
+//     );
+
+//     addField(
+//       "bank_verified_at",
+//       null,
+//     );
+
+//     bankVerificationJob = null;
+//   }
+
+//   /*
+//    * Evaluate verification when:
+//    * - A core bank field was supplied, or
+//    * - Customer name was updated while complete
+//    *   bank details already exist.
+//    */
+//   const shouldEvaluateBank =
+//     hasCompleteBankDetails &&
+//     (
+//       coreBankFieldProvided ||
+//       hasCustomerNameUpdate
+//     );
+
+//   if (shouldEvaluateBank) {
+//     /*
+//      * Bank details can arrive before the customer name.
+//      * Save them and wait for a later name update.
+//      */
+//     if (!customerName) {
+//       addField(
+//         "bank_verification_status",
+//         "NOT_STARTED",
+//       );
+
+//       addField(
+//         "bank_is_verified",
+//         0,
+//       );
+
+//       addField(
+//         "bank_verification_response",
+//         null,
+//       );
+
+//       addField(
+//         "bank_verification_error",
+//         "CUSTOMER_NAME_REQUIRED",
+//       );
+
+//       addField(
+//         "bank_verified_at",
+//         null,
+//       );
+
+//       bankVerificationJob = null;
+//     } else if (
+//       SHOULD_MOCK_CLEAR_BANK
+//     ) {
+//       /*
+//        * UAT/test mock-clear:
+//        * skip name check and external bank API.
+//        */
+//       console.warn(
+//         "SML bank verification mock-clear enabled",
+//         {
+//           partnerLoanId:
+//             data.partner_loan_id,
+//           applicationId,
+//           lan,
+//           deploymentEnvironment:
+//             DEPLOYMENT_ENV,
+//           bankMode: BANK_MODE,
+//         },
+//       );
+
+//       addField(
+//         "bank_verification_status",
+//         "VERIFIED",
+//       );
+
+//       addField(
+//         "bank_is_verified",
+//         1,
+//       );
+
+//       addField(
+//         "bank_verification_response",
+//         JSON.stringify({
+//           success: true,
+//           verified: true,
+//           status: "VERIFIED",
+//           mode: "mock-clear",
+//           deployment_environment:
+//             DEPLOYMENT_ENV,
+//           name_check_bypassed: true,
+//           bank_api_bypassed: true,
+//           message:
+//             "Bank verification mock-cleared for test/UAT",
+//           verified_at:
+//             new Date().toISOString(),
+//         }),
+//       );
+
+//       addField(
+//         "bank_verification_error",
+//         null,
+//       );
+
+//       addField(
+//         "bank_verified_at",
+//         new Date(),
+//       );
+
+//       bankVerificationJob = null;
+//     } else {
+//       /*
+//        * Normal live flow.
+//        */
+//       const isNameMatched =
+//         bankNamesMatch(
+//           customerName,
+//           accountName,
+//         );
+
+//       if (!isNameMatched) {
+//         addField(
+//           "bank_verification_status",
+//           "NAME_MISMATCH",
+//         );
+
+//         addField(
+//           "bank_is_verified",
+//           0,
+//         );
+
+//         addField(
+//           "bank_verification_response",
+//           JSON.stringify({
+//             reason:
+//               "Customer name and bank account name do not match",
+//             customer_name:
+//               customerName,
+//             bank_account_name:
+//               accountName,
+//           }),
+//         );
+
+//         addField(
+//           "bank_verification_error",
+//           "BANK_NAME_MISMATCH",
+//         );
+
+//         addField(
+//           "bank_verified_at",
+//           null,
+//         );
+
+//         bankVerificationJob = null;
+//       } else {
+//         const sameBankDetails =
+//           String(
+//             row.bank_ac_name || "",
+//           ).trim() === accountName &&
+//           String(
+//             row.bank_ac_number || "",
+//           ).trim() ===
+//             accountNumber &&
+//           String(
+//             row.bank_ifsc_code || "",
+//           )
+//             .trim()
+//             .toUpperCase() ===
+//             ifsc;
+
+//         const sameCustomerName =
+//           normalizeName(
+//             row.customer_name,
+//           ) ===
+//           normalizeName(
+//             customerName,
+//           );
+
+//         const verificationAlreadyHandled =
+//   sameBankDetails &&
+//   sameCustomerName &&
+//   String(row.bank_verification_status || "")
+//     .trim()
+//     .toUpperCase() === "VERIFIED" &&
+//   Number(row.bank_is_verified) === 1;
+
+//         if (
+//           !verificationAlreadyHandled
+//         ) {
+//           addField(
+//             "bank_verification_status",
+//             "PENDING",
+//           );
+
+//           addField(
+//             "bank_is_verified",
+//             0,
+//           );
+
+//           addField(
+//             "bank_verification_response",
+//             null,
+//           );
+
+//           addField(
+//             "bank_verification_error",
+//             null,
+//           );
+
+//           addField(
+//             "bank_verified_at",
+//             null,
+//           );
+
+//           bankVerificationJob = {
+//             partnerLoanId:
+//               data.partner_loan_id,
+//             applicationId,
+//             lan,
+//             accountName,
+//             accountNumber,
+//             ifsc,
+//           };
+//         }
+//       }
+//     }
+//   }
+// }
+
+//     if (data.kyc !== undefined) {
+//       addField(
+//         "kyc_json",
+//         JSON.stringify(data.kyc),
+//       );
+//     }
+
+//     if (updateFields.length === 0) {
+//       await connection.rollback();
+//       transactionStarted = false;
+
+//       return res.status(400).json({
+//         is_success: false,
+//         error: {
+//           message: "No fields provided for update",
+//           code: "request_validation_error",
+//         },
+//       });
+//     }
+
+//     /*
+//      * Set the final status only once.
+//      */
+//       const effectiveLoanAmount =
+//         data.loan_amount !== undefined
+//           ? data.loan_amount
+//           : row.loan_amount;
+
+//       const effectiveTenure =
+//         data.tenure !== undefined
+//           ? data.tenure
+//           : row.tenure;
+
+//       const normalStatus =
+//         effectiveLoanAmount && effectiveTenure
+//           ? "APPLICATION_COMPLETED"
+//           : "DETAILS_UPDATED";
+
+//       if (String(row.status || "").toUpperCase() !== "BRE_APPROVED") {
+//   addField("status", normalStatus);
+// }
+
+//     updateFields.push("updated_at = NOW()");
+//     updateValues.push(data.partner_loan_id);
+
+//     await connection.query(
+//       `UPDATE loan_booking_switch_my_loan
+//        SET ${updateFields.join(", ")}
+//        WHERE partner_loan_id = ?`,
+//       updateValues,
+//     );
+
+//     await connection.commit();
+//     transactionStarted = false;
+
+//     connection.release();
+// connection = null;
+
+
+//     /*
+//      * Normal bank verification runs after the data is committed.
+//      * The partner receives the normal response immediately.
+//      */
+//     if (bankVerificationJob) {
+//   try {
+//     await verifySmlBankAndStoreResult(
+//       bankVerificationJob,
+//     );
+//   } catch (verificationError) {
+//     console.error(
+//       "Unexpected bank verification error after details were saved:",
+//       {
+//         partnerLoanId: data.partner_loan_id,
+//         message: verificationError.message,
+//       },
+//     );
+
+//     /*
+//      * Do not throw.
+//      * Details have already been saved successfully.
+//      */
+//   }
+// }
+
+//     return res.json({
+//       is_success: true,
+//       data: {
+//         status: "loan details updated successfully",
+//         lan,
+//         application_id: applicationId,
+//       },
+//     });
+//   } catch (error) {
+//     if (connection && transactionStarted) {
+//       await connection.rollback();
+//     }
+
+//     console.error("Update details error:", error);
+
+//     return res.status(500).json({
+//       is_success: false,
+//       error: {
+//         message: "Internal server error",
+//         code: "internal_server_error",
+//       },
+//     });
+//   } finally {
+//     if (connection) {
+//       connection.release();
+//     }
+//   }
+// });
 
 // router.post(
 //   "/v1/loan/:application_id/consent",
@@ -2304,9 +2767,2098 @@ connection = null;
 
 ///        4)      approve api
 
+///////////////////
+
+// ============================================================
+// BANK NAME MATCHING HELPERS
+// ============================================================
+
+function getBankNameParts(value) {
+  const ignoredWords = new Set([
+    "mr",
+    "mrs",
+    "ms",
+    "miss",
+    "master",
+    "shri",
+    "smt",
+    "dr",
+  ]);
+
+  let name = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  /*
+   * Remove relationship text.
+   *
+   * Example:
+   *
+   * RAMBHAJAN SAINI S/O BADRI NARAYAN SAINI
+   *
+   * becomes:
+   *
+   * RAMBHAJAN SAINI
+   */
+  name = name.replace(
+    /\b(?:s\/o|d\/o|w\/o|c\/o|son\s+of|daughter\s+of|wife\s+of|care\s+of)\b.*$/i,
+    "",
+  );
+
+  return name
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(
+      (part) =>
+        !ignoredWords.has(part),
+    );
+}
+
+
+// ============================================================
+// TOKEN MATCH
+// ============================================================
+
+function bankNameTokenMatches(a, b) {
+  if (!a || !b) {
+    return false;
+  }
+
+  // Exact word match
+  if (a === b) {
+    return true;
+  }
+
+  /*
+   * Initial matching
+   *
+   * S ↔ SANTOSH
+   * C ↔ CHANDRANNA
+   * A ↔ ADESH
+   */
+
+  if (
+    a.length === 1 &&
+    b.startsWith(a)
+  ) {
+    return true;
+  }
+
+  if (
+    b.length === 1 &&
+    a.startsWith(b)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+
+// ============================================================
+// SEQUENCE MATCH
+// ============================================================
+
+function bankNameSequenceMatches(
+  customerParts,
+  bankParts,
+  customerIndex = 0,
+  bankIndex = 0,
+) {
+  if (
+    customerIndex ===
+      customerParts.length &&
+    bankIndex === bankParts.length
+  ) {
+    return true;
+  }
+
+  if (
+    customerIndex >=
+      customerParts.length ||
+    bankIndex >=
+      bankParts.length
+  ) {
+    return false;
+  }
+
+  /*
+   * Maximum 3 words can be joined.
+   *
+   * VEENA + RAJ
+   * becomes
+   * VEENARAJ
+   *
+   * SHIVA + SHANKAR
+   * becomes
+   * SHIVASHANKAR
+   */
+
+  const maxCustomerJoin =
+    Math.min(
+      3,
+      customerParts.length -
+        customerIndex,
+    );
+
+  const maxBankJoin =
+    Math.min(
+      3,
+      bankParts.length -
+        bankIndex,
+    );
+
+  for (
+    let customerCount = 1;
+    customerCount <=
+    maxCustomerJoin;
+    customerCount++
+  ) {
+    const customerJoined =
+      customerParts
+        .slice(
+          customerIndex,
+          customerIndex +
+            customerCount,
+        )
+        .join("");
+
+    for (
+      let bankCount = 1;
+      bankCount <= maxBankJoin;
+      bankCount++
+    ) {
+      const bankJoined =
+        bankParts
+          .slice(
+            bankIndex,
+            bankIndex +
+              bankCount,
+          )
+          .join("");
+
+      let currentMatch = false;
+
+      /*
+       * Single token:
+       * allow exact + initial match.
+       */
+      if (
+        customerCount === 1 &&
+        bankCount === 1
+      ) {
+        currentMatch =
+          bankNameTokenMatches(
+            customerJoined,
+            bankJoined,
+          );
+      } else {
+        /*
+         * Joined words:
+         * require exact combined value.
+         */
+        currentMatch =
+          customerJoined ===
+          bankJoined;
+      }
+
+      if (!currentMatch) {
+        continue;
+      }
+
+      if (
+        bankNameSequenceMatches(
+          customerParts,
+          bankParts,
+          customerIndex +
+            customerCount,
+          bankIndex +
+            bankCount,
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+// ============================================================
+// COMPOUND NAME + INITIAL
+// ============================================================
+
+function compoundBankNameInitialMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length !== 1 ||
+    bankParts.length !== 2
+  ) {
+    return false;
+  }
+
+  const compoundCustomerName =
+    customerParts[0];
+
+  /*
+   * Check both:
+   *
+   * A SAJANA
+   * SAJANA A
+   */
+  const possibleOrders = [
+    bankParts,
+    [...bankParts].reverse(),
+  ];
+
+  for (
+    const parts of possibleOrders
+  ) {
+    const first = parts[0];
+    const second = parts[1];
+
+    /*
+     * SAJANAAYYAPPANASARI
+     *
+     * SAJANA + A
+     */
+    if (
+      first.length >= 4 &&
+      second.length === 1 &&
+      compoundCustomerName.startsWith(
+        `${first}${second}`,
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+// ============================================================
+// EXTRA BANK SURNAME
+// ============================================================
+
+function extraBankSurnameMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length < 2 ||
+    bankParts.length < 2
+  ) {
+    return false;
+  }
+
+  /*
+   * Allow maximum one additional
+   * bank surname.
+   */
+  if (
+    bankParts.length >
+    customerParts.length + 1
+  ) {
+    return false;
+  }
+
+  /*
+   * Example:
+   *
+   * Customer:
+   * RAM BHAJAN
+   *
+   * Bank:
+   * RAMBHAJAN SAINI
+   *
+   * Remove SAINI and compare:
+   *
+   * RAM BHAJAN
+   * RAMBHAJAN
+   */
+  const bankWithoutLast =
+    bankParts.slice(0, -1);
+
+  return bankNameSequenceMatches(
+    customerParts,
+    bankWithoutLast,
+  );
+}
+
+
+// ============================================================
+// OMITTED MIDDLE NAME
+// ============================================================
+
+function omittedBankMiddleNameMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length < 2 ||
+    bankParts.length < 2
+  ) {
+    return false;
+  }
+
+  /*
+   * At least one side should contain
+   * first + last only.
+   */
+  if (
+    customerParts.length !== 2 &&
+    bankParts.length !== 2
+  ) {
+    return false;
+  }
+
+  const customerFirst =
+    customerParts[0];
+
+  const customerLast =
+    customerParts[
+      customerParts.length - 1
+    ];
+
+  const bankFirst =
+    bankParts[0];
+
+  const bankLast =
+    bankParts[
+      bankParts.length - 1
+    ];
+
+  return (
+    bankNameTokenMatches(
+      customerFirst,
+      bankFirst,
+    ) &&
+    bankNameTokenMatches(
+      customerLast,
+      bankLast,
+    )
+  );
+}
+
+
+// ============================================================
+// FINAL BANK NAME MATCH FUNCTION
+// ============================================================
+
+function bankNamesMatch(
+  customerName,
+  accountName,
+) {
+  const customerParts =
+    getBankNameParts(
+      customerName,
+    );
+
+  const bankParts =
+    getBankNameParts(
+      accountName,
+    );
+
+  if (
+    !customerParts.length ||
+    !bankParts.length
+  ) {
+    return false;
+  }
+
+  /*
+   * --------------------------------------------
+   * RULE 1:
+   * NORMAL ORDER
+   * --------------------------------------------
+   *
+   * SAJAG SANTOSH JAIN
+   * SAJAG S JAIN
+   *
+   * VEENARAJ C
+   * VEENA RAJ C
+   *
+   * SHIVASHANKAR CHANDRANNA
+   * SHIVA SHANKAR C
+   */
+
+  if (
+    bankNameSequenceMatches(
+      customerParts,
+      bankParts,
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * --------------------------------------------
+   * RULE 2:
+   * REVERSED BANK NAME
+   * --------------------------------------------
+   *
+   * ADESH KUMAR
+   * KUMAR A
+   *
+   * reverse:
+   *
+   * A KUMAR
+   */
+
+  if (
+    bankNameSequenceMatches(
+      customerParts,
+      [...bankParts].reverse(),
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * --------------------------------------------
+   * RULE 3:
+   * OMITTED MIDDLE NAME
+   * --------------------------------------------
+   *
+   * SAJAG SANTOSH JAIN
+   * SAJAG JAIN
+   */
+
+  if (
+    omittedBankMiddleNameMatch(
+      customerParts,
+      bankParts,
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * --------------------------------------------
+   * RULE 4:
+   * EXTRA SURNAME IN BANK NAME
+   * --------------------------------------------
+   *
+   * RAM BHAJAN
+   *
+   * RAMBHAJAN SAINI
+   */
+
+  if (
+    extraBankSurnameMatch(
+      customerParts,
+      bankParts,
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * --------------------------------------------
+   * RULE 5:
+   * COMPOUND NAME + INITIAL
+   * --------------------------------------------
+   *
+   * SAJANAAYYAPPANASARI
+   *
+   * A SAJANA
+   */
+
+  if (
+    compoundBankNameInitialMatch(
+      customerParts,
+      bankParts,
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+
+// ============================================================
+// UPDATE DETAILS API
+// ============================================================
+
+router.put(
+  "/v1/update-details",
+  verifyApiKey,
+  async (req, res) => {
+    let connection;
+
+    let transactionStarted =
+      false;
+
+    /*
+     * External bank verification
+     * will run after DB commit.
+     */
+    let bankVerificationJob =
+      null;
+
+    /*
+     * Used to ensure name mismatch
+     * cannot be overwritten later by
+     * APPLICATION_COMPLETED.
+     */
+    let bankNameMismatchDetected =
+      false;
+
+    try {
+      connection =
+        await db
+          .promise()
+          .getConnection();
+
+      const data =
+        req.body || {};
+
+      // ======================================================
+      // REQUIRED FIELD
+      // ======================================================
+
+      if (
+        !data.partner_loan_id
+      ) {
+        return res
+          .status(400)
+          .json({
+            is_success: false,
+
+            error: {
+              message:
+                "partner_loan_id is required",
+
+              code:
+                "request_validation_error",
+            },
+          });
+      }
+
+
+      // ======================================================
+      // START TRANSACTION
+      // ======================================================
+
+      await connection.beginTransaction();
+
+      transactionStarted = true;
+
+
+      // ======================================================
+      // FETCH CURRENT LOAN
+      // ======================================================
+
+      const [existing] =
+        await connection.query(
+          `SELECT *
+           FROM loan_booking_switch_my_loan
+           WHERE partner_loan_id = ?
+           LIMIT 1
+           FOR UPDATE`,
+          [
+            data.partner_loan_id,
+          ],
+        );
+
+
+      if (!existing.length) {
+        await connection.rollback();
+
+        transactionStarted =
+          false;
+
+        return res
+          .status(404)
+          .json({
+            is_success: false,
+
+            error: {
+              message:
+                "Loan case not found",
+
+              code:
+                "loan_not_found",
+            },
+          });
+      }
+
+
+      const row =
+        existing[0];
+
+
+      // ======================================================
+      // BLOCKED STATUS
+      // ======================================================
+
+      const BLOCKED_UPDATE_STATUSES =
+        [
+          "APPROVED",
+          "DISBURSE_INITIATED",
+          "DISBURSED",
+          "REJECTED",
+          "REJECTED_BY_PARTNER",
+          "CANCELLED",
+          "CLOSED",
+          "Fully Paid",
+        ];
+
+
+      if (
+        BLOCKED_UPDATE_STATUSES.includes(
+          row.status,
+        )
+      ) {
+        await connection.rollback();
+
+        transactionStarted =
+          false;
+
+        return res
+          .status(400)
+          .json({
+            is_success: false,
+
+            error: {
+              message:
+                `Loan details cannot be updated when status is '${row.status}'`,
+
+              code:
+                "loan_update_not_allowed",
+            },
+          });
+      }
+
+
+      // ======================================================
+      // ENSURE APPLICATION ID + LAN
+      // ======================================================
+
+      let lan =
+        row.lan;
+
+      let applicationId =
+        row.application_id;
+
+
+      const preUpdateFields =
+        [];
+
+      const preUpdateValues =
+        [];
+
+
+      if (!applicationId) {
+        applicationId =
+          generateApplicationId();
+
+        preUpdateFields.push(
+          "application_id = ?",
+        );
+
+        preUpdateValues.push(
+          applicationId,
+        );
+      }
+
+
+      if (!lan) {
+        const generated =
+          await generateLoanIdentifiers(
+            connection,
+            "RAPID-MONEY",
+          );
+
+        lan =
+          generated.lan;
+
+        preUpdateFields.push(
+          "lan = ?",
+        );
+
+        preUpdateValues.push(
+          lan,
+        );
+      }
+
+
+      if (
+        preUpdateFields.length >
+        0
+      ) {
+        preUpdateValues.push(
+          data.partner_loan_id,
+        );
+
+        await connection.query(
+          `UPDATE loan_booking_switch_my_loan
+           SET ${preUpdateFields.join(", ")}
+           WHERE partner_loan_id = ?`,
+          preUpdateValues,
+        );
+      }
+
+
+      // ======================================================
+      // DYNAMIC UPDATE BUILDER
+      // ======================================================
+
+      const updateFields = [];
+
+      const updateValues = [];
+
+
+      const addField = (
+        column,
+        value,
+      ) => {
+        if (
+          value !== undefined
+        ) {
+          updateFields.push(
+            `${column} = ?`,
+          );
+
+          updateValues.push(
+            value,
+          );
+        }
+      };
+
+
+      // ======================================================
+      // BASIC CUSTOMER DETAILS
+      // ======================================================
+
+      addField(
+        "customer_name",
+        data.full_name,
+      );
+
+      addField(
+        "pan_number",
+        data.pan_number,
+      );
+
+      addField(
+        "father_name",
+        data.father_name,
+      );
+
+      addField(
+        "dob",
+        data.dob
+          ? normalizeDate(
+              data.dob,
+            )
+          : undefined,
+      );
+
+      addField(
+        "gender",
+        data.gender,
+      );
+
+      addField(
+        "mobile",
+        data.mobile,
+      );
+
+      addField(
+        "email",
+        data.email,
+      );
+
+      addField(
+        "pincode",
+        data.pincode,
+      );
+
+      addField(
+        "state",
+        data.state,
+      );
+
+      addField(
+        "city",
+        data.city,
+      );
+
+      addField(
+        "district",
+        data.district,
+      );
+
+      addField(
+        "residence_status",
+        data.residence_type,
+      );
+
+      addField(
+        "employment_type",
+        data.employment_type,
+      );
+
+      addField(
+        "company_type",
+        data.company_type,
+      );
+
+      addField(
+        "company_name",
+        data.company_name,
+      );
+
+      addField(
+        "designation",
+        data.designation,
+      );
+
+      addField(
+        "salary_range",
+        data.salary_range,
+      );
+
+      addField(
+        "salary_mode",
+        data.salary_mode,
+      );
+
+      addField(
+        "nature_of_business",
+        data.nature_of_business,
+      );
+
+      addField(
+        "industry_type",
+        data.industry_type,
+      );
+
+      addField(
+        "monthly_income",
+        data.monthly_income,
+      );
+
+
+      // ======================================================
+      // ADDRESS
+      // ======================================================
+
+      addField(
+        "address_line_1",
+        data.address_line_1,
+      );
+
+      addField(
+        "address_line_2",
+        data.address_line_2,
+      );
+
+      addField(
+        "address_pincode",
+        data.address_pincode,
+      );
+
+      addField(
+        "address_city",
+        data.address_city,
+      );
+
+      addField(
+        "address_state",
+        data.address_state,
+      );
+
+      addField(
+        "is_current_address",
+        data.is_current_address,
+      );
+
+      addField(
+        "current_address_line_1",
+        data.current_address_line_1,
+      );
+
+      addField(
+        "current_address_line_2",
+        data.current_address_line_2,
+      );
+
+      addField(
+        "current_address_pincode",
+        data.current_address_pincode,
+      );
+
+      addField(
+        "current_address_city",
+        data.current_address_city,
+      );
+
+      addField(
+        "current_address_state",
+        data.current_address_state,
+      );
+
+
+      // ======================================================
+      // LOAN DETAILS
+      // ======================================================
+
+      addField(
+        "loan_amount",
+        data.loan_amount,
+      );
+
+      addField(
+        "tenure",
+        data.tenure,
+      );
+
+      addField(
+        "loan_type",
+        data.loan_type,
+      );
+
+      addField(
+        "monthly_emi",
+        data.monthly_emi,
+      );
+
+      addField(
+        "interest_rate",
+        data.interest_rate,
+      );
+
+      addField(
+        "processing_fee",
+        data.processing_fee,
+      );
+
+      addField(
+        "aquisition_fees_txn_id",
+        data.aquisition_fees_txn_id,
+      );
+
+      addField(
+        "repayment_count",
+        data.repayment_count,
+      );
+
+      addField(
+        "payment_frequency",
+        data.payment_frequency,
+      );
+
+
+      addField(
+        "loan_application_date",
+        data.loan_application_date
+          ? normalizeDate(
+              data.loan_application_date,
+            )
+          : undefined,
+      );
+
+
+      addField(
+        "agreement_date",
+        data.agreement_date
+          ? normalizeDate(
+              data.agreement_date,
+            )
+          : undefined,
+      );
+
+
+      addField(
+        "repayment_date",
+        data.repayment_date
+          ? normalizeDate(
+              data.repayment_date,
+            )
+          : undefined,
+      );
+
+
+      addField(
+        "agreement_signature_type",
+        data.agreement_signature_type,
+      );
+
+
+      addField(
+        "source",
+        data.source,
+      );
+
+      addField(
+        "preferred_language",
+        data.preferred_language,
+      );
+
+      addField(
+        "previous_loan_amount",
+        data.previous_loan_amount,
+      );
+
+      addField(
+        "total_disbursed_applications",
+        data.total_disbursed_applications,
+      );
+
+
+      // ======================================================
+      // BANK ACCOUNT HANDLING
+      // ======================================================
+
+      const hasBankAccountUpdate =
+        Object.prototype
+          .hasOwnProperty
+          .call(
+            data,
+            "bank_account",
+          );
+
+
+      const hasCustomerNameUpdate =
+        Object.prototype
+          .hasOwnProperty
+          .call(
+            data,
+            "full_name",
+          );
+
+
+      if (
+        hasBankAccountUpdate ||
+        hasCustomerNameUpdate
+      ) {
+        let bank = {};
+
+
+        // ====================================================
+        // VALIDATE BANK OBJECT
+        // ====================================================
+
+        if (
+          hasBankAccountUpdate
+        ) {
+          if (
+            !data.bank_account ||
+            typeof data.bank_account !==
+              "object" ||
+            Array.isArray(
+              data.bank_account,
+            )
+          ) {
+            await connection.rollback();
+
+            transactionStarted =
+              false;
+
+            return res
+              .status(400)
+              .json({
+                is_success: false,
+
+                error: {
+                  message:
+                    "bank_account must be an object",
+
+                  code:
+                    "request_validation_error",
+                },
+              });
+          }
+
+
+          bank =
+            data.bank_account;
+
+
+          if (
+            Object.keys(bank)
+              .length === 0
+          ) {
+            await connection.rollback();
+
+            transactionStarted =
+              false;
+
+            return res
+              .status(400)
+              .json({
+                is_success: false,
+
+                error: {
+                  message:
+                    "bank_account cannot be empty",
+
+                  code:
+                    "request_validation_error",
+                },
+              });
+          }
+        }
+
+
+        const hasBankField = (
+          field,
+        ) =>
+          Object.prototype
+            .hasOwnProperty
+            .call(
+              bank,
+              field,
+            );
+
+
+        // ====================================================
+        // EFFECTIVE BANK VALUES
+        // ====================================================
+
+        const accountName =
+          hasBankField(
+            "ac_name",
+          )
+            ? String(
+                bank.ac_name ||
+                  "",
+              ).trim()
+            : String(
+                row.bank_ac_name ||
+                  "",
+              ).trim();
+
+
+        const accountNumber =
+          hasBankField(
+            "ac_number",
+          )
+            ? String(
+                bank.ac_number ||
+                  "",
+              ).trim()
+            : String(
+                row.bank_ac_number ||
+                  "",
+              ).trim();
+
+
+        const ifsc =
+          hasBankField(
+            "ifsc_code",
+          )
+            ? String(
+                bank.ifsc_code ||
+                  "",
+              )
+                .trim()
+                .toUpperCase()
+            : String(
+                row.bank_ifsc_code ||
+                  "",
+              )
+                .trim()
+                .toUpperCase();
+
+
+        const customerName =
+          String(
+            hasCustomerNameUpdate
+              ? data.full_name ||
+                  ""
+              : row.customer_name ||
+                  "",
+          ).trim();
+
+
+        const coreBankFieldProvided =
+          hasBankField(
+            "ac_name",
+          ) ||
+          hasBankField(
+            "ac_number",
+          ) ||
+          hasBankField(
+            "ifsc_code",
+          );
+
+
+        const hasCompleteBankDetails =
+          Boolean(
+            accountName &&
+              accountNumber &&
+              ifsc,
+          );
+
+
+        // ====================================================
+        // UPDATE PROVIDED BANK FIELDS
+        // ====================================================
+
+        if (
+          hasBankField(
+            "ac_name",
+          )
+        ) {
+          addField(
+            "bank_ac_name",
+            accountName,
+          );
+        }
+
+
+        if (
+          hasBankField(
+            "bank_name",
+          )
+        ) {
+          addField(
+            "bank_name",
+            bank.bank_name,
+          );
+        }
+
+
+        if (
+          hasBankField(
+            "ac_number",
+          )
+        ) {
+          addField(
+            "bank_ac_number",
+            accountNumber,
+          );
+        }
+
+
+        if (
+          hasBankField(
+            "ifsc_code",
+          )
+        ) {
+          addField(
+            "bank_ifsc_code",
+            ifsc,
+          );
+        }
+
+
+        if (
+          hasBankField(
+            "nach_umrn",
+          )
+        ) {
+          addField(
+            "bank_nach_umrn",
+            bank.nach_umrn,
+          );
+        }
+
+
+        if (
+          hasBankField(
+            "upi_id",
+          )
+        ) {
+          addField(
+            "bank_upi_id",
+            bank.upi_id,
+          );
+        }
+
+
+        // ====================================================
+        // MERGE BANK JSON
+        // ====================================================
+
+        if (
+          hasBankAccountUpdate
+        ) {
+          let existingBankJson =
+            {};
+
+
+          try {
+            existingBankJson =
+              typeof row.bank_json ===
+              "string"
+                ? JSON.parse(
+                    row.bank_json ||
+                      "{}",
+                  )
+                : row.bank_json ||
+                  {};
+          } catch (
+            jsonError
+          ) {
+            console.warn(
+              "Existing bank_json could not be parsed",
+              {
+                partnerLoanId:
+                  data.partner_loan_id,
+
+                message:
+                  jsonError.message,
+              },
+            );
+
+            existingBankJson =
+              {};
+          }
+
+
+          const mergedBankJson =
+            {
+              ...existingBankJson,
+              ...bank,
+            };
+
+
+          if (
+            hasBankField(
+              "ac_name",
+            )
+          ) {
+            mergedBankJson.ac_name =
+              accountName;
+          }
+
+
+          if (
+            hasBankField(
+              "ac_number",
+            )
+          ) {
+            mergedBankJson.ac_number =
+              accountNumber;
+          }
+
+
+          if (
+            hasBankField(
+              "ifsc_code",
+            )
+          ) {
+            mergedBankJson.ifsc_code =
+              ifsc;
+          }
+
+
+          addField(
+            "bank_json",
+            JSON.stringify(
+              mergedBankJson,
+            ),
+          );
+        }
+
+
+        // ====================================================
+        // INCOMPLETE BANK DETAILS
+        // ====================================================
+
+        if (
+          coreBankFieldProvided &&
+          !hasCompleteBankDetails
+        ) {
+          addField(
+            "bank_verification_status",
+            "NOT_STARTED",
+          );
+
+          addField(
+            "bank_is_verified",
+            0,
+          );
+
+          addField(
+            "bank_verification_response",
+            null,
+          );
+
+          addField(
+            "bank_verification_error",
+            "INCOMPLETE_BANK_DETAILS",
+          );
+
+          addField(
+            "bank_verified_at",
+            null,
+          );
+
+          bankVerificationJob =
+            null;
+        }
+
+
+        // ====================================================
+        // SHOULD VERIFY BANK
+        // ====================================================
+
+        const shouldEvaluateBank =
+          hasCompleteBankDetails &&
+          (
+            coreBankFieldProvided ||
+            hasCustomerNameUpdate
+          );
+
+
+        if (
+          shouldEvaluateBank
+        ) {
+          // ==================================================
+          // CUSTOMER NAME MISSING
+          // ==================================================
+
+          if (!customerName) {
+            addField(
+              "bank_verification_status",
+              "NOT_STARTED",
+            );
+
+            addField(
+              "bank_is_verified",
+              0,
+            );
+
+            addField(
+              "bank_verification_response",
+              null,
+            );
+
+            addField(
+              "bank_verification_error",
+              "CUSTOMER_NAME_REQUIRED",
+            );
+
+            addField(
+              "bank_verified_at",
+              null,
+            );
+
+            bankVerificationJob =
+              null;
+          } else {
+            // ================================================
+            // NAME MATCHING
+            // ================================================
+
+            const isNameMatched =
+              bankNamesMatch(
+                customerName,
+                accountName,
+              );
+
+
+            console.log(
+              "SML bank account name validation:",
+              {
+                partnerLoanId:
+                  data.partner_loan_id,
+
+                applicationId,
+
+                lan,
+
+                customerName,
+
+                accountName,
+
+                matched:
+                  isNameMatched,
+              },
+            );
+
+
+            // ================================================
+            // NAME MISMATCH -> REJECT
+            // ================================================
+
+            if (
+              !isNameMatched
+            ) {
+              bankNameMismatchDetected =
+                true;
+
+
+              const nameMismatchReason =
+                `BANK_ACCOUNT_NAME_MISMATCH: ` +
+                `Customer name "${customerName}" does not match ` +
+                `bank account holder name "${accountName}"`;
+
+
+              addField(
+                "bank_verification_status",
+                "NAME_MISMATCH",
+              );
+
+
+              addField(
+                "bank_is_verified",
+                0,
+              );
+
+
+              addField(
+                "bank_verification_response",
+                JSON.stringify({
+                  success: false,
+
+                  verified: false,
+
+                  reason:
+                    "BANK_ACCOUNT_NAME_MISMATCH",
+
+                  message:
+                    nameMismatchReason,
+
+                  customer_name:
+                    customerName,
+
+                  bank_account_name:
+                    accountName,
+
+                  customer_normalized:
+                    getBankNameParts(
+                      customerName,
+                    ).join(" "),
+
+                  bank_name_normalized:
+                    getBankNameParts(
+                      accountName,
+                    ).join(" "),
+                }),
+              );
+
+
+              addField(
+                "bank_verification_error",
+                "BANK_ACCOUNT_NAME_MISMATCH",
+              );
+
+
+              addField(
+                "bank_verified_at",
+                null,
+              );
+
+
+              /*
+               * Do not call external
+               * bank verification API.
+               */
+              bankVerificationJob =
+                null;
+
+
+              console.log(
+                "SML loan marked for rejection due to bank name mismatch:",
+                {
+                  partnerLoanId:
+                    data.partner_loan_id,
+
+                  applicationId,
+
+                  lan,
+
+                  customerName,
+
+                  accountName,
+
+                  reason:
+                    "BANK_ACCOUNT_NAME_MISMATCH",
+                },
+              );
+            }
+
+
+            // ================================================
+            // UAT MOCK CLEAR
+            // ================================================
+
+            else if (
+              SHOULD_MOCK_CLEAR_BANK
+            ) {
+              /*
+               * IMPORTANT:
+               *
+               * Name has already been checked.
+               *
+               * Only external bank API
+               * is bypassed in UAT.
+               */
+
+              console.warn(
+                "SML bank verification mock-clear enabled",
+                {
+                  partnerLoanId:
+                    data.partner_loan_id,
+
+                  applicationId,
+
+                  lan,
+
+                  deploymentEnvironment:
+                    DEPLOYMENT_ENV,
+
+                  bankMode:
+                    BANK_MODE,
+                },
+              );
+
+
+              addField(
+                "bank_verification_status",
+                "VERIFIED",
+              );
+
+
+              addField(
+                "bank_is_verified",
+                1,
+              );
+
+
+              addField(
+                "bank_verification_response",
+                JSON.stringify({
+                  success: true,
+
+                  verified: true,
+
+                  status:
+                    "VERIFIED",
+
+                  mode:
+                    "mock-clear",
+
+                  deployment_environment:
+                    DEPLOYMENT_ENV,
+
+                  name_check_bypassed:
+                    false,
+
+                  name_check_passed:
+                    true,
+
+                  bank_api_bypassed:
+                    true,
+
+                  customer_name:
+                    customerName,
+
+                  bank_account_name:
+                    accountName,
+
+                  message:
+                    "Bank name matched and bank verification mock-cleared for test/UAT",
+
+                  verified_at:
+                    new Date()
+                      .toISOString(),
+                }),
+              );
+
+
+              addField(
+                "bank_verification_error",
+                null,
+              );
+
+
+              addField(
+                "bank_verified_at",
+                new Date(),
+              );
+
+
+              bankVerificationJob =
+                null;
+            }
+
+
+            // ================================================
+            // LIVE BANK VERIFICATION
+            // ================================================
+
+            else {
+              const sameBankDetails =
+                String(
+                  row.bank_ac_name ||
+                    "",
+                ).trim() ===
+                  accountName &&
+
+                String(
+                  row.bank_ac_number ||
+                    "",
+                ).trim() ===
+                  accountNumber &&
+
+                String(
+                  row.bank_ifsc_code ||
+                    "",
+                )
+                  .trim()
+                  .toUpperCase() ===
+                  ifsc;
+
+
+              const sameCustomerName =
+                normalizeName(
+                  row.customer_name,
+                ) ===
+                normalizeName(
+                  customerName,
+                );
+
+
+              const verificationAlreadyHandled =
+                sameBankDetails &&
+                sameCustomerName &&
+
+                String(
+                  row.bank_verification_status ||
+                    "",
+                )
+                  .trim()
+                  .toUpperCase() ===
+                  "VERIFIED" &&
+
+                Number(
+                  row.bank_is_verified,
+                ) === 1;
+
+
+              /*
+               * Only call bank API
+               * when verification is
+               * not already completed
+               * for same details.
+               */
+
+              if (
+                !verificationAlreadyHandled
+              ) {
+                addField(
+                  "bank_verification_status",
+                  "PENDING",
+                );
+
+
+                addField(
+                  "bank_is_verified",
+                  0,
+                );
+
+
+                addField(
+                  "bank_verification_response",
+                  null,
+                );
+
+
+                addField(
+                  "bank_verification_error",
+                  null,
+                );
+
+
+                addField(
+                  "bank_verified_at",
+                  null,
+                );
+
+
+                bankVerificationJob =
+                  {
+                    partnerLoanId:
+                      data.partner_loan_id,
+
+                    applicationId,
+
+                    lan,
+
+                    accountName,
+
+                    accountNumber,
+
+                    ifsc,
+                  };
+              }
+            }
+          }
+        }
+      }
+
+
+      // ======================================================
+      // KYC JSON
+      // ======================================================
+
+      if (
+        data.kyc !==
+        undefined
+      ) {
+        addField(
+          "kyc_json",
+          JSON.stringify(
+            data.kyc,
+          ),
+        );
+      }
+
+
+      // ======================================================
+      // NO UPDATE FIELDS
+      // ======================================================
+
+      if (
+        updateFields.length ===
+        0
+      ) {
+        await connection.rollback();
+
+        transactionStarted =
+          false;
+
+        return res
+          .status(400)
+          .json({
+            is_success: false,
+
+            error: {
+              message:
+                "No fields provided for update",
+
+              code:
+                "request_validation_error",
+            },
+          });
+      }
+
+
+      // ======================================================
+      // FINAL STATUS
+      // ======================================================
+
+      const effectiveLoanAmount =
+        data.loan_amount !==
+        undefined
+          ? data.loan_amount
+          : row.loan_amount;
+
+
+      const effectiveTenure =
+        data.tenure !==
+        undefined
+          ? data.tenure
+          : row.tenure;
+
+
+      const normalStatus =
+        effectiveLoanAmount &&
+        effectiveTenure
+          ? "APPLICATION_COMPLETED"
+          : "DETAILS_UPDATED";
+
+
+      /*
+       * IMPORTANT:
+       *
+       * Name mismatch must override
+       * normal application status.
+       */
+      if (
+        bankNameMismatchDetected
+      ) {
+        addField(
+          "status",
+          "REJECTED",
+        );
+
+        addField(
+          "sml_bre_status",
+          "REJECTED",
+        );
+
+        addField(
+          "sml_bre_reason",
+          "BANK_ACCOUNT_NAME_MISMATCH",
+        );
+      } else if (
+        String(
+          row.status || "",
+        ).toUpperCase() !==
+        "BRE_APPROVED"
+      ) {
+        addField(
+          "status",
+          normalStatus,
+        );
+      }
+
+
+      // ======================================================
+      // UPDATE DATABASE
+      // ======================================================
+
+      updateFields.push(
+        "updated_at = NOW()",
+      );
+
+
+      updateValues.push(
+        data.partner_loan_id,
+      );
+
+
+      await connection.query(
+        `UPDATE loan_booking_switch_my_loan
+         SET ${updateFields.join(", ")}
+         WHERE partner_loan_id = ?`,
+        updateValues,
+      );
+
+
+      // ======================================================
+      // COMMIT
+      // ======================================================
+
+      await connection.commit();
+
+      transactionStarted =
+        false;
+
+
+      connection.release();
+
+      connection = null;
+
+
+      // ======================================================
+      // EXTERNAL BANK VERIFICATION
+      // ======================================================
+
+      /*
+       * This runs only:
+       *
+       * 1. Name matched
+       * 2. Not mock-clear
+       * 3. Verification not already completed
+       */
+
+      if (
+        bankVerificationJob
+      ) {
+        try {
+          await verifySmlBankAndStoreResult(
+            bankVerificationJob,
+          );
+        } catch (
+          verificationError
+        ) {
+          console.error(
+            "Unexpected bank verification error after details were saved:",
+            {
+              partnerLoanId:
+                data.partner_loan_id,
+
+              message:
+                verificationError.message,
+            },
+          );
+
+          /*
+           * Do not throw.
+           *
+           * Main details transaction
+           * has already been committed.
+           */
+        }
+      }
+
+
+      // ======================================================
+      // RESPONSE
+      // ======================================================
+
+      return res.json({
+        is_success: true,
+
+        data: {
+          status:
+            bankNameMismatchDetected
+              ? "Rejected"
+              : "loan details updated successfully",
+
+          ...(
+            bankNameMismatchDetected
+              ? {
+                  reason:
+                    "BANK_ACCOUNT_NAME_MISMATCH",
+                }
+              : {}
+          ),
+
+          lan,
+
+          application_id:
+            applicationId,
+        },
+      });
+    } catch (error) {
+      // ======================================================
+      // ERROR
+      // ======================================================
+
+      if (
+        connection &&
+        transactionStarted
+      ) {
+        await connection.rollback();
+      }
+
+
+      console.error(
+        "Update details error:",
+        error,
+      );
+
+
+      return res
+        .status(500)
+        .json({
+          is_success: false,
+
+          error: {
+            message:
+              "Internal server error",
+
+            code:
+              "internal_server_error",
+          },
+        });
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  },
+);
 
 
 
+////////////////////////////////
 router.post(
   "/v1/loan/:application_id/consent",
   verifyApiKey,
