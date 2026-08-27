@@ -1,6 +1,5 @@
 
-import express from "express";
-
+const express = require("express");
 import db from "../config/db.js";
 import axios from "axios";
 import allocateCarePay from "../utils/allocate/allocateCarePay.js";
@@ -598,4 +597,4 @@ router.post("/easebuzz/webhook", async (req, res) => {
 
 
 
-export default router;
+module.exports = router;
