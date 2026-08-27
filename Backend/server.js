@@ -62,7 +62,7 @@ const {
 const { autoApproveSevenFinCorpIfAllVerified } = require("./routes/Seven Fincorp/sevenFincorpBRE");
 const sterlionUblRoutes = require("./routes/SterlionUbl/sterlionUblRoutes");
 const circlePeHouserRoutes = require("./routes/CirclepeHouser/CirclepeHouserRoutes");
-const paymentRoutes = require("./routes/paymentRoutes").default;
+const paymentRoutes = require("./routes/paymentRoutes");
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
 //   // 32 bytes = 64 characters hex string
@@ -169,7 +169,7 @@ app.use(
   fintreePlPartnerApiRoutes,
 );
 
-app.use("/api/payments",paymentRoutes);
+app.use("/api/payments", paymentRoutes);
 
 function safeAuditJson(value) {
   try {
