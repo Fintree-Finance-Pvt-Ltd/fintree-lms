@@ -51,7 +51,7 @@ const allocateSterlionUBL = require("./allocateSterlionUbl"); //
 const allocateSaswat = require("./allocateSaswat");
 const allocateSevenFincorp = require("./allocateSevenFincorp");
 const allocatePlPartner = require("./allocatePlPartner");
-
+const allocateCarePay = require("./allocateCarePay");
 /**
  * Utility helpers for merging allocation results.
  */
@@ -185,6 +185,8 @@ return allocateSaswat(lan, payment);
     return allocateAdikosh(lan, payment);
   } else if (lan.startsWith("E1")) {
     return allocateEmbifi(lan, payment);
+  } else if (lan.startsWith("CARE")) {
+    return allocateCarePay(lan,payment);
   } else {
     throw new Error(`Unknown LAN prefix for allocation: ${lan}`);
   }
