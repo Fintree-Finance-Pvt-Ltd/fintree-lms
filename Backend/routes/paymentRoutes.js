@@ -1,9 +1,11 @@
-
 const express = require("express");
-import db from "../config/db.js";
-import axios from "axios";
-import allocateCarePay from "../utils/allocate/allocateCarePay.js";
-import {
+const db = require("../config/db");
+const axios = require("axios");
+
+const allocateCarePay =
+    require("../utils/allocate/allocateCarePay");
+
+const {
     createEasyCollectPaymentLink,
     extractEasebuzzId,
     extractEasebuzzPaymentLink,
@@ -11,13 +13,13 @@ import {
     generateMerchantTxn,
     generatePaymentRequestId,
     normalizeEasebuzzStatus,
-} from "../services/easebuzz/easebuzzPaymentService.js";
+} = require("../services/easebuzz/easebuzzPaymentService");
 
-import {
+
+const {
     getLoanForPayment,
     getPaymentPartnerConfig,
-} from "../services/paymentPartnerResolver.js";
-
+} = require("../services/paymentPartnerResolver");
 
 // IMPORTANT: create router BEFORE router.post / router.get
 const router = express.Router();
