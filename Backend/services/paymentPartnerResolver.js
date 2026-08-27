@@ -1,5 +1,8 @@
-import { PAYMENT_PARTNER_CONFIG } from "../config/paymentPartnerConfig.js";
-import db from "../config/db.js";
+const {
+  PAYMENT_PARTNER_CONFIG
+  
+} = require("../config/paymentPartnerConfig");
+const db = require("../config/db");
 
 //partner send partner code 
 function safeIdentifier(value) {
@@ -15,7 +18,7 @@ function safeIdentifier(value) {
 }
 
 
-export function getPaymentPartnerConfig(partnerCode) {
+ function getPaymentPartnerConfig(partnerCode) {
   const cleanPartner = String(partnerCode || "")
     .trim()
     .toUpperCase();
@@ -39,7 +42,7 @@ export function getPaymentPartnerConfig(partnerCode) {
 }
 
 
-export async function getLoanForPayment(
+ async function getLoanForPayment(
   partnerConfig,
   lan
 ) {
@@ -118,3 +121,8 @@ export async function getLoanForPayment(
 
   return rows[0];
 }
+
+module.exports = {
+  getPaymentPartnerConfig,
+  getLoanForPayment,
+};

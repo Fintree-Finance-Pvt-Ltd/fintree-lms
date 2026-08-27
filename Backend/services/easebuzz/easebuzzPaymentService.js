@@ -1,5 +1,5 @@
-import axios from "axios";
-import * as crypto from "crypto";
+const axios = require("axios");
+const crypto = require("crypto");
 
 
 const EASEBUZZ_BASE_URL_C =
@@ -29,12 +29,12 @@ const easebuzzClient = axios.create({
 });
 
 
-export function generatePaymentRequestId() {
+ function generatePaymentRequestId() {
   return `PAY-${crypto.randomUUID()}`;
 }
 
 
-export function generateMerchantTxn(lan) {
+ function generateMerchantTxn(lan) {
   const random = crypto
     .randomBytes(4)
     .toString("hex");
@@ -43,7 +43,7 @@ export function generateMerchantTxn(lan) {
 }
 
 
-export function buildEasyCollectHash(input) {
+ function buildEasyCollectHash(input) {
   const hashString = [
     input.key,
     input.merchantTxn,
@@ -68,7 +68,7 @@ export function buildEasyCollectHash(input) {
 }
 
 
-export async function createEasyCollectPaymentLink(input) {
+ async function createEasyCollectPaymentLink(input) {
   const key = String(
     process.env.EASEBUZZ_WIRE_API_KEY_C || ""
   ).trim();
@@ -285,7 +285,7 @@ export async function createEasyCollectPaymentLink(input) {
 }
 
 
-export function extractEasebuzzPaymentLink(response) {
+ function extractEasebuzzPaymentLink(response) {
 
   return (
 
@@ -308,7 +308,7 @@ export function extractEasebuzzPaymentLink(response) {
 }
 
 
-export function extractEasebuzzId(response) {
+ function extractEasebuzzId(response) {
   return (
     response?.data?.easepayid ||
 
@@ -327,7 +327,7 @@ export function extractEasebuzzId(response) {
 }
 
 
-export function normalizeEasebuzzStatus(status) {
+ function normalizeEasebuzzStatus(status) {
 
   const value = String(status || "")
     .trim()
@@ -374,7 +374,7 @@ export function normalizeEasebuzzStatus(status) {
 }
 
 
-export function extractEasebuzzWebhookIds(body) {
+ function extractEasebuzzWebhookIds(body) {
 
   return {
 
@@ -394,3 +394,15 @@ export function extractEasebuzzWebhookIds(body) {
   };
 
 }
+
+
+module.exports = {
+  generatePaymentRequestId,
+  generateMerchantTxn,
+  buildEasyCollectHash,
+  createEasyCollectPaymentLink,
+  extractEasebuzzPaymentLink,
+  extractEasebuzzId,
+  normalizeEasebuzzStatus,
+  extractEasebuzzWebhookIds,
+};
