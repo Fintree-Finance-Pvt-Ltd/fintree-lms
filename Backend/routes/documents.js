@@ -321,6 +321,7 @@ const checkAndApproveCarePayLoan = async (lan) => {
 
   const requiredDocuments = [
     "CIBIL_REPORT",
+    "aadhaar",
     "aadhaarXml",
     "pan",
     "bureauXlsx",
@@ -341,6 +342,70 @@ const checkAndApproveCarePayLoan = async (lan) => {
     [cleanLan],
   );
 
+  // Refresh document verification status before approval check
+for (const doc of documentRows) {
+
+  const documentType = String(
+    doc.doc_name || doc.original_name || ""
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+
+
+  if (documentType === "loanagreement") {
+
+    await db.promise().query(
+      `
+      UPDATE loan_booking_carepay
+      SET agreement_esign_status = 'Signed',
+          sanction_esign_status = 'Signed',
+          updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [cleanLan]
+    );
+
+  } else if (documentType === "bankstatement") {
+
+    await db.promise().query(
+      `
+      UPDATE loan_booking_carepay
+      SET bank_status = 'Verified',
+          updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [cleanLan]
+    );
+
+
+  } else if (documentType === "pan") {
+
+    await db.promise().query(
+      `
+      UPDATE kyc_verification_status
+      SET pan_status = 'Verified',
+          updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [cleanLan]
+    );
+
+
+  } else if (documentType === "aadhaar") {
+
+    await db.promise().query(
+      `
+      UPDATE kyc_verification_status
+      SET aadhaar_status = 'Verified',
+          updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [cleanLan]
+    );
+
+  }
+}
   const normalizeDocumentName = (value) =>
     String(value || "")
       .trim()
