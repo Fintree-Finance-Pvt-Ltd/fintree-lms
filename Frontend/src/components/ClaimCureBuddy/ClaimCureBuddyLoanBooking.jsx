@@ -2101,9 +2101,6 @@ export default function ClaimCureBuddyLoanBooking() {
                 required
                 options={[
                   { value: "MONTHLY", label: "Monthly" },
-                  { value: "QUARTERLY", label: "Quarterly" },
-                  { value: "HALFYEARLY", label: "Half-Yearly" },
-                  { value: "YEARLY", label: "Yearly" },
                   { value: "AS_PRESENTED", label: "As Presented" },
                 ]}
               />
