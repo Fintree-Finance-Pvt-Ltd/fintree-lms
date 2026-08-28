@@ -1594,24 +1594,58 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
       });
     }
 
-    const payload = normalizeCreateUpdatePayload(data);
+ const payload = normalizeCreateUpdatePayload(data);
+
+
+    // 🔍 Check PAN in blacklist_customer
+    const [blacklist] = await connection.query(
+      `
+      SELECT id
+      FROM blacklist_customer
+      WHERE pan = ?
+      AND status = 'ACTIVE'
+      LIMIT 1
+      `,
+      [payload.pan_number]
+    );
+
+
+    if (blacklist.length > 0) {
+
+      return res.status(409).json({
+        is_success: false,
+        error: {
+          message: "Customer is blacklisted",
+          code: "blacklisted_customer",
+        },
+      });
+
+    }
+
+
 
     await connection.beginTransaction();
     transactionStarted = true;
 
-    // // 🔍 Check if assessment-fee entry exists
+
+
+    // 🔍 Check if loan case already exists
     const [existing] = await connection.query(
-      `SELECT id, lan, application_id, status
-  FROM loan_booking_switch_my_loan
-  WHERE partner_loan_id = ?
-  LIMIT 1
-  `,
-      [data.partner_loan_id],
+      `
+      SELECT id, lan, application_id, status
+      FROM loan_booking_switch_my_loan
+      WHERE partner_loan_id = ?
+      LIMIT 1
+      `,
+      [data.partner_loan_id]
     );
 
+
     if (existing.length) {
+
       await connection.rollback();
       transactionStarted = false;
+
 
       return res.status(409).json({
         is_success: false,
@@ -1620,7 +1654,10 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
           code: "duplicate_loan_case",
         },
       });
+
     }
+
+
 
     const applicationId = generateApplicationId();
 
