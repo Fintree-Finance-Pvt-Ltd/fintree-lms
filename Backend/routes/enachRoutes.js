@@ -162,10 +162,14 @@ const normalizeMandateFrequency = (value) => {
     annually: "Yearly",
     weekly: "Weekly",
     daily: "Daily",
+    adhoc: "Adhoc",
+    adho: "Adhoc",
     asandwhenpresented:
-      "As and when presented",
+      "Adhoc",
     "as-and-when-presented":
-      "As and when presented",
+      "Adhoc",
+    "as and when presented":
+      "Adhoc",
   };
 
   return (

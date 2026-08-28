@@ -46,7 +46,7 @@ function isPayoutActiveOrDone(transfer) {
   return ACTIVE_PAYOUT_STATUSES.has(payoutStatus);
 }
 
-async function findLatestMandate(connection, lan) {
+async function findLatestMandate(connection, lan, accountNumber, ifscCode) {
   const [rows] = await connection.query(
     `SELECT
        id,
@@ -56,6 +56,8 @@ async function findLatestMandate(connection, lan) {
        auth_url
      FROM enach_mandates
      WHERE lan = ?
+       AND TRIM(COALESCE(account_no, '')) = ?
+       AND UPPER(TRIM(COALESCE(ifsc, ''))) = ?
      ORDER BY
        CASE
          WHEN umrn IS NOT NULL
@@ -78,7 +80,7 @@ async function findLatestMandate(connection, lan) {
        END,
        id DESC
      LIMIT 1`,
-    [lan],
+    [lan, clean(accountNumber), upper(ifscCode)],
   );
 
   return rows[0] || null;
@@ -176,7 +178,12 @@ async function triggerClaimCureBuddyAutoDisbursement({
       };
     }
 
-    const mandate = await findLatestMandate(connection, normalizedLan);
+    const mandate = await findLatestMandate(
+      connection,
+      normalizedLan,
+      loan.customer_account_number,
+      loan.bank_ifsc_code,
+    );
 
     if (!isMandateComplete(mandate)) {
       await connection.commit();
