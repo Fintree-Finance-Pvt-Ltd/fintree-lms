@@ -137,6 +137,7 @@ async function verifySmlBankAndStoreResult({
   partnerLoanId,
   applicationId,
   lan,
+  customerName,
   accountName,
   accountNumber,
   ifsc,
@@ -157,12 +158,17 @@ async function verifySmlBankAndStoreResult({
       account_type: "savings",
     });
 
+
+    //     const isNameMatched = bankNamesMatch(
+    //   lan.customer_name,
+    //   accountName
+    // );
     const responseStatus = String(
       result?.status ||
-        result?.data?.status ||
-        result?.verification_status ||
-        result?.data?.verification_status ||
-        "",
+      result?.data?.status ||
+      result?.verification_status ||
+      result?.data?.verification_status ||
+      "",
     ).toUpperCase();
 
     const isVerified =
@@ -173,24 +179,71 @@ async function verifySmlBankAndStoreResult({
       ["SUCCESS", "VERIFIED", "VALID"].includes(
         responseStatus,
       );
+    const nameMatched = bankNamesMatch(
+      customerName,
+      accountName
+    );
+
+
+    if (!nameMatched) {
+
+      await db.promise().query(
+        `
+    UPDATE loan_booking_switch_my_loan
+    SET
+       bank_verification_status = 'FAILED',
+ bank_is_verified = 0,
+ bank_name_match_status = 'FAILED',
+ bank_verification_response = ?,
+ bank_verification_error = ?,
+ bank_verified_at = NULL,
+ updated_at = NOW()
+    WHERE partner_loan_id = ?
+    `,
+        [
+          "BANK_ACCOUNT_NAME_MISMATCH",
+          "Customer name does not match bank account holder name",
+          customerName,
+          accountName,
+          partnerLoanId
+        ]
+      );
+
+
+      console.log(
+        "Bank name mismatch rejected:",
+        {
+          partnerLoanId,
+          customerName,
+          accountName
+        }
+      );
+
+
+      return;
+    }
 
     const failureMessage = isVerified
       ? null
       : String(
-          result?.message ||
-            result?.data?.message ||
-            result?.error ||
-            "BANK_VERIFICATION_FAILED",
-        ).slice(0, 500);
+        result?.message ||
+        result?.data?.message ||
+        result?.error ||
+        "BANK_VERIFICATION_FAILED",
+      ).slice(0, 500);
 
     const [updateResult] = await db.promise().query(
       `UPDATE loan_booking_switch_my_loan
-       SET bank_verification_status = ?,
-           bank_is_verified = ?,
-           bank_verification_response = ?,
-           bank_verification_error = ?,
-           bank_verified_at = ?,
-           updated_at = NOW()
+       SET 
+bank_verification_status = ?,
+bank_is_verified = ?,
+bank_verification_response = ?,
+bank_verification_error = ?,
+bank_verified_at = ?,
+bank_name_match_status = 'MATCHED',
+bank_name_match_customer = ?,
+bank_name_match_bank = ?,
+updated_at = NOW()
        WHERE partner_loan_id = ?
          AND bank_ac_number = ?
          AND bank_ifsc_code = ?
@@ -202,10 +255,9 @@ async function verifySmlBankAndStoreResult({
         JSON.stringify(result || {}),
         failureMessage,
         isVerified ? new Date() : null,
-        partnerLoanId,
-        accountNumber,
-        ifsc,
+        customerName,
         accountName,
+        partnerLoanId,
       ],
     );
 
@@ -223,15 +275,15 @@ async function verifySmlBankAndStoreResult({
       return;
     }
 
-if (!isVerified) {
-  console.log("Bank verification failed; will be evaluated at approval:", {
-    partnerLoanId,
-    applicationId,
-    lan,
-    failureMessage,
-  });
-  return;
-}
+    if (!isVerified) {
+      console.log("Bank verification failed; will be evaluated at approval:", {
+        partnerLoanId,
+        applicationId,
+        lan,
+        failureMessage,
+      });
+      return;
+    }
 
     console.log("SML bank verification completed:", {
       partnerLoanId,
@@ -260,19 +312,20 @@ if (!isVerified) {
 
       const failureMessage = String(
         error.response?.data?.message ||
-          error.message ||
-          "BANK_VERIFICATION_FAILED",
+        error.message ||
+        "BANK_VERIFICATION_FAILED",
       ).slice(0, 500);
 
       const [failureUpdate] =
         await db.promise().query(
           `UPDATE loan_booking_switch_my_loan
            SET bank_verification_status = 'FAILED',
-               bank_is_verified = 0,
-               bank_verification_response = ?,
-               bank_verification_error = ?,
-               bank_verified_at = NULL,
-               updated_at = NOW()
+    bank_is_verified = 0,
+    bank_name_match_status = 'FAILED',
+    bank_verification_response = ?,
+    bank_verification_error = ?,
+    bank_verified_at = NULL,
+    updated_at = NOW()
            WHERE partner_loan_id = ?
              AND bank_ac_number = ?
              AND bank_ifsc_code = ?
@@ -669,7 +722,7 @@ function omittedBankMiddleNameMatch(
 
   const customerLast =
     customerParts[
-      customerParts.length - 1
+    customerParts.length - 1
     ];
 
   const bankFirst =
@@ -677,7 +730,7 @@ function omittedBankMiddleNameMatch(
 
   const bankLast =
     bankParts[
-      bankParts.length - 1
+    bankParts.length - 1
     ];
 
   return (
@@ -1176,8 +1229,8 @@ const normalizeCreateUpdatePayload = (data) => {
     pan_number: data.pan_number ?? null,
     father_name: data.father_name ?? null,
     dob: data.dob
-  ? normalizeDate(data.dob)
-  : null,
+      ? normalizeDate(data.dob)
+      : null,
     gender: data.gender ?? null,
     mobile: data.mobile ?? null,
     email: data.email ?? null,
@@ -1594,7 +1647,7 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
       });
     }
 
- const payload = normalizeCreateUpdatePayload(data);
+    const payload = normalizeCreateUpdatePayload(data);
 
 
     // 🔍 Check PAN in blacklist_customer
@@ -1726,6 +1779,8 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
     bank_ifsc_code,
     bank_nach_umrn,
     bank_upi_id,
+    bank_verification_status,
+bank_is_verified,
     kyc_json,
     bank_json,
     status,
@@ -1801,6 +1856,8 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
         payload.bank_ifsc_code,
         payload.bank_nach_umrn,
         payload.bank_upi_id,
+        "PENDING",
+        0,
         payload.kyc_json,
         payload.bank_json,
         "STEP_1_COMPLETED",
@@ -2905,7 +2962,7 @@ function bankNameSequenceMatches(
 ) {
   if (
     customerIndex ===
-      customerParts.length &&
+    customerParts.length &&
     bankIndex === bankParts.length
   ) {
     return true;
@@ -2913,9 +2970,9 @@ function bankNameSequenceMatches(
 
   if (
     customerIndex >=
-      customerParts.length ||
+    customerParts.length ||
     bankIndex >=
-      bankParts.length
+    bankParts.length
   ) {
     return false;
   }
@@ -2936,14 +2993,14 @@ function bankNameSequenceMatches(
     Math.min(
       3,
       customerParts.length -
-        customerIndex,
+      customerIndex,
     );
 
   const maxBankJoin =
     Math.min(
       3,
       bankParts.length -
-        bankIndex,
+      bankIndex,
     );
 
   for (
@@ -2957,7 +3014,7 @@ function bankNameSequenceMatches(
         .slice(
           customerIndex,
           customerIndex +
-            customerCount,
+          customerCount,
         )
         .join("");
 
@@ -2971,7 +3028,7 @@ function bankNameSequenceMatches(
           .slice(
             bankIndex,
             bankIndex +
-              bankCount,
+            bankCount,
           )
           .join("");
 
@@ -3009,9 +3066,9 @@ function bankNameSequenceMatches(
           customerParts,
           bankParts,
           customerIndex +
-            customerCount,
+          customerCount,
           bankIndex +
-            bankCount,
+          bankCount,
         )
       ) {
         return true;
@@ -3159,7 +3216,7 @@ function omittedBankMiddleNameMatch(
 
   const customerLast =
     customerParts[
-      customerParts.length - 1
+    customerParts.length - 1
     ];
 
   const bankFirst =
@@ -3167,7 +3224,7 @@ function omittedBankMiddleNameMatch(
 
   const bankLast =
     bankParts[
-      bankParts.length - 1
+    bankParts.length - 1
     ];
 
   return (
@@ -3593,8 +3650,8 @@ router.put(
         "dob",
         data.dob
           ? normalizeDate(
-              data.dob,
-            )
+            data.dob,
+          )
           : undefined,
       );
 
@@ -3798,8 +3855,8 @@ router.put(
         "loan_application_date",
         data.loan_application_date
           ? normalizeDate(
-              data.loan_application_date,
-            )
+            data.loan_application_date,
+          )
           : undefined,
       );
 
@@ -3808,8 +3865,8 @@ router.put(
         "agreement_date",
         data.agreement_date
           ? normalizeDate(
-              data.agreement_date,
-            )
+            data.agreement_date,
+          )
           : undefined,
       );
 
@@ -3818,8 +3875,8 @@ router.put(
         "repayment_date",
         data.repayment_date
           ? normalizeDate(
-              data.repayment_date,
-            )
+            data.repayment_date,
+          )
           : undefined,
       );
 
@@ -3890,7 +3947,7 @@ router.put(
           if (
             !data.bank_account ||
             typeof data.bank_account !==
-              "object" ||
+            "object" ||
             Array.isArray(
               data.bank_account,
             )
@@ -3966,13 +4023,13 @@ router.put(
             "ac_name",
           )
             ? String(
-                bank.ac_name ||
-                  "",
-              ).trim()
+              bank.ac_name ||
+              "",
+            ).trim()
             : String(
-                row.bank_ac_name ||
-                  "",
-              ).trim();
+              row.bank_ac_name ||
+              "",
+            ).trim();
 
 
         const accountNumber =
@@ -3980,13 +4037,13 @@ router.put(
             "ac_number",
           )
             ? String(
-                bank.ac_number ||
-                  "",
-              ).trim()
+              bank.ac_number ||
+              "",
+            ).trim()
             : String(
-                row.bank_ac_number ||
-                  "",
-              ).trim();
+              row.bank_ac_number ||
+              "",
+            ).trim();
 
 
         const ifsc =
@@ -3994,26 +4051,26 @@ router.put(
             "ifsc_code",
           )
             ? String(
-                bank.ifsc_code ||
-                  "",
-              )
-                .trim()
-                .toUpperCase()
+              bank.ifsc_code ||
+              "",
+            )
+              .trim()
+              .toUpperCase()
             : String(
-                row.bank_ifsc_code ||
-                  "",
-              )
-                .trim()
-                .toUpperCase();
+              row.bank_ifsc_code ||
+              "",
+            )
+              .trim()
+              .toUpperCase();
 
 
         const customerName =
           String(
             hasCustomerNameUpdate
               ? data.full_name ||
-                  ""
+              ""
               : row.customer_name ||
-                  "",
+              "",
           ).trim();
 
 
@@ -4032,8 +4089,8 @@ router.put(
         const hasCompleteBankDetails =
           Boolean(
             accountName &&
-              accountNumber &&
-              ifsc,
+            accountNumber &&
+            ifsc,
           );
 
 
@@ -4127,15 +4184,15 @@ router.put(
           try {
             existingBankJson =
               typeof row.bank_json ===
-              "string"
+                "string"
                 ? JSON.parse(
-                    row.bank_json ||
-                      "{}",
-                  )
+                  row.bank_json ||
+                  "{}",
+                )
                 : row.bank_json ||
-                  {};
+                {};
           } catch (
-            jsonError
+          jsonError
           ) {
             console.warn(
               "Existing bank_json could not be parsed",
@@ -4154,10 +4211,10 @@ router.put(
 
 
           const mergedBankJson =
-            {
-              ...existingBankJson,
-              ...bank,
-            };
+          {
+            ...existingBankJson,
+            ...bank,
+          };
 
 
           if (
@@ -4531,23 +4588,23 @@ router.put(
               const sameBankDetails =
                 String(
                   row.bank_ac_name ||
-                    "",
+                  "",
                 ).trim() ===
-                  accountName &&
+                accountName &&
 
                 String(
                   row.bank_ac_number ||
-                    "",
+                  "",
                 ).trim() ===
-                  accountNumber &&
+                accountNumber &&
 
                 String(
                   row.bank_ifsc_code ||
-                    "",
+                  "",
                 )
                   .trim()
                   .toUpperCase() ===
-                  ifsc;
+                ifsc;
 
 
               const sameCustomerName =
@@ -4565,11 +4622,11 @@ router.put(
 
                 String(
                   row.bank_verification_status ||
-                    "",
+                  "",
                 )
                   .trim()
                   .toUpperCase() ===
-                  "VERIFIED" &&
+                "VERIFIED" &&
 
                 Number(
                   row.bank_is_verified,
@@ -4617,20 +4674,20 @@ router.put(
 
 
                 bankVerificationJob =
-                  {
-                    partnerLoanId:
-                      data.partner_loan_id,
+                {
+                  partnerLoanId:
+                    data.partner_loan_id,
 
-                    applicationId,
+                  applicationId,
 
-                    lan,
+                  lan,
 
-                    accountName,
+                  accountName,
 
-                    accountNumber,
+                  accountNumber,
 
-                    ifsc,
-                  };
+                  ifsc,
+                };
               }
             }
           }
@@ -4690,21 +4747,21 @@ router.put(
 
       const effectiveLoanAmount =
         data.loan_amount !==
-        undefined
+          undefined
           ? data.loan_amount
           : row.loan_amount;
 
 
       const effectiveTenure =
         data.tenure !==
-        undefined
+          undefined
           ? data.tenure
           : row.tenure;
 
 
       const normalStatus =
         effectiveLoanAmount &&
-        effectiveTenure
+          effectiveTenure
           ? "APPLICATION_COMPLETED"
           : "DETAILS_UPDATED";
 
@@ -4802,7 +4859,7 @@ router.put(
             bankVerificationJob,
           );
         } catch (
-          verificationError
+        verificationError
         ) {
           console.error(
             "Unexpected bank verification error after details were saved:",
@@ -4841,9 +4898,9 @@ router.put(
           ...(
             bankNameMismatchDetected
               ? {
-                  reason:
-                    "BANK_ACCOUNT_NAME_MISMATCH",
-                }
+                reason:
+                  "BANK_ACCOUNT_NAME_MISMATCH",
+              }
               : {}
           ),
 
@@ -4992,12 +5049,12 @@ router.post(
 
         const consentVersion =
           item.consent_version === undefined ||
-          item.consent_version === null ||
-          String(item.consent_version).trim() === ""
+            item.consent_version === null ||
+            String(item.consent_version).trim() === ""
             ? null
             : String(
-                item.consent_version,
-              ).trim();
+              item.consent_version,
+            ).trim();
 
         if (!consentId) {
           return res.status(400).json({
@@ -5357,74 +5414,74 @@ router.post(
         });
       }
 
-const hasCompleteBankDetails = Boolean(
-  String(loan.bank_ac_name || "").trim() &&
-  String(loan.bank_ac_number || "").trim() &&
-  String(loan.bank_ifsc_code || "").trim(),
-);
+      const hasCompleteBankDetails = Boolean(
+        String(loan.bank_ac_name || "").trim() &&
+        String(loan.bank_ac_number || "").trim() &&
+        String(loan.bank_ifsc_code || "").trim(),
+      );
 
-if (hasCompleteBankDetails) {
-  const bankVerificationStatus = String(
-    loan.bank_verification_status || "",
-  )
-    .trim()
-    .toUpperCase();
+      if (hasCompleteBankDetails) {
+        const bankVerificationStatus = String(
+          loan.bank_verification_status || "",
+        )
+          .trim()
+          .toUpperCase();
 
-  /*
-   * Bank details are present and verification failed.
-   * Reject here without triggering any webhook.
-   */
-  if (
-    ["FAILED", "NAME_MISMATCH"].includes(
-      bankVerificationStatus,
-    )
-  ) {
-    await connection.query(
-      `UPDATE loan_booking_switch_my_loan
+        /*
+         * Bank details are present and verification failed.
+         * Reject here without triggering any webhook.
+         */
+        if (
+          ["FAILED", "NAME_MISMATCH"].includes(
+            bankVerificationStatus,
+          )
+        ) {
+          await connection.query(
+            `UPDATE loan_booking_switch_my_loan
        SET status = ?,
            sml_bre_status = ?,
            sml_bre_reason = ?,
            updated_at = CURRENT_TIMESTAMP
        WHERE application_id = ?`,
-      [
-        "REJECTED",
-        "REJECTED",
-        loan.bank_verification_error ||
-          "BANK_VERIFICATION_FAILED",
-        application_id,
-      ],
-    );
+            [
+              "REJECTED",
+              "REJECTED",
+              loan.bank_verification_error ||
+              "BANK_VERIFICATION_FAILED",
+              application_id,
+            ],
+          );
 
-    const breResponse = buildPartnerBreResponse({
-      decision: "REJECTED",
-    });
+          const breResponse = buildPartnerBreResponse({
+            decision: "REJECTED",
+          });
 
-    return res.json({
-      is_success: true,
-      data: {
-        status: "Rejected",
-        bre_response: breResponse,
-      },
-    });
-  }
+          return res.json({
+            is_success: true,
+            data: {
+              status: "Rejected",
+              bre_response: breResponse,
+            },
+          });
+        }
 
-  /*
-   * Bank details exist, but background verification
-   * has not completed yet.
-   */
-  if (
-    bankVerificationStatus !== "VERIFIED" ||
-    Number(loan.bank_is_verified) !== 1
-  ) {
-    return res.status(400).json({
-      is_success: false,
-      error: {
-        message: "Bank verification is not completed",
-        code: "request_validation_error",
-      },
-    });
-  }
-}
+        /*
+         * Bank details exist, but background verification
+         * has not completed yet.
+         */
+        if (
+          bankVerificationStatus !== "VERIFIED" ||
+          Number(loan.bank_is_verified) !== 1
+        ) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message: "Bank verification is not completed",
+              code: "request_validation_error",
+            },
+          });
+        }
+      }
       const breEngineResult = await runBRE(loan);
 
       if (
@@ -5454,64 +5511,64 @@ if (hasCompleteBankDetails) {
       }
 
       if (breEngineResult.decision === "REJECTED") {
-  const breResponse = buildPartnerBreResponse(breEngineResult);
+        const breResponse = buildPartnerBreResponse(breEngineResult);
 
-  console.log("[SML] Triggering rejection webhook", {
-    application_id,
-    reason: breEngineResult.reason,
-    amlScore: breEngineResult.aml?.score ?? null,
-  });
+        console.log("[SML] Triggering rejection webhook", {
+          application_id,
+          reason: breEngineResult.reason,
+          amlScore: breEngineResult.aml?.score ?? null,
+        });
 
-  // await sendRejectionWebhook(application_id);
+        // await sendRejectionWebhook(application_id);
 
-  await connection.query(
-    `UPDATE loan_booking_switch_my_loan
+        await connection.query(
+          `UPDATE loan_booking_switch_my_loan
      SET status = ?,
          sml_bre_status = ?,
          sml_bre_reason = ?,
          sml_credit_limit = ?,
          updated_at = CURRENT_TIMESTAMP
      WHERE application_id = ?`,
-    [
-      "REJECTED",
-      "REJECTED",
-      breEngineResult.reason || "BRE_REJECT",
-      breEngineResult.creditLimit ?? null,
-      application_id,
-    ],
-  );
+          [
+            "REJECTED",
+            "REJECTED",
+            breEngineResult.reason || "BRE_REJECT",
+            breEngineResult.creditLimit ?? null,
+            application_id,
+          ],
+        );
 
-  return res.json({
-    is_success: true,
-    data: {
-      status: "Rejected",
-      bre_response: breResponse,
-    },
-  });
-}
+        return res.json({
+          is_success: true,
+          data: {
+            status: "Rejected",
+            bre_response: breResponse,
+          },
+        });
+      }
 
       const approvedDisbursalAmount =
-  Number(
-    breEngineResult
-      .approvedLoanAmount,
-  );
+        Number(
+          breEngineResult
+            .approvedLoanAmount,
+        );
 
-if (
-  !Number.isFinite(
-    approvedDisbursalAmount,
-  ) ||
-  approvedDisbursalAmount <= 0
-) {
-  return res.status(500).json({
-    is_success: false,
-    error: {
-      message:
-        "Approved disbursal amount is missing or invalid",
-      code:
-        "approved_disbursal_amount_invalid",
-    },
-  });
-}
+      if (
+        !Number.isFinite(
+          approvedDisbursalAmount,
+        ) ||
+        approvedDisbursalAmount <= 0
+      ) {
+        return res.status(500).json({
+          is_success: false,
+          error: {
+            message:
+              "Approved disbursal amount is missing or invalid",
+            code:
+              "approved_disbursal_amount_invalid",
+          },
+        });
+      }
 
       const breResponse = buildPartnerBreResponse(breEngineResult);
 
