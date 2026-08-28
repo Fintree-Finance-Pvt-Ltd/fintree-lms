@@ -210,6 +210,7 @@ await conn.beginTransaction();
         loan_amount,
         interest_rate,
         loan_tenure,
+        emi_day,
         emi_amount,
         cibil_score,
         product,
@@ -233,7 +234,7 @@ await conn.beginTransaction();
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-        ?, ?, ?, ?, ?
+        ?, ?, ?, ?, ?, ?
       )
     `;
 
@@ -276,6 +277,7 @@ await conn.beginTransaction();
       // 26–30
       data.interest_rate,
       data.loan_tenure,
+      5,                            // HELIUM repayments are due on the 5th
       data.emi_amount || null,      // not in UI → null
       data.cibil_score || null,     // not in UI → null
       "Monthly Loan",
@@ -468,6 +470,7 @@ router.post("/v1/helium-lb", verifyApiKey, async (req, res) => {
         current_address, current_village_city, current_district, current_state, current_pincode,
         permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
         loan_amount, interest_rate, loan_tenure,
+        emi_day,
         emi_amount, cibil_score,
         product, lender,
         residence_type, customer_type,
@@ -480,7 +483,7 @@ router.post("/v1/helium-lb", verifyApiKey, async (req, res) => {
         ?,?,?,?,?,?,?,?,?,?,
         ?,?,?,?,?,?,?,?,?,?,
         ?,?,?,?,?,?,?,?,?,?,
-        ?,?,?,?,?
+        ?,?,?,?,?,?
       );
     `;
 
@@ -518,6 +521,7 @@ router.post("/v1/helium-lb", verifyApiKey, async (req, res) => {
       data.loan_amount,
       data.interest_rate,
       data.loan_tenure,
+      5, // HELIUM repayments are due on the 5th
 
       null, // emi_amount (AUTO)
       null, // cibil_score (AUTO)
@@ -546,7 +550,7 @@ router.post("/v1/helium-lb", verifyApiKey, async (req, res) => {
     ];
 
     // 🛡️ Safety check
-    if (values.length !== 45) {
+    if (values.length !== 46) {
       throw new Error(`SQL values mismatch: ${values.length}`);
     }
 
