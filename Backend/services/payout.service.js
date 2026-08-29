@@ -26,6 +26,7 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_carepay",
   "loan_booking_claim_cure_buddy",
   "pl_partner_applications",
+  "loan_booking_quick_money",
 ];
 
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
@@ -92,6 +93,18 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       `;
     }
 
+    if (table === "loan_booking_quick_money") {
+  loanQuery = `
+    SELECT
+      bank_ac_name AS beneficiary_name,
+      disbursal_amount AS loan_amount,
+      bank_ac_number AS account_number,
+      bank_ifsc_code AS ifsc
+    FROM loan_booking_quick_money
+    WHERE lan = ?
+    LIMIT 1
+  `;
+}
     if (table === "loan_booking_loan_digit") {
       loanQuery = `
         SELECT
@@ -434,7 +447,20 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
-    } else if (table === "loan_booking_loan_digit") {
+    }else if (table === "loan_booking_quick_money") {
+
+  await processQuickMoneyDisbursement({
+    lan,
+
+    disbursementUTR:
+      tr.unique_transaction_reference,
+
+    disbursementDate:
+      new Date(tr.transfer_date),
+  });
+
+}
+     else if (table === "loan_booking_loan_digit") {
       await processLoanDigitDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,

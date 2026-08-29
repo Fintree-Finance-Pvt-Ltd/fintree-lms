@@ -63,6 +63,7 @@ const { autoApproveSevenFinCorpIfAllVerified } = require("./routes/Seven Fincorp
 const sterlionUblRoutes = require("./routes/SterlionUbl/sterlionUblRoutes");
 const circlePeHouserRoutes = require("./routes/CirclepeHouser/CirclepeHouserRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const quickMoneyRoutes =require("./routes/QuickMoney/quickMoneyRoutes")
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
 //   // 32 bytes = 64 characters hex string
@@ -416,6 +417,9 @@ app.use(
   "/api/supply-chain",
   require("./routes/supplyChainRoutes/supplyChainRoutes"),
 ); // ✅ Register Routes for Supply Chain Loans
+
+app.use(
+  "/api/quick-money", quickMoneyRoutes);
 app.post("/api/cibil/:id/pdf", async (req, res) => {
   try {
     const doc = await generateForReport(req.params.id);
