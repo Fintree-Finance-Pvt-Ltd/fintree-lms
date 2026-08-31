@@ -883,6 +883,27 @@ function extractUploadData(req) {
   };
 }
 
+function getSmdContractualDays(tenureMonths) {
+  const months = Number(tenureMonths);
+
+  if (!Number.isInteger(months) || months <= 0) {
+    throw new RowImportError(
+      "loan_configuration",
+      "Tenure months must be a positive whole number.",
+    );
+  }
+
+  /*
+   * 360-day basis:
+   * 12 months = 360 days
+   * 1 month = 30 days
+   *
+   * Example:
+   * 3 months = 90 days
+   */
+  return months * (SMD_DAY_COUNT_BASIS / 12);
+}
+
 const INSERT_COLUMNS = [
   "lan",
   "product",
@@ -1955,10 +1976,7 @@ async function recalculateLoanUtilization(conn, loanBookingId) {
   // negative. New invoice uploads remain blocked by the pre-insert limit check.
   const unutilizedCents = Math.max(loanLimitCents - utilizedCents, 0);
 
-  if (
-    utilizedCents < 0 ||
-    unutilizedCents < 0
-  ) {
+  if (utilizedCents < 0 || unutilizedCents < 0) {
     throw new RowImportError(
       "loan_limit",
       `Utilization is outside the Loan Limit for LAN ${loan.lan}.`,
@@ -2039,87 +2057,87 @@ async function reconcileSterlionMexonDexonUtilizationByLan(lan) {
   }
 }
 
-async function calculateOpeningCarryPoolExact(
-  conn,
-  loanBookingId,
-  disbursementDate,
-  currentInvoiceId = null,
-) {
-  let priorInvoiceCondition;
-  let priorInvoiceParams;
+// async function calculateOpeningCarryPoolExact(
+//   conn,
+//   loanBookingId,
+//   disbursementDate,
+//   currentInvoiceId = null,
+// ) {
+//   let priorInvoiceCondition;
+//   let priorInvoiceParams;
 
-  if (currentInvoiceId) {
-    priorInvoiceCondition = `
-      (
-        i.disbursement_date < ?
-        OR (
-          i.disbursement_date = ?
-          AND i.id < ?
-        )
-      )
-    `;
+//   if (currentInvoiceId) {
+//     priorInvoiceCondition = `
+//       (
+//         i.disbursement_date < ?
+//         OR (
+//           i.disbursement_date = ?
+//           AND i.id < ?
+//         )
+//       )
+//     `;
 
-    priorInvoiceParams = [disbursementDate, disbursementDate, currentInvoiceId];
-  } else {
-    priorInvoiceCondition = `i.disbursement_date <= ?`;
+//     priorInvoiceParams = [disbursementDate, disbursementDate, currentInvoiceId];
+//   } else {
+//     priorInvoiceCondition = `i.disbursement_date <= ?`;
 
-    priorInvoiceParams = [disbursementDate];
-  }
+//     priorInvoiceParams = [disbursementDate];
+//   }
 
-  const [reserveRows] = await conn.query(
-    `
-        SELECT
-          COALESCE(
-            SUM(
-              i.contractual_upfront_interest
-            ),
-            0.00
-          ) AS contractual_interest,
+//   const [reserveRows] = await conn.query(
+//     `
+//         SELECT
+//           COALESCE(
+//             SUM(
+//               i.contractual_upfront_interest
+//             ),
+//             0.00
+//           ) AS contractual_interest,
 
-          COALESCE(
-            SUM(
-              i.carry_forward_applied
-            ),
-            0.00
-          ) AS carry_already_applied
-        FROM loan_invoices_sterlion_mexon_dexon i
-        WHERE i.loan_booking_id = ?
-          AND i.status <> 'CANCELLED'
-          AND ${priorInvoiceCondition}
-      `,
-    [loanBookingId, ...priorInvoiceParams],
-  );
+//           COALESCE(
+//             SUM(
+//               i.carry_forward_applied
+//             ),
+//             0.00
+//           ) AS carry_already_applied
+//         FROM loan_invoices_sterlion_mexon_dexon i
+//         WHERE i.loan_booking_id = ?
+//           AND i.status <> 'CANCELLED'
+//           AND ${priorInvoiceCondition}
+//       `,
+//     [loanBookingId, ...priorInvoiceParams],
+//   );
 
-  const [accrualRows] = await conn.query(
-    `
-        SELECT
-          COALESCE(
-            SUM(
-              d.daily_interest_exact
-            ),
-            0.000000
-          ) AS exact_interest_accrued
-        FROM loan_invoice_daily_accruals_sterlion_mexon_dexon d
-        INNER JOIN loan_invoices_sterlion_mexon_dexon i
-          ON i.id = d.invoice_id
-        WHERE i.loan_booking_id = ?
-          AND i.status <> 'CANCELLED'
-          AND ${priorInvoiceCondition}
-          AND d.accrual_date < ?
-      `,
-    [loanBookingId, ...priorInvoiceParams, disbursementDate],
-  );
+//   const [accrualRows] = await conn.query(
+//     `
+//         SELECT
+//           COALESCE(
+//             SUM(
+//               d.daily_interest_exact
+//             ),
+//             0.000000
+//           ) AS exact_interest_accrued
+//         FROM loan_invoice_daily_accruals_sterlion_mexon_dexon d
+//         INNER JOIN loan_invoices_sterlion_mexon_dexon i
+//           ON i.id = d.invoice_id
+//         WHERE i.loan_booking_id = ?
+//           AND i.status <> 'CANCELLED'
+//           AND ${priorInvoiceCondition}
+//           AND d.accrual_date < ?
+//       `,
+//     [loanBookingId, ...priorInvoiceParams, disbursementDate],
+//   );
 
-  return roundSix(
-    Math.max(
-      Number(reserveRows[0].contractual_interest || 0) -
-        Number(reserveRows[0].carry_already_applied || 0) -
-        Number(accrualRows[0].exact_interest_accrued || 0),
+//   return roundSix(
+//     Math.max(
+//       Number(reserveRows[0].contractual_interest || 0) -
+//         Number(reserveRows[0].carry_already_applied || 0) -
+//         Number(accrualRows[0].exact_interest_accrued || 0),
 
-      0,
-    ),
-  );
-}
+//       0,
+//     ),
+//   );
+// }
 
 // async function rebuildInvoiceDailyAccruals(conn, invoiceId) {
 //   const [invoiceRows] = await conn.query(
@@ -2455,6 +2473,223 @@ async function calculateOpeningCarryPoolExact(
 //     status: currentStatus,
 //   };
 // }
+
+async function calculateOpeningCarryPoolExact(
+  conn,
+  loanBookingId,
+  disbursementDate,
+  currentInvoiceId = null,
+) {
+  /*
+   * ============================================================
+   * BUSINESS RULE
+   * ============================================================
+   *
+   * Carry is NOT:
+   *
+   *   Contractual Interest - Accrued Interest
+   *
+   * Carry is generated ONLY when principal is actually repaid
+   * before maturity.
+   *
+   * For every principal allocation:
+   *
+   * Carry Generated =
+   *   Principal Repaid
+   *   × Annual Rate
+   *   × Remaining Contractual Days
+   *   / Day Count Basis
+   *
+   * Example:
+   *
+   * Principal       = 8,00,000
+   * Rate            = 36%
+   * Tenure          = 90 days
+   * Paid on Day     = 15
+   * Remaining Days  = 75
+   *
+   * Carry =
+   * 8,00,000 × 36% × 75 / 360
+   * = 60,000
+   *
+   * ============================================================
+   */
+
+  /*
+   * Find all principal repayments that happened on or before
+   * this new invoice's disbursement date.
+   */
+  const [allocationRows] = await conn.query(
+    `
+      SELECT
+        a.id AS allocation_id,
+        a.allocated_amount,
+        a.allocation_date,
+
+        i.id AS invoice_id,
+        i.invoice_number,
+        i.disbursement_date,
+        i.maturity_date,
+        i.annual_interest_rate,
+        i.day_count_basis
+
+      FROM loan_collection_allocations_sterlion_mexon_dexon a
+
+      INNER JOIN loan_invoices_sterlion_mexon_dexon i
+        ON i.id = a.invoice_id
+
+      INNER JOIN loan_collections_sterlion_mexon_dexon c
+        ON c.id = a.collection_id
+
+      WHERE a.loan_booking_id = ?
+        AND a.allocation_component = 'PRINCIPAL'
+        AND i.status <> 'CANCELLED'
+        AND c.status <> 'REVERSED'
+        AND a.allocation_date <= ?
+
+      ORDER BY
+        a.allocation_date ASC,
+        a.id ASC
+    `,
+    [loanBookingId, disbursementDate],
+  );
+
+  let totalCarryGeneratedExact = 0;
+
+  for (const allocation of allocationRows) {
+    const allocatedAmount = Number(allocation.allocated_amount || 0);
+
+    if (allocatedAmount <= 0) {
+      continue;
+    }
+
+    const allocationDate = databaseDateToSqlDate(allocation.allocation_date);
+
+    const maturityDate = databaseDateToSqlDate(allocation.maturity_date);
+
+    /*
+     * If customer pays on day 15 of a 90-day facility:
+     *
+     * maturity - allocation date = 75 days.
+     *
+     * Day 15 interest has already been earned.
+     * Carry starts from Day 16.
+     */
+    const remainingDays = Math.max(
+      diffSqlDates(maturityDate, allocationDate),
+      0,
+    );
+
+    /*
+     * Payment on or after maturity:
+     * no unused future interest.
+     */
+    if (remainingDays <= 0) {
+      continue;
+    }
+
+    const annualInterestRate = Number(allocation.annual_interest_rate || 0);
+
+    const dayCountBasis = Number(
+      allocation.day_count_basis || SMD_DAY_COUNT_BASIS,
+    );
+
+    if (
+      !Number.isFinite(annualInterestRate) ||
+      annualInterestRate < 0 ||
+      !Number.isFinite(dayCountBasis) ||
+      dayCountBasis <= 0
+    ) {
+      throw new RowImportError(
+        "calculation",
+        `Invalid interest configuration for invoice ${allocation.invoice_number}.`,
+      );
+    }
+
+    const carryGeneratedExact =
+      allocatedAmount *
+      (annualInterestRate / 100) *
+      (remainingDays / dayCountBasis);
+
+    totalCarryGeneratedExact = roundSix(
+      totalCarryGeneratedExact + carryGeneratedExact,
+    );
+  }
+
+  /*
+   * ============================================================
+   * Find carry already consumed by PREVIOUS invoices.
+   * ============================================================
+   */
+
+  let priorInvoiceCondition;
+  let priorInvoiceParams;
+
+  if (currentInvoiceId) {
+    /*
+     * Recalculation mode.
+     *
+     * Only invoices before the current invoice may have
+     * consumed the carry.
+     */
+    priorInvoiceCondition = `
+      (
+        i.disbursement_date < ?
+        OR (
+          i.disbursement_date = ?
+          AND i.id < ?
+        )
+      )
+    `;
+
+    priorInvoiceParams = [disbursementDate, disbursementDate, currentInvoiceId];
+  } else {
+    /*
+     * New invoice mode.
+     *
+     * All already-existing invoices up to this date are prior.
+     */
+    priorInvoiceCondition = `
+      i.disbursement_date <= ?
+    `;
+
+    priorInvoiceParams = [disbursementDate];
+  }
+
+  const [usedCarryRows] = await conn.query(
+    `
+      SELECT
+        COALESCE(
+          SUM(i.carry_forward_applied),
+          0.00
+        ) AS carry_already_applied
+
+      FROM loan_invoices_sterlion_mexon_dexon i
+
+      WHERE i.loan_booking_id = ?
+        AND i.status <> 'CANCELLED'
+        AND ${priorInvoiceCondition}
+    `,
+    [loanBookingId, ...priorInvoiceParams],
+  );
+
+  const totalCarryAlreadyApplied = Number(
+    usedCarryRows[0]?.carry_already_applied || 0,
+  );
+
+  /*
+   * Available Carry =
+   *
+   * Total refund generated by early principal repayments
+   * -
+   * Carry already consumed by previous invoices
+   */
+  const availableCarryExact = roundSix(
+    Math.max(totalCarryGeneratedExact - totalCarryAlreadyApplied, 0),
+  );
+
+  return availableCarryExact;
+}
 
 async function refreshInvoiceAccrualSummary(conn, invoiceId) {
   const [invoiceRows] = await conn.query(
@@ -3395,16 +3630,34 @@ async function insertSterlionMexonDexonInvoice(invoiceData) {
       );
     }
 
-    const maturityDate = addMonthsSqlDate(
-      invoiceData.disbursementDate,
+    // const maturityDate = addMonthsSqlDate(
+    //   invoiceData.disbursementDate,
 
-      tenureMonths,
+    //   tenureMonths,
+    // );
+
+    // const contractualUpfrontInterest = roundMoney(
+    //   invoiceData.disbursementAmount *
+    //     (annualInterestRate / 100) *
+    //     (tenureMonths / 12),
+    // );
+
+    const contractualDays = getSmdContractualDays(tenureMonths);
+
+    /*
+     * IMPORTANT:
+     * 3 months means exactly 90 contractual days,
+     * not 3 calendar months.
+     */
+    const maturityDate = addDaysSqlDate(
+      invoiceData.disbursementDate,
+      contractualDays,
     );
 
     const contractualUpfrontInterest = roundMoney(
       invoiceData.disbursementAmount *
         (annualInterestRate / 100) *
-        (tenureMonths / 12),
+        (contractualDays / SMD_DAY_COUNT_BASIS),
     );
 
     const openingCarryPoolExact = await calculateOpeningCarryPoolExact(
@@ -4021,19 +4274,10 @@ async function insertAndAllocateSterlionMexonDexonCollection(collectionData) {
   }
 }
 
-async function getSmdAccrualCatchUpWindow(
-  conn,
-  invoice,
-  targetAccrualDate,
-) {
-  const disbursementDate = databaseDateToSqlDate(
-    invoice.disbursement_date,
-  );
+async function getSmdAccrualCatchUpWindow(conn, invoice, targetAccrualDate) {
+  const disbursementDate = databaseDateToSqlDate(invoice.disbursement_date);
 
-  const firstAccrualDate = addDaysSqlDate(
-    disbursementDate,
-    1,
-  );
+  const firstAccrualDate = addDaysSqlDate(disbursementDate, 1);
 
   if (firstAccrualDate > targetAccrualDate) {
     return {
@@ -4052,22 +4296,14 @@ async function getSmdAccrualCatchUpWindow(
       WHERE invoice_id = ?
         AND accrual_date <= ?
     `,
-    [
-      invoice.id,
-      targetAccrualDate,
-    ],
+    [invoice.id, targetAccrualDate],
   );
 
-  const totalRows = Number(
-    accrualRows[0]?.total_rows || 0,
-  );
+  const totalRows = Number(accrualRows[0]?.total_rows || 0);
 
-  const distinctDays = Number(
-    accrualRows[0]?.distinct_days || 0,
-  );
+  const distinctDays = Number(accrualRows[0]?.distinct_days || 0);
 
-  const lastAccrualValue =
-    accrualRows[0]?.last_accrual_date || null;
+  const lastAccrualValue = accrualRows[0]?.last_accrual_date || null;
 
   /*
    * Detect duplicate dates before inserting anything.
@@ -4082,9 +4318,7 @@ async function getSmdAccrualCatchUpWindow(
   let nextAccrualDate = firstAccrualDate;
 
   if (lastAccrualValue) {
-    const lastAccrualDate = databaseDateToSqlDate(
-      lastAccrualValue,
-    );
+    const lastAccrualDate = databaseDateToSqlDate(lastAccrualValue);
 
     const expectedExistingDays = diffSqlDates(
       lastAccrualDate,
@@ -4104,10 +4338,7 @@ async function getSmdAccrualCatchUpWindow(
       );
     }
 
-    nextAccrualDate = addDaysSqlDate(
-      lastAccrualDate,
-      1,
-    );
+    nextAccrualDate = addDaysSqlDate(lastAccrualDate, 1);
   }
 
   if (nextAccrualDate > targetAccrualDate) {
@@ -4117,16 +4348,9 @@ async function getSmdAccrualCatchUpWindow(
     };
   }
 
-  const missingDays =
-    diffSqlDates(
-      targetAccrualDate,
-      nextAccrualDate,
-    ) + 1;
+  const missingDays = diffSqlDates(targetAccrualDate, nextAccrualDate) + 1;
 
-  if (
-    missingDays >
-    MAX_SMD_CATCH_UP_DAYS_PER_INVOICE
-  ) {
+  if (missingDays > MAX_SMD_CATCH_UP_DAYS_PER_INVOICE) {
     throw new RowImportError(
       "daily_accrual_backlog",
       `Invoice ${invoice.invoice_number} has ${missingDays} missing accrual days. The allowed limit is ${MAX_SMD_CATCH_UP_DAYS_PER_INVOICE}.`,
@@ -4160,29 +4384,19 @@ async function runSterlionMexonDexonDailyAccrualJob() {
       `SELECT DATABASE() AS database_name`,
     );
 
-    const databaseName = String(
-      databaseRows[0]?.database_name || "",
-    ).trim();
+    const databaseName = String(databaseRows[0]?.database_name || "").trim();
 
     if (!databaseName) {
-      throw new Error(
-        "Unable to identify the current database.",
-      );
+      throw new Error("Unable to identify the current database.");
     }
 
-    lockName =
-      `smd_daily_accrual_${databaseName}`.slice(
-        0,
-        64,
-      );
+    lockName = `smd_daily_accrual_${databaseName}`.slice(0, 64);
 
-    const [lockRows] = await conn.query(
-      `SELECT GET_LOCK(?, 0) AS acquired`,
-      [lockName],
-    );
+    const [lockRows] = await conn.query(`SELECT GET_LOCK(?, 0) AS acquired`, [
+      lockName,
+    ]);
 
-    lockAcquired =
-      Number(lockRows[0]?.acquired) === 1;
+    lockAcquired = Number(lockRows[0]?.acquired) === 1;
 
     if (!lockAcquired) {
       console.log(
@@ -4205,8 +4419,8 @@ async function runSterlionMexonDexonDailyAccrualJob() {
           AND outstanding_principal > 0
           AND disbursement_date < ?
           ORDER BY id ASC                   
-      `,                            
-      [targetAccrualDate],       
+      `,
+      [targetAccrualDate],
     );
 
     let processedInvoices = 0;
@@ -4220,17 +4434,13 @@ async function runSterlionMexonDexonDailyAccrualJob() {
       try {
         await conn.beginTransaction();
 
-        const catchUpWindow =
-          await getSmdAccrualCatchUpWindow(
-            conn,
-            invoice,
-            targetAccrualDate,
-          );
+        const catchUpWindow = await getSmdAccrualCatchUpWindow(
+          conn,
+          invoice,
+          targetAccrualDate,
+        );
 
-        if (
-          !catchUpWindow.nextAccrualDate ||
-          catchUpWindow.missingDays === 0
-        ) {
+        if (!catchUpWindow.nextAccrualDate || catchUpWindow.missingDays === 0) {
           upToDateInvoices += 1;
 
           await conn.commit();
@@ -4238,23 +4448,18 @@ async function runSterlionMexonDexonDailyAccrualJob() {
           continue;
         }
 
-        let currentAccrualDate =
-          catchUpWindow.nextAccrualDate;
+        let currentAccrualDate = catchUpWindow.nextAccrualDate;
 
         let invoiceInsertedRows = 0;
 
-        while (
-          currentAccrualDate <=
-          targetAccrualDate
-        ) {
+        while (currentAccrualDate <= targetAccrualDate) {
           processingDate = currentAccrualDate;
 
-          const result =
-            await insertInvoiceDailyAccrualForDate(
-              conn,
-              invoice.id,
-              currentAccrualDate,
-            );
+          const result = await insertInvoiceDailyAccrualForDate(
+            conn,
+            invoice.id,
+            currentAccrualDate,
+          );
 
           if (!result.inserted) {
             throw new RowImportError(
@@ -4265,10 +4470,7 @@ async function runSterlionMexonDexonDailyAccrualJob() {
 
           invoiceInsertedRows += 1;
 
-          currentAccrualDate = addDaysSqlDate(
-            currentAccrualDate,
-            1,
-          );
+          currentAccrualDate = addDaysSqlDate(currentAccrualDate, 1);
         }
 
         if (invoiceInsertedRows > 0) {
@@ -4292,25 +4494,19 @@ async function runSterlionMexonDexonDailyAccrualJob() {
         try {
           await conn.rollback();
         } catch (rollbackError) {
-          console.error(
-            "SMD daily accrual rollback failed:",
-            rollbackError,
-          );
+          console.error("SMD daily accrual rollback failed:", rollbackError);
         }
 
-        console.error(
-          "SMD daily accrual invoice failed:",
-          {
-            invoiceId: invoice.id,
-            lan: invoice.lan,
-            invoiceNumber: invoice.invoice_number,
-            processingDate,
-            targetAccrualDate,
-            stage: invoiceError?.stage || null,
-            code: invoiceError?.code || null,
-            message: invoiceError?.message || null,
-          },
-        );
+        console.error("SMD daily accrual invoice failed:", {
+          invoiceId: invoice.id,
+          lan: invoice.lan,
+          invoiceNumber: invoice.invoice_number,
+          processingDate,
+          targetAccrualDate,
+          stage: invoiceError?.stage || null,
+          code: invoiceError?.code || null,
+          message: invoiceError?.message || null,
+        });
       }
     }
 
@@ -4318,26 +4514,13 @@ async function runSterlionMexonDexonDailyAccrualJob() {
       `SMD daily accrual cron completed | Database: ${databaseName} | Target: ${targetAccrualDate} | Processed invoices: ${processedInvoices} | Up-to-date invoices: ${upToDateInvoices} | Inserted rows: ${insertedRows} | Failed invoices: ${failedInvoices}`,
     );
   } catch (error) {
-    console.error(
-      "SMD daily accrual cron failed:",
-      error,
-    );
+    console.error("SMD daily accrual cron failed:", error);
   } finally {
-    if (
-      conn &&
-      lockAcquired &&
-      lockName
-    ) {
+    if (conn && lockAcquired && lockName) {
       try {
-        await conn.query(
-          `SELECT RELEASE_LOCK(?)`,
-          [lockName],
-        );
+        await conn.query(`SELECT RELEASE_LOCK(?)`, [lockName]);
       } catch (releaseError) {
-        console.error(
-          "SMD daily accrual lock release failed:",
-          releaseError,
-        );
+        console.error("SMD daily accrual lock release failed:", releaseError);
       }
     }
 
@@ -4363,12 +4546,9 @@ function startSterlionMexonDexonDailyAccrualCron() {
     async () => {
       console.log(
         "SMD daily accrual cron started:",
-        new Date().toLocaleString(
-          "en-IN",
-          {
-            timeZone: BUSINESS_TIME_ZONE,
-          },
-        ),
+        new Date().toLocaleString("en-IN", {
+          timeZone: BUSINESS_TIME_ZONE,
+        }),
       );
 
       await runSterlionMexonDexonDailyAccrualJob();
@@ -4380,9 +4560,7 @@ function startSterlionMexonDexonDailyAccrualCron() {
     },
   );
 
-  console.log(
-    "SMD daily accrual cron scheduled for 12:05 AM Asia/Kolkata.",
-  );
+  console.log("SMD daily accrual cron scheduled for 12:05 AM Asia/Kolkata.");
 }
 
 router.post(
