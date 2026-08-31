@@ -228,6 +228,7 @@ const DisbursedLoansTable = ({
   title = "Disbursed Loans",
   amountField = "disbursement_amount",
   currency = "INR",
+  showNetDisbursement = false,
 }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -364,6 +365,29 @@ const DisbursedLoansTable = ({
       sortAccessor: (r) => { const v = Number(r?.[amountField] ?? r?.loan_amount ?? 0); return Number.isFinite(v) ? v : 0; },
       width: 170,
     },
+    ...(showNetDisbursement
+  ? [
+      {
+        key: "net_disb_amt",
+        header: "Net Disbursement Amount",
+        sortable: true,
+        render: (r) => {
+          const value = Number(r?.net_disb_amt);
+          return (
+            <span className="currency-text">
+              {Number.isFinite(value) ? nf.format(value) : "—"}
+            </span>
+          );
+        },
+        sortAccessor: (r) => {
+          const value = Number(r?.net_disb_amt);
+          return Number.isFinite(value) ? value : 0;
+        },
+        csvAccessor: (r) => r?.net_disb_amt ?? "",
+        width: 210,
+      },
+    ]
+  : []),
     {
       key: "status", header: "Status", sortable: true,
       render: (r) => {
