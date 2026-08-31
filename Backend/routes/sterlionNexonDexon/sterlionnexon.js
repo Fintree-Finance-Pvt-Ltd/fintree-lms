@@ -2474,51 +2474,273 @@ async function reconcileSterlionMexonDexonUtilizationByLan(lan) {
 //   };
 // }
 
+// async function calculateOpeningCarryPoolExact(
+//   conn,
+//   loanBookingId,
+//   disbursementDate,
+//   currentInvoiceId = null,
+// ) {
+//   /*
+//    * ============================================================
+//    * BUSINESS RULE
+//    * ============================================================
+//    *
+//    * Carry is NOT:
+//    *
+//    *   Contractual Interest - Accrued Interest
+//    *
+//    * Carry is generated ONLY when principal is actually repaid
+//    * before maturity.
+//    *
+//    * For every principal allocation:
+//    *
+//    * Carry Generated =
+//    *   Principal Repaid
+//    *   × Annual Rate
+//    *   × Remaining Contractual Days
+//    *   / Day Count Basis
+//    *
+//    * Example:
+//    *
+//    * Principal       = 8,00,000
+//    * Rate            = 36%
+//    * Tenure          = 90 days
+//    * Paid on Day     = 15
+//    * Remaining Days  = 75
+//    *
+//    * Carry =
+//    * 8,00,000 × 36% × 75 / 360
+//    * = 60,000
+//    *
+//    * ============================================================
+//    */
+
+//   /*
+//    * Find all principal repayments that happened on or before
+//    * this new invoice's disbursement date.
+//    */
+//   const [allocationRows] = await conn.query(
+//     `
+//       SELECT
+//         a.id AS allocation_id,
+//         a.allocated_amount,
+//         a.allocation_date,
+
+//         i.id AS invoice_id,
+//         i.invoice_number,
+//         i.disbursement_date,
+//         i.maturity_date,
+//         i.annual_interest_rate,
+//         i.day_count_basis
+
+//       FROM loan_collection_allocations_sterlion_mexon_dexon a
+
+//       INNER JOIN loan_invoices_sterlion_mexon_dexon i
+//         ON i.id = a.invoice_id
+
+//       INNER JOIN loan_collections_sterlion_mexon_dexon c
+//         ON c.id = a.collection_id
+
+//       WHERE a.loan_booking_id = ?
+//         AND a.allocation_component = 'PRINCIPAL'
+//         AND i.status <> 'CANCELLED'
+//         AND c.status <> 'REVERSED'
+//         AND a.allocation_date <= ?
+
+//       ORDER BY
+//         a.allocation_date ASC,
+//         a.id ASC
+//     `,
+//     [loanBookingId, disbursementDate],
+//   );
+
+//   let totalCarryGeneratedExact = 0;
+
+//   for (const allocation of allocationRows) {
+//     const allocatedAmount = Number(allocation.allocated_amount || 0);
+
+//     if (allocatedAmount <= 0) {
+//       continue;
+//     }
+
+//     const allocationDate = databaseDateToSqlDate(allocation.allocation_date);
+
+//     const maturityDate = databaseDateToSqlDate(allocation.maturity_date);
+
+//     /*
+//      * If customer pays on day 15 of a 90-day facility:
+//      *
+//      * maturity - allocation date = 75 days.
+//      *
+//      * Day 15 interest has already been earned.
+//      * Carry starts from Day 16.
+//      */
+//     const remainingDays = Math.max(
+//       diffSqlDates(maturityDate, allocationDate),
+//       0,
+//     );
+
+//     /*
+//      * Payment on or after maturity:
+//      * no unused future interest.
+//      */
+//     if (remainingDays <= 0) {
+//       continue;
+//     }
+
+//     const annualInterestRate = Number(allocation.annual_interest_rate || 0);
+
+//     const dayCountBasis = Number(
+//       allocation.day_count_basis || SMD_DAY_COUNT_BASIS,
+//     );
+
+//     if (
+//       !Number.isFinite(annualInterestRate) ||
+//       annualInterestRate < 0 ||
+//       !Number.isFinite(dayCountBasis) ||
+//       dayCountBasis <= 0
+//     ) {
+//       throw new RowImportError(
+//         "calculation",
+//         `Invalid interest configuration for invoice ${allocation.invoice_number}.`,
+//       );
+//     }
+
+//     const carryGeneratedExact =
+//       allocatedAmount *
+//       (annualInterestRate / 100) *
+//       (remainingDays / dayCountBasis);
+
+//     totalCarryGeneratedExact = roundSix(
+//       totalCarryGeneratedExact + carryGeneratedExact,
+//     );
+//   }
+
+//   /*
+//    * ============================================================
+//    * Find carry already consumed by PREVIOUS invoices.
+//    * ============================================================
+//    */
+
+//   let priorInvoiceCondition;
+//   let priorInvoiceParams;
+
+//   if (currentInvoiceId) {
+//     /*
+//      * Recalculation mode.
+//      *
+//      * Only invoices before the current invoice may have
+//      * consumed the carry.
+//      */
+//     priorInvoiceCondition = `
+//       (
+//         i.disbursement_date < ?
+//         OR (
+//           i.disbursement_date = ?
+//           AND i.id < ?
+//         )
+//       )
+//     `;
+
+//     priorInvoiceParams = [disbursementDate, disbursementDate, currentInvoiceId];
+//   } else {
+//     /*
+//      * New invoice mode.
+//      *
+//      * All already-existing invoices up to this date are prior.
+//      */
+//     priorInvoiceCondition = `
+//       i.disbursement_date <= ?
+//     `;
+
+//     priorInvoiceParams = [disbursementDate];
+//   }
+
+//   const [usedCarryRows] = await conn.query(
+//     `
+//       SELECT
+//         COALESCE(
+//           SUM(i.carry_forward_applied),
+//           0.00
+//         ) AS carry_already_applied
+
+//       FROM loan_invoices_sterlion_mexon_dexon i
+
+//       WHERE i.loan_booking_id = ?
+//         AND i.status <> 'CANCELLED'
+//         AND ${priorInvoiceCondition}
+//     `,
+//     [loanBookingId, ...priorInvoiceParams],
+//   );
+
+//   const totalCarryAlreadyApplied = Number(
+//     usedCarryRows[0]?.carry_already_applied || 0,
+//   );
+
+//   /*
+//    * Available Carry =
+//    *
+//    * Total refund generated by early principal repayments
+//    * -
+//    * Carry already consumed by previous invoices
+//    */
+//   const availableCarryExact = roundSix(
+//     Math.max(totalCarryGeneratedExact - totalCarryAlreadyApplied, 0),
+//   );
+
+//   return availableCarryExact;
+// }
+
 async function calculateOpeningCarryPoolExact(
   conn,
   loanBookingId,
-  disbursementDate,
+  currentInvoiceDate,
   currentInvoiceId = null,
 ) {
   /*
    * ============================================================
-   * BUSINESS RULE
+   * CARRY FORWARD BUSINESS RULE
    * ============================================================
    *
-   * Carry is NOT:
+   * Carry is generated ONLY when principal is actually repaid.
    *
-   *   Contractual Interest - Accrued Interest
+   * Carry generated =
    *
-   * Carry is generated ONLY when principal is actually repaid
-   * before maturity.
-   *
-   * For every principal allocation:
-   *
-   * Carry Generated =
-   *   Principal Repaid
-   *   × Annual Rate
-   *   × Remaining Contractual Days
-   *   / Day Count Basis
+   * Principal Repaid
+   * × Annual Interest Rate
+   * × Remaining Contractual Days
+   * / Day Count Basis
    *
    * Example:
    *
    * Principal       = 8,00,000
    * Rate            = 36%
-   * Tenure          = 90 days
-   * Paid on Day     = 15
-   * Remaining Days  = 75
+   * Contract days   = 90
+   * Collection day  = 15
+   * Remaining days  = 75
    *
    * Carry =
    * 8,00,000 × 36% × 75 / 360
    * = 60,000
    *
+   * IMPORTANT:
+   *
+   * Only collections that happened ON OR BEFORE the current
+   * invoice date can create carry for that invoice.
+   *
+   * Therefore:
+   *
+   * Invoice 2 date = 13-Aug
+   * Collection     = 18-Aug
+   *
+   * Collection cannot affect Invoice 2.
+   *
+   * Invoice 3 date = 23-Aug
+   *
+   * Collection CAN affect Invoice 3.
    * ============================================================
    */
 
-  /*
-   * Find all principal repayments that happened on or before
-   * this new invoice's disbursement date.
-   */
   const [allocationRows] = await conn.query(
     `
       SELECT
@@ -2526,10 +2748,10 @@ async function calculateOpeningCarryPoolExact(
         a.allocated_amount,
         a.allocation_date,
 
-        i.id AS invoice_id,
+        i.id AS source_invoice_id,
         i.invoice_number,
         i.disbursement_date,
-        i.maturity_date,
+        i.tenure_months,
         i.annual_interest_rate,
         i.day_count_basis
 
@@ -2542,47 +2764,80 @@ async function calculateOpeningCarryPoolExact(
         ON c.id = a.collection_id
 
       WHERE a.loan_booking_id = ?
+
         AND a.allocation_component = 'PRINCIPAL'
+
         AND i.status <> 'CANCELLED'
+
         AND c.status <> 'REVERSED'
+
+        /*
+         * CRITICAL CONDITION:
+         *
+         * A future collection must NEVER affect
+         * an earlier invoice.
+         */
         AND a.allocation_date <= ?
 
       ORDER BY
         a.allocation_date ASC,
         a.id ASC
     `,
-    [loanBookingId, disbursementDate],
+    [loanBookingId, currentInvoiceDate],
   );
 
   let totalCarryGeneratedExact = 0;
 
+  /*
+   * ============================================================
+   * Calculate carry generated by every eligible repayment.
+   * ============================================================
+   */
   for (const allocation of allocationRows) {
-    const allocatedAmount = Number(allocation.allocated_amount || 0);
+    const principalRepaid = Number(allocation.allocated_amount || 0);
 
-    if (allocatedAmount <= 0) {
+    if (!Number.isFinite(principalRepaid) || principalRepaid <= 0) {
       continue;
     }
 
-    const allocationDate = databaseDateToSqlDate(allocation.allocation_date);
-
-    const maturityDate = databaseDateToSqlDate(allocation.maturity_date);
-
-    /*
-     * If customer pays on day 15 of a 90-day facility:
-     *
-     * maturity - allocation date = 75 days.
-     *
-     * Day 15 interest has already been earned.
-     * Carry starts from Day 16.
-     */
-    const remainingDays = Math.max(
-      diffSqlDates(maturityDate, allocationDate),
-      0,
+    const originalDisbursementDate = databaseDateToSqlDate(
+      allocation.disbursement_date,
     );
 
+    const allocationDate = databaseDateToSqlDate(allocation.allocation_date);
+
+    const tenureMonths = Number(allocation.tenure_months);
+
+    const contractualDays = getSmdContractualDays(tenureMonths);
+
     /*
-     * Payment on or after maturity:
-     * no unused future interest.
+     * Example:
+     *
+     * Disbursement = 03-Aug
+     * Collection   = 18-Aug
+     *
+     * Used days = 15
+     */
+    let usedDays = diffSqlDates(allocationDate, originalDisbursementDate);
+
+    /*
+     * Protect against invalid/backdated values.
+     */
+    usedDays = Math.max(Math.min(usedDays, contractualDays), 0);
+
+    /*
+     * Example:
+     *
+     * Contractual = 90
+     * Used        = 15
+     *
+     * Remaining = 75
+     */
+    const remainingDays = Math.max(contractualDays - usedDays, 0);
+
+    /*
+     * Payment at/after end of tenure:
+     * there is no unused future interest.
      */
     if (remainingDays <= 0) {
       continue;
@@ -2596,7 +2851,7 @@ async function calculateOpeningCarryPoolExact(
 
     if (
       !Number.isFinite(annualInterestRate) ||
-      annualInterestRate < 0 ||
+      annualInterestRate <= 0 ||
       !Number.isFinite(dayCountBasis) ||
       dayCountBasis <= 0
     ) {
@@ -2606,8 +2861,12 @@ async function calculateOpeningCarryPoolExact(
       );
     }
 
+    /*
+     * Unused future interest released by this
+     * principal repayment.
+     */
     const carryGeneratedExact =
-      allocatedAmount *
+      principalRepaid *
       (annualInterestRate / 100) *
       (remainingDays / dayCountBasis);
 
@@ -2618,23 +2877,25 @@ async function calculateOpeningCarryPoolExact(
 
   /*
    * ============================================================
-   * Find carry already consumed by PREVIOUS invoices.
+   * Calculate carry already consumed by invoices BEFORE
+   * the current invoice.
    * ============================================================
    */
 
-  let priorInvoiceCondition;
-  let priorInvoiceParams;
+  let previousInvoiceCondition;
+  let previousInvoiceParams;
 
-  if (currentInvoiceId) {
+  if (currentInvoiceId !== null) {
     /*
-     * Recalculation mode.
+     * Used when rebuilding the complete invoice chain.
      *
-     * Only invoices before the current invoice may have
-     * consumed the carry.
+     * Only invoices chronologically BEFORE this invoice
+     * can have consumed carry.
      */
-    priorInvoiceCondition = `
+    previousInvoiceCondition = `
       (
         i.disbursement_date < ?
+
         OR (
           i.disbursement_date = ?
           AND i.id < ?
@@ -2642,50 +2903,58 @@ async function calculateOpeningCarryPoolExact(
       )
     `;
 
-    priorInvoiceParams = [disbursementDate, disbursementDate, currentInvoiceId];
+    previousInvoiceParams = [
+      currentInvoiceDate,
+      currentInvoiceDate,
+      currentInvoiceId,
+    ];
   } else {
     /*
-     * New invoice mode.
+     * Used while creating a NEW invoice.
      *
-     * All already-existing invoices up to this date are prior.
+     * The current invoice does not exist yet,
+     * therefore all existing invoices on/before
+     * this date are previous invoices.
      */
-    priorInvoiceCondition = `
+    previousInvoiceCondition = `
       i.disbursement_date <= ?
     `;
 
-    priorInvoiceParams = [disbursementDate];
+    previousInvoiceParams = [currentInvoiceDate];
   }
 
-  const [usedCarryRows] = await conn.query(
+  const [consumedRows] = await conn.query(
     `
       SELECT
         COALESCE(
           SUM(i.carry_forward_applied),
           0.00
-        ) AS carry_already_applied
+        ) AS total_carry_consumed
 
       FROM loan_invoices_sterlion_mexon_dexon i
 
       WHERE i.loan_booking_id = ?
+
         AND i.status <> 'CANCELLED'
-        AND ${priorInvoiceCondition}
+
+        AND ${previousInvoiceCondition}
     `,
-    [loanBookingId, ...priorInvoiceParams],
+    [loanBookingId, ...previousInvoiceParams],
   );
 
-  const totalCarryAlreadyApplied = Number(
-    usedCarryRows[0]?.carry_already_applied || 0,
-  );
+  const totalCarryConsumed = Number(consumedRows[0]?.total_carry_consumed || 0);
 
   /*
-   * Available Carry =
+   * ============================================================
+   * Available Carry
+   * ============================================================
    *
-   * Total refund generated by early principal repayments
+   * Generated carry
    * -
-   * Carry already consumed by previous invoices
+   * Carry already consumed
    */
   const availableCarryExact = roundSix(
-    Math.max(totalCarryGeneratedExact - totalCarryAlreadyApplied, 0),
+    Math.max(totalCarryGeneratedExact - totalCarryConsumed, 0),
   );
 
   return availableCarryExact;
@@ -3365,78 +3634,191 @@ async function insertInvoiceDailyAccrualForDate(conn, invoiceId, accrualDate) {
   };
 }
 
+// async function recalculateInvoiceCarryForwardChain(conn, loanBookingId) {
+//   const [invoiceRows] = await conn.query(
+//     `
+//         SELECT
+//           id,
+//           disbursement_date,
+//           contractual_upfront_interest,
+//           disbursement_amount
+//         FROM loan_invoices_sterlion_mexon_dexon
+//         WHERE loan_booking_id = ?
+//           AND status <> 'CANCELLED'
+//         ORDER BY
+//           disbursement_date ASC,
+//           id ASC
+//         FOR UPDATE
+//       `,
+//     [loanBookingId],
+//   );
+
+//   for (const invoice of invoiceRows) {
+//     const disbursementDate = databaseDateToSqlDate(invoice.disbursement_date);
+
+//     const openingCarryPoolExact = await calculateOpeningCarryPoolExact(
+//       conn,
+
+//       loanBookingId,
+
+//       disbursementDate,
+
+//       invoice.id,
+//     );
+
+//     const contractualCents = amountToCents(
+//       invoice.contractual_upfront_interest,
+//     );
+
+//     const carryAppliedCents = Math.min(
+//       contractualCents,
+
+//       amountToCents(openingCarryPoolExact),
+//     );
+
+//     const newUpfrontCents = contractualCents - carryAppliedCents;
+
+//     const disbursementCents = amountToCents(invoice.disbursement_amount);
+
+//     if (newUpfrontCents > disbursementCents) {
+//       throw new RowImportError(
+//         "upfront_interest",
+
+//         "New upfront interest cannot exceed the disbursement amount.",
+//       );
+//     }
+
+//     await conn.query(
+//       `
+//         UPDATE loan_invoices_sterlion_mexon_dexon
+//         SET
+//           opening_carry_forward_pool = ?,
+//           carry_forward_applied = ?,
+//           new_upfront_interest_charged = ?,
+//           net_disbursement_amount = ?
+//         WHERE id = ?
+//       `,
+//       [
+//         openingCarryPoolExact,
+
+//         centsToAmount(carryAppliedCents),
+
+//         centsToAmount(newUpfrontCents),
+
+//         centsToAmount(disbursementCents - newUpfrontCents),
+
+//         invoice.id,
+//       ],
+//     );
+//   }
+// }
+
 async function recalculateInvoiceCarryForwardChain(conn, loanBookingId) {
+  /*
+   * Always rebuild chronologically.
+   *
+   * Invoice 1
+   * → Invoice 2
+   * → Invoice 3
+   * → Invoice 4
+   */
   const [invoiceRows] = await conn.query(
     `
-        SELECT
-          id,
-          disbursement_date,
-          contractual_upfront_interest,
-          disbursement_amount
-        FROM loan_invoices_sterlion_mexon_dexon
-        WHERE loan_booking_id = ?
-          AND status <> 'CANCELLED'
-        ORDER BY
-          disbursement_date ASC,
-          id ASC
-        FOR UPDATE
-      `,
+      SELECT
+        id,
+        invoice_number,
+        disbursement_date,
+        contractual_upfront_interest,
+        disbursement_amount
+
+      FROM loan_invoices_sterlion_mexon_dexon
+
+      WHERE loan_booking_id = ?
+        AND status <> 'CANCELLED'
+
+      ORDER BY
+        disbursement_date ASC,
+        id ASC
+
+      FOR UPDATE
+    `,
     [loanBookingId],
   );
 
   for (const invoice of invoiceRows) {
-    const disbursementDate = databaseDateToSqlDate(invoice.disbursement_date);
+    const invoiceDate = databaseDateToSqlDate(invoice.disbursement_date);
 
+    /*
+     * Carry available AS OF this invoice's date.
+     *
+     * Future collections are excluded inside
+     * calculateOpeningCarryPoolExact().
+     */
     const openingCarryPoolExact = await calculateOpeningCarryPoolExact(
       conn,
-
       loanBookingId,
-
-      disbursementDate,
-
+      invoiceDate,
       invoice.id,
     );
 
-    const contractualCents = amountToCents(
+    const contractualInterestCents = amountToCents(
       invoice.contractual_upfront_interest,
     );
 
+    /*
+     * Never apply more carry than the invoice's
+     * contractual upfront interest.
+     */
     const carryAppliedCents = Math.min(
-      contractualCents,
-
+      contractualInterestCents,
       amountToCents(openingCarryPoolExact),
     );
 
-    const newUpfrontCents = contractualCents - carryAppliedCents;
+    /*
+     * Fresh interest customer must actually pay.
+     */
+    const newUpfrontInterestCents =
+      contractualInterestCents - carryAppliedCents;
 
-    const disbursementCents = amountToCents(invoice.disbursement_amount);
+    const grossDisbursementCents = amountToCents(invoice.disbursement_amount);
 
-    if (newUpfrontCents > disbursementCents) {
+    if (newUpfrontInterestCents > grossDisbursementCents) {
       throw new RowImportError(
         "upfront_interest",
-
-        "New upfront interest cannot exceed the disbursement amount.",
+        `Adjusted upfront interest exceeds disbursement amount for invoice ${invoice.invoice_number}.`,
       );
     }
+
+    /*
+     * Net Disbursement =
+     *
+     * Gross Disbursement
+     * -
+     * Adjusted/Fresh Upfront Interest
+     */
+    const netDisbursementCents =
+      grossDisbursementCents - newUpfrontInterestCents;
 
     await conn.query(
       `
         UPDATE loan_invoices_sterlion_mexon_dexon
+
         SET
           opening_carry_forward_pool = ?,
           carry_forward_applied = ?,
           new_upfront_interest_charged = ?,
           net_disbursement_amount = ?
+
         WHERE id = ?
       `,
       [
-        openingCarryPoolExact,
+        roundMoney(openingCarryPoolExact),
 
         centsToAmount(carryAppliedCents),
 
-        centsToAmount(newUpfrontCents),
+        centsToAmount(newUpfrontInterestCents),
 
-        centsToAmount(disbursementCents - newUpfrontCents),
+        centsToAmount(netDisbursementCents),
 
         invoice.id,
       ],
@@ -3859,6 +4241,71 @@ async function insertSterlionMexonDexonInvoice(invoiceData) {
   }
 }
 
+async function ensureInvoiceAccrualsThroughDate(conn, invoiceId, targetDate) {
+  const [invoiceRows] = await conn.query(
+    `
+      SELECT
+        id,
+        loan_booking_id,
+        lan,
+        invoice_number,
+        disbursement_date,
+        outstanding_principal,
+        status
+      FROM loan_invoices_sterlion_mexon_dexon
+      WHERE id = ?
+      LIMIT 1
+      FOR UPDATE
+    `,
+    [invoiceId],
+  );
+
+  if (invoiceRows.length === 0) {
+    throw new RowImportError("invoice_lookup", "Invoice was not found.");
+  }
+
+  const invoice = invoiceRows[0];
+
+  const disbursementDate = databaseDateToSqlDate(invoice.disbursement_date);
+
+  /*
+   * Collection on disbursement date:
+   * zero interest days.
+   */
+  if (targetDate <= disbursementDate) {
+    return;
+  }
+
+  const catchUpWindow = await getSmdAccrualCatchUpWindow(
+    conn,
+    invoice,
+    targetDate,
+  );
+
+  if (!catchUpWindow.nextAccrualDate || catchUpWindow.missingDays === 0) {
+    return;
+  }
+
+  let currentDate = catchUpWindow.nextAccrualDate;
+
+  while (currentDate <= targetDate) {
+    const result = await insertInvoiceDailyAccrualForDate(
+      conn,
+      invoice.id,
+      currentDate,
+    );
+
+    if (!result.inserted) {
+      throw new RowImportError(
+        "daily_accrual",
+        `Unable to create accrual for invoice ${invoice.invoice_number} on ${currentDate}: ${result.reason}`,
+      );
+    }
+
+    currentDate = addDaysSqlDate(currentDate, 1);
+  }
+}
+
 async function insertAndAllocateSterlionMexonDexonCollection(collectionData) {
   let conn;
 
@@ -4012,6 +4459,22 @@ async function insertAndAllocateSterlionMexonDexonCollection(collectionData) {
       if (collectionRemainingCents <= 0) {
         break;
       }
+
+      /*
+       * IMPORTANT:
+       *
+       * Create all earned-interest days THROUGH the
+       * collection date before reducing principal.
+       *
+       * After allocation we recalculate these rows again
+       * so the collection-date row gets the correct
+       * closing principal.
+       */
+      await ensureInvoiceAccrualsThroughDate(
+        conn,
+        invoice.id,
+        collectionData.collectionDate,
+      );
 
       fifoPosition += 1;
 
