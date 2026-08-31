@@ -9067,42 +9067,42 @@ router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
              DUPLICATE PAN CHECK
           ----------------------------------------- */
 
-        const [existingPanRecords] = await conn.query(
-          `
-              SELECT
-                id,
-                lan,
-                status
-              FROM loan_booking_wctl_ffpl
-              WHERE pan_card = ?
-              FOR UPDATE
-            `,
-          [panCard],
-        );
+        // const [existingPanRecords] = await conn.query(
+        //   `
+        //       SELECT
+        //         id,
+        //         lan,
+        //         status
+        //       FROM loan_booking_wctl_ffpl
+        //       WHERE pan_card = ?
+        //       FOR UPDATE
+        //     `,
+        //   [panCard],
+        // );
 
-        const activePanLoan = existingPanRecords.find((loan) => {
-          const currentStatus = String(loan.status || "")
-            .trim()
-            .toLowerCase();
+        // const activePanLoan = existingPanRecords.find((loan) => {
+        //   const currentStatus = String(loan.status || "")
+        //     .trim()
+        //     .toLowerCase();
 
-          return !allowedStatuses.has(currentStatus);
-        });
+        //   return !allowedStatuses.has(currentStatus);
+        // });
 
-        if (activePanLoan) {
-          await conn.rollback();
-          transactionStarted = false;
+        // if (activePanLoan) {
+        //   await conn.rollback();
+        //   transactionStarted = false;
 
-          row_errors.push({
-            row: excelRowNumber,
-            stage: "dup-check",
-            reason:
-              "PAN already exists with an active loan. New loan is not allowed.",
-            existing_lan: activePanLoan.lan || null,
-            existing_status: activePanLoan.status || null,
-          });
+        //   row_errors.push({
+        //     row: excelRowNumber,
+        //     stage: "dup-check",
+        //     reason:
+        //       "PAN already exists with an active loan. New loan is not allowed.",
+        //     existing_lan: activePanLoan.lan || null,
+        //     existing_status: activePanLoan.status || null,
+        //   });
 
-          continue;
-        }
+        //   continue;
+        // }
 
         /* -----------------------------------------
              PARTNER LIMIT CHECK
