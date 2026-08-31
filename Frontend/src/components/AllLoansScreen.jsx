@@ -16,6 +16,7 @@ const AllLoansScreen = ({
   enableReject = false,
   canRejectRow,
   rejectEndpointBuilder,
+  showNetDisbursement = false,
 }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -322,6 +323,37 @@ const AllLoansScreen = ({
       },
       width: 190,
     },
+
+
+    ...(showNetDisbursement
+  ? [
+      {
+        key: "net_disb_amt",
+        header: "Net Disbursement Amount",
+        sortable: true,
+        render: (r) => {
+          if (
+            r?.net_disb_amt === null ||
+            r?.net_disb_amt === undefined ||
+            r?.net_disb_amt === ""
+          ) {
+            return <span className="currency-text">—</span>;
+          }
+
+          const value = Number(r.net_disb_amt);
+
+          return (
+            <span className="currency-text">
+              {Number.isFinite(value) ? nf.format(value) : "—"}
+            </span>
+          );
+        },
+        sortAccessor: (r) => Number(r?.net_disb_amt || 0),
+        csvAccessor: (r) => r?.net_disb_amt ?? "",
+        width: 210,
+      },
+    ]
+  : []),
     {
       key: "disbursement_date",
       header: "Disbursement Date",

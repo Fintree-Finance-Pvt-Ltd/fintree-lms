@@ -96,7 +96,7 @@ const generateLoanIdentifiers = async (lender) => {
     // ✅ Added for loan_booking_sterlion_ubl
     prefixPartnerLoan = "UBL1";
     prefixLan = "UBLF1";
-  }  else if (lender === "Saswat") {
+  } else if (lender === "Saswat") {
     prefixPartnerLoan = "SW";
     prefixLan = "SW";
   }
@@ -2568,7 +2568,7 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_srbh: true,
     loan_booking_saswat: true,
     loan_booking_sterlion_ubl: true,
-    loan_booking_claim_cure_buddy : true,
+    loan_booking_claim_cure_buddy: true,
   };
   if (!allowedTables[table])
     return res.status(400).json({ message: "Invalid table name" });
@@ -3074,7 +3074,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
 
     const loanBookingTables = [
       "loan_booking_motion_corp",
-    "loan_booking_sampada",
+      "loan_booking_sampada",
       "loan_booking_seven_fincorp",
       "loan_booking_bundela",
       "loan_booking_srbh",
@@ -3199,7 +3199,7 @@ const parseDate = (v) => {
   try {
     const d = excelDateToJSDate(v);
     if (d) return d; // already YYYY-MM-DD string
-  } catch (_) {}
+  } catch (_) { }
 
   // 2) ISO or date-like strings
   if (typeof v === "string") {
@@ -4701,8 +4701,7 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
 
     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
 
-    const customerName = `${data.firstName || ""} ${
-      data.lastName || ""
+    const customerName = `${data.firstName || ""} ${data.lastName || ""
       }`.trim();
     // const agreement_date = excelDateToJSDate(data.sanctionDate);
     // ��� Insert into DB
@@ -4976,8 +4975,7 @@ router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
           });
           continue;
         }
-        const customerName = `${data.first_name || ""} ${
-          data.last_name || ""
+        const customerName = `${data.first_name || ""} ${data.last_name || ""
           }`.trim();
 
         // ✅ Duplicate check on PAN or Aadhar
@@ -5957,8 +5955,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     const { lan } = await generateLoanIdentifiers(lenderType);
     console.log("✅ Generated LAN:", lan);
 
-    const customer_name = `${data.first_name || ""} ${
-      data.last_name || ""
+    const customer_name = `${data.first_name || ""} ${data.last_name || ""
       }`.trim();
     const agreement_date = data.login_date;
 
@@ -9552,7 +9549,7 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
 
 const SASWAT_LAP_HEADERS = [
   "product",
-  
+
   "firstName",
   "lastName",
   "aadhaarNumber",
@@ -9754,7 +9751,7 @@ const getCurrentMysqlDate = () =>
   formatMysqlDate(new Date());
 
 
-router.post("/saswat-upload", upload.single("file"),async (req, res) => {
+router.post("/saswat-upload", upload.single("file"), async (req, res) => {
   console.log(
     "Saswat LAP upload request received:",
     req.body,
@@ -9969,7 +9966,7 @@ router.post("/saswat-upload", upload.single("file"),async (req, res) => {
             row.udyamNumber,
           );
 
-          
+
         const loanAmount =
           parseSaswatNumber(row.loanAmount);
 
@@ -9988,26 +9985,26 @@ router.post("/saswat-upload", upload.single("file"),async (req, res) => {
           parseSaswatNumber(row.processingFee) ||
           0;
 
-          const ckycCharges =
-  parseSaswatNumber(row.ckycCharges) ?? 0;
+        const ckycCharges =
+          parseSaswatNumber(row.ckycCharges) ?? 0;
 
-const ckycChargesGst =
-  parseSaswatNumber(row.ckycChargesGst) ?? 0;
+        const ckycChargesGst =
+          parseSaswatNumber(row.ckycChargesGst) ?? 0;
 
-const documentCharges =
-  parseSaswatNumber(row.documentCharges) ?? 0;
+        const documentCharges =
+          parseSaswatNumber(row.documentCharges) ?? 0;
 
-const documentChargesGst =
-  parseSaswatNumber(row.documentChargesGst) ?? 0;
+        const documentChargesGst =
+          parseSaswatNumber(row.documentChargesGst) ?? 0;
 
-const insuranceCharges =
-  parseSaswatNumber(row.insuranceCharges) ?? 0;
+        const insuranceCharges =
+          parseSaswatNumber(row.insuranceCharges) ?? 0;
 
-const preEmi =
-  parseSaswatNumber(row.preEmi) ?? 0;
+        const preEmi =
+          parseSaswatNumber(row.preEmi) ?? 0;
 
-const deductionAmount =
-  parseSaswatNumber(row.deductionAmount) ?? 0;
+        const deductionAmount =
+          parseSaswatNumber(row.deductionAmount) ?? 0;
         /*
          * Bank details.
          */
@@ -10866,22 +10863,22 @@ const deductionAmount =
           processing_fee: processingFee,
           processing_fee_gst:
             processingFeeGst,
-            ckyc_charges: ckycCharges,
-ckyc_charges_gst: ckycChargesGst,
+          ckyc_charges: ckycCharges,
+          ckyc_charges_gst: ckycChargesGst,
 
-document_charges:
-  documentCharges,
+          document_charges:
+            documentCharges,
 
-document_charges_gst:
-  documentChargesGst,
+          document_charges_gst:
+            documentChargesGst,
 
-insurance_charges:
-  insuranceCharges,
+          insurance_charges:
+            insuranceCharges,
 
-pre_emi: preEmi,
+          pre_emi: preEmi,
 
-deduction_amount:
-  deductionAmount,
+          deduction_amount:
+            deductionAmount,
           other_charges: otherCharges,
 
           fldg_required: requiredFldg,
@@ -12325,7 +12322,7 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_srbh";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
-  }else if (lan.startsWith("UBLF")) {
+  } else if (lan.startsWith("UBLF")) {
     tableName = "manual_rps_sterlion_ubl";
     // ✅ Only fetch Main Adikosh RPS - Specify columns for ADK
     selectColumns = `lan, due_date, status, emi, interest, principal, opening, closing,
@@ -12574,7 +12571,7 @@ router.get("/uniqueid", (req, res) => {
 
 const STERLION_UBL_TABLE = "loan_booking_sterlion_ubl";
 const STERLION_UBL_LENDER = "sterlion-ubl";
-const STERLION_UBL_ALLOWED_PRODUCTS = ["MONTHLY_360" , "UPFRONT_INTEREST",];
+const STERLION_UBL_ALLOWED_PRODUCTS = ["MONTHLY_360", "UPFRONT_INTEREST",];
 
 // Excel me ye saare headers hone chahiye
 const sterlionUblExpectedHeaders = [
@@ -12582,7 +12579,12 @@ const sterlionUblExpectedHeaders = [
   "loanAmount",
   "tenureMonths",
   "interestRate",
+  "Stamp Paper Charges",
+  "Insurance Amount",
   "processingFee",
+  "Documents Charges",
+  "Advance Interest Amount",
+  // "Net Disb Amt",
   "firstName",
   //"lastName",
   "aadhaarNumber",
@@ -12609,6 +12611,11 @@ const sterlionUblRequiredFields = [
   "tenureMonths",
   "interestRate",
   "firstName",
+  "Stamp Paper Charges",
+  "Insurance Amount",
+  "processingFee",
+  "Documents Charges",
+  "Advance Interest Amount",
   // "lastName",
   "aadhaarNumber",
   "panNumber",
@@ -12810,13 +12817,56 @@ router.post(
             continue;
           }
 
+          // // Numeric fields
+          // const loanAmount = Number(row.loanAmount);
+          // const tenureMonths = Number(row.tenureMonths);
+          // const interestRate = Number(row.interestRate);
+          // const processingFee = isBlankSterlionUblValue(row.processingFee)
+          //   ? 0
+          //   : Number(row.processingFee);
+
           // Numeric fields
           const loanAmount = Number(row.loanAmount);
           const tenureMonths = Number(row.tenureMonths);
           const interestRate = Number(row.interestRate);
-          const processingFee = isBlankSterlionUblValue(row.processingFee)
-            ? 0
-            : Number(row.processingFee);
+
+          const stampPaperCharges =
+            isBlankSterlionUblValue(row["Stamp Paper Charges"])
+              ? 0
+              : Number(row["Stamp Paper Charges"]);
+
+          const insuranceAmount =
+            isBlankSterlionUblValue(row["Insurance Amount"])
+              ? 0
+              : Number(row["Insurance Amount"]);
+
+          const processingFee =
+            isBlankSterlionUblValue(row.processingFee)
+              ? 0
+              : Number(row.processingFee);
+
+          const documentsCharges =
+            isBlankSterlionUblValue(row["Documents Charges"])
+              ? 0
+              : Number(row["Documents Charges"]);
+
+          const advanceInterestAmount =
+            isBlankSterlionUblValue(row["Advance Interest Amount"])
+              ? 0
+              : Number(row["Advance Interest Amount"]);
+
+
+          // Net Disbursement calculation
+          const netDisbAmt = Number(
+            (
+              loanAmount
+              - stampPaperCharges
+              - insuranceAmount
+              - processingFee
+              - documentsCharges
+              - advanceInterestAmount
+            ).toFixed(2)
+          );
 
           if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
             row_errors.push({
@@ -12918,7 +12968,7 @@ router.post(
               reason: `Invalid IFSC format: ${ifsc}`,
             });
 
-            continue;
+            continue;a
           }
 
           // DOB convert
@@ -12935,6 +12985,7 @@ router.post(
 
             continue;
           }
+          
 
           // Duplicate PAN check in separate Sterlion UBL table
           const [existingRecords] = await db.promise().query(
@@ -12956,6 +13007,29 @@ router.post(
 
             continue;
           }
+//           const sanctionDate =
+//   toSterlionUblSqlDate(row.sanctionDate);
+
+// const disbursementDate =
+//   toSterlionUblSqlDate(row.disbursementDate);
+
+// if (!sanctionDate) {
+//   row_errors.push({
+//     row: excelRowNumber,
+//     stage: "validation",
+//     reason: "Invalid sanctionDate.",
+//   });
+//   continue;
+// }
+
+// if (!disbursementDate) {
+//   row_errors.push({
+//     row: excelRowNumber,
+//     stage: "validation",
+//     reason: "Invalid disbursementDate.",
+//   });
+//   continue;
+// }
 
           // Generate separate Sterlion UBL IDs
           const { partnerLoanId, lan } =
@@ -12963,36 +13037,45 @@ router.post(
 
           const insertQuery = `
             INSERT INTO ${STERLION_UBL_TABLE} (
-              partner_loan_id,
-              lan,
-              product,
-              loan_amount,
-              tenure_months,
-              interest_rate,
-              processing_fee,
-              first_name,
-              last_name,
-              aadhaar_number,
-              pan_number,
-              mobile_number,
-              email,
-              business_name,
-              industry,
-              account_holder_name,
-              account_number,
-              ifsc,
-              bank_name,
-              date_of_birth,
-              permanent_address,
-              business_address,
-              gst_number,
-              udyam_number,
-              lender,
-              status
-            ) VALUES (
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-            )
+             partner_loan_id,
+    lan,
+    product,
+    loan_amount,
+    tenure_months,
+    interest_rate,
+
+    stamp_paper_charges,
+    insurance_amount,
+    processing_fee,
+    documents_charges,
+    advance_interest_amount,
+    net_disb_amt,
+
+    first_name,
+    last_name,
+    aadhaar_number,
+    pan_number,
+    mobile_number,
+    email,
+    business_name,
+    industry,
+    account_holder_name,
+    account_number,
+    ifsc,
+    bank_name,
+    date_of_birth,
+    permanent_address,
+    business_address,
+    gst_number,
+    udyam_number,
+    lender,
+    status
+  ) VALUES (
+    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+    ?, ?, ?, ?, ?, ?, ?, ?
+  )
           `;
 
           const insertValues = [
@@ -13003,6 +13086,11 @@ router.post(
             tenureMonths,
             interestRate,
             processingFee,
+           stampPaperCharges,
+             insuranceAmount,
+            documentsCharges,
+            advanceInterestAmount,
+             netDisbAmt,
             cleanSterlionUblValue(row.firstName),
             cleanSterlionUblValue(row.lastName),
             aadhaarNumber,
