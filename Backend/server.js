@@ -143,7 +143,7 @@ app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // �
 app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ Register PayU Routes
 app.use("/api/sterlion-ubl", sterlionUblRoutes); // ✅ Register Sterlion UBL Routes
 app.use("/api/loan-booking", circlePeHouserRoutes); // ✅ Register Circlepe Houser Routes
-
+app.use("/api/loan-booking/yaMoney", require("./routes/YaMoney/yaMoneyRoutes")); // Register Routes for Ya Money Business Loan
 app.use(
   "/api/motion-corp",
   require("./routes/MotionCorp/motionCorpDealerRoutes"),
