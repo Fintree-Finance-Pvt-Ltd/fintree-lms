@@ -670,6 +670,10 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
       const disbursementUTR = row["Disbursement UTR"];
       const disbursementDate = excelDateToJSDate(row["Disbursement Date"]);
       // const lan = row["LAN"];
+      const sanctionDateRaw = row["Sanction Date"];
+const sanctionDate = sanctionDateRaw
+  ? excelDateToJSDate(sanctionDateRaw)
+  : null;
 
       const lan = String(row["LAN"] || "")
         .trim()
@@ -693,6 +697,16 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
         });
         continue;
       }
+      // Sanction Date mandatory only for Sterlion UBL
+if (lan.startsWith("UBLF") && !sanctionDate) {
+  rowErrors.push({
+    lan,
+    utr: disbursementUTR,
+    reason: "Sanction Date is mandatory for Sterlion UBL",
+    stage: "validation",
+  });
+  continue;
+}
 
       // Fetch loan details
       let loanRes = [];
@@ -1101,8 +1115,11 @@ else if (lan.startsWith("SFL")) {
             );
             } else if (lan.startsWith("UBLF")) {      // UBLF prefix for Sterlion UBL
              await conn.query(
-            `UPDATE loan_booking_sterlion_ubl SET status = 'Disbursed' WHERE lan = ?`,
-             [lan]
+            `UPDATE loan_booking_sterlion_ubl SET status = 'Disbursed' ,
+              sanction_date = ?,
+             disbursement_date = ?
+             WHERE lan = ?`,
+              [sanctionDate,disbursementDate, lan]  
              );
           } else if (lan.startsWith("HEYBF1")) {
             await conn.query(

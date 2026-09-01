@@ -6,6 +6,7 @@ const SterlionUBLAllLoans = () => {
     <AllLoansScreen
       apiEndpoint="/loan-booking/all-loans?table=loan_booking_sterlion_ubl&prefix=UBLF"
       title="Sterlion UBL All Loans"
+      showNetDisbursement={true}
     />
   );
 };
