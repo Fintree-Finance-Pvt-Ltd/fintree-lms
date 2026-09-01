@@ -283,6 +283,8 @@ const ApproveInitiatedScreen = ({
           onClick={() => {
             if (/^MC/i.test(r.lan)) {
               navigate(`/motion-corp/customer-details?lan=${r.lan}`);
+            } else if (/^SPL/i.test(r.lan)) {
+              navigate(`/sampada/customer-details?lan=${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {
               navigate(`/fincrest-loan-details/${r.lan}`);
             } else if (/^SHL/i.test(r.lan)) {
@@ -322,6 +324,8 @@ const ApproveInitiatedScreen = ({
           onClick={() => {
             if (/^MC/i.test(r.lan)) {
               navigate(`/motion-corp/customer-details?lan=${r.lan}`);
+            } else if (/^SPL/i.test(r.lan)) {
+              navigate(`/sampada/customer-details?lan=${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {
               navigate(`/fincrest-loan-details/${r.lan}`);
             } else if (/^SHL/i.test(r.lan)) {
