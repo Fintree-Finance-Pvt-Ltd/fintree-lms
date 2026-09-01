@@ -461,8 +461,7 @@ loanBookingRouter.get(
 
 /////////////   DISBURSEMNT UTR FATCH API FOR CAREPAY CASES  //////////
 
-loanBookingRouter.get(
-  "/v1/disbursement-data",
+loanBookingRouter.get( "/v1/disbursement-data",
   verifyApiKey,
   async (req, res) => {
     try {
@@ -3380,6 +3379,90 @@ loanBookingRouter.get("/v1/carepay-rps",verifyApiKey,
   },
 );
 
+
+router.get("/status/:lan",async (req, res) => {
+
+    try {
+
+      const { lan } = req.params;
+
+
+      if (!lan) {
+        return res.status(400).json({
+          success:false,
+          message:"LAN is required"
+        });
+      }
+
+
+      const [rows] = await db.promise().query(
+        `
+        SELECT
+         
+          partner_code,
+          lender,
+          lan,
+          amount,
+          paid_amount,
+          status AS payment_link_status,
+          provider_status AS payment_status,
+          payment_mode,
+          paid_at
+          
+        FROM payment_transactions
+        WHERE lan = ?
+        AND partner_code = 'CAREPAY'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [
+          lan
+        ]
+      );
+
+
+      if (!rows.length) {
+
+        return res.status(404).json({
+          success:false,
+          message:"Payment transaction not found"
+        });
+
+      }
+
+
+      return res.status(200).json({
+
+        success:true,
+
+        message:"Payment status fetched successfully",
+
+        data: rows[0]
+
+      });
+
+
+    } catch(error){
+
+      console.error(
+        "Payment status error:",
+        error
+      );
+
+
+      return res.status(500).json({
+
+        success:false,
+
+        message:"Internal server error",
+
+        error:error.message
+
+      });
+
+    }
+
+});
 
 module.exports = router;
 module.exports.loanBookingRouter = loanBookingRouter;
