@@ -16,7 +16,24 @@ const LENDER = "Ya Money";
 const PRODUCT = "Ya Money";
 const LOAN_TYPE = "Business Loan";
 const LAN_PREFIX = "YAM";
-const YA_MONEY_BUREAU_ENABLED =false;
+const YA_MONEY_BUREAU_ENABLED = false;
+const STATUS_EXPRESSION =
+  "LOWER(REPLACE(REPLACE(TRIM(lb.status), '-', '_'), ' ', '_'))";
+const DEFAULT_PAGE_SIZE = 25;
+const MAX_PAGE_SIZE = 100;
+const SORT_COLUMNS = {
+  lan: "lan",
+  LAN: "lan",
+  partner_loan_id: "partner_loan_id",
+  customer_name: "customer_name",
+  business_name: "business_name",
+  mobile_number: "mobile_number",
+  requested_amount: "requested_amount",
+  loan_amount: "loan_amount",
+  login_date: "login_date",
+  status: "status",
+  stage: "stage",
+};
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -461,6 +478,131 @@ function getUserName(req) {
   return req.user?.name || req.user?.id || null;
 }
 
+function normalizeStatus(value) {
+  return clean(value).toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function readPositiveInteger(value, fallback) {
+  const number = Number(value);
+
+  if (!Number.isInteger(number) || number <= 0) {
+    return fallback;
+  }
+
+  return number;
+}
+
+function readListOptions(query) {
+  const page = readPositiveInteger(query.page, 1);
+  const requestedPageSize = readPositiveInteger(
+    query.pageSize,
+    DEFAULT_PAGE_SIZE,
+  );
+  const pageSize = Math.min(requestedPageSize, MAX_PAGE_SIZE);
+  const sortKey = clean(query.sortBy) || "lan";
+  const sortColumn =
+    SORT_COLUMNS[sortKey] || SORT_COLUMNS[sortKey.toLowerCase()] || "lan";
+  const sortDir = clean(query.sortDir).toLowerCase() === "desc" ? "DESC" : "ASC";
+
+  return {
+    page,
+    pageSize,
+    offset: (page - 1) * pageSize,
+    search: clean(query.search),
+    sortColumn,
+    sortDir,
+  };
+}
+
+function buildStatusFilter(statuses) {
+  const normalizedStatuses = [
+    ...new Set(statuses.map(normalizeStatus).filter(Boolean)),
+  ];
+
+  if (!normalizedStatuses.length) {
+    return {
+      clause: "",
+      params: [],
+      statuses: [],
+    };
+  }
+
+  const statusPlaceholders = normalizedStatuses.map(() => "?").join(", ");
+
+  return {
+    clause: ` AND ${STATUS_EXPRESSION} IN (${statusPlaceholders})`,
+    params: normalizedStatuses,
+    statuses: normalizedStatuses,
+  };
+}
+
+function buildSearchFilter(search) {
+  if (!search) {
+    return {
+      clause: "",
+      params: [],
+    };
+  }
+
+  const value = `%${search}%`;
+
+  return {
+    clause: ` AND (
+      lb.lan LIKE ?
+      OR lb.partner_loan_id LIKE ?
+      OR lb.customer_name LIKE ?
+      OR lb.business_name LIKE ?
+      OR lb.mobile_number LIKE ?
+    )`,
+    params: [value, value, value, value, value],
+  };
+}
+
+async function fetchYaMoneyLoans(req, res, statuses = []) {
+  const options = readListOptions(req.query || {});
+  const statusFilter = buildStatusFilter(statuses);
+  const searchFilter = buildSearchFilter(options.search);
+  const baseWhere = `WHERE lb.lan LIKE ?${statusFilter.clause}${searchFilter.clause}`;
+  const baseParams = [
+    `${LAN_PREFIX}%`,
+    ...statusFilter.params,
+    ...searchFilter.params,
+  ];
+
+  try {
+    const [[countRow]] = await db.promise().query(
+      `SELECT COUNT(*) AS total
+       FROM ${TABLE_NAME} lb
+       ${baseWhere}`,
+      baseParams,
+    );
+
+    const [rows] = await db.promise().query(
+      `SELECT lb.*
+       FROM ${TABLE_NAME} lb
+       ${baseWhere}
+       ORDER BY lb.${options.sortColumn} ${options.sortDir}
+       LIMIT ? OFFSET ?`,
+      [...baseParams, options.pageSize, options.offset],
+    );
+
+    return res.json({
+      rows,
+      pagination: {
+        page: options.page,
+        pageSize: options.pageSize,
+        total: Number(countRow?.total || 0),
+      },
+      filters: {
+        statuses: statusFilter.statuses,
+        search: options.search || null,
+      },
+    });
+  } catch (error) {
+    return sendServerError(res, error);
+  }
+}
+
 async function updateCreditStatus(lan, status, updatedBy) {
   const [result] = await db.promise().query(
     `UPDATE ${TABLE_NAME}
@@ -650,8 +792,8 @@ async function saveFinalLoanDetails(lan, data, calculation, updatedBy) {
          emi_amount = ?,
          processing_fee = ?,
          net_disbursement = ?,
-         status = 'final_approved',
-         stage = 'final_approved',
+         status = 'ops_initiate',
+         stage = 'ops_initiate',
          updated_by = ?
      WHERE lan = ?
        AND status = 'credit_approved'`,
@@ -671,6 +813,26 @@ async function saveFinalLoanDetails(lan, data, calculation, updatedBy) {
 
   return result.affectedRows > 0;
 }
+
+router.get("/all-loans", authenticateUser, (req, res) =>
+  fetchYaMoneyLoans(req, res),
+);
+
+router.get("/credit-screen-loans", authenticateUser, (req, res) =>
+  fetchYaMoneyLoans(req, res, ["bre_approved"]),
+);
+
+router.get("/ops-maker-loans", authenticateUser, (req, res) =>
+  fetchYaMoneyLoans(req, res, ["ops_initiate", "ops_initiated"]),
+);
+
+router.get("/ops-checker-loans", authenticateUser, (req, res) =>
+  fetchYaMoneyLoans(req, res, ["approved"]),
+);
+
+router.get("/disbursed-loans", authenticateUser, (req, res) =>
+  fetchYaMoneyLoans(req, res, ["disbursed"]),
+);
 
 router.post("/login", verifyApiKey, async (req, res) => {
   let connection;
@@ -860,7 +1022,7 @@ router.patch("/:lan/credit-decision", authenticateUser, async (req, res) => {
   }
 });
 
-router.patch("/:lan/final-details", authenticateUser, async (req, res) => {
+router.patch("/:lan/final-details", async (req, res) => {
   try {
     const lan = clean(req.params.lan).toUpperCase();
 

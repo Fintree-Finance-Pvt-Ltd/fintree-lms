@@ -187,6 +187,11 @@ import RapidMoneyAllLoans from "./components/RapidMoney/RapidMoneyAllLoans";
 import RapidMoneyLoginLoans from "./components/RapidMoney/RapidMoneyLoginLoans";
 import RapidMoneyActionScreen from "./components/RapidMoney/RapidMoneyActionScreen";
 import RapidMoneyApproveInitiateScreen from "./components/RapidMoney/RapidMoneyApproveInitiateScreen";
+import YaMoneyAllLoans from "./components/YaMoney/YaMoneyAllLoans";
+import YaMoneyCreditTeamScreen from "./components/YaMoney/CreditTeam";
+import YaMoneyOpsMakerScreen from "./components/YaMoney/OpsMaker";
+import YaMoneyOpsCheckerScreen from "./components/YaMoney/OpsChecker.jsx";
+import YaMoneyDisbursedLoans from "./components/YaMoney/Disbursed";
 import RetentionRelease from "./components/RetentionRelease";
 import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpLoanBooking";
 import MotionCorpAllLoans from "./components/Motion Corp/motionCorpAllLoans";
@@ -1612,6 +1617,46 @@ function App() {
             element={
               <PermissionRoute pageName="RapidMoney Disburse Initiated">
                 <RapidMoneyApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/all"
+            element={
+              <PermissionRoute pageName="Ya Money All Loans">
+                <YaMoneyAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/credit-team"
+            element={
+              <PermissionRoute pageName="Ya Money Credit Team Screen">
+                <YaMoneyCreditTeamScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/ops-maker"
+            element={
+              <PermissionRoute pageName="Ya Money Ops Maker">
+                <YaMoneyOpsMakerScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/ops-checker"
+            element={
+              <PermissionRoute pageName="Ya Money Ops Checker">
+                <YaMoneyOpsCheckerScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/disbursed"
+            element={
+              <PermissionRoute pageName="Ya Money Disbursed Loans">
+                <YaMoneyDisbursedLoans />
               </PermissionRoute>
             }
           />

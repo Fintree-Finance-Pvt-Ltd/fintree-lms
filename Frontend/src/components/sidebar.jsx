@@ -177,7 +177,7 @@
 // export default Sidebar;
 
 
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -222,6 +222,7 @@ const Sidebar = () => {
       'Clayoo Loans': <Layers size={iconSize} />,
       'Loan Digit': <Layers size={iconSize} />,
       'RapidMoney Loans': <Layers size={iconSize} />,
+      'Ya Money Loans': <Wallet size={iconSize} />,
       'Switch My Loans': <Layers size={iconSize} />,
       'Quick Money Loans': <Layers size={iconSize} />,
       'Motion Corp': <Users size={iconSize} />,
@@ -243,9 +244,9 @@ const Sidebar = () => {
   if (!user) return null;
  
   const allowedPages = user.pages || [];
-//console.log("User Pages:", allowedPages);
+ console.log("User Pages:", allowedPages);
   const grouped = {
-    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/claimcurebuddy', '/motion-corp', '/sampada', '/loan-digit', '/rapidmoney-loans', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh' ,'/sterlion-ubl-loans','/sterlion-mexon-dexon','/claimcurebuddy'].some(prefix => p.path.includes(prefix))),
+    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/claimcurebuddy', '/motion-corp', '/sampada', '/loan-digit', '/rapidmoney-loans', '/ya-money', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh' ,'/sterlion-ubl-loans','/sterlion-mexon-dexon','/claimcurebuddy'].some(prefix => p.path.includes(prefix))),
     'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
     'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
@@ -286,6 +287,7 @@ const Sidebar = () => {
     'Fundify': allowedPages.filter(p => p.path.includes('/fundify-loans')),
     'Loan Digit': allowedPages.filter(p => p.path.includes('/loan-digit')),
     'RapidMoney Loans': allowedPages.filter(p => p.path.includes('/rapidmoney-loans')),
+    'Ya Money Loans': allowedPages.filter(p => p.path.includes('/ya-money')),
     'Switch My Loans': allowedPages.filter(p => p.path.includes('/sml-loans')),
     'Quick Money Loans': allowedPages.filter(p => p.path.includes('/qml-loans')),
     'Sterlion Mexon Dexon Loans': allowedPages.filter((p) => p.path.includes('/sterlion-mexon-dexon')),
