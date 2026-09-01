@@ -3103,7 +3103,7 @@ const generateRepaymentScheduleSterlionUbl = async (
          * Remaining principal.
          */
         installment
-          .remainingPrincipal,
+          .principal,
 
         /*
          * payment_date
