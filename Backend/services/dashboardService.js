@@ -282,6 +282,17 @@ const PRODUCT_MAP = {
     label: "Rapid Money",
     disbDateSource: "utr",
   },
+   "Quick Money": {
+    rpsTable: "manual_rps_quick_money",
+    bookTable: "loan_booking_quick_money",
+    disbField: "loan_amount",
+    collType: "join",
+    collBook: "loan_booking_quick_money",
+    allocTable: "allocation",
+    allocLike: "%QML%",
+    label: "Quick Money",
+    disbDateSource: "utr",
+  },
   Sampada: {
     rpsTable: "manual_rps_sampada",
     bookTable: "loan_booking_sampada",

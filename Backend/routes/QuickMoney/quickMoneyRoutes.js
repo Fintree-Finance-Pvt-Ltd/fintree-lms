@@ -7,6 +7,8 @@ const router = express.Router();
 const runQuickMoneyBRE =
   require("./quickMoneyBre");
 
+  const { excelSerialDateToJS, queryDB } = require("../../utils/helpers");
+  
   const { verifyBank } = require("../../services/enachService");
   const { approveAndInitiatePayout } = require("../../services/payout.service");
   const {
@@ -15,6 +17,12 @@ const runQuickMoneyBRE =
   validatePartnerName,
 } = require("../../utils/partnerHelpers");
 const partnerLimitService = require("../../services/partnerLimitService");
+const { allocateRepaymentByLAN } = require("../../utils/allocate");
+const { POLICY } = require("../switchMyLoan/rapidMoneyPolicy");
+
+const {
+  evaluateQuickMoneyEligibility,
+} = require("./quickMoneyEligibilityEvaluator");
 
   
 const normalizeDate = (value) => {
@@ -223,6 +231,288 @@ const BANK_MODE = String(
   const SHOULD_MOCK_CLEAR_BANK =
   ["test", "uat"].includes(DEPLOYMENT_ENV) &&
   BANK_MODE === "mock-clear";
+
+
+  const parsePartnerDate = (dateStr) => {
+  if (!dateStr) return null;
+
+  const months = {
+    jan: "01",
+    feb: "02",
+    mar: "03",
+    apr: "04",
+    may: "05",
+    jun: "06",
+    jul: "07",
+    aug: "08",
+    sep: "09",
+    oct: "10",
+    nov: "11",
+    dec: "12",
+  };
+
+  const parts = String(dateStr).split("-");
+  if (parts.length !== 3) {
+    throw new Error("Invalid date format. Expected DD-MMM-YYYY");
+  }
+
+  const [day, mon, year] = parts;
+  const month = months[String(mon).toLowerCase()];
+
+  if (!month) {
+    throw new Error("Invalid month in date");
+  }
+
+  return `${year}-${month}-${String(day).padStart(2, "0")}`;
+};
+const parseApiDate = (value) => {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+      return trimmed.slice(0, 10);
+    }
+
+    if (/^\d{2}-[A-Za-z]{3}-\d{4}$/.test(trimmed)) {
+      return parsePartnerDate(trimmed);
+    }
+
+    if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+      const [d, m, y] = trimmed.split("-");
+      return `${y}-${m}-${d}`;
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      const [d, m, y] = trimmed.split("/");
+      return `${y}-${m}-${d}`;
+    }
+  }
+
+  return null;
+};
+
+const toClientError = (err) => {
+  if (!err) return { message: "Unknown error" };
+  const { message, code, errno, sqlState, sqlMessage } = err;
+  return { message: sqlMessage || message || "Error", code, errno, sqlState };
+};
+
+async function processRows(sheetData) {
+  const successRows = [];
+  const rowErrors = [];
+  const missingLANs = [];
+  const duplicateUTRs = [];
+
+  try {
+    if (!sheetData.length) {
+      return {
+        success: false,
+        message: "Empty or invalid data",
+      };
+    }
+
+    /**
+     * Normalize headers (Excel + JSON compatibility)
+     */
+    sheetData = sheetData.map((row) => ({
+      LAN: row.LAN || row.lan,
+      UTR: row.UTR || row.utr,
+
+      "Payment Date": row["Payment Date"] || row.payment_date,
+
+      "Bank Date":
+        row["Bank Date"] ||
+        row.bank_date ||
+        row["Payment Date"] ||
+        row.payment_date,
+
+      "Payment Id": row["Payment Id"] || row.payment_id,
+
+      "Payment Mode": row["Payment Mode"] || row.payment_mode,
+
+      "Transfer Amount": row["Transfer Amount"] || row.transfer_amount,
+
+      __row: row.__row,
+    }));
+
+    /**
+     * Validate required columns
+     */
+    const required = [
+      "LAN",
+      "UTR",
+      "Payment Date",
+      "Payment Id",
+      "Payment Mode",
+      "Transfer Amount",
+    ];
+
+    const missingHeaders = required.filter((h) => !(h in sheetData[0]));
+
+    if (missingHeaders.length) {
+      return {
+        success: false,
+        message: "Missing required column(s)",
+        details: { missing_headers: missingHeaders },
+      };
+    }
+
+    /**
+     * Fetch valid LANs
+     */
+    const uniqueLANs = [
+      ...new Set(sheetData.map((r) => r["LAN"]).filter(Boolean)),
+    ];
+
+    let validLANs = new Set();
+
+    if (uniqueLANs.length) {
+      const results = await Promise.all([
+        queryDB(
+          `SELECT lan FROM loan_booking_quick_money WHERE lan IN (?)`,
+          [uniqueLANs],
+        ),
+      ]);
+
+      validLANs = new Set(results.flat().map((r) => r.lan));
+    }
+
+    console.log("Valid LANs:", Array.from(validLANs));
+    console.log("sheetdat in processrows", sheetData);
+
+    /**
+     * Process each row
+     */
+    for (const row of sheetData) {
+      const rowNumber = row.__row || 1;
+
+      const lan = row["LAN"];
+      const utr = row["UTR"];
+
+      const bank_date =
+        typeof row["Bank Date"] === "string"
+          ? row["Bank Date"]
+          : excelSerialDateToJS(row["Bank Date"]);
+
+      const payment_date =
+        typeof row["Payment Date"] === "string"
+          ? row["Payment Date"]
+          : excelSerialDateToJS(row["Payment Date"]);
+
+      const payment_id = row["Payment Id"];
+      const payment_mode = row["Payment Mode"];
+      const transfer_amount = row["Transfer Amount"];
+
+      if (!validLANs.has(lan)) {
+        if (!missingLANs.includes(lan)) {
+          missingLANs.push(lan);
+        }
+
+        rowErrors.push({
+          row: rowNumber,
+          lan,
+          utr,
+          stage: "validation",
+          reason: "LAN not found",
+        });
+
+        continue;
+      }
+
+      /**
+       * Select upload table
+       */
+      let table = "repayments_upload";
+
+      /**
+       * Duplicate UTR check
+       */
+      const [dup] = await queryDB(
+        `SELECT COUNT(*) AS cnt FROM ${table} WHERE utr = ?`,
+        [utr],
+      );
+
+      if (dup.cnt > 0) {
+        if (!duplicateUTRs.includes(utr)) {
+          duplicateUTRs.push(utr);
+        }
+
+        rowErrors.push({
+          row: rowNumber,
+          lan,
+          utr,
+          stage: "pre-insert",
+          reason: "Duplicate UTR",
+        });
+
+        continue;
+      }
+
+      /**
+       * Penal charge SP
+       */
+      await queryDB(`CALL sp_generate_penal_charge(?)`, [lan]);
+
+      /**
+       * Insert repayment
+       */
+      await queryDB(
+        `INSERT INTO ${table}
+        (lan, bank_date, utr, payment_date, payment_id, payment_mode, transfer_amount)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          lan,
+          bank_date,
+          utr,
+          payment_date,
+          payment_id,
+          payment_mode,
+          transfer_amount,
+        ],
+      );
+
+      /**
+       * Allocation
+       */
+      await allocateRepaymentByLAN(lan, {
+        lan,
+        bank_date,
+        utr,
+        payment_date,
+        payment_id,
+        payment_mode,
+        transfer_amount,
+      });
+
+      successRows.push(rowNumber);
+    }
+
+    return {
+      success: true,
+      total_rows: sheetData.length,
+      inserted_rows: successRows.length,
+      failed_rows: rowErrors.length,
+      success_rows: successRows,
+      row_errors: rowErrors,
+      missing_lans: missingLANs,
+      duplicate_utrs: duplicateUTRs,
+    };
+  } catch (err) {
+    console.error("Processor error:", err);
+
+    return {
+      success: false,
+      message: "Processing failed",
+      error: toClientError(err),
+    };
+  }
+}
 
   function normalizeName(name) {
   return String(name || "")
@@ -3376,8 +3666,7 @@ router.post("/v1/loan/:application_id/approve",
   },
 );
 
-router.post(
-  "/v1/loan/:application_id/disburse",
+router.post("/v1/loan/:application_id/disburse",
   verifyApiKey,
   async (req, res) => {
     const { application_id } = req.params;
@@ -4001,4 +4290,942 @@ router.post(
     }
   },
 );
+
+///////////////////// Quick Money - Partner-Initiated Rejection
+
+router.post(  "/v1/loan/:application_id/reject-by-partner",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      const { application_id } = req.params;
+
+      if (!application_id) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "application_id is required",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      const [existing] = await db.promise().query(
+        `SELECT application_id, status
+         FROM loan_booking_quick_money
+         WHERE application_id = ?
+         LIMIT 1`,
+        [application_id],
+      );
+
+      if (!existing.length) {
+        return res.status(404).json({
+          is_success: false,
+          error: {
+            message: "Loan application not found",
+            code: "not_found",
+          },
+        });
+      }
+
+      const loan = existing[0];
+
+      if (
+        [
+          "DISBURSED",
+          "DISBURSE_INITIATED",
+          "Disbursed",
+          "CANCELLED",
+          "CLOSED",
+          "Fully Paid",
+          "REJECTED_BY_PARTNER",
+        ].includes(loan.status)
+      ) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: `Cannot reject a loan with status '${loan.status}'`,
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      await db.promise().query(
+        `UPDATE loan_booking_quick_money
+         SET
+           status = 'REJECTED_BY_PARTNER',
+           updated_at = NOW()
+         WHERE application_id = ?`,
+        [application_id],
+      );
+
+      return res.json({
+        is_success: true,
+        data: {
+          success: true,
+        },
+      });
+    } catch (err) {
+      console.error(
+        "Quick Money Reject-by-partner error:",
+        err,
+      );
+
+      return res.status(500).json({
+        is_success: false,
+        error: {
+          message: "Internal server error",
+          code: "internal_server_error",
+        },
+      });
+    }
+  },
+);
+
+///////////////////// Quick Money - Repayment API
+
+router.post(
+  "/v1/loan/:application_id/repayment",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      const { application_id } = req.params;
+
+      const {
+        amount,
+        payment_date,
+        payment_id,
+        payment_mode,
+        utr,
+      } = req.body || {};
+
+      /* ==============================
+         VALIDATE REQUEST BODY
+      ============================== */
+
+      if (
+        !req.body ||
+        Object.keys(req.body).length === 0
+      ) {
+        console.error(
+          "Quick Money Repayment API error: empty request body",
+          {
+            application_id,
+            headers: req.headers,
+          },
+        );
+
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message:
+              "Request body is empty or invalid JSON",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      /* ==============================
+         VALIDATE REQUIRED FIELDS
+      ============================== */
+
+      const missingFields = [];
+
+      if (!application_id) {
+        missingFields.push("application_id");
+      }
+
+      if (!amount) {
+        missingFields.push("amount");
+      }
+
+      if (!payment_date) {
+        missingFields.push("payment_date");
+      }
+
+      if (!payment_id) {
+        missingFields.push("payment_id");
+      }
+
+      if (missingFields.length) {
+        console.error(
+          "Quick Money Repayment API validation failure",
+          {
+            application_id,
+            missingFields,
+            body: req.body,
+          },
+        );
+
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: `Missing required fields: ${missingFields.join(
+              ", ",
+            )}`,
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      /* ==============================
+         FIND QUICK MONEY LOAN
+      ============================== */
+
+      const [loan] = await db.promise().query(
+        `SELECT lan
+         FROM loan_booking_quick_money
+         WHERE application_id = ?
+         LIMIT 1`,
+        [application_id],
+      );
+
+      if (!loan.length) {
+        return res.status(404).json({
+          is_success: false,
+          error: {
+            message: "Loan case not found",
+            code: "loan_not_found",
+          },
+        });
+      }
+
+      const lan = loan[0].lan;
+
+      if (!lan) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "LAN not generated yet",
+            code: "lan_not_generated",
+          },
+        });
+      }
+
+      /* ==============================
+         PARSE PAYMENT DATE
+      ============================== */
+
+      const paymentDate =
+        parseApiDate(payment_date);
+
+      if (!paymentDate) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message:
+              "Invalid payment_date format",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      /* ==============================
+         PREPARE REPAYMENT DATA
+      ============================== */
+
+      const sheetData = [
+        {
+          LAN: lan,
+
+          UTR:
+            utr || payment_id,
+
+          "Payment Date":
+            paymentDate,
+
+          "Bank Date":
+            paymentDate,
+
+          "Payment Id":
+            payment_id,
+
+          "Payment Mode":
+            payment_mode || "API",
+
+          "Transfer Amount":
+            amount,
+
+          __row: 1,
+        },
+      ];
+
+      console.log(
+        "Quick Money repayment sheet data:",
+        sheetData,
+      );
+
+      /* ==============================
+         PROCESS REPAYMENT
+      ============================== */
+
+      const result =
+        await processRows(sheetData);
+
+      console.log(
+        "Quick Money repayment processor result:",
+        result,
+      );
+
+      /* ==============================
+         HANDLE PROCESSING FAILURE
+      ============================== */
+
+      if (!result.success) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message:
+              result.error?.message ||
+              result.message ||
+              "Repayment processing failed",
+
+            code:
+              result.error?.code ||
+              "request_validation_error",
+
+            details:
+              result.error?.details ||
+              result.details,
+          },
+        });
+      }
+
+      /* ==============================
+         HANDLE FAILED ROWS
+      ============================== */
+
+      if (result.failed_rows > 0) {
+        const firstError =
+          result.row_errors?.[0];
+
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message:
+              firstError?.reason ||
+              "Repayment processing failed",
+
+            code:
+              "request_validation_error",
+          },
+        });
+      }
+
+      /* ==============================
+         SUCCESS
+      ============================== */
+
+      return res.json({
+        is_success: true,
+        data: {
+          status:
+            "repayment submitted successfully",
+        },
+      });
+    } catch (err) {
+      console.error(
+        "Quick Money Repayment API error:",
+        err,
+      );
+
+      return res.status(500).json({
+        is_success: false,
+        error: {
+          message: "Internal server error",
+          code: "internal_server_error",
+        },
+      });
+    }
+  },
+);
+
+///////////////////// 7) Quick Money - Loan Charges API
+
+router.post( "/v1/loan/:application_id/repayment-charges",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      const { application_id } = req.params;
+      const {
+        type,
+        amount,
+        due_date,
+        remarks,
+      } = req.body;
+
+      if (!application_id) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "application_id required",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      if (!type || !amount || !due_date) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message:
+              "type, amount, due_date required",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      if (Number(amount) <= 0) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message:
+              "amount must be greater than zero",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      /* ==============================
+         FIND QUICK MONEY LOAN
+      ============================== */
+
+      const [loan] =
+        await db.promise().query(
+          `SELECT lan
+           FROM loan_booking_quick_money
+           WHERE application_id = ?
+           LIMIT 1`,
+          [application_id],
+        );
+
+      if (!loan.length) {
+        return res.status(404).json({
+          is_success: false,
+          error: {
+            message: "Loan case not found",
+            code: "loan_not_found",
+          },
+        });
+      }
+
+      const lan = loan[0].lan;
+
+      if (!lan) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "LAN not generated yet",
+            code: "lan_not_generated",
+          },
+        });
+      }
+
+      /* ==============================
+         VALIDATE DUE DATE
+      ============================== */
+
+      const parsedDate =
+        parseApiDate(due_date);
+
+      if (!parsedDate) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "Invalid due_date",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      /* ==============================
+         INSERT CHARGE
+      ============================== */
+
+      await db.promise().query(
+        `INSERT INTO loan_charges
+        (
+          lan,
+          charge_date,
+          due_date,
+          amount,
+          charge_type,
+          remarks
+        )
+        VALUES
+        (?, CURDATE(), ?, ?, ?, ?)`,
+        [
+          lan,
+          parsedDate,
+          amount,
+          type,
+          remarks || null,
+        ],
+      );
+
+      return res.json({
+        is_success: true,
+        data: {
+          status:
+            "charge added successfully",
+        },
+      });
+    } catch (err) {
+      console.error(
+        "Quick Money Charge insert error:",
+        err,
+      );
+
+      return res.status(500).json({
+        is_success: false,
+        error: {
+          message: "Internal server error",
+          code: "internal_server_error",
+        },
+      });
+    }
+  },
+);
+
+///////////////////// 8) Quick Money - Extra Charge Waiver API
+
+router.post( "/v1/loan/extra_charge_waiver",
+  verifyApiKey,
+  async (req, res) => {
+    try {
+      const rows = req.body.data;
+
+      if (
+        !Array.isArray(rows) ||
+        !rows.length
+      ) {
+        return res.status(400).json({
+          is_success: false,
+          error: {
+            message: "Invalid payload",
+            code: "request_validation_error",
+          },
+        });
+      }
+
+      for (const row of rows) {
+        const {
+          partner_loan_id,
+          charge_type,
+          waiver_amount,
+        } = row;
+
+        /* ==============================
+           VALIDATE INPUT
+        ============================== */
+
+        if (
+          !partner_loan_id ||
+          !charge_type ||
+          !waiver_amount
+        ) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                "partner_loan_id, charge_type, waiver_amount required",
+              code:
+                "request_validation_error",
+            },
+          });
+        }
+
+        if (Number(waiver_amount) <= 0) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                "waiver_amount must be greater than zero",
+              code:
+                "request_validation_error",
+            },
+          });
+        }
+
+        /* ==============================
+           FIND QUICK MONEY LOAN
+        ============================== */
+
+        const [loan] =
+          await db.promise().query(
+            `SELECT lan
+             FROM loan_booking_quick_money
+             WHERE partner_loan_id = ?
+             LIMIT 1`,
+            [partner_loan_id],
+          );
+
+        if (!loan.length) {
+          return res.status(404).json({
+            is_success: false,
+            error: {
+              message:
+                `Loan not found for ${partner_loan_id}`,
+              code: "loan_not_found",
+            },
+          });
+        }
+
+        const lan = loan[0].lan;
+
+        if (!lan) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                "LAN not generated yet",
+              code: "lan_not_generated",
+            },
+          });
+        }
+
+        /* ==============================
+           FIND UNPAID CHARGE
+        ============================== */
+
+        const [charge] =
+          await db.promise().query(
+            `SELECT
+               id,
+               amount,
+               paid_amount,
+               waived_amount,
+               waived_off
+             FROM loan_charges
+             WHERE lan = ?
+               AND charge_type = ?
+               AND paid_status = 'Unpaid'
+             ORDER BY due_date ASC
+             LIMIT 1`,
+            [
+              lan,
+              charge_type,
+            ],
+          );
+
+        if (!charge.length) {
+          return res.status(404).json({
+            is_success: false,
+            error: {
+              message:
+                "Charge not found or already settled",
+              code: "charge_not_found",
+            },
+          });
+        }
+
+        const chargeRow =
+          charge[0];
+
+        /* ==============================
+           CALCULATE OUTSTANDING
+        ============================== */
+
+        const outstanding =
+          Number(
+            chargeRow.amount || 0,
+          ) -
+          Number(
+            chargeRow.paid_amount || 0,
+          ) -
+          Number(
+            chargeRow.waived_amount || 0,
+          ) -
+          Number(
+            chargeRow.waived_off || 0,
+          );
+
+        if (
+          Number(waiver_amount) >
+          outstanding
+        ) {
+          return res.status(400).json({
+            is_success: false,
+            error: {
+              message:
+                "Waiver amount exceeds outstanding charge amount",
+              code:
+                "request_validation_error",
+            },
+          });
+        }
+
+        /* ==============================
+           UPDATE WAIVER
+        ============================== */
+
+        const newWaivedAmount =
+          Number(
+            chargeRow.waived_amount || 0,
+          ) +
+          Number(waiver_amount);
+
+        const updatedOutstanding =
+          outstanding -
+          Number(waiver_amount);
+
+        let newStatus =
+          "Partially Waived";
+
+        if (updatedOutstanding <= 0) {
+          newStatus = "Waived";
+        }
+
+        await db.promise().query(
+          `UPDATE loan_charges
+           SET
+             waived_amount = ?,
+             waived_off = ?,
+             paid_status = ?
+           WHERE id = ?`,
+          [
+            newWaivedAmount,
+            waiver_amount,
+            newStatus,
+            chargeRow.id,
+          ],
+        );
+      }
+
+      return res.json({
+        is_success: true,
+        data: {
+          status:
+            "charge waiver applied successfully",
+        },
+      });
+    } catch (err) {
+      console.error(
+        "Quick Money Waiver error:",
+        err,
+      );
+
+      return res.status(500).json({
+        is_success: false,
+        error: {
+          message: "Internal server error",
+          code: "internal_server_error",
+        },
+      });
+    }
+  },
+);
+
+
+
+router.get( "/v1/loan/:application_id/customer-details",
+  verifyApiKey,
+  async (req, res) => {
+    let connection;
+    try {
+      connection = await db.promise().getConnection();
+      const { application_id } = req.params;
+
+      const [existing] = await connection.query(
+        `SELECT * FROM loan_booking_quick_money WHERE application_id = ? LIMIT 1`,
+        [application_id],
+      );
+
+      if (!existing.length) {
+        return res.status(404).json({
+          is_success: false,
+          error: {
+            message: "Loan application not found",
+            code: "not_found",
+          },
+        });
+      }
+
+      const loan = existing[0];
+
+      return res.json({
+        is_success: true,
+        data: {
+          partner_loan_id: loan.partner_loan_id,
+          application_id: loan.application_id,
+          lan: loan.lan,
+          status: loan.status,
+
+          full_name: loan.customer_name,
+          pan_number: loan.pan_number,
+          father_name: loan.father_name,
+          dob: loan.borrower_dob || loan.dob,
+          gender: loan.gender,
+          mobile: loan.mobile,
+          email: loan.email,
+          pincode: loan.pincode,
+          state: loan.state,
+          city: loan.city,
+          district: loan.district,
+
+          residence_status: loan.residence_status,
+          employment_type: loan.employment_type,
+          company_type: loan.company_type,
+          company_name: loan.company_name,
+          designation: loan.designation,
+          salary_range: loan.salary_range,
+          salary_mode: loan.salary_mode,
+          nature_of_business: loan.nature_of_business,
+          industry_type: loan.industry_type,
+          monthly_income: loan.monthly_income,
+
+          address_line_1: loan.address_line_1,
+          address_line_2: loan.address_line_2,
+          address_pincode: loan.address_pincode,
+          address_city: loan.address_city,
+          address_state: loan.address_state,
+          is_current_address: loan.is_current_address,
+          current_address_line_1: loan.current_address_line_1,
+          current_address_line_2: loan.current_address_line_2,
+          current_address_pincode: loan.current_address_pincode,
+          current_address_city: loan.current_address_city,
+          current_address_state: loan.current_address_state,
+
+          loan_amount: loan.loan_amount,
+          tenure: loan.tenure,
+          loan_type: loan.loan_type,
+          monthly_emi: loan.emi_amount || loan.monthly_emi,
+          interest_rate: loan.interest_rate,
+          processing_fee: loan.processing_fee,
+          repayment_count: loan.repayment_count,
+          payment_frequency: loan.payment_frequency,
+
+          loan_application_date: loan.loan_application_date,
+          agreement_date: loan.agreement_date,
+          repayment_date: loan.repayment_date,
+          agreement_signature_type: loan.agreement_signature_type,
+          source: loan.source,
+          preferred_language: loan.preferred_language,
+          previous_loan_amount: loan.previous_loan_amount,
+          total_disbursed_applications: loan.total_disbursed_applications,
+
+          bank_account: {
+            ac_name: loan.bank_ac_name,
+            ac_number: loan.bank_ac_number,
+            ifsc_code: loan.bank_ifsc_code,
+            nach_umrn: loan.bank_nach_umrn,
+            upi_id: loan.bank_upi_id,
+          },
+
+          kyc: loan.kyc_json ? JSON.parse(loan.kyc_json) : null,
+        },
+      });
+    } catch (error) {
+      console.error("Fetch partner details error:", error);
+      return res.status(500).json({
+        is_success: false,
+        error: {
+          message: "Failed to fetch details",
+          code: "server_error",
+        },
+      });
+    } finally {
+      if (connection) connection.release();
+    }
+  },
+);
+
+
+router.post( "/v1/bre/test-eligibility",
+  async (req, res) => {
+
+    try {
+
+      if (
+        String(
+          process.env.ENABLE_QUICK_MONEY_BRE_TEST_API || ""
+        ).toLowerCase() !== "true"
+      ) {
+
+        return res.status(404).json({
+          is_success:false,
+          error:{
+            message:
+              "BRE testing API is disabled",
+            code:
+              "bre_testing_api_disabled",
+          },
+        });
+      }
+
+
+      const result =
+        evaluateQuickMoneyEligibility(
+          req.body
+        );
+
+
+      if (
+        result.decision ===
+        "VALIDATION_ERROR"
+      ) {
+
+        return res.status(400).json({
+          is_success:false,
+          data:result,
+          error:{
+            message:
+              "Invalid BRE test payload",
+            code:
+              "bre_test_validation_error",
+            details:
+              result.validationErrors,
+          },
+        });
+
+      }
+
+
+      return res.status(200).json({
+        is_success:true,
+        data:result,
+      });
+
+
+    } catch(error){
+
+      console.error(
+        "[QuickMoney BRE Test] failed",
+        {
+          message:error.message,
+          stack:error.stack,
+        }
+      );
+
+
+      return res.status(500).json({
+        is_success:false,
+        error:{
+          message:
+            error.message ||
+            "BRE test execution failed",
+          code:
+            "bre_test_execution_failed",
+        },
+      });
+
+    }
+
+  }
+);
+
+// router.post("/test-webhook-receiver", (req, res) => {
+//   console.log("\n========== QUICK MONEY WEBHOOK RECEIVED ==========");
+//   console.log("Headers:", req.headers);
+//   console.log(
+//     "Body:",
+//     JSON.stringify(req.body, null, 2)
+//   );
+//   console.log("=================================================\n");
+
+//   return res.status(200).json({
+//     success: true,
+//     message: "Quick Money webhook received successfully",
+//   });
+// });
+
 module.exports = router;

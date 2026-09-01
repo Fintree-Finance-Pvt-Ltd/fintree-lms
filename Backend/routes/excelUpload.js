@@ -2027,6 +2027,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_sampada: true,
     loan_booking_clayyo: true,
     loan_booking_switch_my_loan: true,
+    loan_booking_quick_money: true,
     loan_booking_circle_pe: true,
     loan_booking_loan_digit: true,
     loan_booking_hey_ev_battery: true,
@@ -2204,6 +2205,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
     loan_booking_circle_pe_houser: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_switch_my_loan: true,
+    loan_booking_quick_money: true,
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
@@ -2303,6 +2305,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_sterlion: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_switch_my_loan: true,
+    loan_booking_quick_money: true,
     loan_booking_loan_digit: true,
     dealer_onboarding: true,
     loan_booking_srbh: true,
@@ -2465,6 +2468,7 @@ router.get("/approved-loans", async (req, res) => {
     loan_booking_circle_pe: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_switch_my_loan: true,
+    loan_booking_quick_money: true,
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
@@ -2503,9 +2507,11 @@ router.get("/approved-loans", async (req, res) => {
     const statusFilter =
       table === "loan_booking_switch_my_loan"
         ? `lb.status IN ('Approved', 'BRE_APPROVED')`
-        : table === "loan_booking_carepay"
-          ? `LOWER(lb.status) = 'approved'`
-          : `lb.status = 'Approved'`;
+        : table === "loan_booking_quick_money"
+          ? `lb.status IN ('Approved', 'BRE_APPROVED')`
+          : table === "loan_booking_carepay"
+            ? `LOWER(lb.status) = 'approved'`
+            : `lb.status = 'Approved'`;
     const countSql = `SELECT COUNT(*) AS total FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause}`;
     const dataSql = `SELECT lb.* FROM ?? lb WHERE ${statusFilter} AND lb.LAN LIKE ?${searchClause} ORDER BY lb.${sortCol} ${safeSortDir} LIMIT ? OFFSET ?`;
 
@@ -2562,6 +2568,7 @@ router.get("/disbursed-loans", async (req, res) => {
     loan_booking_circle_pe_houser: true,
     loan_booking_hey_ev_battery: true,
     loan_booking_switch_my_loan: true,
+    loan_booking_quick_money: true,
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,
@@ -2663,6 +2670,7 @@ router.put("/login-loans/:lan", (req, res) => {
     loan_booking_hey_ev_battery: true,
     loan_booking_loan_digit: true,
     loan_booking_switch_my_loan: true,
+    loan_booking_quick_money: true,
     dealer_onboarding: true,
     loan_booking_fundify: true,
     loan_booking_srbh: true,
@@ -2998,6 +3006,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_hey_ev_battery: true,
     loan_booking_zypay_customer: true,
     loan_booking_switch_my_loan: true,
+    loan_booking_quick_money: true,
     loan_booking_loan_digit: true,
     loan_booking_seven_fincorp: true,
     loan_booking_bundela: true,

@@ -56,6 +56,10 @@ const { universalRunAllValidations } = require("./utils/runValiationsEngine");
 const {
   sendDisbursementWebhook,
 } = require("./routes/switchMyLoan/switchMyLoanWebhook");
+const{
+  sendQuickMoneyDisbursementWebhook,sendQuickMoneyRejectionWebhook
+} = require("./routes/QuickMoney/quickMoneyWebhook")
+
 const {
   sendWelcomeLetterAfterUtrUpload,
 } = require("./services/welcomeLetterService");
@@ -81,6 +85,7 @@ const PORT = process.env.PORT;
 // ✅ Import jobs
 require("./jobs/dailyJobs");
 require("./jobs/rapidMoneyWebhookRetry");
+require("./jobs/quickMoneyWebhookRetry");
 
 const fs = require("fs");
 const path = require("path");
@@ -873,6 +878,40 @@ app.post("/api/test-rapid-money-disbursement-webhook", async (req, res) => {
   }
 });
 
+// app.post("/api/test-quick-money-disbursement-webhook", async (req, res) => {
+//   try {
+//     const { lan, transactionId, disbursementDate } = req.body;
+
+//     if (!lan || !transactionId || !disbursementDate) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "lan, transactionId and disbursementDate are required",
+//       });
+//     }
+
+//     const result = await sendQuickMoneyDisbursementWebhook({
+//       lan,
+//       transactionId,
+//       disbursementDate,
+//     });
+
+//     return res.status(result.success ? 200 : 202).json({
+//       success: result.success,
+//       message: result.success
+//         ? "Webhook sent successfully"
+//         : "Webhook failed and is queued for retry",
+//       result,
+//     });
+//   } catch (error) {
+//     console.error("Rapid Money test webhook error:", error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// });
+
 app.get("/api/test-sms", async (req, res) => {
   try {
     await runOnce(); // queues due/overdue and sends immediately
@@ -925,3 +964,48 @@ app.listen(PORT || 5000, () => {
     console.error("[server] Dashboard schema cache init error:", err.message),
   );
 });
+
+// app.post(
+//   "/api/test-quick-money-rejection-webhook",
+//   async (req, res) => {
+//     try {
+//       const {
+//         applicationId,
+//       } = req.body;
+
+//       if (!applicationId) {
+//         return res.status(400).json({
+//           success: false,
+//           message:
+//             "applicationId is required",
+//         });
+//       }
+
+//       const result =
+//         await sendQuickMoneyRejectionWebhook({
+//           applicationId,
+//         });
+
+//       return res.status(
+//         result.success ? 200 : 202
+//       ).json({
+//         success: result.success,
+//         message: result.success
+//           ? "Rejection webhook sent successfully"
+//           : "Rejection webhook failed and is queued for retry",
+//         result,
+//       });
+
+//     } catch (error) {
+//       console.error(
+//         "Quick Money rejection webhook test error:",
+//         error,
+//       );
+
+//       return res.status(500).json({
+//         success: false,
+//         message: error.message,
+//       });
+//     }
+//   },
+// );

@@ -5,6 +5,7 @@ const db = require("../config/db");
 const {
   processEmiClubDisbursement,
   processRapidMoneyDisbursement,
+  processQuickMoneyDisbursement,
   processLoanDigitDisbursement,
   processFinsoDisbursement,
   processCarePayDisbursement,
@@ -449,16 +450,71 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       });
     }else if (table === "loan_booking_quick_money") {
 
-  await processQuickMoneyDisbursement({
-    lan,
+  if (
+    String(tr.status).toLowerCase() === "success"
+  ) {
 
-    disbursementUTR:
-      tr.unique_transaction_reference,
+    console.log(
+      "[QUICK MONEY] Easebuzz payout successful",
+      {
+        lan,
+        utr: tr.unique_transaction_reference,
+        transferDate: tr.transfer_date,
+      },
+    );
 
-    disbursementDate:
-      new Date(tr.transfer_date),
-  });
+    // 1. Send Disbursed webhook
+    const webhookResult =
+      await sendQuickMoneyDisbursementWebhook({
+        lan,
+        transactionId:
+          tr.unique_transaction_reference,
+        disbursementDate:
+          new Date(tr.transfer_date),
+      });
 
+    console.log(
+      "[QUICK MONEY] Disbursement webhook result:",
+      webhookResult,
+    );
+
+    // 2. Generate RPS + UTR + update status
+    await processQuickMoneyDisbursement({
+      lan,
+      disbursementUTR:
+        tr.unique_transaction_reference,
+      disbursementDate:
+        new Date(tr.transfer_date),
+    });
+
+  } else {
+
+    // ============================================
+    // EASEBUZZ PAYOUT FAILED
+    // ============================================
+
+    console.log(
+      "[QUICK MONEY] Easebuzz payout failed",
+      {
+        lan,
+        status: tr.status,
+        transactionReference:
+          tr.unique_transaction_reference,
+        transferRequest: tr,
+      },
+    );
+
+    const rejectionResult =
+      await sendQuickMoneyRejectionWebhook({
+        applicationId:
+          loan.application_id,
+      });
+
+    console.log(
+      "[QUICK MONEY] Rejection webhook result:",
+      rejectionResult,
+    );
+  }
 }
      else if (table === "loan_booking_loan_digit") {
       await processLoanDigitDisbursement({

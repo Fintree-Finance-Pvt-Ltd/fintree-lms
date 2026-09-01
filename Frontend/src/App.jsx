@@ -295,6 +295,9 @@ import SterlionMexonDexonAllLoans from "./components/SterlionMexonDexon/Sterlion
 import SterlionMexonDexonInvoiceUpload from "./components/SterlionMexonDexon/SterlionMexonDexonInvoiceUpload.jsx";
 import SterlionMexonDexonCollectionUpload from "./components/SterlionMexonDexon/SterlionMexonDexonCollectionUpload.jsx";
 import SterlionMexonDexonAllInvoices from "./components/SterlionMexonDexon/SterlionMexonDexonAllInvoice.jsx";
+import QMLAllLoans from "./components/QuickMoney/QMLAllLoans.jsx";
+import QMLDisburseInitiate from "./components/QuickMoney/QMLDisburseInitiate.jsx";
+import QMLLoginloans from "./components/QuickMoney/QMLLoginLoans.jsx";
 
 function App() {
   return (
@@ -1633,6 +1636,31 @@ function App() {
             element={
               <PermissionRoute pageName="Switch my loan All loans">
                 <SMLAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+            <Route
+            path="/qml-loans/all-loans"
+            element={
+              <PermissionRoute pageName="Quick Money All loans">
+                <QMLAllLoans />
+              </PermissionRoute>
+            }
+          />
+           <Route
+            path="/qml-loans/disburse-initiate"
+            element={
+              <PermissionRoute pageName="Quick Money Disburse Initiate">
+                <QMLDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/qml-loans/login-loans"
+            element={
+              <PermissionRoute pageName="Quick Money Login loans">
+                <QMLLoginloans />
               </PermissionRoute>
             }
           />
