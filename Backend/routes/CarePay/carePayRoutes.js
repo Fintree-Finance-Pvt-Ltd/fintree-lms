@@ -3380,7 +3380,7 @@ loanBookingRouter.get("/v1/carepay-rps",verifyApiKey,
 );
 
 
-router.get("/status/:lan",async (req, res) => {
+router.get("/payment/status/:lan",async (req, res) => {
 
     try {
 
