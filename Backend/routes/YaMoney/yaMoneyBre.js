@@ -5,8 +5,13 @@ function readNumber(value) {
 
 const MIN_BUREAU_SCORE = 685;
 
+function readBoolean(value) {
+  return value === true || String(value ?? "").trim().toLowerCase() === "true";
+}
+
 function runBRE(data) {
   const errors = [];
+  const skipBureau = readBoolean(data.skip_bureau);
 
   const loanAmount = readNumber(data.loan_amount);
   const age = readNumber(data.age);
@@ -33,10 +38,12 @@ function runBRE(data) {
     errors.push("Minimum annual income must be 3,00,000");
   }
 
-  if (!Number.isFinite(bureauScore)) {
-    errors.push("bureau_score is required");
-  } else if (bureauScore < MIN_BUREAU_SCORE) {
-    errors.push(`Minimum bureau score must be ${MIN_BUREAU_SCORE}`);
+  if (!skipBureau) {
+    if (!Number.isFinite(bureauScore)) {
+      errors.push("bureau_score is required");
+    } else if (bureauScore < MIN_BUREAU_SCORE) {
+      errors.push(`Minimum bureau score must be ${MIN_BUREAU_SCORE}`);
+    }
   }
 
   const reason = errors.length ? errors.join(", ") : "ELIGIBLE";
@@ -48,6 +55,8 @@ function runBRE(data) {
     reasons: errors,
     bureau_score: Number.isFinite(bureauScore) ? bureauScore : null,
     minimum_bureau_score: MIN_BUREAU_SCORE,
+    bureau_validation_enabled: !skipBureau,
+    bureau_validation_skipped: skipBureau,
     errors,
   };
 }

@@ -15,6 +15,7 @@ const LENDER = "Ya Money";
 const PRODUCT = "Ya Money";
 const LOAN_TYPE = "Business Loan";
 const LAN_PREFIX = "YAM";
+const YA_MONEY_BUREAU_ENABLED =false;
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -153,34 +154,35 @@ function validateLoginData(data) {
     return "aadhaar_number must be 12 digits";
   }
 
-  if (!data.customer_address) {
+  if (YA_MONEY_BUREAU_ENABLED && !data.customer_address) {
     return "customer_address is required";
   }
 
-  if (!data.customer_city) {
+  if (YA_MONEY_BUREAU_ENABLED && !data.customer_city) {
     return "customer_city is required";
   }
 
-  if (!data.customer_state) {
+  if (YA_MONEY_BUREAU_ENABLED && !data.customer_state) {
     return "customer_state is required";
   }
 
-  if (!data.customer_pincode) {
+  if (YA_MONEY_BUREAU_ENABLED && !data.customer_pincode) {
     return "customer_pincode is required";
   }
 
-  if (!/^[1-9][0-9]{5}$/.test(data.customer_pincode)) {
+  if (data.customer_pincode && !/^[1-9][0-9]{5}$/.test(data.customer_pincode)) {
     return "customer_pincode must be 6 digits";
   }
 
-  if (!isValidDate(data.dob)) {
+  if (YA_MONEY_BUREAU_ENABLED && !isValidDate(data.dob)) {
     return "dob must be a valid date in YYYY-MM-DD format";
   }
 
   if (
-    !Number.isInteger(data.loan_tenure) ||
-    data.loan_tenure < 6 ||
-    data.loan_tenure > 24
+    YA_MONEY_BUREAU_ENABLED &&
+    (!Number.isInteger(data.loan_tenure) ||
+      data.loan_tenure < 6 ||
+      data.loan_tenure > 24)
   ) {
     return "loan_tenure must be between 6 and 24 months";
   }
@@ -683,12 +685,13 @@ router.post("/login", verifyApiKey, async (req, res) => {
     const requestedAmount =
       body.requested_amount ?? body.requiested_amount ?? body.loan_amount;
     const dob = clean(body.dob ?? body.date_of_birth ?? body.customer_dob);
+    const calculatedAge = calculateAgeFromDob(dob);
 
     const data = {
       login_date: todayDate(),
       partnerLoanId: clean(body.partner_loan_id),
       dob,
-      age: calculateAgeFromDob(dob),
+      age: Number.isFinite(calculatedAge) ? calculatedAge : readNumber(body.age),
       annual_income: body.annual_income || null,
       loan_tenure: readNumber(
         body.loan_tenure ?? body.tenure ?? body.requested_tenure,
@@ -751,12 +754,21 @@ router.post("/login", verifyApiKey, async (req, res) => {
     connection.release();
     connection = null;
 
-    const bureau = await pullAndPersistBureau(ids.lan, data);
+    const bureau = YA_MONEY_BUREAU_ENABLED
+      ? await pullAndPersistBureau(ids.lan, data)
+      : {
+          success: false,
+          status: "SKIPPED",
+          score: null,
+          skipped: true,
+          reason: "YA_MONEY_BUREAU_DISABLED_FOR_UAT",
+        };
     const breResult = runBRE({
       loan_amount: data.requested_amount,
       age: data.age,
       annual_income: data.annual_income,
       bureau_score: bureau.score,
+      skip_bureau: !YA_MONEY_BUREAU_ENABLED,
     });
     const finalStatus = await updateBreStatus(
       db.promise(),
