@@ -59,11 +59,13 @@ const {
 const {
   sendWelcomeLetterAfterUtrUpload,
 } = require("./services/welcomeLetterService");
-const { autoApproveSevenFinCorpIfAllVerified } = require("./routes/Seven Fincorp/sevenFincorpBRE");
+const {
+  autoApproveSevenFinCorpIfAllVerified,
+} = require("./routes/Seven Fincorp/sevenFincorpBRE");
 const sterlionUblRoutes = require("./routes/SterlionUbl/sterlionUblRoutes");
 const circlePeHouserRoutes = require("./routes/CirclepeHouser/CirclepeHouserRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
-const quickMoneyRoutes =require("./routes/QuickMoney/quickMoneyRoutes")
+const quickMoneyRoutes = require("./routes/QuickMoney/quickMoneyRoutes");
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
 //   // 32 bytes = 64 characters hex string
@@ -96,15 +98,9 @@ app.use(
     credentials: true,
   }),
 );
-const digitapAadhaarService = require(
-  "./services/digitapaadharservice",
-);
+const digitapAadhaarService = require("./services/digitapaadharservice");
 
-
-app.use(
-  "/api/test-kyc",
-  digitapAadhaarService.router,
-);
+app.use("/api/test-kyc", digitapAadhaarService.router);
 initScheduler();
 
 // // Auto-generate API key once when server starts
@@ -143,7 +139,7 @@ app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // �
 app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ Register PayU Routes
 app.use("/api/sterlion-ubl", sterlionUblRoutes); // ✅ Register Sterlion UBL Routes
 app.use("/api/loan-booking", circlePeHouserRoutes); // ✅ Register Circlepe Houser Routes
-
+app.use("/api/loan-booking/yaMoney", require("./routes/YaMoney/yaMoneyRoutes")); // Register Routes for Ya Money Business Loan
 app.use(
   "/api/motion-corp",
   require("./routes/MotionCorp/motionCorpDealerRoutes"),
@@ -418,8 +414,7 @@ app.use(
   require("./routes/supplyChainRoutes/supplyChainRoutes"),
 ); // ✅ Register Routes for Supply Chain Loans
 
-app.use(
-  "/api/quick-money", quickMoneyRoutes);
+app.use("/api/quick-money", quickMoneyRoutes);
 app.post("/api/cibil/:id/pdf", async (req, res) => {
   try {
     const doc = await generateForReport(req.params.id);
@@ -724,18 +719,12 @@ app.post("/api/universalRunAllValidations", async (req, res) => {
 //Send kyc sms
 app.post("/api/send-kyc", async (req, res) => {
   try {
-    const {
-      lan,
-      mobile_number,
-      email_id,
-      customer_name,
-    } = req.body;
+    const { lan, mobile_number, email_id, customer_name } = req.body;
 
     if (!lan || !mobile_number || !email_id || !customer_name) {
       return res.status(400).json({
         success: false,
-        message:
-          "lan, mobile_number, email_id and customer_name are required",
+        message: "lan, mobile_number, email_id and customer_name are required",
       });
     }
 
@@ -743,7 +732,7 @@ app.post("/api/send-kyc", async (req, res) => {
       lan,
       mobile_number,
       email_id,
-      customer_name
+      customer_name,
     );
 
     if (!result.success) {
