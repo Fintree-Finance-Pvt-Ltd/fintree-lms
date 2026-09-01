@@ -2,6 +2,9 @@
 
 const mysql = require("mysql2");
 
+const useDbSsl =
+  String(process.env.DB_SSL || "").toLowerCase() === "true";
+ 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
@@ -10,9 +13,13 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 5,
-  queueLimit: 0
+  queueLimit: 0,
+ssl: useDbSsl
+    ? {
+        rejectUnauthorized: false,
+      }
+    : undefined,
 });
-
 pool.getConnection((err, connection) => {
   if (err) {
     console.error("Database connection failed:", err);
