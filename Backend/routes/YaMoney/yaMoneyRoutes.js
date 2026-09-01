@@ -150,10 +150,6 @@ function validateLoginData(data) {
     return "aadhaar_number is required";
   }
 
-  if (!/^\d{12}$/.test(data.aadhaar_number)) {
-    return "aadhaar_number must be 12 digits";
-  }
-
   if (YA_MONEY_BUREAU_ENABLED && !data.customer_address) {
     return "customer_address is required";
   }
