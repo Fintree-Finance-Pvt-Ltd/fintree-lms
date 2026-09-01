@@ -20,6 +20,7 @@ function runBRE(data) {
     data.bureau_score ?? data.cibil_score ?? data.fintree_cibil_score,
   );
 
+  //  new changes
   if (!Number.isFinite(loanAmount)) {
     errors.push("loan_amount is required");
   } else if (loanAmount < 10000 || loanAmount > 200000) {

@@ -8,6 +8,7 @@ const { runBRE } = require("./yaMoneyBre");
 
 const router = express.Router();
 
+// routes
 const TABLE_NAME = "loan_booking_ya_money";
 const SEQUENCE_KEY = "YA_MONEY_BUSINESS_LOAN";
 
