@@ -3398,11 +3398,12 @@ router.get("/payment/status/:lan",async (req, res) => {
       const [rows] = await db.promise().query(
         `
         SELECT
-         
+
           partner_code,
           lender,
           lan,
           amount,
+          easebuzz_id ,
           paid_amount,
           status AS payment_link_status,
           provider_status AS payment_status,
@@ -3413,7 +3414,6 @@ router.get("/payment/status/:lan",async (req, res) => {
         WHERE lan = ?
         AND partner_code = 'CAREPAY'
         ORDER BY id DESC
-        LIMIT 1
         `,
         [
           lan
