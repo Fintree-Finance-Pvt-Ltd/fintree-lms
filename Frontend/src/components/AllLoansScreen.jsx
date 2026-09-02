@@ -153,6 +153,8 @@ const AllLoansScreen = ({
               nav(`/motion-corp/updatedata?lan=${r.lan}`);
             } else if (/^FUN/i.test(r.lan)) {
               nav(`/fundify/customer-details/${r.lan}`);
+            } else if (/^SPL/i.test(r.lan)) {
+              navigate(`/sampada/customer-details?lan=${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {
               nav(`/fincrest-loan-details/${r.lan}`);
             }else if (/^SHL/i.test(r.lan)) {
