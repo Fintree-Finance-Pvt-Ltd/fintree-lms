@@ -1,5 +1,4 @@
 const axios = require("axios");
-const crypto = require("crypto");
 const db = require("../../config/db");
 
 const MAX_ATTEMPTS = 2;
@@ -20,10 +19,6 @@ function json(value) {
       message: error.message,
     });
   }
-}
-
-function createSignature(body, secret) {
-  return crypto.createHmac("sha256", secret).update(body).digest("hex");
 }
 
 async function createWebhookLog(payload) {
@@ -82,8 +77,11 @@ function getFailure(error) {
 }
 
 async function sendClientWebhook(payload) {
-  const url = String(process.env.CLIENT_WEBHOOK_URL || "").trim();
-  const secret = String(process.env.CLIENT_WEBHOOK_SECRET || "").trim();
+  const url = String(
+    process.env.CLIENT_YAMONEY_WEBHOOK_URL ||
+      process.env.CLIENT_YAMONEY_WEBHOOK ||
+      "",
+  ).trim();
   let logId = null;
 
   try {
@@ -95,9 +93,9 @@ async function sendClientWebhook(payload) {
     });
   }
 
-  if (!url || !secret) {
+  if (!url) {
     const response = {
-      message: "CLIENT_WEBHOOK_URL or CLIENT_WEBHOOK_SECRET is missing",
+      message: "CLIENT_YAMONEY_WEBHOOK_URL is missing",
     };
 
     try {
@@ -122,7 +120,6 @@ async function sendClientWebhook(payload) {
   const body = JSON.stringify(payload);
   const headers = {
     "Content-Type": "application/json",
-    "X-Webhook-Signature": createSignature(body, secret),
   };
 
   let failure = null;

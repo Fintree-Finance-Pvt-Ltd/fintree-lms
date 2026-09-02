@@ -9,6 +9,7 @@ const {
   processLoanDigitDisbursement,
   processFinsoDisbursement,
   processCarePayDisbursement,
+  processYaMoneyDisbursement,
 } = require("../services/processEmiClubDisbursement");
 
 const { sendDisbursementWebhook } = require("../routes/switchMyLoan/switchMyLoanWebhook");
@@ -28,7 +29,93 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_claim_cure_buddy",
   "pl_partner_applications",
   "loan_booking_quick_money",
+  "loan_booking_ya_money",
 ];
+
+async function getTableColumnSet(tableName) {
+  const [rows] = await db.promise().query(
+    `
+    SELECT COLUMN_NAME
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+    `,
+    [tableName],
+  );
+
+  return new Set(rows.map((row) => row.COLUMN_NAME));
+}
+
+function pickColumn(columns, candidates) {
+  return candidates.find((column) => columns.has(column)) || null;
+}
+
+function quoteColumn(column) {
+  if (!/^[a-zA-Z0-9_]+$/.test(column)) {
+    throw new Error(`Invalid column name: ${column}`);
+  }
+
+  return `\`${column}\``;
+}
+
+function coalesceExpression(columns) {
+  return columns
+    .map((column) => `NULLIF(TRIM(${quoteColumn(column)}), '')`)
+    .join(", ");
+}
+
+async function buildYaMoneyPayoutQuery() {
+  const tableName = "loan_booking_ya_money";
+  const columns = await getTableColumnSet(tableName);
+
+  const beneficiaryColumns = [
+    "name_in_bank",
+    "bank_account_holder_name",
+    "account_holder_name",
+    "bank_ac_name",
+    "customer_name",
+  ].filter((column) => columns.has(column));
+
+  const amountColumn = pickColumn(columns, ["net_disbursement"]);
+
+  const accountColumn = pickColumn(columns, [
+    "account_number",
+    "bank_account_number",
+    "bank_ac_number",
+    "customer_account_number",
+  ]);
+
+  const ifscColumn = pickColumn(columns, [
+    "ifsc",
+    "bank_ifsc_code",
+    "ifsc_code",
+    "bank_ifsc",
+  ]);
+
+  const missing = [];
+
+  if (!beneficiaryColumns.length) missing.push("beneficiary name");
+  if (!amountColumn) missing.push("net disbursement");
+  if (!accountColumn) missing.push("account number");
+  if (!ifscColumn) missing.push("IFSC");
+
+  if (missing.length) {
+    throw new Error(
+      `Ya Money payout columns missing in ${tableName}: ${missing.join(", ")}`,
+    );
+  }
+
+  return `
+    SELECT
+      COALESCE(${coalesceExpression(beneficiaryColumns)}) AS beneficiary_name,
+      ${quoteColumn(amountColumn)} AS loan_amount,
+      ${quoteColumn(accountColumn)} AS account_number,
+      ${quoteColumn(ifscColumn)} AS ifsc
+    FROM ${tableName}
+    WHERE lan = ?
+    LIMIT 1
+  `;
+}
 
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
   try {
@@ -172,6 +259,10 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         WHERE lan = ?
         LIMIT 1
       `;
+    }
+
+    if (table === "loan_booking_ya_money") {
+      loanQuery = await buildYaMoneyPayoutQuery();
     }
 
     const [[loan]] = await db.promise().query(loanQuery, loanParams);
@@ -536,6 +627,12 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       });
     } else if (table === "loan_booking_claim_cure_buddy") {
       await processClaimCureBuddyDisbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
+    } else if (table === "loan_booking_ya_money") {
+      await processYaMoneyDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),

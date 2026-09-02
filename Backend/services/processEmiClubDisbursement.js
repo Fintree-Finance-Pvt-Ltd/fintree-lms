@@ -1517,6 +1517,524 @@ async function processCarePayDisbursement({
   }
 }
 
+const YA_MONEY_BOOKING_TABLE = "loan_booking_ya_money";
+const YA_MONEY_RPS_TABLE = "manual_rps_ya_money";
+const YA_MONEY_PARTNER_NAME = "YAMONEY";
+
+const roundYaMoneyAmount = (value) =>
+  Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+
+function formatYaMoneyDateYMD(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid date: ${value}`);
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function calculateYaMoneyEmi(loanAmount, annualInterestRate, tenure) {
+  const monthlyRate = annualInterestRate / 12 / 100;
+
+  if (monthlyRate === 0) {
+    return loanAmount / tenure;
+  }
+
+  const multiplier = Math.pow(1 + monthlyRate, tenure);
+  return (loanAmount * monthlyRate * multiplier) / (multiplier - 1);
+}
+
+function getYaMoneyDueDate(disbursementDate, monthOffset) {
+  const disbursedAt = new Date(disbursementDate);
+
+  if (Number.isNaN(disbursedAt.getTime())) {
+    throw new Error(`Invalid Ya Money disbursement date: ${disbursementDate}`);
+  }
+
+  const dueDate = new Date(disbursedAt);
+  const firstMonthGap = disbursedAt.getDate() <= 20 ? 1 : 2;
+
+  dueDate.setDate(1);
+  dueDate.setMonth(dueDate.getMonth() + firstMonthGap + monthOffset);
+  dueDate.setDate(5);
+  dueDate.setHours(12, 0, 0, 0);
+
+  return dueDate;
+}
+
+async function generateYaMoneyRepaymentSchedule({
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  emiAmount,
+}) {
+  const principalAmount = roundYaMoneyAmount(loanAmount);
+  const annualInterestRate = Number(interestRate || 0);
+  const repaymentTenure = Number(tenure);
+
+  if (!Number.isFinite(principalAmount) || principalAmount <= 0) {
+    throw new Error(`Invalid Ya Money loan amount: ${loanAmount}`);
+  }
+
+  if (!Number.isFinite(annualInterestRate) || annualInterestRate < 0) {
+    throw new Error(`Invalid Ya Money interest rate: ${interestRate}`);
+  }
+
+  if (
+    !Number.isInteger(repaymentTenure) ||
+    repaymentTenure <= 0
+  ) {
+    throw new Error(`Invalid Ya Money tenure: ${tenure}`);
+  }
+
+  const [existingRps] = await conn.query(
+    `
+    SELECT 1
+    FROM ${YA_MONEY_RPS_TABLE}
+    WHERE lan = ?
+    LIMIT 1
+    `,
+    [lan],
+  );
+
+  if (existingRps.length > 0) {
+    return {
+      skipped: true,
+      reason: "RPS_ALREADY_EXISTS",
+    };
+  }
+
+  const persistedEmi = Number(emiAmount);
+  const regularEmi =
+    Number.isFinite(persistedEmi) && persistedEmi > 0
+      ? roundYaMoneyAmount(persistedEmi)
+      : roundYaMoneyAmount(
+          calculateYaMoneyEmi(
+            principalAmount,
+            annualInterestRate,
+            repaymentTenure,
+          ),
+        );
+
+  if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
+    throw new Error(`Unable to calculate Ya Money EMI for LAN ${lan}`);
+  }
+
+  const monthlyRate = annualInterestRate / 12 / 100;
+  let openingPrincipal = principalAmount;
+  const rpsData = [];
+
+  for (let installment = 1; installment <= repaymentTenure; installment += 1) {
+    const dueDate = getYaMoneyDueDate(disbursementDate, installment - 1);
+    let interest = roundYaMoneyAmount(openingPrincipal * monthlyRate);
+    let principal = roundYaMoneyAmount(regularEmi - interest);
+
+    if (monthlyRate === 0) {
+      interest = 0;
+      principal = roundYaMoneyAmount(regularEmi);
+    }
+
+    if (principal <= 0 && installment !== repaymentTenure) {
+      throw new Error(
+        `Invalid Ya Money principal for LAN ${lan}, installment ${installment}`,
+      );
+    }
+
+    if (installment === repaymentTenure || principal > openingPrincipal) {
+      principal = openingPrincipal;
+    }
+
+    const actualEmi = roundYaMoneyAmount(principal + interest);
+    const closingPrincipal = Math.max(
+      0,
+      roundYaMoneyAmount(openingPrincipal - principal),
+    );
+
+    rpsData.push([
+      lan,
+      formatYaMoneyDateYMD(dueDate),
+      actualEmi,
+      interest,
+      principal,
+      principal,
+      interest,
+      actualEmi,
+      openingPrincipal,
+      closingPrincipal,
+      "Pending",
+    ]);
+
+    openingPrincipal = closingPrincipal;
+  }
+
+  if (Math.abs(openingPrincipal) > 0.01) {
+    throw new Error(
+      `Ya Money RPS did not close correctly. Remaining principal: ${openingPrincipal}`,
+    );
+  }
+
+  await conn.query(
+    `
+    INSERT INTO ${YA_MONEY_RPS_TABLE}
+      (
+        lan,
+        due_date,
+        emi,
+        interest,
+        principal,
+        remaining_principal,
+        remaining_interest,
+        remaining_emi,
+        opening,
+        closing,
+        status
+      )
+    VALUES ?
+    `,
+    [rpsData],
+  );
+
+  await conn.query(
+    `
+    UPDATE ${YA_MONEY_BOOKING_TABLE}
+    SET emi_amount = ?
+    WHERE lan = ?
+    `,
+    [regularEmi, lan],
+  );
+
+  return {
+    success: true,
+    rowsInserted: rpsData.length,
+    regularEmi,
+  };
+}
+
+async function updateYaMoneyDisbursementLimit({
+  conn,
+  lan,
+  loanAmount,
+  disbursementDate,
+}) {
+  const { month, year } = getMonthYear(disbursementDate);
+
+  const partner = await partnerLimitService.getOrCreatePartner(
+    conn,
+    YA_MONEY_PARTNER_NAME,
+  );
+
+  const limit = await partnerLimitService.getPartnerMonthlyLimit(
+    conn,
+    partner.partner_id,
+    month,
+    year,
+  );
+
+  try {
+    return await partnerLimitService.updateDisbursedLimit(
+      conn,
+      limit.id,
+      loanAmount,
+      lan,
+    );
+  } catch (err) {
+    if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+      err.meta = {
+        ...(err.meta || {}),
+        partnerName: YA_MONEY_PARTNER_NAME,
+        lan,
+        month,
+        year,
+      };
+    }
+
+    throw err;
+  }
+}
+
+async function processYaMoneyDisbursement({
+  lan,
+  disbursementUTR,
+  disbursementDate,
+}) {
+  const normalizedLan = String(lan || "").trim().toUpperCase();
+
+  console.log("[YaMoney][START] Processing disbursement", {
+    lan: normalizedLan,
+    disbursementUTR,
+    disbursementDate,
+  });
+
+  if (!normalizedLan || !normalizedLan.startsWith("YAM")) {
+    return {
+      skipped: true,
+      reason: "NOT_YAMONEY",
+    };
+  }
+
+  if (!disbursementUTR || !disbursementDate) {
+    return {
+      skipped: true,
+      reason: "MISSING_UTR_OR_DATE",
+    };
+  }
+
+  let conn;
+  let transactionCompleted = false;
+
+  try {
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
+
+    const [[loan]] = await conn.query(
+      `
+      SELECT
+        partner_loan_id,
+        loan_amount,
+        interest AS interest_rate,
+        loan_tenure,
+        emi_amount,
+        processing_fee,
+        net_disbursement,
+        product,
+        lender,
+        status
+      FROM ${YA_MONEY_BOOKING_TABLE}
+      WHERE lan = ?
+      FOR UPDATE
+      `,
+      [normalizedLan],
+    );
+
+    if (!loan) {
+      throw new Error(`Ya Money loan not found: ${normalizedLan}`);
+    }
+
+    const loanAmount = Number(loan.loan_amount);
+
+    if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
+      throw new Error(
+        `INVALID_YAMONEY_DISBURSEMENT_AMOUNT: ${loan.loan_amount}`,
+      );
+    }
+
+    const rawNetDisbursement = loan.net_disbursement;
+    const finalDisbursedAmount = Number(rawNetDisbursement);
+
+    if (
+      rawNetDisbursement === null ||
+      rawNetDisbursement === undefined ||
+      String(rawNetDisbursement).trim() === "" ||
+      !Number.isFinite(finalDisbursedAmount) ||
+      finalDisbursedAmount <= 0
+    ) {
+      throw new Error(
+        `INVALID_YAMONEY_NET_DISBURSEMENT: ${rawNetDisbursement}`,
+      );
+    }
+
+    const effectiveDisbursementDate = new Date(disbursementDate);
+
+    if (Number.isNaN(effectiveDisbursementDate.getTime())) {
+      throw new Error(
+        `Invalid Ya Money disbursement date: ${disbursementDate}`,
+      );
+    }
+
+    if (String(loan.status).toLowerCase() === "disbursed") {
+      const limitResult = await updateYaMoneyDisbursementLimit({
+        conn,
+        lan: normalizedLan,
+        loanAmount,
+        disbursementDate: effectiveDisbursementDate,
+      });
+
+      await conn.commit();
+      transactionCompleted = true;
+
+      return {
+        skipped: true,
+        reason: "ALREADY_DISBURSED",
+        limitResult,
+      };
+    }
+
+    /*
+     * Prevent duplicate UTR insertion.
+     */
+    const [utrExists] = await conn.query(
+      `
+      SELECT 1
+      FROM ev_disbursement_utr
+      WHERE Disbursement_UTR = ?
+      LIMIT 1
+      `,
+      [disbursementUTR],
+    );
+
+    if (utrExists.length > 0) {
+      await conn.rollback();
+      transactionCompleted = true;
+
+      return {
+        skipped: true,
+        reason: "DUPLICATE_UTR",
+      };
+    }
+
+    /*
+     * Generate repayment schedule.
+     */
+    const rpsResult = await generateYaMoneyRepaymentSchedule({
+      conn,
+      lan: normalizedLan,
+      loanAmount,
+      disbursementDate,
+      interestRate: loan.interest_rate,
+      tenure: loan.loan_tenure,
+      emiAmount: loan.emi_amount,
+    });
+
+    /*
+     * Insert disbursement UTR.
+     */
+    await conn.query(
+      `
+      INSERT INTO ev_disbursement_utr
+        (
+          Disbursement_UTR,
+          Disbursement_Date,
+          LAN
+        )
+      VALUES (?, ?, ?)
+      `,
+      [disbursementUTR, disbursementDate, normalizedLan],
+    );
+
+    await conn.query(
+      `
+      UPDATE ${YA_MONEY_BOOKING_TABLE}
+      SET status = 'Disbursed',
+          stage = 'Disbursed'
+      WHERE lan = ?
+      `,
+      [normalizedLan],
+    );
+
+    const limitResult = await updateYaMoneyDisbursementLimit({
+      conn,
+      lan: normalizedLan,
+      loanAmount,
+      disbursementDate: effectiveDisbursementDate,
+    });
+
+    console.log(
+      "[YaMoney][LIMIT] Disbursement limit processed",
+      {
+        lan: normalizedLan,
+        loanAmount,
+        netDisbursement: finalDisbursedAmount,
+        rpsResult,
+        limitResult,
+      },
+    );
+
+    /*
+     * Commit all database changes before sending webhook.
+     */
+    await conn.commit();
+    transactionCompleted = true;
+
+    /*
+     * Send webhook after successful commit.
+     */
+    const yaMoneyWebhookPayload = {
+      external_ref_no: String(
+        loan.partner_loan_id || "",
+      ).trim(),
+      utr: String(disbursementUTR).trim(),
+      disbursement_date: effectiveDisbursementDate
+        .toISOString()
+        .split("T")[0],
+      reference_number: normalizedLan,
+      status: "DISBURSED",
+      reject_reason: null,
+    };
+
+    const webhookResult = await sendLoanWebhook(
+      yaMoneyWebhookPayload,
+    );
+
+    if (webhookResult) {
+      console.log(
+        "[YaMoney][WEBHOOK] Webhook sent successfully",
+        {
+          lan: normalizedLan,
+          payload: yaMoneyWebhookPayload,
+          webhookResult,
+        },
+      );
+    } else {
+      console.error(
+        "[YaMoney][WEBHOOK] Webhook was not sent",
+        {
+          lan: normalizedLan,
+          payload: yaMoneyWebhookPayload,
+          webhookResult:
+            webhookResult || {
+              success: false,
+              reason: "EMPTY_WEBHOOK_RESULT",
+            },
+        },
+      );
+    }
+
+    return {
+      success: true,
+      rpsResult,
+      limitResult,
+      webhookResult,
+    };
+  } catch (err) {
+    if (conn && !transactionCompleted) {
+      try {
+        await conn.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "[YaMoney][ROLLBACK] Failed to rollback transaction",
+          {
+            lan: normalizedLan,
+            message: rollbackError.message,
+          },
+        );
+      }
+    }
+
+    console.error(
+      "[YaMoney][ERROR] Disbursement processing failed",
+      {
+        lan: normalizedLan,
+        message: err.message,
+        meta: err.meta || null,
+      },
+    );
+
+    throw err;
+  } finally {
+    if (conn) {
+      conn.release();
+    }
+  }
+}
+
 module.exports = {
   processEmiClubDisbursement,
   processRapidMoneyDisbursement,
@@ -1524,4 +2042,5 @@ module.exports = {
   processLoanDigitDisbursement,
   processFinsoDisbursement,
   processCarePayDisbursement,
+  processYaMoneyDisbursement,
 };

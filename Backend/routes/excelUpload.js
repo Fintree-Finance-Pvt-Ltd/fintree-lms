@@ -10772,16 +10772,16 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         const processingFeeGst = 0;
         const otherCharges = 0;
 
-        const netDisbursement = Number(
-          Math.max(
-            loanAmount -
-            processingFee -
-            processingFeeGst -
-            otherCharges,
-            0,
-          ).toFixed(2),
-        );
-
+        // const netDisbursement = Number(
+        //   Math.max(
+        //     loanAmount -
+        //     processingFee -
+        //     processingFeeGst -
+        //     otherCharges,
+        //     0,
+        //   ).toFixed(2),
+        // );
+        const netDisbursement = deductionAmount;
         /*
          * Dynamic columns avoid SQL placeholder mismatch.
          */

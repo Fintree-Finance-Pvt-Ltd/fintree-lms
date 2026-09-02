@@ -366,20 +366,7 @@ for (const doc of documentRows) {
       [cleanLan]
     );
 
-  } else if (documentType === "bankstatement") {
-
-    await db.promise().query(
-      `
-      UPDATE loan_booking_carepay
-      SET bank_status = 'Verified',
-          updated_at = NOW()
-      WHERE lan = ?
-      `,
-      [cleanLan]
-    );
-
-
-  } else if (documentType === "pan") {
+  }  else if (documentType === "pan") {
 
     await db.promise().query(
       `
@@ -405,6 +392,30 @@ for (const doc of documentRows) {
     );
 
   }
+  // Bank verification based on UMRN + bank details
+await db.promise().query(
+  `
+  UPDATE loan_booking_carepay
+  SET bank_status = 'Verified',
+      updated_at = NOW()
+  WHERE lan = ?
+    AND umrn IS NOT NULL
+    AND TRIM(umrn) <> ''
+    AND bank_account_holder_name IS NOT NULL
+    AND TRIM(bank_account_holder_name) <> ''
+    AND bank_account_number IS NOT NULL
+    AND TRIM(bank_account_number) <> ''
+    AND bank_name IS NOT NULL
+    AND TRIM(bank_name) <> ''
+    AND bank_branch_name IS NOT NULL
+    AND TRIM(bank_branch_name) <> ''
+    AND bank_ifsc_code IS NOT NULL
+    AND TRIM(bank_ifsc_code) <> ''
+    AND bank_account_type IS NOT NULL
+    AND TRIM(bank_account_type) <> ''
+  `,
+  [cleanLan]
+);
 }
   const normalizeDocumentName = (value) =>
     String(value || "")
@@ -563,22 +574,55 @@ router.post("/upload", upload.single("document"), async (req, res) => {
       |--------------------------------------------------------------------------
       */
 
-      await db.promise().query(
-        `INSERT INTO loan_documents
-         (
-           lan,
-           file_name,
-           original_name,
-           uploaded_at
-         )
-         VALUES (?, ?, ?, NOW())`,
-        [
-          cleanLan,
-          storedName,
-          requestedDocumentName,
-        ],
-      );
+      if (cleanLan.startsWith("CARE")) {
 
+  const carePayDocName = String(filename || req.file.originalname || "")
+    .trim()
+    .replace(/\.[^/.]+$/, "")
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
+
+  await db.promise().query(
+    `
+    INSERT INTO loan_documents
+    (
+      lan,
+      doc_name,
+      file_name,
+      original_name,
+      uploaded_at
+    )
+    VALUES (?, ?, ?, ?, NOW())
+    `,
+    [
+      cleanLan,
+      carePayDocName,
+      storedName,
+      requestedDocumentName,
+    ],
+  );
+
+} else {
+
+  await db.promise().query(
+    `
+    INSERT INTO loan_documents
+    (
+      lan,
+      file_name,
+      original_name,
+      uploaded_at
+    )
+    VALUES (?, ?, ?, NOW())
+    `,
+    [
+      cleanLan,
+      storedName,
+      requestedDocumentName,
+    ],
+  );
+
+}
     
       if (!cleanLan.startsWith("CARE")) {
         return res.status(200).json({
@@ -694,15 +738,7 @@ if (documentType === "loanagreement") {
      WHERE lan = ?`,
     [cleanLan],
   );
-} else if (documentType === "bankstatement") {
-  await db.promise().query(
-    `UPDATE loan_booking_carepay
-     SET bank_status = 'Verified',
-         updated_at = NOW()
-     WHERE lan = ?`,
-    [cleanLan],
-  );
-} else if (documentType === "pan") {
+}  else if (documentType === "pan") {
   await db.promise().query(
     `UPDATE kyc_verification_status
      SET pan_status = 'Verified',
@@ -718,7 +754,30 @@ if (documentType === "loanagreement") {
      WHERE lan = ?`,
     [cleanLan],
   );
-}
+}// Bank verification based on UMRN + bank details
+await db.promise().query(
+  `
+  UPDATE loan_booking_carepay
+  SET bank_status = 'Verified',
+      updated_at = NOW()
+  WHERE lan = ?
+    AND umrn IS NOT NULL
+    AND TRIM(umrn) <> ''
+    AND bank_account_holder_name IS NOT NULL
+    AND TRIM(bank_account_holder_name) <> ''
+    AND bank_account_number IS NOT NULL
+    AND TRIM(bank_account_number) <> ''
+    AND bank_name IS NOT NULL
+    AND TRIM(bank_name) <> ''
+    AND bank_branch_name IS NOT NULL
+    AND TRIM(bank_branch_name) <> ''
+    AND bank_ifsc_code IS NOT NULL
+    AND TRIM(bank_ifsc_code) <> ''
+    AND bank_account_type IS NOT NULL
+    AND TRIM(bank_account_type) <> ''
+  `,
+  [cleanLan]
+);
 
           const approvalResult =
         await checkAndApproveCarePayLoan(cleanLan);
