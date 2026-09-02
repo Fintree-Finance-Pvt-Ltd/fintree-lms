@@ -10446,33 +10446,70 @@ const generateRepaymentScheduleSrbh = async (
   // STEP 1 : FLAT INTEREST
   // =====================================================
 
-  const totalFlatInterest = round0(
-    principal * (flatRate / 100) * (months / 12),
-    "totalFlatInterest"
-  );
+  // const totalFlatInterest = round0(
+  //   principal * (flatRate / 100) * (months / 12),
+  //   "totalFlatInterest"
+  // );
 
-  // =====================================================
-  // STEP 2 : TOTAL REPAYMENT
-  // =====================================================
+  // // =====================================================
+  // // STEP 2 : TOTAL REPAYMENT
+  // // =====================================================
 
-  const totalRepayment = round0(
-    principal + totalFlatInterest,
-    "totalRepayment"
-  );
+  // const totalRepayment = round0(
+  //   principal + totalFlatInterest,
+  //   "totalRepayment"
+  // );
 
-  // =====================================================
-  // STEP 3 : EMI - ROUNDED
-  // =====================================================
+  // // =====================================================
+  // // STEP 3 : EMI - ROUNDED
+  // // =====================================================
 
-  const emi = round0(
-    totalRepayment / months,
-    "emi"
-  );
+  // const emi = round0(
+  //   totalRepayment / months,
+  //   "emi"
+  // );
 
   // =====================================================
   // STEP 4 : FIRST EMI DATE
   // =====================================================
 
+
+  // =====================================================
+// STEP 1 : PURE REDUCING EMI CALCULATION
+// =====================================================
+
+const monthlyRate = flatRate / 12 / 100;
+
+
+const emi = round0(
+  principal *
+  monthlyRate *
+  Math.pow(1 + monthlyRate, months) /
+  (
+    Math.pow(1 + monthlyRate, months) - 1
+  ),
+  "emi"
+);
+
+
+// =====================================================
+// STEP 2 : TOTAL REPAYMENT
+// =====================================================
+
+const totalRepayment = round0(
+  emi * months,
+  "totalRepayment"
+);
+
+
+// =====================================================
+// STEP 3 : TOTAL INTEREST
+// =====================================================
+
+const totalFlatInterest = round0(
+  totalRepayment - principal,
+  "totalInterest"
+);
   const firstDueRaw = getFirstEmiDate(
     disbDate,
     null,
@@ -10519,65 +10556,66 @@ const generateRepaymentScheduleSrbh = async (
   // STEP 7 : REDUCING ROI
   // =====================================================
 
-  const calculateReducingMonthlyRate = (
-    principalAmount,
-    monthlyEmi,
-    totalMonths
-  ) => {
-    const pmt = (rate) => {
-      if (Math.abs(rate) < 1e-12) {
-        return principalAmount / totalMonths;
-      }
+  // const calculateReducingMonthlyRate = (
+  //   principalAmount,
+  //   monthlyEmi,
+  //   totalMonths
+  // ) => {
+  //   const pmt = (rate) => {
+  //     if (Math.abs(rate) < 1e-12) {
+  //       return principalAmount / totalMonths;
+  //     }
 
-      const pow = Math.pow(1 + rate, totalMonths);
+  //     const pow = Math.pow(1 + rate, totalMonths);
 
-      return (
-        principalAmount *
-        rate *
-        pow
-      ) / (
-        pow - 1
-      );
-    };
+  //     return (
+  //       principalAmount *
+  //       rate *
+  //       pow
+  //     ) / (
+  //       pow - 1
+  //     );
+  //   };
 
-    const minEmi = principalAmount / totalMonths;
+  //   const minEmi = principalAmount / totalMonths;
 
-    if (monthlyEmi <= minEmi) {
-      return 0;
-    }
+  //   if (monthlyEmi <= minEmi) {
+  //     return 0;
+  //   }
 
-    let low = 0;
-    let high = 0.01;
+  //   let low = 0;
+  //   let high = 0.01;
 
-    while (pmt(high) < monthlyEmi && high < 10) {
-      high *= 2;
-    }
+  //   while (pmt(high) < monthlyEmi && high < 10) {
+  //     high *= 2;
+  //   }
 
-    if (!Number.isFinite(high) || pmt(high) < monthlyEmi) {
-      throw new Error(
-        `Unable to calculate reducing ROI for LAN ${lan}: principal=${principalAmount}, emi=${monthlyEmi}, months=${totalMonths}`
-      );
-    }
+  //   if (!Number.isFinite(high) || pmt(high) < monthlyEmi) {
+  //     throw new Error(
+  //       `Unable to calculate reducing ROI for LAN ${lan}: principal=${principalAmount}, emi=${monthlyEmi}, months=${totalMonths}`
+  //     );
+  //   }
 
-    for (let i = 0; i < 100; i++) {
-      const mid = (low + high) / 2;
-      const midPmt = pmt(mid);
+  //   for (let i = 0; i < 100; i++) {
+  //     const mid = (low + high) / 2;
+  //     const midPmt = pmt(mid);
 
-      if (midPmt < monthlyEmi) {
-        low = mid;
-      } else {
-        high = mid;
-      }
-    }
+  //     if (midPmt < monthlyEmi) {
+  //       low = mid;
+  //     } else {
+  //       high = mid;
+  //     }
+  //   }
 
-    return (low + high) / 2;
-  };
+  //   return (low + high) / 2;
+  // };
 
-  const reducingMonthlyRate = calculateReducingMonthlyRate(
-    principal,
-    emi,
-    months
-  );
+  // const reducingMonthlyRate = calculateReducingMonthlyRate(
+  //   principal,
+  //   emi,
+  //   months
+  // );
+const reducingMonthlyRate = monthlyRate;
 
   const reducingAnnualRate = round2(
     reducingMonthlyRate * 12 * 100,
