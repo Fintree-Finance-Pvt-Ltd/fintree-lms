@@ -526,7 +526,7 @@ const PARTNERS = {
         lan: "lan",
         name: "customer_name",
         fatherName: "father_name",
-        pan: "pan_number",
+        pan: "pan_card",
         mobile: "mobile_number",
         email: "email",
         dob: "dob",

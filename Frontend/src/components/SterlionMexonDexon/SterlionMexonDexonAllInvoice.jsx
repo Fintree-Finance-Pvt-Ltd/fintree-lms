@@ -92,6 +92,44 @@ const STYLES = `
   color: var(--smd-ink);
 }
 
+.smd-invoice-tabs {
+  display: flex;
+  gap: 24px;
+  margin: -4px 0 20px;
+  border-bottom: 1px solid var(--smd-border);
+}
+
+.smd-invoice-tab {
+  appearance: none;
+  padding: 10px 2px 11px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--smd-ink-soft);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.smd-invoice-tab:hover {
+  color: var(--smd-ink);
+}
+
+.smd-invoice-tab.is-active {
+  border-bottom-color: var(--smd-primary);
+  color: var(--smd-primary-dark);
+}
+
+.smd-invoice-empty-state {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--smd-ink-soft);
+  background: var(--smd-canvas);
+  border: 1px dashed var(--smd-border);
+  border-radius: var(--smd-radius-sm);
+}
+
 .smd-invoice-info-box {
   background: var(--smd-canvas);
   border: 1px solid var(--smd-border);
@@ -751,11 +789,13 @@ const SterlionMexonDexonAllInvoices = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [matchingLoans, setMatchingLoans] = useState([]);
   const [invoiceResponse, setInvoiceResponse] = useState(null);
+  const [activeDetailTab, setActiveDetailTab] = useState("invoices");
 
   const resetResults = () => {
     setErrorMessage("");
     setMatchingLoans([]);
     setInvoiceResponse(null);
+    setActiveDetailTab("invoices");
   };
 
   const fetchInvoiceByLan = async (
@@ -818,6 +858,7 @@ const SterlionMexonDexonAllInvoices = () => {
         },
         invoices,
       });
+      setActiveDetailTab("invoices");
     } catch (error) {
       console.error(
         "Failed to fetch Sterlion/Mexon/Dexon invoice:",
@@ -923,6 +964,9 @@ const SterlionMexonDexonAllInvoices = () => {
   const loan = invoiceResponse?.loan || null;
   const invoices = Array.isArray(invoiceResponse?.invoices)
     ? invoiceResponse.invoices
+    : [];
+  const collections = Array.isArray(invoiceResponse?.collections)
+    ? invoiceResponse.collections
     : [];
 
   const handleExportCsv = () => {
@@ -1194,13 +1238,37 @@ const SterlionMexonDexonAllInvoices = () => {
           </div>
 
           <div className="smd-invoice-card">
+            <div className="smd-invoice-tabs" role="tablist" aria-label="Loan transaction details">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeDetailTab === "invoices"}
+                className={`smd-invoice-tab ${activeDetailTab === "invoices" ? "is-active" : ""}`}
+                onClick={() => setActiveDetailTab("invoices")}
+              >
+                Invoice Details
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeDetailTab === "collections"}
+                className={`smd-invoice-tab ${activeDetailTab === "collections" ? "is-active" : ""}`}
+                onClick={() => setActiveDetailTab("collections")}
+              >
+                Collections
+              </button>
+            </div>
+
             <div className="smd-invoice-card-header">
-              <h3>Invoice Details - {displayValue(loan.lan)}</h3>
+              <h3>
+                {activeDetailTab === "invoices" ? "Invoice Details" : "Collection Details"}
+                {" - "}{displayValue(loan.lan)}
+              </h3>
               <div className="smd-invoice-header-actions">
                 <span className="smd-invoice-count-pill">
-                  {invoices.length.toLocaleString("en-IN")} Records
+                  {(activeDetailTab === "invoices" ? invoices.length : collections.length).toLocaleString("en-IN")} Records
                 </span>
-                {invoices.length > 0 && (
+                {activeDetailTab === "invoices" && invoices.length > 0 && (
                   <button
                     type="button"
                     className="smd-invoice-export-button"
@@ -1212,6 +1280,7 @@ const SterlionMexonDexonAllInvoices = () => {
               </div>
             </div>
 
+            {activeDetailTab === "invoices" ? (
             <div className="smd-invoice-table-wrap">
               <table className="smd-invoice-table smd-invoice-detail-table">
                 <thead>
@@ -1295,6 +1364,48 @@ const SterlionMexonDexonAllInvoices = () => {
                 </tbody>
               </table>
             </div>
+            ) : collections.length > 0 ? (
+              <div className="smd-invoice-table-wrap">
+                <table className="smd-invoice-table smd-invoice-detail-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Collection UTR / Serial</th>
+                      <th>Collection Date</th>
+                      <th>Collection Amount</th>
+                      <th>Settled Amount</th>
+                      <th>Excess Amount</th>
+                      <th>Status</th>
+                      <th>Created At</th>
+                      <th>Updated At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {collections.map((collection, index) => (
+                      <tr key={collection.id || collection.collection_utr || index}>
+                        <td>{index + 1}</td>
+                        <td className="smd-invoice-mono">{displayValue(collection.collection_utr)}</td>
+                        <td>{formatDate(collection.collection_date)}</td>
+                        <td className="smd-invoice-amount">{formatAmount(collection.collection_amount)}</td>
+                        <td>{formatAmount(collection.allocated_amount)}</td>
+                        <td>{formatAmount(collection.unallocated_amount)}</td>
+                        <td>
+                          <span className={`smd-invoice-status-pill ${getStatusClass(collection.status)}`}>
+                            {formatStatus(collection.status)}
+                          </span>
+                        </td>
+                        <td>{formatDateTime(collection.created_at)}</td>
+                        <td>{formatDateTime(collection.updated_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="smd-invoice-empty-state">
+                No collections have been uploaded for this LAN.
+              </div>
+            )}
           </div>
         </>
       )}
