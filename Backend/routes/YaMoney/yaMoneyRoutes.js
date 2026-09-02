@@ -634,22 +634,27 @@ async function updateCreditStatus(lan, status, updatedBy) {
   return loan || null;
 }
 
-function sendApprovalWebhook(loan, approvedBy) {
+function sendCreditDecisionWebhook(loan, status, decidedBy) {
+  const approved = status === "credit_approved";
   const payload = {
-    event: "LOAN_APPROVED",
+    event: approved ? "LOAN_APPROVED" : "LOAN_REJECTED",
     lan: loan.lan,
     customer_name: loan.customer_name,
     mobile_number: loan.mobile_number,
     requested_amount: Number(loan.requested_amount),
-    approved_amount: Number(loan.approved_amount),
-    status: "credit_approved",
-    approved_by: approvedBy,
-    approved_at: new Date().toISOString(),
+    status,
+    decision: approved ? "APPROVED" : "REJECTED",
+    decided_by: decidedBy,
+    decided_at: new Date().toISOString(),
   };
+
+  if (approved) {
+    payload.approved_amount = Number(loan.approved_amount);
+  }
 
   setImmediate(() => {
     sendClientWebhook(payload).catch((error) => {
-      console.error("[YA-MONEY] Credit approval webhook error", {
+      console.error("[YA-MONEY] Credit decision webhook error", {
         lan: loan.lan,
         message: error.message,
       });
@@ -1002,9 +1007,7 @@ router.patch("/:lan/credit-decision", authenticateUser, async (req, res) => {
       });
     }
 
-    if (status === "credit_approved") {
-      sendApprovalWebhook(loan, updatedBy);
-    }
+    sendCreditDecisionWebhook(loan, status, updatedBy);
 
     return res.json({
       success: true,
