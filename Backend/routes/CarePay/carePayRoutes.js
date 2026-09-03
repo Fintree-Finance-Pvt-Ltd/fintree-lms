@@ -3436,8 +3436,9 @@ router.get("/payment/status/:lan",async (req, res) => {
         success:true,
 
         message:"Payment status fetched successfully",
+        count: rows.length,
 
-        data: rows[0]
+        data: rows
 
       });
 
