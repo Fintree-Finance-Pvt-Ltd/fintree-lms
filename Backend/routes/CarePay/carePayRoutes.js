@@ -3398,11 +3398,12 @@ router.get("/payment/status/:lan",async (req, res) => {
       const [rows] = await db.promise().query(
         `
         SELECT
-         
+
           partner_code,
           lender,
           lan,
           amount,
+          easebuzz_id ,
           paid_amount,
           status AS payment_link_status,
           provider_status AS payment_status,
@@ -3413,7 +3414,6 @@ router.get("/payment/status/:lan",async (req, res) => {
         WHERE lan = ?
         AND partner_code = 'CAREPAY'
         ORDER BY id DESC
-        LIMIT 1
         `,
         [
           lan
@@ -3436,8 +3436,9 @@ router.get("/payment/status/:lan",async (req, res) => {
         success:true,
 
         message:"Payment status fetched successfully",
+        count: rows.length,
 
-        data: rows[0]
+        data: rows
 
       });
 
@@ -3463,6 +3464,107 @@ router.get("/payment/status/:lan",async (req, res) => {
     }
 
 });
+
+    router.get("/payment-details/:lan",
+      async (req, res) => {
+        try {
+          const cleanLan = String(req.params.lan || "")
+            .trim()
+            .toUpperCase();
+        
+          if (!cleanLan) {
+            return res.status(400).json({
+              success: false,
+              message: "LAN is required",
+            });
+          }
+        
+        
+          // Loan Details
+            // Loan Details
+          const [[loan]] = await db.promise().query(
+            `
+            SELECT
+                lan,
+                loan_amount,           
+                emi_amount,
+                loan_tenure,
+                interest_rate
+            FROM loan_booking_carepay
+            WHERE UPPER(TRIM(lan)) = ?
+            LIMIT 1
+            `,
+            [cleanLan]
+          );
+        
+        
+          if (!loan) {
+            return res.status(404).json({
+              success:false,
+              message:"CarePay loan not found",
+            });
+          }
+        const [allocation] = await db.promise().query(
+        `
+        SELECT
+            a.id,
+            a.lan,
+            a.due_date,
+            a.allocation_date,
+
+            r.transfer_amount AS repayment_amount,
+            r.payment_date AS repayment_date,
+            r.bank_date,
+            r.utr,
+            r.payment_mode,
+            a.allocated_amount,
+            a.charge_type AS allocated_to,
+
+            a.charge_type,
+            a.payment_id,
+            a.excess_amount,
+            a.created_at
+
+        FROM allocation a
+
+        LEFT JOIN repayments_upload r
+        ON r.lan = a.lan
+
+        WHERE UPPER(TRIM(a.lan)) = ?
+
+        ORDER BY a.due_date ASC
+        `,
+        [
+         cleanLan
+        ]
+        );
+    
+    
+         return res.status(200).json({
+        success:true,
+        message:"CarePay payment details fetched successfully",
+        data:{
+           loan,
+           allocation
+        }
+    });
+    
+    
+        } catch(error){
+        
+          console.error(
+            "CarePay payment fetch error:",
+            error
+          );
+        
+          return res.status(500).json({
+            success:false,
+            message:"Internal server error",
+            error:error.message
+          });
+        }
+      }
+    );
 
 module.exports = router;
 module.exports.loanBookingRouter = loanBookingRouter;

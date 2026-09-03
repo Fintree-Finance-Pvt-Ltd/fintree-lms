@@ -10772,16 +10772,16 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         const processingFeeGst = 0;
         const otherCharges = 0;
 
-        const netDisbursement = Number(
-          Math.max(
-            loanAmount -
-            processingFee -
-            processingFeeGst -
-            otherCharges,
-            0,
-          ).toFixed(2),
-        );
-
+        // const netDisbursement = Number(
+        //   Math.max(
+        //     loanAmount -
+        //     processingFee -
+        //     processingFeeGst -
+        //     otherCharges,
+        //     0,
+        //   ).toFixed(2),
+        // );
+        const netDisbursement = deductionAmount;
         /*
          * Dynamic columns avoid SQL placeholder mismatch.
          */
@@ -12325,6 +12325,9 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_motioncorp";
   } else if (lan.startsWith("SFL")) {
     tableName = "manual_rps_seven_fincorp";
+  } 
+  else if (lan.startsWith("SW")) {
+    tableName = "manual_rps_saswat";
   } else if (lan.startsWith("BUN")) {
     tableName = "manual_rps_bundela";
   } else if (lan.startsWith("RML")) {

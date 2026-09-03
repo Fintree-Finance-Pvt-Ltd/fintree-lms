@@ -304,6 +304,9 @@ import SterlionMexonDexonAllInvoices from "./components/SterlionMexonDexon/Sterl
 import QMLAllLoans from "./components/QuickMoney/QMLAllLoans.jsx";
 import QMLDisburseInitiate from "./components/QuickMoney/QMLDisburseInitiate.jsx";
 import QMLLoginloans from "./components/QuickMoney/QMLLoginLoans.jsx";
+import SaswatAllLoans from "./components/Saswat/SaswatAllLoans.jsx";
+import SaswatApprovedLoans from "./components/Saswat/SaswatApprovedLoans.jsx";
+import SaswatDisbursedLoans from "./components/Saswat/SaswatDisbursedLoans.jsx";
 
 function App() {
   return (
@@ -2541,6 +2544,33 @@ function App() {
             }
           />
 
+
+          <Route
+            path="/saswat/approved-loans"
+            element={
+              <PermissionRoute pageName="Saswat Approved Loans">
+                <SaswatApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/saswat/disbursed-loans"
+            element={
+              <PermissionRoute pageName="Saswat Disbursed Loans">
+                <SaswatDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/saswat/all-loans"
+            element={
+              <PermissionRoute pageName="Saswat All Loans">
+                <SaswatAllLoans/>
+              </PermissionRoute>
+            }
+          />
+        
+ 
           {/* Protected Layout parent yahan close hoga */}
         </Route>
 

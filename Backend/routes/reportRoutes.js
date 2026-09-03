@@ -96,10 +96,11 @@ function resolveProcedure(rawReportId, rawLender) {
                                           : lender === "rapid-money" ? "sp_cashflow_report_rapid_money"
                                             : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
                                               : lender === "saswat" ? "sp_cashflow_report_saswat"
-                                                : lender === "sterlion ubl"
-                                                  ? "sp_cashflow_report_sterlion_ubl"
+                                                : lender === "seven fincorp" ? "sp_cashflow_report_seven_fincorp"
+                                                  : lender === "sterlion ubl"
+                                                    ? "sp_cashflow_report_sterlion_ubl"
 
-                                                  : "sp_cashflow_report",
+                                                    : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
 
@@ -210,11 +211,13 @@ function resolveProcedure(rawReportId, rawLender) {
                                             ? "sp_consolidated_mis_report_fincrest"
                                             : lender === "saswat"
                                               ? "sp_consolidated_mis_report_saswat"
-                                              : lender === "sterlion ubl"
-                                                ? "sp_consolidated_mis_report_sterlion_ubl"
-                                              :lender === "claimcurebuddy"
-                                                ? "sp_consolidated_mis_report_claim_cure_buddy"
-                                                : "sp_consolidated_mis_report",
+                                              : lender === "seven fincorp"
+                                                ? "sp_consolidated_mis_report_seven_fincorp"
+                                                : lender === "sterlion ubl"
+                                                  ? "sp_consolidated_mis_report_sterlion_ubl"
+                                                :lender === "claimcurebuddy"
+                                                  ? "sp_consolidated_mis_report_claim_cure_buddy"
+                                                  : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
     "irr-report": () =>

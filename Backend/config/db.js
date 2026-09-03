@@ -4,7 +4,6 @@ const mysql = require("mysql2");
 
 const useDbSsl =
   String(process.env.DB_SSL || "").toLowerCase() === "true";
- 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
