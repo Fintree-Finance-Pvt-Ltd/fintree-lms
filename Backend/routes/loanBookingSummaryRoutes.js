@@ -16,16 +16,144 @@ const PRODUCT_CONFIG = {
     lanLike: "EV%",
     principalField: "loan_amount",
   },
+  RAPIDMONEY: {
+    label: "Rapid Money",
+    bookingTable: "loan_booking_switch_my_loan",
+    rpsTable: "manual_rps_switch_my_loan",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "RML%",
+    principalField: "loan_amount",
+  },
+  CAREPAY: {
+    label: "CarePay",
+    bookingTable: "loan_booking_carepay",
+    rpsTable: "manual_rps_carepay",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "CARE%",
+    principalField: "loan_amount",
+  },
+  YAMONEY: {
+    label: "Ya Money",
+    bookingTable: "loan_booking_ya_money",
+    rpsTable: "manual_rps_ya_money",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "YAM%",
+    principalField: "loan_amount",
+  },
+  QUICKMONEY: {
+    label: "Quick Money",
+    bookingTable: "loan_booking_quick_money",
+    rpsTable: "manual_rps_quick_money",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "QML%",
+    principalField: "loan_amount",
+  },
+  SASWAT: {
+    label: "Saswat",
+    bookingTable: "loan_booking_saswat",
+    rpsTable: "manual_rps_saswat",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "SW%",
+    principalField: "loan_amount",
+  },
+  SAMPADA: {
+    label: "Sampada",
+    bookingTable: "loan_booking_sampada",
+    rpsTable: "manual_rps_sampada",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "SPL%",
+    principalField: "loan_amount",
+  },
+  CLAIMCUREBUDDY: {
+    label: "Claim Cure Buddy",
+    bookingTable: "loan_booking_claim_cure_buddy",
+    rpsTable: "manual_rps_claim_cure_buddy",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "CCB%",
+    principalField: "disbursal_amount",
+  },
+  ZEBRS: {
+    label: "Zebrs",
+    bookingTable: "loan_booking_zebrs",
+    rpsTable: "manual_rps_zebrs",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "ZBR%",
+    principalField: "loan_amount",
+  },
+  MOTIONCORP: {
+    label: "Motion Corp",
+    bookingTable: "loan_booking_motion_corp",
+    rpsTable: "manual_rps_motioncorp",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "MCL%",
+    principalField: "loan_amount",
+  },
+  LOANDIGIT: {
+    label: "Loan Digit",
+    bookingTable: "loan_booking_loan_digit",
+    rpsTable: "manual_rps_loan_digit",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "LDF%",
+    principalField: "loan_amount",
+  },
+  SRBH: {
+    label: "SRBH",
+    bookingTable: "loan_booking_srbh",
+    rpsTable: "manual_rps_srbh",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "SH%",
+    principalField: "loan_amount",
+  },
+  BUNDELA: {
+    label: "Bundela",
+    bookingTable: "loan_booking_bundela",
+    rpsTable: "manual_rps_bundela",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "BUN%",
+    principalField: "loan_amount",
+  },
+  CLAYYO: {
+    label: "Clayyo",
+    bookingTable: "loan_booking_clayyo",
+    rpsTable: "manual_rps_clayoo",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "CLY%",
+    principalField: "loan_amount",
+  },
 };
 
 const PRODUCT_ALIASES = {
   ev: "EV",
   "ev loan": "EV",
+  carepay: "CAREPAY",
+  "carepay loan": "CAREPAY",
+  "rapid money": "RAPIDMONEY",
+  "quick money": "QUICKMONEY",
+  "ya money": "YAMONEY",
+  "claim cure buddy": "CLAIMCUREBUDDY",
+  "motion corp": "MOTIONCORP",
+  "loan digit": "LOANDIGIT",
 };
 
 function normalizeProduct(product) {
-  const raw = String(product || "EV").trim();
-  return PRODUCT_ALIASES[raw.toLowerCase()] || raw.toUpperCase();
+  const raw = String(product || "ALL").trim();
+  return (
+    PRODUCT_ALIASES[raw.toLowerCase()] ||
+    raw.toUpperCase().replace(/[\s_-]+/g, "")
+  );
 }
 
 function toNumber(value) {
@@ -65,8 +193,7 @@ function buildSummaryQuery(config) {
       SUM(IFNULL(grouped.future_due, 0)) AS future_due,
       SUM(IFNULL(grouped.future_due, 0)) AS future_collection,
       SUM(IFNULL(grouped.future_due_principal, 0)) AS future_due_principal,
-      SUM(IFNULL(grouped.future_due_interest, 0)) AS future_due_interest,
-      MIN(grouped.next_due_date) AS next_due_date
+      SUM(IFNULL(grouped.future_due_interest, 0)) AS future_due_interest
     FROM (
       SELECT
         b.lan,
@@ -85,7 +212,6 @@ function buildSummaryQuery(config) {
         rps.future_due,
         rps.future_due_principal,
         rps.future_due_interest,
-        rps.next_due_date,
         collections.total_collection,
         allocations.total_collection_principal,
         allocations.total_collection_interest
@@ -157,15 +283,7 @@ function buildSummaryQuery(config) {
                 THEN IFNULL(remaining_interest, 0)
               ELSE 0
             END
-          ) AS future_due_interest,
-          MIN(
-            CASE
-              WHEN LOWER(COALESCE(status, '')) <> 'paid'
-                AND due_date >= CURDATE()
-                THEN due_date
-              ELSE NULL
-            END
-          ) AS next_due_date
+          ) AS future_due_interest
         FROM ${config.rpsTable}
         GROUP BY lan
       ) rps
@@ -208,100 +326,154 @@ function buildSummaryQuery(config) {
   `;
 }
 
+function emptyTotals() {
+  return {
+    lenders: 0,
+    loanCount: 0,
+    bookedPrincipal: 0,
+    emi: 0,
+    principal: 0,
+    totalInterest: 0,
+    totalCollection: 0,
+    totalCollectionPrincipal: 0,
+    totalCollectionInterest: 0,
+    posRemaining: 0,
+    interestRemaining: 0,
+    dueEmi: 0,
+    duePrincipal: 0,
+    dueInterest: 0,
+    futureDue: 0,
+    futureCollection: 0,
+    futureDuePrincipal: 0,
+    futureDueInterest: 0,
+  };
+}
+
+function mapSummaryRow(row) {
+  return {
+    lender: row.lender,
+    product: row.product,
+    asOf: toDateOnly(row.as_of),
+    loanCount: toNumber(row.loan_count),
+    bookedPrincipal: toNumber(row.booked_principal),
+    emi: toNumber(row.emi),
+    principal: toNumber(row.principal),
+    totalInterest: toNumber(row.total_interest),
+    totalCollection: toNumber(row.total_collection),
+    totalCollectionPrincipal: toNumber(row.total_collection_principal),
+    totalCollectionInterest: toNumber(row.total_collection_interest),
+    posRemaining: toNumber(row.pos_remaining),
+    interestRemaining: toNumber(row.interest_remaining),
+    dueEmi: toNumber(row.due_emi),
+    duePrincipal: toNumber(row.due_principal),
+    dueInterest: toNumber(row.due_interest),
+    futureDue: toNumber(row.future_due),
+    futureCollection: toNumber(row.future_collection),
+    futureDuePrincipal: toNumber(row.future_due_principal),
+    futureDueInterest: toNumber(row.future_due_interest),
+  };
+}
+
+function sumTotals(rows) {
+  const totals = rows.reduce((acc, row) => {
+    acc.loanCount += row.loanCount;
+    acc.bookedPrincipal += row.bookedPrincipal;
+    acc.emi += row.emi;
+    acc.principal += row.principal;
+    acc.totalInterest += row.totalInterest;
+    acc.totalCollection += row.totalCollection;
+    acc.totalCollectionPrincipal += row.totalCollectionPrincipal;
+    acc.totalCollectionInterest += row.totalCollectionInterest;
+    acc.posRemaining += row.posRemaining;
+    acc.interestRemaining += row.interestRemaining;
+    acc.dueEmi += row.dueEmi;
+    acc.duePrincipal += row.duePrincipal;
+    acc.dueInterest += row.dueInterest;
+    acc.futureDue += row.futureDue;
+    acc.futureCollection += row.futureCollection;
+    acc.futureDuePrincipal += row.futureDuePrincipal;
+    acc.futureDueInterest += row.futureDueInterest;
+    return acc;
+  }, emptyTotals());
+
+  totals.lenders = rows.length;
+  return totals;
+}
+
+async function fetchProductSummary(config) {
+  const [rawRows] = await db
+    .promise()
+    .query(buildSummaryQuery(config), [
+      config.label,
+      config.label,
+      config.lanLike,
+      config.lanLike,
+    ]);
+
+  return rawRows.map(mapSummaryRow);
+}
+
 router.get("/lender-summary", authenticateUser, async (req, res) => {
   const productKey = normalizeProduct(req.query.product);
+  const isAll = productKey === "ALL" || productKey === "ALLPRODUCTS";
   const config = PRODUCT_CONFIG[productKey];
 
-  if (!config) {
+  if (!isAll && !config) {
     return res.status(400).json({
-      message: "Only EV Loan summary is available right now.",
+      message: `Lender summary is not available for "${
+        req.query.product || ""
+      }".`,
       supportedProducts: Object.values(PRODUCT_CONFIG).map((item) => item.label),
     });
   }
 
   try {
-    const [rawRows] = await db
-      .promise()
-      .query(buildSummaryQuery(config), [
-        config.label,
-        config.label,
-        config.lanLike,
-        config.lanLike,
-      ]);
+    if (isAll) {
+      const entries = Object.values(PRODUCT_CONFIG);
+      const settled = await Promise.allSettled(
+        entries.map((item) => fetchProductSummary(item)),
+      );
 
-    const rows = rawRows.map((row) => ({
-      lender: row.lender,
-      product: row.product,
-      asOf: toDateOnly(row.as_of),
-      nextDueDate: toDateOnly(row.next_due_date),
-      loanCount: toNumber(row.loan_count),
-      bookedPrincipal: toNumber(row.booked_principal),
-      emi: toNumber(row.emi),
-      principal: toNumber(row.principal),
-      totalInterest: toNumber(row.total_interest),
-      totalCollection: toNumber(row.total_collection),
-      totalCollectionPrincipal: toNumber(row.total_collection_principal),
-      totalCollectionInterest: toNumber(row.total_collection_interest),
-      posRemaining: toNumber(row.pos_remaining),
-      interestRemaining: toNumber(row.interest_remaining),
-      dueEmi: toNumber(row.due_emi),
-      duePrincipal: toNumber(row.due_principal),
-      dueInterest: toNumber(row.due_interest),
-      futureDue: toNumber(row.future_due),
-      futureCollection: toNumber(row.future_collection),
-      futureDuePrincipal: toNumber(row.future_due_principal),
-      futureDueInterest: toNumber(row.future_due_interest),
-    }));
+      const rows = [];
+      const skipped = [];
 
-    const totals = rows.reduce(
-      (acc, row) => ({
-        lenders: rows.length,
-        loanCount: acc.loanCount + row.loanCount,
-        bookedPrincipal: acc.bookedPrincipal + row.bookedPrincipal,
-        emi: acc.emi + row.emi,
-        principal: acc.principal + row.principal,
-        totalInterest: acc.totalInterest + row.totalInterest,
-        totalCollection: acc.totalCollection + row.totalCollection,
-        totalCollectionPrincipal:
-          acc.totalCollectionPrincipal + row.totalCollectionPrincipal,
-        totalCollectionInterest:
-          acc.totalCollectionInterest + row.totalCollectionInterest,
-        posRemaining: acc.posRemaining + row.posRemaining,
-        interestRemaining: acc.interestRemaining + row.interestRemaining,
-        dueEmi: acc.dueEmi + row.dueEmi,
-        duePrincipal: acc.duePrincipal + row.duePrincipal,
-        dueInterest: acc.dueInterest + row.dueInterest,
-        futureDue: acc.futureDue + row.futureDue,
-        futureCollection: acc.futureCollection + row.futureCollection,
-        futureDuePrincipal: acc.futureDuePrincipal + row.futureDuePrincipal,
-        futureDueInterest: acc.futureDueInterest + row.futureDueInterest,
-      }),
-      {
-        lenders: 0,
-        loanCount: 0,
-        bookedPrincipal: 0,
-        emi: 0,
-        principal: 0,
-        totalInterest: 0,
-        totalCollection: 0,
-        totalCollectionPrincipal: 0,
-        totalCollectionInterest: 0,
-        posRemaining: 0,
-        interestRemaining: 0,
-        dueEmi: 0,
-        duePrincipal: 0,
-        dueInterest: 0,
-        futureDue: 0,
-        futureCollection: 0,
-        futureDuePrincipal: 0,
-        futureDueInterest: 0,
-      },
-    );
+      settled.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          rows.push(...result.value);
+        } else {
+          const reason = result.reason || {};
+          console.error(
+            `Lender summary (ALL) failed for ${entries[index].label}:`,
+            reason.sqlMessage || reason.message,
+          );
+          skipped.push({
+            product: entries[index].label,
+            error: reason.sqlMessage || reason.message || "Unknown error",
+          });
+        }
+      });
+
+      rows.sort(
+        (a, b) =>
+          String(a.product || "").localeCompare(String(b.product || "")) ||
+          String(a.lender || "").localeCompare(String(b.lender || "")),
+      );
+
+      return res.json({
+        product: "All Products",
+        asOf: rows[0]?.asOf || new Date().toISOString().slice(0, 10),
+        totals: sumTotals(rows),
+        rows,
+        skipped,
+      });
+    }
+
+    const rows = await fetchProductSummary(config);
 
     res.json({
       product: config.label,
       asOf: rows[0]?.asOf || new Date().toISOString().slice(0, 10),
-      totals,
+      totals: sumTotals(rows),
       rows,
     });
   } catch (error) {

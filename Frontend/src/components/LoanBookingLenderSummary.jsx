@@ -1,17 +1,36 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
+  Coins,
   Download,
   Landmark,
+  Layers,
   RefreshCw,
   Search,
+  TrendingUp,
   WalletCards,
 } from "lucide-react";
 import api from "../api/api";
 import LoaderOverlay from "./ui/LoaderOverlay";
 import "../styles/LoanBookingLenderSummary.css";
 
-const PRODUCT_OPTIONS = [{ label: "EV Loan", value: "EV" }];
+const PRODUCT_OPTIONS = [
+  { label: "All Products", value: "ALL" },
+  { label: "EV Loan", value: "EV" },
+  { label: "Rapid Money", value: "RAPIDMONEY" },
+  { label: "Quick Money", value: "QUICKMONEY" },
+  { label: "Ya Money", value: "YAMONEY" },
+  { label: "CarePay", value: "CAREPAY" },
+  { label: "Saswat", value: "SASWAT" },
+  { label: "Sampada", value: "SAMPADA" },
+  { label: "Claim Cure Buddy", value: "CLAIMCUREBUDDY" },
+  { label: "Motion Corp", value: "MOTIONCORP" },
+  { label: "Loan Digit", value: "LOANDIGIT" },
+  { label: "Zebrs", value: "ZEBRS" },
+  { label: "SRBH", value: "SRBH" },
+  { label: "Bundela", value: "BUNDELA" },
+  { label: "Clayyo", value: "CLAYYO" },
+];
 
 const EMPTY_TOTALS = {
   lenders: 0,
@@ -53,28 +72,76 @@ const MONEY_FIELDS = new Set([
   "futureDueInterest",
 ]);
 
-const TABLE_COLUMNS = [
-  { key: "lender", label: "Lender", sticky: true },
-  { key: "product", label: "Product" },
-  { key: "loanCount", label: "Loans" },
-  { key: "bookedPrincipal", label: "Booked Principal" },
-  { key: "emi", label: "EMI" },
-  { key: "principal", label: "Principal" },
-  { key: "totalInterest", label: "Total Interest" },
-  { key: "totalCollection", label: "Total Collection" },
-  { key: "totalCollectionPrincipal", label: "Collection Principal" },
-  { key: "totalCollectionInterest", label: "Collection Interest" },
-  { key: "posRemaining", label: "POS Remaining" },
-  { key: "dueEmi", label: "Due EMI" },
-  { key: "duePrincipal", label: "Due Principal" },
-  { key: "dueInterest", label: "Due Interest" },
-  { key: "futureDue", label: "Future Due" },
-  { key: "futureCollection", label: "Future Collection" },
-  { key: "futureDuePrincipal", label: "Future Principal" },
-  { key: "futureDueInterest", label: "Future Interest" },
-  { key: "interestRemaining", label: "Interest Remaining" },
-  { key: "nextDueDate", label: "Next Due Date" },
+const STICKY_COLUMN = { key: "lender", label: "Lender", sticky: true };
+
+const COLUMN_GROUPS = [
+  {
+    key: "portfolio",
+    label: "Portfolio",
+    tone: "slate",
+    columns: [
+      { key: "product", label: "Product" },
+      { key: "loanCount", label: "Loans" },
+    ],
+  },
+  {
+    key: "booked",
+    label: "Booked & Schedule",
+    tone: "indigo",
+    columns: [
+      { key: "bookedPrincipal", label: "Booked Principal" },
+      { key: "emi", label: "EMI" },
+      { key: "principal", label: "Principal" },
+      { key: "totalInterest", label: "Total Interest" },
+    ],
+  },
+  {
+    key: "collections",
+    label: "Collections",
+    tone: "green",
+    columns: [
+      { key: "totalCollection", label: "Total Collection" },
+      { key: "totalCollectionPrincipal", label: "Collection Principal" },
+      { key: "totalCollectionInterest", label: "Collection Interest" },
+    ],
+  },
+  {
+    key: "remaining",
+    label: "Remaining (POS)",
+    tone: "amber",
+    columns: [
+      { key: "posRemaining", label: "POS Remaining" },
+      { key: "interestRemaining", label: "Interest Remaining" },
+    ],
+  },
+  {
+    key: "overdue",
+    label: "Overdue",
+    tone: "red",
+    columns: [
+      { key: "dueEmi", label: "Due EMI" },
+      { key: "duePrincipal", label: "Due Principal" },
+      { key: "dueInterest", label: "Due Interest" },
+    ],
+  },
+  {
+    key: "future",
+    label: "Future",
+    tone: "blue",
+    columns: [
+      { key: "futureDue", label: "Future Due" },
+      { key: "futureCollection", label: "Future Collection" },
+      { key: "futureDuePrincipal", label: "Future Principal" },
+      { key: "futureDueInterest", label: "Future Interest" },
+    ],
+  },
 ];
+
+const GROUP_COLUMNS = COLUMN_GROUPS.flatMap((group) =>
+  group.columns.map((column) => ({ ...column, groupKey: group.key })),
+);
+
+const TABLE_COLUMNS = [STICKY_COLUMN, ...GROUP_COLUMNS];
 
 const currencyFormatter = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -86,9 +153,23 @@ const numberFormatter = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 0,
 });
 
+const compactCurrencyFormatter = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
 function formatCurrency(value) {
   const numberValue = Number(value || 0);
   return currencyFormatter.format(Number.isFinite(numberValue) ? numberValue : 0);
+}
+
+function formatCompactCurrency(value) {
+  const numberValue = Number(value || 0);
+  return compactCurrencyFormatter.format(
+    Number.isFinite(numberValue) ? numberValue : 0,
+  );
 }
 
 function formatNumber(value) {
@@ -106,13 +187,14 @@ function csvEscape(value) {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
-function MetricTile({ icon, label, value, tone }) {
+function MetricTile({ icon, label, value, hint, tone }) {
   return (
     <div className="lbs-metric" data-tone={tone}>
       <div className="lbs-metric-icon">{icon}</div>
-      <div>
+      <div className="lbs-metric-body">
         <div className="lbs-metric-label">{label}</div>
         <div className="lbs-metric-value">{value}</div>
+        {hint ? <div className="lbs-metric-hint">{hint}</div> : null}
       </div>
     </div>
   );
@@ -187,48 +269,85 @@ const LoanBookingLenderSummary = () => {
     });
   }, [filteredRows, sort]);
 
+  const visibleTotals = useMemo(() => {
+    if (!search.trim()) return summary.totals || EMPTY_TOTALS;
+
+    return sortedRows.reduce(
+      (acc, row) => {
+        const next = { ...acc };
+        TABLE_COLUMNS.forEach((column) => {
+          if (MONEY_FIELDS.has(column.key) || column.key === "loanCount") {
+            next[column.key] =
+              (next[column.key] || 0) + Number(row[column.key] || 0);
+          }
+        });
+        return next;
+      },
+      { ...EMPTY_TOTALS },
+    );
+  }, [search, summary.totals, sortedRows]);
+
   const metricCards = useMemo(() => {
     const totals = summary.totals || EMPTY_TOTALS;
+    const collectionRate =
+      totals.principal > 0
+        ? Math.round((totals.totalCollectionPrincipal / totals.principal) * 100)
+        : null;
 
     return [
       {
         label: "Total Collection",
         value: formatCurrency(totals.totalCollection),
+        hint: `${formatNumber(totals.loanCount)} loans · ${formatNumber(
+          summary.rows.length,
+        )} lenders`,
         icon: <WalletCards size={20} />,
         tone: "green",
       },
       {
         label: "POS Remaining",
         value: formatCurrency(totals.posRemaining),
+        hint: `Interest remaining ${formatCompactCurrency(totals.interestRemaining)}`,
         icon: <Landmark size={20} />,
         tone: "amber",
       },
       {
-        label: "Due EMI",
+        label: "Overdue EMI",
         value: formatCurrency(totals.dueEmi),
+        hint: `Principal ${formatCompactCurrency(
+          totals.duePrincipal,
+        )} · Interest ${formatCompactCurrency(totals.dueInterest)}`,
         icon: <CalendarClock size={20} />,
         tone: "red",
       },
       {
         label: "Future Collection",
         value: formatCurrency(totals.futureCollection),
-        icon: <CalendarClock size={20} />,
+        hint: `Principal ${formatCompactCurrency(
+          totals.futureDuePrincipal,
+        )} · Interest ${formatCompactCurrency(totals.futureDueInterest)}`,
+        icon: <TrendingUp size={20} />,
         tone: "blue",
       },
       {
-        label: "Collection Principal",
-        value: formatCurrency(totals.totalCollectionPrincipal),
-        icon: <WalletCards size={20} />,
+        label: "Booked Principal",
+        value: formatCurrency(totals.bookedPrincipal),
+        hint: `EMI base ${formatCompactCurrency(totals.emi)}`,
+        icon: <Layers size={20} />,
         tone: "indigo",
       },
       {
-        label: "Collection Interest",
-        value: formatCurrency(totals.totalCollectionInterest),
-        icon: <WalletCards size={20} />,
+        label: "Principal Recovered",
+        value: formatCurrency(totals.totalCollectionPrincipal),
+        hint:
+          collectionRate === null
+            ? `Interest ${formatCompactCurrency(totals.totalCollectionInterest)}`
+            : `${collectionRate}% of scheduled principal`,
+        icon: <Coins size={20} />,
         tone: "slate",
       },
     ];
-  }, [summary.totals]);
+  }, [summary.totals, summary.rows.length]);
 
   const handleSort = (key) => {
     setSort((current) =>
@@ -257,15 +376,36 @@ const LoanBookingLenderSummary = () => {
     URL.revokeObjectURL(anchor.href);
   };
 
+  const renderSortIndicator = (key) => {
+    if (sort.key !== key)
+      return (
+        <span className="lbs-sort" aria-hidden="true">
+          ↕
+        </span>
+      );
+    return (
+      <span className="lbs-sort is-active" aria-hidden="true">
+        {sort.dir === "asc" ? "↑" : "↓"}
+      </span>
+    );
+  };
+
   return (
     <div className="loan-booking-summary">
       <LoaderOverlay show={loading} label="Loading lender summary..." />
 
       <div className="lbs-header">
-        <div>
+        <div className="lbs-header-lead">
+          <span className="lbs-eyebrow">Portfolio</span>
           <h1>Lender POS Summary</h1>
           <div className="lbs-subtitle">
-            {summary.product} {summary.asOf ? `as of ${summary.asOf}` : ""}
+            {summary.product}
+            {summary.asOf ? (
+              <>
+                {" · "}
+                <span className="lbs-asof">as of {summary.asOf}</span>
+              </>
+            ) : null}
           </div>
         </div>
 
@@ -284,8 +424,13 @@ const LoanBookingLenderSummary = () => {
             </select>
           </label>
 
-          <button type="button" className="lbs-icon-button" onClick={fetchSummary}>
-            <RefreshCw size={16} />
+          <button
+            type="button"
+            className="lbs-icon-button"
+            onClick={fetchSummary}
+            disabled={loading}
+          >
+            <RefreshCw size={16} className={loading ? "lbs-spin" : ""} />
             Refresh
           </button>
         </div>
@@ -308,6 +453,7 @@ const LoanBookingLenderSummary = () => {
             icon={card.icon}
             label={card.label}
             value={card.value}
+            hint={card.hint}
             tone={card.tone}
           />
         ))}
@@ -325,12 +471,17 @@ const LoanBookingLenderSummary = () => {
           </div>
 
           <div className="lbs-table-actions">
-            <span>
-              {formatNumber(sortedRows.length)} lender{sortedRows.length === 1 ? "" : "s"}
+            <span className="lbs-count">
+              <strong>{formatNumber(sortedRows.length)}</strong> lender
+              {sortedRows.length === 1 ? "" : "s"}
             </span>
-            <button type="button" onClick={handleExport}>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={sortedRows.length === 0}
+            >
               <Download size={16} />
-              Export
+              Export CSV
             </button>
           </div>
         </div>
@@ -338,17 +489,47 @@ const LoanBookingLenderSummary = () => {
         <div className="lbs-table-wrap">
           <table className="lbs-table">
             <thead>
-              <tr>
-                {TABLE_COLUMNS.map((column) => (
+              <tr className="lbs-group-row">
+                <th rowSpan={2} className="lbs-corner is-sticky">
+                  <button type="button" onClick={() => handleSort("lender")}>
+                    <span>Lender</span>
+                    {renderSortIndicator("lender")}
+                  </button>
+                </th>
+                {COLUMN_GROUPS.map((group) => (
+                  <th
+                    key={group.key}
+                    colSpan={group.columns.length}
+                    data-tone={group.tone}
+                    className="lbs-group-head"
+                  >
+                    <span>{group.label}</span>
+                  </th>
+                ))}
+              </tr>
+              <tr className="lbs-column-row">
+                {GROUP_COLUMNS.map((column) => (
                   <th
                     key={column.key}
-                    className={column.sticky ? "is-sticky" : ""}
+                    className={[
+                      MONEY_FIELDS.has(column.key) || column.key === "loanCount"
+                        ? "is-num"
+                        : "",
+                      sort.key === column.key ? "is-sorted" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    aria-sort={
+                      sort.key === column.key
+                        ? sort.dir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                    }
                   >
                     <button type="button" onClick={() => handleSort(column.key)}>
-                      {column.label}
-                      {sort.key === column.key && (
-                        <span>{sort.dir === "asc" ? "^" : "v"}</span>
-                      )}
+                      <span>{column.label}</span>
+                      {renderSortIndicator(column.key)}
                     </button>
                   </th>
                 ))}
@@ -369,7 +550,9 @@ const LoanBookingLenderSummary = () => {
                         key={column.key}
                         className={[
                           MONEY_FIELDS.has(column.key) ? "is-money" : "",
+                          column.key === "loanCount" ? "is-num" : "",
                           column.sticky ? "is-sticky" : "",
+                          sort.key === column.key ? "is-sorted" : "",
                         ]
                           .filter(Boolean)
                           .join(" ")}
@@ -389,6 +572,7 @@ const LoanBookingLenderSummary = () => {
                       key={column.key}
                       className={[
                         MONEY_FIELDS.has(column.key) ? "is-money" : "",
+                        column.key === "loanCount" ? "is-num" : "",
                         column.sticky ? "is-sticky" : "",
                       ]
                         .filter(Boolean)
@@ -398,9 +582,7 @@ const LoanBookingLenderSummary = () => {
                         ? "Total"
                         : column.key === "product"
                           ? summary.product
-                          : column.key === "nextDueDate"
-                            ? "-"
-                            : formatCell(summary.totals, column.key)}
+                          : formatCell(visibleTotals, column.key)}
                     </td>
                   ))}
                 </tr>
