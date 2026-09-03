@@ -80,6 +80,7 @@ import GQFsfApproveInitiateScreen from "./components/GQFsfApproveInitiateScreen"
 import AdikoshApproveInitiateScreen from "./components/AdikoshApproveInitiateScreen";
 import EVApproveInitiateScreen from "./components/EVApproveInitiateScreen";
 import ProductsDashboard from "./components/ProductsDashboard";
+import LoanBookingLenderSummary from "./components/LoanBookingLenderSummary";
 import EmiClubApprovedLoans from "./components/EmiClubApprovedLoans";
 import EmiClubDisbursedLoans from "./components/EmiClubDisbursedLoans";
 import EmiClubAllLoans from "./components/EmiClubAllLoans";
@@ -442,6 +443,14 @@ function App() {
             element={
               <PermissionRoute pageName="Download Excel Templates">
                 <DownloadExcelTemplates />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/loan-booking-lender-summary"
+            element={
+              <PermissionRoute pageName="Lender POS Summary">
+                <LoanBookingLenderSummary />
               </PermissionRoute>
             }
           />

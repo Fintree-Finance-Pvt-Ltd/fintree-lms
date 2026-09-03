@@ -1,0 +1,359 @@
+.loan-booking-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 100%;
+  padding: 4px 0 24px;
+  color: var(--text-primary);
+}
+
+.lbs-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lbs-header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.lbs-subtitle {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.lbs-actions,
+.lbs-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lbs-select-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-label);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.lbs-select-label select,
+.lbs-search input {
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  outline: none;
+}
+
+.lbs-select-label select {
+  min-width: 150px;
+  padding: 0 10px;
+}
+
+.lbs-search input {
+  min-width: 260px;
+  padding: 0 12px 0 34px;
+}
+
+.lbs-select-label select:focus,
+.lbs-search input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+.lbs-icon-button,
+.lbs-error button,
+.lbs-table-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  padding: 0 12px;
+}
+
+.lbs-icon-button:hover,
+.lbs-table-actions button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.lbs-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lbs-error button {
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+.lbs-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.lbs-metric {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 92px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+}
+
+.lbs-metric-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 8px;
+  background: var(--metric-bg, var(--neutral-bg));
+  color: var(--metric-color, var(--neutral));
+}
+
+.lbs-metric[data-tone="green"] {
+  --metric-bg: var(--success-bg);
+  --metric-color: var(--success);
+}
+
+.lbs-metric[data-tone="amber"] {
+  --metric-bg: var(--warning-bg);
+  --metric-color: var(--warning);
+}
+
+.lbs-metric[data-tone="red"] {
+  --metric-bg: var(--danger-bg);
+  --metric-color: var(--danger);
+}
+
+.lbs-metric[data-tone="blue"] {
+  --metric-bg: var(--info-bg);
+  --metric-color: var(--info);
+}
+
+.lbs-metric[data-tone="indigo"] {
+  --metric-bg: #eef2ff;
+  --metric-color: #4f46e5;
+}
+
+.lbs-metric[data-tone="slate"] {
+  --metric-bg: #f1f5f9;
+  --metric-color: #334155;
+}
+
+.lbs-metric-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.lbs-metric-value {
+  margin-top: 4px;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.lbs-table-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.lbs-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.lbs-search {
+  position: relative;
+  color: var(--text-muted);
+}
+
+.lbs-search svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.lbs-table-actions span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.lbs-table-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 360px);
+}
+
+.lbs-table {
+  width: 100%;
+  min-width: 1800px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.lbs-table th,
+.lbs-table td {
+  border-bottom: 1px solid var(--table-border);
+  padding: 11px 12px;
+  text-align: left;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.lbs-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.lbs-table th button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.lbs-table tbody tr:nth-child(even) td {
+  background: #fcfcfd;
+}
+
+.lbs-table tbody tr:hover td {
+  background: var(--table-row-hover);
+}
+
+.lbs-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: #fff7ed;
+  color: #111827;
+  font-weight: 800;
+}
+
+.lbs-table .is-money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.lbs-table .is-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  min-width: 170px;
+  background: inherit;
+}
+
+.lbs-table th.is-sticky {
+  z-index: 4;
+  background: #f8fafc;
+}
+
+.lbs-table tbody td.is-sticky {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.lbs-table tfoot td.is-sticky {
+  background: #fff7ed;
+}
+
+.lbs-empty {
+  height: 120px;
+  color: var(--text-muted);
+  text-align: center;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .loan-booking-summary {
+    padding-bottom: 12px;
+  }
+
+  .lbs-header h1 {
+    font-size: 22px;
+  }
+
+  .lbs-actions,
+  .lbs-select-label,
+  .lbs-select-label select,
+  .lbs-icon-button,
+  .lbs-search,
+  .lbs-search input,
+  .lbs-table-actions,
+  .lbs-table-actions button {
+    width: 100%;
+  }
+
+  .lbs-table-actions {
+    justify-content: space-between;
+  }
+
+  .lbs-table-wrap {
+    max-height: none;
+  }
+}
