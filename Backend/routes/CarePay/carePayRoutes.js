@@ -3566,5 +3566,32 @@ router.get("/payment/status/:lan",async (req, res) => {
       }
     );
 
+
+    //to check and approve carepay loan for testing purpose only
+router.post("/test-carepay-approval/:lan", async (req, res) => {
+  try {
+    const lan = req.params.lan;
+
+    const result = await checkAndApproveCarePayLoan(lan);
+
+    return res.status(200).json({
+      success: true,
+      lan,
+      result
+    });
+
+  } catch (error) {
+
+    console.error(
+      "CAREPAY APPROVAL TEST ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 module.exports = router;
 module.exports.loanBookingRouter = loanBookingRouter;
