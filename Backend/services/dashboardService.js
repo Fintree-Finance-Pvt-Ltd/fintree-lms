@@ -293,6 +293,17 @@ const PRODUCT_MAP = {
     label: "Quick Money",
     disbDateSource: "utr",
   },
+    "Saswat": {
+    rpsTable: "manual_rps_saswat",
+    bookTable: "loan_booking_saswat",
+    disbField: "loan_amount",
+    collType: "join",
+    collBook: "loan_booking_saswat",
+    allocTable: "allocation",
+    allocLike: "%SW%",
+    label: "Saswat",
+    disbDateSource: "utr",
+  },
   Sampada: {
     rpsTable: "manual_rps_sampada",
     bookTable: "loan_booking_sampada",
