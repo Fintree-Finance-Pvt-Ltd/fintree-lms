@@ -22,6 +22,10 @@ const ApproveInitiatedScreen = ({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [approvedAmounts, setApprovedAmounts] = useState({});
+  // LANs with an approve/reject request currently in flight — used to
+  // disable that row's action buttons so a fast double-click can't fire the
+  // request twice before the first response comes back.
+  const [actioningLans, setActioningLans] = useState(new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -108,6 +112,8 @@ const ApproveInitiatedScreen = ({
   // show Batch ID column only if any LAN begins with ADK
 
   const handleStatusChange = async (lan, payload, table, row = null) => {
+    setActioningLans((prev) => new Set(prev).add(lan));
+
     try {
       const finalPayload = {
         ...payload,
@@ -147,7 +153,11 @@ const ApproveInitiatedScreen = ({
           ? updateUrlBuilder(lan, row)
           : `/loan-booking/approve-initiated-loans/${lan}`;
 
-      await api.put(updateUrl, finalPayload);
+      const res = await api.put(updateUrl, finalPayload);
+
+      if (res.data?.payoutError) {
+        alert(`Loan approved, but payout failed: ${res.data.payoutError}`);
+      }
 
       setRows((prev) =>
         removeOnSuccessStatuses.includes(payload?.status)
@@ -167,6 +177,12 @@ const ApproveInitiatedScreen = ({
     } catch (err) {
       console.error("Error updating status:", err);
       alert("Failed to update status. Try again.");
+    } finally {
+      setActioningLans((prev) => {
+        const next = new Set(prev);
+        next.delete(lan);
+        return next;
+      });
     }
   };
 
@@ -257,16 +273,17 @@ const ApproveInitiatedScreen = ({
       border: `1px solid ${c.bd}`,
     };
   };
-  const actionBtn = (type) => ({
+  const actionBtn = (type, disabled = false) => ({
     padding: "8px 10px",
     borderRadius: 8,
     border: "1px solid transparent",
-    cursor: "pointer",
+    cursor: disabled ? "not-allowed" : "pointer",
     fontSize: 13,
     fontWeight: 700,
     background: type === "approve" ? "#10b981" : "#ef4444",
     borderColor: type === "approve" ? "#059669" : "#dc2626",
     color: "#fff",
+    opacity: disabled ? 0.5 : 1,
   });
   const link = { color: "#2563eb", textDecoration: "none", fontWeight: 600 };
 
@@ -283,6 +300,8 @@ const ApproveInitiatedScreen = ({
           onClick={() => {
             if (/^MC/i.test(r.lan)) {
               navigate(`/motion-corp/customer-details?lan=${r.lan}`);
+            } else if (/^SPL/i.test(r.lan)) {
+              navigate(`/sampada/customer-details?lan=${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {
               navigate(`/fincrest-loan-details/${r.lan}`);
             } else if (/^SHL/i.test(r.lan)) {
@@ -322,6 +341,8 @@ const ApproveInitiatedScreen = ({
           onClick={() => {
             if (/^MC/i.test(r.lan)) {
               navigate(`/motion-corp/customer-details?lan=${r.lan}`);
+            } else if (/^SPL/i.test(r.lan)) {
+              navigate(`/sampada/customer-details?lan=${r.lan}`);
             } else if (/^FINS/i.test(r.lan)) {
               navigate(`/fincrest-loan-details/${r.lan}`);
             } else if (/^SHL/i.test(r.lan)) {
@@ -453,42 +474,59 @@ const ApproveInitiatedScreen = ({
     {
       key: "actions",
       header: "Actions",
-      render: (r) => (
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            style={actionBtn("approve")}
-            // onClick={() => handleStatusChange(r.lan, "approved", tableName)}
-            onClick={() =>
-              handleStatusChange(
-                r.lan,
-                approvePayload || {
-                  status: "approved",
-                },
-                tableName,
-                r,
-              )
-            }
-          >
-            ✅ Approve
-          </button>
-          <button
-            style={actionBtn("reject")}
-            // onClick={() => handleStatusChange(r.lan, "rejected", tableName)}
-            onClick={() =>
-              handleStatusChange(
-                r.lan,
-                rejectPayload || {
-                  status: "rejected",
-                },
-                tableName,
-                r,
-              )
-            }
-          >
-            ❌ Reject
-          </button>
-        </div>
-      ),
+      render: (r) => {
+        const isActioning = actioningLans.has(r.lan);
+
+        return (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              style={actionBtn("approve", isActioning)}
+              disabled={isActioning}
+              onClick={() => {
+                if (
+                  tableName === "loan_booking_emiclub" &&
+                  !window.confirm(
+                    "This will approve the loan AND initiate payout disbursal. Continue?",
+                  )
+                ) {
+                  return;
+                }
+
+                handleStatusChange(
+                  r.lan,
+                  approvePayload || {
+                    status: "approved",
+                  },
+                  tableName,
+                  r,
+                );
+              }}
+            >
+              {isActioning
+                ? "⏳ Processing..."
+                : tableName === "loan_booking_emiclub"
+                  ? "💸 Approve and Pay"
+                  : "✅ Approve"}
+            </button>
+            <button
+              style={actionBtn("reject", isActioning)}
+              disabled={isActioning}
+              onClick={() =>
+                handleStatusChange(
+                  r.lan,
+                  rejectPayload || {
+                    status: "rejected",
+                  },
+                  tableName,
+                  r,
+                )
+              }
+            >
+              ❌ Reject
+            </button>
+          </div>
+        );
+      },
       csvAccessor: () => "",
       width: 210,
     },

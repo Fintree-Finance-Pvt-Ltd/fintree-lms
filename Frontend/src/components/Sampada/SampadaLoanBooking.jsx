@@ -361,6 +361,12 @@ const SampadaLoanBooking = () => {
         coApplicant: Number(d.co_applicant_mobile_verified) === 1,
       });
 
+      setAadhaarStatus({
+        BORROWER: String(d.borrower_aadhaar_status || "").toUpperCase(),
+        GUARANTOR: String(d.guarantor_aadhaar_status || "").toUpperCase(),
+        CO_APPLICANT: String(d.co_applicant_aadhaar_status || "").toUpperCase(),
+      });
+
       const screeningStatus = normalizeBureauStatus(
         d.motion_bureau_screening_status ||
           d.bureau_screening_status ||
@@ -401,15 +407,13 @@ const SampadaLoanBooking = () => {
               hasDpd3M:
                 (d.motion_dpd_3m_flag ?? d.motioncorp_dpd_3m_flag) == null
                   ? null
-                  : Number(
-                      d.motion_dpd_3m_flag ?? d.motioncorp_dpd_3m_flag,
-                    ) === 1,
+                  : Number(d.motion_dpd_3m_flag ?? d.motioncorp_dpd_3m_flag) ===
+                    1,
               hasDpd6M:
                 (d.motion_dpd_6m_flag ?? d.motioncorp_dpd_6m_flag) == null
                   ? null
-                  : Number(
-                      d.motion_dpd_6m_flag ?? d.motioncorp_dpd_6m_flag,
-                    ) === 1,
+                  : Number(d.motion_dpd_6m_flag ?? d.motioncorp_dpd_6m_flag) ===
+                    1,
               emiOverdueAmount:
                 d.motion_emi_overdue_amount ??
                 d.motioncorp_emi_overdue_amount ??
@@ -424,7 +428,8 @@ const SampadaLoanBooking = () => {
 
       setMessage(`✅ Resumed booking. LAN: ${d.lan}`);
     } catch (err) {
-      const apiMessage = err.response?.data?.error || err.response?.data?.message;
+      const apiMessage =
+        err.response?.data?.error || err.response?.data?.message;
       setMessage(`❌ ${apiMessage || "Failed to resume booking"}`);
     } finally {
       setLoading(false);
@@ -815,15 +820,10 @@ for processing and servicing this loan application.
       "Mobile_Number",
       "Email",
       "Pan_Card",
+      "Loan_Amount",
     ],
     1: ["Address_Line_1", "Village", "Pincode", "District", "State"],
-    2: [
-      "Loan_Amount",
-      "Interest_Rate",
-      "Tenure",
-      "Processing_Fee_Percentage",
-      "GPS_Charges",
-    ],
+    2: ["Interest_Rate", "Tenure", "Processing_Fee_Percentage", "GPS_Charges"],
     3: guarantorFields,
     4: coApplicantFields,
     5: [
@@ -1965,16 +1965,13 @@ for processing and servicing this loan application.
         setLoading(false);
         return;
       }
-      const res = await api.post(
-        "sampada/final-submit-ev-customer-manual",
-        {
-          ...formData,
-          lan,
-          borrower_mobile_verified: otpVerified.borrower ? 1 : 0,
-          guarantor_mobile_verified: otpVerified.guarantor ? 1 : 0,
-          co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
-        },
-      );
+      const res = await api.post("sampada/final-submit-ev-customer-manual", {
+        ...formData,
+        lan,
+        borrower_mobile_verified: otpVerified.borrower ? 1 : 0,
+        guarantor_mobile_verified: otpVerified.guarantor ? 1 : 0,
+        co_applicant_mobile_verified: otpVerified.coApplicant ? 1 : 0,
+      });
 
       setMessage(`✅ ${res.data.message} | LAN: ${res.data.lan}`);
 
@@ -2366,17 +2363,17 @@ for processing and servicing this loan application.
           <div
             key={index}
             className={`tab ${activeSection === index ? "active" : ""}`}
-            // onClick={() => setActiveSection(index)}
-            onClick={() => {
-              if (index <= activeSection) {
-                setActiveSection(index);
-                return;
-              }
+            onClick={() => setActiveSection(index)}
+            // onClick={() => {
+            //   if (index <= activeSection) {
+            //     setActiveSection(index);
+            //     return;
+            //   }
 
-              setMessage(
-                "⚠️ Please use the Next button to complete validations before moving forward.",
-              );
-            }}
+            //   setMessage(
+            //     "⚠️ Please use the Next button to complete validations before moving forward.",
+            //   );
+            // }}
           >
             {sec}
           </div>
@@ -2415,6 +2412,7 @@ for processing and servicing this loan application.
 
             {renderInput("Email", "Email", "email")}
             {renderInput("Pan Card", "Pan_Card")}
+            {renderInput("Loan Amount", "Loan_Amount", "number")}
           </div>
         )}
 
@@ -2456,7 +2454,7 @@ for processing and servicing this loan application.
 
         {activeSection === 2 && (
           <div className="form-grid">
-            {renderInput("Loan Amount", "Loan_Amount", "number")}
+            {renderInput("Loan Amount", "Loan_Amount", "number", true)}
             {renderInput("Interest Rate (%)", "Interest_Rate", "number")}
             {renderInput("Tenure (In Months)", "Tenure", "number")}
             {renderInput("Processing Fee (₹)", "Processing_Fee", "number")}
@@ -2477,7 +2475,7 @@ for processing and servicing this loan application.
           </div>
         )}
 
-        {activeSection === 2 && renderBureauScreeningResult()}
+        {activeSection === 1 && renderBureauScreeningResult()}
 
         {activeSection === 3 && (
           <div className="form-grid">
@@ -2735,7 +2733,7 @@ for processing and servicing this loan application.
 
               <button
                 type="button"
-                disabled={loading || (activeSection === 2 && bureauLoading)}
+                disabled={loading || (activeSection === 1 && bureauLoading)}
                 onClick={async () => {
                   if (activeSection === 0) {
                     const saved = await saveBorrowerFirstSection();
@@ -2767,8 +2765,8 @@ for processing and servicing this loan application.
                     return;
                   }
 
-                  // Bureau must execute before leaving Loan Details.
-                  if (activeSection === 2 && !bureauResult.canContinue) {
+                  // Bureau must execute before leaving Address Details.
+                  if (activeSection === 1 && !bureauResult.canContinue) {
                     const canContinue = await handleRunBureauScreening();
 
                     if (!canContinue) return;
@@ -2794,7 +2792,7 @@ for processing and servicing this loan application.
                   setActiveSection((prev) => prev + 1);
                 }}
               >
-                {activeSection === 2
+                {activeSection === 1
                   ? bureauLoading
                     ? "🔄 Running Sampada Bureau..."
                     : bureauResult.canContinue

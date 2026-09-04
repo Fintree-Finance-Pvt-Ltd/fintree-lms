@@ -35,10 +35,10 @@ const enachPresentation = (rawStatus) => {
     NOT_STARTED: { label: "Not Started", type: "pending" },
     CREATED: { label: "Creating", type: "progress" },
     INITIATED: { label: "Creating", type: "progress" },
-    REQUESTED: { label: "Link Created", type: "ready" },
-    PARTIAL: { label: "Link Created", type: "ready" },
+    REQUESTED: { label: "In Progress", type: "progress" },
+    PARTIAL: { label: "In Progress", type: "progress" },
     LINK_CREATE_PENDING: { label: "Creating Link", type: "progress" },
-    LINK_CREATED: { label: "Link Created", type: "ready" },
+    LINK_CREATED: { label: "In Progress", type: "progress" },
     ACTIVE: { label: "Awaiting UMRN", type: "progress" },
     SUCCESS: { label: "Awaiting UMRN", type: "progress" },
     REGISTERED: { label: "Awaiting UMRN", type: "progress" },
@@ -63,7 +63,7 @@ const agreementPresentation = (rawStatus) => {
   const status = String(rawStatus || "PENDING").toUpperCase();
   const map = {
     PENDING: { label: "Pending", type: "pending" },
-    INITIATED: { label: "Sent for Signing", type: "progress" },
+    INITIATED: { label: "In Progress", type: "progress" },
     SIGNED: { label: "Signed", type: "success" },
     COMPLETED: { label: "Signed", type: "success" },
     SIGN_COMPLETE: { label: "Signed", type: "success" },
@@ -162,8 +162,18 @@ const createCoApplicant = (partyNo) => ({
   saved: false,
 });
 
-const getError = (error, fallback) =>
-  error.response?.data?.message || error.message || fallback;
+const getError = (error, fallback) => {
+  const payload = error.response?.data;
+  return (
+    payload?.message ||
+    payload?.error?.message ||
+    (typeof payload?.error === "string" ? payload.error : "") ||
+    payload?.details?.message ||
+    payload?.status_message ||
+    error.message ||
+    fallback
+  );
+};
 
 function Field({
   label,
@@ -248,9 +258,10 @@ export default function ClaimCureBuddyLoanBooking() {
     "Basic Details",
     "Address",
     "Loan Details",
-    "Co- Applicant",
+    // "Co- Applicant",
     // "Documents"
     "Bank Details",
+    "Post BRE Flow",
   ];
 
   const [activeSection, setActiveSection] = useState(0);
@@ -276,12 +287,15 @@ export default function ClaimCureBuddyLoanBooking() {
   const [borrowerPanVerified, setBorrowerPanVerified] = useState(false);
   const [borrowerAadhaarStatus, setBorrowerAadhaarStatus] = useState("PENDING");
   const [borrowerAadhaarRetryCount, setBorrowerAadhaarRetryCount] = useState(0);
+  const [borrowerAadhaarUrl, setBorrowerAadhaarUrl] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [postAction, setPostAction] = useState("");
   const [breResult, setBreResult] = useState(null);
   const [borrowerPreBreStatus, setBorrowerPreBreStatus] = useState("PENDING");
   const [agreementStatus, setAgreementStatus] = useState("PENDING");
+  const [agreementUrl, setAgreementUrl] = useState("");
+  const [bankUpdates, setBankUpdates] = useState({ used: 0, limit: 2, remaining: 2 });
   const [postFlow, setPostFlow] = useState({
     enach: { status: "NOT_STARTED" },
     payout: null,
@@ -291,6 +305,10 @@ export default function ClaimCureBuddyLoanBooking() {
     maxDebitAmount: "",
     finalCollectionDate: addDays(localToday(), 90),
     frequency: "MONTHLY",
+  });
+  const [mandateDialog, setMandateDialog] = useState({
+    open: false,
+    bank: null,
   });
 
   const [borrowerPreBreResult, setBorrowerPreBreResult] = useState(null);
@@ -357,21 +375,23 @@ export default function ClaimCureBuddyLoanBooking() {
   // };
 
   // const mapResumeData = (payload) => {
-    const mapResumeData = (payload, keepCurrentSection = false) => {
+  const mapResumeData = (payload, keepCurrentSection = false) => {
     const {
       loan: saved,
       coApplicants: savedCoApplicants = [],
       kycStatuses: savedKyc = [],
       enach = { status: "NOT_STARTED" },
       payout = null,
+      agreement = {},
+      bankUpdates: savedBankUpdates = { used: 0, limit: 2, remaining: 2 },
     } = payload;
     const sectionByStage = {
       "Basic Details": 0,
       Address: 1,
       "Loan Details": 2,
-      "Co-Applicants": 3,
-      "Bank Details": 4,
-      BRE: 4,
+      // "Co-Applicants": 3,
+      "Bank Details": 3,
+      BRE: 3,
       "BRE Approved": 4,
       "Disbursement Initiated": 4,
       Disbursed: 4,
@@ -379,8 +399,8 @@ export default function ClaimCureBuddyLoanBooking() {
 
     // setActiveSection(sectionByStage[saved.stage] ?? 0);
     if (!keepCurrentSection) {
-  setActiveSection(sectionByStage[saved.stage] ?? 0);
-}
+      setActiveSection(sectionByStage[saved.stage] ?? 0);
+    }
     const statusMap = {};
     savedKyc.forEach((row) => {
       statusMap[kycKey(row.applicant_type, Number(row.party_no))] = row;
@@ -393,6 +413,7 @@ export default function ClaimCureBuddyLoanBooking() {
     setCaseStatus(saved.status);
     setBreStatus(saved.bre_status || "PENDING");
     setAgreementStatus(saved.agreement_esign_status || "PENDING");
+    setAgreementUrl(agreement.signUrl || "");
     setPostFlow({ enach, payout });
     setBorrowerMobileVerified(Number(saved.borrower_mobile_verified) === 1);
     setBorrowerPanVerified(borrowerKyc.pan_status === "VERIFIED");
@@ -400,6 +421,8 @@ export default function ClaimCureBuddyLoanBooking() {
     setBorrowerAadhaarRetryCount(
       Number(borrowerKyc.aadhaar_retry_count || 0),
     );
+    setBorrowerAadhaarUrl(borrowerKyc.aadhaar_kyc_url || "");
+    setBankUpdates(savedBankUpdates);
     setBorrowerPreBreStatus(saved.borrower_pre_bre_status || "PENDING");
 
     if (saved.borrower_pre_bre_reason) {
@@ -460,7 +483,7 @@ export default function ClaimCureBuddyLoanBooking() {
           String(saved.approved_at || saved.updated_at || localToday()).slice(
             0,
             10,
-        ),
+          ),
           Number(saved.loan_tenure || 90),
         ),
     }));
@@ -568,28 +591,46 @@ export default function ClaimCureBuddyLoanBooking() {
   };
   const updateBank = (name, value) =>
     setBank((previous) => ({ ...previous, [name]: value }));
+  const validateBankDetails = () => {
+    if (!bank.accountHolderName.trim()) return "Enter the account holder name.";
+    if (!bank.bankName.trim()) return "Enter the bank name.";
+    if (!/^\d{6,20}$/.test(String(bank.accountNumber || "")))
+      return "Invalid bank account number. Enter 6 to 20 digits.";
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(String(bank.ifscCode || "").toUpperCase()))
+      return "Invalid IFSC. Use the 11-character format, for example HDFC0001234.";
+    if (!bank.branchAddress.trim()) return "Enter the bank branch address.";
+    return "";
+  };
   const saveBankDetailsOnly = async () => {
-  try {
-    setLoading(true);
+    const validationError = validateBankDetails();
+    if (validationError) return setNotice(`❌ ${validationError}`);
+    try {
+      setLoading(true);
 
-    await api.patch(
-      `${API}/loan-booking/${lan}/update-bank-details`,
-      bank
-    );
+      const response = await api.patch(
+        `${API}/loan-booking/${lan}/update-bank-details`,
+        bank
+      );
 
-    setNotice("✅ Bank details updated successfully");
+      setBankUpdates((previous) => ({
+        ...previous,
+        used: Number(response.data.bankUpdateCount ?? previous.used),
+        remaining: Number(response.data.bankUpdatesRemaining ?? previous.remaining),
+      }));
 
-  await fetchBooking(lan);
-setActiveSection(4);
+      setNotice("✅ Bank details updated successfully");
 
-  } catch(error){
-    setNotice(
-      `❌ ${getError(error,"Bank update failed")}`
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+      await fetchBooking(lan);
+      setActiveSection(3);
+
+    } catch (error) {
+      setNotice(
+        `❌ ${getError(error, "Bank update failed")}`
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
   const updateCoApplicant = (partyNo, name, value) => {
     setCoApplicants((previous) =>
       previous.map((item) =>
@@ -657,10 +698,10 @@ setActiveSection(4);
           previous.map((item) =>
             item.partyNo === otpDialog.partyNo
               ? {
-                  ...item,
-                  mobileNumber: otpDialog.mobile,
-                  mobileVerified: true,
-                }
+                ...item,
+                mobileNumber: otpDialog.mobile,
+                mobileVerified: true,
+              }
               : item,
           ),
         );
@@ -685,11 +726,11 @@ setActiveSection(4);
     const panNumber =
       applicantType === "BORROWER"
         ? String(basic.panNumber || "")
-            .trim()
-            .toUpperCase()
+          .trim()
+          .toUpperCase()
         : String(coApplicant?.panNumber || "")
-            .trim()
-            .toUpperCase();
+          .trim()
+          .toUpperCase();
 
     const customerName =
       applicantType === "BORROWER"
@@ -702,8 +743,7 @@ setActiveSection(4);
 
     if (!customerName) {
       return setNotice(
-        `❌ Enter ${
-          applicantType === "BORROWER" ? "borrower" : `co-applicant ${partyNo}`
+        `❌ Enter ${applicantType === "BORROWER" ? "borrower" : `co-applicant ${partyNo}`
         } customer name.`,
       );
     }
@@ -740,22 +780,21 @@ setActiveSection(4);
           previous.map((item) =>
             item.partyNo === partyNo
               ? {
-                  ...item,
-                  panNumber,
-                  customerName: profile.customerName || customerName,
-                  firstName: profile.firstName || "",
-                  lastName: profile.lastName || "",
-                  panVerified: true,
-                  saved: false,
-                }
+                ...item,
+                panNumber,
+                customerName: profile.customerName || customerName,
+                firstName: profile.firstName || "",
+                lastName: profile.lastName || "",
+                panVerified: true,
+                saved: false,
+              }
               : item,
           ),
         );
       }
 
       setNotice(
-        `✅ ${
-          applicantType === "BORROWER" ? "Borrower" : `Co-applicant ${partyNo}`
+        `✅ ${applicantType === "BORROWER" ? "Borrower" : `Co-applicant ${partyNo}`
         } PAN verified.`,
       );
     } catch (error) {
@@ -794,6 +833,9 @@ setActiveSection(4);
           Number(response.data.aadhaarRetryCount || 0),
         );
       }
+      if (applicantType === "BORROWER" && response.data.kycUrl) {
+        setBorrowerAadhaarUrl(response.data.kycUrl);
+      }
       if (response.data.kycUrl)
         window.open(response.data.kycUrl, "_blank", "noopener,noreferrer");
       setNotice(`✅ ${response.data.message}`);
@@ -829,16 +871,16 @@ setActiveSection(4);
           previous.map((item) =>
             item.partyNo === partyNo
               ? {
-                  ...item,
-                  addressLine1: fetched.addressLine1 || item.addressLine1,
-                  addressLine2: fetched.addressLine2 || item.addressLine2,
-                  city: fetched.city || item.city,
-                  district: fetched.district || item.district,
-                  state: fetched.state || item.state,
-                  pincode: fetched.pincode || item.pincode,
-                  aadhaarStatus: "VERIFIED",
-                  saved: false,
-                }
+                ...item,
+                addressLine1: fetched.addressLine1 || item.addressLine1,
+                addressLine2: fetched.addressLine2 || item.addressLine2,
+                city: fetched.city || item.city,
+                district: fetched.district || item.district,
+                state: fetched.state || item.state,
+                pincode: fetched.pincode || item.pincode,
+                aadhaarStatus: "VERIFIED",
+                saved: false,
+              }
               : item,
           ),
         );
@@ -857,15 +899,15 @@ setActiveSection(4);
     setAddress((previous) =>
       checked
         ? {
-            ...previous,
-            currentAddressLine1: previous.permanentAddressLine1,
-            currentAddressLine2: previous.permanentAddressLine2,
-            currentCity: previous.permanentCity,
-            currentDistrict: previous.permanentDistrict,
-            currentState: previous.permanentState,
-            currentPincode: previous.permanentPincode,
-            currentSameAsPermanent: true,
-          }
+          ...previous,
+          currentAddressLine1: previous.permanentAddressLine1,
+          currentAddressLine2: previous.permanentAddressLine2,
+          currentCity: previous.permanentCity,
+          currentDistrict: previous.permanentDistrict,
+          currentState: previous.permanentState,
+          currentPincode: previous.permanentPincode,
+          currentSameAsPermanent: true,
+        }
         : { ...previous, currentSameAsPermanent: false },
     );
   };
@@ -1039,6 +1081,8 @@ setActiveSection(4);
   };
 
   const submitCase = async () => {
+    const validationError = validateBankDetails();
+    if (validationError) return setNotice(`❌ ${validationError}`);
     try {
       setLoading(true);
       const bankResponse = await api.patch(
@@ -1073,6 +1117,44 @@ setActiveSection(4);
 
   const updateEnachForm = (name, value) =>
     setEnachForm((previous) => ({ ...previous, [name]: value }));
+
+  const openMandateDialog = async () => {
+    if (!isBreApproved) {
+      setNotice("Run final BRE before creating eNACH.");
+      return;
+    }
+
+    if (!enachForm.maxDebitAmount || Number(enachForm.maxDebitAmount) <= 0) {
+      setNotice("Enter a valid maximum debit amount for eNACH.");
+      return;
+    }
+
+    if (!enachForm.finalCollectionDate) {
+      setNotice("Select the eNACH final collection date.");
+      return;
+    }
+
+    const currentCase = await fetchBooking(lan, { silent: true });
+    const savedLoan = currentCase?.loan;
+
+    if (!savedLoan) return;
+
+    setMandateDialog({
+      open: true,
+      bank: {
+        accountHolderName: savedLoan.customer_name_as_per_bank || "",
+        bankName: savedLoan.customer_bank_name || "",
+        accountNumber: savedLoan.customer_account_number || "",
+        ifscCode: savedLoan.bank_ifsc_code || "",
+        branchAddress: savedLoan.bank_branch_address || "",
+      },
+    });
+  };
+
+  const closeMandateDialog = () => {
+    if (postAction === "ENACH") return;
+    setMandateDialog({ open: false, bank: null });
+  };
 
   const createEnach = async () => {
     if (!isBreApproved) {
@@ -1124,6 +1206,7 @@ setActiveSection(4);
           authUrl: authorizationUrl || "",
           paymentUrl: authorizationUrl || "",
           shortUrl: authorizationUrl || "",
+          updatedAt: new Date().toISOString(),
         },
       }));
 
@@ -1144,18 +1227,15 @@ setActiveSection(4);
     }
   };
 
-  const openExistingEnach = () => {
-    const url =
-      postFlow.enach?.shortUrl ||
-      postFlow.enach?.paymentUrl ||
-      postFlow.enach?.authUrl;
+  const copyFlowLink = async (url, label) => {
+    if (!url) return setNotice(`No ${label} link is available.`);
 
-    if (!url) {
-      setNotice("No active Digio eNACH link is available.");
-      return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setNotice(`${label} link copied.`);
+    } catch {
+      setNotice(`Unable to copy the ${label} link.`);
     }
-
-    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const startAgreementSigning = async () => {
@@ -1181,11 +1261,13 @@ setActiveSection(4);
       const response = await api.post(`/esign/${lan}/esign/agreement`);
       const signingUrl =
         response.data?.signingUrl ||
+        response.data?.sign_url ||
         response.data?.url ||
         response.data?.data?.signingUrl ||
         null;
 
       setAgreementStatus("INITIATED");
+      setAgreementUrl(signingUrl || "");
       setNotice(response.data?.message || "Agreement sent for signing.");
 
       if (signingUrl) {
@@ -1288,7 +1370,7 @@ setActiveSection(4);
       <Field
         label="First Name"
         value={basic.firstName}
-        onChange={() => {}}
+        onChange={() => { }}
         readOnly
         required
       />
@@ -1296,7 +1378,7 @@ setActiveSection(4);
       <Field
         label="Last Name"
         value={basic.lastName}
-        onChange={() => {}}
+        onChange={() => { }}
         readOnly
         required
       />
@@ -1394,10 +1476,10 @@ setActiveSection(4);
           onClick={() => triggerAadhaar("BORROWER", 1)}
         >
           {borrowerAadhaarStatus === "VERIFIED"
-              ? "Aadhaar Verified ✓"
-              : "Trigger Aadhaar"}
+            ? "Aadhaar Verified ✓"
+            : "Trigger Aadhaar"}
         </button>
-        {borrowerAadhaarStatus === "INITIATED" && (
+        {["INITIATED", "FAILED"].includes(borrowerAadhaarStatus) && (
           <button
             type="button"
             className="ccb-secondary"
@@ -1406,9 +1488,17 @@ setActiveSection(4);
           >
             {borrowerAadhaarRetryCount >= 2
               ? "Aadhaar Retry Limit Reached"
-              : `Retrigger Aadhaar (${borrowerAadhaarRetryCount}/2)`}
+              : `Retry Aadhaar (${borrowerAadhaarRetryCount}/2)`}
           </button>
         )}
+        <button
+          type="button"
+          className="ccb-secondary"
+          disabled={!borrowerAadhaarUrl}
+          onClick={() => copyFlowLink(borrowerAadhaarUrl, "Aadhaar")}
+        >
+          Copy Aadhaar Link
+        </button>
         <button
           type="button"
           className="ccb-secondary"
@@ -1445,21 +1535,21 @@ setActiveSection(4);
         label="Interest Rate (%)"
         type="number"
         value="0"
-        onChange={() => {}}
+        onChange={() => { }}
         required
       />
       <Field
         label="Tenure (days)"
         type="number"
         value="90"
-        onChange={() => {}}
+        onChange={() => { }}
         required
       />
       <Field
         label="Processing Fee"
         type="number"
         value="0"
-        onChange={()=>{}}
+        onChange={() => { }}
         required
       />
       <div className="ccb-inline-field">
@@ -1503,7 +1593,7 @@ setActiveSection(4);
   //         </p>
   //       </div>
   //     {/* </div> */}
-{/* 
+  {/*
       <div className="ccb-grid">
         <div className="ccb-document-card">
           <label>
@@ -1513,57 +1603,57 @@ setActiveSection(4);
           <input
             type="file"
             accept="image/*" */}
-        //     disabled={loading || uploadedDocuments.customerSelfie}
-        //     onChange={(event) =>
-        //       handleDocumentChange(
-        //         "customerSelfie",
-        //         event.target.files?.[0] || null,
-        //       )
-        //     }
-        //   />
+  //     disabled={loading || uploadedDocuments.customerSelfie}
+  //     onChange={(event) =>
+  //       handleDocumentChange(
+  //         "customerSelfie",
+  //         event.target.files?.[0] || null,
+  //       )
+  //     }
+  //   />
 
-        //   {uploadedDocuments.customerSelfie ? (
-        //     <span className="ccb-document-success">
-        //       Uploaded ✓
-        //     </span>
-        //   ) : documents.customerSelfie ? (
-        //     <span>
-        //       Selected: {documents.customerSelfie.name}
-        //     </span>
-        //   ) : (
-        //     <span>Not uploaded</span>
-        //   )}
-        // </div>
+  //   {uploadedDocuments.customerSelfie ? (
+  //     <span className="ccb-document-success">
+  //       Uploaded ✓
+  //     </span>
+  //   ) : documents.customerSelfie ? (
+  //     <span>
+  //       Selected: {documents.customerSelfie.name}
+  //     </span>
+  //   ) : (
+  //     <span>Not uploaded</span>
+  //   )}
+  // </div>
 
-        // <div className="ccb-document-card">
-        //   <label>
-        //     <strong>Ownership Proof *</strong>
-        //   </label>
+  // <div className="ccb-document-card">
+  //   <label>
+  //     <strong>Ownership Proof *</strong>
+  //   </label>
 
-        //   <input
-        //     type="file"
-        //     accept=".pdf,image/*"
-        //     disabled={loading || uploadedDocuments.ownershipProof}
-        //     onChange={(event) =>
-        //       handleDocumentChange(
-        //         "ownershipProof",
-        //         event.target.files?.[0] || null,
-        //       )
-        //     }
-        //   />
+  //   <input
+  //     type="file"
+  //     accept=".pdf,image/*"
+  //     disabled={loading || uploadedDocuments.ownershipProof}
+  //     onChange={(event) =>
+  //       handleDocumentChange(
+  //         "ownershipProof",
+  //         event.target.files?.[0] || null,
+  //       )
+  //     }
+  //   />
 
-        //   {uploadedDocuments.ownershipProof ? (
-        //     <span className="ccb-document-success">
-        //       Uploaded ✓
-        //     </span>
-        //   ) : documents.ownershipProof ? (
-        //     <span>
-        //       Selected: {documents.ownershipProof.name}
-        //     </span>
-        //   ) : (
-        //     <span>Not uploaded</span>
-        //   )}
-        // </div>
+  //   {uploadedDocuments.ownershipProof ? (
+  //     <span className="ccb-document-success">
+  //       Uploaded ✓
+  //     </span>
+  //   ) : documents.ownershipProof ? (
+  //     <span>
+  //       Selected: {documents.ownershipProof.name}
+  //     </span>
+  //   ) : (
+  //     <span>Not uploaded</span>
+  //   )}
+  // </div>
   //     </div>
   //   </>
   // );
@@ -1623,13 +1713,13 @@ setActiveSection(4);
               previous.map((candidate) =>
                 candidate.partyNo === item.partyNo
                   ? {
-                      ...candidate,
-                      customerName: value,
-                      firstName: "",
-                      lastName: "",
-                      panVerified: false,
-                      saved: false,
-                    }
+                    ...candidate,
+                    customerName: value,
+                    firstName: "",
+                    lastName: "",
+                    panVerified: false,
+                    saved: false,
+                  }
                   : candidate,
               ),
             );
@@ -1647,13 +1737,13 @@ setActiveSection(4);
                 previous.map((candidate) =>
                   candidate.partyNo === item.partyNo
                     ? {
-                        ...candidate,
-                        panNumber: value.toUpperCase(),
-                        firstName: "",
-                        lastName: "",
-                        panVerified: false,
-                        saved: false,
-                      }
+                      ...candidate,
+                      panNumber: value.toUpperCase(),
+                      firstName: "",
+                      lastName: "",
+                      panVerified: false,
+                      saved: false,
+                    }
                     : candidate,
                 ),
               );
@@ -1682,7 +1772,7 @@ setActiveSection(4);
         <Field
           label="First Name"
           value={item.firstName}
-          onChange={() => {}}
+          onChange={() => { }}
           readOnly
           required
         />
@@ -1690,7 +1780,7 @@ setActiveSection(4);
         <Field
           label="Last Name"
           value={item.lastName}
-          onChange={() => {}}
+          onChange={() => { }}
           readOnly
           required
         />
@@ -1885,16 +1975,23 @@ setActiveSection(4);
           bureau score, DPD and 30-day enquiries.
         </span>
       </div>
-       <button
-  type="button" 
-  className="ccb-primary"
-  disabled={loading || !lan}
-  onClick={saveBankDetailsOnly}
->
-  Save Bank Details
-</button>
+      <div className="ccb-bre-note">
+        <strong>Bank-detail changes before eNACH</strong>
+        <span>
+          {bankUpdates.remaining} of {bankUpdates.limit} changes remaining. Bank
+          details cannot be changed after eNACH is initiated.
+        </span>
+      </div>
+      <button
+        type="button"
+        className="ccb-primary"
+        disabled={loading || !lan}
+        onClick={saveBankDetailsOnly}
+      >
+        Save Bank Details
+      </button>
     </>
-    
+
   );
 
 
@@ -1912,16 +2009,9 @@ setActiveSection(4);
       hasUmrn(enach);
     const payout = payoutPresentation(caseStatus, postFlow.payout);
     const enachUrl = enach.shortUrl || enach.paymentUrl || enach.authUrl;
+    const enachLinkAvailable = Boolean(enachUrl);
+    const agreementLinkAvailable = Boolean(agreementUrl);
     const disbursementWaitingFor = [];
-    const enachFailed = [
-      "FAILED",
-      "FAILURE",
-      "CANCELLED",
-      "CANCELED",
-      "EXPIRED",
-      "REJECTED",
-      "BANK_DETAILS_CHANGED",
-    ].includes(enachPresent.status);
     const enachWaitingForUmrn =
       !enachDone &&
       [
@@ -2011,9 +2101,6 @@ setActiveSection(4);
                 required
                 options={[
                   { value: "MONTHLY", label: "Monthly" },
-                  { value: "QUARTERLY", label: "Quarterly" },
-                  { value: "HALFYEARLY", label: "Half-Yearly" },
-                  { value: "YEARLY", label: "Yearly" },
                   { value: "AS_PRESENTED", label: "As Presented" },
                 ]}
               />
@@ -2035,40 +2122,35 @@ setActiveSection(4);
             </div>
 
             <div className="ccb-action-row ccb-flow-actions">
-              {enachUrl && !enachDone && !enachFailed ? (
-                <button
-                  type="button"
-                  className="ccb-primary"
-                  disabled={loading || postAction === "ENACH"}
-                  onClick={openExistingEnach}
-                >
-                  Open eNACH Link
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="ccb-primary"
-                  disabled={
-                    loading ||
-                    postAction === "ENACH" ||
-                    !isBreApproved ||
-                    enachDone ||
-                    enachWaitingForUmrn ||
-                    isDisbursed
-                  }
-                  onClick={createEnach}
-                >
-                  {postAction === "ENACH"
-                    ? "Sending Link..."
-                    : enachFailed
-                      ? "Retry eNACH Link"
-                      : enachDone
-                        ? "eNACH UMRN Done"
-                        : enachWaitingForUmrn
-                          ? "Awaiting UMRN"
-                          : "Send eNACH Link"}
-                </button>
-              )}
+              <button
+                type="button"
+                className="ccb-primary"
+                disabled={
+                  loading ||
+                  postAction === "ENACH" ||
+                  !isBreApproved ||
+                  enachDone ||
+                  enachWaitingForUmrn ||
+                  isDisbursed
+                }
+                onClick={openMandateDialog}
+              >
+                {postAction === "ENACH"
+                  ? "Sending Link..."
+                  : enachDone
+                    ? "eNACH UMRN Done"
+                    : enachLinkAvailable
+                      ? "eNACH Link Sent"
+                      : "Send eNACH Link"}
+              </button>
+              <button
+                type="button"
+                className="ccb-secondary"
+                disabled={!enachLinkAvailable}
+                onClick={() => copyFlowLink(enachUrl, "eNACH")}
+              >
+                Copy Link
+              </button>
             </div>
           </article>
 
@@ -2096,7 +2178,6 @@ setActiveSection(4);
                   postAction === "AGREEMENT" ||
                   !isBreApproved ||
                   agreementDone ||
-                  agreement.status === "INITIATED" ||
                   isDisbursed
                 }
                 onClick={startAgreementSigning}
@@ -2105,9 +2186,17 @@ setActiveSection(4);
                   ? "Sending..."
                   : agreementDone
                     ? "Agreement Signed"
-                    : agreement.status === "INITIATED"
+                    : agreementLinkAvailable
                       ? "Awaiting eSign"
                       : "Send eSign Link"}
+              </button>
+              <button
+                type="button"
+                className="ccb-secondary"
+                disabled={!agreementLinkAvailable}
+                onClick={() => copyFlowLink(agreementUrl, "eSign")}
+              >
+                Copy Link
               </button>
             </div>
           </article>
@@ -2208,7 +2297,7 @@ setActiveSection(4);
             type="button"
             key={section}
             className={activeSection === index ? "active" : ""}
-            disabled={index > 0 && !lan}
+            disabled={(index > 0 && !lan) || (index === 4 && !isBreApproved)}
             onClick={() => setActiveSection(index)}
           >
             <span>{index + 1}</span>
@@ -2262,15 +2351,15 @@ setActiveSection(4);
             )}
           </div>
         )}
-        {activeSection === 3 && renderCoApplicants()}
+        {/* {activeSection === 3 && renderCoApplicants()} */}
         {/* {activeSection === 3 && renderDocuments()} */}
-        {activeSection === 4 && renderBank()}
+        {activeSection === 3 && renderBank()}
 
-        {breResult && (
+        {breResult && isBreApproved && activeSection === 3 && (
           <div
             className={`ccb-decision ${["Approved", "BRE Approved"].includes(caseStatus)
-                ? "approved"
-                : "rejected"
+              ? "approved"
+              : "rejected"
               }`}
           >
             <h3>BRE Decision: {caseStatus}</h3>
@@ -2286,6 +2375,8 @@ setActiveSection(4);
           </div>
         )}
 
+        {isBreApproved && activeSection === 4 && renderPostBreFlow()}
+
         <div className="ccb-navigation">
           <button
             type="button"
@@ -2295,7 +2386,7 @@ setActiveSection(4);
           >
             ← Back
           </button>
-          {activeSection < sections.length - 1 ? (
+          {activeSection < 3 ? (
             <button
               type="button"
               className="ccb-primary"
@@ -2304,7 +2395,7 @@ setActiveSection(4);
             >
               Save & Next →
             </button>
-          ) : (
+          ) : activeSection === 3 ? (
             <button
               type="button"
               className="ccb-primary ccb-submit"
@@ -2315,11 +2406,80 @@ setActiveSection(4);
                 ? `Case ${caseStatus}`
                 : "Submit Case & Run Final BRE"}
             </button>
-          )}
+          ) : null}
         </div>
       </section>
 
-      {isBreApproved && renderPostBreFlow()}
+      {mandateDialog.open && (
+        <div className="ccb-modal-backdrop" role="presentation">
+          <div className="ccb-modal" role="dialog" aria-modal="true">
+            <h2>Confirm eNACH Mandate</h2>
+            <p>
+              The mandate will be created using these currently saved bank
+              details.
+            </p>
+            <div className="ccb-flow-summary">
+              <div>
+                <span>Account Holder Name</span>
+                <strong>{mandateDialog.bank?.accountHolderName || "—"}</strong>
+              </div>
+              <div>
+                <span>Bank Name</span>
+                <strong>{mandateDialog.bank?.bankName || "—"}</strong>
+              </div>
+              <div>
+                <span>Account Number</span>
+                <strong>{mandateDialog.bank?.accountNumber || "—"}</strong>
+              </div>
+              <div>
+                <span>IFSC Code</span>
+                <strong>{mandateDialog.bank?.ifscCode || "—"}</strong>
+              </div>
+              <div>
+                <span>Branch Address</span>
+                <strong>{mandateDialog.bank?.branchAddress || "—"}</strong>
+              </div>
+              <div>
+                <span>Account Type</span>
+                <strong>{enachForm.accountType}</strong>
+              </div>
+              <div>
+                <span>Maximum Debit Amount</span>
+                <strong>{money(enachForm.maxDebitAmount)}</strong>
+              </div>
+              <div>
+                <span>Final Collection Date</span>
+                <strong>{enachForm.finalCollectionDate || "—"}</strong>
+              </div>
+              <div>
+                <span>Frequency</span>
+                <strong>{enachForm.frequency}</strong>
+              </div>
+            </div>
+            <div className="ccb-modal-actions">
+              <button
+                type="button"
+                className="ccb-secondary"
+                disabled={postAction === "ENACH"}
+                onClick={closeMandateDialog}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="ccb-primary"
+                disabled={postAction === "ENACH"}
+                onClick={() => {
+                  setMandateDialog({ open: false, bank: null });
+                  createEnach();
+                }}
+              >
+                Confirm & Send eNACH Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {otpDialog.open && (
         <div className="ccb-modal-backdrop">

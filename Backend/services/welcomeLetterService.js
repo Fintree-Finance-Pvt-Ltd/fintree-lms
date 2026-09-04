@@ -184,7 +184,12 @@ const PARTNER_ROUTES = [
     rpsTable: "manual_rps_switch_my_loan",
     tenureUnit: "days",
   },
-
+  {
+    prefix: "QML",
+    table: "loan_booking_quick_money",
+    rpsTable: "manual_rps_quick_money",
+    tenureUnit: "days",
+  },
   {
     prefix: "ZBR",
     table: "loan_booking_zebrs",

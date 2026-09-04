@@ -20,6 +20,7 @@ const forecloserRoutes = require("./routes/forecloserRoutes");
 const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const loanBookingSummaryRoutes = require("./routes/loanBookingSummaryRoutes");
 const fintreePlPartnerApiRoutes = require("./routes/fintreePlPartnerApi");
 const { initColumnSchemaCache } = require("./services/dashboardService");
 const collectionApiRoutes = require("./routes/collectionApi");
@@ -56,13 +57,20 @@ const { universalRunAllValidations } = require("./utils/runValiationsEngine");
 const {
   sendDisbursementWebhook,
 } = require("./routes/switchMyLoan/switchMyLoanWebhook");
+const{
+  sendQuickMoneyDisbursementWebhook,sendQuickMoneyRejectionWebhook
+} = require("./routes/QuickMoney/quickMoneyWebhook")
+
 const {
   sendWelcomeLetterAfterUtrUpload,
 } = require("./services/welcomeLetterService");
-const { autoApproveSevenFinCorpIfAllVerified } = require("./routes/Seven Fincorp/sevenFincorpBRE");
+const {
+  autoApproveSevenFinCorpIfAllVerified,
+} = require("./routes/Seven Fincorp/sevenFincorpBRE");
 const sterlionUblRoutes = require("./routes/SterlionUbl/sterlionUblRoutes");
 const circlePeHouserRoutes = require("./routes/CirclepeHouser/CirclepeHouserRoutes");
-
+const paymentRoutes = require("./routes/paymentRoutes");
+const quickMoneyRoutes = require("./routes/QuickMoney/quickMoneyRoutes");
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
 //   // 32 bytes = 64 characters hex string
@@ -78,6 +86,7 @@ const PORT = process.env.PORT;
 // ✅ Import jobs
 require("./jobs/dailyJobs");
 require("./jobs/rapidMoneyWebhookRetry");
+require("./jobs/quickMoneyWebhookRetry");
 
 const fs = require("fs");
 const path = require("path");
@@ -95,15 +104,9 @@ app.use(
     credentials: true,
   }),
 );
-const digitapAadhaarService = require(
-  "./services/digitapaadharservice",
-);
+const digitapAadhaarService = require("./services/digitapaadharservice");
 
-
-app.use(
-  "/api/test-kyc",
-  digitapAadhaarService.router,
-);
+app.use("/api/test-kyc", digitapAadhaarService.router);
 initScheduler();
 
 // // Auto-generate API key once when server starts
@@ -142,7 +145,7 @@ app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // �
 app.use("/api/payu", require("./services/PayuIntegration/payu.routes")); // ✅ Register PayU Routes
 app.use("/api/sterlion-ubl", sterlionUblRoutes); // ✅ Register Sterlion UBL Routes
 app.use("/api/loan-booking", circlePeHouserRoutes); // ✅ Register Circlepe Houser Routes
-
+app.use("/api/loan-booking/yaMoney", require("./routes/YaMoney/yaMoneyRoutes")); // Register Routes for Ya Money Business Loan
 app.use(
   "/api/motion-corp",
   require("./routes/MotionCorp/motionCorpDealerRoutes"),
@@ -160,6 +163,7 @@ app.use("/api/bundela", require("./routes/Bundela/bundelaDealerRoutes"));
 
 app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/loan-booking-summary", loanBookingSummaryRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
 app.use("/api/helium-webhook", heliumWebhookRoutes);
@@ -168,6 +172,8 @@ app.use(
   express.json({ limit: process.env.PL_PARTNER_JSON_LIMIT || "6mb" }),
   fintreePlPartnerApiRoutes,
 );
+
+app.use("/api/payments", paymentRoutes);
 
 function safeAuditJson(value) {
   try {
@@ -414,6 +420,8 @@ app.use(
   "/api/supply-chain",
   require("./routes/supplyChainRoutes/supplyChainRoutes"),
 ); // ✅ Register Routes for Supply Chain Loans
+
+app.use("/api/quick-money", quickMoneyRoutes);
 app.post("/api/cibil/:id/pdf", async (req, res) => {
   try {
     const doc = await generateForReport(req.params.id);
@@ -718,18 +726,12 @@ app.post("/api/universalRunAllValidations", async (req, res) => {
 //Send kyc sms
 app.post("/api/send-kyc", async (req, res) => {
   try {
-    const {
-      lan,
-      mobile_number,
-      email_id,
-      customer_name,
-    } = req.body;
+    const { lan, mobile_number, email_id, customer_name } = req.body;
 
     if (!lan || !mobile_number || !email_id || !customer_name) {
       return res.status(400).json({
         success: false,
-        message:
-          "lan, mobile_number, email_id and customer_name are required",
+        message: "lan, mobile_number, email_id and customer_name are required",
       });
     }
 
@@ -737,7 +739,7 @@ app.post("/api/send-kyc", async (req, res) => {
       lan,
       mobile_number,
       email_id,
-      customer_name
+      customer_name,
     );
 
     if (!result.success) {
@@ -878,6 +880,40 @@ app.post("/api/test-rapid-money-disbursement-webhook", async (req, res) => {
   }
 });
 
+// app.post("/api/test-quick-money-disbursement-webhook", async (req, res) => {
+//   try {
+//     const { lan, transactionId, disbursementDate } = req.body;
+
+//     if (!lan || !transactionId || !disbursementDate) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "lan, transactionId and disbursementDate are required",
+//       });
+//     }
+
+//     const result = await sendQuickMoneyDisbursementWebhook({
+//       lan,
+//       transactionId,
+//       disbursementDate,
+//     });
+
+//     return res.status(result.success ? 200 : 202).json({
+//       success: result.success,
+//       message: result.success
+//         ? "Webhook sent successfully"
+//         : "Webhook failed and is queued for retry",
+//       result,
+//     });
+//   } catch (error) {
+//     console.error("Rapid Money test webhook error:", error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// });
+
 app.get("/api/test-sms", async (req, res) => {
   try {
     await runOnce(); // queues due/overdue and sends immediately
@@ -930,3 +966,48 @@ app.listen(PORT || 5000, () => {
     console.error("[server] Dashboard schema cache init error:", err.message),
   );
 });
+
+// app.post(
+//   "/api/test-quick-money-rejection-webhook",
+//   async (req, res) => {
+//     try {
+//       const {
+//         applicationId,
+//       } = req.body;
+
+//       if (!applicationId) {
+//         return res.status(400).json({
+//           success: false,
+//           message:
+//             "applicationId is required",
+//         });
+//       }
+
+//       const result =
+//         await sendQuickMoneyRejectionWebhook({
+//           applicationId,
+//         });
+
+//       return res.status(
+//         result.success ? 200 : 202
+//       ).json({
+//         success: result.success,
+//         message: result.success
+//           ? "Rejection webhook sent successfully"
+//           : "Rejection webhook failed and is queued for retry",
+//         result,
+//       });
+
+//     } catch (error) {
+//       console.error(
+//         "Quick Money rejection webhook test error:",
+//         error,
+//       );
+
+//       return res.status(500).json({
+//         success: false,
+//         message: error.message,
+//       });
+//     }
+//   },
+// );

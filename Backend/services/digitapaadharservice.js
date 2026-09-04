@@ -216,8 +216,7 @@ router.get("/aadhaar/details/:unifiedTransactionId", async (req, res) => {
          aadhaar_api_response = ?,
          updated_at = NOW()
      WHERE lan = ?
-       AND applicant_type = 'BORROWER'
-       AND party_no = 1`,
+       AND aadhaar_transaction_id = ?`,
         [
           model.uniqueid || null,
           model.name || null,
@@ -229,6 +228,7 @@ router.get("/aadhaar/details/:unifiedTransactionId", async (req, res) => {
           JSON.stringify(apiResponse),
 
           String(lan).trim().toUpperCase(),
+          String(unifiedTransactionId).trim(),
         ],
       );
 
@@ -264,13 +264,13 @@ router.get("/aadhaar/details/:unifiedTransactionId", async (req, res) => {
        SET aadhaar_api_response = ?,
            updated_at = NOW()
        WHERE lan = ?
-         AND applicant_type = 'BORROWER'
-         AND party_no = 1`,
+         AND aadhaar_transaction_id = ?`,
         [
           JSON.stringify(providerResponse),
           String(req.query.lan || "")
             .trim()
             .toUpperCase(),
+          String(req.params.unifiedTransactionId || "").trim(),
         ],
       );
     } catch (dbError) {

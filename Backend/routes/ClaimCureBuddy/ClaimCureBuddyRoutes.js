@@ -1,6 +1,9 @@
 const express = require("express");
 const axios = require("axios");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+const PDFDocument = require("pdfkit");
 const authenticateUser = require("../../middleware/verifyToken");
 const db = require("../../config/db");
 const { getPanCardDetails } = require("../../services/pancardapiservice");
@@ -40,6 +43,7 @@ const OTP_RESEND_SECONDS = readPositiveIntegerEnv(
 );
 
 const MAX_OTP_ATTEMPTS = 5;
+const MAX_BANK_DETAIL_UPDATES = 2;
 const TERMINAL_STATUSES = new Set(["Approved", "Rejected"]);
 
 const clean = (value) => String(value ?? "").trim();
@@ -200,6 +204,7 @@ const normalizeDigioMandateFrequency = (value) => {
     aspresented: "Adhoc",
     asandwhenpresented: "Adhoc",
     adhoc: "Adhoc",
+    adho: "Adhoc",
   };
 
   return frequencyMap[normalized] || "Monthly";
@@ -453,7 +458,28 @@ const persistClaimCureBuddyCibilReport = async ({
 };
 
 const errorResponse = (res, error, fallbackMessage) => {
-  const status = Number(error.statusCode) || 500;
+  const providerPayload = error.response?.data;
+  const providerMessage = [
+    providerPayload?.message,
+    providerPayload?.error?.message,
+    providerPayload?.error,
+    providerPayload?.details?.message,
+    providerPayload?.data?.message,
+    providerPayload?.errors?.[0]?.message,
+    providerPayload?.error?.errors?.[0]?.message,
+    providerPayload?.status_message,
+  ].find((value) => typeof value === "string" && value.trim());
+  const providerCode =
+    providerPayload?.code ||
+    providerPayload?.error?.code ||
+    providerPayload?.error_code ||
+    null;
+  const status =
+    Number(error.statusCode) ||
+    (Number(error.response?.status) >= 400 && Number(error.response?.status) < 500
+      ? Number(error.response.status)
+      : 500);
+  const message = providerMessage || error.message || fallbackMessage;
 
   if (status >= 500) {
     // Do not log the complete Axios error because it contains the Basic Auth
@@ -461,18 +487,73 @@ const errorResponse = (res, error, fallbackMessage) => {
     console.error(fallbackMessage, {
       message: error.message,
       status: error.response?.status || status,
-      providerCode: error.response?.data?.code || null,
-      providerMessage: error.response?.data?.message || null,
+      providerCode,
+      providerMessage,
       providerDetails: error.response?.data?.details || null,
     });
   }
 
   return res.status(status).json({
     success: false,
-    message: status >= 500 ? fallbackMessage : error.message,
+    message,
+    ...(providerCode ? { code: providerCode } : {}),
     ...(error.missingFields ? { missingFields: error.missingFields } : {}),
     ...(error.kycErrors ? { kycErrors: error.kycErrors } : {}),
   });
+};
+
+const generateAndStorePanVerificationPdf = async ({
+  connection,
+  lan,
+  applicantType,
+  partyNo,
+  panNumber,
+  applicantName,
+  response,
+}) => {
+  const outputDirectory = path.join(
+    __dirname,
+    "../../uploads",
+  );
+  await fs.promises.mkdir(outputDirectory, { recursive: true });
+
+  const safeLan = clean(lan).replace(/[^a-zA-Z0-9_-]/g, "_");
+  const fileName = `PAN_Verification_${safeLan}_${applicantType}_${partyNo}_${Date.now()}.pdf`;
+  const filePath = path.join(outputDirectory, fileName);
+
+  await new Promise((resolve, reject) => {
+    const document = new PDFDocument({ size: "A4", margin: 48 });
+    const stream = fs.createWriteStream(filePath);
+    stream.on("finish", resolve);
+    stream.on("error", reject);
+    document.on("error", reject);
+    document.pipe(stream);
+    document.fontSize(18).font("Helvetica-Bold").text("PAN Verification Response");
+    document.moveDown();
+    document.fontSize(11).font("Helvetica");
+    document.text(`LAN: ${lan}`);
+    document.text(`Applicant: ${applicantType} ${partyNo}`);
+    document.text(`Applicant name: ${applicantName || "-"}`);
+    document.text(`PAN: ${panNumber}`);
+    document.text(`Verification status: VERIFIED`);
+    document.text(`Generated at: ${new Date().toISOString()}`);
+    document.moveDown();
+    document.font("Helvetica-Bold").text("Provider response");
+    document.moveDown(0.5);
+    document.font("Courier").fontSize(8).text(JSON.stringify(response, null, 2), {
+      width: 500,
+    });
+    document.end();
+  });
+
+  await connection.query(
+    `INSERT INTO loan_documents
+     (lan, doc_name, file_name, original_name, uploaded_at)
+     VALUES (?, 'PAN_VERIFICATION_RESPONSE', ?, ?, NOW())`,
+    [lan, fileName, fileName],
+  );
+
+  return { fileName, filePath };
 };
 
 const runClaimCureBuddyAutoDisbursement = async (options) => {
@@ -1357,10 +1438,21 @@ router.post("/pan/verify", async (req, res) => {
       );
     }
 
+    const panDocument = await generateAndStorePanVerificationPdf({
+      connection,
+      lan,
+      applicantType,
+      partyNo,
+      panNumber,
+      applicantName: profile.customerName,
+      response: panResult?.response ?? panResult,
+    });
+
     return res.json({
       success: true,
       message: "PAN verified",
       data: profile,
+      document: panDocument,
     });
   } catch (error) {
     return errorResponse(res, error, "PAN verification failed");
@@ -2337,10 +2429,19 @@ router.patch("/loan-booking/:lan/bank-details", async (req, res) => {
 
     const ifsc = upper(data.ifscCode);
 
-    if (!isIfsc(ifsc) || !/^\d{6,20}$/.test(clean(data.accountNumber))) {
+    if (!/^\d{6,20}$/.test(clean(data.accountNumber))) {
       return res.status(400).json({
         success: false,
-        message: "Valid account number and IFSC are required",
+        code: "INVALID_ACCOUNT_NUMBER",
+        message: "Invalid bank account number. Enter 6 to 20 digits.",
+      });
+    }
+
+    if (!isIfsc(ifsc)) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_IFSC",
+        message: "Invalid IFSC. Use the 11-character format, for example HDFC0001234.",
       });
     }
 
@@ -2348,6 +2449,23 @@ router.patch("/loan-booking/:lan/bank-details", async (req, res) => {
     const loan = await getLoan(connection, lan);
 
     assertEditable(loan);
+
+    const isChangingPreviouslySavedBank =
+      Boolean(clean(loan.customer_account_number) || clean(loan.bank_ifsc_code)) &&
+      (clean(loan.customer_name_as_per_bank) !== clean(data.accountHolderName) ||
+        clean(loan.customer_bank_name) !== clean(data.bankName) ||
+        clean(loan.customer_account_number) !== clean(data.accountNumber) ||
+        upper(loan.bank_ifsc_code) !== ifsc ||
+        clean(loan.bank_branch_address) !== clean(data.branchAddress));
+
+    if (isChangingPreviouslySavedBank) {
+      return res.status(409).json({
+        success: false,
+        code: "USE_CONTROLLED_BANK_UPDATE",
+        message:
+          "Save the bank-detail change first. A maximum of 2 changes is allowed before eNACH.",
+      });
+    }
 
     await connection.query(
       `UPDATE loan_booking_claim_cure_buddy
@@ -3336,7 +3454,8 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
          umrn,
          auth_url,
          account_no,
-         ifsc
+         ifsc,
+         updated_at
        FROM enach_mandates
        WHERE lan = ?
        ORDER BY
@@ -3387,12 +3506,17 @@ router.post("/loan-booking/:lan/enach", async (req, res) => {
       clean(existingMandate?.account_no) ===
         clean(loan.customer_account_number) &&
       upper(existingMandate?.ifsc) === upper(loan.bank_ifsc_code);
+    const existingLinkCreatedAt = new Date(existingMandate?.updated_at || 0);
+    const existingLinkIsFresh =
+      !Number.isNaN(existingLinkCreatedAt.getTime()) &&
+      Date.now() - existingLinkCreatedAt.getTime() < 15 * 60 * 1000;
 
     if (
       existingMandate &&
       mandateBankDetailsMatch &&
       !retryableMandateStatuses.has(existingStatus) &&
-      (clean(existingMandate.umrn) || normalizeNachAuthUrl(existingMandate.auth_url))
+      (clean(existingMandate.umrn) ||
+        (normalizeNachAuthUrl(existingMandate.auth_url) && existingLinkIsFresh))
     ) {
       const responseData = buildMandateResponse({
         documentId: existingMandate.document_id,
@@ -3986,7 +4110,7 @@ router.get("/loan-booking/:lan", async (req, res) => {
       });
     }
 
-    const [coApplicants, kyc, mandates, transfers] = await Promise.all([
+    const [coApplicants, kyc, mandates, transfers, esignDocuments] = await Promise.all([
       pool.query(
         `SELECT *
              FROM claim_cure_buddy_co_applicants
@@ -4031,6 +4155,8 @@ router.get("/loan-booking/:lan", async (req, res) => {
            updated_at
          FROM enach_mandates
          WHERE lan = ?
+           AND TRIM(COALESCE(account_no, '')) = ?
+           AND UPPER(TRIM(COALESCE(ifsc, ''))) = ?
          ORDER BY
            CASE
              WHEN umrn IS NOT NULL
@@ -4055,7 +4181,11 @@ router.get("/loan-booking/:lan", async (req, res) => {
            END,
            id DESC
          LIMIT 1`,
-        [lan],
+        [
+          lan,
+          clean(loan.customer_account_number),
+          upper(loan.bank_ifsc_code),
+        ],
       ),
       pool.query(
         `SELECT
@@ -4074,10 +4204,21 @@ router.get("/loan-booking/:lan", async (req, res) => {
          LIMIT 1`,
         [lan],
       ),
+      pool.query(
+        `SELECT raw_response, created_at
+         FROM esign_documents
+         WHERE lan = ?
+           AND document_type = 'AGREEMENT'
+         ORDER BY id DESC
+         LIMIT 1`,
+        [lan],
+      ),
     ]);
 
     const mandate = mandates[0][0] || null;
     const transfer = transfers[0][0] || null;
+    const agreementDocument = esignDocuments[0][0] || null;
+    const agreementResponse = parseMaybeJson(agreementDocument?.raw_response) || {};
 
     return res.json({
       success: true,
@@ -4141,6 +4282,19 @@ router.get("/loan-booking/:lan", async (req, res) => {
               updatedAt: transfer.updated_at,
             }
           : null,
+        agreement: {
+          signUrl: agreementResponse.sign_url || null,
+          createdAt: agreementDocument?.created_at || null,
+        },
+        bankUpdates: {
+          used: Number(loan.bank_details_update_count || 0),
+          limit: MAX_BANK_DETAIL_UPDATES,
+          remaining: Math.max(
+            0,
+            MAX_BANK_DETAIL_UPDATES - Number(loan.bank_details_update_count || 0),
+          ),
+          updatedAt: loan.bank_details_updated_at || null,
+        },
       },
     });
   } catch (error) {
@@ -4335,6 +4489,31 @@ router.patch("/loan-booking/:lan/update-bank-details", async (req, res) => {
       branchAddress,
     } = req.body;
 
+    requireFields(
+      req.body || {},
+      ["accountHolderName", "bankName", "accountNumber", "ifscCode", "branchAddress"],
+      "bank",
+    );
+
+    const normalizedAccountNumber = clean(accountNumber);
+    const normalizedIfsc = upper(ifscCode);
+
+    if (!/^\d{6,20}$/.test(normalizedAccountNumber)) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_ACCOUNT_NUMBER",
+        message: "Invalid bank account number. Enter 6 to 20 digits.",
+      });
+    }
+
+    if (!isIfsc(normalizedIfsc)) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_IFSC",
+        message: "Invalid IFSC. Use the 11-character format, for example HDFC0001234.",
+      });
+    }
+
     await connection.beginTransaction();
 
     const loan = await getLoan(connection, lan, { lock: true });
@@ -4345,11 +4524,44 @@ router.patch("/loan-booking/:lan/update-bank-details", async (req, res) => {
       throw error;
     }
 
-    const normalizedAccountNumber = clean(accountNumber);
-    const normalizedIfsc = upper(ifscCode);
     const bankDetailsChanged =
+      clean(loan.customer_name_as_per_bank) !== clean(accountHolderName) ||
+      clean(loan.customer_bank_name) !== clean(bankName) ||
       clean(loan.customer_account_number) !== normalizedAccountNumber ||
-      upper(loan.bank_ifsc_code) !== normalizedIfsc;
+      upper(loan.bank_ifsc_code) !== normalizedIfsc ||
+      clean(loan.bank_branch_address) !== clean(branchAddress);
+    const hasSavedBankDetails = Boolean(
+      clean(loan.customer_account_number) || clean(loan.bank_ifsc_code),
+    );
+    const countsAsBankUpdate = bankDetailsChanged && hasSavedBankDetails;
+
+    const [[existingMandate]] = await connection.query(
+      `SELECT id, status, umrn
+       FROM enach_mandates
+       WHERE lan = ?
+       ORDER BY id DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [lan],
+    );
+
+    if (bankDetailsChanged && existingMandate) {
+      const error = new Error(
+        "Bank details cannot be changed after eNACH has been initiated.",
+      );
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const bankUpdateCount = Number(loan.bank_details_update_count || 0);
+
+    if (countsAsBankUpdate && bankUpdateCount >= MAX_BANK_DETAIL_UPDATES) {
+      const error = new Error(
+        "Bank details can be changed only 2 times before eNACH.",
+      );
+      error.statusCode = 409;
+      throw error;
+    }
 
     await connection.query(
       `UPDATE loan_booking_claim_cure_buddy
@@ -4359,6 +4571,9 @@ router.patch("/loan-booking/:lan/update-bank-details", async (req, res) => {
         customer_account_number = ?,
         bank_ifsc_code = ?,
         bank_branch_address = ?,
+        bank_details_update_count = bank_details_update_count + ?,
+        bank_details_updated_at =
+          CASE WHEN ? = 1 THEN NOW() ELSE bank_details_updated_at END,
         updated_by = ?,
         updated_at = NOW()
        WHERE lan = ?`,
@@ -4368,40 +4583,24 @@ router.patch("/loan-booking/:lan/update-bank-details", async (req, res) => {
         normalizedAccountNumber,
         normalizedIfsc,
         clean(branchAddress),
+        countsAsBankUpdate ? 1 : 0,
+        countsAsBankUpdate ? 1 : 0,
         actorId(req),
         lan,
       ]
     );
-
-    if (bankDetailsChanged) {
-      await connection.query(
-        `UPDATE enach_mandates
-         SET status = 'BANK_DETAILS_CHANGED'
-         WHERE lan = ?
-           AND (umrn IS NULL OR TRIM(umrn) = '')
-           AND UPPER(COALESCE(status, '')) NOT IN (
-             'ACTIVE',
-             'SUCCESS',
-             'REGISTERED',
-             'AUTH_SUCCESS',
-             'AUTHSUCCESS',
-             'AUTHORIZED',
-             'AUTHORISED',
-             'APPROVED',
-             'COMPLETED'
-           )`,
-        [lan],
-      );
-    }
 
     await connection.commit();
 
     res.json({
       success: true,
       message: bankDetailsChanged
-        ? "Bank details updated. Create a new eNACH link for this account."
+        ? "Bank details updated successfully."
         : "Bank details updated successfully",
       bankDetailsChanged,
+      bankUpdateCount: bankUpdateCount + (countsAsBankUpdate ? 1 : 0),
+      bankUpdatesRemaining:
+        MAX_BANK_DETAIL_UPDATES - bankUpdateCount - (countsAsBankUpdate ? 1 : 0),
     });
 
   } catch(error) {
@@ -4420,18 +4619,16 @@ router.patch("/loan-booking/:lan/update-bank-details", async (req, res) => {
 
 router.post("/loan-booking/:lan/generate-pan-document", async(req,res)=>{
   try {
-    const {lan} = req.params;
-
-    const [kyc] = await db.query(
-      `
-      SELECT *
-      FROM kyc_verifications
-      WHERE lan = ?
-      AND verification_type = 'PAN'
-      ORDER BY id DESC
-      LIMIT 1
-      `,
-      [lan]
+    const lan = upper(req.params.lan);
+    const connection = db.promise();
+    const [kyc] = await connection.query(
+      `SELECT applicant_type, party_no, pan_number, applicant_name,
+              pan_status, pan_api_response
+       FROM kyc_verification_status
+       WHERE lan = ? AND pan_status = 'VERIFIED'
+       ORDER BY party_no
+       LIMIT 1`,
+      [lan],
     );
 
     if(!kyc.length){
@@ -4440,30 +4637,21 @@ router.post("/loan-booking/:lan/generate-pan-document", async(req,res)=>{
       });
     }
 
-    const filePath = await generatePanPdf(kyc[0]);
-
-    await db.query(
-      `
-      INSERT INTO documents
-      (
-        lan,
-        document_type,
-        file_path,
-        uploaded_by
-      )
-      VALUES(?,?,?,?)
-      `,
-      [
-        lan,
-        "PAN_VERIFICATION_RESPONSE",
-        filePath,
-        "SYSTEM"
-      ]
-    );
+    const row = kyc[0];
+    const document = await generateAndStorePanVerificationPdf({
+      connection,
+      lan,
+      applicantType: row.applicant_type,
+      partyNo: row.party_no,
+      panNumber: row.pan_number,
+      applicantName: row.applicant_name,
+      response: parseMaybeJson(row.pan_api_response) || row.pan_api_response,
+    });
 
     res.json({
       success:true,
-      message:"PAN document generated"
+      message:"PAN document generated",
+      document,
     });
 
   } catch(error) {

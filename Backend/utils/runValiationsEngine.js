@@ -223,12 +223,12 @@ async function runApplicantValidation({
     //   currentStatus.aadhaar_kyc_url ||
     //   currentStatus.aadhaar_unique_id;
     const hasExistingAadhaarSession =
-  currentAadhaarStatus === "INITIATED" &&
-  Boolean(
-    currentStatus.aadhaar_transaction_id ||
-      currentStatus.aadhaar_kyc_url ||
-      currentStatus.aadhaar_unique_id,
-  );
+      currentAadhaarStatus === "INITIATED" &&
+      Boolean(
+        currentStatus.aadhaar_transaction_id ||
+        currentStatus.aadhaar_kyc_url ||
+        currentStatus.aadhaar_unique_id,
+      );
 
     if (
       runAadhaarValidation &&
@@ -811,7 +811,7 @@ exports.universalRunAllValidations = async (lan, options = {}) => {
       console.log(`✅ Seven FinCorp BRE finished for ${lan}`);
     }
 
-    if (lan.startsWith("SBU")) {
+    if (lan.startsWith("SBU") || lan.startsWith("BUNCL")) {
       console.log(`🚀 Running Bundela BRE for ${lan}`);
       await autoApproveBundelaIfAllVerified(lan);
       console.log(`✅ Bundela BRE finished for ${lan}`);

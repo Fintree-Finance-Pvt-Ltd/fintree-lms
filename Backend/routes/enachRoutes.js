@@ -25,6 +25,7 @@ const LOAN_TABLES = [
   "loan_booking_helium",
   "loan_booking_clayyo",
   "loan_booking_motion_corp",
+  "loan_booking_sampada",
   "loan_booking_zypay_customer",
 ];
 
@@ -104,6 +105,15 @@ async function updateLoanTables({
           "bank_ifsc_code",
       },
     },
+    {
+      table: "loan_booking_sampada",
+      fields: {
+        bank_name: "customer_bank_name",
+        beneficiary_name: "customer_name_as_per_bank",
+        account_no: "customer_account_number",
+        ifsc: "bank_ifsc_code",
+      },
+    },
   ];
 
   await Promise.all(
@@ -162,10 +172,14 @@ const normalizeMandateFrequency = (value) => {
     annually: "Yearly",
     weekly: "Weekly",
     daily: "Daily",
+    adhoc: "Adhoc",
+    adho: "Adhoc",
     asandwhenpresented:
-      "As and when presented",
+      "Adhoc",
     "as-and-when-presented":
-      "As and when presented",
+      "Adhoc",
+    "as and when presented":
+      "Adhoc",
   };
 
   return (

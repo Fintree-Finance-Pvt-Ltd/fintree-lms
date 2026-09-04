@@ -80,6 +80,7 @@ import GQFsfApproveInitiateScreen from "./components/GQFsfApproveInitiateScreen"
 import AdikoshApproveInitiateScreen from "./components/AdikoshApproveInitiateScreen";
 import EVApproveInitiateScreen from "./components/EVApproveInitiateScreen";
 import ProductsDashboard from "./components/ProductsDashboard";
+import LoanBookingLenderSummary from "./components/LoanBookingLenderSummary";
 import EmiClubApprovedLoans from "./components/EmiClubApprovedLoans";
 import EmiClubDisbursedLoans from "./components/EmiClubDisbursedLoans";
 import EmiClubAllLoans from "./components/EmiClubAllLoans";
@@ -187,6 +188,11 @@ import RapidMoneyAllLoans from "./components/RapidMoney/RapidMoneyAllLoans";
 import RapidMoneyLoginLoans from "./components/RapidMoney/RapidMoneyLoginLoans";
 import RapidMoneyActionScreen from "./components/RapidMoney/RapidMoneyActionScreen";
 import RapidMoneyApproveInitiateScreen from "./components/RapidMoney/RapidMoneyApproveInitiateScreen";
+import YaMoneyAllLoans from "./components/YaMoney/YaMoneyAllLoans";
+import YaMoneyCreditTeamScreen from "./components/YaMoney/CreditTeam";
+import YaMoneyOpsMakerScreen from "./components/YaMoney/OpsMaker";
+import YaMoneyOpsCheckerScreen from "./components/YaMoney/OpsChecker.jsx";
+import YaMoneyDisbursedLoans from "./components/YaMoney/Disbursed";
 import RetentionRelease from "./components/RetentionRelease";
 import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpLoanBooking";
 import MotionCorpAllLoans from "./components/Motion Corp/motionCorpAllLoans";
@@ -263,7 +269,6 @@ import ClaimCureBuddyDetails from "./components/ClaimCureBuddy/ClaimCureBuddyDet
 import ClaimCureBuddyAllLoans from "./components/ClaimCureBuddy/ClaimCureBuddyAllLoans.jsx";
 import ClaimCureBuddyDisbursedLoans from "./components/ClaimCureBuddy/ClaimCureBuddyDisbursedLoans.jsx";
 
-
 import LoanDigitCollectionScreen from "./components/Loan Digit/LoanDigitCollectionScreen";
 import ClayooVimleshScreen from "./components/Clayoo/ClayooVimleshScreen";
 import MotionCorpUpdateData from "./components/Motion Corp/MotionCorpUpdateData.jsx";
@@ -296,6 +301,12 @@ import SterlionMexonDexonAllLoans from "./components/SterlionMexonDexon/Sterlion
 import SterlionMexonDexonInvoiceUpload from "./components/SterlionMexonDexon/SterlionMexonDexonInvoiceUpload.jsx";
 import SterlionMexonDexonCollectionUpload from "./components/SterlionMexonDexon/SterlionMexonDexonCollectionUpload.jsx";
 import SterlionMexonDexonAllInvoices from "./components/SterlionMexonDexon/SterlionMexonDexonAllInvoice.jsx";
+import QMLAllLoans from "./components/QuickMoney/QMLAllLoans.jsx";
+import QMLDisburseInitiate from "./components/QuickMoney/QMLDisburseInitiate.jsx";
+import QMLLoginloans from "./components/QuickMoney/QMLLoginLoans.jsx";
+import SaswatAllLoans from "./components/Saswat/SaswatAllLoans.jsx";
+import SaswatApprovedLoans from "./components/Saswat/SaswatApprovedLoans.jsx";
+import SaswatDisbursedLoans from "./components/Saswat/SaswatDisbursedLoans.jsx";
 
 function App() {
   return (
@@ -435,6 +446,14 @@ function App() {
             element={
               <PermissionRoute pageName="Download Excel Templates">
                 <DownloadExcelTemplates />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/loan-booking-lender-summary"
+            element={
+              <PermissionRoute pageName="Lender POS Summary">
+                <LoanBookingLenderSummary />
               </PermissionRoute>
             }
           />
@@ -1614,6 +1633,46 @@ function App() {
             }
           />
           <Route
+            path="/ya-money/all"
+            element={
+              <PermissionRoute pageName="Ya Money All Loans">
+                <YaMoneyAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/credit-team"
+            element={
+              <PermissionRoute pageName="Ya Money Credit Team Screen">
+                <YaMoneyCreditTeamScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/ops-maker"
+            element={
+              <PermissionRoute pageName="Ya Money Ops Maker">
+                <YaMoneyOpsMakerScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/ops-checker"
+            element={
+              <PermissionRoute pageName="Ya Money Ops Checker">
+                <YaMoneyOpsCheckerScreen />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/disbursed"
+            element={
+              <PermissionRoute pageName="Ya Money Disbursed Loans">
+                <YaMoneyDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="/sml-loans/disburse-initiate"
             element={
               <PermissionRoute pageName="Switch my loan Disburse Initiate">
@@ -1634,6 +1693,31 @@ function App() {
             element={
               <PermissionRoute pageName="Switch my loan All loans">
                 <SMLAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+            <Route
+            path="/qml-loans/all-loans"
+            element={
+              <PermissionRoute pageName="Quick Money All loans">
+                <QMLAllLoans />
+              </PermissionRoute>
+            }
+          />
+           <Route
+            path="/qml-loans/disburse-initiate"
+            element={
+              <PermissionRoute pageName="Quick Money Disburse Initiate">
+                <QMLDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/qml-loans/login-loans"
+            element={
+              <PermissionRoute pageName="Quick Money Login loans">
+                <QMLLoginloans />
               </PermissionRoute>
             }
           />
@@ -1830,18 +1914,98 @@ function App() {
           />
 
           {/* Sampada routes mirror the Motion Corp workflow. */}
-          <Route path="/sampada/dealer-entry" element={<PermissionRoute pageName="Sampada Dealer Entry"><SampadaDealerEntry /></PermissionRoute>} />
-          <Route path="/sampada/dealer-lists" element={<PermissionRoute pageName="Sampada Dealer Lists"><SampadaDealerLists /></PermissionRoute>} />
-          <Route path="/sampada/dealer-login-actions" element={<PermissionRoute pageName="Sampada Dealer Credit Approval List"><SampadaDealerLoginActions /></PermissionRoute>} />
-          <Route path="/sampada/dealer-details/:lan" element={<SampadaDealerDetails />} />
-          <Route path="/sampada/loan-booking" element={<PermissionRoute pageName="Sampada Loan Booking"><SampadaLoanBooking /></PermissionRoute>} />
-          <Route path="/sampada/updatedata" element={<PermissionRoute pageName="Sampada Update Data"><SampadaUpdateData /></PermissionRoute>} />
-          <Route path="/sampada/all-loans" element={<PermissionRoute pageName="Sampada Customer All Cases Screen"><SampadaAllLoans /></PermissionRoute>} />
-          <Route path="/sampada/login-cases" element={<PermissionRoute pageName="Sampada Customer Login Cases Screen"><SampadaLoginCases /></PermissionRoute>} />
-          <Route path="/sampada/credit-initiated-cases" element={<PermissionRoute pageName="Sampada Customer Credit Initiated Cases Screen"><SampadaDisburseInitiate /></PermissionRoute>} />
-          <Route path="/sampada/credit-approved-cases" element={<PermissionRoute pageName="Sampada Customer Credit Approved Cases Screen"><SampadaApprovedLoans /></PermissionRoute>} />
-          <Route path="/sampada/operation-approval-cases" element={<PermissionRoute pageName="Sampada Customer Operation Approval Cases Screen"><SampadaOperationApproval /></PermissionRoute>} />
-          <Route path="/sampada/customer-details" element={<PermissionRoute pageName="Sampada Customer Details"><SampadaDetails /></PermissionRoute>} />
+          <Route
+            path="/sampada/dealer-entry"
+            element={
+              <PermissionRoute pageName="Sampada Dealer Entry">
+                <SampadaDealerEntry />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/dealer-lists"
+            element={
+              <PermissionRoute pageName="Sampada Dealer Lists">
+                <SampadaDealerLists />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/dealer-login-actions"
+            element={
+              <PermissionRoute pageName="Sampada Dealer Credit Approval List">
+                <SampadaDealerLoginActions />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/dealer-details/:lan"
+            element={<SampadaDealerDetails />}
+          />
+          <Route
+            path="/sampada/loan-booking"
+            element={
+              <PermissionRoute pageName="Sampada Loan Booking">
+                <SampadaLoanBooking />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/updatedata"
+            element={
+              <PermissionRoute pageName="Sampada Update Data">
+                <SampadaUpdateData />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/all-loans"
+            element={
+              <PermissionRoute pageName="Sampada Customer All Cases Screen">
+                <SampadaAllLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/login-cases"
+            element={
+              <PermissionRoute pageName="Sampada Customer Login Cases Screen">
+                <SampadaLoginCases />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/credit-initiated-cases"
+            element={
+              <PermissionRoute pageName="Sampada Customer Credit Initiated Cases Screen">
+                <SampadaDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/credit-approved-cases"
+            element={
+              <PermissionRoute pageName="Sampada Customer Credit Approved Cases Screen">
+                <SampadaApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/operation-approval-cases"
+            element={
+              <PermissionRoute pageName="Sampada Customer Operation Approval Cases Screen">
+                <SampadaOperationApproval />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/sampada/customer-details"
+            element={
+              <PermissionRoute pageName="Sampada Customer Details">
+                <SampadaDetails />
+              </PermissionRoute>
+            }
+          />
 
           <Route
             path="/fundify-loans/manual-entry"
@@ -2017,10 +2181,6 @@ function App() {
               <ClaimCureBuddyLoanBooking />
               // {/* </PermissionRoute> */}
             }
-
-
-
-
           />
 
           <Route
@@ -2384,6 +2544,33 @@ function App() {
             }
           />
 
+
+          <Route
+            path="/saswat/approved-loans"
+            element={
+              <PermissionRoute pageName="Saswat Approved Loans">
+                <SaswatApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/saswat/disbursed-loans"
+            element={
+              <PermissionRoute pageName="Saswat Disbursed Loans">
+                <SaswatDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/saswat/all-loans"
+            element={
+              <PermissionRoute pageName="Saswat All Loans">
+                <SaswatAllLoans/>
+              </PermissionRoute>
+            }
+          />
+        
+ 
           {/* Protected Layout parent yahan close hoga */}
         </Route>
 
@@ -2398,7 +2585,6 @@ function App() {
   }
 />
 */}
-
       </Routes>
     </Router>
   );

@@ -1,4 +1,3 @@
-////////////////////////
 const express = require("express");
 const axios = require("axios");
 const db = require("../../config/db");
@@ -88,148 +87,6 @@ const numberOrNull = (value) => {
   const num = Number(value);
   return Number.isNaN(num) ? null : num;
 };
-
-/*
-====================================================
-CREATE DEALER + MULTIPLE PRODUCTS
-====================================================
-*/
-// router.post("/dealer/create", async (req, res) => {
-//   let connection;
-//   try {
-//     const data = req.body;
-
-//     if (!data.business_name?.trim()) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Business name is required",
-//       });
-//     }
-
-//     if (!data.owner_name?.trim()) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Owner name is required",
-//       });
-//     }
-
-//     connection = await db.promise().getConnection();
-//     await connection.beginTransaction();
-
-//     const { lan, application_id } =
-//       await generateLoanIdentifiers("SAMPADA_DEALER");
-
-//     const dealerQuery = `
-//       INSERT INTO sampada_dealer_booking
-//       (
-//         application_id, lan, dealer_id,
-//         business_name, trade_name, business_type,
-//         pan_number, gst_number,
-//         owner_name, owner_mobile, owner_email,
-//         showroom_address, city, state, pincode,
-//         bank_name, branch_name, account_holder_name, account_number, ifsc_code,
-//         status, created_at, login_date
-//       )
-//       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'ACTIVE',NOW(),CURDATE())
-//     `;
-
-//     const dealerValues = [
-//       application_id,
-//       lan,
-//       lan,
-
-//       data.business_name.trim(),
-//       data.trade_name?.trim() || null,
-//       data.business_type?.trim() || null,
-
-//       data.pan_number?.trim().toUpperCase() || null,
-//       data.gst_number?.trim().toUpperCase() || null,
-
-//       data.owner_name.trim(),
-//       data.owner_mobile ? String(data.owner_mobile).trim() : null,
-//       data.owner_email?.trim().toLowerCase() || null,
-
-//       data.showroom_address?.trim() || null,
-//       data.city?.trim() || null,
-//       data.state?.trim() || null,
-//       data.pincode ? String(data.pincode).trim() : null,
-
-//       data.bank_name?.trim() || null,
-//       data.branch_name?.trim() || null,
-//       data.account_holder_name?.trim() || null,
-//       data.account_number ? String(data.account_number).trim() : null,
-//       data.ifsc_code?.trim().toUpperCase() || null,
-//     ];
-
-//     await connection.query(dealerQuery, dealerValues);
-
-//     /*
-//     ============================
-//     INSERT MULTIPLE PRODUCTS
-//     ============================
-//     */
-//     if (Array.isArray(data.products) && data.products.length > 0) {
-//       const productQuery = `
-//         INSERT INTO sampada_dealer_products
-//         (application_id, battery_type, battery_name, e_rickshaw_model, e_rickshaw_model_price)
-//         VALUES ?
-//       `;
-
-//       const productValues = data.products.map((p) => [
-//         application_id,
-//         p.battery_type || null,
-//         p.battery_name || null,
-//         p.e_rickshaw_model || null,
-//         p.price ?? null,
-//       ]);
-
-//       await connection.query(productQuery, [productValues]);
-//     }
-
-//     await connection.commit();
-//     return res.status(201).json({
-//       success: true,
-//       message: "Dealer and products created successfully",
-//       data: {
-//         application_id,
-//         lan,
-//         dealer_id: lan,
-//       },
-//     });
-//   } catch (err) {
-//     if (connection) {
-//       await connection.rollback();
-//     }
-
-//     console.error("Dealer creation error:", {
-//   message: err.message,
-//   code: err.code,
-//   errno: err.errno,
-//   sqlState: err.sqlState,
-//   sqlMessage: err.sqlMessage,
-//   sql: err.sql,
-//   stack: err.stack,
-// });
-
-//     if (err.code === "ER_DUP_ENTRY") {
-//       return res.status(409).json({
-//         success: false,
-//         message: "Duplicate dealer information found",
-//         error: err.message,
-//       });
-//     }
-
-//     return res.status(500).json({
-//       success: false,
-//       message: "Dealer creation failed",
-//       error: err.message,
-//     });
-//   } finally {
-//     if (connection) {
-//       connection.release();
-//     }
-//   }
-// });
 
 router.post("/dealer/create", async (req, res) => {
   let connection;
@@ -410,11 +267,6 @@ router.post("/dealer/create", async (req, res) => {
     }
   }
 });
-/*
-====================================================
-PRODUCT APIs
-====================================================
-*/
 
 // ➕ Add Product
 router.post("/dealer/product/add", async (req, res) => {
@@ -743,329 +595,6 @@ router.patch("/dealer/status/:lan", async (req, res) => {
   }
 });
 
-// router.post("/upload/ev-customer-manual", async (req, res) => {
-//   const connection = await db.promise().getConnection();
-
-//   try {
-//     const data = req.body;
-//     console.log("Received loan booking data:", data);
-
-//     const [borrowerOtp] = await connection.query(
-//       `
-//   SELECT *
-//   FROM otp_consent_model
-//   WHERE mobile_number = ?
-//   AND applicant_type = ?
-//   AND verified = 1
-//   AND is_used = 0
-//   ORDER BY id DESC
-//   LIMIT 1
-//   `,
-//       [data.Mobile_Number, "BORROWER"],
-//     );
-
-//     if (!borrowerOtp.length) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Borrower mobile not verified",
-//       });
-//     }
-
-//     const [guarantorOtp] = await connection.query(
-//       `     SELECT *
-//     FROM otp_consent_model
-//     WHERE mobile_number = ?
-//     AND applicant_type = 'GUARANTOR'
-//     AND verified = 1
-//     AND is_used = 0
-//     ORDER BY id DESC
-//     LIMIT 1
-//     `,
-//       [data.GURANTOR_MOBILE],
-//     );
-
-//     if (!guarantorOtp.length) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Guarantor mobile not verified",
-//       });
-//     }
-
-//     if (data.Co_Applicant) {
-//       const [coApplicantOtp] = await connection.query(
-//         `       SELECT *
-//       FROM otp_consent_model
-//       WHERE mobile_number = ?
-//       AND applicant_type =
-//       'CO_APPLICANT'
-//       AND verified = 1
-//       AND is_used = 0
-//       ORDER BY id DESC
-//       LIMIT 1
-//       `,
-//         [data.Co_Applicant_Mobile],
-//       );
-
-//       if (!coApplicantOtp.length) {
-//         return res.status(400).json({
-//           success: false,
-//           message: "Co-applicant mobile not verified",
-//         });
-//       }
-//     }
-
-//     const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
-//       "SAMPADA_CUSTOMER",
-//     );
-
-//     await connection.beginTransaction();
-
-//     const values = [
-//       emptyToNull(data.lenderType),
-//       emptyToNull(data.lender),
-//       emptyToNull(data.product),
-//       emptyToNull(data.status),
-//       cust_partner_loan_id,
-//       cust_lan,
-
-//       emptyToNull(data.LOGIN_DATE),
-//       emptyToNull(data.First_Name),
-//       emptyToNull(data.Last_Name),
-//       emptyToNull(data.Customer_Name),
-//       emptyToNull(data.Borrower_DOB),
-//       emptyToNull(data.Father_Name),
-//       emptyToNull(data.Mobile_Number),
-//       emptyToNull(data.Email),
-//       emptyToNull(data.Pan_Card),
-//       emptyToNull(data.Gender),
-
-//       emptyToNull(data.Address_Line_1),
-//       emptyToNull(data.Address_Line_2),
-//       emptyToNull(data.Village),
-//       emptyToNull(data.District),
-//       emptyToNull(data.State),
-//       emptyToNull(data.Pincode),
-
-//       numberOrNull(data.Loan_Amount),
-//       numberOrNull(data.Interest_Rate),
-//       numberOrNull(data.Tenure),
-//       numberOrNull(data.Disbursal_Amount),
-//       numberOrNull(data.Processing_Fee),
-//       numberOrNull(data.Processing_Fee_Percentage),
-
-//       emptyToNull(data.GURANTOR),
-//       emptyToNull(data.GURANTOR_DOB),
-//       emptyToNull(data.GURANTOR_EMAIL),
-//       emptyToNull(data.GURANTOR_PAN),
-//       emptyToNull(data.GURANTOR_MOBILE),
-//       emptyToNull(data.Relationship_with_Borrower),
-//       emptyToNull(data.GURANTOR_Address_Line_1),
-//       emptyToNull(data.GURANTOR_Address_Line_2),
-//       emptyToNull(data.GURANTOR_Village),
-//       emptyToNull(data.GURANTOR_District),
-//       emptyToNull(data.GURANTOR_State),
-//       emptyToNull(data.GURANTOR_Pincode),
-
-//       emptyToNull(data.Co_Applicant),
-//       emptyToNull(data.Co_Applicant_DOB),
-//       emptyToNull(data.Co_Applicant_Email),
-//       emptyToNull(data.Co_Applicant_PAN),
-//       emptyToNull(data.Co_Applicant_Mobile),
-//       emptyToNull(data.Co_Applicant_Address_Line_1),
-//       emptyToNull(data.Co_Applicant_Address_Line_2),
-//       emptyToNull(data.Co_Applicant_Village),
-//       emptyToNull(data.Co_Applicant_District),
-//       emptyToNull(data.Co_Applicant_State),
-//       emptyToNull(data.Co_Applicant_Pincode),
-
-//       emptyToNull(data.customer_name_as_per_bank),
-//       emptyToNull(data.customer_bank_name),
-//       emptyToNull(data.customer_account_number),
-//       emptyToNull(data.bank_ifsc_code),
-
-//       emptyToNull(data.selected_dealer_application_id),
-//       emptyToNull(data.dealer_id),
-//       emptyToNull(data.trade_name),
-//       emptyToNull(data.dealer_name),
-//       emptyToNull(data.dealer_contact),
-//       emptyToNull(data.dealer_email),
-//       emptyToNull(data.gst_no),
-//       emptyToNull(data.pan_number),
-//       emptyToNull(data.dealer_address),
-//       emptyToNull(data.dealer_city),
-//       emptyToNull(data.dealer_state),
-//       emptyToNull(data.dealer_pincode),
-
-//       emptyToNull(data.bank_name),
-//       emptyToNull(data.account_number),
-//       emptyToNull(data.ifsc),
-//       emptyToNull(data.name_in_bank),
-
-//       numberOrNull(data.selected_product_id),
-//       emptyToNull(data.Battery_Name),
-//       emptyToNull(data.Battery_Type),
-//       emptyToNull(data.Battery_Serial_no_1),
-//       emptyToNull(data.Battery_Serial_no_2),
-//       emptyToNull(data.E_Rikshaw_model),
-//       emptyToNull(data.Chassis_no),
-//       data.borrower_mobile_verified || 0,
-//       data.guarantor_mobile_verified || 0,
-//       data.co_applicant_mobile_verified || 0,
-//     ];
-
-//     const insertQuery = `
-//       INSERT INTO loan_booking_sampada (
-//         lender_type,
-//         lender,
-//         product,
-//         status,
-//         partner_loan_id,
-//         lan,
-
-//         login_date,
-//         first_name,
-//         last_name,
-//         customer_name,
-//         dob,
-//         father_name,
-//         mobile_number,
-//         email,
-//         pan_card,
-//         gender,
-
-//         permanent_address_line_1,
-//         permanent_address_line_2,
-//         permanent_village_city,
-//         permanent_district,
-//         permanent_state,
-//         permanent_pincode,
-
-//         loan_amount,
-//         interest_rate,
-//         loan_tenure,
-//         disbursal_amount,
-//         processing_fee,
-//         processing_fee_percentage,
-
-//         guarantor_name,
-//         guarantor_dob,
-//         guarantor_email,
-//         guarantor_pan,
-//         guarantor_mobile,
-//         relationship_with_borrower,
-//         guarantor_address_line_1,
-//         guarantor_address_line_2,
-//         guarantor_village_city,
-//         guarantor_district,
-//         guarantor_state,
-//         guarantor_pincode,
-
-//         co_applicant_name,
-//         co_applicant_dob,
-//         co_applicant_email,
-//         co_applicant_pan,
-//         co_applicant_mobile,
-//         co_applicant_address_line_1,
-//         co_applicant_address_line_2,
-//         co_applicant_village_city,
-//         co_applicant_district,
-//         co_applicant_state,
-//         co_applicant_pincode,
-
-//         customer_name_as_per_bank,
-//         customer_bank_name,
-//         customer_account_number,
-//         bank_ifsc_code,
-
-//         selected_dealer_application_id,
-//         dealer_id,
-//         trade_name,
-//         dealer_name,
-//         dealer_contact,
-//         dealer_email,
-//         gst_no,
-//         pan_number,
-//         dealer_address,
-//         dealer_city,
-//         dealer_state,
-//         dealer_pincode,
-
-//         dealer_bank_name,
-//         dealer_account_number,
-//         dealer_ifsc,
-//         dealer_name_in_bank,
-
-//         selected_product_id,
-//         battery_name,
-//         battery_type,
-//         battery_serial_no_1,
-//         battery_serial_no_2,
-//         e_rikshaw_model,
-//         chassis_no,
-//         borrower_mobile_verified,
-//         guarantor_mobile_verified,
-//         co_applicant_mobile_verified
-//       )
-//       VALUES (${values.map(() => "?").join(", ")})
-//     `;
-
-//     await connection.query(insertQuery, values);
-
-//     await connection.query(
-//       `   UPDATE otp_consent_model
-//   SET is_used = 1
-//   WHERE mobile_number = ?
-//   AND applicant_type = ?
-//   `,
-//       [data.Mobile_Number, "BORROWER"],
-//     );
-
-//     await connection.query(
-//       `   UPDATE otp_consent_model
-//   SET is_used = 1
-//   WHERE mobile_number = ?
-//   AND applicant_type = ?
-//   `,
-//       [data.GURANTOR_MOBILE, "GUARANTOR"],
-//     );
-
-//     if (data.Co_Applicant) {
-//       await connection.query(
-//         `     UPDATE otp_consent_model
-//     SET is_used = 1
-//     WHERE mobile_number = ?
-//     AND applicant_type =
-//     'CO_APPLICANT'
-//     `,
-//         [data.Co_Applicant_Mobile],
-//       );
-//     }
-
-//     await connection.commit();
-
-//     universalRunAllValidations(cust_lan);
-
-//     return res.status(201).json({
-//       success: true,
-//       message: "Sampada loan booking saved successfully",
-//       partner_loan_id: cust_partner_loan_id,
-//       lan: cust_lan,
-//     });
-//   } catch (error) {
-//     await connection.rollback();
-
-//     console.error("Sampada loan booking save error:", error);
-
-//     return res.status(500).json({
-//       success: false,
-//       message: "Failed to save Sampada loan booking",
-//       error: error.message,
-//     });
-//   } finally {
-//     connection.release();
-//   }
-// });
-
 router.post("/update-stamp-number", async (req, res) => {
   let connection;
   let transactionStarted = false;
@@ -1250,9 +779,10 @@ router.post("/save-borrower-first-section", async (req, res) => {
         pan_card,
         gender,
         driving_licence,
+        requested_loan_amount,
         borrower_mobile_verified
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         emptyToNull(data.lenderType),
@@ -1273,6 +803,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
         emptyToNull(data.Pan_Card),
         emptyToNull(data.Gender),
         emptyToNull(data.Driving_Licence),
+        numberOrNull(data.Loan_Amount),
         data.borrower_mobile_verified || 1,
       ],
     );
@@ -1365,13 +896,6 @@ const runSampadaBureauScreening = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Valid loan amount is required",
-    });
-  }
-
-  if (!tenure || tenure <= 0) {
-    return res.status(400).json({
-      success: false,
-      message: "Valid loan tenure is required",
     });
   }
 
@@ -1522,12 +1046,12 @@ const runSampadaBureauScreening = async (req, res) => {
     permanent_pincode = ?,
 
     requested_loan_amount = ?,
-    interest_rate = ?,
-    loan_tenure = ?,
-    processing_fee = ?,
-    processing_fee_percentage = ?,
-    gps_charges = ?,
-    disbursal_amount = ?,
+    interest_rate = COALESCE(?, interest_rate),
+    loan_tenure = COALESCE(?, loan_tenure),
+    processing_fee = COALESCE(?, processing_fee),
+    processing_fee_percentage = COALESCE(?, processing_fee_percentage),
+    gps_charges = COALESCE(?, gps_charges),
+    disbursal_amount = COALESCE(?, disbursal_amount),
 
     motion_bureau_screening_status = 'INITIATED',
     motion_bureau_screening_reason = NULL,
@@ -1822,372 +1346,40 @@ const runSampadaBureauScreening = async (req, res) => {
 
 router.post("/run-bureau-screening", runSampadaBureauScreening);
 
-// router.post("/final-submit-ev-customer-manual", async (req, res) => {
-//   const connection = await db.promise().getConnection();
+const runSampadaFinalBreAndReadResult = async (lan) => {
+  await universalRunAllValidations(lan);
 
-//   try {
-//     const data = req.body;
+  const [rows] = await db.promise().query(
+    `
+    SELECT
+      status,
+      stage,
+      motioncorp_bre_status AS bre_status,
+      motioncorp_bre_reason AS bre_reason,
+      motioncorp_bre_checked_at AS bre_checked_at
+    FROM loan_booking_sampada
+    WHERE lan = ?
+    LIMIT 1
+    `,
+    [lan],
+  );
 
-//     if (!data.lan) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "LAN required. Please save borrower first.",
-//       });
-//     }
+  if (!rows.length) {
+    throw new Error("Sampada loan booking not found after final validation");
+  }
 
-//     const [[screeningRow]] = await connection.query(
-//       `
-//   SELECT motion_bureau_screening_status
-//   FROM loan_booking_sampada
-//   WHERE lan = ?
-//   LIMIT 1
-//   `,
-//       [data.lan],
-//     );
+  const result = rows[0];
+  const stage = String(result.stage || "").trim();
+  const completed = ["BRE Approved", "BRE Deviation", "BRE Rejected"].includes(
+    stage,
+  );
 
-//     if (!screeningRow) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Sampada loan booking not found",
-//       });
-//     }
-
-//     const screeningStatus = String(
-//       screeningRow.motion_bureau_screening_status || "",
-//     )
-//       .trim()
-//       .toUpperCase();
-
-//     const bureauScreeningCompleted = [
-//       "BUREAU APPROVED",
-//       "BUREAU REJECTED",
-//     ].includes(screeningStatus);
-
-//     if (!bureauScreeningCompleted) {
-//       return res.status(409).json({
-//         success: false,
-//         code: "BUREAU_SCREENING_REQUIRED",
-//         message:
-//           "Borrower bureau screening must be completed before final submission.",
-//         screeningStatus: screeningStatus || "PENDING",
-//       });
-//     }
-
-//     const today = new Date();
-//     const loanAmount = data.Loan_Amount;
-//     const { month, year } = getMonthYear(today);
-
-//     const partnerName = "Sampada";
-
-//     await connection.beginTransaction();
-
-//     const partner = await partnerLimitService.getOrCreatePartner(
-//       connection,
-//       partnerName,
-//     );
-
-//     const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-//       connection,
-//       partner.partner_id,
-//       loanAmount,
-//       month,
-//       year,
-//     );
-
-//     if (!limitCheck.valid) {
-//       await connection.rollback();
-
-//       return res.status(400).json({
-//         success: false,
-//         stage: "limit-check",
-//         message: `Booking Limit exceeded. Remaining ${limitCheck.remaining}, Required ${loanAmount}`,
-//       });
-//     }
-
-//     // Fetch partner FLDG percent
-//     const [[partnerConfig]] = await connection.query(
-//       `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-//       [partner.partner_id],
-//     );
-
-//     if (!partnerConfig) {
-//       throw new Error("Partner configuration not found");
-//     }
-
-//     let requiredFldg = 0;
-
-//     if (partnerConfig?.fldg_status === 1) {
-//       const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
-
-//       requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
-//     }
-
-//     // Validate FLDG availability
-//     if (requiredFldg > 0) {
-//       const fldgCheck = await partnerFldgService.validateFldgAvailability(
-//         connection,
-//         partner.partner_id,
-//         requiredFldg,
-//       );
-
-//       if (!fldgCheck.valid) {
-//         await connection.rollback();
-
-//         return res.status(400).json({
-//           success: false,
-//           stage: "fldg-check",
-//           message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
-//         });
-//       }
-//     }
-
-//     await connection.query(
-//       `
-//       UPDATE loan_booking_sampada
-//       SET
-//         permanent_address_line_1 = ?,
-//         permanent_address_line_2 = ?,
-//         permanent_village_city = ?,
-//         permanent_district = ?,
-//         permanent_state = ?,
-//         permanent_pincode = ?,
-
-//         requested_loan_amount = ?,
-//         interest_rate = ?,
-//         loan_tenure = ?,
-//         disbursal_amount = ?,
-//         processing_fee = ?,
-//         processing_fee_percentage = ?,
-//         gps_charges = ?,
-
-//         guarantor_name = ?,
-//         guarantor_dob = ?,
-//         guarantor_email = ?,
-//         guarantor_pan = ?,
-//         guarantor_mobile = ?,
-//         relationship_with_borrower = ?,
-//         guarantor_address_line_1 = ?,
-//         guarantor_address_line_2 = ?,
-//         guarantor_village_city = ?,
-//         guarantor_district = ?,
-//         guarantor_state = ?,
-//         guarantor_pincode = ?,
-//         guarantor_driving_licence = ?,
-
-//         co_applicant_name = ?,
-//         co_applicant_dob = ?,
-//         co_applicant_email = ?,
-//         co_applicant_pan = ?,
-//         co_applicant_mobile = ?,
-//         co_applicant_address_line_1 = ?,
-//         co_applicant_address_line_2 = ?,
-//         co_applicant_village_city = ?,
-//         co_applicant_district = ?,
-//         co_applicant_state = ?,
-//         co_applicant_pincode = ?,
-//         co_applicant_driving_licence = ?,
-
-//         customer_name_as_per_bank = ?,
-//         customer_bank_name = ?,
-//         customer_account_number = ?,
-//         bank_ifsc_code = ?,
-//         bank_branch_address = ?,
-
-//         selected_dealer_application_id = ?,
-//         dealer_id = ?,
-//         trade_name = ?,
-//         dealer_name = ?,
-//         dealer_contact = ?,
-//         dealer_email = ?,
-//         gst_no = ?,
-//         pan_number = ?,
-//         dealer_address = ?,
-//         dealer_city = ?,
-//         dealer_state = ?,
-//         dealer_pincode = ?,
-
-//         dealer_bank_name = ?,
-//         dealer_account_number = ?,
-//         dealer_ifsc = ?,
-//         dealer_name_in_bank = ?,
-
-//         selected_product_id = ?,
-//         battery_name = ?,
-//         battery_type = ?,
-//         battery_serial_no_1 = ?,
-//         battery_serial_no_2 = ?,
-//         e_rikshaw_model = ?,
-//         chassis_no = ?,
-//         insurance_cost = ?,
-//         insurance_company_provider = ?,
-//         insurance_policy_number = ?,
-//         policy_issued_date = ?,
-//         period_of_insurance = ?,
-
-//         cost_of_vehicle = ?,
-//         manufacturing_year = ?,
-//         sales_invoice_number = ?,
-//         sales_invoice_date = ?,
-//         downpayment_paid_by_borrower = ?,
-//         vehicle_registration_cost = ?
-//       WHERE lan = ?
-//       `,
-//       [
-//         emptyToNull(data.Address_Line_1),
-//         emptyToNull(data.Address_Line_2),
-//         emptyToNull(data.Village),
-//         emptyToNull(data.District),
-//         emptyToNull(data.State),
-//         emptyToNull(data.Pincode),
-
-//         numberOrNull(data.Loan_Amount),
-//         numberOrNull(data.Interest_Rate),
-//         numberOrNull(data.Tenure),
-//         numberOrNull(data.Disbursal_Amount),
-//         numberOrNull(data.Processing_Fee),
-//         numberOrNull(data.Processing_Fee_Percentage),
-//         numberOrNull(data.GPS_Charges),
-
-//         emptyToNull(data.GURANTOR),
-//         emptyToNull(data.GURANTOR_DOB),
-//         emptyToNull(data.GURANTOR_EMAIL),
-//         emptyToNull(data.GURANTOR_PAN),
-//         emptyToNull(data.GURANTOR_MOBILE),
-//         emptyToNull(data.Relationship_with_Borrower),
-//         emptyToNull(data.GURANTOR_Address_Line_1),
-//         emptyToNull(data.GURANTOR_Address_Line_2),
-//         emptyToNull(data.GURANTOR_Village),
-//         emptyToNull(data.GURANTOR_District),
-//         emptyToNull(data.GURANTOR_State),
-//         emptyToNull(data.GURANTOR_Pincode),
-//         emptyToNull(data.GURANTOR_Driving_Licence),
-
-//         emptyToNull(data.Co_Applicant),
-//         emptyToNull(data.Co_Applicant_DOB),
-//         emptyToNull(data.Co_Applicant_Email),
-//         emptyToNull(data.Co_Applicant_PAN),
-//         emptyToNull(data.Co_Applicant_Mobile),
-//         emptyToNull(data.Co_Applicant_Address_Line_1),
-//         emptyToNull(data.Co_Applicant_Address_Line_2),
-//         emptyToNull(data.Co_Applicant_Village),
-//         emptyToNull(data.Co_Applicant_District),
-//         emptyToNull(data.Co_Applicant_State),
-//         emptyToNull(data.Co_Applicant_Pincode),
-//         emptyToNull(data.Co_Applicant_Driving_Licence),
-
-//         emptyToNull(data.customer_name_as_per_bank),
-//         emptyToNull(data.customer_bank_name),
-//         emptyToNull(data.customer_account_number),
-//         emptyToNull(data.bank_ifsc_code),
-//         emptyToNull(data.bank_branch_address),
-
-//         emptyToNull(data.selected_dealer_application_id),
-//         emptyToNull(data.dealer_id),
-//         emptyToNull(data.trade_name),
-//         emptyToNull(data.dealer_name),
-//         emptyToNull(data.dealer_contact),
-//         emptyToNull(data.dealer_email),
-//         emptyToNull(data.gst_no),
-//         emptyToNull(data.pan_number),
-//         emptyToNull(data.dealer_address),
-//         emptyToNull(data.dealer_city),
-//         emptyToNull(data.dealer_state),
-//         emptyToNull(data.dealer_pincode),
-
-//         emptyToNull(data.bank_name),
-//         emptyToNull(data.account_number),
-//         emptyToNull(data.ifsc),
-//         emptyToNull(data.name_in_bank),
-
-//         numberOrNull(data.selected_product_id),
-//         emptyToNull(data.Battery_Name),
-//         emptyToNull(data.Battery_Type),
-//         emptyToNull(data.Battery_Serial_no_1),
-//         emptyToNull(data.Battery_Serial_no_2),
-//         emptyToNull(data.E_Rikshaw_model),
-//         emptyToNull(data.Chassis_no),
-//         numberOrNull(data.insurance_cost),
-//         emptyToNull(data.insurance_company_provider),
-//         emptyToNull(data.insurance_policy_number),
-//         emptyToNull(data.policy_issued_date),
-//         emptyToNull(data.period_of_insurance),
-
-//         numberOrNull(data.cost_of_vehicle),
-//         emptyToNull(data.manufacturing_year),
-//         emptyToNull(data.sales_invoice_number),
-//         emptyToNull(data.sales_invoice_date),
-//         numberOrNull(data.downpayment_paid_by_borrower),
-//         numberOrNull(data.vehicle_registration_cost),
-//         data.lan,
-//       ],
-//     );
-
-//     await partnerLimitService.updateBookedLimit(
-//       connection,
-//       limitCheck.limitId,
-//       loanAmount,
-//       data.lan,
-//     );
-
-//     /*
-//     --------------------------------------------------
-//     6. Reserve FLDG
-//     --------------------------------------------------
-//     Important:
-//     If final-submit can be called multiple times for the same LAN,
-//     you should also add duplicate FLDG reservation protection.
-//     --------------------------------------------------
-//     */
-
-//     if (requiredFldg > 0) {
-//       const [[alreadyReserved]] = await connection.query(
-//         `
-//         SELECT id
-//         FROM partner_fldg_utilization
-//         WHERE partner_id = ?
-//           AND booking_lan = ?
-//           AND utilization_type = 'RESERVED'
-//         LIMIT 1
-//         `,
-//         [partner.partner_id, data.lan],
-//       );
-
-//       if (!alreadyReserved) {
-//         await partnerFldgService.reserveFldg(
-//           connection,
-//           partner.partner_id,
-//           data.lan,
-//           requiredFldg,
-//           `Sampada booking reservation | Amount: ${loanAmount}`,
-//         );
-//       }
-//     }
-
-//     await connection.commit();
-
-//     universalRunAllValidations(data.lan).catch((err) => {
-//       console.error("Validation engine failed after booking:", err);
-//     });
-
-//     return res.json({
-//       success: true,
-//       message: "Sampada loan booking submitted successfully",
-//       lan: data.lan,
-//     });
-//   } catch (error) {
-//     await connection.rollback();
-
-//     console.error("Final Sampada submit error:", error);
-
-//     return res.status(500).json({
-//       success: false,
-//       message: "Final submit failed",
-//       error: error.message,
-//     });
-//   } finally {
-//     connection.release();
-//   }
-// });
+  return {
+    ...result,
+    completed,
+    reason: String(result.bre_reason || "FINAL_BRE_DID_NOT_COMPLETE").trim(),
+  };
+};
 
 router.post("/final-submit-ev-customer-manual", async (req, res) => {
   const connection = await db.promise().getConnection();
@@ -2262,11 +1454,27 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
       await connection.commit();
       transactionStarted = false;
 
+      const finalBre = await runSampadaFinalBreAndReadResult(lan);
+
+      if (!finalBre.completed) {
+        return res.status(422).json({
+          success: false,
+          code: "FINAL_BRE_PENDING",
+          finalSubmissionSaved: true,
+          message: `Final BRE could not complete: ${finalBre.reason}`,
+          lan,
+          breStatus: finalBre.bre_status,
+          breReason: finalBre.reason,
+        });
+      }
+
       return res.json({
         success: true,
         alreadySubmitted: true,
-        message: "Sampada loan booking already submitted",
+        message: `Sampada loan booking already submitted; final BRE completed as ${finalBre.stage}`,
         lan,
+        status: finalBre.status,
+        stage: finalBre.stage,
       });
     }
 
@@ -2347,17 +1555,21 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
     }
 
     /*
-     * Address and loan details are intentionally not updated here.
-     * They were saved before bureau screening and must remain the exact
-     * values against which bureau screening was completed.
-     *
-     * Guarantor/co-applicant identity is also not overwritten here.
+     * Guarantor/co-applicant identity is not overwritten here.
      * Those details were saved and mobile-verified earlier.
      */
     const [updateResult] = await connection.query(
       `
       UPDATE loan_booking_sampada
       SET
+        requested_loan_amount = ?,
+        interest_rate = ?,
+        loan_tenure = ?,
+        processing_fee = ?,
+        processing_fee_percentage = ?,
+        gps_charges = ?,
+        disbursal_amount = ?,
+
         customer_name_as_per_bank = ?,
         customer_bank_name = ?,
         customer_account_number = ?,
@@ -2410,6 +1622,14 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         AND COALESCE(final_submission_status, '') <> 'SUBMITTED'
       `,
       [
+        numberOrNull(data.Loan_Amount),
+        numberOrNull(data.Interest_Rate),
+        numberOrNull(data.Tenure),
+        numberOrNull(data.Processing_Fee),
+        numberOrNull(data.Processing_Fee_Percentage),
+        numberOrNull(data.GPS_Charges),
+        numberOrNull(data.Disbursal_Amount),
+
         emptyToNull(data.customer_name_as_per_bank),
         emptyToNull(data.customer_bank_name),
         emptyToNull(data.customer_account_number),
@@ -2475,18 +1695,27 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
     await connection.commit();
     transactionStarted = false;
 
-    universalRunAllValidations(lan).catch((error) => {
-      console.error("Validation engine failed after final submission:", {
+    const finalBre = await runSampadaFinalBreAndReadResult(lan);
+
+    if (!finalBre.completed) {
+      return res.status(422).json({
+        success: false,
+        code: "FINAL_BRE_PENDING",
+        finalSubmissionSaved: true,
+        message: `Final BRE could not complete: ${finalBre.reason}`,
         lan,
-        error: error.message,
+        breStatus: finalBre.bre_status,
+        breReason: finalBre.reason,
       });
-    });
+    }
 
     return res.json({
       success: true,
       alreadySubmitted: false,
-      message: "Sampada loan booking submitted successfully",
+      message: `Sampada loan booking submitted successfully; final BRE completed as ${finalBre.stage}`,
       lan,
+      status: finalBre.status,
+      stage: finalBre.stage,
     });
   } catch (error) {
     if (transactionStarted) {
@@ -2513,7 +1742,29 @@ router.get("/loan-booking/:lan", async (req, res) => {
 
     const [rows] = await db.promise().query(
       `
-SELECT lb.*
+SELECT
+  lb.*,
+  (
+    SELECT k.aadhaar_status
+    FROM kyc_verification_status k
+    WHERE k.lan = lb.lan
+      AND UPPER(TRIM(k.applicant_type)) = 'BORROWER'
+    LIMIT 1
+  ) AS borrower_aadhaar_status,
+  (
+    SELECT k.aadhaar_status
+    FROM kyc_verification_status k
+    WHERE k.lan = lb.lan
+      AND UPPER(TRIM(k.applicant_type)) = 'GUARANTOR'
+    LIMIT 1
+  ) AS guarantor_aadhaar_status,
+  (
+    SELECT k.aadhaar_status
+    FROM kyc_verification_status k
+    WHERE k.lan = lb.lan
+      AND UPPER(TRIM(k.applicant_type)) = 'CO_APPLICANT'
+    LIMIT 1
+  ) AS co_applicant_aadhaar_status
 FROM loan_booking_sampada lb
 WHERE lb.lan = ?
 LIMIT 1
@@ -2563,111 +1814,6 @@ router.get("/login-loans", async (_req, res) => {
     });
   }
 });
-
-// router.post("/send-otp", async (req, res) => {
-//   try {
-//     console.log("Incoming body:", req.body);
-
-//     const { mobile, applicantType } = req.body;
-
-//     if (!mobile) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Mobile required",
-//       });
-//     }
-
-//     if (!applicantType) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Applicant type required",
-//       });
-//     }
-
-//     const cleanedMobile = mobile.replace(/\D/g, "");
-
-//     const [existing] = await db.promise().query(
-//       `
-//     SELECT *
-//     FROM otp_consent_model
-//     WHERE mobile_number = ?
-//     AND applicant_type = ?
-//     ORDER BY id DESC
-//     LIMIT 1
-//     `,
-//       [cleanedMobile, applicantType],
-//     );
-
-//     if (existing.length) {
-//       const lastSent = new Date(existing[0].last_sent_at);
-
-//       const diffSeconds = (Date.now() - lastSent.getTime()) / 1000;
-
-//       if (diffSeconds < 60) {
-//         return res.status(429).json({
-//           success: false,
-//           message: `Wait ${Math.ceil(60 - diffSeconds)} seconds before retry`,
-//         });
-//       }
-//     }
-
-//     const otp = Math.floor(100000 + Math.random() * 900000);
-
-//     const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
-
-//     const smsParams = {
-//       user: process.env.ALOT_USER,
-//       password: process.env.ALOT_PASSWORD,
-//       senderid: process.env.SENDER_ID,
-//       channel: "TRANS",
-//       DCS: "0",
-//       flashsms: "0",
-//       number: cleanedMobile,
-
-//       text: `OTP for mobile number verification is ${otp}. Do not share this OTP with anyone. Thanks & Regards Fintree Finance Private Limited:`,
-//       route: "5",
-
-//       DLTTemplateId: process.env.MOBILE_OTP_TEMPLATE_ID,
-
-//       PEID: process.env.DLT_PEID,
-//     };
-
-//     console.log("Sending SMS with:", smsParams);
-
-//     await axios.get(process.env.ALOT_API_URL, {
-//       params: smsParams,
-//     });
-
-//     await db.promise().query(
-//       `
-//   INSERT INTO otp_consent_model (
-//     mobile_number,
-//     applicant_type,
-//     otp,
-//     expires_at,
-//     last_sent_at,
-//     verified
-//   )
-//   VALUES (
-//     ?, ?, ?, ?, NOW(), 0
-//   )
-//   `,
-//       [cleanedMobile, applicantType, otp, expiresAt],
-//     );
-
-//     return res.json({
-//       success: true,
-//       message: "OTP sent successfully",
-//     });
-//   } catch (err) {
-//     console.error("SMS error:", err.message);
-
-//     return res.status(500).json({
-//       success: false,
-//       message: "OTP send failed",
-//     });
-//   }
-// });
 
 router.post("/send-otp", async (req, res) => {
   try {
@@ -3126,160 +2272,6 @@ router.post("/verify-otp", async (req, res) => {
     connection.release();
   }
 });
-
-// router.post("/init-aadhaar", async (req, res) => {
-//   try {
-//     const { lan, applicantType } = req.body;
-
-//     if (!lan) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "LAN required",
-//       });
-//     }
-
-//     if (!["BORROWER", "GUARANTOR", "CO_APPLICANT"].includes(applicantType)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid applicant type",
-//       });
-//     }
-
-//     const [rows] = await db.promise().query(
-//       `
-//       SELECT *
-//       FROM loan_booking_sampada
-//       WHERE lan = ?
-//       LIMIT 1
-//       `,
-//       [lan],
-//     );
-
-//     if (!rows.length) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Loan not found",
-//       });
-//     }
-
-//     const loan = rows[0];
-
-//     let applicantData = {};
-
-//     if (applicantType === "BORROWER") {
-//       applicantData = {
-//         name: loan.customer_name,
-//         mobile: loan.mobile_number,
-//         email: loan.email,
-//       };
-//     }
-
-//     if (applicantType === "GUARANTOR") {
-//       applicantData = {
-//         name: loan.guarantor_name,
-//         mobile: loan.guarantor_mobile,
-//         email: loan.guarantor_email,
-//       };
-//     }
-
-//     if (applicantType === "CO_APPLICANT") {
-//       applicantData = {
-//         name: loan.co_applicant_name,
-//         mobile: loan.co_applicant_mobile,
-//         email: loan.co_applicant_email,
-//       };
-//     }
-
-//     if (!applicantData.mobile || !applicantData.name) {
-//       return res.status(400).json({
-//         success: false,
-//         message: `${applicantType} details not saved`,
-//       });
-//     }
-
-//     await db.promise().query(
-//       `
-//       INSERT IGNORE INTO kyc_verification_status (
-//         lan,
-//         applicant_type,
-//         applicant_name,
-//         mobile_number
-//       )
-//       VALUES (?, ?, ?, ?)
-//       `,
-//       [lan, applicantType, applicantData.name, applicantData.mobile],
-//     );
-
-//     await db.promise().query(
-//       `
-//       UPDATE kyc_verification_status
-//       SET aadhaar_status = 'INITIATED'
-//       WHERE lan = ?
-//       AND applicant_type = ?
-//       `,
-//       [lan, applicantType],
-//     );
-
-//     const aadhaarInit = await initAadhaarKyc(
-//       lan,
-//       applicantData.mobile,
-//       applicantData.email,
-//       applicantData.name,
-//     );
-
-//     if (!aadhaarInit.success) {
-//       await db.promise().query(
-//         `
-//         UPDATE kyc_verification_status
-//         SET aadhaar_status = 'FAILED'
-//         WHERE lan = ?
-//         AND applicant_type = ?
-//         `,
-//         [lan, applicantType],
-//       );
-
-//       return res.status(400).json({
-//         success: false,
-//         message: "Aadhaar init failed",
-//       });
-//     }
-
-//     await db.promise().query(
-//       `
-//       UPDATE kyc_verification_status
-//       SET
-//         aadhaar_transaction_id = ?,
-//         aadhaar_kyc_url = ?,
-//         aadhaar_unique_id = ?
-//       WHERE lan = ?
-//       AND applicant_type = ?
-//       `,
-//       [
-//         aadhaarInit.unifiedTransactionId,
-//         aadhaarInit.kycUrl,
-//         aadhaarInit.uniqueId,
-//         lan,
-//         applicantType,
-//       ],
-//     );
-
-//     return res.json({
-//       success: true,
-//       message: "Aadhaar initiated",
-//       kycUrl: aadhaarInit.kycUrl,
-//       transactionId: aadhaarInit.unifiedTransactionId,
-//       uniqueId: aadhaarInit.uniqueId,
-//     });
-//   } catch (error) {
-//     console.error("Aadhaar init error:", error);
-
-//     return res.status(500).json({
-//       success: false,
-//       message: "Aadhaar init failed",
-//       error: error.message,
-//     });
-//   }
-// });
 
 router.post("/init-aadhaar", async (req, res) => {
   const connection = await db.promise().getConnection();
@@ -4396,127 +3388,6 @@ router.post("/init-aadhaar", async (req, res) => {
     connection.release();
   }
 });
-
-// router.post("/save-applicant-details", async (req, res) => {
-//   try {
-//     const { lan, applicantType, data } = req.body;
-
-//     if (!["GUARANTOR", "CO_APPLICANT"].includes(applicantType)) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Invalid applicant type",
-//       });
-//     }
-
-//     if (!data || typeof data !== "object") {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Applicant data is required",
-//       });
-//     }
-
-//     if (!lan) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "LAN required",
-//       });
-//     }
-
-//     if (applicantType === "GUARANTOR") {
-//       await db.promise().query(
-//         `
-//         UPDATE loan_booking_sampada
-//         SET
-//           guarantor_name = ?,
-//           guarantor_dob = ?,
-//           guarantor_email = ?,
-//           guarantor_pan = ?,
-//           guarantor_mobile = ?,
-//           relationship_with_borrower = ?,
-//           guarantor_address_line_1 = ?,
-//           guarantor_address_line_2 = ?,
-//           guarantor_village_city = ?,
-//           guarantor_district = ?,
-//           guarantor_state = ?,
-//           guarantor_pincode = ?,
-//           guarantor_mobile_verified = ?,
-//           guarantor_driving_licence = ?,
-//         WHERE lan = ?
-//         `,
-//         [
-//           emptyToNull(data.GURANTOR),
-//           emptyToNull(data.GURANTOR_DOB),
-//           emptyToNull(data.GURANTOR_EMAIL),
-//           emptyToNull(data.GURANTOR_PAN),
-//           emptyToNull(data.GURANTOR_MOBILE),
-//           emptyToNull(data.Relationship_with_Borrower),
-//           emptyToNull(data.GURANTOR_Address_Line_1),
-//           emptyToNull(data.GURANTOR_Address_Line_2),
-//           emptyToNull(data.GURANTOR_Village),
-//           emptyToNull(data.GURANTOR_District),
-//           emptyToNull(data.GURANTOR_State),
-//           emptyToNull(data.GURANTOR_Pincode),
-//           data.guarantor_mobile_verified || 0,
-//           emptyToNull(data.GURANTOR_Driving_Licence),
-//           lan,
-//         ],
-//       );
-//     }
-
-//     if (applicantType === "CO_APPLICANT") {
-//       await db.promise().query(
-//         `
-//         UPDATE loan_booking_sampada
-//         SET
-//           co_applicant_name = ?,
-//           co_applicant_dob = ?,
-//           co_applicant_email = ?,
-//           co_applicant_pan = ?,
-//           co_applicant_mobile = ?,
-//           co_applicant_address_line_1 = ?,
-//           co_applicant_address_line_2 = ?,
-//           co_applicant_village_city = ?,
-//           co_applicant_district = ?,
-//           co_applicant_state = ?,
-//           co_applicant_pincode = ?,
-//           co_applicant_mobile_verified = ?
-//         WHERE lan = ?
-//         `,
-//         [
-//           emptyToNull(data.Co_Applicant),
-//           emptyToNull(data.Co_Applicant_DOB),
-//           emptyToNull(data.Co_Applicant_Email),
-//           emptyToNull(data.Co_Applicant_PAN),
-//           emptyToNull(data.Co_Applicant_Mobile),
-//           emptyToNull(data.Co_Applicant_Address_Line_1),
-//           emptyToNull(data.Co_Applicant_Address_Line_2),
-//           emptyToNull(data.Co_Applicant_Village),
-//           emptyToNull(data.Co_Applicant_District),
-//           emptyToNull(data.Co_Applicant_State),
-//           emptyToNull(data.Co_Applicant_Pincode),
-//           data.co_applicant_mobile_verified || 0,
-//           lan,
-//         ],
-//       );
-//     }
-
-//     return res.json({
-//       success: true,
-//       message: `${applicantType} saved`,
-//     });
-//   } catch (error) {
-//     console.error("Sampada applicant save failed:", {
-//       lan: req.body?.lan,
-//       applicantType: req.body?.applicantType,
-//       error: error.message,
-//     });
-
-//     return res.status(500).json({
-//       success: false,
-//       message: "Applicant save failed",
-//     });
-//   }
-// });
 
 router.post("/save-applicant-details", async (req, res) => {
   const { lan, applicantType, data } = req.body || {};
