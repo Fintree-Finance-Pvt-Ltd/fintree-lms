@@ -43,7 +43,7 @@
 // //       product: product.value,
 // //       description,
 // //     };
-    
+
 
 // //     try {
 // //       const res = await api.post(`/reports/trigger`, payload);
@@ -177,7 +177,7 @@
 //       product: product.value,
 //       description,
 //     };
-    
+
 
 //     try {
 //       const res = await api.post(`/reports/trigger`, payload);
@@ -310,7 +310,7 @@
 //     [reportId]
 //   );
 
- 
+
 
 //   useEffect(() => {
 //     if (isCamPrint) setOutputFormat("pdf");
@@ -504,24 +504,25 @@ const productOptions = [
   { label: "Embifi", value: "Embifi" },
   { label: "EMICLUB", value: "EMICLUB" },
   { label: "Circle Pe", value: "Circlepe" },
-  {label : "Circle Pe Houser", value: "Circlepe Houser" },
+  { label: "Circle Pe Houser", value: "Circlepe Houser" },
   { label: "HELIUM", value: "HELIUM" },
   { label: "CLAYOO", value: "CLAYOO" },
   { label: "LOAN DIGIT", value: "LOAN-DIGIT" },
-  { label: "Motion Corp", value: "Motion Corp" }, 
+  { label: "Motion Corp", value: "Motion Corp" },
   { label: "Sampada", value: "Sampada" },
   { label: "Finso", value: "Finso" },
   { label: "RAPID-MONEY", value: "RAPID-MONEY" },
-  {label: "SRBH", value: "SRBH"},
-  {label: "CAREPAY", value: "CAREPAY"},
+  { label: "SRBH", value: "SRBH" },
+  { label: "CAREPAY", value: "CAREPAY" },
   { label: "Sterlion UBL", value: "Sterlion UBL" },
   { label: "FFPL", value: "FFPL" },
   { label: "KITE", value: "KITE" },
   { label: "Muthoot", value: "Muthoot" },
   { label: "WCTL FFPL", value: "wctl_ffpl" },
-  {label: "Claim Cure Buddy", value: "ClaimCureBuddy" },
-  {label: "Saswat", value: "Saswat" },
-  {label: "Seven Fincorp", value: "Seven Fincorp" }
+  { label: "Claim Cure Buddy", value: "ClaimCureBuddy" },
+  { label: "Saswat", value: "Saswat" },
+  { label: "Seven Fincorp", value: "Seven Fincorp" },
+  { label: "Fintree PL", value: "FFPL10011" }
 
 ];
 
@@ -546,6 +547,10 @@ const REPORT_ID_MAP = {
   "bank-payment-file-bank-holiday-report": "Bank Payment File Bank Holiday Report",
   "due-demand-vs-collection-fintree": "Due Demand vs Collection Report(Fintree)",
   "supply-chain-report": "supply-chain-report",
+
+  "fintree-consolidated-mis": "fintree-consolidated-mis",
+  "fintree-due-demand-report": "fintree-due-demand-report",
+  "fintree-cashflow-report": "fintree-cashflow-report",
 };
 
 const formatDate = (date) => {
