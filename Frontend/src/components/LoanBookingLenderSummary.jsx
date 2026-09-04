@@ -30,6 +30,12 @@ const PRODUCT_OPTIONS = [
   { label: "SRBH", value: "SRBH" },
   { label: "Bundela", value: "BUNDELA" },
   { label: "Clayyo", value: "CLAYYO" },
+  { label: "Helium", value: "HELIUM" },
+  { label: "EMI Club", value: "EMICLUB" },
+  { label: "Fincrest", value: "FINCREST" },
+  { label: "GQ Non-FSF", value: "GQNONFSF" },
+  { label: "GQ FSF", value: "GQFSF" },
+  { label: "Circle Pe Houser", value: "CIRCLEPEHOUSER" },
 ];
 
 const EMPTY_TOTALS = {
