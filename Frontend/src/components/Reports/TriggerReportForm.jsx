@@ -547,10 +547,6 @@ const REPORT_ID_MAP = {
   "bank-payment-file-bank-holiday-report": "Bank Payment File Bank Holiday Report",
   "due-demand-vs-collection-fintree": "Due Demand vs Collection Report(Fintree)",
   "supply-chain-report": "supply-chain-report",
-
-  "fintree-consolidated-mis": "fintree-consolidated-mis",
-  "fintree-due-demand-report": "fintree-due-demand-report",
-  "fintree-cashflow-report": "fintree-cashflow-report",
 };
 
 const formatDate = (date) => {

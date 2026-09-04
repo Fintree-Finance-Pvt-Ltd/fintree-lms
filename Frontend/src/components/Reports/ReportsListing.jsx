@@ -260,25 +260,6 @@ const REPORT_DATA = [
     name: "Supply Chain Report",
     category: "Finance",
   },
-
-  {
-    id: 17,
-    slug: "fintree-consolidated-mis",
-    name: "Fintree Consolidated MIS",
-    category: "MIS",
-  },
-  {
-    id: 18,
-    slug: "fintree-due-demand-report",
-    name: "Fintree Due Demand Report",
-    category: "Collection",
-  },
-  {
-    id: 19,
-    slug: "fintree-cashflow-report",
-    name: "Fintree CashFlow Report",
-    category: "Finance",
-  },
 ];
 
 const ReportsListing = () => {
