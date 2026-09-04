@@ -343,14 +343,93 @@ const checkAndApproveCarePayLoan = async (lan) => {
   );
 
   // Refresh document verification status before approval check
+// for (const doc of documentRows) {
+
+//   const documentType = String(
+//     doc.doc_name || doc.original_name || ""
+//   )
+//     .trim()
+//     .toLowerCase()
+//     .replace(/[\s_-]/g, "");
+
+
+//   if (documentType === "loanagreement") {
+
+//     await db.promise().query(
+//       `
+//       UPDATE loan_booking_carepay
+//       SET agreement_esign_status = 'Signed',
+//           sanction_esign_status = 'Signed',
+//           updated_at = NOW()
+//       WHERE lan = ?
+//       `,
+//       [cleanLan]
+//     );
+
+//   }  else if (documentType === "pan") {
+
+//     await db.promise().query(
+//       `
+//       UPDATE kyc_verification_status
+//       SET pan_status = 'Verified',
+//           updated_at = NOW()
+//       WHERE lan = ?
+//       `,
+//       [cleanLan]
+//     );
+
+
+//   } else if (documentType === "aadhaar") {
+
+//     await db.promise().query(
+//       `
+//       UPDATE kyc_verification_status
+//       SET aadhaar_status = 'Verified',
+//           updated_at = NOW()
+//       WHERE lan = ?
+//       `,
+//       [cleanLan]
+//     );
+
+//   }
+//   // Bank verification based on UMRN + bank details
+// await db.promise().query(
+//   `
+//   UPDATE loan_booking_carepay
+//   SET bank_status = 'Verified',
+//       updated_at = NOW()
+//   WHERE lan = ?
+//     AND umrn IS NOT NULL
+//     AND TRIM(umrn) <> ''
+//     AND bank_account_holder_name IS NOT NULL
+//     AND TRIM(bank_account_holder_name) <> ''
+//     AND bank_account_number IS NOT NULL
+//     AND TRIM(bank_account_number) <> ''
+//     AND bank_name IS NOT NULL
+//     AND TRIM(bank_name) <> ''
+//     AND bank_branch_name IS NOT NULL
+//     AND TRIM(bank_branch_name) <> ''
+//     AND bank_ifsc_code IS NOT NULL
+//     AND TRIM(bank_ifsc_code) <> ''
+//     AND bank_account_type IS NOT NULL
+//     AND TRIM(bank_account_type) <> ''
+//   `,
+//   [cleanLan]
+// );
+// }
+
+ const normalizeDocumentName = (value) =>
+    String(value || "")
+      .trim()
+      .replace(/\.[^/.]+$/, "")
+      .toLowerCase()
+      .replace(/[\s_-]/g, "");
+      
 for (const doc of documentRows) {
 
-  const documentType = String(
-    doc.doc_name || doc.original_name || ""
-  )
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]/g, "");
+  const documentType = normalizeDocumentName(
+    doc.doc_name || doc.original_name
+  );
 
 
   if (documentType === "loanagreement") {
@@ -366,7 +445,7 @@ for (const doc of documentRows) {
       [cleanLan]
     );
 
-  }  else if (documentType === "pan") {
+  } else if (documentType === "pan") {
 
     await db.promise().query(
       `
@@ -392,37 +471,37 @@ for (const doc of documentRows) {
     );
 
   }
-  // Bank verification based on UMRN + bank details
-await db.promise().query(
-  `
-  UPDATE loan_booking_carepay
-  SET bank_status = 'Verified',
-      updated_at = NOW()
-  WHERE lan = ?
-    AND umrn IS NOT NULL
-    AND TRIM(umrn) <> ''
-    AND bank_account_holder_name IS NOT NULL
-    AND TRIM(bank_account_holder_name) <> ''
-    AND bank_account_number IS NOT NULL
-    AND TRIM(bank_account_number) <> ''
-    AND bank_name IS NOT NULL
-    AND TRIM(bank_name) <> ''
-    AND bank_branch_name IS NOT NULL
-    AND TRIM(bank_branch_name) <> ''
-    AND bank_ifsc_code IS NOT NULL
-    AND TRIM(bank_ifsc_code) <> ''
-    AND bank_account_type IS NOT NULL
-    AND TRIM(bank_account_type) <> ''
-  `,
-  [cleanLan]
-);
+
 }
-  const normalizeDocumentName = (value) =>
-    String(value || "")
-      .trim()
-      .replace(/\.[^/.]+$/, "")
-      .toLowerCase()
-      .replace(/[\s_-]/g, "");
+
+
+// AFTER LOOP
+
+await db.promise().query(
+`
+UPDATE loan_booking_carepay
+SET bank_status='Verified',
+    updated_at=NOW()
+WHERE lan=?
+AND umrn IS NOT NULL
+AND TRIM(umrn)<>''
+AND bank_account_holder_name IS NOT NULL
+AND TRIM(bank_account_holder_name)<>''
+AND bank_account_number IS NOT NULL
+AND TRIM(bank_account_number)<>''
+AND bank_name IS NOT NULL
+AND TRIM(bank_name)<>''
+AND bank_branch_name IS NOT NULL
+AND TRIM(bank_branch_name)<>''
+AND bank_ifsc_code IS NOT NULL
+AND TRIM(bank_ifsc_code)<>''
+AND bank_account_type IS NOT NULL
+AND TRIM(bank_account_type)<>''
+`,
+[cleanLan]
+);
+
+ 
 
   const availableDocuments = new Set();
 

@@ -5,6 +5,7 @@ const authenticateUser = require("../../middleware/verifyToken");
 const { runBureau } = require("../../services/Bueraupullapiservice");
 const { sendClientWebhook } = require("./yaMoneyWebhookService");
 const { runBRE } = require("./yaMoneyBre");
+const { approveAndInitiatePayout } = require("../../services/payout.service");
 
 const router = express.Router();
 
@@ -34,6 +35,16 @@ const SORT_COLUMNS = {
   status: "status",
   stage: "stage",
 };
+const ACTIVE_PAYOUT_STATUSES = new Set([
+  "initiated",
+  "pending",
+  "queued",
+  "processing",
+  "in_progress",
+  "success",
+  "completed",
+  "processed",
+]);
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -41,6 +52,10 @@ function clean(value) {
 
 function digitsOnly(value) {
   return clean(value).replace(/\D/g, "");
+}
+
+function cleanAccountNumber(value) {
+  return clean(value).replace(/\s+/g, "");
 }
 
 function nullIfEmpty(value) {
@@ -81,6 +96,10 @@ function isValidDate(value) {
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day
   );
+}
+
+function isValidIfsc(value) {
+  return /^[A-Z]{4}0[A-Z0-9]{6}$/.test(clean(value).toUpperCase());
 }
 
 function calculateAgeFromDob(value) {
@@ -634,6 +653,83 @@ async function updateCreditStatus(lan, status, updatedBy) {
   return loan || null;
 }
 
+async function fetchYaMoneyOpsCheckerLoan(lan) {
+  const [[loan]] = await db.promise().query(
+    `SELECT lan, partner_loan_id, status
+     FROM ${TABLE_NAME}
+     WHERE lan = ?
+     LIMIT 1`,
+    [lan],
+  );
+
+  return loan || null;
+}
+
+async function getYaMoneyOpsCheckerColumns() {
+  const [rows] = await db.promise().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME IN ('ops_checker_id', 'ops_checker_name')`,
+    [TABLE_NAME],
+  );
+
+  return new Set(rows.map((row) => row.COLUMN_NAME));
+}
+
+async function updateYaMoneyOpsCheckerStatus({
+  lan,
+  status,
+  stage = status,
+  opsCheckerId = null,
+  opsCheckerName = null,
+  updatedBy = null,
+}) {
+  const fields = ["status = ?", "stage = ?", "updated_by = ?"];
+  const params = [status, stage, updatedBy || opsCheckerName || null];
+  const columns = await getYaMoneyOpsCheckerColumns();
+
+  if (columns.has("ops_checker_id")) {
+    fields.push("ops_checker_id = ?");
+    params.push(opsCheckerId || null);
+  }
+
+  if (columns.has("ops_checker_name")) {
+    fields.push("ops_checker_name = ?");
+    params.push(opsCheckerName || null);
+  }
+
+  const [result] = await db.promise().query(
+    `UPDATE ${TABLE_NAME}
+     SET ${fields.join(", ")}
+     WHERE lan = ?`,
+    [...params, lan],
+  );
+
+  return result;
+}
+
+async function fetchLatestYaMoneyPayout(lan) {
+  const [[transfer]] = await db.promise().query(
+    `SELECT
+       unique_request_number,
+       status,
+       payout_status
+     FROM quick_transfers
+     WHERE lan = ?
+     ORDER BY id DESC
+     LIMIT 1`,
+    [lan],
+  );
+
+  return transfer || null;
+}
+
+function getPayoutStatus(transfer) {
+  return normalizeStatus(transfer?.payout_status || transfer?.status || "");
+}
+
 function sendCreditDecisionWebhook(loan, status, decidedBy) {
   const approved = status === "credit_approved";
   const payload = {
@@ -680,6 +776,26 @@ function readFinalLoanData(body) {
     processing_fee_percent: clean(body.processing_fee_percent)
       ? readNumber(body.processing_fee_percent)
       : null,
+    name_in_bank: clean(
+      body.name_in_bank ??
+        body.account_holder_name ??
+        body.beneficiary_name ??
+        body.bank_account_holder_name ??
+        body.customer_name_as_per_bank,
+    ),
+    bank_name: nullIfEmpty(body.bank_name ?? body.bankName),
+    account_number: cleanAccountNumber(
+      body.account_number ??
+        body.bank_account_number ??
+        body.customer_account_number ??
+        body.bank_ac_number,
+    ),
+    ifsc: clean(
+      body.ifsc ??
+        body.ifsc_code ??
+        body.bank_ifsc_code ??
+        body.bank_ifsc,
+    ).toUpperCase(),
   };
 }
 
@@ -724,6 +840,34 @@ function validateFinalLoanData(data, savedCase) {
 
   if (!isValidDate(data.sanction_date)) {
     return "sanction_date must be a valid date in YYYY-MM-DD format";
+  }
+
+  if (!data.name_in_bank) {
+    return "name_in_bank is required for payment";
+  }
+
+  if (data.name_in_bank.length > 150) {
+    return "name_in_bank must be 150 characters or less";
+  }
+
+  if (data.bank_name && data.bank_name.length > 150) {
+    return "bank_name must be 150 characters or less";
+  }
+
+  if (!data.account_number) {
+    return "account_number is required for payment";
+  }
+
+  if (!/^\d{6,30}$/.test(data.account_number)) {
+    return "account_number must be 6 to 30 digits";
+  }
+
+  if (!data.ifsc) {
+    return "ifsc is required for payment";
+  }
+
+  if (!isValidIfsc(data.ifsc)) {
+    return "ifsc is invalid";
   }
 
   if (
@@ -794,6 +938,10 @@ async function saveFinalLoanDetails(lan, data, calculation, updatedBy) {
          interest = ?,
          umrn = ?,
          sanction_date = ?,
+         name_in_bank = ?,
+         bank_name = ?,
+         account_number = ?,
+         ifsc = ?,
          emi_amount = ?,
          processing_fee = ?,
          net_disbursement = ?,
@@ -808,6 +956,10 @@ async function saveFinalLoanDetails(lan, data, calculation, updatedBy) {
       data.interest,
       data.umrn,
       data.sanction_date,
+      data.name_in_bank,
+      data.bank_name,
+      data.account_number,
+      data.ifsc,
       calculation.emi_amount,
       calculation.processing_fee,
       calculation.net_disbursement,
@@ -1025,6 +1177,142 @@ router.patch("/:lan/credit-decision", authenticateUser, async (req, res) => {
   }
 });
 
+router.put("/:lan/ops-checker-pay", authenticateUser, async (req, res) => {
+  try {
+    const lan = clean(req.params.lan).toUpperCase();
+    const requestedStatus = normalizeStatus(req.body?.status);
+    const opsCheckerId = req.body?.ops_checker_id || req.user?.id || null;
+    const opsCheckerName =
+      req.body?.ops_checker_name || getUserName(req) || null;
+
+    if (!lan) {
+      return res.status(400).json({
+        success: false,
+        message: "LAN is required",
+      });
+    }
+
+    if (!["approved", "ops_rejected", "rejected"].includes(requestedStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "status must be APPROVED or OPS_REJECTED",
+      });
+    }
+
+    const loan = await fetchYaMoneyOpsCheckerLoan(lan);
+
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: "Ya Money loan not found",
+      });
+    }
+
+    if (normalizeStatus(loan.status) !== "approved") {
+      return res.status(409).json({
+        success: false,
+        message: "Only Approved Ya Money loans can be handled by Ops Checker",
+      });
+    }
+
+    if (["ops_rejected", "rejected"].includes(requestedStatus)) {
+      const result = await updateYaMoneyOpsCheckerStatus({
+        lan,
+        status: "OPS_REJECTED",
+        stage: "OPS_REJECTED",
+        opsCheckerId,
+        opsCheckerName,
+        updatedBy: opsCheckerName,
+      });
+
+      if (!result.affectedRows) {
+        return res.status(404).json({
+          success: false,
+          message: "Ya Money loan not found",
+        });
+      }
+
+      return res.json({
+        success: true,
+        status: "SUCCESS",
+        lan,
+        final_status: "OPS_REJECTED",
+        message: "Loan rejected by operations checker successfully",
+      });
+    }
+
+    await updateYaMoneyOpsCheckerStatus({
+      lan,
+      status: "Approved",
+      stage: "Approved",
+      opsCheckerId,
+      opsCheckerName,
+      updatedBy: opsCheckerName,
+    });
+
+    const activeTransfer = await fetchLatestYaMoneyPayout(lan);
+    const activePayoutStatus = getPayoutStatus(activeTransfer);
+
+    if (ACTIVE_PAYOUT_STATUSES.has(activePayoutStatus)) {
+      return res.status(409).json({
+        success: false,
+        status: "FAILED",
+        message: `Payout already ${activePayoutStatus} for this LAN`,
+        payout_status: activePayoutStatus,
+        unique_request_number:
+          activeTransfer?.unique_request_number || null,
+      });
+    }
+
+    const payoutResult = await approveAndInitiatePayout({
+      lan,
+      table: TABLE_NAME,
+    });
+
+    if (!payoutResult.success) {
+      return res.status(400).json({
+        success: false,
+        status: "FAILED",
+        message: payoutResult.message || "Payout initiation failed",
+      });
+    }
+
+    const finalPayoutStatuses = new Set([
+      "success",
+      "completed",
+      "processed",
+    ]);
+    const isPayoutFinal = finalPayoutStatuses.has(
+      String(payoutResult.payout_status || "").toLowerCase(),
+    );
+    const finalStatus = isPayoutFinal ? "Disbursed" : "Approved";
+
+    return res.json({
+      success: true,
+      status: "SUCCESS",
+      lan,
+      final_status: finalStatus,
+      payout_status: payoutResult.payout_status || null,
+      unique_request_number: payoutResult.unique_request_number || null,
+      message:
+        "Loan approved by operations checker and payout initiated successfully",
+    });
+  } catch (error) {
+    console.error("[YA-MONEY] Ops checker payout error", {
+      lan: req.params?.lan,
+      message: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      status: "FAILED",
+      message: error.message || "Failed to approve Ya Money payout",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
 router.patch("/:lan/final-details", async (req, res) => {
   try {
     const lan = clean(req.params.lan).toUpperCase();
@@ -1064,10 +1352,10 @@ router.patch("/:lan/final-details", async (req, res) => {
 
     const calculation = calculateFinalAmounts(data);
 
-    if (calculation.processing_fee > data.loan_amount) {
+    if (calculation.processing_fee >= data.loan_amount) {
       return res.status(400).json({
         success: false,
-        message: "processing_fee cannot be greater than loan_amount",
+        message: "processing_fee must be less than loan_amount for payment",
       });
     }
 
@@ -1096,6 +1384,10 @@ router.patch("/:lan/final-details", async (req, res) => {
         interest: data.interest,
         umrn: data.umrn,
         sanction_date: data.sanction_date,
+        name_in_bank: data.name_in_bank,
+        bank_name: data.bank_name,
+        account_number: data.account_number,
+        ifsc: data.ifsc,
         emi_amount: calculation.emi_amount,
         processing_fee: calculation.processing_fee,
         net_disbursement: calculation.net_disbursement,

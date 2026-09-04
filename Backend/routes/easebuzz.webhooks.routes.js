@@ -5,6 +5,7 @@ const { sendLowBalanceAlertMail } = require("../jobs/mailer");
 const {
   processRapidMoneyDisbursement,
   processCarePayDisbursement,
+  processYaMoneyDisbursement,
 } = require("../services/processEmiClubDisbursement");
 const {
   sendDisbursementWebhook,
@@ -265,6 +266,19 @@ router.post("/payout", async (req, res) => {
         });
       }
 
+      if (transfer.lan?.startsWith("YAM") && effectiveUtr && effectiveTransferDate) {
+        const processingResult = await processYaMoneyDisbursement({
+          lan: transfer.lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate: new Date(effectiveTransferDate),
+        });
+
+        console.log("Duplicate callback Ya Money processing result", {
+          lan: transfer.lan,
+          result: processingResult,
+        });
+      }
+
       if (transfer.lan?.startsWith("CCB")) {
         await db.promise().query(
           `UPDATE loan_booking_claim_cure_buddy
@@ -435,6 +449,20 @@ router.post("/payout", async (req, res) => {
           success: carePayResult?.success,
           skipped: carePayResult?.skipped,
           reason: carePayResult?.reason,
+        });
+      } else if (lan?.startsWith("YAM")) {
+        const yaMoneyResult = await processYaMoneyDisbursement({
+          lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate,
+        });
+
+        console.log("Ya Money internal processing result", {
+          lan,
+          utr: effectiveUtr,
+          success: yaMoneyResult?.success,
+          skipped: yaMoneyResult?.skipped,
+          reason: yaMoneyResult?.reason,
         });
       } else if (lan?.startsWith("CCB")) {
         await db.promise().query(

@@ -20,6 +20,7 @@ const forecloserRoutes = require("./routes/forecloserRoutes");
 const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const loanBookingSummaryRoutes = require("./routes/loanBookingSummaryRoutes");
 const fintreePlPartnerApiRoutes = require("./routes/fintreePlPartnerApi");
 const { initColumnSchemaCache } = require("./services/dashboardService");
 const collectionApiRoutes = require("./routes/collectionApi");
@@ -162,6 +163,7 @@ app.use("/api/bundela", require("./routes/Bundela/bundelaDealerRoutes"));
 
 app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/loan-booking-summary", loanBookingSummaryRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
 app.use("/api/helium-webhook", heliumWebhookRoutes);
