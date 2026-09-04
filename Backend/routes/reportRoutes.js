@@ -101,7 +101,7 @@ function resolveProcedure(rawReportId, rawLender) {
                                               : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
                                                 : lender === "saswat" ? "sp_cashflow_report_saswat"
                                                 : lender === "seven fincorp" ? "sp_cashflow_report_seven_fincorp"
-                                                : lender === "FFPL10011" ? "sp_pl_fintree_cashflow"
+                                                : lender === "ffpl10011" ? "sp_pl_fintree_cashflow"
                                                   : lender === "sterlion ubl"
                                                     ? "sp_cashflow_report_sterlion_ubl"
                                                     : "sp_cashflow_report",
@@ -163,7 +163,7 @@ function resolveProcedure(rawReportId, rawLender) {
                                                     ? "sp_due_collection_all_report_sterlion_ubl"
                                                     : lender === "seven fincorp"
                                                       ? "sp_due_collection_all_report_seven_fincorp"
-                                                      : lender === "FFPL10011" ? "sp_pl_fintree_due_demand"
+                                                      : lender === "ffpl10011" ? "sp_pl_fintree_due_demand"
                                                       : lender === "claimcurebuddy"
                                                         ? "sp_due_collection_all_report_claim_cure_buddy"
                                                         : "sp_due_collection_all_report",
@@ -215,7 +215,7 @@ function resolveProcedure(rawReportId, rawLender) {
                                                 ? "sp_consolidated_mis_report_seven_fincorp"
                                                 : lender === "sterlion ubl"
                                                   ? "sp_consolidated_mis_report_sterlion_ubl"
-                                                      : lender === "FFPL10011" ? "sp_pl_fintree_consolidated_mis"
+                                                      : lender === "ffpl10011" ? "sp_pl_fintree_consolidated_mis"
                                                 :lender === "claimcurebuddy"
                                                   ? "sp_consolidated_mis_report_claim_cure_buddy"
                                                   : "sp_consolidated_mis_report",
