@@ -3091,6 +3091,30 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
       "loan_booking_srbh",
       "loan_booking_saswat",
     ];
+
+    // EmiClub only: the existing Approve button now also triggers the
+    // already-built payout flow (processEmiClubDisbursement etc.) instead of
+    // just flipping status. Scoped strictly to this table + the "approved"
+    // action so every other product using this shared endpoint is unaffected.
+    let payoutResult = null;
+    let payoutError = null;
+
+    if (table === "loan_booking_emiclub" && String(status).toLowerCase() === "approved") {
+      try {
+        payoutResult = await approveAndInitiatePayout({ lan, table: "loan_booking_emiclub" });
+
+        if (!payoutResult.success) {
+          payoutError = payoutResult.message || "Payout initiation failed";
+        }
+      } catch (payoutErr) {
+        console.error("EmiClub approve-and-pay: payout failed", {
+          lan,
+          error: payoutErr.message,
+        });
+        payoutError = payoutErr.message || "Payout failed";
+      }
+    }
+
     return res.json({
       success: true,
       lan,
@@ -3098,7 +3122,13 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
       status,
       stage,
       loan_amount: loanBookingTables.includes(table) ? loan_amount : undefined,
-      message: "Loan updated successfully",
+      ...(payoutResult ? { payout: payoutResult } : {}),
+      ...(payoutError ? { payoutError } : {}),
+      message: payoutError
+        ? `Loan approved, but payout failed: ${payoutError}`
+        : payoutResult
+          ? "Loan approved and payout initiated successfully"
+          : "Loan updated successfully",
     });
   });
 });
