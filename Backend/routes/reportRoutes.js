@@ -68,6 +68,10 @@ function resolveProcedure(rawReportId, rawLender) {
     "pay-out-report": "pay-out-report",
     pay_out_report: "pay-out-report",
     "supply-chain-report": "supply-chain-report",
+
+    "fintree-cashflow-report": "fintree-cashflow-report",
+    "fintree-consolidated-mis": "fintree-consolidated-mis",
+    "fintree-due-demand-report": "fintree-due-demand-report",
   };
 
   const key = aliases[id] || id;
@@ -93,13 +97,13 @@ function resolveProcedure(rawReportId, rawLender) {
                                       : lender === "carepay" ? "sp_cashflow_report_carepay"
                                         : lender === "motion corp" ? "sp_cashflow_report_motion_corp"
                                           : lender === "sampada" ? "sp_cashflow_report_sampada"
-                                          : lender === "rapid-money" ? "sp_cashflow_report_rapid_money"
-                                            : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
-                                              : lender === "saswat" ? "sp_cashflow_report_saswat"
+                                            : lender === "rapid-money" ? "sp_cashflow_report_rapid_money"
+                                              : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
+                                                : lender === "saswat" ? "sp_cashflow_report_saswat"
                                                 : lender === "seven fincorp" ? "sp_cashflow_report_seven_fincorp"
+                                                : lender === "ffpl10011" ? "sp_pl_fintree_cashflow"
                                                   : lender === "sterlion ubl"
                                                     ? "sp_cashflow_report_sterlion_ubl"
-
                                                     : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
@@ -153,20 +157,16 @@ function resolveProcedure(rawReportId, rawLender) {
                                               ? "sp_due_collection_all_report_motion_corp"
                                               : lender === "sampada"
                                                 ? "sp_due_collection_all_report_sampada"
-                                              : lender === "saswat"
-                                                ? "sp_due_collection_all_report_saswat"
-                                                : lender === "sterlion ubl"
-                                                  ? "sp_due_collection_all_report_sterlion_ubl"
-                                                  : lender === "seven fincorp"
-                                                    ? "sp_due_collection_all_report_seven_fincorp"
-                                                 : lender === "claimcurebuddy"
-                                                    ? "sp_due_collection_all_report_claim_cure_buddy"
-                                                  : "sp_due_collection_all_report",
-
-
-
-
-
+                                                : lender === "saswat"
+                                                  ? "sp_due_collection_all_report_saswat"
+                                                  : lender === "sterlion ubl"
+                                                    ? "sp_due_collection_all_report_sterlion_ubl"
+                                                    : lender === "seven fincorp"
+                                                      ? "sp_due_collection_all_report_seven_fincorp"
+                                                      : lender === "ffpl10011" ? "sp_pl_fintree_due_demand"
+                                                      : lender === "claimcurebuddy"
+                                                        ? "sp_due_collection_all_report_claim_cure_buddy"
+                                                        : "sp_due_collection_all_report",
 
     "consolidated-mis": () =>
       lender === "adikosh"
@@ -203,21 +203,23 @@ function resolveProcedure(rawReportId, rawLender) {
                                       ? "sp_consolidated_mis_report_motion_corp"
                                       : lender === "sampada"
                                         ? "sp_consolidated_mis_report_sampada"
-                                      : lender === "rapid-money"
-                                        ? "sp_consolidated_mis_report_rapid_money"
-                                        : lender === "carepay"
-                                          ? "sp_consolidated_mis_report_carepay"
-                                          : lender === "finso"
-                                            ? "sp_consolidated_mis_report_fincrest"
-                                            : lender === "saswat"
-                                              ? "sp_consolidated_mis_report_saswat"
+                                        : lender === "rapid-money"
+                                          ? "sp_consolidated_mis_report_rapid_money"
+                                          : lender === "carepay"
+                                            ? "sp_consolidated_mis_report_carepay"
+                                            : lender === "finso"
+                                              ? "sp_consolidated_mis_report_fincrest"
+                                              : lender === "saswat"
+                                                ? "sp_consolidated_mis_report_saswat"
                                               : lender === "seven fincorp"
                                                 ? "sp_consolidated_mis_report_seven_fincorp"
                                                 : lender === "sterlion ubl"
                                                   ? "sp_consolidated_mis_report_sterlion_ubl"
+                                                      : lender === "ffpl10011" ? "sp_pl_fintree_consolidated_mis"
                                                 :lender === "claimcurebuddy"
                                                   ? "sp_consolidated_mis_report_claim_cure_buddy"
                                                   : "sp_consolidated_mis_report",
+
 
     // NEW IRR Report add
     "irr-report": () =>
@@ -535,6 +537,15 @@ router.post("/trigger", authenticateUser, async (req, res) => {
   const normalizedReportId = norm(reportId);
   console.log("🔍 Normalized report ID:", reportId, lenderName);
   const selectedProcedure = resolveProcedure(reportId, lenderName);
+  console.log(
+ "REPORT DEBUG",
+ {
+   reportId,
+   normalizedReportId,
+   lenderName,
+   selectedProcedure
+ }
+);
 
   if (!selectedProcedure) {
     return res.status(400).json({ error: `Invalid report ID: ${reportId}` });

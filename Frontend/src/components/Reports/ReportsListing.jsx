@@ -43,7 +43,7 @@
 
 //       <ul className="list-group">
 //         {filteredReports.map((report) => (
-          
+
 // // Inside map loop:
 // <li key={report.id} className="list-group-item">
 //   <Link to={`/mis-reports/${report.name.replace(/\s+/g, "-").toLowerCase()}`}>
@@ -64,7 +64,7 @@
 // // import { Search, FileBarChart, ArrowRight, AlertCircle } from "lucide-react";
 // import { Search, FileChartLine, ArrowRight, AlertCircle } from "lucide-react";
 // import "../../styles/ReportsListing.css";
- 
+
 // const REPORT_DATA = [
 //   { id: 1, name: "Consolidated MIS", category: "MIS" },
 //   { id: 2, name: "Due Demand vs Collection Report (All products)", category: "Collection" },
@@ -81,20 +81,20 @@
 //   { id: 13, name: "Pay Out Report", category: "Finance" },
 //   { id: 14, name: "Due Demand vs Collection Report (Fintree)", category: "Collection" }
 // ];
- 
+
 // const ReportsListing = () => {
 //   const [searchTerm, setSearchTerm] = useState("");
- 
+
 //   // Memoized filter for performance and to prevent unnecessary calculations
 //   const filteredReports = useMemo(() => {
 //     return REPORT_DATA.filter((report) =>
 //       report.name.toLowerCase().includes(searchTerm.toLowerCase())
 //     );
 //   }, [searchTerm]);
- 
+
 //   // URL-friendly slug generator
 //   const slugify = (text) => text.replace(/\s+/g, "-").toLowerCase();
- 
+
 //   return (
 //     <div className="reports-container">
 //       <header className="reports-header">
@@ -107,7 +107,7 @@
 //             <p className="subtitle">Select a report to configure and generate data</p>
 //           </div>
 //         </div>
- 
+
 //         <div className="search-wrapper">
 //           <Search className="search-icon" size={18} />
 //           <input
@@ -119,7 +119,7 @@
 //           />
 //         </div>
 //       </header>
- 
+
 //       <div className="reports-grid">
 //         {filteredReports.length > 0 ? (
 //           filteredReports.map((report) => (
@@ -128,7 +128,7 @@
 //                 <span className="category-tag">{report.category}</span>
 //                 <h4>{report.name}</h4>
 //               </div>
-             
+
 //               <Link
 //                 to={`/mis-reports/${slugify(report.name)}`}
 //                 className="generate-link"
@@ -153,9 +153,9 @@
 //     </div>
 //   );
 // };
- 
+
 // export default ReportsListing;
- 
+
 
 ///////////// SAJAG Jain //////////
 import React, { useState, useMemo } from "react";
