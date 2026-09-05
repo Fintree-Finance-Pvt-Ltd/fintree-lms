@@ -136,12 +136,13 @@ function createInitialRules() {
 
     BUREAU_SCORE_CHECK_RPM: rule(false, null, {}, false),
     DUAL_PAN_CHECK_RPM: rule(false, null, {}, false),
-    ENQUIRIES_30D_CHECK_RPM: rule(false, null, {}, false),
     OVERDUE_AMOUNT_CHECK_RPM: rule(false, null, {}, false),
     DPD_30_LAST_3M_CHECK_RPM: rule(false, null, {}, false),
     DPD_60_LAST_9M_CHECK_RPM: rule(false, null, {}, false),
     DPD_90_LAST_12M_CHECK_RPM: rule(false, null, {}, false),
     UNSECURED_AGGREGATION_CHECK_RPM: rule(false, null, {}, false),
+    LIVE_UNSECURED_LOAN_COUNT_CHECK_RPM: rule(false, null, {}, false),
+    NON_CREDIT_ENQUIRIES_30D_CHECK_RPM: rule(false, null, {}, false),
 
     CREDIT_LIMIT_CHECK_RPM: rule(false, null, {}, false),
   };
@@ -168,11 +169,13 @@ async function updateBookingBreSnapshot(lan, result) {
 
       sml_unsecured_total = ?,
       sml_unsecured_count = ?,
+      sml_secured_total = ?,
+      sml_secured_count = ?,
 
       sml_bureau_score = ?,
       sml_pan_count = ?,
       sml_dual_pan_found = ?,
-      sml_enquiries_30d = ?,
+      sml_enquiries_30d = ?, -- now stores non-credit CAPS enquiries (last 30 days), not total enquiries
       sml_total_overdue_amount = ?,
       sml_max_dpd_3m = ?,
       sml_max_dpd_9m = ?,
@@ -191,11 +194,13 @@ async function updateBookingBreSnapshot(lan, result) {
 
       bureau.unsecuredAggregate ?? null,
       bureau.unsecuredTradelineCount ?? null,
+      bureau.securedAggregate ?? null,
+      bureau.securedTradelineCount ?? null,
 
       bureau.score ?? null,
       bureau.panCount ?? null,
       dualPanValue,
-      bureau.enquiries30Days ?? null,
+      bureau.nonCreditEnquiries30Days ?? null,
       bureau.totalOverdueAmount ?? null,
       bureau.maxDpdLast3Months ?? null,
       bureau.maxDpdLast9Months ?? null,
@@ -598,6 +603,8 @@ async function runOrReuseBureau(loan) {
         source: "TEST_BYPASS",
       },
       enquiries30Days: 0,
+      // Must be below 10
+      nonCreditEnquiries30Days: 0,
 
       // Must be below 1000
       totalOverdueAmount: 0,
@@ -621,9 +628,12 @@ async function runOrReuseBureau(loan) {
       // the primary threshold, so the secured fallback never triggers here.
       securedAggregate: 0,
       securedTradelineCount: 0,
+      // Must be below 8
+      liveUnsecuredTradelineCount: 2,
       totalTradelines: 2,
 
       unmappedAccountTypeCodes: [],
+      unmappedAccountStatusCodes: [],
     };
   }
 
@@ -1727,6 +1737,7 @@ async function runBRE(data) {
 
     enquiryBreakdown30Days: bureau.enquiryBreakdown30Days || null,
     enquiries30Days: bureau.enquiries30Days,
+    nonCreditEnquiries30Days: bureau.nonCreditEnquiries30Days,
     totalOverdueAmount: bureau.totalOverdueAmount,
     maxDpdLast3Months: bureau.maxDpdLast3Months,
     maxDpdLast9Months: bureau.maxDpdLast9Months,
@@ -1738,8 +1749,10 @@ async function runBRE(data) {
     unsecuredTradelineCount: bureau.unsecuredTradelineCount,
     securedAggregate: bureau.securedAggregate,
     securedTradelineCount: bureau.securedTradelineCount,
+    liveUnsecuredTradelineCount: bureau.liveUnsecuredTradelineCount,
     totalTradelines: bureau.totalTradelines,
     unmappedAccountTypeCodes: bureau.unmappedAccountTypeCodes || [],
+    unmappedAccountStatusCodes: bureau.unmappedAccountStatusCodes || [],
   };
 
   const bureauScoreMissing =
@@ -1772,22 +1785,6 @@ async function runBRE(data) {
     bureau.hasDualPan ? "DUAL_PAN_FOUND_IN_BUREAU" : null,
     {
       panCount: bureau.panCount,
-    },
-  );
-
-  const enquiries30Days = Number(bureau.enquiries30Days || 0);
-  const enquiriesFailed = enquiries30Days >= POLICY.ENQUIRY_REJECT_FROM_30_DAYS;
-
-  if (enquiriesFailed) {
-    addReason(reasons, "ENQUIRIES_GTE_5_LAST_30_DAYS");
-  }
-
-  rules.ENQUIRIES_30D_CHECK_RPM = rule(
-    !enquiriesFailed,
-    enquiriesFailed ? "ENQUIRIES_GTE_5_LAST_30_DAYS" : null,
-    {
-      enquiriesLast30Days: enquiries30Days,
-      maximumAllowedExclusive: POLICY.ENQUIRY_REJECT_FROM_30_DAYS,
     },
   );
 
@@ -1886,6 +1883,57 @@ async function runBRE(data) {
       securedFallbackApplied: unsecuredBelowMinimum,
       securedFallbackPassed,
       unmappedAccountTypeCodes: bureau.unmappedAccountTypeCodes || [],
+    },
+  );
+
+  /*
+   * Reject when the customer currently has 8 or more live unsecured
+   * tradelines — an over-leverage signal independent of the
+   * unsecured-aggregate amount check above. "Live" is determined primarily
+   * by Account_Status (ACTIVE vs CLOSED/Written-off/Settled/Sold/...), with
+   * Date_Closed only as a fallback for unmapped status codes — see
+   * extractAccountLiveStatus's comment for why Date_Closed alone is not
+   * reliable (written-off/sold accounts are often left with it blank).
+   */
+  const liveUnsecuredTradelineCount = Number(bureau.liveUnsecuredTradelineCount || 0);
+  const liveUnsecuredLoanCountFailed =
+    liveUnsecuredTradelineCount >= POLICY.LIVE_UNSECURED_LOAN_REJECT_FROM;
+
+  if (liveUnsecuredLoanCountFailed) {
+    addReason(reasons, "LIVE_UNSECURED_LOAN_COUNT_ABOVE_POLICY_LIMIT");
+  }
+
+  rules.LIVE_UNSECURED_LOAN_COUNT_CHECK_RPM = rule(
+    !liveUnsecuredLoanCountFailed,
+    liveUnsecuredLoanCountFailed ? "LIVE_UNSECURED_LOAN_COUNT_ABOVE_POLICY_LIMIT" : null,
+    {
+      liveUnsecuredTradelineCount,
+      rejectFromInclusive: POLICY.LIVE_UNSECURED_LOAN_REJECT_FROM,
+      unmappedAccountStatusCodes: bureau.unmappedAccountStatusCodes || [],
+    },
+  );
+
+  /*
+   * Reject when the customer has 10 or more non-credit CAPS enquiries
+   * (Consumer/Corporate, non-lending — e.g. verification/KYC pulls) in the
+   * last 30 days, separate from the existing credit-enquiry check above.
+   */
+  const nonCreditEnquiries30Days = Number(bureau.nonCreditEnquiries30Days || 0);
+  const nonCreditEnquiriesFailed =
+    nonCreditEnquiries30Days >= POLICY.NON_CREDIT_ENQUIRY_REJECT_FROM_30_DAYS;
+
+  if (nonCreditEnquiriesFailed) {
+    addReason(reasons, "NON_CREDIT_ENQUIRIES_ABOVE_POLICY_LIMIT_LAST_30_DAYS");
+  }
+
+  rules.NON_CREDIT_ENQUIRIES_30D_CHECK_RPM = rule(
+    !nonCreditEnquiriesFailed,
+    nonCreditEnquiriesFailed
+      ? "NON_CREDIT_ENQUIRIES_ABOVE_POLICY_LIMIT_LAST_30_DAYS"
+      : null,
+    {
+      nonCreditEnquiriesLast30Days: nonCreditEnquiries30Days,
+      rejectFromInclusive: POLICY.NON_CREDIT_ENQUIRY_REJECT_FROM_30_DAYS,
     },
   );
 
