@@ -934,168 +934,336 @@ const evaluateSampadaPolicy = ({ loan, bureauFacts, amlStatus }) => {
 
   const age = calculateAge(loan.dob);
 
-  const loanAmount = toNumber(loan.requested_loan_amount, 0);
-
-  const tenure = toNumber(loan.loan_tenure, 0);
-
   const score = toNumber(bureauFacts.score, null);
 
-  /**
-   * PAN DUPLICATION (DB - same PAN on another active loan)
-   */
-  // if (panDuplicate) {
-  //   reasons.push("PAN_DUPLICATE_FOUND");
-  // }
+  const loanAmount = toNumber(
+    loan.requested_loan_amount,
+    0
+  );
+
+  const tenure = toNumber(
+    loan.loan_tenure,
+    0
+  );
+
 
   /**
-   * PAN DUPLICATE IN BUREAU XML
-   * More than one distinct PAN reported in the CIBIL report,
-   * or bureau PAN doesn't match the PAN on the loan application.
+   * PAN CHECK
    */
-  const loanPan = String(loan.pan_card || loan.pan_number || "")
+  const loanPan = String(
+    loan.pan_card || loan.pan_number || ""
+  )
     .trim()
     .toUpperCase();
+
+
   const bureauPans = bureauFacts.bureauPans || [];
+
 
   if (bureauPans.length > 1) {
     reasons.push("MULTIPLE_PAN_IN_BUREAU");
   }
 
-  if (loanPan && bureauPans.length === 1 && bureauPans[0] !== loanPan) {
+
+  if (
+    loanPan &&
+    bureauPans.length === 1 &&
+    bureauPans[0] !== loanPan
+  ) {
     reasons.push("BUREAU_PAN_MISMATCH");
   }
 
+
+
   /**
-   * AGE
+   * AGE RULE
    */
   if (age === null) {
-    reasons.push("AGE_MISSING");
-  } else {
-    if (age < 18) reasons.push("AGE_BELOW_18");
 
-    if (age > 58) reasons.push("AGE_ABOVE_58");
+    reasons.push("AGE_MISSING");
+
+  } else {
+
+    if (age < 18) {
+      reasons.push("AGE_BELOW_18");
+    }
+
+
+    if (age > 58) {
+      reasons.push("AGE_ABOVE_58");
+    }
+
   }
 
-  // AML STATUS
-  const normalizedAmlStatus = String(amlStatus || "")
+
+
+  /**
+   * AML
+   */
+  const aml = String(amlStatus || "")
     .trim()
     .toUpperCase();
 
-  if (normalizedAmlStatus === "STOP") {
+
+  if (aml === "STOP") {
     reasons.push("AML_STOP");
-  } else if (normalizedAmlStatus === "REVIEW") {
+  }
+
+
+  if (aml === "REVIEW") {
     reasons.push("AML_REVIEW");
   }
 
+
+
+
   /**
-   * SCORE BANDS
-   * < 300 (or NTC / no score) -> BRE Deviation (bank statement required)
-   * 300 - 649                 -> BRE Rejected
-   * 650 - 674                 -> BRE Deviation (approval basis)
-   * >= 675                    -> straight BRE Approved (no score flag)
+   * CIBIL RULE
+   *
+   * 0-300  : Deviation
+   * 301-649: Reject
+   * 650-674: Deviation
+   * 675+   : Approved
    */
-  if (score === null || score < 300) {
-    deviations.push("NTC_BANK_STATEMENT_REQUIRED");
+
+  if (score === null || score <= 300) {
+
+    deviations.push(
+      "NTC_CIBIL_0_TO_300_APPROVAL_BASIS"
+    );
+
+
   } else if (score < 650) {
-    reasons.push("CIBIL_BELOW_650");
+
+    reasons.push(
+      "CIBIL_BELOW_650"
+    );
+
+
   } else if (score <= 674) {
-    deviations.push("CIBIL_650_TO_674_APPROVAL_BASIS");
+
+    deviations.push(
+      "CIBIL_650_TO_674_APPROVAL_BASIS"
+    );
+
   }
-  // score >= 675 -> no flag
+
+
+
 
   /**
    * LOAN AMOUNT
-   * Min ticket: 50,000 | Max ticket: 1,60,000
+   *
+   * Min 1,00,000
+   * Max 2,50,000
    */
-  if (loanAmount < 50000) {
-    reasons.push("LOAN_AMOUNT_BELOW_50000");
+
+  if (loanAmount < 100000) {
+
+    reasons.push(
+      "LOAN_AMOUNT_BELOW_100000"
+    );
+
   }
 
-  if (loanAmount > 160000) {
-    reasons.push("LOAN_AMOUNT_ABOVE_160000");
+
+  if (loanAmount > 250000) {
+
+    reasons.push(
+      "LOAN_AMOUNT_ABOVE_250000"
+    );
+
   }
+
+
+
+
 
   /**
-   * TENURE: Min 12 Max 24 months
+   * TENURE
+   *
+   * Min 12
+   * Max 30 Months
    */
-  if (tenure < 12 || tenure > 24) {
-    reasons.push("TENURE_OUTSIDE_12_TO_24");
+
+  if (tenure < 12 || tenure > 30) {
+
+    reasons.push(
+      "TENURE_OUTSIDE_12_TO_30"
+    );
+
   }
 
+
+
+
   /**
-   * ENQUIRIES: should not exceed 5 in last 30 days
+   * APR CHECK REMOVED
+   *
+   * Loan Eligibility financing rule removed
    */
+
+
+
+
+
+  /**
+   * ENQUIRY
+   */
+
   if (bureauFacts.enquiries30d > 5) {
-    reasons.push("ENQUIRIES_GT_5_LAST_30D");
+
+    reasons.push(
+      "ENQUIRIES_GT_5_LAST_30D"
+    );
+
   }
 
+
+
+
+
   /**
-   * DPD RULES
-   * DPD in last 3 months -> BRE Deviation
-   * DPD in last 6 months -> BRE Deviation
+   * DPD
    */
+
   if (bureauFacts.hasDpd3M) {
-    deviations.push("DPD_LAST_3M_DEVIATION");
-  } else if (bureauFacts.hasDpd6M) {
-    deviations.push("DPD_LAST_4_TO_6M_DEVIATION");
+
+    deviations.push(
+      "DPD_LAST_3M_APPROVAL_BASIS"
+    );
+
   }
 
+
+  if (bureauFacts.hasDpd6M) {
+
+    deviations.push(
+      "DPD_LAST_6M_APPROVAL_BASIS"
+    );
+
+  }
+
+
+
+
   /**
-   * OVERDUE in last 12 months -> BRE Rejected
+   * OVERDUE LAST 12 MONTH
    */
+
   if (bureauFacts.hasOverdue12M) {
-    reasons.push("OVERDUE_LAST_12M");
+
+    deviations.push(
+      "OVERDUE_LAST_12_MONTH_APPROVAL_BASIS"
+    );
+
   }
 
+
+
+
+
   /**
-   * WRITTEN OFF in last 3 years -> BRE Deviation
+   * WRITTEN OFF
    */
+
   if (bureauFacts.hasWrittenOff3Y) {
-    deviations.push("WRITTEN_OFF_LAST_3Y_DEVIATION");
+
+    deviations.push(
+      "WRITTEN_OFF_LAST_3Y_APPROVAL_BASIS"
+    );
+
   }
 
+
+
+
+
   /**
-   * 60+ DPD in last 24 months -> BRE Deviation
-   * 90+ DPD in last 36 months -> BRE Deviation
+   * 60+ / 90+ DPD
    */
+
   if (bureauFacts.has60Plus24M) {
-    deviations.push("60PLUS_DPD_24M_DEVIATION");
+
+    deviations.push(
+      "60PLUS_DPD_24M_APPROVAL_BASIS"
+    );
+
   }
+
 
   if (bureauFacts.has90Plus36M) {
-    deviations.push("90PLUS_DPD_36M_DEVIATION");
+
+    deviations.push(
+      "90PLUS_DPD_36M_APPROVAL_BASIS"
+    );
+
   }
 
+
+
+
+
   /**
-   * OVERDUE AMOUNTS
-   * EMI-based loans > 3,000 -> BRE Deviation
-   * Credit card > 5,000     -> BRE Deviation
+   * OVERDUE AMOUNT
+   *
+   * EMI > 3000
+   * CC > 5000
    */
+
   if (bureauFacts.emiOverdueAmount > 3000) {
-    deviations.push("EMI_OVERDUE_GT_3000");
+
+    deviations.push(
+      "EMI_OVERDUE_GT_3000_APPROVAL_BASIS"
+    );
+
   }
+
 
   if (bureauFacts.ccOverdueAmount > 5000) {
-    deviations.push("CC_OVERDUE_GT_5000");
+
+    deviations.push(
+      "CC_OVERDUE_GT_5000_APPROVAL_BASIS"
+    );
+
   }
+
+
+
+
 
   /**
-   * FINAL STATUS
+   * FINAL DECISION
    */
+
   let status = "BRE APPROVED";
 
+
   if (reasons.length > 0) {
+
     status = "BRE REJECTED";
-  } else if (deviations.length > 0) {
+
+  } 
+  else if (deviations.length > 0) {
+
     status = "BRE DEVIATION";
+
   }
 
+
+
   return {
+
     status,
+
     reasons,
+
     deviations,
+
     bureauScore: score,
+
   };
+
 };
 
 /**
