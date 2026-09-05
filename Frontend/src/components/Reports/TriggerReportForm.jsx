@@ -515,6 +515,7 @@ const productOptions = [
   { label: "SRBH", value: "SRBH" },
   { label: "CAREPAY", value: "CAREPAY" },
   { label: "Sterlion UBL", value: "Sterlion UBL" },
+  { label: "Sterlion Mexon Dexon", value: "Sterlion" },
   { label: "FFPL", value: "FFPL" },
   { label: "KITE", value: "KITE" },
   { label: "Muthoot", value: "Muthoot" },

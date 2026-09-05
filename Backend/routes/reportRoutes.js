@@ -78,33 +78,58 @@ function resolveProcedure(rawReportId, rawLender) {
 
   const procMap = {
     "cashflow-report": () =>
-      lender === "adikosh" ? "sp_cashflow_report_adikosh"
-        : lender === "gq non-fsf" ? "sp_cashflow_report_gq_non_fsf"
-          : lender === "embifi" ? "sp_cashflow_report_embifi"
-            : lender === "clayoo" ? "sp_cashflow_report_clayyo"
-              : lender === "gq fsf" ? "sp_cashflow_report_gq_fsf"
-                : lender === "wctl" ? "sp_cashflow_report_wctl"
-                  : lender === "wctl_ffpl" ? "sp_cashflow_report_wctl_ffpl"
-                    : lender === "ev loan" ? "sp_cashflow_report_ev"
-                      : lender === "hey ev" ? "sp_cashflow_report_hey_ev"
-                        : lender === "emiclub" ? "sp_cashflow_report_emiclub"
-                          : lender === "circlepe" ? "sp_cashflow_report_circlepe"
-                            : lender === "circlepe houser" ? "sp_cashflow_report_circle_pe_houser"
-                              : lender === "heyev battery" ? "sp_cashflow_report_heyev_battery"
-                                : lender === "helium" ? "sp_cashflow_report_helium"
-                                  : lender === "finso" ? "sp_cashflow_report_fincrest"
-                                    : lender === "srbh" ? "sp_cashflow_report_srbh"
-                                      : lender === "carepay" ? "sp_cashflow_report_carepay"
-                                        : lender === "motion corp" ? "sp_cashflow_report_motion_corp"
-                                          : lender === "sampada" ? "sp_cashflow_report_sampada"
-                                            : lender === "rapid-money" ? "sp_cashflow_report_rapid_money"
-                                              : lender === "loan-digit" ? "sp_cashflow_report_loan_digit"
-                                                : lender === "saswat" ? "sp_cashflow_report_saswat"
-                                                : lender === "seven fincorp" ? "sp_cashflow_report_seven_fincorp"
-                                                : lender === "ffpl10011" ? "sp_pl_fintree_cashflow"
-                                                  : lender === "sterlion ubl"
-                                                    ? "sp_cashflow_report_sterlion_ubl"
-                                                    : "sp_cashflow_report",
+      lender === "adikosh"
+        ? "sp_cashflow_report_adikosh"
+        : lender === "gq non-fsf"
+          ? "sp_cashflow_report_gq_non_fsf"
+          : lender === "embifi"
+            ? "sp_cashflow_report_embifi"
+            : lender === "clayoo"
+              ? "sp_cashflow_report_clayyo"
+              : lender === "gq fsf"
+                ? "sp_cashflow_report_gq_fsf"
+                : lender === "wctl"
+                  ? "sp_cashflow_report_wctl"
+                  : lender === "wctl_ffpl"
+                    ? "sp_cashflow_report_wctl_ffpl"
+                    : lender === "ev loan"
+                      ? "sp_cashflow_report_ev"
+                      : lender === "hey ev"
+                        ? "sp_cashflow_report_hey_ev"
+                        : lender === "emiclub"
+                          ? "sp_cashflow_report_emiclub"
+                          : lender === "circlepe"
+                            ? "sp_cashflow_report_circlepe"
+                            : lender === "circlepe houser"
+                              ? "sp_cashflow_report_circle_pe_houser"
+                              : lender === "heyev battery"
+                                ? "sp_cashflow_report_heyev_battery"
+                                : lender === "helium"
+                                  ? "sp_cashflow_report_helium"
+                                  : lender === "finso"
+                                    ? "sp_cashflow_report_fincrest"
+                                    : lender === "srbh"
+                                      ? "sp_cashflow_report_srbh"
+                                      : lender === "carepay"
+                                        ? "sp_cashflow_report_carepay"
+                                        : lender === "motion corp"
+                                          ? "sp_cashflow_report_motion_corp"
+                                          : lender === "sampada"
+                                            ? "sp_cashflow_report_sampada"
+                                            : lender === "rapid-money"
+                                              ? "sp_cashflow_report_rapid_money"
+                                              : lender === "loan-digit"
+                                                ? "sp_cashflow_report_loan_digit"
+                                                : lender === "saswat"
+                                                  ? "sp_cashflow_report_saswat"
+                                                  : lender === "seven fincorp"
+                                                    ? "sp_cashflow_report_seven_fincorp"
+                                                    : lender === "ffpl10011"
+                                                      ? "sp_pl_fintree_cashflow"
+                                                      : lender ===
+                                                          "sterlion ubl"
+                                                        ? "sp_cashflow_report_sterlion_ubl"
+                                                        : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
 
@@ -112,7 +137,6 @@ function resolveProcedure(rawReportId, rawLender) {
       lender === "gq non-fsf"
         ? "sp_due_collection_all_report_gq_non_fsf_fintree"
         : "sp_due_collection_all_report_gq_fsf_fintree",
-
 
     "due-demand-vs-collection-report(all-products)": () =>
       lender === "adikosh"
@@ -161,12 +185,22 @@ function resolveProcedure(rawReportId, rawLender) {
                                                   ? "sp_due_collection_all_report_saswat"
                                                   : lender === "sterlion ubl"
                                                     ? "sp_due_collection_all_report_sterlion_ubl"
-                                                    : lender === "seven fincorp"
-                                                      ? "sp_due_collection_all_report_seven_fincorp"
-                                                      : lender === "ffpl10011" ? "sp_pl_fintree_due_demand"
-                                                      : lender === "claimcurebuddy"
-                                                        ? "sp_due_collection_all_report_claim_cure_buddy"
-                                                        : "sp_due_collection_all_report",
+                                                    : [
+                                                          "sterlion",
+                                                          "mexon",
+                                                          "nexon",
+                                                          "dexon",
+                                                        ].includes(lender)
+                                                      ? "sp_due_demand_collection_sterlion_nexon_dexon"
+                                                      : lender ===
+                                                          "seven fincorp"
+                                                        ? "sp_due_collection_all_report_seven_fincorp"
+                                                        : lender === "ffpl10011"
+                                                          ? "sp_pl_fintree_due_demand"
+                                                          : lender ===
+                                                              "claimcurebuddy"
+                                                            ? "sp_due_collection_all_report_claim_cure_buddy"
+                                                            : "sp_due_collection_all_report",
 
     "consolidated-mis": () =>
       lender === "adikosh"
@@ -211,15 +245,16 @@ function resolveProcedure(rawReportId, rawLender) {
                                               ? "sp_consolidated_mis_report_fincrest"
                                               : lender === "saswat"
                                                 ? "sp_consolidated_mis_report_saswat"
-                                              : lender === "seven fincorp"
-                                                ? "sp_consolidated_mis_report_seven_fincorp"
-                                                : lender === "sterlion ubl"
-                                                  ? "sp_consolidated_mis_report_sterlion_ubl"
-                                                      : lender === "ffpl10011" ? "sp_pl_fintree_consolidated_mis"
-                                                :lender === "claimcurebuddy"
-                                                  ? "sp_consolidated_mis_report_claim_cure_buddy"
-                                                  : "sp_consolidated_mis_report",
-
+                                                : lender === "seven fincorp"
+                                                  ? "sp_consolidated_mis_report_seven_fincorp"
+                                                  : lender === "sterlion ubl"
+                                                    ? "sp_consolidated_mis_report_sterlion_ubl"
+                                                    : lender === "ffpl10011"
+                                                      ? "sp_pl_fintree_consolidated_mis"
+                                                      : lender ===
+                                                          "claimcurebuddy"
+                                                        ? "sp_consolidated_mis_report_claim_cure_buddy"
+                                                        : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
     "irr-report": () =>
@@ -239,7 +274,6 @@ function resolveProcedure(rawReportId, rawLender) {
 
     // CCOD LOAN DATA REPORT
     "ccod-loan-data-report": () => "sp_cc_ood_mis_report",
-
 
     //// PAYOUT REPORT
     "pay-out-report": () => {
@@ -263,7 +297,9 @@ function resolveProcedure(rawReportId, rawLender) {
 
     // consumer bureau report
     "consumer-bureau-report": () =>
-      lender === "ev loan" ? "sp_ev_beuro_data_ev_loan" : "sp_ev_beuro_data_ev_loan",
+      lender === "ev loan"
+        ? "sp_ev_beuro_data_ev_loan"
+        : "sp_ev_beuro_data_ev_loan",
 
     // NEW IRR Report add
     "supply-chain-report": () =>
@@ -279,127 +315,89 @@ function resolveProcedure(rawReportId, rawLender) {
   return procMap[key] ? procMap[key]() : null;
 }
 
-router.get(
-  "/clayoo/consolidated-mis",
-  async (req, res) => {
-    try {
-      const startDate = String(
-        req.query.startDate || "",
-      ).trim();
+router.get("/clayoo/consolidated-mis", async (req, res) => {
+  try {
+    const startDate = String(req.query.startDate || "").trim();
 
-      const endDate = String(
-        req.query.endDate || "",
-      ).trim();
+    const endDate = String(req.query.endDate || "").trim();
 
-      const report =
-        await generateClayooConsolidatedMis(
-          startDate,
-          endDate,
-        );
+    const report = await generateClayooConsolidatedMis(startDate, endDate);
 
-      const rows = report.rows || [];
+    const rows = report.rows || [];
 
-      if (!rows.length) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "No Clayoo Consolidated MIS records found for the selected date range.",
-        });
-      }
-
-      const workbook =
-        new ExcelJS.Workbook();
-
-      const worksheet =
-        workbook.addWorksheet(
-          "Clayoo Consolidated MIS",
-        );
-
-      const columnNames =
-        Object.keys(rows[0]);
-
-      worksheet.columns =
-        columnNames.map(
-          (columnName) => ({
-            header: columnName,
-            key: columnName,
-            width: Math.max(
-              String(columnName).length +
-              5,
-              18,
-            ),
-          }),
-        );
-
-      rows.forEach((row) => {
-        worksheet.addRow(row);
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "No Clayoo Consolidated MIS records found for the selected date range.",
       });
-
-      worksheet.getRow(1).font = {
-        bold: true,
-      };
-
-      worksheet.getRow(1).alignment = {
-        vertical: "middle",
-        horizontal: "center",
-      };
-
-      worksheet.views = [
-        {
-          state: "frozen",
-          ySplit: 1,
-        },
-      ];
-
-      worksheet.autoFilter = {
-        from: {
-          row: 1,
-          column: 1,
-        },
-        to: {
-          row: 1,
-          column:
-            columnNames.length,
-        },
-      };
-
-      const fileName =
-        `Clayoo_Consolidated_MIS_` +
-        `${startDate}_to_${endDate}.xlsx`;
-
-      const excelBuffer =
-        await workbook.xlsx.writeBuffer();
-
-      res.setHeader(
-        "Content-Type",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      );
-
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="${fileName}"`,
-      );
-
-      return res.status(200).send(
-        Buffer.from(excelBuffer),
-      );
-    } catch (error) {
-      console.error(
-        "Clayoo Consolidated MIS error:",
-        error,
-      );
-
-      return res
-        .status(error.statusCode || 500)
-        .json({
-          success: false,
-          message:
-            error.message ||
-            "Failed to generate Clayoo Consolidated MIS.",
-        });
     }
-  },
-);
+
+    const workbook = new ExcelJS.Workbook();
+
+    const worksheet = workbook.addWorksheet("Clayoo Consolidated MIS");
+
+    const columnNames = Object.keys(rows[0]);
+
+    worksheet.columns = columnNames.map((columnName) => ({
+      header: columnName,
+      key: columnName,
+      width: Math.max(String(columnName).length + 5, 18),
+    }));
+
+    rows.forEach((row) => {
+      worksheet.addRow(row);
+    });
+
+    worksheet.getRow(1).font = {
+      bold: true,
+    };
+
+    worksheet.getRow(1).alignment = {
+      vertical: "middle",
+      horizontal: "center",
+    };
+
+    worksheet.views = [
+      {
+        state: "frozen",
+        ySplit: 1,
+      },
+    ];
+
+    worksheet.autoFilter = {
+      from: {
+        row: 1,
+        column: 1,
+      },
+      to: {
+        row: 1,
+        column: columnNames.length,
+      },
+    };
+
+    const fileName =
+      `Clayoo_Consolidated_MIS_` + `${startDate}_to_${endDate}.xlsx`;
+
+    const excelBuffer = await workbook.xlsx.writeBuffer();
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+    return res.status(200).send(Buffer.from(excelBuffer));
+  } catch (error) {
+    console.error("Clayoo Consolidated MIS error:", error);
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Failed to generate Clayoo Consolidated MIS.",
+    });
+  }
+});
 function isValidReportDate(value) {
   if (!value) {
     return false;
@@ -416,10 +414,7 @@ function isValidReportDate(value) {
   return !Number.isNaN(parsedDate.getTime());
 }
 
-async function generateClayooConsolidatedMis(
-  startDate,
-  endDate,
-) {
+async function generateClayooConsolidatedMis(startDate, endDate) {
   if (!isValidReportDate(startDate)) {
     const error = new Error(
       "Valid start date is required in YYYY-MM-DD format.",
@@ -430,57 +425,42 @@ async function generateClayooConsolidatedMis(
   }
 
   if (!isValidReportDate(endDate)) {
-    const error = new Error(
-      "Valid end date is required in YYYY-MM-DD format.",
-    );
+    const error = new Error("Valid end date is required in YYYY-MM-DD format.");
 
     error.statusCode = 400;
     throw error;
   }
 
-  if (
-    new Date(`${startDate}T00:00:00`) >
-    new Date(`${endDate}T00:00:00`)
-  ) {
-    const error = new Error(
-      "Start date cannot be greater than end date.",
-    );
+  if (new Date(`${startDate}T00:00:00`) > new Date(`${endDate}T00:00:00`)) {
+    const error = new Error("Start date cannot be greater than end date.");
 
     error.statusCode = 400;
     throw error;
   }
 
   const lender = "clayoo";
-  const procedureName =
-    "sp_consolidated_mis_report_clayyo";
+  const procedureName = "sp_consolidated_mis_report_clayyo";
 
-  console.log(
-    "Generating Clayoo Consolidated MIS:",
-    {
-      lender,
-      startDate,
-      endDate,
-      procedureName,
-    },
-  );
-
+  console.log("Generating Clayoo Consolidated MIS:", {
+    lender,
+    startDate,
+    endDate,
+    procedureName,
+  });
 
   const [procedureResult] = await db
     .promise()
-    .query(
-      `CALL sp_consolidated_mis_report_clayyo(?, ?, ?)`,
-      [startDate, endDate, lender],
-    );
+    .query(`CALL sp_consolidated_mis_report_clayyo(?, ?, ?)`, [
+      startDate,
+      endDate,
+      lender,
+    ]);
 
   /*
    * For mysql2 stored procedure output,
    * the first result set usually contains report rows.
    */
-  const rows = Array.isArray(
-    procedureResult?.[0],
-  )
-    ? procedureResult[0]
-    : [];
+  const rows = Array.isArray(procedureResult?.[0]) ? procedureResult[0] : [];
 
   return {
     lender: "Clayoo",
@@ -537,15 +517,12 @@ router.post("/trigger", authenticateUser, async (req, res) => {
   const normalizedReportId = norm(reportId);
   console.log("🔍 Normalized report ID:", reportId, lenderName);
   const selectedProcedure = resolveProcedure(reportId, lenderName);
-  console.log(
- "REPORT DEBUG",
- {
-   reportId,
-   normalizedReportId,
-   lenderName,
-   selectedProcedure
- }
-);
+  console.log("REPORT DEBUG", {
+    reportId,
+    normalizedReportId,
+    lenderName,
+    selectedProcedure,
+  });
 
   if (!selectedProcedure) {
     return res.status(400).json({ error: `Invalid report ID: ${reportId}` });
@@ -817,8 +794,7 @@ router.get("/downloads", (req, res) => {
       return res.status(500).json({ message: "Database error" });
     }
 
-    const apiBase =
-      process.env.API_BASE_URL || "http://localhost:5000";
+    const apiBase = process.env.API_BASE_URL || "http://localhost:5000";
 
     const withUrls = results.map((row) => ({
       ...row,
