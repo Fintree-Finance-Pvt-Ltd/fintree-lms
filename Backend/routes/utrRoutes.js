@@ -1272,8 +1272,7 @@ else if (lan.startsWith("SFL")) {
         }
 
         // ✅ Update partner used limit after successful disbursement
-        // TEMPORARILY DISABLED — do not remove, re-enable by uncommenting.
-        /*
+
         try {
           const limitResult = await updatePartnerLimitAfterDisbursement(conn, {
             lan,
@@ -1299,7 +1298,6 @@ else if (lan.startsWith("SFL")) {
           await conn.rollback();
           continue;
         }
-        */
 
         await conn.commit();
         conn.release();
