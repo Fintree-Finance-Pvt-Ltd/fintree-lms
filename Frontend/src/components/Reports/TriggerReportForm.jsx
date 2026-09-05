@@ -518,7 +518,7 @@ const productOptions = [
   { label: "FFPL", value: "FFPL" },
   { label: "KITE", value: "KITE" },
   { label: "Muthoot", value: "Muthoot" },
-  { label: "WCTL FFPL", value: "wctl_ffpl" },
+  { label: "WCTL FFPL", value: "wctl ffpl" },
   { label: "Claim Cure Buddy", value: "ClaimCureBuddy" },
   { label: "Saswat", value: "Saswat" },
   { label: "Seven Fincorp", value: "Seven Fincorp" },
