@@ -48,6 +48,40 @@ const generateLoanDigitLan = async (conn, lender) => {
   return `${prefixLan}${newSequence}`;
 };
 
+
+async function generateLoanDigitAssessmentLan(conn) {
+
+  const [rows] = await conn.query(`
+    SELECT lan
+    FROM loan_booking_loan_digit_assessment
+
+    WHERE lan LIKE 'LDA%'
+
+    ORDER BY id DESC
+
+    LIMIT 1
+  `);
+
+  let nextNumber = 1011001;
+
+  if (rows.length > 0) {
+
+    const lastLan =
+      String(rows[0].lan || "");
+
+    const numericPart =
+      parseInt(
+        lastLan.replace(/\D/g, ""),
+        10
+      );
+
+    if (!isNaN(numericPart)) {
+      nextNumber = numericPart + 1;
+    }
+  }
+
+  return `LDA${nextNumber}`;
+}
 /**
  * State codes
  * Kept aligned with your EMI Club code.
@@ -1411,4 +1445,704 @@ router.get("/collections", async (req, res) => {
     });
   }
 });
+
+
+router.post("/assessment-fees", async (req, res) => {
+
+  let conn;
+
+  try {
+
+    let {
+      lan,
+      utr,
+      payment_id,
+      transfer_amount,
+    } = req.body;
+
+
+    // ==========================================
+    // NORMALIZE INPUT
+    // ==========================================
+
+    lan = String(lan || "")
+      .trim()
+      .toUpperCase();
+
+    utr = String(utr || "")
+      .trim()
+      .toUpperCase();
+
+    payment_id = String(payment_id || "")
+      .trim();
+
+   
+    transfer_amount =
+      Number(transfer_amount);
+
+
+    // ==========================================
+    // VALIDATION
+    // ==========================================
+
+    if (
+      !lan ||
+      !utr ||
+      !payment_id ||
+    
+      !Number.isFinite(transfer_amount)
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "LAN, UTR, Payment ID, Bank Date and Transfer Amount are mandatory",
+      });
+
+    }
+
+
+    if (transfer_amount <= 0) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Transfer Amount must be greater than 0",
+      });
+
+    }
+
+
+    // ==========================================
+    // GET CONNECTION
+    // ==========================================
+
+    conn = await db.promise().getConnection();
+
+    await conn.beginTransaction();
+
+
+    // ==========================================
+    // CHECK LOAN DIGIT LAN
+    // ==========================================
+
+    const [loanRows] = await conn.query(
+      `
+      SELECT
+        id,
+        lan,
+        customer_name,
+        status
+
+      FROM loan_booking_loan_digit_assessment
+
+      WHERE UPPER(TRIM(lan)) = ?
+
+      LIMIT 1
+      `,
+      [lan]
+    );
+
+
+    if (loanRows.length === 0) {
+
+      await conn.rollback();
+      conn.release();
+      conn = null;
+
+      return res.status(404).json({
+        success: false,
+        message: "Loan Digit LAN not found",
+        lan,
+      });
+
+    }
+
+
+    const loan = loanRows[0];
+
+
+    // ==========================================
+    // ONLY REJECTED / OPS_REJECTED
+    // ==========================================
+
+    const status =
+      String(loan.status || "")
+        .trim()
+        .toUpperCase();
+
+
+    if (
+      ![
+        "REJECTED",
+        "OPS_REJECTED"
+      ].includes(status)
+    ) {
+
+      await conn.rollback();
+      conn.release();
+      conn = null;
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Assessment fee can only be added for rejected Loan Digit cases",
+        lan,
+        current_status: loan.status,
+      });
+
+    }
+
+
+    // ==========================================
+    // CHECK DUPLICATE PAYMENT ID
+    // ==========================================
+
+    const [duplicatePayment] =
+      await conn.query(
+        `
+        SELECT
+          id,
+          lan,
+          payment_id
+
+        FROM assessment_fees_loan_digit
+
+        WHERE lan = ?
+          AND payment_id = ?
+
+        LIMIT 1
+        `,
+        [
+          lan,
+          payment_id
+        ]
+      );
+
+
+    if (duplicatePayment.length > 0) {
+
+      await conn.rollback();
+      conn.release();
+      conn = null;
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Payment ID already exists for this LAN",
+        lan,
+        payment_id,
+      });
+
+    }
+
+
+    // ==========================================
+    // CHECK DUPLICATE UTR
+    // ==========================================
+
+    const [duplicateUtr] =
+      await conn.query(
+        `
+        SELECT
+          id,
+          lan,
+          utr
+
+        FROM assessment_fees_loan_digit
+
+        WHERE utr = ?
+
+        LIMIT 1
+        `,
+        [utr]
+      );
+
+
+    if (duplicateUtr.length > 0) {
+
+      await conn.rollback();
+      conn.release();
+      conn = null;
+
+      return res.status(400).json({
+        success: false,
+        message: "UTR already exists",
+        utr,
+      });
+
+    }
+
+
+    // ==========================================
+    // INSERT ASSESSMENT FEE
+    // ==========================================
+
+    const [insertResult] =
+      await conn.query(
+        `
+        INSERT INTO assessment_fees_loan_digit
+        (
+          lan,
+          utr,
+          payment_id,
+          transfer_amount,
+          created_at
+        )
+        VALUES
+        (
+          ?, ?, ?,  ?, NOW()
+        )
+        `,
+        [
+          lan,
+          utr,
+          payment_id,
+          transfer_amount,
+        ]
+      );
+
+
+    // ==========================================
+    // COMMIT
+    // ==========================================
+
+    await conn.commit();
+
+    conn.release();
+    conn = null;
+
+
+    return res.status(201).json({
+
+      success: true,
+
+      message:
+        "Loan Digit assessment fee saved successfully",
+
+      data: {
+        id: insertResult.insertId,
+        lan,
+        customer_name:
+          loan.customer_name,
+        utr,
+        payment_id,
+        transfer_amount,
+      },
+
+    });
+
+
+  } catch (err) {
+
+    if (conn) {
+
+      try {
+        await conn.rollback();
+      } catch (_) {}
+
+      conn.release();
+
+    }
+
+
+    console.error(
+      "Loan Digit assessment fee error:",
+      err
+    );
+
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to save Loan Digit assessment fee",
+      error: err.message,
+    });
+
+  }
+
+});
+
+router.post("/add-assessment-case",
+  async (req, res) => {
+
+    let conn;
+
+    try {
+
+      // ==========================================
+      // REQUEST
+      // ==========================================
+
+      const data = req.body || {};
+
+
+      // ==========================================
+      // REQUIRED FIELDS
+      // ==========================================
+
+      const requiredFields = [
+        "partner_loan_id",
+        "first_name",
+        "mobile_number",
+        "pan_number",
+        "dob",
+        "age",
+        "gender",
+        "current_address",
+      ];
+
+
+      for (const field of requiredFields) {
+
+        if (
+          data[field] === undefined ||
+          data[field] === null ||
+          data[field] === ""
+        ) {
+
+          return res.status(400).json({
+            success: false,
+            message:
+              `Missing required field: ${field}`,
+          });
+
+        }
+      }
+
+
+      // ==========================================
+      // NORMALIZE
+      // ==========================================
+
+      const partner_loan_id =
+        String(data.partner_loan_id)
+          .trim();
+
+
+      const first_name =
+        String(data.first_name)
+          .trim();
+
+
+      const middle_name =
+        data.middle_name
+          ? String(data.middle_name).trim()
+          : null;
+
+
+      const last_name =
+        data.last_name
+          ? String(data.last_name).trim()
+          : null;
+
+      const customer_name =
+  `${first_name} ${middle_name || ""} ${last_name || ""}`
+    .replace(/\s+/g, " ")
+    .trim();
+
+      const mobile_number =
+        String(data.mobile_number)
+          .trim();
+
+
+      const pan_number =
+        String(data.pan_number)
+          .trim()
+          .toUpperCase();
+
+
+      const dob =
+        data.dob;
+
+
+      const age =
+        Number(data.age);
+
+
+      const gender =
+        String(data.gender)
+          .trim();
+
+
+      const current_address =
+        String(data.current_address)
+          .trim();
+
+
+      // ==========================================
+      // AGE VALIDATION
+      // ==========================================
+
+      if (
+        !Number.isInteger(age) ||
+        age <= 0
+      ) {
+
+        return res.status(400).json({
+          success: false,
+          message: "Invalid age",
+        });
+
+      }
+
+
+      // ==========================================
+      // MOBILE VALIDATION
+      // ==========================================
+
+      const mobileRegex =
+        /^[6-9][0-9]{9}$/;
+
+
+      if (
+        !mobileRegex.test(mobile_number)
+      ) {
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid mobile number",
+        });
+
+      }
+
+
+      // ==========================================
+      // PAN VALIDATION
+      // ==========================================
+
+      const panRegex =
+        /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+
+
+      if (
+        !panRegex.test(pan_number)
+      ) {
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid PAN format",
+        });
+
+      }
+
+
+      // ==========================================
+      // CONNECTION
+      // ==========================================
+
+      conn =
+        await db.promise().getConnection();
+
+
+      await conn.beginTransaction();
+
+
+      // ==========================================
+      // CHECK PARTNER LOAN ID
+      // ==========================================
+
+      const [existingPartnerLoan] =
+        await conn.query(
+          `
+          SELECT
+            id,
+            lan,
+            partner_loan_id
+
+          FROM loan_booking_loan_digit_assessment
+
+          WHERE TRIM(partner_loan_id) = ?
+
+          LIMIT 1
+          `,
+          [partner_loan_id]
+        );
+
+
+      if (
+        existingPartnerLoan.length > 0
+      ) {
+
+        await conn.rollback();
+
+        conn.release();
+        conn = null;
+
+
+        return res.status(400).json({
+          success: false,
+
+          message:
+            "Duplicate Partner Loan ID",
+
+          existing_lan:
+            existingPartnerLoan[0].lan,
+
+          partner_loan_id,
+        });
+
+      }
+
+
+      // ==========================================
+      // GENERATE ASSESSMENT LAN
+      // ==========================================
+
+      const lan =
+        await generateLoanDigitAssessmentLan(
+          conn
+        );
+
+
+      // ==========================================
+      // INSERT
+      // ==========================================
+
+     await conn.query(
+  `
+  INSERT INTO loan_booking_loan_digit_assessment
+  (
+    lan,
+    partner_loan_id,
+
+    first_name,
+    middle_name,
+    last_name,
+    customer_name,
+
+    mobile_number,
+    pan_number,
+
+    dob,
+    age,
+    gender,
+
+    current_address,
+
+    status,
+    created_at
+  )
+  VALUES
+  (
+    ?, ?,
+    ?, ?, ?, ?,
+    ?, ?,
+    ?, ?, ?,
+    ?,
+    'Login',
+    NOW()
+  )
+  `,
+  [
+    lan,
+    partner_loan_id,
+
+    first_name,
+    middle_name,
+    last_name,
+    customer_name,
+
+    mobile_number,
+    pan_number,
+
+    dob,
+    age,
+    gender,
+
+    current_address,
+  ]
+);
+
+
+      // ==========================================
+      // COMMIT
+      // ==========================================
+
+      await conn.commit();
+
+      conn.release();
+      conn = null;
+
+
+      // ==========================================
+      // RESPONSE
+      // ==========================================
+
+      return res.status(201).json({
+
+        success: true,
+
+        message:
+          "Loan Digit assessment case created successfully",
+
+        data: {
+
+          lan,
+
+          partner_loan_id,
+
+          first_name,
+
+          middle_name,
+
+          last_name,
+
+          mobile_number,
+
+          pan_number,
+
+          dob,
+
+          age,
+
+          gender,
+
+          current_address,
+
+          status: "Login",
+
+        },
+
+      });
+
+
+    } catch (error) {
+
+      if (conn) {
+
+        try {
+          await conn.rollback();
+        } catch (_) {}
+
+        conn.release();
+
+      }
+
+
+      console.error(
+        "Loan Digit Assessment Error:",
+        error
+      );
+
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          "Failed to create Loan Digit assessment case",
+
+        error:
+          error.message,
+
+      });
+
+    }
+
+  }
+);
+
 module.exports = router;
