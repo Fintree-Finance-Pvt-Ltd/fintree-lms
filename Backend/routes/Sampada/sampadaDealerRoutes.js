@@ -4870,7 +4870,7 @@ router.get("/credit-initiated-loans", async (req, res) => {
 router.get("/operation-initiated-loans", async (req, res) => {
   const {
     table = "loan_booking_sampada",
-    prefix = "MC",
+    prefix = "SPL",
     page = "1",
     pageSize = "50",
     search = "",
