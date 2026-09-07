@@ -32,6 +32,22 @@ const ALLOWED_PAYOUT_TABLES = [
   "loan_booking_ya_money",
 ];
 
+// Per-partner maximum single-payout cap. `null` = no limit configured for
+// that partner = unrestricted (default, unchanged behavior). To cap a
+// partner, set a number here directly — e.g. loan_booking_emiclub: 75000.
+// Checked once per payout, before any money moves.
+const PARTNER_MAX_PAYOUT_LIMITS = {
+  loan_booking_emiclub: 35000,
+  loan_booking_switch_my_loan: 25000,
+  loan_booking_loan_digit: 25000,
+  loan_booking_finso: 100000,
+  loan_booking_carepay: null,
+  loan_booking_claim_cure_buddy: null,
+  pl_partner_applications: null,
+  loan_booking_quick_money: 25000,
+  loan_booking_ya_money: null,
+};
+
 async function getTableColumnSet(tableName) {
   const [rows] = await db.promise().query(
     `
@@ -288,6 +304,28 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     }
 
     const amount = Number(loan.loan_amount);
+
+    // Per-partner max single-payout cap (hardcoded in PARTNER_MAX_PAYOUT_LIMITS
+    // above, no DB lookup). null/undefined = no limit configured for this
+    // partner = unrestricted, same as before this check existed. Checked
+    // before any write (quick_transfers insert, Easebuzz call) so a blocked
+    // payout never moves money or leaves a transfer record.
+    const maxAllowed = PARTNER_MAX_PAYOUT_LIMITS[table];
+
+    if (maxAllowed !== null && maxAllowed !== undefined) {
+      if (amount > Number(maxAllowed)) {
+        console.log(
+          `⛔ Payout amount ${amount} exceeds max limit ${maxAllowed} for ${table}, LAN: ${lan}`,
+        );
+
+        return {
+          success: false,
+          reason: "MAX_PAYOUT_LIMIT_EXCEEDED",
+          message: `Payout amount ₹${amount} exceeds the configured maximum of ₹${maxAllowed} for this partner.`,
+        };
+      }
+    }
+
     const unique_request_number = `LAN_${lan}_${Date.now()}`;
 
     await db.promise().query(
@@ -361,7 +399,18 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       );
     }
 
-    console.log("Easebuzz API Response:", response.data);
+    // Was logging the full response.data, which includes the beneficiary's
+    // bank account number, IFSC, and name — log only what's actually useful
+    // for tracing a payout, not the customer's bank details.
+    console.log("Easebuzz API Response:", {
+      success: response.data?.success,
+      status: response.data?.data?.transfer_request?.status,
+      id: response.data?.data?.transfer_request?.id,
+      unique_transaction_reference:
+        response.data?.data?.transfer_request?.unique_transaction_reference,
+      amount: response.data?.data?.transfer_request?.amount,
+      failure_reason: response.data?.data?.transfer_request?.failure_reason,
+    });
 
     if (response.data?.success === false) {
       await db.promise().query(
@@ -733,11 +782,11 @@ async function sendFintreePlDisbursementWebhook({
 
   const webhookSecret = String(process.env.PLP_DISBURSAL_WEBHOOK_SECRET || "").trim();
 
+  // Was logging webhookSecret in plaintext — keep only whether it's
+  // configured and its length, never the value itself.
   console.log("📤 Fintree PL disbursement webhook REQUEST:", {
     webhookUrl,
-    PLP_BASE_URL: process.env.PLP_BASE_URL || null,
-    PLP_DISBURSAL_WEBHOOK_URL: process.env.PLP_DISBURSAL_WEBHOOK_URL || null,
-    webhookSecret,
+    webhookSecretConfigured: Boolean(webhookSecret),
     webhookSecretLength: webhookSecret.length,
     body,
   });

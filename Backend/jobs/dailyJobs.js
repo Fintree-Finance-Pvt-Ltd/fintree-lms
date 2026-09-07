@@ -586,9 +586,17 @@ cron.schedule(
 
           successfulTables += 1;
 
-          console.log(
-            `✅ ${table}: affected=${result.affectedRows}, changed=${result.changedRows}`,
-          );
+          // Only log per-table when something actually changed — this runs
+          // every 2 minutes across 28 tables, and in the common case every
+          // one of them reports changed=0 (the UPDATE has no WHERE clause,
+          // so it rewrites every row regardless of whether the computed
+          // status/dpd is different). The aggregate summary line below
+          // still fires every cycle regardless.
+          if (result.changedRows > 0) {
+            console.log(
+              `✅ ${table}: affected=${result.affectedRows}, changed=${result.changedRows}`,
+            );
+          }
         } catch (tableError) {
           failedTables += 1;
 
