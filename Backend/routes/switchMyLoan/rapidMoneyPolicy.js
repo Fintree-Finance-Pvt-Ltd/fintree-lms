@@ -1,7 +1,6 @@
 const { XMLParser } = require("fast-xml-parser");
 const {
   ACCOUNT_TYPE,
-  ACCOUNT_STATUS,
   getExperianDescription,
 } = require("../../utils/experian_description");
 
@@ -11,6 +10,7 @@ const {
  * Included rules:
  * - No dual PAN
  * - Bureau score >= 650
+ * - Enquiries in last 30 days must be below 5
  * - Total overdue amount must be below Rs 1,000
  * - No DPD > 30 in last 3 months
  * - No DPD > 60 in last 9 months
@@ -21,15 +21,11 @@ const {
  * - Unsecured aggregate >= Rs 2,00,000, else secured tradeline aggregate
  *   >= Rs 5,00,000 (fallback) — required for every customer, new or repeat
  * - Repeat-customer multiplier and Rs 15,000 cap
- * - Fewer than 8 live (currently open) unsecured tradelines
- * - Fewer than 10 non-credit CAPS enquiries in the last 30 days (this
- *   replaced the old "total enquiries < 5" rule entirely — see below)
  *
- * The unsecured/secured aggregate + fallback rule, its extension to repeat
- * customers, the live-unsecured-loan-count check, and the non-credit
- * enquiry check are all additions beyond the original policy PDF (which
- * only specified the unsecured aggregate check for new customers) —
- * everything else still reflects only what's in that PDF.
+ * The unsecured/secured aggregate + fallback rule and its extension to
+ * repeat customers are additions beyond the original policy PDF (which only
+ * specified the unsecured check for new customers) — everything else below
+ * still reflects only what's in that PDF.
  */
 const POLICY = Object.freeze({
   MIN_BUREAU_SCORE: 650,
@@ -46,18 +42,12 @@ const POLICY = Object.freeze({
   // customer with secured tradelines totalling at least this much is still approved.
   MIN_SECURED_AGGREGATE: 500000,
 
+  ENQUIRY_REJECT_FROM_30_DAYS: 5,
   OVERDUE_REJECT_FROM: 1000,
 
   DPD_REJECT_ABOVE_LAST_3_MONTHS: 30,
   DPD_REJECT_ABOVE_LAST_9_MONTHS: 60,
   DPD_REJECT_ABOVE_LAST_12_MONTHS: 90,
-
-  // Reject when the customer has this many or more currently-live
-  // (Account_Status ACTIVE) unsecured tradelines.
-  LIVE_UNSECURED_LOAN_REJECT_FROM: 8,
-  // Reject when the customer has this many or more non-credit CAPS
-  // (Consumer/Corporate — non-lending) enquiries in the last 30 days.
-  NON_CREDIT_ENQUIRY_REJECT_FROM_30_DAYS: 10,
 });
 
 const UNSECURED_CATEGORIES = [
@@ -850,48 +840,6 @@ function extractOverdueAmount(account) {
   return Math.max(0, value || 0);
 }
 
-function cleanBureauText(value) {
-  return String(value ?? "").trim();
-}
-
-/*
- * A tradeline is "live" (currently active/being serviced) primarily by its
- * Account_Status code, mapped via the same ACCOUNT_STATUS table used
- * elsewhere for reporting — "ACTIVE" means live, anything else (CLOSED,
- * Written-off, Settled, Account Sold/Purchased, Suit Filed, ...) does not.
- *
- * Date_Closed is only a fallback for codes not present in ACCOUNT_STATUS.
- * It is NOT reliable on its own: verified against a real bureau response
- * (responsebureau.txt) that written-off/sold/purchased accounts (status
- * codes 97, 43, 37) are frequently left with a blank Date_Closed even
- * though they are clearly not live — on that one file, using Date_Closed
- * alone over-counted "live" unsecured tradelines 10 vs. the correct 3 from
- * Account_Status. Codes not found in ACCOUNT_STATUS are tracked in
- * unmappedAccountStatusCodes for visibility.
- */
-function extractAccountLiveStatus(account) {
-  const rawStatusCode = getFirst(account, ["Account_Status", "AccountStatus"]);
-  const statusCode =
-    rawStatusCode === null || rawStatusCode === undefined
-      ? null
-      : String(rawStatusCode).trim();
-
-  const statusText = getExperianDescription(ACCOUNT_STATUS, statusCode);
-  const mappingMissing =
-    !statusCode || statusText === "-" || String(statusText).startsWith("Unknown code:");
-
-  if (!mappingMissing) {
-    return { statusCode, isLive: statusText === "ACTIVE", mappingMissing: false };
-  }
-
-  const dateClosedRaw = getFirst(account, ["Date_Closed", "DateClosed"]);
-  return {
-    statusCode,
-    isLive: !cleanBureauText(dateClosedRaw),
-    mappingMissing: true,
-  };
-}
-
 function parseDpdValue(value) {
   if (value === null || value === undefined || value === "") return null;
 
@@ -1050,11 +998,8 @@ const enquiries30Days =
 
     const matchedTradelines = [];
     const matchedSecuredTradelines = [];
-    const matchedLiveUnsecuredTradelines = [];
     const unmappedAccountTypeCodes = [];
-    const unmappedAccountStatusCodes = [];
     const seenUnmappedCodes = new Set();
-    const seenUnmappedStatusCodes = new Set();
 
     let totalOverdueAmount = 0;
 
@@ -1084,26 +1029,6 @@ const enquiries30Days =
           normalizedAccountName,
           amount: originalAmount,
         });
-
-        const liveStatus = extractAccountLiveStatus(account);
-
-        if (
-          liveStatus.mappingMissing &&
-          liveStatus.statusCode &&
-          !seenUnmappedStatusCodes.has(liveStatus.statusCode)
-        ) {
-          seenUnmappedStatusCodes.add(liveStatus.statusCode);
-          unmappedAccountStatusCodes.push(liveStatus.statusCode);
-        }
-
-        if (liveStatus.isLive) {
-          matchedLiveUnsecuredTradelines.push({
-            accountTypeCode: code,
-            normalizedAccountName,
-            amount: originalAmount,
-            accountStatusCode: liveStatus.statusCode,
-          });
-        }
       }
 
       if (
@@ -1173,10 +1098,6 @@ enquiryBreakdown30Days: {
     enquiryFacts.source,
 },
 
-// Same value as enquiryBreakdown30Days.nonCredit, surfaced at the top
-// level for direct rule access (matches the enquiries30Days pattern).
-nonCreditEnquiries30Days: Math.max(0, Number(enquiryFacts.nonCredit || 0)),
-
 totalOverdueAmount:
   round2(totalOverdueAmount),
 
@@ -1201,10 +1122,7 @@ totalOverdueAmount:
       securedTradelineCount: matchedSecuredTradelines.length,
       securedAggregate,
       matchedSecuredTradelines,
-      liveUnsecuredTradelineCount: matchedLiveUnsecuredTradelines.length,
-      matchedLiveUnsecuredTradelines,
       unmappedAccountTypeCodes,
-      unmappedAccountStatusCodes,
 
       reportId,
       source,
@@ -1218,7 +1136,6 @@ totalOverdueAmount:
       panCount: 0,
       hasDualPan: false,
       enquiries30Days: 0,
-      nonCreditEnquiries30Days: 0,
       totalOverdueAmount: 0,
       maxDpdLast3Months: 0,
       maxDpdLast9Months: 0,
@@ -1233,10 +1150,7 @@ totalOverdueAmount:
       securedTradelineCount: 0,
       securedAggregate: 0,
       matchedSecuredTradelines: [],
-      liveUnsecuredTradelineCount: 0,
-      matchedLiveUnsecuredTradelines: [],
       unmappedAccountTypeCodes: [],
-      unmappedAccountStatusCodes: [],
       reportId,
       source,
     };
