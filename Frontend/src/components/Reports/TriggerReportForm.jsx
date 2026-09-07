@@ -523,7 +523,9 @@ const productOptions = [
   { label: "Claim Cure Buddy", value: "ClaimCureBuddy" },
   { label: "Saswat", value: "Saswat" },
   { label: "Seven Fincorp", value: "Seven Fincorp" },
-  { label: "Fintree PL", value: "FFPL10011" }
+  { label: "Fintree PL", value: "FFPL10011" },
+    {label: "Ya Money", value: "Ya Money" }
+
 
 ];
 

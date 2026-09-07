@@ -680,6 +680,7 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_seven_fincorp WHERE lan IN (?)`, [uniqueLANs]),
 
         queryDB(`SELECT lan FROM loan_booking_sterlion_ubl WHERE lan IN (?)`,[uniqueLANs],), // Added for sterlion ubl
+        queryDB(`SELECT lan FROM loan_booking_srbh WHERE lan IN (?)`,[uniqueLANs],), // Added for sterlion ubl
 
 
       ]);
@@ -883,6 +884,661 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+router.post("/upload-json-loan-digit", async (req, res) => {
+
+    let rows = req.body?.rows || req.body;
+
+    if (!Array.isArray(rows)) {
+        rows = [rows];
+    }
+
+    if (!rows.length) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid or empty data"
+        });
+    }
+
+
+    const inserted = [];
+    const rowErrors = [];
+
+
+    try {
+
+        for (let i = 0; i < rows.length; i++) {
+
+            const row = rows[i];
+
+
+            const lan =
+                row.LAN ||
+                row.lan;
+
+
+            const payment_date =
+                parseApiDate(row.payment_date) ||
+                parseApiDate(row["Payment Date"]);
+
+
+            const bank_date =
+                row["Bank Date"] ||
+                row.bank_date ||
+                new Date().toISOString().slice(0, 10);
+
+
+            const payment_id =
+                row["Payment Id"] ||
+                row.payment_id;
+
+
+            const payment_mode =
+                row["Payment Mode"] ||
+                row.payment_mode;
+
+
+            const transfer_amount =
+                row["Transfer Amount"] ||
+                row.transfer_amount;
+
+
+            // Temporary UTR only because repayments_upload
+            // currently requires UTR.
+            const tempUtr =
+                `TEMP_${Date.now()}_${i}`;
+
+
+            // ==========================================
+            // VALIDATION
+            // ==========================================
+
+            if (
+                !lan ||
+                !payment_id ||
+                !payment_date ||
+                !payment_mode ||
+                !transfer_amount
+            ) {
+
+                rowErrors.push({
+                    row: i + 1,
+                    lan,
+                    payment_id,
+                    reason:
+                        "LAN, Payment Id, Payment Date, Payment Mode and Amount are required"
+                });
+
+                continue;
+            }
+
+
+            // ==========================================
+            // CHECK PAYMENT ID DUPLICATE
+            // ==========================================
+
+           const existingPayment = await queryDB(
+    `
+    SELECT id
+    FROM repayments_upload
+    WHERE lan = ?
+      AND payment_id = ?
+    LIMIT 1
+    `,
+    [lan, payment_id]
+);
+
+if (existingPayment && existingPayment.length > 0) {
+
+    rowErrors.push({
+        row: i + 1,
+        lan,
+        payment_id,
+        reason: "Payment Id already exists for this LAN"
+    });
+
+    continue;
+}
+
+
+            // ==========================================
+            // INSERT REPAYMENT
+            // ==========================================
+
+            await queryDB(
+                `
+                INSERT INTO repayments_upload
+                (
+                    lan,
+                    bank_date,
+                    utr,
+                    payment_date,
+                    payment_id,
+                    payment_mode,
+                    transfer_amount
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                `,
+                [
+                    lan,
+                    bank_date,
+                    tempUtr,
+                    payment_date,
+                    payment_id,
+                    payment_mode,
+                    transfer_amount
+                ]
+            );
+
+
+            inserted.push({
+                lan,
+                payment_id
+            });
+
+        }
+
+
+        return res.json({
+
+            success: true,
+
+            message:
+                "Loan Digit repayment uploaded. Allocation pending.",
+
+            inserted_rows: inserted.length,
+
+            failed_rows: rowErrors.length,
+
+            data: inserted,
+
+            errors: rowErrors
+
+        });
+
+
+    }
+    catch (err) {
+
+        console.error(
+            "Loan Digit upload error:",
+            err
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                "Loan digit upload failed",
+
+            error: err.message
+
+        });
+
+    }
+
+});
+
+router.put("/update-json-loan-digit", async (req, res) => {
+
+    try {
+
+        const {
+            lan,
+            payment_id,
+            utr,
+            bank_date,
+            collection_type
+        } = req.body;
+
+
+        // ==========================================
+        // VALIDATION
+        // ==========================================
+
+        if (
+            !lan ||
+            !payment_id ||
+            !utr ||
+            !bank_date ||
+            !collection_type
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "LAN, Payment Id, UTR, Bank Date and Collection Type are mandatory"
+
+            });
+
+        }
+
+
+        const collectionType =
+            String(collection_type)
+                .trim()
+                .toUpperCase();
+
+
+        if (!["NC", "FC"].includes(collectionType)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Collection Type must be NC or FC"
+
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK LOAN
+        // ==========================================
+
+        const loanRows = await queryDB(
+            `
+            SELECT lan
+            FROM loan_booking_loan_digit
+            WHERE lan = ?
+            LIMIT 1
+            `,
+            [lan]
+        );
+
+
+        if (!loanRows || loanRows.length === 0) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Loan Digit LAN not found",
+
+                lan
+
+            });
+
+        }
+
+
+        // ==========================================
+        // FIND EXACT REPAYMENT
+        // LAN + PAYMENT ID
+        // ==========================================
+
+        const repaymentRows = await queryDB(
+            `
+            SELECT *
+            FROM repayments_upload
+            WHERE lan = ?
+              AND payment_id = ?
+            LIMIT 1
+            `,
+            [
+                lan,
+                payment_id
+            ]
+        );
+
+
+        if (
+            !repaymentRows ||
+            repaymentRows.length === 0
+        ) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message:
+                    "Repayment not found for given LAN and Payment Id",
+
+                lan,
+                payment_id
+
+            });
+
+        }
+
+
+        const repayment = repaymentRows[0];
+
+
+        // ==========================================
+        // CHECK ACTUAL UTR DUPLICATE
+        // ==========================================
+
+        const duplicateUtr = await queryDB(
+            `
+            SELECT id, lan, payment_id
+            FROM repayments_upload
+            WHERE utr = ?
+              AND id <> ?
+            LIMIT 1
+            `,
+            [
+                utr,
+                repayment.id
+            ]
+        );
+
+
+        if (
+            duplicateUtr &&
+            duplicateUtr.length > 0
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "UTR already exists",
+
+                utr
+
+            });
+
+        }
+
+
+        // ==========================================
+        // CHECK IF PAYMENT ALREADY ALLOCATED
+        // ==========================================
+
+        const allocationRows = await queryDB(
+            `
+            SELECT id
+            FROM allocation
+            WHERE lan = ?
+              AND payment_id = ?
+            LIMIT 1
+            `,
+            [
+                lan,
+                payment_id
+            ]
+        );
+
+
+        if (
+            collectionType === "NC" &&
+            allocationRows &&
+            allocationRows.length > 0
+        ) {
+
+            return res.json({
+
+                success: true,
+
+                message:
+                    "Payment Id already allocated. Duplicate allocation skipped.",
+
+                lan,
+
+                payment_id,
+
+                collection_type:
+                    collectionType,
+
+                allocation_skipped: true
+
+            });
+
+        }
+
+
+        // ==========================================
+        // UPDATE EXACT REPAYMENT
+        // ==========================================
+
+        await queryDB(
+            `
+            UPDATE repayments_upload
+            SET
+                utr = ?,
+                bank_date = ?
+            WHERE id = ?
+            `,
+            [
+                utr,
+                bank_date,
+                repayment.id
+            ]
+        );
+
+
+        // ==========================================
+        // UPDATE COLLECTION TYPE
+        // ==========================================
+
+        await queryDB(
+            `
+            UPDATE loan_booking_loan_digit
+            SET collection_type = ?
+            WHERE lan = ?
+            `,
+            [
+                collectionType,
+                lan
+            ]
+        );
+
+
+        // ==========================================
+        // FORECLOSURE
+        // ==========================================
+
+        // ==========================================
+// FORECLOSURE
+// ==========================================
+
+if (collectionType === "FC") {
+
+    console.log(
+        `🔁 [${lan}] Collection Type FC — processing foreclosure...`
+    );
+
+
+    // ==========================================
+    // GET PAYMENT DETAILS FROM REPAYMENT
+    // ==========================================
+
+    const paymentDate = repayment.payment_date;
+    const paymentMode = repayment.payment_mode;
+    const transferAmount = repayment.transfer_amount;
+
+
+    // ==========================================
+    // INSERT INTO FORECLOSURE UPLOAD
+    // ==========================================
+
+    await queryDB(
+        `
+        INSERT INTO foreclosure_upload
+        (
+            lan,
+            bank_date,
+            utr,
+            payment_date,
+            payment_id,
+            payment_mode,
+            transfer_amount,
+            foreclosure,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `,
+        [
+            lan,
+            bank_date,
+            utr,
+            paymentDate,
+            payment_id,
+            paymentMode,
+            transferAmount,
+            "Yes"
+        ]
+    );
+
+
+    console.log(
+        `✅ [${lan}] Foreclosure record inserted`
+    );
+
+
+    // ==========================================
+    // STEP 1: CALCULATE FORECLOSURE
+    // ==========================================
+
+    await queryDB(
+        `
+        CALL sp_calculate_forecloser_allocation_cal(?, ?)
+        `,
+        [
+            lan,
+            paymentDate
+        ]
+    );
+
+
+    console.log(
+        `✅ [${lan}] Foreclosure calculation completed`
+    );
+
+
+    // ==========================================
+    // STEP 2: PROCESS FORECLOSURE CHARGES
+    // ==========================================
+
+    await queryDB(
+        `
+        CALL sp_process_forecloser_charges(
+            ?, ?, ?, ?, ?, ?, ?
+        )
+        `,
+        [
+            lan,
+            payment_id,
+            utr,
+            paymentMode,
+            transferAmount,
+            paymentDate,
+            bank_date
+        ]
+    );
+
+
+    console.log(
+        `✅ [${lan}] Foreclosure charges processed`
+    );
+
+
+    return res.json({
+
+        success: true,
+
+        message:
+            "Repayment updated and foreclosure processed successfully",
+
+        lan,
+
+        payment_id,
+
+        utr,
+
+        collection_type: collectionType,
+
+        foreclosure_processed: true
+
+    });
+
+}
+
+
+        // ==========================================
+        // NORMAL COLLECTION
+        // ==========================================
+
+        await allocateRepaymentByLAN(
+
+            lan,
+
+            {
+
+                lan,
+
+                bank_date,
+
+                utr,
+
+                payment_date:
+                    repayment.payment_date,
+
+                payment_id:
+                    repayment.payment_id,
+
+                payment_mode:
+                    repayment.payment_mode,
+
+                transfer_amount:
+                    repayment.transfer_amount
+
+            }
+
+        );
+
+
+        return res.json({
+
+            success: true,
+
+            message:
+                "Repayment updated and allocated successfully",
+
+            lan,
+
+            payment_id,
+
+            utr,
+
+            collection_type:
+                collectionType
+
+        });
+
+
+    }
+    catch (err) {
+
+        console.error(
+            "Loan Digit update error:",
+            err
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                "Update failed",
+
+            error:
+                err.message
+
+        });
+
+    }
+
+});
 /**
  * JSON API UPLOAD ROUTE
  */
