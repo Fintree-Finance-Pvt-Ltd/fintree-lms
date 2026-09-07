@@ -6332,7 +6332,12 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     } catch (err) {
       console.error("⚠️ CIBIL Pull Failed:", err.message);
       console.error("➡️ Response status:", err.response?.status);
-      console.error("➡️ Response data:", err.response?.data);
+      console.error(
+        "➡️ Response data (truncated):",
+        typeof err.response?.data === "string"
+          ? err.response.data.slice(0, 300)
+          : err.response?.data,
+      );
       console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
       console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
     }

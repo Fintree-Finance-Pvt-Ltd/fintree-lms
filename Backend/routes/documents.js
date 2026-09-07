@@ -105,12 +105,12 @@ const LAN_TABLE_MAP = {
 // 🔎 Debuggable lock-state. Logs what it did and returns extra fields.
 async function getLockState(lan) {
   const prefix = getLanPrefix(lan);
-  console.log("prefix", prefix);
+  // console.log("prefix", prefix);
   const map = LAN_TABLE_MAP[prefix];
-  console.log("map table", map);
+  // console.log("map table", map);
 
   if (!map) {
-    console.warn("[lock] unknown prefix", { lan, prefix });
+    // console.warn("[lock] unknown prefix", { lan, prefix });
     return {
       status: "unknown",
       canEdit: false,
@@ -526,17 +526,17 @@ AND TRIM(bank_account_type)<>''
       ),
   );
 
-  console.log("CAREPAY DOCUMENT CHECK:", {
-    lan: cleanLan,
-    loanAmount,
-    cibilScore,
-    abbRequired,
-    bankStatementRequired,
-    agreementValidationStatus,
-    availableDocuments: [...availableDocuments],
-    requiredDocuments,
-    missingDocuments,
-  });
+  // console.log("CAREPAY DOCUMENT CHECK:", {
+    // lan: cleanLan,
+    // loanAmount,
+    // cibilScore,
+    // abbRequired,
+    // bankStatementRequired,
+    // agreementValidationStatus,
+    // availableDocuments: [...availableDocuments],
+    // requiredDocuments,
+    // missingDocuments,
+  // });
 
   if (missingDocuments.length > 0) {
     return {
@@ -861,11 +861,11 @@ await db.promise().query(
           const approvalResult =
         await checkAndApproveCarePayLoan(cleanLan);
 
-      console.log("CAREPAY APPROVAL RESULT:", {
-        lan: cleanLan,
-        uploaded_document: requestedDocumentName,
-        result: approvalResult,
-      });
+      // console.log("CAREPAY APPROVAL RESULT:", {
+        // lan: cleanLan,
+        // uploaded_document: requestedDocumentName,
+        // result: approvalResult,
+      // });
 
       return res.status(200).json({
         message: "✅ Document uploaded successfully",
@@ -1801,7 +1801,7 @@ router.post(
     try {
       const { lan: bodyLan, documents } = req.body;
 
-      console.log("Received /v1/upload-files request", req.body);
+      // console.log("Received /v1/upload-files request", req.body);
 
       const lan = String(bodyLan || "").trim();
       if (!lan) return res.status(400).json({ error: "lan is required" });
@@ -1844,14 +1844,14 @@ router.post(
 
       let parsedDocs = documents;
 
-      console.log("Raw documents input:", documents);
+      // console.log("Raw documents input:", documents);
 
       // If documents arrives as string (multipart form-data case)
       if (typeof documents === "string") {
         parsedDocs = JSON.parse(documents);
       }
 
-      console.log("Parsed documents input:", parsedDocs);
+      // console.log("Parsed documents input:", parsedDocs);
 
       if (!Array.isArray(parsedDocs) || parsedDocs.length === 0)
         return res.status(400).json({ error: "documents[] is required" });
@@ -1890,11 +1890,11 @@ router.post(
           file_name = uploadedFile.filename;
           original_name = uploadedFile.originalname;
 
-          console.log("file upload found for document index", i, {
-            fieldname: uploadedFile.fieldname,
-            originalname: uploadedFile.originalname,
-            filename: uploadedFile.filename,
-          });
+          // console.log("file upload found for document index", i, {
+            // fieldname: uploadedFile.fieldname,
+            // originalname: uploadedFile.originalname,
+            // filename: uploadedFile.filename,
+          // });
         } else if (url) {
           /**
            * CASE 2: DOWNLOAD FROM URL
@@ -1992,22 +1992,22 @@ router.post(
       const { application_id } = req.params;
       const { documents } = req.body;
 
-      console.log("==========================================");
-      console.log(`📥 [${new Date().toISOString()}] New request received`);
-      console.log(`📌 application_id: ${application_id}`);
-      console.log(`📦 Raw body:`, req.body);
-      console.log(`📁 Files received:`, req.files?.length || 0);
-      console.log("==========================================");
+      // console.log("==========================================");
+      // console.log(`📥 [${new Date().toISOString()}] New request received`);
+      // console.log(`📌 application_id: ${application_id}`);
+      // console.log(`📦 Raw body:`, req.body);
+      // console.log(`📁 Files received:`, req.files?.length || 0);
+      // console.log("==========================================");
 
       if (!application_id) {
-        console.log("❌ application_id is missing");
+        // console.log("❌ application_id is missing");
         return res.status(400).json({ error: "application_id is required" });
       }
 
       // Step 1: Check if partner_loan_id exists and get the LAN
-      console.log(
-        `🔍 Looking up partner_loan_id: ${application_id} in loan_booking_switch_my_loan...`,
-      );
+      // console.log(
+        // `🔍 Looking up partner_loan_id: ${application_id} in loan_booking_switch_my_loan...`,
+      // );
 
       const loanRecord = await new Promise((resolve, reject) => {
         const sql = `
@@ -2018,19 +2018,19 @@ router.post(
         `;
         db.query(sql, [application_id], (err, result) => {
           if (err) {
-            console.log(
-              "❌ DB error while checking application_id:",
-              err.message,
-            );
+            // console.log(
+              // "❌ DB error while checking application_id:",
+              // err.message,
+            // );
             return reject(err);
           }
-          console.log(`🗄️ DB result for application_id lookup:`, result);
+          // console.log(`🗄️ DB result for application_id lookup:`, result);
           resolve(result.length > 0 ? result[0] : null);
         });
       });
 
       if (!loanRecord) {
-        console.log(`❌ No loan found for application_id: ${application_id}`);
+        // console.log(`❌ No loan found for application_id: ${application_id}`);
         return res.status(404).json({
           error: "Invalid application_id",
           message: `No loan found with application_id: ${application_id} in Switch My Loan`,
@@ -2038,33 +2038,33 @@ router.post(
       }
 
       const lan = loanRecord.lan;
-      console.log(`✅ LAN found: ${lan} for application_id: ${application_id}`);
+      // console.log(`✅ LAN found: ${lan} for application_id: ${application_id}`);
 
       // Step 2: Parse documents
-      console.log("📄 Raw documents input:", documents);
+      // console.log("📄 Raw documents input:", documents);
 
       let parsedDocs = documents;
 
       if (typeof documents === "string") {
         try {
           parsedDocs = JSON.parse(documents);
-          console.log("✅ Documents parsed from string successfully");
+          // console.log("✅ Documents parsed from string successfully");
         } catch (e) {
-          console.log("❌ Failed to parse documents JSON:", e.message);
+          // console.log("❌ Failed to parse documents JSON:", e.message);
           return res
             .status(400)
             .json({ error: "Invalid documents JSON format" });
         }
       }
 
-      console.log("📄 Parsed documents:", JSON.stringify(parsedDocs, null, 2));
+      // console.log("📄 Parsed documents:", JSON.stringify(parsedDocs, null, 2));
 
       if (!Array.isArray(parsedDocs) || parsedDocs.length === 0) {
-        console.log("❌ documents[] is empty or not an array");
+        // console.log("❌ documents[] is empty or not an array");
         return res.status(400).json({ error: "documents[] is required" });
       }
 
-      console.log(`📋 Total documents to process: ${parsedDocs.length}`);
+      // console.log(`📋 Total documents to process: ${parsedDocs.length}`);
 
       // Step 3: Process each document
       const errors = [];
@@ -2077,16 +2077,16 @@ router.post(
         const url = String(d.document_url || "").trim();
         const doc_password = (d.doc_password ?? "").toString().trim();
 
-        console.log(`------------------------------------------`);
-        console.log(`🔄 Processing document [${i}]:`);
-        console.log(`   doc_name: ${doc_name}`);
-        console.log(`   document_url: ${url}`);
-        console.log(
-          `   doc_password: ${doc_password ? "provided" : "not provided"}`,
-        );
+        // console.log(`------------------------------------------`);
+        // console.log(`🔄 Processing document [${i}]:`);
+        // console.log(`   doc_name: ${doc_name}`);
+        // console.log(`   document_url: ${url}`);
+        // console.log(
+          // `   doc_password: ${doc_password ? "provided" : "not provided"}`,
+        // );
 
         if (!doc_name || !ALLOWED_DOCS_SML.has(doc_name)) {
-          console.log(`❌ [${i}] Invalid doc_name: "${doc_name}"`);
+          // console.log(`❌ [${i}] Invalid doc_name: "${doc_name}"`);
           errors.push({
             index: i,
             field: "doc_name",
@@ -2105,20 +2105,20 @@ router.post(
           : null;
 
         if (uploadedFile) {
-          console.log(`📁 [${i}] File upload found:`, {
-            fieldname: uploadedFile.fieldname,
-            originalname: uploadedFile.originalname,
-            filename: uploadedFile.filename,
-            size: uploadedFile.size,
-          });
+          // console.log(`📁 [${i}] File upload found:`, {
+            // fieldname: uploadedFile.fieldname,
+            // originalname: uploadedFile.originalname,
+            // filename: uploadedFile.filename,
+            // size: uploadedFile.size,
+          // });
 
           file_name = uploadedFile.filename;
           original_name = uploadedFile.originalname;
         } else if (url) {
           // CASE 2: DOWNLOAD FROM URL
-          console.log(
-            `⬇️  [${i}] No file uploaded. Downloading from URL: ${url}`,
-          );
+          // console.log(
+            // `⬇️  [${i}] No file uploaded. Downloading from URL: ${url}`,
+          // );
 
           try {
             const resp = await axios.get(url, {
@@ -2126,10 +2126,10 @@ router.post(
               timeout: 30000, // 30 second timeout
             });
 
-            console.log(`✅ [${i}] Download successful!`);
-            console.log(`   Status: ${resp.status}`);
-            console.log(`   Size: ${resp.data.byteLength} bytes`);
-            console.log(`   Content-Type: ${resp.headers["content-type"]}`);
+            // console.log(`✅ [${i}] Download successful!`);
+            // console.log(`   Status: ${resp.status}`);
+            // console.log(`   Size: ${resp.data.byteLength} bytes`);
+            // console.log(`   Content-Type: ${resp.headers["content-type"]}`);
 
             original_name =
               path.basename(url.split("?")[0]) || `${doc_name}.pdf`;
@@ -2140,14 +2140,14 @@ router.post(
 
             fs.writeFileSync(fullPath, resp.data);
 
-            console.log(`💾 [${i}] File saved successfully!`);
-            console.log(`   file_name: ${file_name}`);
-            console.log(`   full path: ${fullPath}`);
+            // console.log(`💾 [${i}] File saved successfully!`);
+            // console.log(`   file_name: ${file_name}`);
+            // console.log(`   full path: ${fullPath}`);
 
             source_url = url;
           } catch (err) {
-            console.log(`❌ [${i}] Failed to download from URL: ${url}`);
-            console.log(`   Error: ${err.message}`);
+            // console.log(`❌ [${i}] Failed to download from URL: ${url}`);
+            // console.log(`   Error: ${err.message}`);
             errors.push({
               index: i,
               field: "document_url",
@@ -2156,7 +2156,7 @@ router.post(
             continue;
           }
         } else {
-          console.log(`❌ [${i}] Neither file upload nor URL provided`);
+          // console.log(`❌ [${i}] Neither file upload nor URL provided`);
           errors.push({
             index: i,
             reason: "Either file upload or document_url is required",
@@ -2164,7 +2164,7 @@ router.post(
           continue;
         }
 
-        console.log(`✅ [${i}] Document processed successfully`);
+        // console.log(`✅ [${i}] Document processed successfully`);
 
         cleaned.push([
           lan,
@@ -2177,15 +2177,15 @@ router.post(
         ]);
       }
 
-      console.log("------------------------------------------");
-      console.log(`📊 Processing summary:`);
-      console.log(`   Total: ${parsedDocs.length}`);
-      console.log(`   Success: ${cleaned.length}`);
-      console.log(`   Errors: ${errors.length}`);
-      console.log(`   Error details:`, errors);
+      // console.log("------------------------------------------");
+      // console.log(`📊 Processing summary:`);
+      // console.log(`   Total: ${parsedDocs.length}`);
+      // console.log(`   Success: ${cleaned.length}`);
+      // console.log(`   Errors: ${errors.length}`);
+      // console.log(`   Error details:`, errors);
 
       if (!cleaned.length) {
-        console.log("❌ No valid documents to insert");
+        // console.log("❌ No valid documents to insert");
         return res.status(400).json({
           error: "No valid documents to insert",
           details: errors,
@@ -2193,9 +2193,9 @@ router.post(
       }
 
       // Step 4: Insert into loan_documents
-      console.log(
-        `💾 Inserting ${cleaned.length} documents into loan_documents table...`,
-      );
+      // console.log(
+        // `💾 Inserting ${cleaned.length} documents into loan_documents table...`,
+      // );
 
       const sql = `
         INSERT INTO loan_documents
@@ -2206,21 +2206,21 @@ router.post(
       await new Promise((resolve, reject) => {
         db.query(sql, [cleaned], (err, result) => {
           if (err) {
-            console.log("❌ DB insert error:", err.message);
+            // console.log("❌ DB insert error:", err.message);
             return reject(err);
           }
-          console.log(
-            `✅ DB insert successful! Rows inserted: ${result.affectedRows}`,
-          );
+          // console.log(
+            // `✅ DB insert successful! Rows inserted: ${result.affectedRows}`,
+          // );
           resolve(result);
         });
       });
 
-      console.log("==========================================");
-      console.log(
-        `✅ Request completed successfully for application_id: ${application_id}`,
-      );
-      console.log("==========================================");
+      // console.log("==========================================");
+      // console.log(
+        // `✅ Request completed successfully for application_id: ${application_id}`,
+      // );
+      // console.log("==========================================");
 
       return res.status(200).json({
         message: "✅ Documents uploaded successfully",

@@ -783,10 +783,14 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 
       console.log("✅ Loan Digit Bureau Success", experianScore);
     } catch (err) {
-      console.error(err);
       console.error("⚠️ Loan Digit Bureau Failed:", err.message);
       console.error("➡️ Response status:", err.response?.status);
-      console.error("➡️ Response data:", err.response?.data);
+      console.error(
+        "➡️ Response data (truncated):",
+        typeof err.response?.data === "string"
+          ? err.response.data.slice(0, 300)
+          : err.response?.data,
+      );
       console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
     }
 

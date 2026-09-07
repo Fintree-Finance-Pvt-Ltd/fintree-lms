@@ -1731,10 +1731,12 @@ const autoApproveSampadaIfAllVerified = async (lan) => {
 
   console.log("Bureau XML extraction result:", {
     lan,
+    // Was logging bureauApiResponse in full whenever it wasn't already a
+    // string (e.g. a parsed object) — now always truncated regardless of type.
     rawPreview:
-      typeof bureauApiResponse === "string"
-        ? bureauApiResponse.slice(0, 150)
-        : bureauApiResponse,
+      bureauApiResponse === null || bureauApiResponse === undefined
+        ? bureauApiResponse
+        : String(bureauApiResponse).slice(0, 150),
     extractedPreview:
       typeof reportXml === "string" ? reportXml.slice(0, 150) : null,
     hasReportXml: hasValue(reportXml),
