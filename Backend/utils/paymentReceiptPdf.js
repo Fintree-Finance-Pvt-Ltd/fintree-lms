@@ -1126,23 +1126,47 @@
 
 const fs = require("fs");
 const path = require("path");
-const { ToWords } = require("to-words");
+// const { ToWords } = require("to-words");
 
+let ToWords;
 
+try {
+  const toWordsPackage = require("to-words");
+
+  ToWords =
+    toWordsPackage.ToWords ||
+    toWordsPackage.default ||
+    toWordsPackage;
+
+} catch (error) {
+  console.error("Unable to load to-words package:", error.message);
+}
 /* ============================================================
    TO WORDS
 ============================================================ */
 
-const toWords = new ToWords({
-  localeCode: "en-IN",
+// const toWords = new ToWords({
+//   localeCode: "en-IN",
 
-  converterOptions: {
-    currency: false,
-    ignoreDecimal: false,
-    doNotAddOnly: true,
-  },
-});
+//   converterOptions: {
+//     currency: false,
+//     ignoreDecimal: false,
+//     doNotAddOnly: true,
+//   },
+// });
 
+
+const toWords = ToWords
+  ? new ToWords({
+      localeCode: "en-IN",
+
+      converterOptions: {
+        currency: false,
+        ignoreDecimal: false,
+        doNotAddOnly: true,
+      },
+    })
+  : null;
 
 /* ============================================================
    ESCAPE HTML
@@ -1323,8 +1347,14 @@ function amountInWords(amount) {
       return "";
     }
 
-    const words =
-      toWords.convert(value);
+    // const words =
+    //   toWords.convert(value);
+
+    if (!toWords) {
+  return "";
+}
+
+const words = toWords.convert(value);
 
     return `${words} Only`;
   } catch (error) {
