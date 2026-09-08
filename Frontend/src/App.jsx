@@ -307,7 +307,7 @@ import QMLLoginloans from "./components/QuickMoney/QMLLoginLoans.jsx";
 import SaswatAllLoans from "./components/Saswat/SaswatAllLoans.jsx";
 import SaswatApprovedLoans from "./components/Saswat/SaswatApprovedLoans.jsx";
 import SaswatDisbursedLoans from "./components/Saswat/SaswatDisbursedLoans.jsx";
-import SaswatPaymentReceipt from "./components/Saswat/SaswatPaymentReceipt.jsx";
+// import SaswatPaymentReceipt from "./components/Saswat/SaswatPaymentReceipt.jsx";
 
 function App() {
   return (
@@ -410,10 +410,6 @@ function App() {
               </PermissionRoute>
             }
           />
-          <Route
-  path="/saswat/payment-receipt"
-  element={<SaswatPaymentReceipt />}
-/>
           <Route
             path="/customer-soa"
             element={
