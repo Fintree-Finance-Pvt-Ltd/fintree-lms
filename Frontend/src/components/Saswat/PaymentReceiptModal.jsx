@@ -91,7 +91,7 @@ const PaymentReceiptModal = ({
       setLoanDetails(null);
 
       const response = await axios.get(
-        "http://localhost:5000/api/payment-receipts/loan-details",
+        "https://uat.fintreelms.com/api/payment-receipts/loan-details",
         {
           params: {
             partner_code: partnerCode,
@@ -255,7 +255,7 @@ const paymentDate = form.payment_date;
     if (!loanDetails) {
       try {
         const loanResponse = await axios.get(
-          "http://localhost:5000/api/payment-receipts/loan-details",
+          "https://uat.fintreelms.com/api/payment-receipts/loan-details",
           {
             params: {
               partner_code: partnerCode,
@@ -293,7 +293,7 @@ const paymentDate = form.payment_date;
       Generate PDF
     */
     const response = await axios.post(
-      "http://localhost:5000/api/payment-receipts/generate-pdf",
+      "https://uat.fintreelms.com/api/payment-receipts/generate-pdf",
       {
         partner_code: partnerCode,
         lan: lan,
