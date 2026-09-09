@@ -36,14 +36,6 @@ async function sendSms({ mobile, message, dltTemplateId }) {
   const msisdn = cleanMobile(mobile);
   if (!msisdn) throw new Error("Invalid mobile number");
 
-   console.log("🔍 Env:", {
-    ALOT_USER,
-    ALOT_PASSWORD,
-    SENDER_ID,
-    DLT_PEID,
-    ALOT_API_URL,
-  });
-
   const smsUrl = `${ALOT_API_URL}?user=${encodeURIComponent(
     ALOT_USER
   )}&password=${encodeURIComponent(
@@ -53,7 +45,16 @@ async function sendSms({ mobile, message, dltTemplateId }) {
   }&flashsms=${ALOT_FLASH}&number=${msisdn}&text=${encodeURIComponent(
     message
   )}&route=${ALOT_ROUTE}&DLTTemplateId=${dltTemplateId || ""}&PEID=${DLT_PEID}`;
- console.log("📤 Sending SMS URL:", smsUrl);
+  // Credentials were previously logged in plaintext here (both the raw env
+  // vars and the full URL, which embeds the password) — removed. Only log a
+  // redacted form so this remains debuggable without leaking secrets.
+  console.log(
+    "📤 Sending SMS to",
+    msisdn,
+    "via",
+    ALOT_API_URL,
+    "(sender:", SENDER_ID, ")",
+  );
 
   const res = await axios.get(smsUrl, { timeout: 20000 });
   const body =
@@ -216,32 +217,53 @@ async function queueToday() {
 }
 
 // -------------------- process queue --------------------
-async function sendQueued(limit = 200) {
-  const [rows] = await pool.query(
-    `SELECT id, mobile, message, dlt_template_id FROM sms_outbox WHERE status='QUEUED' ORDER BY id ASC LIMIT ?`,
-    [limit]
-  );
+// Guards the actual send loop, shared across BOTH schedules below (the daily
+// queue+send run and the every-10-minutes send run) — both ultimately call
+// this same function against the same `sms_outbox` rows, and since a row
+// only flips out of 'QUEUED' status AFTER its SMS send completes, two
+// concurrent calls could otherwise both SELECT the same still-QUEUED rows
+// and send the same SMS twice. node-cron's own `noOverlap` option only
+// protects a schedule from overlapping with itself, not with a different
+// schedule, so this needs its own shared flag.
+let isSendingQueuedSms = false;
 
-  for (const r of rows) {
-    try {
-      const providerId = await sendSms({
-        mobile: r.mobile,
-        message: r.message,
-        dltTemplateId: r.dlt_template_id,
-      });
-      await pool.query(
-        `UPDATE sms_outbox SET status='SENT', provider_msg_id=?, sent_at=NOW(), error_text=NULL WHERE id=?`,
-        [providerId, r.id]
-      );
-    } catch (e) {
-      await pool.query(
-        `UPDATE sms_outbox SET status='FAILED', error_text=? WHERE id=?`,
-        [String(e).slice(0, 490), r.id]
-      );
-    }
+async function sendQueued(limit = 200) {
+  if (isSendingQueuedSms) {
+    console.log("⏭️ SMS send already in progress, skipping this trigger.");
+    return 0;
   }
 
-  return rows.length;
+  isSendingQueuedSms = true;
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, mobile, message, dlt_template_id FROM sms_outbox WHERE status='QUEUED' ORDER BY id ASC LIMIT ?`,
+      [limit]
+    );
+
+    for (const r of rows) {
+      try {
+        const providerId = await sendSms({
+          mobile: r.mobile,
+          message: r.message,
+          dltTemplateId: r.dlt_template_id,
+        });
+        await pool.query(
+          `UPDATE sms_outbox SET status='SENT', provider_msg_id=?, sent_at=NOW(), error_text=NULL WHERE id=?`,
+          [providerId, r.id]
+        );
+      } catch (e) {
+        await pool.query(
+          `UPDATE sms_outbox SET status='FAILED', error_text=? WHERE id=?`,
+          [String(e).slice(0, 490), r.id]
+        );
+      }
+    }
+
+    return rows.length;
+  } finally {
+    isSendingQueuedSms = false;
+  }
 }
 
 // -------------------- public API --------------------
@@ -253,13 +275,30 @@ async function runOnce() {
 
 function initScheduler() {
   // Run every day at 12:30 PM IST
-  cron.schedule("30 12 * * *", () => runOnce(), { timezone: tz });
+  cron.schedule(
+    "30 12 * * *",
+    async () => {
+      try {
+        await runOnce();
+      } catch (e) {
+        console.error("❌ SMS daily queue+send cron failed:", e.message);
+      }
+    },
+    { timezone: tz, noOverlap: true }
+  );
 
   // Send queued SMS every 10 minutes
   cron.schedule(
     "*/10 * * * *",
-    () => sendQueued(300).then((n) => n && console.log("🚚 sent batch:", n)),
-    { timezone: tz }
+    async () => {
+      try {
+        const n = await sendQueued(300);
+        if (n) console.log("🚚 sent batch:", n);
+      } catch (e) {
+        console.error("❌ SMS queue-send cron failed:", e.message);
+      }
+    },
+    { timezone: tz, noOverlap: true }
   );
 
   console.log("⏰ SMS scheduler active (IST).");

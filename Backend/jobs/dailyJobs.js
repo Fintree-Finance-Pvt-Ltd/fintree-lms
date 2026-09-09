@@ -194,6 +194,10 @@ const {
 
 
 let isDpdCronRunning = false;
+let isCibilPdfCronRunning = false;
+let isRiskBucketCronRunning = false;
+let isAllocationBankDateCronRunning = false;
+let isInterestAccrualCronRunning = false;
 
 const tables = [
   "manual_rps_ev_loan",
@@ -529,6 +533,7 @@ cron.schedule(
     }
 
     isDpdCronRunning = true;
+    const dpdCronStartedAt = Date.now();
 
     console.log(
       "⏰ Running DPD and status update every 2 minutes...",
@@ -581,9 +586,17 @@ cron.schedule(
 
           successfulTables += 1;
 
-          console.log(
-            `✅ ${table}: affected=${result.affectedRows}, changed=${result.changedRows}`,
-          );
+          // Only log per-table when something actually changed — this runs
+          // every 2 minutes across 28 tables, and in the common case every
+          // one of them reports changed=0 (the UPDATE has no WHERE clause,
+          // so it rewrites every row regardless of whether the computed
+          // status/dpd is different). The aggregate summary line below
+          // still fires every cycle regardless.
+          if (result.changedRows > 0) {
+            console.log(
+              `✅ ${table}: affected=${result.affectedRows}, changed=${result.changedRows}`,
+            );
+          }
         } catch (tableError) {
           failedTables += 1;
 
@@ -615,11 +628,11 @@ cron.schedule(
       await db.promise().query(sql);
 
       console.log(
-        "✅ OOD ledger generated successfully for all LANs",
+        `✅ OOD ledger generated successfully for all LANs (total ${Date.now() - dpdCronStartedAt}ms)`,
       );
     } catch (error) {
       console.error(
-        "❌ DPD/OOD cron failed:",
+        `❌ DPD/OOD cron failed after ${Date.now() - dpdCronStartedAt}ms:`,
         error.sqlMessage || error.message,
       );
     } finally {
@@ -634,26 +647,46 @@ cron.schedule(
 
 // 2️⃣ PDF generator cron
 cron.schedule("*/2 * * * *", async () => {
+  if (isCibilPdfCronRunning) {
+    console.log("⏭️ Previous CIBIL PDF cron is still running. Skipping this execution.");
+    return;
+  }
+
+  isCibilPdfCronRunning = true;
+  const startedAt = Date.now();
   console.log("🧾 Running CIBIL PDF generator (every 2 min)...");
+
   try {
     const results = await generateAllPending(150);
     const ok = results.filter(r => r.ok).length;
     const fail = results.length - ok;
-    console.log(`✅ PDF job finished | processed: ${results.length}, success: ${ok}, failed: ${fail}`);
+    console.log(`✅ PDF job finished in ${Date.now() - startedAt}ms | processed: ${results.length}, success: ${ok}, failed: ${fail}`);
     results.filter(r => !r.ok).forEach(r => console.error(`  ↳ id=${r.id} error=${r.error}`));
   } catch (e) {
-    console.error("❌ PDF cron failed:", e.message);
+    console.error(`❌ PDF cron failed after ${Date.now() - startedAt}ms:`, e.message);
+  } finally {
+    isCibilPdfCronRunning = false;
   }
 });
 
 // 3️⃣ Risk & Bucket cron
 cron.schedule("*/2 * * * *", async () => {
+  if (isRiskBucketCronRunning) {
+    console.log("⏭️ Previous Risk & Bucket cron is still running. Skipping this execution.");
+    return;
+  }
+
+  isRiskBucketCronRunning = true;
+  const startedAt = Date.now();
+
   try {
     const sql = `CALL update_risk_and_bucket()`;
     await db.promise().query(sql);
-    console.log("✅ Risk done");
+    console.log(`✅ Risk done in ${Date.now() - startedAt}ms`);
   } catch (e) {
-    console.error("❌ Risk cron failed:", e.message);
+    console.error(`❌ Risk cron failed after ${Date.now() - startedAt}ms:`, e.message);
+  } finally {
+    isRiskBucketCronRunning = false;
   }
 });
 
@@ -770,7 +803,15 @@ cron.schedule("*/2 * * * *", async () => {
 // 4️⃣ NEW: Allocation bank_date update cron (every 2 minutes)
 // 4️⃣ NEW: Allocation bank_date update cron (every 2 minutes)
 cron.schedule("*/2 * * * *", async () => {
+  if (isAllocationBankDateCronRunning) {
+    console.log("⏭️ Previous Allocation bank_date cron is still running. Skipping this execution.");
+    return;
+  }
+
+  isAllocationBankDateCronRunning = true;
+  const startedAt = Date.now();
   console.log("🏦 Running Allocation bank_date update...");
+
   try {
     const sqlAllocation = `
       UPDATE allocation a
@@ -817,9 +858,11 @@ cron.schedule("*/2 * * * *", async () => {
     await db.promise().query(sqlAllocationFintreeFSF);
     await db.promise().query(sqlAllocationFintree);
 
-    console.log("✅ allocation, adikosh, fintree_fsf, fintree bank_date_allocation updated");
+    console.log(`✅ allocation, adikosh, fintree_fsf, fintree bank_date_allocation updated in ${Date.now() - startedAt}ms`);
   } catch (err) {
-    console.error("❌ Allocation cron failed:", err.sqlMessage || err.message);
+    console.error(`❌ Allocation cron failed after ${Date.now() - startedAt}ms:`, err.sqlMessage || err.message);
+  } finally {
+    isAllocationBankDateCronRunning = false;
   }
 });
 
@@ -1069,9 +1112,24 @@ cron.schedule(
 
 // 5️⃣ WCTL CCOD Interest Accrual Cron
 
-cron.schedule("*/2 * * * *", () => {
-  runDailyInterestAccrual();
-});
+// cron.schedule("*/2 * * * *", async () => {
+//   if (isInterestAccrualCronRunning) {
+//     console.log("⏭️ Previous WCTL CCOD interest accrual cron is still running. Skipping this execution.");
+//     return;
+//   }
+
+//   isInterestAccrualCronRunning = true;
+//   const startedAt = Date.now();
+
+//   try {
+//     await runDailyInterestAccrual();
+//     console.log(`✅ WCTL CCOD interest accrual finished in ${Date.now() - startedAt}ms`);
+//   } catch (err) {
+//     console.error(`❌ WCTL CCOD interest accrual cron failed after ${Date.now() - startedAt}ms:`, err.message);
+//   } finally {
+//     isInterestAccrualCronRunning = false;
+//   }
+// });
 
 // startAadhaarCron();
 

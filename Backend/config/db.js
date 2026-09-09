@@ -11,7 +11,12 @@ const pool = mysql.createPool({
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   waitForConnections: true,
-  connectionLimit: 5,
+  // Was 5 — too tight for this app's ~9 concurrent cron schedules plus normal
+  // web traffic sharing one pool; overlapping jobs were starving each other
+  // and queuing (queueLimit: 0 below queues indefinitely rather than failing
+  // fast). DB server allows up to 151 connections (verified live), so 20
+  // leaves ample headroom for other processes sharing the same DB server.
+  connectionLimit: 20,
   queueLimit: 0,
 ssl: useDbSsl
     ? {

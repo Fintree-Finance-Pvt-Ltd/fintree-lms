@@ -434,9 +434,9 @@ async function resolveStateForBureau(loan) {
   const pincode = getLoanPincode(loan);
 
   if (!pincode) {
-    console.warn("[SML BRE] State and pincode missing for bureau", {
-      lan: loan.lan,
-    });
+    // console.warn("[SML BRE] State and pincode missing for bureau", {
+      // lan: loan.lan,
+    // });
 
     return "";
   }
@@ -444,19 +444,19 @@ async function resolveStateForBureau(loan) {
   const stateFromPincode = await fetchStateFromPincode(pincode);
 
   if (stateFromPincode) {
-    console.log("[SML BRE] State resolved from pincode", {
-      lan: loan.lan,
-      pincode,
-      state: stateFromPincode,
-    });
+    // console.log("[SML BRE] State resolved from pincode", {
+      // lan: loan.lan,
+      // pincode,
+      // state: stateFromPincode,
+    // });
 
     return stateFromPincode;
   }
 
-  console.warn("[SML BRE] Could not resolve state from pincode", {
-    lan: loan.lan,
-    pincode,
-  });
+  // console.warn("[SML BRE] Could not resolve state from pincode", {
+    // lan: loan.lan,
+    // pincode,
+  // });
 
   return "";
 }
@@ -570,10 +570,10 @@ async function runOrReuseBureau(loan) {
   const pool = db.promise();
 
   if (BUREAU_MODE === "mock-clear") {
-    console.warn("[SML BRE] Bureau bypassed in test mode", {
-      lan: loan.lan,
-      deploymentEnvironment: DEPLOYMENT_ENV,
-    });
+    // console.warn("[SML BRE] Bureau bypassed in test mode", {
+      // lan: loan.lan,
+      // deploymentEnvironment: DEPLOYMENT_ENV,
+    // });
 
     return {
       status: "VERIFIED",
@@ -1108,10 +1108,10 @@ async function runTrackwizzAml(loan) {
   try {
 
     if (AML_MODE === "mock-clear") {
-      console.warn("[SML BRE] AML bypassed in test mode", {
-        lan: loan.lan,
-        deploymentEnvironment: DEPLOYMENT_ENV,
-      });
+      // console.warn("[SML BRE] AML bypassed in test mode", {
+        // lan: loan.lan,
+        // deploymentEnvironment: DEPLOYMENT_ENV,
+      // });
 
       return {
         status: "PROCEED",

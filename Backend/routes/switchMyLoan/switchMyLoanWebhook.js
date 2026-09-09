@@ -11,10 +11,10 @@ function getHeaders() {
   const token =
     process.env.RAPID_MONEY_WEBHOOK_TOKEN ||"y2v8v4e4b1g7f9a3c6e2b4d8f1a7d5e9b2d6g3a8c1f4e7d0f2a1c6e5b1d8f3c5";
 
-  console.log("[SML] Token check:", {
-    hasToken: Boolean(token),
-    tokenLength: token ? String(token).trim().length : 0,
-  });
+  // console.log("[SML] Token check:", {
+    // hasToken: Boolean(token),
+    // tokenLength: token ? String(token).trim().length : 0,
+  // });
 
   if (!token) {
     throw new Error("RAPID_MONEY_WEBHOOK_TOKEN is missing in .env");
@@ -159,13 +159,13 @@ async function sendWebhookLog(logId) {
   }
 
   try {
-    console.log("[RAPID-MONEY-WEBHOOK] Sending", {
-      logId,
-      webhookType: log.webhook_type,
-      applicationId: log.application_id,
-      lan: log.lan,
-      attempt: Number(log.attempts) + 1,
-    });
+    // console.log("[RAPID-MONEY-WEBHOOK] Sending", {
+      // logId,
+      // webhookType: log.webhook_type,
+      // applicationId: log.application_id,
+      // lan: log.lan,
+      // attempt: Number(log.attempts) + 1,
+    // });
 
     const response = await axios.post(
       log.webhook_url,
@@ -194,12 +194,12 @@ async function sendWebhookLog(logId) {
       [response.status, JSON.stringify(response.data || {}), logId],
     );
 
-    console.log("[RAPID-MONEY-WEBHOOK] Sent successfully", {
-      logId,
-      webhookType: log.webhook_type,
-      applicationId: log.application_id,
-      status: response.status,
-    });
+    // console.log("[RAPID-MONEY-WEBHOOK] Sent successfully", {
+      // logId,
+      // webhookType: log.webhook_type,
+      // applicationId: log.application_id,
+      // status: response.status,
+    // });
 
     return {
       success: true,
@@ -491,9 +491,9 @@ async function retryFailedWebhooks() {
     `,
   );
 
-  console.log("[RAPID-MONEY-WEBHOOK-RETRY] Found", {
-    total: logs.length,
-  });
+  // console.log("[RAPID-MONEY-WEBHOOK-RETRY] Found", {
+    // total: logs.length,
+  // });
 
   for (const log of logs) {
     await sendWebhookLog(log.id);
