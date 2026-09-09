@@ -1445,8 +1445,8 @@ if (xmlLink) {
           .trim()
       : null;
 
-    // Update KYC table with webhook JSON + paths + fields
-    await db
+    // Update only the KYC attempt that produced this webhook.
+    const [kycUpdateResult] = await db
       .promise()
       .query(
         `UPDATE kyc_verification_status
@@ -1458,18 +1458,26 @@ if (xmlLink) {
              aadhaar_masked_number=?,
              aadhaar_dob=?,
              aadhaar_address=?
-         WHERE lan=?`,
+         WHERE aadhaar_transaction_id=?`,
         [
-          JSON.stringify(payload),  // full webhook payload
+          JSON.stringify(payload), // full webhook payload
           pdfFilePath || null,
           xmlFilePath || null,
           aadhaarName,
           aadhaarMasked,
           aadhaarDob,
           aadhaarAddressStr,
-          lan,
-        ]
+          transactionId,
+        ],
       );
+
+    if (kycUpdateResult.affectedRows !== 1) {
+      console.warn(
+        "Aadhaar webhook transaction update did not affect exactly one row:",
+        { transactionId, lan, affectedRows: kycUpdateResult.affectedRows },
+      );
+      return res.status(200).send("transaction-update-not-unique");
+    }
 
     console.log("✅ Aadhaar VERIFIED via webhook for LAN:", lan);
 

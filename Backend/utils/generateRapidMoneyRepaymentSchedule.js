@@ -18,15 +18,6 @@ async function generateRapidMoneyRepaymentSchedule(
   repaymentDate
 ) {
   try {
-    console.log("[RAPID_RPS][START]", {
-      lan,
-      loanAmount,
-      annualInterestRate,
-      tenureDays,
-      disbursementDate,
-      repaymentDate,
-    });
-
     if (!lan) {
       throw new Error("LAN missing");
     }
@@ -67,16 +58,6 @@ const dueDate = dayjs(disbursementDate)
     const interest = Math.round((principal * roi * days) / 36500);   /// ROUND only 
 
     const emi = round2(principal + interest);
-
-    console.log("[RAPID_RPS][CALCULATION]", {
-      lan,
-      principal,
-      roi,
-      days,
-      interest,
-      emi,
-      dueDate,
-    });
 
     const [existingRps] = await conn.query(
       `

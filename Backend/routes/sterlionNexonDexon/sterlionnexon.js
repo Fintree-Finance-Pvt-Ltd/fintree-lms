@@ -835,6 +835,25 @@ function extractUploadData(req) {
       )
       .map(normalizeRowKeys);
 
+    // Excel stores percentage cells as decimal fractions (for example, 36%
+    // is stored as 0.36). Preserve raw values for the rest of the import, but
+    // use the formatted interest-rate value so 36% is saved as 36.
+    const formattedRows = XLSX.utils
+      .sheet_to_json(worksheet, {
+        defval: "",
+        raw: false,
+        blankrows: false,
+      })
+      .map(normalizeRowKeys);
+
+    rows.forEach((row, index) => {
+      const formattedInterestRate = formattedRows[index]?.interestRate;
+
+      if (!isBlank(formattedInterestRate)) {
+        row.interestRate = formattedInterestRate;
+      }
+    });
+
     return {
       headers,
 

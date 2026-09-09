@@ -50,11 +50,11 @@ const SHOULD_MOCK_CLEAR_BANK =
   ["test", "uat"].includes(DEPLOYMENT_ENV) &&
   BANK_MODE === "mock-clear";
 
-console.log("SML bank verification configuration:", {
-  deploymentEnvironment: DEPLOYMENT_ENV,
-  bankMode: BANK_MODE,
-  mockClearEnabled: SHOULD_MOCK_CLEAR_BANK,
-});
+// console.log("SML bank verification configuration:", {
+  // deploymentEnvironment: DEPLOYMENT_ENV,
+  // bankMode: BANK_MODE,
+  // mockClearEnabled: SHOULD_MOCK_CLEAR_BANK,
+// });
 
 const parsePartnerDate = (dateStr) => {
   if (!dateStr) return null;
@@ -142,11 +142,11 @@ async function verifySmlBankAndStoreResult({
   ifsc,
 }) {
   try {
-    console.log("Starting SML bank verification:", {
-      partnerLoanId,
-      applicationId,
-      lan,
-    });
+    // console.log("Starting SML bank verification:", {
+      // partnerLoanId,
+      // applicationId,
+      // lan,
+    // });
 
     const result = await verifyBank({
       lan,
@@ -210,35 +210,35 @@ async function verifySmlBankAndStoreResult({
     );
 
     if (!updateResult.affectedRows) {
-      console.warn(
-        "Bank verification result not saved because stored details did not match:",
-        {
-          partnerLoanId,
-          accountName,
-          accountNumber,
-          ifsc,
-        },
-      );
+      // console.warn(
+        // "Bank verification result not saved because stored details did not match:",
+        // {
+          // partnerLoanId,
+          // accountName,
+          // accountNumber,
+          // ifsc,
+        // },
+      // );
 
       return;
     }
 
 if (!isVerified) {
-  console.log("Bank verification failed; will be evaluated at approval:", {
-    partnerLoanId,
-    applicationId,
-    lan,
-    failureMessage,
-  });
+  // console.log("Bank verification failed; will be evaluated at approval:", {
+    // partnerLoanId,
+    // applicationId,
+    // lan,
+    // failureMessage,
+  // });
   return;
 }
 
-    console.log("SML bank verification completed:", {
-      partnerLoanId,
-      applicationId,
-      lan,
-      status: "VERIFIED",
-    });
+    // console.log("SML bank verification completed:", {
+      // partnerLoanId,
+      // applicationId,
+      // lan,
+      // status: "VERIFIED",
+    // });
   } catch (error) {
     console.error("SML bank verification failed:", {
       partnerLoanId,
@@ -289,28 +289,28 @@ if (!isVerified) {
         );
 
       if (!failureUpdate.affectedRows) {
-        console.warn(
-          "Bank verification exception was not saved because stored details did not match:",
-          {
-            partnerLoanId,
-            accountName,
-            accountNumber,
-            ifsc,
-          },
-        );
+        // console.warn(
+          // "Bank verification exception was not saved because stored details did not match:",
+          // {
+            // partnerLoanId,
+            // accountName,
+            // accountNumber,
+            // ifsc,
+          // },
+        // );
 
         return;
       }
 
-      console.log(
-        "Loan rejected due to bank verification exception:",
-        {
-          partnerLoanId,
-          applicationId,
-          lan,
-          failureMessage,
-        },
-      );
+      // console.log(
+        // "Loan rejected due to bank verification exception:",
+        // {
+          // partnerLoanId,
+          // applicationId,
+          // lan,
+          // failureMessage,
+        // },
+      // );
     } catch (dbError) {
       console.error(
         "Could not save bank verification failure:",
@@ -897,8 +897,8 @@ async function processRows(sheetData) {
       validLANs = new Set(results.flat().map((r) => r.lan));
     }
 
-    console.log("Valid LANs:", Array.from(validLANs));
-    console.log("sheetdat in processrows", sheetData);
+    // console.log("Valid LANs:", Array.from(validLANs));
+    // console.log("sheetdat in processrows", sheetData);
 
     /**
      * Process each row
@@ -4137,16 +4137,16 @@ router.put(
           } catch (
             jsonError
           ) {
-            console.warn(
-              "Existing bank_json could not be parsed",
-              {
-                partnerLoanId:
-                  data.partner_loan_id,
-
-                message:
-                  jsonError.message,
-              },
-            );
+            // console.warn(
+              // "Existing bank_json could not be parsed",
+              // {
+                // partnerLoanId:
+                  // data.partner_loan_id,
+// 
+                // message:
+                  // jsonError.message,
+              // },
+            // );
 
             existingBankJson =
               {};
@@ -4296,24 +4296,24 @@ router.put(
               );
 
 
-            console.log(
-              "SML bank account name validation:",
-              {
-                partnerLoanId:
-                  data.partner_loan_id,
-
-                applicationId,
-
-                lan,
-
-                customerName,
-
-                accountName,
-
-                matched:
-                  isNameMatched,
-              },
-            );
+            // console.log(
+              // "SML bank account name validation:",
+              // {
+                // partnerLoanId:
+                  // data.partner_loan_id,
+// 
+                // applicationId,
+// 
+                // lan,
+// 
+                // customerName,
+// 
+                // accountName,
+// 
+                // matched:
+                  // isNameMatched,
+              // },
+            // );
 
 
             // ================================================
@@ -4397,24 +4397,24 @@ router.put(
                 null;
 
 
-              console.log(
-                "SML loan marked for rejection due to bank name mismatch:",
-                {
-                  partnerLoanId:
-                    data.partner_loan_id,
-
-                  applicationId,
-
-                  lan,
-
-                  customerName,
-
-                  accountName,
-
-                  reason:
-                    "BANK_ACCOUNT_NAME_MISMATCH",
-                },
-              );
+              // console.log(
+                // "SML loan marked for rejection due to bank name mismatch:",
+                // {
+                  // partnerLoanId:
+                    // data.partner_loan_id,
+// 
+                  // applicationId,
+// 
+                  // lan,
+// 
+                  // customerName,
+// 
+                  // accountName,
+// 
+                  // reason:
+                    // "BANK_ACCOUNT_NAME_MISMATCH",
+                // },
+              // );
             }
 
 
@@ -4434,23 +4434,23 @@ router.put(
                * is bypassed in UAT.
                */
 
-              console.warn(
-                "SML bank verification mock-clear enabled",
-                {
-                  partnerLoanId:
-                    data.partner_loan_id,
-
-                  applicationId,
-
-                  lan,
-
-                  deploymentEnvironment:
-                    DEPLOYMENT_ENV,
-
-                  bankMode:
-                    BANK_MODE,
-                },
-              );
+              // console.warn(
+                // "SML bank verification mock-clear enabled",
+                // {
+                  // partnerLoanId:
+                    // data.partner_loan_id,
+// 
+                  // applicationId,
+// 
+                  // lan,
+// 
+                  // deploymentEnvironment:
+                    // DEPLOYMENT_ENV,
+// 
+                  // bankMode:
+                    // BANK_MODE,
+                // },
+              // );
 
 
               addField(
@@ -5456,11 +5456,11 @@ if (hasCompleteBankDetails) {
       if (breEngineResult.decision === "REJECTED") {
   const breResponse = buildPartnerBreResponse(breEngineResult);
 
-  console.log("[SML] Triggering rejection webhook", {
-    application_id,
-    reason: breEngineResult.reason,
-    amlScore: breEngineResult.aml?.score ?? null,
-  });
+  // console.log("[SML] Triggering rejection webhook", {
+    // application_id,
+    // reason: breEngineResult.reason,
+    // amlScore: breEngineResult.aml?.score ?? null,
+  // });
 
   // await sendRejectionWebhook(application_id);
 
@@ -6466,9 +6466,9 @@ router.post(
         },
       ];
 
-      console.log("Repayment sheet data:", sheetData);
+      // console.log("Repayment sheet data:", sheetData);
       const result = await processRows(sheetData);
-      console.log("Repayment processor result:", result);
+      // console.log("Repayment processor result:", result);
 
       /* ==============================
          HANDLE FAILURE
