@@ -89,6 +89,55 @@ const numberOrNull = (value) => {
   return Number.isNaN(num) ? null : num;
 };
 
+// Excel equivalent: RATE(tenure, -flatEmi, principal, 0) * 12.
+// Returns the nominal annual reducing-balance rate as a percentage.
+const calculateFlatToReducingRate = (
+  loanAmount,
+  flatAnnualRate,
+  tenureMonths,
+) => {
+  const principal = Number(loanAmount);
+  const flatRate = Number(flatAnnualRate);
+  const months = Number(tenureMonths);
+
+  if (
+    !Number.isFinite(principal) ||
+    !Number.isFinite(flatRate) ||
+    !Number.isFinite(months) ||
+    principal <= 0 ||
+    flatRate < 0 ||
+    months <= 0 ||
+    !Number.isInteger(months)
+  ) {
+    return null;
+  }
+
+  if (flatRate === 0) return 0;
+
+  const totalFlatInterest = principal * (flatRate / 100) * (months / 12);
+  const flatEmi = (principal + totalFlatInterest) / months;
+
+  const paymentAtRate = (monthlyRate) => {
+    if (Math.abs(monthlyRate) < 1e-12) return principal / months;
+    const factor = Math.pow(1 + monthlyRate, months);
+    return (principal * monthlyRate * factor) / (factor - 1);
+  };
+
+  let low = 0;
+  let high = 0.01;
+
+  while (paymentAtRate(high) < flatEmi && high < 10) high *= 2;
+  if (paymentAtRate(high) < flatEmi) return null;
+
+  for (let iteration = 0; iteration < 100; iteration += 1) {
+    const mid = (low + high) / 2;
+    if (paymentAtRate(mid) < flatEmi) low = mid;
+    else high = mid;
+  }
+
+  return Number((((low + high) / 2) * 12 * 100).toFixed(2));
+};
+
 router.post("/dealer/create", async (req, res) => {
   let connection;
   let transactionStarted = false;
@@ -1559,12 +1608,32 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
      * Guarantor/co-applicant identity is not overwritten here.
      * Those details were saved and mobile-verified earlier.
      */
+    const finalLoanAmount = numberOrNull(data.Loan_Amount);
+    const finalFlatInterestRate = numberOrNull(data.Interest_Rate);
+    const finalTenure = numberOrNull(data.Tenure);
+    const finalReducingRate = calculateFlatToReducingRate(
+      finalLoanAmount,
+      finalFlatInterestRate,
+      finalTenure,
+    );
+
+    if (finalReducingRate === null) {
+      await connection.rollback();
+      transactionStarted = false;
+      return res.status(400).json({
+        success: false,
+        message:
+          "Valid loan amount, flat interest rate and whole-number tenure are required to calculate reducing ROI.",
+      });
+    }
+
     const [updateResult] = await connection.query(
       `
       UPDATE loan_booking_sampada
       SET
         requested_loan_amount = ?,
         interest_rate = ?,
+        reducing_roi = ?,
         loan_tenure = ?,
         processing_fee = ?,
         processing_fee_percentage = ?,
@@ -1623,9 +1692,10 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         AND COALESCE(final_submission_status, '') <> 'SUBMITTED'
       `,
       [
-        numberOrNull(data.Loan_Amount),
-        numberOrNull(data.Interest_Rate),
-        numberOrNull(data.Tenure),
+        finalLoanAmount,
+        finalFlatInterestRate,
+        finalReducingRate,
+        finalTenure,
         numberOrNull(data.Processing_Fee),
         numberOrNull(data.Processing_Fee_Percentage),
         numberOrNull(data.GPS_Charges),

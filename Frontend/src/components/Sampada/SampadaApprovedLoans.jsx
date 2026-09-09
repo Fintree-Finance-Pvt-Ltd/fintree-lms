@@ -422,13 +422,10 @@ const SampadaApprovedLoans = ({
           try {
             setStampSavingLan(r.lan);
 
-            const response = await api.post(
-              "/sampada/update-stamp-number",
-              {
-                lan: r.lan,
-                stamp_paper_no: stampNo,
-              },
-            );
+            const response = await api.post("/sampada/update-stamp-number", {
+              lan: r.lan,
+              stamp_paper_no: stampNo,
+            });
 
             // Use API value when returned; otherwise use entered value.
             const persistedStampNo = String(
