@@ -71,8 +71,8 @@ const sterlionUblRoutes = require("./routes/SterlionUbl/sterlionUblRoutes");
 const circlePeHouserRoutes = require("./routes/CirclepeHouser/CirclepeHouserRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const quickMoneyRoutes = require("./routes/QuickMoney/quickMoneyRoutes");
-// const paymentReceiptRoutes =
-//   require("./routes/paymentReceipt");
+const paymentReceiptRoutes =
+  require("./routes/paymentReceipt");
 
 
 // function generateApiKey() {
@@ -425,7 +425,7 @@ app.use(
   require("./routes/supplyChainRoutes/supplyChainRoutes"),
 ); // ✅ Register Routes for Supply Chain Loans
 
-// app.use( "/api/payment-receipts",paymentReceiptRoutes);
+app.use( "/api/payment-receipts",paymentReceiptRoutes);
 
 app.use("/api/quick-money", quickMoneyRoutes);
 app.post("/api/cibil/:id/pdf", async (req, res) => {
