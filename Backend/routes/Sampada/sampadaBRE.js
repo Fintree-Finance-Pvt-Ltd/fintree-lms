@@ -1299,19 +1299,42 @@ const evaluateSampadaPolicy = ({ loan, bureauFacts, amlStatus }) => {
 const autoApproveSampadaIfAllVerified = async (lan) => {
   const pool = db.promise();
 
+  // const setPending = async (reason) => {
+  //   await pool.query(
+  //     `
+  //     UPDATE loan_booking_sampada
+  //     SET
+  //       motioncorp_bre_status = ?,
+  //       motioncorp_bre_reason = ?,
+  //       motioncorp_bre_checked_at = NOW()
+  //     WHERE lan = ?
+  //     `,
+  //     ["Pending", reason, lan],
+  //   );
+  // };
+
   const setPending = async (reason) => {
-    await pool.query(
-      `
-      UPDATE loan_booking_sampada
-      SET
-        motioncorp_bre_status = ?,
-        motioncorp_bre_reason = ?,
-        motioncorp_bre_checked_at = NOW()
-      WHERE lan = ?
-      `,
-      ["Pending", reason, lan],
-    );
-  };
+  await pool.query(
+    `
+    UPDATE loan_booking_sampada
+    SET
+      motioncorp_bre_status = ?,
+      motioncorp_bre_reason = ?,
+      motioncorp_bre_checked_at = NOW(),
+
+      status = ?,
+      stage = ?
+    WHERE lan = ?
+    `,
+    [
+      "Pending",
+      reason,
+      "Credit Initiated",
+      "BRE Pending",
+      lan,
+    ],
+  );
+};
 
   /**
    * LOAN

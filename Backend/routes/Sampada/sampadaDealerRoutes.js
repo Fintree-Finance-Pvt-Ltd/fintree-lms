@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const {
   universalRunAllValidations,
   runApplicantValidation,
+  generateAndStoreSampadaPanVerificationPdf,
 } = require("../../utils/runValiationsEngine");
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
 const partnerLimitService = require("../../services/partnerLimitService");
@@ -5134,6 +5135,63 @@ router.post("/:lan/reject", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Internal server error",
+    });
+  }
+});
+
+// Regenerate the PAN verification PDF from the stored verified response.
+router.post("/loan-booking/:lan/generate-pan-document", async (req, res) => {
+  try {
+    const lan = String(req.params.lan || "").trim().toUpperCase();
+    const connection = db.promise();
+    const [kycRows] = await connection.query(
+      `SELECT applicant_type, party_no, pan_number, applicant_name,
+              pan_status, pan_api_response
+       FROM kyc_verification_status
+       WHERE lan = ? AND pan_status = 'VERIFIED'
+       ORDER BY party_no
+       LIMIT 1`,
+      [lan],
+    );
+
+    if (!kycRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "PAN verification not found",
+      });
+    }
+
+    const row = kycRows[0];
+    let providerResponse = row.pan_api_response;
+
+    if (typeof providerResponse === "string") {
+      try {
+        providerResponse = JSON.parse(providerResponse);
+      } catch {
+        // Preserve a non-JSON provider response as text in the generated PDF.
+      }
+    }
+
+    const document = await generateAndStoreSampadaPanVerificationPdf({
+      connection,
+      lan,
+      applicantType: row.applicant_type,
+      partyNo: row.party_no,
+      panNumber: row.pan_number,
+      applicantName: row.applicant_name,
+      response: providerResponse,
+    });
+
+    return res.json({
+      success: true,
+      message: "PAN document generated",
+      document,
+    });
+  } catch (error) {
+    console.error("Sampada PAN document generation failed:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Unable to generate PAN document",
     });
   }
 });
