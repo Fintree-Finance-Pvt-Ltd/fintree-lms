@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import api from "../../api/api";
 import axios from "axios";
 import { useSearchParams } from "react-router-dom";
@@ -460,7 +460,6 @@ const SampadaLoanBooking = () => {
     "customer_account_number",
     "bank_ifsc_code",
     "Pan_Card",
-    "Driving_Licence",
     "selected_dealer_application_id",
     "selected_product_id",
     "Battery_Name",
@@ -491,11 +490,20 @@ const SampadaLoanBooking = () => {
     fetchDealers();
   }, []);
 
-  // useEffect(() => {
-  //   if (formData.Pincode.length === 6) {
-  //     handlePincodeBlur();
-  //   }
-  // }, [formData.Pincode]);
+  // Populate dealer products when resuming an existing LAN
+  useEffect(() => {
+    if (!formData.selected_dealer_application_id || dealers.length === 0) {
+      return;
+    }
+
+    const selectedDealer = dealers.find(
+      (dealer) =>
+        String(dealer.application_id) ===
+        String(formData.selected_dealer_application_id),
+    );
+
+    setDealerProducts(selectedDealer?.products || []);
+  }, [dealers, formData.selected_dealer_application_id]);
 
   useEffect(() => {
     if (formData.Pincode?.length === 6) {
@@ -554,7 +562,7 @@ for processing and servicing this loan application.
     const applicationId = e.target.value;
 
     const selectedDealer = dealers.find(
-      (dealer) => dealer.application_id === applicationId,
+      (dealer) => String(dealer.application_id) === String(applicationId),
     );
 
     if (!selectedDealer) return;
@@ -643,18 +651,20 @@ for processing and servicing this loan application.
     "Co_Applicant_Driving_Licence",
   ];
 
+  const guarantorRequiredFields = guarantorFields.filter(
+    (field) => field !== "GURANTOR_Driving_Licence",
+  );
+
+  const coApplicantRequiredFields = coApplicantFields.filter(
+    (field) => field !== "Co_Applicant_Driving_Licence",
+  );
+
   const hasAnyValue = (fields) =>
     fields.some((field) => String(formData[field] || "").trim() !== "");
 
   const hasGuarantorDetails = () => hasAnyValue(guarantorFields);
 
   const hasCoApplicantDetails = () => hasAnyValue(coApplicantFields);
-
-  const isGuarantorRequired = () =>
-    activeSection === 3 && !hasCoApplicantDetails();
-
-  const isCoApplicantRequired = () =>
-    activeSection === 4 && !hasGuarantorDetails();
 
   const handleRunBureauScreening = async () => {
     if (!lan) {
@@ -677,14 +687,7 @@ for processing and servicing this loan application.
         District: formData.District,
         State: formData.State,
         Pincode: formData.Pincode,
-
         Loan_Amount: formData.Loan_Amount,
-        Interest_Rate: formData.Interest_Rate,
-        Tenure: formData.Tenure,
-        Processing_Fee: formData.Processing_Fee,
-        Processing_Fee_Percentage: formData.Processing_Fee_Percentage,
-        GPS_Charges: formData.GPS_Charges,
-        Disbursal_Amount: formData.Disbursal_Amount,
       });
 
       if (!res.data.success) {
@@ -906,11 +909,24 @@ for processing and servicing this loan application.
 
       case "Loan_Amount":
       case "Interest_Rate":
-      case "Tenure":
         if (Number(value) <= 0 || Number.isNaN(Number(value))) {
           error = "Enter a valid number";
         }
         break;
+
+      case "Tenure": {
+        const tenure = Number(value);
+
+        if (
+          !Number.isFinite(tenure) ||
+          tenure <= 0 ||
+          !Number.isInteger(tenure)
+        ) {
+          error = "Tenure must be a whole number of months";
+        }
+
+        break;
+      }
 
       case "Processing_Fee_Percentage":
         if (Number(value) < 0 || Number(value) > 100) {
@@ -931,13 +947,8 @@ for processing and servicing this loan application.
 
     // Guarantor section
     if (sectionIndex === 3) {
-      // If guarantor is empty, allow skip to Co-Applicant
-      if (!hasGuarantorDetails()) {
-        return {};
-      }
-
-      // If user started guarantor, all guarantor fields become required
-      fields.forEach((field) => {
+      // All guarantor fields except Driving Licence are mandatory.
+      guarantorRequiredFields.forEach((field) => {
         if (!formData[field] || String(formData[field]).trim() === "") {
           newErrors[field] = "This field is required.";
           return;
@@ -946,19 +957,27 @@ for processing and servicing this loan application.
         const error = validateField(field, formData[field]);
         if (error) newErrors[field] = error;
       });
+
+      const drivingLicenceError = validateField(
+        "GURANTOR_Driving_Licence",
+        formData.GURANTOR_Driving_Licence,
+      );
+      if (drivingLicenceError) {
+        newErrors.GURANTOR_Driving_Licence = drivingLicenceError;
+      }
 
       return newErrors;
     }
 
     // Co-Applicant section
     if (sectionIndex === 4) {
-      // If guarantor is completed, Co-Applicant can be skipped
+      // A completed guarantor allows the co-applicant section to be skipped.
       if (hasGuarantorDetails()) {
         return {};
       }
 
-      // If guarantor is not filled, Co-Applicant is required
-      fields.forEach((field) => {
+      // Otherwise all co-applicant fields except Driving Licence are mandatory.
+      coApplicantRequiredFields.forEach((field) => {
         if (!formData[field] || String(formData[field]).trim() === "") {
           newErrors[field] = "This field is required.";
           return;
@@ -967,6 +986,14 @@ for processing and servicing this loan application.
         const error = validateField(field, formData[field]);
         if (error) newErrors[field] = error;
       });
+
+      const drivingLicenceError = validateField(
+        "Co_Applicant_Driving_Licence",
+        formData.Co_Applicant_Driving_Licence,
+      );
+      if (drivingLicenceError) {
+        newErrors.Co_Applicant_Driving_Licence = drivingLicenceError;
+      }
 
       return newErrors;
     }
@@ -1055,47 +1082,6 @@ for processing and servicing this loan application.
       await sendOtp(mobile, type);
     }
   };
-
-  // const sendOtp = async (mobile, type) => {
-  //   try {
-  //     setOtpLoading(true);
-  //     const res = await api.post("sampada/send-otp", {
-  //       mobile,
-  //       applicantType: type,
-  //     });
-
-  //     if (res.data.success) {
-  //       setResendTimers((prev) => ({
-  //         ...prev,
-  //         [type]: 60,
-  //       }));
-
-  //       const timer = setInterval(() => {
-  //         setResendTimers((prev) => {
-  //           const current = prev[type];
-
-  //           if (current <= 1) {
-  //             clearInterval(timer);
-
-  //             return {
-  //               ...prev,
-  //               [type]: 0,
-  //             };
-  //           }
-
-  //           return {
-  //             ...prev,
-  //             [type]: current - 1,
-  //           };
-  //         });
-  //       }, 1000);
-  //     }
-  //   } catch (err) {
-  //     alert("Failed to send OTP");
-  //   } finally {
-  //     setOtpLoading(false);
-  //   }
-  // };
 
   const sendOtp = async (mobile, type) => {
     try {
@@ -1257,8 +1243,6 @@ for processing and servicing this loan application.
     const bureauInputFields = new Set([
       ...sectionFields[0],
       ...sectionFields[1],
-      ...sectionFields[2],
-      "Processing_Fee",
     ]);
 
     if (bureauInputFields.has(name) && bureauResult.checked) {
@@ -1310,36 +1294,6 @@ for processing and servicing this loan application.
           .trim();
       }
 
-      // Auto-calculate Processing Fee and Disbursal Amount
-      // if (name === "Loan_Amount" || name === "Processing_Fee_Percentage") {
-      //   const loanAmount = Number(
-      //     name === "Loan_Amount" ? finalValue : updated.Loan_Amount,
-      //   );
-
-      //   const processingFeePercentage = Number(
-      //     name === "Processing_Fee_Percentage"
-      //       ? finalValue
-      //       : updated.Processing_Fee_Percentage,
-      //   );
-
-      //   if (
-      //     !Number.isNaN(loanAmount) &&
-      //     !Number.isNaN(processingFeePercentage) &&
-      //     loanAmount > 0 &&
-      //     processingFeePercentage >= 0
-      //   ) {
-      //     const processingFee = (loanAmount * processingFeePercentage) / 100;
-      //     const disbursalAmount = loanAmount - processingFee;
-
-      //     updated.Processing_Fee = processingFee.toFixed(2);
-      //     updated.Disbursal_Amount = disbursalAmount.toFixed(2);
-      //   } else {
-      //     updated.Processing_Fee = "";
-      //     updated.Disbursal_Amount = "";
-      //   }
-      // }
-
-      // Auto-calculate Processing Fee % and Disbursal Amount
       if (
         name === "Loan_Amount" ||
         name === "Processing_Fee" ||
@@ -1426,7 +1380,7 @@ for processing and servicing this loan application.
     const coApplicantFilled = hasCoApplicantDetails();
 
     if (!guarantorFilled && !coApplicantFilled) {
-      coApplicantFields.forEach((field) => {
+      coApplicantRequiredFields.forEach((field) => {
         if (!formData[field] || String(formData[field]).trim() === "") {
           newErrors[field] = "This field is required.";
         }
@@ -1438,7 +1392,7 @@ for processing and servicing this loan application.
     }
 
     if (guarantorFilled) {
-      guarantorFields.forEach((field) => {
+      guarantorRequiredFields.forEach((field) => {
         if (!formData[field] || String(formData[field]).trim() === "") {
           newErrors[field] = "This field is required.";
           return;
@@ -1450,7 +1404,7 @@ for processing and servicing this loan application.
     }
 
     if (!guarantorFilled && coApplicantFilled) {
-      coApplicantFields.forEach((field) => {
+      coApplicantRequiredFields.forEach((field) => {
         if (!formData[field] || String(formData[field]).trim() === "") {
           newErrors[field] = "This field is required.";
           return;
@@ -1553,30 +1507,6 @@ for processing and servicing this loan application.
         forceRetry: aadhaarStatus[applicantType] === "FAILED",
       });
 
-      //   if (res.data.success) {
-      //     setAadhaarStatus((prev) => ({
-      //       ...prev,
-      //       [applicantType]: "INITIATED",
-      //     }));
-
-      //     setMessage(`✅ Aadhaar initiated for ${applicantType}`);
-
-      //     if (res.data.kycUrl) {
-      //       window.open(res.data.kycUrl, "_blank");
-      //     }
-      //   }
-      // } catch (err) {
-      //   setAadhaarStatus((prev) => ({
-      //     ...prev,
-      //     [applicantType]: "FAILED",
-      //   }));
-
-      //   setMessage(
-      //     `❌ ${
-      //       err.response?.data?.message || `Aadhaar failed for ${applicantType}`
-      //     }`,
-      //   );
-      // }
       if (res.data.success) {
         const nextStatus = res.data.alreadyVerified
           ? "VERIFIED"
@@ -1698,6 +1628,10 @@ for processing and servicing this loan application.
 
       const parsedAddress = parseAadhaarAddress(res.data.aadhaarAddress);
 
+      if (applicantType === "BORROWER" && bureauResult.checked) {
+        setBureauResult(createEmptyBureauResult());
+      }
+
       setFormData((prev) => {
         const updated = { ...prev };
 
@@ -1757,37 +1691,6 @@ for processing and servicing this loan application.
     }
   };
 
-  // const handlePincodeBlur = async () => {
-  //   const pin = formData.Pincode?.trim();
-
-  //   if (!pin || pin.length !== 6) return;
-
-  //   try {
-  //     const res = await axios.get(
-  //       `https://api.postalpincode.in/pincode/${pin}`,
-  //     );
-
-  //     const data = res.data[0];
-
-  //     if (data.Status === "Success" && data.PostOffice?.length > 0) {
-  //       const office = data.PostOffice[0];
-
-  //       setFormData((prev) => ({
-  //         ...prev,
-  //         State: office.State || prev.State,
-  //         District: office.District || prev.District,
-  //       }));
-
-  //       setMessage(`✅ Pincode matched: ${office.District}, ${office.State}`);
-  //     } else {
-  //       setMessage("⚠️ Invalid or not found pincode.");
-  //     }
-  //   } catch (err) {
-  //     console.error("Error fetching pincode details:", err);
-  //     setMessage("⚠️ Could not fetch pincode details. Please fill manually.");
-  //   }
-  // };
-
   const handlePincodeLookup = async (pin, type) => {
     const cleanPin = String(pin || "").trim();
 
@@ -1838,6 +1741,13 @@ for processing and servicing this loan application.
       setMessage("⚠️ Could not fetch pincode details. Please fill manually.");
     }
   };
+  const isFieldRequired = (name) =>
+    requiredFields.includes(name) ||
+    (activeSection === 3 && guarantorRequiredFields.includes(name)) ||
+    (activeSection === 4 &&
+      !hasGuarantorDetails() &&
+      coApplicantRequiredFields.includes(name));
+
   const renderSelect = (label, name, options = []) => {
     const hasError = errors[name];
     const isValid = fieldStatus[name] === "valid";
@@ -1846,16 +1756,7 @@ for processing and servicing this loan application.
     return (
       <div className="form-group">
         <label>
-          {label}{" "}
-          {(requiredFields.includes(name) ||
-            (activeSection === 3 &&
-              hasGuarantorDetails() &&
-              guarantorFields.includes(name)) ||
-            (activeSection === 4 &&
-              !hasGuarantorDetails() &&
-              coApplicantFields.includes(name))) && (
-            <span className="req">*</span>
-          )}
+          {label} {isFieldRequired(name) && <span className="req">*</span>}
         </label>
 
         <div className="input-wrapper">
@@ -1912,9 +1813,9 @@ for processing and servicing this loan application.
     setMessage("");
 
     if (!bureauResult.canContinue) {
-      setActiveSection(2);
+      setActiveSection(1);
       setMessage(
-        "❌ Sampada bureau screening must be completed before submitting the case.",
+        "❌ Borrower bureau screening must be completed from Address Details before submitting the case.",
       );
       return;
     }
@@ -2033,6 +1934,7 @@ for processing and servicing this loan application.
         customer_bank_name: "",
         customer_account_number: "",
         bank_ifsc_code: "",
+        bank_branch_address: "",
 
         selected_dealer_application_id: "",
         dealer_id: "",
@@ -2133,8 +2035,7 @@ for processing and servicing this loan application.
     return (
       <div className="form-group">
         <label>
-          {label}{" "}
-          {requiredFields.includes(name) && <span className="req">*</span>}
+          {label} {isFieldRequired(name) && <span className="req">*</span>}
         </label>
 
         <div className="input-wrapper">
@@ -2481,18 +2382,8 @@ for processing and servicing this loan application.
           <div className="form-grid">
             {renderInput("Guarantor Name", "GURANTOR")}
             {renderInput("Guarantor DOB", "GURANTOR_DOB", "date")}
-            {renderInput("Guarantor Email", "GURANTOR_EMAIL", "email")}
             {renderInput("Guarantor PAN", "GURANTOR_PAN")}
-            {renderInput("Guarantor Address Line 1", "GURANTOR_Address_Line_1")}
-            {renderInput("Guarantor Address Line 2", "GURANTOR_Address_Line_2")}
-            {renderInput("Guarantor Village", "GURANTOR_Village")}
-            {renderInput("Guarantor Pincode", "GURANTOR_Pincode")}
-            {renderInput("Guarantor District", "GURANTOR_District")}
-            {renderInput("Guarantor State", "GURANTOR_State")}
-            {renderInput(
-              "Guarantor Driving Licence",
-              "GURANTOR_Driving_Licence",
-            )}
+            {renderInput("Guarantor Email", "GURANTOR_EMAIL", "email")}
             <div className="mobile-otp-wrapper">
               {renderInput(
                 "Guarantor Mobile",
@@ -2512,7 +2403,6 @@ for processing and servicing this loan application.
                 {otpVerified.guarantor ? "Verified ✓" : "Send OTP"}
               </button>
             </div>
-
             {renderInput(
               "Relationship with Borrower",
               "Relationship_with_Borrower",
@@ -2540,6 +2430,16 @@ for processing and servicing this loan application.
             >
               Fetch Guarantor Aadhaar Address
             </button>
+            {renderInput("Guarantor Address Line 1", "GURANTOR_Address_Line_1")}
+            {renderInput("Guarantor Address Line 2", "GURANTOR_Address_Line_2")}
+            {renderInput("Guarantor Village", "GURANTOR_Village")}
+            {renderInput("Guarantor Pincode", "GURANTOR_Pincode")}
+            {renderInput("Guarantor District", "GURANTOR_District")}
+            {renderInput("Guarantor State", "GURANTOR_State")}
+            {renderInput(
+              "Guarantor Driving Licence",
+              "GURANTOR_Driving_Licence",
+            )}
           </div>
         )}
 
@@ -2547,24 +2447,8 @@ for processing and servicing this loan application.
           <div className="form-grid">
             {renderInput("Co Applicant Name", "Co_Applicant")}
             {renderInput("Co Applicant DOB", "Co_Applicant_DOB", "date")}
-            {renderInput("Co Applicant Email", "Co_Applicant_Email", "email")}
             {renderInput("Co Applicant PAN", "Co_Applicant_PAN")}
-            {renderInput(
-              "Co Applicant Address Line 1",
-              "Co_Applicant_Address_Line_1",
-            )}
-            {renderInput(
-              "Co Applicant Address Line 2",
-              "Co_Applicant_Address_Line_2",
-            )}
-            {renderInput("Co Applicant Village", "Co_Applicant_Village")}
-            {renderInput("Co Applicant Pincode", "Co_Applicant_Pincode")}
-            {renderInput("Co Applicant District", "Co_Applicant_District")}
-            {renderInput("Co Applicant State", "Co_Applicant_State")}
-            {renderInput(
-              "Co Applicant Driving Licence",
-              "Co_Applicant_Driving_Licence",
-            )}
+            {renderInput("Co Applicant Email", "Co_Applicant_Email", "email")}
             <div className="mobile-otp-wrapper">
               {renderInput(
                 "Co Applicant Mobile",
@@ -2587,6 +2471,10 @@ for processing and servicing this loan application.
                 {otpVerified.coApplicant ? "Verified ✓" : "Send OTP"}
               </button>
             </div>
+            {renderInput(
+              "Co Applicant Driving Licence",
+              "Co_Applicant_Driving_Licence",
+            )}
             <button
               type="button"
               className="otp-btn"
@@ -2611,12 +2499,27 @@ for processing and servicing this loan application.
             >
               Fetch Co-Applicant Aadhaar Address
             </button>
+            {renderInput(
+              "Co Applicant Address Line 1",
+              "Co_Applicant_Address_Line_1",
+            )}
+            {renderInput(
+              "Co Applicant Address Line 2",
+              "Co_Applicant_Address_Line_2",
+            )}
+            {renderInput("Co Applicant Village", "Co_Applicant_Village")}
+            {renderInput("Co Applicant Pincode", "Co_Applicant_Pincode")}
+            {renderInput("Co Applicant District", "Co_Applicant_District")}
+            {renderInput("Co Applicant State", "Co_Applicant_State")}
           </div>
         )}
 
         {activeSection === 5 && (
           <div className="form-grid">
-            {renderInput("Customer Name (Bank)", "customer_name_as_per_bank")}
+            {renderInput(
+              "Customer Name (As per Bank)",
+              "customer_name_as_per_bank",
+            )}
             {renderInput("Bank Name", "customer_bank_name")}
             {renderInput("Account Number", "customer_account_number")}
             {renderInput("IFSC Code", "bank_ifsc_code")}
@@ -2772,7 +2675,7 @@ for processing and servicing this loan application.
                     if (!canContinue) return;
                   }
 
-                  if (activeSection === 3 && hasGuarantorDetails()) {
+                  if (activeSection === 3) {
                     const saved = await saveApplicantBeforeAadhaar("GUARANTOR");
 
                     if (!saved) return;
