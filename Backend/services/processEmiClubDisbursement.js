@@ -1595,22 +1595,13 @@ async function generateYaMoneyRepaymentSchedule({
     throw new Error(`Invalid Ya Money tenure: ${tenure}`);
   }
 
-  const [existingRps] = await conn.query(
+  const [deleteResult] = await conn.query(
     `
-    SELECT 1
-    FROM ${YA_MONEY_RPS_TABLE}
+    DELETE FROM ${YA_MONEY_RPS_TABLE}
     WHERE lan = ?
-    LIMIT 1
     `,
     [lan],
   );
-
-  if (existingRps.length > 0) {
-    return {
-      skipped: true,
-      reason: "RPS_ALREADY_EXISTS",
-    };
-  }
 
   const persistedEmi = Number(emiAmount);
   const regularEmi =
@@ -1713,6 +1704,7 @@ async function generateYaMoneyRepaymentSchedule({
 
   return {
     success: true,
+    rowsDeleted: deleteResult.affectedRows || 0,
     rowsInserted: rpsData.length,
     regularEmi,
   };
