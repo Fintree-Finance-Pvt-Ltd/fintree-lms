@@ -667,17 +667,26 @@ router.post("/upload-utr", upload.single("file"), async (req, res) => {
     const welcomeEmailErrors = [];
 
     for (const row of sheetData) {
+       const lan = String(row["LAN"] || "")
+        .trim()
+        .toUpperCase();
       const disbursementUTR = row["Disbursement UTR"];
       const disbursementDate = excelDateToJSDate(row["Disbursement Date"]);
       // const lan = row["LAN"];
       const sanctionDateRaw = row["Sanction Date"];
-const sanctionDate = sanctionDateRaw
-  ? excelDateToJSDate(sanctionDateRaw)
-  : null;
+      const sanctionDate = sanctionDateRaw
+      ? excelDateToJSDate(sanctionDateRaw)
+     : null;
+console.log({
+  lan,
+  sanctionDate,
+  disbursementDate
+});
 
-      const lan = String(row["LAN"] || "")
-        .trim()
-        .toUpperCase();
+
+      // const lan = String(row["LAN"] || "")
+      //   .trim()
+      //   .toUpperCase();
 
       console.log(
         `Processing row: LAN=${lan}, UTR=${disbursementUTR}, Date=${disbursementDate}`,
@@ -1121,6 +1130,7 @@ else if (lan.startsWith("SFL")) {
              WHERE lan = ?`,
               [sanctionDate,disbursementDate, lan]  
              );
+
           } else if (lan.startsWith("HEYBF1")) {
             await conn.query(
               "UPDATE loan_booking_hey_ev_battery SET status = 'Disbursed' WHERE lan = ?",
@@ -1273,31 +1283,31 @@ else if (lan.startsWith("SFL")) {
 
         // ✅ Update partner used limit after successful disbursement
 
-        try {
-          const limitResult = await updatePartnerLimitAfterDisbursement(conn, {
-            lan,
-            lender,
-            product,
-            loanAmount: loan_amount,
-            disbursementDate,
-          });
+        // try {
+        //   const limitResult = await updatePartnerLimitAfterDisbursement(conn, {
+        //     lan,
+        //     lender,
+        //     product,
+        //     loanAmount: loan_amount,
+        //     disbursementDate,
+        //   });
 
-          console.log(
-            `Partner disbursement limit processed | LAN: ${lan} | Amount: ${loan_amount}`,
-            limitResult,
-          );
-        } catch (limitErr) {
-          rowErrors.push({
-            lan,
-            utr: disbursementUTR,
-            reason: `Partner disbursement limit update failed: ${limitErr.message}`,
-            meta: limitErr.meta || null,
-            stage: "partner-limit",
-          });
+        //   console.log(
+        //     `Partner disbursement limit processed | LAN: ${lan} | Amount: ${loan_amount}`,
+        //     limitResult,
+        //   );
+        // } catch (limitErr) {
+        //   rowErrors.push({
+        //     lan,
+        //     utr: disbursementUTR,
+        //     reason: `Partner disbursement limit update failed: ${limitErr.message}`,
+        //     meta: limitErr.meta || null,
+        //     stage: "partner-limit",
+        //   });
 
-          await conn.rollback();
-          continue;
-        }
+        //   await conn.rollback();
+        //   continue;
+        // }
 
         await conn.commit();
         conn.release();

@@ -160,19 +160,14 @@ async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDa
 
 
 async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursementDate }) {
-   console.log("[Rapid money][START] Processing disbursement", {
-    lan,
-    disbursementUTR,
-    disbursementDate,
-  });
   // ✅ Only EMI CLUB
   if (!lan || !lan.startsWith("RML")) return { skipped: true, reason: "NOT_RapidMoney" };
-   console.log("[Rapid money][SKIP] Not an Rapid Money loan", { lan });
 
   // ✅ Basic validation
   if (!disbursementUTR || !disbursementDate) {
 
      console.log("[Rapid money][SKIP] Missing UTR or Disbursement Date", {
+      lan,
       disbursementUTR,
       disbursementDate,
     });
@@ -182,8 +177,6 @@ async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursemen
 
   let conn;
   try {
-
-       console.log("[Rapid money][DB] Getting DB connection");
 
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
@@ -245,16 +238,6 @@ if (existingRps.length > 0) {
        3) Generate Repayment Schedule (RPS)
        IMPORTANT: pass conn (transaction connection)
     ================================================= */
- console.log("[Rapid money][STEP 3] Generating repayment schedule", {
-      lan,
-      application_id: loan.application_id,
-      repayment_date: loan.repayment_date,
-      amount: loan.loan_amount,
-      interest_rate: loan.interest_rate,
-      tenure: loan.tenure,
-      disbursementDate,
-    });
-
     await generateRapidMoneyRepaymentSchedule(
       conn,
       lan,
@@ -269,7 +252,6 @@ if (existingRps.length > 0) {
        4) Insert into ev_disbursement_utr
     ================================================= */
 
-      console.log("[Rapid money][STEP 4] Inserting disbursement UTR");
     await conn.query(
       `
       INSERT INTO ev_disbursement_utr
@@ -279,31 +261,22 @@ if (existingRps.length > 0) {
       [disbursementUTR, disbursementDate, lan]
     );
 
-  console.log("[Rapid money][STEP 4] Disbursement UTR inserted");
-
     /* =================================================
        5) Update Rapid Money loan status to Disbursed
     ================================================= */
 
-    console.log("[Rapid money][STEP 5] Updating loan status to Disbursed", { lan });
     await conn.query(
       `UPDATE loan_booking_switch_my_loan SET status = 'Disbursed' WHERE lan = ?`,
       [lan]
     );
 
-
-        console.log("[Rapid money][DB] Committing transaction");
     await conn.commit();
 
     /* =================================================
        6) Webhook (do AFTER commit)
     ================================================= */
-      console.log("[Rapid money][STEP 6] Sending disbursement webhook", {
-      lan,
-      utr: disbursementUTR,
-    });
 
- console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan });
+ console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan, utr: disbursementUTR });
 
     return { success: true };
   } catch (err) {
@@ -315,19 +288,14 @@ if (existingRps.length > 0) {
 }
 
 async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursementDate }) {
-   console.log("[Rapid money][START] Processing disbursement", {
-    lan,
-    disbursementUTR,
-    disbursementDate,
-  });
   // ✅ Only EMI CLUB
   if (!lan || !lan.startsWith("RML")) return { skipped: true, reason: "NOT_RapidMoney" };
-   console.log("[Rapid money][SKIP] Not an Rapid Money loan", { lan });
 
   // ✅ Basic validation
   if (!disbursementUTR || !disbursementDate) {
 
      console.log("[Rapid money][SKIP] Missing UTR or Disbursement Date", {
+      lan,
       disbursementUTR,
       disbursementDate,
     });
@@ -337,8 +305,6 @@ async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursemen
 
   let conn;
   try {
-
-       console.log("[Rapid money][DB] Getting DB connection");
 
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
@@ -400,16 +366,6 @@ if (existingRps.length > 0) {
        3) Generate Repayment Schedule (RPS)
        IMPORTANT: pass conn (transaction connection)
     ================================================= */
- console.log("[Rapid money][STEP 3] Generating repayment schedule", {
-      lan,
-      application_id: loan.application_id,
-      repayment_date: loan.repayment_date,
-      amount: loan.loan_amount,
-      interest_rate: loan.interest_rate,
-      tenure: loan.tenure,
-      disbursementDate,
-    });
-
     await generateRapidMoneyRepaymentSchedule(
       conn,
       lan,
@@ -424,7 +380,6 @@ if (existingRps.length > 0) {
        4) Insert into ev_disbursement_utr
     ================================================= */
 
-      console.log("[Rapid money][STEP 4] Inserting disbursement UTR");
     await conn.query(
       `
       INSERT INTO ev_disbursement_utr
@@ -434,31 +389,22 @@ if (existingRps.length > 0) {
       [disbursementUTR, disbursementDate, lan]
     );
 
-  console.log("[Rapid money][STEP 4] Disbursement UTR inserted");
-
     /* =================================================
        5) Update Rapid Money loan status to Disbursed
     ================================================= */
 
-    console.log("[Rapid money][STEP 5] Updating loan status to Disbursed", { lan });
     await conn.query(
       `UPDATE loan_booking_switch_my_loan SET status = 'Disbursed' WHERE lan = ?`,
       [lan]
     );
 
-
-        console.log("[Rapid money][DB] Committing transaction");
     await conn.commit();
 
     /* =================================================
        6) Webhook (do AFTER commit)
     ================================================= */
-      console.log("[Rapid money][STEP 6] Sending disbursement webhook", {
-      lan,
-      utr: disbursementUTR,
-    });
 
- console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan });
+ console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan, utr: disbursementUTR });
 
     return { success: true };
   } catch (err) {

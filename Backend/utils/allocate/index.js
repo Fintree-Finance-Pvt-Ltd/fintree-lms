@@ -52,7 +52,8 @@ const allocateSaswat = require("./allocateSaswat");
 const allocateSevenFincorp = require("./allocateSevenFincorp");
 const allocatePlPartner = require("./allocatePlPartner");
 const allocateCarePay = require("./allocateCarePay");
-const allocateQuickMoney =require("./allocateQuickMoney")
+const allocateQuickMoney =require("./allocateQuickMoney");
+const allocateSRBH = require("./allocateSRBH");
 /**
  * Utility helpers for merging allocation results.
  */
@@ -149,6 +150,9 @@ return allocateLoanDigit(lan, payment);
 
   } else if (lan.startsWith("SW")) {
 return allocateSaswat(lan, payment);
+  }
+  else if (lan.startsWith("SHL")) {
+    return allocateSRBH(lan,payment);
   }
   else if (lan.startsWith("GQN")) {
     const promises = [

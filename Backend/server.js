@@ -71,6 +71,11 @@ const sterlionUblRoutes = require("./routes/SterlionUbl/sterlionUblRoutes");
 const circlePeHouserRoutes = require("./routes/CirclepeHouser/CirclepeHouserRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const quickMoneyRoutes = require("./routes/QuickMoney/quickMoneyRoutes");
+const paymentReceiptRoutes =
+  require("./routes/paymentReceipt");
+
+  const carepayBreRoutes = require("./routes/CarePay/carepayBreRoutes");
+
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
 //   // 32 bytes = 64 characters hex string
@@ -172,7 +177,7 @@ app.use(
   express.json({ limit: process.env.PL_PARTNER_JSON_LIMIT || "6mb" }),
   fintreePlPartnerApiRoutes,
 );
-
+app.use("/api", carepayBreRoutes);
 app.use("/api/payments", paymentRoutes);
 
 function safeAuditJson(value) {
@@ -420,6 +425,8 @@ app.use(
   "/api/supply-chain",
   require("./routes/supplyChainRoutes/supplyChainRoutes"),
 ); // ✅ Register Routes for Supply Chain Loans
+
+app.use( "/api/payment-receipts",paymentReceiptRoutes);
 
 app.use("/api/quick-money", quickMoneyRoutes);
 app.post("/api/cibil/:id/pdf", async (req, res) => {

@@ -260,6 +260,7 @@ exports.initDoqfyEsign = async (lan, type) => {
 
     // These values should ideally come from DB/config
     const BRANCH_ID = process.env.DOQFY_BRANCH_ID || 3581;
+    console.log("DOQFY BRANCH ID USED:", BRANCH_ID);
 
     const referenceId = `${lan}_${type}_${Date.now()}`;
 

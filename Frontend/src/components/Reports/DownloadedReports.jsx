@@ -308,6 +308,15 @@ const REPORT_ID_MAP = {
   "bank-payment-file-bank-holiday-report": "Bank Payment File Bank Holiday Report",
   "due-demand-vs-collection-fintree":
     "Due Demand vs Collection Report(Fintree)",
+
+  "fintree-consolidated-mis":
+  "Consolidated MIS",
+
+ "fintree-due-demand-report":
+  "Due Demand vs Collection Report(All products)",
+
+  "fintree-cashflow-report":
+  "CashFlow Report",
 };
 
 const StatusBadge = ({ status }) => {
@@ -467,10 +476,10 @@ const DownloadedReports = ({ reportIdFromParent }) => {
           Downloaded Reports
         </h2>
 
-       {loading && (
-  <>
-    <style>
-      {`
+        {loading && (
+          <>
+            <style>
+              {`
         .inline-circle-loader-wrapper {
           width: 100%;
           min-height: 180px;
@@ -504,13 +513,13 @@ const DownloadedReports = ({ reportIdFromParent }) => {
           }
         }
       `}
-    </style>
+            </style>
 
-    <div className="inline-circle-loader-wrapper">
-      <div className="inline-circle-loader" />
-    </div>
-  </>
-)}
+            <div className="inline-circle-loader-wrapper">
+              <div className="inline-circle-loader" />
+            </div>
+          </>
+        )}
       </div>
 
       {error ? (
@@ -549,7 +558,7 @@ const DownloadedReports = ({ reportIdFromParent }) => {
                 <tr key={report.id ?? report.file_name ?? index} style={trStyle}>
                   <td style={tdStyle}>
                     {String(report.status || "").toLowerCase() === "completed" &&
-                    report.downloadUrl ? (
+                      report.downloadUrl ? (
                       <a
                         href={report.downloadUrl}
                         target="_blank"

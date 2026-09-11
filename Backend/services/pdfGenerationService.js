@@ -587,6 +587,62 @@ async function getLoanData(lan) {
 
     summaryRows = rows;
   }
+
+
+
+  // ===============================
+// SAMPADA SUMMARY
+// ===============================
+else if (summaryTable === "sampada_loan_summary") {
+  const [rows] = await db.promise().query(
+    `
+      SELECT *
+      FROM sampada_loan_summary
+      WHERE LAN = ?
+    `,
+    [lan]
+  );
+
+  summaryRows = rows;
+
+  const [rps] = await db.promise().query(
+    `
+      SELECT
+        emi_no,
+        opening,
+        principal,
+        interest,
+        emi,
+        closing,
+        remaining_emi,
+        remaining_interest,
+        remaining_principal
+      FROM loan_rps_sampada
+      WHERE TRIM(lan) = TRIM(?)
+      ORDER BY emi_no ASC
+    `,
+    [lan]
+  );
+
+  rpsRows = rps;
+
+  RPS_TABLE_ROWS = rpsRows
+    .map(
+      (row) => `
+        <tr>
+          <td>${row.emi_no ?? ""}</td>
+          <td>${Number(row.opening || 0).toFixed(2)}</td>
+          <td>${Number(row.principal || 0).toFixed(2)}</td>
+          <td>${Number(row.interest || 0).toFixed(2)}</td>
+          <td>${Number(row.emi || 0).toFixed(2)}</td>
+          <td>${Number(row.closing || 0).toFixed(2)}</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  RPS_ROWS = RPS_TABLE_ROWS;
+}
   // ===============================
   // MOTION CORP SUMMARY
   // ===============================
@@ -856,6 +912,21 @@ exports.generateAgreementPdf = async (lan) => {
       .query("CALL sp_create_motioncorp_loan_summary(?)", [lan]);
   }
 
+
+  // ===============================
+// SAMPADA RPS + SUMMARY GENERATION
+// ===============================
+if (summaryTable === "sampada_loan_summary") {
+  await db.promise().query(
+    "CALL sp_generate_sampada_rps(?)",
+    [lan]
+  );
+
+  await db.promise().query(
+    "CALL sp_create_sampada_loan_summary(?)",
+    [lan]
+  );
+}
   const loanData = await waitForLoanSummary(lan);
 
   if (!loanData) throw new Error("Loan summary not available");
