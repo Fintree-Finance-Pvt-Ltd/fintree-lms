@@ -74,7 +74,7 @@ const quickMoneyRoutes = require("./routes/QuickMoney/quickMoneyRoutes");
 const paymentReceiptRoutes =
   require("./routes/paymentReceipt");
 
-  const carepayBreRoutes = require("./routes/CarePay/carepayBreRoutes");
+  // const carepayBreRoutes = require("./routes/CarePay/carepayBreRoutes");
 
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
@@ -177,7 +177,7 @@ app.use(
   express.json({ limit: process.env.PL_PARTNER_JSON_LIMIT || "6mb" }),
   fintreePlPartnerApiRoutes,
 );
-app.use("/api", carepayBreRoutes);
+// app.use("/api", carepayBreRoutes);
 app.use("/api/payments", paymentRoutes);
 
 function safeAuditJson(value) {
