@@ -3,7 +3,7 @@ const router = express.Router();
 
 const {
   autoApproveCarePayIfBureauVerified,
-} = require("../services/carepayBreEngine");
+} = require("../CarePay/carePayBreEngine");
 
 router.post("/carepay/:lan/rerun-bre", async (req, res) => {
   try {
