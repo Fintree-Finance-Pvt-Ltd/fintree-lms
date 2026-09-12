@@ -3,6 +3,7 @@ const db = require("../config/db");
 const { verifyWebhookHash } = require("../utils/webhookHashVerify");
 const { sendLowBalanceAlertMail } = require("../jobs/mailer");
 const {
+  processEmiClubDisbursement,
   processRapidMoneyDisbursement,
   processCarePayDisbursement,
   processYaMoneyDisbursement,
@@ -279,6 +280,19 @@ router.post("/payout", async (req, res) => {
         });
       }
 
+      if (transfer.lan?.startsWith("FINE") && effectiveUtr && effectiveTransferDate) {
+        const processingResult = await processEmiClubDisbursement({
+          lan: transfer.lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate: new Date(effectiveTransferDate),
+        });
+
+        console.log("Duplicate callback EmiClub processing result", {
+          lan: transfer.lan,
+          result: processingResult,
+        });
+      }
+
       if (transfer.lan?.startsWith("CCB")) {
         await db.promise().query(
           `UPDATE loan_booking_claim_cure_buddy
@@ -463,6 +477,26 @@ router.post("/payout", async (req, res) => {
           success: yaMoneyResult?.success,
           skipped: yaMoneyResult?.skipped,
           reason: yaMoneyResult?.reason,
+        });
+      } else if (lan?.startsWith("FINE")) {
+        /*
+         * EmiClub-specific processing. processEmiClubDisbursement generates
+         * the RPS and sends the partner webhook internally (same as the
+         * manual UTR upload flow's EmiClub handling in utrRoutes.js) — no
+         * separate webhook call needed here, unlike RapidMoney above.
+         */
+        const emiClubResult = await processEmiClubDisbursement({
+          lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate,
+        });
+
+        console.log("EmiClub internal processing result", {
+          lan,
+          utr: effectiveUtr,
+          success: emiClubResult?.success,
+          skipped: emiClubResult?.skipped,
+          reason: emiClubResult?.reason,
         });
       } else if (lan?.startsWith("CCB")) {
         await db.promise().query(
