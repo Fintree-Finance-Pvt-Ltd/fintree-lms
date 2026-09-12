@@ -1170,6 +1170,16 @@ function hasIdentityCriticalChange(data) {
     Object.prototype.hasOwnProperty.call(data, field),
   );
 }
+// Match partner spellings to the employment_type ENUM used by the database.
+const normalizeEmploymentType = (value) => {
+  if (typeof value !== "string") return value;
+
+  const key = value.trim().toLowerCase().replace(/[\s_-]+/g, "");
+  if (key === "salaried") return "Salaried";
+  if (key === "selfemployed") return "Self-employed";
+  return value;
+};
+
 const normalizeCreateUpdatePayload = (data) => {
   return {
     full_name: data.full_name ?? null,
@@ -1187,7 +1197,7 @@ const normalizeCreateUpdatePayload = (data) => {
     district: data.district ?? null,
 
     residence_status: data.residence_type ?? null,
-    employment_type: data.employment_type ?? null,
+    employment_type: normalizeEmploymentType(data.employment_type) ?? null,
     company_type: data.company_type ?? null,
     company_name: data.company_name ?? null,
     designation: data.designation ?? null,
@@ -3640,7 +3650,7 @@ router.put(
 
       addField(
         "employment_type",
-        data.employment_type,
+        normalizeEmploymentType(data.employment_type),
       );
 
       addField(

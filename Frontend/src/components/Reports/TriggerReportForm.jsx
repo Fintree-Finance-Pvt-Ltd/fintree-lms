@@ -511,6 +511,7 @@ const productOptions = [
   { label: "Motion Corp", value: "Motion Corp" },
   { label: "Sampada", value: "Sampada" },
   { label: "Finso", value: "Finso" },
+  { label: "Ya Money", value: "Ya Money" },
   { label: "RAPID-MONEY", value: "RAPID-MONEY" },
   { label: "SRBH", value: "SRBH" },
   { label: "CAREPAY", value: "CAREPAY" },

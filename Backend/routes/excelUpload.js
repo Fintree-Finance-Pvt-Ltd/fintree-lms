@@ -12348,6 +12348,8 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_circle_pe_houser";
   } else if (lan.startsWith("FINS")) {
     tableName = "manual_rps_finso_loan";
+  } else if (lan.startsWith("YAM")) {
+    tableName = "manual_rps_ya_money";
   } else if (lan.startsWith("HEYEV")) {
     tableName = "manual_rps_hey_ev";
   } else if (lan.startsWith("HEYBF")) {

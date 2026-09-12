@@ -4,6 +4,7 @@ import api from "../../api/api";
 import { useNavigate } from "react-router-dom";
 import DataTable from "../ui/DataTable";
 import LoaderOverlay from "../ui/LoaderOverlay";
+import SampadaMandateModal from "./SampadaMandateModal";
 
 const SampadaApprovedLoans = ({
   apiUrl = "/sampada/operation-initiated-loans",
@@ -37,6 +38,7 @@ const SampadaApprovedLoans = ({
   const [bankLoading, setBankLoading] = useState(false);
   const [bankError, setBankError] = useState("");
   const [bankResult, setBankResult] = useState(null);
+  const showLegacyBankModal = false;
 
   const nav = useNavigate();
 
@@ -108,10 +110,7 @@ const SampadaApprovedLoans = ({
     const startDate =
       loanRow.agreement_date || loanRow.login_date || toYMD(new Date());
 
-    const endDate =
-      loanRow.loan_tenure && Number(loanRow.loan_tenure) > 0
-        ? addMonths(startDate, loanRow.loan_tenure)
-        : "";
+    const endDate = addMonths(startDate, 24);
 
     const defaultAmount = loanRow.emi_amount || loanRow.loan_amount || "";
 
@@ -150,7 +149,13 @@ const SampadaApprovedLoans = ({
 
   const handleBankChange = (e) => {
     const { name, value } = e.target;
-    setBankForm((prev) => ({ ...prev, [name]: value }));
+    setBankForm((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === "mandate_start_date"
+        ? { mandate_end_date: addMonths(value, 24) }
+        : {}),
+    }));
   };
 
   const handleBankSubmit = async (e) => {
@@ -245,6 +250,18 @@ const SampadaApprovedLoans = ({
         mandate_created: true,
         document_id: documentId,
       }));
+
+      const mandateAuthUrl = mandData.auth_url || mandData.authUrl;
+
+      if (!mandateAuthUrl) {
+        setBankError(
+          mandData.message ||
+            "Mandate was created, but the authentication page is unavailable.",
+        );
+        return;
+      }
+
+      window.location.assign(mandateAuthUrl);
     } catch (err) {
       setBankError(
         err.response?.data?.message ||
@@ -405,13 +422,10 @@ const SampadaApprovedLoans = ({
           try {
             setStampSavingLan(r.lan);
 
-            const response = await api.post(
-              "/sampada/update-stamp-number",
-              {
-                lan: r.lan,
-                stamp_paper_no: stampNo,
-              },
-            );
+            const response = await api.post("/sampada/update-stamp-number", {
+              lan: r.lan,
+              stamp_paper_no: stampNo,
+            });
 
             // Use API value when returned; otherwise use entered value.
             const persistedStampNo = String(
@@ -669,7 +683,7 @@ const SampadaApprovedLoans = ({
           bankStatus === "MANDATE_INITIATED" ||
           actionLan === r.lan;
 
-        const bankChipMap = {
+        const bankChipMap = { 
           PENDING: {
             bg: "#fff7e8",
             bd: "#f4d08a",
@@ -756,7 +770,7 @@ const SampadaApprovedLoans = ({
               >
                 Docs
               </button>
-
+{/*                     
               <button
                 onClick={() => !disableBankBtn && openBankModal(r)}
                 disabled={disableBankBtn}
@@ -777,11 +791,59 @@ const SampadaApprovedLoans = ({
                 }}
               >
                 {bankStatus === "PENDING"
-                  ? "Add Bank"
+                  ? "Set Up Mandate"
                   : bankStatus === "VERIFIED"
                     ? "Verified"
                     : "Mandate Created"}
-              </button>
+              </button> */}
+              <button
+  onClick={() => !disableBankBtn && openBankModal(r)}
+  disabled={disableBankBtn}
+  style={{
+    minWidth: 105,
+    padding: "9px 16px",
+    borderRadius: 8,
+    border: disableBankBtn
+      ? "1px solid #e5e7eb"
+      : bankStatus === "VERIFIED"
+        ? "1px solid #86efac"
+        : "1px solid #93c5fd",
+
+    color: disableBankBtn
+      ? "#9ca3af"
+      : bankStatus === "VERIFIED"
+        ? "#15803d"
+        : "#2563eb",
+
+    background: disableBankBtn
+      ? "#f9fafb"
+      : bankStatus === "VERIFIED"
+        ? "#f0fdf4"
+        : "#eff6ff",
+
+    cursor: disableBankBtn ? "not-allowed" : "pointer",
+    fontWeight: 700,
+    fontSize: 12,
+    letterSpacing: "0.1px",
+
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+
+    boxShadow: disableBankBtn
+      ? "none"
+      : "0 1px 3px rgba(15, 23, 42, 0.08)",
+
+    transition: "all 0.2s ease",
+  }}
+>
+  {bankStatus === "PENDING"
+    ? "Set Up Mandate"
+    : bankStatus === "VERIFIED"
+      ? "✓ Verified"
+      : "Mandate Created"}
+</button>
             </div>
           </div>
         );
@@ -842,11 +904,74 @@ const SampadaApprovedLoans = ({
         exportFileName="approved_loans"
       />
 
-      {/* BANK MODAL remains unchanged */}
-      {showBankModal && (
+      <SampadaMandateModal
+        open={showBankModal}
+        loan={selectedLoan}
+        form={bankForm}
+        loading={bankLoading}
+        error={bankError}
+        result={bankResult}
+        onChange={handleBankChange}
+        onClose={closeBankModal}
+        onSubmit={handleBankSubmit}
+      />
+
+      {/* Legacy markup retained temporarily; disabled in favor of the redesigned modal above. */}
+      {showLegacyBankModal && (
         <div className="modal-backdrop">
           <div className="modal">
-            <h3>Add Bank Details & Mandate</h3>
+            {/* <h3>Bank Details & Mandate</h3> */}
+            <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 22,
+    paddingBottom: 16,
+    borderBottom: "1px solid #e5e7eb",
+  }}
+>
+  <div>
+    <h3
+      style={{
+        margin: 0,
+        fontSize: 21,
+        fontWeight: 800,
+        color: "#12366b",
+      }}
+    >
+      Bank Details & Mandate
+    </h3>
+
+    <div
+      style={{
+        marginTop: 5,
+        fontSize: 12,
+        color: "#64748b",
+      }}
+    >
+      Review bank details and mandate information
+    </div>
+  </div>
+
+  <button
+    type="button"
+    onClick={closeBankModal}
+    style={{
+      width: 32,
+      height: 32,
+      border: "none",
+      borderRadius: 8,
+      background: "#f1f5f9",
+      color: "#475569",
+      fontSize: 22,
+      lineHeight: 1,
+      cursor: "pointer",
+    }}
+  >
+    ×
+  </button>
+</div>
 
             <form onSubmit={handleBankSubmit} className="bank-form">
               <div className="field-row">
@@ -909,7 +1034,9 @@ const SampadaApprovedLoans = ({
                   type="number"
                   name="mandate_amount"
                   value={bankForm.mandate_amount}
-                  onChange={handleBankChange}
+                  readOnly
+                  aria-readonly="true"
+                  title="Mandate amount is calculated from the loan and cannot be edited"
                 />
               </div>
 
@@ -992,15 +1119,16 @@ const SampadaApprovedLoans = ({
               align-items: center;
               justify-content: center;
               z-index: 50;
-            }
+             }
             .modal {
-              background: #fff;
+               background: #fff;
               border-radius: 12px;
               padding: 20px 24px;
-              width: 480px;
+               width: 480px;
               max-width: 95vw;
-              box-shadow: 0 20px 40px rgba(15,23,42,.35);
-            }
+               box-shadow: 0 20px 40px rgba(15,23,42,.35);
+             }
+}
             .bank-form .field-row {
               display: flex;
               flex-direction: column;

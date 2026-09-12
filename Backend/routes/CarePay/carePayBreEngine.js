@@ -384,6 +384,8 @@ const autoApproveCarePayIfBureauVerified = async (lan) => {
        request_amount,
        loan_amount,
        annual_income,
+       emi_amount,
+       abb,
        cibil_score,
        cibil_score_fintree,
        customer_type

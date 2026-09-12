@@ -196,9 +196,10 @@ const TABLES = {
     circlepe: { bookings: "loan_booking_circle_pe",  rps: "manual_rps_circlepe" },
     srbh:{ bookings:"loan_booking_srbh",   rps:"manual_rps_srbh"},
     saswat:{ bookings:"loan_booking_saswat", rps:"manual_rps_saswat"},
+    yamoney:{ bookings:"loan_booking_ya_money", rps:"manual_rps_ya_money"},
 };
 // Priority when a LAN could exist in multiple places (adjust if needed)
-const CATEGORY_ORDER = ["bl", "wctl", "embifi", "circlepe", "saswat"];
+const CATEGORY_ORDER = ["bl", "wctl", "embifi", "circlepe", "saswat", "yamoney"];
 
 // Small promisified query helper
 const queryAsync = (sql, params = []) =>
@@ -285,6 +286,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         let dataToInsertEV   = [];     // BL / default
         let dataToInsertEMB  = [];     // Embifi
         let dataToInsertCIRCLEPE = []; // CirclePe
+        let dataToInsertYAMONEY = []; // Ya Money
         let skippedEntries   = [];
 
         for (const row of sheetData) {
@@ -341,6 +343,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
             }
             else if (category === "circlepe"){
                 dataToInsertCIRCLEPE.push(dataRow);
+            } else if (category === "yamoney") {
+                dataToInsertYAMONEY.push(dataRow);
             } else  {
                 dataToInsertEV.push(dataRow); // default / BL
             }
@@ -360,9 +364,10 @@ router.post("/upload", upload.single("file"), async (req, res) => {
         await batchInsert(TABLES.embifi.rps, dataToInsertEMB);
         await batchInsert(TABLES.bl.rps,     dataToInsertEV);
         await batchInsert(TABLES.circlepe.rps, dataToInsertCIRCLEPE);
+        await batchInsert(TABLES.yamoney.rps, dataToInsertYAMONEY);
 
         const totalInserted =
-            dataToInsertWCTL.length + dataToInsertEMB.length + dataToInsertEV.length + dataToInsertCIRCLEPE.length;
+            dataToInsertWCTL.length + dataToInsertEMB.length + dataToInsertEV.length + dataToInsertCIRCLEPE.length + dataToInsertYAMONEY.length;
 
         // ✅ Return response
         if (skippedEntries.length > 0) {

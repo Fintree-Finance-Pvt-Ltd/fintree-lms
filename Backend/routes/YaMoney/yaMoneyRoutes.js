@@ -17,7 +17,7 @@ const LENDER = "Ya Money";
 const PRODUCT = "Ya Money";
 const LOAN_TYPE = "Business Loan";
 const LAN_PREFIX = "YAM";
-const YA_MONEY_BUREAU_ENABLED = false;
+const YA_MONEY_BUREAU_ENABLED = true;
 const STATUS_EXPRESSION =
   "LOWER(REPLACE(REPLACE(TRIM(lb.status), '-', '_'), ' ', '_'))";
 const DEFAULT_PAGE_SIZE = 25;

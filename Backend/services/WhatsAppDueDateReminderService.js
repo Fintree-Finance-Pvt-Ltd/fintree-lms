@@ -32,6 +32,7 @@ const RPS_TABLES = [
   "manual_rps_circlepe",
   "manual_rps_ev_loan",
   "manual_rps_finso_loan",
+  "manual_rps_ya_money",
   "manual_rps_gq_non_fsf",
   "manual_rps_helium",
   "manual_rps_wctl",
@@ -62,6 +63,7 @@ const LAN_TABLE_MAP = {
   CIRCLE: "loan_booking_circle_pe",
   HELIUM: "loan_booking_helium",
   FINSO: "loan_booking_finso",
+  YAM: "loan_booking_ya_money",
   CCB: "loan_booking_claim_cure_buddy",
 };
 
@@ -92,6 +94,7 @@ function getLoanTableByLAN(lan) {
   if (prefix.startsWith("HEL")) return "loan_booking_helium";
   //   if (prefix.startsWith("ZYP")) return "loan_booking_zypay_customer";
   if (prefix.startsWith("FIN")) return "loan_booking_finso";
+  if (prefix.startsWith("YAM")) return "loan_booking_ya_money";
   if (prefix.startsWith("CCB")) return "loan_booking_claim_cure_buddy";
 
   // Default fallback
