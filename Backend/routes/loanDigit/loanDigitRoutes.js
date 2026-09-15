@@ -11,6 +11,7 @@ const {
 const partnerLimitService = require("../../services/partnerLimitService");
 const partnerFldgService = require("../../services/partnerFldgService");
 const payoutService = require("../../services/payout.service");
+const { isRetryableDbError } = require("../../utils/retryableDbError");
 const router = express.Router();
 
 /**
@@ -287,94 +288,132 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     }
 
     conn = await db.promise().getConnection();
-    await conn.beginTransaction();
 
-    console.log("🔍 Checking existing Partner Loan ID:", partner_loan_id);
-
-    const [existingLoan] = await conn.query(
-      `
-      SELECT lan, partner_loan_id, customer_name
-      FROM loan_booking_loan_digit
-      WHERE TRIM(partner_loan_id) = ?
-      `,
-      [partner_loan_id],
-    );
-
-    if (existingLoan.length > 0) {
-      await conn.rollback();
-      conn.release();
-
-      return res.status(400).json({
-        status: "FAILED",
-        message: "Duplicate Partner Loan ID",
-        existingLan: existingLoan[0].lan,
-      });
-    }
-
-    /*
-     ===============================
-     PAN DUPLICATION CHECK
-     ===============================
-    */
-
-    console.log("🔍 Checking PAN duplication:", normalizedPan);
-
-    const [panRecords] = await conn.query(
-      `
-      SELECT status
-      FROM loan_booking_loan_digit
-      WHERE UPPER(pan_number) = ?
-      `,
-      [normalizedPan],
-    );
-
-    const allowedStatuses = [
-      "Cancelled",
-      "Foreclosed",
-      "Fully Paid",
-      "Rejected",
-      "OPS_REJECTED",
-    ];
-
-    if (panRecords.length > 0) {
-      const hasActiveLoan = panRecords.some(
-        (row) => !allowedStatuses.includes(row.status?.trim()),
-      );
-
-      if (hasActiveLoan) {
-        console.error("❌ Active case exists for PAN:", normalizedPan);
-
-        return res.status(400).json({
-          status: "Failed",
-          message:
-            "PAN already exists with an active loan. New loan not allowed.",
-        });
-      }
-
-      console.log("✅ PAN exists but previous loans are closed. Proceeding.");
-    }
-
-    /*
-     * Partner limit logic
-     * EMI Club does this before insert; same applied here.
-     */
     const partnerName = "Loan Digit";
     const today = new Date();
     const month = today.getMonth() + 1;
     const year = today.getFullYear();
 
-    const partner = await partnerLimitService.getOrCreatePartner(
-      conn,
-      partnerName,
-    );
+    // partner_monthly_limit is read via SELECT ... FOR UPDATE below; under
+    // concurrent bookings for the same partner this occasionally raises a
+    // transient "record changed since last read" error. Retry the whole
+    // (read-only, side-effect-free up to this point) section a couple of
+    // times on a fresh transaction instead of failing the partner's
+    // request outright on a one-shot race.
+    const MAX_LIMIT_CHECK_ATTEMPTS = 3;
 
-    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-      conn,
-      partner.partner_id,
-      loan_amount,
-      month,
-      year,
-    );
+    let partner;
+    let limitCheck;
+
+    for (let attempt = 1; attempt <= MAX_LIMIT_CHECK_ATTEMPTS; attempt++) {
+      try {
+        await conn.beginTransaction();
+
+        console.log("🔍 Checking existing Partner Loan ID:", partner_loan_id);
+
+        const [existingLoan] = await conn.query(
+          `
+          SELECT lan, partner_loan_id, customer_name
+          FROM loan_booking_loan_digit
+          WHERE TRIM(partner_loan_id) = ?
+          `,
+          [partner_loan_id],
+        );
+
+        if (existingLoan.length > 0) {
+          await conn.rollback();
+          conn.release();
+
+          return res.status(400).json({
+            status: "FAILED",
+            message: "Duplicate Partner Loan ID",
+            existingLan: existingLoan[0].lan,
+          });
+        }
+
+        /*
+         ===============================
+         PAN DUPLICATION CHECK
+         ===============================
+        */
+
+        console.log("🔍 Checking PAN duplication:", normalizedPan);
+
+        const [panRecords] = await conn.query(
+          `
+          SELECT status
+          FROM loan_booking_loan_digit
+          WHERE UPPER(pan_number) = ?
+          `,
+          [normalizedPan],
+        );
+
+        const allowedStatuses = [
+          "Cancelled",
+          "Foreclosed",
+          "Fully Paid",
+          "Rejected",
+          "OPS_REJECTED",
+        ];
+
+        if (panRecords.length > 0) {
+          const hasActiveLoan = panRecords.some(
+            (row) => !allowedStatuses.includes(row.status?.trim()),
+          );
+
+          if (hasActiveLoan) {
+            console.error("❌ Active case exists for PAN:", normalizedPan);
+
+            await conn.rollback();
+            conn.release();
+
+            return res.status(400).json({
+              status: "Failed",
+              message:
+                "PAN already exists with an active loan. New loan not allowed.",
+            });
+          }
+
+          console.log("✅ PAN exists but previous loans are closed. Proceeding.");
+        }
+
+        /*
+         * Partner limit logic
+         * EMI Club does this before insert; same applied here.
+         */
+        partner = await partnerLimitService.getOrCreatePartner(
+          conn,
+          partnerName,
+        );
+
+        limitCheck = await partnerLimitService.validatePartnerBookingLimit(
+          conn,
+          partner.partner_id,
+          loan_amount,
+          month,
+          year,
+        );
+
+        break;
+      } catch (err) {
+        try {
+          await conn.rollback();
+        } catch (_) {}
+
+        if (isRetryableDbError(err) && attempt < MAX_LIMIT_CHECK_ATTEMPTS) {
+          console.warn(
+            `Loan Digit partner-limit conflict, retrying (attempt ${attempt}/${MAX_LIMIT_CHECK_ATTEMPTS})`,
+          );
+
+          await new Promise((resolve) =>
+            setTimeout(resolve, 150 * attempt + Math.floor(Math.random() * 100)),
+          );
+          continue;
+        }
+
+        throw err;
+      }
+    }
 
     if (!limitCheck.valid) {
       await conn.rollback();
