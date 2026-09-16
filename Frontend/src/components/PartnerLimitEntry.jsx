@@ -10,6 +10,10 @@ const PartnerLimitEntry = () => {
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditPartner, setAuditPartner] = useState(null);
   const [auditRows, setAuditRows] = useState([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editPartner, setEditPartner] = useState(null);
+  const [editForm, setEditForm] = useState({ assigned_limit: "", pos_limit: "" });
+  const [editSaving, setEditSaving] = useState(false);
   const [form, setForm] = useState({
     partner_name: "",
     month: new Date().getMonth() + 1,
@@ -178,6 +182,68 @@ const PartnerLimitEntry = () => {
     setAuditOpen(false);
     setAuditPartner(null);
     setAuditRows([]);
+  };
+
+  const openEdit = (partner) => {
+    setEditPartner(partner);
+    setEditForm({
+      assigned_limit:
+        partner.assigned_limit !== undefined && partner.assigned_limit !== null
+          ? String(partner.assigned_limit)
+          : "",
+      // No POS limit set yet — start the field from the partner's current
+      // POS rather than blank, since anything below that would be rejected
+      // anyway (it'd already be breached the moment it's saved).
+      pos_limit:
+        partner.pos_limit !== undefined && partner.pos_limit !== null
+          ? String(partner.pos_limit)
+          : String(Number(partner.pos || 0)),
+    });
+    setEditOpen(true);
+  };
+
+  const closeEdit = () => {
+    setEditOpen(false);
+    setEditPartner(null);
+    setEditForm({ assigned_limit: "", pos_limit: "" });
+  };
+
+  const handleEditSave = async (e) => {
+    e.preventDefault();
+    if (!editPartner) return;
+
+    const currentPos = Number(editPartner.pos || 0);
+    const newPosLimit = editForm.pos_limit === "" ? null : parseFloat(editForm.pos_limit);
+
+    // A POS limit below what's already outstanding would be breached the
+    // instant it's saved — catch it here before even calling the API (the
+    // backend enforces this too, but this avoids the round trip).
+    if (newPosLimit !== null && newPosLimit < currentPos) {
+      alert(
+        `POS limit can't be less than the partner's current POS of ${formatCurrency(currentPos)}.`,
+      );
+      return;
+    }
+
+    setEditSaving(true);
+
+    try {
+      await api.put(`partners/partners/${editPartner.partner_id}/limits`, {
+        month: monthFilter,
+        year: yearFilter,
+        assigned_limit:
+          editForm.assigned_limit === "" ? undefined : parseFloat(editForm.assigned_limit),
+        pos_limit: newPosLimit,
+      });
+
+      closeEdit();
+      fetchPartners();
+    } catch (err) {
+      console.error("Edit limits error:", err);
+      alert(err.response?.data?.error || "Failed to update limits");
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   const toggleFldgStatus = async (partner_id, currentStatus, fldg_percent) => {
@@ -539,106 +605,103 @@ const PartnerLimitEntry = () => {
               <thead>
                 <tr>
                   <th>Partner</th>
-                  <th>FLDG %</th>
                   <th>FLDG</th>
                   <th className="text-right">Assigned</th>
-                  <th className="text-right">Login</th>
                   <th className="text-right">Disbursed</th>
-                  <th className="text-right">Login Avl.</th>
                   <th className="text-right">Disb. Rem</th>
                   <th className="text-right">POS</th>
+                  <th className="text-right">POS Limit</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredPartners.map((p, i) => (
-                  <tr key={p.partner_id || i}>
-                    <td className="partner-name">{p.partner_name}</td>
+                {filteredPartners.map((p, i) => {
+                  const hasPosLimit =
+                    p.pos_limit !== undefined &&
+                    p.pos_limit !== null &&
+                    Number(p.pos_limit) > 0;
 
-                    <td>{Number(p.fldg_percent || 0)}%</td>
+                  const posNearOrOverLimit =
+                    hasPosLimit && Number(p.pos || 0) >= Number(p.pos_limit) * 0.9;
 
-                    <td>
-                      <label className="switch">
-                        <input
-                          className="switch-input"
-                          type="checkbox"
-                          checked={p.fldg_status === 1}
-                          onChange={() =>
-                            toggleFldgStatus(
-                              p.partner_id,
-                              p.fldg_status,
-                              p.fldg_percent,
-                            )
-                          }
-                        />
-                        <span className="slider round"></span>
-                      </label>
-                    </td>
+                  return (
+                    <tr key={p.partner_id || i}>
+                      <td className="partner-name">{p.partner_name}</td>
 
-                    <td className="text-right">
-                      {formatCurrency(p.assigned_limit)}
-                    </td>
+                      <td>
+                        <label className="switch" title={`FLDG ${Number(p.fldg_percent || 0)}%`}>
+                          <input
+                            className="switch-input"
+                            type="checkbox"
+                            checked={p.fldg_status === 1}
+                            onChange={() =>
+                              toggleFldgStatus(
+                                p.partner_id,
+                                p.fldg_status,
+                                p.fldg_percent,
+                              )
+                            }
+                          />
+                          <span className="slider round"></span>
+                        </label>
+                      </td>
 
-                    <td className="text-right booked-value">
-                      {formatCurrency(p.booked_limit)}
-                    </td>
+                      <td className="text-right">
+                        {formatCurrency(p.assigned_limit)}
+                      </td>
 
-                    <td className="text-right used-value">
-                      {formatCurrency(p.used_limit)}
-                    </td>
+                      <td className="text-right used-value">
+                        {formatCurrency(p.used_limit)}
+                      </td>
 
-                    <td
-                      className={`text-right ${
-                        Number(p.booking_remaining_limit) > 0
-                          ? "remaining-positive"
-                          : "remaining-negative"
-                      }`}
-                    >
-                      {formatCurrency(p.booking_remaining_limit)}
-                    </td>
+                      <td
+                        className={`text-right ${
+                          Number(p.remaining_limit) > 0
+                            ? "remaining-positive"
+                            : "remaining-negative"
+                        }`}
+                      >
+                        {formatCurrency(p.remaining_limit)}
+                      </td>
 
-                    <td
-                      className={`text-right ${
-                        Number(p.remaining_limit) > 0
-                          ? "remaining-positive"
-                          : "remaining-negative"
-                      }`}
-                    >
-                      {formatCurrency(p.remaining_limit)}
-                    </td>
+                      <td
+                        className={`text-right pos-value ${
+                          posNearOrOverLimit ? "pos-warning" : ""
+                        }`}
+                      >
+                        {formatCurrency(p.pos)}
+                      </td>
 
-                    <td className="text-right pos-value">
-                      {formatCurrency(p.pos)}
-                    </td>
+                      <td className="text-right">
+                        {hasPosLimit ? (
+                          formatCurrency(p.pos_limit)
+                        ) : (
+                          <span className="no-limit-tag">No limit</span>
+                        )}
+                      </td>
 
-                    <td>
-                      <div className="action-group">
-                        <button
-                          type="button"
-                          className="link-btn"
-                          onClick={() => {
-                            setForm({
-                              partner_name: p.partner_name,
-                              month: monthFilter,
-                              year: yearFilter,
-                              assigned_limit: p.assigned_limit || "",
-                            });
-                          }}
-                        >
-                          Edit
-                        </button>
+                      <td>
+                        <div className="action-group">
+                          <button
+                            type="button"
+                            className="link-btn"
+                            onClick={() => openEdit(p)}
+                          >
+                            Edit
+                          </button>
 
-                        <button
-                          type="button"
-                          className="link-btn secondary-link"
-                          onClick={() => fetchAudits(p)}
-                        >
-                          Audits
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <button
+                            type="button"
+                            className="link-btn secondary-link"
+                            onClick={() => fetchAudits(p)}
+                          >
+                            Audits
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -727,6 +790,111 @@ const PartnerLimitEntry = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editOpen && (
+        <div className="audit-modal-overlay">
+          <div className="audit-modal edit-limits-modal">
+            <div className="audit-modal-header">
+              <div>
+                <h2>Edit Limits</h2>
+                <p>
+                  {editPartner?.partner_name} — {monthNames[monthFilter - 1]}{" "}
+                  {yearFilter}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeEdit}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSave}>
+              <div className="audit-modal-body">
+                <div className="edit-limits-grid">
+                  <div className="field">
+                    <label htmlFor="edit_assigned_limit">
+                      Assigned Limit (this month)
+                    </label>
+                    <input
+                      id="edit_assigned_limit"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="Assigned Limit (₹)"
+                      value={formatIndianAmountInput(editForm.assigned_limit)}
+                      onChange={(e) => {
+                        const rawValue = e.target.value
+                          .replace(/,/g, "")
+                          .replace(/[^\d.]/g, "");
+
+                        if (/^\d*\.?\d{0,2}$/.test(rawValue)) {
+                          setEditForm((prev) => ({ ...prev, assigned_limit: rawValue }));
+                        }
+                      }}
+                    />
+                    {Number(editForm.assigned_limit || 0) > 0 && (
+                      <div className="assigned-limit-words">
+                        {numberToIndianWords(editForm.assigned_limit)}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="edit_pos_limit">
+                      POS Limit (blocks disbursal once reached)
+                    </label>
+                    <input
+                      id="edit_pos_limit"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="Leave blank for no limit"
+                      value={formatIndianAmountInput(editForm.pos_limit)}
+                      onChange={(e) => {
+                        const rawValue = e.target.value
+                          .replace(/,/g, "")
+                          .replace(/[^\d.]/g, "");
+
+                        if (/^\d*\.?\d{0,2}$/.test(rawValue)) {
+                          setEditForm((prev) => ({ ...prev, pos_limit: rawValue }));
+                        }
+                      }}
+                    />
+                    {editPartner && (
+                      <div className="edit-current-pos">
+                        Current POS: {formatCurrency(editPartner.pos)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="audit-modal-footer">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={closeEdit}
+                  disabled={editSaving}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="btn btn-success"
+                  disabled={editSaving}
+                >
+                  {editSaving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1195,42 +1195,59 @@ async function processCarePayDisbursement({
 
       const partnerName = "CAREPAY";
 
-      const partner =
-        await partnerLimitService.getOrCreatePartner(
-          conn,
-          partnerName,
-        );
-
-      const limit =
-        await partnerLimitService.getPartnerMonthlyLimit(
-          conn,
-          partner.partner_id,
-          month,
-          year,
-        );
-
       let limitResult;
 
       try {
-        limitResult =
-          await partnerLimitService.updateDisbursedLimit(
+        const partner =
+          await partnerLimitService.getOrCreatePartner(
             conn,
-            limit.id,
-            loanAmount,
-            lan,
-          );
-      } catch (err) {
-        if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
-          err.meta = {
-            ...(err.meta || {}),
             partnerName,
-            lan,
+          );
+
+        const limit =
+          await partnerLimitService.getPartnerMonthlyLimit(
+            conn,
+            partner.partner_id,
             month,
             year,
-          };
+          );
+
+        try {
+          limitResult =
+            await partnerLimitService.updateDisbursedLimit(
+              conn,
+              limit.id,
+              loanAmount,
+              lan,
+            );
+        } catch (err) {
+          if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+            err.meta = {
+              ...(err.meta || {}),
+              partnerName,
+              lan,
+              month,
+              year,
+            };
+          }
+
+          throw err;
+        }
+      } catch (err) {
+        if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+          throw err;
         }
 
-        throw err;
+        console.error(
+          "[CarePay][LIMIT] Skipping partner limit tracking (non-fatal)",
+          {
+            lan,
+            partnerName,
+            reason: err.message,
+          },
+        );
+
+        limitResult = { skipped: true, reason: err.message };
       }
 
       await conn.commit();
@@ -1324,53 +1341,68 @@ async function processCarePayDisbursement({
 
     const partnerName = "CAREPAY";
 
-    const partner =
-      await partnerLimitService.getOrCreatePartner(
-        conn,
-        partnerName,
-      );
-
-    const limit =
-      await partnerLimitService.getPartnerMonthlyLimit(
-        conn,
-        partner.partner_id,
-        month,
-        year,
-      );
-
     let limitResult;
 
     try {
-      limitResult =
-        await partnerLimitService.updateDisbursedLimit(
+      const partner =
+        await partnerLimitService.getOrCreatePartner(
           conn,
-          limit.id,
-          loanAmount,
-          lan,
-        );
-    } catch (err) {
-      if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
-        err.meta = {
-          ...(err.meta || {}),
           partnerName,
-          lan,
+        );
+
+      const limit =
+        await partnerLimitService.getPartnerMonthlyLimit(
+          conn,
+          partner.partner_id,
           month,
           year,
-        };
+        );
+
+      try {
+        limitResult =
+          await partnerLimitService.updateDisbursedLimit(
+            conn,
+            limit.id,
+            loanAmount,
+            lan,
+          );
+      } catch (err) {
+        if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+          err.meta = {
+            ...(err.meta || {}),
+            partnerName,
+            lan,
+            month,
+            year,
+          };
+        }
+
+        throw err;
       }
 
-      throw err;
-    }
+      console.log(
+        "[CarePay][LIMIT] Disbursement limit processed",
+        {
+          lan,
+          loanAmount,
+          netDisbursement: finalDisbursedAmount,
+          limitResult,
+        },
+      );
+    } catch (err) {
+      if (err.message === "DISBURSEMENT_LIMIT_EXCEEDED") {
+        throw err;
+      }
 
-    console.log(
-      "[CarePay][LIMIT] Disbursement limit processed",
-      {
-        lan,
-        loanAmount,
-        netDisbursement: finalDisbursedAmount,
-        limitResult,
-      },
-    );
+      console.error(
+        "[CarePay][LIMIT] Skipping partner limit tracking (non-fatal)",
+        {
+          lan,
+          partnerName,
+          reason: err.message,
+        },
+      );
+    }
 
     /*
      * Commit all database changes before sending webhook.
@@ -1664,17 +1696,33 @@ async function updateYaMoneyDisbursementLimit({
 }) {
   const { month, year } = getMonthYear(disbursementDate);
 
-  const partner = await partnerLimitService.getOrCreatePartner(
-    conn,
-    YA_MONEY_PARTNER_NAME,
-  );
+  let partner;
+  let limit;
 
-  const limit = await partnerLimitService.getPartnerMonthlyLimit(
-    conn,
-    partner.partner_id,
-    month,
-    year,
-  );
+  try {
+    partner = await partnerLimitService.getOrCreatePartner(
+      conn,
+      YA_MONEY_PARTNER_NAME,
+    );
+
+    limit = await partnerLimitService.getPartnerMonthlyLimit(
+      conn,
+      partner.partner_id,
+      month,
+      year,
+    );
+  } catch (err) {
+    console.error(
+      "[YaMoney][LIMIT] Skipping partner limit tracking (non-fatal)",
+      {
+        lan,
+        partnerName: YA_MONEY_PARTNER_NAME,
+        reason: err.message,
+      },
+    );
+
+    return { skipped: true, reason: err.message };
+  }
 
   try {
     return await partnerLimitService.updateDisbursedLimit(

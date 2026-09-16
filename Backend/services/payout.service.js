@@ -1,6 +1,7 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const db = require("../config/db");
+const partnerLimitService = require("./partnerLimitService");
 
 const {
   processEmiClubDisbursement,
@@ -47,6 +48,64 @@ const PARTNER_MAX_PAYOUT_LIMITS = {
   loan_booking_quick_money: 25000,
   loan_booking_ya_money: null,
 };
+
+// Canonical partner_master.partner_name for each product, matching the names
+// already used elsewhere in the codebase (switchMyLoanRotues.js/
+// quickMoneyRoutes.js's own partner-limit checks, processEmiClubDisbursement.js's
+// CarePay/YaMoney tracking) so this shares the same partner_master/
+// partner_monthly_limit rows rather than creating duplicates under new names.
+const TABLE_TO_PARTNER_NAME = {
+  loan_booking_emiclub: "EMICLUB",
+  loan_booking_switch_my_loan: "RAPID MONEY",
+  loan_booking_loan_digit: "Loan Digit",
+  loan_booking_finso: "Finso",
+  loan_booking_carepay: "CAREPAY",
+  loan_booking_claim_cure_buddy: "CLAIM CURE BUDDY",
+  pl_partner_applications: "PL PARTNER",
+  loan_booking_quick_money: "QUICK MONEY",
+  loan_booking_ya_money: "YAMONEY",
+};
+
+// manual_rps_* table backing each partner's live POS (principal outstanding),
+// same tables the Partner Limits screen already sums for its POS column. null
+// = no known POS source for this product yet = POS limit check is skipped
+// (unrestricted) until one exists, same as an unset pos_limit.
+const TABLE_TO_POS_TABLE = {
+  loan_booking_emiclub: "manual_rps_emiclub",
+  loan_booking_switch_my_loan: "manual_rps_switch_my_loan",
+  loan_booking_loan_digit: "manual_rps_loan_digit",
+  loan_booking_finso: "manual_rps_finso_loan",
+  loan_booking_carepay: "manual_rps_carepay",
+  loan_booking_claim_cure_buddy: null,
+  pl_partner_applications: null,
+  loan_booking_quick_money: null,
+  loan_booking_ya_money: null,
+};
+
+// Rapid Money and Quick Money already run their own pre-transfer disbursement-
+// limit check and record usage themselves (in switchMyLoanRotues.js /
+// quickMoneyRoutes.js) before this function is even called. Running the new
+// centralized disbursement-limit gate for them too would read used_limit
+// after their own call already recorded THIS transaction's amount, double-
+// counting it against its own headroom. Leave their existing checks as the
+// sole gate; only add the new POS-limit gate for them (an entirely new check
+// with nothing existing to conflict with).
+const DISBURSEMENT_GATE_EXEMPT_TABLES = new Set([
+  "loan_booking_switch_my_loan",
+  "loan_booking_quick_money",
+]);
+
+// Rapid Money, Quick Money, CarePay and YaMoney all already record their own
+// disbursement usage (RML/QuickMoney pre-transfer in their routes; CarePay/
+// YaMoney post-transfer inside processEmiClubDisbursement.js). Recording
+// again here would be a harmless no-op (updateDisbursedLimit dedupes by LAN)
+// but is skipped to avoid confusing duplicate audit-trail log noise.
+const DISBURSEMENT_RECORD_EXEMPT_TABLES = new Set([
+  "loan_booking_switch_my_loan",
+  "loan_booking_quick_money",
+  "loan_booking_carepay",
+  "loan_booking_ya_money",
+]);
 
 async function getTableColumnSet(tableName) {
   const [rows] = await db.promise().query(
@@ -322,6 +381,59 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
           success: false,
           reason: "MAX_PAYOUT_LIMIT_EXCEEDED",
           message: `Payout amount ₹${amount} exceeds the configured maximum of ₹${maxAllowed} for this partner.`,
+        };
+      }
+    }
+
+    // Centralized partner monthly-disbursement-limit and POS-limit gate,
+    // covering every product uniformly. RML/QuickMoney already enforce the
+    // disbursement limit themselves upstream (see DISBURSEMENT_GATE_EXEMPT_TABLES
+    // above), so only the new POS check runs for them here; everything else
+    // gets both checks for the first time. Both checks no-op (unrestricted)
+    // for any partner that hasn't had a limit configured yet.
+    const gatePartnerName = TABLE_TO_PARTNER_NAME[table];
+
+    if (gatePartnerName) {
+      if (!DISBURSEMENT_GATE_EXEMPT_TABLES.has(table)) {
+        const disbursementGate =
+          await partnerLimitService.checkPartnerDisbursementGate(
+            db.promise(),
+            { partnerName: gatePartnerName, amount },
+          );
+
+        if (disbursementGate.blocked) {
+          console.log(
+            `⛔ ${disbursementGate.reason} for ${table}, LAN: ${lan}`,
+            disbursementGate.message,
+          );
+
+          return {
+            success: false,
+            reason: disbursementGate.reason,
+            message: disbursementGate.message,
+          };
+        }
+      }
+
+      const posGate = await partnerLimitService.checkPartnerPosGate(
+        db.promise(),
+        {
+          partnerName: gatePartnerName,
+          amount,
+          posTableName: TABLE_TO_POS_TABLE[table],
+        },
+      );
+
+      if (posGate.blocked) {
+        console.log(
+          `⛔ ${posGate.reason} for ${table}, LAN: ${lan}`,
+          posGate.message,
+        );
+
+        return {
+          success: false,
+          reason: posGate.reason,
+          message: posGate.message,
         };
       }
     }
@@ -710,6 +822,21 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         lan,
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
+      });
+    }
+
+    // Record usage against the partner's monthly disbursement limit for
+    // products that don't already track it themselves (see
+    // DISBURSEMENT_RECORD_EXEMPT_TABLES above). No-ops if no limit has been
+    // configured for this partner/month yet.
+    if (
+      gatePartnerName &&
+      !DISBURSEMENT_RECORD_EXEMPT_TABLES.has(table)
+    ) {
+      await partnerLimitService.recordDisbursementUsage(db.promise(), {
+        partnerName: gatePartnerName,
+        amount,
+        lan,
       });
     }
 

@@ -14,6 +14,7 @@ const {
 const {
   processMandateWebhook,
 } = require("../services/easebuzz/easebuzzMandateService");
+const partnerLimitService = require("../services/partnerLimitService");
 
 const router = express.Router();
 const {
@@ -174,7 +175,8 @@ router.post("/payout", async (req, res) => {
           lan,
           payout_status,
           utr,
-          transfer_date
+          transfer_date,
+          amount
         FROM quick_transfers
         WHERE unique_request_number = ?
         LIMIT 1
@@ -291,6 +293,12 @@ router.post("/payout", async (req, res) => {
           lan: transfer.lan,
           result: processingResult,
         });
+
+        await partnerLimitService.recordDisbursementUsage(db.promise(), {
+          partnerName: "EMICLUB",
+          amount: Number(transfer.amount),
+          lan: transfer.lan,
+        });
       }
 
       if (transfer.lan?.startsWith("CCB")) {
@@ -303,6 +311,12 @@ router.post("/payout", async (req, res) => {
            WHERE lan = ?`,
           [transfer.lan],
         );
+
+        await partnerLimitService.recordDisbursementUsage(db.promise(), {
+          partnerName: "CLAIM CURE BUDDY",
+          amount: Number(transfer.amount),
+          lan: transfer.lan,
+        });
       }
 
       return res.sendStatus(200);
@@ -498,6 +512,12 @@ router.post("/payout", async (req, res) => {
           skipped: emiClubResult?.skipped,
           reason: emiClubResult?.reason,
         });
+
+        await partnerLimitService.recordDisbursementUsage(db.promise(), {
+          partnerName: "EMICLUB",
+          amount: Number(transfer.amount),
+          lan,
+        });
       } else if (lan?.startsWith("CCB")) {
         await db.promise().query(
           `UPDATE loan_booking_claim_cure_buddy
@@ -512,6 +532,12 @@ router.post("/payout", async (req, res) => {
         console.log("ClaimCureBuddy payout success stored", {
           lan,
           utr: effectiveUtr,
+        });
+
+        await partnerLimitService.recordDisbursementUsage(db.promise(), {
+          partnerName: "CLAIM CURE BUDDY",
+          amount: Number(transfer.amount),
+          lan,
         });
       } else {
         /*
