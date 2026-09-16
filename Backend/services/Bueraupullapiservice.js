@@ -59,6 +59,11 @@ function validatePAN(pan) {
 
   return normalizedPAN;
 }
+
+function hasValue(value) {
+  return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
 // State Code Mapping ( YOUR EXISTING MAPPING )
 const STATE_CODES = {
   "JAMMU AND KASHMIR": "01",
@@ -133,9 +138,12 @@ const runBureau = async (data) => {
     const loanAmount = Number(data.loan_amount);
     if (isNaN(loanAmount)) throw new Error("loan_amount must be numeric.");
 
-    // Duration — must be numeric, max 3 digits
-    const loanTenure = Number(data.loan_tenure);
-    if (isNaN(loanTenure)) throw new Error("loan_tenure must be numeric.");
+    // Duration is optional; validate it only when the caller sends it.
+    const loanTenureProvided = hasValue(data.loan_tenure);
+    const loanTenure = loanTenureProvided ? Number(data.loan_tenure) : "";
+    if (loanTenureProvided && isNaN(loanTenure)) {
+      throw new Error("loan_tenure must be numeric.");
+    }
 
     const enquiryReason = data.enquiry_reason || "05"; // Default to 05 if not provided
     const financePurpose = data.finance_purpose || 99;
