@@ -1171,7 +1171,7 @@ router.get("/status/:lan", verifyApiKey, async (req, res) => {
 });
  
 
-router.post("/:lan/zebrs/esign/:type",  verifyApiKey,
+router.post("/:lan/esign/:type",  verifyApiKey,
   async (req, res) => {
     const { lan, type } = req.params;
     const { bookingTable } = getLoanContext(lan);
