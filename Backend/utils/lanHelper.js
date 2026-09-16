@@ -57,7 +57,11 @@
     return normalizeLan(lan).startsWith("SPL");
   }
 
-
+  
+ function isZebrsLan(lan = "") {
+    const s = normalizeLan(lan);
+    return s.startsWith("ZBCL");
+  }
   function isClaimCureBuddyLan(lan = "") {
     const s = normalizeLan(lan);
     return s.startsWith("CCB");
@@ -340,7 +344,77 @@
       };
     }
 
+if (isZebrsLan(lan)) {
+  return {
+    type: "ZEBRS",
 
+    summaryTable: "zebrs_loan_summary",
+
+    rpsTable: "manual_rps_zebrs",
+
+    bookingTable: "loan_booking_zebrs",
+
+    agreementTemplate: "Zebrs_EV_Full_Agreement.html",
+
+    esignParties: [
+      // ============================
+      // BORROWER
+      // ============================
+      {
+        role: "BORROWER",
+
+        required: true,
+
+        name: "customer_name",
+
+        email: "email",
+
+        mobile: "mobile_number",
+
+        sign_position: "DRAG_DROP",
+
+        position_details: {
+          ALL: [
+            {
+              x1: 51,
+              x2: 126,
+              y1: 85,
+              y2: 130,
+            },
+          ],
+        },
+      },
+
+      // ============================
+      // GUARANTOR
+      // ============================
+      {
+        role: "GUARANTOR",
+
+        required: false,
+
+        name: "guarantor_name",
+
+        email: "guarantor_email",
+
+        mobile: "guarantor_mobile",
+
+        sign_position: "DRAG_DROP",
+
+        position_details: {
+          ALL: [
+            {
+              x1: 328,
+              x2: 403,
+              y1: 85,
+              y2: 130,
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
 
     throw new Error(`Unknown LAN format: ${lan}`);
   }
@@ -351,6 +425,7 @@
     isClayyoLan,
     isHeliumLan,
     isMotionCorpLan,
+    isZebrsLan,
     isSampadaLan,
     isClaimCureBuddyLan,
     CLAIM_CURE_BUDDY_CONTEXT,

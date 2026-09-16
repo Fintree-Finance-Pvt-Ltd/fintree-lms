@@ -150,10 +150,11 @@ router.put("/:partnerId/fldg", async (req, res) => {
       `
       UPDATE partner_master
       SET
+        fldg_percent = ?,
         fldg_status = ?
       WHERE partner_id = ?
       `,
-      [fldg_status, partnerId],
+      [fldg_percent, fldg_status, partnerId],
     );
 
     res.json({
@@ -205,12 +206,13 @@ router.get("/partners", async (req, res) => {
 
     const [partners] = await conn.query(
       `
-      SELECT 
-        pm.partner_id, 
-        pm.partner_name, 
+      SELECT
+        pm.partner_id,
+        pm.partner_name,
         pm.status,
         pm.fldg_percent,
         pm.fldg_status,
+        pm.pos_limit,
         pml.id AS limit_id,
         COALESCE(pml.assigned_limit, 0) AS assigned_limit,
         COALESCE(pml.booked_limit, 0) AS booked_limit,
@@ -415,6 +417,103 @@ router.post("/partners/:name/limits", async (req, res) => {
   } catch (err) {
     console.error("Limit set error:", err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/partners/partners/:partnerId/limits - Edit assigned limit and/or
+// POS limit for an existing partner (real edit action for the Partner Limits
+// screen, distinct from the create-partner POST above).
+router.put("/partners/:partnerId/limits", async (req, res) => {
+  const conn = await db.promise().getConnection();
+
+  try {
+    const { partnerId } = req.params;
+    const { assigned_limit, pos_limit } = req.body;
+
+    const month = parseInt(req.body.month) || new Date().getMonth() + 1;
+    const year = parseInt(req.body.year) || new Date().getFullYear();
+
+    await conn.beginTransaction();
+
+    if (pos_limit !== undefined) {
+      const normalizedPosLimit =
+        pos_limit === null || pos_limit === "" ? null : Number(pos_limit);
+
+      // A POS limit below what's already outstanding would be breached the
+      // moment it's saved, before any new disbursement even happens — block
+      // it here rather than silently accepting a value the system can never
+      // honor.
+      if (normalizedPosLimit !== null) {
+        const [[partnerRow]] = await conn.query(
+          `SELECT partner_name FROM partner_master WHERE partner_id = ?`,
+          [partnerId],
+        );
+
+        if (!partnerRow) {
+          throw new Error("Partner not found");
+        }
+
+        const { posMap } = await getPartnerPOSMap(conn);
+        const currentPos = Number(
+          posMap[String(partnerRow.partner_name || "").toLowerCase()] || 0,
+        );
+
+        if (normalizedPosLimit < currentPos) {
+          await conn.rollback();
+
+          return res.status(400).json({
+            error: `POS limit (₹${normalizedPosLimit}) cannot be lower than the partner's current POS (₹${currentPos.toFixed(2)}).`,
+            currentPos,
+          });
+        }
+      }
+
+      await conn.query(
+        `UPDATE partner_master SET pos_limit = ? WHERE partner_id = ?`,
+        [normalizedPosLimit, partnerId],
+      );
+    }
+
+    if (assigned_limit !== undefined && assigned_limit !== null && assigned_limit !== "") {
+      const [[existing]] = await conn.query(
+        `
+        SELECT id
+        FROM partner_monthly_limit
+        WHERE partner_id = ? AND month = ? AND year = ?
+        `,
+        [partnerId, month, year],
+      );
+
+      if (existing) {
+        await conn.query(
+          `
+          UPDATE partner_monthly_limit
+          SET assigned_limit = ?, updated_at = NOW()
+          WHERE id = ?
+          `,
+          [Number(assigned_limit), existing.id],
+        );
+      } else {
+        await conn.query(
+          `
+          INSERT INTO partner_monthly_limit
+            (partner_id, month, year, assigned_limit, used_limit)
+          VALUES (?, ?, ?, ?, 0)
+          `,
+          [partnerId, month, year, Number(assigned_limit)],
+        );
+      }
+    }
+
+    await conn.commit();
+
+    res.json({ message: "Partner limits updated successfully" });
+  } catch (err) {
+    await conn.rollback();
+    console.error("Partner limits update error:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
   }
 });
 

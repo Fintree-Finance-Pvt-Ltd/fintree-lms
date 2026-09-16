@@ -3066,9 +3066,24 @@ router.post("/generate-soa", async (req, res) => {
       [lan],
     );
 
-    // EMI/PEMI overdue = sum of EMIs with due_date <= today and status <> 'Paid'
+    // EMI/PEMI overdue = sum of the amount still actually unpaid on EMIs
+    // with due_date <= today and status <> 'Paid'. A "Part Paid" EMI was
+    // previously counted at its FULL emi value here instead of what's
+    // actually still outstanding on it (remaining_emi), overstating the
+    // overdue figure by whatever portion of that EMI was already paid.
+    // remaining_emi exists on every manual_rps_* table this route uses;
+    // still checked defensively in case a lender's table doesn't have it.
+    const [rpsColumnRows] = await db.promise().query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'remaining_emi'`,
+      [rpsTable],
+    );
+    const overdueEmiExpr = rpsColumnRows.length
+      ? "COALESCE(remaining_emi, emi)"
+      : "emi";
+
     const [[overdueAgg]] = await db.promise().query(
-      `SELECT COALESCE(SUM(CASE WHEN status <> 'Paid' AND due_date <= CURDATE() THEN emi ELSE 0 END),0) AS total_emi_overdue
+      `SELECT COALESCE(SUM(CASE WHEN status <> 'Paid' AND due_date <= CURDATE() THEN ${overdueEmiExpr} ELSE 0 END),0) AS total_emi_overdue
      FROM ${rpsTable}
     WHERE lan = ?`,
       [lan],

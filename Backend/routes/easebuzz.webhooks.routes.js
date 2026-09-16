@@ -3,6 +3,7 @@ const db = require("../config/db");
 const { verifyWebhookHash } = require("../utils/webhookHashVerify");
 const { sendLowBalanceAlertMail } = require("../jobs/mailer");
 const {
+  processEmiClubDisbursement,
   processRapidMoneyDisbursement,
   processCarePayDisbursement,
   processYaMoneyDisbursement,
@@ -13,6 +14,7 @@ const {
 const {
   processMandateWebhook,
 } = require("../services/easebuzz/easebuzzMandateService");
+const partnerLimitService = require("../services/partnerLimitService");
 
 const router = express.Router();
 const {
@@ -173,7 +175,8 @@ router.post("/payout", async (req, res) => {
           lan,
           payout_status,
           utr,
-          transfer_date
+          transfer_date,
+          amount
         FROM quick_transfers
         WHERE unique_request_number = ?
         LIMIT 1
@@ -279,6 +282,25 @@ router.post("/payout", async (req, res) => {
         });
       }
 
+      if (transfer.lan?.startsWith("FINE") && effectiveUtr && effectiveTransferDate) {
+        const processingResult = await processEmiClubDisbursement({
+          lan: transfer.lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate: new Date(effectiveTransferDate),
+        });
+
+        console.log("Duplicate callback EmiClub processing result", {
+          lan: transfer.lan,
+          result: processingResult,
+        });
+
+        await partnerLimitService.recordDisbursementUsage(db.promise(), {
+          partnerName: "EMICLUB",
+          amount: Number(transfer.amount),
+          lan: transfer.lan,
+        });
+      }
+
       if (transfer.lan?.startsWith("CCB")) {
         await db.promise().query(
           `UPDATE loan_booking_claim_cure_buddy
@@ -289,6 +311,12 @@ router.post("/payout", async (req, res) => {
            WHERE lan = ?`,
           [transfer.lan],
         );
+
+        await partnerLimitService.recordDisbursementUsage(db.promise(), {
+          partnerName: "CLAIM CURE BUDDY",
+          amount: Number(transfer.amount),
+          lan: transfer.lan,
+        });
       }
 
       return res.sendStatus(200);
@@ -464,6 +492,32 @@ router.post("/payout", async (req, res) => {
           skipped: yaMoneyResult?.skipped,
           reason: yaMoneyResult?.reason,
         });
+      } else if (lan?.startsWith("FINE")) {
+        /*
+         * EmiClub-specific processing. processEmiClubDisbursement generates
+         * the RPS and sends the partner webhook internally (same as the
+         * manual UTR upload flow's EmiClub handling in utrRoutes.js) — no
+         * separate webhook call needed here, unlike RapidMoney above.
+         */
+        const emiClubResult = await processEmiClubDisbursement({
+          lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate,
+        });
+
+        console.log("EmiClub internal processing result", {
+          lan,
+          utr: effectiveUtr,
+          success: emiClubResult?.success,
+          skipped: emiClubResult?.skipped,
+          reason: emiClubResult?.reason,
+        });
+
+        await partnerLimitService.recordDisbursementUsage(db.promise(), {
+          partnerName: "EMICLUB",
+          amount: Number(transfer.amount),
+          lan,
+        });
       } else if (lan?.startsWith("CCB")) {
         await db.promise().query(
           `UPDATE loan_booking_claim_cure_buddy
@@ -478,6 +532,12 @@ router.post("/payout", async (req, res) => {
         console.log("ClaimCureBuddy payout success stored", {
           lan,
           utr: effectiveUtr,
+        });
+
+        await partnerLimitService.recordDisbursementUsage(db.promise(), {
+          partnerName: "CLAIM CURE BUDDY",
+          amount: Number(transfer.amount),
+          lan,
         });
       } else {
         /*

@@ -105,6 +105,9 @@ const { runDailyInterestAccrual } = require( "./wctlccodinterestengine");
 const startAadhaarCron = require("./aadhaarPdfCron");
 const { sendLoanWebhook } = require("../utils/webhook");
 const {
+  sendRejectionWebhook,
+} = require("../routes/switchMyLoan/switchMyLoanWebhook");
+const {
   retriggerFailedBureauBatch,
   PARTNERS,
 } = require("../services/bureauRetriggerService");
@@ -868,46 +871,12 @@ cron.schedule("*/2 * * * *", async () => {
 
 /////////////////   RAPID MONEY WEBHOOK CALL FOR INACTIVE CASES ////////
 
-/**
- * Loan Rejection Webhook
- * Existing function - NO CHANGES
- */
-async function sendRejectionWebhook({ applicationId }) {
-  if (!applicationId) {
-    throw new Error("applicationId is required");
-  }
-
-  const [[loan]] = await db.promise().query(
-    `
-      SELECT lan
-      FROM loan_booking_switch_my_loan
-      WHERE application_id = ?
-      LIMIT 1
-    `,
-    [applicationId],
-  );
-
-  const webhookUrl =
-    `${BASE_URL}/api-api/v1/webhooks/fintree/` + "loan-rejected";
-
-  const requestBody = {
-    payload: {
-      status: "Rejected",
-      lead_id: applicationId,
-    },
-  };
-
-  const log = await createWebhookLog({
-    webhookType: "REJECTION",
-    applicationId,
-    lan: loan?.lan || null,
-    webhookUrl,
-    requestBody,
-  });
-
-  return sendWebhookLog(log.id);
-}
-
+// This used to be a local copy of switchMyLoanWebhook.js's sendRejectionWebhook,
+// but the copy referenced BASE_URL, createWebhookLog and sendWebhookLog without
+// ever defining or importing any of them here — every call threw a
+// ReferenceError (first on BASE_URL, and would have hit the same issue on
+// createWebhookLog next). Using the real, already-working, already-exported
+// implementation instead of maintaining a second broken copy of it.
 
 /**
  * Reject loans inactive for more than 30 days.

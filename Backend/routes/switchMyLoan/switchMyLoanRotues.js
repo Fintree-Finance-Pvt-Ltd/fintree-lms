@@ -1574,10 +1574,26 @@ router.post("/v1/loan/assessment-fee", verifyApiKey, async (req, res) => {
     if (connection) connection.release();
   }
 });
+// loan_sequences hands out the next per-lender sequence number via
+// SELECT ... FOR UPDATE. Under concurrent create requests for the same
+// lender this occasionally raises a transient "record changed since last
+// read" error — MySQL's own message says to restart the transaction, so
+// /v1/create retries a couple of times on these instead of failing the
+// partner's request outright on what is normally a one-shot race.
+const RETRYABLE_SEQUENCE_ERROR_CODES = new Set([
+  "ER_CHECKREAD",
+  "ER_LOCK_DEADLOCK",
+  "ER_LOCK_WAIT_TIMEOUT",
+]);
+
 // 2) CREATE / SUBMIT LOAN APPLICATION
 router.post("/v1/create", verifyApiKey, async (req, res) => {
+  const MAX_CREATE_ATTEMPTS = 3;
+
+  for (let attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt++) {
   let connection;
   let transactionStarted = false;
+  let retryable = false;
 
   try {
     connection = await db.promise().getConnection();
@@ -1660,8 +1676,12 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
       return res.status(409).json({
         is_success: false,
         error: {
-          message: "Loan case already exists",
-          code: "duplicate_loan_case",
+          message: "Loan case already exists.",
+          code: "duplicate_partner_loan_id",
+          details: {
+            loan_account_number: existing[0].lan,
+            lead_id: existing[0].application_id,
+          },
         },
       });
 
@@ -1833,17 +1853,33 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
       await connection.rollback();
     }
 
-    console.error("Create loan error:", err);
+    if (
+      RETRYABLE_SEQUENCE_ERROR_CODES.has(err.code) &&
+      attempt < MAX_CREATE_ATTEMPTS
+    ) {
+      retryable = true;
+    } else {
+      console.error("Create loan error:", err);
 
-    return res.status(500).json({
-      is_success: false,
-      error: {
-        message: "Internal server error",
-        code: "internal_server_error",
-      },
-    });
+      return res.status(500).json({
+        is_success: false,
+        error: {
+          message: "Internal server error",
+          code: "internal_server_error",
+        },
+      });
+    }
   } finally {
     if (connection) connection.release();
+  }
+
+  console.warn(
+    `Create loan sequence conflict, retrying (attempt ${attempt}/${MAX_CREATE_ATTEMPTS})`,
+  );
+
+  await new Promise((resolve) =>
+    setTimeout(resolve, 150 * attempt + Math.floor(Math.random() * 100)),
+  );
   }
 });
 

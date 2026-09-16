@@ -696,7 +696,110 @@ else if (summaryTable === "sampada_loan_summary") {
 
     // Keep this also for backward compatibility
     RPS_ROWS = RPS_TABLE_ROWS;
-  } else {
+  }
+
+else if (summaryTable === "zebrs_loan_summary") {
+
+  console.log("==========================================");
+  console.log("🟢 ZEBRS GET LOAN DATA START");
+  console.log("LAN:", lan);
+  console.log("Summary Table:", summaryTable);
+  console.log("==========================================");
+
+  const [rows] = await db.promise().query(
+    `
+    SELECT *
+    FROM zebrs_loan_summary
+    WHERE TRIM(LAN) = TRIM(?)
+    `,
+    [lan],
+  );
+
+  console.log("✅ ZEBRS SUMMARY ROW COUNT:", rows.length);
+  console.log("✅ ZEBRS SUMMARY DATA:", rows);
+
+  summaryRows = rows;
+
+  const [rps] = await db.promise().query(
+    `
+    SELECT
+      ROW_NUMBER() OVER (
+        ORDER BY due_date ASC, id ASC
+      ) AS emi_no,
+
+      id,
+      lan,
+      due_date,
+      status,
+
+      opening,
+      principal,
+      interest,
+      emi,
+      closing,
+
+      remaining_emi,
+      remaining_interest,
+      remaining_principal,
+      remaining_amount,
+
+      payment_date,
+      dpd
+
+    FROM manual_rps_zebrs
+
+    WHERE TRIM(lan) = TRIM(?)
+
+    ORDER BY due_date ASC, id ASC
+    `,
+    [lan],
+  );
+
+  console.log("✅ ZEBRS RPS ROW COUNT:", rps.length);
+  console.log("✅ ZEBRS RPS DATA:");
+
+  console.table(
+    rps.map((row) => ({
+      emi_no: row.emi_no,
+      due_date: row.due_date,
+      opening: row.opening,
+      principal: row.principal,
+      interest: row.interest,
+      emi: row.emi,
+      closing: row.closing,
+      remaining_emi: row.remaining_emi,
+    })),
+  );
+
+  rpsRows = rps;
+
+  RPS_TABLE_ROWS = rpsRows
+    .map(
+      (row) => `
+        <tr>
+          <td>${row.emi_no ?? ""}</td>
+          <td>${Number(row.opening || 0).toFixed(2)}</td>
+          <td>${Number(row.principal || 0).toFixed(2)}</td>
+          <td>${Number(row.interest || 0).toFixed(2)}</td>
+          <td>${Number(row.emi || 0).toFixed(2)}</td>
+          <td>${Number(row.closing || 0).toFixed(2)}</td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  RPS_ROWS = RPS_TABLE_ROWS;
+
+  console.log(
+    "✅ ZEBRS RPS HTML LENGTH:",
+    RPS_TABLE_ROWS.length,
+  );
+
+  console.log("==========================================");
+  console.log("🟢 ZEBRS GET LOAN DATA END");
+  console.log("==========================================");
+}
+  else {
     // ===============================
     // EXISTING CLIENTS (UNCHANGED)
     // ===============================
@@ -913,6 +1016,34 @@ exports.generateAgreementPdf = async (lan) => {
   }
 
 
+if (summaryTable === "zebrs_loan_summary") {
+
+  console.log("==========================================");
+  console.log("🚗 ZEBRS AGREEMENT PREPARATION");
+  console.log("LAN:", lan);
+  console.log("==========================================");
+
+  console.log("1️⃣ Starting sp_generate_zebrs_rps...");
+
+  await db.promise().query(
+    "CALL sp_generate_zebrs_rps(?)",
+    [lan]
+  );
+
+  console.log("✅ sp_generate_zebrs_rps completed");
+
+
+  console.log("2️⃣ Starting sp_create_zebrs_loan_summary...");
+
+  await db.promise().query(
+    "CALL sp_create_zebrs_loan_summary(?)",
+    [lan]
+  );
+
+  console.log("✅ sp_create_zebrs_loan_summary completed");
+
+  console.log("==========================================");
+}
   // ===============================
 // SAMPADA RPS + SUMMARY GENERATION
 // ===============================

@@ -628,6 +628,123 @@ async function reverseBookedLimit(
   };
 }
 
+// Read-only pre-transfer gate: blocks a payout before any money moves if it
+// would exceed the partner's assigned monthly disbursement limit. An
+// unconfigured partner/month (no row, or assigned_limit of 0) is treated as
+// unrestricted — same convention as PARTNER_MAX_PAYOUT_LIMITS in
+// payout.service.js — so this never blocks a product until someone actually
+// sets a real limit for it via the Partner Limits screen.
+async function checkPartnerDisbursementGate(conn, { partnerName, amount }) {
+  const partner = await getOrCreatePartner(conn, partnerName);
+
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+
+  const [[limitRow]] = await conn.query(
+    `
+    SELECT assigned_limit, used_limit
+    FROM partner_monthly_limit
+    WHERE partner_id = ? AND month = ? AND year = ?
+    `,
+    [partner.partner_id, month, year],
+  );
+
+  if (!limitRow || Number(limitRow.assigned_limit) <= 0) {
+    return { blocked: false };
+  }
+
+  const remaining =
+    Number(limitRow.assigned_limit) - Number(limitRow.used_limit || 0);
+
+  if (remaining < amount) {
+    return {
+      blocked: true,
+      reason: "PARTNER_MONTHLY_LIMIT_EXCEEDED",
+      message: `Disbursement of ₹${amount} exceeds ${partnerName}'s remaining monthly disbursement limit of ₹${remaining.toFixed(2)}.`,
+    };
+  }
+
+  return { blocked: false };
+}
+
+// Read-only pre-transfer gate for the POS (principal outstanding) limit.
+// `posTableName` is a hardcoded manual_rps_* table name from payout.service.js's
+// own internal map — never user input. No pos_limit configured, or no known
+// POS source table for this partner, both mean unrestricted (same
+// null-is-unrestricted convention used throughout this feature).
+async function checkPartnerPosGate(conn, { partnerName, amount, posTableName }) {
+  const [[partnerRow]] = await conn.query(
+    `SELECT pos_limit FROM partner_master WHERE partner_name = ?`,
+    [partnerName],
+  );
+
+  const posLimit = partnerRow ? Number(partnerRow.pos_limit) : NaN;
+
+  if (!Number.isFinite(posLimit) || posLimit <= 0 || !posTableName) {
+    return { blocked: false };
+  }
+
+  const [[posRow]] = await conn.query(
+    `
+    SELECT COALESCE(SUM(COALESCE(remaining_principal, 0)), 0) AS pos
+    FROM ${posTableName}
+    WHERE COALESCE(remaining_principal, 0) > 0
+    `,
+  );
+
+  const currentPos = Number(posRow?.pos || 0);
+  const projectedPos = currentPos + amount;
+
+  if (projectedPos > posLimit) {
+    return {
+      blocked: true,
+      reason: "PARTNER_POS_LIMIT_EXCEEDED",
+      message: `Disbursement of ₹${amount} would push ${partnerName}'s POS to ₹${projectedPos.toFixed(2)}, exceeding the configured POS limit of ₹${posLimit.toFixed(2)}.`,
+    };
+  }
+
+  return { blocked: false };
+}
+
+// Post-success usage recording for products that previously had no partner
+// limit tracking at all. Only records against a partner/month that already
+// has a real assigned_limit configured (> 0) — an unconfigured partner is
+// never tracked, so it can never be surprise-blocked later purely from
+// history accumulated before anyone set a limit. Never throws: a disbursement
+// that already happened must never be affected by limit bookkeeping failing.
+async function recordDisbursementUsage(conn, { partnerName, amount, lan }) {
+  try {
+    const partner = await getOrCreatePartner(conn, partnerName);
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    const [[limitRow]] = await conn.query(
+      `
+      SELECT id, assigned_limit
+      FROM partner_monthly_limit
+      WHERE partner_id = ? AND month = ? AND year = ?
+      `,
+      [partner.partner_id, month, year],
+    );
+
+    if (!limitRow || Number(limitRow.assigned_limit) <= 0) {
+      return { skipped: true, reason: "NO_LIMIT_CONFIGURED" };
+    }
+
+    return await updateDisbursedLimit(conn, limitRow.id, amount, lan);
+  } catch (err) {
+    console.error(
+      "[PartnerLimit] Failed to record disbursement usage (non-fatal)",
+      { partnerName, lan, reason: err.message },
+    );
+
+    return { skipped: true, reason: err.message };
+  }
+}
+
 // Backward compatibility for old calls
 async function updateUsedLimit(
   conn,
@@ -659,6 +776,10 @@ module.exports = {
   updateBookedLimit,
   updateDisbursedLimit,
   reverseBookedLimit,
+
+  checkPartnerDisbursementGate,
+  checkPartnerPosGate,
+  recordDisbursementUsage,
 
   updateUsedLimit,
 };
