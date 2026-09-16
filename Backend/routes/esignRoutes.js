@@ -365,7 +365,7 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
   }
 });
 
-router.post("/:lan/zebrs/esign/:type", authenticateUser, verifyApiKey,
+router.post("/:lan/zebrs/esign/:type", verifyApiKey,
   async (req, res) => {
     const { lan, type } = req.params;
     const { bookingTable } = getLoanContext(lan);
