@@ -193,6 +193,7 @@ import YaMoneyCreditTeamScreen from "./components/YaMoney/CreditTeam";
 import YaMoneyOpsMakerScreen from "./components/YaMoney/OpsMaker";
 import YaMoneyOpsCheckerScreen from "./components/YaMoney/OpsChecker.jsx";
 import YaMoneyDisbursedLoans from "./components/YaMoney/Disbursed";
+import YaMoneyCustomerDetails from "./components/YaMoney/YaMoneyCustomerDetails";
 import RetentionRelease from "./components/RetentionRelease";
 import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpLoanBooking";
 import MotionCorpAllLoans from "./components/Motion Corp/motionCorpAllLoans";
@@ -1674,6 +1675,14 @@ function App() {
             element={
               <PermissionRoute pageName="Ya Money Disbursed Loans">
                 <YaMoneyDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/ya-money/customer-details"
+            element={
+              <PermissionRoute pageName="Ya Money Customer Details">
+                <YaMoneyCustomerDetails />
               </PermissionRoute>
             }
           />

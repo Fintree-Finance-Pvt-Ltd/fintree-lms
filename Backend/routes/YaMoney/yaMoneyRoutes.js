@@ -981,6 +981,97 @@ router.get("/disbursed-loans", authenticateUser, (req, res) =>
   fetchYaMoneyLoans(req, res, ["disbursed"]),
 );
 
+router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
+  const lan = clean(req.params.lan).toUpperCase();
+
+  if (!lan || !lan.startsWith(LAN_PREFIX)) {
+    return res.status(400).json({
+      success: false,
+      message: "Valid Ya Money LAN is required",
+    });
+  }
+
+  try {
+    const [[loan]] = await db.promise().query(
+      `SELECT *
+       FROM ${TABLE_NAME}
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan],
+    );
+
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: "Ya Money customer details not found",
+      });
+    }
+
+    const [
+      [kycRows],
+      [cibilReports],
+      [payouts],
+      [utrRows],
+    ] = await Promise.all([
+      db.promise().query(
+        `SELECT *
+         FROM kyc_verification_status
+         WHERE lan = ?`,
+        [lan],
+      ),
+      db.promise().query(
+        `SELECT id, pan_number, score, created_at
+         FROM loan_cibil_reports
+         WHERE lan = ?
+         ORDER BY created_at DESC, id DESC
+         LIMIT 3`,
+        [lan],
+      ),
+      db.promise().query(
+        `SELECT *
+         FROM quick_transfers
+         WHERE lan = ?
+         ORDER BY id DESC
+         LIMIT 5`,
+        [lan],
+      ),
+      db.promise().query(
+        `SELECT *
+         FROM ev_disbursement_utr
+         WHERE LAN = ?
+         ORDER BY id DESC
+         LIMIT 1`,
+        [lan],
+      ),
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        loan,
+        kyc: kycRows,
+        cibil_reports: cibilReports,
+        latest_cibil_report: cibilReports[0] || null,
+        payouts,
+        latest_payout: payouts[0] || null,
+        disbursement_utr: utrRows[0] || null,
+      },
+    });
+  } catch (error) {
+    console.error("[YA-MONEY] Customer details fetch error", {
+      lan,
+      message: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Ya Money customer details",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
 router.post("/login", verifyApiKey, async (req, res) => {
   let connection;
   let transactionStarted = false;
