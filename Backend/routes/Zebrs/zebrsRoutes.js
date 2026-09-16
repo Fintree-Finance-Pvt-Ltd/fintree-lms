@@ -1181,7 +1181,7 @@ router.post("/:lan/zebrs/esign/:type",  verifyApiKey,
         const [rows] = await db
           .promise()
           .query(
-            `SELECT sanction_esign_status FROM ${bookingTable} WHERE lan=?`,
+            `SELECT agreement_esign_status FROM ${bookingTable} WHERE lan=?`,
             [lan],
           );
       }
