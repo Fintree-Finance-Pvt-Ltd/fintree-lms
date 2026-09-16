@@ -1339,7 +1339,7 @@ router.put("/ops-approved-loan/:lan", async (req, res) => {
     console.error("❌ Error approving Loan Digit by operations maker:", err);
 
     if (transactionStarted && conn) {
-      await conn.rollback().catch(() => {});
+      await conn.rollback().catch(() => { });
     }
 
     if (err.message === "No limit record for partner/month/year") {
@@ -1468,9 +1468,15 @@ router.get("/collections", async (req, res) => {
     }
     query += ` ORDER BY ru.bank_date DESC`;
     const [rows] = await db.promise().query(query, params);
+
+    const totalTransferAmount = rows.reduce(
+      (sum, row) => sum + Number(row.transfer_amount || 0),
+      0
+    );
     return res.status(200).json({
       success: true,
       count: rows.length,
+      totalTransferAmount,
       data: rows,
     });
 

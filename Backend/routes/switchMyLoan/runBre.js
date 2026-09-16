@@ -750,9 +750,14 @@ async function runOrReuseBureau(loan) {
         }),
       );
 
+      // Unlike a genuine bureau API/network failure, a state that can't be
+      // resolved (no state on the loan record, and the pincode isn't in the
+      // postal lookup API's coverage) will never succeed on retry. Reject
+      // the case outright instead of surfacing a retryable technical
+      // failure to the partner.
       return {
         status: "FAILED",
-        technicalReason: "BUREAU_STATE_MISSING",
+        rejectionReason: "BUREAU_STATE_MISSING",
       };
     }
 
@@ -1704,6 +1709,18 @@ async function runBRE(data) {
   }
 
   const bureau = await runOrReuseBureau(loan);
+
+  if (bureau.rejectionReason) {
+    addReason(reasons, bureau.rejectionReason);
+
+    result.decision = "REJECTED";
+    result.reason = bureau.rejectionReason;
+    result.reasons = [bureau.rejectionReason];
+    result.bureau = { status: bureau.status };
+
+    await updateBookingBreSnapshot(loan.lan, result);
+    return result;
+  }
 
   if (bureau.technicalReason) {
     result.decision = "TECHNICAL_FAILURE";

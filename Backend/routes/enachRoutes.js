@@ -722,7 +722,7 @@ router.post(
 );
 
 
-router.post("/zebrs/verify-bank", authenticateUser,verifyApiKey,
+router.post("/zebrs/verify-bank", verifyApiKey,
   async (req, res) => {
     try {
       const {
@@ -1540,7 +1540,7 @@ router.post(
 );
 
 
-router.post("/zebrs/create-mandate", authenticateUser,verifyApiKey,
+router.post("/zebrs/create-mandate", verifyApiKey,
   async (req, res) => {
     try {
       const {

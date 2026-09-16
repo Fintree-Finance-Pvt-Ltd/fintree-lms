@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api/api";
 import DataTable from "../ui/DataTable";
 import LoaderOverlay from "../ui/LoaderOverlay";
-import "../../styles/AllLoans.css"; // Apply the CSS above
+import "../../styles/AllLoans.css";
 
 const DEFAULT_PAGE_SIZE = 25;
 
@@ -21,17 +21,20 @@ const LoanDigitCollections = () => {
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
     const [totalRows, setTotalRows] = useState(0);
 
+    // Total Collection
+    const [totalTransferAmount, setTotalTransferAmount] = useState(0);
+
     // Search
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
     // Date Filters
-
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
 
     const [appliedStartDate, setAppliedStartDate] = useState("");
     const [appliedEndDate, setAppliedEndDate] = useState("");
+
     const nf = new Intl.NumberFormat("en-IN", {
         style: "currency",
         currency: "INR",
@@ -52,7 +55,12 @@ const LoanDigitCollections = () => {
     // Reset page whenever filters change
     useEffect(() => {
         setPage(1);
-    }, [debouncedSearch, pageSize, appliedStartDate, appliedEndDate]);
+    }, [
+        debouncedSearch,
+        pageSize,
+        appliedStartDate,
+        appliedEndDate,
+    ]);
 
     // -----------------------------
     // Fetch Collections
@@ -82,23 +90,40 @@ const LoanDigitCollections = () => {
             .then((res) => {
                 const data = res.data;
 
+                // Total amount returned from backend
+                setTotalTransferAmount(
+                    Number(data.totalTransferAmount || 0)
+                );
+
                 if (Array.isArray(data.rows)) {
                     setRows(data.rows);
-                    setTotalRows(data.pagination?.total ?? data.rows.length);
+
+                    setTotalRows(
+                        data.pagination?.total ??
+                        data.rows.length
+                    );
                 } else if (Array.isArray(data.data)) {
                     setRows(data.data);
-                    setTotalRows(data.count ?? data.data.length);
+
+                    setTotalRows(
+                        data.count ??
+                        data.data.length
+                    );
                 } else {
                     setRows([]);
                     setTotalRows(0);
                 }
             })
             .catch((err) => {
-                if (err?.code === "ERR_CANCELED") return;
+                if (err?.code === "ERR_CANCELED") {
+                    return;
+                }
 
                 console.error(err);
 
-                setErr("Failed to fetch collection data.");
+                setErr(
+                    "Failed to fetch collection data."
+                );
             })
             .finally(() => {
                 setLoading(false);
@@ -120,22 +145,30 @@ const LoanDigitCollections = () => {
     // -----------------------------
     const handleApplyFilter = () => {
         if (!startDate || !endDate) {
-            alert("Please select both Start Date and End Date");
+            alert(
+                "Please select both Start Date and End Date"
+            );
             return;
         }
 
         if (startDate > endDate) {
-            alert("Start Date cannot be greater than End Date");
+            alert(
+                "Start Date cannot be greater than End Date"
+            );
             return;
         }
 
         setAppliedStartDate(startDate);
         setAppliedEndDate(endDate);
     };
-    //Reset Date Filter
+
+    // -----------------------------
+    // Reset Date Filter
+    // -----------------------------
     const handleResetFilter = () => {
         setStartDate("");
         setEndDate("");
+
         setAppliedStartDate("");
         setAppliedEndDate("");
     };
@@ -149,9 +182,14 @@ const LoanDigitCollections = () => {
             header: "Customer Name",
             sortable: true,
             width: 230,
-            render: (row) => row.customer_name || "—",
+
+            render: (row) =>
+                row.customer_name || "—",
+
             sortAccessor: (row) =>
-                (row.customer_name || "").toLowerCase(),
+                (
+                    row.customer_name || ""
+                ).toLowerCase(),
         },
 
         {
@@ -163,9 +201,13 @@ const LoanDigitCollections = () => {
             render: (row) => (
                 <span
                     className="lan-code-badge"
-                    style={{ cursor: "pointer" }}
+                    style={{
+                        cursor: "pointer",
+                    }}
                     onClick={() =>
-                        navigate(`/loan-digit/customer-details?lan=${row.lan}`)
+                        navigate(
+                            `/loan-digit/customer-details?lan=${row.lan}`
+                        )
                     }
                 >
                     {row.lan}
@@ -182,7 +224,8 @@ const LoanDigitCollections = () => {
             sortable: true,
             width: 220,
 
-            render: (row) => row.utr || "—",
+            render: (row) =>
+                row.utr || "—",
 
             sortAccessor: (row) =>
                 (row.utr || "").toLowerCase(),
@@ -196,16 +239,25 @@ const LoanDigitCollections = () => {
 
             render: (row) => (
                 <span className="amount-text-bold">
-                    {Number.isFinite(Number(row.transfer_amount))
-                        ? nf.format(Number(row.transfer_amount))
+                    {Number.isFinite(
+                        Number(row.transfer_amount)
+                    )
+                        ? nf.format(
+                              Number(
+                                  row.transfer_amount
+                              )
+                          )
                         : "—"}
                 </span>
             ),
 
-            csvAccessor: (row) => row.transfer_amount ?? "",
+            csvAccessor: (row) =>
+                row.transfer_amount ?? "",
 
             sortAccessor: (row) =>
-                Number(row.transfer_amount || 0),
+                Number(
+                    row.transfer_amount || 0
+                ),
         },
 
         {
@@ -216,146 +268,197 @@ const LoanDigitCollections = () => {
 
             render: (row) =>
                 row.bank_date
-                    ? new Date(row.bank_date).toLocaleDateString("en-GB")
+                    ? new Date(
+                          row.bank_date
+                      ).toLocaleDateString(
+                          "en-GB"
+                      )
                     : "—",
 
-            csvAccessor: (row) => row.bank_date ?? "",
+            csvAccessor: (row) =>
+                row.bank_date ?? "",
 
             sortAccessor: (row) =>
                 row.bank_date
-                    ? new Date(row.bank_date).getTime()
+                    ? new Date(
+                          row.bank_date
+                      ).getTime()
                     : 0,
         },
     ];
+
     return (
         <div className="all-loans-page-wrapper">
-            <LoaderOverlay show={loading} label="Fetching Collections..." />
 
-            {err && <div className="error-notice">{err}</div>}
+            <LoaderOverlay
+                show={loading}
+                label="Fetching Collections..."
+            />
+
+            {err && (
+                <div className="error-notice">
+                    {err}
+                </div>
+            )}
 
             <div className="all-loans-table-container">
+
                 <DataTable
                     title="Loan Digit Collections"
                     rows={rows}
                     columns={columns}
+
                     globalSearchKeys={[]}
+
                     exportFileName="loan_digit_collections"
+
                     initialSort={{
                         key: "bank_date",
                         dir: "desc",
                     }}
+
                     initialPageSize={pageSize}
-                    pageSizeOptions={[10, 25, 50, 100]}
+
+                    pageSizeOptions={[
+                        10,
+                        25,
+                        50,
+                        100,
+                    ]}
+
                     serverPagination={true}
+
                     totalRows={totalRows}
+
                     currentPage={page}
+
                     onPageChange={setPage}
-                    onPageSizeChange={(size) => setPageSize(size)}
+
+                    onPageSizeChange={(size) =>
+                        setPageSize(size)
+                    }
+
+                    /*
+                     * TOP RIGHT:
+                     * Export CSV is already provided
+                     * by DataTable.
+                     *
+                     * Only Search + Records here.
+                     */
                     renderTopRight={
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "10px",
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            {/* From Date */}
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <label
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        color: "#334155",
-                                    }}
-                                >
-                                    From
-                                </label>
+                        <div className="ldc-header-actions">
 
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="search-input-modern"
-                                    style={{ width: 160 }}
-                                />
-                            </div>
-
-                            {/* To Date */}
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <label
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        color: "#334155",
-                                    }}
-                                >
-                                    To
-                                </label>
-
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="search-input-modern"
-                                    style={{ width: 160 }}
-                                />
-                            </div>
-
-                            {/* Apply Button */}
-                            <button
-                                onClick={handleApplyFilter}
-                                style={{
-                                    height: 40,
-                                    padding: "0 18px",
-                                    border: "none",
-                                    borderRadius: 8,
-                                    background: "#2563eb",
-                                    color: "#fff",
-                                    cursor: "pointer",
-                                    fontWeight: 600,
-                                    fontSize: 13,
-                                }}
-                            >
-                                Apply
-                            </button>
-
-                            <button
-                                onClick={handleResetFilter}
-                                style={{
-                                    height: 40,
-                                    padding: "0 18px",
-                                    border: "1px solid #d1d5db",
-                                    borderRadius: 8,
-                                    background: "#fff",
-                                    cursor: "pointer",
-                                    fontWeight: 600,
-                                    fontSize: 13,
-                                }}
-                            >
-                                Reset
-                            </button>
-
-                            {/* Search */}
                             <input
-                                className="search-input-modern"
+                                type="search"
+                                className="search-input-modern ldc-header-search"
                                 placeholder="Search Customer Name, LAN..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                style={{ width: 240 }}
+                                onChange={(e) =>
+                                    setSearch(
+                                        e.target.value
+                                    )
+                                }
                             />
 
-                            {/* Record Count */}
                             <span className="record-count-badge">
                                 {totalRows.toLocaleString()} Records
                             </span>
+
+                        </div>
+                    }
+
+                    /*
+                     * SECOND ROW:
+                     * Date Filters + Total
+                     */
+                    renderBelowHeader={
+                        <div className="ldc-filter-bar">
+
+                            {/* LEFT */}
+                            <div className="ldc-filter-left">
+
+                                <div className="ldc-filter-field">
+                                    <label>
+                                        From
+                                    </label>
+
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) =>
+                                            setStartDate(
+                                                e.target.value
+                                            )
+                                        }
+                                        className="search-input-modern ldc-filter-date"
+                                    />
+                                </div>
+
+
+                                <div className="ldc-filter-field">
+                                    <label>
+                                        To
+                                    </label>
+
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) =>
+                                            setEndDate(
+                                                e.target.value
+                                            )
+                                        }
+                                        className="search-input-modern ldc-filter-date"
+                                    />
+                                </div>
+
+
+                                <button
+                                    type="button"
+                                    onClick={
+                                        handleApplyFilter
+                                    }
+                                    className="ldc-filter-apply"
+                                >
+                                    Apply
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    onClick={
+                                        handleResetFilter
+                                    }
+                                    className="ldc-filter-reset"
+                                >
+                                    Reset
+                                </button>
+
+                            </div>
+
+
+                            {/* RIGHT */}
+                            <div className="ldc-total-summary">
+
+                                <span className="ldc-total-summary-label">
+                                    Total Collection
+                                </span>
+
+                                <strong className="ldc-total-summary-value">
+                                    {nf.format(
+                                        totalTransferAmount
+                                    )}
+                                </strong>
+
+                            </div>
+
                         </div>
                     }
                 />
+
             </div>
         </div>
     );
 };
 
 export default LoanDigitCollections;
-

@@ -320,6 +320,50 @@ async function retriggerBureau(lan, opts = {}) {
     };
   }
 
+  const missingFields = [];
+
+  const checkRequired = (field, value) => {
+    if (
+      value === null ||
+      value === undefined ||
+      String(value).trim() === ""
+    ) {
+      missingFields.push(field);
+    }
+  };
+
+  checkRequired("first_name", loan.first_name);
+  checkRequired("last_name", loan.last_name);
+  checkRequired("pan_number", loan.pan_number);
+  checkRequired("mobile_number", loan.mobile_number);
+  checkRequired("dob", dobFormatted);
+
+  checkRequired("current_address", loan.current_address);
+  checkRequired("current_city", loan.current_city);
+  checkRequired("current_state", loan.current_state);
+  checkRequired("current_pincode", loan.current_pincode);
+
+  if (!Number(loan.loan_amount)) {
+    missingFields.push("loan_amount");
+  }
+
+  if (!Number(loan.loan_tenure)) {
+    missingFields.push("loan_tenure");
+  }
+
+  if (missingFields.length > 0) {
+    const reason =
+      `BUREAU_REQUIRED_FIELDS_MISSING: ${missingFields.join(", ")}`;
+
+    await markBureauFailed(partner, lan, reason);
+
+    return {
+      success: false,
+      reason,
+      partner: partner.key,
+    };
+  }
+
   const ftRef = `${String(Date.now()).slice(-9)}`;
 
   const soapBody = buildSoapBody({
@@ -331,12 +375,12 @@ async function retriggerBureau(lan, opts = {}) {
   });
 
   console.log("[BUREAU] OUTGOING REQUEST", {
-  lan,
-  dobFormatted,
-  dobTagPresent: soapBody.includes(
-    `<DateOfBirth>${dobFormatted}</DateOfBirth>`
-  ),
-});
+    lan,
+    dobFormatted,
+    dobTagPresent: soapBody.includes(
+      `<DateOfBirth>${dobFormatted}</DateOfBirth>`
+    ),
+  });
 
   /* ── 6. Call Experian ── */
   let response;
@@ -460,6 +504,28 @@ async function retriggerBureau(lan, opts = {}) {
     return {
       success: false,
       reason: "INVALID_RESPONSE_STRUCTURE",
+      partner: partner.key,
+    };
+  }
+
+  const profile = parsedInner?.INProfileResponse;
+
+  const userMessageText = String(
+    profile?.UserMessage?.UserMessageText ?? "",
+  ).trim();
+
+  if (userMessageText) {
+    const reason = `EXPERIAN_USER_MESSAGE: ${userMessageText}`;
+
+    await markBureauFailed(
+      partner,
+      lan,
+      reason,
+    );
+
+    return {
+      success: false,
+      reason,
       partner: partner.key,
     };
   }
