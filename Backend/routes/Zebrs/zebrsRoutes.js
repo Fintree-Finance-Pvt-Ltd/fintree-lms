@@ -1116,52 +1116,55 @@ const bureauStatus =
   },
 );
 
+// ============================================
+// GET ZEBRS LOAN STATUS BY LAN
+// ============================================
 router.get("/status/:lan", verifyApiKey, async (req, res) => {
   try {
     const lan = String(req.params.lan || "")
       .trim()
       .toUpperCase();
- 
+
     console.log("📌 HIT ZEBRS STATUS API:", lan);
- 
+
     if (!lan) {
       return res.status(400).json({
         success: false,
         message: "LAN is required",
       });
     }
- 
     const [rows] = await db.promise().query(
       `
         SELECT
           lan,
           partner_loan_id,
           status,
-          stage
-         
+          stage,
+          zebrs_bre_status,
+          zebrs_bre_reason,
+          zebrs_bre_checked_at,
+          updated_at
         FROM loan_booking_zebrs
         WHERE lan = ?
         LIMIT 1
       `,
       [lan]
     );
- 
     if (!rows.length) {
       return res.status(404).json({
         success: false,
         message: `Zebrs loan not found for LAN ${lan}`,
       });
     }
- 
     return res.status(200).json({
       success: true,
       message: "Zebrs loan status fetched successfully",
       data: rows[0],
     });
- 
+
   } catch (error) {
     console.error("❌ Error fetching Zebrs loan status:", error);
- 
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch Zebrs loan status",
@@ -1169,7 +1172,6 @@ router.get("/status/:lan", verifyApiKey, async (req, res) => {
     });
   }
 });
- 
 
 router.post("/:lan/esign/:type",  verifyApiKey,
   async (req, res) => {
