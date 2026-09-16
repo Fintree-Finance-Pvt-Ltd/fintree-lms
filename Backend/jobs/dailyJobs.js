@@ -1097,7 +1097,7 @@ cron.schedule(
  * just finds 0 rows and does nothing. Tune BATCH_SIZE below to go
  * faster/slower.
  */
-const REJECTION_WEBHOOK_BACKFILL_BATCH_SIZE = 50;
+const REJECTION_WEBHOOK_BACKFILL_BATCH_SIZE = 500;
 let isRejectionWebhookBackfillRunning = false;
 
 cron.schedule(
