@@ -211,15 +211,6 @@ function validateLoginData(data) {
     return "dob must be a valid date in YYYY-MM-DD format";
   }
 
-  if (
-    YA_MONEY_BUREAU_ENABLED &&
-    (!Number.isInteger(data.loan_tenure) ||
-      data.loan_tenure < 6 ||
-      data.loan_tenure > 24)
-  ) {
-    return "loan_tenure must be between 6 and 24 months";
-  }
-
   if (!Number.isFinite(data.requested_amount) || data.requested_amount <= 0) {
     return "requested_amount must be greater than zero";
   }
@@ -386,7 +377,6 @@ function buildBureauPayload(data) {
     current_state: data.customer_state,
     current_pincode: data.customer_pincode,
     loan_amount: data.requested_amount,
-    loan_tenure: data.loan_tenure,
   };
 }
 
@@ -819,7 +809,7 @@ function validateFinalLoanData(data, savedCase) {
     data.loan_tenure < 6 ||
     data.loan_tenure > 24
   ) {
-    return "loan_tenure must be between 6 and 24 months";
+    return "loan_tenure is required and must be between 6 and 24 months";
   }
 
   if (
@@ -1009,9 +999,6 @@ router.post("/login", verifyApiKey, async (req, res) => {
       dob,
       age: Number.isFinite(calculatedAge) ? calculatedAge : readNumber(body.age),
       annual_income: body.annual_income || null,
-      loan_tenure: readNumber(
-        body.loan_tenure ?? body.tenure ?? body.requested_tenure,
-      ),
       gender: nullIfEmpty(body.gender) || "Male",
       customer_name: clean(body.customer_name),
       mobile_number: digitsOnly(body.mobile_number),

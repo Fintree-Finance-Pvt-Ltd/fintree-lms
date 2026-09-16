@@ -148,3 +148,314 @@ tr:hover {
     .search-input-modern { width: 100%; }
     .search-input-modern:focus { width: 100%; }
 }
+
+/* =========================================================
+   LOAN DIGIT COLLECTIONS
+========================================================= */
+
+
+/* ---------------------------------------------------------
+   Header right:
+   Export CSV is handled by DataTable.
+   This holds only Search + Records.
+--------------------------------------------------------- */
+
+.ldc-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+
+.ldc-header-search {
+    width: 230px !important;
+    height: 38px;
+}
+
+
+/* ---------------------------------------------------------
+   SECOND ROW:
+   Date Filters + Total Collection
+--------------------------------------------------------- */
+
+.ldc-filter-bar {
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding: 12px 14px;
+
+    box-sizing: border-box;
+
+    background: #f8fafc;
+
+    border: 1px solid #e8eef5;
+
+    border-radius: 12px;
+}
+
+
+/* ---------------------------------------------------------
+   LEFT FILTER AREA
+--------------------------------------------------------- */
+
+.ldc-filter-left {
+    display: flex;
+    align-items: center;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+}
+
+
+.ldc-filter-field {
+    display: flex;
+    align-items: center;
+
+    gap: 7px;
+}
+
+
+.ldc-filter-field label {
+    font-size: 12px;
+    font-weight: 600;
+
+    color: #475569;
+
+    white-space: nowrap;
+}
+
+
+.ldc-filter-date {
+    width: 150px !important;
+    height: 38px;
+}
+
+
+/* ---------------------------------------------------------
+   BUTTONS
+--------------------------------------------------------- */
+
+.ldc-filter-apply,
+.ldc-filter-reset {
+    height: 38px;
+
+    padding: 0 18px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 8px;
+
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    white-space: nowrap;
+
+    transition:
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+
+/* Apply */
+
+.ldc-filter-apply {
+    border: 1px solid #2563eb;
+
+    background: #2563eb;
+
+    color: #ffffff;
+}
+
+
+.ldc-filter-apply:hover {
+    background: #1d4ed8;
+
+    border-color: #1d4ed8;
+
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.16);
+}
+
+
+/* Reset */
+
+.ldc-filter-reset {
+    border: 1px solid #d7dee8;
+
+    background: #ffffff;
+
+    color: #334155;
+}
+
+
+.ldc-filter-reset:hover {
+    border-color: #b8c2cf;
+
+    background: #f8fafc;
+}
+
+
+/* ---------------------------------------------------------
+   TOTAL COLLECTION
+--------------------------------------------------------- */
+
+.ldc-total-summary {
+    min-width: 185px;
+
+    padding: 7px 15px;
+
+    box-sizing: border-box;
+
+    display: flex;
+    flex-direction: column;
+
+    border: 1px solid #bfdbfe;
+
+    border-radius: 9px;
+
+    background: #eff6ff;
+
+    white-space: nowrap;
+}
+
+
+.ldc-total-summary-label {
+    font-size: 9px;
+    font-weight: 700;
+
+    line-height: 12px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.45px;
+
+    color: #64748b;
+}
+
+
+.ldc-total-summary-value {
+    margin-top: 2px;
+
+    font-size: 15px;
+    font-weight: 700;
+
+    line-height: 18px;
+
+    color: #1d4ed8;
+}
+
+
+/* =========================================================
+   TABLET / SMALL LAPTOP
+========================================================= */
+
+@media (max-width: 900px) {
+
+    .ldc-filter-bar {
+        align-items: flex-start;
+
+        flex-direction: column;
+    }
+
+
+    .ldc-filter-left {
+        width: 100%;
+    }
+
+
+    .ldc-total-summary {
+        align-self: flex-end;
+    }
+
+
+    .ldc-header-search {
+        width: 200px !important;
+    }
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 650px) {
+
+    .ldc-header-actions {
+        width: 100%;
+
+        flex-wrap: wrap;
+    }
+
+
+    .ldc-header-search {
+        width: 100% !important;
+
+        flex: 1 1 100%;
+    }
+
+
+    .ldc-filter-left {
+        display: grid;
+
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr);
+
+        gap: 10px;
+    }
+
+
+    .ldc-filter-field {
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 4px;
+    }
+
+
+    .ldc-filter-date {
+        width: 100% !important;
+
+        box-sizing: border-box;
+    }
+
+
+    .ldc-filter-apply,
+    .ldc-filter-reset {
+        width: 100%;
+    }
+
+
+    .ldc-total-summary {
+        width: 100%;
+
+        min-width: 0;
+
+        align-self: stretch;
+    }
+}
+
+
+/* =========================================================
+   VERY SMALL MOBILE
+========================================================= */
+
+@media (max-width: 430px) {
+
+    .ldc-filter-left {
+        grid-template-columns: 1fr;
+    }
+
+}

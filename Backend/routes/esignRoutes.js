@@ -18,7 +18,7 @@ const {
   isClaimCureBuddyLan,
   isAgreementSigned,
 } = require("../services/claimCureBuddyAutoDisbursement");
-const verifyApiKey = require("../middleware/apiKeyAuth");
+// const verifyApiKey = require("../middleware/apiKeyAuth");
 
 const router = express.Router();
 
@@ -365,38 +365,38 @@ router.post("/:lan/esign/:type", authenticateUser, async (req, res) => {
   }
 });
 
-router.post("/:lan/zebrs/esign/:type", authenticateUser, verifyApiKey,
-  async (req, res) => {
-    const { lan, type } = req.params;
-    const { bookingTable } = getLoanContext(lan);
+// router.post("/:lan/zebrs/esign/:type", verifyApiKey,
+//   async (req, res) => {
+//     const { lan, type } = req.params;
+//     const { bookingTable } = getLoanContext(lan);
 
-    try {
-      if (type === "agreement") {
-        const [rows] = await db
-          .promise()
-          .query(
-            `SELECT sanction_esign_status FROM ${bookingTable} WHERE lan=?`,
-            [lan],
-          );
-      }
-      console.log("[ZEBRS ESIGN] Calling initZebrsEsign...");
+//     try {
+//       if (type === "agreement") {
+//         const [rows] = await db
+//           .promise()
+//           .query(
+//             `SELECT sanction_esign_status FROM ${bookingTable} WHERE lan=?`,
+//             [lan],
+//           );
+//       }
+//       console.log("[ZEBRS ESIGN] Calling initZebrsEsign...");
 
-     const out = await initDoqfyEsign(lan, type.toUpperCase());
+//      const out = await initDoqfyEsign(lan, type.toUpperCase());
 
-    // const out = await initEsign(lan, type.toUpperCase());
-      console.log("[ZEBRS ESIGN] Response:", out);
+//     // const out = await initEsign(lan, type.toUpperCase());
+//       console.log("[ZEBRS ESIGN] Response:", out);
 
-      return res.json(out);
-    } catch (err) {
-      console.error("[ZEBRS ESIGN ERROR]", err);
+//       return res.json(out);
+//     } catch (err) {
+//       console.error("[ZEBRS ESIGN ERROR]", err);
 
-      return res.status(500).json({
-        success: false,
-        error: err.message,
-      });
-    }
-  },
-);
+//       return res.status(500).json({
+//         success: false,
+//         error: err.message,
+//       });
+//     }
+//   },
+// );
 
 router.post("/test/:lan/esign/:type", authenticateUser, async (req, res) => {
   const { lan, type } = req.params;
