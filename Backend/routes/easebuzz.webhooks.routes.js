@@ -247,7 +247,7 @@ router.post("/payout", async (req, res) => {
         const processingResult = await processRapidMoneyDisbursement({
           lan: transfer.lan,
           disbursementUTR: effectiveUtr,
-          disbursementDate: effectiveTransferDate,
+          disbursementDate: new Date(effectiveTransferDate),
         });
 
         console.log("Duplicate callback internal processing result", {
