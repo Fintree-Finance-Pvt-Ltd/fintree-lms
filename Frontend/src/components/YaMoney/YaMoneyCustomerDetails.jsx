@@ -211,6 +211,8 @@ const YaMoneyCustomerDetails = () => {
         ["Interest", isPresent(loan.interest) ? `${loan.interest}%` : "-"],
         ["EMI Amount", formatAmount(loan.emi_amount)],
         ["Processing Fee", formatAmount(loan.processing_fee)],
+        ["Insurance Amount", formatAmount(loan.insurance_amount)],
+        ["Pre EMI Interest", formatAmount(loan.pre_emi_interest)],
         ["BRE Reason", loan.bre_reason],
         ["CIBIL Score", loan.cibil_score || cibil.score],
       ],
