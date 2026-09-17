@@ -970,6 +970,14 @@ function readFinalLoanData(body) {
     processing_fee_percent: clean(body.processing_fee_percent)
       ? readNumber(body.processing_fee_percent)
       : null,
+    insurance_amount: clean(body.insurance_amount)
+      ? readNumber(body.insurance_amount)
+      : null,
+    pre_emi_interest: clean(
+      body.pre_emi_interest ?? body.pre_emi_interest_amount,
+    )
+      ? readNumber(body.pre_emi_interest ?? body.pre_emi_interest_amount)
+      : null,
     name_in_bank: clean(
       body.name_in_bank ??
         body.account_holder_name ??
@@ -1080,6 +1088,20 @@ function validateFinalLoanData(data, savedCase) {
     return "processing_fee_percent must be between 0 and 100";
   }
 
+  if (
+    data.insurance_amount !== null &&
+    (!Number.isFinite(data.insurance_amount) || data.insurance_amount < 0)
+  ) {
+    return "insurance_amount must be zero or more";
+  }
+
+  if (
+    data.pre_emi_interest !== null &&
+    (!Number.isFinite(data.pre_emi_interest) || data.pre_emi_interest < 0)
+  ) {
+    return "pre_emi_interest must be zero or more";
+  }
+
   return null;
 }
 
@@ -1103,12 +1125,19 @@ function calculateFinalAmounts(data) {
     processingFee = (data.loan_amount * data.processing_fee_percent) / 100;
   }
 
+  const insuranceAmount = data.insurance_amount !== null ? data.insurance_amount : 0;
+  const preEmiInterest = data.pre_emi_interest !== null ? data.pre_emi_interest : 0;
+
   return {
     emi_amount: roundAmount(
       calculateEmi(data.loan_amount, data.interest, data.loan_tenure),
     ),
     processing_fee: roundAmount(processingFee),
-    net_disbursement: roundAmount(data.loan_amount - processingFee),
+    insurance_amount: roundAmount(insuranceAmount),
+    pre_emi_interest: roundAmount(preEmiInterest),
+    net_disbursement: roundAmount(
+      data.loan_amount - processingFee - insuranceAmount - preEmiInterest,
+    ),
   };
 }
 
@@ -1138,6 +1167,8 @@ async function saveFinalLoanDetails(lan, data, calculation, updatedBy) {
          ifsc = ?,
          emi_amount = ?,
          processing_fee = ?,
+         insurance_amount = ?,
+         pre_emi_interest = ?,
          net_disbursement = ?,
          status = 'ops_initiate',
          stage = 'ops_initiate',
@@ -1156,6 +1187,8 @@ async function saveFinalLoanDetails(lan, data, calculation, updatedBy) {
       data.ifsc,
       calculation.emi_amount,
       calculation.processing_fee,
+      calculation.insurance_amount,
+      calculation.pre_emi_interest,
       calculation.net_disbursement,
       updatedBy,
       lan,
@@ -1640,10 +1673,11 @@ router.patch("/:lan/final-details", async (req, res) => {
 
     const calculation = calculateFinalAmounts(data);
 
-    if (calculation.processing_fee >= data.loan_amount) {
+    if (calculation.net_disbursement <= 0) {
       return res.status(400).json({
         success: false,
-        message: "processing_fee must be less than loan_amount for payment",
+        message:
+          "processing_fee, insurance_amount and pre_emi_interest combined must be less than loan_amount for payment",
       });
     }
 
@@ -1678,6 +1712,8 @@ router.patch("/:lan/final-details", async (req, res) => {
         ifsc: data.ifsc,
         emi_amount: calculation.emi_amount,
         processing_fee: calculation.processing_fee,
+        insurance_amount: calculation.insurance_amount,
+        pre_emi_interest: calculation.pre_emi_interest,
         net_disbursement: calculation.net_disbursement,
       },
     });
