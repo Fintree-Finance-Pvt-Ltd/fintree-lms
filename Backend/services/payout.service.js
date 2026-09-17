@@ -216,13 +216,28 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     );
 
     if (existingTransfer) {
-      const pStatus = String(existingTransfer.payout_status).toUpperCase();
-      if (pStatus === "SUCCESS" || pStatus === "INITIATED") {
-        console.log(`⛔ Payout already ${pStatus} for LAN: ${lan}`);
+      // Check both status and payout_status. The row is inserted with
+      // status='INITIATED' *before* the Easebuzz call is made, but
+      // payout_status is only set afterward, from the response. If that
+      // call times out or errors before a response comes back, payout_status
+      // stays NULL forever — checking only payout_status would let a retry
+      // silently slip through for a transfer whose outcome is still unknown,
+      // risking a real double-disbursement.
+      const status = String(existingTransfer.status || "").toUpperCase();
+      const pStatus = String(existingTransfer.payout_status || "").toUpperCase();
+
+      if (
+        pStatus === "SUCCESS" ||
+        pStatus === "INITIATED" ||
+        status === "INITIATED"
+      ) {
+        const reportedStatus = pStatus || status;
+
+        console.log(`⛔ Payout already ${reportedStatus} for LAN: ${lan}`);
 
         return {
           success: false,
-          message: `Payout already exists for this LAN with status: ${pStatus}`,
+          message: `Payout already exists for this LAN with status: ${reportedStatus}`,
         };
       }
     }
@@ -506,7 +521,14 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
             "WIRE-API-KEY": process.env.EASEBUZZ_WIRE_API_KEY,
             "Content-Type": "application/json",
           },
-          timeout: 15000,
+          // Was 15s — confirmed a real transfer succeeded on Easebuzz's side
+          // after the client had already timed out and given up, leaving the
+          // outcome ambiguous in our own system. 45s gives more headroom
+          // before we abort, matching the timeout already used for other
+          // outbound webhook calls elsewhere in this codebase (30s) plus
+          // some margin given this specific endpoint has shown itself to be
+          // slower under load.
+          timeout: 45000,
         },
       );
     }
