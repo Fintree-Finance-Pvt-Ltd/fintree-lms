@@ -166,7 +166,7 @@ async function buildClaimCureBuddyCoApplicantUsers(
   return partyUsers;
 }
 
-exports.initDoqfyEsign = async (lan, type) => {
+const initDoqfyEsign = async (lan, type) => {
   try {
     console.log("🚀 INITIATING DOQFY ESIGN:", lan, type);
 
@@ -329,7 +329,7 @@ exports.initDoqfyEsign = async (lan, type) => {
     let orderResp = null;
 
     try {
-      const orderResp = await doqfyClient.get(
+      orderResp = await doqfyClient.get(
         `/order/orders/?detail=1&order_ids=${orderId}`,
       );
 
@@ -443,6 +443,7 @@ exports.initDoqfyEsign = async (lan, type) => {
         UPDATE ${bookingTable}
         SET
           agreement_esign_status = 'INITIATED',
+          ${loanContext.type === "SAMPADA" ? "agreement_esign_sent_at = NOW()," : ""}
           agreement_esign_document_id = ?
         WHERE lan = ?
         `,
@@ -466,5 +467,40 @@ exports.initDoqfyEsign = async (lan, type) => {
   } catch (err) {
     console.error("❌ FINAL DOQFY ERROR:", err);
     throw err;
+  }
+};
+
+// Serialize Sampada agreement sends across tabs and server processes, and use
+// persisted documents to protect loans whose booking status is stale.
+exports.initDoqfyEsign = async (lan, type) => {
+  if (getLoanContext(lan).type !== "SAMPADA" || type !== "AGREEMENT") {
+    return initDoqfyEsign(lan, type);
+  }
+  const { loadSampadaAgreementStatus } = require("./sampadaAgreementStatus");
+  const connection = await db.promise().getConnection();
+  const lockName = `sampada-agreement:${String(lan).trim().toUpperCase()}`;
+  let locked = false;
+  try {
+    const [[lock]] = await connection.query("SELECT GET_LOCK(?, 0) AS acquired", [lockName]);
+    locked = Number(lock.acquired) === 1;
+    if (!locked) throw new Error("Agreement send is already processing. Refresh to check its status.");
+    const [rows] = await connection.query(
+      "SELECT lan, agreement_esign_status, agreement_esign_sent_at, agreement_esign_document_id FROM loan_booking_sampada WHERE lan = ?",
+      [lan],
+    );
+    if (!rows.length) throw new Error("Loan not found");
+    const [current] = await loadSampadaAgreementStatus(connection, rows);
+    if (!current.agreement_esign_can_send) {
+      return { success: true, already_initiated: true, ...current };
+    }
+    const result = await initDoqfyEsign(lan, type);
+    const [persisted] = await loadSampadaAgreementStatus(connection, rows);
+    return { ...result, ...persisted };
+  } finally {
+    try {
+      if (locked) await connection.query("SELECT RELEASE_LOCK(?)", [lockName]);
+    } finally {
+      connection.release();
+    }
   }
 };
