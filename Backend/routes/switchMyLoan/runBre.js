@@ -3,7 +3,9 @@ const { runBureau } = require("../../services/Bueraupullapiservice");
 const {
   POLICY,
   calculateAge,
+  getMinLoanAmountForAge,
   validateLoanAmount,
+  validateTenure,
   isNewCustomer,
   calculateRepeatCreditLimit,
   parseBureauReport,
@@ -130,6 +132,7 @@ function createInitialRules() {
   return {
     AML_CHECK_RPM: rule(false, null, {}, false),
     LOAN_AMOUNT_CHECK_RPM: rule(false, null, {}, false),
+    TENURE_CHECK_RPM: rule(false, null, {}, false),
     FIRST_TIME_LIMIT_CHECK_RPM: rule(false, null, {}, false),
     REPEAT_LIMIT_CHECK_RPM: rule(false, null, {}, false),
     REPEAT_AGE_CAP_CHECK_RPM: rule(false, null, {}, false),
@@ -1424,8 +1427,9 @@ async function runBRE(data) {
 
   const newCustomer = isNewCustomer(totalDisbursed);
   const age = calculateAge(loan.dob, new Date());
+  const minLoanAmountForAge = getMinLoanAmountForAge(age);
 
-  const loanAmountResult = validateLoanAmount(loan.loan_amount);
+  const loanAmountResult = validateLoanAmount(loan.loan_amount, age);
   addReason(reasons, loanAmountResult.reason);
 
   rules.LOAN_AMOUNT_CHECK_RPM = rule(
@@ -1433,9 +1437,22 @@ async function runBRE(data) {
     loanAmountResult.reason,
     {
       requestedLoanAmount: loanAmountResult.amount,
-      minimumLoanAmount: POLICY.MIN_LOAN_AMOUNT,
+      minimumLoanAmount: minLoanAmountForAge,
       maximumLoanAmount: POLICY.MAX_LOAN_AMOUNT,
       requiredMultiple: POLICY.LOAN_AMOUNT_MULTIPLE,
+    },
+  );
+
+  const tenureResult = validateTenure(loan.tenure);
+  addReason(reasons, tenureResult.reason);
+
+  rules.TENURE_CHECK_RPM = rule(
+    tenureResult.passed,
+    tenureResult.reason,
+    {
+      requestedTenure: tenureResult.tenure,
+      minimumTenure: POLICY.MIN_TENURE_DAYS,
+      maximumTenure: POLICY.MAX_TENURE_DAYS,
     },
   );
 
@@ -1443,17 +1460,17 @@ async function runBRE(data) {
   let repeatLimitDetails = null;
 
   if (newCustomer) {
-    creditLimit = POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+    creditLimit = minLoanAmountForAge;
 
     const firstTimeLimitAdjusted =
-      Number(loan.loan_amount) > POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+      Number(loan.loan_amount) > minLoanAmountForAge;
 
     rules.FIRST_TIME_LIMIT_CHECK_RPM = rule(true, null, {
       applicable: true,
 
       requestedLoanAmount: Number(loan.loan_amount),
 
-      assignedCreditLimit: POLICY.FIRST_TIME_CUSTOMER_LIMIT,
+      assignedCreditLimit: minLoanAmountForAge,
 
       limitAdjusted: firstTimeLimitAdjusted,
 
@@ -1482,7 +1499,7 @@ async function runBRE(data) {
     );
     creditLimit = repeatLimitDetails.creditLimit;
 
-    if (!creditLimit || creditLimit < POLICY.MIN_LOAN_AMOUNT) {
+    if (!creditLimit || creditLimit < minLoanAmountForAge) {
       addReason(reasons, "REPEAT_CUSTOMER_CREDIT_LIMIT_BELOW_MINIMUM_LOAN");
     }
 
@@ -1495,8 +1512,8 @@ async function runBRE(data) {
     // }
 
     rules.REPEAT_LIMIT_CHECK_RPM = rule(
-      Boolean(creditLimit && creditLimit >= POLICY.MIN_LOAN_AMOUNT),
-      !creditLimit || creditLimit < POLICY.MIN_LOAN_AMOUNT
+      Boolean(creditLimit && creditLimit >= minLoanAmountForAge),
+      !creditLimit || creditLimit < minLoanAmountForAge
         ? "REPEAT_CUSTOMER_CREDIT_LIMIT_BELOW_MINIMUM_LOAN"
         : null,
       {
@@ -1579,7 +1596,7 @@ async function runBRE(data) {
 
   const validCreditLimit =
     Number.isFinite(numericCreditLimit) &&
-    numericCreditLimit >= POLICY.MIN_LOAN_AMOUNT;
+    numericCreditLimit >= minLoanAmountForAge;
 
   /**
    * Requested amount exceeding the calculated credit limit is not a rejection.
