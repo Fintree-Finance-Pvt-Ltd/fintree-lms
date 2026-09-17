@@ -1197,7 +1197,19 @@ async function runTrackwizzAml(loan) {
     };
   }
 }
-async function runBRE(data) {
+async function runBRE(data, options = {}) {
+  /*
+   * Partners hit the approve API twice: once with
+   * onboarding_completed = false (before the final loan_amount/tenure
+   * have been collected, so the stored values are still placeholders)
+   * and again with onboarding_completed = true once the real values are
+   * in. Loan amount / tenure policy checks must only be enforced on the
+   * second (onboarding_completed = true) call — enforcing them on the
+   * first call rejects on placeholder data and permanently blocks the
+   * case before the real values ever arrive.
+   */
+  const onboardingCompleted = options.onboardingCompleted !== false;
+
   if (!data?.lan) {
     return {
       policyVersion: POLICY_VERSION,
@@ -1430,30 +1442,38 @@ async function runBRE(data) {
   const minLoanAmountForAge = getMinLoanAmountForAge(age);
 
   const loanAmountResult = validateLoanAmount(loan.loan_amount, age);
-  addReason(reasons, loanAmountResult.reason);
+
+  if (onboardingCompleted) {
+    addReason(reasons, loanAmountResult.reason);
+  }
 
   rules.LOAN_AMOUNT_CHECK_RPM = rule(
-    loanAmountResult.passed,
-    loanAmountResult.reason,
+    onboardingCompleted ? loanAmountResult.passed : true,
+    onboardingCompleted ? loanAmountResult.reason : null,
     {
       requestedLoanAmount: loanAmountResult.amount,
       minimumLoanAmount: minLoanAmountForAge,
       maximumLoanAmount: POLICY.MAX_LOAN_AMOUNT,
       requiredMultiple: POLICY.LOAN_AMOUNT_MULTIPLE,
     },
+    onboardingCompleted,
   );
 
   const tenureResult = validateTenure(loan.tenure);
-  addReason(reasons, tenureResult.reason);
+
+  if (onboardingCompleted) {
+    addReason(reasons, tenureResult.reason);
+  }
 
   rules.TENURE_CHECK_RPM = rule(
-    tenureResult.passed,
-    tenureResult.reason,
+    onboardingCompleted ? tenureResult.passed : true,
+    onboardingCompleted ? tenureResult.reason : null,
     {
       requestedTenure: tenureResult.tenure,
       minimumTenure: POLICY.MIN_TENURE_DAYS,
       maximumTenure: POLICY.MAX_TENURE_DAYS,
     },
+    onboardingCompleted,
   );
 
   let creditLimit = null;
@@ -1618,7 +1638,13 @@ async function runBRE(data) {
     addReason(reasons, "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED");
   }
 
-  if (validCreditLimit && !disbursalBreakup?.ok) {
+  /*
+   * A bad disbursal breakup here is driven by the requested loan_amount
+   * (via grossApprovedLoanAmount), so — like the loan amount/tenure checks
+   * above — only enforce it once onboarding is completed and the real
+   * loan_amount has been submitted.
+   */
+  if (onboardingCompleted && validCreditLimit && !disbursalBreakup?.ok) {
     addReason(
       reasons,
       disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID",
@@ -1656,11 +1682,12 @@ async function runBRE(data) {
   result.disbursalBreakup = disbursalBreakup;
 
   const creditLimitRulePassed =
-    validCreditLimit && Boolean(disbursalBreakup?.ok);
+    validCreditLimit &&
+    (onboardingCompleted ? Boolean(disbursalBreakup?.ok) : true);
 
   const creditLimitRuleReason = !validCreditLimit
     ? "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED"
-    : !disbursalBreakup?.ok
+    : onboardingCompleted && !disbursalBreakup?.ok
       ? disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID"
       : null;
 
