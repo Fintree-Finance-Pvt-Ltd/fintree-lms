@@ -206,7 +206,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
 
     const [[existingTransfer]] = await db.promise().query(
       `
-      SELECT lan, payout_status
+      SELECT lan, COALESCE(payout_status, status) AS effective_status
       FROM quick_transfers
       WHERE lan = ?
       ORDER BY id DESC
