@@ -226,7 +226,11 @@ if (remaining > 0) {
   // 3️⃣ Update loan DPD/status
   await queryDB(`CALL sp_update_loan_status_dpd()`);
 
-  // 4️⃣ Mark as Fully Paid when no dues left
+  // 4️⃣ Mark as Fully Paid only when no EMI dues AND no open loan charges are
+  // left. Previously this only checked the EMI table, so a loan with every
+  // EMI cleared but an open (unpaid, not fully waived) charge still
+  // outstanding — e.g. the payment amount only covered the EMI dues with
+  // nothing left over to allocate to charges — got marked Fully Paid anyway.
   const [pending] = await queryDB(
     `SELECT COUNT(*) AS count
      FROM ${emiTable}
@@ -235,7 +239,16 @@ if (remaining > 0) {
     [lan]
   );
 
-  if (pending.count === 0) {
+  const [pendingCharges] = await queryDB(
+    `SELECT COUNT(*) AS count
+     FROM loan_charges
+     WHERE lan = ?
+     AND paid_status != 'Paid'
+     AND (amount - paid_amount - waived_amount - waived_off) > 0`,
+    [lan]
+  );
+
+  if (pending.count === 0 && pendingCharges.count === 0) {
     await queryDB(
       `UPDATE ${loanTable}
        SET status = 'Fully Paid'
@@ -243,6 +256,10 @@ if (remaining > 0) {
       [lan]
     );
     console.log(`💠 Loan marked Fully Paid for RAPID MONEY LAN ${lan}`);
+  } else if (pending.count === 0 && pendingCharges.count > 0) {
+    console.log(
+      `💠 EMIs cleared but ${pendingCharges.count} open charge(s) remain for RAPID MONEY LAN ${lan} — not marking Fully Paid`
+    );
   }
 };
 
