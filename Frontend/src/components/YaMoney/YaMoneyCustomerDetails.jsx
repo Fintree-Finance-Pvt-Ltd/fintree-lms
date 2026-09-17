@@ -100,6 +100,7 @@ const YaMoneyCustomerDetails = () => {
     const payout = details?.latest_payout || {};
     const cibil = details?.latest_cibil_report || {};
     const utr = details?.disbursement_utr || {};
+    const aml = details?.aml || {};
 
     return {
       loan,
@@ -107,6 +108,7 @@ const YaMoneyCustomerDetails = () => {
       payout,
       cibil,
       utr,
+      aml,
     };
   }, [details]);
 
@@ -148,7 +150,7 @@ const YaMoneyCustomerDetails = () => {
     );
   }
 
-  const { loan, kyc, payout, cibil, utr } = model;
+  const { loan, kyc, payout, cibil, utr, aml } = model;
 
   const sections = [
     {
@@ -250,6 +252,21 @@ const YaMoneyCustomerDetails = () => {
         ["Report Created", formatDate(cibil.created_at)],
       ],
     },
+    {
+      title: "AML Screening",
+      icon: ShieldCheck,
+      fields: [
+        ["AML Status", aml.status || loan.aml_status, false, true],
+        ["Screening Status", aml.screening_status, false, true],
+        ["AML Score", aml.score ?? loan.aml_score],
+        ["Total Matches", aml.total_matches ?? loan.aml_total_matches],
+        ["Reason", aml.reason || loan.aml_reason, true],
+        ["Checked At", formatDate(aml.checked_at || loan.aml_checked_at)],
+        ["Report Stored", aml.report_stored ? "Yes" : aml.screening_request_id ? "No" : "-"],
+        ["Screening Request ID", aml.screening_request_id],
+        ["Error", aml.error_message],
+      ],
+    },
   ];
 
   return (
@@ -293,11 +310,11 @@ const YaMoneyCustomerDetails = () => {
   );
 };
 
-const Section = ({ title, icon: Icon, children }) => (
+const Section = ({ title, icon, children }) => (
   <section style={styles.section}>
     <div style={styles.sectionHeader}>
       <span style={styles.sectionIcon}>
-        <Icon size={20} />
+        {React.createElement(icon, { size: 20 })}
       </span>
       <h2 style={styles.sectionTitle}>{title}</h2>
     </div>
@@ -349,6 +366,8 @@ function getStatusPalette(status) {
       "SUCCESS",
       "VERIFIED",
       "PAID",
+      "PROCEED",
+      "COMPLETED",
     ].includes(status)
   ) {
     return {
@@ -364,6 +383,9 @@ function getStatusPalette(status) {
       "BRE REJECTED",
       "CREDIT REJECTED",
       "OPS REJECTED",
+      "AML REJECTED",
+      "STOP",
+      "ERROR",
       "FAILED",
     ].includes(status)
   ) {
@@ -374,7 +396,16 @@ function getStatusPalette(status) {
     };
   }
 
-  if (["INITIATED", "PENDING", "PROCESSING", "OPS INITIATE"].includes(status)) {
+  if (
+    [
+      "INITIATED",
+      "PENDING",
+      "PROCESSING",
+      "OPS INITIATE",
+      "AML REVIEW",
+      "REVIEW",
+    ].includes(status)
+  ) {
     return {
       background: "#fef9c3",
       border: "#fde68a",

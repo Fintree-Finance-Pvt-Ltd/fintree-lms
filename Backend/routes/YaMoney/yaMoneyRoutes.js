@@ -6,6 +6,9 @@ const { runBureau } = require("../../services/Bueraupullapiservice");
 const { sendClientWebhook } = require("./yaMoneyWebhookService");
 const { runBRE } = require("./yaMoneyBre");
 const { approveAndInitiatePayout } = require("../../services/payout.service");
+const {
+  screenLoanBooking,
+} = require("../../services/trackwizz/screeningService");
 
 const router = express.Router();
 
@@ -17,7 +20,17 @@ const LENDER = "Ya Money";
 const PRODUCT = "Ya Money";
 const LOAN_TYPE = "Business Loan";
 const LAN_PREFIX = "YAM";
+const AML_SCREENING_PRODUCT = "ya_money";
 const YA_MONEY_BUREAU_ENABLED = true;
+const YA_MONEY_AML_COLUMNS = [
+  "aml_status",
+  "aml_score",
+  "aml_total_matches",
+  "aml_reason",
+  "aml_api_response",
+  "aml_checked_at",
+];
+const TRACKWIZZ_AML_STATUSES = new Set(["PROCEED", "REVIEW", "STOP"]);
 const STATUS_EXPRESSION =
   "LOWER(REPLACE(REPLACE(TRIM(lb.status), '-', '_'), ' ', '_'))";
 const DEFAULT_PAGE_SIZE = 25;
@@ -451,9 +464,125 @@ async function pullAndPersistBureau(lan, data) {
   };
 }
 
-async function updateBreStatus(connection, insertId, breResult, updatedBy) {
-  const status = breResult.eligible ? "bre_approved" : "bre_rejected";
-  const reason = breResult.reason || "ELIGIBLE";
+function toNumberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+async function assertYaMoneyAmlColumns() {
+  const [rows] = await db.promise().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME IN (${YA_MONEY_AML_COLUMNS.map(() => "?").join(", ")})`,
+    [TABLE_NAME, ...YA_MONEY_AML_COLUMNS],
+  );
+  const existing = new Set(rows.map((row) => row.COLUMN_NAME));
+  const missing = YA_MONEY_AML_COLUMNS.filter((column) => !existing.has(column));
+
+  if (missing.length) {
+    const error = new Error(
+      `Ya Money AML columns missing: ${missing.join(", ")}`,
+    );
+    error.code = "YA_MONEY_AML_COLUMNS_MISSING";
+    error.missingColumns = missing;
+    throw error;
+  }
+}
+
+async function runYaMoneyAml(lan) {
+  try {
+    await assertYaMoneyAmlColumns();
+
+    const aml = await screenLoanBooking(AML_SCREENING_PRODUCT, lan);
+    const status = clean(aml.amlStatus || aml.decision).toUpperCase();
+    const reason = clean(aml.amlReason || aml.reason);
+
+    return {
+      status,
+      score: toNumberOrNull(aml.amlScore),
+      total_matches: toNumberOrNull(aml.amlTotalMatches ?? aml.hitsCount),
+      reason: reason || null,
+      source: "TRACKWIZZ",
+      screening_request_id: aml.screeningRequestId || null,
+      report_stored: aml.reportStored === true,
+      degraded: aml.degraded === true,
+      technical_reason: TRACKWIZZ_AML_STATUSES.has(status)
+        ? null
+        : "AML_STATUS_INVALID",
+    };
+  } catch (error) {
+    const reason =
+      error.code === "YA_MONEY_AML_COLUMNS_MISSING"
+        ? error.message
+        : `AML unavailable: ${error.message}`;
+
+    console.error("[YA-MONEY] AML screening failed", {
+      lan,
+      code: error.code,
+      message: error.message,
+    });
+
+    return {
+      status: "ERROR",
+      score: null,
+      total_matches: null,
+      reason: reason.slice(0, 255),
+      source: "TRACKWIZZ",
+      screening_request_id: null,
+      report_stored: false,
+      degraded: true,
+      technical_reason: error.code || "AML_SCREENING_FAILED",
+    };
+  }
+}
+
+function buildAmlBlockReason(amlResult) {
+  const status = clean(amlResult?.status).toUpperCase() || "ERROR";
+  const reason = clean(amlResult?.reason);
+
+  return reason ? `AML ${status}: ${reason}` : `AML ${status}`;
+}
+
+function getLoginDecision(breResult, amlResult) {
+  if (!breResult.eligible) {
+    return {
+      status: "bre_rejected",
+      reason: breResult.reason || "BRE_REJECTED",
+    };
+  }
+
+  const amlStatus = clean(amlResult?.status).toUpperCase();
+
+  if (amlStatus === "PROCEED") {
+    return {
+      status: "bre_approved",
+      reason: breResult.reason || "ELIGIBLE",
+    };
+  }
+
+  if (amlStatus === "STOP") {
+    return {
+      status: "aml_rejected",
+      reason: buildAmlBlockReason(amlResult),
+    };
+  }
+
+  return {
+    status: "aml_review",
+    reason: buildAmlBlockReason(amlResult),
+  };
+}
+
+async function updateBreStatus(
+  connection,
+  insertId,
+  breResult,
+  amlResult,
+  updatedBy,
+) {
+  const decision = getLoginDecision(breResult, amlResult);
 
   await connection.query(
     `UPDATE ${TABLE_NAME}
@@ -462,10 +591,10 @@ async function updateBreStatus(connection, insertId, breResult, updatedBy) {
          bre_reason = ?,
          updated_by = ?
      WHERE id = ?`,
-    [status, status, reason, updatedBy, insertId],
+    [decision.status, decision.status, decision.reason, updatedBy, insertId],
   );
 
-  return status;
+  return decision.status;
 }
 
 function sendServerError(res, error) {
@@ -714,6 +843,81 @@ async function fetchLatestYaMoneyPayout(lan) {
   );
 
   return transfer || null;
+}
+
+async function fetchLatestYaMoneyAml(lan, loan) {
+  const aml = {
+    status: loan.aml_status || null,
+    score: loan.aml_score ?? null,
+    total_matches: loan.aml_total_matches ?? null,
+    reason: loan.aml_reason || null,
+    checked_at: loan.aml_checked_at || null,
+    source: "TRACKWIZZ",
+    screening_request_id: null,
+    request_id: null,
+    screening_status: null,
+    report_stored: false,
+    report_file_name: null,
+    error_code: null,
+    error_message: null,
+  };
+
+  try {
+    const [[screening]] = await db.promise().query(
+      `SELECT
+         id,
+         request_id,
+         status,
+         suggested_action,
+         hits_count,
+         report_pdf IS NOT NULL AS report_stored,
+         report_file_name,
+         report_storage_error,
+         error_code,
+         error_message
+       FROM screening_requests
+       WHERE partner_key = ?
+         AND lan = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [AML_SCREENING_PRODUCT, lan],
+    );
+
+    if (screening) {
+      aml.screening_request_id = screening.id;
+      aml.request_id = screening.request_id;
+      aml.screening_status = screening.status;
+      aml.report_stored = Boolean(screening.report_stored);
+      aml.report_file_name = screening.report_file_name || null;
+      aml.error_code = screening.error_code || null;
+      aml.error_message =
+        screening.error_message || screening.report_storage_error || null;
+
+      if (!aml.status && screening.suggested_action) {
+        aml.status = clean(screening.suggested_action).toUpperCase();
+      }
+
+      if (aml.total_matches === null || aml.total_matches === undefined) {
+        aml.total_matches = screening.hits_count ?? null;
+      }
+    }
+  } catch (error) {
+    if (error.code !== "ER_NO_SUCH_TABLE" && error.code !== "ER_BAD_FIELD_ERROR") {
+      throw error;
+    }
+
+    aml.error_code = error.code;
+    aml.error_message = "AML screening table is not available";
+  }
+
+  return aml.status ||
+    aml.score !== null ||
+    aml.total_matches !== null ||
+    aml.reason ||
+    aml.screening_request_id ||
+    aml.error_code
+    ? aml
+    : null;
 }
 
 function getPayoutStatus(transfer) {
@@ -1012,6 +1216,7 @@ router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
       [cibilReports],
       [payouts],
       [utrRows],
+      aml,
     ] = await Promise.all([
       db.promise().query(
         `SELECT *
@@ -1043,6 +1248,7 @@ router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
          LIMIT 1`,
         [lan],
       ),
+      fetchLatestYaMoneyAml(lan, loan),
     ]);
 
     return res.json({
@@ -1055,6 +1261,7 @@ router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
         payouts,
         latest_payout: payouts[0] || null,
         disbursement_utr: utrRows[0] || null,
+        aml,
       },
     });
   } catch (error) {
@@ -1164,10 +1371,12 @@ router.post("/login", verifyApiKey, async (req, res) => {
       bureau_score: bureau.score,
       skip_bureau: !YA_MONEY_BUREAU_ENABLED,
     });
+    const aml = await runYaMoneyAml(ids.lan);
     const finalStatus = await updateBreStatus(
       db.promise(),
       insertId,
       breResult,
+      aml,
       createdBy,
     );
 
@@ -1180,6 +1389,7 @@ router.post("/login", verifyApiKey, async (req, res) => {
         lan: ids.lan,
         status: finalStatus,
         bureau,
+        aml,
         bre: breResult,
       },
     });
