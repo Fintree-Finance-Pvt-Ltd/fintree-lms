@@ -12,15 +12,122 @@ const queryDB = (sql, params) =>
   });
 
 /**
+ * Handle a refund/reversal row (negative transfer_amount) for a LAN —
+ * e.g. a NACH mandate that bounced after already being allocated, or a
+ * duplicate payment that was refunded back.
+ *
+ * Reconciliation-only: this does NOT undo the RPS balance, charge status,
+ * or loan status the original payment set — it only records an offsetting
+ * entry in `allocation` so SUM(allocation.allocated_amount) keeps matching
+ * SUM(repayments_upload.transfer_amount) for this LAN. A loan whose payment
+ * gets reversed will still show as paid/cleared; use the "Reversal (orig:
+ * ...)" charge_type in the allocation table to find loans that need a
+ * manual correction to their actual RPS/charge/status.
+ *
+ * Best-guess matching to the original payment being reversed: same LAN,
+ * same absolute amount preferred (most recent among ties), falling back to
+ * the most recent not-yet-matched positive payment on the LAN if no exact
+ * amount match exists, and to an explicitly "unmatched" record if there's
+ * no prior payment at all to guess from.
+ */
+async function recordRapidMoneyReversal(lan, transferAmount, paymentDate, paymentId) {
+  const reversalAmount = Math.abs(transferAmount);
+
+  const priorPayments = await queryDB(
+    `
+    SELECT payment_id, payment_date, transfer_amount
+    FROM repayments_upload
+    WHERE lan = ?
+      AND transfer_amount > 0
+      AND payment_id != ?
+    ORDER BY payment_date DESC, id DESC
+    `,
+    [lan, paymentId],
+  );
+
+  const existingReversalRows = await queryDB(
+    `SELECT charge_type FROM allocation WHERE lan = ? AND charge_type LIKE 'Reversal (orig: %'`,
+    [lan],
+  );
+
+  const alreadyMatchedPaymentIds = new Set(
+    existingReversalRows
+      .map((row) => {
+        const match = /^Reversal \(orig: (.+)\)$/.exec(row.charge_type || "");
+        return match ? match[1] : null;
+      })
+      .filter(Boolean),
+  );
+
+  const candidates = priorPayments.filter(
+    (p) => !alreadyMatchedPaymentIds.has(p.payment_id),
+  );
+
+  const exactMatch = candidates.find(
+    (p) => Number(p.transfer_amount) === reversalAmount,
+  );
+
+  const matched = exactMatch || candidates[0] || null;
+
+  let dueDate = paymentDate;
+
+  if (matched) {
+    const [matchedAllocation] = await queryDB(
+      `SELECT due_date FROM allocation WHERE lan = ? AND payment_id = ? ORDER BY due_date ASC LIMIT 1`,
+      [lan, matched.payment_id],
+    );
+
+    if (matchedAllocation?.due_date) {
+      dueDate = matchedAllocation.due_date;
+    }
+  }
+
+  const chargeType = matched
+    ? `Reversal (orig: ${matched.payment_id})`
+    : "Reversal (unmatched)";
+
+  await queryDB(
+    `INSERT INTO allocation
+     (lan, due_date, allocation_date, allocated_amount, charge_type, payment_id)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [lan, dueDate, paymentDate, transferAmount, chargeType, paymentId],
+  );
+
+  console.log("💠 Reversal recorded (reconciliation-only)", {
+    lan,
+    paymentId,
+    reversalAmount,
+    matchedOriginalPaymentId: matched?.payment_id || null,
+    matchStrategy: matched
+      ? exactMatch
+        ? "exact_amount"
+        : "most_recent_fallback"
+      : "unmatched",
+  });
+
+  return {
+    skipped: false,
+    reversal: true,
+    matchedOriginalPaymentId: matched?.payment_id || null,
+  };
+}
+
+/**
  * Allocate payments for HELIUM loans.
  * Interest first, then principal. Oldest EMI first.
  */
 const allocateRapidMoney = async (lan, payment) => {
-  let remaining = parseFloat(payment.transfer_amount);
+  const transferAmount = parseFloat(payment.transfer_amount);
   const paymentDate = payment.payment_date;
   const paymentId = payment.payment_id;
 
   if (!paymentId) throw new Error("❌ payment_id is required");
+
+  if (transferAmount < 0) {
+    return recordRapidMoneyReversal(lan, transferAmount, paymentDate, paymentId);
+  }
+
+  let remaining = transferAmount;
 
   // --- RAPID MONEY loan tables ---
   const emiTable = "manual_rps_switch_my_loan";

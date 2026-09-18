@@ -1,6 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const db = require("../../config/db");
+const { loadSampadaAgreementStatus } = require("../../services/sampadaAgreementStatus");
 const crypto = require("crypto");
 const {
   universalRunAllValidations,
@@ -5035,6 +5036,7 @@ router.get("/operation-initiated-loans", async (req, res) => {
 
         lb.agreement_esign_status,
         lb.agreement_esign_sent_at,
+        lb.agreement_esign_document_id,
 
         lb.bank_status,
 
@@ -5075,7 +5077,7 @@ router.get("/operation-initiated-loans", async (req, res) => {
     ]);
 
     return res.json({
-      rows,
+      rows: await loadSampadaAgreementStatus(db.promise(), rows),
 
       pagination: {
         page: pg,
