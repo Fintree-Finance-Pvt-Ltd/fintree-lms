@@ -3,7 +3,9 @@ const { runBureau } = require("../../services/Bueraupullapiservice");
 const {
   POLICY,
   calculateAge,
+  getMinLoanAmountForAge,
   validateLoanAmount,
+  validateTenure,
   isNewCustomer,
   calculateRepeatCreditLimit,
   parseBureauReport,
@@ -130,6 +132,7 @@ function createInitialRules() {
   return {
     AML_CHECK_RPM: rule(false, null, {}, false),
     LOAN_AMOUNT_CHECK_RPM: rule(false, null, {}, false),
+    TENURE_CHECK_RPM: rule(false, null, {}, false),
     FIRST_TIME_LIMIT_CHECK_RPM: rule(false, null, {}, false),
     REPEAT_LIMIT_CHECK_RPM: rule(false, null, {}, false),
     REPEAT_AGE_CAP_CHECK_RPM: rule(false, null, {}, false),
@@ -1194,7 +1197,19 @@ async function runTrackwizzAml(loan) {
     };
   }
 }
-async function runBRE(data) {
+async function runBRE(data, options = {}) {
+  /*
+   * Partners hit the approve API twice: once with
+   * onboarding_completed = false (before the final loan_amount/tenure
+   * have been collected, so the stored values are still placeholders)
+   * and again with onboarding_completed = true once the real values are
+   * in. Loan amount / tenure policy checks must only be enforced on the
+   * second (onboarding_completed = true) call — enforcing them on the
+   * first call rejects on placeholder data and permanently blocks the
+   * case before the real values ever arrive.
+   */
+  const onboardingCompleted = options.onboardingCompleted !== false;
+
   if (!data?.lan) {
     return {
       policyVersion: POLICY_VERSION,
@@ -1424,36 +1439,58 @@ async function runBRE(data) {
 
   const newCustomer = isNewCustomer(totalDisbursed);
   const age = calculateAge(loan.dob, new Date());
+  const minLoanAmountForAge = getMinLoanAmountForAge(age);
 
-  const loanAmountResult = validateLoanAmount(loan.loan_amount);
-  addReason(reasons, loanAmountResult.reason);
+  const loanAmountResult = validateLoanAmount(loan.loan_amount, age);
+
+  if (onboardingCompleted) {
+    addReason(reasons, loanAmountResult.reason);
+  }
 
   rules.LOAN_AMOUNT_CHECK_RPM = rule(
-    loanAmountResult.passed,
-    loanAmountResult.reason,
+    onboardingCompleted ? loanAmountResult.passed : true,
+    onboardingCompleted ? loanAmountResult.reason : null,
     {
       requestedLoanAmount: loanAmountResult.amount,
-      minimumLoanAmount: POLICY.MIN_LOAN_AMOUNT,
+      minimumLoanAmount: minLoanAmountForAge,
       maximumLoanAmount: POLICY.MAX_LOAN_AMOUNT,
       requiredMultiple: POLICY.LOAN_AMOUNT_MULTIPLE,
     },
+    onboardingCompleted,
+  );
+
+  const tenureResult = validateTenure(loan.tenure);
+
+  if (onboardingCompleted) {
+    addReason(reasons, tenureResult.reason);
+  }
+
+  rules.TENURE_CHECK_RPM = rule(
+    onboardingCompleted ? tenureResult.passed : true,
+    onboardingCompleted ? tenureResult.reason : null,
+    {
+      requestedTenure: tenureResult.tenure,
+      minimumTenure: POLICY.MIN_TENURE_DAYS,
+      maximumTenure: POLICY.MAX_TENURE_DAYS,
+    },
+    onboardingCompleted,
   );
 
   let creditLimit = null;
   let repeatLimitDetails = null;
 
   if (newCustomer) {
-    creditLimit = POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+    creditLimit = minLoanAmountForAge;
 
     const firstTimeLimitAdjusted =
-      Number(loan.loan_amount) > POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+      Number(loan.loan_amount) > minLoanAmountForAge;
 
     rules.FIRST_TIME_LIMIT_CHECK_RPM = rule(true, null, {
       applicable: true,
 
       requestedLoanAmount: Number(loan.loan_amount),
 
-      assignedCreditLimit: POLICY.FIRST_TIME_CUSTOMER_LIMIT,
+      assignedCreditLimit: minLoanAmountForAge,
 
       limitAdjusted: firstTimeLimitAdjusted,
 
@@ -1482,7 +1519,7 @@ async function runBRE(data) {
     );
     creditLimit = repeatLimitDetails.creditLimit;
 
-    if (!creditLimit || creditLimit < POLICY.MIN_LOAN_AMOUNT) {
+    if (!creditLimit || creditLimit < minLoanAmountForAge) {
       addReason(reasons, "REPEAT_CUSTOMER_CREDIT_LIMIT_BELOW_MINIMUM_LOAN");
     }
 
@@ -1495,8 +1532,8 @@ async function runBRE(data) {
     // }
 
     rules.REPEAT_LIMIT_CHECK_RPM = rule(
-      Boolean(creditLimit && creditLimit >= POLICY.MIN_LOAN_AMOUNT),
-      !creditLimit || creditLimit < POLICY.MIN_LOAN_AMOUNT
+      Boolean(creditLimit && creditLimit >= minLoanAmountForAge),
+      !creditLimit || creditLimit < minLoanAmountForAge
         ? "REPEAT_CUSTOMER_CREDIT_LIMIT_BELOW_MINIMUM_LOAN"
         : null,
       {
@@ -1579,7 +1616,7 @@ async function runBRE(data) {
 
   const validCreditLimit =
     Number.isFinite(numericCreditLimit) &&
-    numericCreditLimit >= POLICY.MIN_LOAN_AMOUNT;
+    numericCreditLimit >= minLoanAmountForAge;
 
   /**
    * Requested amount exceeding the calculated credit limit is not a rejection.
@@ -1601,7 +1638,13 @@ async function runBRE(data) {
     addReason(reasons, "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED");
   }
 
-  if (validCreditLimit && !disbursalBreakup?.ok) {
+  /*
+   * A bad disbursal breakup here is driven by the requested loan_amount
+   * (via grossApprovedLoanAmount), so — like the loan amount/tenure checks
+   * above — only enforce it once onboarding is completed and the real
+   * loan_amount has been submitted.
+   */
+  if (onboardingCompleted && validCreditLimit && !disbursalBreakup?.ok) {
     addReason(
       reasons,
       disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID",
@@ -1639,11 +1682,12 @@ async function runBRE(data) {
   result.disbursalBreakup = disbursalBreakup;
 
   const creditLimitRulePassed =
-    validCreditLimit && Boolean(disbursalBreakup?.ok);
+    validCreditLimit &&
+    (onboardingCompleted ? Boolean(disbursalBreakup?.ok) : true);
 
   const creditLimitRuleReason = !validCreditLimit
     ? "CREDIT_LIMIT_COULD_NOT_BE_CALCULATED"
-    : !disbursalBreakup?.ok
+    : onboardingCompleted && !disbursalBreakup?.ok
       ? disbursalBreakup?.reason || "NET_DISBURSAL_AMOUNT_INVALID"
       : null;
 

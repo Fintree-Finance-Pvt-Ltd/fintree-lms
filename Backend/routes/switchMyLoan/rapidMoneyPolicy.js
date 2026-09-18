@@ -30,10 +30,17 @@ const {
 const POLICY = Object.freeze({
   MIN_BUREAU_SCORE: 650,
 
+  // General/default minimum loan amount — applies to ages 26+ (and any age
+  // that can't be determined). Ages 23-25 get a lower floor; see
+  // MIN_LOAN_AMOUNT_23_TO_25 and getMinLoanAmountForAge() below.
   MIN_LOAN_AMOUNT: 8000,
+  MIN_LOAN_AMOUNT_23_TO_25: 5000,
   MAX_LOAN_AMOUNT: 15000,
   LOAN_AMOUNT_MULTIPLE: 1000,
 
+  // First-time customers are assigned the same age-tiered minimum as their
+  // credit limit (see getMinLoanAmountForAge()) — this constant is kept as
+  // the 26+/default value other code already references it as.
   FIRST_TIME_CUSTOMER_LIMIT: 8000,
   REPEAT_CUSTOMER_UNDER_28_LIMIT: 10000,
   MAX_REPEAT_CUSTOMER_LIMIT: 15000,
@@ -48,7 +55,21 @@ const POLICY = Object.freeze({
   DPD_REJECT_ABOVE_LAST_3_MONTHS: 30,
   DPD_REJECT_ABOVE_LAST_9_MONTHS: 60,
   DPD_REJECT_ABOVE_LAST_12_MONTHS: 90,
+
+  MIN_TENURE_DAYS: 39,
+  MAX_TENURE_DAYS: 45,
 });
+
+// Ages 23-25 get a lower minimum loan amount (Rs 5,000); everyone else
+// (26+, and any age that couldn't be determined) uses the standard
+// Rs 8,000 minimum.
+function getMinLoanAmountForAge(age) {
+  if (age !== null && age !== undefined && age >= 23 && age <= 25) {
+    return POLICY.MIN_LOAN_AMOUNT_23_TO_25;
+  }
+
+  return POLICY.MIN_LOAN_AMOUNT;
+}
 
 const UNSECURED_CATEGORIES = [
   "Other",
@@ -213,25 +234,28 @@ function calculateAge(dob, asOf = new Date()) {
   return age;
 }
 
-function validateLoanAmount(value) {
+function validateLoanAmount(value, age = null) {
   const amount = toFiniteNumber(value);
+  const minAmount = getMinLoanAmountForAge(age);
 
   if (amount === null || amount <= 0) {
     return {
       passed: false,
       reason: "INVALID_LOAN_AMOUNT",
       amount,
+      minAmount,
     };
   }
 
   if (
-    amount < POLICY.MIN_LOAN_AMOUNT ||
+    amount < minAmount ||
     amount > POLICY.MAX_LOAN_AMOUNT
   ) {
     return {
       passed: false,
-      reason: "LOAN_AMOUNT_OUTSIDE_8000_TO_15000",
+      reason: `LOAN_AMOUNT_OUTSIDE_${minAmount}_TO_${POLICY.MAX_LOAN_AMOUNT}`,
       amount,
+      minAmount,
     };
   }
 
@@ -240,6 +264,7 @@ function validateLoanAmount(value) {
       passed: false,
       reason: "LOAN_AMOUNT_NOT_MULTIPLE_OF_1000",
       amount,
+      minAmount,
     };
   }
 
@@ -247,6 +272,36 @@ function validateLoanAmount(value) {
     passed: true,
     reason: null,
     amount,
+    minAmount,
+  };
+}
+
+function validateTenure(value) {
+  const tenure = toFiniteNumber(value);
+
+  if (tenure === null) {
+    return {
+      passed: false,
+      reason: "TENURE_MISSING_OR_INVALID",
+      tenure,
+    };
+  }
+
+  if (
+    tenure < POLICY.MIN_TENURE_DAYS ||
+    tenure > POLICY.MAX_TENURE_DAYS
+  ) {
+    return {
+      passed: false,
+      reason: `TENURE_OUTSIDE_${POLICY.MIN_TENURE_DAYS}_TO_${POLICY.MAX_TENURE_DAYS}_DAYS`,
+      tenure,
+    };
+  }
+
+  return {
+    passed: true,
+    reason: null,
+    tenure,
   };
 }
 
@@ -1162,7 +1217,9 @@ module.exports = {
   UNSECURED_CATEGORIES,
   SECURED_CATEGORIES,
   calculateAge,
+  getMinLoanAmountForAge,
   validateLoanAmount,
+  validateTenure,
   isNewCustomer,
   getRepeatMultiplier,
   calculateRepeatCreditLimit,

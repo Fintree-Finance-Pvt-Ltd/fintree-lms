@@ -5471,7 +5471,9 @@ if (hasCompleteBankDetails) {
     });
   }
 }
-      const breEngineResult = await runBRE(loan);
+      const breEngineResult = await runBRE(loan, {
+        onboardingCompleted: onboarding_completed,
+      });
 
       if (
         breEngineResult.decision === "TECHNICAL_FAILURE" ||
@@ -5536,37 +5538,39 @@ if (hasCompleteBankDetails) {
   });
 }
 
-      const approvedDisbursalAmount =
-  Number(
-    breEngineResult
-      .approvedLoanAmount,
-  );
-
-if (
-  !Number.isFinite(
-    approvedDisbursalAmount,
-  ) ||
-  approvedDisbursalAmount <= 0
-) {
-  return res.status(500).json({
-    is_success: false,
-    error: {
-      message:
-        "Approved disbursal amount is missing or invalid",
-      code:
-        "approved_disbursal_amount_invalid",
-    },
-  });
-}
-
       const breResponse = buildPartnerBreResponse(breEngineResult);
 
+      /*
+       * On the first call (onboarding_completed = false) the stored
+       * loan_amount/tenure are still placeholders, so the net disbursal
+       * amount computed off them is meaningless and isn't returned to the
+       * partner anyway (buildPartnerBreResponse only exposes the age-based
+       * credit limit here). Return before validating it — that validation
+       * only matters once the real values are in on the second call.
+       */
       if (onboarding_completed === false) {
         return res.json({
           is_success: true,
           data: {
             status: "Approved",
             bre_response: breResponse,
+          },
+        });
+      }
+
+      const approvedDisbursalAmount = Number(
+        breEngineResult.approvedLoanAmount,
+      );
+
+      if (
+        !Number.isFinite(approvedDisbursalAmount) ||
+        approvedDisbursalAmount <= 0
+      ) {
+        return res.status(500).json({
+          is_success: false,
+          error: {
+            message: "Approved disbursal amount is missing or invalid",
+            code: "approved_disbursal_amount_invalid",
           },
         });
       }
