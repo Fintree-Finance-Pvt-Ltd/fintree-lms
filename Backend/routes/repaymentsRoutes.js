@@ -682,6 +682,7 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_sterlion_ubl WHERE lan IN (?)`,[uniqueLANs],), // Added for sterlion ubl
         queryDB(`SELECT lan FROM loan_booking_srbh WHERE lan IN (?)`,[uniqueLANs],), // Added for srbh
         queryDB(`SELECT lan FROM loan_booking_zebrs WHERE lan IN (?)`,[uniqueLANs],), // Added for zebrs
+        queryDB(`SELECT lan FROM loan_booking_switch_my_loan WHERE lan IN (?)`,[uniqueLANs],), // Added for Rapid Money / Switch My Loan
 
 
       ]);
