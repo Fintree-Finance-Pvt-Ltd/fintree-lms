@@ -25,6 +25,8 @@ const {
   evaluateQuickMoneyEligibility,
 } = require("./quickMoneyEligibilityEvaluator");
 
+// const runQuickMoneyBRE = require("./quickMoneyBre");
+
   
 const normalizeDate = (value) => {
   if (!value) return null;
@@ -5228,5 +5230,32 @@ router.post( "/v1/bre/test-eligibility",
 //     message: "Quick Money webhook received successfully",
 //   });
 // });
+
+
+
+router.post("/quick-money/run-bre", async(req,res)=>{
+
+    try {
+
+        const result = await runQuickMoneyBRE(req.body);
+
+        return res.json({
+            success:true,
+            data:result
+        });
+
+    } catch(error){
+
+        console.error(error);
+
+        return res.status(500).json({
+            success:false,
+            message:error.message
+        });
+
+    }
+
+});
+
 
 module.exports = router;
