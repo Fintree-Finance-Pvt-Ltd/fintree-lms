@@ -6,6 +6,7 @@ const { runBureau } = require("../../services/Bueraupullapiservice");
 const { sendClientWebhook } = require("./yaMoneyWebhookService");
 const { runBRE } = require("./yaMoneyBre");
 const { approveAndInitiatePayout } = require("../../services/payout.service");
+const partnerLimitService = require("../../services/partnerLimitService");
 const {
   screenLoanBooking,
 } = require("../../services/trackwizz/screeningService");
@@ -20,6 +21,7 @@ const LENDER = "Ya Money";
 const PRODUCT = "Ya Money";
 const LOAN_TYPE = "Business Loan";
 const LAN_PREFIX = "YAM";
+const PARTNER_LIMIT_NAME = "YAMONEY";
 const AML_SCREENING_PRODUCT = "ya_money";
 const YA_MONEY_BUREAU_ENABLED = true;
 const YA_MONEY_AML_COLUMNS = [
@@ -1383,6 +1385,15 @@ router.post("/login", verifyApiKey, async (req, res) => {
     const ids = await generateLoanIds(connection);
     const createdBy = req.partner?.name || null;
     const insertId = await insertLogin(connection, data, ids, createdBy);
+
+    await partnerLimitService.trackPartnerBookingNonBlocking(
+      connection,
+      PARTNER_LIMIT_NAME,
+      data.requested_amount,
+      ids.lan,
+      data.login_date,
+    );
+
     await connection.commit();
     transactionStarted = false;
     connection.release();

@@ -1711,6 +1711,10 @@ async function updateYaMoneyDisbursementLimit({
       month,
       year,
     );
+
+    if (Number(limit.assigned_limit || 0) <= 0) {
+      return { skipped: true, reason: "NO_LIMIT_CONFIGURED" };
+    }
   } catch (err) {
     console.error(
       "[YaMoney][LIMIT] Skipping partner limit tracking (non-fatal)",
