@@ -1155,7 +1155,7 @@ router.put("/approve-initiate-loan/:lan", async (req, res) => {
       `
       UPDATE loan_booking_loan_digit
       SET status = ?
-      WHERE lan = ? AND status IN ('BRE_APPROVED', 'BRE_REJECTED')
+      WHERE lan = ? AND status IN ('BRE_APPROVED', 'BRE_REJECTED' , 'AML_REVIEW', 'AML_REJECTED')
       `,
       [status, lan],
     );

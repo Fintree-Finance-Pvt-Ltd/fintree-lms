@@ -138,9 +138,11 @@ const runBureau = async (data) => {
     const loanAmount = Number(data.loan_amount);
     if (isNaN(loanAmount)) throw new Error("loan_amount must be numeric.");
 
-    // Duration is optional; validate it only when the caller sends it.
+    // Preserve the legacy zero value when tenure has not been collected yet.
+    // Some booking flows run bureau before their Loan Details step, while
+    // Experian rejects an empty DurationOfAgreement as a missing field.
     const loanTenureProvided = hasValue(data.loan_tenure);
-    const loanTenure = loanTenureProvided ? Number(data.loan_tenure) : "";
+    const loanTenure = loanTenureProvided ? Number(data.loan_tenure) : 0;
     if (loanTenureProvided && isNaN(loanTenure)) {
       throw new Error("loan_tenure must be numeric.");
     }
