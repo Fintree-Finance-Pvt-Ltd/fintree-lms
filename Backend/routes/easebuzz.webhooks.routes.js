@@ -10,6 +10,7 @@ const {
 } = require("../services/processEmiClubDisbursement");
 const {
   sendDisbursementWebhook,
+  sendRejectionWebhook,
 } = require("../routes/switchMyLoan/switchMyLoanWebhook");
 const {
   processMandateWebhook,
@@ -564,6 +565,57 @@ router.post("/payout", async (req, res) => {
         status: normalizedStatus,
         reason: data.failure_reason,
       });
+
+      if (transfer.lan?.startsWith("RML")) {
+        const [[rmlLoan]] = await db.promise().query(
+          `SELECT application_id FROM loan_booking_switch_my_loan WHERE lan = ? LIMIT 1`,
+          [transfer.lan],
+        );
+
+        try {
+          await db.promise().query(
+            `UPDATE loan_booking_switch_my_loan
+             SET status = 'REJECTED',
+                 updated_at = NOW()
+             WHERE lan = ?`,
+            [transfer.lan],
+          );
+
+          console.log("Rapid Money loan marked REJECTED after payout failure", {
+            lan: transfer.lan,
+            reason: data.failure_reason,
+          });
+        } catch (statusError) {
+          console.error("Failed to mark Rapid Money loan REJECTED after payout failure", {
+            lan: transfer.lan,
+            message: statusError.message,
+          });
+        }
+
+        if (rmlLoan?.application_id) {
+          try {
+            const rejectionResult = await sendRejectionWebhook({
+              applicationId: rmlLoan.application_id,
+            });
+
+            console.log("Rapid Money rejection webhook result (payout failure)", {
+              lan: transfer.lan,
+              applicationId: rmlLoan.application_id,
+              result: rejectionResult,
+            });
+          } catch (webhookError) {
+            console.error("Rapid Money rejection webhook failed (payout failure)", {
+              lan: transfer.lan,
+              applicationId: rmlLoan.application_id,
+              message: webhookError.message,
+            });
+          }
+        } else {
+          console.error("Cannot send Rapid Money rejection webhook — application_id missing", {
+            lan: transfer.lan,
+          });
+        }
+      }
     }
 
     return res.sendStatus(200);
