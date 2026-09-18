@@ -39,6 +39,9 @@ const getNetDisbursement = (row) =>
 const getDetailsUrl = (lan) =>
   `/ya-money/customer-details?lan=${encodeURIComponent(lan || "")}`;
 
+const getLoanDetailsUrl = (lan) =>
+  `/loan-details/${encodeURIComponent(lan || "")}`;
+
 const statusClass = (status) => {
   const normalized = normalizeYaMoneyStatus(status);
 
@@ -71,7 +74,7 @@ const buildColumns = ({ navigate, renderActions }) => {
         <button
           type="button"
           className="ym-customer-button"
-          onClick={() => navigate(getDetailsUrl(row.lan))}
+          onClick={() => navigate(getLoanDetailsUrl(row.lan))}
         >
           <span>{getDisplayName(row)}</span>
           <small>{row.business_name || "Ya Money"}</small>
@@ -90,7 +93,7 @@ const buildColumns = ({ navigate, renderActions }) => {
           <button
             type="button"
             className="ym-lan-badge"
-            onClick={() => navigate(getDetailsUrl(row.lan))}
+            onClick={() => navigate( (row.lan))}
             title="View customer details"
           >
             {row.lan}
