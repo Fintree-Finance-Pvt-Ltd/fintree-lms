@@ -2,34 +2,29 @@ const axios = require("axios");
 const db = require("../../config/db");
 const dayjs = require("dayjs");
 const router = require("../authRoutes");
-// const QUICK_MONEY_BASE_URL =
-//   process.env.QUICK_MONEY_WEBHOOK_BASE_URL;
+const QUICK_MONEY_BASE_URL =
+  process.env.QUICK_MONEY_WEBHOOK_BASE_URL;
 
-const QUICK_MONEY_BASE_URL = "http://localhost:5000";
+// const QUICK_MONEY_BASE_URL = "http://localhost:5000";
 const MAX_ATTEMPTS = 5;
 const RETRY_AFTER_MINUTES = 5;
 
 function getQuickMoneyHeaders() {
-// const token =
-//     process.env.QUICK_MONEY_WEBHOOK_TOKEN;
+const token =
+    process.env.QUICK_MONEY_WEBHOOK_TOKEN;
 
-//   console.log("[SML] Token check:", {
-//     hasToken: Boolean(token),
-//     tokenLength: token ? String(token).trim().length : 0,
-//   });
-
-//     if (!token) {
-//     throw new Error(
-//       "QUICK_MONEY_WEBHOOK_TOKEN is missing in .env"
-//     );
-//   }
+    if (!token) {
+    throw new Error(
+      "QUICK_MONEY_WEBHOOK_TOKEN is missing in .env"
+    );
+  }
 
   return {
-    // Authorization: `Bearer ${String(token)
-    //   .trim()
-    //   .replace(/^Bearer\s+/i, "")}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
+    Authorization: `Bearer ${String(token)
+      .trim()
+      .replace(/^Bearer\s+/i, "")}`,
+   Accept: "application/json",
+
   };
 
 }
@@ -318,11 +313,9 @@ async function sendQuickMoneyRejectionWebhook({
     );
   }
 
-  const webhookUrl =
-    // `${BASE_URL}/api-api/v1/webhooks/fintree/` +
-    // "loan-rejected";
+  const webhookUrl =  `${QUICK_MONEY_BASE_URL}/loan-rejection`;
 
-  "http://localhost:5000/api/quick-money/test-webhook-receiver";
+   // "http://localhost:5000/api/quick-money/test-webhook-receiver";
   const requestBody = {
     payload: {
       status: "Rejected",
@@ -418,9 +411,9 @@ async function sendQuickMoneyDisbursementWebhook({
       .add(tenureDays - 1, "day")
       .format("YYYY-MM-DD");
 
-  const webhookUrl =
-  `http://localhost:5000/api/quick-money/test-webhook-receiver`
-    // `${QUICK_MONEY_BASE_URL}/api-api/v1/webhooks/fintree/` +
+const webhookUrl =
+`${QUICK_MONEY_BASE_URL}/disbursement-status`;
+  // `http://localhost:5000/api/quick-money/test-webhook-receiver`
     "disbursement-status";
 
   const requestBody = {
