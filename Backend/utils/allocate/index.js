@@ -55,6 +55,7 @@ const allocateCarePay = require("./allocateCarePay");
 const allocateQuickMoney =require("./allocateQuickMoney");
 const allocateSRBH = require("./allocateSRBH");
 const allocateZebrs = require("./allocateZebrs");
+const allocateClaimCureBuddy = require("./allocateClaimCureBuddy");
 /**
  * Utility helpers for merging allocation results.
  */
@@ -87,7 +88,9 @@ const mergeAllocations = (a, b) => {
 };
 
 const allocateRepaymentByLAN = async (lan, payment) => {
- 
+  lan = String(lan || "").trim();
+  payment = { ...payment, lan };
+
   // Must be before generic WCTL
   if (lan.startsWith("WCTLFFPL")) {
     return allocateWctlffpl(lan, payment);
@@ -156,6 +159,9 @@ return allocateSaswat(lan, payment);
     return allocateSRBH(lan,payment);
   }else if (lan.startsWith("ZBCL")) {
     return allocateZebrs(lan,payment);
+  }
+  else if (lan.startsWith("CCB")) {
+    return allocateClaimCureBuddy(lan, payment);
   }
   else if (lan.startsWith("GQN")) {
     const promises = [
