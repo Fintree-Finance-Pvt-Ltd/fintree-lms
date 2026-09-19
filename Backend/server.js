@@ -2,6 +2,19 @@ require("dotenv").config({ path: __dirname + "/.env" });
 const express = require("express");
 const cors = require("cors");
 const db = require("./config/db");
+const {
+  requestContextMiddleware,
+} = require("./middleware/requestContext");
+const {
+  ensureThirdPartyApiUsageTable,
+  installThirdPartyApiTracking,
+} = require("./services/thirdPartyApiTracker");
+
+installThirdPartyApiTracking();
+ensureThirdPartyApiUsageTable().catch((err) =>
+  console.error("[server] Third-party API usage table init error:", err.message),
+);
+
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
@@ -21,6 +34,7 @@ const forecloserUploadRoutes = require("./routes/forecloserUpload");
 const reportsRoutes = require("./routes/reportRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const loanBookingSummaryRoutes = require("./routes/loanBookingSummaryRoutes");
+const thirdPartyApiStatsRoutes = require("./routes/thirdPartyApiStatsRoutes");
 const fintreePlPartnerApiRoutes = require("./routes/fintreePlPartnerApi");
 const { initColumnSchemaCache } = require("./services/dashboardService");
 const collectionApiRoutes = require("./routes/collectionApi");
@@ -101,6 +115,7 @@ const {
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(requestContextMiddleware);
 app.use(
   cors({
     origin: "*", // <-- Your frontend GitHub Pages URL
@@ -169,6 +184,7 @@ app.use("/api/bundela", require("./routes/Bundela/bundelaDealerRoutes"));
 app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/loan-booking-summary", loanBookingSummaryRoutes);
+app.use("/api/third-party-api-stats", thirdPartyApiStatsRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
 app.use("/api/helium-webhook", heliumWebhookRoutes);
