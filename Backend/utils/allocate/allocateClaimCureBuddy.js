@@ -73,16 +73,12 @@ const allocateClaimCureBuddy = async (lan, payment) => {
        SET remaining_interest = ?,
            remaining_principal = ?,
            remaining_emi = ?,
-           remaining_amount = ?,
-           payment_date = ?,
            status = ?
        WHERE id = ?`,
       [
         interestDue,
         principalDue,
         outstanding,
-        outstanding,
-        paymentDate,
         outstanding === 0 ? "Paid" : "Partially Paid",
         bullet.id,
       ],
