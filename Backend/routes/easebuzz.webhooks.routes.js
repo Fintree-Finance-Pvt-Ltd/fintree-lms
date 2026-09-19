@@ -16,6 +16,9 @@ const {
   processMandateWebhook,
 } = require("../services/easebuzz/easebuzzMandateService");
 const partnerLimitService = require("../services/partnerLimitService");
+const {
+  sendFintreePlDisbursementWebhook,
+} = require("../services/payout.service");
 
 const router = express.Router();
 const {
@@ -320,6 +323,18 @@ router.post("/payout", async (req, res) => {
         });
       }
 
+      /*
+       * FTPL / PLP — pure forwarding bridge.
+       * Duplicate callbacks are silently ignored;
+       * the partner is idempotent on their side.
+       */
+      if (transfer.lan?.startsWith("FTPL") || transfer.lan?.startsWith("PLP")) {
+        console.log("Duplicate Easebuzz payout callback for PLP/FTPL — ignoring", {
+          lan: transfer.lan,
+          utr: effectiveUtr,
+        });
+      }
+
       return res.sendStatus(200);
     }
 
@@ -540,6 +555,42 @@ router.post("/payout", async (req, res) => {
           amount: Number(transfer.amount),
           lan,
         });
+      } else if (lan?.startsWith("FTPL") || lan?.startsWith("PLP")) {
+        /*
+         * FTPL / PLP — pure webhook forwarding bridge.
+         *
+         * Only forward the disbursal payload to the partner.
+         * NO internal processing (RPS, LMS update, status change).
+         * The partner system handles everything on their side.
+         */
+        try {
+          const [[plApp]] = await db.promise().query(
+            `SELECT selected_offer_tenure, bre_gross_approved_amount
+             FROM pl_partner_applications
+             WHERE lan = ? LIMIT 1`,
+            [lan],
+          );
+
+          await sendFintreePlDisbursementWebhook({
+            lan,
+            utr: effectiveUtr,
+            disbursementDate: effectiveTransferDate,
+            amount: transfer.amount || (plApp ? plApp.bre_gross_approved_amount : 0),
+            tenureDays: plApp ? plApp.selected_offer_tenure : 30,
+            eventId: "evt-eb-" + data.unique_request_number,
+          });
+
+          console.log("PLP webhook forwarded successfully", {
+            lan,
+            utr: effectiveUtr,
+          });
+        } catch (wbErr) {
+          console.error("PLP webhook forwarding failed", {
+            lan,
+            utr: effectiveUtr,
+            error: wbErr.message,
+          });
+        }
       } else {
         /*
          * Remaining products only store
@@ -679,6 +730,130 @@ router.post("/low-balance", async (req, res) => {
   } catch (error) {
     console.error("Low balance webhook error:", error);
     return res.status(500).json({ success: false });
+  }
+});
+
+/*
+|--------------------------------------------------------------------------
+| PL DISBURSAL WEBHOOK FORWARDING
+|--------------------------------------------------------------------------
+|
+| Dedicated endpoint for forwarding FTPL/PLP disbursal confirmations
+| to the Personal Loan platform.
+|
+| When Easebuzz confirms a payout for a PL loan (LAN starting with FTPL
+| or PLP), this endpoint can be called to forward the disbursal details
+| to: POST https://pl-fintree-uat.fintreelms.com/api/webhooks/lenders/FFPL2026/disbursal
+|
+| Expects body:
+| {
+|   "lan": "FTPL00000006",
+|   "utr": "UTR1234567890",
+|   "disbursementDate": "2026-08-11",
+|   "amount": 5000,
+|   "tenureDays": 30,
+|   "eventId": "optional-event-id"
+| }
+|
+*/
+router.post("/pl-disbursal", async (req, res) => {
+  try {
+    const { lan, utr, disbursementDate, amount, tenureDays, eventId } = req.body || {};
+
+    console.log("📩 PL DISBURSAL WEBHOOK FORWARDING REQUEST:", {
+      lan,
+      utr,
+      disbursementDate,
+      amount,
+      tenureDays,
+      eventId,
+    });
+
+    if (!lan || !String(lan).trim()) {
+      return res.status(400).json({
+        success: false,
+        code: "LAN_REQUIRED",
+        message: "lan is required",
+      });
+    }
+
+    const normalizedLan = String(lan).trim().toUpperCase();
+    if (!normalizedLan.startsWith("FTPL") && !normalizedLan.startsWith("PLP")) {
+      return res.status(422).json({
+        success: false,
+        code: "INVALID_LAN_PREFIX",
+        message: "Only FTPL or PLP loan-account numbers are accepted",
+      });
+    }
+
+    if (!utr || !String(utr).trim()) {
+      return res.status(400).json({
+        success: false,
+        code: "UTR_REQUIRED",
+        message: "utr is required",
+      });
+    }
+
+    if (!disbursementDate) {
+      return res.status(400).json({
+        success: false,
+        code: "DISBURSEMENT_DATE_REQUIRED",
+        message: "disbursementDate is required",
+      });
+    }
+
+    const parsedAmount = Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_AMOUNT",
+        message: "amount must be a positive number",
+      });
+    }
+
+    const tenure = Number(tenureDays);
+    if (!Number.isInteger(tenure) || tenure <= 0) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_TENURE",
+        message: "tenureDays must be a positive integer",
+      });
+    }
+
+    await sendFintreePlDisbursementWebhook({
+      lan: normalizedLan,
+      utr: String(utr).trim(),
+      disbursementDate,
+      amount: parsedAmount,
+      tenureDays: tenure,
+      eventId: eventId || `evt-pl-manual-${Date.now()}`,
+    });
+
+    console.log("✅ PL disbursal webhook forwarded successfully", {
+      lan: normalizedLan,
+      utr,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Disbursal webhook forwarded to PL platform",
+      lan: normalizedLan,
+      utr: String(utr).trim(),
+    });
+  } catch (error) {
+    console.error("🔥 PL DISBURSAL WEBHOOK FORWARDING ERROR:", {
+      code: error.code,
+      message: error.message,
+      responseStatus: error.response?.status || null,
+      responseData: error.response?.data || null,
+    });
+
+    return res.status(error.response?.status || 500).json({
+      success: false,
+      code: "PL_DISBURSAL_WEBHOOK_FAILED",
+      message: error.message || "Failed to forward disbursal webhook to PL platform",
+      plResponse: error.response?.data || null,
+    });
   }
 });
 
