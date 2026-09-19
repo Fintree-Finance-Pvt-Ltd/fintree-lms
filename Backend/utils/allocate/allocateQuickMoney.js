@@ -11,6 +11,9 @@ const queryDB = (sql, params) =>
     });
   });
 
+  const {
+  generateNoc,
+} = require("../../services/noc.service");
 /**
  * Allocate payments for HELIUM loans.
  * Interest first, then principal. Oldest EMI first.
@@ -242,7 +245,39 @@ if (remaining > 0) {
        WHERE lan = ?`,
       [lan]
     );
-    console.log(`💠 Loan marked Fully Paid for RAPID MONEY LAN ${lan}`);
+    console.log(`💠 Loan marked Fully Paid for Quick MONEY LAN ${lan}`);
+
+     try {
+
+    const nocResult = await generateNoc({
+      lan,
+      baseUrl: process.env.BASE_URL,
+    });
+
+
+    console.log(
+      "✅ NOC generated successfully",
+      {
+        lan,
+        fileUrl: nocResult.fileUrl,
+      }
+    );
+
+
+  } catch (nocError) {
+
+    console.error(
+      "❌ NOC generation failed",
+      {
+        lan,
+        message: nocError.message,
+      }
+    );
+
+    // Do not fail repayment allocation
+    // Payment is already allocated
+
+  }
   }
 };
 
