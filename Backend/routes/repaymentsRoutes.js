@@ -510,7 +510,6 @@ const { allocateRepaymentByLAN } = require("../utils/allocate");
 const { excelSerialDateToJS, queryDB } = require("../utils/helpers");
 const authenticateUser = require("../middleware/verifyToken");
 
-
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -648,13 +647,14 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_emiclub WHERE lan IN (?)`, [
           uniqueLANs,
         ]),
-        queryDB(`SELECT lan FROM loan_booking_circle_pe_houser WHERE lan IN (?)`, [
-          uniqueLANs,
-        ]),
+        queryDB(
+          `SELECT lan FROM loan_booking_circle_pe_houser WHERE lan IN (?)`,
+          [uniqueLANs],
+        ),
         queryDB(`SELECT lan FROM loan_booking_circle_pe WHERE lan IN (?)`, [
           uniqueLANs,
         ]),
-         queryDB(`SELECT lan FROM loan_booking_motion_corp  WHERE lan IN (?)`, [
+        queryDB(`SELECT lan FROM loan_booking_motion_corp  WHERE lan IN (?)`, [
           uniqueLANs,
         ]),
         queryDB(`SELECT lan FROM loan_booking_sampada WHERE lan IN (?)`, [
@@ -673,20 +673,39 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_loan_digit WHERE lan IN (?)`, [
           uniqueLANs,
         ]),
-        queryDB(`SELECT lan FROM loan_booking_hey_ev_battery WHERE lan IN (?)`, [uniqueLANs]),
+        queryDB(
+          `SELECT lan FROM loan_booking_hey_ev_battery WHERE lan IN (?)`,
+          [uniqueLANs],
+        ),
 
-        queryDB(`SELECT lan FROM loan_booking_wctl_ffpl WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_saswat WHERE lan IN (?)`, [uniqueLANs]),
-        queryDB(`SELECT lan FROM loan_booking_seven_fincorp WHERE lan IN (?)`, [uniqueLANs]),
+        queryDB(`SELECT lan FROM loan_booking_wctl_ffpl WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_saswat WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
+        queryDB(`SELECT lan FROM loan_booking_seven_fincorp WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]),
 
-        queryDB(`SELECT lan FROM loan_booking_sterlion_ubl WHERE lan IN (?)`,[uniqueLANs],), // Added for sterlion ubl
-        queryDB(`SELECT lan FROM loan_booking_srbh WHERE lan IN (?)`,[uniqueLANs],), // Added for srbh
-        queryDB(`SELECT lan FROM loan_booking_zebrs WHERE lan IN (?)`,[uniqueLANs],), // Added for zebrs
-        queryDB(`SELECT lan FROM loan_booking_switch_my_loan WHERE lan IN (?)`,[uniqueLANs],), // Added for Rapid Money / Switch My Loan
-
-
+        queryDB(`SELECT lan FROM loan_booking_sterlion_ubl WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]), // Added for sterlion ubl
+        queryDB(`SELECT lan FROM loan_booking_srbh WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]), // Added for srbh
+        queryDB(`SELECT lan FROM loan_booking_zebrs WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]), // Added for claim cure buddy
+        queryDB(`SELECT lan FROM loan_booking_claim_cure_buddy WHERE lan IN (?)`, [
+          uniqueLANs,
+        ]), // Added for claim cure buddy
+        queryDB(
+          `SELECT lan FROM loan_booking_switch_my_loan WHERE lan IN (?)`,
+          [uniqueLANs],
+        ), // Added for Rapid Money / Switch My Loan
       ]);
-     
+
       validLANs = new Set(results.flat().map((r) => r.lan));
     }
 
@@ -708,7 +727,7 @@ async function processRows(sheetData, res) {
         typeof row["Payment Date"] === "string"
           ? row["Payment Date"]
           : excelSerialDateToJS(row["Payment Date"]);
-          
+
       const payment_id = row["Payment Id"];
       const payment_mode = row["Payment Mode"];
       const transfer_amount = row["Transfer Amount"];
@@ -887,180 +906,147 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 });
 
 router.post("/upload-json-loan-digit", async (req, res) => {
+  let rows = req.body?.rows || req.body;
 
-    let rows = req.body?.rows || req.body;
+  if (!Array.isArray(rows)) {
+    rows = [rows];
+  }
 
-    if (!Array.isArray(rows)) {
-        rows = [rows];
-    }
+  if (!rows.length) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid or empty data",
+    });
+  }
 
-    if (!rows.length) {
-        return res.status(400).json({
-            success: false,
-            message: "Invalid or empty data"
+  const inserted = [];
+  const rowErrors = [];
+
+  try {
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
+      const lan = row.LAN || row.lan;
+
+      const payment_date =
+        parseApiDate(row.payment_date) || parseApiDate(row["Payment Date"]);
+
+      const bank_date =
+        row["Bank Date"] ||
+        row.bank_date ||
+        new Date().toISOString().slice(0, 10);
+
+      const payment_id = row["Payment Id"] || row.payment_id;
+
+      const payment_mode = row["Payment Mode"] || row.payment_mode;
+
+      const transfer_amount = row["Transfer Amount"] || row.transfer_amount;
+
+      const collectionType = String(
+        row["Collection Type"] || row.collection_type || "",
+      )
+        .trim()
+        .toUpperCase();
+
+      // Temporary UTR because repayments_upload
+      // currently requires UTR
+      const tempUtr = `TEMP_${Date.now()}_${i}`;
+
+      // ==========================================
+      // VALIDATION
+      // ==========================================
+
+      if (
+        !lan ||
+        !payment_id ||
+        !payment_date ||
+        !payment_mode ||
+        !transfer_amount ||
+        !collectionType
+      ) {
+        rowErrors.push({
+          row: i + 1,
+          lan,
+          payment_id,
+          reason:
+            "LAN, Payment Id, Payment Date, Payment Mode, Amount and Collection Type are required",
         });
-    }
 
+        continue;
+      }
 
-    const inserted = [];
-    const rowErrors = [];
+      // ==========================================
+      // VALIDATE COLLECTION TYPE
+      // ==========================================
 
+      if (!["NC", "FC"].includes(collectionType)) {
+        rowErrors.push({
+          row: i + 1,
+          lan,
+          payment_id,
+          reason: "Collection Type must be NC or FC",
+        });
 
-    try {
+        continue;
+      }
 
-        for (let i = 0; i < rows.length; i++) {
+      // ==========================================
+      // CHECK LOAN
+      // ==========================================
 
-            const row = rows[i];
-
-
-            const lan =
-                row.LAN ||
-                row.lan;
-
-
-            const payment_date =
-                parseApiDate(row.payment_date) ||
-                parseApiDate(row["Payment Date"]);
-
-
-            const bank_date =
-                row["Bank Date"] ||
-                row.bank_date ||
-                new Date().toISOString().slice(0, 10);
-
-
-            const payment_id =
-                row["Payment Id"] ||
-                row.payment_id;
-
-
-            const payment_mode =
-                row["Payment Mode"] ||
-                row.payment_mode;
-
-
-            const transfer_amount =
-                row["Transfer Amount"] ||
-                row.transfer_amount;
-
-         
-            const collectionType = String(
-                row["Collection Type"] ||
-                row.collection_type ||
-                ""
-            )
-                .trim()
-                .toUpperCase();
-
-            // Temporary UTR because repayments_upload
-            // currently requires UTR
-            const tempUtr =
-                `TEMP_${Date.now()}_${i}`;
-
-
-            // ==========================================
-            // VALIDATION
-            // ==========================================
-
-            if (
-                !lan ||
-                !payment_id ||
-                !payment_date ||
-                !payment_mode ||
-                !transfer_amount ||
-                !collectionType
-            ) {
-
-                rowErrors.push({
-                    row: i + 1,
-                    lan,
-                    payment_id,
-                    reason:
-                        "LAN, Payment Id, Payment Date, Payment Mode, Amount and Collection Type are required"
-                });
-
-                continue;
-            }
-
-
-            // ==========================================
-            // VALIDATE COLLECTION TYPE
-            // ==========================================
-
-            if (!["NC", "FC"].includes(collectionType)) {
-
-                rowErrors.push({
-                    row: i + 1,
-                    lan,
-                    payment_id,
-                    reason: "Collection Type must be NC or FC"
-                });
-
-                continue;
-            }
-
-
-            // ==========================================
-            // CHECK LOAN
-            // ==========================================
-
-            const loanRows = await queryDB(
-                `
+      const loanRows = await queryDB(
+        `
                 SELECT lan
                 FROM loan_booking_loan_digit
                 WHERE lan = ?
                 LIMIT 1
                 `,
-                [lan]
-            );
+        [lan],
+      );
 
-            if (!loanRows || loanRows.length === 0) {
+      if (!loanRows || loanRows.length === 0) {
+        rowErrors.push({
+          row: i + 1,
+          lan,
+          payment_id,
+          reason: "Loan Digit LAN not found",
+        });
 
-                rowErrors.push({
-                    row: i + 1,
-                    lan,
-                    payment_id,
-                    reason: "Loan Digit LAN not found"
-                });
+        continue;
+      }
 
-                continue;
-            }
+      // ==========================================
+      // CHECK PAYMENT ID DUPLICATE
+      // ==========================================
 
-
-            // ==========================================
-            // CHECK PAYMENT ID DUPLICATE
-            // ==========================================
-
-            const existingPayment = await queryDB(
-                `
+      const existingPayment = await queryDB(
+        `
                 SELECT id
                 FROM repayments_upload
                 WHERE lan = ?
                   AND payment_id = ?
                 LIMIT 1
                 `,
-                [lan, payment_id]
-            );
+        [lan, payment_id],
+      );
 
-            if (existingPayment && existingPayment.length > 0) {
+      if (existingPayment && existingPayment.length > 0) {
+        rowErrors.push({
+          row: i + 1,
+          lan,
+          payment_id,
+          reason: "Payment Id already exists for this LAN",
+        });
 
-                rowErrors.push({
-                    row: i + 1,
-                    lan,
-                    payment_id,
-                    reason: "Payment Id already exists for this LAN"
-                });
+        continue;
+      }
 
-                continue;
-            }
+      // ==========================================
+      // INSERT REPAYMENT
+      // ==========================================
 
-
-            // ==========================================
-            // INSERT REPAYMENT
-            // ==========================================
-
-            await queryDB(
-                `
+      await queryDB(
+        `
                 INSERT INTO repayments_upload
                 (
                     lan,
@@ -1073,162 +1059,109 @@ router.post("/upload-json-loan-digit", async (req, res) => {
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 `,
-                [
-                    lan,
-                    bank_date,
-                    tempUtr,
-                    payment_date,
-                    payment_id,
-                    payment_mode,
-                    transfer_amount
-                ]
-            );
+        [
+          lan,
+          bank_date,
+          tempUtr,
+          payment_date,
+          payment_id,
+          payment_mode,
+          transfer_amount,
+        ],
+      );
 
+      // ==========================================
+      // UPDATE COLLECTION TYPE ON LOAN
+      // ==========================================
 
-            // ==========================================
-            // UPDATE COLLECTION TYPE ON LOAN
-            // ==========================================
+      // ==========================================
+      // UPDATE COLLECTION TYPE + STATUS
+      // ==========================================
 
-           // ==========================================
-// UPDATE COLLECTION TYPE + STATUS
-// ==========================================
-
-if (collectionType === "FC") {
-
-    await queryDB(
-        `
+      if (collectionType === "FC") {
+        await queryDB(
+          `
         UPDATE loan_booking_loan_digit
         SET
             collection_type = ?,
             status = ?
         WHERE lan = ?
         `,
-        [
-            collectionType,
-            "Foreclosed",
-            lan
-        ]
-    );
+          [collectionType, "Foreclosed", lan],
+        );
 
-    console.log(
-        `✅ [${lan}] Collection Type updated to FC and status updated to Foreclosed`
-    );
-
-} else {
-
-    await queryDB(
-        `
+        console.log(
+          `✅ [${lan}] Collection Type updated to FC and status updated to Foreclosed`,
+        );
+      } else {
+        await queryDB(
+          `
         UPDATE loan_booking_loan_digit
         SET collection_type = ?
         WHERE lan = ?
         `,
-        [
-            collectionType,
-            lan
-        ]
-    );
-
-    console.log(
-        `✅ [${lan}] Collection Type updated to NC`
-    );
-}
-
-            inserted.push({
-    lan,
-    payment_id,
-    collection_type: collectionType,
-    status:
-        collectionType === "FC"
-            ? "Foreclosed"
-            : null
-});
-
-        }
-
-
-        return res.json({
-
-            success: true,
-
-            message:
-                "Loan Digit repayment uploaded. Allocation pending.",
-
-            inserted_rows: inserted.length,
-
-            failed_rows: rowErrors.length,
-
-            data: inserted,
-
-            errors: rowErrors
-
-        });
-
-
-    }
-    catch (err) {
-
-        console.error(
-            "Loan Digit upload error:",
-            err
+          [collectionType, lan],
         );
 
+        console.log(`✅ [${lan}] Collection Type updated to NC`);
+      }
 
-        return res.status(500).json({
-
-            success: false,
-
-            message:
-                "Loan digit upload failed",
-
-            error: err.message
-
-        });
-
+      inserted.push({
+        lan,
+        payment_id,
+        collection_type: collectionType,
+        status: collectionType === "FC" ? "Foreclosed" : null,
+      });
     }
 
+    return res.json({
+      success: true,
+
+      message: "Loan Digit repayment uploaded. Allocation pending.",
+
+      inserted_rows: inserted.length,
+
+      failed_rows: rowErrors.length,
+
+      data: inserted,
+
+      errors: rowErrors,
+    });
+  } catch (err) {
+    console.error("Loan Digit upload error:", err);
+
+    return res.status(500).json({
+      success: false,
+
+      message: "Loan digit upload failed",
+
+      error: err.message,
+    });
+  }
 });
 
 router.put("/update-json-loan-digit", async (req, res) => {
+  try {
+    const { lan, payment_id, utr, bank_date } = req.body;
 
-    try {
+    // ==========================================
+    // VALIDATION
+    // ==========================================
 
-        const {
-            lan,
-            payment_id,
-            utr,
-            bank_date
-        } = req.body;
+    if (!lan || !payment_id || !utr || !bank_date) {
+      return res.status(400).json({
+        success: false,
 
+        message: "LAN, Payment Id, UTR and Bank Date are mandatory",
+      });
+    }
 
-        // ==========================================
-        // VALIDATION
-        // ==========================================
+    // ==========================================
+    // CHECK LOAN + GET COLLECTION TYPE
+    // ==========================================
 
-        if (
-            !lan ||
-            !payment_id ||
-            !utr ||
-            !bank_date
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "LAN, Payment Id, UTR and Bank Date are mandatory"
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK LOAN + GET COLLECTION TYPE
-        // ==========================================
-
-        const loanRows = await queryDB(
-            `
+    const loanRows = await queryDB(
+      `
             SELECT
                 lan,
                 collection_type,
@@ -1237,234 +1170,167 @@ router.put("/update-json-loan-digit", async (req, res) => {
             WHERE lan = ?
             LIMIT 1
             `,
-            [lan]
-        );
+      [lan],
+    );
 
+    if (!loanRows || loanRows.length === 0) {
+      return res.status(404).json({
+        success: false,
 
-        if (!loanRows || loanRows.length === 0) {
+        message: "Loan Digit LAN not found",
 
-            return res.status(404).json({
+        lan,
+      });
+    }
 
-                success: false,
+    // ==========================================
+    // GET COLLECTION TYPE FROM LOAN
+    // ==========================================
 
-                message:
-                    "Loan Digit LAN not found",
+    const collectionType = String(loanRows[0].collection_type || "")
+      .trim()
+      .toUpperCase();
 
-                lan
+    if (!["NC", "FC"].includes(collectionType)) {
+      return res.status(400).json({
+        success: false,
 
-            });
+        message:
+          "Invalid collection type in loan record. Collection Type must be NC or FC",
 
-        }
+        lan,
 
+        collection_type: collectionType || null,
+      });
+    }
 
-        // ==========================================
-        // GET COLLECTION TYPE FROM LOAN
-        // ==========================================
+    // ==========================================
+    // FIND EXACT REPAYMENT
+    // LAN + PAYMENT ID
+    // ==========================================
 
-        const collectionType = String(
-            loanRows[0].collection_type || ""
-        )
-            .trim()
-            .toUpperCase();
-
-
-        if (!["NC", "FC"].includes(collectionType)) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Invalid collection type in loan record. Collection Type must be NC or FC",
-
-                lan,
-
-                collection_type:
-                    collectionType || null
-
-            });
-
-        }
-
-
-        // ==========================================
-        // FIND EXACT REPAYMENT
-        // LAN + PAYMENT ID
-        // ==========================================
-
-        const repaymentRows = await queryDB(
-            `
+    const repaymentRows = await queryDB(
+      `
             SELECT *
             FROM repayments_upload
             WHERE lan = ?
               AND payment_id = ?
             LIMIT 1
             `,
-            [
-                lan,
-                payment_id
-            ]
-        );
+      [lan, payment_id],
+    );
 
+    if (!repaymentRows || repaymentRows.length === 0) {
+      return res.status(404).json({
+        success: false,
 
-        if (
-            !repaymentRows ||
-            repaymentRows.length === 0
-        ) {
+        message: "Repayment not found for given LAN and Payment Id",
 
-            return res.status(404).json({
+        lan,
+        payment_id,
+      });
+    }
 
-                success: false,
+    const repayment = repaymentRows[0];
 
-                message:
-                    "Repayment not found for given LAN and Payment Id",
+    // ==========================================
+    // CHECK ACTUAL UTR DUPLICATE
+    // ==========================================
 
-                lan,
-                payment_id
-
-            });
-
-        }
-
-
-        const repayment = repaymentRows[0];
-
-
-        // ==========================================
-        // CHECK ACTUAL UTR DUPLICATE
-        // ==========================================
-
-        const duplicateUtr = await queryDB(
-            `
+    const duplicateUtr = await queryDB(
+      `
             SELECT id, lan, payment_id
             FROM repayments_upload
             WHERE utr = ?
               AND id <> ?
             LIMIT 1
             `,
-            [
-                utr,
-                repayment.id
-            ]
-        );
+      [utr, repayment.id],
+    );
 
+    if (duplicateUtr && duplicateUtr.length > 0) {
+      return res.status(400).json({
+        success: false,
 
-        if (
-            duplicateUtr &&
-            duplicateUtr.length > 0
-        ) {
+        message: "UTR already exists",
 
-            return res.status(400).json({
+        utr,
+      });
+    }
 
-                success: false,
+    // ==========================================
+    // CHECK IF PAYMENT ALREADY ALLOCATED
+    // ==========================================
 
-                message:
-                    "UTR already exists",
-
-                utr
-
-            });
-
-        }
-
-
-        // ==========================================
-        // CHECK IF PAYMENT ALREADY ALLOCATED
-        // ==========================================
-
-        const allocationRows = await queryDB(
-            `
+    const allocationRows = await queryDB(
+      `
             SELECT id
             FROM allocation
             WHERE lan = ?
               AND payment_id = ?
             LIMIT 1
             `,
-            [
-                lan,
-                payment_id
-            ]
-        );
+      [lan, payment_id],
+    );
 
+    if (
+      collectionType === "NC" &&
+      allocationRows &&
+      allocationRows.length > 0
+    ) {
+      return res.json({
+        success: true,
 
-        if (
-            collectionType === "NC" &&
-            allocationRows &&
-            allocationRows.length > 0
-        ) {
+        message: "Payment Id already allocated. Duplicate allocation skipped.",
 
-            return res.json({
+        lan,
 
-                success: true,
+        payment_id,
 
-                message:
-                    "Payment Id already allocated. Duplicate allocation skipped.",
+        collection_type: collectionType,
 
-                lan,
+        allocation_skipped: true,
+      });
+    }
 
-                payment_id,
+    // ==========================================
+    // UPDATE EXACT REPAYMENT
+    // ==========================================
 
-                collection_type:
-                    collectionType,
-
-                allocation_skipped: true
-
-            });
-
-        }
-
-
-        // ==========================================
-        // UPDATE EXACT REPAYMENT
-        // ==========================================
-
-        await queryDB(
-            `
+    await queryDB(
+      `
             UPDATE repayments_upload
             SET
                 utr = ?,
                 bank_date = ?
             WHERE id = ?
             `,
-            [
-                utr,
-                bank_date,
-                repayment.id
-            ]
-        );
+      [utr, bank_date, repayment.id],
+    );
 
+    // ==========================================
+    // FORECLOSURE
+    // ==========================================
 
-        // ==========================================
-        // FORECLOSURE
-        // ==========================================
+    if (collectionType === "FC") {
+      console.log(`🔁 [${lan}] Collection Type FC — processing foreclosure...`);
 
-        if (collectionType === "FC") {
+      // ==========================================
+      // GET PAYMENT DETAILS
+      // ==========================================
 
-            console.log(
-                `🔁 [${lan}] Collection Type FC — processing foreclosure...`
-            );
+      const paymentDate = repayment.payment_date;
 
+      const paymentMode = repayment.payment_mode;
 
-            // ==========================================
-            // GET PAYMENT DETAILS
-            // ==========================================
+      const transferAmount = repayment.transfer_amount;
 
-            const paymentDate =
-                repayment.payment_date;
+      // ==========================================
+      // INSERT FORECLOSURE UPLOAD
+      // ==========================================
 
-            const paymentMode =
-                repayment.payment_mode;
-
-            const transferAmount =
-                repayment.transfer_amount;
-
-
-            // ==========================================
-            // INSERT FORECLOSURE UPLOAD
-            // ==========================================
-
-            await queryDB(
-                `
+      await queryDB(
+        `
                 INSERT INTO foreclosure_upload
                 (
                     lan,
@@ -1479,192 +1345,138 @@ router.put("/update-json-loan-digit", async (req, res) => {
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
                 `,
-                [
-                    lan,
-                    bank_date,
-                    utr,
-                    paymentDate,
-                    payment_id,
-                    paymentMode,
-                    transferAmount,
-                    "Yes"
-                ]
-            );
+        [
+          lan,
+          bank_date,
+          utr,
+          paymentDate,
+          payment_id,
+          paymentMode,
+          transferAmount,
+          "Yes",
+        ],
+      );
 
+      console.log(`✅ [${lan}] Foreclosure record inserted`);
 
-            console.log(
-                `✅ [${lan}] Foreclosure record inserted`
-            );
+      // ==========================================
+      // STEP 1: CALCULATE FORECLOSURE
+      // ==========================================
 
-
-            // ==========================================
-            // STEP 1: CALCULATE FORECLOSURE
-            // ==========================================
-
-            await queryDB(
-                `
+      await queryDB(
+        `
                 CALL sp_calculate_forecloser_allocation_cal(?, ?)
                 `,
-                [
-                    lan,
-                    paymentDate
-                ]
-            );
+        [lan, paymentDate],
+      );
 
+      console.log(`✅ [${lan}] Foreclosure calculation completed`);
 
-            console.log(
-                `✅ [${lan}] Foreclosure calculation completed`
-            );
+      // ==========================================
+      // STEP 2: PROCESS FORECLOSURE CHARGES
+      // ==========================================
 
-
-            // ==========================================
-            // STEP 2: PROCESS FORECLOSURE CHARGES
-            // ==========================================
-
-            await queryDB(
-                `
+      await queryDB(
+        `
                 CALL sp_process_forecloser_charges(
                     ?, ?, ?, ?, ?, ?, ?
                 )
                 `,
-                [
-                    lan,
-                    payment_id,
-                    utr,
-                    paymentMode,
-                    transferAmount,
-                    paymentDate,
-                    bank_date
-                ]
-            );
+        [
+          lan,
+          payment_id,
+          utr,
+          paymentMode,
+          transferAmount,
+          paymentDate,
+          bank_date,
+        ],
+      );
 
+      console.log(`✅ [${lan}] Foreclosure charges processed`);
 
-            console.log(
-                `✅ [${lan}] Foreclosure charges processed`
-            );
+      // ==========================================
+      // UPDATE LOAN STATUS
+      // ==========================================
 
-
-            // ==========================================
-            // UPDATE LOAN STATUS
-            // ==========================================
-
-            await queryDB(
-                `
+      await queryDB(
+        `
                 UPDATE loan_booking_loan_digit
                 SET status = ?
                 WHERE lan = ?
                 `,
-                [
-                    "Foreclosed",
-                    lan
-                ]
-            );
+        ["Foreclosed", lan],
+      );
 
+      console.log(`✅ [${lan}] Loan status updated to Foreclosed`);
 
-            console.log(
-                `✅ [${lan}] Loan status updated to Foreclosed`
-            );
+      return res.json({
+        success: true,
 
+        message: "Repayment updated and foreclosure processed successfully",
 
-            return res.json({
+        lan,
 
-                success: true,
+        payment_id,
 
-                message:
-                    "Repayment updated and foreclosure processed successfully",
+        utr,
 
-                lan,
+        collection_type: collectionType,
 
-                payment_id,
+        status: "Foreclosed",
 
-                utr,
-
-                collection_type: collectionType,
-
-                status: "Foreclosed",
-
-                foreclosure_processed: true
-
-            });
-
-        }
-
-
-        // ==========================================
-        // NORMAL COLLECTION
-        // ==========================================
-
-        await allocateRepaymentByLAN(
-
-            lan,
-
-            {
-
-                lan,
-
-                bank_date,
-
-                utr,
-
-                payment_date:
-                    repayment.payment_date,
-
-                payment_id:
-                    repayment.payment_id,
-
-                payment_mode:
-                    repayment.payment_mode,
-
-                transfer_amount:
-                    repayment.transfer_amount
-
-            }
-
-        );
-
-
-        return res.json({
-
-            success: true,
-
-            message:
-                "Repayment updated and allocated successfully",
-
-            lan,
-
-            payment_id,
-
-            utr,
-
-            collection_type:
-                collectionType
-
-        });
-
-
-    }
-    catch (err) {
-
-        console.error(
-            "Loan Digit update error:",
-            err
-        );
-
-
-        return res.status(500).json({
-
-            success: false,
-
-            message:
-                "Update failed",
-
-            error:
-                err.message
-
-        });
-
+        foreclosure_processed: true,
+      });
     }
 
+    // ==========================================
+    // NORMAL COLLECTION
+    // ==========================================
+
+    await allocateRepaymentByLAN(
+      lan,
+
+      {
+        lan,
+
+        bank_date,
+
+        utr,
+
+        payment_date: repayment.payment_date,
+
+        payment_id: repayment.payment_id,
+
+        payment_mode: repayment.payment_mode,
+
+        transfer_amount: repayment.transfer_amount,
+      },
+    );
+
+    return res.json({
+      success: true,
+
+      message: "Repayment updated and allocated successfully",
+
+      lan,
+
+      payment_id,
+
+      utr,
+
+      collection_type: collectionType,
+    });
+  } catch (err) {
+    console.error("Loan Digit update error:", err);
+
+    return res.status(500).json({
+      success: false,
+
+      message: "Update failed",
+
+      error: err.message,
+    });
+  }
 });
 /**
  * JSON API UPLOAD ROUTE
@@ -1715,10 +1527,7 @@ router.post("/upload-json", async (req, res) => {
   }
 });
 
-
-
-
-// retention release route 
+// retention release route
 router.post("/update-retention-release", (req, res) => {
   const { lan, utr, payment_date } = req.body;
   const created_by = req.user?.userId || "system";
@@ -1850,7 +1659,7 @@ router.post("/update-retention-release", (req, res) => {
                 message: "Retention released successfully",
               });
             });
-          }
+          },
         );
       });
     });
@@ -2044,15 +1853,14 @@ router.post("/update-retention-release", (req, res) => {
 //   }
 // );
 
-
 router.post(
-  "/upload-retention-release", authenticateUser,
+  "/upload-retention-release",
+  authenticateUser,
   upload.single("file"),
   async (req, res) => {
-
     if (!req.file) {
       return res.status(400).json({
-        message: "No file uploaded"
+        message: "No file uploaded",
       });
     }
 
@@ -2063,19 +1871,17 @@ router.post(
     const already_released = [];
 
     try {
-
       const workbook = xlsx.read(req.file.buffer, {
-        type: "buffer"
+        type: "buffer",
       });
 
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
       const data = xlsx.utils.sheet_to_json(sheet, {
-        defval: ""
+        defval: "",
       });
 
       for (let i = 0; i < data.length; i++) {
-
         const row = data[i];
         const lan = row.lan?.trim();
         const utr = row.utr?.trim();
@@ -2085,34 +1891,28 @@ router.post(
         let product_type = "";
 
         if (!lan || !utr || !payment_date) {
-
           row_errors.push({
             lan,
             utr,
             stage: "validation",
-            reason: "Missing required fields"
+            reason: "Missing required fields",
           });
 
           continue;
         }
 
         if (lan.startsWith("GQF")) {
-
           table = "loan_booking_gq_fsf";
           product_type = "GQ_FSF";
-
         } else if (lan.startsWith("GQN")) {
-
           table = "loan_booking_gq_non_fsf";
           product_type = "GQ_NON_FSF";
-
         } else {
-
           row_errors.push({
             lan,
             utr,
             stage: "prefix",
-            reason: "Invalid LAN prefix"
+            reason: "Invalid LAN prefix",
           });
 
           continue;
@@ -2121,16 +1921,14 @@ router.post(
         const conn = await db.promise().getConnection();
 
         try {
-
           await conn.beginTransaction();
 
           const [lanExists] = await conn.query(
             `SELECT lan FROM ?? WHERE lan = ?`,
-            [table, lan]
+            [table, lan],
           );
 
           if (!lanExists.length) {
-
             missing_lans.push(lan);
 
             await conn.rollback();
@@ -2141,11 +1939,10 @@ router.post(
 
           const [releasedCheck] = await conn.query(
             `SELECT lan FROM retention_release_gq WHERE lan = ?`,
-            [lan]
+            [lan],
           );
 
           if (releasedCheck.length) {
-
             already_released.push(lan);
 
             await conn.rollback();
@@ -2156,11 +1953,10 @@ router.post(
 
           const [utrExists] = await conn.query(
             `SELECT utr FROM retention_release_gq WHERE utr = ?`,
-            [utr]
+            [utr],
           );
 
           if (utrExists.length) {
-
             duplicate_utr.push(utr);
 
             await conn.rollback();
@@ -2175,23 +1971,26 @@ router.post(
             `INSERT INTO retention_release_gq
              (lan, utr, payment_date, retention_release, product_type, created_by)
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [lan, utr, payment_date
-    ? excelSerialDateToJS(payment_date)
-    : null, 1, product_type, created_by]
+            [
+              lan,
+              utr,
+              payment_date ? excelSerialDateToJS(payment_date) : null,
+              1,
+              product_type,
+              created_by,
+            ],
           );
 
           await conn.query(
             `UPDATE ?? SET retention_release = 1 WHERE lan = ?`,
-            [table, lan]
+            [table, lan],
           );
 
           await conn.commit();
           conn.release();
 
           success_rows.push(lan);
-
         } catch (err) {
-
           await conn.rollback();
           conn.release();
 
@@ -2199,7 +1998,7 @@ router.post(
             lan,
             utr,
             stage: "insert",
-            reason: err.message
+            reason: err.message,
           });
         }
       }
@@ -2211,17 +2010,14 @@ router.post(
         duplicate_utr,
         missing_lans,
         already_released,
-        row_errors
+        row_errors,
       });
-
     } catch (err) {
-
       return res.status(500).json({
         message: "Upload failed",
-        details: err
+        details: err,
       });
-
     }
-  }
+  },
 );
 module.exports = router;
