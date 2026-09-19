@@ -14,9 +14,7 @@ const {
 } = require("../services/processEmiClubDisbursement");
 
 const { sendDisbursementWebhook } = require("../routes/switchMyLoan/switchMyLoanWebhook");
-const {
-  processPlPartnerDisbursement,
-} = require("../routes/fintreePlPartnerApi/services/plPartnerDisbursement");
+
 const {
   processClaimCureBuddyDisbursement,
 } = require("./processClaimCureBuddyDisbursement");
@@ -821,6 +819,11 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementDate: new Date(tr.transfer_date),
       });
     } else if (table === "pl_partner_applications") {
+      /*
+       * FTPL / PLP — pure webhook forwarding bridge.
+       * Only forward the disbursal payload to the partner.
+       * NO internal processing (RPS, LMS update, status change).
+       */
       try {
         await sendFintreePlDisbursementWebhook({
           lan,
@@ -830,21 +833,18 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
           tenureDays: loan.tenure_days,
           eventId: "evt-" + unique_request_number,
         });
-      } catch (webhookError) {
-        // Notifying the partner must never block RPS generation below — the loan
-        // is disbursed either way. Log and continue; the webhook can be resent
-        // manually (see sendFintreePlDisbursementWebhook's request body/URL).
-        console.error("🔥 Fintree PL disbursement webhook failed (non-blocking)", {
+
+        console.log("PLP webhook forwarded successfully", {
           lan,
+          utr: tr.unique_transaction_reference,
+        });
+      } catch (webhookError) {
+        console.error("PLP webhook forwarding failed", {
+          lan,
+          utr: tr.unique_transaction_reference,
           error: webhookError.message,
         });
       }
-
-      await processPlPartnerDisbursement({
-        lan,
-        disbursementUTR: tr.unique_transaction_reference,
-        disbursementDate: new Date(tr.transfer_date),
-      });
     }
 
     // Record usage against the partner's monthly disbursement limit for
@@ -944,7 +944,14 @@ async function sendFintreePlDisbursementWebhook({
     await axios.post(webhookUrl, body, {
       headers: {
         "Content-Type": "application/json",
-        ...(webhookSecret ? { "x-pl-webhook-secret": webhookSecret } : {}),
+        ...(webhookSecret
+          ? {
+              "x-pl-webhook-secret": webhookSecret,
+              "x-lender-webhook-secret": webhookSecret,
+              "x-disbursal-webhook-secret": webhookSecret,
+              "x-webhook-secret": webhookSecret,
+            }
+          : {}),
       },
       timeout: 15000,
     });
@@ -966,3 +973,4 @@ async function sendFintreePlDisbursementWebhook({
     eventId,
   });
 }
+exports.sendFintreePlDisbursementWebhook = sendFintreePlDisbursementWebhook;
