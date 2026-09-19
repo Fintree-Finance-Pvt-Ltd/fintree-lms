@@ -21,9 +21,6 @@ const {
 } = require("../services/payout.service");
 
 const router = express.Router();
-const {
-  sendWelcomeLetterAfterUtrUpload,
-} = require("../services/welcomeLetterService");
 
 async function handleMandateWebhook(req, res) {
   try {
@@ -455,31 +452,13 @@ router.post("/payout", async (req, res) => {
           reason: rapidMoneyResult?.reason,
         });
 
-        /*
-         * STEP 3:
-         * Welcome letter.
-         */
-        try {
-          const welcomeLetterResult = await sendWelcomeLetterAfterUtrUpload({
-            lan,
-            utrNumber: effectiveUtr,
-          });
-
-          console.log("✅ Welcome Letter Sent", {
-            lan,
-            utr: effectiveUtr,
-            messageId: welcomeLetterResult?.emailMessageId,
-            recipient: welcomeLetterResult?.recipient,
-          });
-        } catch (welcomeLetterError) {
-          console.error("❌ Welcome Letter Failed", {
-            lan,
-            utr: effectiveUtr,
-            errorCode: welcomeLetterError?.code || "WELCOME_LETTER_FAILED",
-            errorMessage:
-              welcomeLetterError?.message || "Unable to send welcome letter",
-          });
-        }
+        // Welcome letter is now sent inside processRapidMoneyDisbursement
+        // itself, right after it commits — that function is the single
+        // place every disbursement-completion path (this webhook's
+        // main-success branch, its duplicate-callback branch, and
+        // payout.service.js's own synchronous success path) converges on,
+        // so it only fires once, exactly when the disbursement first
+        // actually completes.
       } else if (lan?.startsWith("CARE")) {
         const carePayResult = await processCarePayDisbursement({
           lan,

@@ -9,6 +9,9 @@ const {
 const { sendLoanWebhook } = require("../utils/webhook");
 const partnerLimitService = require("./partnerLimitService");
 const { getMonthYear } = require("../utils/partnerHelpers");
+const {
+  sendWelcomeLetterAfterUtrUpload,
+} = require("./welcomeLetterService");
 
 async function processEmiClubDisbursement({ lan, disbursementUTR, disbursementDate }) {
    console.log("[EMICLUB][START] Processing disbursement", {
@@ -273,138 +276,34 @@ if (existingRps.length > 0) {
     await conn.commit();
 
     /* =================================================
-       6) Webhook (do AFTER commit)
+       6) Welcome letter + webhook (do AFTER commit)
     ================================================= */
 
  console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan, utr: disbursementUTR });
 
-    return { success: true };
-  } catch (err) {
-    if (conn) await conn.rollback();
-    throw err;
-  } finally {
-    if (conn) conn.release();
-  }
-}
+    try {
+      const welcomeLetterResult = await sendWelcomeLetterAfterUtrUpload({
+        lan,
+        utrNumber: disbursementUTR,
+      });
 
-async function processRapidMoneyDisbursement({ lan, disbursementUTR, disbursementDate }) {
-  // ✅ Only EMI CLUB
-  if (!lan || !lan.startsWith("RML")) return { skipped: true, reason: "NOT_RapidMoney" };
-
-  // ✅ Basic validation
-  if (!disbursementUTR || !disbursementDate) {
-
-     console.log("[Rapid money][SKIP] Missing UTR or Disbursement Date", {
-      lan,
-      disbursementUTR,
-      disbursementDate,
-    });
-
-    return { skipped: true, reason: "MISSING_UTR_OR_DATE" };
-  }
-
-  let conn;
-  try {
-
-    conn = await db.promise().getConnection();
-    await conn.beginTransaction();
-
-    /* =================================================
-       1) Fetch EMI CLUB loan (lock row)
-    ================================================= */
-    const [[loan]] = await conn.query(
-      `
-      SELECT partner_loan_id, application_id, repayment_date, loan_amount, interest_rate, tenure, status
-      FROM loan_booking_switch_my_loan
-      WHERE lan = ?
-      FOR UPDATE
-      `,
-      [lan]
-    );
-
-    if (!loan) throw new Error(`Rapid Money loan not found: ${lan}`);
-
-    // Optional: if already disbursed, skip safely
-    if (String(loan.status).toLowerCase() === "disbursed") {
-      await conn.rollback();
-      return { skipped: true, reason: "ALREADY_DISBURSED" };
+      console.log("[Rapid money][WELCOME_LETTER] Sent", {
+        lan,
+        utr: disbursementUTR,
+        messageId: welcomeLetterResult?.emailMessageId,
+        recipient: welcomeLetterResult?.recipient,
+      });
+    } catch (welcomeLetterError) {
+      // The disbursement itself already committed successfully — a
+      // welcome letter failure (bad email, template issue, etc.) must
+      // never be treated as a disbursement failure.
+      console.error("[Rapid money][WELCOME_LETTER] Failed", {
+        lan,
+        utr: disbursementUTR,
+        errorCode: welcomeLetterError?.code || "WELCOME_LETTER_FAILED",
+        errorMessage: welcomeLetterError?.message || "Unable to send welcome letter",
+      });
     }
-
-    /* =================================================
-       2) Idempotency: prevent duplicate UTR inserts
-    ================================================= */
-    const [utrExists] = await conn.query(
-      `SELECT 1 FROM ev_disbursement_utr WHERE Disbursement_UTR = ? LIMIT 1`,
-      [disbursementUTR]
-    );
-
-    if (utrExists.length > 0) {
-      await conn.rollback();
-      return { skipped: true, reason: "DUPLICATE_UTR" };
-    }
-
-    const [existingRps] = await conn.query(
-  `
-  SELECT id
-  FROM manual_rps_switch_my_loan
-  WHERE lan = ?
-  LIMIT 1
-  `,
-  [lan]
-);
-
-if (existingRps.length > 0) {
-  await conn.rollback();
-
-  return {
-    skipped: true,
-    reason: "RPS_ALREADY_EXISTS",
-  };
-}
-
-    /* =================================================
-       3) Generate Repayment Schedule (RPS)
-       IMPORTANT: pass conn (transaction connection)
-    ================================================= */
-    await generateRapidMoneyRepaymentSchedule(
-      conn,
-      lan,
-      loan.loan_amount,
-      loan.interest_rate,
-      loan.tenure,
-      disbursementDate,
-      loan.repayment_date
-    );
-
-    /* =================================================
-       4) Insert into ev_disbursement_utr
-    ================================================= */
-
-    await conn.query(
-      `
-      INSERT INTO ev_disbursement_utr
-        (Disbursement_UTR, Disbursement_Date, LAN)
-      VALUES (?, ?, ?)
-      `,
-      [disbursementUTR, disbursementDate, lan]
-    );
-
-    /* =================================================
-       5) Update Rapid Money loan status to Disbursed
-    ================================================= */
-
-    await conn.query(
-      `UPDATE loan_booking_switch_my_loan SET status = 'Disbursed' WHERE lan = ?`,
-      [lan]
-    );
-
-    await conn.commit();
-
-    /* =================================================
-       6) Webhook (do AFTER commit)
-    ================================================= */
-
- console.log("[Rapid money][SUCCESS] Disbursement completed successfully", { lan, utr: disbursementUTR });
 
     return { success: true };
   } catch (err) {
