@@ -11,6 +11,9 @@ const queryDB = (sql, params) =>
     });
   });
 
+    const {
+  generateNoc,
+} = require("../../services/noc.service");
 /**
  * Handle a refund/reversal row (negative transfer_amount) for a LAN —
  * e.g. a NACH mandate that bounced after already being allocated, or a
@@ -363,6 +366,37 @@ if (remaining > 0) {
       [lan]
     );
     console.log(`💠 Loan marked Fully Paid for RAPID MONEY LAN ${lan}`);
+     try {
+
+    const nocResult = await generateNoc({
+      lan,
+      baseUrl: process.env.BASE_URL,
+    });
+
+
+    console.log(
+      "✅ NOC generated successfully",
+      {
+        lan,
+        fileUrl: nocResult.fileUrl,
+      }
+    );
+
+
+  } catch (nocError) {
+
+    console.error(
+      "❌ NOC generation failed",
+      {
+        lan,
+        message: nocError.message,
+      }
+    );
+
+    // Do not fail repayment allocation
+    // Payment is already allocated
+
+  }
   } else if (pending.count === 0 && pendingCharges.count > 0) {
     console.log(
       `💠 EMIs cleared but ${pendingCharges.count} open charge(s) remain for RAPID MONEY LAN ${lan} — not marking Fully Paid`
