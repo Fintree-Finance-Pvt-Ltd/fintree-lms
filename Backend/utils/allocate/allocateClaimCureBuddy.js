@@ -1,4 +1,5 @@
 const db = require("../../config/db");
+const { generateNoc } = require("../../services/noc.service");
 
 const queryDB = (sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -110,6 +111,26 @@ const allocateClaimCureBuddy = async (lan, payment) => {
        WHERE lan = ?`,
       [normalizedLan],
     );
+
+    try {
+      const nocResult = await generateNoc({
+        lan: normalizedLan,
+        baseUrl: process.env.BASE_URL || process.env.BACKEND_URL,
+      });
+
+      console.log("NOC generated successfully for Claim Cure Buddy", {
+        lan: normalizedLan,
+        fileUrl: nocResult.fileUrl,
+        emailStatus: nocResult.email?.status,
+      });
+    } catch (nocError) {
+      // Allocation and loan closure have already succeeded. NOC generation
+      // must not make the repayment appear to have failed.
+      console.error("NOC generation failed for Claim Cure Buddy", {
+        lan: normalizedLan,
+        message: nocError.message,
+      });
+    }
   }
 };
 

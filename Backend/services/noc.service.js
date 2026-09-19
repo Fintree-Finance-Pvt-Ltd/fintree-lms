@@ -86,6 +86,8 @@ if (normalizedLan.startsWith("WCTLFFPL")) {
     loanTable = "loan_booking_srbh";
   } else if (normalizedLan.startsWith("RML")) {
     loanTable = "loan_booking_switch_my_loan";
+  } else if (normalizedLan.startsWith("CCB")) {
+    loanTable = "loan_booking_claim_cure_buddy";
   }
 
   if (!loanTable) {

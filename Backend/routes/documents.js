@@ -26,9 +26,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-const {
-  generateNoc,
-} = require("../services/noc.service");
+const { generateNoc } = require("../services/noc.service");
 
 const {
   generateNocForFullyPaidLoans,
@@ -155,9 +153,10 @@ function safeUnlink(fp) {
 
 // ---------------------------- Routes (unchanged) ----------------------------
 
-
 const checkAndApproveCarePayLoan = async (lan) => {
-  const cleanLan = String(lan || "").trim().toUpperCase();
+  const cleanLan = String(lan || "")
+    .trim()
+    .toUpperCase();
 
   if (!cleanLan) {
     return {
@@ -199,12 +198,12 @@ const checkAndApproveCarePayLoan = async (lan) => {
   }
 
   const hasValue = (value) =>
-    value !== null &&
-    value !== undefined &&
-    String(value).trim() !== "";
+    value !== null && value !== undefined && String(value).trim() !== "";
 
   if (
-    String(loan.status || "").trim().toUpperCase() === "REJECTED"
+    String(loan.status || "")
+      .trim()
+      .toUpperCase() === "REJECTED"
   ) {
     return {
       approved: false,
@@ -245,29 +244,29 @@ const checkAndApproveCarePayLoan = async (lan) => {
 |--------------------------------------------------------------------------
 */
 
-// const agreementEsignStatus = String(
-//   loan.agreement_esign_status || "PENDING",
-// )
-//   .trim()
-//   .toUpperCase();
+  // const agreementEsignStatus = String(
+  //   loan.agreement_esign_status || "PENDING",
+  // )
+  //   .trim()
+  //   .toUpperCase();
 
-// if (agreementEsignStatus !== "SIGNED") {
-//   console.log(
-//     "CAREPAY APPROVAL BLOCKED: AGREEMENT NOT SIGNED",
-//     {
-//       lan: cleanLan,
-//       agreement_esign_status:
-//         loan.agreement_esign_status,
-//     },
-//   );
+  // if (agreementEsignStatus !== "SIGNED") {
+  //   console.log(
+  //     "CAREPAY APPROVAL BLOCKED: AGREEMENT NOT SIGNED",
+  //     {
+  //       lan: cleanLan,
+  //       agreement_esign_status:
+  //         loan.agreement_esign_status,
+  //     },
+  //   );
 
-//   return {
-//     approved: false,
-//     reason: "LOAN_AGREEMENT_NOT_SIGNED",
-//     agreement_esign_status:
-//       loan.agreement_esign_status || "PENDING",
-//   };
-// }
+  //   return {
+  //     approved: false,
+  //     reason: "LOAN_AGREEMENT_NOT_SIGNED",
+  //     agreement_esign_status:
+  //       loan.agreement_esign_status || "PENDING",
+  //   };
+  // }
   const loanAmount = Number(loan.loan_amount || 0);
   const cibilScore = Number(loan.cibil_score || 0);
 
@@ -280,16 +279,13 @@ const checkAndApproveCarePayLoan = async (lan) => {
 
   // Bank statement required:
   // loan > 3L OR score exactly 680
-  const bankStatementRequired =
-    loanAmount > 300000 ||
-    cibilScore === 680;
+  const bankStatementRequired = loanAmount > 300000 || cibilScore === 680;
 
   const mandateFields = {
     mandate_amount: loan.mandate_amount,
     umrn: loan.umrn,
     father_name: loan.father_name,
-    bank_account_holder_name:
-      loan.bank_account_holder_name,
+    bank_account_holder_name: loan.bank_account_holder_name,
     bank_account_number: loan.bank_account_number,
     bank_name: loan.bank_name,
     bank_branch_name: loan.bank_branch_name,
@@ -297,9 +293,7 @@ const checkAndApproveCarePayLoan = async (lan) => {
     bank_account_type: loan.bank_account_type,
   };
 
-  const missingMandateFields = Object.entries(
-    mandateFields,
-  )
+  const missingMandateFields = Object.entries(mandateFields)
     .filter(([, value]) => !hasValue(value))
     .map(([field]) => field);
 
@@ -311,7 +305,7 @@ const checkAndApproveCarePayLoan = async (lan) => {
     };
   }
 
-    if (abbRequired && !hasValue(loan.abb)) {
+  if (abbRequired && !hasValue(loan.abb)) {
     return {
       approved: false,
       reason: "ABB_MISSING",
@@ -328,7 +322,6 @@ const checkAndApproveCarePayLoan = async (lan) => {
     "explicitConsents",
     "loanAgreement",
     "selfi",
-    
   ];
 
   if (bankStatementRequired) {
@@ -343,142 +336,129 @@ const checkAndApproveCarePayLoan = async (lan) => {
   );
 
   // Refresh document verification status before approval check
-// for (const doc of documentRows) {
+  // for (const doc of documentRows) {
 
-//   const documentType = String(
-//     doc.doc_name || doc.original_name || ""
-//   )
-//     .trim()
-//     .toLowerCase()
-//     .replace(/[\s_-]/g, "");
+  //   const documentType = String(
+  //     doc.doc_name || doc.original_name || ""
+  //   )
+  //     .trim()
+  //     .toLowerCase()
+  //     .replace(/[\s_-]/g, "");
 
+  //   if (documentType === "loanagreement") {
 
-//   if (documentType === "loanagreement") {
+  //     await db.promise().query(
+  //       `
+  //       UPDATE loan_booking_carepay
+  //       SET agreement_esign_status = 'Signed',
+  //           sanction_esign_status = 'Signed',
+  //           updated_at = NOW()
+  //       WHERE lan = ?
+  //       `,
+  //       [cleanLan]
+  //     );
 
-//     await db.promise().query(
-//       `
-//       UPDATE loan_booking_carepay
-//       SET agreement_esign_status = 'Signed',
-//           sanction_esign_status = 'Signed',
-//           updated_at = NOW()
-//       WHERE lan = ?
-//       `,
-//       [cleanLan]
-//     );
+  //   }  else if (documentType === "pan") {
 
-//   }  else if (documentType === "pan") {
+  //     await db.promise().query(
+  //       `
+  //       UPDATE kyc_verification_status
+  //       SET pan_status = 'Verified',
+  //           updated_at = NOW()
+  //       WHERE lan = ?
+  //       `,
+  //       [cleanLan]
+  //     );
 
-//     await db.promise().query(
-//       `
-//       UPDATE kyc_verification_status
-//       SET pan_status = 'Verified',
-//           updated_at = NOW()
-//       WHERE lan = ?
-//       `,
-//       [cleanLan]
-//     );
+  //   } else if (documentType === "aadhaar") {
 
+  //     await db.promise().query(
+  //       `
+  //       UPDATE kyc_verification_status
+  //       SET aadhaar_status = 'Verified',
+  //           updated_at = NOW()
+  //       WHERE lan = ?
+  //       `,
+  //       [cleanLan]
+  //     );
 
-//   } else if (documentType === "aadhaar") {
+  //   }
+  //   // Bank verification based on UMRN + bank details
+  // await db.promise().query(
+  //   `
+  //   UPDATE loan_booking_carepay
+  //   SET bank_status = 'Verified',
+  //       updated_at = NOW()
+  //   WHERE lan = ?
+  //     AND umrn IS NOT NULL
+  //     AND TRIM(umrn) <> ''
+  //     AND bank_account_holder_name IS NOT NULL
+  //     AND TRIM(bank_account_holder_name) <> ''
+  //     AND bank_account_number IS NOT NULL
+  //     AND TRIM(bank_account_number) <> ''
+  //     AND bank_name IS NOT NULL
+  //     AND TRIM(bank_name) <> ''
+  //     AND bank_branch_name IS NOT NULL
+  //     AND TRIM(bank_branch_name) <> ''
+  //     AND bank_ifsc_code IS NOT NULL
+  //     AND TRIM(bank_ifsc_code) <> ''
+  //     AND bank_account_type IS NOT NULL
+  //     AND TRIM(bank_account_type) <> ''
+  //   `,
+  //   [cleanLan]
+  // );
+  // }
 
-//     await db.promise().query(
-//       `
-//       UPDATE kyc_verification_status
-//       SET aadhaar_status = 'Verified',
-//           updated_at = NOW()
-//       WHERE lan = ?
-//       `,
-//       [cleanLan]
-//     );
-
-//   }
-//   // Bank verification based on UMRN + bank details
-// await db.promise().query(
-//   `
-//   UPDATE loan_booking_carepay
-//   SET bank_status = 'Verified',
-//       updated_at = NOW()
-//   WHERE lan = ?
-//     AND umrn IS NOT NULL
-//     AND TRIM(umrn) <> ''
-//     AND bank_account_holder_name IS NOT NULL
-//     AND TRIM(bank_account_holder_name) <> ''
-//     AND bank_account_number IS NOT NULL
-//     AND TRIM(bank_account_number) <> ''
-//     AND bank_name IS NOT NULL
-//     AND TRIM(bank_name) <> ''
-//     AND bank_branch_name IS NOT NULL
-//     AND TRIM(bank_branch_name) <> ''
-//     AND bank_ifsc_code IS NOT NULL
-//     AND TRIM(bank_ifsc_code) <> ''
-//     AND bank_account_type IS NOT NULL
-//     AND TRIM(bank_account_type) <> ''
-//   `,
-//   [cleanLan]
-// );
-// }
-
- const normalizeDocumentName = (value) =>
+  const normalizeDocumentName = (value) =>
     String(value || "")
       .trim()
       .replace(/\.[^/.]+$/, "")
       .toLowerCase()
       .replace(/[\s_-]/g, "");
-      
-for (const doc of documentRows) {
 
-  const documentType = normalizeDocumentName(
-    doc.doc_name || doc.original_name
-  );
+  for (const doc of documentRows) {
+    const documentType = normalizeDocumentName(
+      doc.doc_name || doc.original_name,
+    );
 
-
-  if (documentType === "loanagreement") {
-
-    await db.promise().query(
-      `
+    if (documentType === "loanagreement") {
+      await db.promise().query(
+        `
       UPDATE loan_booking_carepay
       SET agreement_esign_status = 'Signed',
           sanction_esign_status = 'Signed',
           updated_at = NOW()
       WHERE lan = ?
       `,
-      [cleanLan]
-    );
-
-  } else if (documentType === "pan") {
-
-    await db.promise().query(
-      `
+        [cleanLan],
+      );
+    } else if (documentType === "pan") {
+      await db.promise().query(
+        `
       UPDATE kyc_verification_status
       SET pan_status = 'Verified',
           updated_at = NOW()
       WHERE lan = ?
       `,
-      [cleanLan]
-    );
-
-
-  } else if (documentType === "aadhaar") {
-
-    await db.promise().query(
-      `
+        [cleanLan],
+      );
+    } else if (documentType === "aadhaar") {
+      await db.promise().query(
+        `
       UPDATE kyc_verification_status
       SET aadhaar_status = 'Verified',
           updated_at = NOW()
       WHERE lan = ?
       `,
-      [cleanLan]
-    );
-
+        [cleanLan],
+      );
+    }
   }
 
-}
+  // AFTER LOOP
 
-
-// AFTER LOOP
-
-await db.promise().query(
-`
+  await db.promise().query(
+    `
 UPDATE loan_booking_carepay
 SET bank_status='Verified',
     updated_at=NOW()
@@ -498,44 +478,36 @@ AND TRIM(bank_ifsc_code)<>''
 AND bank_account_type IS NOT NULL
 AND TRIM(bank_account_type)<>''
 `,
-[cleanLan]
-);
-
- 
+    [cleanLan],
+  );
 
   const availableDocuments = new Set();
 
   for (const row of documentRows) {
     if (row.doc_name) {
-      availableDocuments.add(
-        normalizeDocumentName(row.doc_name),
-      );
+      availableDocuments.add(normalizeDocumentName(row.doc_name));
     }
 
     if (row.original_name) {
-      availableDocuments.add(
-        normalizeDocumentName(row.original_name),
-      );
+      availableDocuments.add(normalizeDocumentName(row.original_name));
     }
   }
 
   const missingDocuments = requiredDocuments.filter(
     (documentName) =>
-      !availableDocuments.has(
-        normalizeDocumentName(documentName),
-      ),
+      !availableDocuments.has(normalizeDocumentName(documentName)),
   );
 
   // console.log("CAREPAY DOCUMENT CHECK:", {
-    // lan: cleanLan,
-    // loanAmount,
-    // cibilScore,
-    // abbRequired,
-    // bankStatementRequired,
-    // agreementValidationStatus,
-    // availableDocuments: [...availableDocuments],
-    // requiredDocuments,
-    // missingDocuments,
+  // lan: cleanLan,
+  // loanAmount,
+  // cibilScore,
+  // abbRequired,
+  // bankStatementRequired,
+  // agreementValidationStatus,
+  // availableDocuments: [...availableDocuments],
+  // requiredDocuments,
+  // missingDocuments,
   // });
 
   if (missingDocuments.length > 0) {
@@ -544,33 +516,31 @@ AND TRIM(bank_account_type)<>''
       reason: "DOCUMENTS_MISSING",
       missing_documents: missingDocuments,
       abb_required: abbRequired,
-      bank_statement_required:
-        bankStatementRequired,
-      agreement_validation_status:
-        agreementValidationStatus,
+      bank_statement_required: bankStatementRequired,
+      agreement_validation_status: agreementValidationStatus,
     };
   }
 
-//  const [approvalUpdate] = await db.promise().query(
-//   `UPDATE loan_booking_carepay
-//    SET status = 'Approved',
-//        bank_status = 'Verified'
-//    WHERE lan = ?
-//      AND agreement_validation_status = 'MATCHED'
-//      AND UPPER(TRIM(agreement_esign_status)) = 'SIGNED'
-//      AND UPPER(TRIM(status)) <> 'REJECTED'`,
-//   [cleanLan],
-// );
+  //  const [approvalUpdate] = await db.promise().query(
+  //   `UPDATE loan_booking_carepay
+  //    SET status = 'Approved',
+  //        bank_status = 'Verified'
+  //    WHERE lan = ?
+  //      AND agreement_validation_status = 'MATCHED'
+  //      AND UPPER(TRIM(agreement_esign_status)) = 'SIGNED'
+  //      AND UPPER(TRIM(status)) <> 'REJECTED'`,
+  //   [cleanLan],
+  // );
 
-// TEMPORARY: Agreement validation conditions bypassed
-const [approvalUpdate] = await db.promise().query(
-  `UPDATE loan_booking_carepay
+  // TEMPORARY: Agreement validation conditions bypassed
+  const [approvalUpdate] = await db.promise().query(
+    `UPDATE loan_booking_carepay
    SET status = 'Approved',
        bank_status = 'Verified'
    WHERE lan = ?
      AND UPPER(TRIM(status)) <> 'REJECTED'`,
-  [cleanLan],
-);
+    [cleanLan],
+  );
 
   if (approvalUpdate.affectedRows === 0) {
     const [[latestLoan]] = await db.promise().query(
@@ -589,11 +559,9 @@ const [approvalUpdate] = await db.promise().query(
       reason: "APPROVAL_UPDATE_BLOCKED",
       current_status: latestLoan?.status || null,
       agreement_validation_status:
-        latestLoan?.agreement_validation_status ||
-        null,
+        latestLoan?.agreement_validation_status || null,
       agreement_validation_reason:
-        latestLoan?.agreement_validation_reason ||
-        null,
+        latestLoan?.agreement_validation_reason || null,
     };
   }
 
@@ -608,61 +576,57 @@ const [approvalUpdate] = await db.promise().query(
 
 // ✅ Upload a Document - COMMON FOR ALL PARTNERS
 router.post("/upload", upload.single("document"), async (req, res) => {
-    try {
-      const { lan, filename } = req.body;
+  try {
+    const { lan, filename } = req.body;
 
-      if (!req.file || !lan) {
-        return res.status(400).json({
-          error: "LAN and file are required.",
-          debug: {
-            lan_received: lan || null,
-            filename_received: filename || null,
-            file_received: Boolean(req.file),
-          },
-        });
-      }
+    if (!req.file || !lan) {
+      return res.status(400).json({
+        error: "LAN and file are required.",
+        debug: {
+          lan_received: lan || null,
+          filename_received: filename || null,
+          file_received: Boolean(req.file),
+        },
+      });
+    }
 
-      const cleanLan = String(lan)
-        .trim()
-        .toUpperCase();
+    const cleanLan = String(lan).trim().toUpperCase();
 
-      const requestedDocumentName = String(
-        filename || req.file.originalname || "",
-      ).trim();
+    const requestedDocumentName = String(
+      filename || req.file.originalname || "",
+    ).trim();
 
-      const documentType = String(filename || "")
-        .trim()
-        .toLowerCase()
-        .replace(/[\s_-]/g, "");
-//       const documentType = String(
-//   filename || req.file.originalname || "",
-// )
-//   .trim()
-//   .replace(/\.[^/.]+$/, "")
-//   .toLowerCase()
-//   .replace(/[\s_-]/g, "");
+    const documentType = String(filename || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]/g, "");
+    //       const documentType = String(
+    //   filename || req.file.originalname || "",
+    // )
+    //   .trim()
+    //   .replace(/\.[^/.]+$/, "")
+    //   .toLowerCase()
+    //   .replace(/[\s_-]/g, "");
 
-      const isLoanAgreement =
-        documentType === "loanagreement";
+    const isLoanAgreement = documentType === "loanagreement";
 
-      const storedName = req.file.filename;
+    const storedName = req.file.filename;
 
-      /*
+    /*
       |--------------------------------------------------------------------------
       | SAVE DOCUMENT RECORD
       |--------------------------------------------------------------------------
       */
 
-      if (cleanLan.startsWith("CARE")) {
+    if (cleanLan.startsWith("CARE")) {
+      const carePayDocName = String(filename || req.file.originalname || "")
+        .trim()
+        .replace(/\.[^/.]+$/, "")
+        .toLowerCase()
+        .replace(/[\s_-]/g, "");
 
-  const carePayDocName = String(filename || req.file.originalname || "")
-    .trim()
-    .replace(/\.[^/.]+$/, "")
-    .toLowerCase()
-    .replace(/[\s_-]/g, "");
-
-  await db.promise().query(
-    `
+      await db.promise().query(
+        `
     INSERT INTO loan_documents
     (
       lan,
@@ -673,18 +637,11 @@ router.post("/upload", upload.single("document"), async (req, res) => {
     )
     VALUES (?, ?, ?, ?, NOW())
     `,
-    [
-      cleanLan,
-      carePayDocName,
-      storedName,
-      requestedDocumentName,
-    ],
-  );
-
-} else {
-
-  await db.promise().query(
-    `
+        [cleanLan, carePayDocName, storedName, requestedDocumentName],
+      );
+    } else {
+      await db.promise().query(
+        `
     INSERT INTO loan_documents
     (
       lan,
@@ -694,148 +651,137 @@ router.post("/upload", upload.single("document"), async (req, res) => {
     )
     VALUES (?, ?, ?, NOW())
     `,
-    [
-      cleanLan,
-      storedName,
-      requestedDocumentName,
-    ],
-  );
+        [cleanLan, storedName, requestedDocumentName],
+      );
+    }
 
-}
-    
-      if (!cleanLan.startsWith("CARE")) {
-        return res.status(200).json({
-          message: "✅ Document uploaded successfully",
-        });
-      }
+    if (!cleanLan.startsWith("CARE")) {
+      return res.status(200).json({
+        message: "✅ Document uploaded successfully",
+      });
+    }
 
-
-
-           const [[carePayLoan]] =
-        await db.promise().query(
-          `SELECT lan
+    const [[carePayLoan]] = await db.promise().query(
+      `SELECT lan
            FROM loan_booking_carepay
            WHERE lan = ?
            LIMIT 1`,
-          [cleanLan],
-        );
+      [cleanLan],
+    );
 
-      if (!carePayLoan) {
-        return res.status(200).json({
-          message: "✅ Document uploaded successfully",
-        });
-      }
+    if (!carePayLoan) {
+      return res.status(200).json({
+        message: "✅ Document uploaded successfully",
+      });
+    }
 
-     
+    let agreementValidation = null;
 
-      let agreementValidation = null;
+    // if (isLoanAgreement) {
 
-      // if (isLoanAgreement) {
-       
-      //   const uploadedFilePath =
-      //     req.file.path ||
-      //     (req.file.destination
-      //       ? require("path").join(
-      //           req.file.destination,
-      //           req.file.filename,
-      //         )
-      //       : null);
+    //   const uploadedFilePath =
+    //     req.file.path ||
+    //     (req.file.destination
+    //       ? require("path").join(
+    //           req.file.destination,
+    //           req.file.filename,
+    //         )
+    //       : null);
 
-      //   if (!uploadedFilePath) {
-      //     await db.promise().query(
-      //       `UPDATE loan_booking_carepay
-      //        SET agreement_validation_status = 'FAILED',
-      //            agreement_validation_reason =
-      //              'Uploaded agreement file path is unavailable.',
-      //            agreement_validation_details = NULL,
-      //            agreement_validated_at = NOW()
-      //        WHERE lan = ?`,
-      //       [cleanLan],
-      //     );
+    //   if (!uploadedFilePath) {
+    //     await db.promise().query(
+    //       `UPDATE loan_booking_carepay
+    //        SET agreement_validation_status = 'FAILED',
+    //            agreement_validation_reason =
+    //              'Uploaded agreement file path is unavailable.',
+    //            agreement_validation_details = NULL,
+    //            agreement_validated_at = NOW()
+    //        WHERE lan = ?`,
+    //       [cleanLan],
+    //     );
 
-      //     return res.status(200).json({
-      //       message:
-      //         "Document uploaded, but agreement validation failed",
-      //       agreement_validation: {
-      //         matched: false,
-      //         status: "FAILED",
-      //         reason: "FILE_PATH_NOT_AVAILABLE",
-      //       },
-      //       carepay_approval: {
-      //         approved: false,
-      //         reason:
-      //           "LOAN_AGREEMENT_VALIDATION_FAILED",
-      //       },
-      //     });
-      //   }
+    //     return res.status(200).json({
+    //       message:
+    //         "Document uploaded, but agreement validation failed",
+    //       agreement_validation: {
+    //         matched: false,
+    //         status: "FAILED",
+    //         reason: "FILE_PATH_NOT_AVAILABLE",
+    //       },
+    //       carepay_approval: {
+    //         approved: false,
+    //         reason:
+    //           "LOAN_AGREEMENT_VALIDATION_FAILED",
+    //       },
+    //     });
+    //   }
 
-      //   agreementValidation =
-      //     await validateCarePayLoanAgreement({
-      //       lan: cleanLan,
-      //       filePath: uploadedFilePath,
-      //     });
+    //   agreementValidation =
+    //     await validateCarePayLoanAgreement({
+    //       lan: cleanLan,
+    //       filePath: uploadedFilePath,
+    //     });
 
-      //   console.log(
-      //     "CAREPAY AGREEMENT VALIDATION RESULT:",
-      //     {
-      //       lan: cleanLan,
-      //       result: agreementValidation,
-      //     },
-      //   );
+    //   console.log(
+    //     "CAREPAY AGREEMENT VALIDATION RESULT:",
+    //     {
+    //       lan: cleanLan,
+    //       result: agreementValidation,
+    //     },
+    //   );
 
-      //   if (!agreementValidation.matched) {
-      //     return res.status(200).json({
-      //       message:
-      //         "Document uploaded, but agreement validation failed",
-      //       agreement_validation:
-      //         agreementValidation,
-      //       carepay_approval: {
-      //         approved: false,
-      //         reason:
-      //           agreementValidation.status ===
-      //           "MISMATCHED"
-      //             ? "LOAN_AGREEMENT_MISMATCH"
-      //             : "LOAN_AGREEMENT_VALIDATION_FAILED",
-      //       },
-      //     });
-      //   }
-      // }
+    //   if (!agreementValidation.matched) {
+    //     return res.status(200).json({
+    //       message:
+    //         "Document uploaded, but agreement validation failed",
+    //       agreement_validation:
+    //         agreementValidation,
+    //       carepay_approval: {
+    //         approved: false,
+    //         reason:
+    //           agreementValidation.status ===
+    //           "MISMATCHED"
+    //             ? "LOAN_AGREEMENT_MISMATCH"
+    //             : "LOAN_AGREEMENT_VALIDATION_FAILED",
+    //       },
+    //     });
+    //   }
+    // }
 
-
-      /*
+    /*
 |--------------------------------------------------------------------------
 | UPDATE CAREPAY DOCUMENT STATUS
 |--------------------------------------------------------------------------
 */
 
-if (documentType === "loanagreement") {
-  await db.promise().query(
-    `UPDATE loan_booking_carepay
+    if (documentType === "loanagreement") {
+      await db.promise().query(
+        `UPDATE loan_booking_carepay
      SET agreement_esign_status = 'Signed',
          sanction_esign_status = 'Signed',
          updated_at = NOW()
      WHERE lan = ?`,
-    [cleanLan],
-  );
-}  else if (documentType === "pan") {
-  await db.promise().query(
-    `UPDATE kyc_verification_status
+        [cleanLan],
+      );
+    } else if (documentType === "pan") {
+      await db.promise().query(
+        `UPDATE kyc_verification_status
      SET pan_status = 'Verified',
          updated_at = NOW()
      WHERE lan = ?`,
-    [cleanLan],
-  );
-} else if (documentType === "aadhaar") {
-  await db.promise().query(
-    `UPDATE kyc_verification_status
+        [cleanLan],
+      );
+    } else if (documentType === "aadhaar") {
+      await db.promise().query(
+        `UPDATE kyc_verification_status
      SET aadhaar_status = 'Verified',
          updated_at = NOW()
      WHERE lan = ?`,
-    [cleanLan],
-  );
-}// Bank verification based on UMRN + bank details
-await db.promise().query(
-  `
+        [cleanLan],
+      );
+    } // Bank verification based on UMRN + bank details
+    await db.promise().query(
+      `
   UPDATE loan_booking_carepay
   SET bank_status = 'Verified',
       updated_at = NOW()
@@ -855,38 +801,31 @@ await db.promise().query(
     AND bank_account_type IS NOT NULL
     AND TRIM(bank_account_type) <> ''
   `,
-  [cleanLan]
-);
+      [cleanLan],
+    );
 
-          const approvalResult =
-        await checkAndApproveCarePayLoan(cleanLan);
+    const approvalResult = await checkAndApproveCarePayLoan(cleanLan);
 
-      // console.log("CAREPAY APPROVAL RESULT:", {
-        // lan: cleanLan,
-        // uploaded_document: requestedDocumentName,
-        // result: approvalResult,
-      // });
+    // console.log("CAREPAY APPROVAL RESULT:", {
+    // lan: cleanLan,
+    // uploaded_document: requestedDocumentName,
+    // result: approvalResult,
+    // });
 
-      return res.status(200).json({
-        message: "✅ Document uploaded successfully",
-        agreement_validation:
-          agreementValidation || undefined,
-        carepay_approval: approvalResult,
-      });
-    } catch (error) {
-      console.error(
-        "❌ Document upload processing error:",
-        error,
-      );
+    return res.status(200).json({
+      message: "✅ Document uploaded successfully",
+      agreement_validation: agreementValidation || undefined,
+      carepay_approval: approvalResult,
+    });
+  } catch (error) {
+    console.error("❌ Document upload processing error:", error);
 
-    
-      return res.status(500).json({
-        error: "Document processing failed",
-        message: error.message,
-      });
-    }
-  },
-);
+    return res.status(500).json({
+      error: "Document processing failed",
+      message: error.message,
+    });
+  }
+});
 
 ////////////////////// API to upload multiple files ///////////////////////
 // router.post(
@@ -926,17 +865,12 @@ await db.promise().query(
 //   },
 // );
 
-
-
-
-
 router.post(
   "/upload-files",
   verifyApiKey,
   upload.array("documents", 10),
   (req, res) => {
-    const lan =
-      typeof req.body.lan === "string" ? req.body.lan.trim() : "";
+    const lan = typeof req.body.lan === "string" ? req.body.lan.trim() : "";
 
     // Optional field: becomes NULL when missing or empty
     const docName =
@@ -1891,9 +1825,9 @@ router.post(
           original_name = uploadedFile.originalname;
 
           // console.log("file upload found for document index", i, {
-            // fieldname: uploadedFile.fieldname,
-            // originalname: uploadedFile.originalname,
-            // filename: uploadedFile.filename,
+          // fieldname: uploadedFile.fieldname,
+          // originalname: uploadedFile.originalname,
+          // filename: uploadedFile.filename,
           // });
         } else if (url) {
           /**
@@ -1975,12 +1909,11 @@ router.post(
   },
 );
 
-
 const ALLOWED_DOCS_SML = new Set([
   "AADHAAR_XML_DIGILOCKER",
   "SELFIE_IMAGE",
   "LOAN_AGREEMENT_SIGNED",
-  "OTHER_DOCUMENTS"
+  "OTHER_DOCUMENTS",
 ]);
 
 router.post(
@@ -2006,7 +1939,7 @@ router.post(
 
       // Step 1: Check if partner_loan_id exists and get the LAN
       // console.log(
-        // `🔍 Looking up partner_loan_id: ${application_id} in loan_booking_switch_my_loan...`,
+      // `🔍 Looking up partner_loan_id: ${application_id} in loan_booking_switch_my_loan...`,
       // );
 
       const loanRecord = await new Promise((resolve, reject) => {
@@ -2019,8 +1952,8 @@ router.post(
         db.query(sql, [application_id], (err, result) => {
           if (err) {
             // console.log(
-              // "❌ DB error while checking application_id:",
-              // err.message,
+            // "❌ DB error while checking application_id:",
+            // err.message,
             // );
             return reject(err);
           }
@@ -2082,7 +2015,7 @@ router.post(
         // console.log(`   doc_name: ${doc_name}`);
         // console.log(`   document_url: ${url}`);
         // console.log(
-          // `   doc_password: ${doc_password ? "provided" : "not provided"}`,
+        // `   doc_password: ${doc_password ? "provided" : "not provided"}`,
         // );
 
         if (!doc_name || !ALLOWED_DOCS_SML.has(doc_name)) {
@@ -2106,10 +2039,10 @@ router.post(
 
         if (uploadedFile) {
           // console.log(`📁 [${i}] File upload found:`, {
-            // fieldname: uploadedFile.fieldname,
-            // originalname: uploadedFile.originalname,
-            // filename: uploadedFile.filename,
-            // size: uploadedFile.size,
+          // fieldname: uploadedFile.fieldname,
+          // originalname: uploadedFile.originalname,
+          // filename: uploadedFile.filename,
+          // size: uploadedFile.size,
           // });
 
           file_name = uploadedFile.filename;
@@ -2117,7 +2050,7 @@ router.post(
         } else if (url) {
           // CASE 2: DOWNLOAD FROM URL
           // console.log(
-            // `⬇️  [${i}] No file uploaded. Downloading from URL: ${url}`,
+          // `⬇️  [${i}] No file uploaded. Downloading from URL: ${url}`,
           // );
 
           try {
@@ -2194,7 +2127,7 @@ router.post(
 
       // Step 4: Insert into loan_documents
       // console.log(
-        // `💾 Inserting ${cleaned.length} documents into loan_documents table...`,
+      // `💾 Inserting ${cleaned.length} documents into loan_documents table...`,
       // );
 
       const sql = `
@@ -2210,7 +2143,7 @@ router.post(
             return reject(err);
           }
           // console.log(
-            // `✅ DB insert successful! Rows inserted: ${result.affectedRows}`,
+          // `✅ DB insert successful! Rows inserted: ${result.affectedRows}`,
           // );
           resolve(result);
         });
@@ -2218,7 +2151,7 @@ router.post(
 
       // console.log("==========================================");
       // console.log(
-        // `✅ Request completed successfully for application_id: ${application_id}`,
+      // `✅ Request completed successfully for application_id: ${application_id}`,
       // );
       // console.log("==========================================");
 
@@ -3597,6 +3530,7 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("CLY")) loanTable = "loan_booking_clayyo";
   else if (lan.startsWith("SH")) loanTable = "loan_booking_srbh";
   else if (lan.startsWith("RML")) loanTable = "loan_booking_switch_my_loan";
+  else if (lan.startsWith("CCB")) loanTable = "loan_booking_claim_cure_buddy";
 
   try {
     const [loanRows] = await db
@@ -3722,30 +3656,21 @@ router.post("/generate-noc", async (req, res) => {
   }
 });
 
-router.post(
-  "/generate-noc-for-fully-paid",
-  async (req, res) => {
-    try {
-      const result =
-        await generateNocForFullyPaidLoans();
+router.post("/generate-noc-for-fully-paid", async (req, res) => {
+  try {
+    const result = await generateNocForFullyPaidLoans();
 
-      return res.status(200).json(result);
-    } catch (error) {
-      console.error(
-        "Generate Fully Paid NOC route error:",
-        error,
-      );
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Generate Fully Paid NOC route error:", error);
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "Failed to generate NOCs for Fully Paid loans",
-        error: error.message,
-      });
-    }
-  },
-);
-
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate NOCs for Fully Paid loans",
+      error: error.message,
+    });
+  }
+});
 
 // router.post(
 //   "/generate-noc-for-fully-paid",
@@ -3794,7 +3719,14 @@ router.post("/generate-foreclosure", async (req, res) => {
   else if (lan.startsWith("FINE")) bookingTable = "loan_booking_emiclub";
   else if (lan.startsWith("CARE")) bookingTable = "loan_booking_carepay";
   else if (lan.startsWith("STRL")) bookingTable = "loan_booking_sterlion";
+  else if (lan.startsWith("HEL")) bookingTable = "loan_booking_helium";
   else if (lan.startsWith("SH")) bookingTable = "loan_booking_srbh";
+
+  if (!bookingTable) {
+    return res.status(400).json({
+      error: `Foreclosure generation is not configured for LAN ${lan}`,
+    });
+  }
 
   // Helpers
   const fmtDateLong = (d) =>
@@ -3816,13 +3748,9 @@ router.post("/generate-foreclosure", async (req, res) => {
 
   try {
     // 2) Borrower info
-    const [loanRows] = await db.promise().query(
-      `SELECT lan, customer_name, partner_loan_id,
-              address_line_1, address_line_2, village, district, state, pincode
-         FROM ${bookingTable}
-        WHERE lan = ? LIMIT 1`,
-      [lan],
-    );
+    const [loanRows] = await db
+      .promise()
+      .query(`SELECT * FROM ${bookingTable} WHERE lan = ? LIMIT 1`, [lan]);
     if (!loanRows.length) {
       return res
         .status(404)
@@ -3903,10 +3831,22 @@ router.post("/generate-foreclosure", async (req, res) => {
 
     // Optional: address block if you want it
     const addressLines = [
-      loan.address_line_1,
+      loan.address_line_1 || loan.current_address || loan.permanent_address,
       loan.address_line_2,
-      [loan.village, loan.district].filter(Boolean).join(", "),
-      [loan.state, loan.pincode].filter(Boolean).join(" - "),
+      [
+        loan.village ||
+          loan.current_village_city ||
+          loan.permanent_village_city,
+        loan.district || loan.current_district || loan.permanent_district,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      [
+        loan.state || loan.current_state || loan.permanent_state,
+        loan.pincode || loan.current_pincode || loan.permanent_pincode,
+      ]
+        .filter(Boolean)
+        .join(" - "),
     ].filter(Boolean);
     if (addressLines.length) {
       doc.moveDown(0.2);
@@ -4119,5 +4059,4 @@ router.post("/generate-foreclosure", async (req, res) => {
 
 module.exports = router;
 
-module.exports.checkAndApproveCarePayLoan =
-  checkAndApproveCarePayLoan;
+module.exports.checkAndApproveCarePayLoan = checkAndApproveCarePayLoan;
