@@ -16,6 +16,11 @@ const {
 const { sendDisbursementWebhook } = require("../routes/switchMyLoan/switchMyLoanWebhook");
 
 const {
+  sendQuickMoneyDisbursementWebhook,
+  sendQuickMoneyRejectionWebhook,
+} = require("../routes/QuickMoney/quickMoneyWebhook");
+
+const {
   processClaimCureBuddyDisbursement,
 } = require("./processClaimCureBuddyDisbursement");
 
