@@ -388,6 +388,165 @@ app.use(
   rmlApiAuditMiddleware,
   require("./routes/switchMyLoan/switchMyLoanRotues"),
 ); // ✅ Register Switch My Loan Routes
+
+function quickMoneyApiAuditMiddleware(req, res, next) {
+  const startedAt = Date.now();
+
+  // Always generate a unique server-side ID.
+  const requestId = crypto.randomUUID();
+
+  const requestHeaders = safeAuditJson(req.headers);
+  const requestQuery = safeAuditJson(req.query);
+  const requestBody = safeAuditJson(req.body);
+
+  let responseBody = null;
+  let capturedParams = {};
+  let capturedRoutePath = `${req.baseUrl || ""}${req.path || ""}`;
+
+  res.setHeader("x-request-id", requestId);
+
+  const originalJson = res.json.bind(res);
+  const originalSend = res.send.bind(res);
+
+  function captureRouteInformation() {
+    capturedParams = {
+      ...(req.params || {}),
+    };
+
+    if (req.route?.path) {
+      capturedRoutePath = `${req.baseUrl || ""}${req.route.path}`;
+    }
+  }
+
+  res.json = function auditJson(body) {
+    captureRouteInformation();
+    responseBody = body;
+    return originalJson(body);
+  };
+
+  res.send = function auditSend(body) {
+    captureRouteInformation();
+
+    if (responseBody === null) {
+      responseBody = parseAuditResponse(body);
+    }
+
+    return originalSend(body);
+  };
+
+  res.on("finish", () => {
+    setImmediate(async () => {
+      try {
+        const responseData =
+          responseBody?.data && typeof responseBody.data === "object"
+            ? responseBody.data
+            : {};
+
+        let applicationId =
+          capturedParams.application_id ||
+          req.body?.application_id ||
+          responseData.application_id ||
+          null;
+
+        let partnerLoanId =
+          req.body?.partner_loan_id || responseData.partner_loan_id || null;
+
+        let lan = req.body?.lan || responseData.lan || null;
+
+        if (applicationId || partnerLoanId || lan) {
+          let lookupSql = null;
+          let lookupValue = null;
+
+          if (applicationId) {
+            lookupSql = `
+              SELECT application_id, partner_loan_id, lan
+              FROM loan_booking_quick_money
+              WHERE application_id = ?
+              LIMIT 1
+            `;
+            lookupValue = applicationId;
+          } else if (partnerLoanId) {
+            lookupSql = `
+              SELECT application_id, partner_loan_id, lan
+              FROM loan_booking_quick_money
+              WHERE partner_loan_id = ?
+              LIMIT 1
+            `;
+            lookupValue = partnerLoanId;
+          } else {
+            lookupSql = `
+              SELECT application_id, partner_loan_id, lan
+              FROM loan_booking_quick_money
+              WHERE lan = ?
+              LIMIT 1
+            `;
+            lookupValue = lan;
+          }
+
+          const [[loanRow]] = await db
+            .promise()
+            .query(lookupSql, [lookupValue]);
+
+          applicationId = applicationId || loanRow?.application_id || null;
+
+          partnerLoanId = partnerLoanId || loanRow?.partner_loan_id || null;
+
+          lan = lan || loanRow?.lan || null;
+        }
+
+        await db.promise().query(
+          `
+          INSERT INTO quick_money_api_audit_logs
+          (
+            request_id,
+            application_id,
+            partner_loan_id,
+            lan,
+            http_method,
+            route_path,
+            request_url,
+            request_headers,
+            request_params,
+            request_query,
+            request_body,
+            response_status,
+            response_body,
+            duration_ms,
+            ip_address,
+            user_agent
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            requestId,
+            applicationId,
+            partnerLoanId,
+            lan,
+            req.method,
+            capturedRoutePath,
+            req.originalUrl,
+            requestHeaders,
+            safeAuditJson(capturedParams),
+            requestQuery,
+            requestBody,
+            res.statusCode,
+            safeAuditJson(responseBody),
+            Date.now() - startedAt,
+            req.ip || req.socket?.remoteAddress || null,
+            req.headers["user-agent"] || null,
+          ],
+        );
+      } catch (auditError) {
+        console.error("[QUICK MONEY API AUDIT] Failed to save audit log:", {
+          requestId,
+          message: auditError.message,
+        });
+      }
+    });
+  });
+
+  next();
+}
 app.use("/api/loan-digit", require("./routes/loanDigit/loanDigitRoutes"));
 app.use("/api/fldg", require("./routes/fldgRoutes")); // ✅ Register FLDG Routes
 
@@ -444,7 +603,7 @@ app.use(
 
 app.use( "/api/payment-receipts",paymentReceiptRoutes);
 
-app.use("/api/quick-money", quickMoneyRoutes);
+app.use("/api/quick-money", quickMoneyApiAuditMiddleware, quickMoneyRoutes);
 app.post("/api/cibil/:id/pdf", async (req, res) => {
   try {
     const doc = await generateForReport(req.params.id);
