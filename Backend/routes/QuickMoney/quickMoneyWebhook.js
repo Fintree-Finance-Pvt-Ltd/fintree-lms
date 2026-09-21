@@ -414,7 +414,7 @@ async function sendQuickMoneyDisbursementWebhook({
 const webhookUrl =
 `${QUICK_MONEY_BASE_URL}/disbursement-status`;
   // `http://localhost:5000/api/quick-money/test-webhook-receiver`
-    "disbursement-status";
+    // "disbursement-status";
 
   const requestBody = {
     payload: {
