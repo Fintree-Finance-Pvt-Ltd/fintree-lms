@@ -64,8 +64,8 @@ const POLICY = Object.freeze({
 // (26+, and any age that couldn't be determined) uses the standard
 // Rs 8,000 minimum.
 function getMinLoanAmountForAge(age) {
-  if (age !== null && age !== undefined && age >= 23 && age <= 25) {
-    return POLICY.MIN_LOAN_AMOUNT_23_TO_25;
+  if (age !== null && age !== undefined && age >= 21) {
+    return POLICY.MIN_LOAN_AMOUNT;
   }
 
   return POLICY.MIN_LOAN_AMOUNT;
