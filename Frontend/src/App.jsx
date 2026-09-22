@@ -417,12 +417,12 @@ function App() {
   path="/saswat/payment-receipt"
   element={<SaswatPaymentReceipt />}
 />
-            <Route
+            {/* <Route
   path="/nach-presentation"
   element={
     <NachPresentation />
   }
-/>
+/> */}
           <Route
             path="/customer-soa"
             element={
