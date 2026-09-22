@@ -87,51 +87,34 @@ const buildAgreementDetails = (rawRequestValue, rawResponseValue) => {
     borrower: null,
     guarantor: null,
     co_applicant: null,
-    order_status:
-      rawResponse?.webhook_response?.order_status || null,
-    reference_id:
-      rawResponse?.webhook_response?.reference_id || null,
+    order_status: rawResponse?.webhook_response?.order_status || null,
+    reference_id: rawResponse?.webhook_response?.reference_id || null,
   };
 
   for (const requestParty of requestParties) {
-    const applicantType = getAgreementApplicantType(
-      requestParty?.remark,
-    );
+    const applicantType = getAgreementApplicantType(requestParty?.remark);
 
     if (!applicantType) {
       continue;
     }
 
-    const requestMobile = normalizeMobile(
-      requestParty?.contact_number,
-    );
+    const requestMobile = normalizeMobile(requestParty?.contact_number);
 
-    const requestEmail = normalizeText(
-      requestParty?.email,
-    );
+    const requestEmail = normalizeText(requestParty?.email);
 
-    const requestName = normalizeText(
-      requestParty?.name,
-    );
+    const requestName = normalizeText(requestParty?.name);
 
     const responseParty =
       responseSignatories.find(
         (item) =>
           requestMobile &&
-          normalizeMobile(item?.contact_number) ===
-            requestMobile,
+          normalizeMobile(item?.contact_number) === requestMobile,
       ) ||
       responseSignatories.find(
-        (item) =>
-          requestEmail &&
-          normalizeText(item?.email) ===
-            requestEmail,
+        (item) => requestEmail && normalizeText(item?.email) === requestEmail,
       ) ||
       responseSignatories.find(
-        (item) =>
-          requestName &&
-          normalizeText(item?.name) ===
-            requestName,
+        (item) => requestName && normalizeText(item?.name) === requestName,
       ) ||
       null;
 
@@ -140,40 +123,24 @@ const buildAgreementDetails = (rawRequestValue, rawResponseValue) => {
     }
 
     const agreementData = {
-      name:
-        responseParty.name ||
-        requestParty.name ||
-        null,
+      name: responseParty.name || requestParty.name || null,
 
       mobile:
-        responseParty.contact_number ||
-        requestParty.contact_number ||
-        null,
+        responseParty.contact_number || requestParty.contact_number || null,
 
-      email:
-        responseParty.email ||
-        requestParty.email ||
-        null,
+      email: responseParty.email || requestParty.email || null,
 
-      status:
-        responseParty.status || null,
+      status: responseParty.status || null,
 
-      url:
-        responseParty.doqfy_sign_url ||
-        responseParty.sign_url ||
-        null,
+      url: responseParty.doqfy_sign_url || responseParty.sign_url || null,
 
-      doqfy_sign_url:
-        responseParty.doqfy_sign_url || null,
+      doqfy_sign_url: responseParty.doqfy_sign_url || null,
 
-      sign_url:
-        responseParty.sign_url || null,
+      sign_url: responseParty.sign_url || null,
 
-      signatory_id:
-        responseParty.signatory_id || null,
+      signatory_id: responseParty.signatory_id || null,
 
-      signed_at:
-        responseParty.signed_at || null,
+      signed_at: responseParty.signed_at || null,
     };
 
     if (applicantType === "BORROWER") {
@@ -3919,41 +3886,6 @@ router.get("/aadhaar-address/:lan/:applicantType", async (req, res) => {
 
     const row = rows[0];
 
-    let agreementDetails = {
-  borrower: null,
-  guarantor: null,
-  co_applicant: null,
-  order_status: null,
-  reference_id: null,
-};
-
-try {
-  const [esignRows] = await db.promise().query(
-    `
-      SELECT
-        raw_request,
-        raw_response
-      FROM esign_documents
-      WHERE lan = ?
-      ORDER BY created_at DESC, id DESC
-      LIMIT 1
-    `,
-    [lan],
-  );
-
-  if (esignRows.length) {
-    agreementDetails = buildAgreementDetails(
-      esignRows[0].raw_request,
-      esignRows[0].raw_response,
-    );
-  }
-} catch (agreementError) {
-  console.error(
-    "Failed to load Sampada agreement links:",
-    agreementError,
-  );
-}
-
     if (row.aadhaar_status !== "VERIFIED") {
       return res.json({
         success: false,
@@ -3998,6 +3930,38 @@ router.get("/customer-details/:lan", async (req, res) => {
   });
 
   const lan = String(req.params?.lan || "").trim();
+
+  let agreementDetails = {
+    borrower: null,
+    guarantor: null,
+    co_applicant: null,
+    order_status: null,
+    reference_id: null,
+  };
+
+  try {
+    const [esignRows] = await db.promise().query(
+      `
+    SELECT
+      raw_request,
+      raw_response
+    FROM esign_documents
+    WHERE lan = ?
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+    `,
+      [lan],
+    );
+
+    if (esignRows.length) {
+      agreementDetails = buildAgreementDetails(
+        esignRows[0].raw_request,
+        esignRows[0].raw_response,
+      );
+    }
+  } catch (agreementError) {
+    console.error("Failed to load Sampada agreement links:", agreementError);
+  }
 
   if (!lan) {
     return res.status(400).json({
