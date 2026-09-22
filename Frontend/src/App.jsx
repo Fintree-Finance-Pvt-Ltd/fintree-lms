@@ -304,11 +304,13 @@ import SterlionMexonDexonCollectionUpload from "./components/SterlionMexonDexon/
 import SterlionMexonDexonAllInvoices from "./components/SterlionMexonDexon/SterlionMexonDexonAllInvoice.jsx";
 import QMLAllLoans from "./components/QuickMoney/QMLAllLoans.jsx";
 import QMLDisburseInitiate from "./components/QuickMoney/QMLDisburseInitiate.jsx";
-import QMLLoginloans from "./components/QuickMoney/QMLLoginLoans.jsx";
+// import QMLLoginloans from "./components/QuickMoney/QMLLoginLoans.jsx";
 import SaswatAllLoans from "./components/Saswat/SaswatAllLoans.jsx";
 import SaswatApprovedLoans from "./components/Saswat/SaswatApprovedLoans.jsx";
 import SaswatDisbursedLoans from "./components/Saswat/SaswatDisbursedLoans.jsx";
 import SaswatPaymentReceipt from "./components/Saswat/SaswatPaymentReceipt.jsx";
+// import NachPresentation from "./components/NachPresentation.jsx";
+import QMLApprovedLoans from "./components/QuickMoney/QMLApprovedLoans.jsx";
 
 function App() {
   return (
@@ -415,6 +417,12 @@ function App() {
   path="/saswat/payment-receipt"
   element={<SaswatPaymentReceipt />}
 />
+            {/* <Route
+  path="/nach-presentation"
+  element={
+    <NachPresentation />
+  }
+/> */}
           <Route
             path="/customer-soa"
             element={
@@ -1722,16 +1730,24 @@ function App() {
            <Route
             path="/qml-loans/disburse-initiate"
             element={
-              <PermissionRoute pageName="Quick Money Disburse Initiate">
+              <PermissionRoute pageName="Quick Money Disburse Loans">
                 <QMLDisburseInitiate />
               </PermissionRoute>
             }
           />
-          <Route
+          {/* <Route
             path="/qml-loans/login-loans"
             element={
               <PermissionRoute pageName="Quick Money Login loans">
                 <QMLLoginloans />
+              </PermissionRoute>
+            }
+          /> */}
+             <Route
+            path="/qml-loans/approved-loans"
+            element={
+              <PermissionRoute pageName="Quick Money Approved Loans">
+                <QMLApprovedLoans/>
               </PermissionRoute>
             }
           />

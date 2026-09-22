@@ -4287,11 +4287,36 @@ router.put(
         // SHOULD VERIFY BANK
         // ====================================================
 
+        // Previously this only ran when the CURRENT update-details call
+        // itself included a bank field or the customer's name. If bank
+        // details were already complete from an earlier call, and a later
+        // call updates something unrelated (KYC status, employment, etc.)
+        // without resending bank_account/full_name, verification was
+        // silently skipped entirely — the loan could stay in whatever
+        // unverified state it was in indefinitely. Now it also runs
+        // whenever complete bank details exist but haven't successfully
+        // verified yet, regardless of what this specific call updates.
+        // Excludes PENDING too — a verification already in flight from an
+        // earlier call must not be re-triggered by a later, unrelated
+        // update-details call before it resolves.
+        const currentBankVerificationStatus =
+          String(
+            row.bank_verification_status || "",
+          )
+            .trim()
+            .toUpperCase();
+
+        const bankNotYetVerified =
+          !["VERIFIED", "PENDING"].includes(
+            currentBankVerificationStatus,
+          );
+
         const shouldEvaluateBank =
           hasCompleteBankDetails &&
           (
             coreBankFieldProvided ||
-            hasCustomerNameUpdate
+            hasCustomerNameUpdate ||
+            bankNotYetVerified
           );
 
 
@@ -4872,6 +4897,44 @@ router.put(
 
 
       // ======================================================
+      // REJECTION WEBHOOK (bank name mismatch)
+      // ======================================================
+
+      /*
+       * The case has already been rejected internally above
+       * (status/sml_bre_status/sml_bre_reason set to REJECTED
+       * before commit). The partner is not told about the
+       * rejection synchronously here — this call still responds
+       * with a normal success below — they learn about it via
+       * this webhook instead. Fire-and-forget: a webhook failure
+       * must not affect this response, the update has already
+       * been committed and the case is already rejected either way.
+       */
+
+      if (
+        bankNameMismatchDetected
+      ) {
+        try {
+          await sendRejectionWebhook({
+            applicationId,
+          });
+        } catch (
+          rejectionWebhookError
+        ) {
+          console.error(
+            "Failed to send rejection webhook after bank name mismatch:",
+            {
+              applicationId,
+              lan,
+              message:
+                rejectionWebhookError.message,
+            },
+          );
+        }
+      }
+
+
+      // ======================================================
       // RESPONSE
       // ======================================================
 
@@ -4880,18 +4943,7 @@ router.put(
 
         data: {
           status:
-            bankNameMismatchDetected
-              ? "Rejected"
-              : "loan details updated successfully",
-
-          ...(
-            bankNameMismatchDetected
-              ? {
-                  reason:
-                    "BANK_ACCOUNT_NAME_MISMATCH",
-                }
-              : {}
-          ),
+            "loan details updated successfully",
 
           lan,
 

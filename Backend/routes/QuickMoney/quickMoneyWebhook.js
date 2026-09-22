@@ -313,7 +313,7 @@ async function sendQuickMoneyRejectionWebhook({
     );
   }
 
-  const webhookUrl =  `${QUICK_MONEY_BASE_URL}/loan-rejection`;
+  const webhookUrl =  `${QUICK_MONEY_BASE_URL}/loan-rejected`;
 
    // "http://localhost:5000/api/quick-money/test-webhook-receiver";
   const requestBody = {
