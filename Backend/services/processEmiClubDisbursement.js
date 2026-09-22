@@ -534,6 +534,30 @@ async function processQuickMoneyDisbursement({
       { lan }
     );
 
+    try {
+      const welcomeLetterResult = await sendWelcomeLetterAfterUtrUpload({
+        lan,
+        utrNumber: disbursementUTR,
+      });
+
+      console.log("[Quick Money][WELCOME_LETTER] Sent", {
+        lan,
+        utr: disbursementUTR,
+        messageId: welcomeLetterResult?.emailMessageId,
+        recipient: welcomeLetterResult?.recipient,
+      });
+    } catch (welcomeLetterError) {
+      // The disbursement itself already committed successfully — a
+      // welcome letter failure (bad email, template issue, etc.) must
+      // never be treated as a disbursement failure.
+      console.error("[Quick Money][WELCOME_LETTER] Failed", {
+        lan,
+        utr: disbursementUTR,
+        errorCode: welcomeLetterError?.code || "WELCOME_LETTER_FAILED",
+        errorMessage: welcomeLetterError?.message || "Unable to send welcome letter",
+      });
+    }
+
     return {
       success: true,
       lan,
