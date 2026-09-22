@@ -1984,19 +1984,16 @@ function CopyLinkField({ label, url, status }) {
     >
       <strong style={{ color: "#0f172a" }}>{label}</strong>
 
-      {status && (
-        <div
+      {String(status || "").toUpperCase() === "VERIFIED" ? (
+        <span
           style={{
-            color: "#6b7280",
-            fontSize: "13px",
-            fontWeight: 600,
+            color: "#16a34a",
+            fontWeight: 800,
           }}
         >
-          Status: {status}
-        </div>
-      )}
-
-      {url ? (
+          ✅ Verified - Link disabled
+        </span>
+      ) : url ? (
         <>
           <input
             type="text"
@@ -2969,23 +2966,23 @@ const SampadaUpdateData = () => {
             <Grid>
               <CopyLinkField
                 label="Borrower Agreement Link"
-                url={getAgreementUrl(borrowerAgreement)}
-                status={getAgreementStatus(borrowerAgreement)}
+                url={loan.agreement_details?.borrower?.url}
+                status={loan.agreement_details?.borrower?.status}
               />
 
               {hasValue(loan.guarantor?.name) && (
                 <CopyLinkField
                   label="Guarantor Agreement Link"
-                  url={getAgreementUrl(guarantorAgreement)}
-                  status={getAgreementStatus(guarantorAgreement)}
+                  url={loan.agreement_details?.guarantor?.url}
+                  status={loan.agreement_details?.guarantor?.status}
                 />
               )}
 
               {hasValue(loan.co_applicant?.name) && (
                 <CopyLinkField
                   label="Co-Applicant Agreement Link"
-                  url={getAgreementUrl(coApplicantAgreement)}
-                  status={getAgreementStatus(coApplicantAgreement)}
+                  url={loan.agreement_details?.co_applicant?.url}
+                  status={loan.agreement_details?.co_applicant?.status}
                 />
               )}
             </Grid>
