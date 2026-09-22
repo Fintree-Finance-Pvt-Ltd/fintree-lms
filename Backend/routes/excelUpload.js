@@ -12369,7 +12369,10 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_bundela";
   } else if (lan.startsWith("RML")) {
     tableName = "manual_rps_switch_my_loan";
-  } else if (lan.startsWith("SH")) {
+  } 
+   else if (lan.startsWith("QML")) {
+    tableName = "manual_rps_quick_money";
+  }else if (lan.startsWith("SH")) {
     tableName = "manual_rps_srbh";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
