@@ -31,6 +31,10 @@ const { generateNoc } = require("../services/noc.service");
 const {
   generateNocForFullyPaidLoans,
 } = require("../jobs/generate-noc-for-fully-paid");
+
+const {
+  generateNocForFullyPaidLoans: generateNocForFullyPaidQuickMoneyLoans,
+} = require("../jobs/generate-noc-for-quick-money");
 // ---------- DB helper ----------
 function q(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -3667,6 +3671,22 @@ router.post("/generate-noc-for-fully-paid", async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to generate NOCs for Fully Paid loans",
+      error: error.message,
+    });
+  }
+});
+
+router.post("/generate-noc-for-quick-money", async (req, res) => {
+  try {
+    const result = await generateNocForFullyPaidQuickMoneyLoans();
+
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error("Generate Fully Paid QuickMoney NOC route error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate NOCs for Fully Paid QuickMoney loans",
       error: error.message,
     });
   }

@@ -9,7 +9,7 @@ const {
 async function generateNocForFullyPaidLoans() {
   try {
     console.log(
-      "🔍 Checking Fully Paid WCTL FFPL loans...",
+      "🔍 Checking Fully Paid QuickMoney loans...",
     );
 
     const [loans] = await db.promise().query(
@@ -36,7 +36,7 @@ async function generateNocForFullyPaidLoans() {
 
       return {
         success: true,
-        message: "No Fully Paid WCTL FFPL loans found.",
+        message: "No Fully Paid QuickMoney loans found.",
         summary: {
           totalFullyPaidLoans: 0,
           generated: 0,
@@ -113,6 +113,7 @@ async function generateNocForFullyPaidLoans() {
           baseUrl:
             process.env.BACKEND_URL || "",
         });
+        // process.env.BASE_URL || "",
 
         generatedCount++;
 
@@ -173,7 +174,7 @@ async function generateNocForFullyPaidLoans() {
     return {
       success: true,
       message:
-        "Fully Paid WCTL FFPL NOC process completed.",
+        "Fully Paid QuickMoney NOC process completed.",
       summary,
       results,
     };
