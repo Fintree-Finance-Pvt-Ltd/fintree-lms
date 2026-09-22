@@ -81,6 +81,38 @@ const RPS_POS_SOURCES = [
     partnerName: "SASWAT",
     tableName: "manual_rps_saswat",
   },
+  {
+    partnerName: "CAREPAY",
+    tableName: "manual_rps_carepay",
+  },
+  {
+    partnerName: "Claim Cure Buddy",
+    tableName: "manual_rps_claim_cure_buddy",
+  },
+  {
+    partnerName: "QUICK MONEY",
+    tableName: "manual_rps_quick_money",
+  },
+  {
+    partnerName: "RAPID MONEY",
+    tableName: "manual_rps_switch_my_loan",
+  },
+  {
+    partnerName: "Seven Fincorp",
+    tableName: "manual_rps_seven_fincorp",
+  },
+  {
+    partnerName: "sterlion-ubl",
+    tableName: "manual_rps_sterlion_ubl",
+  },
+  {
+    partnerName: "WCTL FFPL",
+    tableName: "manual_rps_wctl_ffpl",
+  },
+  {
+    partnerName: "YAMONEY",
+    tableName: "manual_rps_ya_money",
+  },
 ];
 
 async function getPartnerPOSMap(conn) {
