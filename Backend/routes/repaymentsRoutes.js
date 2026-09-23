@@ -581,6 +581,7 @@ async function processRows(sheetData, res) {
 
       "Transfer Amount": row["Transfer Amount"] || row.transfer_amount,
 
+      "Allocation Type": row["Allocation Type"] || row.allocation_type || null,
       __row: row.__row,
     }));
 
@@ -731,6 +732,8 @@ async function processRows(sheetData, res) {
       const payment_id = row["Payment Id"];
       const payment_mode = row["Payment Mode"];
       const transfer_amount = row["Transfer Amount"];
+      const allocationType =row["Allocation Type"] ? String(row["Allocation Type"]) .trim() .toUpperCase() : null;
+      const isWctlFfpl = lan && lan.toUpperCase().startsWith("WCTLFFPL");
 
       /**
        * Validation
@@ -778,6 +781,20 @@ async function processRows(sheetData, res) {
         continue;
       }
 
+      if (
+        isWctlFfpl &&
+        !["I","P","C"].includes(allocationType)
+      ) {
+        rowErrors.push({
+          row: rowNumber,
+          lan,
+          stage: "validation",
+          reason:
+            "Allocation Type required for WCTL FFPL. Allowed values: I, P, C",
+        });
+      
+        continue;
+      }
       /**
        * Select upload table
        */
@@ -845,6 +862,7 @@ async function processRows(sheetData, res) {
         payment_id,
         payment_mode,
         transfer_amount,
+        allocation_type: allocationType,
       });
 
       successRows.push(rowNumber);
