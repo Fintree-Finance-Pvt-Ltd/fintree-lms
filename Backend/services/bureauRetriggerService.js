@@ -738,7 +738,6 @@ function buildSoapBody({ ftRef, loan, gender_code, dobFormatted, state_code }) {
             <XMLUser>cpu2fintreef_prod03</XMLUser>
             <XMLPassword>Sajagjain98@#</XMLPassword>
           </Identification>
-
           <Application>
             <FTReferenceNumber>${ftRef}</FTReferenceNumber>
             <CustomerReferenceID/>
