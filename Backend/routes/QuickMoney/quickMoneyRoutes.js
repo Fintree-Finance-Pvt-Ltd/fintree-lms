@@ -560,8 +560,9 @@ function getBankNameParts(value) {
     .filter((part) => !ignoredWords.has(part));
 }
 
+
 function bankNameTokenMatches(a, b) {
-    if (!a || !b) {
+  if (!a || !b) {
     return false;
   }
 
@@ -594,6 +595,7 @@ function bankNameTokenMatches(a, b) {
 
   return false;
 }
+
 
 function bankNameSequenceMatches(
   customerParts,
@@ -703,6 +705,104 @@ function bankNameSequenceMatches(
   return false;
 }
 
+
+/*
+ * Handles:
+ *
+ * SAJANAAYYAPPANASARI
+ * A SAJANA
+ */
+function compoundBankNameInitialMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length !== 1 ||
+    bankParts.length !== 2
+  ) {
+    return false;
+  }
+
+  const compoundCustomerName =
+    customerParts[0];
+
+  const possibleOrders = [
+    bankParts,
+    [...bankParts].reverse(),
+  ];
+
+  for (const parts of possibleOrders) {
+    const first = parts[0];
+    const second = parts[1];
+
+    if (
+      first.length >= 4 &&
+      second.length === 1 &&
+      compoundCustomerName.startsWith(
+        `${first}${second}`,
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/*
+ * Handles:
+ *
+ * RAM BHAJAN
+ *
+ * RAMBHAJAN SAINI
+ */
+function extraBankSurnameMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length < 2 ||
+    bankParts.length < 2
+  ) {
+    return false;
+  }
+
+  /*
+   * Allow only one additional bank name.
+   */
+  if (
+    bankParts.length >
+    customerParts.length + 1
+  ) {
+    return false;
+  }
+
+  /*
+   * Remove final additional surname.
+   *
+   * RAMBHAJAN SAINI
+   *
+   * becomes:
+   *
+   * RAMBHAJAN
+   */
+  const bankWithoutLast =
+    bankParts.slice(0, -1);
+
+  return bankNameSequenceMatches(
+    customerParts,
+    bankWithoutLast,
+  );
+}
+
+
+/*
+ * Handles omitted middle name:
+ *
+ * SAJAG SANTOSH JAIN
+ * SAJAG JAIN
+ */
 function omittedBankMiddleNameMatch(
   customerParts,
   bankParts,
@@ -753,46 +853,10 @@ function omittedBankMiddleNameMatch(
   );
 }
 
-function extraBankSurnameMatch(
-  customerParts,
-  bankParts,
-) {
-  if (
-    customerParts.length < 2 ||
-    bankParts.length < 2
-  ) {
-    return false;
-  }
 
-  /*
-   * Allow only one additional bank name.
-   */
-  if (
-    bankParts.length >
-    customerParts.length + 1
-  ) {
-    return false;
-  }
-
-  /*
-   * Remove final additional surname.
-   *
-   * RAMBHAJAN SAINI
-   *
-   * becomes:
-   *
-   * RAMBHAJAN
-   */
-  const bankWithoutLast =
-    bankParts.slice(0, -1);
-
-  return bankNameSequenceMatches(
-    customerParts,
-    bankWithoutLast,
-  );
-}
-
-
+/*
+ * FINAL FUNCTION
+ */
 function bankNamesMatch(
   customerName,
   accountName,
