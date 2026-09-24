@@ -272,6 +272,7 @@ if (allocationType === "I" || allocationType === "C" ) {
 if (
   remaining > 0 &&
   (
+    allocationType === "I" ||
     allocationType === "P" ||
     pendingDueInterest <= 0
   )
