@@ -1583,7 +1583,7 @@ async function runOrReuseBureau(
         status:
           "FAILED",
 
-        technicalReason:
+        rejectionReason:
           "BUREAU_STATE_MISSING",
       };
     }
@@ -2911,6 +2911,37 @@ async function runQuickMoneyBRE(
       loan,
     );
 
+
+  if (
+    bureau.rejectionReason
+  ) {
+    addReason(
+      reasons,
+      bureau.rejectionReason
+    );
+
+    result.decision =
+      "REJECTED";
+
+    result.reason =
+      bureau.rejectionReason;
+
+    result.reasons = [
+      bureau.rejectionReason,
+    ];
+
+    result.bureau = {
+      status:
+        bureau.status,
+    };
+
+    await updateBookingBreSnapshot(
+      loan.lan,
+      result,
+    );
+
+    return result;
+  }
 
   if (
     bureau.technicalReason

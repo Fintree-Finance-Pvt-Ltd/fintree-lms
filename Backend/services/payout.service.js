@@ -96,6 +96,7 @@ const TABLE_TO_POS_TABLE = {
 const DISBURSEMENT_GATE_EXEMPT_TABLES = new Set([
   "loan_booking_switch_my_loan",
   "loan_booking_quick_money",
+  "loan_booking_finso",
 ]);
 
 // Rapid Money, Quick Money, CarePay and YaMoney all already record their own
@@ -108,6 +109,7 @@ const DISBURSEMENT_RECORD_EXEMPT_TABLES = new Set([
   "loan_booking_quick_money",
   "loan_booking_carepay",
   "loan_booking_ya_money",
+  "loan_booking_finso",
 ]);
 
 async function getTableColumnSet(tableName) {

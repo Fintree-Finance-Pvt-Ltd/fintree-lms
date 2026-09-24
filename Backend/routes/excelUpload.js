@@ -5626,13 +5626,73 @@ router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
       });
     }
 
-    if (ops_checker_id) {
-      await db.promise().query(
-        `UPDATE loan_booking_finso 
-         SET ops_checker_id = ?, ops_checker_name = ?
-         WHERE lan = ?`,
-        [ops_checker_id, ops_checker_name, lan],
+    const conn = await db.promise().getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [loans] = await conn.query(
+        `SELECT disbursal_amount, loan_amount FROM loan_booking_finso WHERE lan = ? LIMIT 1`,
+        [lan]
       );
+
+      if (loans.length === 0) {
+        await conn.rollback();
+        conn.release();
+        return res.status(404).json({
+          status: "FAILED",
+          message: "Loan not found",
+        });
+      }
+
+      const loan = loans[0];
+      const disbursalAmount = Number(loan.disbursal_amount || loan.loan_amount || 0);
+      const partnerName = "Finso";
+      const { month, year } = getMonthYear(new Date());
+
+      const partner = await partnerLimitService.getOrCreatePartner(
+        conn,
+        partnerName
+      );
+
+      const limitValidation = await partnerLimitService.validatePartnerDisbursementLimit(
+        conn,
+        partner.partner_id,
+        disbursalAmount,
+        month,
+        year
+      );
+
+      if (!limitValidation.valid) {
+        await conn.rollback();
+        conn.release();
+        return res.status(400).json({
+          status: "FAILED",
+          message: limitValidation.message || "Disbursement limit exceeded",
+        });
+      }
+
+      if (ops_checker_id) {
+        await conn.query(
+          `UPDATE loan_booking_finso 
+           SET ops_checker_id = ?, ops_checker_name = ?
+           WHERE lan = ?`,
+          [ops_checker_id, ops_checker_name, lan]
+        );
+      }
+
+      await partnerLimitService.updateDisbursedLimit(
+        conn,
+        limitValidation.limitId,
+        disbursalAmount,
+        lan
+      );
+
+      await conn.commit();
+      conn.release();
+    } catch (err) {
+      await conn.rollback();
+      conn.release();
+      throw err;
     }
 
     const payoutResult = await approveAndInitiatePayout({
