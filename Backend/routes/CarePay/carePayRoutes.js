@@ -1194,27 +1194,53 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
     conn = await db.promise().getConnection();
     await conn.beginTransaction();
 
-    const hospitalLan = String(data.hospital_lan || "").trim();
+   const normalizedProduct = String(data.loan_type || "")
+  .toLowerCase()
+  .trim();
 
-    const [hospitalRows] = await conn.query(
-      `SELECT lan
-       FROM carepay_hospital_booking
-       WHERE lan = ?
-         AND status IN ('APPROVED')
-       LIMIT 1`,
-      [hospitalLan],
-    );
 
-    if (!hospitalRows.length) {
-      await conn.rollback();
-      conn.release();
-      conn = null;
+if (normalizedProduct === "standard emi") {
 
-      return res.status(404).json({
-        status: "Failed",
-        message: "Hospital not found or not approved for CarePay booking.",
-      });
-    }
+  const hospitalLan = String(data.hospital_lan || "").trim();
+
+
+  if (!hospitalLan) {
+    await conn.rollback();
+    conn.release();
+    conn = null;
+
+    return res.status(400).json({
+      status: "Failed",
+      message: "Hospital LAN is required for Standard EMI."
+    });
+  }
+
+
+  const [hospitalRows] = await conn.query(
+    `
+    SELECT lan
+    FROM carepay_hospital_booking
+    WHERE lan = ?
+      AND status = 'APPROVED'
+    LIMIT 1
+    `,
+    [hospitalLan]
+  );
+
+
+  if (!hospitalRows.length) {
+
+    await conn.rollback();
+    conn.release();
+    conn = null;
+
+    return res.status(400).json({
+      status: "Failed",
+      message: "Wrong hospital insert. Hospital LAN not found or not approved."
+    });
+  }
+
+}
 
     const [existing] = await conn.query(
       `SELECT lan, partner_loan_id, customer_name
