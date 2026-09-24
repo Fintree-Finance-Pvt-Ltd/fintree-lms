@@ -6417,6 +6417,23 @@ const generateRepaymentScheduleGQNonFSF = async (
     const rows = [];
     let opening = P;
 
+    // ✅ CHECK DUPLICATE RPS BEFORE GENERATION
+const [existingRps] = await db.promise().query(
+  `
+  SELECT id
+  FROM manual_rps_gq_non_fsf
+  WHERE UPPER(TRIM(lan)) = ?
+  LIMIT 1
+  `,
+  [String(lan).trim().toUpperCase()]
+);
+
+if (existingRps.length > 0) {
+  throw new Error(
+    `GQ NON-FSF RPS already exists for LAN ${lan}`
+  );
+}
+
     if (k > 0) {
       // advance EMIs: only principal, no interest
       for (let i = 1; i <= k; i++) {
@@ -6602,6 +6619,22 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
 
     const rows = [];
 
+    // ✅ CHECK DUPLICATE RPS BEFORE GENERATION
+const [existingRps] = await db.promise().query(
+  `
+  SELECT id
+  FROM manual_rps_gq_non_fsf_fintree
+  WHERE UPPER(TRIM(lan)) = ?
+  LIMIT 1
+  `,
+  [String(lan).trim().toUpperCase()]
+);
+
+if (existingRps.length > 0) {
+  throw new Error(
+    `GQ NON-FSF FINTREE RPS already exists for LAN ${lan}`
+  );
+}
     // 1) apply k advance EMIs (principal-only)
     console.log(`Applying ${k} advance EMI(s)...`);
     for (let a = 1; a <= k && opening > 0; a++) {
@@ -6827,6 +6860,23 @@ const generateRepaymentScheduleGQFSF = async (
     }
 
     const rpsData = [];
+
+    // ✅ CHECK EXISTING RPS BEFORE GENERATION
+const [existingRps] = await db.promise().query(
+  `
+  SELECT id
+  FROM manual_rps_gq_fsf
+  WHERE UPPER(TRIM(lan)) = ?
+  LIMIT 1
+  `,
+  [String(lan).trim().toUpperCase()]
+);
+
+if (existingRps.length > 0) {
+  throw new Error(
+    `GQ FSF RPS already exists for LAN ${lan}`
+  );
+}
 
     for (let i = 1; i <= tenure; i++) {
       let principal = emiPrincipal;

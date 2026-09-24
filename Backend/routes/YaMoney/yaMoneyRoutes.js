@@ -337,6 +337,8 @@ async function insertLogin(connection, data, ids, createdBy) {
     product: PRODUCT,
     loan_type: LOAN_TYPE,
     login_date: data.login_date,
+    dob: data.dob || null,
+    gender: data.gender || null,
     age: data.age,
     annual_income: data.annual_income,
     customer_name: data.customer_name,
@@ -383,8 +385,8 @@ function buildBureauPayload(data) {
     first_name: name.firstName,
     middle_name: name.middleName,
     last_name: name.lastName,
-    dob: data.dob,
-    gender: data.gender,
+    dob: data.dob || null,
+    gender: data.gender || null,
     pan_number: data.pan_number,
     mobile_number: data.mobile_number,
     current_address: data.customer_address,
@@ -960,9 +962,9 @@ function readFinalLoanData(body) {
     loan_tenure: readNumber(body.loan_tenure ?? body.tenure),
     interest: readNumber(
       body.interest ??
-        body.interest_rate ??
-        body.intrest_rate ??
-        body.intrests_rate,
+      body.interest_rate ??
+      body.intrest_rate ??
+      body.intrests_rate,
     ),
     umrn: clean(body.umrn).toUpperCase(),
     sanction_date: clean(body.sanction_date ?? body.saction_date),
@@ -982,23 +984,23 @@ function readFinalLoanData(body) {
       : null,
     name_in_bank: clean(
       body.name_in_bank ??
-        body.account_holder_name ??
-        body.beneficiary_name ??
-        body.bank_account_holder_name ??
-        body.customer_name_as_per_bank,
+      body.account_holder_name ??
+      body.beneficiary_name ??
+      body.bank_account_holder_name ??
+      body.customer_name_as_per_bank,
     ),
     bank_name: nullIfEmpty(body.bank_name ?? body.bankName),
     account_number: cleanAccountNumber(
       body.account_number ??
-        body.bank_account_number ??
-        body.customer_account_number ??
-        body.bank_ac_number,
+      body.bank_account_number ??
+      body.customer_account_number ??
+      body.bank_ac_number,
     ),
     ifsc: clean(
       body.ifsc ??
-        body.ifsc_code ??
-        body.bank_ifsc_code ??
-        body.bank_ifsc,
+      body.ifsc_code ??
+      body.bank_ifsc_code ??
+      body.bank_ifsc,
     ).toUpperCase(),
   };
 }
@@ -1332,7 +1334,7 @@ router.post("/login", verifyApiKey, async (req, res) => {
       dob,
       age: Number.isFinite(calculatedAge) ? calculatedAge : readNumber(body.age),
       annual_income: body.annual_income || null,
-      gender: nullIfEmpty(body.gender) || "Male",
+      gender: nullIfEmpty(body.gender),
       customer_name: clean(body.customer_name),
       mobile_number: digitsOnly(body.mobile_number),
       email: nullIfEmpty(body.email)?.toLowerCase() || null,
@@ -1402,12 +1404,12 @@ router.post("/login", verifyApiKey, async (req, res) => {
     const bureau = YA_MONEY_BUREAU_ENABLED
       ? await pullAndPersistBureau(ids.lan, data)
       : {
-          success: false,
-          status: "SKIPPED",
-          score: null,
-          skipped: true,
-          reason: "YA_MONEY_BUREAU_DISABLED_FOR_UAT",
-        };
+        success: false,
+        status: "SKIPPED",
+        score: null,
+        skipped: true,
+        reason: "YA_MONEY_BUREAU_DISABLED_FOR_UAT",
+      };
     const breResult = runBRE({
       loan_amount: data.requested_amount,
       age: data.age,

@@ -1,7 +1,9 @@
 const express = require("express");
 const axios = require("axios");
 const db = require("../../config/db");
-const { loadSampadaAgreementStatus } = require("../../services/sampadaAgreementStatus");
+const {
+  loadSampadaAgreementStatus,
+} = require("../../services/sampadaAgreementStatus");
 const crypto = require("crypto");
 const {
   universalRunAllValidations,
@@ -23,6 +25,139 @@ const {
 } = require("./sampadaBRE");
 
 const router = express.Router();
+
+const safeJsonParse = (value) => {
+  if (!value) return null;
+
+  // MySQL JSON column may already be returned as an object.
+  if (typeof value === "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    console.error("Failed to parse JSON:", error);
+    return null;
+  }
+};
+
+const normalizeMobile = (value) =>
+  String(value || "")
+    .replace(/\D/g, "")
+    .slice(-10);
+
+const normalizeText = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const getAgreementApplicantType = (remark) => {
+  const normalized = String(remark || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+
+  if (normalized.includes("CO_APPLICANT")) {
+    return "CO_APPLICANT";
+  }
+
+  if (normalized.includes("GUARANTOR")) {
+    return "GUARANTOR";
+  }
+
+  if (normalized.includes("BORROWER")) {
+    return "BORROWER";
+  }
+
+  return null;
+};
+
+const buildAgreementDetails = (rawRequestValue, rawResponseValue) => {
+  const rawRequest = safeJsonParse(rawRequestValue);
+  const rawResponse = safeJsonParse(rawResponseValue);
+
+  const requestParties =
+    rawRequest?.order_details?.[0]?.esigns?.party_users || [];
+
+  const responseSignatories =
+    rawResponse?.webhook_response?.signatory_data || [];
+
+  const result = {
+    borrower: null,
+    guarantor: null,
+    co_applicant: null,
+    order_status: rawResponse?.webhook_response?.order_status || null,
+    reference_id: rawResponse?.webhook_response?.reference_id || null,
+  };
+
+  for (const requestParty of requestParties) {
+    const applicantType = getAgreementApplicantType(requestParty?.remark);
+
+    if (!applicantType) {
+      continue;
+    }
+
+    const requestMobile = normalizeMobile(requestParty?.contact_number);
+
+    const requestEmail = normalizeText(requestParty?.email);
+
+    const requestName = normalizeText(requestParty?.name);
+
+    const responseParty =
+      responseSignatories.find(
+        (item) =>
+          requestMobile &&
+          normalizeMobile(item?.contact_number) === requestMobile,
+      ) ||
+      responseSignatories.find(
+        (item) => requestEmail && normalizeText(item?.email) === requestEmail,
+      ) ||
+      responseSignatories.find(
+        (item) => requestName && normalizeText(item?.name) === requestName,
+      ) ||
+      null;
+
+    if (!responseParty) {
+      continue;
+    }
+
+    const agreementData = {
+      name: responseParty.name || requestParty.name || null,
+
+      mobile:
+        responseParty.contact_number || requestParty.contact_number || null,
+
+      email: responseParty.email || requestParty.email || null,
+
+      status: responseParty.status || null,
+
+      url: responseParty.doqfy_sign_url || responseParty.sign_url || null,
+
+      doqfy_sign_url: responseParty.doqfy_sign_url || null,
+
+      sign_url: responseParty.sign_url || null,
+
+      signatory_id: responseParty.signatory_id || null,
+
+      signed_at: responseParty.signed_at || null,
+    };
+
+    if (applicantType === "BORROWER") {
+      result.borrower = agreementData;
+    }
+
+    if (applicantType === "GUARANTOR") {
+      result.guarantor = agreementData;
+    }
+
+    if (applicantType === "CO_APPLICANT") {
+      result.co_applicant = agreementData;
+    }
+  }
+
+  return result;
+};
 
 /*
 ====================================================
@@ -3796,6 +3931,38 @@ router.get("/customer-details/:lan", async (req, res) => {
 
   const lan = String(req.params?.lan || "").trim();
 
+  let agreementDetails = {
+    borrower: null,
+    guarantor: null,
+    co_applicant: null,
+    order_status: null,
+    reference_id: null,
+  };
+
+  try {
+    const [esignRows] = await db.promise().query(
+      `
+    SELECT
+      raw_request,
+      raw_response
+    FROM esign_documents
+    WHERE lan = ?
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+    `,
+      [lan],
+    );
+
+    if (esignRows.length) {
+      agreementDetails = buildAgreementDetails(
+        esignRows[0].raw_request,
+        esignRows[0].raw_response,
+      );
+    }
+  } catch (agreementError) {
+    console.error("Failed to load Sampada agreement links:", agreementError);
+  }
+
   if (!lan) {
     return res.status(400).json({
       success: false,
@@ -4637,6 +4804,8 @@ router.get("/customer-details/:lan", async (req, res) => {
         umrn: row.nach_umrn || null,
       },
 
+      agreement_details: agreementDetails,
+
       insurance_details: {
         insurance_cost: row.insurance_cost ?? "",
 
@@ -5214,7 +5383,9 @@ router.post("/:lan/reject", async (req, res) => {
 // Regenerate the PAN verification PDF from the stored verified response.
 router.post("/loan-booking/:lan/generate-pan-document", async (req, res) => {
   try {
-    const lan = String(req.params.lan || "").trim().toUpperCase();
+    const lan = String(req.params.lan || "")
+      .trim()
+      .toUpperCase();
     const connection = db.promise();
     const [kycRows] = await connection.query(
       `SELECT applicant_type, party_no, pan_number, applicant_name,

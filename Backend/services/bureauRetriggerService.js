@@ -735,10 +735,9 @@ function buildSoapBody({ ftRef, loan, gender_code, dobFormatted, state_code }) {
         <INProfileRequest>
 
           <Identification>
-            <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-            <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+            <XMLUser>cpu2fintreef_prod03</XMLUser>
+            <XMLPassword>Sajagjain98@#</XMLPassword>
           </Identification>
-
           <Application>
             <FTReferenceNumber>${ftRef}</FTReferenceNumber>
             <CustomerReferenceID/>
