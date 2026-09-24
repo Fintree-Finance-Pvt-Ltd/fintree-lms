@@ -129,6 +129,8 @@ function resolveProcedure(rawReportId, rawLender) {
                                                       : lender ===
                                                           "sterlion ubl"
                                                         ? "sp_cashflow_report_sterlion_ubl"
+                                                        : lender === "ya money"
+                                                          ? "sp_cashflow_report_ya_money"
                                                         : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
@@ -199,6 +201,8 @@ function resolveProcedure(rawReportId, rawLender) {
                                                           : lender ===
                                                               "claimcurebuddy"
                                                             ? "sp_due_collection_all_report_claim_cure_buddy"
+                                                            : lender === "ya money"
+                                                              ? "sp_due_collection_all_report_ya_money"
                                                             : "sp_due_collection_all_report",
 
     "consolidated-mis": () =>
@@ -253,6 +257,8 @@ function resolveProcedure(rawReportId, rawLender) {
                                                       : lender ===
                                                           "claimcurebuddy"
                                                         ? "sp_consolidated_mis_report_claim_cure_buddy"
+                                                        : lender === "ya money"
+                                                          ? "sp_consolidated_mis_report_ya_money"
                                                         : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
