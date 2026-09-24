@@ -4847,7 +4847,7 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
 
 ///// FINCREST //////
 
-router.post("/v1/finso-lb", verifyApiKey, async (req, res) => {
+router.post("/v1/finslb/dggfkjgkjv", verifyApiKey, async (req, res) => {
   // Column list kept in ONE place to avoid mismatches
   const COLS = [
     "lan",
