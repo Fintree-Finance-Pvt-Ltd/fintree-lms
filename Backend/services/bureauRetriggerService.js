@@ -373,6 +373,18 @@ async function retriggerBureau(lan, opts = {}) {
     dobFormatted,
     state_code,
   });
+  console.log("EXPERIAN FINAL DATA", {
+  first_name: loan.first_name,
+  last_name: loan.last_name,
+  pan: loan.pan_number,
+  mobile: loan.mobile_number,
+  dob: dobFormatted,
+  city: loan.current_city,
+  state: state_code,
+  pincode: loan.current_pincode,
+  amount: loan.loan_amount,
+  tenure: loan.loan_tenure
+});
 
   console.log("[BUREAU] OUTGOING REQUEST", {
     lan,
@@ -387,6 +399,19 @@ async function retriggerBureau(lan, opts = {}) {
 
   try {
     response = await callBureauApi(soapBody);
+    console.log("EXPERIAN FINAL VALUES", {
+  amount: loan.loan_amount,
+  tenure: loan.loan_tenure,
+  firstName: loan.first_name,
+  lastName: loan.last_name,
+  pan: loan.pan_number,
+  mobile: loan.mobile_number,
+  dob: dobFormatted,
+  address: loan.current_address,
+  city: loan.current_city,
+  state: state_code,
+  pincode: loan.current_pincode
+});
   } catch (err) {
     await markBureauFailed(
       partner,
@@ -735,8 +760,8 @@ function buildSoapBody({ ftRef, loan, gender_code, dobFormatted, state_code }) {
         <INProfileRequest>
 
           <Identification>
-            <XMLUser>cpu2fintreef_prod03</XMLUser>
-            <XMLPassword>Sajagjain98@#</XMLPassword>
+            <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+            <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
           </Identification>
           <Application>
             <FTReferenceNumber>${ftRef}</FTReferenceNumber>
