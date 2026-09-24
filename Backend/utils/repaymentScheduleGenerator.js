@@ -1712,6 +1712,7 @@ const generateRepaymentScheduleEmiclub = async (
 
 /////////////// CAREPAY START ///////////////////////
 
+
 const round2 = (value) =>
   Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
@@ -2065,9 +2066,8 @@ const generateRepaymentScheduleCarepay = async (
      * normal interest + processing fee
      */
     const interest = round2(
-      normalInterest +
-        installmentProcessingFee,
-    );
+  normalInterest
+);
 
     const closingPrincipal = Math.max(
       0,
@@ -2076,22 +2076,22 @@ const generateRepaymentScheduleCarepay = async (
       ),
     );
 
-    /*
-     * First installment:
-     *
-     * principal
-     * + normal interest
-     * + processing fee
-     *
-     * Other installments:
-     *
-     * principal
-     * + normal interest
-     */
-    const actualEmi = round2(
-      principal + interest,
-    );
-
+  /*
+ * EMI calculation:
+ *
+ * Normal EMI:
+ * Principal + Interest
+ *
+ * First EMI:
+ * Principal + Interest + Processing Fee
+ *
+ * Processing fee is collected only in first installment.
+ */
+const actualEmi = round2(
+  principal +
+  interest +
+  installmentProcessingFee
+);
     const remainingPrincipal = principal;
     const remainingInterest = interest;
     const remainingEmi = actualEmi;
@@ -2141,6 +2141,54 @@ const generateRepaymentScheduleCarepay = async (
      VALUES ?`,
     [rpsData],
   );
+
+
+  // Insert Processing Fee into loan_charges table
+if (numericProcessingFee > 0) {
+
+  const firstEmiDueDate = formatDateYMD(
+    rpsData[0][1]
+  );
+
+  await conn.query(
+    `
+    INSERT INTO loan_charges
+    (
+      emi_id,
+      lan,
+      charge_date,
+      due_date,
+      amount,
+      paid_amount,
+      waived_amount,
+      waived_off,
+      paid_status,
+      charge_type,
+      remarks
+    )
+    VALUES
+    (
+      NULL,
+      ?,
+      CURDATE(),
+      ?,
+      ?,
+      0,
+      0,
+      0,
+      'Unpaid',
+      'Processing Fee',
+      'Processing fee charged at loan booking'
+    )
+    `,
+    [
+      normalizedLan,
+      firstEmiDueDate,
+      numericProcessingFee
+    ]
+  );
+
+}
 
   /*
    * Store only the regular EMI.

@@ -118,17 +118,21 @@ function resolveProcedure(rawReportId, rawLender) {
                                             ? "sp_cashflow_report_sampada"
                                             : lender === "rapid-money"
                                               ? "sp_cashflow_report_rapid_money"
-                                              : lender === "loan-digit"
-                                                ? "sp_cashflow_report_loan_digit"
-                                                : lender === "saswat"
-                                                  ? "sp_cashflow_report_saswat"
-                                                  : lender === "seven fincorp"
-                                                    ? "sp_cashflow_report_seven_fincorp"
-                                                    : lender === "ffpl10011"
-                                                      ? "sp_pl_fintree_cashflow"
-                                                      : lender ===
+                                              : lender === "quick money"
+                                                ? "sp_cashflow_report_quick_money"  //quick money
+                                                : lender === "loan-digit"
+                                                  ? "sp_cashflow_report_loan_digit"
+                                                  : lender === "saswat"
+                                                    ? "sp_cashflow_report_saswat"
+                                                    : lender === "seven fincorp"
+                                                      ? "sp_cashflow_report_seven_fincorp"
+                                                      : lender === "ffpl10011"
+                                                        ? "sp_pl_fintree_cashflow"
+                                                        : lender ===
                                                           "sterlion ubl"
                                                         ? "sp_cashflow_report_sterlion_ubl"
+                                                        : lender === "ya money"
+                                                          ? "sp_cashflow_report_ya_money"
                                                         : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
@@ -176,29 +180,33 @@ function resolveProcedure(rawReportId, rawLender) {
                                           ? "sp_due_collection_all_report_carepay"
                                           : lender === "rapid-money"
                                             ? "sp_due_collection_all_report_rapid_money"
-                                            : lender === "motion corp"
-                                              ? "sp_due_collection_all_report_motion_corp"
-                                              : lender === "sampada"
-                                                ? "sp_due_collection_all_report_sampada"
-                                                : lender === "saswat"
-                                                  ? "sp_due_collection_all_report_saswat"
-                                                  : lender === "sterlion ubl"
-                                                    ? "sp_due_collection_all_report_sterlion_ubl"
-                                                    : [
-                                                          "sterlion",
-                                                          "mexon",
-                                                          "nexon",
-                                                          "dexon",
-                                                        ].includes(lender)
-                                                      ? "sp_due_demand_collection_sterlion_nexon_dexon"
-                                                      : lender ===
+                                            : lender === "quick money"
+                                              ? "sp_due_demand_collection_report_quick_money"  //quick money
+                                              : lender === "motion corp"
+                                                ? "sp_due_collection_all_report_motion_corp"
+                                                : lender === "sampada"
+                                                  ? "sp_due_collection_all_report_sampada"
+                                                  : lender === "saswat"
+                                                    ? "sp_due_collection_all_report_saswat"
+                                                    : lender === "sterlion ubl"
+                                                      ? "sp_due_collection_all_report_sterlion_ubl"
+                                                      : [
+                                                        "sterlion",
+                                                        "mexon",
+                                                        "nexon",
+                                                        "dexon",
+                                                      ].includes(lender)
+                                                        ? "sp_due_demand_collection_sterlion_nexon_dexon"
+                                                        : lender ===
                                                           "seven fincorp"
-                                                        ? "sp_due_collection_all_report_seven_fincorp"
-                                                        : lender === "ffpl10011"
-                                                          ? "sp_pl_fintree_due_demand"
-                                                          : lender ===
+                                                          ? "sp_due_collection_all_report_seven_fincorp"
+                                                          : lender === "ffpl10011"
+                                                            ? "sp_pl_fintree_due_demand"
+                                                            : lender ===
                                                               "claimcurebuddy"
                                                             ? "sp_due_collection_all_report_claim_cure_buddy"
+                                                            : lender === "ya money"
+                                                              ? "sp_due_collection_all_report_ya_money"
                                                             : "sp_due_collection_all_report",
 
     "consolidated-mis": () =>
@@ -238,21 +246,25 @@ function resolveProcedure(rawReportId, rawLender) {
                                         ? "sp_consolidated_mis_report_sampada"
                                         : lender === "rapid-money"
                                           ? "sp_consolidated_mis_report_rapid_money"
-                                          : lender === "carepay"
-                                            ? "sp_consolidated_mis_report_carepay"
-                                            : lender === "finso"
-                                              ? "sp_consolidated_mis_report_fincrest"
-                                              : lender === "saswat"
-                                                ? "sp_consolidated_mis_report_saswat"
-                                                : lender === "seven fincorp"
-                                                  ? "sp_consolidated_mis_report_seven_fincorp"
-                                                  : lender === "sterlion ubl"
-                                                    ? "sp_consolidated_mis_report_sterlion_ubl"
-                                                    : lender === "ffpl10011"
-                                                      ? "sp_pl_fintree_consolidated_mis"
-                                                      : lender ===
+                                          : lender === "quick money"
+                                            ? "sp_consolidated_mis_report_quick_money"  // quick money
+                                            : lender === "carepay"
+                                              ? "sp_consolidated_mis_report_carepay"
+                                              : lender === "finso"
+                                                ? "sp_consolidated_mis_report_fincrest"
+                                                : lender === "saswat"
+                                                  ? "sp_consolidated_mis_report_saswat"
+                                                  : lender === "seven fincorp"
+                                                    ? "sp_consolidated_mis_report_seven_fincorp"
+                                                    : lender === "sterlion ubl"
+                                                      ? "sp_consolidated_mis_report_sterlion_ubl"
+                                                      : lender === "ffpl10011"
+                                                        ? "sp_pl_fintree_consolidated_mis"
+                                                        : lender ===
                                                           "claimcurebuddy"
                                                         ? "sp_consolidated_mis_report_claim_cure_buddy"
+                                                        : lender === "ya money"
+                                                          ? "sp_consolidated_mis_report_ya_money"
                                                         : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
