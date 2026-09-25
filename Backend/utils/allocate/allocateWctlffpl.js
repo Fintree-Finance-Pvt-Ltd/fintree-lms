@@ -268,14 +268,9 @@ if (allocationType === "I" || allocationType === "C" ) {
 
   let principalPrepayment = 0;
   let newOutstandingPrincipal = null;
-
 if (
   remaining > 0 &&
-  (
-    allocationType === "I" ||
-    allocationType === "P" ||
-    pendingDueInterest <= 0
-  )
+  allocationType === "P"
 ) {
     /*
      * WCTL bullet principal normally exists
@@ -397,7 +392,10 @@ if (
    * ==========================================================
    */
 
-  if (remaining > 0) {
+  if (
+  remaining > 0 &&
+  allocationType !== "I"
+) {
     await queryDB(
       `
       INSERT INTO allocation
