@@ -1199,10 +1199,9 @@ loanBookingRouter.post("/v1/carepay-lb", verifyApiKey, async (req, res) => {
   .trim();
 
 
+const hospitalLan = String(data.hospital_lan || "").trim();
+
 if (normalizedProduct === "standard emi") {
-
-  const hospitalLan = String(data.hospital_lan || "").trim();
-
 
   if (!hospitalLan) {
     await conn.rollback();
