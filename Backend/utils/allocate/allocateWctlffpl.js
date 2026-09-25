@@ -134,19 +134,35 @@ if (allocationType === "C") {
 
 if (allocationType === "I"  ) {
   while (remaining > 0) {
-    const [emi] = await queryDB(
-      `
-      SELECT *
-      FROM ${emiTable}
-      WHERE lan = ?
-        AND remaining_interest > 0
-        AND due_date <= DATE(?)
-      ORDER BY due_date ASC, id ASC
-      LIMIT 1
-      `,
-      [lan, paymentDate]
-    );
-
+    // const [emi] = await queryDB(
+    //   `
+    //   SELECT *
+    //   FROM ${emiTable}
+    //   WHERE lan = ?
+    //     AND remaining_interest > 0
+    //     AND due_date >= DATE(?)
+    //   ORDER BY due_date ASC, id ASC
+    //   LIMIT 1
+    //   `,
+    //   [lan, paymentDate]
+    // );
+const [emi] = await queryDB(
+`
+SELECT *
+FROM ${emiTable}
+WHERE lan = ?
+AND remaining_interest > 0
+ORDER BY 
+CASE 
+    WHEN due_date >= DATE(?) THEN 0
+    ELSE 1
+END,
+due_date ASC,
+id ASC
+LIMIT 1
+`,
+[lan, paymentDate]
+);
     if (!emi) {
       break;
     }
@@ -277,16 +293,17 @@ if (
      * on the maturity/final RPS row.
      */
     const [bulletRow] = await queryDB(
-      `
-      SELECT *
-      FROM ${emiTable}
-      WHERE lan = ?
-        AND remaining_principal > 0
-      ORDER BY due_date DESC, id DESC
-      LIMIT 1
-      `,
-      [lan]
-    );
+`
+SELECT *
+FROM manual_rps_wctl_ffpl
+WHERE lan = ?
+AND remaining_principal > 0
+AND due_date >= DATE(?)
+ORDER BY due_date ASC, id ASC
+LIMIT 1
+`,
+[lan, paymentDate]
+);
 
     if (bulletRow) {
       const outstandingPrincipal = Number(
