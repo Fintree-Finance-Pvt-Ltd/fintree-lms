@@ -132,7 +132,7 @@ if (allocationType === "C") {
   }
 }
 
-if (allocationType === "I" || allocationType === "C" ) {
+if (allocationType === "I"  ) {
   while (remaining > 0) {
     const [emi] = await queryDB(
       `
@@ -270,8 +270,8 @@ if (allocationType === "I" || allocationType === "C" ) {
   let newOutstandingPrincipal = null;
 if (
   remaining > 0 &&
-  allocationType === "P"
-) {
+  ["I","P"].includes(allocationType)
+){
     /*
      * WCTL bullet principal normally exists
      * on the maturity/final RPS row.
@@ -393,8 +393,7 @@ if (
    */
 
   if (
-  remaining > 0 &&
-  allocationType !== "I"
+  remaining > 0
 ) {
     await queryDB(
       `
