@@ -2,6 +2,7 @@ const express = require("express");
 const crypto = require("crypto");
 
 const db = require("../../config/db");
+const { isRetryableDbError } = require("../../utils/retryableDbError");
 const verifyApiKey = require("../../middleware/apiKeyAuth");
 
 const router = express.Router();
@@ -1235,8 +1236,12 @@ function buildQuickMoneyBreResponse(breResult = {}) {
 
 
 router.post("/v1/create", verifyApiKey, async (req, res) => {
+  // Restart the entire transaction: a timeout may leave earlier writes active.
+  const MAX_CREATE_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt++) {
   let connection;
   let transactionStarted = false;
+  let rollbackFailed = false;
 
   try {
     connection = await db.promise().getConnection();
@@ -1461,6 +1466,7 @@ const lan = generated.lan;
       try {
         await connection.rollback();
       } catch (rollbackError) {
+        rollbackFailed = true;
         console.error(
           "QuickMoney rollback error:",
           rollbackError,
@@ -1470,6 +1476,12 @@ const lan = generated.lan;
 
     console.error("QuickMoney create loan error:", err);
 
+    if (!rollbackFailed && isRetryableDbError(err) && attempt < MAX_CREATE_ATTEMPTS) {
+      console.warn("Retrying QuickMoney create transaction", {
+        attempt,
+        code: err.code,
+      });
+    } else {
     return res.status(500).json({
       is_success: false,
       error: {
@@ -1477,10 +1489,16 @@ const lan = generated.lan;
         code: "internal_server_error",
       },
     });
+    }
   } finally {
     if (connection) {
-      connection.release();
+      // Never return a connection with an uncertain transaction to the pool.
+      if (rollbackFailed) connection.destroy();
+      else connection.release();
     }
+  }
+  // Release the connection before waiting so retries cannot exhaust the pool.
+  await new Promise((resolve) => setTimeout(resolve, attempt * 100 + Math.floor(Math.random() * 100)));
   }
 });
 
