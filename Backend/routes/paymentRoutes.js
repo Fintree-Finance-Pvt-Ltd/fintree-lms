@@ -385,10 +385,10 @@ router.post("/easebuzz/webhook", async (req, res) => {
                     `
           SELECT *
           FROM payment_transactions
-          WHERE easebuzz_id = ?
+          WHERE easebuzz_id = ? OR updated_easebuzz_id = ?
           LIMIT 1
           `,
-                    [easebuzzId]
+                    [easebuzzId,easebuzzId ]
                 );
 
             payment = rows?.[0] || null;
@@ -442,8 +442,8 @@ router.post("/easebuzz/webhook", async (req, res) => {
       UPDATE payment_transactions
 
       SET
-        easebuzz_id =
-          COALESCE(?, easebuzz_id),
+       updated_easebuzz_id =
+         COALESCE(?, updated_easebuzz_id),
 
         provider_status = ?,
 
@@ -495,9 +495,9 @@ router.post("/easebuzz/webhook", async (req, res) => {
 
     const allocationPayment = {
 
-        payment_id:
-            body.easepayid ||
-            payment.merchant_txn,
+        payment_id:easebuzzId,
+            // body.updated_easebuzz_id ||
+            // payment.merchant_txn,
 
         payment_date:
             body.addedon
@@ -530,6 +530,79 @@ router.post("/easebuzz/webhook", async (req, res) => {
             )
     };
 
+    const repaymentData = {
+    lan: payment.lan,
+
+    bank_date: allocationPayment.bank_date,
+
+    utr: allocationPayment.utr,
+
+    payment_date: allocationPayment.payment_date,
+
+    payment_id: allocationPayment.payment_id,
+
+    payment_mode: allocationPayment.payment_mode,
+
+    transfer_amount: allocationPayment.transfer_amount
+};
+
+const [existingRepayment] =
+    await db.promise().query(
+        `
+        SELECT id
+        FROM repayments_upload
+        WHERE lan = ?
+          AND payment_id = ?
+        LIMIT 1
+        `,
+        [
+            repaymentData.lan,
+            repaymentData.payment_id
+        ]
+    );
+
+if (!existingRepayment.length) {
+
+    await db.promise().query(
+        `
+        INSERT INTO repayments_upload
+        (
+            lan,
+            bank_date,
+            utr,
+            payment_date,
+            payment_id,
+            payment_mode,
+            transfer_amount
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+            repaymentData.lan,
+            repaymentData.bank_date,
+            repaymentData.utr,
+            repaymentData.payment_date,
+            repaymentData.payment_id,
+            repaymentData.payment_mode,
+            repaymentData.transfer_amount
+        ]
+    );
+
+    console.log(
+        "✅ REPAYMENT INSERTED:",
+        repaymentData
+    );
+
+} else {
+
+    console.log(
+        "⚠️ REPAYMENT ALREADY EXISTS:",
+        {
+            lan: repaymentData.lan,
+            payment_id: repaymentData.payment_id
+        }
+    );
+}
 
     const [existingAllocation] =
         await db.promise().query(
