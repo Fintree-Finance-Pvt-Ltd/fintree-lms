@@ -465,6 +465,28 @@ const PARTNERS = {
     },
   },
 
+    sabgrow: {
+    table: "loan_booking_sabgrow",
+    primaryKey: "id",
+    codeFields: ["lan", "partner_loan_id"],
+    columns: {
+      lan: "lan",
+      name: "customer_name",
+      pan: "pan_number",
+      mobile: "mobile_number",
+      email: "email",
+      createdAt: "created_at",
+      applicationRefNumber: "partner_loan_id",
+    },
+    amlColumns: {
+      status: "aml_status",
+      score: "aml_score",
+      totalMatches: "aml_total_matches",
+      reason: "aml_reason",
+      apiResponse: "aml_api_response",
+      checkedAt: "aml_checked_at",
+    },
+  },
   clayyo: {
     table: "loan_booking_clayyo",
     primaryKey: "id",

@@ -2314,6 +2314,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_claim_cure_buddy: true,
     loan_booking_sampada: true,
     loan_booking_ya_money:true,
+    loan_booking_sabgrow:true,
   };
 
   if (!allowedTables[table]) {
@@ -3014,6 +3015,7 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_srbh: true,
     loan_booking_saswat: true,
     loan_booking_ya_money: true,
+    loan_booking_sabgrow: true,
   };
 
   if (!allowedTables[table]) {

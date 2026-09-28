@@ -72,7 +72,10 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("YAM")) {
     table = "loan_booking_ya_money";
     posTable = "manual_rps_ya_money";
-  } else if (lan.startsWith("WCTLFFPL")) {
+  } else if (lan.startsWith("SBR")) {
+    table = "loan_booking_sabgrow";
+    // posTable = "manual_rps_ya_money";
+  }else if (lan.startsWith("WCTLFFPL")) {
     table = "loan_booking_wctl_ffpl";
     posTable = "manual_rps_wctl_ffpl";
   }  else if (lan.startsWith("WCTL")) {
