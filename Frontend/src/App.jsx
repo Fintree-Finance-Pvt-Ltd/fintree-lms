@@ -193,6 +193,7 @@ import YaMoneyCreditTeamScreen from "./components/YaMoney/CreditTeam";
 import YaMoneyOpsMakerScreen from "./components/YaMoney/OpsMaker";
 import YaMoneyOpsCheckerScreen from "./components/YaMoney/OpsChecker.jsx";
 import YaMoneyDisbursedLoans from "./components/YaMoney/Disbursed";
+import YaMoneyCustomerDetails from "./components/YaMoney/YaMoneyCustomerDetails";
 import RetentionRelease from "./components/RetentionRelease";
 import MotionCorpLoanBooking from "./components/Motion Corp/MotionCorpLoanBooking";
 import MotionCorpAllLoans from "./components/Motion Corp/motionCorpAllLoans";
@@ -303,11 +304,13 @@ import SterlionMexonDexonCollectionUpload from "./components/SterlionMexonDexon/
 import SterlionMexonDexonAllInvoices from "./components/SterlionMexonDexon/SterlionMexonDexonAllInvoice.jsx";
 import QMLAllLoans from "./components/QuickMoney/QMLAllLoans.jsx";
 import QMLDisburseInitiate from "./components/QuickMoney/QMLDisburseInitiate.jsx";
-import QMLLoginloans from "./components/QuickMoney/QMLLoginLoans.jsx";
+// import QMLLoginloans from "./components/QuickMoney/QMLLoginLoans.jsx";
 import SaswatAllLoans from "./components/Saswat/SaswatAllLoans.jsx";
 import SaswatApprovedLoans from "./components/Saswat/SaswatApprovedLoans.jsx";
 import SaswatDisbursedLoans from "./components/Saswat/SaswatDisbursedLoans.jsx";
-// import SaswatPaymentReceipt from "./components/Saswat/SaswatPaymentReceipt.jsx";
+import SaswatPaymentReceipt from "./components/Saswat/SaswatPaymentReceipt.jsx";
+// import NachPresentation from "./components/NachPresentation.jsx";
+import QMLApprovedLoans from "./components/QuickMoney/QMLApprovedLoans.jsx";
 
 function App() {
   return (
@@ -410,6 +413,16 @@ function App() {
               </PermissionRoute>
             }
           />
+          <Route
+  path="/saswat/payment-receipt"
+  element={<SaswatPaymentReceipt />}
+/>
+            {/* <Route
+  path="/nach-presentation"
+  element={
+    <NachPresentation />
+  }
+/> */}
           <Route
             path="/customer-soa"
             element={
@@ -1674,6 +1687,14 @@ function App() {
             }
           />
           <Route
+            path="/ya-money/customer-details"
+            element={
+              <PermissionRoute pageName="Ya Money Customer Details">
+                <YaMoneyCustomerDetails />
+              </PermissionRoute>
+            }
+          />
+          <Route
             path="/sml-loans/disburse-initiate"
             element={
               <PermissionRoute pageName="Switch my loan Disburse Initiate">
@@ -1709,16 +1730,24 @@ function App() {
            <Route
             path="/qml-loans/disburse-initiate"
             element={
-              <PermissionRoute pageName="Quick Money Disburse Initiate">
+              <PermissionRoute pageName="Quick Money Disburse Loans">
                 <QMLDisburseInitiate />
               </PermissionRoute>
             }
           />
-          <Route
+          {/* <Route
             path="/qml-loans/login-loans"
             element={
               <PermissionRoute pageName="Quick Money Login loans">
                 <QMLLoginloans />
+              </PermissionRoute>
+            }
+          /> */}
+             <Route
+            path="/qml-loans/approved-loans"
+            element={
+              <PermissionRoute pageName="Quick Money Approved Loans">
+                <QMLApprovedLoans/>
               </PermissionRoute>
             }
           />

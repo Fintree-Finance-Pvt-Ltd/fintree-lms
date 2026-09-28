@@ -111,7 +111,7 @@ function buildCards(m) {
 }
 
 /* ── MetricCard component ────────────────────────────────────── */
-function MetricCard({ card, cached }) {
+function MetricCard({ card }) {
   return (
     <div className="metric-card" style={{ "--card-accent": card.accent }}>
       <div className="metric-card-icon">{card.icon}</div>
@@ -120,7 +120,7 @@ function MetricCard({ card, cached }) {
       {card.subtitle && (
         <div className="metric-subtitle">{card.subtitle}</div>
       )}
-      {cached && <span className="cache-badge" title="Served from Redis cache">⚡ cached</span>}
+      {/* {cached && <span className="cache-badge" title="Served from Redis cache">⚡ cached</span>} */}
     </div>
   );
 }
@@ -168,7 +168,7 @@ const ProductsDashboard = () => {
   const [activeTab, setActiveTab]   = useState("lenderDpd");
   const [loading,   setLoading]     = useState(false);
   const [error,     setError]       = useState(null);
-  const [cached,    setCached]      = useState(false);
+  // const [cached,    setCached]      = useState(false);
   const [metrics,   setMetrics]     = useState(DEFAULT_METRICS);
   const [responseMs, setResponseMs] = useState(null);
 
@@ -193,7 +193,7 @@ const ProductsDashboard = () => {
       const xrt = res.headers?.["x-response-time"];
       if (xrt) {
         const ms = parseInt(xrt, 10);
-        setCached(!isNaN(ms) && ms < 80); // < 80ms = very likely a cache hit
+        // setCached(!isNaN(ms) && ms < 80); // < 80ms = very likely a cache hit
       }
     } catch (err) {
       console.error("Metric Cards Fetch Error:", err);
@@ -219,8 +219,8 @@ const ProductsDashboard = () => {
           <ChartFilter onFilterChange={setFilters} />
           {responseMs !== null && (
             <div className="perf-badge" title="Last API response time">
-              {cached ? "⚡ " : "🕐 "}
-              {responseMs}ms{cached ? " (cached)" : ""}
+              {/* {cached ? "⚡ " : "🕐 "}
+              {responseMs}ms{cached ? " (cached)" : ""} */}
             </div>
           )}
         </div>
@@ -236,7 +236,8 @@ const ProductsDashboard = () => {
         {/* ── Metric Cards Grid ── */}
         <div className="metric-cards-container">
           {cards.map((card) => (
-            <MetricCard key={card.id} card={card} cached={cached} />
+            // <MetricCard key={card.id} card={card} cached={cached} />
+            <MetricCard key={card.id} card={card}/>
           ))}
         </div>
 

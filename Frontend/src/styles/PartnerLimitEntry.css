@@ -1116,3 +1116,52 @@
   padding: 5px 10px;
   font-size: 11px;
 }
+
+/* =========================================================
+   POS LIMIT COLUMN + EDIT LIMITS MODAL
+========================================================= */
+
+.pos-warning {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.no-limit-tag {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.edit-limits-modal {
+  width: min(560px, 94vw);
+}
+
+.edit-limits-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.edit-current-pos {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7c2d12;
+}
+
+.edit-limits-modal .audit-modal-footer {
+  gap: 12px;
+}
+
+.edit-limits-modal .btn {
+  min-width: 130px;
+}
+
+.edit-limits-modal .btn:not(.btn-success) {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #d7e1ec;
+}

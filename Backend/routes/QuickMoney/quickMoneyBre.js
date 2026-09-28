@@ -24,7 +24,7 @@ const {
   isNewCustomer,
   calculateRepeatCreditLimit,
   parseBureauReport,
-} = require("../switchMyLoan/rapidMoneyPolicy");
+} = require("./quickMoneyPolicy");
 
 
 /*
@@ -135,7 +135,7 @@ if (
  * We can still give QuickMoney its own audit label.
  */
 const POLICY_VERSION =
-  "QUICK_MONEY_RAPID_POLICY_2026_07";
+  "QUICK_MONEY_POLICY_2026_07";
 
 
 /*
@@ -1583,7 +1583,7 @@ async function runOrReuseBureau(
         status:
           "FAILED",
 
-        technicalReason:
+        rejectionReason:
           "BUREAU_STATE_MISSING",
       };
     }
@@ -2911,6 +2911,37 @@ async function runQuickMoneyBRE(
       loan,
     );
 
+
+  if (
+    bureau.rejectionReason
+  ) {
+    addReason(
+      reasons,
+      bureau.rejectionReason
+    );
+
+    result.decision =
+      "REJECTED";
+
+    result.reason =
+      bureau.rejectionReason;
+
+    result.reasons = [
+      bureau.rejectionReason,
+    ];
+
+    result.bureau = {
+      status:
+        bureau.status,
+    };
+
+    await updateBookingBreSnapshot(
+      loan.lan,
+      result,
+    );
+
+    return result;
+  }
 
   if (
     bureau.technicalReason

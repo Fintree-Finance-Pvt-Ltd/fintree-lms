@@ -34,15 +34,21 @@ const PRODUCT_CONFIG = {
     lanLike: "CARE%",
     principalField: "loan_amount",
   },
-  // YAMONEY: {
-  //   label: "Ya Money",
-  //   bookingTable: "loan_booking_ya_money",
-  //   rpsTable: "manual_rps_ya_money",
-  //   allocationTable: "allocation",
-  //   repaymentTable: "repayments_upload",
-  //   lanLike: "YAM%",
-  //   principalField: "loan_amount",
-  // },
+  YAMONEY: {
+    label: "Ya Money",
+    bookingTable: "loan_booking_ya_money",
+    rpsTable: "manual_rps_ya_money",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "YAM%",
+    principalField: "loan_amount",
+  },
+   SABGROW: {
+    label: "Sabgrow",
+    bookingTable: "loan_booking_sabgrow",
+    lanLike: "SBR%",
+
+  },
   QUICKMONEY: {
     label: "Quick Money",
     bookingTable: "loan_booking_quick_money",

@@ -15,11 +15,30 @@ const queryDB = (sql, params) =>
  * Allocate payments for EMI Club loans.
  * Knock off interest first, then principal (oldest dues first).
  */
+// const allocateWctlffpl = async (lan, payment) => {
+//   let remaining = Number(payment.transfer_amount);
 const allocateWctlffpl = async (lan, payment) => {
+
+  const allocationType =
+    String(payment.allocation_type || "")
+      .trim()
+      .toUpperCase();
+
+      if (!["I", "P", "C"].includes(allocationType)) {
+  throw new Error(
+    "Invalid Allocation Type. Allowed values are I, P, C"
+  );
+}
+
   let remaining = Number(payment.transfer_amount);
   const paymentDate = payment.payment_date;
   const paymentId = payment.payment_id;
 
+console.log("WCTL FFPL Allocation Type:", {
+    lan,
+    paymentId,
+    allocationType,
+});
   const emiTable = "manual_rps_wctl_ffpl";
   const loanTable = "loan_booking_wctl_ffpl";
 
@@ -40,21 +59,110 @@ const allocateWctlffpl = async (lan, payment) => {
    * CLEAR ONLY INTEREST DUE UP TO PAYMENT DATE
    * ==========================================================
    */
+  /*
+==========================================================
+STEP 0
+CHARGE ALLOCATION
+ONLY FOR TYPE C
+==========================================================
+*/
 
-  while (remaining > 0) {
-    const [emi] = await queryDB(
-      `
-      SELECT *
-      FROM ${emiTable}
-      WHERE lan = ?
-        AND remaining_interest > 0
-        AND due_date <= DATE(?)
-      ORDER BY due_date ASC, id ASC
-      LIMIT 1
-      `,
-      [lan, paymentDate]
+if (allocationType === "C") {
+
+  const [charges] = await queryDB(
+    `
+    SELECT *
+    FROM loan_charges
+    WHERE lan = ?
+      AND remaining_amount > 0
+    ORDER BY id ASC
+    `,
+    [lan]
+  );
+
+
+  for (const charge of charges) {
+
+    if (remaining <= 0) break;
+
+
+    const chargeAmount = Math.min(
+      remaining,
+      Number(charge.remaining_amount)
     );
 
+
+    await queryDB(
+      `
+      INSERT INTO allocation
+      (
+        lan,
+        due_date,
+        allocation_date,
+        allocated_amount,
+        charge_type,
+        payment_id
+      )
+      VALUES (?, ?, ?, ?, 'Charges', ?)
+      `,
+      [
+        lan,
+        paymentDate,
+        paymentDate,
+        chargeAmount,
+        paymentId
+      ]
+    );
+
+
+    await queryDB(
+      `
+      UPDATE loan_charges
+      SET remaining_amount = remaining_amount - ?
+      WHERE id = ?
+      `,
+      [
+        chargeAmount,
+        charge.id
+      ]
+    );
+
+
+    remaining -= chargeAmount;
+  }
+}
+
+if (allocationType === "I"  ) {
+  while (remaining > 0) {
+    // const [emi] = await queryDB(
+    //   `
+    //   SELECT *
+    //   FROM ${emiTable}
+    //   WHERE lan = ?
+    //     AND remaining_interest > 0
+    //     AND due_date >= DATE(?)
+    //   ORDER BY due_date ASC, id ASC
+    //   LIMIT 1
+    //   `,
+    //   [lan, paymentDate]
+    // );
+const [emi] = await queryDB(
+`
+SELECT *
+FROM ${emiTable}
+WHERE lan = ?
+AND remaining_interest > 0
+ORDER BY 
+CASE 
+    WHEN due_date >= DATE(?) THEN 0
+    ELSE 1
+END,
+due_date ASC,
+id ASC
+LIMIT 1
+`,
+[lan, paymentDate]
+);
     if (!emi) {
       break;
     }
@@ -137,6 +245,10 @@ const allocateWctlffpl = async (lan, payment) => {
       ]
     );
   }
+}
+
+
+
 
   /*
    * ==========================================================
@@ -172,26 +284,26 @@ const allocateWctlffpl = async (lan, payment) => {
 
   let principalPrepayment = 0;
   let newOutstandingPrincipal = null;
-
-  if (
-    remaining > 0 &&
-    pendingDueInterest <= 0
-  ) {
+if (
+  remaining > 0 &&
+  ["I","P"].includes(allocationType)
+){
     /*
      * WCTL bullet principal normally exists
      * on the maturity/final RPS row.
      */
     const [bulletRow] = await queryDB(
-      `
-      SELECT *
-      FROM ${emiTable}
-      WHERE lan = ?
-        AND remaining_principal > 0
-      ORDER BY due_date DESC, id DESC
-      LIMIT 1
-      `,
-      [lan]
-    );
+`
+SELECT *
+FROM manual_rps_wctl_ffpl
+WHERE lan = ?
+AND remaining_principal > 0
+AND due_date >= DATE(?)
+ORDER BY due_date ASC, id ASC
+LIMIT 1
+`,
+[lan, paymentDate]
+);
 
     if (bulletRow) {
       const outstandingPrincipal = Number(
@@ -297,7 +409,9 @@ const allocateWctlffpl = async (lan, payment) => {
    * ==========================================================
    */
 
-  if (remaining > 0) {
+  if (
+  remaining > 0
+) {
     await queryDB(
       `
       INSERT INTO allocation

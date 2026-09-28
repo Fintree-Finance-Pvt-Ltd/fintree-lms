@@ -1,7 +1,9 @@
 const {
   POLICY,
   calculateAge,
+  getMinLoanAmountForAge,
   validateLoanAmount,
+  validateTenure,
   isNewCustomer,
   calculateRepeatCreditLimit,
 } = require("./rapidMoneyPolicy");
@@ -40,6 +42,7 @@ function createInitialRules() {
   return {
     AML_CHECK_RPM: rule(false, null, {}, false),
     LOAN_AMOUNT_CHECK_RPM: rule(false, null, {}, false),
+    TENURE_CHECK_RPM: rule(false, null, {}, false),
     FIRST_TIME_LIMIT_CHECK_RPM: rule(false, null, {}, false),
     REPEAT_LIMIT_CHECK_RPM: rule(false, null, {}, false),
     REPEAT_AGE_CAP_CHECK_RPM: rule(false, null, {}, false),
@@ -71,6 +74,12 @@ function evaluateRapidMoneyEligibility(payload = {}) {
     "loan_amount",
     validationErrors,
     { minimum: 0 },
+  );
+  const tenure = parseRequiredNumber(
+    payload.tenure,
+    "tenure",
+    validationErrors,
+    { minimum: 0, integer: true },
   );
   const totalDisbursed = parseRequiredNumber(
     payload.total_disbursed_applications,
@@ -203,17 +212,30 @@ function evaluateRapidMoneyEligibility(payload = {}) {
   /* * --------------------------------- * Customer classification and age * --------------------------------- */ const newCustomer =
     isNewCustomer(totalDisbursed);
   const age = calculateAge(payload.dob, asOfDate);
+  const minLoanAmountForAge = getMinLoanAmountForAge(age);
   /* * --------------------------------- * Loan amount rule * --------------------------------- */ const loanAmountResult =
-    validateLoanAmount(loanAmount);
+    validateLoanAmount(loanAmount, age);
   addReason(reasons, loanAmountResult.reason);
   rules.LOAN_AMOUNT_CHECK_RPM = rule(
     loanAmountResult.passed,
     loanAmountResult.reason,
     {
       requestedLoanAmount: loanAmountResult.amount,
-      minimumLoanAmount: POLICY.MIN_LOAN_AMOUNT,
+      minimumLoanAmount: minLoanAmountForAge,
       maximumLoanAmount: POLICY.MAX_LOAN_AMOUNT,
       requiredMultiple: POLICY.LOAN_AMOUNT_MULTIPLE,
+    },
+  );
+  /* * --------------------------------- * Tenure rule * --------------------------------- */ const tenureResult =
+    validateTenure(tenure);
+  addReason(reasons, tenureResult.reason);
+  rules.TENURE_CHECK_RPM = rule(
+    tenureResult.passed,
+    tenureResult.reason,
+    {
+      requestedTenure: tenureResult.tenure,
+      minimumTenure: POLICY.MIN_TENURE_DAYS,
+      maximumTenure: POLICY.MAX_TENURE_DAYS,
     },
   );
   /* * --------------------------------- * Credit-limit calculation * --------------------------------- */ let creditLimit =
@@ -221,11 +243,11 @@ function evaluateRapidMoneyEligibility(payload = {}) {
   let repeatLimitDetails = null;
   if (newCustomer) {
   creditLimit =
-    POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+    minLoanAmountForAge;
 
   const firstTimeLimitAdjusted =
     loanAmount >
-    POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+    minLoanAmountForAge;
 
   rules.FIRST_TIME_LIMIT_CHECK_RPM =
     rule(
@@ -238,8 +260,7 @@ function evaluateRapidMoneyEligibility(payload = {}) {
           loanAmount,
 
         assignedCreditLimit:
-          POLICY
-            .FIRST_TIME_CUSTOMER_LIMIT,
+          minLoanAmountForAge,
 
         limitAdjusted:
           firstTimeLimitAdjusted,
@@ -283,7 +304,7 @@ function evaluateRapidMoneyEligibility(payload = {}) {
     );
     creditLimit = repeatLimitDetails.creditLimit;
     const repeatLimitFailed =
-      !creditLimit || creditLimit < POLICY.MIN_LOAN_AMOUNT;
+      !creditLimit || creditLimit < minLoanAmountForAge;
     if (repeatLimitFailed) {
       addReason(reasons, "REPEAT_CUSTOMER_CREDIT_LIMIT_BELOW_MINIMUM_LOAN");
     }
@@ -349,7 +370,7 @@ rules.REPEAT_AGE_CAP_CHECK_RPM =
 const validCreditLimit =
   Number.isFinite(numericCreditLimit) &&
   numericCreditLimit >=
-    POLICY.MIN_LOAN_AMOUNT;
+    minLoanAmountForAge;
 
 const approvedLoanAmount =
   validCreditLimit

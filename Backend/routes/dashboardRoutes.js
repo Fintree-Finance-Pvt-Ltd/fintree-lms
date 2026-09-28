@@ -11,13 +11,13 @@
  * TTLs: metric-cards 300s | disbursal-trend 300s | dpd-buckets 180s | dpd-list 120s
  */
 
-const express  = require("express");
-const db       = require("../config/db");
+const express = require("express");
+const db = require("../config/db");
 const nodemailer = require("nodemailer");
-const XLSX     = require("xlsx");
+const XLSX = require("xlsx");
 
-const { withCache }         = require("../config/redis");
-const dashboardLogger       = require("../middleware/dashboardLogger");
+const { withCache } = require("../config/redis");
+const dashboardLogger = require("../middleware/dashboardLogger");
 
 const {
   normalizeProduct,
@@ -47,18 +47,23 @@ router.post("/disbursal-trend", async (req, res) => {
     const { product, from, to } = req.body || {};
     const cacheKey = `dash:trend:${product || "ALL"}:${from || ""}:${to || ""}`;
 
-    const result = await withCache(cacheKey, 300, async () => {
-      const prod = normalizeProduct(product);
-      const { start, end } = dayRange(from, to);
-      const { sql, params } = buildDisbursalTrendSQL(prod, start, end);
+    // const result = await withCache(cacheKey, 300, async () => {
+    //   const prod = normalizeProduct(product);
+    //   const { start, end } = dayRange(from, to);
+    //   const { sql, params } = buildDisbursalTrendSQL(prod, start, end);
 
-      if (!sql) return [];
-
-      const [rows] = await db.promise().query(sql, params);
-      return rows;
-    });
-
+    const prod = normalizeProduct(product);
+    const { start, end } = dayRange(from, to);
+    const result = await buildMetricCards(prod, start, end, db);
     res.json(result);
+
+    //   if (!sql) return [];
+
+    //   const [rows] = await db.promise().query(sql, params);
+    //   return rows;
+    // });
+
+    // res.json(result);
   } catch (err) {
     console.error("❌ Disbursal Trend Error:", err);
     res.status(500).json({ error: "Failed to fetch disbursal trend" });
@@ -71,17 +76,33 @@ router.post("/disbursal-trend", async (req, res) => {
 router.post("/metric-cards", async (req, res) => {
   try {
     const { product, from, to } = req.body || {};
-    const cacheKey = `dash:metric:${product || "ALL"}:${from || ""}:${to || ""}`;
+    // const cacheKey = `dash:metric:${product || "ALL"}:${from || ""}:${to || ""}`;
 
-    const result = await withCache(cacheKey, 300, async () => {
-      const prod = normalizeProduct(product);
-      const { start, end } = dayRange(from, to);
-      return buildMetricCards(prod, start, end, db);
+    // const result = await withCache(cacheKey, 300, async () => {
+    //   const prod = normalizeProduct(product);
+    //   const { start, end } = dayRange(from, to);
+    //   return buildMetricCards(prod, start, end, db);
+    // });
+
+    const prod = normalizeProduct(product);
+    const { start, end } = dayRange(from, to);
+
+     console.log("📌 Normalized metric request:", {
+      rawProduct: product,
+      prod,
+      start,
+      end,
     });
+
+    const result = await buildMetricCards(prod, start, end, db);
 
     res.json(result);
   } catch (err) {
     console.error("❌ Metric Card Fetch Error:", err);
+    console.error("❌ Error message:", err?.message);
+    console.error("❌ SQL:", err?.sql);
+    console.error("❌ SQL message:", err?.sqlMessage);
+
     res.status(500).json({ error: "Failed to fetch metrics" });
   }
 });
@@ -89,20 +110,45 @@ router.post("/metric-cards", async (req, res) => {
 /* ================================================================
    POST /api/dashboard/dpd-buckets
    ================================================================ */
+// router.post("/dpd-buckets", async (req, res) => {
+//   try {
+//     const { product } = req.body || {};
+//     // const cacheKey = `dash:dpdbkt:${product || "ALL"}`;
+
+//     // const result = await withCache(cacheKey, 180, async () => {
+//     //   const prod = normalizeProduct(product);
+//     //   return buildDpdBuckets(prod, db);
+//     // });
+
+//     const prod = normalizeProduct(product);
+//     // const { start, end } = dayRange(from, to);
+//     // const result = await buildMetricCards(prod, start, end, db);
+//     res.json(result);
+
+//   } catch (err) {
+//     console.error("❌ DPD Buckets Error:", err);
+//     res.status(500).json({ error: "Failed to fetch DPD buckets" });
+//   }
+// });
+
 router.post("/dpd-buckets", async (req, res) => {
   try {
     const { product } = req.body || {};
-    const cacheKey = `dash:dpdbkt:${product || "ALL"}`;
 
-    const result = await withCache(cacheKey, 180, async () => {
-      const prod = normalizeProduct(product);
-      return buildDpdBuckets(prod, db);
-    });
+    const prod = normalizeProduct(product);
+
+    const result = await buildDpdBuckets(prod, db);
 
     res.json(result);
+
   } catch (err) {
     console.error("❌ DPD Buckets Error:", err);
-    res.status(500).json({ error: "Failed to fetch DPD buckets" });
+    console.error("❌ Error message:", err?.message);
+    console.error("❌ SQL message:", err?.sqlMessage);
+
+    res.status(500).json({
+      error: "Failed to fetch DPD buckets",
+    });
   }
 });
 
@@ -120,11 +166,11 @@ router.post("/dpd-list", async (req, res) => {
       sortDir: sortDirRaw,
     } = req.body || {};
 
-    const prod     = normalizeProduct(product);
-    const page     = Math.max(1, parseInt(pageRaw || 1, 10));
+    const prod = normalizeProduct(product);
+    const page = Math.max(1, parseInt(pageRaw || 1, 10));
     const pageSize = Math.min(2000, Math.max(1, parseInt(pageSizeRaw || 25, 10)));
-    const sortBy   = typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd";
-    const sortDir  = String(sortDirRaw || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+    const sortBy = typeof sortByRaw === "string" ? sortByRaw.toLowerCase() : "dpd";
+    const sortDir = String(sortDirRaw || "desc").toLowerCase() === "asc" ? "asc" : "desc";
 
     // Valid buckets for dpd-list (NOTE: "ALL" is NOT a valid dpd-list bucket —
     // it is only used as a product filter, not a DPD band selector)
@@ -135,13 +181,19 @@ router.post("/dpd-list", async (req, res) => {
 
     // dpd-list paginated — longer TTL (600s) reduces repeated heavy UNION ALL on shared-host MySQL
     // Use normalized `prod` in key to avoid cache splits on raw product string variants
-    const cacheKey = `dash:dpdlist:${prod}:${bucket}:${page}:${pageSize}:${sortBy}:${sortDir}`;
+    // const cacheKey = `dash:dpdlist:${prod}:${bucket}:${page}:${pageSize}:${sortBy}:${sortDir}`;
 
-    const result = await withCache(cacheKey, 600, async () =>
-      buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, db)
+    // const result = await withCache(cacheKey, 600, async () =>
+    //   buildDpdList({ prod, bucket, page, pageSize, sortBy, sortDir }, db)
+    // );
+
+    const result = await buildDpdList(
+      { prod, bucket, page, pageSize, sortBy, sortDir },
+      db
     );
 
     res.json(result);
+
   } catch (err) {
     if (err.message && err.message.startsWith("Invalid bucket")) {
       return res.status(400).json({ error: err.message });
@@ -172,17 +224,17 @@ router.post("/dpd-export-email", async (req, res) => {
     if (!u?.email) return res.status(404).json({ error: "User email not found" });
 
     const columns = [
-      { key: "lan",               header: "LAN" },
-      { key: "customer_name",     header: "Customer Name" },
-      { key: "product",           header: "Product" },
-      { key: "max_dpd",           header: "Max DPD" },
-      { key: "overdue_emi",       header: "Overdue EMI" },
+      { key: "lan", header: "LAN" },
+      { key: "customer_name", header: "Customer Name" },
+      { key: "product", header: "Product" },
+      { key: "max_dpd", header: "Max DPD" },
+      { key: "overdue_emi", header: "Overdue EMI" },
       { key: "overdue_principal", header: "Overdue Principal" },
-      { key: "overdue_interest",  header: "Overdue Interest" },
-      { key: "pos_principal",     header: "POS (Principal)" },
+      { key: "overdue_interest", header: "Overdue Interest" },
+      { key: "pos_principal", header: "POS (Principal)" },
     ];
 
-    const header   = columns.map(c => c.header);
+    const header = columns.map(c => c.header);
     const dataRows = rows.map(r => [
       r.lan ?? "",
       r.customer_name ?? "",
@@ -212,27 +264,29 @@ router.post("/dpd-export-email", async (req, res) => {
     XLSX.utils.book_append_sheet(wb, ws, "Visible Rows");
 
     const safeProduct = String(product || "ALL").replace(/[^\w-]+/g, "_");
-    const safeBucket  = String(bucket  || "").replace(/[^\w-]+/g, "_");
-    const filename    = `DPD_${safeProduct}_${safeBucket}_page_${page || 1}.xlsx`;
+    const safeBucket = String(bucket || "").replace(/[^\w-]+/g, "_");
+    const filename = `DPD_${safeProduct}_${safeBucket}_page_${page || 1}.xlsx`;
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
 
     const transporter = nodemailer.createTransport({
-      host:   process.env.SMTP_HOST,
-      port:   Number(process.env.SMTP_PORT || 587),
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
       secure: String(process.env.SMTP_SECURE) === "true",
-      auth:   process.env.SMTP_USER
+      auth: process.env.SMTP_USER
         ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
         : undefined,
     });
 
     await transporter.sendMail({
-      from:    process.env.FROM_EMAIL || "no-reply@yourdomain.com",
-      to:      u.email,
+      from: process.env.FROM_EMAIL || "no-reply@yourdomain.com",
+      to: u.email,
       subject: `DPD report — ${product} ${bucket} (page ${page || 1})`,
-      text:    `Hi ${u.name || ""},\n\nAttached is your DPD report (${filename}).`,
-      html:    `<p>Hi ${u.name || ""},</p><p>Attached is your DPD report:</p><p><b>${filename}</b></p>`,
-      attachments: [{ filename, content: buf,
-        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }],
+      text: `Hi ${u.name || ""},\n\nAttached is your DPD report (${filename}).`,
+      html: `<p>Hi ${u.name || ""},</p><p>Attached is your DPD report:</p><p><b>${filename}</b></p>`,
+      attachments: [{
+        filename, content: buf,
+        contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      }],
     });
 
     res.json({ ok: true, sentTo: u.email });

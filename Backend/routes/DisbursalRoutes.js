@@ -22,6 +22,8 @@ router.get("/:lan", async (req, res) => {
   let retentionCol = "0";
   let partnerLoanIdCol = "lb.partner_loan_id";
   let netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+  let agreementDateExpr =
+    "COALESCE(lb.agreement_date, '0000-00-00') AS agreement_date";
 
   if (lan.startsWith("EV")) {
     tableName = "loan_booking_ev";
@@ -160,6 +162,21 @@ router.get("/:lan", async (req, res) => {
     retentionCol = "0";
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+  }
+
+  if (lan.startsWith("YAM")) {
+    tableName = "loan_booking_ya_money";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest AS interest_rate";
+    tenureCol = "lb.loan_tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    netDisbursementExpr = "lb.net_disbursement";
+    agreementDateExpr =
+      "COALESCE(lb.sanction_date, '0000-00-00') AS agreement_date";
   }
 
   if (lan.startsWith("CLY")) {
@@ -366,7 +383,7 @@ router.get("/:lan", async (req, res) => {
       ${processingFeeCol},
       ${interestRateCol} ,
       ${tenureCol},
-      COALESCE(lb.agreement_date, '0000-00-00') AS agreement_date,
+      ${agreementDateExpr},
       COALESCE(NULLIF(ed.Disbursement_UTR, ''), 'Missing UTR') AS disbursement_utr,
       COALESCE(ed.disbursement_date, '0000-00-00') AS disbursement_date,
       ${netDisbursementExpr} AS net_disbursement

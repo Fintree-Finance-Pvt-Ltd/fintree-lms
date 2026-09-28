@@ -1,5 +1,6 @@
 const db = require("../../config/db");
 const { XMLParser } = require("fast-xml-parser");
+const axios = require("axios");
 
 const ZEBRS_LOAN_TABLE = "loan_booking_zebrs";
 
@@ -806,6 +807,58 @@ const evaluateZebrsPolicy = ({
  * Bureau runs only for BORROWER.
  * ===========================================================
  */
+const sendZebrsPartnerWebhook = async (loan, decision) => {
+  try {
+
+    const webhookUrl =
+      process.env.ZEBRS_PARTNER_WEBHOOK_URL;
+
+
+    if (!webhookUrl) {
+      console.log(
+        "ZEBRS webhook URL not configured"
+      );
+      return;
+    }
+
+
+    const payload = {
+      lan: loan.lan,
+      status: decision.status,
+      stage: "BRE Approved",
+      message: "Loan BRE Approved",
+      timestamp: new Date()
+    };
+
+
+    const response = await axios.post(
+      webhookUrl,
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/json"
+        },
+        timeout: 10000
+      }
+    );
+
+
+    console.log(
+      "ZEBRS webhook success:",
+      response.status
+    );
+
+
+  } catch (error) {
+
+    console.error(
+      "ZEBRS webhook failed:",
+      error.message
+    );
+
+  }
+};
+
 const autoApproveZebrsIfBureauVerified =
   async (lan) => {
     const pool = db.promise();
@@ -1315,6 +1368,14 @@ if (
       ],
     );
 
+    if (decision.status === "BRE APPROVED") {
+
+    await sendZebrsPartnerWebhook(
+        loan,
+        decision
+    );
+
+}
     console.log(
       `Zebrs BRE completed for ${lan}: ${decision.status} | ${reasonText}`,
     );

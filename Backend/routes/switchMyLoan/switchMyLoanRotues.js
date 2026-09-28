@@ -1170,6 +1170,16 @@ function hasIdentityCriticalChange(data) {
     Object.prototype.hasOwnProperty.call(data, field),
   );
 }
+// Match partner spellings to the employment_type ENUM used by the database.
+const normalizeEmploymentType = (value) => {
+  if (typeof value !== "string") return value;
+
+  const key = value.trim().toLowerCase().replace(/[\s_-]+/g, "");
+  if (key === "salaried") return "Salaried";
+  if (key === "selfemployed") return "Self-employed";
+  return value;
+};
+
 const normalizeCreateUpdatePayload = (data) => {
   return {
     full_name: data.full_name ?? null,
@@ -1187,7 +1197,7 @@ const normalizeCreateUpdatePayload = (data) => {
     district: data.district ?? null,
 
     residence_status: data.residence_type ?? null,
-    employment_type: data.employment_type ?? null,
+    employment_type: normalizeEmploymentType(data.employment_type) ?? null,
     company_type: data.company_type ?? null,
     company_name: data.company_name ?? null,
     designation: data.designation ?? null,
@@ -1564,10 +1574,26 @@ router.post("/v1/loan/assessment-fee", verifyApiKey, async (req, res) => {
     if (connection) connection.release();
   }
 });
+// loan_sequences hands out the next per-lender sequence number via
+// SELECT ... FOR UPDATE. Under concurrent create requests for the same
+// lender this occasionally raises a transient "record changed since last
+// read" error — MySQL's own message says to restart the transaction, so
+// /v1/create retries a couple of times on these instead of failing the
+// partner's request outright on what is normally a one-shot race.
+const RETRYABLE_SEQUENCE_ERROR_CODES = new Set([
+  "ER_CHECKREAD",
+  "ER_LOCK_DEADLOCK",
+  "ER_LOCK_WAIT_TIMEOUT",
+]);
+
 // 2) CREATE / SUBMIT LOAN APPLICATION
 router.post("/v1/create", verifyApiKey, async (req, res) => {
+  const MAX_CREATE_ATTEMPTS = 3;
+
+  for (let attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt++) {
   let connection;
   let transactionStarted = false;
+  let rollbackFailed = false;
 
   try {
     connection = await db.promise().getConnection();
@@ -1650,8 +1676,12 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
       return res.status(409).json({
         is_success: false,
         error: {
-          message: "Loan case already exists",
-          code: "duplicate_loan_case",
+          message: "Loan case already exists.",
+          code: "duplicate_partner_loan_id",
+          details: {
+            loan_account_number: existing[0].lan,
+            lead_id: existing[0].application_id,
+          },
         },
       });
 
@@ -1820,20 +1850,45 @@ router.post("/v1/create", verifyApiKey, async (req, res) => {
     });
   } catch (err) {
     if (connection && transactionStarted) {
-      await connection.rollback();
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        rollbackFailed = true;
+        console.error("Rapid Money create rollback error:", rollbackError);
+      }
     }
 
-    console.error("Create loan error:", err);
+    if (
+      !rollbackFailed &&
+      RETRYABLE_SEQUENCE_ERROR_CODES.has(err.code) &&
+      attempt < MAX_CREATE_ATTEMPTS
+    ) {
+      console.warn("Retrying Rapid Money create transaction", {
+        attempt,
+        code: err.code,
+      });
+    } else {
+      console.error("Create loan error:", err);
 
-    return res.status(500).json({
-      is_success: false,
-      error: {
-        message: "Internal server error",
-        code: "internal_server_error",
-      },
-    });
+      return res.status(500).json({
+        is_success: false,
+        error: {
+          message: "Internal server error",
+          code: "internal_server_error",
+        },
+      });
+    }
   } finally {
-    if (connection) connection.release();
+    if (connection) {
+      // A failed rollback must never return an open transaction to the pool.
+      if (rollbackFailed) connection.destroy();
+      else connection.release();
+    }
+  }
+
+  await new Promise((resolve) =>
+    setTimeout(resolve, 150 * attempt + Math.floor(Math.random() * 100)),
+  );
   }
 });
 
@@ -3640,7 +3695,7 @@ router.put(
 
       addField(
         "employment_type",
-        data.employment_type,
+        normalizeEmploymentType(data.employment_type),
       );
 
       addField(
@@ -4241,11 +4296,36 @@ router.put(
         // SHOULD VERIFY BANK
         // ====================================================
 
+        // Previously this only ran when the CURRENT update-details call
+        // itself included a bank field or the customer's name. If bank
+        // details were already complete from an earlier call, and a later
+        // call updates something unrelated (KYC status, employment, etc.)
+        // without resending bank_account/full_name, verification was
+        // silently skipped entirely — the loan could stay in whatever
+        // unverified state it was in indefinitely. Now it also runs
+        // whenever complete bank details exist but haven't successfully
+        // verified yet, regardless of what this specific call updates.
+        // Excludes PENDING too — a verification already in flight from an
+        // earlier call must not be re-triggered by a later, unrelated
+        // update-details call before it resolves.
+        const currentBankVerificationStatus =
+          String(
+            row.bank_verification_status || "",
+          )
+            .trim()
+            .toUpperCase();
+
+        const bankNotYetVerified =
+          !["VERIFIED", "PENDING"].includes(
+            currentBankVerificationStatus,
+          );
+
         const shouldEvaluateBank =
           hasCompleteBankDetails &&
           (
             coreBankFieldProvided ||
-            hasCustomerNameUpdate
+            hasCustomerNameUpdate ||
+            bankNotYetVerified
           );
 
 
@@ -4826,6 +4906,44 @@ router.put(
 
 
       // ======================================================
+      // REJECTION WEBHOOK (bank name mismatch)
+      // ======================================================
+
+      /*
+       * The case has already been rejected internally above
+       * (status/sml_bre_status/sml_bre_reason set to REJECTED
+       * before commit). The partner is not told about the
+       * rejection synchronously here — this call still responds
+       * with a normal success below — they learn about it via
+       * this webhook instead. Fire-and-forget: a webhook failure
+       * must not affect this response, the update has already
+       * been committed and the case is already rejected either way.
+       */
+
+      if (
+        bankNameMismatchDetected
+      ) {
+        try {
+          await sendRejectionWebhook({
+            applicationId,
+          });
+        } catch (
+          rejectionWebhookError
+        ) {
+          console.error(
+            "Failed to send rejection webhook after bank name mismatch:",
+            {
+              applicationId,
+              lan,
+              message:
+                rejectionWebhookError.message,
+            },
+          );
+        }
+      }
+
+
+      // ======================================================
       // RESPONSE
       // ======================================================
 
@@ -4834,18 +4952,7 @@ router.put(
 
         data: {
           status:
-            bankNameMismatchDetected
-              ? "Rejected"
-              : "loan details updated successfully",
-
-          ...(
-            bankNameMismatchDetected
-              ? {
-                  reason:
-                    "BANK_ACCOUNT_NAME_MISMATCH",
-                }
-              : {}
-          ),
+            "loan details updated successfully",
 
           lan,
 
@@ -5425,7 +5532,9 @@ if (hasCompleteBankDetails) {
     });
   }
 }
-      const breEngineResult = await runBRE(loan);
+      const breEngineResult = await runBRE(loan, {
+        onboardingCompleted: onboarding_completed,
+      });
 
       if (
         breEngineResult.decision === "TECHNICAL_FAILURE" ||
@@ -5490,37 +5599,39 @@ if (hasCompleteBankDetails) {
   });
 }
 
-      const approvedDisbursalAmount =
-  Number(
-    breEngineResult
-      .approvedLoanAmount,
-  );
-
-if (
-  !Number.isFinite(
-    approvedDisbursalAmount,
-  ) ||
-  approvedDisbursalAmount <= 0
-) {
-  return res.status(500).json({
-    is_success: false,
-    error: {
-      message:
-        "Approved disbursal amount is missing or invalid",
-      code:
-        "approved_disbursal_amount_invalid",
-    },
-  });
-}
-
       const breResponse = buildPartnerBreResponse(breEngineResult);
 
+      /*
+       * On the first call (onboarding_completed = false) the stored
+       * loan_amount/tenure are still placeholders, so the net disbursal
+       * amount computed off them is meaningless and isn't returned to the
+       * partner anyway (buildPartnerBreResponse only exposes the age-based
+       * credit limit here). Return before validating it — that validation
+       * only matters once the real values are in on the second call.
+       */
       if (onboarding_completed === false) {
         return res.json({
           is_success: true,
           data: {
             status: "Approved",
             bre_response: breResponse,
+          },
+        });
+      }
+
+      const approvedDisbursalAmount = Number(
+        breEngineResult.approvedLoanAmount,
+      );
+
+      if (
+        !Number.isFinite(approvedDisbursalAmount) ||
+        approvedDisbursalAmount <= 0
+      ) {
+        return res.status(500).json({
+          is_success: false,
+          error: {
+            message: "Approved disbursal amount is missing or invalid",
+            code: "approved_disbursal_amount_invalid",
           },
         });
       }

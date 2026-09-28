@@ -1,6 +1,7 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const db = require("../config/db");
+const partnerLimitService = require("./partnerLimitService");
 
 const {
   processEmiClubDisbursement,
@@ -13,9 +14,12 @@ const {
 } = require("../services/processEmiClubDisbursement");
 
 const { sendDisbursementWebhook } = require("../routes/switchMyLoan/switchMyLoanWebhook");
+
 const {
-  processPlPartnerDisbursement,
-} = require("../routes/fintreePlPartnerApi/services/plPartnerDisbursement");
+  sendQuickMoneyDisbursementWebhook,
+  sendQuickMoneyRejectionWebhook,
+} = require("../routes/QuickMoney/quickMoneyWebhook");
+
 const {
   processClaimCureBuddyDisbursement,
 } = require("./processClaimCureBuddyDisbursement");
@@ -47,6 +51,66 @@ const PARTNER_MAX_PAYOUT_LIMITS = {
   loan_booking_quick_money: 25000,
   loan_booking_ya_money: null,
 };
+
+// Canonical partner_master.partner_name for each product, matching the names
+// already used elsewhere in the codebase (switchMyLoanRotues.js/
+// quickMoneyRoutes.js's own partner-limit checks, processEmiClubDisbursement.js's
+// CarePay/YaMoney tracking) so this shares the same partner_master/
+// partner_monthly_limit rows rather than creating duplicates under new names.
+const TABLE_TO_PARTNER_NAME = {
+  loan_booking_emiclub: "EMICLUB",
+  loan_booking_switch_my_loan: "RAPID MONEY",
+  loan_booking_loan_digit: "Loan Digit",
+  loan_booking_finso: "Finso",
+  loan_booking_carepay: "CAREPAY",
+  loan_booking_claim_cure_buddy: "CLAIM CURE BUDDY",
+  pl_partner_applications: "PL PARTNER",
+  loan_booking_quick_money: "QUICK MONEY",
+  loan_booking_ya_money: "YAMONEY",
+};
+
+// manual_rps_* table backing each partner's live POS (principal outstanding),
+// same tables the Partner Limits screen already sums for its POS column. null
+// = no known POS source for this product yet = POS limit check is skipped
+// (unrestricted) until one exists, same as an unset pos_limit.
+const TABLE_TO_POS_TABLE = {
+  loan_booking_emiclub: "manual_rps_emiclub",
+  loan_booking_switch_my_loan: "manual_rps_switch_my_loan",
+  loan_booking_loan_digit: "manual_rps_loan_digit",
+  loan_booking_finso: "manual_rps_finso_loan",
+  loan_booking_carepay: "manual_rps_carepay",
+  loan_booking_claim_cure_buddy: null,
+  pl_partner_applications: null,
+  loan_booking_quick_money: null,
+  loan_booking_ya_money: null,
+};
+
+// Rapid Money and Quick Money already run their own pre-transfer disbursement-
+// limit check and record usage themselves (in switchMyLoanRotues.js /
+// quickMoneyRoutes.js) before this function is even called. Running the new
+// centralized disbursement-limit gate for them too would read used_limit
+// after their own call already recorded THIS transaction's amount, double-
+// counting it against its own headroom. Leave their existing checks as the
+// sole gate; only add the new POS-limit gate for them (an entirely new check
+// with nothing existing to conflict with).
+const DISBURSEMENT_GATE_EXEMPT_TABLES = new Set([
+  "loan_booking_switch_my_loan",
+  "loan_booking_quick_money",
+  "loan_booking_finso",
+]);
+
+// Rapid Money, Quick Money, CarePay and YaMoney all already record their own
+// disbursement usage (RML/QuickMoney pre-transfer in their routes; CarePay/
+// YaMoney post-transfer inside processEmiClubDisbursement.js). Recording
+// again here would be a harmless no-op (updateDisbursedLimit dedupes by LAN)
+// but is skipped to avoid confusing duplicate audit-trail log noise.
+const DISBURSEMENT_RECORD_EXEMPT_TABLES = new Set([
+  "loan_booking_switch_my_loan",
+  "loan_booking_quick_money",
+  "loan_booking_carepay",
+  "loan_booking_ya_money",
+  "loan_booking_finso",
+]);
 
 async function getTableColumnSet(tableName) {
   const [rows] = await db.promise().query(
@@ -147,7 +211,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
 
     const [[existingTransfer]] = await db.promise().query(
       `
-      SELECT lan, payout_status
+      SELECT lan, COALESCE(payout_status, status) AS effective_status
       FROM quick_transfers
       WHERE lan = ?
       ORDER BY id DESC
@@ -157,13 +221,28 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     );
 
     if (existingTransfer) {
-      const pStatus = String(existingTransfer.payout_status).toUpperCase();
-      if (pStatus === "SUCCESS" || pStatus === "INITIATED") {
-        console.log(`⛔ Payout already ${pStatus} for LAN: ${lan}`);
+      // Check both status and payout_status. The row is inserted with
+      // status='INITIATED' *before* the Easebuzz call is made, but
+      // payout_status is only set afterward, from the response. If that
+      // call times out or errors before a response comes back, payout_status
+      // stays NULL forever — checking only payout_status would let a retry
+      // silently slip through for a transfer whose outcome is still unknown,
+      // risking a real double-disbursement.
+      const status = String(existingTransfer.status || "").toUpperCase();
+      const pStatus = String(existingTransfer.payout_status || "").toUpperCase();
+
+      if (
+        pStatus === "SUCCESS" ||
+        pStatus === "INITIATED" ||
+        status === "INITIATED"
+      ) {
+        const reportedStatus = pStatus || status;
+
+        console.log(`⛔ Payout already ${reportedStatus} for LAN: ${lan}`);
 
         return {
           success: false,
-          message: `Payout already exists for this LAN with status: ${pStatus}`,
+          message: `Payout already exists for this LAN with status: ${reportedStatus}`,
         };
       }
     }
@@ -326,6 +405,59 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       }
     }
 
+    // Centralized partner monthly-disbursement-limit and POS-limit gate,
+    // covering every product uniformly. RML/QuickMoney already enforce the
+    // disbursement limit themselves upstream (see DISBURSEMENT_GATE_EXEMPT_TABLES
+    // above), so only the new POS check runs for them here; everything else
+    // gets both checks for the first time. Both checks no-op (unrestricted)
+    // for any partner that hasn't had a limit configured yet.
+    const gatePartnerName = TABLE_TO_PARTNER_NAME[table];
+
+    if (gatePartnerName) {
+      if (!DISBURSEMENT_GATE_EXEMPT_TABLES.has(table)) {
+        const disbursementGate =
+          await partnerLimitService.checkPartnerDisbursementGate(
+            db.promise(),
+            { partnerName: gatePartnerName, amount },
+          );
+
+        if (disbursementGate.blocked) {
+          console.log(
+            `⛔ ${disbursementGate.reason} for ${table}, LAN: ${lan}`,
+            disbursementGate.message,
+          );
+
+          return {
+            success: false,
+            reason: disbursementGate.reason,
+            message: disbursementGate.message,
+          };
+        }
+      }
+
+      const posGate = await partnerLimitService.checkPartnerPosGate(
+        db.promise(),
+        {
+          partnerName: gatePartnerName,
+          amount,
+          posTableName: TABLE_TO_POS_TABLE[table],
+        },
+      );
+
+      if (posGate.blocked) {
+        console.log(
+          `⛔ ${posGate.reason} for ${table}, LAN: ${lan}`,
+          posGate.message,
+        );
+
+        return {
+          success: false,
+          reason: posGate.reason,
+          message: posGate.message,
+        };
+      }
+    }
+
     const unique_request_number = `LAN_${lan}_${Date.now()}`;
 
     await db.promise().query(
@@ -394,7 +526,14 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
             "WIRE-API-KEY": process.env.EASEBUZZ_WIRE_API_KEY,
             "Content-Type": "application/json",
           },
-          timeout: 15000,
+          // Was 15s — confirmed a real transfer succeeded on Easebuzz's side
+          // after the client had already timed out and given up, leaving the
+          // outcome ambiguous in our own system. 45s gives more headroom
+          // before we abort, matching the timeout already used for other
+          // outbound webhook calls elsewhere in this codebase (30s) plus
+          // some margin given this specific endpoint has shown itself to be
+          // slower under load.
+          timeout: 45000,
         },
       );
     }
@@ -687,6 +826,11 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementDate: new Date(tr.transfer_date),
       });
     } else if (table === "pl_partner_applications") {
+      /*
+       * FTPL / PLP — pure webhook forwarding bridge.
+       * Only forward the disbursal payload to the partner.
+       * NO internal processing (RPS, LMS update, status change).
+       */
       try {
         await sendFintreePlDisbursementWebhook({
           lan,
@@ -696,20 +840,32 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
           tenureDays: loan.tenure_days,
           eventId: "evt-" + unique_request_number,
         });
-      } catch (webhookError) {
-        // Notifying the partner must never block RPS generation below — the loan
-        // is disbursed either way. Log and continue; the webhook can be resent
-        // manually (see sendFintreePlDisbursementWebhook's request body/URL).
-        console.error("🔥 Fintree PL disbursement webhook failed (non-blocking)", {
+
+        console.log("PLP webhook forwarded successfully", {
           lan,
+          utr: tr.unique_transaction_reference,
+        });
+      } catch (webhookError) {
+        console.error("PLP webhook forwarding failed", {
+          lan,
+          utr: tr.unique_transaction_reference,
           error: webhookError.message,
         });
       }
+    }
 
-      await processPlPartnerDisbursement({
+    // Record usage against the partner's monthly disbursement limit for
+    // products that don't already track it themselves (see
+    // DISBURSEMENT_RECORD_EXEMPT_TABLES above). No-ops if no limit has been
+    // configured for this partner/month yet.
+    if (
+      gatePartnerName &&
+      !DISBURSEMENT_RECORD_EXEMPT_TABLES.has(table)
+    ) {
+      await partnerLimitService.recordDisbursementUsage(db.promise(), {
+        partnerName: gatePartnerName,
+        amount,
         lan,
-        disbursementUTR: tr.unique_transaction_reference,
-        disbursementDate: new Date(tr.transfer_date),
       });
     }
 
@@ -795,7 +951,14 @@ async function sendFintreePlDisbursementWebhook({
     await axios.post(webhookUrl, body, {
       headers: {
         "Content-Type": "application/json",
-        ...(webhookSecret ? { "x-pl-webhook-secret": webhookSecret } : {}),
+        ...(webhookSecret
+          ? {
+              "x-pl-webhook-secret": webhookSecret,
+              "x-lender-webhook-secret": webhookSecret,
+              "x-disbursal-webhook-secret": webhookSecret,
+              "x-webhook-secret": webhookSecret,
+            }
+          : {}),
       },
       timeout: 15000,
     });
@@ -817,3 +980,4 @@ async function sendFintreePlDisbursementWebhook({
     eventId,
   });
 }
+exports.sendFintreePlDisbursementWebhook = sendFintreePlDisbursementWebhook;

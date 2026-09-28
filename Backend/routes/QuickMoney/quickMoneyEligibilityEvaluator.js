@@ -4,8 +4,8 @@ const {
   validateLoanAmount,
   isNewCustomer,
   calculateRepeatCreditLimit,
-} = require("../switchMyLoan/rapidMoneyPolicy");
-const POLICY_VERSION = "RAPID_MONEY_POLICY_PDF_2026_07";
+} = require("./quickMoneyPolicy");
+const POLICY_VERSION = "QUICK_MONEY_POLICY_PDF_2026_07";
 function rule(passed, reason = null, derivedValues = {}, executed = true) {
   return { executed, passed, reason, derived_values: derivedValues };
 }

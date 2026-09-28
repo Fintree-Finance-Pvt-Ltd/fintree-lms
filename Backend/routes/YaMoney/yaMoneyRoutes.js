@@ -6,6 +6,10 @@ const { runBureau } = require("../../services/Bueraupullapiservice");
 const { sendClientWebhook } = require("./yaMoneyWebhookService");
 const { runBRE } = require("./yaMoneyBre");
 const { approveAndInitiatePayout } = require("../../services/payout.service");
+const partnerLimitService = require("../../services/partnerLimitService");
+const {
+  screenLoanBooking,
+} = require("../../services/trackwizz/screeningService");
 
 const router = express.Router();
 
@@ -17,7 +21,18 @@ const LENDER = "Ya Money";
 const PRODUCT = "Ya Money";
 const LOAN_TYPE = "Business Loan";
 const LAN_PREFIX = "YAM";
-const YA_MONEY_BUREAU_ENABLED = false;
+const PARTNER_LIMIT_NAME = "YAMONEY";
+const AML_SCREENING_PRODUCT = "ya_money";
+const YA_MONEY_BUREAU_ENABLED = true;
+const YA_MONEY_AML_COLUMNS = [
+  "aml_status",
+  "aml_score",
+  "aml_total_matches",
+  "aml_reason",
+  "aml_api_response",
+  "aml_checked_at",
+];
+const TRACKWIZZ_AML_STATUSES = new Set(["PROCEED", "REVIEW", "STOP"]);
 const STATUS_EXPRESSION =
   "LOWER(REPLACE(REPLACE(TRIM(lb.status), '-', '_'), ' ', '_'))";
 const DEFAULT_PAGE_SIZE = 25;
@@ -211,15 +226,6 @@ function validateLoginData(data) {
     return "dob must be a valid date in YYYY-MM-DD format";
   }
 
-  if (
-    YA_MONEY_BUREAU_ENABLED &&
-    (!Number.isInteger(data.loan_tenure) ||
-      data.loan_tenure < 6 ||
-      data.loan_tenure > 24)
-  ) {
-    return "loan_tenure must be between 6 and 24 months";
-  }
-
   if (!Number.isFinite(data.requested_amount) || data.requested_amount <= 0) {
     return "requested_amount must be greater than zero";
   }
@@ -331,6 +337,8 @@ async function insertLogin(connection, data, ids, createdBy) {
     product: PRODUCT,
     loan_type: LOAN_TYPE,
     login_date: data.login_date,
+    dob: data.dob || null,
+    gender: data.gender || null,
     age: data.age,
     annual_income: data.annual_income,
     customer_name: data.customer_name,
@@ -377,8 +385,8 @@ function buildBureauPayload(data) {
     first_name: name.firstName,
     middle_name: name.middleName,
     last_name: name.lastName,
-    dob: data.dob,
-    gender: data.gender,
+    dob: data.dob || null,
+    gender: data.gender || null,
     pan_number: data.pan_number,
     mobile_number: data.mobile_number,
     current_address: data.customer_address,
@@ -386,7 +394,6 @@ function buildBureauPayload(data) {
     current_state: data.customer_state,
     current_pincode: data.customer_pincode,
     loan_amount: data.requested_amount,
-    loan_tenure: data.loan_tenure,
   };
 }
 
@@ -461,9 +468,125 @@ async function pullAndPersistBureau(lan, data) {
   };
 }
 
-async function updateBreStatus(connection, insertId, breResult, updatedBy) {
-  const status = breResult.eligible ? "bre_approved" : "bre_rejected";
-  const reason = breResult.reason || "ELIGIBLE";
+function toNumberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+async function assertYaMoneyAmlColumns() {
+  const [rows] = await db.promise().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME IN (${YA_MONEY_AML_COLUMNS.map(() => "?").join(", ")})`,
+    [TABLE_NAME, ...YA_MONEY_AML_COLUMNS],
+  );
+  const existing = new Set(rows.map((row) => row.COLUMN_NAME));
+  const missing = YA_MONEY_AML_COLUMNS.filter((column) => !existing.has(column));
+
+  if (missing.length) {
+    const error = new Error(
+      `Ya Money AML columns missing: ${missing.join(", ")}`,
+    );
+    error.code = "YA_MONEY_AML_COLUMNS_MISSING";
+    error.missingColumns = missing;
+    throw error;
+  }
+}
+
+async function runYaMoneyAml(lan) {
+  try {
+    await assertYaMoneyAmlColumns();
+
+    const aml = await screenLoanBooking(AML_SCREENING_PRODUCT, lan);
+    const status = clean(aml.amlStatus || aml.decision).toUpperCase();
+    const reason = clean(aml.amlReason || aml.reason);
+
+    return {
+      status,
+      score: toNumberOrNull(aml.amlScore),
+      total_matches: toNumberOrNull(aml.amlTotalMatches ?? aml.hitsCount),
+      reason: reason || null,
+      source: "TRACKWIZZ",
+      screening_request_id: aml.screeningRequestId || null,
+      report_stored: aml.reportStored === true,
+      degraded: aml.degraded === true,
+      technical_reason: TRACKWIZZ_AML_STATUSES.has(status)
+        ? null
+        : "AML_STATUS_INVALID",
+    };
+  } catch (error) {
+    const reason =
+      error.code === "YA_MONEY_AML_COLUMNS_MISSING"
+        ? error.message
+        : `AML unavailable: ${error.message}`;
+
+    console.error("[YA-MONEY] AML screening failed", {
+      lan,
+      code: error.code,
+      message: error.message,
+    });
+
+    return {
+      status: "ERROR",
+      score: null,
+      total_matches: null,
+      reason: reason.slice(0, 255),
+      source: "TRACKWIZZ",
+      screening_request_id: null,
+      report_stored: false,
+      degraded: true,
+      technical_reason: error.code || "AML_SCREENING_FAILED",
+    };
+  }
+}
+
+function buildAmlBlockReason(amlResult) {
+  const status = clean(amlResult?.status).toUpperCase() || "ERROR";
+  const reason = clean(amlResult?.reason);
+
+  return reason ? `AML ${status}: ${reason}` : `AML ${status}`;
+}
+
+function getLoginDecision(breResult, amlResult) {
+  if (!breResult.eligible) {
+    return {
+      status: "bre_rejected",
+      reason: breResult.reason || "BRE_REJECTED",
+    };
+  }
+
+  const amlStatus = clean(amlResult?.status).toUpperCase();
+
+  if (amlStatus === "PROCEED") {
+    return {
+      status: "bre_approved",
+      reason: breResult.reason || "ELIGIBLE",
+    };
+  }
+
+  if (amlStatus === "STOP") {
+    return {
+      status: "aml_rejected",
+      reason: buildAmlBlockReason(amlResult),
+    };
+  }
+
+  return {
+    status: "aml_review",
+    reason: buildAmlBlockReason(amlResult),
+  };
+}
+
+async function updateBreStatus(
+  connection,
+  insertId,
+  breResult,
+  amlResult,
+  updatedBy,
+) {
+  const decision = getLoginDecision(breResult, amlResult);
 
   await connection.query(
     `UPDATE ${TABLE_NAME}
@@ -472,10 +595,10 @@ async function updateBreStatus(connection, insertId, breResult, updatedBy) {
          bre_reason = ?,
          updated_by = ?
      WHERE id = ?`,
-    [status, status, reason, updatedBy, insertId],
+    [decision.status, decision.status, decision.reason, updatedBy, insertId],
   );
 
-  return status;
+  return decision.status;
 }
 
 function sendServerError(res, error) {
@@ -726,6 +849,81 @@ async function fetchLatestYaMoneyPayout(lan) {
   return transfer || null;
 }
 
+async function fetchLatestYaMoneyAml(lan, loan) {
+  const aml = {
+    status: loan.aml_status || null,
+    score: loan.aml_score ?? null,
+    total_matches: loan.aml_total_matches ?? null,
+    reason: loan.aml_reason || null,
+    checked_at: loan.aml_checked_at || null,
+    source: "TRACKWIZZ",
+    screening_request_id: null,
+    request_id: null,
+    screening_status: null,
+    report_stored: false,
+    report_file_name: null,
+    error_code: null,
+    error_message: null,
+  };
+
+  try {
+    const [[screening]] = await db.promise().query(
+      `SELECT
+         id,
+         request_id,
+         status,
+         suggested_action,
+         hits_count,
+         report_pdf IS NOT NULL AS report_stored,
+         report_file_name,
+         report_storage_error,
+         error_code,
+         error_message
+       FROM screening_requests
+       WHERE partner_key = ?
+         AND lan = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [AML_SCREENING_PRODUCT, lan],
+    );
+
+    if (screening) {
+      aml.screening_request_id = screening.id;
+      aml.request_id = screening.request_id;
+      aml.screening_status = screening.status;
+      aml.report_stored = Boolean(screening.report_stored);
+      aml.report_file_name = screening.report_file_name || null;
+      aml.error_code = screening.error_code || null;
+      aml.error_message =
+        screening.error_message || screening.report_storage_error || null;
+
+      if (!aml.status && screening.suggested_action) {
+        aml.status = clean(screening.suggested_action).toUpperCase();
+      }
+
+      if (aml.total_matches === null || aml.total_matches === undefined) {
+        aml.total_matches = screening.hits_count ?? null;
+      }
+    }
+  } catch (error) {
+    if (error.code !== "ER_NO_SUCH_TABLE" && error.code !== "ER_BAD_FIELD_ERROR") {
+      throw error;
+    }
+
+    aml.error_code = error.code;
+    aml.error_message = "AML screening table is not available";
+  }
+
+  return aml.status ||
+    aml.score !== null ||
+    aml.total_matches !== null ||
+    aml.reason ||
+    aml.screening_request_id ||
+    aml.error_code
+    ? aml
+    : null;
+}
+
 function getPayoutStatus(transfer) {
   return normalizeStatus(transfer?.payout_status || transfer?.status || "");
 }
@@ -764,9 +962,9 @@ function readFinalLoanData(body) {
     loan_tenure: readNumber(body.loan_tenure ?? body.tenure),
     interest: readNumber(
       body.interest ??
-        body.interest_rate ??
-        body.intrest_rate ??
-        body.intrests_rate,
+      body.interest_rate ??
+      body.intrest_rate ??
+      body.intrests_rate,
     ),
     umrn: clean(body.umrn).toUpperCase(),
     sanction_date: clean(body.sanction_date ?? body.saction_date),
@@ -776,25 +974,33 @@ function readFinalLoanData(body) {
     processing_fee_percent: clean(body.processing_fee_percent)
       ? readNumber(body.processing_fee_percent)
       : null,
+    insurance_amount: clean(body.insurance_amount)
+      ? readNumber(body.insurance_amount)
+      : null,
+    pre_emi_interest: clean(
+      body.pre_emi_interest ?? body.pre_emi_interest_amount,
+    )
+      ? readNumber(body.pre_emi_interest ?? body.pre_emi_interest_amount)
+      : null,
     name_in_bank: clean(
       body.name_in_bank ??
-        body.account_holder_name ??
-        body.beneficiary_name ??
-        body.bank_account_holder_name ??
-        body.customer_name_as_per_bank,
+      body.account_holder_name ??
+      body.beneficiary_name ??
+      body.bank_account_holder_name ??
+      body.customer_name_as_per_bank,
     ),
     bank_name: nullIfEmpty(body.bank_name ?? body.bankName),
     account_number: cleanAccountNumber(
       body.account_number ??
-        body.bank_account_number ??
-        body.customer_account_number ??
-        body.bank_ac_number,
+      body.bank_account_number ??
+      body.customer_account_number ??
+      body.bank_ac_number,
     ),
     ifsc: clean(
       body.ifsc ??
-        body.ifsc_code ??
-        body.bank_ifsc_code ??
-        body.bank_ifsc,
+      body.ifsc_code ??
+      body.bank_ifsc_code ??
+      body.bank_ifsc,
     ).toUpperCase(),
   };
 }
@@ -819,7 +1025,7 @@ function validateFinalLoanData(data, savedCase) {
     data.loan_tenure < 6 ||
     data.loan_tenure > 24
   ) {
-    return "loan_tenure must be between 6 and 24 months";
+    return "loan_tenure is required and must be between 6 and 24 months";
   }
 
   if (
@@ -886,6 +1092,20 @@ function validateFinalLoanData(data, savedCase) {
     return "processing_fee_percent must be between 0 and 100";
   }
 
+  if (
+    data.insurance_amount !== null &&
+    (!Number.isFinite(data.insurance_amount) || data.insurance_amount < 0)
+  ) {
+    return "insurance_amount must be zero or more";
+  }
+
+  if (
+    data.pre_emi_interest !== null &&
+    (!Number.isFinite(data.pre_emi_interest) || data.pre_emi_interest < 0)
+  ) {
+    return "pre_emi_interest must be zero or more";
+  }
+
   return null;
 }
 
@@ -909,12 +1129,19 @@ function calculateFinalAmounts(data) {
     processingFee = (data.loan_amount * data.processing_fee_percent) / 100;
   }
 
+  const insuranceAmount = data.insurance_amount !== null ? data.insurance_amount : 0;
+  const preEmiInterest = data.pre_emi_interest !== null ? data.pre_emi_interest : 0;
+
   return {
     emi_amount: roundAmount(
       calculateEmi(data.loan_amount, data.interest, data.loan_tenure),
     ),
     processing_fee: roundAmount(processingFee),
-    net_disbursement: roundAmount(data.loan_amount - processingFee),
+    insurance_amount: roundAmount(insuranceAmount),
+    pre_emi_interest: roundAmount(preEmiInterest),
+    net_disbursement: roundAmount(
+      data.loan_amount - processingFee - insuranceAmount - preEmiInterest,
+    ),
   };
 }
 
@@ -944,6 +1171,8 @@ async function saveFinalLoanDetails(lan, data, calculation, updatedBy) {
          ifsc = ?,
          emi_amount = ?,
          processing_fee = ?,
+         insurance_amount = ?,
+         pre_emi_interest = ?,
          net_disbursement = ?,
          status = 'ops_initiate',
          stage = 'ops_initiate',
@@ -962,6 +1191,8 @@ async function saveFinalLoanDetails(lan, data, calculation, updatedBy) {
       data.ifsc,
       calculation.emi_amount,
       calculation.processing_fee,
+      calculation.insurance_amount,
+      calculation.pre_emi_interest,
       calculation.net_disbursement,
       updatedBy,
       lan,
@@ -991,6 +1222,100 @@ router.get("/disbursed-loans", authenticateUser, (req, res) =>
   fetchYaMoneyLoans(req, res, ["disbursed"]),
 );
 
+router.get("/customer-details/:lan", authenticateUser, async (req, res) => {
+  const lan = clean(req.params.lan).toUpperCase();
+
+  if (!lan || !lan.startsWith(LAN_PREFIX)) {
+    return res.status(400).json({
+      success: false,
+      message: "Valid Ya Money LAN is required",
+    });
+  }
+
+  try {
+    const [[loan]] = await db.promise().query(
+      `SELECT *
+       FROM ${TABLE_NAME}
+       WHERE lan = ?
+       LIMIT 1`,
+      [lan],
+    );
+
+    if (!loan) {
+      return res.status(404).json({
+        success: false,
+        message: "Ya Money customer details not found",
+      });
+    }
+
+    const [
+      [kycRows],
+      [cibilReports],
+      [payouts],
+      [utrRows],
+      aml,
+    ] = await Promise.all([
+      db.promise().query(
+        `SELECT *
+         FROM kyc_verification_status
+         WHERE lan = ?`,
+        [lan],
+      ),
+      db.promise().query(
+        `SELECT id, pan_number, score, created_at
+         FROM loan_cibil_reports
+         WHERE lan = ?
+         ORDER BY created_at DESC, id DESC
+         LIMIT 3`,
+        [lan],
+      ),
+      db.promise().query(
+        `SELECT *
+         FROM quick_transfers
+         WHERE lan = ?
+         ORDER BY id DESC
+         LIMIT 5`,
+        [lan],
+      ),
+      db.promise().query(
+        `SELECT *
+         FROM ev_disbursement_utr
+         WHERE LAN = ?
+         ORDER BY id DESC
+         LIMIT 1`,
+        [lan],
+      ),
+      fetchLatestYaMoneyAml(lan, loan),
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        loan,
+        kyc: kycRows,
+        cibil_reports: cibilReports,
+        latest_cibil_report: cibilReports[0] || null,
+        payouts,
+        latest_payout: payouts[0] || null,
+        disbursement_utr: utrRows[0] || null,
+        aml,
+      },
+    });
+  } catch (error) {
+    console.error("[YA-MONEY] Customer details fetch error", {
+      lan,
+      message: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch Ya Money customer details",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
+
 router.post("/login", verifyApiKey, async (req, res) => {
   let connection;
   let transactionStarted = false;
@@ -1009,10 +1334,7 @@ router.post("/login", verifyApiKey, async (req, res) => {
       dob,
       age: Number.isFinite(calculatedAge) ? calculatedAge : readNumber(body.age),
       annual_income: body.annual_income || null,
-      loan_tenure: readNumber(
-        body.loan_tenure ?? body.tenure ?? body.requested_tenure,
-      ),
-      gender: nullIfEmpty(body.gender) || "Male",
+      gender: nullIfEmpty(body.gender),
       customer_name: clean(body.customer_name),
       mobile_number: digitsOnly(body.mobile_number),
       email: nullIfEmpty(body.email)?.toLowerCase() || null,
@@ -1065,6 +1387,15 @@ router.post("/login", verifyApiKey, async (req, res) => {
     const ids = await generateLoanIds(connection);
     const createdBy = req.partner?.name || null;
     const insertId = await insertLogin(connection, data, ids, createdBy);
+
+    await partnerLimitService.trackPartnerBookingNonBlocking(
+      connection,
+      PARTNER_LIMIT_NAME,
+      data.requested_amount,
+      ids.lan,
+      data.login_date,
+    );
+
     await connection.commit();
     transactionStarted = false;
     connection.release();
@@ -1073,12 +1404,12 @@ router.post("/login", verifyApiKey, async (req, res) => {
     const bureau = YA_MONEY_BUREAU_ENABLED
       ? await pullAndPersistBureau(ids.lan, data)
       : {
-          success: false,
-          status: "SKIPPED",
-          score: null,
-          skipped: true,
-          reason: "YA_MONEY_BUREAU_DISABLED_FOR_UAT",
-        };
+        success: false,
+        status: "SKIPPED",
+        score: null,
+        skipped: true,
+        reason: "YA_MONEY_BUREAU_DISABLED_FOR_UAT",
+      };
     const breResult = runBRE({
       loan_amount: data.requested_amount,
       age: data.age,
@@ -1086,10 +1417,12 @@ router.post("/login", verifyApiKey, async (req, res) => {
       bureau_score: bureau.score,
       skip_bureau: !YA_MONEY_BUREAU_ENABLED,
     });
+    const aml = await runYaMoneyAml(ids.lan);
     const finalStatus = await updateBreStatus(
       db.promise(),
       insertId,
       breResult,
+      aml,
       createdBy,
     );
 
@@ -1102,6 +1435,7 @@ router.post("/login", verifyApiKey, async (req, res) => {
         lan: ids.lan,
         status: finalStatus,
         bureau,
+        aml,
         bre: breResult,
       },
     });
@@ -1352,10 +1686,11 @@ router.patch("/:lan/final-details", async (req, res) => {
 
     const calculation = calculateFinalAmounts(data);
 
-    if (calculation.processing_fee >= data.loan_amount) {
+    if (calculation.net_disbursement <= 0) {
       return res.status(400).json({
         success: false,
-        message: "processing_fee must be less than loan_amount for payment",
+        message:
+          "processing_fee, insurance_amount and pre_emi_interest combined must be less than loan_amount for payment",
       });
     }
 
@@ -1390,6 +1725,8 @@ router.patch("/:lan/final-details", async (req, res) => {
         ifsc: data.ifsc,
         emi_amount: calculation.emi_amount,
         processing_fee: calculation.processing_fee,
+        insurance_amount: calculation.insurance_amount,
+        pre_emi_interest: calculation.pre_emi_interest,
         net_disbursement: calculation.net_disbursement,
       },
     });

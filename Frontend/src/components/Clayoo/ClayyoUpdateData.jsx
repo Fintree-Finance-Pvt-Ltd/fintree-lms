@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {  Navigate, useNavigate, useParams, } from "react-router-dom";
+import { Navigate, useNavigate, useParams, } from "react-router-dom";
 import api from "../../api/api";
 
 const EMPTY_BANK_FORM = {
@@ -1232,16 +1232,17 @@ const ClayyoUpdateData = () => {
     details;
 
   const bankAlreadyUpdated =
-    Boolean(
+    Number(
       loan.update_status
-        ?.bank_details_updated_once,
-    );
+        ?.bank_details_updated_once || 0
+    ) === 1;
+
 
   const applicantEmailAlreadyUpdated =
-    Boolean(
+    Number(
       loan.update_status
-        ?.applicant_email_updated_once,
-    );
+        ?.applicant_email_updated_once || 0
+    ) === 1;
 
   const insuranceDetails =
     loan.insurance_details || {};

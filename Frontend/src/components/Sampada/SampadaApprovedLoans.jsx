@@ -89,18 +89,7 @@ const SampadaApprovedLoans = ({
   };
 
   const canRetryAgreementEsign = (row) => {
-    const status = (row.agreement_esign_status || "").toUpperCase();
-
-    if (!["FAILED", "PENDING", "INITIATED"].includes(status)) return true;
-
-    if (!row.agreement_esign_sent_at) return true;
-
-    const lastAttempt = new Date(row.agreement_esign_sent_at);
-    const now = new Date();
-
-    const diffHours = (now - lastAttempt) / (1000 * 60 * 60);
-
-    return diffHours >= 3;
+    return row.agreement_esign_can_send === true;
   };
 
   // ---------- Bank Modal ----------
@@ -303,7 +292,7 @@ const SampadaApprovedLoans = ({
       },
     };
 
-    const c = map[st] || map.PENDING;
+    const c = map[st] || { ...map.INITIATED, label: st.replaceAll("_", " ") };
 
     return (
       <span
@@ -330,8 +319,14 @@ const SampadaApprovedLoans = ({
     const lan = row.lan;
     const status = (row.agreement_esign_status || "").toUpperCase();
 
-    if (status === "SIGNED") {
-      setToast({ type: "info", msg: "Agreement already signed." });
+    if (actionLan || !canRetryAgreementEsign(row)) {
+      setToast({
+        type: "info",
+        msg:
+          status === "SIGNED"
+            ? "Agreement already signed."
+            : "Agreement already sent or processing.",
+      });
       resetToastAfterDelay();
       return;
     }
@@ -341,15 +336,18 @@ const SampadaApprovedLoans = ({
     setActionLan(lan);
 
     try {
-      await api.post(`/esign/${lan}/esign/agreement`);
+      const { data } = await api.post(`/esign/${lan}/esign/agreement`);
 
       setRows((old) =>
         old.map((r) =>
           r.lan === lan
             ? {
                 ...r,
-                agreement_esign_status: "INITIATED",
-                agreement_esign_sent_at: new Date().toISOString(),
+                agreement_esign_status: data.agreement_esign_status,
+                agreement_esign_sent_at: data.agreement_esign_sent_at,
+                agreement_esign_document_id: data.agreement_esign_document_id,
+                agreement_esign_can_send:
+                  data.agreement_esign_can_send === true,
               }
             : r,
         ),
@@ -357,13 +355,18 @@ const SampadaApprovedLoans = ({
 
       setToast({
         type: "success",
-        msg: "Agreement eSign initiated.",
+        msg: data.already_initiated
+          ? "Agreement already sent. Status refreshed."
+          : "Agreement eSign initiated.",
       });
       resetToastAfterDelay();
     } catch (err) {
       setToast({
         type: "error",
-        msg: err.response?.data?.message || "Failed to start agreement eSign.",
+        msg:
+          err.response?.data?.message ||
+          err.response?.data?.error ||
+          "Failed to start agreement eSign.",
       });
       resetToastAfterDelay();
     } finally {
@@ -635,7 +638,7 @@ const SampadaApprovedLoans = ({
         const isSigned = status === "SIGNED";
         const canRetry = canRetryAgreementEsign(r);
 
-        const disabled = isProcessing || isSigned || !canRetry;
+        const disabled = Boolean(actionLan) || isSigned || !canRetry;
 
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -659,8 +662,14 @@ const SampadaApprovedLoans = ({
                 : isSigned
                   ? "Already Signed"
                   : !canRetry
-                    ? "Retry After 3 Hours"
-                    : ["FAILED", "INITIATED", "PENDING"].includes(status)
+                    ? "Agreement Already Sent"
+                    : [
+                          "FAILED",
+                          "ERROR",
+                          "REJECTED",
+                          "EXPIRED",
+                          "CANCELLED",
+                        ].includes(status)
                       ? "Retry Agreement eSign"
                       : "Send Agreement eSign"}
             </button>
@@ -683,7 +692,7 @@ const SampadaApprovedLoans = ({
           bankStatus === "MANDATE_INITIATED" ||
           actionLan === r.lan;
 
-        const bankChipMap = { 
+        const bankChipMap = {
           PENDING: {
             bg: "#fff7e8",
             bd: "#f4d08a",
@@ -770,7 +779,7 @@ const SampadaApprovedLoans = ({
               >
                 Docs
               </button>
-{/*                     
+              {/*                     
               <button
                 onClick={() => !disableBankBtn && openBankModal(r)}
                 disabled={disableBankBtn}
@@ -797,53 +806,53 @@ const SampadaApprovedLoans = ({
                     : "Mandate Created"}
               </button> */}
               <button
-  onClick={() => !disableBankBtn && openBankModal(r)}
-  disabled={disableBankBtn}
-  style={{
-    minWidth: 105,
-    padding: "9px 16px",
-    borderRadius: 8,
-    border: disableBankBtn
-      ? "1px solid #e5e7eb"
-      : bankStatus === "VERIFIED"
-        ? "1px solid #86efac"
-        : "1px solid #93c5fd",
+                onClick={() => !disableBankBtn && openBankModal(r)}
+                disabled={disableBankBtn}
+                style={{
+                  minWidth: 105,
+                  padding: "9px 16px",
+                  borderRadius: 8,
+                  border: disableBankBtn
+                    ? "1px solid #e5e7eb"
+                    : bankStatus === "VERIFIED"
+                      ? "1px solid #86efac"
+                      : "1px solid #93c5fd",
 
-    color: disableBankBtn
-      ? "#9ca3af"
-      : bankStatus === "VERIFIED"
-        ? "#15803d"
-        : "#2563eb",
+                  color: disableBankBtn
+                    ? "#9ca3af"
+                    : bankStatus === "VERIFIED"
+                      ? "#15803d"
+                      : "#2563eb",
 
-    background: disableBankBtn
-      ? "#f9fafb"
-      : bankStatus === "VERIFIED"
-        ? "#f0fdf4"
-        : "#eff6ff",
+                  background: disableBankBtn
+                    ? "#f9fafb"
+                    : bankStatus === "VERIFIED"
+                      ? "#f0fdf4"
+                      : "#eff6ff",
 
-    cursor: disableBankBtn ? "not-allowed" : "pointer",
-    fontWeight: 700,
-    fontSize: 12,
-    letterSpacing: "0.1px",
+                  cursor: disableBankBtn ? "not-allowed" : "pointer",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  letterSpacing: "0.1px",
 
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
 
-    boxShadow: disableBankBtn
-      ? "none"
-      : "0 1px 3px rgba(15, 23, 42, 0.08)",
+                  boxShadow: disableBankBtn
+                    ? "none"
+                    : "0 1px 3px rgba(15, 23, 42, 0.08)",
 
-    transition: "all 0.2s ease",
-  }}
->
-  {bankStatus === "PENDING"
-    ? "Set Up Mandate"
-    : bankStatus === "VERIFIED"
-      ? "✓ Verified"
-      : "Mandate Created"}
-</button>
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {bankStatus === "PENDING"
+                  ? "Set Up Mandate"
+                  : bankStatus === "VERIFIED"
+                    ? "✓ Verified"
+                    : "Mandate Created"}
+              </button>
             </div>
           </div>
         );
@@ -922,56 +931,56 @@ const SampadaApprovedLoans = ({
           <div className="modal">
             {/* <h3>Bank Details & Mandate</h3> */}
             <div
-  style={{
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 22,
-    paddingBottom: 16,
-    borderBottom: "1px solid #e5e7eb",
-  }}
->
-  <div>
-    <h3
-      style={{
-        margin: 0,
-        fontSize: 21,
-        fontWeight: 800,
-        color: "#12366b",
-      }}
-    >
-      Bank Details & Mandate
-    </h3>
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 22,
+                paddingBottom: 16,
+                borderBottom: "1px solid #e5e7eb",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: 21,
+                    fontWeight: 800,
+                    color: "#12366b",
+                  }}
+                >
+                  Bank Details & Mandate
+                </h3>
 
-    <div
-      style={{
-        marginTop: 5,
-        fontSize: 12,
-        color: "#64748b",
-      }}
-    >
-      Review bank details and mandate information
-    </div>
-  </div>
+                <div
+                  style={{
+                    marginTop: 5,
+                    fontSize: 12,
+                    color: "#64748b",
+                  }}
+                >
+                  Review bank details and mandate information
+                </div>
+              </div>
 
-  <button
-    type="button"
-    onClick={closeBankModal}
-    style={{
-      width: 32,
-      height: 32,
-      border: "none",
-      borderRadius: 8,
-      background: "#f1f5f9",
-      color: "#475569",
-      fontSize: 22,
-      lineHeight: 1,
-      cursor: "pointer",
-    }}
-  >
-    ×
-  </button>
-</div>
+              <button
+                type="button"
+                onClick={closeBankModal}
+                style={{
+                  width: 32,
+                  height: 32,
+                  border: "none",
+                  borderRadius: 8,
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  fontSize: 22,
+                  lineHeight: 1,
+                  cursor: "pointer",
+                }}
+              >
+                ×
+              </button>
+            </div>
 
             <form onSubmit={handleBankSubmit} className="bank-form">
               <div className="field-row">

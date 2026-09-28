@@ -27,6 +27,7 @@ const ChartFilter = ({ onFilterChange }) => {
           <option value="WCTL">WCTL Business Loans</option>
           <option value="Circle Pe">Circle Pe </option>
           <option value="Finso">Finso </option>
+          <option value="Ya Money">Ya Money</option>
           <option value="Hey EV">Hey EV </option>
           <option value="Hey EV Battery">Hey EV Battery</option>
           <option value="Embifi">Embifi</option>
@@ -37,6 +38,11 @@ const ChartFilter = ({ onFilterChange }) => {
           <option value="Seven Fincorp">Seven Fincorp</option>
           <option value="Bundela">Bundela </option>
           <option value="Zebrs">Zebrs </option>
+          <option value="Circle Pe Houser">Circle Pe Houser</option>
+          <option value="Care Pay">Care Pay</option>
+          <option value="Sterlion UBL">Sterlion UBL </option>
+          <option value="SRBH">SRBH </option>
+          <option value="Rapid Money">Rapid Money</option>
         
         </select>
       </div>

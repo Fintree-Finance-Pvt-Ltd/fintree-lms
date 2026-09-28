@@ -1,6 +1,8 @@
 const express = require("express");
+const crypto = require("crypto");
 
 const db = require("../../config/db");
+const { isRetryableDbError } = require("../../utils/retryableDbError");
 const verifyApiKey = require("../../middleware/apiKeyAuth");
 
 const router = express.Router();
@@ -23,6 +25,8 @@ const { POLICY } = require("../switchMyLoan/rapidMoneyPolicy");
 const {
   evaluateQuickMoneyEligibility,
 } = require("./quickMoneyEligibilityEvaluator");
+
+// const runQuickMoneyBRE = require("./quickMoneyBre");
 
   
 const normalizeDate = (value) => {
@@ -557,8 +561,9 @@ function getBankNameParts(value) {
     .filter((part) => !ignoredWords.has(part));
 }
 
+
 function bankNameTokenMatches(a, b) {
-    if (!a || !b) {
+  if (!a || !b) {
     return false;
   }
 
@@ -591,6 +596,7 @@ function bankNameTokenMatches(a, b) {
 
   return false;
 }
+
 
 function bankNameSequenceMatches(
   customerParts,
@@ -700,6 +706,104 @@ function bankNameSequenceMatches(
   return false;
 }
 
+
+/*
+ * Handles:
+ *
+ * SAJANAAYYAPPANASARI
+ * A SAJANA
+ */
+function compoundBankNameInitialMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length !== 1 ||
+    bankParts.length !== 2
+  ) {
+    return false;
+  }
+
+  const compoundCustomerName =
+    customerParts[0];
+
+  const possibleOrders = [
+    bankParts,
+    [...bankParts].reverse(),
+  ];
+
+  for (const parts of possibleOrders) {
+    const first = parts[0];
+    const second = parts[1];
+
+    if (
+      first.length >= 4 &&
+      second.length === 1 &&
+      compoundCustomerName.startsWith(
+        `${first}${second}`,
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+/*
+ * Handles:
+ *
+ * RAM BHAJAN
+ *
+ * RAMBHAJAN SAINI
+ */
+function extraBankSurnameMatch(
+  customerParts,
+  bankParts,
+) {
+  if (
+    customerParts.length < 2 ||
+    bankParts.length < 2
+  ) {
+    return false;
+  }
+
+  /*
+   * Allow only one additional bank name.
+   */
+  if (
+    bankParts.length >
+    customerParts.length + 1
+  ) {
+    return false;
+  }
+
+  /*
+   * Remove final additional surname.
+   *
+   * RAMBHAJAN SAINI
+   *
+   * becomes:
+   *
+   * RAMBHAJAN
+   */
+  const bankWithoutLast =
+    bankParts.slice(0, -1);
+
+  return bankNameSequenceMatches(
+    customerParts,
+    bankWithoutLast,
+  );
+}
+
+
+/*
+ * Handles omitted middle name:
+ *
+ * SAJAG SANTOSH JAIN
+ * SAJAG JAIN
+ */
 function omittedBankMiddleNameMatch(
   customerParts,
   bankParts,
@@ -750,46 +854,10 @@ function omittedBankMiddleNameMatch(
   );
 }
 
-function extraBankSurnameMatch(
-  customerParts,
-  bankParts,
-) {
-  if (
-    customerParts.length < 2 ||
-    bankParts.length < 2
-  ) {
-    return false;
-  }
 
-  /*
-   * Allow only one additional bank name.
-   */
-  if (
-    bankParts.length >
-    customerParts.length + 1
-  ) {
-    return false;
-  }
-
-  /*
-   * Remove final additional surname.
-   *
-   * RAMBHAJAN SAINI
-   *
-   * becomes:
-   *
-   * RAMBHAJAN
-   */
-  const bankWithoutLast =
-    bankParts.slice(0, -1);
-
-  return bankNameSequenceMatches(
-    customerParts,
-    bankWithoutLast,
-  );
-}
-
-
+/*
+ * FINAL FUNCTION
+ */
 function bankNamesMatch(
   customerName,
   accountName,
@@ -1168,8 +1236,12 @@ function buildQuickMoneyBreResponse(breResult = {}) {
 
 
 router.post("/v1/create", verifyApiKey, async (req, res) => {
+  // Restart the entire transaction: a timeout may leave earlier writes active.
+  const MAX_CREATE_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_CREATE_ATTEMPTS; attempt++) {
   let connection;
   let transactionStarted = false;
+  let rollbackFailed = false;
 
   try {
     connection = await db.promise().getConnection();
@@ -1394,6 +1466,7 @@ const lan = generated.lan;
       try {
         await connection.rollback();
       } catch (rollbackError) {
+        rollbackFailed = true;
         console.error(
           "QuickMoney rollback error:",
           rollbackError,
@@ -1403,6 +1476,12 @@ const lan = generated.lan;
 
     console.error("QuickMoney create loan error:", err);
 
+    if (!rollbackFailed && isRetryableDbError(err) && attempt < MAX_CREATE_ATTEMPTS) {
+      console.warn("Retrying QuickMoney create transaction", {
+        attempt,
+        code: err.code,
+      });
+    } else {
     return res.status(500).json({
       is_success: false,
       error: {
@@ -1410,10 +1489,16 @@ const lan = generated.lan;
         code: "internal_server_error",
       },
     });
+    }
   } finally {
     if (connection) {
-      connection.release();
+      // Never return a connection with an uncertain transaction to the pool.
+      if (rollbackFailed) connection.destroy();
+      else connection.release();
     }
+  }
+  // Release the connection before waiting so retries cannot exhaust the pool.
+  await new Promise((resolve) => setTimeout(resolve, attempt * 100 + Math.floor(Math.random() * 100)));
   }
 });
 
@@ -5227,5 +5312,32 @@ router.post( "/v1/bre/test-eligibility",
 //     message: "Quick Money webhook received successfully",
 //   });
 // });
+
+
+
+router.post("/quick-money/run-bre", async(req,res)=>{
+
+    try {
+
+        const result = await runQuickMoneyBRE(req.body);
+
+        return res.json({
+            success:true,
+            data:result
+        });
+
+    } catch(error){
+
+        console.error(error);
+
+        return res.status(500).json({
+            success:false,
+            message:error.message
+        });
+
+    }
+
+});
+
 
 module.exports = router;

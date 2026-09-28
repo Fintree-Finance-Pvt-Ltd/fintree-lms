@@ -3830,192 +3830,106 @@ router.patch(
 );
 
 // Applicant email can be updated only once.
-router.patch("/applicant-email/:lan", async (req, res) => {
+router.patch("/applicant-email/:lan", async (req,res)=>{
+
+  const { lan } = req.params;
+  const { email } = req.body;
+
+
   try {
-    const lan = normalizeText(req.params.lan);
 
-    const email = normalizeText(
-      req.body?.email,
-    ).toLowerCase();
-
-    if (!lan) {
+    if(!email){
       return res.status(400).json({
-        success: false,
-        message: "LAN is required.",
+        success:false,
+        message:"Email is required"
       });
     }
 
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Applicant email is required.",
-      });
-    }
 
-    /*
-     * email_id is VARCHAR(150) in loan_booking_clayyo.
-     */
-    if (
-      email.length > 150 ||
-      !EMAIL_REGEX.test(email)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Please enter a valid applicant email address.",
-      });
-    }
-
-    /*
-     * Atomic one-time update.
-     *
-     * The WHERE condition prevents two requests from
-     * updating the email more than once.
-     */
-    const [result] = await db.promise().query(
+    const [loanRows] = await db.promise().query(
       `
-      UPDATE loan_booking_clayyo
-      SET
-        email_id = ?,
-        applicant_email_updated_once = 1,
-        applicant_email_updated_at = NOW()
+      SELECT 
+          email_id,
+          applicant_email_updated_once
+      FROM loan_booking_clayyo
       WHERE lan = ?
-        AND COALESCE(
-          applicant_email_updated_once,
-          0
-        ) = 0
+      LIMIT 1
       `,
-      [email, lan],
+      [lan]
     );
 
-    /*
-     * affectedRows = 0 can mean:
-     * 1. The LAN does not exist.
-     * 2. The applicant email was already updated once.
-     */
-    if (result.affectedRows === 0) {
-      const [[existingLoan]] =
-        await db.promise().query(
-          `
-          SELECT
-            lan,
-            email_id,
-            applicant_email_updated_once,
-            applicant_email_updated_at
-          FROM loan_booking_clayyo
-          WHERE lan = ?
-          LIMIT 1
-          `,
-          [lan],
-        );
 
-      if (!existingLoan) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "Clayyo loan not found.",
-        });
-      }
-
-      if (
-        Number(
-          existingLoan.applicant_email_updated_once ||
-          0,
-        ) === 1
-      ) {
-        return res.status(409).json({
-          success: false,
-
-          message:
-            "Applicant email has already been updated once.",
-
-          lan: existingLoan.lan,
-
-          email:
-            existingLoan.email_id ||
-            null,
-
-          update_status: {
-            applicant_email_updated_once:
-              true,
-
-            applicant_email_updated_at:
-              existingLoan.applicant_email_updated_at ||
-              null,
-          },
-        });
-      }
-
-      return res.status(409).json({
-        success: false,
-        message:
-          "Applicant email could not be updated.",
+    if(!loanRows.length){
+      return res.status(404).json({
+        success:false,
+        message:"Loan not found"
       });
     }
 
-    /*
-     * Read the final database value so the frontend
-     * receives the exact saved email and timestamp.
-     */
-    const [[updatedLoan]] =
-      await db.promise().query(
-        `
-        SELECT
-          lan,
-          email_id,
-          applicant_email_updated_once,
-          applicant_email_updated_at
-        FROM loan_booking_clayyo
-        WHERE lan = ?
-        LIMIT 1
-        `,
-        [lan],
-      );
 
-    return res.status(200).json({
-      success: true,
+    const loan = loanRows[0];
 
-      message:
-        "Applicant email updated successfully.",
 
-      lan:
-        updatedLoan?.lan || lan,
+    // 🔒 ONE TIME CHECK
+    if(Number(loan.applicant_email_updated_once) === 1){
 
-      email:
-        updatedLoan?.email_id ||
+      return res.status(400).json({
+        success:false,
+        message:"Applicant email can be updated only once",
+        already_updated:true
+      });
+
+    }
+
+
+
+    await db.promise().query(
+      `
+      UPDATE loan_booking_clayyo
+      SET 
+          email_id = ?,
+          applicant_email_updated_once = 1,
+          applicant_email_updated_at = NOW()
+      WHERE lan = ?
+      `,
+      [
         email,
+        lan
+      ]
+    );
 
-      update_status: {
-        applicant_email_updated_once:
-          Boolean(
-            Number(
-              updatedLoan?.applicant_email_updated_once ||
-              0,
-            ),
-          ),
 
-        applicant_email_updated_at:
-          updatedLoan?.applicant_email_updated_at ||
-          null,
-      },
+
+    return res.json({
+
+      success:true,
+
+      message:"Applicant email updated successfully",
+
+      update_status:{
+        applicant_email_updated_once:true,
+        applicant_email_updated_at:new Date()
+      }
+
     });
-  } catch (error) {
+
+
+
+  } catch(error){
+
     console.error(
-      "Clayyo applicant email update error:",
-      error,
+      "EMAIL UPDATE ERROR:",
+      error
     );
 
     return res.status(500).json({
-      success: false,
-
-      message:
-        "Failed to update applicant email.",
-
-      error:
-        error.sqlMessage ||
-        error.message,
+      success:false,
+      message:"Internal server error"
     });
+
   }
+
+
 });
 
 //insurance lan

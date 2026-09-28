@@ -110,6 +110,13 @@ const PARTNER_ROUTES = [
   },
 
   {
+    prefix: "YAM",
+    table: "loan_booking_ya_money",
+    rpsTable: "manual_rps_ya_money",
+    tenureUnit: "months",
+  },
+
+  {
     prefix: "CIRF",
     table: "loan_booking_circle_pe",
     rpsTable: "manual_rps_circlepe",

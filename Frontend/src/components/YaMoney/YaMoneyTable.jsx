@@ -36,6 +36,12 @@ const getPrimaryAmount = (row) =>
 const getNetDisbursement = (row) =>
   row?.net_disbursement ?? row?.net_disb_amt ?? row?.net_disbursement_amount;
 
+const getDetailsUrl = (lan) =>
+  `/ya-money/customer-details?lan=${encodeURIComponent(lan || "")}`;
+
+const getLoanDetailsUrl = (lan) =>
+  `/loan-details/${encodeURIComponent(lan || "")}`;
+
 const statusClass = (status) => {
   const normalized = normalizeYaMoneyStatus(status);
 
@@ -68,7 +74,7 @@ const buildColumns = ({ navigate, renderActions }) => {
         <button
           type="button"
           className="ym-customer-button"
-          onClick={() => navigate(`/loan-details/${row.lan}`)}
+          onClick={() => navigate(getDetailsUrl(row.lan))}
         >
           <span>{getDisplayName(row)}</span>
           <small>{row.business_name || "Ya Money"}</small>
@@ -82,7 +88,19 @@ const buildColumns = ({ navigate, renderActions }) => {
       key: "lan",
       header: "LAN",
       sortable: true,
-      render: (row) => <span className="ym-lan-badge">{row.lan || "-"}</span>,
+      render: (row) =>
+        row.lan ? (
+          <button
+            type="button"
+            className="ym-lan-badge"
+            onClick={() => navigate(getLoanDetailsUrl(row.lan))}
+            title="View loan details"
+          >
+            {row.lan}
+          </button>
+        ) : (
+          <span className="ym-lan-badge">-</span>
+        ),
       sortAccessor: (row) => String(row?.lan || "").toLowerCase(),
       width: 140,
     },

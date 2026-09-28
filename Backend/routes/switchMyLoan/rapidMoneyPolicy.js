@@ -16,7 +16,7 @@ const {
  * - No DPD > 60 in last 9 months
  * - No DPD > 90 in last 12 months
  * - Loan amount Rs 5,000 to Rs 15,000, in multiples of Rs 1,000
- * - First-time RapidMoney borrower maximum Rs 8,000
+ * - First-time RapidMoney borrower: Rs 5,000 (all ages)
  * - Repeat borrower below age 28 maximum Rs 10,000
  * - Unsecured aggregate >= Rs 2,00,000, else secured tradeline aggregate
  *   >= Rs 5,00,000 (fallback) — required for every customer, new or repeat
@@ -30,11 +30,20 @@ const {
 const POLICY = Object.freeze({
   MIN_BUREAU_SCORE: 650,
 
-  MIN_LOAN_AMOUNT: 8000,
+  // General/default minimum loan amount — applies to ages 26+ (and any age
+  // that can't be determined). Ages 23-25 use MIN_LOAN_AMOUNT_23_TO_25
+  // instead; see getMinLoanAmountForAge() below. Both are currently Rs 5,000
+  // (as of the 2026-09-28 policy update) but are kept as separate constants
+  // in case the two tiers diverge again in the future.
+  MIN_LOAN_AMOUNT: 5000,
+  MIN_LOAN_AMOUNT_23_TO_25: 5000,
   MAX_LOAN_AMOUNT: 15000,
   LOAN_AMOUNT_MULTIPLE: 1000,
 
-  FIRST_TIME_CUSTOMER_LIMIT: 8000,
+  // Not read anywhere — first-time customers' credit limit is actually
+  // computed via getMinLoanAmountForAge() (see MIN_LOAN_AMOUNT /
+  // MIN_LOAN_AMOUNT_23_TO_25 above). Kept only for documentation.
+  FIRST_TIME_CUSTOMER_LIMIT: 5000,
   REPEAT_CUSTOMER_UNDER_28_LIMIT: 10000,
   MAX_REPEAT_CUSTOMER_LIMIT: 15000,
   MIN_UNSECURED_AGGREGATE: 100000,
@@ -48,7 +57,21 @@ const POLICY = Object.freeze({
   DPD_REJECT_ABOVE_LAST_3_MONTHS: 30,
   DPD_REJECT_ABOVE_LAST_9_MONTHS: 60,
   DPD_REJECT_ABOVE_LAST_12_MONTHS: 90,
+
+  MIN_TENURE_DAYS: 39,
+  MAX_TENURE_DAYS: 45,
 });
+
+// Ages 23-25 get a lower minimum loan amount (Rs 5,000); everyone else
+// (26+, and any age that couldn't be determined) uses the standard
+// Rs 8,000 minimum.
+function getMinLoanAmountForAge(age) {
+  if (age !== null && age !== undefined && age >= 23 && age <= 25) {
+    return POLICY.MIN_LOAN_AMOUNT_23_TO_25;
+  }
+
+  return POLICY.MIN_LOAN_AMOUNT;
+}
 
 const UNSECURED_CATEGORIES = [
   "Other",
@@ -213,25 +236,28 @@ function calculateAge(dob, asOf = new Date()) {
   return age;
 }
 
-function validateLoanAmount(value) {
+function validateLoanAmount(value, age = null) {
   const amount = toFiniteNumber(value);
+  const minAmount = getMinLoanAmountForAge(age);
 
   if (amount === null || amount <= 0) {
     return {
       passed: false,
       reason: "INVALID_LOAN_AMOUNT",
       amount,
+      minAmount,
     };
   }
 
   if (
-    amount < POLICY.MIN_LOAN_AMOUNT ||
+    amount < minAmount ||
     amount > POLICY.MAX_LOAN_AMOUNT
   ) {
     return {
       passed: false,
-      reason: "LOAN_AMOUNT_OUTSIDE_8000_TO_15000",
+      reason: `LOAN_AMOUNT_OUTSIDE_${minAmount}_TO_${POLICY.MAX_LOAN_AMOUNT}`,
       amount,
+      minAmount,
     };
   }
 
@@ -240,6 +266,7 @@ function validateLoanAmount(value) {
       passed: false,
       reason: "LOAN_AMOUNT_NOT_MULTIPLE_OF_1000",
       amount,
+      minAmount,
     };
   }
 
@@ -247,6 +274,36 @@ function validateLoanAmount(value) {
     passed: true,
     reason: null,
     amount,
+    minAmount,
+  };
+}
+
+function validateTenure(value) {
+  const tenure = toFiniteNumber(value);
+
+  if (tenure === null) {
+    return {
+      passed: false,
+      reason: "TENURE_MISSING_OR_INVALID",
+      tenure,
+    };
+  }
+
+  if (
+    tenure < POLICY.MIN_TENURE_DAYS ||
+    tenure > POLICY.MAX_TENURE_DAYS
+  ) {
+    return {
+      passed: false,
+      reason: `TENURE_OUTSIDE_${POLICY.MIN_TENURE_DAYS}_TO_${POLICY.MAX_TENURE_DAYS}_DAYS`,
+      tenure,
+    };
+  }
+
+  return {
+    passed: true,
+    reason: null,
+    tenure,
   };
 }
 
@@ -1162,7 +1219,9 @@ module.exports = {
   UNSECURED_CATEGORIES,
   SECURED_CATEGORIES,
   calculateAge,
+  getMinLoanAmountForAge,
   validateLoanAmount,
+  validateTenure,
   isNewCustomer,
   getRepeatMultiplier,
   calculateRepeatCreditLimit,

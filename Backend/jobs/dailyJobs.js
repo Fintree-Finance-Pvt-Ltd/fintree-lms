@@ -105,6 +105,9 @@ const { runDailyInterestAccrual } = require( "./wctlccodinterestengine");
 const startAadhaarCron = require("./aadhaarPdfCron");
 const { sendLoanWebhook } = require("../utils/webhook");
 const {
+  sendRejectionWebhook,
+} = require("../routes/switchMyLoan/switchMyLoanWebhook");
+const {
   retriggerFailedBureauBatch,
   PARTNERS,
 } = require("../services/bureauRetriggerService");
@@ -868,46 +871,12 @@ cron.schedule("*/2 * * * *", async () => {
 
 /////////////////   RAPID MONEY WEBHOOK CALL FOR INACTIVE CASES ////////
 
-/**
- * Loan Rejection Webhook
- * Existing function - NO CHANGES
- */
-async function sendRejectionWebhook({ applicationId }) {
-  if (!applicationId) {
-    throw new Error("applicationId is required");
-  }
-
-  const [[loan]] = await db.promise().query(
-    `
-      SELECT lan
-      FROM loan_booking_switch_my_loan
-      WHERE application_id = ?
-      LIMIT 1
-    `,
-    [applicationId],
-  );
-
-  const webhookUrl =
-    `${BASE_URL}/api-api/v1/webhooks/fintree/` + "loan-rejected";
-
-  const requestBody = {
-    payload: {
-      status: "Rejected",
-      lead_id: applicationId,
-    },
-  };
-
-  const log = await createWebhookLog({
-    webhookType: "REJECTION",
-    applicationId,
-    lan: loan?.lan || null,
-    webhookUrl,
-    requestBody,
-  });
-
-  return sendWebhookLog(log.id);
-}
-
+// This used to be a local copy of switchMyLoanWebhook.js's sendRejectionWebhook,
+// but the copy referenced BASE_URL, createWebhookLog and sendWebhookLog without
+// ever defining or importing any of them here — every call threw a
+// ReferenceError (first on BASE_URL, and would have hit the same issue on
+// createWebhookLog next). Using the real, already-working, already-exported
+// implementation instead of maintaining a second broken copy of it.
 
 /**
  * Reject loans inactive for more than 30 days.
@@ -1105,6 +1074,121 @@ cron.schedule(
   },
 );
 
+
+/**
+ * Rejection Webhook Backfill Cron
+ *
+ * One-time backlog cleanup: ~17,900+ Rapid Money loans were already
+ * marked status='REJECTED' / sml_bre_status='INACTIVITY' by the cron
+ * above, but their rejection webhook was never delivered to the partner —
+ * sendRejectionWebhook() referenced an undefined BASE_URL and threw
+ * before it could even create a webhook log row (fixed elsewhere in this
+ * file). This works through that backlog in small batches instead of
+ * firing ~18,000 webhook calls at once, which would risk overwhelming
+ * Rapid Money's server or this app's own outbound connections/DB pool.
+ *
+ * Picks loans with no SUCCESSFUL rejection webhook logged yet — this
+ * naturally includes ones that were previously attempted and failed, not
+ * just ones never attempted. Re-processing an already-successful case is
+ * harmless too: sendWebhookLog() short-circuits and does not re-send if
+ * the existing log row's status is already 'SUCCESS'.
+ *
+ * Safe to leave running indefinitely: once the backlog clears, each run
+ * just finds 0 rows and does nothing. Tune BATCH_SIZE below to go
+ * faster/slower.
+ */
+const REJECTION_WEBHOOK_BACKFILL_BATCH_SIZE = 500;
+let isRejectionWebhookBackfillRunning = false;
+
+cron.schedule(
+  "*/2 * * * *",
+  async () => {
+    if (isRejectionWebhookBackfillRunning) {
+      console.log(
+        "⏭️ Previous rejection webhook backfill batch is still running. Skipping this tick.",
+      );
+      return;
+    }
+
+    isRejectionWebhookBackfillRunning = true;
+    const startedAt = Date.now();
+
+    try {
+      const [loans] = await db.promise().query(
+        `
+        SELECT l.id, l.lan, l.application_id
+        FROM loan_booking_switch_my_loan l
+        LEFT JOIN rapid_money_webhook_logs w
+          ON w.application_id = l.application_id
+         AND w.webhook_type = 'REJECTION'
+         AND w.status = 'SUCCESS'
+        WHERE l.status = 'REJECTED'
+          AND l.sml_bre_status = 'INACTIVITY'
+          AND w.id IS NULL
+        ORDER BY l.id ASC
+        LIMIT ?
+        `,
+        [REJECTION_WEBHOOK_BACKFILL_BATCH_SIZE],
+      );
+
+      if (loans.length === 0) {
+        return;
+      }
+
+      let success = 0;
+      let failed = 0;
+      let skipped = 0;
+
+      for (const loan of loans) {
+        if (!loan.application_id) {
+          skipped++;
+
+          console.error(
+            `⚠️ Rejection webhook backfill skipped | ` +
+            `id=${loan.id} | ` +
+            `lan=${loan.lan || "NULL"} | ` +
+            `application_id missing`,
+          );
+
+          continue;
+        }
+
+        try {
+          await sendRejectionWebhook({
+            applicationId: loan.application_id,
+          });
+
+          success++;
+        } catch (webhookError) {
+          failed++;
+
+          console.error(
+            `❌ Rejection webhook backfill failed | ` +
+            `id=${loan.id} | ` +
+            `lan=${loan.lan || "NULL"} | ` +
+            `applicationId=${loan.application_id} | ` +
+            `error=${webhookError.message}`,
+          );
+        }
+      }
+
+      console.log(
+        `✅ Rejection webhook backfill batch finished in ${Date.now() - startedAt}ms | ` +
+        `processed=${loans.length} | success=${success} | failed=${failed} | skipped=${skipped}`,
+      );
+    } catch (error) {
+      console.error(
+        `❌ Rejection webhook backfill cron failed after ${Date.now() - startedAt}ms:`,
+        error.message,
+      );
+    } finally {
+      isRejectionWebhookBackfillRunning = false;
+    }
+  },
+  {
+    timezone: "Asia/Kolkata",
+  },
+);
 
 
 

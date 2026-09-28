@@ -214,6 +214,17 @@
   overflow-wrap: anywhere;
 }
 
+button.ym-lan-badge {
+  cursor: pointer;
+}
+
+button.ym-lan-badge:hover,
+button.ym-lan-badge:focus-visible {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .ym-phone-link {
   color: #0f172a;
   text-decoration: none;

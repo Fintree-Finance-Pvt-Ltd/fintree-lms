@@ -3,6 +3,11 @@ const express = require("express");
 const verifyApiKey = require("../../middleware/apiKeyAuth");
 const initAadhaarKyc = require("../../services/digitapaadharservice");
 const { getPanCardDetails } = require("../../services/pancardapiservice");
+const { initDoqfyEsign } = require("../../services/doqfyEsignService");
+const { initEsign } = require("../../services/esignService");
+const { getLoanContext } = require("../../utils/lanHelper");
+const authenticateUser = require("../../middleware/verifyToken");
+
 const router = express.Router();
 
 // const { runBureau } = require("../../services/Bueraupullapiservice");
@@ -1044,8 +1049,7 @@ const bureauStatus =
 }
 
 
-  router.post(
-  "/bre/zebrs/:lan",
+  router.post("/bre/zebrs/:lan",
   verifyApiKey,
   async (req, res) => {
     try {
@@ -1111,52 +1115,55 @@ const bureauStatus =
   },
 );
 
+// ============================================
+// GET ZEBRS LOAN STATUS BY LAN
+// ============================================
 router.get("/status/:lan", verifyApiKey, async (req, res) => {
   try {
     const lan = String(req.params.lan || "")
       .trim()
       .toUpperCase();
- 
+
     console.log("📌 HIT ZEBRS STATUS API:", lan);
- 
+
     if (!lan) {
       return res.status(400).json({
         success: false,
         message: "LAN is required",
       });
     }
- 
     const [rows] = await db.promise().query(
       `
         SELECT
           lan,
           partner_loan_id,
           status,
-          stage
-         
+          stage,
+          zebrs_bre_status,
+          zebrs_bre_reason,
+          zebrs_bre_checked_at,
+          updated_at
         FROM loan_booking_zebrs
         WHERE lan = ?
         LIMIT 1
       `,
       [lan]
     );
- 
     if (!rows.length) {
       return res.status(404).json({
         success: false,
         message: `Zebrs loan not found for LAN ${lan}`,
       });
     }
- 
     return res.status(200).json({
       success: true,
       message: "Zebrs loan status fetched successfully",
       data: rows[0],
     });
- 
+
   } catch (error) {
     console.error("❌ Error fetching Zebrs loan status:", error);
- 
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch Zebrs loan status",
@@ -1164,7 +1171,176 @@ router.get("/status/:lan", verifyApiKey, async (req, res) => {
     });
   }
 });
- 
+
+router.post("/:lan/esign/:type",  verifyApiKey,
+  async (req, res) => {
+    const { lan, type } = req.params;
+    const { bookingTable } = getLoanContext(lan);
+
+    try {
+      if (type === "agreement") {
+        const [rows] = await db
+          .promise()
+          .query(
+            `SELECT agreement_esign_status FROM ${bookingTable} WHERE lan=?`,
+            [lan],
+          );
+      }
+      console.log("[ZEBRS ESIGN] Calling initZebrsEsign...");
+
+     const out = await initDoqfyEsign(lan, type.toUpperCase());
+
+    // const out = await initEsign(lan, type.toUpperCase());
+      console.log("[ZEBRS ESIGN] Response:", out);
+
+      return res.json(out);
+    } catch (err) {
+      console.error("[ZEBRS ESIGN ERROR]", err);
+
+      return res.status(500).json({
+        success: false,
+        error: err.message,
+      });
+    }
+  },
+);
+
+router.get("/v1/rps",verifyApiKey,
+  async (req, res) => {
+    try {
+      const cleanLan = String(req.query.lan || "")
+        .trim()
+        .toUpperCase();
+
+      if (!cleanLan) {
+        return res.status(400).json({
+          message: "LAN is required.",
+        });
+      }
+
+      // Fetch Zebrs loan
+      const [[loan]] = await db.promise().query(
+        `
+        SELECT
+          lan,
+          partner_loan_id,
+          customer_name,
+          status,
+          loan_amount
+          
+        FROM loan_booking_zebrs
+        WHERE lan = ?
+        LIMIT 1
+        `,
+        [cleanLan],
+      );
+
+      if (!loan) {
+        return res.status(404).json({
+          message: "Zebrs loan not found.",
+        });
+      }
+
+      // Fetch repayment schedule
+      const [rpsRows] = await db.promise().query(
+        `
+        SELECT
+          id,
+          due_date,
+          emi,
+          principal,
+          interest,
+          opening,
+          closing,
+          remaining_principal,
+          remaining_interest,
+          remaining_emi,
+          status
+        FROM manual_rps_zebrs
+        WHERE lan = ?
+        ORDER BY due_date ASC, id ASC
+        `,
+        [cleanLan],
+      );
+
+      if (!rpsRows.length) {
+        return res.status(404).json({
+          message: "Zebrs repayment schedule not found.",
+        });
+      }
+
+      // Summary
+      const totalExpectedRepayment = rpsRows.reduce(
+        (sum, row) => sum + Number(row.emi || 0),
+        0,
+      );
+
+      const totalPrincipal = rpsRows.reduce(
+        (sum, row) => sum + Number(row.principal || 0),
+        0,
+      );
+
+      const totalInterest = rpsRows.reduce(
+        (sum, row) => sum + Number(row.interest || 0),
+        0,
+      );
+
+      // Format installments
+      const installments = rpsRows.map((row, index) => ({
+        installment_number: index + 1,
+
+        due_date: row.due_date
+          ? new Date(row.due_date).toISOString().split("T")[0]
+          : null,
+
+        emi: Number(row.emi || 0),
+        principal: Number(row.principal || 0),
+        interest: Number(row.interest || 0),
+
+        opening_principal: Number(row.opening || 0),
+        closing_principal: Number(row.closing || 0),
+
+        remaining_principal: Number(row.remaining_principal || 0),
+        remaining_interest: Number(row.remaining_interest || 0),
+        remaining_emi: Number(row.remaining_emi || 0),
+
+        status: row.status,
+      }));
+
+      return res.status(200).json({
+        message: "CarePay repayment schedule fetched successfully.",
+        data: {
+          lan: loan.lan,
+          partner_loan_id: loan.partner_loan_id,
+          customer_name: loan.customer_name,
+          case_status: loan.status,
+
+          loan_amount: Number(loan.loan_amount || 0),
+
+          regular_emi_amount: Number(
+            loan.emi_amount || rpsRows[0]?.emi || 0,
+          ),
+
+          summary: {
+            installment_count: rpsRows.length,
+            total_expected_repayment: totalExpectedRepayment,
+            total_principal: totalPrincipal,
+            total_interest: totalInterest,
+          },
+
+          installments,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching CarePay RPS:", error);
+
+      return res.status(500).json({
+        message: "Internal server error.",
+        error: error.message,
+      });
+    }
+  },
+);
 
 module.exports = router;
 

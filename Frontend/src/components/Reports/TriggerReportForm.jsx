@@ -470,7 +470,7 @@
 //           </button>
 //         </div>
 //       </form>
-//     </div>
+//     </div>repo
 //   );
 // };
 
@@ -511,6 +511,7 @@ const productOptions = [
   { label: "Motion Corp", value: "Motion Corp" },
   { label: "Sampada", value: "Sampada" },
   { label: "Finso", value: "Finso" },
+  { label: "Ya Money", value: "Ya Money" },
   { label: "RAPID-MONEY", value: "RAPID-MONEY" },
   { label: "SRBH", value: "SRBH" },
   { label: "CAREPAY", value: "CAREPAY" },
@@ -524,7 +525,8 @@ const productOptions = [
   { label: "Saswat", value: "Saswat" },
   { label: "Seven Fincorp", value: "Seven Fincorp" },
   { label: "Fintree PL", value: "FFPL10011" },
-    {label: "Ya Money", value: "Ya Money" }
+  {label: "Ya Money", value: "Ya Money" },
+  {label: "Quick Money", value: "Quick Money" }
 
 
 ];

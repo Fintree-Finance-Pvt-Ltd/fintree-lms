@@ -11,6 +11,7 @@ const {
 const partnerLimitService = require("../../services/partnerLimitService");
 const partnerFldgService = require("../../services/partnerFldgService");
 const payoutService = require("../../services/payout.service");
+const { isRetryableDbError } = require("../../utils/retryableDbError");
 const router = express.Router();
 
 /**
@@ -48,9 +49,7 @@ const generateLoanDigitLan = async (conn, lender) => {
   return `${prefixLan}${newSequence}`;
 };
 
-
 async function generateLoanDigitAssessmentLan(conn) {
-
   const [rows] = await conn.query(`
     SELECT lan
     FROM loan_booking_loan_digit_assessment
@@ -65,15 +64,9 @@ async function generateLoanDigitAssessmentLan(conn) {
   let nextNumber = 1011001;
 
   if (rows.length > 0) {
+    const lastLan = String(rows[0].lan || "");
 
-    const lastLan =
-      String(rows[0].lan || "");
-
-    const numericPart =
-      parseInt(
-        lastLan.replace(/\D/g, ""),
-        10
-      );
+    const numericPart = parseInt(lastLan.replace(/\D/g, ""), 10);
 
     if (!isNaN(numericPart)) {
       nextNumber = numericPart + 1;
@@ -287,94 +280,132 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     }
 
     conn = await db.promise().getConnection();
-    await conn.beginTransaction();
 
-    console.log("🔍 Checking existing Partner Loan ID:", partner_loan_id);
-
-    const [existingLoan] = await conn.query(
-      `
-      SELECT lan, partner_loan_id, customer_name
-      FROM loan_booking_loan_digit
-      WHERE TRIM(partner_loan_id) = ?
-      `,
-      [partner_loan_id],
-    );
-
-    if (existingLoan.length > 0) {
-      await conn.rollback();
-      conn.release();
-
-      return res.status(400).json({
-        status: "FAILED",
-        message: "Duplicate Partner Loan ID",
-        existingLan: existingLoan[0].lan,
-      });
-    }
-
-    /*
-     ===============================
-     PAN DUPLICATION CHECK
-     ===============================
-    */
-
-    console.log("🔍 Checking PAN duplication:", normalizedPan);
-
-    const [panRecords] = await conn.query(
-      `
-      SELECT status
-      FROM loan_booking_loan_digit
-      WHERE UPPER(pan_number) = ?
-      `,
-      [normalizedPan],
-    );
-
-    const allowedStatuses = [
-      "Cancelled",
-      "Foreclosed",
-      "Fully Paid",
-      "Rejected",
-      "OPS_REJECTED",
-    ];
-
-    if (panRecords.length > 0) {
-      const hasActiveLoan = panRecords.some(
-        (row) => !allowedStatuses.includes(row.status?.trim()),
-      );
-
-      if (hasActiveLoan) {
-        console.error("❌ Active case exists for PAN:", normalizedPan);
-
-        return res.status(400).json({
-          status: "Failed",
-          message:
-            "PAN already exists with an active loan. New loan not allowed.",
-        });
-      }
-
-      console.log("✅ PAN exists but previous loans are closed. Proceeding.");
-    }
-
-    /*
-     * Partner limit logic
-     * EMI Club does this before insert; same applied here.
-     */
     const partnerName = "Loan Digit";
     const today = new Date();
     const month = today.getMonth() + 1;
     const year = today.getFullYear();
 
-    const partner = await partnerLimitService.getOrCreatePartner(
-      conn,
-      partnerName,
-    );
+    // partner_monthly_limit is read via SELECT ... FOR UPDATE below; under
+    // concurrent bookings for the same partner this occasionally raises a
+    // transient "record changed since last read" error. Retry the whole
+    // (read-only, side-effect-free up to this point) section a couple of
+    // times on a fresh transaction instead of failing the partner's
+    // request outright on a one-shot race.
+    const MAX_LIMIT_CHECK_ATTEMPTS = 3;
 
-    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-      conn,
-      partner.partner_id,
-      loan_amount,
-      month,
-      year,
-    );
+    let partner;
+    let limitCheck;
+
+    for (let attempt = 1; attempt <= MAX_LIMIT_CHECK_ATTEMPTS; attempt++) {
+      try {
+        await conn.beginTransaction();
+
+        console.log("🔍 Checking existing Partner Loan ID:", partner_loan_id);
+
+        const [existingLoan] = await conn.query(
+          `
+          SELECT lan, partner_loan_id, customer_name
+          FROM loan_booking_loan_digit
+          WHERE TRIM(partner_loan_id) = ?
+          `,
+          [partner_loan_id],
+        );
+
+        if (existingLoan.length > 0) {
+          await conn.rollback();
+          conn.release();
+
+          return res.status(400).json({
+            status: "FAILED",
+            message: "Duplicate Partner Loan ID",
+            existingLan: existingLoan[0].lan,
+          });
+        }
+
+        /*
+         ===============================
+         PAN DUPLICATION CHECK
+         ===============================
+        */
+
+        console.log("🔍 Checking PAN duplication:", normalizedPan);
+
+        const [panRecords] = await conn.query(
+          `
+          SELECT status
+          FROM loan_booking_loan_digit
+          WHERE UPPER(pan_number) = ?
+          `,
+          [normalizedPan],
+        );
+
+        const allowedStatuses = [
+          "Cancelled",
+          "Foreclosed",
+          "Fully Paid",
+          "Rejected",
+          "OPS_REJECTED",
+        ];
+
+        if (panRecords.length > 0) {
+          const hasActiveLoan = panRecords.some(
+            (row) => !allowedStatuses.includes(row.status?.trim()),
+          );
+
+          if (hasActiveLoan) {
+            console.error("❌ Active case exists for PAN:", normalizedPan);
+
+            await conn.rollback();
+            conn.release();
+
+            return res.status(400).json({
+              status: "Failed",
+              message:
+                "PAN already exists with an active loan. New loan not allowed.",
+            });
+          }
+
+          console.log("✅ PAN exists but previous loans are closed. Proceeding.");
+        }
+
+        /*
+         * Partner limit logic
+         * EMI Club does this before insert; same applied here.
+         */
+        partner = await partnerLimitService.getOrCreatePartner(
+          conn,
+          partnerName,
+        );
+
+        limitCheck = await partnerLimitService.validatePartnerBookingLimit(
+          conn,
+          partner.partner_id,
+          loan_amount,
+          month,
+          year,
+        );
+
+        break;
+      } catch (err) {
+        try {
+          await conn.rollback();
+        } catch (_) {}
+
+        if (isRetryableDbError(err) && attempt < MAX_LIMIT_CHECK_ATTEMPTS) {
+          console.warn(
+            `Loan Digit partner-limit conflict, retrying (attempt ${attempt}/${MAX_LIMIT_CHECK_ATTEMPTS})`,
+          );
+
+          await new Promise((resolve) =>
+            setTimeout(resolve, 150 * attempt + Math.floor(Math.random() * 100)),
+          );
+          continue;
+        }
+
+        throw err;
+      }
+    }
 
     if (!limitCheck.valid) {
       await conn.rollback();
@@ -634,7 +665,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 </Identification>
 
 <Application>
-<FTReferenceNumber>${String(lan).replace(/\D/g, '').slice(-6)}</FTReferenceNumber>
+<FTReferenceNumber>${String(lan).replace(/\D/g, "").slice(-6)}</FTReferenceNumber>
         <CustomerReferenceID></CustomerReferenceID>
         <EnquiryReason>13</EnquiryReason>
         <FinancePurpose>99</FinancePurpose>
@@ -749,7 +780,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
 
       const encodedInnerXml =
         parsedOuter["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
-        "ns2:processResponse"
+          "ns2:processResponse"
         ]?.["ns2:out"];
 
       if (!encodedInnerXml) {
@@ -838,7 +869,7 @@ router.post("/add-loan-digit", verifyApiKey, async (req, res) => {
     if (conn) {
       try {
         await conn.rollback();
-      } catch (_) { }
+      } catch (_) {}
       conn.release();
     }
     console.error("❌ Loan Digit Error:", error);
@@ -1080,10 +1111,15 @@ router.get("/bre-approved-loans", async (req, res) => {
   try {
     const [rows] = await db.promise().query(
       `
-      SELECT *
-      FROM loan_booking_loan_digit
-      WHERE status = 'BRE_APPROVED' OR status = 'BRE_REJECTED'
-      ORDER BY id DESC
+      SELECT * 
+FROM loan_booking_loan_digit
+WHERE status IN (
+    'BRE_APPROVED',
+    'BRE_REJECTED',
+    'AML_REVIEW',
+    'AML_REJECTED'
+)
+ORDER BY id DESC;
       `,
     );
 
@@ -1119,7 +1155,7 @@ router.put("/approve-initiate-loan/:lan", async (req, res) => {
       `
       UPDATE loan_booking_loan_digit
       SET status = ?
-      WHERE lan = ? AND status IN ('BRE_APPROVED', 'BRE_REJECTED')
+      WHERE lan = ? AND status IN ('BRE_APPROVED', 'BRE_REJECTED' , 'AML_REVIEW', 'AML_REJECTED')
       `,
       [status, lan],
     );
@@ -1300,7 +1336,7 @@ router.put("/ops-approved-loan/:lan", async (req, res) => {
     console.error("❌ Error approving Loan Digit by operations maker:", err);
 
     if (transactionStarted && conn) {
-      await conn.rollback().catch(() => {});
+      await conn.rollback().catch(() => { });
     }
 
     if (err.message === "No limit record for partner/month/year") {
@@ -1323,8 +1359,6 @@ router.put("/ops-approved-loan/:lan", async (req, res) => {
     }
   }
 });
-
-
 
 router.get("/ops-maker-approved-loans", async (req, res) => {
   try {
@@ -1356,13 +1390,12 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
   const { lan } = req.params;
   const { ops_checker_id, ops_checker_name, status } = req.body;
   try {
-
     if (status === "OPS_REJECTED") {
       await db.promise().query(
         `UPDATE loan_booking_loan_digit 
          SET status = 'OPS_REJECTED', ops_checker_id = ?, ops_checker_name = ?
          WHERE lan = ?`,
-        [ops_checker_id || null, ops_checker_name || null, lan]
+        [ops_checker_id || null, ops_checker_name || null, lan],
       );
       return res.json({
         status: "SUCCESS",
@@ -1376,13 +1409,13 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
         `UPDATE loan_booking_loan_digit 
          SET ops_checker_id = ?, ops_checker_name = ?
          WHERE lan = ?`,
-        [ops_checker_id, ops_checker_name, lan]
+        [ops_checker_id, ops_checker_name, lan],
       );
     }
 
     const payoutResult = await payoutService.approveAndInitiatePayout({
       lan,
-      table: "loan_booking_loan_digit"
+      table: "loan_booking_loan_digit",
     });
 
     if (!payoutResult.success) {
@@ -1394,7 +1427,8 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
 
     return res.json({
       status: "SUCCESS",
-      message: "Loan approved by operations checker and payout initiated successfully",
+      message:
+        "Loan approved by operations checker and payout initiated successfully",
     });
   } catch (err) {
     console.error("❌ Error approving Loan Digit by operations checker:", err);
@@ -1429,12 +1463,17 @@ router.get("/collections", async (req, res) => {
     }
     query += ` ORDER BY ru.bank_date DESC`;
     const [rows] = await db.promise().query(query, params);
+
+    const totalTransferAmount = rows.reduce(
+      (sum, row) => sum + Number(row.transfer_amount || 0),
+      0
+    );
     return res.status(200).json({
       success: true,
       count: rows.length,
+      totalTransferAmount,
       data: rows,
     });
-
   } catch (error) {
     console.error("Loan Digit Collection API Error:", error);
 
@@ -1446,20 +1485,11 @@ router.get("/collections", async (req, res) => {
   }
 });
 
-
 router.post("/assessment-fees", async (req, res) => {
-
   let conn;
 
   try {
-
-    let {
-      lan,
-      utr,
-      payment_id,
-      transfer_amount,
-    } = req.body;
-
+    let { lan, utr, payment_id, transfer_amount } = req.body;
 
     // ==========================================
     // NORMALIZE INPUT
@@ -1473,45 +1503,28 @@ router.post("/assessment-fees", async (req, res) => {
       .trim()
       .toUpperCase();
 
-    payment_id = String(payment_id || "")
-      .trim();
+    payment_id = String(payment_id || "").trim();
 
-   
-    transfer_amount =
-      Number(transfer_amount);
-
+    transfer_amount = Number(transfer_amount);
 
     // ==========================================
     // VALIDATION
     // ==========================================
 
-    if (
-      !lan ||
-      !utr ||
-      !payment_id ||
-    
-      !Number.isFinite(transfer_amount)
-    ) {
-
+    if (!lan || !utr || !payment_id || !Number.isFinite(transfer_amount)) {
       return res.status(400).json({
         success: false,
         message:
           "LAN, UTR, Payment ID, Bank Date and Transfer Amount are mandatory",
       });
-
     }
-
 
     if (transfer_amount <= 0) {
-
       return res.status(400).json({
         success: false,
-        message:
-          "Transfer Amount must be greater than 0",
+        message: "Transfer Amount must be greater than 0",
       });
-
     }
-
 
     // ==========================================
     // GET CONNECTION
@@ -1520,7 +1533,6 @@ router.post("/assessment-fees", async (req, res) => {
     conn = await db.promise().getConnection();
 
     await conn.beginTransaction();
-
 
     // ==========================================
     // CHECK LOAN DIGIT LAN
@@ -1540,12 +1552,10 @@ router.post("/assessment-fees", async (req, res) => {
 
       LIMIT 1
       `,
-      [lan]
+      [lan],
     );
 
-
     if (loanRows.length === 0) {
-
       await conn.rollback();
       conn.release();
       conn = null;
@@ -1555,30 +1565,19 @@ router.post("/assessment-fees", async (req, res) => {
         message: "Loan Digit LAN not found",
         lan,
       });
-
     }
 
-
     const loan = loanRows[0];
-
 
     // ==========================================
     // ONLY REJECTED / OPS_REJECTED
     // ==========================================
 
-    const status =
-      String(loan.status || "")
-        .trim()
-        .toUpperCase();
+    const status = String(loan.status || "")
+      .trim()
+      .toUpperCase();
 
-
-    if (
-      ![
-        "REJECTED",
-        "OPS_REJECTED"
-      ].includes(status)
-    ) {
-
+    if (!["REJECTED", "OPS_REJECTED"].includes(status)) {
       await conn.rollback();
       conn.release();
       conn = null;
@@ -1590,17 +1589,14 @@ router.post("/assessment-fees", async (req, res) => {
         lan,
         current_status: loan.status,
       });
-
     }
-
 
     // ==========================================
     // CHECK DUPLICATE PAYMENT ID
     // ==========================================
 
-    const [duplicatePayment] =
-      await conn.query(
-        `
+    const [duplicatePayment] = await conn.query(
+      `
         SELECT
           id,
           lan,
@@ -1613,37 +1609,28 @@ router.post("/assessment-fees", async (req, res) => {
 
         LIMIT 1
         `,
-        [
-          lan,
-          payment_id
-        ]
-      );
-
+      [lan, payment_id],
+    );
 
     if (duplicatePayment.length > 0) {
-
       await conn.rollback();
       conn.release();
       conn = null;
 
       return res.status(400).json({
         success: false,
-        message:
-          "Payment ID already exists for this LAN",
+        message: "Payment ID already exists for this LAN",
         lan,
         payment_id,
       });
-
     }
-
 
     // ==========================================
     // CHECK DUPLICATE UTR
     // ==========================================
 
-    const [duplicateUtr] =
-      await conn.query(
-        `
+    const [duplicateUtr] = await conn.query(
+      `
         SELECT
           id,
           lan,
@@ -1655,12 +1642,10 @@ router.post("/assessment-fees", async (req, res) => {
 
         LIMIT 1
         `,
-        [utr]
-      );
-
+      [utr],
+    );
 
     if (duplicateUtr.length > 0) {
-
       await conn.rollback();
       conn.release();
       conn = null;
@@ -1670,17 +1655,14 @@ router.post("/assessment-fees", async (req, res) => {
         message: "UTR already exists",
         utr,
       });
-
     }
-
 
     // ==========================================
     // INSERT ASSESSMENT FEE
     // ==========================================
 
-    const [insertResult] =
-      await conn.query(
-        `
+    const [insertResult] = await conn.query(
+      `
         INSERT INTO assessment_fees_loan_digit
         (
           lan,
@@ -1694,14 +1676,8 @@ router.post("/assessment-fees", async (req, res) => {
           ?, ?, ?,  ?, NOW()
         )
         `,
-        [
-          lan,
-          utr,
-          payment_id,
-          transfer_amount,
-        ]
-      );
-
+      [lan, utr, payment_id, transfer_amount],
+    );
 
     // ==========================================
     // COMMIT
@@ -1712,241 +1688,159 @@ router.post("/assessment-fees", async (req, res) => {
     conn.release();
     conn = null;
 
-
     return res.status(201).json({
-
       success: true,
 
-      message:
-        "Loan Digit assessment fee saved successfully",
+      message: "Loan Digit assessment fee saved successfully",
 
       data: {
         id: insertResult.insertId,
         lan,
-        customer_name:
-          loan.customer_name,
+        customer_name: loan.customer_name,
         utr,
         payment_id,
         transfer_amount,
       },
-
     });
-
-
   } catch (err) {
-
     if (conn) {
-
       try {
         await conn.rollback();
       } catch (_) {}
 
       conn.release();
-
     }
 
-
-    console.error(
-      "Loan Digit assessment fee error:",
-      err
-    );
-
+    console.error("Loan Digit assessment fee error:", err);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to save Loan Digit assessment fee",
+      message: "Failed to save Loan Digit assessment fee",
       error: err.message,
     });
-
   }
-
 });
 
-router.post("/add-assessment-case",
-  async (req, res) => {
+router.post("/add-assessment-case", async (req, res) => {
+  let conn;
 
-    let conn;
+  try {
+    // ==========================================
+    // REQUEST
+    // ==========================================
 
-    try {
+    const data = req.body || {};
 
-      // ==========================================
-      // REQUEST
-      // ==========================================
+    // ==========================================
+    // REQUIRED FIELDS
+    // ==========================================
 
-      const data = req.body || {};
+    const requiredFields = [
+      "partner_loan_id",
+      "first_name",
+      "mobile_number",
+      "pan_number",
+      "dob",
+      "age",
+      "gender",
+      "current_address",
+    ];
 
-
-      // ==========================================
-      // REQUIRED FIELDS
-      // ==========================================
-
-      const requiredFields = [
-        "partner_loan_id",
-        "first_name",
-        "mobile_number",
-        "pan_number",
-        "dob",
-        "age",
-        "gender",
-        "current_address",
-      ];
-
-
-      for (const field of requiredFields) {
-
-        if (
-          data[field] === undefined ||
-          data[field] === null ||
-          data[field] === ""
-        ) {
-
-          return res.status(400).json({
-            success: false,
-            message:
-              `Missing required field: ${field}`,
-          });
-
-        }
-      }
-
-
-      // ==========================================
-      // NORMALIZE
-      // ==========================================
-
-      const partner_loan_id =
-        String(data.partner_loan_id)
-          .trim();
-
-
-      const first_name =
-        String(data.first_name)
-          .trim();
-
-
-      const middle_name =
-        data.middle_name
-          ? String(data.middle_name).trim()
-          : null;
-
-
-      const last_name =
-        data.last_name
-          ? String(data.last_name).trim()
-          : null;
-
-      const customer_name =
-  `${first_name} ${middle_name || ""} ${last_name || ""}`
-    .replace(/\s+/g, " ")
-    .trim();
-
-      const mobile_number =
-        String(data.mobile_number)
-          .trim();
-
-
-      const pan_number =
-        String(data.pan_number)
-          .trim()
-          .toUpperCase();
-
-
-      const dob =
-        data.dob;
-
-
-      const age =
-        Number(data.age);
-
-
-      const gender =
-        String(data.gender)
-          .trim();
-
-
-      const current_address =
-        String(data.current_address)
-          .trim();
-
-
-      // ==========================================
-      // AGE VALIDATION
-      // ==========================================
-
+    for (const field of requiredFields) {
       if (
-        !Number.isInteger(age) ||
-        age <= 0
+        data[field] === undefined ||
+        data[field] === null ||
+        data[field] === ""
       ) {
-
         return res.status(400).json({
           success: false,
-          message: "Invalid age",
+          message: `Missing required field: ${field}`,
         });
-
       }
+    }
 
+    // ==========================================
+    // NORMALIZE
+    // ==========================================
 
-      // ==========================================
-      // MOBILE VALIDATION
-      // ==========================================
+    const partner_loan_id = String(data.partner_loan_id).trim();
 
-      const mobileRegex =
-        /^[6-9][0-9]{9}$/;
+    const first_name = String(data.first_name).trim();
 
+    const middle_name = data.middle_name
+      ? String(data.middle_name).trim()
+      : null;
 
-      if (
-        !mobileRegex.test(mobile_number)
-      ) {
+    const last_name = data.last_name ? String(data.last_name).trim() : null;
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid mobile number",
-        });
+    const customer_name =
+      `${first_name} ${middle_name || ""} ${last_name || ""}`
+        .replace(/\s+/g, " ")
+        .trim();
 
-      }
+    const mobile_number = String(data.mobile_number).trim();
 
+    const pan_number = String(data.pan_number).trim().toUpperCase();
 
-      // ==========================================
-      // PAN VALIDATION
-      // ==========================================
+    const dob = data.dob;
 
-      const panRegex =
-        /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    const age = Number(data.age);
 
+    const gender = String(data.gender).trim();
 
-      if (
-        !panRegex.test(pan_number)
-      ) {
+    const current_address = String(data.current_address).trim();
 
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid PAN format",
-        });
+    // ==========================================
+    // AGE VALIDATION
+    // ==========================================
 
-      }
+    if (!Number.isInteger(age) || age <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid age",
+      });
+    }
 
+    // ==========================================
+    // MOBILE VALIDATION
+    // ==========================================
 
-      // ==========================================
-      // CONNECTION
-      // ==========================================
+    const mobileRegex = /^[6-9][0-9]{9}$/;
 
-      conn =
-        await db.promise().getConnection();
+    if (!mobileRegex.test(mobile_number)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid mobile number",
+      });
+    }
 
+    // ==========================================
+    // PAN VALIDATION
+    // ==========================================
 
-      await conn.beginTransaction();
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
+    if (!panRegex.test(pan_number)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid PAN format",
+      });
+    }
 
-      // ==========================================
-      // CHECK PARTNER LOAN ID
-      // ==========================================
+    // ==========================================
+    // CONNECTION
+    // ==========================================
 
-      const [existingPartnerLoan] =
-        await conn.query(
-          `
+    conn = await db.promise().getConnection();
+
+    await conn.beginTransaction();
+
+    // ==========================================
+    // CHECK PARTNER LOAN ID
+    // ==========================================
+
+    const [existingPartnerLoan] = await conn.query(
+      `
           SELECT
             id,
             lan,
@@ -1958,51 +1852,38 @@ router.post("/add-assessment-case",
 
           LIMIT 1
           `,
-          [partner_loan_id]
-        );
+      [partner_loan_id],
+    );
 
+    if (existingPartnerLoan.length > 0) {
+      await conn.rollback();
 
-      if (
-        existingPartnerLoan.length > 0
-      ) {
+      conn.release();
+      conn = null;
 
-        await conn.rollback();
+      return res.status(400).json({
+        success: false,
 
-        conn.release();
-        conn = null;
+        message: "Duplicate Partner Loan ID",
 
+        existing_lan: existingPartnerLoan[0].lan,
 
-        return res.status(400).json({
-          success: false,
+        partner_loan_id,
+      });
+    }
 
-          message:
-            "Duplicate Partner Loan ID",
+    // ==========================================
+    // GENERATE ASSESSMENT LAN
+    // ==========================================
 
-          existing_lan:
-            existingPartnerLoan[0].lan,
+    const lan = await generateLoanDigitAssessmentLan(conn);
 
-          partner_loan_id,
-        });
+    // ==========================================
+    // INSERT
+    // ==========================================
 
-      }
-
-
-      // ==========================================
-      // GENERATE ASSESSMENT LAN
-      // ==========================================
-
-      const lan =
-        await generateLoanDigitAssessmentLan(
-          conn
-        );
-
-
-      // ==========================================
-      // INSERT
-      // ==========================================
-
-     await conn.query(
-  `
+    await conn.query(
+      `
   INSERT INTO loan_booking_loan_digit_assessment
   (
     lan,
@@ -2036,113 +1917,89 @@ router.post("/add-assessment-case",
     NOW()
   )
   `,
-  [
-    lan,
-    partner_loan_id,
+      [
+        lan,
+        partner_loan_id,
 
-    first_name,
-    middle_name,
-    last_name,
-    customer_name,
+        first_name,
+        middle_name,
+        last_name,
+        customer_name,
 
-    mobile_number,
-    pan_number,
+        mobile_number,
+        pan_number,
 
-    dob,
-    age,
-    gender,
+        dob,
+        age,
+        gender,
 
-    current_address,
-  ]
-);
+        current_address,
+      ],
+    );
 
+    // ==========================================
+    // COMMIT
+    // ==========================================
 
-      // ==========================================
-      // COMMIT
-      // ==========================================
+    await conn.commit();
 
-      await conn.commit();
+    conn.release();
+    conn = null;
+
+    // ==========================================
+    // RESPONSE
+    // ==========================================
+
+    return res.status(201).json({
+      success: true,
+
+      message: "Loan Digit assessment case created successfully",
+
+      data: {
+        lan,
+
+        partner_loan_id,
+
+        first_name,
+
+        middle_name,
+
+        last_name,
+
+        mobile_number,
+
+        pan_number,
+
+        dob,
+
+        age,
+
+        gender,
+
+        current_address,
+
+        status: "Login",
+      },
+    });
+  } catch (error) {
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch (_) {}
 
       conn.release();
-      conn = null;
-
-
-      // ==========================================
-      // RESPONSE
-      // ==========================================
-
-      return res.status(201).json({
-
-        success: true,
-
-        message:
-          "Loan Digit assessment case created successfully",
-
-        data: {
-
-          lan,
-
-          partner_loan_id,
-
-          first_name,
-
-          middle_name,
-
-          last_name,
-
-          mobile_number,
-
-          pan_number,
-
-          dob,
-
-          age,
-
-          gender,
-
-          current_address,
-
-          status: "Login",
-
-        },
-
-      });
-
-
-    } catch (error) {
-
-      if (conn) {
-
-        try {
-          await conn.rollback();
-        } catch (_) {}
-
-        conn.release();
-
-      }
-
-
-      console.error(
-        "Loan Digit Assessment Error:",
-        error
-      );
-
-
-      return res.status(500).json({
-
-        success: false,
-
-        message:
-          "Failed to create Loan Digit assessment case",
-
-        error:
-          error.message,
-
-      });
-
     }
 
+    console.error("Loan Digit Assessment Error:", error);
+
+    return res.status(500).json({
+      success: false,
+
+      message: "Failed to create Loan Digit assessment case",
+
+      error: error.message,
+    });
   }
-);
+});
 
 module.exports = router;
