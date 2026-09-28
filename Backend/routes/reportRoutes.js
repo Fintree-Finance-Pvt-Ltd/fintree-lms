@@ -90,7 +90,7 @@ function resolveProcedure(rawReportId, rawLender) {
                 ? "sp_cashflow_report_gq_fsf"
                 : lender === "wctl"
                   ? "sp_cashflow_report_wctl"
-                  : lender === "wctl_ffpl"
+                  : lender === "wctl ffpl"
                     ? "sp_cashflow_report_wctl_ffpl"
                     : lender === "ev loan"
                       ? "sp_cashflow_report_ev"
