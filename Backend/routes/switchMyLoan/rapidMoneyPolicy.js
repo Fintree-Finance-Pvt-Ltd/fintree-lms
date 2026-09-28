@@ -16,7 +16,8 @@ const {
  * - No DPD > 60 in last 9 months
  * - No DPD > 90 in last 12 months
  * - Loan amount Rs 5,000 to Rs 15,000, in multiples of Rs 1,000
- * - First-time RapidMoney borrower: Rs 5,000 (all ages)
+ * - First-time RapidMoney borrower: ages 23-25 fixed at Rs 5,000; ages 26+
+ *   get their requested amount, floored at Rs 5,000 and capped at Rs 8,000
  * - Repeat borrower below age 28 maximum Rs 10,000
  * - Unsecured aggregate >= Rs 2,00,000, else secured tradeline aggregate
  *   >= Rs 5,00,000 (fallback) — required for every customer, new or repeat
@@ -40,10 +41,11 @@ const POLICY = Object.freeze({
   MAX_LOAN_AMOUNT: 15000,
   LOAN_AMOUNT_MULTIPLE: 1000,
 
-  // Not read anywhere — first-time customers' credit limit is actually
-  // computed via getMinLoanAmountForAge() (see MIN_LOAN_AMOUNT /
-  // MIN_LOAN_AMOUNT_23_TO_25 above). Kept only for documentation.
-  FIRST_TIME_CUSTOMER_LIMIT: 5000,
+  // Ceiling on a first-time customer's approved amount for ages 26+ (and
+  // any age that can't be determined) — see getFirstTimeCreditLimit()
+  // below. Ages 23-25 ignore this and stay fixed at
+  // MIN_LOAN_AMOUNT_23_TO_25 regardless of what they request.
+  FIRST_TIME_CUSTOMER_LIMIT: 8000,
   REPEAT_CUSTOMER_UNDER_28_LIMIT: 10000,
   MAX_REPEAT_CUSTOMER_LIMIT: 15000,
   MIN_UNSECURED_AGGREGATE: 100000,
@@ -71,6 +73,36 @@ function getMinLoanAmountForAge(age) {
   }
 
   return POLICY.MIN_LOAN_AMOUNT;
+}
+
+// Credit limit actually assigned to a first-time (new) customer.
+//
+// Ages 23-25: fixed exactly at MIN_LOAN_AMOUNT_23_TO_25 regardless of the
+// requested amount — a first loan for this age tier is never more than
+// that, by explicit product requirement.
+//
+// Ages 26+ (and unknown age): the requested amount is honored, floored at
+// MIN_LOAN_AMOUNT and capped at FIRST_TIME_CUSTOMER_LIMIT. A request below
+// the floor or above POLICY.MAX_LOAN_AMOUNT is already rejected upstream by
+// validateLoanAmount(), so in practice this only ever narrows the approved
+// amount down to FIRST_TIME_CUSTOMER_LIMIT when the request exceeds it.
+function getFirstTimeCreditLimit(age, requestedAmount) {
+  const minAmount = getMinLoanAmountForAge(age);
+
+  if (age !== null && age !== undefined && age >= 23 && age <= 25) {
+    return minAmount;
+  }
+
+  const requested = toFiniteNumber(requestedAmount);
+
+  if (requested === null) {
+    return minAmount;
+  }
+
+  return Math.min(
+    Math.max(requested, minAmount),
+    POLICY.FIRST_TIME_CUSTOMER_LIMIT,
+  );
 }
 
 const UNSECURED_CATEGORIES = [
@@ -1220,6 +1252,7 @@ module.exports = {
   SECURED_CATEGORIES,
   calculateAge,
   getMinLoanAmountForAge,
+  getFirstTimeCreditLimit,
   validateLoanAmount,
   validateTenure,
   isNewCustomer,

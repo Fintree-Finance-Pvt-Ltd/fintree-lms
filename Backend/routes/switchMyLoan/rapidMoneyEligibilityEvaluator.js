@@ -2,6 +2,7 @@ const {
   POLICY,
   calculateAge,
   getMinLoanAmountForAge,
+  getFirstTimeCreditLimit,
   validateLoanAmount,
   validateTenure,
   isNewCustomer,
@@ -243,11 +244,11 @@ function evaluateRapidMoneyEligibility(payload = {}) {
   let repeatLimitDetails = null;
   if (newCustomer) {
   creditLimit =
-    minLoanAmountForAge;
+    getFirstTimeCreditLimit(age, loanAmount);
 
   const firstTimeLimitAdjusted =
     loanAmount >
-    minLoanAmountForAge;
+    creditLimit;
 
   rules.FIRST_TIME_LIMIT_CHECK_RPM =
     rule(
@@ -260,7 +261,7 @@ function evaluateRapidMoneyEligibility(payload = {}) {
           loanAmount,
 
         assignedCreditLimit:
-          minLoanAmountForAge,
+          creditLimit,
 
         limitAdjusted:
           firstTimeLimitAdjusted,
