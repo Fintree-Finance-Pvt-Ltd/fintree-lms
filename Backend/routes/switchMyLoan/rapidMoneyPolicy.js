@@ -16,7 +16,7 @@ const {
  * - No DPD > 60 in last 9 months
  * - No DPD > 90 in last 12 months
  * - Loan amount Rs 5,000 to Rs 15,000, in multiples of Rs 1,000
- * - First-time RapidMoney borrower maximum Rs 8,000
+ * - First-time RapidMoney borrower: Rs 5,000 (all ages)
  * - Repeat borrower below age 28 maximum Rs 10,000
  * - Unsecured aggregate >= Rs 2,00,000, else secured tradeline aggregate
  *   >= Rs 5,00,000 (fallback) — required for every customer, new or repeat
@@ -31,17 +31,19 @@ const POLICY = Object.freeze({
   MIN_BUREAU_SCORE: 650,
 
   // General/default minimum loan amount — applies to ages 26+ (and any age
-  // that can't be determined). Ages 23-25 get a lower floor; see
-  // MIN_LOAN_AMOUNT_23_TO_25 and getMinLoanAmountForAge() below.
-  MIN_LOAN_AMOUNT: 8000,
+  // that can't be determined). Ages 23-25 use MIN_LOAN_AMOUNT_23_TO_25
+  // instead; see getMinLoanAmountForAge() below. Both are currently Rs 5,000
+  // (as of the 2026-09-28 policy update) but are kept as separate constants
+  // in case the two tiers diverge again in the future.
+  MIN_LOAN_AMOUNT: 5000,
   MIN_LOAN_AMOUNT_23_TO_25: 5000,
   MAX_LOAN_AMOUNT: 15000,
   LOAN_AMOUNT_MULTIPLE: 1000,
 
-  // First-time customers are assigned the same age-tiered minimum as their
-  // credit limit (see getMinLoanAmountForAge()) — this constant is kept as
-  // the 26+/default value other code already references it as.
-  FIRST_TIME_CUSTOMER_LIMIT: 8000,
+  // Not read anywhere — first-time customers' credit limit is actually
+  // computed via getMinLoanAmountForAge() (see MIN_LOAN_AMOUNT /
+  // MIN_LOAN_AMOUNT_23_TO_25 above). Kept only for documentation.
+  FIRST_TIME_CUSTOMER_LIMIT: 5000,
   REPEAT_CUSTOMER_UNDER_28_LIMIT: 10000,
   MAX_REPEAT_CUSTOMER_LIMIT: 15000,
   MIN_UNSECURED_AGGREGATE: 100000,
