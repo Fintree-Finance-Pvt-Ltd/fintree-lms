@@ -47,6 +47,11 @@ const {
   retryPendingValidations,
   autoApproveIfAllVerified,
 } = require("./services/heliumValidationEngine");
+// const {
+ 
+//   processQuickMoneyDisbursement,
+
+// } = require("./services/processEmiClubDisbursement");
 const {
   autoApproveClayyoIfAllVerified,
 } = require("./routes/clyooRoutes/clayyoBreEngine");
@@ -60,6 +65,9 @@ const {
   generateForReport,
   generateAllPending,
 } = require("./jobs/cibilPdfService");
+// const digioNachPresentationRoute = require("./routes/digioNachPresentation");
+// const digioWebhookRoutes = require("./routes/digioWebhookRoutes");
+
 const crypto = require("crypto");
 // const { initScheduler } = require('./jobs/smsSchedulerRaw');
 const { initScheduler, runOnce } = require("./jobs/smsSchedulerRaw");
@@ -172,6 +180,8 @@ app.use(
 );
 app.use("/api/sampada", require("./routes/Sampada/sampadaDealerRoutes"));
 
+app.use("/api/sabgrow",require("./routes/SabGrow/sabGrowRoute"));
+
 app.use(
   "/api/seven-fincorp",
   require("./routes/Seven Fincorp/sevenFincorpDealerRoutes"),
@@ -196,6 +206,8 @@ app.use(
 app.use("/api", carepayBreRoutes);
 app.use("/api/payments", paymentRoutes);
 
+// app.use("/api/digio", digioNachPresentationRoute);
+// app.use("/api/digio",digioWebhookRoutes);
 function safeAuditJson(value) {
   try {
     return JSON.stringify(value ?? null);
@@ -1193,3 +1205,74 @@ app.listen(PORT || 5000, () => {
 //     }
 //   },
 // );
+
+
+// app.post("/api/test-quick-money-disbursement", async (req, res) => {
+
+//   try {
+
+//     const {
+//       lan,
+//       transactionId,
+//       disbursementDate
+//     } = req.body;
+
+
+//     if (
+//       !lan ||
+//       !transactionId ||
+//       !disbursementDate
+//     ) {
+
+//       return res.status(400).json({
+//         success:false,
+//         message:
+//         "lan, transactionId and disbursementDate are required"
+//       });
+
+//     }
+
+
+//     const result =
+//       await processQuickMoneyDisbursement({
+
+//         lan,
+
+//         disbursementUTR: transactionId,
+
+//         disbursementDate:new Date(disbursementDate)
+
+//       });
+
+
+//     return res.json({
+
+//       success:true,
+
+//       message:
+//       "Quick Money disbursement processed",
+
+//       result
+
+//     });
+
+
+//   } catch(error){
+
+//     console.error(
+//       "Quick Money disbursement test error",
+//       error
+//     );
+
+
+//     return res.status(500).json({
+
+//       success:false,
+
+//       message:error.message
+
+//     });
+
+//   }
+
+// });
