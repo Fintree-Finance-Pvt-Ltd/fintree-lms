@@ -372,6 +372,37 @@ if (
             paymentId,
           ]
         );
+
+        const newPrincipalBalance = Number(
+  (
+    outstandingPrincipal - principalPrepayment
+  ).toFixed(2)
+);
+
+
+await queryDB(
+`
+UPDATE manual_rps_wctl_ffpl
+SET
+    remaining_principal = ?,
+    remaining_amount = remaining_interest + ?,
+    remaining_emi = remaining_interest + ?,
+    status = CASE
+        WHEN remaining_interest <= 0
+             AND ? <= 0
+        THEN 'Paid'
+        ELSE 'Part Paid'
+    END
+WHERE id = ?
+`,
+[
+    newPrincipalBalance,
+    newPrincipalBalance,
+    newPrincipalBalance,
+    newPrincipalBalance,
+    bulletRow.id
+]
+);
       }
     }
   }
@@ -559,7 +590,7 @@ const recastWctlFfplFutureRps = async (
     SELECT *
     FROM manual_rps_wctl_ffpl
     WHERE lan = ?
-      AND due_date > DATE(?)
+      AND due_date >= DATE(?)
     ORDER BY due_date ASC, id ASC
     `,
     [lan, paymentDate]
