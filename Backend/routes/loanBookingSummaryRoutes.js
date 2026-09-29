@@ -157,6 +157,15 @@ const PRODUCT_CONFIG = {
     lanLike: "FINE%",
     principalField: "net_disbursement",
   },
+  EMICLUB2: {
+    label: "EMI Club2",
+    bookingTable: "loan_booking_emiclub2",
+    rpsTable: "manual_rps_emiclub2",
+    allocationTable: "allocation",
+    repaymentTable: "repayments_upload",
+    lanLike: "FINE2%",
+    principalField: "net_disbursement",
+  },
   FINCREST: {
     label: "Fincrest",
     bookingTable: "loan_booking_finso",

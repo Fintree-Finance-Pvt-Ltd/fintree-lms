@@ -86,6 +86,7 @@ const LAN_TABLE_MAP = {
   TLF: { table: "loan_booking_wctl_ffpl", statusCol: "status" },
   E1: { table: "loan_booking_embifi", statusCol: "status" },
   FINE: { table: "loan_booking_emiclub", statusCol: "status" },
+  FINE2: { table: "loan_booking_emiclub2", statusCol: "status" },
   CARE: { table: "loan_booking_carepay", statusCol: "status" },
   STRL: { table: "loan_booking_sterlion", statusCol: "status" },
   FINS: { table: "loan_booking_finso", statusCol: "status" },
@@ -106,7 +107,7 @@ const LAN_TABLE_MAP = {
 // Dynamic lock-state: pick table by LAN prefix; tolerate LAN/lan column casing
 // 🔎 Debuggable lock-state. Logs what it did and returns extra fields.
 async function getLockState(lan) {
-  const prefix = getLanPrefix(lan);
+  const prefix = require("../utils/lanHelper").isemiclub2AwareLan(lan);
   // console.log("prefix", prefix);
   const map = LAN_TABLE_MAP[prefix];
   // console.log("map table", map);
@@ -2906,6 +2907,11 @@ router.post("/generate-soa", async (req, res) => {
     rpsTable = "manual_rps_embifi_loan";
     paymentsTable = "repayments_upload";
     chargesTable = "loan_charges";
+  } else if (lan.startsWith("FINE2")) {
+    loanTable = "loan_booking_emiclub2";
+    rpsTable = "manual_rps_emiclub2";
+    paymentsTable = "repayments_upload";
+    chargesTable = "loan_charges";
   } else if (lan.startsWith("FINE")) {
     loanTable = "loan_booking_emiclub";
     rpsTable = "manual_rps_emiclub";
@@ -3192,6 +3198,7 @@ router.post("/generate-soa", async (req, res) => {
         loan_booking_circle_pe: "app_id",
         loan_booking_embifi: "partner_loan_id",
         loan_booking_emiclub: "partner_loan_id",
+        loan_booking_emiclub2: "partner_loan_id",
         loan_booking_carepay: "partner_loan_id",
         loan_booking_sterlion: "partner_loan_id",
         loan_booking_finso: "partner_loan_id",
@@ -3516,6 +3523,7 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("EV")) loanTable = "loan_booking_ev";
   else if (lan.startsWith("BL")) loanTable = "loan_bookings";
   else if (lan.startsWith("E1")) loanTable = "loan_booking_embifi";
+  else if (lan.startsWith("FINE2")) loanTable = "loan_booking_emiclub2";
   else if (lan.startsWith("FINE")) loanTable = "loan_booking_emiclub";
   else if (lan.startsWith("CARE")) loanTable = "loan_booking_carepay";
   else if (lan.startsWith("STRL")) loanTable = "loan_booking_sterlion";
@@ -3737,6 +3745,7 @@ router.post("/generate-foreclosure", async (req, res) => {
   else if (lan.startsWith("E1")) bookingTable = "loan_booking_embifi";
   else if (lan.startsWith("WCTL")) bookingTable = "loan_bookings_wctl";
   else if (lan.startsWith("BL")) bookingTable = "loan_bookings";
+  else if (lan.startsWith("FINE2")) bookingTable = "loan_booking_emiclub2";
   else if (lan.startsWith("FINE")) bookingTable = "loan_booking_emiclub";
   else if (lan.startsWith("CARE")) bookingTable = "loan_booking_carepay";
   else if (lan.startsWith("STRL")) bookingTable = "loan_booking_sterlion";

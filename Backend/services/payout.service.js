@@ -1,3 +1,4 @@
+const { processEmiClub2Disbursement } = require("./processEmiClub2Disbursement");
 const axios = require("axios");
 const crypto = require("crypto");
 const db = require("../config/db");
@@ -25,6 +26,7 @@ const {
 } = require("./processClaimCureBuddyDisbursement");
 
 const ALLOWED_PAYOUT_TABLES = [
+  "loan_booking_emiclub2",
   "loan_booking_emiclub",
   "loan_booking_switch_my_loan",
   "loan_booking_loan_digit",
@@ -41,6 +43,7 @@ const ALLOWED_PAYOUT_TABLES = [
 // partner, set a number here directly — e.g. loan_booking_emiclub: 75000.
 // Checked once per payout, before any money moves.
 const PARTNER_MAX_PAYOUT_LIMITS = {
+  loan_booking_emiclub2: 35000,
   loan_booking_emiclub: 35000,
   loan_booking_switch_my_loan: 25000,
   loan_booking_loan_digit: 25000,
@@ -58,6 +61,7 @@ const PARTNER_MAX_PAYOUT_LIMITS = {
 // CarePay/YaMoney tracking) so this shares the same partner_master/
 // partner_monthly_limit rows rather than creating duplicates under new names.
 const TABLE_TO_PARTNER_NAME = {
+  loan_booking_emiclub2: "EMICLUB2",
   loan_booking_emiclub: "EMICLUB",
   loan_booking_switch_my_loan: "RAPID MONEY",
   loan_booking_loan_digit: "Loan Digit",
@@ -74,6 +78,7 @@ const TABLE_TO_PARTNER_NAME = {
 // = no known POS source for this product yet = POS limit check is skipped
 // (unrestricted) until one exists, same as an unset pos_limit.
 const TABLE_TO_POS_TABLE = {
+  loan_booking_emiclub2: "manual_rps_emiclub2",
   loan_booking_emiclub: "manual_rps_emiclub",
   loan_booking_switch_my_loan: "manual_rps_switch_my_loan",
   loan_booking_loan_digit: "manual_rps_loan_digit",
@@ -105,6 +110,7 @@ const DISBURSEMENT_GATE_EXEMPT_TABLES = new Set([
 // again here would be a harmless no-op (updateDisbursedLimit dedupes by LAN)
 // but is skipped to avoid confusing duplicate audit-trail log noise.
 const DISBURSEMENT_RECORD_EXEMPT_TABLES = new Set([
+  "loan_booking_emiclub2",
   "loan_booking_switch_my_loan",
   "loan_booking_quick_money",
   "loan_booking_carepay",
@@ -198,7 +204,20 @@ async function buildYaMoneyPayoutQuery() {
 }
 
 exports.approveAndInitiatePayout = async ({ lan, table }) => {
+  let emiClub2Lock;
+  let emiClub2LockName;
   try {
+    if (table === "loan_booking_emiclub2") {
+      if (!String(lan || "").startsWith("FINE2")) throw new Error("Invalid EMIClub2 LAN");
+      emiClub2Lock = await db.promise().getConnection();
+      emiClub2LockName = "emiclub2-payout:" + crypto.createHash("sha256").update(lan).digest("hex").slice(0, 40);
+      const [[lock]] = await emiClub2Lock.query("SELECT GET_LOCK(?, 0) AS acquired", [emiClub2LockName]);
+      if (Number(lock.acquired) !== 1) throw new Error("EMIClub2 payout is already being processed");
+      const [[booked]] = await emiClub2Lock.query("SELECT status FROM loan_booking_emiclub2 WHERE lan = ?", [lan]);
+      if (!booked || !["approved", "api approved"].includes(String(booked.status).toLowerCase())) {
+        throw new Error("EMIClub2 loan must be approved before payout");
+      }
+    }
     console.log("🚀 Starting payout process for LAN:", lan, table);
 
     if (!lan) {
@@ -220,6 +239,13 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       [lan],
     );
 
+    if (table === "loan_booking_emiclub2" && existingTransfer) {
+      const effective = String(existingTransfer.effective_status || "").toLowerCase();
+      // Retry only a provider-confirmed failure; an unknown outcome may have paid.
+      if (!["failed", "failure", "rejected", "cancelled"].includes(effective)) {
+        return { success: false, message: "EMIClub2 payout already exists: " + effective };
+      }
+    }
     if (existingTransfer) {
       // Check both status and payout_status. The row is inserted with
       // status='INITIATED' *before* the Easebuzz call is made, but
@@ -250,6 +276,9 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     let loanQuery = "";
     let loanParams = [lan];
 
+    if (table === "loan_booking_emiclub2") {
+      loanQuery = "SELECT name_in_bank AS beneficiary_name, loan_amount, account_number, ifsc FROM loan_booking_emiclub2 WHERE lan = ? LIMIT 1";
+    }
     if (table === "loan_booking_emiclub") {
       loanQuery = `
         SELECT
@@ -633,6 +662,9 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
      * Do not set Switch My Loan status to "API Approved"
      * because its status column is ENUM and does not allow that value.
      */
+    if (table === "loan_booking_emiclub2") {
+      await db.promise().query("UPDATE loan_booking_emiclub2 SET status = 'API Approved' WHERE lan = ? AND LOWER(status) = 'approved'", [lan]);
+    }
     if (table === "loan_booking_emiclub") {
       await db.promise().query(
         `
@@ -691,7 +723,9 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         message: "Missing UTR or transfer date",
       };
     }
-    if (table === "loan_booking_emiclub") {
+    if (table === "loan_booking_emiclub2") {
+      await processEmiClub2Disbursement({ lan, disbursementUTR: tr.unique_transaction_reference, disbursementDate: new Date(tr.transfer_date) });
+    } else if (table === "loan_booking_emiclub") {
       await processEmiClubDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
@@ -889,6 +923,11 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     });
 
     throw err;
+  } finally {
+    if (emiClub2Lock) {
+      try { await emiClub2Lock.query("SELECT RELEASE_LOCK(?)", [emiClub2LockName]); }
+      finally { emiClub2Lock.release(); }
+    }
   }
 };
 

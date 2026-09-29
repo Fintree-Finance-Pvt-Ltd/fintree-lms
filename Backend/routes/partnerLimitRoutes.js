@@ -62,6 +62,10 @@ const RPS_POS_SOURCES = [
     tableName: "manual_rps_finso_loan",
   },
   {
+    partnerName: "EMICLUB2",
+    tableName: "manual_rps_emiclub2",
+  },
+  {
     partnerName: "EMICLUB",
     tableName: "manual_rps_emiclub",
   },

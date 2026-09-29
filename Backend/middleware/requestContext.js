@@ -25,6 +25,7 @@ const PARTNER_PREFIXES = [
   ["RML", "RAPID_MONEY"],
   ["STRL", "STERLION"],
   ["CARE", "CAREPAY"],
+  ["FINE2", "EMICLUB2"],
   ["FINE", "EMICLUB"],
   ["FINS", "FINCREST"],
   ["LDF", "LOAN_DIGIT"],

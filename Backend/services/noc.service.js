@@ -50,6 +50,8 @@ if (normalizedLan.startsWith("WCTLFFPL")) {
     loanTable = "loan_bookings";
   } else if (normalizedLan.startsWith("E1")) {
     loanTable = "loan_booking_embifi";
+  } else if (normalizedLan.startsWith("FINE2")) {
+    loanTable = "loan_booking_emiclub2";
   } else if (normalizedLan.startsWith("FINE")) {
     loanTable = "loan_booking_emiclub";
   } else if (normalizedLan.startsWith("CARE")) {

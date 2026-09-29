@@ -38,6 +38,7 @@ const RPS_TABLES = [
   "manual_rps_wctl",
   "manual_rps_embifi_loan",
   "manual_rps_emiclub",
+  "manual_rps_emiclub2",
   "manual_rps_carepay",
   "manual_rps_sterlion",
   "manual_rps_gq_fsf",
@@ -55,6 +56,7 @@ const LAN_TABLE_MAP = {
   GQFSF: "loan_booking_gq_fsf",
   GQNSF: "loan_booking_gq_non_fsf",
   EMB: "loan_booking_embifi",
+  FINE2: "loan_booking_emiclub2",
   FINE: "loan_booking_emiclub",
   CARE: "loan_booking_carepay",
   STRL: "loan_booking_sterlion",
@@ -86,6 +88,7 @@ function getLoanTableByLAN(lan) {
   if (prefix.startsWith("EMB")) return "loan_booking_embifi";
   if (prefix.startsWith("FINE") || prefix.startsWith("EMIC"))
     return "loan_booking_emiclub";
+  if(prefix.startsWith("FINE2")) return "loan_booking_emiclub2";
   if (prefix.startsWith("CARE")) return "loan_booking_carepay";
   if (prefix.startsWith("STRL")) return "loan_booking_sterlion";
   if (prefix.startsWith("CLAY")) return "loan_booking_clayyo";

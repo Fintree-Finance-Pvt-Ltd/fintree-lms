@@ -24,6 +24,7 @@ const ChartFilter = ({ onFilterChange }) => {
           <option value="GQ Non-FSF">GQ Non-FSF</option>
           <option value="GQ FSF">GQ FSF</option>
           <option value="EMICLUB">EMICLUB</option>
+          <option value="EMICLUB2">EMICLUB2</option>
           <option value="WCTL">WCTL Business Loans</option>
           <option value="Circle Pe">Circle Pe </option>
           <option value="Finso">Finso </option>

@@ -32,6 +32,7 @@ const PRODUCT_OPTIONS = [
   { label: "Clayyo", value: "CLAYYO" },
   { label: "Helium", value: "HELIUM" },
   { label: "EMI Club", value: "EMICLUB" },
+  { label: "EMI Club2", value: "EMICLUB2" },
   { label: "Fincrest", value: "FINCREST" },
   { label: "GQ Non-FSF", value: "GQNONFSF" },
   { label: "GQ FSF", value: "GQFSF" },

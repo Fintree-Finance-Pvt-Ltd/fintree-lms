@@ -87,6 +87,16 @@ import EmiClubAllLoans from "./components/EmiClubAllLoans";
 import EmiClubLoginLoans from "./components/EmiClubLoginLoans";
 import EmiClubActionScreen from "./components/EmiClubActionScreen";
 import EmiClubApproveInitiateScreen from "./components/EmiClubApproveInitiateScreen";
+
+// EmiClub2 Imports
+import EmiClub2ApprovedLoans from "./components/EmiClub2/EmiClub2ApprovedLoans.jsx";
+import EmiClub2DisbursedLoans from "./components/EmiClub2/EmiClub2DisbursedLoans.jsx";
+import EmiClub2AllLoans from "./components/EmiClub2/EmiClub2AllLoans.jsx";
+import EmiClub2LoginLoans from "./components/EmiClub2/EmiClub2LoginLoans.jsx";
+import EmiClub2ApproveInitiateScreen from "./components/EmiClub2/EmiClub2ApproveInitiateScreen.jsx";
+import EmiClub2ActionScreen from "./components/EmiClub2/EmiClub2ActionScreen.jsx";
+
+
 import FinsoApprovedLoans from "./components/FinsoApprovedLoans";
 import FinsoDisbursedLoans from "./components/FinsoDisbursedLoans";
 import FinsoAllLoans from "./components/FinsoAllLoans";
@@ -211,7 +221,6 @@ import SevenFinCorpLoginCases from "./components/Seven FinCorp/SevenFinCorpLogin
 import SevenFinCorpDealerDetails from "./components/Seven FinCorp/SevenfinCorpDealerDetails";
 import SevenFinCorpAllLoans from "./components/Seven FinCorp/SevenFinCorpAllLoans";
 import SevenFinCorpDetails from "./components/Seven FinCorp/SevenfinCorpDetails";
-
 // Bundela Imports
 import BundelaDealerEntry from "./components/Bundela/BundelaDealerEntry";
 import BundelaDealerLists from "./components/Bundela/BundelaDealerLists";
@@ -285,6 +294,25 @@ import SampadaDetails from "./components/Sampada/sampadaDetails";
 import SampadaApprovedLoans from "./components/Sampada/SampadaApprovedLoans";
 import SampadaOperationApproval from "./components/Sampada/SampadaOperationApproval";
 import SampadaUpdateData from "./components/Sampada/SampadaUpdateData.jsx";
+import SampadaCopyLinks from "./components/Sampada/SampadaCopyLinks.jsx";
+
+/* ===================== OmrajPay imports ===================== */
+import OmrajPayDealerEntry from "./components/OmRajPay/OmrajPayDealerEntry";
+import OmrajPayDealerLists from "./components/OmRajPay/OmrajPayDealerLists";
+import OmrajPayDealerLoginActions from "./components/OmRajPay/OmrajPayDealerLoginActions";
+import OmrajPayDealerDetails from "./components/OmRajPay/OmrajPayDealerDetails";
+import OmrajPayLoanBooking from "./components/OmRajPay/OmrajPayLoanBooking";
+import OmrajPayAllLoans from "./components/OmRajPay/OmrajPayAllLoans";
+import OmrajPayLoginCases from "./components/OmRajPay/OmrajPayLoginCases";
+import OmrajPayLoginAction from "./components/OmRajPay/OmrajPayLoginAction";
+import OmrajPayDisburseInitiate from "./components/OmRajPay/OmrajPayDisburseInitiate";
+import OmrajPayApprovedLoans from "./components/OmRajPay/OmrajPayApprovedLoans";
+import OmrajPayDisbursed from "./components/OmRajPay/OmrajPayDisbursed";
+import OmrajPayOperationApproval from "./components/OmRajPay/OmrajPayOperationApproval";
+import OmrajPayDetails from "./components/OmRajPay/OmrajPayDetails";
+import OmrajPayUpdateData from "./components/OmRajPay/OmrajPayUpdateData";
+
+/* ===================== OmrajPay routes ===================== */
 
 // Sterlion UBL Imports
 import SterlionUBLLoanBooking from "./components/SterlionUbl/SterlionUBLLoanBooking";
@@ -414,10 +442,10 @@ function App() {
             }
           />
           <Route
-  path="/saswat/payment-receipt"
-  element={<SaswatPaymentReceipt />}
-/>
-            {/* <Route
+            path="/saswat/payment-receipt"
+            element={<SaswatPaymentReceipt />}
+          />
+          {/* <Route
   path="/nach-presentation"
   element={
     <NachPresentation />
@@ -936,6 +964,64 @@ function App() {
             element={
               <PermissionRoute pageName="EmiClub Disburse Initiated">
                 <EmiClubApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+
+
+
+          {/* EMIClub2 loan routes */}
+          <Route
+            path="/emiclub2-loans/approved"
+            element={
+              <PermissionRoute pageName="EmiClub2 Approved Loans">
+                <EmiClub2ApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/emiclub2-loans/disbursed"
+            element={
+              <PermissionRoute pageName="EmiClub2 Disbursed Loans">
+                <EmiClub2DisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/emiclub2-loans/all"
+            element={
+              <PermissionRoute pageName="EmiClub2 All Loans">
+                <EmiClub2AllLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/emiclub2-loans/login-cases"
+            element={
+              <PermissionRoute pageName="EmiClub2 Login Loans">
+                <EmiClub2LoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/emiclub2-loans/login-actions"
+            element={
+              <PermissionRoute pageName="EmiClub2 Login Actions">
+                <EmiClub2ActionScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/emiclub2-loans/approve-initiate-actions"
+            element={
+              <PermissionRoute pageName="EmiClub2 Disburse Initiated">
+                <EmiClub2ApproveInitiateScreen />
               </PermissionRoute>
             }
           />
@@ -1719,7 +1805,7 @@ function App() {
             }
           />
 
-            <Route
+          <Route
             path="/qml-loans/all-loans"
             element={
               <PermissionRoute pageName="Quick Money All loans">
@@ -1727,7 +1813,7 @@ function App() {
               </PermissionRoute>
             }
           />
-           <Route
+          <Route
             path="/qml-loans/disburse-initiate"
             element={
               <PermissionRoute pageName="Quick Money Disburse Loans">
@@ -1743,11 +1829,11 @@ function App() {
               </PermissionRoute>
             }
           /> */}
-             <Route
+          <Route
             path="/qml-loans/approved-loans"
             element={
               <PermissionRoute pageName="Quick Money Approved Loans">
-                <QMLApprovedLoans/>
+                <QMLApprovedLoans />
               </PermissionRoute>
             }
           />
@@ -1944,6 +2030,7 @@ function App() {
           />
 
           {/* Sampada routes mirror the Motion Corp workflow. */}
+          <Route path="/sampada/copy-links" element={<SampadaCopyLinks />} />
           <Route
             path="/sampada/dealer-entry"
             element={
@@ -2033,6 +2120,131 @@ function App() {
             element={
               <PermissionRoute pageName="Sampada Customer Details">
                 <SampadaDetails />
+              </PermissionRoute>
+            }
+          />
+
+
+
+/* ===================== OmrajPay routes ===================== */
+          <Route
+            path="/omrajpay/dealer-entry"
+            element={
+              <PermissionRoute pageName="OmrajPay Dealer Entry">
+                <OmrajPayDealerEntry />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/dealer-lists"
+            element={
+              <PermissionRoute pageName="OmrajPay Dealer Lists">
+                <OmrajPayDealerLists />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/dealer-login-actions"
+            element={
+              <PermissionRoute pageName="OmrajPay Dealer Credit Approval List">
+                <OmrajPayDealerLoginActions />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/dealer-details/:lan"
+            element={<OmrajPayDealerDetails />}
+          />
+
+          <Route
+            path="/omrajpay/loan-booking"
+            element={
+              <PermissionRoute pageName="OmrajPay Loan Booking">
+                <OmrajPayLoanBooking />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/updatedata"
+            element={
+              <PermissionRoute pageName="OmrajPay Update Data">
+                <OmrajPayUpdateData />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/all-loans"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer All Cases Screen">
+                <OmrajPayAllLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/login-cases"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Login Cases Screen">
+                <OmrajPayLoginCases />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/login-actions"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Credit Approval List">
+                <OmrajPayLoginAction />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/credit-initiated-cases"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Credit Initiated Cases Screen">
+                <OmrajPayDisburseInitiate />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/credit-approved-cases"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Credit Approved Cases Screen">
+                <OmrajPayApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/disbursed-loans"
+            element={
+              <PermissionRoute pageName="OmrajPay Disbursed Loans">
+                <OmrajPayDisbursed />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/operation-approval-cases"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Operation Approval Cases Screen">
+                <OmrajPayOperationApproval />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/omrajpay/customer-details"
+            element={
+              <PermissionRoute pageName="OmrajPay Customer Details">
+                <OmrajPayDetails />
               </PermissionRoute>
             }
           />
@@ -2595,12 +2807,12 @@ function App() {
             path="/saswat/all-loans"
             element={
               <PermissionRoute pageName="Saswat All Loans">
-                <SaswatAllLoans/>
+                <SaswatAllLoans />
               </PermissionRoute>
             }
           />
-        
- 
+
+
           {/* Protected Layout parent yahan close hoga */}
         </Route>
 

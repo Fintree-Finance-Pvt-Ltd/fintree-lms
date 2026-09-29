@@ -1,3 +1,4 @@
+const { processEmiClub2Disbursement } = require("../services/processEmiClub2Disbursement");
 // const express = require("express");
 // const router = express.Router();
 // const multer = require("multer");
@@ -717,6 +718,27 @@ if (lan.startsWith("UBLF") && !sanctionDate) {
   continue;
 }
 
+      if (lan.startsWith("FINE2")) {
+        try {
+          const result = await processEmiClub2Disbursement({ lan, disbursementUTR, disbursementDate });
+          if (result.success && !result.alreadyDisbursed) {
+            processedCount++;
+            insertedLANs.add(lan);
+            try {
+              const emailResult = await sendWelcomeLetterAfterUtrUpload({ lan, utrNumber: String(disbursementUTR).trim() });
+              welcomeEmailResults.push({ lan, utr: disbursementUTR, recipient: emailResult.recipient, status: "SENT" });
+            } catch (error) {
+              welcomeEmailErrors.push({ lan, utr: disbursementUTR, reason: error.message, status: "FAILED" });
+            }
+          } else {
+            duplicateUTRs.push(disbursementUTR);
+          }
+          if (result.webhookSent === false) rowErrors.push({ lan, utr: disbursementUTR, stage: "webhook", reason: result.webhookError });
+        } catch (error) {
+          rowErrors.push({ lan, utr: disbursementUTR, stage: "emiclub2-disbursement", reason: error.message });
+        }
+        continue;
+      }
       // Fetch loan details
       let loanRes = [];
       try {

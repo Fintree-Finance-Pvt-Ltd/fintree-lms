@@ -167,6 +167,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/loan-booking", sterlionRoutes);
 app.use("/api/loan-booking", carePayRoutes.loanBookingRouter);
 app.use("/api/loan-booking", excelUploadRoutes);
+app.use("/api/loan-booking", require("./routes/EmiClub2/Emiclub2Routes"));
 app.use("/api/wctl-ccod", require("./routes/wctlCCODRoutes/wctlRoutes")); // ✅ Register WCTL-CC-OD Routes
 app.use("/api/helium-loans", require("./routes/heliumRoutes/heliumRoutes")); // ✅ Register Helium Loan Routes
 app.use("/api/clayyo-loans", require("./routes/clyooRoutes/clyooRoutes")); // ✅ Register Clayyo Routes
@@ -181,6 +182,11 @@ app.use(
 app.use("/api/sampada", require("./routes/Sampada/sampadaDealerRoutes"));
 
 app.use("/api/sabgrow",require("./routes/SabGrow/sabGrowRoute"));
+
+app.use(
+  "/api/omrajpay",
+  require("./routes/OmRajPay/OmRajPayRoutes"),
+);
 
 app.use(
   "/api/seven-fincorp",

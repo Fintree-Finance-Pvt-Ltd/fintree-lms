@@ -404,6 +404,14 @@ if (normalizedLender === "STERLIONUBL") {
     }
 //////////////// EMI CLUB EMI DATE ////////////////////
 // ✅ EMI Club: Monthly EMI due based on 25th cut-off logic
+if (lender === "EMICLUB2" && product === "Monthly Loan") {
+  const dueDate = new Date(disbDate);
+  const offset = dueDate.getDate() <= 25 ? 1 : 2;
+  // Set the day before advancing the month to avoid month-end overflow.
+  dueDate.setDate(5);
+  dueDate.setMonth(dueDate.getMonth() + offset);
+  return dueDate;
+}
 if (lender === "EMICLUB" && product === "Monthly Loan") {
   const dueDate = new Date(disbDate);
   const disbDay = dueDate.getDate();

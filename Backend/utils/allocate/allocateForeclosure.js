@@ -23,6 +23,7 @@ function detectTablesByLan(lan) {
   if (key.startsWith("BL"))   return { emiTable: "manual_rps_bl_loan", loanTable: "loan_bookings" };
   if (key.startsWith("GQFSF"))return { emiTable: "manual_rps_gq_fsf", loanTable: "loan_booking_gq_fsf" };
   if (key.startsWith("GQNON"))return { emiTable: "manual_rps_gq_non_fsf", loanTable: "loan_booking_gq_non_fsf" };
+  if (key.startsWith("FINE2")) return { emiTable: "manual_rps_emiclub2", loanTable: "loan_booking_emiclub2" };
   if (key.startsWith("FINE")) return { emiTable: "manual_rps_emiclub", loanTable: "loan_booking_emiclub" };
   if (key.startsWith("CIRF")) return { emiTable: "manual_rps_circlepe", loanTable: "loan_booking_circle_pe" };
   if (key.startsWith("E1"))   return { emiTable: "manual_rps_embifi_loan", loanTable: "loan_booking_embifi" };

@@ -89,7 +89,10 @@ router.get("/:lan", async (req, res) => {
     netDisbursementExpr = `(lb.disbursement_amount - ${subventionCol})`;
   }
 
-  if (lan.startsWith("FINE")) {
+  if (lan.startsWith("FINE2")) {
+    tableName = "loan_booking_emiclub2";
+    interestRateCol = "lb.roi_apr as interest_rate";
+  } else if (lan.startsWith("FINE")) {
     tableName = "loan_booking_emiclub";
     loanAmountCol = "lb.loan_amount";
     loanAmountExpr = "lb.loan_amount";

@@ -57,11 +57,21 @@
     return normalizeLan(lan).startsWith("SPL");
   }
 
-  
- function isZebrsLan(lan = "") {
+  function isZebrsLan(lan = "") {
     const s = normalizeLan(lan);
     return s.startsWith("ZBCL");
   }
+
+ function isemiclub2AwareLan(lan = "") {
+    const value = normalizeLan(lan ?? "");
+    return value.startsWith("FINE2") ? "FINE2" : (value.match(/^[A-Z]+/)?.[0] || "");
+  }
+
+  function isOmrajPayLan(lan = "") {
+    const s = normalizeLan(lan);
+    return s.startsWith("OMR");
+  }
+
   function isClaimCureBuddyLan(lan = "") {
     const s = normalizeLan(lan);
     return s.startsWith("CCB");
@@ -177,7 +187,7 @@
 
         sign_position: "DRAG_DROP",
 
-        position_details: {
+        position_details: { 
           ALL: [
             {
               x1: 191,
@@ -232,6 +242,76 @@
         ],
       };
     } 
+
+    if (isOmrajPayLan(lan)) {
+  return {
+    type: "OMRAJPAY",
+    summaryTable: "omrajpay_loan_summary",
+    rpsTable: "loan_rps_omrajpay",
+    bookingTable: "loan_booking_omrajpay",
+    agreementTemplate: "OmrajPay_Agreement.html",
+
+    esignParties: [
+      {
+        role: "BORROWER",
+        required: true,
+        name: "customer_name",
+        email: "email",
+        mobile: "mobile_number",
+        sign_position: "DRAG_DROP",
+
+        position_details: {
+          ALL: [
+            {
+              x1: 51,
+              x2: 126,
+              y1: 85,
+              y2: 130,
+            },
+          ],
+        },
+      },
+      {
+        role: "CO_APPLICANT",
+        required: false,
+        name: "co_applicant_name",
+        email: "co_applicant_email",
+        mobile: "co_applicant_mobile",
+        sign_position: "DRAG_DROP",
+
+        position_details: {
+          ALL: [
+            {
+              x1: 191,
+              x2: 266,
+              y1: 84,
+              y2: 129,
+            },
+          ],
+        },
+      },
+      {
+        role: "GUARANTOR",
+        required: false,
+        name: "guarantor_name",
+        email: "guarantor_email",
+        mobile: "guarantor_mobile",
+        sign_position: "DRAG_DROP",
+
+        position_details: {
+          ALL: [
+            {
+              x1: 328,
+              x2: 403,
+              y1: 85,
+              y2: 130,
+            },
+          ],
+        },
+      },
+    ],
+  };
+}
 
     if (isClayyoLan(lan)) {
       return {
@@ -420,6 +500,7 @@ if (isZebrsLan(lan)) {
   }
 
   module.exports = {
+    isemiclub2AwareLan,
     normalizeLan,
     isCustomerLan,
     isClayyoLan,
@@ -427,6 +508,7 @@ if (isZebrsLan(lan)) {
     isMotionCorpLan,
     isZebrsLan,
     isSampadaLan,
+    isOmrajPayLan,
     isClaimCureBuddyLan,
     CLAIM_CURE_BUDDY_CONTEXT,
     getLoanContext,

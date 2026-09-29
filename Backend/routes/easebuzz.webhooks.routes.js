@@ -1,3 +1,4 @@
+const { processEmiClub2Disbursement } = require("../services/processEmiClub2Disbursement");
 const express = require("express");
 const db = require("../config/db");
 const { verifyWebhookHash } = require("../utils/webhookHashVerify");
@@ -323,7 +324,10 @@ router.post("/payout", async (req, res) => {
         });
       }
 
-      if (transfer.lan?.startsWith("FINE") && effectiveUtr && effectiveTransferDate) {
+      if (transfer.lan?.startsWith("FINE2") && effectiveUtr && effectiveTransferDate) {
+        await processEmiClub2Disbursement({ lan: transfer.lan, disbursementUTR: effectiveUtr, disbursementDate: new Date(effectiveTransferDate) });
+      }
+      if (transfer.lan?.startsWith("FINE") && !transfer.lan.startsWith("FINE2") && effectiveUtr && effectiveTransferDate) {
         const processingResult = await processEmiClubDisbursement({
           lan: transfer.lan,
           disbursementUTR: effectiveUtr,
@@ -575,6 +579,8 @@ router.post("/payout", async (req, res) => {
           skipped: yaMoneyResult?.skipped,
           reason: yaMoneyResult?.reason,
         });
+      } else if (lan?.startsWith("FINE2")) {
+        await processEmiClub2Disbursement({ lan, disbursementUTR: effectiveUtr, disbursementDate });
       } else if (lan?.startsWith("FINE")) {
         /*
          * EmiClub-specific processing. processEmiClubDisbursement generates

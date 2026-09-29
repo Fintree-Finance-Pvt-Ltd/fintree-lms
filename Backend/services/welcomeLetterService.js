@@ -47,6 +47,12 @@ const PARTNER_ROUTES = [
   },
 
   {
+    prefix: "FINE2",
+    table: "loan_booking_emiclub2",
+    rpsTable: "manual_rps_emiclub2",
+    tenureUnit: "months",
+  },
+  {
     prefix: "FINE",
     table: "loan_booking_emiclub",
     rpsTable: "manual_rps_emiclub",
