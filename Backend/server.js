@@ -183,10 +183,10 @@ app.use("/api/sampada", require("./routes/Sampada/sampadaDealerRoutes"));
 
 app.use("/api/sabgrow",require("./routes/SabGrow/sabGrowRoute"));
 
-app.use(
-  "/api/omrajpay",
-  require("./routes/OmRajPay/OmRajPayRoutes"),
-);
+// app.use(
+//   "/api/omrajpay",
+//   require("./routes/OmRajPay/OmRajPayRoutes"),
+// );
 
 app.use(
   "/api/seven-fincorp",
