@@ -2029,7 +2029,7 @@ function App() {
           />
 
           {/* Sampada routes mirror the Motion Corp workflow. */}
-          <Route path="/sampada/copy-links" element={<SampadaCopyLinks />} />
+          {/* <Route path="/sampada/copy-links" element={<SampadaCopyLinks />} /> */}
           <Route
             path="/sampada/dealer-entry"
             element={
