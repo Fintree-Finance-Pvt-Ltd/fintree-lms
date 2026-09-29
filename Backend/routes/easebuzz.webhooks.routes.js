@@ -5,6 +5,7 @@ const { sendLowBalanceAlertMail } = require("../jobs/mailer");
 const {
   processEmiClubDisbursement,
   processRapidMoneyDisbursement,
+  processQuickMoneyDisbursement,
   processCarePayDisbursement,
   processYaMoneyDisbursement,
 } = require("../services/processEmiClubDisbursement");
@@ -12,6 +13,10 @@ const {
   sendDisbursementWebhook,
   sendRejectionWebhook,
 } = require("../routes/switchMyLoan/switchMyLoanWebhook");
+const {
+  sendQuickMoneyDisbursementWebhook,
+  sendQuickMoneyRejectionWebhook,
+} = require("../routes/QuickMoney/quickMoneyWebhook");
 const {
   processMandateWebhook,
 } = require("../services/easebuzz/easebuzzMandateService");
@@ -257,6 +262,41 @@ router.post("/payout", async (req, res) => {
         });
       }
 
+      if (transfer.lan?.startsWith("QML") && effectiveUtr && effectiveTransferDate) {
+        const webhookResult = await sendQuickMoneyDisbursementWebhook({
+          lan: transfer.lan,
+          transactionId: effectiveUtr,
+          disbursementDate: effectiveTransferDate,
+        });
+
+        console.log("Quick Money partner webhook result", {
+          lan: transfer.lan,
+          utr: effectiveUtr,
+          success: webhookResult?.success,
+          alreadySent: webhookResult?.alreadySent,
+          logId: webhookResult?.logId,
+          message: webhookResult?.message,
+        });
+
+        if (!webhookResult?.success) {
+          console.log("Partner webhook failed and will be retried by cron", {
+            lan: transfer.lan,
+            logId: webhookResult?.logId,
+          });
+        }
+
+        const processingResult = await processQuickMoneyDisbursement({
+          lan: transfer.lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate: new Date(effectiveTransferDate),
+        });
+
+        console.log("Duplicate callback Quick Money processing result", {
+          lan: transfer.lan,
+          result: processingResult,
+        });
+      }
+
       if (transfer.lan?.startsWith("CARE") && effectiveUtr && effectiveTransferDate) {
         const processingResult = await processCarePayDisbursement({
           lan: transfer.lan,
@@ -459,6 +499,54 @@ router.post("/payout", async (req, res) => {
         // payout.service.js's own synchronous success path) converges on,
         // so it only fires once, exactly when the disbursement first
         // actually completes.
+      } else if (lan?.startsWith("QML")) {
+        /*
+         * Quick Money-specific processing.
+         * Mirrors Rapid Money above.
+         */
+        try {
+          const webhookResult = await sendQuickMoneyDisbursementWebhook({
+            lan,
+            transactionId: effectiveUtr,
+            disbursementDate: effectiveTransferDate,
+          });
+
+          console.log("Quick Money partner webhook result", {
+            lan,
+            utr: effectiveUtr,
+            success: webhookResult?.success,
+            alreadySent: webhookResult?.alreadySent,
+            logId: webhookResult?.logId,
+            message: webhookResult?.message,
+          });
+
+          if (!webhookResult?.success) {
+            console.log("Partner webhook will be retried by cron", {
+              lan,
+              logId: webhookResult?.logId,
+            });
+          }
+        } catch (webhookError) {
+          console.error("Quick Money partner webhook error", {
+            lan,
+            message: webhookError.message,
+            stack: webhookError.stack,
+          });
+        }
+
+        const quickMoneyResult = await processQuickMoneyDisbursement({
+          lan,
+          disbursementUTR: effectiveUtr,
+          disbursementDate,
+        });
+
+        console.log("Quick Money internal processing result", {
+          lan,
+          utr: effectiveUtr,
+          success: quickMoneyResult?.success,
+          skipped: quickMoneyResult?.skipped,
+          reason: quickMoneyResult?.reason,
+        });
       } else if (lan?.startsWith("CARE")) {
         const carePayResult = await processCarePayDisbursement({
           lan,
@@ -642,6 +730,57 @@ router.post("/payout", async (req, res) => {
           }
         } else {
           console.error("Cannot send Rapid Money rejection webhook — application_id missing", {
+            lan: transfer.lan,
+          });
+        }
+      }
+
+      if (transfer.lan?.startsWith("QML")) {
+        const [[qmlLoan]] = await db.promise().query(
+          `SELECT application_id FROM loan_booking_quick_money WHERE lan = ? LIMIT 1`,
+          [transfer.lan],
+        );
+
+        try {
+          await db.promise().query(
+            `UPDATE loan_booking_quick_money
+             SET status = 'REJECTED',
+                 updated_at = NOW()
+             WHERE lan = ?`,
+            [transfer.lan],
+          );
+
+          console.log("Quick Money loan marked REJECTED after payout failure", {
+            lan: transfer.lan,
+            reason: data.failure_reason,
+          });
+        } catch (statusError) {
+          console.error("Failed to mark Quick Money loan REJECTED after payout failure", {
+            lan: transfer.lan,
+            message: statusError.message,
+          });
+        }
+
+        if (qmlLoan?.application_id) {
+          try {
+            const rejectionResult = await sendQuickMoneyRejectionWebhook({
+              applicationId: qmlLoan.application_id,
+            });
+
+            console.log("Quick Money rejection webhook result (payout failure)", {
+              lan: transfer.lan,
+              applicationId: qmlLoan.application_id,
+              result: rejectionResult,
+            });
+          } catch (webhookError) {
+            console.error("Quick Money rejection webhook failed (payout failure)", {
+              lan: transfer.lan,
+              applicationId: qmlLoan.application_id,
+              message: webhookError.message,
+            });
+          }
+        } else {
+          console.error("Cannot send Quick Money rejection webhook — application_id missing", {
             lan: transfer.lan,
           });
         }
