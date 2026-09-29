@@ -294,7 +294,6 @@ import SampadaDetails from "./components/Sampada/sampadaDetails";
 import SampadaApprovedLoans from "./components/Sampada/SampadaApprovedLoans";
 import SampadaOperationApproval from "./components/Sampada/SampadaOperationApproval";
 import SampadaUpdateData from "./components/Sampada/SampadaUpdateData.jsx";
-import SampadaCopyLinks from "./components/Sampada/SampadaCopyLinks.jsx";
 
 /* ===================== OmrajPay imports ===================== */
 import OmrajPayDealerEntry from "./components/OmRajPay/OmrajPayDealerEntry";
