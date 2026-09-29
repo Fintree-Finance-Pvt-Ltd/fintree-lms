@@ -346,10 +346,10 @@ if (normalizedLender === "STERLIONUBL") {
   /*
    * Sterlion UBL EMI-date rule:
    *
-   * Disbursement on/before 20th:
+   * Disbursement on/before 15th:
    * First EMI → next month 5th
    *
-   * Disbursement after 20th:
+   * Disbursement after 15th:
    * First EMI → month after next, on 5th
    *
    * monthOffset:
@@ -359,7 +359,7 @@ if (normalizedLender === "STERLIONUBL") {
    */
 
   const initialMonthGap =
-    disbursementDay <= 20 ? 1 : 2;
+    disbursementDay <= 15 ? 1 : 2;
 
   // Date ko 1st par set karne se month rollover issue nahi aayega
   dueDate.setDate(1);
@@ -381,7 +381,7 @@ if (normalizedLender === "STERLIONUBL") {
     installmentNumber: installmentOffset + 1,
     disbursementDate: formatDateYMD(disbDate),
     disbursementDay,
-    cutoffApplied: disbursementDay > 20,
+    cutoffApplied: disbursementDay > 15,
     dueDate: formatDateYMD(dueDate),
   });
 
