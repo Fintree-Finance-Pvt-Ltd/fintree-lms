@@ -295,21 +295,21 @@ import SampadaApprovedLoans from "./components/Sampada/SampadaApprovedLoans";
 import SampadaOperationApproval from "./components/Sampada/SampadaOperationApproval";
 import SampadaUpdateData from "./components/Sampada/SampadaUpdateData.jsx";
 
-/* ===================== OmrajPay imports ===================== */
-import OmrajPayDealerEntry from "./components/OmRajPay/OmrajPayDealerEntry";
-import OmrajPayDealerLists from "./components/OmRajPay/OmrajPayDealerLists";
-import OmrajPayDealerLoginActions from "./components/OmRajPay/OmrajPayDealerLoginActions";
-import OmrajPayDealerDetails from "./components/OmRajPay/OmrajPayDealerDetails";
-import OmrajPayLoanBooking from "./components/OmRajPay/OmrajPayLoanBooking";
-import OmrajPayAllLoans from "./components/OmRajPay/OmrajPayAllLoans";
-import OmrajPayLoginCases from "./components/OmRajPay/OmrajPayLoginCases";
-import OmrajPayLoginAction from "./components/OmRajPay/OmrajPayLoginAction";
-import OmrajPayDisburseInitiate from "./components/OmRajPay/OmrajPayDisburseInitiate";
-import OmrajPayApprovedLoans from "./components/OmRajPay/OmrajPayApprovedLoans";
-import OmrajPayDisbursed from "./components/OmRajPay/OmrajPayDisbursed";
-import OmrajPayOperationApproval from "./components/OmRajPay/OmrajPayOperationApproval";
-import OmrajPayDetails from "./components/OmRajPay/OmrajPayDetails";
-import OmrajPayUpdateData from "./components/OmRajPay/OmrajPayUpdateData";
+// /* ===================== OmrajPay imports ===================== */
+// import OmrajPayDealerEntry from "./components/OmRajPay/OmrajPayDealerEntry";
+// import OmrajPayDealerLists from "./components/OmRajPay/OmrajPayDealerLists";
+// import OmrajPayDealerLoginActions from "./components/OmRajPay/OmrajPayDealerLoginActions";
+// import OmrajPayDealerDetails from "./components/OmRajPay/OmrajPayDealerDetails";
+// import OmrajPayLoanBooking from "./components/OmRajPay/OmrajPayLoanBooking";
+// import OmrajPayAllLoans from "./components/OmRajPay/OmrajPayAllLoans";
+// import OmrajPayLoginCases from "./components/OmRajPay/OmrajPayLoginCases";
+// import OmrajPayLoginAction from "./components/OmRajPay/OmrajPayLoginAction";
+// import OmrajPayDisburseInitiate from "./components/OmRajPay/OmrajPayDisburseInitiate";
+// import OmrajPayApprovedLoans from "./components/OmRajPay/OmrajPayApprovedLoans";
+// import OmrajPayDisbursed from "./components/OmRajPay/OmrajPayDisbursed";
+// import OmrajPayOperationApproval from "./components/OmRajPay/OmrajPayOperationApproval";
+// import OmrajPayDetails from "./components/OmRajPay/OmrajPayDetails";
+// import OmrajPayUpdateData from "./components/OmRajPay/OmrajPayUpdateData";
 
 /* ===================== OmrajPay routes ===================== */
 
@@ -2126,7 +2126,7 @@ function App() {
 
 
 /* ===================== OmrajPay routes ===================== */
-          <Route
+          {/* <Route
             path="/omrajpay/dealer-entry"
             element={
               <PermissionRoute pageName="OmrajPay Dealer Entry">
@@ -2246,7 +2246,7 @@ function App() {
                 <OmrajPayDetails />
               </PermissionRoute>
             }
-          />
+          /> */}
 
           <Route
             path="/fundify-loans/manual-entry"
