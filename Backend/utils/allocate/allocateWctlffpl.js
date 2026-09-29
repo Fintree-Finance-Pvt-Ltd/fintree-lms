@@ -292,18 +292,30 @@ if (
      * WCTL bullet principal normally exists
      * on the maturity/final RPS row.
      */
-    const [bulletRow] = await queryDB(
-`
-SELECT *
-FROM manual_rps_wctl_ffpl
-WHERE lan = ?
-AND remaining_principal > 0
-AND due_date >= DATE(?)
-ORDER BY due_date ASC, id ASC
-LIMIT 1
-`,
-[lan, paymentDate]
-);
+//     const [bulletRow] = await queryDB(
+// `
+// SELECT *
+// FROM manual_rps_wctl_ffpl
+// WHERE lan = ?
+// AND remaining_principal > 0
+// AND due_date >= DATE(?)
+// ORDER BY due_date ASC, id ASC
+// LIMIT 1
+// `,
+// [lan, paymentDate]
+// );
+
+      const [bulletRow] = await queryDB(
+      `
+      SELECT *
+      FROM manual_rps_wctl_ffpl
+      WHERE lan = ?
+      AND remaining_principal > 0
+      ORDER BY due_date DESC, id DESC
+      LIMIT 1
+      `,
+      [lan]
+      );
 
     if (bulletRow) {
       const outstandingPrincipal = Number(
