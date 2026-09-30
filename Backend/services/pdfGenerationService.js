@@ -588,25 +588,49 @@ async function getLoanData(lan) {
     summaryRows = rows;
   }
 
+  // ===============================
+  // Claim Buddy SUMMARY
+  // ===============================
+  else if (summaryTable === "claim_buddy_loan_summary") {
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        LAN,
+        CUST_NAME,
+        PER_ADD,
+        FINAL_LIMIT,
+        CUST_PAN,
+        CUST_AGE,
+        HOSPITAL_NAME,
+        CUST_BANK,
+        CUST_ACC_NO,
+        DATE_FORMAT(CUR_DATE,'%d-%m-%Y') AS CUR_DATE
+      FROM claim_buddy_loan_summary
+      WHERE LAN = ?
+    `,
+      [lan],
+    );
 
+    summaryRows = rows;
+  }
 
   // ===============================
-// SAMPADA SUMMARY
-// ===============================
-else if (summaryTable === "sampada_loan_summary") {
-  const [rows] = await db.promise().query(
-    `
+  // SAMPADA SUMMARY
+  // ===============================
+  else if (summaryTable === "sampada_loan_summary") {
+    const [rows] = await db.promise().query(
+      `
       SELECT *
       FROM sampada_loan_summary
       WHERE LAN = ?
     `,
-    [lan]
-  );
+      [lan],
+    );
 
-  summaryRows = rows;
+    summaryRows = rows;
 
-  const [rps] = await db.promise().query(
-    `
+    const [rps] = await db.promise().query(
+      `
       SELECT
         emi_no,
         opening,
@@ -621,14 +645,14 @@ else if (summaryTable === "sampada_loan_summary") {
       WHERE TRIM(lan) = TRIM(?)
       ORDER BY emi_no ASC
     `,
-    [lan]
-  );
+      [lan],
+    );
 
-  rpsRows = rps;
+    rpsRows = rps;
 
-  RPS_TABLE_ROWS = rpsRows
-    .map(
-      (row) => `
+    RPS_TABLE_ROWS = rpsRows
+      .map(
+        (row) => `
         <tr>
           <td>${row.emi_no ?? ""}</td>
           <td>${Number(row.opening || 0).toFixed(2)}</td>
@@ -637,12 +661,12 @@ else if (summaryTable === "sampada_loan_summary") {
           <td>${Number(row.emi || 0).toFixed(2)}</td>
           <td>${Number(row.closing || 0).toFixed(2)}</td>
         </tr>
-      `
-    )
-    .join("");
+      `,
+      )
+      .join("");
 
-  RPS_ROWS = RPS_TABLE_ROWS;
-}
+    RPS_ROWS = RPS_TABLE_ROWS;
+  }
   // ===============================
   // MOTION CORP SUMMARY
   // ===============================
@@ -696,32 +720,29 @@ else if (summaryTable === "sampada_loan_summary") {
 
     // Keep this also for backward compatibility
     RPS_ROWS = RPS_TABLE_ROWS;
-  }
+  } else if (summaryTable === "zebrs_loan_summary") {
+    console.log("==========================================");
+    console.log("🟢 ZEBRS GET LOAN DATA START");
+    console.log("LAN:", lan);
+    console.log("Summary Table:", summaryTable);
+    console.log("==========================================");
 
-else if (summaryTable === "zebrs_loan_summary") {
-
-  console.log("==========================================");
-  console.log("🟢 ZEBRS GET LOAN DATA START");
-  console.log("LAN:", lan);
-  console.log("Summary Table:", summaryTable);
-  console.log("==========================================");
-
-  const [rows] = await db.promise().query(
-    `
+    const [rows] = await db.promise().query(
+      `
     SELECT *
     FROM zebrs_loan_summary
     WHERE TRIM(LAN) = TRIM(?)
     `,
-    [lan],
-  );
+      [lan],
+    );
 
-  console.log("✅ ZEBRS SUMMARY ROW COUNT:", rows.length);
-  console.log("✅ ZEBRS SUMMARY DATA:", rows);
+    console.log("✅ ZEBRS SUMMARY ROW COUNT:", rows.length);
+    console.log("✅ ZEBRS SUMMARY DATA:", rows);
 
-  summaryRows = rows;
+    summaryRows = rows;
 
-  const [rps] = await db.promise().query(
-    `
+    const [rps] = await db.promise().query(
+      `
     SELECT
       ROW_NUMBER() OVER (
         ORDER BY due_date ASC, id ASC
@@ -752,30 +773,30 @@ else if (summaryTable === "zebrs_loan_summary") {
 
     ORDER BY due_date ASC, id ASC
     `,
-    [lan],
-  );
+      [lan],
+    );
 
-  console.log("✅ ZEBRS RPS ROW COUNT:", rps.length);
-  console.log("✅ ZEBRS RPS DATA:");
+    console.log("✅ ZEBRS RPS ROW COUNT:", rps.length);
+    console.log("✅ ZEBRS RPS DATA:");
 
-  console.table(
-    rps.map((row) => ({
-      emi_no: row.emi_no,
-      due_date: row.due_date,
-      opening: row.opening,
-      principal: row.principal,
-      interest: row.interest,
-      emi: row.emi,
-      closing: row.closing,
-      remaining_emi: row.remaining_emi,
-    })),
-  );
+    console.table(
+      rps.map((row) => ({
+        emi_no: row.emi_no,
+        due_date: row.due_date,
+        opening: row.opening,
+        principal: row.principal,
+        interest: row.interest,
+        emi: row.emi,
+        closing: row.closing,
+        remaining_emi: row.remaining_emi,
+      })),
+    );
 
-  rpsRows = rps;
+    rpsRows = rps;
 
-  RPS_TABLE_ROWS = rpsRows
-    .map(
-      (row) => `
+    RPS_TABLE_ROWS = rpsRows
+      .map(
+        (row) => `
         <tr>
           <td>${row.emi_no ?? ""}</td>
           <td>${Number(row.opening || 0).toFixed(2)}</td>
@@ -785,21 +806,17 @@ else if (summaryTable === "zebrs_loan_summary") {
           <td>${Number(row.closing || 0).toFixed(2)}</td>
         </tr>
       `,
-    )
-    .join("");
+      )
+      .join("");
 
-  RPS_ROWS = RPS_TABLE_ROWS;
+    RPS_ROWS = RPS_TABLE_ROWS;
 
-  console.log(
-    "✅ ZEBRS RPS HTML LENGTH:",
-    RPS_TABLE_ROWS.length,
-  );
+    console.log("✅ ZEBRS RPS HTML LENGTH:", RPS_TABLE_ROWS.length);
 
-  console.log("==========================================");
-  console.log("🟢 ZEBRS GET LOAN DATA END");
-  console.log("==========================================");
-}
-  else {
+    console.log("==========================================");
+    console.log("🟢 ZEBRS GET LOAN DATA END");
+    console.log("==========================================");
+  } else {
     // ===============================
     // EXISTING CLIENTS (UNCHANGED)
     // ===============================
@@ -997,6 +1014,53 @@ exports.generateAgreementPdf = async (lan) => {
     return { pdfName };
   }
 
+  // ===============================================
+  // CLAIM BUDDY
+  // ===============================================
+  if (summaryTable === "claim_buddy_loan_summary") {
+    await db.promise().query(
+      `
+        INSERT INTO claim_buddy_loan_summary
+        (
+          LAN,
+          CUST_NAME,
+          PER_ADD,
+          FINAL_LIMIT,
+          CUST_PAN,
+          CUST_AGE,
+          CUST_BANK,
+          CUST_ACC_NO,
+          CUR_DATE,
+          HOSPITAL_NAME
+        )
+        SELECT
+          lb.lan,
+          lb.customer_name,
+          lb.permanent_address,
+          lb.final_limit,
+          lb.pan_number,
+          lb.age,
+          lb.bank_name,
+          lb.account_number,
+          NOW(),
+          lb.hospital_name
+        FROM loan_booking_claim_buddy lb
+        WHERE lb.lan = ?
+        ON DUPLICATE KEY UPDATE
+          CUST_NAME = VALUES(CUST_NAME),
+          PER_ADD = VALUES(PER_ADD),
+          FINAL_LIMIT = VALUES(FINAL_LIMIT),
+          CUST_PAN = VALUES(CUST_PAN),
+          CUST_AGE = VALUES(CUST_AGE),
+          CUST_BANK = VALUES(CUST_BANK),
+          CUST_ACC_NO = VALUES(CUST_ACC_NO),
+          CUR_DATE = VALUES(CUR_DATE),
+          HOSPITAL_NAME = VALUES(HOSPITAL_NAME)
+      `,
+      [lan],
+    );
+  }
+
   // ✅ ensure Clayyo summary exists before fetch
   if (summaryTable === "clayyo_loan_summary") {
     await db.promise().query("CALL sp_generate_clayyo_summary(?)", [lan]);
@@ -1015,49 +1079,34 @@ exports.generateAgreementPdf = async (lan) => {
       .query("CALL sp_create_motioncorp_loan_summary(?)", [lan]);
   }
 
+  if (summaryTable === "zebrs_loan_summary") {
+    console.log("==========================================");
+    console.log("🚗 ZEBRS AGREEMENT PREPARATION");
+    console.log("LAN:", lan);
+    console.log("==========================================");
 
-if (summaryTable === "zebrs_loan_summary") {
+    console.log("1️⃣ Starting sp_generate_zebrs_rps...");
 
-  console.log("==========================================");
-  console.log("🚗 ZEBRS AGREEMENT PREPARATION");
-  console.log("LAN:", lan);
-  console.log("==========================================");
+    await db.promise().query("CALL sp_generate_zebrs_rps(?)", [lan]);
 
-  console.log("1️⃣ Starting sp_generate_zebrs_rps...");
+    console.log("✅ sp_generate_zebrs_rps completed");
 
-  await db.promise().query(
-    "CALL sp_generate_zebrs_rps(?)",
-    [lan]
-  );
+    console.log("2️⃣ Starting sp_create_zebrs_loan_summary...");
 
-  console.log("✅ sp_generate_zebrs_rps completed");
+    await db.promise().query("CALL sp_create_zebrs_loan_summary(?)", [lan]);
 
+    console.log("✅ sp_create_zebrs_loan_summary completed");
 
-  console.log("2️⃣ Starting sp_create_zebrs_loan_summary...");
-
-  await db.promise().query(
-    "CALL sp_create_zebrs_loan_summary(?)",
-    [lan]
-  );
-
-  console.log("✅ sp_create_zebrs_loan_summary completed");
-
-  console.log("==========================================");
-}
+    console.log("==========================================");
+  }
   // ===============================
-// SAMPADA RPS + SUMMARY GENERATION
-// ===============================
-if (summaryTable === "sampada_loan_summary") {
-  await db.promise().query(
-    "CALL sp_generate_sampada_rps(?)",
-    [lan]
-  );
+  // SAMPADA RPS + SUMMARY GENERATION
+  // ===============================
+  if (summaryTable === "sampada_loan_summary") {
+    await db.promise().query("CALL sp_generate_sampada_rps(?)", [lan]);
 
-  await db.promise().query(
-    "CALL sp_create_sampada_loan_summary(?)",
-    [lan]
-  );
-}
+    await db.promise().query("CALL sp_create_sampada_loan_summary(?)", [lan]);
+  }
   const loanData = await waitForLoanSummary(lan);
 
   if (!loanData) throw new Error("Loan summary not available");

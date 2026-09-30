@@ -56,6 +56,7 @@ const allocateQuickMoney = require("./allocateQuickMoney");
 const allocateSRBH = require("./allocateSRBH");
 const allocateZebrs = require("./allocateZebrs");
 const allocateClaimCureBuddy = require("./allocateClaimCureBuddy");
+const allocateClaimBuddy = require("./allocateClaimBuddy");
 const allocateEmiClub2 = require("./allocateEmiClub2");
 // const getEmiClub2AwarePrefix = require("../../routes/EmiClub2/Emiclub2Routes");
 /**
@@ -167,6 +168,9 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   }
   else if (lan.startsWith("CCB")) {
     return allocateClaimCureBuddy(lan, payment);
+  }
+  else if (lan.startsWith("CBF")) {
+    return allocateClaimBuddy(lan, payment);
   }
   else if (lan.startsWith("GQN")) {
     const promises = [

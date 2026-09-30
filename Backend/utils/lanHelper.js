@@ -72,6 +72,11 @@
     return s.startsWith("OMR");
   }
 
+  function isClaimBuddyLan(lan = "") {
+    const s = normalizeLan(lan);
+    return s.startsWith("CBF");
+  }
+
   function isClaimCureBuddyLan(lan = "") {
     const s = normalizeLan(lan);
     return s.startsWith("CCB");
@@ -510,6 +515,7 @@ if (isZebrsLan(lan)) {
     isSampadaLan,
     isOmrajPayLan,
     isClaimCureBuddyLan,
+    isClaimBuddyLan,
     CLAIM_CURE_BUDDY_CONTEXT,
     getLoanContext,
   };

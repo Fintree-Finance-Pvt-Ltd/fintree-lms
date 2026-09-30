@@ -339,6 +339,23 @@ import SaswatPaymentReceipt from "./components/Saswat/SaswatPaymentReceipt.jsx";
 // import NachPresentation from "./components/NachPresentation.jsx";
 import QMLApprovedLoans from "./components/QuickMoney/QMLApprovedLoans.jsx";
 
+// Claim Buddy Import
+import ClaimBuddyHospitalEntry from "./components/ClaimBuddy/ClaimBuddyHospitalEntry";
+import ClaimBuddyHospitalLists from "./components/ClaimBuddy/ClaimBuddyHospitalLists";
+import ClaimBuddyHospitalLoginActions from "./components/ClaimBuddy/ClaimBuddyHospitalLoginAction";
+import ClaimBuddyLoanBooking from "./components/ClaimBuddy/ClaimBuddyLoanBooking";
+import ClaimBuddyLoginLoans from "./components/ClaimBuddy/ClaimBuddyLoginLoans";
+import ClaimBuddyDisburseInitiateScreen from "./components/ClaimBuddy/ClaimBuddyDisburseInitiateScreen";
+import ClaimBuddyLimitEntry from "./components/ClaimBuddy/ClaimBuddyLimitEntry";
+import ClaimBuddyAllLoansScreen from "./components/ClaimBuddy/ClaimBuddyAllLoansScreen";
+import ClaimBuddyUpdateData from "./components/ClaimBuddy/ClaimBuddyUpdateData";
+import ClaimBuddyFintreeScreen from "./components/ClaimBuddy/ClaimBuddyFintreeScreen";
+import ClaimBuddyApprovedLoans from "./components/ClaimBuddy/ClaimBuddyApprovedLoans";
+import ClaimBuddyHospitalDetails from "./components/ClaimBuddy/ClaimBuddyHospitalDetails";
+import ClaimBuddyApprovedLoanDetails from "./components/ClaimBuddy/ClaimBuddyApprovedLoanDetails";
+import ClaimBuddyOpsCheckerScreen from "./components/ClaimBuddy/ClaimBuddyOpsCheckerScreen";
+import ClaimBuddyApproveInitiateScreen from "./components/ClaimBuddy/ClaimBuddyApproveInitiateScreen";
+
 function App() {
   return (
     <Router>
@@ -681,6 +698,143 @@ function App() {
               </PermissionRoute>
             }
           />
+          {/* Claim Buddy */}
+
+          <Route
+            path="/claim-buddy/hospital-entry"
+            element={
+              <PermissionRoute pageName="Claim Buddy Hospital Entry">
+                <ClaimBuddyHospitalEntry />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/hospital-lists"
+            element={
+              <PermissionRoute pageName="Claim Buddy Hospital Lists">
+                <ClaimBuddyHospitalLists />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/hospital-login-actions"
+            element={
+              <PermissionRoute pageName="Claim Buddy Hospital Credit Approval List">
+                <ClaimBuddyHospitalLoginActions />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/loan-booking"
+            element={
+              <PermissionRoute pageName="Claim Buddy Loan Booking">
+                <ClaimBuddyLoanBooking />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/login-cases"
+            element={
+              <PermissionRoute pageName="Claim Buddy Login Cases">
+                <ClaimBuddyLoginLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/login-actions"
+            element={
+              <PermissionRoute pageName="Claim Buddy Credit Approval Loans">
+                <ClaimBuddyDisburseInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/credit-approved-loans"
+            element={
+              <PermissionRoute pageName="Claim Buddy Limit Approval">
+                <ClaimBuddyLimitEntry />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/all-claim-buddy-loans-screen"
+            element={
+              <PermissionRoute pageName="Claim Buddy All Loans">
+                <ClaimBuddyAllLoansScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/operation-all-loans"
+            element={
+              <PermissionRoute pageName="Claim Buddy Operation All Loans">
+                <ClaimBuddyFintreeScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/bre-rejected-loans"
+            element={
+              <PermissionRoute pageName="Claim Buddy BRE Rejected Loans">
+                <ClaimBuddyApprovedLoans />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/hospital-details/:lan"
+            element={
+              <PermissionRoute pageName="Claim Buddy Hospital Lists">
+                <ClaimBuddyHospitalDetails />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/approved-loan-details-claim-buddy/:lan"
+            element={
+              <PermissionRoute pageName="Claim Buddy Loan Details">
+                <ClaimBuddyApprovedLoanDetails />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/update-data/:lan"
+            element={
+              <PermissionRoute pageName="Claim Buddy Loan Details">
+                <ClaimBuddyUpdateData />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/ops-checker"
+            element={
+              <PermissionRoute pageName="Claim Buddy OPS Checker">
+                <ClaimBuddyOpsCheckerScreen />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="/claim-buddy/approve-initiate"
+            element={
+              <PermissionRoute pageName="Claim Buddy Approval Action Pending Loans">
+                <ClaimBuddyApproveInitiateScreen />
+              </PermissionRoute>
+            }
+          />
+
           {/* Loan Digit */}
           <Route
             path="/loan-digit/login-cases"
@@ -2784,7 +2938,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
 
           <Route
             path="/saswat/approved-loans"

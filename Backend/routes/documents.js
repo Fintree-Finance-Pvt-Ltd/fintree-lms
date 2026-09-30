@@ -96,6 +96,11 @@ const LAN_TABLE_MAP = {
     statusCol: "status",
     editableStatuses: new Set(["pending", "approved", "active"]),
   },
+
+  CBF: {
+    table: "loan_booking_claim_buddy",
+    statusCol: "status",
+  },
   DLR: { table: "dealer_onboarding", statusCol: "status" },
   ZYPF: { table: "loan_booking_zypay_customer", statusCol: "status" },
   Cl: { table: "loan_booking_clayyo", statusCol: "status" },
@@ -3544,6 +3549,8 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("SH")) loanTable = "loan_booking_srbh";
   else if (lan.startsWith("RML")) loanTable = "loan_booking_switch_my_loan";
   else if (lan.startsWith("CCB")) loanTable = "loan_booking_claim_cure_buddy";
+  else if (lan.startsWith("CBF")) loanTable = "loan_booking_claim_buddy";  // CLAIM BUDDY
+  
 
   try {
     const [loanRows] = await db
