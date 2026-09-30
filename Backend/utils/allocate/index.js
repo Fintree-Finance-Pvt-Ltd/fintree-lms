@@ -57,7 +57,7 @@ const allocateSRBH = require("./allocateSRBH");
 const allocateZebrs = require("./allocateZebrs");
 const allocateClaimCureBuddy = require("./allocateClaimCureBuddy");
 const allocateEmiClub2 = require("./allocateEmiClub2");
-const getEmiClub2AwarePrefix = require("../../routes/EmiClub2/Emiclub2Routes");
+// const getEmiClub2AwarePrefix = require("../../routes/EmiClub2/Emiclub2Routes");
 /**
  * Utility helpers for merging allocation results.
  */
@@ -131,7 +131,7 @@ const allocateRepaymentByLAN = async (lan, payment) => {
 
   } else if (lan.startsWith("BL")) {
     return allocateBL(lan, payment);
-  } else if (getEmiClub2AwarePrefix(lan) === "FINE2") {
+  } else if (lan.startsWith("FINE2")) {
     return allocateEmiClub2(lan, payment);
   } else if (lan.startsWith("FINE")) {
     return allocateEmiClub(lan, payment);
