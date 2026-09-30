@@ -21,6 +21,9 @@ const { autoApproveSrbhIfAllVerified } = require("../routes/srbh/srbhBRE");
 const {
   autoApproveBundelaIfAllVerified,
 } = require("../routes/Bundela/bundelaBRE");
+const {
+  autoApproveClaimBuddyIfAllVerified,
+} = require("../routes/ClaimBuddy/claimBuddyBreEngine");
 // const {
 //   autoApproveFundifyIfAllVerified
 // } = require("../routes/Fundify/fundigyBRE");
@@ -1005,6 +1008,13 @@ exports.universalRunAllValidations = async (lan, options = {}) => {
       await autoApproveBundelaIfAllVerified(lan);
       console.log(`✅ Bundela BRE finished for ${lan}`);
     }
+
+    if (lan.startsWith("CBF")) {
+      console.log(`🚀 Running Claim Buddy BRE for ${lan}`);
+      await autoApproveClaimBuddyIfAllVerified(lan);
+      console.log(`✅ Claim Buddy BRE finished for ${lan}`);
+    }
+
     if (lan.startsWith("SH") && !options.skipSrbhFinalBre) {
       console.log(`🚀 Running SRBH BRE for ${lan}`);
       await autoApproveSrbhIfAllVerified(lan);

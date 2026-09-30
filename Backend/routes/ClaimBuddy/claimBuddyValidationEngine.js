@@ -6,6 +6,10 @@ const { runBureau } = require("../../services/Bueraupullapiservice");
 
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
 
+const {
+  autoApproveClaimBuddyIfAllVerified,
+} = require("./claimBuddyBreEngine");
+
 exports.claimBuddyRunAllValidations = async (lan) => {
   try {
     console.log(`🚀 Starting CLAIM BUDDY Validation Engine for LAN: ${lan}`);
@@ -403,6 +407,12 @@ ${bureauResult.score}
     );
 
     console.log(`✅ CLAIM BUDDY Validation Completed: ${lan}`);
+
+    // ========================================
+    // TRIGGER BRE EVALUATION
+    // ========================================
+    await autoApproveClaimBuddyIfAllVerified(lan);
+
   } catch (err) {
     console.error(
       "❌ Claim Buddy Validation Failed:",

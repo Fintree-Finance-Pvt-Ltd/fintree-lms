@@ -8,6 +8,7 @@ const partnerLimitService = require("../../services/partnerLimitService");
 
 const axios = require("axios");
 const nodemailer = require("nodemailer");
+const { approveAndInitiatePayout } = require("../../services/payout.service");
 
 const fs = require("fs");
 const path = require("path");
@@ -1102,7 +1103,7 @@ router.get("/approve-initiate-loans", async (req, res) => {
 
   const values=[
     table,
-    "DISBURSEMENT_INITIATED",
+    "BRE APPROVED",
     `${prefix}%`
   ];
 
@@ -3621,7 +3622,7 @@ router.get("/ops-maker-approved-loans", async (req, res) => {
 
       FROM loan_booking_claim_buddy
 
-      WHERE status='OPS APPROVED'
+      WHERE status='DISBURSEMENT INITIATED'
 
       ORDER BY lan DESC
       `,
@@ -3698,7 +3699,7 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
 
     const loan = loanRows[0];
 
-    if (loan.status !== "OPS APPROVED") {
+    if (loan.status !== "DISBURSEMENT INITIATED") {
       await conn.rollback();
 
       return res.status(400).json({
