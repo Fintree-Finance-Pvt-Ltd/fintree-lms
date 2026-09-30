@@ -20,6 +20,7 @@ const {
 const {
   POLICY,
   calculateAge,
+  getFirstTimeCreditLimit,
   validateLoanAmount,
   isNewCustomer,
   calculateRepeatCreditLimit,
@@ -2422,14 +2423,17 @@ async function runQuickMoneyBRE(
 
   if (newCustomer) {
     creditLimit =
-      POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+      getFirstTimeCreditLimit(
+        age,
+        loan.loan_amount,
+      );
 
 
     const firstTimeLimitAdjusted =
       Number(
         loan.loan_amount,
       ) >
-      POLICY.FIRST_TIME_CUSTOMER_LIMIT;
+      creditLimit;
 
 
     rules.FIRST_TIME_LIMIT_CHECK_RPM =
@@ -2446,7 +2450,7 @@ async function runQuickMoneyBRE(
             ),
 
           assignedCreditLimit:
-            POLICY.FIRST_TIME_CUSTOMER_LIMIT,
+            creditLimit,
 
           limitAdjusted:
             firstTimeLimitAdjusted,
