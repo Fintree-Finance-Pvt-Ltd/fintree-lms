@@ -4,10 +4,10 @@ const db = require("../../config/db");
 const verifyApiKey = require("../../middleware/apiKeyAuth");
 const authenticateUser = require("../../middleware/verifyToken");
 const { sendClientWebhook } = require("./sabGrowWebhookService");
-// const { approveAndInitiatePayout } = require("../../services/payout.service");
+const { approveAndInitiatePayout } = require("../../services/payout.service");
 
-const { runBureau } = require("../../services/Bueraupullapiservice");
-const { runBRE } = require("./sabGrowBre");
+// const { runBureau } = require("../../services/Bueraupullapiservice");
+// const { runBRE } = require("./sabGrowBre");
 const { screenLoanBooking } = require("../../services/trackwizz/screeningService");
 
 const router = express.Router();
@@ -32,6 +32,16 @@ const SABGROW_AML_COLUMNS = [
     "aml_checked_at",
 ];
 
+const ACTIVE_PAYOUT_STATUS = new Set([
+  "initiated",
+  "pending",
+  "queued",
+  "processing",
+  "in_progress",
+  "success",
+  "completed",
+  "processed",
+]);
 function clean(value) {
     return String(value ?? "").trim();
 }
@@ -132,6 +142,15 @@ async function getSabGrowCaseByLan(lan) {
   );
 
   return loan || null;
+}
+
+function readBoolean(value) {
+    return (
+        value === true ||
+        String(value ?? "")
+            .trim()
+            .toLowerCase() === "true"
+    );
 }
 
 async function findDuplicateFields(connection, data) {
@@ -259,142 +278,103 @@ async function generateLoanIds(connection) {
 
 async function insertLogin(connection, data, ids, createdBy) {
 
-
     const row = {
-
         partner_loan_id: data.partnerLoanId,
-
         lan: ids.lan,
-
         lender: LENDER,
-
         product: PRODUCT,
-
         loan_type: LOAN_TYPE,
-
         login_date: data.login_date,
-
         age: data.age,
-
         annual_income: data.annual_income,
-
         customer_name: data.customer_name,
-
         mobile_number: data.mobile_number,
-
         email: data.email,
-
         pan_number: data.pan_number,
-
         aadhaar_number: data.aadhaar_number,
-
-
         customer_address: data.customer_address,
-
         customer_pincode: data.customer_pincode,
-
         customer_city: data.customer_city,
-
         customer_state: data.customer_state,
-
-
         requested_amount: data.requested_amount,
-
-
         business_name: data.business_name,
-
         business_type: data.business_type,
-
         gst_number: data.gst_number,
-
         udyam_number: data.udyam_number,
-
-
         business_address: data.business_address,
-
         business_pincode: data.business_pincode,
-
         business_city: data.business_city,
-
         business_state: data.business_state,
-
-
+        // SABGROW BRE FIELDS
+        eod_balance: data.eod_balance,
+        turnover: data.turnover,
+        no_bounce_months: data.no_bounce_months,
+        property_owned: data.property_owned,
+        financial_years: data.financial_years,
         status: "Login",
-
         stage: "Login",
-
         created_by: createdBy
-
     };
-
-
-
     const columns = Object.keys(row);
-
     const placeholders =
         columns.map(() => "?").join(",");
-
-
-
     const [result] = await connection.query(
-
         `
-INSERT INTO ${TABLE_NAME}
-(
-${columns.join(",")}
-)
-VALUES
-(
-${placeholders}
-)
-`,
+        INSERT INTO ${TABLE_NAME}
+        (
+            ${columns.join(",")}
+        )
+        VALUES
+        (
+            ${placeholders}
+        )
+        `,
+
         Object.values(row)
 
     );
-
-
     return result.insertId;
 
 }
 
-async function pullAndPersistBureau(lan, data) {
+// async function pullAndPersistBureau(lan, data) {
 
-    let bureauResult;
+//     let bureauResult;
 
-    if (SABGROW_DUMMY_BUREAU) {
+//     if (SABGROW_DUMMY_BUREAU) {
 
-        // Dummy bureau
-        bureauResult = {
-            success: true,
-            score: 750,
-            response: JSON.stringify({
-                source: "DUMMY_BUREAU",
-                score: 750
-            })
-        };
+//         // Dummy bureau
+//         bureauResult = {
+//             success: true,
+//             score: 750,
+//             response: JSON.stringify({
+//                 source: "DUMMY_BUREAU",
+//                 score: 750
+//             })
+//         };
 
-    } else {
+//     } else {
 
-        // Real bureau
-        bureauResult = await runBureau(data);
+//         // Real bureau
+//         bureauResult = await runBureau(data);
 
-    }
+//     }
 
 
-    await db.promise().query(
-        `
-        UPDATE loan_booking_sabgrow
-        SET cibil_score = ?
-        WHERE lan = ?
-        `,
-        [
-            bureauResult.score,
-            lan
-        ]
-    );
+//     await db.promise().query(
+//         `
+//         UPDATE loan_booking_sabgrow
+//         SET cibil_score = ?
+//         WHERE lan = ?
+//         `,
+//         [
+//             bureauResult.score,
+//             lan
+//         ]
+//     );
 
-    return bureauResult;
-}
+//     return bureauResult;
+// }
 
 
 async function runSabGrowAml(lan) {
@@ -572,6 +552,9 @@ async function updateCreditStatus(lan, status, updatedBy) {
     return loan || null;
 }
 
+function getPayoutStatus(transfer) {
+  return normalizeStatus(transfer?.payout_status || transfer?.status || "");
+}
 
 function sendSabGrowCreditDecisionWebhook(loan, status, decidedBy) {
   const approved = status === "credit_approved";
@@ -610,6 +593,8 @@ function readNumber(value) {
   const text = clean(value).replace(/,/g, "");
   return text ? Number(text) : NaN;
 }
+
+
 function cleanAccountNumber(value) {
   return clean(value).replace(/\s+/g, "");
 }
@@ -1187,7 +1172,22 @@ router.post("/loan-booking", verifyApiKey, async (req, res) => {
 
 
             business_state:
-                nullIfEmpty(body.business_state)
+                nullIfEmpty(body.business_state),
+
+            eod_balance:
+                readNumber(body.eod_balance),
+                          
+            turnover:
+                readNumber(body.turnover),
+                          
+            no_bounce_months:
+                readNumber(body.no_bounce_months),
+                          
+            property_owned:
+                readBoolean(body.property_owned),
+                          
+            financial_years:
+                readNumber(body.financial_years)  
 
         };
 
@@ -1254,25 +1254,53 @@ router.post("/loan-booking", verifyApiKey, async (req, res) => {
 
 
 
-        const bureau = await pullAndPersistBureau(
-            ids.lan,
-            data
-        );
+        // const bureau = await pullAndPersistBureau(
+        //     ids.lan,
+        //     data
+        // );
 
-        const bre =
-            runBRE({
+        // const bre =
+        //     runBRE({
 
-                loan_amount: data.requested_amount,
+        //         loan_amount: data.requested_amount,
 
-                age: data.age,
+        //         age: data.age,
 
-                annual_income: data.annual_income,
+        //         annual_income: data.annual_income,
 
-                bureau_score: bureau.score
+        //         bureau_score: bureau.score
 
-            });
+        //     });
 
+// const bre = runBRE({
 
+//     loan_amount:
+//         data.requested_amount,
+
+//     // Comes from existing Experian flow
+//     bureau_score:
+//         bureau.score,
+
+//     // Comes from partner
+//     eod_balance:
+//         data.eod_balance,
+
+//     turnover:
+//         data.turnover,
+
+//     no_bounce_months:
+//         data.no_bounce_months,
+
+//     property_owned:
+//         data.property_owned,
+
+//     financial_years:
+//         data.financial_years,
+
+//     // Already present in booking
+//     business_type:
+//         data.business_type
+// });
 
         const aml =
             await runSabGrowAml(ids.lan);
@@ -1282,12 +1310,12 @@ router.post("/loan-booking", verifyApiKey, async (req, res) => {
             aml
         );
 
-        const finalStatus =
-            await updateBreStatus(
-                insertId,
-                bre,
-                aml
-            );
+        // const finalStatus =
+        //     await updateBreStatus(
+        //         insertId,
+        //         bre,
+        //         aml
+        //     );
 
 
 
@@ -1301,11 +1329,11 @@ router.post("/loan-booking", verifyApiKey, async (req, res) => {
 
                 lan: ids.lan,
 
-                status: finalStatus,
+                status: "Login",
 
-                bureau,
+                // bureau,
 
-                bre,
+                // bre,
 
                 aml
 
@@ -1637,7 +1665,7 @@ router.put("/:lan/ops-checker-pay", authenticateUser, async (req, res) => {
 
     const activePayoutStatus = getPayoutStatus(activeTransfer);
 
-    if (ACTIVE_PAYOUT_STATUSES.has(activePayoutStatus)) {
+    if (ACTIVE_PAYOUT_STATUS.has(activePayoutStatus)) {
       return res.status(409).json({
         success: false,
         status: "FAILED",

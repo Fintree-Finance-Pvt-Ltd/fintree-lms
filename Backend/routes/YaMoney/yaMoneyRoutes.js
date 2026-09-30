@@ -1105,7 +1105,6 @@ function validateFinalLoanData(data, savedCase) {
   ) {
     return "pre_emi_interest must be zero or more";
   }
-
   return null;
 }
 
@@ -1147,7 +1146,7 @@ function calculateFinalAmounts(data) {
 
 async function getCaseByLan(lan) {
   const [[loan]] = await db.promise().query(
-    `SELECT id, lan, requested_amount, status
+    `SELECT id, lan, requested_amount, status, customer_name
      FROM ${TABLE_NAME}
      WHERE lan = ?
      LIMIT 1`,
@@ -1684,6 +1683,20 @@ router.patch("/:lan/final-details", async (req, res) => {
       });
     }
 
+    if (savedCase.customer_name && data.name_in_bank) {
+      const isNameMatched = bankNamesMatch(
+        savedCase.customer_name,
+        data.name_in_bank
+      );
+
+      if (!isNameMatched) {
+        return res.status(400).json({
+          success: false,
+          message: "Bank account name does not match the customer name",
+        });
+      }
+    }
+
     const calculation = calculateFinalAmounts(data);
 
     if (calculation.net_disbursement <= 0) {
@@ -1734,5 +1747,127 @@ router.patch("/:lan/final-details", async (req, res) => {
     return sendServerError(res, error);
   }
 });
+function normalizeName(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+function getBankNameParts(value) {
+  const ignoredWords = new Set([
+    "mr",
+    "mrs",
+    "ms",
+    "miss",
+    "master",
+    "shri",
+    "smt",
+    "dr",
+  ]);
+
+  let name = String(value || "")
+    .trim()
+    .toLowerCase();
+
+  name = name.replace(
+    /\b(?:s\/o|d\/o|w\/o|c\/o|son\s+of|daughter\s+of|wife\s+of|care\s+of)\b.*$/i,
+    "",
+  );
+
+  return name
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((part) => !ignoredWords.has(part));
+}
+
+function bankNameTokenMatches(a, b) {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length === 1 && b.startsWith(a)) return true;
+  if (b.length === 1 && a.startsWith(b)) return true;
+  return false;
+}
+
+function bankNameSequenceMatches(
+  customerParts,
+  bankParts,
+  customerIndex = 0,
+  bankIndex = 0,
+) {
+  if (customerIndex === customerParts.length && bankIndex === bankParts.length) return true;
+  if (customerIndex >= customerParts.length || bankIndex >= bankParts.length) return false;
+
+  const maxCustomerJoin = Math.min(3, customerParts.length - customerIndex);
+  const maxBankJoin = Math.min(3, bankParts.length - bankIndex);
+
+  for (let customerCount = 1; customerCount <= maxCustomerJoin; customerCount++) {
+    const customerJoined = customerParts.slice(customerIndex, customerIndex + customerCount).join("");
+    for (let bankCount = 1; bankCount <= maxBankJoin; bankCount++) {
+      const bankJoined = bankParts.slice(bankIndex, bankIndex + bankCount).join("");
+      let currentMatch = false;
+
+      if (customerCount === 1 && bankCount === 1) {
+        currentMatch = bankNameTokenMatches(customerJoined, bankJoined);
+      } else {
+        currentMatch = customerJoined === bankJoined;
+      }
+
+      if (!currentMatch) continue;
+
+      if (bankNameSequenceMatches(customerParts, bankParts, customerIndex + customerCount, bankIndex + bankCount)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function compoundBankNameInitialMatch(customerParts, bankParts) {
+  if (customerParts.length !== 1 || bankParts.length !== 2) return false;
+  const compoundCustomerName = customerParts[0];
+  const possibleOrders = [bankParts, [...bankParts].reverse()];
+
+  for (const parts of possibleOrders) {
+    const first = parts[0];
+    const second = parts[1];
+    if (first.length >= 4 && second.length === 1 && compoundCustomerName.startsWith(`${first}${second}`)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function extraBankSurnameMatch(customerParts, bankParts) {
+  if (customerParts.length < 2 || bankParts.length < 2) return false;
+  if (bankParts.length > customerParts.length + 1) return false;
+  const bankWithoutLast = bankParts.slice(0, -1);
+  return bankNameSequenceMatches(customerParts, bankWithoutLast);
+}
+
+function omittedBankMiddleNameMatch(customerParts, bankParts) {
+  if (customerParts.length < 2 || bankParts.length < 2) return false;
+  if (customerParts.length !== 2 && bankParts.length !== 2) return false;
+  const customerFirst = customerParts[0];
+  const customerLast = customerParts[customerParts.length - 1];
+  const bankFirst = bankParts[0];
+  const bankLast = bankParts[bankParts.length - 1];
+  return bankNameTokenMatches(customerFirst, bankFirst) && bankNameTokenMatches(customerLast, bankLast);
+}
+
+function bankNamesMatch(customerName, accountName) {
+  const customerParts = getBankNameParts(customerName);
+  const bankParts = getBankNameParts(accountName);
+
+  if (!customerParts.length || !bankParts.length) return false;
+
+  if (bankNameSequenceMatches(customerParts, bankParts)) return true;
+  if (bankNameSequenceMatches(customerParts, [...bankParts].reverse())) return true;
+  if (omittedBankMiddleNameMatch(customerParts, bankParts)) return true;
+  if (extraBankSurnameMatch(customerParts, bankParts)) return true;
+  if (compoundBankNameInitialMatch(customerParts, bankParts)) return true;
+
+  return false;
+}
 
 module.exports = router;
