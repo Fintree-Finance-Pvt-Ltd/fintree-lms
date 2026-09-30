@@ -984,8 +984,8 @@ const evaluateSampadaPolicy = ({ loan, bureauFacts, amlStatus }) => {
 
   } else {
 
-    if (age < 18) {
-      reasons.push("AGE_BELOW_18");
+    if (age < 21) {
+      reasons.push("AGE_BELOW_21");
     }
 
 
