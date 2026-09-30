@@ -37,11 +37,11 @@ const allocateFinso = require("./allocateFinso");
 const allocateHEYEV = require("./allocateHeyEV");
 const allocateCirclePE = require("./allocateCirclePE");
 const allocateCirclePeHouser = require("./allocateCirclePeHouser");
-const allocateEmiClub = require ("./allocateEmiClub");
-const allocateHelium = require ("./allocateHelium");
+const allocateEmiClub = require("./allocateEmiClub");
+const allocateHelium = require("./allocateHelium");
 const allocateClayoo = require("./allocateClayoo");
 const allocateGQFSFFintree = require("./allocateGQFSFFintree");
-const allocateLoanDigit = require( "./allocateLoanDigit" );
+const allocateLoanDigit = require("./allocateLoanDigit");
 const allocateRapidMoney = require("./allocateRapidMoney");
 const allocateMotionCorp = require("./allocateMotionCorp");
 const allocateSampada = require("./allocateSampada");
@@ -52,12 +52,12 @@ const allocateSaswat = require("./allocateSaswat");
 const allocateSevenFincorp = require("./allocateSevenFincorp");
 const allocatePlPartner = require("./allocatePlPartner");
 const allocateCarePay = require("./allocateCarePay");
-const allocateQuickMoney =require("./allocateQuickMoney");
+const allocateQuickMoney = require("./allocateQuickMoney");
 const allocateSRBH = require("./allocateSRBH");
 const allocateZebrs = require("./allocateZebrs");
 const allocateClaimCureBuddy = require("./allocateClaimCureBuddy");
-const allocateEmiClub2 =require("./allocateEmiClub2");
-const { getEmiClub2AwarePrefix } = require("../lanHelper");
+const allocateEmiClub2 = require("./allocateEmiClub2");
+const getEmiClub2AwarePrefix = require("../../routes/EmiClub2/Emiclub2Routes");
 /**
  * Utility helpers for merging allocation results.
  */
@@ -97,73 +97,73 @@ const allocateRepaymentByLAN = async (lan, payment) => {
   if (lan.startsWith("WCTLFFPL")) {
     return allocateWctlffpl(lan, payment);
   }
- else if (lan.startsWith("SFL")) {
-return allocateSevenFincorp(lan, payment);
+  else if (lan.startsWith("SFL")) {
+    return allocateSevenFincorp(lan, payment);
   }
   // Other allocators...
 
   else if (lan.startsWith("EV") || lan.startsWith("WCTL")) {
     return allocateEV(lan, payment);
-  
-  }else if (lan.startsWith("HEYEV") || lan.startsWith("HEYBF") ) {
+
+  } else if (lan.startsWith("HEYEV") || lan.startsWith("HEYBF")) {
     return allocateHEYEV(lan, payment);
   }
-  else if (lan.startsWith("RML")){
+  else if (lan.startsWith("RML")) {
     return allocateRapidMoney(lan, payment);
   }
-   else if (lan.startsWith("QML")){
+  else if (lan.startsWith("QML")) {
     return allocateQuickMoney(lan, payment);
   }
   else if (lan.startsWith("FTPL")) {
     return allocatePlPartner(lan, payment);
   }
   else if (lan.startsWith("MCL")) {
-  return allocateMotionCorp(lan, payment);
-}
+    return allocateMotionCorp(lan, payment);
+  }
   else if (lan.startsWith("SPL")) {
     return allocateSampada(lan, payment);
   }
   else if (lan.startsWith("FINS")) {
     return allocateFinso(lan, payment);
   }
-    else if (lan.startsWith("HEL")) {
+  else if (lan.startsWith("HEL")) {
     return allocateHelium(lan, payment);
 
   } else if (lan.startsWith("BL")) {
     return allocateBL(lan, payment);
-    } else if (getEmiClub2AwarePrefix(lan) === "FINE2") {
+  } else if (getEmiClub2AwarePrefix(lan) === "FINE2") {
     return allocateEmiClub2(lan, payment);
   } else if (lan.startsWith("FINE")) {
     return allocateEmiClub(lan, payment);
   }
-     else if (lan.startsWith("CIRF")) {
+  else if (lan.startsWith("CIRF")) {
     return allocateCirclePE(lan, payment);
   }
-   else if (lan.startsWith("CIRHUF")) {
+  else if (lan.startsWith("CIRHUF")) {
     return allocateCirclePeHouser(lan, payment);
   }
   else if (lan.startsWith("CLY")) {
-return allocateClayoo(lan, payment);
-}
-else if (lan.startsWith("WCTLFFPL")) {
-return allocateWctlffpl(lan, payment);
+    return allocateClayoo(lan, payment);
+  }
+  else if (lan.startsWith("WCTLFFPL")) {
+    return allocateWctlffpl(lan, payment);
   }
   else if (lan.startsWith("UBLF")) {
-  return allocateSterlionUBL(lan, payment);
-}
+    return allocateSterlionUBL(lan, payment);
+  }
   else if (lan.startsWith("STRL")) {
-return allocateSterlion(lan, payment);
+    return allocateSterlion(lan, payment);
   }
   else if (lan.startsWith("LDF")) {
-return allocateLoanDigit(lan, payment);
+    return allocateLoanDigit(lan, payment);
 
   } else if (lan.startsWith("SW")) {
-return allocateSaswat(lan, payment);
+    return allocateSaswat(lan, payment);
   }
   else if (lan.startsWith("SHL")) {
-    return allocateSRBH(lan,payment);
-  }else if (lan.startsWith("ZBCL")) {
-    return allocateZebrs(lan,payment);
+    return allocateSRBH(lan, payment);
+  } else if (lan.startsWith("ZBCL")) {
+    return allocateZebrs(lan, payment);
   }
   else if (lan.startsWith("CCB")) {
     return allocateClaimCureBuddy(lan, payment);
@@ -173,11 +173,11 @@ return allocateSaswat(lan, payment);
       allocateGQNonFSF(lan, payment),
       allocateGQNonFSFFintree(lan, payment)
     ];
-    }  else if (lan.startsWith("GQF")) {
+  } else if (lan.startsWith("GQF")) {
     const promises = [
       allocateGQFSF(lan, payment),
       allocateGQFSFFintree(lan, payment),
-    
+
     ];
 
     const settled = await Promise.allSettled(promises);
@@ -208,7 +208,7 @@ return allocateSaswat(lan, payment);
   } else if (lan.startsWith("E1")) {
     return allocateEmbifi(lan, payment);
   } else if (lan.startsWith("CARE")) {
-    return allocateCarePay(lan,payment);
+    return allocateCarePay(lan, payment);
   } else {
     throw new Error(`Unknown LAN prefix for allocation: ${lan}`);
   }
