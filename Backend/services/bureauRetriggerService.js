@@ -535,6 +535,12 @@ async function retriggerBureau(lan, opts = {}) {
 
   const profile = parsedInner?.INProfileResponse;
 
+  console.log("EXPERIAN USER MESSAGE DEBUG", {
+    userMessage: profile?.UserMessage,
+    score: profile?.SCORE,
+    bureauScore: profile?.SCORE?.BureauScore
+});
+
   const userMessageText = String(
     profile?.UserMessage?.UserMessageText ?? "",
   ).trim();
