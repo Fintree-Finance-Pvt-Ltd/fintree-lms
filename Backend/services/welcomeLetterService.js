@@ -2,10 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const nodemailer = require("nodemailer");
 const db = require("../config/db");
-const puppeteer = require("puppeteer");/* =========================================================
+const puppeteer = require("puppeteer"); /* =========================================================
    LAN PREFIX ROUTING
 ========================================================= */
-
 
 const PARTNER_ROUTES = [
   /*
@@ -26,11 +25,11 @@ const PARTNER_ROUTES = [
     tenureUnit: "months",
   },
   {
-  prefix: "UBLF",
-  table: "loan_booking_sterlion_ubl",
-  rpsTable: "manual_rps_sterlion_ubl",
-  tenureUnit: "months",
-},
+    prefix: "UBLF",
+    table: "loan_booking_sterlion_ubl",
+    rpsTable: "manual_rps_sterlion_ubl",
+    tenureUnit: "months",
+  },
 
   {
     prefix: "HEYEV",
@@ -71,6 +70,13 @@ const PARTNER_ROUTES = [
     prefix: "CLYO",
     table: "loan_booking_clayyo",
     rpsTable: "manual_rps_clayoo",
+    tenureUnit: "months",
+  },
+
+  {
+    prefix: "CBF",
+    table: "loan_booking_claim_buddy",
+    rpsTable: "manual_rps_claim_buddy",
     tenureUnit: "months",
   },
 
@@ -279,8 +285,6 @@ const PARTNER_ROUTES = [
   },
 ];
 
-
-
 /* =========================================================
    TEMPLATE FIELD COLUMN CANDIDATES
 ========================================================= */
@@ -303,14 +307,14 @@ const TEMPLATE_FIELD_COLUMNS = {
     "id",
   ],
 
- borrower_name: [
-  "customer_name",
-  "borrower_name",
-  "applicant_name",
-  "full_name",
-  "first_name",
-  "name_in_bank",
-],
+  borrower_name: [
+    "customer_name",
+    "borrower_name",
+    "applicant_name",
+    "full_name",
+    "first_name",
+    "name_in_bank",
+  ],
 
   borrower_address: [
     "current_address",
@@ -414,7 +418,7 @@ const TEMPLATE_FIELD_COLUMNS = {
     "l_t",
   ],
 
-   loan_tenure_unit: [
+  loan_tenure_unit: [
     "loan_tenure_unit",
     "tenure_unit",
     "tenure_type",
@@ -468,11 +472,7 @@ function sanitizeFileName(value) {
     .replace(/_+/g, "_");
 }
 
-async function saveWelcomeLetterPdfToUploads({
-  lan,
-  utrNumber,
-  pdfBuffer,
-}) {
+async function saveWelcomeLetterPdfToUploads({ lan, utrNumber, pdfBuffer }) {
   if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
     throw createServiceError(
       "Welcome letter PDF buffer is empty.",
@@ -491,8 +491,7 @@ async function saveWelcomeLetterPdfToUploads({
   const safeUtr = sanitizeFileName(utrNumber);
   const timestamp = Date.now();
 
-  const fileName =
-    `Fintree_Welcome_Letter_${safeLan}_${safeUtr}_${timestamp}.pdf`;
+  const fileName = `Fintree_Welcome_Letter_${safeLan}_${safeUtr}_${timestamp}.pdf`;
 
   const absolutePath = path.join(uploadsDirectory, fileName);
 
@@ -902,25 +901,11 @@ function formatRate(value) {
 function normalizeTenureUnit(value) {
   const unit = safeString(value, "months").toLowerCase();
 
-  if (
-    [
-      "day",
-      "days",
-      "daily",
-      "d",
-    ].includes(unit)
-  ) {
+  if (["day", "days", "daily", "d"].includes(unit)) {
     return "days";
   }
 
-  if (
-    [
-      "month",
-      "months",
-      "monthly",
-      "m",
-    ].includes(unit)
-  ) {
+  if (["month", "months", "monthly", "m"].includes(unit)) {
     return "months";
   }
 
@@ -951,14 +936,10 @@ function formatTenure(value, unit = "months") {
   const normalizedUnit = normalizeTenureUnit(unit);
 
   if (normalizedUnit === "days") {
-    return `${numericTenure} ${
-      numericTenure === 1 ? "Day" : "Days"
-    }`;
+    return `${numericTenure} ${numericTenure === 1 ? "Day" : "Days"}`;
   }
 
-  return `${numericTenure} ${
-    numericTenure === 1 ? "Month" : "Months"
-  }`;
+  return `${numericTenure} ${numericTenure === 1 ? "Month" : "Months"}`;
 }
 
 function getOrdinalDay(day) {
@@ -1104,13 +1085,9 @@ function prepareTemplateData(loanRecord, route) {
       ? formatRate(loanRecord.rate_of_interest)
       : "",
 
-    LOAN_TENURE:
-      hasValue(loanRecord.loan_tenure)
-        ? formatTenure(
-            loanRecord.loan_tenure,
-            tenureUnit,
-          )
-        : "",
+    LOAN_TENURE: hasValue(loanRecord.loan_tenure)
+      ? formatTenure(loanRecord.loan_tenure, tenureUnit)
+      : "",
 
     EMI_AMOUNT: hasValue(loanRecord.emi_amount)
       ? formatCurrency(loanRecord.emi_amount, "EMI amount")
@@ -1372,11 +1349,7 @@ async function generateWelcomeLetterPdf({
   });
 
   try {
-    const pdfHtml = await embedLogoForPdf(
-      completedHtml,
-      logoPath,
-      logoExists,
-    );
+    const pdfHtml = await embedLogoForPdf(completedHtml, logoPath, logoExists);
 
     browser = await puppeteer.launch({
       headless: true,
@@ -1435,8 +1408,7 @@ async function generateWelcomeLetterPdf({
     });
 
     if (
-      String(process.env.DEBUG_WELCOME_PDF || "false").toLowerCase() ===
-      "true"
+      String(process.env.DEBUG_WELCOME_PDF || "false").toLowerCase() === "true"
     ) {
       const debugDirectory = path.join(
         __dirname,
@@ -1452,11 +1424,7 @@ async function generateWelcomeLetterPdf({
         `${lan}_welcome_letter.html`,
       );
 
-      await fs.promises.writeFile(
-        debugHtmlPath,
-        pdfHtml,
-        "utf8",
-      );
+      await fs.promises.writeFile(debugHtmlPath, pdfHtml, "utf8");
 
       console.log("[WELCOME_LETTER_DEBUG_HTML_SAVED]", {
         lan,
@@ -1466,10 +1434,7 @@ async function generateWelcomeLetterPdf({
 
     const finalPdfBuffer = Buffer.from(pdfBuffer);
 
-    if (
-      !Buffer.isBuffer(finalPdfBuffer) ||
-      finalPdfBuffer.length === 0
-    ) {
+    if (!Buffer.isBuffer(finalPdfBuffer) || finalPdfBuffer.length === 0) {
       throw createServiceError(
         `PDF generation returned an empty buffer for LAN ${lan}.`,
         "EMPTY_PDF_BUFFER",
@@ -1606,7 +1571,7 @@ async function getLoanAgreementDocument(lan) {
   });
 
   const rows = await executeQuery(
-  `
+    `
     SELECT
       id,
       lan,
@@ -1631,8 +1596,8 @@ async function getLoanAgreementDocument(lan) {
     ORDER BY uploaded_at DESC, id DESC
     LIMIT 1
   `,
-  [lan],
-);
+    [lan],
+  );
 
   if (!rows.length) {
     throw createServiceError(
@@ -1876,22 +1841,20 @@ async function sendWelcomeLetterAfterUtrUpload({ lan, utrNumber }) {
       lan: route.lan,
     });
 
-const pdfBuffer = await generateWelcomeLetterPdf({
-  completedHtml,
-  logoPath,
-  logoExists,
-  lan: route.lan,
-});
+    const pdfBuffer = await generateWelcomeLetterPdf({
+      completedHtml,
+      logoPath,
+      logoExists,
+      lan: route.lan,
+    });
 
-const savedWelcomeLetter = await saveWelcomeLetterPdfToUploads({
-  lan: route.lan,
-  utrNumber: normalizedUtrNumber,
-  pdfBuffer,
-});
+    const savedWelcomeLetter = await saveWelcomeLetterPdfToUploads({
+      lan: route.lan,
+      utrNumber: normalizedUtrNumber,
+      pdfBuffer,
+    });
 
-const loanAgreement = await getLoanAgreementDocument(route.lan);
-
-  
+    const loanAgreement = await getLoanAgreementDocument(route.lan);
 
     console.log("[WELCOME_LETTER_ATTACHMENTS_READY]", {
       lan: route.lan,
@@ -1935,9 +1898,7 @@ const loanAgreement = await getLoanAgreementDocument(route.lan);
     "
   >
     <p>
-      Dear ${escapeHtml(
-        templateData.BORROWER_NAME,
-      )},
+      Dear ${escapeHtml(templateData.BORROWER_NAME)},
     </p>
 
     <p>
@@ -1947,9 +1908,7 @@ const loanAgreement = await getLoanAgreementDocument(route.lan);
     <p>
       Please find the following documents attached
       for Loan Account Number
-      <strong>${escapeHtml(
-        route.lan,
-      )}</strong>:
+      <strong>${escapeHtml(route.lan)}</strong>:
     </p>
 
     <ol>
@@ -1973,15 +1932,15 @@ const loanAgreement = await getLoanAgreementDocument(route.lan);
         /*
          * Generated welcome letter.
          */
-{
-  filename: pdfFileName,
+        {
+          filename: pdfFileName,
 
-  content: pdfBuffer,
+          content: pdfBuffer,
 
-  contentType: "application/pdf",
+          contentType: "application/pdf",
 
-  contentDisposition: "attachment",
-},
+          contentDisposition: "attachment",
+        },
 
         /*
          * Existing loan agreement fetched from
@@ -2005,55 +1964,54 @@ const loanAgreement = await getLoanAgreementDocument(route.lan);
       },
     });
 
-const response = {
-  success: true,
+    const response = {
+      success: true,
 
-  message:
-    "Welcome letter and loan agreement sent successfully.",
+      message: "Welcome letter and loan agreement sent successfully.",
 
-  timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString(),
 
-  lan: route.lan,
+      lan: route.lan,
 
-  utrNumber: normalizedUtrNumber,
+      utrNumber: normalizedUtrNumber,
 
-  recipient: safeString(loanRecord.email_id),
+      recipient: safeString(loanRecord.email_id),
 
-  partnerPrefix: route.prefix,
+      partnerPrefix: route.prefix,
 
-  partnerTable: route.table,
+      partnerTable: route.table,
 
-  emailMessageId: mailResult.messageId,
+      emailMessageId: mailResult.messageId,
 
-  attachments: {
-    welcomeLetter: {
-      fileName: pdfFileName,
-      filePath: savedWelcomeLetter.relativePath,
-      absolutePath: savedWelcomeLetter.absolutePath,
-      sizeBytes: savedWelcomeLetter.sizeBytes,
-    },
+      attachments: {
+        welcomeLetter: {
+          fileName: pdfFileName,
+          filePath: savedWelcomeLetter.relativePath,
+          absolutePath: savedWelcomeLetter.absolutePath,
+          sizeBytes: savedWelcomeLetter.sizeBytes,
+        },
 
-    loanAgreement: {
-      documentId: loanAgreement.documentId,
-      fileName: loanAgreement.attachmentFileName,
-      sizeBytes: loanAgreement.fileSizeBytes,
-      passwordProtected: hasValue(loanAgreement.docPassword),
-    },
-  },
+        loanAgreement: {
+          documentId: loanAgreement.documentId,
+          fileName: loanAgreement.attachmentFileName,
+          sizeBytes: loanAgreement.fileSizeBytes,
+          passwordProtected: hasValue(loanAgreement.docPassword),
+        },
+      },
 
-  accepted: mailResult.accepted || [],
+      accepted: mailResult.accepted || [],
 
-  rejected: mailResult.rejected || [],
+      rejected: mailResult.rejected || [],
 
-  executionTimeMs: Date.now() - startedAt,
-};
+      executionTimeMs: Date.now() - startedAt,
+    };
 
-console.log("[WELCOME_LETTER_SUCCESS]", {
-  ...response,
-  recipient: maskEmail(response.recipient),
-});
+    console.log("[WELCOME_LETTER_SUCCESS]", {
+      ...response,
+      recipient: maskEmail(response.recipient),
+    });
 
-return response;
+    return response;
   } catch (error) {
     console.error("[WELCOME_LETTER_FAILED]", {
       timestamp: new Date().toISOString(),

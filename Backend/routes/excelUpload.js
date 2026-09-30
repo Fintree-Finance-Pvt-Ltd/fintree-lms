@@ -99,8 +99,7 @@ const generateLoanIdentifiers = async (lender) => {
   } else if (lender === "Saswat") {
     prefixPartnerLoan = "SW";
     prefixLan = "SW";
-  }
-  else {
+  } else {
     return res.status(400).json({ message: "Invalid lender type." }); // ✅ handled in route
   }
 
@@ -2026,6 +2025,7 @@ router.get("/login-loans", (req, res) => {
     loan_booking_motion_corp: true,
     loan_booking_sampada: true,
     loan_booking_clayyo: true,
+    loan_booking_claim_buddy: true,
     loan_booking_switch_my_loan: true,
     loan_booking_quick_money: true,
     loan_booking_circle_pe: true,
@@ -2057,6 +2057,20 @@ router.get("/login-loans", (req, res) => {
       WHERE lb.status = 'Login'
         AND lb.LAN LIKE ?
     `;
+  } else if (table === "loan_booking_claim_buddy") {
+    query = `
+    SELECT
+      lb.*,
+      COALESCE(
+        ch.hospital_legal_name,
+        lb.hospital_name
+      ) AS hospital_name
+    FROM ?? lb
+    LEFT JOIN claim_buddy_hospital_booking ch
+      ON ch.id = lb.hospital_id
+    WHERE lb.status = 'Login'
+      AND lb.LAN LIKE ?
+  `;
   } else if (table === "loan_booking_finso") {
     query = `
       SELECT *
@@ -2313,7 +2327,8 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_sterlion_ubl: true,
     loan_booking_claim_cure_buddy: true,
     loan_booking_sampada: true,
-    loan_booking_ya_money:true,
+    loan_booking_ya_money: true,
+    loan_booking_claim_buddy: true,
   };
 
   if (!allowedTables[table]) {
@@ -2341,8 +2356,7 @@ router.get("/all-loans", async (req, res) => {
     const likeVal = `${prefix}%`;
 
     const isGqTable =
-      table === "loan_booking_gq_non_fsf" ||
-      table === "loan_booking_gq_fsf";
+      table === "loan_booking_gq_non_fsf" || table === "loan_booking_gq_fsf";
 
     let searchClause = "";
     let searchParams = [];
@@ -2358,12 +2372,7 @@ router.get("/all-loans", async (req, res) => {
       OR lb.status LIKE ?
     )`;
 
-        searchParams = [
-          searchValue,
-          searchValue,
-          searchValue,
-          searchValue,
-        ];
+        searchParams = [searchValue, searchValue, searchValue, searchValue];
       } else if (isGqTable) {
         searchClause = ` AND (
       lb.LAN LIKE ?
@@ -2388,12 +2397,7 @@ router.get("/all-loans", async (req, res) => {
       OR lb.status LIKE ?
     )`;
 
-        searchParams = [
-          searchValue,
-          searchValue,
-          searchValue,
-          searchValue,
-        ];
+        searchParams = [searchValue, searchValue, searchValue, searchValue];
       }
     }
     const countSql = `
@@ -2982,10 +2986,173 @@ router.put("/login-loans/:lan", (req, res) => {
 //   });
 // });
 
+// router.put("/approve-initiated-loans/:lan", (req, res) => {
+//   const lan = req.params.lan;
+
+//   const { status, stage = null, table, loan_amount = null } = req.body;
+
+//   const allowedTables = {
+//     loan_bookings: true,
+//     loan_booking_adikosh: true,
+//     loan_booking_gq_non_fsf: true,
+//     loan_booking_gq_fsf: true,
+//     loan_booking_emiclub: true,
+//     loan_booking_carepay: true,
+//     loan_booking_sterlion: true,
+//     loan_bookings_wctl: true,
+//     loan_booking_wctl_ffpl: true,
+//     loan_booking_ev: true,
+//     loan_booking_hey_ev: true,
+//     loan_booking_motion_corp: true,
+//     loan_booking_sampada: true,
+//     loan_booking_finso: true,
+//     loan_booking_circle_pe: true,
+//     loan_booking_circle_pe_houser: true,
+//     loan_booking_hey_ev_battery: true,
+//     loan_booking_zypay_customer: true,
+//     loan_booking_switch_my_loan: true,
+//     loan_booking_quick_money: true,
+//     loan_booking_loan_digit: true,
+//     loan_booking_seven_fincorp: true,
+//     loan_booking_bundela: true,
+//     loan_booking_srbh: true,
+//     loan_booking_saswat: true,
+//     loan_booking_ya_money: true,
+//     loan_booking_claim_buddy: true,// claim buddy
+//   };
+
+//   if (!allowedTables[table]) {
+//     return res.status(400).json({
+//       message: "Invalid table name",
+//     });
+//   }
+
+//   if (!status || typeof status !== "string") {
+//     return res.status(400).json({
+//       message: "Status is required",
+//     });
+//   }
+
+//   const fields = ["status = ?"];
+//   const params = [status];
+
+//   if (stage) {
+//     fields.push("stage = ?");
+//     params.push(stage);
+//   }
+
+//   const loanBookingTables = [
+//     "loan_booking_motion_corp",
+//     "loan_booking_sampada",
+//     "loan_booking_seven_fincorp",
+//     "loan_booking_bundela",
+//     "loan_booking_srbh",
+//     "loan_booking_saswat",
+//   ];
+
+//   if (loanBookingTables.includes(table) && loan_amount !== null) {
+//     const approvedLoanAmount = Number(loan_amount);
+//     // rest of your logic
+
+//     if (Number.isNaN(approvedLoanAmount) || approvedLoanAmount <= 0) {
+//       return res.status(400).json({
+//         message: "Valid approved loan amount is required",
+//       });
+//     }
+
+//     fields.push("loan_amount = ?");
+//     params.push(approvedLoanAmount);
+//   }
+
+//   const updateQuery = `
+//     UPDATE ??
+//     SET ${fields.join(", ")}
+//     WHERE lan = ?
+//   `;
+
+//   const queryParams = [table, ...params, lan];
+
+//   db.query(updateQuery, queryParams, async (err, result) => {
+//     if (err) {
+//       console.error("Error updating loan status:", err);
+
+//       return res.status(500).json({
+//         message: "Database error",
+//         error: err.sqlMessage || err.message,
+//       });
+//     }
+
+//     if (result.affectedRows === 0) {
+//       return res.status(404).json({
+//         message: "Loan not found with LAN " + lan,
+//       });
+//     }
+
+//     const loanBookingTables = [
+//       "loan_booking_motion_corp",
+//       "loan_booking_sampada",
+//       "loan_booking_seven_fincorp",
+//       "loan_booking_bundela",
+//       "loan_booking_srbh",
+//       "loan_booking_saswat",
+//     ];
+
+//     // EmiClub only: the existing Approve button now also triggers the
+//     // already-built payout flow (processEmiClubDisbursement etc.) instead of
+//     // just flipping status. Scoped strictly to this table + the "approved"
+//     // action so every other product using this shared endpoint is unaffected.
+//     let payoutResult = null;
+//     let payoutError = null;
+
+//     if (
+//       table === "loan_booking_emiclub" &&
+//       String(status).toLowerCase() === "approved"
+//     ) {
+//       try {
+//         payoutResult = await approveAndInitiatePayout({
+//           lan,
+//           table: "loan_booking_emiclub",
+//         });
+
+//         if (!payoutResult.success) {
+//           payoutError = payoutResult.message || "Payout initiation failed";
+//         }
+//       } catch (payoutErr) {
+//         console.error("EmiClub approve-and-pay: payout failed", {
+//           lan,
+//           error: payoutErr.message,
+//         });
+//         payoutError = payoutErr.message || "Payout failed";
+//       }
+//     }
+
+//     return res.json({
+//       success: true,
+//       lan,
+//       table,
+//       status,
+//       stage,
+//       loan_amount: loanBookingTables.includes(table) ? loan_amount : undefined,
+//       ...(payoutResult ? { payout: payoutResult } : {}),
+//       ...(payoutError ? { payoutError } : {}),
+//       message: payoutError
+//         ? `Loan approved, but payout failed: ${payoutError}`
+//         : payoutResult
+//           ? "Loan approved and payout initiated successfully"
+//           : "Loan updated successfully",
+//     });
+//   });
+// });
+
 router.put("/approve-initiated-loans/:lan", (req, res) => {
   const lan = req.params.lan;
 
-  const { status, stage = null, table, loan_amount = null } = req.body;
+  const {
+    status,
+    stage = null,
+    table,
+    loan_amount = null,
+  } = req.body;
 
   const allowedTables = {
     loan_bookings: true,
@@ -3014,6 +3181,9 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     loan_booking_srbh: true,
     loan_booking_saswat: true,
     loan_booking_ya_money: true,
+
+    // ✅ CLAIM BUDDY
+    loan_booking_claim_buddy: true,
   };
 
   if (!allowedTables[table]) {
@@ -3031,9 +3201,25 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
   const fields = ["status = ?"];
   const params = [status];
 
-  if (stage) {
+  let finalStage = stage;
+
+  // ==========================================
+  // CLAIM BUDDY STATUS → STAGE
+  // ==========================================
+
+  if (table === "loan_booking_claim_buddy") {
+    if (status === "CREDIT APPROVED") {
+      finalStage = "LIMIT_APPROVAL_PENDING";
+    } else if (status === "REJECTED") {
+      finalStage = "CREDIT_REJECTED";
+    } else if (status === "Credit Recheck") {
+      finalStage = "CREDIT_REWORK";
+    }
+  }
+
+  if (finalStage) {
     fields.push("stage = ?");
-    params.push(stage);
+    params.push(finalStage);
   }
 
   const loanBookingTables = [
@@ -3042,14 +3228,16 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     "loan_booking_seven_fincorp",
     "loan_booking_bundela",
     "loan_booking_srbh",
-    "loan_booking_saswat"
+    "loan_booking_saswat",
   ];
 
   if (loanBookingTables.includes(table) && loan_amount !== null) {
     const approvedLoanAmount = Number(loan_amount);
-    // rest of your logic
 
-    if (Number.isNaN(approvedLoanAmount) || approvedLoanAmount <= 0) {
+    if (
+      Number.isNaN(approvedLoanAmount) ||
+      approvedLoanAmount <= 0
+    ) {
       return res.status(400).json({
         message: "Valid approved loan amount is required",
       });
@@ -3065,72 +3253,96 @@ router.put("/approve-initiated-loans/:lan", (req, res) => {
     WHERE lan = ?
   `;
 
-  const queryParams = [table, ...params, lan];
+  const queryParams = [
+    table,
+    ...params,
+    lan,
+  ];
 
-  db.query(updateQuery, queryParams, async (err, result) => {
-    if (err) {
-      console.error("Error updating loan status:", err);
+  db.query(
+    updateQuery,
+    queryParams,
+    async (err, result) => {
+      if (err) {
+        console.error(
+          "Error updating loan status:",
+          err,
+        );
 
-      return res.status(500).json({
-        message: "Database error",
-        error: err.sqlMessage || err.message,
-      });
-    }
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        message: "Loan not found with LAN " + lan,
-      });
-    }
-
-    const loanBookingTables = [
-      "loan_booking_motion_corp",
-      "loan_booking_sampada",
-      "loan_booking_seven_fincorp",
-      "loan_booking_bundela",
-      "loan_booking_srbh",
-      "loan_booking_saswat",
-    ];
-
-    // EmiClub only: the existing Approve button now also triggers the
-    // already-built payout flow (processEmiClubDisbursement etc.) instead of
-    // just flipping status. Scoped strictly to this table + the "approved"
-    // action so every other product using this shared endpoint is unaffected.
-    let payoutResult = null;
-    let payoutError = null;
-
-    if (table === "loan_booking_emiclub" && String(status).toLowerCase() === "approved") {
-      try {
-        payoutResult = await approveAndInitiatePayout({ lan, table: "loan_booking_emiclub" });
-
-        if (!payoutResult.success) {
-          payoutError = payoutResult.message || "Payout initiation failed";
-        }
-      } catch (payoutErr) {
-        console.error("EmiClub approve-and-pay: payout failed", {
-          lan,
-          error: payoutErr.message,
+        return res.status(500).json({
+          message: "Database error",
+          error: err.sqlMessage || err.message,
         });
-        payoutError = payoutErr.message || "Payout failed";
       }
-    }
 
-    return res.json({
-      success: true,
-      lan,
-      table,
-      status,
-      stage,
-      loan_amount: loanBookingTables.includes(table) ? loan_amount : undefined,
-      ...(payoutResult ? { payout: payoutResult } : {}),
-      ...(payoutError ? { payoutError } : {}),
-      message: payoutError
-        ? `Loan approved, but payout failed: ${payoutError}`
-        : payoutResult
-          ? "Loan approved and payout initiated successfully"
-          : "Loan updated successfully",
-    });
-  });
+      if (result.affectedRows === 0) {
+        return res.status(404).json({
+          message: "Loan not found with LAN " + lan,
+        });
+      }
+
+      let payoutResult = null;
+      let payoutError = null;
+
+      // Existing EmiClub logic
+      if (
+        table === "loan_booking_emiclub" &&
+        String(status).toLowerCase() === "approved"
+      ) {
+        try {
+          payoutResult =
+            await approveAndInitiatePayout({
+              lan,
+              table: "loan_booking_emiclub",
+            });
+
+          if (!payoutResult.success) {
+            payoutError =
+              payoutResult.message ||
+              "Payout initiation failed";
+          }
+        } catch (payoutErr) {
+          console.error(
+            "EmiClub approve-and-pay: payout failed",
+            {
+              lan,
+              error: payoutErr.message,
+            },
+          );
+
+          payoutError =
+            payoutErr.message || "Payout failed";
+        }
+      }
+
+      return res.json({
+        success: true,
+        lan,
+        table,
+        status,
+        stage: finalStage,
+
+        loan_amount:
+          loanBookingTables.includes(table)
+            ? loan_amount
+            : undefined,
+
+        ...(payoutResult
+          ? { payout: payoutResult }
+          : {}),
+
+        ...(payoutError
+          ? { payoutError }
+          : {}),
+
+        message: payoutError
+          ? `Loan approved, but payout failed: ${payoutError}`
+          : payoutResult
+            ? "Loan approved and payout initiated successfully"
+            : "Loan updated successfully",
+      });
+    },
+  );
 });
 
 router.post("/hc-upload", upload.single("file"), async (req, res) => {
@@ -3240,7 +3452,7 @@ const parseDate = (v) => {
   try {
     const d = excelDateToJSDate(v);
     if (d) return d; // already YYYY-MM-DD string
-  } catch (_) { }
+  } catch (_) {}
 
   // 2) ISO or date-like strings
   if (typeof v === "string") {
@@ -4742,8 +4954,9 @@ router.post("/v1/adikosh-lb", verifyApiKey, async (req, res) => {
 
     const { partnerLoanId, lan } = await generateLoanIdentifiers(lenderType);
 
-    const customerName = `${data.firstName || ""} ${data.lastName || ""
-      }`.trim();
+    const customerName = `${data.firstName || ""} ${
+      data.lastName || ""
+    }`.trim();
     // const agreement_date = excelDateToJSDate(data.sanctionDate);
     // ��� Insert into DB
     await conn.query(
@@ -4991,8 +5204,8 @@ router.post("/v1/finslb/dggfkjgkjv", verifyApiKey, async (req, res) => {
           ifsc:
             (raw.ifsc ?? raw.bank_ifsc)
               ? String(raw.ifsc ?? raw.bank_ifsc)
-                .trim()
-                .toUpperCase()
+                  .trim()
+                  .toUpperCase()
               : null,
           processing_fee: raw.processing_fee ?? 0.0,
         };
@@ -5016,8 +5229,9 @@ router.post("/v1/finslb/dggfkjgkjv", verifyApiKey, async (req, res) => {
           });
           continue;
         }
-        const customerName = `${data.first_name || ""} ${data.last_name || ""
-          }`.trim();
+        const customerName = `${data.first_name || ""} ${
+          data.last_name || ""
+        }`.trim();
 
         // ✅ Duplicate check on PAN or Aadhar
         const [existing] = await db
@@ -5400,7 +5614,7 @@ router.post("/v1/finslb/dggfkjgkjv", verifyApiKey, async (req, res) => {
 
           const encodedInnerXml =
             soapParsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
-            "ns2:processResponse"
+              "ns2:processResponse"
             ]?.["ns2:out"];
 
           if (encodedInnerXml) {
@@ -5632,7 +5846,7 @@ router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
 
       const [loans] = await conn.query(
         `SELECT disbursal_amount, loan_amount FROM loan_booking_finso WHERE lan = ? LIMIT 1`,
-        [lan]
+        [lan],
       );
 
       if (loans.length === 0) {
@@ -5645,22 +5859,25 @@ router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
       }
 
       const loan = loans[0];
-      const disbursalAmount = Number(loan.disbursal_amount || loan.loan_amount || 0);
+      const disbursalAmount = Number(
+        loan.disbursal_amount || loan.loan_amount || 0,
+      );
       const partnerName = "Finso";
       const { month, year } = getMonthYear(new Date());
 
       const partner = await partnerLimitService.getOrCreatePartner(
         conn,
-        partnerName
+        partnerName,
       );
 
-      const limitValidation = await partnerLimitService.validatePartnerDisbursementLimit(
-        conn,
-        partner.partner_id,
-        disbursalAmount,
-        month,
-        year
-      );
+      const limitValidation =
+        await partnerLimitService.validatePartnerDisbursementLimit(
+          conn,
+          partner.partner_id,
+          disbursalAmount,
+          month,
+          year,
+        );
 
       if (!limitValidation.valid) {
         await conn.rollback();
@@ -5676,7 +5893,7 @@ router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
           `UPDATE loan_booking_finso 
            SET ops_checker_id = ?, ops_checker_name = ?
            WHERE lan = ?`,
-          [ops_checker_id, ops_checker_name, lan]
+          [ops_checker_id, ops_checker_name, lan],
         );
       }
 
@@ -5684,7 +5901,7 @@ router.put("/v1/finso-ops-checker-approved-loan/:lan", async (req, res) => {
         conn,
         limitValidation.limitId,
         disbursalAmount,
-        lan
+        lan,
       );
 
       await conn.commit();
@@ -6056,8 +6273,9 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
     const { lan } = await generateLoanIdentifiers(lenderType);
     console.log("✅ Generated LAN:", lan);
 
-    const customer_name = `${data.first_name || ""} ${data.last_name || ""
-      }`.trim();
+    const customer_name = `${data.first_name || ""} ${
+      data.last_name || ""
+    }`.trim();
     const agreement_date = data.login_date;
 
     // --- Determine interest rate ---
@@ -6345,7 +6563,7 @@ router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
       const soapParsed = parser.parse(response.data);
       const encodedInnerXml =
         soapParsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
-        "ns2:processResponse"
+          "ns2:processResponse"
         ]?.["ns2:out"];
 
       if (!encodedInnerXml)
@@ -6715,7 +6933,7 @@ router.post("/v1/emiclub-cibil-retry", async (req, res) => {
         const parsed = parser.parse(response.data);
         const encodedInnerXml =
           parsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
-          "ns2:processResponse"
+            "ns2:processResponse"
           ]?.["ns2:out"];
 
         if (!encodedInnerXml) throw new Error("Missing ns2:out in response");
@@ -9651,8 +9869,6 @@ router.post("/wctl-upload", upload.single("file"), async (req, res) => {
   }
 });
 
-
-
 const SASWAT_LAP_HEADERS = [
   "product",
 
@@ -9724,9 +9940,7 @@ const normalizeOptionalValue = (value) => {
 
   if (
     !normalizedValue ||
-    ["NA", "N/A", "NULL", "NONE", "-"].includes(
-      normalizedValue.toUpperCase(),
-    )
+    ["NA", "N/A", "NULL", "NONE", "-"].includes(normalizedValue.toUpperCase())
   ) {
     return null;
   }
@@ -9737,9 +9951,7 @@ const normalizeOptionalValue = (value) => {
 const normalizeUppercaseValue = (value) => {
   const normalizedValue = normalizeOptionalValue(value);
 
-  return normalizedValue
-    ? normalizedValue.toUpperCase()
-    : null;
+  return normalizedValue ? normalizedValue.toUpperCase() : null;
 };
 
 const parseSaswatNumber = (value) => {
@@ -9757,9 +9969,7 @@ const parseSaswatNumber = (value) => {
       .trim(),
   );
 
-  return Number.isFinite(parsedValue)
-    ? parsedValue
-    : null;
+  return Number.isFinite(parsedValue) ? parsedValue : null;
 };
 
 const parseSaswatInteger = (value) => {
@@ -9774,21 +9984,14 @@ const parseSaswatInteger = (value) => {
 
 const formatMysqlDate = (date) => {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(
-    2,
-    "0",
-  );
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 };
 
 const parseSaswatExcelDate = (value) => {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ""
-  ) {
+  if (value === null || value === undefined || value === "") {
     return null;
   }
 
@@ -9817,9 +10020,7 @@ const parseSaswatExcelDate = (value) => {
   const dateValue = String(value).trim();
 
   // YYYY-MM-DD or YYYY/MM/DD
-  let match = dateValue.match(
-    /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/,
-  );
+  let match = dateValue.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
 
   if (match) {
     const [, year, month, day] = match;
@@ -9831,9 +10032,7 @@ const parseSaswatExcelDate = (value) => {
   }
 
   // DD-MM-YYYY or DD/MM/YYYY
-  match = dateValue.match(
-    /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/,
-  );
+  match = dateValue.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
 
   if (match) {
     const [, day, month, year] = match;
@@ -9853,15 +10052,10 @@ const parseSaswatExcelDate = (value) => {
   return formatMysqlDate(parsedDate);
 };
 
-const getCurrentMysqlDate = () =>
-  formatMysqlDate(new Date());
-
+const getCurrentMysqlDate = () => formatMysqlDate(new Date());
 
 router.post("/saswat-upload", upload.single("file"), async (req, res) => {
-  console.log(
-    "Saswat LAP upload request received:",
-    req.body,
-  );
+  console.log("Saswat LAP upload request received:", req.body);
 
   if (!req.file) {
     return res.status(400).json({
@@ -9874,9 +10068,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
    * Do not require lenderType from frontend.
    * This endpoint is specifically for Saswat LAP.
    */
-  const lenderType = String(
-    req.body.lenderType || "LAP",
-  ).trim();
+  const lenderType = String(req.body.lenderType || "LAP").trim();
 
   const partnerName = "Saswat";
 
@@ -9891,8 +10083,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
     if (!sheetName) {
       return res.status(400).json({
         success: false,
-        message:
-          "No worksheet found in the uploaded file.",
+        message: "No worksheet found in the uploaded file.",
       });
     }
 
@@ -9900,14 +10091,11 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
      * raw:false helps preserve account numbers, PAN,
      * Aadhaar and other text-formatted Excel cells.
      */
-    const sheetRaw = xlsx.utils.sheet_to_json(
-      workbook.Sheets[sheetName],
-      {
-        defval: "",
-        raw: false,
-        dateNF: "yyyy-mm-dd",
-      },
-    );
+    const sheetRaw = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], {
+      defval: "",
+      raw: false,
+      dateNF: "yyyy-mm-dd",
+    });
 
     /*
      * Trim headers and support old udyamNumb typo.
@@ -9919,9 +10107,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         for (const [key, value] of Object.entries(row)) {
           const cleanKey = String(key).trim();
 
-          const finalKey =
-            SASWAT_HEADER_ALIASES[cleanKey] ||
-            cleanKey;
+          const finalKey = SASWAT_HEADER_ALIASES[cleanKey] || cleanKey;
 
           cleanedRow[finalKey] = value;
         }
@@ -9929,38 +10115,29 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         return cleanedRow;
       })
       .filter((row) =>
-        Object.values(row).some(
-          (value) =>
-            String(value ?? "").trim() !== "",
-        ),
+        Object.values(row).some((value) => String(value ?? "").trim() !== ""),
       );
 
     if (sheetData.length === 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "Uploaded Excel file is empty or invalid.",
+        message: "Uploaded Excel file is empty or invalid.",
       });
     }
 
     /*
      * Validate template headers before processing.
      */
-    const receivedHeaders = Object.keys(
-      sheetData[0],
-    );
+    const receivedHeaders = Object.keys(sheetData[0]);
 
-    const missingHeaders =
-      SASWAT_LAP_HEADERS.filter(
-        (header) =>
-          !receivedHeaders.includes(header),
-      );
+    const missingHeaders = SASWAT_LAP_HEADERS.filter(
+      (header) => !receivedHeaders.includes(header),
+    );
 
     if (missingHeaders.length > 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "Saswat LAP Excel headers are invalid.",
+        message: "Saswat LAP Excel headers are invalid.",
         missing_headers: missingHeaders,
         received_headers: receivedHeaders,
         expected_headers: SASWAT_LAP_HEADERS,
@@ -9976,11 +10153,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
     const successRows = [];
     const rowErrors = [];
 
-    for (
-      let index = 0;
-      index < sheetData.length;
-      index++
-    ) {
+    for (let index = 0; index < sheetData.length; index++) {
       const row = sheetData[index];
       const excelRowNumber = index + 2;
 
@@ -9991,274 +10164,163 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         /*
          * Loan details.
          */
-        const product =
-          normalizeOptionalValue(row.product);
+        const product = normalizeOptionalValue(row.product);
 
         /*
          * Borrower details.
          */
-        const firstName =
-          normalizeOptionalValue(row.firstName);
+        const firstName = normalizeOptionalValue(row.firstName);
 
-        const lastName =
-          normalizeOptionalValue(row.lastName);
+        const lastName = normalizeOptionalValue(row.lastName);
 
-        const customerName = [
-          firstName,
-          lastName,
-        ]
+        const customerName = [firstName, lastName]
           .filter(Boolean)
           .join(" ")
           .replace(/\s+/g, " ")
           .trim();
 
-        const panNumber =
-          normalizeUppercaseValue(
-            row.panNumber,
-          );
+        const panNumber = normalizeUppercaseValue(row.panNumber);
 
-        const aadhaarNumber =
-          normalizeOptionalValue(
-            row.aadhaarNumber,
-          );
+        const aadhaarNumber = normalizeOptionalValue(row.aadhaarNumber);
 
-        const mobileNumber =
-          normalizeOptionalValue(
-            row.mobileNumber,
-          );
+        const mobileNumber = normalizeOptionalValue(row.mobileNumber);
 
-        const email =
-          normalizeOptionalValue(row.email);
+        const email = normalizeOptionalValue(row.email);
 
-        const dateOfBirthRaw =
-          normalizeOptionalValue(
-            row.dateOfBirth,
-          );
+        const dateOfBirthRaw = normalizeOptionalValue(row.dateOfBirth);
 
         const dateOfBirth = dateOfBirthRaw
-          ? parseSaswatExcelDate(
-            row.dateOfBirth,
-          )
+          ? parseSaswatExcelDate(row.dateOfBirth)
           : null;
 
         /*
          * Business and address details.
          */
-        const businessName =
-          normalizeOptionalValue(
-            row.businessName,
-          );
+        const businessName = normalizeOptionalValue(row.businessName);
 
-        const industry =
-          normalizeOptionalValue(row.industry);
+        const industry = normalizeOptionalValue(row.industry);
 
-        const permanentAddress =
-          normalizeOptionalValue(
-            row.permanentAddress,
-          );
+        const permanentAddress = normalizeOptionalValue(row.permanentAddress);
 
-        const businessAddress =
-          normalizeOptionalValue(
-            row.businessAddress,
-          );
+        const businessAddress = normalizeOptionalValue(row.businessAddress);
 
-        const gstNumber =
-          normalizeUppercaseValue(
-            row.gstNumber,
-          );
+        const gstNumber = normalizeUppercaseValue(row.gstNumber);
 
-        const udyamNumber =
-          normalizeUppercaseValue(
-            row.udyamNumber,
-          );
+        const udyamNumber = normalizeUppercaseValue(row.udyamNumber);
 
+        const loanAmount = parseSaswatNumber(row.loanAmount);
 
-        const loanAmount =
-          parseSaswatNumber(row.loanAmount);
+        const loanTenure = parseSaswatInteger(row.tenureMonths);
 
-        const loanTenure =
-          parseSaswatInteger(row.tenureMonths);
+        const interestRate = parseSaswatNumber(row.interestRate);
 
-        const interestRate =
-          parseSaswatNumber(row.interestRate);
+        const processingFeeRaw = normalizeOptionalValue(row.processingFee);
 
-        const processingFeeRaw =
-          normalizeOptionalValue(
-            row.processingFee,
-          );
+        const processingFee = parseSaswatNumber(row.processingFee) || 0;
 
-        const processingFee =
-          parseSaswatNumber(row.processingFee) ||
-          0;
+        const ckycCharges = parseSaswatNumber(row.ckycCharges) ?? 0;
 
-        const ckycCharges =
-          parseSaswatNumber(row.ckycCharges) ?? 0;
+        const ckycChargesGst = parseSaswatNumber(row.ckycChargesGst) ?? 0;
 
-        const ckycChargesGst =
-          parseSaswatNumber(row.ckycChargesGst) ?? 0;
-
-        const documentCharges =
-          parseSaswatNumber(row.documentCharges) ?? 0;
+        const documentCharges = parseSaswatNumber(row.documentCharges) ?? 0;
 
         const documentChargesGst =
           parseSaswatNumber(row.documentChargesGst) ?? 0;
 
-        const insuranceCharges =
-          parseSaswatNumber(row.insuranceCharges) ?? 0;
+        const insuranceCharges = parseSaswatNumber(row.insuranceCharges) ?? 0;
 
-        const preEmi =
-          parseSaswatNumber(row.preEmi) ?? 0;
+        const preEmi = parseSaswatNumber(row.preEmi) ?? 0;
 
-        const deductionAmount =
-          parseSaswatNumber(row.deductionAmount) ?? 0;
+        const deductionAmount = parseSaswatNumber(row.deductionAmount) ?? 0;
         /*
          * Bank details.
          */
-        const accountHolderName =
-          normalizeOptionalValue(
-            row.accountHolderName,
-          );
+        const accountHolderName = normalizeOptionalValue(row.accountHolderName);
 
-        const accountNumber =
-          normalizeOptionalValue(
-            row.accountNumber,
-          );
+        const accountNumber = normalizeOptionalValue(row.accountNumber);
 
-        const ifsc =
-          normalizeUppercaseValue(row.ifsc);
+        const ifsc = normalizeUppercaseValue(row.ifsc);
 
-        const bankName =
-          normalizeOptionalValue(row.bankName);
+        const bankName = normalizeOptionalValue(row.bankName);
 
         /*
          * LAP property details.
          */
-        const propertyType =
-          normalizeOptionalValue(
-            row.propertyType,
-          );
+        const propertyType = normalizeOptionalValue(row.propertyType);
 
-        const propertyUsage =
-          normalizeOptionalValue(
-            row.propertyUsage,
-          );
+        const propertyUsage = normalizeOptionalValue(row.propertyUsage);
 
-        const propertyOwnershipType =
-          normalizeOptionalValue(
-            row.propertyOwnershipType,
-          );
+        const propertyOwnershipType = normalizeOptionalValue(
+          row.propertyOwnershipType,
+        );
 
-        const propertyOwnerName =
-          normalizeOptionalValue(
-            row.propertyOwnerName,
-          );
+        const propertyOwnerName = normalizeOptionalValue(row.propertyOwnerName);
 
-        const propertyOwnerRelation =
-          normalizeOptionalValue(
-            row.propertyOwnerRelation,
-          );
+        const propertyOwnerRelation = normalizeOptionalValue(
+          row.propertyOwnerRelation,
+        );
 
-        const propertyAddressLine1 =
-          normalizeOptionalValue(
-            row.propertyAddressLine1,
-          );
+        const propertyAddressLine1 = normalizeOptionalValue(
+          row.propertyAddressLine1,
+        );
 
-        const propertyAddressLine2 =
-          normalizeOptionalValue(
-            row.propertyAddressLine2,
-          );
+        const propertyAddressLine2 = normalizeOptionalValue(
+          row.propertyAddressLine2,
+        );
 
-        const propertyLandmark =
-          normalizeOptionalValue(
-            row.propertyLandmark,
-          );
+        const propertyLandmark = normalizeOptionalValue(row.propertyLandmark);
 
-        const propertyCity =
-          normalizeOptionalValue(
-            row.propertyCity,
-          );
+        const propertyCity = normalizeOptionalValue(row.propertyCity);
 
-        const propertyDistrict =
-          normalizeOptionalValue(
-            row.propertyDistrict,
-          );
+        const propertyDistrict = normalizeOptionalValue(row.propertyDistrict);
 
-        const propertyState =
-          normalizeOptionalValue(
-            row.propertyState,
-          );
+        const propertyState = normalizeOptionalValue(row.propertyState);
 
-        const propertyPincode =
-          normalizeOptionalValue(
-            row.propertyPincode,
-          );
+        const propertyPincode = normalizeOptionalValue(row.propertyPincode);
 
-        const propertyAreaSqft =
-          parseSaswatNumber(
-            row.propertyAreaSqft,
-          );
+        const propertyAreaSqft = parseSaswatNumber(row.propertyAreaSqft);
 
-        const propertyAgeYears =
-          parseSaswatInteger(
-            row.propertyAgeYears,
-          );
+        const propertyAgeYears = parseSaswatInteger(row.propertyAgeYears);
 
-        const propertyMarketValue =
-          parseSaswatNumber(
-            row.propertyMarketValue,
-          );
+        const propertyMarketValue = parseSaswatNumber(row.propertyMarketValue);
 
-        const propertyAgreementValue =
-          parseSaswatNumber(
-            row.propertyAgreementValue,
-          );
+        const propertyAgreementValue = parseSaswatNumber(
+          row.propertyAgreementValue,
+        );
 
-        const propertyValuationValue =
-          parseSaswatNumber(
-            row.propertyValuationValue,
-          );
+        const propertyValuationValue = parseSaswatNumber(
+          row.propertyValuationValue,
+        );
 
-        const propertyDistressValue =
-          parseSaswatNumber(
-            row.propertyDistressValue,
-          );
+        const propertyDistressValue = parseSaswatNumber(
+          row.propertyDistressValue,
+        );
 
-        const propertyValuationDateRaw =
-          normalizeOptionalValue(
-            row.propertyValuationDate,
-          );
+        const propertyValuationDateRaw = normalizeOptionalValue(
+          row.propertyValuationDate,
+        );
 
-        const propertyValuationDate =
-          propertyValuationDateRaw
-            ? parseSaswatExcelDate(
-              row.propertyValuationDate,
-            )
-            : null;
+        const propertyValuationDate = propertyValuationDateRaw
+          ? parseSaswatExcelDate(row.propertyValuationDate)
+          : null;
 
-        const propertyValuatorName =
-          normalizeOptionalValue(
-            row.propertyValuatorName,
-          );
+        const propertyValuatorName = normalizeOptionalValue(
+          row.propertyValuatorName,
+        );
 
-        const propertyMortgageStatus =
-          normalizeOptionalValue(
-            row.propertyMortgageStatus,
-          );
+        const propertyMortgageStatus = normalizeOptionalValue(
+          row.propertyMortgageStatus,
+        );
 
-        const existingMortgageLender =
-          normalizeOptionalValue(
-            row.existingMortgageLender,
-          );
+        const existingMortgageLender = normalizeOptionalValue(
+          row.existingMortgageLender,
+        );
 
-        const existingMortgageOutstanding =
-          parseSaswatNumber(
-            row.existingMortgageOutstanding,
-          );
+        const existingMortgageOutstanding = parseSaswatNumber(
+          row.existingMortgageOutstanding,
+        );
 
-        const propertyRemarks =
-          normalizeOptionalValue(
-            row.propertyRemarks,
-          );
+        const propertyRemarks = normalizeOptionalValue(row.propertyRemarks);
 
         /*
          * Loan validation.
@@ -10275,10 +10337,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        if (
-          loanAmount === null ||
-          loanAmount <= 0
-        ) {
+        if (loanAmount === null || loanAmount <= 0) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10290,10 +10349,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        if (
-          loanTenure === null ||
-          loanTenure <= 0
-        ) {
+        if (loanTenure === null || loanTenure <= 0) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10305,10 +10361,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        if (
-          interestRate === null ||
-          interestRate < 0
-        ) {
+        if (interestRate === null || interestRate < 0) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10322,9 +10375,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
 
         if (
           processingFeeRaw !== null &&
-          parseSaswatNumber(
-            row.processingFee,
-          ) === null
+          parseSaswatNumber(row.processingFee) === null
         ) {
           rejectedValidation++;
 
@@ -10343,8 +10394,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "validation",
-            reason:
-              "processingFee cannot be negative.",
+            reason: "processingFee cannot be negative.",
           });
 
           continue;
@@ -10368,8 +10418,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "validation",
-            reason:
-              "Customer name could not be generated.",
+            reason: "Customer name could not be generated.",
           });
 
           continue;
@@ -10384,15 +10433,13 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "validation",
-            reason:
-              "panNumber is required for LAP.",
+            reason: "panNumber is required for LAP.",
           });
 
           continue;
         }
 
-        const panRegex =
-          /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
         if (!panRegex.test(panNumber)) {
           rejectedValidation++;
@@ -10409,24 +10456,17 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         /*
          * Optional Aadhaar validation.
          */
-        const normalizedAadhaar =
-          aadhaarNumber
-            ? aadhaarNumber.replace(/\D/g, "")
-            : null;
+        const normalizedAadhaar = aadhaarNumber
+          ? aadhaarNumber.replace(/\D/g, "")
+          : null;
 
-        if (
-          normalizedAadhaar &&
-          !/^\d{12}$/.test(
-            normalizedAadhaar,
-          )
-        ) {
+        if (normalizedAadhaar && !/^\d{12}$/.test(normalizedAadhaar)) {
           rejectedValidation++;
 
           rowErrors.push({
             row: excelRowNumber,
             stage: "validation",
-            reason:
-              "aadhaarNumber must contain exactly 12 digits.",
+            reason: "aadhaarNumber must contain exactly 12 digits.",
           });
 
           continue;
@@ -10435,17 +10475,11 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         /*
          * Optional mobile validation.
          */
-        const normalizedMobile =
-          mobileNumber
-            ? mobileNumber.replace(/\D/g, "")
-            : null;
+        const normalizedMobile = mobileNumber
+          ? mobileNumber.replace(/\D/g, "")
+          : null;
 
-        if (
-          normalizedMobile &&
-          !/^[6-9]\d{9}$/.test(
-            normalizedMobile,
-          )
-        ) {
+        if (normalizedMobile && !/^[6-9]\d{9}$/.test(normalizedMobile)) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10457,12 +10491,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        if (
-          email &&
-          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-            email,
-          )
-        ) {
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10474,10 +10503,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        if (
-          dateOfBirthRaw &&
-          !dateOfBirth
-        ) {
+        if (dateOfBirthRaw && !dateOfBirth) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10489,12 +10515,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        if (
-          ifsc &&
-          !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(
-            ifsc,
-          )
-        ) {
+        if (ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10508,9 +10529,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
 
         if (
           gstNumber &&
-          !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(
-            gstNumber,
-          )
+          !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/.test(gstNumber)
         ) {
           rejectedValidation++;
 
@@ -10532,8 +10551,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "property-validation",
-            reason:
-              "propertyType is required for LAP.",
+            reason: "propertyType is required for LAP.",
           });
 
           continue;
@@ -10545,8 +10563,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "property-validation",
-            reason:
-              "propertyOwnershipType is required for LAP.",
+            reason: "propertyOwnershipType is required for LAP.",
           });
 
           continue;
@@ -10558,8 +10575,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "property-validation",
-            reason:
-              "propertyOwnerName is required for LAP.",
+            reason: "propertyOwnerName is required for LAP.",
           });
 
           continue;
@@ -10571,8 +10587,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "property-validation",
-            reason:
-              "propertyAddressLine1 is required for LAP.",
+            reason: "propertyAddressLine1 is required for LAP.",
           });
 
           continue;
@@ -10584,8 +10599,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "property-validation",
-            reason:
-              "propertyCity is required for LAP.",
+            reason: "propertyCity is required for LAP.",
           });
 
           continue;
@@ -10597,17 +10611,13 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "property-validation",
-            reason:
-              "propertyState is required for LAP.",
+            reason: "propertyState is required for LAP.",
           });
 
           continue;
         }
 
-        if (
-          !propertyPincode ||
-          !/^\d{6}$/.test(propertyPincode)
-        ) {
+        if (!propertyPincode || !/^\d{6}$/.test(propertyPincode)) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10619,10 +10629,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        if (
-          propertyAreaSqft !== null &&
-          propertyAreaSqft <= 0
-        ) {
+        if (propertyAreaSqft !== null && propertyAreaSqft <= 0) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10634,10 +10641,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        if (
-          propertyMarketValue === null ||
-          propertyMarketValue <= 0
-        ) {
+        if (propertyMarketValue === null || propertyMarketValue <= 0) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10649,26 +10653,19 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           continue;
         }
 
-        if (
-          loanAmount >
-          propertyMarketValue
-        ) {
+        if (loanAmount > propertyMarketValue) {
           rejectedValidation++;
 
           rowErrors.push({
             row: excelRowNumber,
             stage: "property-validation",
-            reason:
-              "loanAmount cannot exceed propertyMarketValue.",
+            reason: "loanAmount cannot exceed propertyMarketValue.",
           });
 
           continue;
         }
 
-        if (
-          propertyValuationDateRaw &&
-          !propertyValuationDate
-        ) {
+        if (propertyValuationDateRaw && !propertyValuationDate) {
           rejectedValidation++;
 
           rowErrors.push({
@@ -10681,8 +10678,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         }
 
         if (
-          existingMortgageOutstanding !==
-          null &&
+          existingMortgageOutstanding !== null &&
           existingMortgageOutstanding < 0
         ) {
           rejectedValidation++;
@@ -10690,8 +10686,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           rowErrors.push({
             row: excelRowNumber,
             stage: "property-validation",
-            reason:
-              "existingMortgageOutstanding cannot be negative.",
+            reason: "existingMortgageOutstanding cannot be negative.",
           });
 
           continue;
@@ -10700,31 +10695,25 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         /*
          * Start database transaction.
          */
-        conn =
-          await db.promise().getConnection();
+        conn = await db.promise().getConnection();
 
         await conn.beginTransaction();
         transactionStarted = true;
 
-        const loginDate =
-          getCurrentMysqlDate();
+        const loginDate = getCurrentMysqlDate();
 
-        const { month, year } =
-          getMonthYear(new Date());
+        const { month, year } = getMonthYear(new Date());
 
         /*
          * Get Saswat partner.
          */
-        const partner =
-          await partnerLimitService.getOrCreatePartner(
-            conn,
-            partnerName,
-          );
+        const partner = await partnerLimitService.getOrCreatePartner(
+          conn,
+          partnerName,
+        );
 
         if (!partner?.partner_id) {
-          throw new Error(
-            "Unable to resolve Saswat partner ID.",
-          );
+          throw new Error("Unable to resolve Saswat partner ID.");
         }
 
         console.log("[SASWAT BOOKING LIMIT DEBUG]", {
@@ -10769,9 +10758,8 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
         /*
          * Read FLDG configuration.
          */
-        const [partnerConfigRows] =
-          await conn.query(
-            `
+        const [partnerConfigRows] = await conn.query(
+          `
                 SELECT
                   fldg_percent,
                   fldg_status
@@ -10779,11 +10767,10 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
                 WHERE partner_id = ?
                 LIMIT 1
               `,
-            [partner.partner_id],
-          );
+          [partner.partner_id],
+        );
 
-        const partnerConfig =
-          partnerConfigRows[0];
+        const partnerConfig = partnerConfigRows[0];
 
         if (!partnerConfig) {
           throw new Error(
@@ -10793,33 +10780,21 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
 
         let requiredFldg = 0;
 
-        if (
-          Number(
-            partnerConfig.fldg_status,
-          ) === 1
-        ) {
-          const fldgPercent = Number(
-            partnerConfig.fldg_percent || 0,
-          );
+        if (Number(partnerConfig.fldg_status) === 1) {
+          const fldgPercent = Number(partnerConfig.fldg_percent || 0);
 
-          requiredFldg = Number(
-            (
-              (loanAmount * fldgPercent) /
-              100
-            ).toFixed(2),
-          );
+          requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
         }
 
         /*
          * Check FLDG availability.
          */
         if (requiredFldg > 0) {
-          const fldgCheck =
-            await partnerFldgService.validateFldgAvailability(
-              conn,
-              partner.partner_id,
-              requiredFldg,
-            );
+          const fldgCheck = await partnerFldgService.validateFldgAvailability(
+            conn,
+            partner.partner_id,
+            requiredFldg,
+          );
 
           if (!fldgCheck.valid) {
             rejectedFldg++;
@@ -10844,20 +10819,14 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
          * Use Saswat for identifier mapping.
          * Do not use lenderType here because it may be LAP.
          */
-        const identifiers =
-          await generateLoanIdentifiers(
-            partnerName,
-          );
+        const identifiers = await generateLoanIdentifiers(partnerName);
 
-        const partnerLoanId =
-          identifiers?.partnerLoanId;
+        const partnerLoanId = identifiers?.partnerLoanId;
 
         const lan = identifiers?.lan;
 
         if (!partnerLoanId || !lan) {
-          throw new Error(
-            "Saswat loan identifier generation failed.",
-          );
+          throw new Error("Saswat loan identifier generation failed.");
         }
 
         /*
@@ -10914,114 +10883,73 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
 
           property_type: propertyType,
           property_usage: propertyUsage,
-          property_ownership_type:
-            propertyOwnershipType,
-          property_owner_name:
-            propertyOwnerName,
-          property_owner_relation:
-            propertyOwnerRelation,
+          property_ownership_type: propertyOwnershipType,
+          property_owner_name: propertyOwnerName,
+          property_owner_relation: propertyOwnerRelation,
 
-          property_address_line_1:
-            propertyAddressLine1,
-          property_address_line_2:
-            propertyAddressLine2,
-          property_landmark:
-            propertyLandmark,
+          property_address_line_1: propertyAddressLine1,
+          property_address_line_2: propertyAddressLine2,
+          property_landmark: propertyLandmark,
           property_city: propertyCity,
-          property_district:
-            propertyDistrict,
+          property_district: propertyDistrict,
           property_state: propertyState,
-          property_pincode:
-            propertyPincode,
+          property_pincode: propertyPincode,
 
-          property_area_sqft:
-            propertyAreaSqft,
-          property_age_years:
-            propertyAgeYears,
-          property_market_value:
-            propertyMarketValue,
-          property_agreement_value:
-            propertyAgreementValue,
-          property_valuation_value:
-            propertyValuationValue,
-          property_distress_value:
-            propertyDistressValue,
+          property_area_sqft: propertyAreaSqft,
+          property_age_years: propertyAgeYears,
+          property_market_value: propertyMarketValue,
+          property_agreement_value: propertyAgreementValue,
+          property_valuation_value: propertyValuationValue,
+          property_distress_value: propertyDistressValue,
 
-          property_valuation_date:
-            propertyValuationDate,
-          property_valuator_name:
-            propertyValuatorName,
+          property_valuation_date: propertyValuationDate,
+          property_valuator_name: propertyValuatorName,
 
-          property_mortgage_status:
-            propertyMortgageStatus,
-          existing_mortgage_lender:
-            existingMortgageLender,
-          existing_mortgage_outstanding:
-            existingMortgageOutstanding,
-          property_remarks:
-            propertyRemarks,
+          property_mortgage_status: propertyMortgageStatus,
+          existing_mortgage_lender: existingMortgageLender,
+          existing_mortgage_outstanding: existingMortgageOutstanding,
+          property_remarks: propertyRemarks,
 
           loan_amount: loanAmount,
-          net_disbursement:
-            netDisbursement,
+          net_disbursement: netDisbursement,
           interest_rate: interestRate,
           loan_tenure: loanTenure,
           processing_fee: processingFee,
-          processing_fee_gst:
-            processingFeeGst,
+          processing_fee_gst: processingFeeGst,
           ckyc_charges: ckycCharges,
           ckyc_charges_gst: ckycChargesGst,
 
-          document_charges:
-            documentCharges,
+          document_charges: documentCharges,
 
-          document_charges_gst:
-            documentChargesGst,
+          document_charges_gst: documentChargesGst,
 
-          insurance_charges:
-            insuranceCharges,
+          insurance_charges: insuranceCharges,
 
           pre_emi: preEmi,
 
-          deduction_amount:
-            deductionAmount,
+          deduction_amount: deductionAmount,
           other_charges: otherCharges,
 
           fldg_required: requiredFldg,
-          source_file:
-            req.file.originalname,
+          source_file: req.file.originalname,
         };
 
-        const insertColumns =
-          Object.keys(insertPayload);
+        const insertColumns = Object.keys(insertPayload);
 
-        const insertValues =
-          Object.values(insertPayload);
+        const insertValues = Object.values(insertPayload);
 
         const insertQuery = `
             INSERT INTO loan_booking_saswat (
-              ${insertColumns
-            .map(
-              (column) => `\`${column}\``,
-            )
-            .join(", ")}
+              ${insertColumns.map((column) => `\`${column}\``).join(", ")}
             )
             VALUES (
-              ${insertColumns
-            .map(() => "?")
-            .join(", ")}
+              ${insertColumns.map(() => "?").join(", ")}
             )
           `;
 
-        const [insertResult] =
-          await conn.query(
-            insertQuery,
-            insertValues,
-          );
+        const [insertResult] = await conn.query(insertQuery, insertValues);
 
-        if (
-          insertResult.affectedRows !== 1
-        ) {
+        if (insertResult.affectedRows !== 1) {
           throw new Error(
             `Saswat loan insert failed. Affected rows: ${insertResult.affectedRows}`,
           );
@@ -11059,43 +10987,32 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
           row: excelRowNumber,
           id: insertResult.insertId,
           lan,
-          partner_loan_id:
-            partnerLoanId,
+          partner_loan_id: partnerLoanId,
           customer_name: customerName,
           product,
           loan_amount: loanAmount,
           property_type: propertyType,
-          property_market_value:
-            propertyMarketValue,
+          property_market_value: propertyMarketValue,
         });
 
-        console.log(
-          "Saswat LAP inserted successfully:",
-          {
-            row: excelRowNumber,
-            insertId:
-              insertResult.insertId,
-            lan,
-            partnerLoanId,
-          },
-        );
+        console.log("Saswat LAP inserted successfully:", {
+          row: excelRowNumber,
+          insertId: insertResult.insertId,
+          lan,
+          partnerLoanId,
+        });
       } catch (error) {
         if (conn && transactionStarted) {
           try {
             await conn.rollback();
           } catch (rollbackError) {
-            console.error(
-              "Saswat transaction rollback failed:",
-              rollbackError,
-            );
+            console.error("Saswat transaction rollback failed:", rollbackError);
           }
         }
 
         const isDatabaseError =
           Boolean(error.sqlMessage) ||
-          String(error.code || "").startsWith(
-            "ER_",
-          );
+          String(error.code || "").startsWith("ER_");
 
         if (isDatabaseError) {
           rejectedDatabase++;
@@ -11105,9 +11022,7 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
 
         rowErrors.push({
           row: excelRowNumber,
-          stage: isDatabaseError
-            ? "database"
-            : "processing",
+          stage: isDatabaseError ? "database" : "processing",
           code: error.code || null,
           reason:
             error.sqlMessage ||
@@ -11115,16 +11030,13 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
             "Unknown Saswat LAP processing error.",
         });
 
-        console.error(
-          "Saswat LAP row failed:",
-          {
-            row: excelRowNumber,
-            code: error.code,
-            message: error.message,
-            sqlMessage: error.sqlMessage,
-            sql: error.sql,
-          },
-        );
+        console.error("Saswat LAP row failed:", {
+          row: excelRowNumber,
+          code: error.code,
+          message: error.message,
+          sqlMessage: error.sqlMessage,
+          sql: error.sql,
+        });
       } finally {
         if (conn) {
           conn.release();
@@ -11132,50 +11044,36 @@ router.post("/saswat-upload", upload.single("file"), async (req, res) => {
       }
     }
 
-    const hasInsertedRows =
-      insertedRows > 0;
+    const hasInsertedRows = insertedRows > 0;
 
-    const partialSuccess =
-      insertedRows > 0 &&
-      insertedRows < sheetData.length;
+    const partialSuccess = insertedRows > 0 && insertedRows < sheetData.length;
 
-    return res
-      .status(hasInsertedRows ? 200 : 422)
-      .json({
-        success: hasInsertedRows,
-        partial_success: partialSuccess,
-        message: hasInsertedRows
-          ? "Saswat LAP upload processed successfully."
-          : "No Saswat LAP loans were inserted.",
-        total_rows: sheetData.length,
-        inserted_rows: insertedRows,
-        failed_rows:
-          sheetData.length - insertedRows,
-        rejected_limit_exceeded:
-          rejectedLimit,
-        rejected_fldg: rejectedFldg,
-        rejected_validation:
-          rejectedValidation,
-        rejected_database:
-          rejectedDatabase,
-        success_rows: successRows,
-        row_errors: rowErrors,
-      });
+    return res.status(hasInsertedRows ? 200 : 422).json({
+      success: hasInsertedRows,
+      partial_success: partialSuccess,
+      message: hasInsertedRows
+        ? "Saswat LAP upload processed successfully."
+        : "No Saswat LAP loans were inserted.",
+      total_rows: sheetData.length,
+      inserted_rows: insertedRows,
+      failed_rows: sheetData.length - insertedRows,
+      rejected_limit_exceeded: rejectedLimit,
+      rejected_fldg: rejectedFldg,
+      rejected_validation: rejectedValidation,
+      rejected_database: rejectedDatabase,
+      success_rows: successRows,
+      row_errors: rowErrors,
+    });
   } catch (error) {
-    console.error(
-      "Error processing Saswat LAP upload:",
-      error,
-    );
+    console.error("Error processing Saswat LAP upload:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Error processing Saswat LAP upload.",
+      message: "Error processing Saswat LAP upload.",
       error: error.message,
     });
   }
-},
-);
+});
 
 ////////////////// SASWAT LOAN BOOKIN END /////////////////////////////
 
@@ -12416,23 +12314,23 @@ router.get("/schedule/:lan", (req, res) => {
     tableName = "manual_rps_hey_ev_battery";
   } else if (lan.startsWith("CLY")) {
     tableName = "manual_rps_clayoo";
+  }  else if (lan.startsWith("CBF")) {    // CLAIM BUDDY
+  tableName = "manual_rps_claim_buddy"; 
   } else if (lan.startsWith("LDF")) {
     tableName = "manual_rps_loan_digit";
   } else if (lan.startsWith("MC")) {
     tableName = "manual_rps_motioncorp";
   } else if (lan.startsWith("SFL")) {
     tableName = "manual_rps_seven_fincorp";
-  } 
-  else if (lan.startsWith("SW")) {
+  } else if (lan.startsWith("SW")) {
     tableName = "manual_rps_saswat";
   } else if (lan.startsWith("BUN")) {
     tableName = "manual_rps_bundela";
   } else if (lan.startsWith("RML")) {
     tableName = "manual_rps_switch_my_loan";
-  } 
-   else if (lan.startsWith("QML")) {
+  } else if (lan.startsWith("QML")) {
     tableName = "manual_rps_quick_money";
-  }else if (lan.startsWith("SH")) {
+  } else if (lan.startsWith("SH")) {
     tableName = "manual_rps_srbh";
   } else if (lan.startsWith("ADK")) {
     tableName = "manual_rps_adikosh";
@@ -12677,7 +12575,6 @@ router.get("/uniqueid", (req, res) => {
   );
 });
 
-
 // =====================================================
 // STERLION UBL EXCEL UPLOAD
 // Endpoint: POST /loan-booking/sterlion-ubl-upload
@@ -12685,7 +12582,7 @@ router.get("/uniqueid", (req, res) => {
 
 const STERLION_UBL_TABLE = "loan_booking_sterlion_ubl";
 const STERLION_UBL_LENDER = "sterlion-ubl";
-const STERLION_UBL_ALLOWED_PRODUCTS = ["MONTHLY_360", "UPFRONT_INTEREST",];
+const STERLION_UBL_ALLOWED_PRODUCTS = ["MONTHLY_360", "UPFRONT_INTEREST"];
 
 // Excel me ye saare headers hone chahiye
 const sterlionUblExpectedHeaders = [
@@ -12718,7 +12615,7 @@ const sterlionUblExpectedHeaders = [
   "udyamNumber",
 ];
 
-// added for validation 
+// added for validation
 const sterlionUblRequiredFields = [
   "product",
   "loanAmount",
@@ -12743,11 +12640,7 @@ const sterlionUblRequiredFields = [
 ];
 
 const isBlankSterlionUblValue = (value) => {
-  return (
-    value === undefined ||
-    value === null ||
-    String(value).trim() === ""
-  );
+  return value === undefined || value === null || String(value).trim() === "";
 };
 
 const cleanSterlionUblValue = (value) => {
@@ -12755,16 +12648,10 @@ const cleanSterlionUblValue = (value) => {
     return null;
   }
 
-  return typeof value === "string"
-    ? value.trim()
-    : value;
+  return typeof value === "string" ? value.trim() : value;
 };
 const toSterlionUblSqlDate = (value) => {
-  if (
-    value === undefined ||
-    value === null ||
-    String(value).trim() === ""
-  ) {
+  if (value === undefined || value === null || String(value).trim() === "") {
     return null;
   }
 
@@ -12813,343 +12700,329 @@ const toSterlionUblSqlDate = (value) => {
 
   return null;
 };
-router.post(
-  "/sterlion-ubl-upload",
-  upload.single("file"),
-  async (req, res) => {
-    if (!req.file) {
+router.post("/sterlion-ubl-upload", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      message: "No file uploaded. Please select a valid Excel file.",
+    });
+  }
+
+  if (!req.body.lenderType) {
+    return res.status(400).json({
+      message: "Lender type is required.",
+    });
+  }
+
+  try {
+    const lenderType = String(req.body.lenderType).trim();
+
+    // Frontend dropdown ki value exactly sterlion-ubl honi chahiye
+    if (lenderType !== STERLION_UBL_LENDER) {
       return res.status(400).json({
-        message: "No file uploaded. Please select a valid Excel file.",
+        message: `Invalid lender type. Expected ${STERLION_UBL_LENDER}.`,
       });
     }
 
-    if (!req.body.lenderType) {
+    // Excel read
+    const workbook = xlsx.read(req.file.buffer, {
+      type: "buffer",
+      cellDates: false, // Important: Do not convert dates to JS Date objects, keep as raw values
+    });
+
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    if (!sheet) {
       return res.status(400).json({
-        message: "Lender type is required.",
+        message: "Excel sheet not found.",
       });
     }
 
-    try {
-      const lenderType = String(req.body.lenderType).trim();
+    // Excel header row read
+    const headerRows = xlsx.utils.sheet_to_json(sheet, {
+      header: 1,
+      defval: "",
+      raw: true,
+    });
 
-      // Frontend dropdown ki value exactly sterlion-ubl honi chahiye
-      if (lenderType !== STERLION_UBL_LENDER) {
-        return res.status(400).json({
-          message: `Invalid lender type. Expected ${STERLION_UBL_LENDER}.`,
-        });
-      }
+    const uploadedHeaders = (headerRows[0] || []).map((header) =>
+      String(header).trim(),
+    );
 
-      // Excel read
-      const workbook = xlsx.read(req.file.buffer, {
-        type: "buffer",
-        cellDates: false,    // Important: Do not convert dates to JS Date objects, keep as raw values
+    // Missing headers check
+    const missingHeaders = sterlionUblExpectedHeaders.filter(
+      (header) => !uploadedHeaders.includes(header),
+    );
+
+    if (missingHeaders.length > 0) {
+      return res.status(400).json({
+        message: "",
+        missing_headers: missingHeaders,
+        expected_headers: sterlionUblExpectedHeaders,
+        uploaded_headers: uploadedHeaders,
       });
+    }
 
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
+    // Excel rows JSON me convert
+    const rows = xlsx.utils.sheet_to_json(sheet, {
+      defval: "",
+      raw: true,
+    });
 
-      if (!sheet) {
-        return res.status(400).json({
-          message: "Excel sheet not found.",
-        });
-      }
-
-      // Excel header row read
-      const headerRows = xlsx.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: "",
-        raw: true,
+    if (!rows || rows.length === 0) {
+      return res.status(400).json({
+        message: "Uploaded Excel file is empty.",
       });
+    }
 
-      const uploadedHeaders = (headerRows[0] || []).map((header) =>
-        String(header).trim()
-      );
+    const success_rows = [];
+    const row_errors = [];
 
-      // Missing headers check
-      const missingHeaders = sterlionUblExpectedHeaders.filter(
-        (header) => !uploadedHeaders.includes(header)
-      );
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const excelRowNumber = i + 2;
 
-      if (missingHeaders.length > 0) {
-        return res.status(400).json({
-          message: "",
-          missing_headers: missingHeaders,
-          expected_headers: sterlionUblExpectedHeaders,
-          uploaded_headers: uploadedHeaders,
-        });
-      }
+      try {
+        // Required fields check
+        const missingFields = sterlionUblRequiredFields.filter((field) =>
+          isBlankSterlionUblValue(row[field]),
+        );
 
-      // Excel rows JSON me convert
-      const rows = xlsx.utils.sheet_to_json(sheet, {
-        defval: "",
-        raw: true,
-      });
+        if (missingFields.length > 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Missing required fields: ${missingFields.join(", ")}`,
+          });
 
-      if (!rows || rows.length === 0) {
-        return res.status(400).json({
-          message: "Uploaded Excel file is empty.",
-        });
-      }
+          continue;
+        }
 
-      const success_rows = [];
-      const row_errors = [];
+        // Only monthly product allowed
+        const product = String(row.product || "")
+          .trim()
+          .toUpperCase();
 
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const excelRowNumber = i + 2;
+        if (!STERLION_UBL_ALLOWED_PRODUCTS.includes(product)) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid product. Allowed product: ${STERLION_UBL_ALLOWED_PRODUCTS.join(
+              ", ",
+            )}`,
+          });
 
-        try {
-          // Required fields check
-          const missingFields = sterlionUblRequiredFields.filter((field) =>
-            isBlankSterlionUblValue(row[field])
-          );
+          continue;
+        }
 
-          if (missingFields.length > 0) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Missing required fields: ${missingFields.join(", ")}`,
-            });
+        // // Numeric fields
+        // const loanAmount = Number(row.loanAmount);
+        // const tenureMonths = Number(row.tenureMonths);
+        // const interestRate = Number(row.interestRate);
+        // const processingFee = isBlankSterlionUblValue(row.processingFee)
+        //   ? 0
+        //   : Number(row.processingFee);
 
-            continue;
-          }
+        // Numeric fields
+        const loanAmount = Number(row.loanAmount);
+        const tenureMonths = Number(row.tenureMonths);
+        const interestRate = Number(row.interestRate);
 
-          // Only monthly product allowed
-          const product = String(row.product || "")
-            .trim()
-            .toUpperCase();
+        const stampPaperCharges = isBlankSterlionUblValue(
+          row["Stamp Paper Charges"],
+        )
+          ? 0
+          : Number(row["Stamp Paper Charges"]);
 
-          if (!STERLION_UBL_ALLOWED_PRODUCTS.includes(product)) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid product. Allowed product: ${STERLION_UBL_ALLOWED_PRODUCTS.join(
-                ", "
-              )}`,
-            });
+        const insuranceAmount = isBlankSterlionUblValue(row["Insurance Amount"])
+          ? 0
+          : Number(row["Insurance Amount"]);
 
-            continue;
-          }
+        const processingFee = isBlankSterlionUblValue(row.processingFee)
+          ? 0
+          : Number(row.processingFee);
 
-          // // Numeric fields
-          // const loanAmount = Number(row.loanAmount);
-          // const tenureMonths = Number(row.tenureMonths);
-          // const interestRate = Number(row.interestRate);
-          // const processingFee = isBlankSterlionUblValue(row.processingFee)
-          //   ? 0
-          //   : Number(row.processingFee);
+        const documentsCharges = isBlankSterlionUblValue(
+          row["Documents Charges"],
+        )
+          ? 0
+          : Number(row["Documents Charges"]);
 
-          // Numeric fields
-          const loanAmount = Number(row.loanAmount);
-          const tenureMonths = Number(row.tenureMonths);
-          const interestRate = Number(row.interestRate);
+        const advanceInterestAmount = isBlankSterlionUblValue(
+          row["Advance Interest Amount"],
+        )
+          ? 0
+          : Number(row["Advance Interest Amount"]);
 
-          const stampPaperCharges =
-            isBlankSterlionUblValue(row["Stamp Paper Charges"])
-              ? 0
-              : Number(row["Stamp Paper Charges"]);
+        // Net Disbursement calculation
+        const netDisbAmt = Number(
+          (
+            loanAmount -
+            stampPaperCharges -
+            insuranceAmount -
+            processingFee -
+            documentsCharges -
+            advanceInterestAmount
+          ).toFixed(2),
+        );
 
-          const insuranceAmount =
-            isBlankSterlionUblValue(row["Insurance Amount"])
-              ? 0
-              : Number(row["Insurance Amount"]);
+        if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "Valid positive loanAmount is required.",
+          });
 
-          const processingFee =
-            isBlankSterlionUblValue(row.processingFee)
-              ? 0
-              : Number(row.processingFee);
+          continue;
+        }
 
-          const documentsCharges =
-            isBlankSterlionUblValue(row["Documents Charges"])
-              ? 0
-              : Number(row["Documents Charges"]);
+        if (!Number.isInteger(tenureMonths) || tenureMonths <= 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "Valid positive integer tenureMonths is required.",
+          });
 
-          const advanceInterestAmount =
-            isBlankSterlionUblValue(row["Advance Interest Amount"])
-              ? 0
-              : Number(row["Advance Interest Amount"]);
+          continue;
+        }
 
+        if (!Number.isFinite(interestRate) || interestRate <= 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "Valid positive interestRate is required.",
+          });
 
-          // Net Disbursement calculation
-          const netDisbAmt = Number(
-            (
-              loanAmount
-              - stampPaperCharges
-              - insuranceAmount
-              - processingFee
-              - documentsCharges
-              - advanceInterestAmount
-            ).toFixed(2)
-          );
+          continue;
+        }
 
-          if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: "Valid positive loanAmount is required.",
-            });
+        if (!Number.isFinite(processingFee) || processingFee < 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "processingFee must be zero or a positive number.",
+          });
 
-            continue;
-          }
+          continue;
+        }
 
-          if (
-            !Number.isInteger(tenureMonths) ||
-            tenureMonths <= 0
-          ) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: "Valid positive integer tenureMonths is required.",
-            });
+        // PAN normalize
+        const panNumber = String(row.panNumber || "")
+          .trim()
+          .toUpperCase();
 
-            continue;
-          }
+        // Basic PAN validation
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
-          if (
-            !Number.isFinite(interestRate) ||
-            interestRate <= 0
-          ) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: "Valid positive interestRate is required.",
-            });
+        if (!panRegex.test(panNumber)) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid PAN format: ${panNumber}`,
+          });
 
-            continue;
-          }
+          continue;
+        }
 
-          if (
-            !Number.isFinite(processingFee) ||
-            processingFee < 0
-          ) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: "processingFee must be zero or a positive number.",
-            });
+        // Aadhaar clean
+        const aadhaarNumber = String(row.aadhaarNumber || "")
+          .replace(/\s+/g, "")
+          .trim();
 
-            continue;
-          }
+        // Mobile clean
+        const mobileNumber = String(row.mobileNumber || "")
+          .replace(/\s+/g, "")
+          .trim();
 
-          // PAN normalize
-          const panNumber = String(row.panNumber || "")
-            .trim()
-            .toUpperCase();
+        if (!/^[6-9]\d{9}$/.test(mobileNumber)) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason:
+              "mobileNumber must be a valid 10-digit Indian mobile number.",
+          });
 
-          // Basic PAN validation
-          const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+          continue;
+        }
 
-          if (!panRegex.test(panNumber)) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid PAN format: ${panNumber}`,
-            });
+        // IFSC normalize
+        const ifsc = String(row.ifsc || "")
+          .trim()
+          .toUpperCase();
 
-            continue;
-          }
+        if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: `Invalid IFSC format: ${ifsc}`,
+          });
 
-          // Aadhaar clean
-          const aadhaarNumber = String(row.aadhaarNumber || "")
-            .replace(/\s+/g, "")
-            .trim();
+          continue;
+          a;
+        }
 
+        // DOB convert
+        const dateOfBirth = toSterlionUblSqlDate(row.dateOfBirth);
 
-          // Mobile clean
-          const mobileNumber = String(row.mobileNumber || "")
-            .replace(/\s+/g, "")
-            .trim();
+        if (!dateOfBirth) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "validation",
+            reason: "Invalid dateOfBirth.",
+          });
 
-          if (!/^[6-9]\d{9}$/.test(mobileNumber)) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: "mobileNumber must be a valid 10-digit Indian mobile number.",
-            });
+          continue;
+        }
 
-            continue;
-          }
-
-          // IFSC normalize
-          const ifsc = String(row.ifsc || "")
-            .trim()
-            .toUpperCase();
-
-          if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: `Invalid IFSC format: ${ifsc}`,
-            });
-
-            continue;a
-          }
-
-          // DOB convert
-          const dateOfBirth = toSterlionUblSqlDate(
-            row.dateOfBirth
-          );
-
-          if (!dateOfBirth) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "validation",
-              reason: "Invalid dateOfBirth.",
-            });
-
-            continue;
-          }
-          
-
-          // Duplicate PAN check in separate Sterlion UBL table
-          const [existingRecords] = await db.promise().query(
-            `
+        // Duplicate PAN check in separate Sterlion UBL table
+        const [existingRecords] = await db.promise().query(
+          `
               SELECT lan
               FROM ${STERLION_UBL_TABLE}
               WHERE pan_number = ?
               LIMIT 1
             `,
-            [panNumber]
-          );
+          [panNumber],
+        );
 
-          if (existingRecords.length > 0) {
-            row_errors.push({
-              row: excelRowNumber,
-              stage: "dup-check",
-              reason: `Duplicate PAN found: ${panNumber}`,
-            });
+        if (existingRecords.length > 0) {
+          row_errors.push({
+            row: excelRowNumber,
+            stage: "dup-check",
+            reason: `Duplicate PAN found: ${panNumber}`,
+          });
 
-            continue;
-          }
-//           const sanctionDate =
-//   toSterlionUblSqlDate(row.sanctionDate);
+          continue;
+        }
+        //           const sanctionDate =
+        //   toSterlionUblSqlDate(row.sanctionDate);
 
-// const disbursementDate =
-//   toSterlionUblSqlDate(row.disbursementDate);
+        // const disbursementDate =
+        //   toSterlionUblSqlDate(row.disbursementDate);
 
-// if (!sanctionDate) {
-//   row_errors.push({
-//     row: excelRowNumber,
-//     stage: "validation",
-//     reason: "Invalid sanctionDate.",
-//   });
-//   continue;
-// }
+        // if (!sanctionDate) {
+        //   row_errors.push({
+        //     row: excelRowNumber,
+        //     stage: "validation",
+        //     reason: "Invalid sanctionDate.",
+        //   });
+        //   continue;
+        // }
 
-// if (!disbursementDate) {
-//   row_errors.push({
-//     row: excelRowNumber,
-//     stage: "validation",
-//     reason: "Invalid disbursementDate.",
-//   });
-//   continue;
-// }
+        // if (!disbursementDate) {
+        //   row_errors.push({
+        //     row: excelRowNumber,
+        //     stage: "validation",
+        //     reason: "Invalid disbursementDate.",
+        //   });
+        //   continue;
+        // }
 
-          // Generate separate Sterlion UBL IDs
-          const { partnerLoanId, lan } =
-            await generateLoanIdentifiers(lenderType);
+        // Generate separate Sterlion UBL IDs
+        const { partnerLoanId, lan } =
+          await generateLoanIdentifiers(lenderType);
 
-          const insertQuery = `
+        const insertQuery = `
             INSERT INTO ${STERLION_UBL_TABLE} (
              partner_loan_id,
     lan,
@@ -13192,96 +13065,90 @@ router.post(
   )
           `;
 
-          const insertValues = [
-            partnerLoanId,
-            lan,
-            product,
-            loanAmount,
-            tenureMonths,
-            interestRate,
-            processingFee,
-           stampPaperCharges,
-             insuranceAmount,
-            documentsCharges,
-            advanceInterestAmount,
-             netDisbAmt,
-            cleanSterlionUblValue(row.firstName),
-            cleanSterlionUblValue(row.lastName),
-            aadhaarNumber,
-            panNumber,
-            mobileNumber,
-            cleanSterlionUblValue(row.email),
-            cleanSterlionUblValue(row.businessName),
-            cleanSterlionUblValue(row.industry),
-            cleanSterlionUblValue(row.accountHolderName),
-            cleanSterlionUblValue(row.accountNumber),
-            ifsc,
-            cleanSterlionUblValue(row.bankName),
-            dateOfBirth,
-            cleanSterlionUblValue(row.permanentAddress),
-            cleanSterlionUblValue(row.businessAddress),
-            cleanSterlionUblValue(row.gstNumber),
-            cleanSterlionUblValue(row.udyamNumber),
-            STERLION_UBL_LENDER,
-            "Login",
-          ];
+        const insertValues = [
+          partnerLoanId,
+          lan,
+          product,
+          loanAmount,
+          tenureMonths,
+          interestRate,
+          processingFee,
+          stampPaperCharges,
+          insuranceAmount,
+          documentsCharges,
+          advanceInterestAmount,
+          netDisbAmt,
+          cleanSterlionUblValue(row.firstName),
+          cleanSterlionUblValue(row.lastName),
+          aadhaarNumber,
+          panNumber,
+          mobileNumber,
+          cleanSterlionUblValue(row.email),
+          cleanSterlionUblValue(row.businessName),
+          cleanSterlionUblValue(row.industry),
+          cleanSterlionUblValue(row.accountHolderName),
+          cleanSterlionUblValue(row.accountNumber),
+          ifsc,
+          cleanSterlionUblValue(row.bankName),
+          dateOfBirth,
+          cleanSterlionUblValue(row.permanentAddress),
+          cleanSterlionUblValue(row.businessAddress),
+          cleanSterlionUblValue(row.gstNumber),
+          cleanSterlionUblValue(row.udyamNumber),
+          STERLION_UBL_LENDER,
+          "Login",
+        ];
 
-          await db.promise().query(insertQuery, insertValues);
+        await db.promise().query(insertQuery, insertValues);
 
-          success_rows.push({
-            row: excelRowNumber,
-            lan,
-            partnerLoanId,
-            panNumber,
-            product,
-          });
+        success_rows.push({
+          row: excelRowNumber,
+          lan,
+          partnerLoanId,
+          panNumber,
+          product,
+        });
 
-          console.log(
-            `✅ Sterlion UBL inserted | Row: ${excelRowNumber} | LAN: ${lan} | PAN: ${panNumber}`,
-          );
-        } catch (rowError) {
-          console.error(
-            `❌ Sterlion UBL row ${excelRowNumber} failed:`,
-            rowError
-          );
+        console.log(
+          `✅ Sterlion UBL inserted | Row: ${excelRowNumber} | LAN: ${lan} | PAN: ${panNumber}`,
+        );
+      } catch (rowError) {
+        console.error(
+          `❌ Sterlion UBL row ${excelRowNumber} failed:`,
+          rowError,
+        );
 
-          row_errors.push({
-            row: excelRowNumber,
-            stage: "insert",
-            reason:
-              rowError.sqlMessage ||
-              rowError.message ||
-              "Unknown row error",
-          });
-        }
+        row_errors.push({
+          row: excelRowNumber,
+          stage: "insert",
+          reason:
+            rowError.sqlMessage || rowError.message || "Unknown row error",
+        });
       }
-      return res.status(200).json({
-        message: "Sterlion UBL file processed.",
-        total_rows: rows.length,
-
-        // Existing keys
-        inserted_rows: success_rows.length,
-        failed_rows: row_errors.length,
-
-        // UI compatibility keys
-        inserted: success_rows.length,
-        failed: row_errors.length,
-
-        success_rows,
-        row_errors,
-      });
-    } catch (error) {
-      console.error("❌ Sterlion UBL upload error:", error);
-
-      return res.status(500).json({
-        message: "Sterlion UBL upload failed.",
-        error:
-          error.sqlMessage ||
-          error.message ||
-          "Unknown server error",
-      });
     }
+    return res.status(200).json({
+      message: "Sterlion UBL file processed.",
+      total_rows: rows.length,
+
+      // Existing keys
+      inserted_rows: success_rows.length,
+      failed_rows: row_errors.length,
+
+      // UI compatibility keys
+      inserted: success_rows.length,
+      failed: row_errors.length,
+
+      success_rows,
+      row_errors,
+    });
+  } catch (error) {
+    console.error("❌ Sterlion UBL upload error:", error);
+
+    return res.status(500).json({
+      message: "Sterlion UBL upload failed.",
+      error: error.sqlMessage || error.message || "Unknown server error",
+    });
   }
-);
+});
 module.exports = router;
 module.exports.generateLoanIdentifiers = generateLoanIdentifiers;

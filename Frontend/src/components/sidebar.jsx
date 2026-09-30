@@ -182,8 +182,8 @@ import { AuthContext } from '../context/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Wallet, Car, Briefcase, Landmark, ShieldCheck,
-  Layers, Zap, BarChart3, Users, Repeat, CreditCard,
-  ChevronRight, ArrowLeft
+  Layers, Zap, BarChart3, Users, Repeat, CreditCard, Hospital,
+  ChevronRight, ArrowLeft,
 } from 'lucide-react';
 import '../styles/Sidebar.css';
  
@@ -236,7 +236,8 @@ const Sidebar = () => {
       'Dealer ALL': <Users size={iconSize} />,
       'Aldun Loans': <Landmark size={iconSize} />,
       'MIS Reports': <BarChart3 size={iconSize} />,
-            ' Saswat': <Zap size={iconSize} />,
+      ' Saswat': <Zap size={iconSize} />,
+      'Claim Buddy Loans': <Hospital size={iconSize} />  //claim buddy
 
     };
     // Return the icon or the first letter if not found
@@ -248,7 +249,7 @@ const Sidebar = () => {
   const allowedPages = user.pages || [];
  console.log("User Pages:", allowedPages);
   const grouped = {
-    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/claimcurebuddy', '/motion-corp', '/sampada', '/loan-digit', '/rapidmoney-loans', '/ya-money', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh' ,'/sterlion-ubl-loans','/sterlion-mexon-dexon','/claimcurebuddy'].some(prefix => p.path.includes(prefix))),
+    LoanBooking: allowedPages.filter(p => !['/ev-loans', '/gq-fsf-loans', '/gq-non-fsf-loans', '/adikosh-loans', '/circlepe-houser-loans', '/wctl-blloans', '/wctl-ffpl-loans', '/wctl-ccod','/seven-fincorp', '/bundela', '/circlepe-loans', '/elysium-loans', '/business-loans', '/embifi-loans', '/emiclub-loans', '/zypay-loans', '/fincrest-loans', '/fundify-loans', '/hey-ev-loans', '/hey-ev-battery-loans', '/helium-loans', '/dealer-onboarding', '/supply-chain-loans', '/clayoo-loans', '/claimcurebuddy', '/motion-corp', '/sampada', '/loan-digit', '/rapidmoney-loans', '/ya-money', '/sml-loans', '/aldun-loans', '/mis-reports' , '/carepay-loans', '/sterlion-loans', '/srbh' ,'/sterlion-ubl-loans','/sterlion-mexon-dexon','/claimcurebuddy', '/claim-buddy'].some(prefix => p.path.includes(prefix))),
     'Malhotra EV Loans': allowedPages.filter(p => p.path.includes('/ev-loans')),
     'Unsecured BL': allowedPages.filter(p => p.path.includes('/business-loans')),
     'WCTL Business Loans': allowedPages.filter(p => p.path.includes('/wctl-blloans')),
@@ -295,6 +296,10 @@ const Sidebar = () => {
     'Sterlion Mexon Dexon Loans': allowedPages.filter((p) => p.path.includes('/sterlion-mexon-dexon')),
     'Supply Chain Loans': allowedPages.filter(p => p.path.includes('/supply-chain-loans')),
     'Saswat ': allowedPages.filter(p => p.path.includes('/saswat')),
+    //Claim Buddy
+    'Claim Buddy Loans': allowedPages.filter(
+  p => p.path.includes('/claim-buddy')
+),
 
     'Dealer ALL': allowedPages.filter(p => p.path.includes('/dealer-onboarding')),
     'Aldun Loans': allowedPages.filter(p => p.path.includes('/aldun-loans')),

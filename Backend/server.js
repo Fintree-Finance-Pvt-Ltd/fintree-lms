@@ -20,6 +20,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
 const sterlionRoutes = require("./routes/sterlion/sterlionRoutes");
 const carePayRoutes = require("./routes/CarePay/carePayRoutes");
+const claimBuddyRoutes = require("./routes/ClaimBuddy/claimBuddyRoutes"); //Claim Buddy
 const loanRoutes = require("./routes/loanRoutes");
 const repaymentRoutes = require("./routes/repaymentsRoutes");
 const loanChargesRoutes = require("./routes/loanChargesRoutes");
@@ -582,6 +583,8 @@ app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ R
 app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Mandate UMRN Update
+app.use("/api/claim-buddy",claimBuddyRoutes); // Claim Buddy
+
 app.use(
   "/api/claim-cure-buddy",
   require("./routes/ClaimCureBuddy/ClaimCureBuddyRoutes"),

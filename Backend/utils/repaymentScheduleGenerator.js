@@ -502,10 +502,7 @@
 /////////////////////////////////////    NEW   ///////////////////////
 const db = require("../config/db");
 const { getFirstEmiDate } = require("../utils/emiDateCalculator");
-const {
-  isCarepayLoanType,
-  normalizeCarepayProduct,
-} = require("./constant.js");
+const { isCarepayLoanType, normalizeCarepayProduct } = require("./constant.js");
 
 // ✅ Excel serial date to JS date (YYYY-MM-DD)
 const excelSerialDateToJS = (value) => {
@@ -1222,7 +1219,6 @@ const generateRepaymentScheduleZypay = async (
 
 ///////////////////////////////////////////////////////////////////
 
-
 ////////// LOAN DIGIT//////////////////////
 
 // const generateRepaymentScheduleLoanDigit = async (
@@ -1419,10 +1415,9 @@ const generateRepaymentScheduleLoanDigit = async (
   tenure,
   disbursementDate,
   product,
-  lender
+  lender,
 ) => {
   try {
-
     // ===============================
     // STEP 0: VALIDATION
     // ===============================
@@ -1445,18 +1440,14 @@ const generateRepaymentScheduleLoanDigit = async (
     // (Loan Digit adjustment logic)
     // ===============================
 
-    const flatInterest =
-      principal * (rate / 100) * (months / 12);
+    const flatInterest = principal * (rate / 100) * (months / 12);
 
     // Adjustment factor used by lender engine
     const adjustedInterest = flatInterest * 0.6775;
 
-    const totalRepayment =
-      principal + adjustedInterest;
+    const totalRepayment = principal + adjustedInterest;
 
-    const emi = Math.round(
-      totalRepayment / months
-    );
+    const emi = Math.round(totalRepayment / months);
 
     console.log(`✅ EMI calculated (${lan}): ${emi}`);
 
@@ -1465,46 +1456,39 @@ const generateRepaymentScheduleLoanDigit = async (
     // ===============================
 
     const getReducingMonthlyRate = () => {
-
       let low = 0;
       let high = 0.2;
       let mid = 0;
 
       for (let i = 0; i < 200; i++) {
-
         mid = (low + high) / 2;
 
         let balance = principal;
         let totalInterestCheck = 0;
 
         for (let j = 1; j <= months; j++) {
-
           let interest = Math.round(balance * mid);
 
-          let principalComponent =
-            emi - interest;
+          let principalComponent = emi - interest;
 
           balance -= principalComponent;
 
           totalInterestCheck += interest;
         }
 
-        if (totalInterestCheck > adjustedInterest)
-          high = mid;
-        else
-          low = mid;
+        if (totalInterestCheck > adjustedInterest) high = mid;
+        else low = mid;
       }
 
       return mid;
     };
 
-    const monthlyRate =
-      getReducingMonthlyRate();
+    const monthlyRate = getReducingMonthlyRate();
 
     console.log(
-      `✅ Derived reducing monthly rate (${lan}): ${
-        (monthlyRate * 100).toFixed(4)
-      }%`
+      `✅ Derived reducing monthly rate (${lan}): ${(monthlyRate * 100).toFixed(
+        4,
+      )}%`,
     );
 
     // ===============================
@@ -1515,16 +1499,13 @@ const generateRepaymentScheduleLoanDigit = async (
       disbursementDate,
       null,
       lender,
-      product
+      product,
     );
 
-    const firstDueDate =
-      new Date(firstDueRaw);
+    const firstDueDate = new Date(firstDueRaw);
 
     if (Number.isNaN(firstDueDate.getTime())) {
-      throw new Error(
-        `Invalid first EMI date returned: ${firstDueRaw}`
-      );
+      throw new Error(`Invalid first EMI date returned: ${firstDueRaw}`);
     }
 
     // ===============================
@@ -1535,31 +1516,21 @@ const generateRepaymentScheduleLoanDigit = async (
     let remainingPrincipal = principal;
     let remainingInterest = adjustedInterest;
 
-    let dueDate =
-      new Date(firstDueDate);
+    let dueDate = new Date(firstDueDate);
 
     const rpsData = [];
 
     for (let i = 1; i <= months; i++) {
+      let interest = Math.round(openingPrincipal * monthlyRate);
 
-      let interest = Math.round(
-        openingPrincipal * monthlyRate
-      );
-
-      let principalComponent =
-        emi - interest;
+      let principalComponent = emi - interest;
 
       if (i === months) {
-        interest = Math.round(
-          remainingInterest
-        );
-        principalComponent = Math.round(
-          remainingPrincipal
-        );
+        interest = Math.round(remainingInterest);
+        principalComponent = Math.round(remainingPrincipal);
       }
 
-      const closingPrincipal =
-        openingPrincipal - principalComponent;
+      const closingPrincipal = openingPrincipal - principalComponent;
 
       remainingPrincipal -= principalComponent;
       remainingInterest -= interest;
@@ -1572,10 +1543,7 @@ const generateRepaymentScheduleLoanDigit = async (
         interest,
         principalComponent,
         openingPrincipal,
-        Math.max(
-          0,
-          Math.round(closingPrincipal)
-        ),
+        Math.max(0, Math.round(closingPrincipal)),
         emi,
         interest,
         principalComponent,
@@ -1583,9 +1551,7 @@ const generateRepaymentScheduleLoanDigit = async (
 
       openingPrincipal = closingPrincipal;
 
-      dueDate.setMonth(
-        dueDate.getMonth() + 1
-      );
+      dueDate.setMonth(dueDate.getMonth() + 1);
     }
 
     // ===============================
@@ -1598,19 +1564,12 @@ const generateRepaymentScheduleLoanDigit = async (
         opening, closing, remaining_emi,
         remaining_interest, remaining_principal)
        VALUES ?`,
-      [rpsData]
+      [rpsData],
     );
 
-    console.log(
-      `✅ Loan Digit RPS generated successfully for ${lan}`
-    );
-
+    console.log(`✅ Loan Digit RPS generated successfully for ${lan}`);
   } catch (err) {
-
-    console.error(
-      `❌ Loan Digit RPS generation failed (${lan}):`,
-      err
-    );
+    console.error(`❌ Loan Digit RPS generation failed (${lan}):`, err);
 
     throw err;
   }
@@ -1712,7 +1671,6 @@ const generateRepaymentScheduleEmiclub = async (
 
 /////////////// CAREPAY START ///////////////////////
 
-
 const round2 = (value) =>
   Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
@@ -1739,29 +1697,24 @@ const generateRepaymentScheduleCarepay = async (
   disbursementDate,
   product,
   lender,
-   processingFee = 0, // ✅ pass processing fee
+  processingFee = 0, // ✅ pass processing fee
 ) => {
   if (!conn) {
-    throw new Error(
-      "Database transaction connection is required",
-    );
+    throw new Error("Database transaction connection is required");
   }
 
   const normalizedLan = String(lan || "")
     .trim()
     .toUpperCase();
 
-  const normalizedProduct =
-    normalizeCarepayProduct(product);
+  const normalizedProduct = normalizeCarepayProduct(product);
 
   if (!normalizedLan) {
     throw new Error("CarePay LAN is required");
   }
 
   if (!normalizedLan.startsWith("CARE")) {
-    throw new Error(
-      `Invalid CarePay LAN: ${normalizedLan}`,
-    );
+    throw new Error(`Invalid CarePay LAN: ${normalizedLan}`);
   }
 
   if (!isCarepayLoanType(normalizedProduct)) {
@@ -1771,61 +1724,33 @@ const generateRepaymentScheduleCarepay = async (
   }
 
   const numericLoanAmount = Number(loanAmount);
-  const numericInterestRate = Number(
-    interestRate || 0,
-  );
+  const numericInterestRate = Number(interestRate || 0);
   const numericTenure = Number(tenure);
-  const numericProcessingFee = round2(
-    Number(processingFee || 0),
-  );
-  if (
-  !Number.isFinite(numericProcessingFee) ||
-  numericProcessingFee < 0
-) {
-  throw new Error(
-    `Invalid CarePay processing fee: ${processingFee}`,
-  );
-}
-
-  if (
-    !Number.isFinite(numericLoanAmount) ||
-    numericLoanAmount <= 0
-  ) {
-    throw new Error(
-      `Invalid CarePay loan amount: ${loanAmount}`,
-    );
+  const numericProcessingFee = round2(Number(processingFee || 0));
+  if (!Number.isFinite(numericProcessingFee) || numericProcessingFee < 0) {
+    throw new Error(`Invalid CarePay processing fee: ${processingFee}`);
   }
 
-  if (
-    !Number.isFinite(numericInterestRate) ||
-    numericInterestRate < 0
-  ) {
-    throw new Error(
-      `Invalid CarePay interest rate: ${interestRate}`,
-    );
+  if (!Number.isFinite(numericLoanAmount) || numericLoanAmount <= 0) {
+    throw new Error(`Invalid CarePay loan amount: ${loanAmount}`);
   }
 
-  if (
-    !Number.isFinite(numericProcessingFee) ||
-    numericProcessingFee < 0
-  ) {
-    throw new Error(
-      `Invalid CarePay processing fee: ${processingFee}`,
-    );
+  if (!Number.isFinite(numericInterestRate) || numericInterestRate < 0) {
+    throw new Error(`Invalid CarePay interest rate: ${interestRate}`);
   }
 
-  const isNoCostEmi =
-    normalizedProduct === "no-cost emi";
+  if (!Number.isFinite(numericProcessingFee) || numericProcessingFee < 0) {
+    throw new Error(`Invalid CarePay processing fee: ${processingFee}`);
+  }
 
-  const isLowCostEmi =
-    normalizedProduct === "low-cost emi";
+  const isNoCostEmi = normalizedProduct === "no-cost emi";
 
-  const isStandardEmi =
-    normalizedProduct === "standard emi";
+  const isLowCostEmi = normalizedProduct === "low-cost emi";
+
+  const isStandardEmi = normalizedProduct === "standard emi";
 
   const isShortTermPersonalLoan =
-    normalizedProduct ===
-    "short-term personal loan";
+    normalizedProduct === "short-term personal loan";
 
   let repaymentTenure;
 
@@ -1836,13 +1761,8 @@ const generateRepaymentScheduleCarepay = async (
   if (isShortTermPersonalLoan) {
     repaymentTenure = 1;
   } else {
-    if (
-      !Number.isInteger(numericTenure) ||
-      numericTenure <= 0
-    ) {
-      throw new Error(
-        `Invalid CarePay tenure: ${tenure}`,
-      );
+    if (!Number.isInteger(numericTenure) || numericTenure <= 0) {
+      throw new Error(`Invalid CarePay tenure: ${tenure}`);
     }
 
     repaymentTenure = numericTenure;
@@ -1852,11 +1772,9 @@ const generateRepaymentScheduleCarepay = async (
    * No-Cost EMI always has zero
    * customer interest.
    */
-  const effectiveAnnualInterestRate =
-    isNoCostEmi ? 0 : numericInterestRate;
+  const effectiveAnnualInterestRate = isNoCostEmi ? 0 : numericInterestRate;
 
-  const monthlyRate =
-    effectiveAnnualInterestRate / 100 / 12;
+  const monthlyRate = effectiveAnnualInterestRate / 100 / 12;
 
   let regularEmi;
 
@@ -1870,14 +1788,10 @@ const generateRepaymentScheduleCarepay = async (
    * to the first installment.
    */
   if (isShortTermPersonalLoan) {
-    const oneMonthInterest = round2(
-      numericLoanAmount * monthlyRate,
-    );
+    const oneMonthInterest = round2(numericLoanAmount * monthlyRate);
 
-    regularEmi = round2(
-      numericLoanAmount + oneMonthInterest,
-    );
-  }
+    regularEmi = round2(numericLoanAmount + oneMonthInterest);
+  } else if (isNoCostEmi || monthlyRate === 0) {
 
   /*
    * No-Cost EMI:
@@ -1886,38 +1800,23 @@ const generateRepaymentScheduleCarepay = async (
    * Last installment clears any rounding
    * difference.
    */
-  else if (isNoCostEmi || monthlyRate === 0) {
-    regularEmi = Math.round(
-      numericLoanAmount / repaymentTenure,
-    );
-  }
+    regularEmi = Math.round(numericLoanAmount / repaymentTenure);
+  } else if (isStandardEmi || isLowCostEmi) {
 
   /*
    * Standard EMI and Low-Cost EMI:
    *
    * Reducing-balance PMT calculation.
    */
-  else if (isStandardEmi || isLowCostEmi) {
-    const rateFactor = Math.pow(
-      1 + monthlyRate,
-      repaymentTenure,
-    );
+    const rateFactor = Math.pow(1 + monthlyRate, repaymentTenure);
 
     regularEmi = Math.round(
-      (numericLoanAmount *
-        monthlyRate *
-        rateFactor) /
-        (rateFactor - 1),
+      (numericLoanAmount * monthlyRate * rateFactor) / (rateFactor - 1),
     );
   }
 
-  if (
-    !Number.isFinite(regularEmi) ||
-    regularEmi <= 0
-  ) {
-    throw new Error(
-      `Unable to calculate CarePay EMI for LAN ${normalizedLan}`,
-    );
+  if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
+    throw new Error(`Unable to calculate CarePay EMI for LAN ${normalizedLan}`);
   }
 
   /*
@@ -1936,14 +1835,10 @@ const generateRepaymentScheduleCarepay = async (
   );
 
   if (existingRps.length > 0) {
-    throw new Error(
-      `CarePay RPS already exists for LAN ${normalizedLan}`,
-    );
+    throw new Error(`CarePay RPS already exists for LAN ${normalizedLan}`);
   }
 
-  let openingPrincipal = round2(
-    numericLoanAmount,
-  );
+  let openingPrincipal = round2(numericLoanAmount);
 
   const rpsData = [];
 
@@ -1952,22 +1847,20 @@ const generateRepaymentScheduleCarepay = async (
     installmentNumber <= repaymentTenure;
     installmentNumber++
   ) {
-   const dueDate = getFirstEmiDate(
-  disbursementDate,
-  null,
-  lender || "CAREPAY",
-  normalizedProduct,
-  installmentNumber - 1,
-);
+    const dueDate = getFirstEmiDate(
+      disbursementDate,
+      null,
+      lender || "CAREPAY",
+      normalizedProduct,
+      installmentNumber - 1,
+    );
 
     /*
      * Processing fee is collected only
      * in installment number 1.
      */
     const installmentProcessingFee =
-      installmentNumber === 1
-        ? numericProcessingFee
-        : 0;
+      installmentNumber === 1 ? numericProcessingFee : 0;
 
     /*
      * normalInterest excludes processing fee.
@@ -1992,12 +1885,10 @@ const generateRepaymentScheduleCarepay = async (
      * - Processing fee
      */
     if (isShortTermPersonalLoan) {
-      normalInterest = round2(
-        openingPrincipal * monthlyRate,
-      );
+      normalInterest = round2(openingPrincipal * monthlyRate);
 
       principal = openingPrincipal;
-    }
+    } else if (isNoCostEmi || monthlyRate === 0) {
 
     /*
      * No-Cost EMI:
@@ -2005,20 +1896,13 @@ const generateRepaymentScheduleCarepay = async (
      * No normal borrower interest.
      * Processing fee is charged only in EMI 1.
      */
-    else if (
-      isNoCostEmi ||
-      monthlyRate === 0
-    ) {
       normalInterest = 0;
 
       principal =
         installmentNumber === repaymentTenure
           ? openingPrincipal
-          : Math.min(
-              regularEmi,
-              openingPrincipal,
-            );
-    }
+          : Math.min(regularEmi, openingPrincipal);
+    } else {
 
     /*
      * Standard EMI and Low-Cost EMI:
@@ -2027,13 +1911,9 @@ const generateRepaymentScheduleCarepay = async (
      * Calculate principal without considering
      * the processing fee.
      */
-    else {
-      normalInterest = Math.round(
-        openingPrincipal * monthlyRate,
-      );
+      normalInterest = Math.round(openingPrincipal * monthlyRate);
 
-      principal =
-        regularEmi - normalInterest;
+      principal = regularEmi - normalInterest;
 
       if (principal <= 0) {
         throw new Error(
@@ -2065,33 +1945,22 @@ const generateRepaymentScheduleCarepay = async (
      * interest =
      * normal interest + processing fee
      */
-    const interest = round2(
-  normalInterest
-);
+    const interest = round2(normalInterest);
 
-    const closingPrincipal = Math.max(
-      0,
-      round2(
-        openingPrincipal - principal,
-      ),
-    );
+    const closingPrincipal = Math.max(0, round2(openingPrincipal - principal));
 
-  /*
- * EMI calculation:
- *
- * Normal EMI:
- * Principal + Interest
- *
- * First EMI:
- * Principal + Interest + Processing Fee
- *
- * Processing fee is collected only in first installment.
- */
-const actualEmi = round2(
-  principal +
-  interest +
-  installmentProcessingFee
-);
+    /*
+     * EMI calculation:
+     *
+     * Normal EMI:
+     * Principal + Interest
+     *
+     * First EMI:
+     * Principal + Interest + Processing Fee
+     *
+     * Processing fee is collected only in first installment.
+     */
+    const actualEmi = round2(principal + interest + installmentProcessingFee);
     const remainingPrincipal = principal;
     const remainingInterest = interest;
     const remainingEmi = actualEmi;
@@ -2142,16 +2011,12 @@ const actualEmi = round2(
     [rpsData],
   );
 
-
   // Insert Processing Fee into loan_charges table
-if (numericProcessingFee > 0) {
+  if (numericProcessingFee > 0) {
+    const firstEmiDueDate = formatDateYMD(rpsData[0][1]);
 
-  const firstEmiDueDate = formatDateYMD(
-    rpsData[0][1]
-  );
-
-  await conn.query(
-    `
+    await conn.query(
+      `
     INSERT INTO loan_charges
     (
       emi_id,
@@ -2181,14 +2046,9 @@ if (numericProcessingFee > 0) {
       'Processing fee charged at loan booking'
     )
     `,
-    [
-      normalizedLan,
-      firstEmiDueDate,
-      numericProcessingFee
-    ]
-  );
-
-}
+      [normalizedLan, firstEmiDueDate, numericProcessingFee],
+    );
+  }
 
   /*
    * Store only the regular EMI.
@@ -2203,13 +2063,11 @@ if (numericProcessingFee > 0) {
     [regularEmi, normalizedLan],
   );
 
-  const firstInstallmentAmount =
-    rpsData[0]?.[2] || 0;
+  const firstInstallmentAmount = rpsData[0]?.[2] || 0;
 
   const totalExpectedRepayment = round2(
     rpsData.reduce(
-      (total, installment) =>
-        total + Number(installment[2] || 0),
+      (total, installment) => total + Number(installment[2] || 0),
       0,
     ),
   );
@@ -2218,10 +2076,8 @@ if (numericProcessingFee > 0) {
     lan: normalizedLan,
     product: normalizedProduct,
     loanAmount: numericLoanAmount,
-    interestRate:
-      effectiveAnnualInterestRate,
-    processingFee:
-      numericProcessingFee,
+    interestRate: effectiveAnnualInterestRate,
+    processingFee: numericProcessingFee,
     tenure: repaymentTenure,
     regularEmi,
     firstInstallmentAmount,
@@ -2233,24 +2089,17 @@ if (numericProcessingFee > 0) {
     lan: normalizedLan,
     product: normalizedProduct,
     loan_amount: numericLoanAmount,
-    interest_rate:
-      effectiveAnnualInterestRate,
-    processing_fee:
-      numericProcessingFee,
+    interest_rate: effectiveAnnualInterestRate,
+    processing_fee: numericProcessingFee,
     tenure: repaymentTenure,
     emi_amount: regularEmi,
-    first_installment_amount:
-      firstInstallmentAmount,
-    total_expected_repayment:
-      totalExpectedRepayment,
+    first_installment_amount: firstInstallmentAmount,
+    total_expected_repayment: totalExpectedRepayment,
     installment_count: rpsData.length,
   };
 };
 
-
 ////////////////////// STERLION UBL ///////////////////////
-
-
 
 const normalizeSterlionUblProduct = (product) => {
   return String(product || "")
@@ -2260,10 +2109,7 @@ const normalizeSterlionUblProduct = (product) => {
 };
 
 const isSterlionUblProduct = (product) => {
-  return [
-    "UPFRONT_INTEREST",
-    "MONTHLY_360",
-  ].includes(product);
+  return ["UPFRONT_INTEREST", "MONTHLY_360"].includes(product);
 };
 
 const generateRepaymentScheduleSterlionUbl = async (
@@ -2278,21 +2124,16 @@ const generateRepaymentScheduleSterlionUbl = async (
   processingFee = 0,
 ) => {
   if (!conn) {
-    throw new Error(
-      "Database transaction connection is required",
-    );
+    throw new Error("Database transaction connection is required");
   }
 
   const normalizedLan = String(lan || "")
     .trim()
     .toUpperCase();
 
-  const normalizedProduct =
-    normalizeSterlionUblProduct(product);
+  const normalizedProduct = normalizeSterlionUblProduct(product);
 
-  const numericLoanAmount = round2(
-    Number(loanAmount),
-  );
+  const numericLoanAmount = round2(Number(loanAmount));
 
   /*
    * Supports:
@@ -2301,21 +2142,15 @@ const generateRepaymentScheduleSterlionUbl = async (
    * "37.54"
    * "37.54%"
    */
-  const normalizedInterestRate = String(
-    interestRate ?? 0,
-  )
+  const normalizedInterestRate = String(interestRate ?? 0)
     .trim()
     .replace(/%$/, "");
 
-  const numericInterestRate = Number(
-    normalizedInterestRate,
-  );
+  const numericInterestRate = Number(normalizedInterestRate);
 
   const numericTenure = Number(tenure);
 
-  const numericProcessingFee = round2(
-    Number(processingFee || 0),
-  );
+  const numericProcessingFee = round2(Number(processingFee || 0));
 
   /*
    * ==========================================
@@ -2324,61 +2159,35 @@ const generateRepaymentScheduleSterlionUbl = async (
    */
 
   if (!normalizedLan) {
-    throw new Error(
-      "Sterlion UBL LAN is required",
-    );
+    throw new Error("Sterlion UBL LAN is required");
   }
 
-  if (
-    !isSterlionUblProduct(normalizedProduct)
-  ) {
+  if (!isSterlionUblProduct(normalizedProduct)) {
     throw new Error(
       `Invalid Sterlion UBL product: ${product}. ` +
         "Allowed products: UPFRONT_INTEREST, MONTHLY_360",
     );
   }
 
-  if (
-    !Number.isFinite(numericLoanAmount) ||
-    numericLoanAmount <= 0
-  ) {
-    throw new Error(
-      `Invalid Sterlion UBL loan amount: ${loanAmount}`,
-    );
+  if (!Number.isFinite(numericLoanAmount) || numericLoanAmount <= 0) {
+    throw new Error(`Invalid Sterlion UBL loan amount: ${loanAmount}`);
   }
 
-  if (
-    !Number.isFinite(numericInterestRate) ||
-    numericInterestRate < 0
-  ) {
-    throw new Error(
-      `Invalid Sterlion UBL interest rate: ${interestRate}`,
-    );
+  if (!Number.isFinite(numericInterestRate) || numericInterestRate < 0) {
+    throw new Error(`Invalid Sterlion UBL interest rate: ${interestRate}`);
   }
 
-  if (
-    !Number.isInteger(numericTenure) ||
-    numericTenure <= 0
-  ) {
-    throw new Error(
-      `Invalid Sterlion UBL tenure: ${tenure}`,
-    );
+  if (!Number.isInteger(numericTenure) || numericTenure <= 0) {
+    throw new Error(`Invalid Sterlion UBL tenure: ${tenure}`);
   }
 
-  if (
-    !Number.isFinite(numericProcessingFee) ||
-    numericProcessingFee < 0
-  ) {
-    throw new Error(
-      `Invalid Sterlion UBL processing fee: ${processingFee}`,
-    );
+  if (!Number.isFinite(numericProcessingFee) || numericProcessingFee < 0) {
+    throw new Error(`Invalid Sterlion UBL processing fee: ${processingFee}`);
   }
 
-  const isUpfrontInterest =
-    normalizedProduct === "UPFRONT_INTEREST";
+  const isUpfrontInterest = normalizedProduct === "UPFRONT_INTEREST";
 
-  const isMonthlyLoan =
-    normalizedProduct === "MONTHLY_360";
+  const isMonthlyLoan = normalizedProduct === "MONTHLY_360";
 
   /*
    * ==========================================
@@ -2397,9 +2206,7 @@ const generateRepaymentScheduleSterlionUbl = async (
   );
 
   if (existingRps.length > 0) {
-    throw new Error(
-      `Sterlion UBL RPS already exists for LAN ${normalizedLan}`,
-    );
+    throw new Error(`Sterlion UBL RPS already exists for LAN ${normalizedLan}`);
   }
 
   /*
@@ -2408,8 +2215,7 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  const monthlyRate =
-    numericInterestRate / 100 / 12;
+  const monthlyRate = numericInterestRate / 100 / 12;
 
   let upfrontInterestAmount = 0;
 
@@ -2417,8 +2223,7 @@ const generateRepaymentScheduleSterlionUbl = async (
    * Full loan amount is always used
    * as RPS principal.
    */
-  let repayablePrincipal =
-    numericLoanAmount;
+  let repayablePrincipal = numericLoanAmount;
 
   /*
    * IMPORTANT:
@@ -2487,8 +2292,7 @@ const generateRepaymentScheduleSterlionUbl = async (
     /*
      * RPS starts from full loan amount.
      */
-    repayablePrincipal =
-      numericLoanAmount;
+    repayablePrincipal = numericLoanAmount;
 
     /*
      * ========================================
@@ -2498,22 +2302,12 @@ const generateRepaymentScheduleSterlionUbl = async (
      */
 
     if (monthlyRate === 0) {
-      rawPmtEmi =
-        numericLoanAmount /
-        numericTenure;
+      rawPmtEmi = numericLoanAmount / numericTenure;
     } else {
-      const rateFactor = Math.pow(
-        1 + monthlyRate,
-        numericTenure,
-      );
+      const rateFactor = Math.pow(1 + monthlyRate, numericTenure);
 
       rawPmtEmi =
-        (
-          numericLoanAmount *
-          monthlyRate *
-          rateFactor
-        ) /
-        (rateFactor - 1);
+        (numericLoanAmount * monthlyRate * rateFactor) / (rateFactor - 1);
     }
 
     /*
@@ -2525,8 +2319,7 @@ const generateRepaymentScheduleSterlionUbl = async (
      *
      * PMT ≈ 412998.53
      */
-    pmtCalculatedEmi =
-      round2(rawPmtEmi);
+    pmtCalculatedEmi = round2(rawPmtEmi);
 
     /*
      * ========================================
@@ -2537,10 +2330,7 @@ const generateRepaymentScheduleSterlionUbl = async (
      * Use raw PMT before rounding.
      */
 
-    pmtTotalRepayment = round2(
-      rawPmtEmi *
-        numericTenure,
-    );
+    pmtTotalRepayment = round2(rawPmtEmi * numericTenure);
 
     /*
      * ========================================
@@ -2559,10 +2349,7 @@ const generateRepaymentScheduleSterlionUbl = async (
      * 629985.25
      */
 
-    upfrontInterestAmount = round2(
-      pmtTotalRepayment -
-        numericLoanAmount,
-    );
+    upfrontInterestAmount = round2(pmtTotalRepayment - numericLoanAmount);
 
     /*
      * ========================================
@@ -2571,10 +2358,7 @@ const generateRepaymentScheduleSterlionUbl = async (
      * ========================================
      */
 
-    regularUpfrontInterest = round2(
-      upfrontInterestAmount /
-        numericTenure,
-    );
+    regularUpfrontInterest = round2(upfrontInterestAmount / numericTenure);
 
     /*
      * ========================================
@@ -2591,10 +2375,7 @@ const generateRepaymentScheduleSterlionUbl = async (
      * 350000
      */
 
-    regularUpfrontPrincipal = round2(
-      numericLoanAmount /
-        numericTenure,
-    );
+    regularUpfrontPrincipal = round2(numericLoanAmount / numericTenure);
 
     /*
      * IMPORTANT:
@@ -2602,8 +2383,7 @@ const generateRepaymentScheduleSterlionUbl = async (
      * EMI stored in booking and RPS
      * is PRINCIPAL ONLY.
      */
-    regularEmi =
-      regularUpfrontPrincipal;
+    regularEmi = regularUpfrontPrincipal;
   }
 
   /*
@@ -2615,27 +2395,15 @@ const generateRepaymentScheduleSterlionUbl = async (
    */
 
   if (isMonthlyLoan) {
-    repayablePrincipal =
-      numericLoanAmount;
+    repayablePrincipal = numericLoanAmount;
 
     if (monthlyRate === 0) {
-      regularEmi = Math.ceil(
-        numericLoanAmount /
-          numericTenure,
-      );
+      regularEmi = Math.ceil(numericLoanAmount / numericTenure);
     } else {
-      const rateFactor = Math.pow(
-        1 + monthlyRate,
-        numericTenure,
-      );
+      const rateFactor = Math.pow(1 + monthlyRate, numericTenure);
 
       regularEmi = Math.ceil(
-        (
-          numericLoanAmount *
-          monthlyRate *
-          rateFactor
-        ) /
-          (rateFactor - 1),
+        (numericLoanAmount * monthlyRate * rateFactor) / (rateFactor - 1),
       );
     }
   }
@@ -2646,13 +2414,9 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  if (
-    !Number.isFinite(regularEmi) ||
-    regularEmi <= 0
-  ) {
+  if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
     throw new Error(
-      `Unable to calculate Sterlion UBL EMI ` +
-        `for LAN ${normalizedLan}`,
+      `Unable to calculate Sterlion UBL EMI ` + `for LAN ${normalizedLan}`,
     );
   }
 
@@ -2662,9 +2426,7 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  let openingPrincipal = round2(
-    repayablePrincipal,
-  );
+  let openingPrincipal = round2(repayablePrincipal);
 
   const schedule = [];
 
@@ -2686,9 +2448,7 @@ const generateRepaymentScheduleSterlionUbl = async (
      * first MONTHLY_360 installment.
      */
     const installmentProcessingFee =
-      installmentNumber === 1
-        ? numericProcessingFee
-        : 0;
+      installmentNumber === 1 ? numericProcessingFee : 0;
 
     let normalInterest = 0;
     let principal = 0;
@@ -2710,20 +2470,12 @@ const generateRepaymentScheduleSterlionUbl = async (
        * Last installment adjusts rounding.
        */
 
-      if (
-        installmentNumber ===
-        numericTenure
-      ) {
+      if (installmentNumber === numericTenure) {
         normalInterest = round2(
-          upfrontInterestAmount -
-            (
-              regularUpfrontInterest *
-              (numericTenure - 1)
-            ),
+          upfrontInterestAmount - regularUpfrontInterest * (numericTenure - 1),
         );
       } else {
-        normalInterest =
-          regularUpfrontInterest;
+        normalInterest = regularUpfrontInterest;
       }
 
       /*
@@ -2736,17 +2488,10 @@ const generateRepaymentScheduleSterlionUbl = async (
        * Final installment clears balance.
        */
 
-      if (
-        installmentNumber ===
-        numericTenure
-      ) {
-        principal =
-          openingPrincipal;
+      if (installmentNumber === numericTenure) {
+        principal = openingPrincipal;
       } else {
-        principal = Math.min(
-          regularUpfrontPrincipal,
-          openingPrincipal,
-        );
+        principal = Math.min(regularUpfrontPrincipal, openingPrincipal);
       }
     }
 
@@ -2760,30 +2505,18 @@ const generateRepaymentScheduleSterlionUbl = async (
       if (monthlyRate === 0) {
         normalInterest = 0;
 
-        if (
-          installmentNumber ===
-          numericTenure
-        ) {
-          principal =
-            openingPrincipal;
+        if (installmentNumber === numericTenure) {
+          principal = openingPrincipal;
         } else {
-          principal = Math.min(
-            regularEmi,
-            openingPrincipal,
-          );
+          principal = Math.min(regularEmi, openingPrincipal);
         }
       } else {
         /*
          * Reducing balance interest.
          */
-        normalInterest = Math.ceil(
-          openingPrincipal *
-            monthlyRate,
-        );
+        normalInterest = Math.ceil(openingPrincipal * monthlyRate);
 
-        principal =
-          regularEmi -
-          normalInterest;
+        principal = regularEmi - normalInterest;
 
         if (principal <= 0) {
           throw new Error(
@@ -2798,22 +2531,17 @@ const generateRepaymentScheduleSterlionUbl = async (
          * outstanding principal.
          */
         if (
-          installmentNumber ===
-            numericTenure ||
-          principal >
-            openingPrincipal
+          installmentNumber === numericTenure ||
+          principal > openingPrincipal
         ) {
-          principal =
-            openingPrincipal;
+          principal = openingPrincipal;
         }
       }
     }
 
-    principal =
-      round2(principal);
+    principal = round2(principal);
 
-    normalInterest =
-      round2(normalInterest);
+    normalInterest = round2(normalInterest);
 
     /*
      * ========================================
@@ -2827,13 +2555,9 @@ const generateRepaymentScheduleSterlionUbl = async (
      * normal interest + first processing fee
      */
 
-    const interest =
-      isUpfrontInterest
-        ? normalInterest
-        : round2(
-            normalInterest +
-              installmentProcessingFee,
-          );
+    const interest = isUpfrontInterest
+      ? normalInterest
+      : round2(normalInterest + installmentProcessingFee);
 
     /*
      * ========================================
@@ -2841,14 +2565,7 @@ const generateRepaymentScheduleSterlionUbl = async (
      * ========================================
      */
 
-    const closingPrincipal =
-      Math.max(
-        0,
-        round2(
-          openingPrincipal -
-            principal,
-        ),
-      );
+    const closingPrincipal = Math.max(0, round2(openingPrincipal - principal));
 
     /*
      * ========================================
@@ -2869,13 +2586,9 @@ const generateRepaymentScheduleSterlionUbl = async (
      * emi column = 350000
      */
 
-    const actualEmi =
-      isUpfrontInterest
-        ? round2(principal)
-        : round2(
-            principal +
-              interest,
-          );
+    const actualEmi = isUpfrontInterest
+      ? round2(principal)
+      : round2(principal + interest);
 
     /*
      * ========================================
@@ -2898,28 +2611,20 @@ const generateRepaymentScheduleSterlionUbl = async (
      * 412998.53
      */
 
-    const paymentAmount =
-      isUpfrontInterest
-        ? round2(
-            principal +
-              interest,
-          )
-        : actualEmi;
+    const paymentAmount = isUpfrontInterest
+      ? round2(principal + interest)
+      : actualEmi;
 
     schedule.push({
       installmentNumber,
 
-      dueDate:
-        formatDateYMD(
-          dueDate,
-        ),
+      dueDate: formatDateYMD(dueDate),
 
       /*
        * Principal-only EMI
        * for UPFRONT_INTEREST.
        */
-      emi:
-        actualEmi,
+      emi: actualEmi,
 
       /*
        * Allocated interest.
@@ -2928,11 +2633,9 @@ const generateRepaymentScheduleSterlionUbl = async (
 
       principal,
 
-      opening:
-        openingPrincipal,
+      opening: openingPrincipal,
 
-      closing:
-        closingPrincipal,
+      closing: closingPrincipal,
 
       /*
        * Principal + interest.
@@ -2943,8 +2646,7 @@ const generateRepaymentScheduleSterlionUbl = async (
       paymentAmount,
     });
 
-    openingPrincipal =
-      closingPrincipal;
+    openingPrincipal = closingPrincipal;
   }
 
   /*
@@ -2953,11 +2655,7 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  if (
-    Math.abs(
-      openingPrincipal,
-    ) > 0.01
-  ) {
+  if (Math.abs(openingPrincipal) > 0.01) {
     throw new Error(
       `Sterlion UBL RPS did not close correctly. ` +
         `Remaining principal: ${openingPrincipal}`,
@@ -2995,12 +2693,7 @@ const generateRepaymentScheduleSterlionUbl = async (
 
   let runningRemainingAmount = 0;
 
-  for (
-    let index =
-      schedule.length - 1;
-    index >= 0;
-    index--
-  ) {
+  for (let index = schedule.length - 1; index >= 0; index--) {
     /*
      * ========================================
      * REMAINING INTEREST
@@ -3014,12 +2707,9 @@ const generateRepaymentScheduleSterlionUbl = async (
      */
 
     if (!isUpfrontInterest) {
-      runningRemainingInterest =
-        round2(
-          runningRemainingInterest +
-            schedule[index]
-              .interest,
-        );
+      runningRemainingInterest = round2(
+        runningRemainingInterest + schedule[index].interest,
+      );
     }
 
     /*
@@ -3028,12 +2718,9 @@ const generateRepaymentScheduleSterlionUbl = async (
      * ========================================
      */
 
-    runningRemainingPrincipal =
-      round2(
-        runningRemainingPrincipal +
-          schedule[index]
-            .principal,
-      );
+    runningRemainingPrincipal = round2(
+      runningRemainingPrincipal + schedule[index].principal,
+    );
 
     /*
      * ========================================
@@ -3052,19 +2739,14 @@ const generateRepaymentScheduleSterlionUbl = async (
      * principal + allocated interest.
      */
 
-    runningRemainingAmount =
-      round2(
-        runningRemainingAmount +
-          schedule[index]
-            .paymentAmount,
-      );
+    runningRemainingAmount = round2(
+      runningRemainingAmount + schedule[index].paymentAmount,
+    );
 
     /*
      * Number of installments remaining.
      */
-    schedule[index].remainingEmi =
-      schedule.length -
-      index;
+    schedule[index].remainingEmi = schedule.length - index;
 
     /*
      * IMPORTANT:
@@ -3072,25 +2754,19 @@ const generateRepaymentScheduleSterlionUbl = async (
      * UPFRONT_INTEREST:
      * remaining_interest = 0
      */
-    schedule[index]
-      .remainingInterest =
-        isUpfrontInterest
-          ? 0
-          : runningRemainingInterest;
+    schedule[index].remainingInterest = isUpfrontInterest
+      ? 0
+      : runningRemainingInterest;
 
     /*
      * Remaining principal.
      */
-    schedule[index]
-      .remainingPrincipal =
-        runningRemainingPrincipal;
+    schedule[index].remainingPrincipal = runningRemainingPrincipal;
 
     /*
      * Remaining payment amount.
      */
-    schedule[index]
-      .remainingAmount =
-        runningRemainingAmount;
+    schedule[index].remainingAmount = runningRemainingAmount;
   }
 
   /*
@@ -3099,84 +2775,78 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  const rpsData =
-    schedule.map(
-      (installment) => [
-        normalizedLan,
+  const rpsData = schedule.map((installment) => [
+    normalizedLan,
 
-        installment.dueDate,
+    installment.dueDate,
 
-        "Pending",
+    "Pending",
 
-        /*
-         * EMI:
-         *
-         * UPFRONT =
-         * principal only
-         */
-        installment.emi,
+    /*
+     * EMI:
+     *
+     * UPFRONT =
+     * principal only
+     */
+    installment.emi,
 
-        /*
-         * Allocated interest.
-         */
-        installment.interest,
+    /*
+     * Allocated interest.
+     */
+    installment.interest,
 
-        /*
-         * Principal.
-         */
-        installment.principal,
+    /*
+     * Principal.
+     */
+    installment.principal,
 
-        /*
-         * Opening principal.
-         */
-        installment.opening,
+    /*
+     * Opening principal.
+     */
+    installment.opening,
 
-        /*
-         * Closing principal.
-         */
-        installment.closing,
+    /*
+     * Closing principal.
+     */
+    installment.closing,
 
-        /*
-         * Number of remaining EMIs.
-         */
-        installment.emi,
+    /*
+     * Number of remaining EMIs.
+     */
+    installment.emi,
 
-        /*
-         * UPFRONT = always 0.
-         */
-        installment
-          .remainingInterest,
+    /*
+     * UPFRONT = always 0.
+     */
+    installment.remainingInterest,
 
-        /*
-         * Remaining principal.
-         */
-        installment
-          .principal,
+    /*
+     * Remaining principal.
+     */
+    installment.principal,
 
-        /*
-         * payment_date
-         */
-        null,
+    /*
+     * payment_date
+     */
+    null,
 
-        /*
-         * dpd
-         */
-        0,
+    /*
+     * dpd
+     */
+    0,
 
-        /*
-         * Remaining actual amount:
-         *
-         * principal + allocated interest.
-         */
-        installment
-          .remainingAmount,
+    /*
+     * Remaining actual amount:
+     *
+     * principal + allocated interest.
+     */
+    installment.remainingAmount,
 
-        /*
-         * extra_paid
-         */
-        0,
-      ],
-    );
+    /*
+     * extra_paid
+     */
+    0,
+  ]);
 
   /*
    * ==========================================
@@ -3215,9 +2885,8 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  const [loanUpdateResult] =
-    await conn.query(
-      `
+  const [loanUpdateResult] = await conn.query(
+    `
         UPDATE loan_booking_sterlion_ubl
         SET
           emi_amount = ?,
@@ -3225,50 +2894,46 @@ const generateRepaymentScheduleSterlionUbl = async (
           net_repayable_amount = ?
         WHERE lan = ?
       `,
-      [
-        /*
-         * IMPORTANT:
-         *
-         * UPFRONT_INTEREST:
-         *
-         * emi_amount =
-         * PRINCIPAL ONLY
-         *
-         * Example:
-         *
-         * 350000
-         */
-        regularEmi,
+    [
+      /*
+       * IMPORTANT:
+       *
+       * UPFRONT_INTEREST:
+       *
+       * emi_amount =
+       * PRINCIPAL ONLY
+       *
+       * Example:
+       *
+       * 350000
+       */
+      regularEmi,
 
-        /*
-         * PMT-derived total interest.
-         *
-         * Example:
-         *
-         * 629985.25
-         */
-        upfrontInterestAmount,
+      /*
+       * PMT-derived total interest.
+       *
+       * Example:
+       *
+       * 629985.25
+       */
+      upfrontInterestAmount,
 
-        /*
-         * Full loan principal.
-         *
-         * Example:
-         *
-         * 3500000
-         */
-        repayablePrincipal,
+      /*
+       * Full loan principal.
+       *
+       * Example:
+       *
+       * 3500000
+       */
+      repayablePrincipal,
 
-        normalizedLan,
-      ],
-    );
+      normalizedLan,
+    ],
+  );
 
-  if (
-    loanUpdateResult
-      .affectedRows !== 1
-  ) {
+  if (loanUpdateResult.affectedRows !== 1) {
     throw new Error(
-      `Unable to update booking values ` +
-        `for LAN ${normalizedLan}`,
+      `Unable to update booking values ` + `for LAN ${normalizedLan}`,
     );
   }
 
@@ -3284,9 +2949,7 @@ const generateRepaymentScheduleSterlionUbl = async (
    * UPFRONT:
    * principal only.
    */
-  const firstInstallmentAmount =
-    schedule[0]?.emi ||
-    0;
+  const firstInstallmentAmount = schedule[0]?.emi || 0;
 
   /*
    * Actual first payment.
@@ -3295,10 +2958,7 @@ const generateRepaymentScheduleSterlionUbl = async (
    *
    * principal + interest.
    */
-  const firstPaymentAmount =
-    schedule[0]
-      ?.paymentAmount ||
-    0;
+  const firstPaymentAmount = schedule[0]?.paymentAmount || 0;
 
   /*
    * ==========================================
@@ -3312,22 +2972,12 @@ const generateRepaymentScheduleSterlionUbl = async (
    * principal only.
    */
 
-  const totalExpectedRepayment =
-    round2(
-      schedule.reduce(
-        (
-          total,
-          installment,
-        ) =>
-          total +
-          Number(
-            installment
-              .paymentAmount ||
-              0,
-          ),
-        0,
-      ),
-    );
+  const totalExpectedRepayment = round2(
+    schedule.reduce(
+      (total, installment) => total + Number(installment.paymentAmount || 0),
+      0,
+    ),
+  );
 
   /*
    * ==========================================
@@ -3335,22 +2985,12 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  const totalPrincipal =
-    round2(
-      schedule.reduce(
-        (
-          total,
-          installment,
-        ) =>
-          total +
-          Number(
-            installment
-              .principal ||
-              0,
-          ),
-        0,
-      ),
-    );
+  const totalPrincipal = round2(
+    schedule.reduce(
+      (total, installment) => total + Number(installment.principal || 0),
+      0,
+    ),
+  );
 
   /*
    * ==========================================
@@ -3358,22 +2998,12 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  const totalInterestInRps =
-    round2(
-      schedule.reduce(
-        (
-          total,
-          installment,
-        ) =>
-          total +
-          Number(
-            installment
-              .interest ||
-              0,
-          ),
-        0,
-      ),
-    );
+  const totalInterestInRps = round2(
+    schedule.reduce(
+      (total, installment) => total + Number(installment.interest || 0),
+      0,
+    ),
+  );
 
   /*
    * ==========================================
@@ -3381,12 +3011,7 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  if (
-    Math.abs(
-      totalPrincipal -
-        numericLoanAmount,
-    ) > 0.01
-  ) {
+  if (Math.abs(totalPrincipal - numericLoanAmount) > 0.01) {
     throw new Error(
       `Principal allocation mismatch. ` +
         `Expected: ${numericLoanAmount}, ` +
@@ -3402,10 +3027,7 @@ const generateRepaymentScheduleSterlionUbl = async (
 
   if (
     isUpfrontInterest &&
-    Math.abs(
-      totalInterestInRps -
-        upfrontInterestAmount,
-    ) > 0.01
+    Math.abs(totalInterestInRps - upfrontInterestAmount) > 0.01
   ) {
     throw new Error(
       `Upfront interest allocation mismatch. ` +
@@ -3422,10 +3044,7 @@ const generateRepaymentScheduleSterlionUbl = async (
 
   if (
     isUpfrontInterest &&
-    Math.abs(
-      totalExpectedRepayment -
-        pmtTotalRepayment,
-    ) > 0.01
+    Math.abs(totalExpectedRepayment - pmtTotalRepayment) > 0.01
   ) {
     throw new Error(
       `Total repayment mismatch. ` +
@@ -3440,94 +3059,75 @@ const generateRepaymentScheduleSterlionUbl = async (
    * ==========================================
    */
 
-  console.log(
-    "✅ STERLION UBL RPS generated",
-    {
-      lan:
-        normalizedLan,
+  console.log("✅ STERLION UBL RPS generated", {
+    lan: normalizedLan,
 
-      product:
-        normalizedProduct,
+    product: normalizedProduct,
 
-      loanAmount:
-        numericLoanAmount,
+    loanAmount: numericLoanAmount,
 
-      interestRate:
-        numericInterestRate,
+    interestRate: numericInterestRate,
 
-      monthlyRate,
+    monthlyRate,
 
-      tenure:
-        numericTenure,
+    tenure: numericTenure,
 
-      processingFee:
-        numericProcessingFee,
+    processingFee: numericProcessingFee,
 
-      /*
-       * PMT EMI.
-       *
-       * Used only to derive interest.
-       */
-      pmtCalculatedEmi:
-        isUpfrontInterest
-          ? pmtCalculatedEmi
-          : undefined,
+    /*
+     * PMT EMI.
+     *
+     * Used only to derive interest.
+     */
+    pmtCalculatedEmi: isUpfrontInterest ? pmtCalculatedEmi : undefined,
 
-      /*
-       * Raw PMT.
-       */
-      rawPmtEmi:
-        isUpfrontInterest
-          ? rawPmtEmi
-          : undefined,
+    /*
+     * Raw PMT.
+     */
+    rawPmtEmi: isUpfrontInterest ? rawPmtEmi : undefined,
 
-      /*
-       * Total principal + interest.
-       */
-      pmtTotalRepayment:
-        isUpfrontInterest
-          ? pmtTotalRepayment
-          : undefined,
+    /*
+     * Total principal + interest.
+     */
+    pmtTotalRepayment: isUpfrontInterest ? pmtTotalRepayment : undefined,
 
-      /*
-       * Total derived interest.
-       */
-      upfrontInterestAmount,
+    /*
+     * Total derived interest.
+     */
+    upfrontInterestAmount,
 
-      /*
-       * Monthly allocated interest.
-       */
-      regularUpfrontInterest,
+    /*
+     * Monthly allocated interest.
+     */
+    regularUpfrontInterest,
 
-      /*
-       * Monthly principal.
-       */
-      regularUpfrontPrincipal,
+    /*
+     * Monthly principal.
+     */
+    regularUpfrontPrincipal,
 
-      /*
-       * EMI stored in DB.
-       *
-       * UPFRONT:
-       * principal only.
-       */
-      regularEmi,
+    /*
+     * EMI stored in DB.
+     *
+     * UPFRONT:
+     * principal only.
+     */
+    regularEmi,
 
-      repayablePrincipal,
+    repayablePrincipal,
 
-      firstInstallmentAmount,
+    firstInstallmentAmount,
 
-      firstPaymentAmount,
+    firstPaymentAmount,
 
-      totalPrincipal,
+    totalPrincipal,
 
-      totalInterestInRps,
+    totalInterestInRps,
 
-      totalExpectedRepayment,
+    totalExpectedRepayment,
 
-      installmentCount:
-        schedule.length,
-    },
-  );
+    installmentCount: schedule.length,
+  });
 
   /*
    * ==========================================
@@ -3536,47 +3136,37 @@ const generateRepaymentScheduleSterlionUbl = async (
    */
 
   return {
-    lan:
-      normalizedLan,
+    lan: normalizedLan,
 
-    product:
-      normalizedProduct,
+    product: normalizedProduct,
 
-    loan_amount:
-      numericLoanAmount,
+    loan_amount: numericLoanAmount,
 
-    interest_rate:
-      numericInterestRate,
+    interest_rate: numericInterestRate,
 
-    processing_fee:
-      numericProcessingFee,
+    processing_fee: numericProcessingFee,
 
     /*
      * Total PMT-derived interest.
      */
-    upfront_interest_amount:
-      upfrontInterestAmount,
+    upfront_interest_amount: upfrontInterestAmount,
 
     /*
      * Monthly allocated interest.
      */
-    upfront_interest_per_installment:
-      regularUpfrontInterest,
+    upfront_interest_per_installment: regularUpfrontInterest,
 
     /*
      * Full loan amount.
      */
-    repayable_principal:
-      repayablePrincipal,
+    repayable_principal: repayablePrincipal,
 
     /*
      * Full loan amount.
      */
-    net_repayable_amount:
-      repayablePrincipal,
+    net_repayable_amount: repayablePrincipal,
 
-    tenure:
-      numericTenure,
+    tenure: numericTenure,
 
     /*
      * IMPORTANT:
@@ -3588,8 +3178,7 @@ const generateRepaymentScheduleSterlionUbl = async (
      * Example:
      * 350000
      */
-    emi_amount:
-      regularEmi,
+    emi_amount: regularEmi,
 
     /*
      * PMT EMI used to derive interest.
@@ -3597,48 +3186,37 @@ const generateRepaymentScheduleSterlionUbl = async (
      * Example:
      * 412998.53
      */
-    pmt_calculated_emi:
-      isUpfrontInterest
-        ? pmtCalculatedEmi
-        : regularEmi,
+    pmt_calculated_emi: isUpfrontInterest ? pmtCalculatedEmi : regularEmi,
 
     /*
      * First EMI.
      *
      * Principal only for upfront.
      */
-    first_installment_amount:
-      firstInstallmentAmount,
+    first_installment_amount: firstInstallmentAmount,
 
     /*
      * Actual principal + interest
      * payment amount.
      */
-    first_payment_amount:
-      firstPaymentAmount,
+    first_payment_amount: firstPaymentAmount,
 
-    total_principal:
-      totalPrincipal,
+    total_principal: totalPrincipal,
 
-    total_interest_in_rps:
-      totalInterestInRps,
+    total_interest_in_rps: totalInterestInRps,
 
     /*
      * Principal + interest total.
      */
-    total_expected_repayment:
-      totalExpectedRepayment,
+    total_expected_repayment: totalExpectedRepayment,
 
-    installment_count:
-      schedule.length,
+    installment_count: schedule.length,
 
-    pmt_total_repayment:
-      isUpfrontInterest
-        ? pmtTotalRepayment
-        : totalExpectedRepayment,
+    pmt_total_repayment: isUpfrontInterest
+      ? pmtTotalRepayment
+      : totalExpectedRepayment,
   };
 };
-
 
 // const generateRepaymentScheduleSterlionUbl = async (
 //   conn,
@@ -4347,7 +3925,9 @@ const generateRepaymentScheduleSterlion = async (
     throw new Error("Database transaction connection is required");
   }
 
-  const normalizedLan = String(lan || "").trim().toUpperCase();
+  const normalizedLan = String(lan || "")
+    .trim()
+    .toUpperCase();
   const numericLoanAmount = Number(loanAmount);
   const numericInterestRate = Number(interestRate || 0);
   const numericTenure = Number(tenure);
@@ -4383,11 +3963,15 @@ const generateRepaymentScheduleSterlion = async (
   const monthlyRate = numericInterestRate / 100 / 12;
   const rateFactor = Math.pow(1 + monthlyRate, numericTenure);
   const regularEmi = monthlyRate
-    ? Math.round((numericLoanAmount * monthlyRate * rateFactor) / (rateFactor - 1))
+    ? Math.round(
+        (numericLoanAmount * monthlyRate * rateFactor) / (rateFactor - 1),
+      )
     : Math.round(numericLoanAmount / numericTenure);
 
   if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
-    throw new Error(`Unable to calculate Sterlion EMI for LAN ${normalizedLan}`);
+    throw new Error(
+      `Unable to calculate Sterlion EMI for LAN ${normalizedLan}`,
+    );
   }
 
   let openingPrincipal = numericLoanAmount;
@@ -4406,17 +3990,12 @@ const generateRepaymentScheduleSterlion = async (
       installmentNumber - 1,
     );
 
-    let interest = monthlyRate
-      ? Math.round(openingPrincipal * monthlyRate)
-      : 0;
+    let interest = monthlyRate ? Math.round(openingPrincipal * monthlyRate) : 0;
     let principal = monthlyRate
       ? regularEmi - interest
       : Math.min(regularEmi, openingPrincipal);
 
-    if (
-      installmentNumber === numericTenure ||
-      principal > openingPrincipal
-    ) {
+    if (installmentNumber === numericTenure || principal > openingPrincipal) {
       principal = openingPrincipal;
       interest = monthlyRate ? round2(regularEmi - principal) : 0;
     }
@@ -4424,10 +4003,7 @@ const generateRepaymentScheduleSterlion = async (
     principal = round2(principal);
     interest = round2(interest);
 
-    const closingPrincipal = Math.max(
-      0,
-      round2(openingPrincipal - principal),
-    );
+    const closingPrincipal = Math.max(0, round2(openingPrincipal - principal));
     const actualEmi = round2(principal + interest);
 
     rpsData.push([
@@ -4501,7 +4077,6 @@ const generateRepaymentScheduleSterlion = async (
     installment_count: rpsData.length,
   };
 };
-
 
 ////////////////////////////// RPS FOR CIRCLE PE START ///////////////////////////////////
 
@@ -4700,19 +4275,17 @@ const generateRepaymentScheduleCirclePeHouser = async (
   const disb = new Date(disbursementDate);
   const day = disb.getDate();
 
-  
-    const due = new Date(disb);
-    if (day >= 1 && day <= 25) {
-      // Disbursed 1–25 → next month 5th
-      due.setMonth(due.getMonth() + 1);
-      due.setDate(5);
-    } else {
-      // Disbursed 26–end → month after next 5th
-      due.setMonth(due.getMonth() + 2);
-      due.setDate(5);
-    }
-    firstDueDate = due;
-  
+  const due = new Date(disb);
+  if (day >= 1 && day <= 25) {
+    // Disbursed 1–25 → next month 5th
+    due.setMonth(due.getMonth() + 1);
+    due.setDate(5);
+  } else {
+    // Disbursed 26–end → month after next 5th
+    due.setMonth(due.getMonth() + 2);
+    due.setDate(5);
+  }
+  firstDueDate = due;
 
   console.log(
     `[Circlepe Houser] Disbursed: ${disbursementDate} | First Due: ${firstDueDate.toISOString().split("T")[0]}`,
@@ -5020,11 +4593,6 @@ const generateRepaymentScheduleBL = async (
   }
 };
 
-
-
-
-
-
 // ============================================================
 // WCTL FFPL RPS HELPERS
 // ============================================================
@@ -5057,10 +4625,7 @@ function formatDateYmd(dateValue) {
   }
 
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(
-    2,
-    "0",
-  );
+  const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
@@ -5078,32 +4643,18 @@ function formatDateYmd(dateValue) {
  * 17-07-2026
  */
 function parseWctlDate(value) {
-  if (
-    value instanceof Date &&
-    !Number.isNaN(value.getTime())
-  ) {
-    return new Date(
-      value.getFullYear(),
-      value.getMonth(),
-      value.getDate(),
-    );
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
   }
 
   // Excel serial date
-  if (
-    typeof value === "number" &&
-    Number.isFinite(value)
-  ) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     const excelEpoch = Date.UTC(1899, 11, 30);
 
-    const utcDate = new Date(
-      excelEpoch + value * WCTL_DAY_MS,
-    );
+    const utcDate = new Date(excelEpoch + value * WCTL_DAY_MS);
 
     if (Number.isNaN(utcDate.getTime())) {
-      throw new Error(
-        `Invalid Excel date value: ${value}`,
-      );
+      throw new Error(`Invalid Excel date value: ${value}`);
     }
 
     return new Date(
@@ -5120,9 +4671,7 @@ function parseWctlDate(value) {
   }
 
   // YYYY-MM-DD
-  let match = text.match(
-    /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
-  );
+  let match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
 
   if (match) {
     return createValidatedDate(
@@ -5134,9 +4683,7 @@ function parseWctlDate(value) {
   }
 
   // DD-MMM-YY / DD-MMM-YYYY
-  match = text.match(
-    /^(\d{1,2})[-/\s]([A-Za-z]{3,9})[-/\s](\d{2}|\d{4})$/,
-  );
+  match = text.match(/^(\d{1,2})[-/\s]([A-Za-z]{3,9})[-/\s](\d{2}|\d{4})$/);
 
   if (match) {
     const monthMap = {
@@ -5156,16 +4703,12 @@ function parseWctlDate(value) {
 
     const day = Number(match[1]);
 
-    const monthName = match[2]
-      .slice(0, 3)
-      .toLowerCase();
+    const monthName = match[2].slice(0, 3).toLowerCase();
 
     const month = monthMap[monthName];
 
     if (!month) {
-      throw new Error(
-        `Invalid month in date: ${value}`,
-      );
+      throw new Error(`Invalid month in date: ${value}`);
     }
 
     let year = Number(match[3]);
@@ -5174,18 +4717,11 @@ function parseWctlDate(value) {
       year += 2000;
     }
 
-    return createValidatedDate(
-      year,
-      month,
-      day,
-      value,
-    );
+    return createValidatedDate(year, month, day, value);
   }
 
   // DD/MM/YYYY / DD-MM-YYYY
-  match = text.match(
-    /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/,
-  );
+  match = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
 
   if (match) {
     return createValidatedDate(
@@ -5199,9 +4735,7 @@ function parseWctlDate(value) {
   const fallbackDate = new Date(text);
 
   if (Number.isNaN(fallbackDate.getTime())) {
-    throw new Error(
-      `Invalid WCTL FFPL date: ${value}`,
-    );
+    throw new Error(`Invalid WCTL FFPL date: ${value}`);
   }
 
   return new Date(
@@ -5214,12 +4748,7 @@ function parseWctlDate(value) {
 /**
  * Create and validate a JavaScript date.
  */
-function createValidatedDate(
-  year,
-  month,
-  day,
-  originalValue,
-) {
+function createValidatedDate(year, month, day, originalValue) {
   const date = new Date(year, month - 1, day);
 
   if (
@@ -5227,9 +4756,7 @@ function createValidatedDate(
     date.getMonth() !== month - 1 ||
     date.getDate() !== day
   ) {
-    throw new Error(
-      `Invalid calendar date: ${originalValue}`,
-    );
+    throw new Error(`Invalid calendar date: ${originalValue}`);
   }
 
   return date;
@@ -5238,10 +4765,7 @@ function createValidatedDate(
 /**
  * Calculate actual calendar days between dates.
  */
-function differenceInCalendarDays(
-  startDateValue,
-  endDateValue,
-) {
+function differenceInCalendarDays(startDateValue, endDateValue) {
   const startDate = new Date(startDateValue);
   const endDate = new Date(endDateValue);
 
@@ -5257,9 +4781,7 @@ function differenceInCalendarDays(
     endDate.getDate(),
   );
 
-  return Math.round(
-    (endUtc - startUtc) / WCTL_DAY_MS,
-  );
+  return Math.round((endUtc - startUtc) / WCTL_DAY_MS);
 }
 
 /**
@@ -5277,8 +4799,7 @@ function normalizeWctlProduct(product) {
  * Return WCTL product configuration.
  */
 function getWctlScheduleConfig(product) {
-  const normalizedProduct =
-    normalizeWctlProduct(product);
+  const normalizedProduct = normalizeWctlProduct(product);
 
   const productConfigs = {
     monthly_360: {
@@ -5369,9 +4890,7 @@ function getWctlScheduleConfig(product) {
   const config = productConfigs[normalizedProduct];
 
   if (!config) {
-    throw new Error(
-      `Unsupported WCTL FFPL product: ${product || ""}`,
-    );
+    throw new Error(`Unsupported WCTL FFPL product: ${product || ""}`);
   }
 
   return {
@@ -5393,63 +4912,39 @@ function getWctlScheduleConfig(product) {
  * Daily products:
  * first installment is next day.
  */
-function getWctlDueDate(
-  disbursementDate,
-  config,
-  installmentIndex,
-) {
+function getWctlDueDate(disbursementDate, config, installmentIndex) {
   const disbDate = new Date(disbursementDate);
 
   if (config.frequency === "DAY") {
     const dueDate = new Date(disbDate);
 
-    dueDate.setDate(
-      dueDate.getDate() + installmentIndex + 1,
-    );
+    dueDate.setDate(dueDate.getDate() + installmentIndex + 1);
 
     return dueDate;
   }
 
-  const cutoffExtraMonth =
-    disbDate.getDate() > 20 ? 1 : 0;
+  const cutoffExtraMonth = disbDate.getDate() > 20 ? 1 : 0;
 
   const monthsToAdd =
-    config.intervalMonths *
-      (installmentIndex + 1) +
-    cutoffExtraMonth;
+    config.intervalMonths * (installmentIndex + 1) + cutoffExtraMonth;
 
-  return new Date(
-    disbDate.getFullYear(),
-    disbDate.getMonth() + monthsToAdd,
-    5,
-  );
+  return new Date(disbDate.getFullYear(), disbDate.getMonth() + monthsToAdd, 5);
 }
 
 /**
  * Calculate level installment for variable period rates.
  */
-function calculateLevelInstallment(
-  principal,
-  periodRates,
-) {
+function calculateLevelInstallment(principal, periodRates) {
   const principalAmount = Number(principal);
 
-  if (
-    !Number.isFinite(principalAmount) ||
-    principalAmount <= 0
-  ) {
+  if (!Number.isFinite(principalAmount) || principalAmount <= 0) {
     throw new Error(
       `Invalid principal for installment calculation: ${principal}`,
     );
   }
 
-  if (
-    !Array.isArray(periodRates) ||
-    periodRates.length === 0
-  ) {
-    throw new Error(
-      "Period rates are required for installment calculation",
-    );
+  if (!Array.isArray(periodRates) || periodRates.length === 0) {
+    throw new Error("Period rates are required for installment calculation");
   }
 
   let accumulatedGrowth = 1;
@@ -5459,24 +4954,16 @@ function calculateLevelInstallment(
     const rate = Number(rateValue);
 
     if (!Number.isFinite(rate) || rate < 0) {
-      throw new Error(
-        `Invalid period interest rate: ${rateValue}`,
-      );
+      throw new Error(`Invalid period interest rate: ${rateValue}`);
     }
 
     accumulatedGrowth *= 1 + rate;
 
-    presentValueFactor +=
-      1 / accumulatedGrowth;
+    presentValueFactor += 1 / accumulatedGrowth;
   }
 
-  if (
-    !Number.isFinite(presentValueFactor) ||
-    presentValueFactor <= 0
-  ) {
-    throw new Error(
-      "Unable to calculate WCTL installment",
-    );
+  if (!Number.isFinite(presentValueFactor) || presentValueFactor <= 0) {
+    throw new Error("Unable to calculate WCTL installment");
   }
 
   return principalAmount / presentValueFactor;
@@ -5500,12 +4987,9 @@ const generateRepaymentScheduleWctlFfpl = async (
     .trim()
     .toUpperCase();
 
-  const normalizedProduct = String(product || "")
-    .trim();
+  const normalizedProduct = String(product || "").trim();
 
-  const normalizedLender = String(
-    lender || "WCTL FFPL",
-  ).trim();
+  const normalizedLender = String(lender || "WCTL FFPL").trim();
 
   const principalAmount = Number(loanAmount);
   const annualInterestPercent = Number(interestRate);
@@ -5522,9 +5006,7 @@ const generateRepaymentScheduleWctlFfpl = async (
   });
 
   if (!conn) {
-    throw new Error(
-      "Database connection is required for WCTL FFPL RPS",
-    );
+    throw new Error("Database connection is required for WCTL FFPL RPS");
   }
 
   if (!normalizedLan) {
@@ -5532,46 +5014,26 @@ const generateRepaymentScheduleWctlFfpl = async (
   }
 
   if (!normalizedProduct) {
-    throw new Error(
-      `WCTL FFPL product is missing for LAN ${normalizedLan}`,
-    );
+    throw new Error(`WCTL FFPL product is missing for LAN ${normalizedLan}`);
   }
 
-  if (
-    !Number.isFinite(principalAmount) ||
-    principalAmount <= 0
-  ) {
-    throw new Error(
-      `Invalid WCTL FFPL loan amount: ${loanAmount}`,
-    );
+  if (!Number.isFinite(principalAmount) || principalAmount <= 0) {
+    throw new Error(`Invalid WCTL FFPL loan amount: ${loanAmount}`);
   }
 
-  if (
-    !Number.isFinite(annualInterestPercent) ||
-    annualInterestPercent < 0
-  ) {
-    throw new Error(
-      `Invalid WCTL FFPL interest rate: ${interestRate}`,
-    );
+  if (!Number.isFinite(annualInterestPercent) || annualInterestPercent < 0) {
+    throw new Error(`Invalid WCTL FFPL interest rate: ${interestRate}`);
   }
 
-  if (
-    !Number.isInteger(contractTenure) ||
-    contractTenure <= 0
-  ) {
-    throw new Error(
-      `Invalid WCTL FFPL tenure: ${tenure}`,
-    );
+  if (!Number.isInteger(contractTenure) || contractTenure <= 0) {
+    throw new Error(`Invalid WCTL FFPL tenure: ${tenure}`);
   }
 
   const disbDate = parseWctlDate(disbursementDate);
 
-  const config = getWctlScheduleConfig(
-    normalizedProduct,
-  );
+  const config = getWctlScheduleConfig(normalizedProduct);
 
-  const annualRate =
-    annualInterestPercent / 100;
+  const annualRate = annualInterestPercent / 100;
 
   /*
    * =====================================================
@@ -5582,9 +5044,7 @@ const generateRepaymentScheduleWctlFfpl = async (
   if (config.frequency === "DAY") {
     numberOfInstallments = contractTenure;
   } else {
-    if (
-      contractTenure % config.intervalMonths !== 0
-    ) {
+    if (contractTenure % config.intervalMonths !== 0) {
       throw new Error(
         `Tenure ${contractTenure} months is not valid ` +
           `for product ${normalizedProduct}. ` +
@@ -5592,17 +5052,11 @@ const generateRepaymentScheduleWctlFfpl = async (
       );
     }
 
-    numberOfInstallments =
-      contractTenure / config.intervalMonths;
+    numberOfInstallments = contractTenure / config.intervalMonths;
   }
 
-  if (
-    !Number.isInteger(numberOfInstallments) ||
-    numberOfInstallments <= 0
-  ) {
-    throw new Error(
-      `No installments calculated for LAN ${normalizedLan}`,
-    );
+  if (!Number.isInteger(numberOfInstallments) || numberOfInstallments <= 0) {
+    throw new Error(`No installments calculated for LAN ${normalizedLan}`);
   }
 
   /*
@@ -5647,31 +5101,24 @@ const generateRepaymentScheduleWctlFfpl = async (
       installmentIndex,
     );
 
-let days;
-let calculationBasis;
+    let days;
+    let calculationBasis;
 
-if (config.frequency === "MONTH") {
-  days = config.intervalMonths * 30;
-  calculationBasis = 360;
-} else {
-  days = 1;
-  calculationBasis = config.basis;
-}
+    if (config.frequency === "MONTH") {
+      days = config.intervalMonths * 30;
+      calculationBasis = 360;
+    } else {
+      days = 1;
+      calculationBasis = config.basis;
+    }
 
-if (
-  !Number.isInteger(days) ||
-  days <= 0
-) {
-  throw new Error(
-    `Invalid period days for installment ${
-      installmentIndex + 1
-    }: ${days}`,
-  );
-}
+    if (!Number.isInteger(days) || days <= 0) {
+      throw new Error(
+        `Invalid period days for installment ${installmentIndex + 1}: ${days}`,
+      );
+    }
 
-const periodRate =
-  (annualRate * days) /
-  calculationBasis;
+    const periodRate = (annualRate * days) / calculationBasis;
 
     dueDates.push(dueDate);
     periodDays.push(days);
@@ -5689,49 +5136,36 @@ const periodRate =
     installmentIndex < numberOfInstallments;
     installmentIndex++
   ) {
-    const isFinalInstallment =
-      installmentIndex ===
-      numberOfInstallments - 1;
+    const isFinalInstallment = installmentIndex === numberOfInstallments - 1;
 
-    const openingPrincipal =
-      outstandingPrincipal;
+    const openingPrincipal = outstandingPrincipal;
 
-    const interestAmount =
-      openingPrincipal *
-      periodRates[installmentIndex];
+    const interestAmount = openingPrincipal * periodRates[installmentIndex];
 
     let principalForRow;
     let installmentAmount;
     let closingPrincipal;
 
     if (isFinalInstallment) {
-       principalForRow =
-        openingPrincipal;
+      principalForRow = openingPrincipal;
 
-      installmentAmount =
-        interestAmount +
-        principalForRow;
+      installmentAmount = interestAmount + principalForRow;
 
       closingPrincipal = 0;
     } else {
-          principalForRow = 0;
+      principalForRow = 0;
 
-      installmentAmount =
-        interestAmount;
+      installmentAmount = interestAmount;
 
-      closingPrincipal =
-        openingPrincipal;
+      closingPrincipal = openingPrincipal;
     }
 
     schedule.push({
-      installmentNumber:
-        installmentIndex + 1,
+      installmentNumber: installmentIndex + 1,
 
-      dueDate:
-        dueDates[installmentIndex],
+      dueDate: dueDates[installmentIndex],
 
-      days:
-        periodDays[installmentIndex],
+      days: periodDays[installmentIndex],
 
       openingPrincipal,
       emi: installmentAmount,
@@ -5740,51 +5174,35 @@ const periodRate =
       closingPrincipal,
     });
 
-        outstandingPrincipal =
-      closingPrincipal;
+    outstandingPrincipal = closingPrincipal;
   }
 
-   const rpsData = schedule.map((row) => {
-    const emi = round2(
-      row.emi,
-      "EMI",
-    );
+  const rpsData = schedule.map((row) => {
+    const emi = round2(row.emi, "EMI");
 
-    const interest = round2(
-      row.interest,
-      "interest",
-    );
+    const interest = round2(row.interest, "interest");
 
-    const principal = round2(
-      row.principal,
-      "principal",
-    );
+    const principal = round2(row.principal, "principal");
 
-    const opening = round2(
-      row.openingPrincipal,
-      "opening principal",
-    );
+    const opening = round2(row.openingPrincipal, "opening principal");
 
-    const closing = round2(
-      row.closingPrincipal,
-      "closing principal",
-    );
+    const closing = round2(row.closingPrincipal, "closing principal");
 
     return [
-      normalizedLan,  // due_date
+      normalizedLan, // due_date
       formatDateYmd(row.dueDate), // status
-      "Pending",     // Original scheduled EMI
-      emi,         // Original interest
-      interest,     // Original principal
+      "Pending", // Original scheduled EMI
+      emi, // Original interest
+      interest, // Original principal
       principal, // Opening balance
-      opening,  // Closing balance
-      closing,    // Remaining EMI
-      emi,      // Remaining interest
+      opening, // Closing balance
+      closing, // Remaining EMI
+      emi, // Remaining interest
       interest, // Remaining principal
-      principal,  // payment_date
-      null,     // dpd
-      0,          // remaining_amount
-      emi,     // extra_paid
+      principal, // payment_date
+      null, // dpd
+      0, // remaining_amount
+      emi, // extra_paid
       0,
     ];
   });
@@ -5836,30 +5254,20 @@ const periodRate =
       ? round2(schedule[0].emi)
       : round2(schedule[0].interest);
 
-  const finalInstallment =
-    round2(
-      schedule[schedule.length - 1].emi,
-    );
+  const finalInstallment = round2(schedule[schedule.length - 1].emi);
 
-  console.log(
-    "✅ WCTL FFPL BULLET RPS GENERATED:",
-    {
-      lan: normalizedLan,
-      product: normalizedProduct,
-      lender: normalizedLender,
-      basis: config.basis,
-      tenure: contractTenure,
-      numberOfInstallments,
-      regularInstallment,
-      finalInstallment,
-      firstDueDate:
-        formatDateYmd(dueDates[0]),
-      lastDueDate:
-        formatDateYmd(
-          dueDates[dueDates.length - 1],
-        ),
-    },
-  );
+  console.log("✅ WCTL FFPL BULLET RPS GENERATED:", {
+    lan: normalizedLan,
+    product: normalizedProduct,
+    lender: normalizedLender,
+    basis: config.basis,
+    tenure: contractTenure,
+    numberOfInstallments,
+    regularInstallment,
+    finalInstallment,
+    firstDueDate: formatDateYmd(dueDates[0]),
+    lastDueDate: formatDateYmd(dueDates[dueDates.length - 1]),
+  });
 
   return {
     success: true,
@@ -5871,12 +5279,8 @@ const periodRate =
     numberOfInstallments,
     regularInstallment,
     finalInstallment,
-    firstDueDate:
-      formatDateYmd(dueDates[0]),
-    lastDueDate:
-      formatDateYmd(
-        dueDates[dueDates.length - 1],
-      ),
+    firstDueDate: formatDateYmd(dueDates[0]),
+    lastDueDate: formatDateYmd(dueDates[dueDates.length - 1]),
     schedule,
   };
 };
@@ -6466,21 +5870,19 @@ const generateRepaymentScheduleGQNonFSF = async (
     let opening = P;
 
     // ✅ CHECK DUPLICATE RPS BEFORE GENERATION
-const [existingRps] = await db.promise().query(
-  `
+    const [existingRps] = await db.promise().query(
+      `
   SELECT id
   FROM manual_rps_gq_non_fsf
   WHERE UPPER(TRIM(lan)) = ?
   LIMIT 1
   `,
-  [String(lan).trim().toUpperCase()]
-);
+      [String(lan).trim().toUpperCase()],
+    );
 
-if (existingRps.length > 0) {
-  throw new Error(
-    `GQ NON-FSF RPS already exists for LAN ${lan}`
-  );
-}
+    if (existingRps.length > 0) {
+      throw new Error(`GQ NON-FSF RPS already exists for LAN ${lan}`);
+    }
 
     if (k > 0) {
       // advance EMIs: only principal, no interest
@@ -6668,21 +6070,19 @@ async function generateRepaymentScheduleGQNonFSF_Fintree(
     const rows = [];
 
     // ✅ CHECK DUPLICATE RPS BEFORE GENERATION
-const [existingRps] = await db.promise().query(
-  `
+    const [existingRps] = await db.promise().query(
+      `
   SELECT id
   FROM manual_rps_gq_non_fsf_fintree
   WHERE UPPER(TRIM(lan)) = ?
   LIMIT 1
   `,
-  [String(lan).trim().toUpperCase()]
-);
+      [String(lan).trim().toUpperCase()],
+    );
 
-if (existingRps.length > 0) {
-  throw new Error(
-    `GQ NON-FSF FINTREE RPS already exists for LAN ${lan}`
-  );
-}
+    if (existingRps.length > 0) {
+      throw new Error(`GQ NON-FSF FINTREE RPS already exists for LAN ${lan}`);
+    }
     // 1) apply k advance EMIs (principal-only)
     console.log(`Applying ${k} advance EMI(s)...`);
     for (let a = 1; a <= k && opening > 0; a++) {
@@ -6910,21 +6310,19 @@ const generateRepaymentScheduleGQFSF = async (
     const rpsData = [];
 
     // ✅ CHECK EXISTING RPS BEFORE GENERATION
-const [existingRps] = await db.promise().query(
-  `
+    const [existingRps] = await db.promise().query(
+      `
   SELECT id
   FROM manual_rps_gq_fsf
   WHERE UPPER(TRIM(lan)) = ?
   LIMIT 1
   `,
-  [String(lan).trim().toUpperCase()]
-);
+      [String(lan).trim().toUpperCase()],
+    );
 
-if (existingRps.length > 0) {
-  throw new Error(
-    `GQ FSF RPS already exists for LAN ${lan}`
-  );
-}
+    if (existingRps.length > 0) {
+      throw new Error(`GQ FSF RPS already exists for LAN ${lan}`);
+    }
 
     for (let i = 1; i <= tenure; i++) {
       let principal = emiPrincipal;
@@ -7268,43 +6666,23 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     const number = Number(value);
 
     if (!Number.isFinite(number)) {
-      throw new Error(
-        `Invalid ${label} for LAN=${lan}: ${value}`,
-      );
+      throw new Error(`Invalid ${label} for LAN=${lan}: ${value}`);
     }
 
-    return (
-      Math.round(
-        (number + Number.EPSILON) * 100,
-      ) / 100
-    );
+    return Math.round((number + Number.EPSILON) * 100) / 100;
   };
 
-  const parsePercentage = (
-    value,
-    label,
-  ) => {
-    if (
-      value === undefined ||
-      value === null ||
-      String(value).trim() === ""
-    ) {
+  const parsePercentage = (value, label) => {
+    if (value === undefined || value === null || String(value).trim() === "") {
       return 0;
     }
 
-    const cleaned = String(value)
-      .trim()
-      .replace("%", "");
+    const cleaned = String(value).trim().replace("%", "");
 
     const number = Number(cleaned);
 
-    if (
-      !Number.isFinite(number) ||
-      number < 0
-    ) {
-      throw new Error(
-        `Invalid ${label} for LAN=${lan}: ${value}`,
-      );
+    if (!Number.isFinite(number) || number < 0) {
+      throw new Error(`Invalid ${label} for LAN=${lan}: ${value}`);
     }
 
     /*
@@ -7314,129 +6692,73 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
      * "20%"
      * 0.20
      */
-    return number > 1
-      ? number / 100
-      : number;
+    return number > 1 ? number / 100 : number;
   };
 
-  const parseDateOnly = (
-    value,
-    label = "date",
-  ) => {
+  const parseDateOnly = (value, label = "date") => {
     if (!value) {
-      throw new Error(
-        `${label} is required for LAN=${lan}`,
-      );
+      throw new Error(`${label} is required for LAN=${lan}`);
     }
 
     if (value instanceof Date) {
-      if (
-        Number.isNaN(
-          value.getTime(),
-        )
-      ) {
-        throw new Error(
-          `Invalid ${label} for LAN=${lan}`,
-        );
+      if (Number.isNaN(value.getTime())) {
+        throw new Error(`Invalid ${label} for LAN=${lan}`);
       }
 
       return new Date(
-        Date.UTC(
-          value.getFullYear(),
-          value.getMonth(),
-          value.getDate(),
-        ),
+        Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()),
       );
     }
 
     const text = String(value).trim();
 
     // YYYY-MM-DD
-    let match = text.match(
-      /^(\d{4})-(\d{2})-(\d{2})$/,
-    );
+    let match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
     if (match) {
-      const [
-        ,
-        year,
-        month,
-        day,
-      ] = match;
+      const [, year, month, day] = match;
 
       const date = new Date(
-        Date.UTC(
-          Number(year),
-          Number(month) - 1,
-          Number(day),
-        ),
+        Date.UTC(Number(year), Number(month) - 1, Number(day)),
       );
 
       if (
-        date.getUTCFullYear() !==
-          Number(year) ||
-        date.getUTCMonth() !==
-          Number(month) - 1 ||
-        date.getUTCDate() !==
-          Number(day)
+        date.getUTCFullYear() !== Number(year) ||
+        date.getUTCMonth() !== Number(month) - 1 ||
+        date.getUTCDate() !== Number(day)
       ) {
-        throw new Error(
-          `Invalid ${label} for LAN=${lan}: ${value}`,
-        );
+        throw new Error(`Invalid ${label} for LAN=${lan}: ${value}`);
       }
 
       return date;
     }
 
     // DD-MM-YYYY or DD/MM/YYYY
-    match = text.match(
-      /^(\d{2})[-/](\d{2})[-/](\d{4})$/,
-    );
+    match = text.match(/^(\d{2})[-/](\d{2})[-/](\d{4})$/);
 
     if (match) {
-      const [
-        ,
-        day,
-        month,
-        year,
-      ] = match;
+      const [, day, month, year] = match;
 
       const date = new Date(
-        Date.UTC(
-          Number(year),
-          Number(month) - 1,
-          Number(day),
-        ),
+        Date.UTC(Number(year), Number(month) - 1, Number(day)),
       );
 
       if (
-        date.getUTCFullYear() !==
-          Number(year) ||
-        date.getUTCMonth() !==
-          Number(month) - 1 ||
-        date.getUTCDate() !==
-          Number(day)
+        date.getUTCFullYear() !== Number(year) ||
+        date.getUTCMonth() !== Number(month) - 1 ||
+        date.getUTCDate() !== Number(day)
       ) {
-        throw new Error(
-          `Invalid ${label} for LAN=${lan}: ${value}`,
-        );
+        throw new Error(`Invalid ${label} for LAN=${lan}: ${value}`);
       }
 
       return date;
     }
 
     // DD-MMM-YY or DD-MMM-YYYY
-    match = text.match(
-      /^(\d{1,2})-([A-Za-z]{3})-(\d{2}|\d{4})$/,
-    );
+    match = text.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2}|\d{4})$/);
 
     if (match) {
-      const [
-        ,
-        dayText,
-        monthText,
-        yearText,
-      ] = match;
+      const [, dayText, monthText, yearText] = match;
 
       const monthMap = {
         jan: 0,
@@ -7453,45 +6775,25 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
         dec: 11,
       };
 
-      const month =
-        monthMap[
-          monthText.toLowerCase()
-        ];
+      const month = monthMap[monthText.toLowerCase()];
 
       const year =
-        yearText.length === 2
-          ? 2000 + Number(yearText)
-          : Number(yearText);
+        yearText.length === 2 ? 2000 + Number(yearText) : Number(yearText);
 
       const day = Number(dayText);
 
-      if (
-        month === undefined
-      ) {
-        throw new Error(
-          `Invalid ${label} for LAN=${lan}: ${value}`,
-        );
+      if (month === undefined) {
+        throw new Error(`Invalid ${label} for LAN=${lan}: ${value}`);
       }
 
-      const date = new Date(
-        Date.UTC(
-          year,
-          month,
-          day,
-        ),
-      );
+      const date = new Date(Date.UTC(year, month, day));
 
       if (
-        date.getUTCFullYear() !==
-          year ||
-        date.getUTCMonth() !==
-          month ||
-        date.getUTCDate() !==
-          day
+        date.getUTCFullYear() !== year ||
+        date.getUTCMonth() !== month ||
+        date.getUTCDate() !== day
       ) {
-        throw new Error(
-          `Invalid ${label} for LAN=${lan}: ${value}`,
-        );
+        throw new Error(`Invalid ${label} for LAN=${lan}: ${value}`);
       }
 
       return date;
@@ -7499,38 +6801,19 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
     const parsed = new Date(text);
 
-    if (
-      Number.isNaN(
-        parsed.getTime(),
-      )
-    ) {
-      throw new Error(
-        `Invalid ${label} for LAN=${lan}: ${value}`,
-      );
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(`Invalid ${label} for LAN=${lan}: ${value}`);
     }
 
     return new Date(
-      Date.UTC(
-        parsed.getFullYear(),
-        parsed.getMonth(),
-        parsed.getDate(),
-      ),
+      Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()),
     );
   };
 
-  const getEmiDay = (
-    value,
-  ) => {
-    const directDay =
-      Number(value);
+  const getEmiDay = (value) => {
+    const directDay = Number(value);
 
-    if (
-      Number.isInteger(
-        directDay,
-      ) &&
-      directDay >= 1 &&
-      directDay <= 31
-    ) {
+    if (Number.isInteger(directDay) && directDay >= 1 && directDay <= 31) {
       return directDay;
     }
 
@@ -7540,148 +6823,78 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
      * "05-Oct-25"
      * "05-Oct-2025"
      */
-    const match = String(
-      value || "",
-    )
+    const match = String(value || "")
       .trim()
       .match(/^(\d{1,2})/);
 
     if (match) {
-      const day = Number(
-        match[1],
-      );
+      const day = Number(match[1]);
 
-      if (
-        day >= 1 &&
-        day <= 31
-      ) {
+      if (day >= 1 && day <= 31) {
         return day;
       }
     }
 
-    throw new Error(
-      `Invalid emiDate for LAN=${lan}: ${value}`,
-    );
+    throw new Error(`Invalid emiDate for LAN=${lan}: ${value}`);
   };
 
-  const toISODate = (
-    value,
-    label = "date",
-  ) =>
-    parseDateOnly(
-      value,
-      label,
-    )
-      .toISOString()
-      .slice(0, 10);
+  const toISODate = (value, label = "date") =>
+    parseDateOnly(value, label).toISOString().slice(0, 10);
 
-  const addMonthsClamped = (
-    baseDate,
-    monthsToAdd,
-    requestedEmiDay,
-  ) => {
-    const base =
-      parseDateOnly(
-        baseDate,
-        "disbursementDate",
-      );
+  const addMonthsClamped = (baseDate, monthsToAdd, requestedEmiDay) => {
+    const base = parseDateOnly(baseDate, "disbursementDate");
 
-    const targetMonthStart =
-      new Date(
-        Date.UTC(
-          base.getUTCFullYear(),
-          base.getUTCMonth() +
-            Number(monthsToAdd),
-          1,
-        ),
-      );
+    const targetMonthStart = new Date(
+      Date.UTC(
+        base.getUTCFullYear(),
+        base.getUTCMonth() + Number(monthsToAdd),
+        1,
+      ),
+    );
 
-    const targetYear =
-      targetMonthStart.getUTCFullYear();
+    const targetYear = targetMonthStart.getUTCFullYear();
 
-    const targetMonth =
-      targetMonthStart.getUTCMonth();
+    const targetMonth = targetMonthStart.getUTCMonth();
 
-    const lastDay =
-      new Date(
-        Date.UTC(
-          targetYear,
-          targetMonth + 1,
-          0,
-        ),
-      ).getUTCDate();
+    const lastDay = new Date(
+      Date.UTC(targetYear, targetMonth + 1, 0),
+    ).getUTCDate();
 
     return new Date(
-      Date.UTC(
-        targetYear,
-        targetMonth,
-        Math.min(
-          requestedEmiDay,
-          lastDay,
-        ),
-      ),
+      Date.UTC(targetYear, targetMonth, Math.min(requestedEmiDay, lastDay)),
     );
   };
 
   let connection;
-  let transactionStarted =
-    false;
+  let transactionStarted = false;
 
   try {
     // =====================================================
     // INPUT VALIDATION
     // =====================================================
 
-    if (
-      !lan ||
-      !String(lan).trim()
-    ) {
-      throw new Error(
-        "LAN is required",
-      );
+    if (!lan || !String(lan).trim()) {
+      throw new Error("LAN is required");
     }
 
-    const approved = round2(
-      approvedAmount,
-      "approvedAmount",
+    const approved = round2(approvedAmount, "approvedAmount");
+
+    const tenureMonths = Number(tenure);
+
+    const advanceEmiCount = Number(no_of_advance_emis || 0);
+
+    const subvention = round2(subventionAmount || 0, "subventionAmount");
+
+    const flatRate = parsePercentage(interestRate || 0, "interestRate");
+
+    const retentionRate = parsePercentage(
+      retentionPercent || 0,
+      "retentionPercent",
     );
 
-    const tenureMonths =
-      Number(tenure);
+    const disbursement = parseDateOnly(disbursementDate, "disbursementDate");
 
-    const advanceEmiCount =
-      Number(
-        no_of_advance_emis ||
-          0,
-      );
-
-    const subvention =
-      round2(
-        subventionAmount ||
-          0,
-        "subventionAmount",
-      );
-
-    const flatRate =
-      parsePercentage(
-        interestRate || 0,
-        "interestRate",
-      );
-
-    const retentionRate =
-      parsePercentage(
-        retentionPercent || 0,
-        "retentionPercent",
-      );
-
-    const disbursement =
-      parseDateOnly(
-        disbursementDate,
-        "disbursementDate",
-      );
-
-    const emiDay =
-      getEmiDay(emiDate);
+    const emiDay = getEmiDay(emiDate);
 
     if (approved <= 0) {
       throw new Error(
@@ -7689,92 +6902,53 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       );
     }
 
-    if (
-      !Number.isInteger(
-        tenureMonths,
-      ) ||
-      tenureMonths <= 0
-    ) {
-      throw new Error(
-        `Invalid tenure=${tenure} for LAN=${lan}`,
-      );
+    if (!Number.isInteger(tenureMonths) || tenureMonths <= 0) {
+      throw new Error(`Invalid tenure=${tenure} for LAN=${lan}`);
     }
 
     if (
-      !Number.isInteger(
-        advanceEmiCount,
-      ) ||
+      !Number.isInteger(advanceEmiCount) ||
       advanceEmiCount < 0 ||
-      advanceEmiCount >=
-        tenureMonths
+      advanceEmiCount >= tenureMonths
     ) {
       throw new Error(
-        `Invalid no_of_advance_emis=${no_of_advance_emis} ` +
-          `for LAN=${lan}`,
+        `Invalid no_of_advance_emis=${no_of_advance_emis} ` + `for LAN=${lan}`,
       );
     }
 
-    if (
-      subvention < 0 ||
-      subvention > approved
-    ) {
+    if (subvention < 0 || subvention > approved) {
       throw new Error(
-        `Invalid subventionAmount=${subventionAmount} ` +
-          `for LAN=${lan}`,
+        `Invalid subventionAmount=${subventionAmount} ` + `for LAN=${lan}`,
       );
     }
 
     const hasManualRetention =
-      manualRetentionAmount !==
-        undefined &&
-      manualRetentionAmount !==
-        null &&
-      String(
-        manualRetentionAmount,
-      ).trim() !== "";
+      manualRetentionAmount !== undefined &&
+      manualRetentionAmount !== null &&
+      String(manualRetentionAmount).trim() !== "";
 
     // =====================================================
     // NET LOAN VALUES
     // =====================================================
 
-    const netLoanForLender =
-      round2(
-        approved -
-          subvention,
-      );
+    const netLoanForLender = round2(approved - subvention);
 
     /*
      * Manual retention has priority.
      *
      * Manual value 0 is also accepted.
      */
-    const retentionAmount =
-      hasManualRetention
-        ? round2(
-            manualRetentionAmount,
-            "manualRetentionAmount",
-          )
-        : round2(
-            netLoanForLender *
-              retentionRate,
-          );
+    const retentionAmount = hasManualRetention
+      ? round2(manualRetentionAmount, "manualRetentionAmount")
+      : round2(netLoanForLender * retentionRate);
 
-    if (
-      retentionAmount < 0 ||
-      retentionAmount >
-        netLoanForLender
-    ) {
+    if (retentionAmount < 0 || retentionAmount > netLoanForLender) {
       throw new Error(
-        `Invalid retentionAmount=${retentionAmount} ` +
-          `for LAN=${lan}`,
+        `Invalid retentionAmount=${retentionAmount} ` + `for LAN=${lan}`,
       );
     }
 
-    const netDisbursement =
-      round2(
-        netLoanForLender -
-          retentionAmount,
-      );
+    const netDisbursement = round2(netLoanForLender - retentionAmount);
 
     // =====================================================
     // FIXED EMI
@@ -7788,58 +6962,34 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
      * +
      * Flat interest / tenure
      */
-    const emiAmount =
-      round2(
-        approved /
-          tenureMonths +
-          (
-            approved *
-            flatRate
-          ) /
-            tenureMonths,
-        "emiAmount",
-      );
+    const emiAmount = round2(
+      approved / tenureMonths + (approved * flatRate) / tenureMonths,
+      "emiAmount",
+    );
 
     if (emiAmount <= 0) {
-      throw new Error(
-        `Calculated EMI is invalid for LAN=${lan}`,
-      );
+      throw new Error(`Calculated EMI is invalid for LAN=${lan}`);
     }
 
     // =====================================================
     // ADVANCE EMI
     // =====================================================
 
-    const totalAdvanceAmount =
-      round2(
-        emiAmount *
-          advanceEmiCount,
-      );
+    const totalAdvanceAmount = round2(emiAmount * advanceEmiCount);
 
-    if (
-      totalAdvanceAmount >
-      netDisbursement + 0.01
-    ) {
+    if (totalAdvanceAmount > netDisbursement + 0.01) {
       throw new Error(
         `Advance EMI amount ${totalAdvanceAmount} exceeds ` +
           `net disbursement ${netDisbursement} for LAN=${lan}`,
       );
     }
 
-    const netPrincipalOS =
-      round2(
-        netDisbursement -
-          totalAdvanceAmount,
-      );
+    const netPrincipalOS = round2(netDisbursement - totalAdvanceAmount);
 
-    const normalEmis =
-      tenureMonths -
-      advanceEmiCount;
+    const normalEmis = tenureMonths - advanceEmiCount;
 
     if (normalEmis <= 0) {
-      throw new Error(
-        `Invalid normal EMI count for LAN=${lan}`,
-      );
+      throw new Error(`Invalid normal EMI count for LAN=${lan}`);
     }
 
     // =====================================================
@@ -7852,57 +7002,23 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
      *
      * It is not directly inserted in RPS.
      */
-    const retentionAdjustedFinalCashflow =
-      round2(
-        emiAmount -
-          retentionAmount,
-      );
+    const retentionAdjustedFinalCashflow = round2(emiAmount - retentionAmount);
 
-    const cashflows = [
-      -netPrincipalOS,
-    ];
+    const cashflows = [-netPrincipalOS];
 
-    for (
-      let installment = 1;
-      installment <=
-      normalEmis - 1;
-      installment++
-    ) {
-      cashflows.push(
-        emiAmount,
-      );
+    for (let installment = 1; installment <= normalEmis - 1; installment++) {
+      cashflows.push(emiAmount);
     }
 
-    cashflows.push(
-      retentionAdjustedFinalCashflow,
-    );
+    cashflows.push(retentionAdjustedFinalCashflow);
 
-    const monthlyIRR =
-      netPrincipalOS > 0
-        ? calculateIRR(
-            cashflows,
-            0.01,
-          )
-        : 0;
+    const monthlyIRR = netPrincipalOS > 0 ? calculateIRR(cashflows, 0.01) : 0;
 
-    if (
-      !Number.isFinite(
-        monthlyIRR,
-      ) ||
-      monthlyIRR < 0 ||
-      monthlyIRR <= -1
-    ) {
-      throw new Error(
-        `Invalid monthlyIRR=${monthlyIRR} for LAN=${lan}`,
-      );
+    if (!Number.isFinite(monthlyIRR) || monthlyIRR < 0 || monthlyIRR <= -1) {
+      throw new Error(`Invalid monthlyIRR=${monthlyIRR} for LAN=${lan}`);
     }
 
-    const annualIRR =
-      round2(
-        monthlyIRR *
-          12 *
-          100,
-      );
+    const annualIRR = round2(monthlyIRR * 12 * 100);
 
     // =====================================================
     // BUILD RPS
@@ -7910,8 +7026,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
     const schedule = [];
 
-    let openingBalance =
-      netDisbursement;
+    let openingBalance = netDisbursement;
 
     let retentionScheduled = 0;
 
@@ -7925,60 +7040,24 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     // ADVANCE EMI ROWS
     // =====================================================
 
-    for (
-      let advanceIndex = 0;
-      advanceIndex <
-      advanceEmiCount;
-      advanceIndex++
-    ) {
-      const principal =
-        round2(
-          Math.min(
-            openingBalance,
-            emiAmount,
-          ),
-        );
+    for (let advanceIndex = 0; advanceIndex < advanceEmiCount; advanceIndex++) {
+      const principal = round2(Math.min(openingBalance, emiAmount));
 
-      const retentionForRow =
-        round2(
-          Math.min(
-            Math.max(
-              0,
-              emiAmount -
-                principal,
-            ),
-            Math.max(
-              0,
-              retentionAmount -
-                retentionScheduled,
-            ),
-          ),
-        );
+      const retentionForRow = round2(
+        Math.min(
+          Math.max(0, emiAmount - principal),
+          Math.max(0, retentionAmount - retentionScheduled),
+        ),
+      );
 
-      const interest =
-        round2(
-          emiAmount -
-            principal -
-            retentionForRow,
-        );
+      const interest = round2(emiAmount - principal - retentionForRow);
 
-      const closingBalance =
-        round2(
-          Math.max(
-            0,
-            openingBalance -
-              principal,
-          ),
-        );
+      const closingBalance = round2(Math.max(0, openingBalance - principal));
 
       schedule.push({
         lan,
 
-        dueDate:
-          toISODate(
-            disbursement,
-            "disbursementDate",
-          ),
+        dueDate: toISODate(disbursement, "disbursementDate"),
 
         status: "Pending",
 
@@ -7988,62 +7067,36 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
         principal,
 
-        retentionAmount:
-          retentionForRow,
+        retentionAmount: retentionForRow,
 
-        opening:
-          openingBalance,
+        opening: openingBalance,
 
-        closing:
-          closingBalance,
+        closing: closingBalance,
 
-        remainingEmi:
-          emiAmount,
+        remainingEmi: emiAmount,
 
-        remainingInterest:
-          interest,
+        remainingInterest: interest,
 
-        remainingPrincipal:
-          principal,
+        remainingPrincipal: principal,
 
-        remainingRetention:
-          retentionForRow,
+        remainingRetention: retentionForRow,
 
-        remainingAmount:
-          emiAmount,
+        remainingAmount: emiAmount,
 
-        isInterestAdjustment:
-          false,
+        isInterestAdjustment: false,
       });
 
       if (interest > 0) {
-        grossPositiveInterest =
-          round2(
-            grossPositiveInterest +
-              interest,
-          );
+        grossPositiveInterest = round2(grossPositiveInterest + interest);
       }
 
-      totalInterest =
-        round2(
-          totalInterest +
-            interest,
-        );
+      totalInterest = round2(totalInterest + interest);
 
-      totalPrincipal =
-        round2(
-          totalPrincipal +
-            principal,
-        );
+      totalPrincipal = round2(totalPrincipal + principal);
 
-      retentionScheduled =
-        round2(
-          retentionScheduled +
-            retentionForRow,
-        );
+      retentionScheduled = round2(retentionScheduled + retentionForRow);
 
-      openingBalance =
-        closingBalance;
+      openingBalance = closingBalance;
     }
 
     // =====================================================
@@ -8052,78 +7105,31 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     // Final row is reserved for retention adjustment.
     // =====================================================
 
-    for (
-      let installment = 1;
-      installment <=
-      normalEmis - 1;
-      installment++
-    ) {
-      const rowOpening =
-        openingBalance;
+    for (let installment = 1; installment <= normalEmis - 1; installment++) {
+      const rowOpening = openingBalance;
 
-      const interest =
-        rowOpening > 0
-          ? round2(
-              rowOpening *
-                monthlyIRR,
-            )
-          : 0;
+      const interest = rowOpening > 0 ? round2(rowOpening * monthlyIRR) : 0;
 
-      const principal =
-        round2(
-          Math.min(
-            rowOpening,
-            Math.max(
-              0,
-              emiAmount -
-                interest,
-            ),
-          ),
-        );
+      const principal = round2(
+        Math.min(rowOpening, Math.max(0, emiAmount - interest)),
+      );
 
       /*
        * If principal becomes zero before final row,
        * the remaining EMI amount goes to retention.
        */
-      const retentionForRow =
-        round2(
-          Math.min(
-            Math.max(
-              0,
-              emiAmount -
-                interest -
-                principal,
-            ),
-            Math.max(
-              0,
-              retentionAmount -
-                retentionScheduled,
-            ),
-          ),
-        );
+      const retentionForRow = round2(
+        Math.min(
+          Math.max(0, emiAmount - interest - principal),
+          Math.max(0, retentionAmount - retentionScheduled),
+        ),
+      );
 
-      const closingBalance =
-        round2(
-          Math.max(
-            0,
-            rowOpening -
-              principal,
-          ),
-        );
+      const closingBalance = round2(Math.max(0, rowOpening - principal));
 
-      const rowTotal =
-        round2(
-          interest +
-            principal +
-            retentionForRow,
-        );
+      const rowTotal = round2(interest + principal + retentionForRow);
 
-      if (
-        Math.abs(
-          rowTotal -
-            emiAmount,
-        ) > 0.01
-      ) {
+      if (Math.abs(rowTotal - emiAmount) > 0.01) {
         throw new Error(
           `Normal EMI mismatch for LAN=${lan}, ` +
             `installment=${installment}, ` +
@@ -8131,21 +7137,12 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
         );
       }
 
-      const dueDate =
-        addMonthsClamped(
-          disbursement,
-          installment,
-          emiDay,
-        );
+      const dueDate = addMonthsClamped(disbursement, installment, emiDay);
 
       schedule.push({
         lan,
 
-        dueDate:
-          toISODate(
-            dueDate,
-            "dueDate",
-          ),
+        dueDate: toISODate(dueDate, "dueDate"),
 
         status: "Pending",
 
@@ -8155,62 +7152,36 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
         principal,
 
-        retentionAmount:
-          retentionForRow,
+        retentionAmount: retentionForRow,
 
-        opening:
-          rowOpening,
+        opening: rowOpening,
 
-        closing:
-          closingBalance,
+        closing: closingBalance,
 
-        remainingEmi:
-          emiAmount,
+        remainingEmi: emiAmount,
 
-        remainingInterest:
-          interest,
+        remainingInterest: interest,
 
-        remainingPrincipal:
-          principal,
+        remainingPrincipal: principal,
 
-        remainingRetention:
-          retentionForRow,
+        remainingRetention: retentionForRow,
 
-        remainingAmount:
-          emiAmount,
+        remainingAmount: emiAmount,
 
-        isInterestAdjustment:
-          false,
+        isInterestAdjustment: false,
       });
 
       if (interest > 0) {
-        grossPositiveInterest =
-          round2(
-            grossPositiveInterest +
-              interest,
-          );
+        grossPositiveInterest = round2(grossPositiveInterest + interest);
       }
 
-      totalInterest =
-        round2(
-          totalInterest +
-            interest,
-        );
+      totalInterest = round2(totalInterest + interest);
 
-      totalPrincipal =
-        round2(
-          totalPrincipal +
-            principal,
-        );
+      totalPrincipal = round2(totalPrincipal + principal);
 
-      retentionScheduled =
-        round2(
-          retentionScheduled +
-            retentionForRow,
-        );
+      retentionScheduled = round2(retentionScheduled + retentionForRow);
 
-      openingBalance =
-        closingBalance;
+      openingBalance = closingBalance;
     }
 
     // =====================================================
@@ -8232,56 +7203,27 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
      * Retention            58,524.37
      * Interest adjustment    -191.04
      */
-    const finalPrincipal =
-      round2(
-        openingBalance,
-      );
+    const finalPrincipal = round2(openingBalance);
 
-    const remainingRetention =
-      round2(
-        Math.max(
-          0,
-          retentionAmount -
-            retentionScheduled,
-        ),
-      );
+    const remainingRetention = round2(
+      Math.max(0, retentionAmount - retentionScheduled),
+    );
 
-    const finalInterestAdjustment =
-      round2(
-        emiAmount -
-          finalPrincipal -
-          remainingRetention,
-      );
+    const finalInterestAdjustment = round2(
+      emiAmount - finalPrincipal - remainingRetention,
+    );
 
-    const finalClosingBalance =
-      round2(
-        Math.max(
-          0,
-          openingBalance -
-            finalPrincipal,
-        ),
-      );
+    const finalClosingBalance = round2(
+      Math.max(0, openingBalance - finalPrincipal),
+    );
 
-    const finalDueDate =
-      addMonthsClamped(
-        disbursement,
-        normalEmis,
-        emiDay,
-      );
+    const finalDueDate = addMonthsClamped(disbursement, normalEmis, emiDay);
 
-    const finalRowTotal =
-      round2(
-        finalInterestAdjustment +
-          finalPrincipal +
-          remainingRetention,
-      );
+    const finalRowTotal = round2(
+      finalInterestAdjustment + finalPrincipal + remainingRetention,
+    );
 
-    if (
-      Math.abs(
-        finalRowTotal -
-          emiAmount,
-      ) > 0.01
-    ) {
+    if (Math.abs(finalRowTotal - emiAmount) > 0.01) {
       throw new Error(
         `Final EMI mismatch for LAN=${lan}. ` +
           `EMI=${emiAmount}, components=${finalRowTotal}`,
@@ -8291,81 +7233,48 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     schedule.push({
       lan,
 
-      dueDate:
-        toISODate(
-          finalDueDate,
-          "finalDueDate",
-        ),
+      dueDate: toISODate(finalDueDate, "finalDueDate"),
 
       status: "Pending",
 
-      emi:
-        emiAmount,
+      emi: emiAmount,
 
-      interest:
-        finalInterestAdjustment,
+      interest: finalInterestAdjustment,
 
-      principal:
-        finalPrincipal,
+      principal: finalPrincipal,
 
-      retentionAmount:
-        remainingRetention,
+      retentionAmount: remainingRetention,
 
-      opening:
-        openingBalance,
+      opening: openingBalance,
 
-      closing:
-        finalClosingBalance,
+      closing: finalClosingBalance,
 
-      remainingEmi:
-        emiAmount,
+      remainingEmi: emiAmount,
 
-      remainingInterest:
-        finalInterestAdjustment,
+      remainingInterest: finalInterestAdjustment,
 
-      remainingPrincipal:
-        finalPrincipal,
+      remainingPrincipal: finalPrincipal,
 
-      remainingRetention:
-        remainingRetention,
+      remainingRetention: remainingRetention,
 
-      remainingAmount:
-        emiAmount,
+      remainingAmount: emiAmount,
 
-      isInterestAdjustment:
-        true,
+      isInterestAdjustment: true,
     });
 
-    totalInterest =
-      round2(
-        totalInterest +
-          finalInterestAdjustment,
-      );
+    totalInterest = round2(totalInterest + finalInterestAdjustment);
 
-    totalPrincipal =
-      round2(
-        totalPrincipal +
-          finalPrincipal,
-      );
+    totalPrincipal = round2(totalPrincipal + finalPrincipal);
 
-    retentionScheduled =
-      round2(
-        retentionScheduled +
-          remainingRetention,
-      );
+    retentionScheduled = round2(retentionScheduled + remainingRetention);
 
-    openingBalance =
-      finalClosingBalance;
+    openingBalance = finalClosingBalance;
 
     // =====================================================
     // TOTALS
     // =====================================================
 
-    const totalScheduledEmi =
-      round2(
-        emiAmount *
-          tenureMonths,
-      );
+    const totalScheduledEmi = round2(emiAmount * tenureMonths);
 
     /*
      * Net interest must reconcile to:
@@ -8374,92 +7283,46 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
      * - principal
      * - retention
      */
-    const expectedNetInterest =
-      round2(
-        totalScheduledEmi -
-          netDisbursement -
-          retentionAmount,
-      );
+    const expectedNetInterest = round2(
+      totalScheduledEmi - netDisbursement - retentionAmount,
+    );
 
-    const totalRpsAmount =
-      round2(
-        schedule.reduce(
-          (
-            total,
-            row,
-          ) =>
-            total +
-            row.emi,
-          0,
-        ),
-      );
+    const totalRpsAmount = round2(
+      schedule.reduce((total, row) => total + row.emi, 0),
+    );
 
     // =====================================================
     // ROW VALIDATIONS
     // =====================================================
 
-    schedule.forEach(
-      (
-        row,
-        index,
-      ) => {
-        const componentTotal =
-          round2(
-            row.interest +
-              row.principal +
-              row.retentionAmount,
-          );
+    schedule.forEach((row, index) => {
+      const componentTotal = round2(
+        row.interest + row.principal + row.retentionAmount,
+      );
 
-        const closingCheck =
-          round2(
-            row.opening -
-              row.principal,
-          );
+      const closingCheck = round2(row.opening - row.principal);
 
-        const isFinalAdjustmentRow =
-          index ===
-            schedule.length -
-              1 &&
-          row.isInterestAdjustment ===
-            true;
+      const isFinalAdjustmentRow =
+        index === schedule.length - 1 && row.isInterestAdjustment === true;
 
-        if (
-          row.emi < 0 ||
-          row.principal < 0 ||
-          row.retentionAmount <
-            0 ||
-          row.opening < 0 ||
-          row.closing < 0 ||
-          (
-            !isFinalAdjustmentRow &&
-            row.interest < 0
-          ) ||
-          row.principal >
-            row.opening +
-              0.01 ||
-          Math.abs(
-            componentTotal -
-              row.emi,
-          ) > 0.01 ||
-          Math.abs(
-            closingCheck -
-              row.closing,
-          ) > 0.01
-        ) {
-          throw new Error(
-            `Invalid RPS row ${index + 1} for LAN=${lan}: ` +
-              JSON.stringify(
-                row,
-              ),
-          );
-        }
-      },
-    );
+      if (
+        row.emi < 0 ||
+        row.principal < 0 ||
+        row.retentionAmount < 0 ||
+        row.opening < 0 ||
+        row.closing < 0 ||
+        (!isFinalAdjustmentRow && row.interest < 0) ||
+        row.principal > row.opening + 0.01 ||
+        Math.abs(componentTotal - row.emi) > 0.01 ||
+        Math.abs(closingCheck - row.closing) > 0.01
+      ) {
+        throw new Error(
+          `Invalid RPS row ${index + 1} for LAN=${lan}: ` + JSON.stringify(row),
+        );
+      }
+    });
 
-    if (
-      schedule.length !==
-      tenureMonths
-    ) {
+    if (schedule.length !== tenureMonths) {
       throw new Error(
         `RPS row count mismatch for LAN=${lan}. ` +
           `Expected=${tenureMonths}, ` +
@@ -8467,23 +7330,14 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       );
     }
 
-    if (
-      Math.abs(
-        openingBalance,
-      ) > 0.01
-    ) {
+    if (Math.abs(openingBalance) > 0.01) {
       throw new Error(
         `Principal did not close for LAN=${lan}. ` +
           `Closing=${openingBalance}`,
       );
     }
 
-    if (
-      Math.abs(
-        totalPrincipal -
-          netDisbursement,
-      ) > 0.01
-    ) {
+    if (Math.abs(totalPrincipal - netDisbursement) > 0.01) {
       throw new Error(
         `Principal mismatch for LAN=${lan}. ` +
           `Expected=${netDisbursement}, ` +
@@ -8491,12 +7345,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       );
     }
 
-    if (
-      Math.abs(
-        retentionScheduled -
-          retentionAmount,
-      ) > 0.01
-    ) {
+    if (Math.abs(retentionScheduled - retentionAmount) > 0.01) {
       throw new Error(
         `Retention mismatch for LAN=${lan}. ` +
           `Expected=${retentionAmount}, ` +
@@ -8504,12 +7353,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       );
     }
 
-    if (
-      Math.abs(
-        totalInterest -
-          expectedNetInterest,
-      ) > 0.01
-    ) {
+    if (Math.abs(totalInterest - expectedNetInterest) > 0.01) {
       throw new Error(
         `Interest mismatch for LAN=${lan}. ` +
           `Expected=${expectedNetInterest}, ` +
@@ -8517,12 +7361,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       );
     }
 
-    if (
-      Math.abs(
-        totalRpsAmount -
-          totalScheduledEmi,
-      ) > 0.01
-    ) {
+    if (Math.abs(totalRpsAmount - totalScheduledEmi) > 0.01) {
       throw new Error(
         `RPS total mismatch for LAN=${lan}. ` +
           `Expected=${totalScheduledEmi}, ` +
@@ -8534,34 +7373,28 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     // DATABASE INSERT DATA
     // =====================================================
 
-    const rpsData =
-      schedule.map(
-        (row) => [
-          row.lan,
-          row.dueDate,
-          row.status,
-          row.emi,
-          row.interest,
-          row.principal,
-          row.retentionAmount,
-          row.opening,
-          row.closing,
-          row.remainingEmi,
-          row.remainingInterest,
-          row.remainingPrincipal,
-          row.remainingRetention,
-          row.remainingAmount,
-        ],
-      );
+    const rpsData = schedule.map((row) => [
+      row.lan,
+      row.dueDate,
+      row.status,
+      row.emi,
+      row.interest,
+      row.principal,
+      row.retentionAmount,
+      row.opening,
+      row.closing,
+      row.remainingEmi,
+      row.remainingInterest,
+      row.remainingPrincipal,
+      row.remainingRetention,
+      row.remainingAmount,
+    ]);
 
     // =====================================================
     // TRANSACTION
     // =====================================================
 
-    connection =
-      await db
-        .promise()
-        .getConnection();
+    connection = await db.promise().getConnection();
 
     await connection.beginTransaction();
 
@@ -8578,9 +7411,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       [lan],
     );
 
-    if (
-      rpsData.length > 0
-    ) {
+    if (rpsData.length > 0) {
       await connection.query(
         `
           INSERT INTO manual_rps_gq_fsf_fintree
@@ -8606,12 +7437,9 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       );
     }
 
-
-
     await connection.commit();
 
-    transactionStarted =
-      false;
+    transactionStarted = false;
 
     // =====================================================
     // RETURN
@@ -8624,8 +7452,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
       product,
       lender,
 
-      approvedAmount:
-        approved,
+      approvedAmount: approved,
 
       tenureMonths,
 
@@ -8633,8 +7460,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
       emiAmount,
 
-      subventionAmount:
-        subvention,
+      subventionAmount: subvention,
 
       netLoanForLender,
 
@@ -8665,8 +7491,7 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
       totalPrincipal,
 
-      totalRetention:
-        retentionScheduled,
+      totalRetention: retentionScheduled,
 
       totalScheduledEmi,
 
@@ -8676,32 +7501,20 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
       cashflows,
 
-      rpsRowsInserted:
-        rpsData.length,
+      rpsRowsInserted: rpsData.length,
 
       schedule,
     };
   } catch (error) {
-    if (
-      connection &&
-      transactionStarted
-    ) {
+    if (connection && transactionStarted) {
       try {
         await connection.rollback();
-      } catch (
-        rollbackError
-      ) {
-        console.error(
-          `RPS rollback failed for LAN=${lan}:`,
-          rollbackError,
-        );
+      } catch (rollbackError) {
+        console.error(`RPS rollback failed for LAN=${lan}:`, rollbackError);
       }
     }
 
-    console.error(
-      `RPS ERROR (GQFSF_Fintree) LAN=${lan}:`,
-      error,
-    );
+    console.error(`RPS ERROR (GQFSF_Fintree) LAN=${lan}:`, error);
 
     throw error;
   } finally {
@@ -8710,7 +7523,6 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
     }
   }
 };
-
 
 // const generateRepaymentScheduleGQFSF_Fintree = async (
 //   lan,
@@ -8745,7 +7557,6 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 
 //     const safeRetentionPercent = Number(retentionPercent || 0);
 //     const safeManualRetentionAmount = Number(manualRetentionAmount || 0);
-    
 
 //     // ---------- NET VALUES ----------
 //     const netLoanForLender = approved - subvention;
@@ -8907,16 +7718,9 @@ const generateRepaymentScheduleGQFSF_Fintree = async (
 //   }
 // };
 
-
-
-
-
 ///////////////////////// GQ FSF FINTREE RPS Sajag New End ////////////////////////////
 
-
-
 //////////// CLAYOO LOAN CALCULATION - BULLET STRUCTURE (NO EMI, INTEREST ONLY AT END) ////////////////////////////
-
 
 const generateRepaymentScheduleClayoo = async (
   conn,
@@ -8926,13 +7730,10 @@ const generateRepaymentScheduleClayoo = async (
   tenure,
   disbursementDate,
 ) => {
-
-
   // Convert interest rate to decimal
   const annualRate = interestRate / 100;
 
-
-console.log("disbursement dtae", disbursementDate);
+  console.log("disbursement dtae", disbursementDate);
   // Convert input dates
   const disbDate = new Date(disbursementDate);
   console.log("Parsed disbursementDate:", disbDate);
@@ -8941,19 +7742,14 @@ console.log("disbursement dtae", disbursementDate);
   console.log("paydate means duedate", payDate);
 
   // Validate dates
-  if (
-    Number.isNaN(disbDate.getTime()) ||
-    Number.isNaN(payDate.getTime())
-  ) {
+  if (Number.isNaN(disbDate.getTime()) || Number.isNaN(payDate.getTime())) {
     throw new Error("Invalid disbursementDate or paymentDate");
   }
 
   /**
    * STEP 1: Calculate total loan usage days
    */
-  const totalDays = Math.ceil(
-    (payDate - disbDate) / (1000 * 60 * 60 * 24)
-  );
+  const totalDays = Math.ceil((payDate - disbDate) / (1000 * 60 * 60 * 24));
 
   /**
    * STEP 2: Apply 90-day grace period
@@ -8967,7 +7763,7 @@ console.log("disbursement dtae", disbursementDate);
    */
   const interestDays = Math.max(
     0,
-    Math.ceil((payDate - graceEndDate) / (1000 * 60 * 60 * 24))
+    Math.ceil((payDate - graceEndDate) / (1000 * 60 * 60 * 24)),
   );
 
   console.log("Total loan usage days:", totalDays);
@@ -8977,7 +7773,7 @@ console.log("disbursement dtae", disbursementDate);
    * STEP 4: Interest calculation (365-day basis)
    */
   const totalInterest = Math.ceil(
-    (loanAmount * annualRate * interestDays) / 365
+    (loanAmount * annualRate * interestDays) / 365,
   );
 
   /**
@@ -8989,17 +7785,19 @@ console.log("disbursement dtae", disbursementDate);
    * STEP 6: Prepare RPS row
    * Single repayment entry (bullet loan structure)
    */
-  const rpsData = [[
-    lan,
-    payDate.toISOString().split("T")[0], // due_date
-    emi,
-    totalInterest,
-    loanAmount,
-    loanAmount,
-    totalInterest,
-    emi,
-    "Pending"
-  ]];
+  const rpsData = [
+    [
+      lan,
+      payDate.toISOString().split("T")[0], // due_date
+      emi,
+      totalInterest,
+      loanAmount,
+      loanAmount,
+      totalInterest,
+      emi,
+      "Pending",
+    ],
+  ];
 
   /**
    * STEP 7: Insert into Clayoo RPS table
@@ -9010,7 +7808,7 @@ console.log("disbursement dtae", disbursementDate);
       remaining_principal, remaining_interest,
       remaining_emi, status)
      VALUES ?`,
-    [rpsData]
+    [rpsData],
   );
 
   /**
@@ -9020,7 +7818,7 @@ console.log("disbursement dtae", disbursementDate);
     `UPDATE loan_booking_clayyo
      SET emi_amount = ?
      WHERE lan = ?`,
-    [emi, lan]
+    [emi, lan],
   );
 
   console.log(
@@ -9028,8 +7826,100 @@ console.log("disbursement dtae", disbursementDate);
      Total Days: ${totalDays},
      Interest Days: ${interestDays},
      Interest: ${totalInterest},
-     Payable Amount: ${emi}`
+     Payable Amount: ${emi}`,
   );
+};
+
+//////////////////// CLAIM BUDDY RPS ///////////////////////
+
+const generateRepaymentScheduleClaimBuddy = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+  product,
+  lender,
+) => {
+  const monthlyRate = Number(interestRate) / 100 / 12;
+
+  const emi = Math.round(
+    (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
+      (Math.pow(1 + monthlyRate, tenure) - 1),
+  );
+
+  const firstDueRaw = getFirstEmiDate(disbursementDate, null, lender, product);
+
+  let dueDate = new Date(firstDueRaw);
+
+  let openingPrincipal = Number(loanAmount);
+
+  const rpsData = [];
+
+  for (let i = 1; i <= tenure; i++) {
+    let interest = Math.round(openingPrincipal * monthlyRate);
+
+    let principal = emi - interest;
+
+    if (i === tenure) {
+      principal = openingPrincipal;
+    }
+
+    let closingPrincipal = Math.max(0, openingPrincipal - principal);
+
+    let totalEmi = principal + interest;
+
+    rpsData.push([
+      lan,
+      dueDate.toISOString().split("T")[0],
+      totalEmi,
+      interest,
+      principal,
+      principal,
+      interest,
+      totalEmi,
+      openingPrincipal,
+      closingPrincipal,
+      "Pending",
+    ]);
+
+    openingPrincipal = closingPrincipal;
+
+    dueDate.setMonth(dueDate.getMonth() + 1);
+  }
+
+  await conn.query(
+    `
+INSERT INTO manual_rps_claim_buddy
+(
+lan,
+due_date,
+emi,
+interest,
+principal,
+remaining_principal,
+remaining_interest,
+remaining_emi,
+opening,
+closing,
+status
+)
+VALUES ?
+`,
+    [rpsData],
+  );
+
+  await conn.query(
+    `
+UPDATE loan_booking_claim_buddy
+SET emi_amount = ?
+WHERE lan = ?
+`,
+    [emi, lan],
+  );
+
+  console.log(`✅ Claim Buddy RPS generated for ${lan}`);
 };
 
 ///////////////////////////// ADIKOSH LOAN CALCULATION /////////////////////////////////////////
@@ -9594,9 +8484,7 @@ const generateRepaymentScheduleFinso365 = async (
     } else {
       const powv = Math.pow(1 + dailyRate, n);
 
-      regularDailyEmi = round2(
-        (P * dailyRate * powv) / (powv - 1),
-      );
+      regularDailyEmi = round2((P * dailyRate * powv) / (powv - 1));
     }
 
     if (!regularDailyEmi || regularDailyEmi <= 0 || isNaN(regularDailyEmi)) {
@@ -9711,10 +8599,9 @@ const generateRepaymentScheduleFinso365 = async (
     }
 
     // Avoid duplicate RPS rows for same LAN
-    await localConn.query(
-      `DELETE FROM manual_rps_finso_loan WHERE lan = ?`,
-      [lan],
-    );
+    await localConn.query(`DELETE FROM manual_rps_finso_loan WHERE lan = ?`, [
+      lan,
+    ]);
 
     const CHUNK = 800;
 
@@ -9766,9 +8653,7 @@ const generateRepaymentScheduleFinso365 = async (
       schedule.reduce((sum, r) => sum + r.interest, 0),
     );
 
-    const totalPayable = round2(
-      schedule.reduce((sum, r) => sum + r.emi, 0),
-    );
+    const totalPayable = round2(schedule.reduce((sum, r) => sum + r.emi, 0));
 
     console.log(`✅ FINSO RPS 365 generated for ${lan}`, {
       rowsInserted: rows.length,
@@ -10028,7 +8913,9 @@ const generateRepaymentScheduleMotionCorp = async (
   console.log("inside MotionCorp RPS generate final");
   const isSampada = lender === "Sampada";
   const rpsTable = isSampada ? "manual_rps_sampada" : "manual_rps_motioncorp";
-  const bookingTable = isSampada ? "loan_booking_sampada" : "loan_booking_motion_corp";
+  const bookingTable = isSampada
+    ? "loan_booking_sampada"
+    : "loan_booking_motion_corp";
 
   // =====================================================
   // HELPERS
@@ -10038,9 +8925,7 @@ const generateRepaymentScheduleMotionCorp = async (
     const num = Number(value);
 
     if (!Number.isFinite(num)) {
-      throw new Error(
-        `Invalid ${fieldName} for LAN ${lan}: ${value}`
-      );
+      throw new Error(`Invalid ${fieldName} for LAN ${lan}: ${value}`);
     }
 
     return num;
@@ -10050,9 +8935,7 @@ const generateRepaymentScheduleMotionCorp = async (
     const num = Number(value);
 
     if (!Number.isFinite(num)) {
-      throw new Error(
-        `Invalid numeric ${fieldName} for LAN ${lan}: ${value}`
-      );
+      throw new Error(`Invalid numeric ${fieldName} for LAN ${lan}: ${value}`);
     }
 
     return Number(num.toFixed(2));
@@ -10063,9 +8946,7 @@ const generateRepaymentScheduleMotionCorp = async (
     const num = Number(value);
 
     if (!Number.isFinite(num)) {
-      throw new Error(
-        `Invalid numeric ${fieldName} for LAN ${lan}: ${value}`
-      );
+      throw new Error(`Invalid numeric ${fieldName} for LAN ${lan}: ${value}`);
     }
 
     return Math.round(num);
@@ -10076,7 +8957,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
     if (!Number.isFinite(num)) {
       throw new Error(
-        `Invalid RPS ${fieldName} for LAN ${lan}, EMI No ${emiNo}: ${value}`
+        `Invalid RPS ${fieldName} for LAN ${lan}, EMI No ${emiNo}: ${value}`,
       );
     }
 
@@ -10089,7 +8970,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
   const principal = round0(
     toFiniteNumber(loanAmount, "loanAmount"),
-    "loanAmount"
+    "loanAmount",
   );
 
   const flatRate = toFiniteNumber(interestRate, "interestRate");
@@ -10105,7 +8986,7 @@ const generateRepaymentScheduleMotionCorp = async (
     Number.isNaN(disbDate.getTime())
   ) {
     throw new Error(
-      `Invalid inputs for LAN ${lan}: loanAmount=${loanAmount}, interestRate=${interestRate}, tenure=${tenure}, disbursementDate=${disbursementDate}`
+      `Invalid inputs for LAN ${lan}: loanAmount=${loanAmount}, interestRate=${interestRate}, tenure=${tenure}, disbursementDate=${disbursementDate}`,
     );
   }
 
@@ -10115,7 +8996,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
   const totalFlatInterest = round0(
     principal * (flatRate / 100) * (months / 12),
-    "totalFlatInterest"
+    "totalFlatInterest",
   );
 
   // =====================================================
@@ -10124,17 +9005,14 @@ const generateRepaymentScheduleMotionCorp = async (
 
   const totalRepayment = round0(
     principal + totalFlatInterest,
-    "totalRepayment"
+    "totalRepayment",
   );
 
   // =====================================================
   // STEP 3 : EMI - ROUNDED
   // =====================================================
 
-  const emi = round0(
-    totalRepayment / months,
-    "emi"
-  );
+  const emi = round0(totalRepayment / months, "emi");
 
   // =====================================================
   // STEP 4 : FIRST EMI DATE
@@ -10151,26 +9029,20 @@ const generateRepaymentScheduleMotionCorp = async (
 
   if (Number.isNaN(firstDueDate.getTime())) {
     throw new Error(
-      `Invalid MotionCorp first due date for LAN ${lan}: ${firstDueRaw}`
+      `Invalid MotionCorp first due date for LAN ${lan}: ${firstDueRaw}`,
     );
   }
 
   // =====================================================
   // STEP 5 : PRE EMI DAYS
   // =====================================================
-  
-  const diffTime =
-    firstDueDate.getTime() -
-    disbDate.getTime();
 
-  const preEmiDays = Math.ceil(
-    diffTime / (1000 * 60 * 60 * 24)
-  );
+  const diffTime = firstDueDate.getTime() - disbDate.getTime();
+
+  const preEmiDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (!Number.isFinite(preEmiDays) || preEmiDays < 0) {
-    throw new Error(
-      `Invalid preEmiDays for LAN ${lan}: ${preEmiDays}`
-    );
+    throw new Error(`Invalid preEmiDays for LAN ${lan}: ${preEmiDays}`);
   }
 
   // =====================================================
@@ -10179,7 +9051,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
   const preEmiInterest = round0(
     principal * (flatRate / 100) * (preEmiDays / 360),
-    "preEmiInterest"
+    "preEmiInterest",
   );
 
   // =====================================================
@@ -10189,7 +9061,7 @@ const generateRepaymentScheduleMotionCorp = async (
   const calculateReducingMonthlyRate = (
     principalAmount,
     monthlyEmi,
-    totalMonths
+    totalMonths,
   ) => {
     const pmt = (rate) => {
       if (Math.abs(rate) < 1e-12) {
@@ -10198,13 +9070,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
       const pow = Math.pow(1 + rate, totalMonths);
 
-      return (
-        principalAmount *
-        rate *
-        pow
-      ) / (
-        pow - 1
-      );
+      return (principalAmount * rate * pow) / (pow - 1);
     };
 
     const minEmi = principalAmount / totalMonths;
@@ -10222,7 +9088,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
     if (!Number.isFinite(high) || pmt(high) < monthlyEmi) {
       throw new Error(
-        `Unable to calculate reducing ROI for LAN ${lan}: principal=${principalAmount}, emi=${monthlyEmi}, months=${totalMonths}`
+        `Unable to calculate reducing ROI for LAN ${lan}: principal=${principalAmount}, emi=${monthlyEmi}, months=${totalMonths}`,
       );
     }
 
@@ -10243,12 +9109,12 @@ const generateRepaymentScheduleMotionCorp = async (
   const reducingMonthlyRate = calculateReducingMonthlyRate(
     principal,
     emi,
-    months
+    months,
   );
 
   const reducingAnnualRate = round2(
     reducingMonthlyRate * 12 * 100,
-    "reducingAnnualRate"
+    "reducingAnnualRate",
   );
 
   // =====================================================
@@ -10264,40 +9130,29 @@ const generateRepaymentScheduleMotionCorp = async (
   for (let i = 1; i <= months; i++) {
     let interest = round0(
       openingPrincipal * reducingMonthlyRate,
-      `interest EMI ${i}`
+      `interest EMI ${i}`,
     );
 
-    let principalComponent = round0(
-      emi - interest,
-      `principal EMI ${i}`
-    );
+    let principalComponent = round0(emi - interest, `principal EMI ${i}`);
 
     let installmentEmi = emi;
 
     // Last EMI adjustment to close loan cleanly
     if (i === months) {
-      principalComponent = round0(
-        openingPrincipal,
-        `last principal EMI ${i}`
-      );
+      principalComponent = round0(openingPrincipal, `last principal EMI ${i}`);
 
-      installmentEmi = round0(
-        principalComponent + interest,
-        `last EMI ${i}`
-      );
+      installmentEmi = round0(principalComponent + interest, `last EMI ${i}`);
     }
 
     const closingPrincipal = round0(
       Math.max(0, openingPrincipal - principalComponent),
-      `closing EMI ${i}`
+      `closing EMI ${i}`,
     );
 
     rpsData.push({
       emi_no: i,
 
-      due_date: dueDate
-        .toISOString()
-        .split("T")[0],
+      due_date: dueDate.toISOString().split("T")[0],
 
       opening: openingPrincipal,
 
@@ -10314,9 +9169,7 @@ const generateRepaymentScheduleMotionCorp = async (
 
     openingPrincipal = closingPrincipal;
 
-    dueDate.setMonth(
-      dueDate.getMonth() + 1
-    );
+    dueDate.setMonth(dueDate.getMonth() + 1);
   }
 
   // =====================================================
@@ -10324,35 +9177,23 @@ const generateRepaymentScheduleMotionCorp = async (
   // =====================================================
 
   const insertData = rpsData.map((row) => {
-    const emiValue = validateRpsNumber(
-      row.emi,
-      "emi",
-      row.emi_no
-    );
+    const emiValue = validateRpsNumber(row.emi, "emi", row.emi_no);
 
     const interestValue = validateRpsNumber(
       row.interest,
       "interest",
-      row.emi_no
+      row.emi_no,
     );
 
     const principalValue = validateRpsNumber(
       row.principal,
       "principal",
-      row.emi_no
+      row.emi_no,
     );
 
-    const openingValue = validateRpsNumber(
-      row.opening,
-      "opening",
-      row.emi_no
-    );
+    const openingValue = validateRpsNumber(row.opening, "opening", row.emi_no);
 
-    const closingValue = validateRpsNumber(
-      row.closing,
-      "closing",
-      row.emi_no
-    );
+    const closingValue = validateRpsNumber(row.closing, "closing", row.emi_no);
 
     return [
       lan,
@@ -10365,10 +9206,10 @@ const generateRepaymentScheduleMotionCorp = async (
       openingValue,
       closingValue,
 
-      emiValue,          // remaining_emi
-      interestValue,     // remaining_interest
-      principalValue,    // remaining_principal
-      emiValue,          // remaining_amount
+      emiValue, // remaining_emi
+      interestValue, // remaining_interest
+      principalValue, // remaining_principal
+      emiValue, // remaining_amount
     ];
   });
 
@@ -10391,7 +9232,7 @@ const generateRepaymentScheduleMotionCorp = async (
     )
     VALUES ?
     `,
-    [insertData]
+    [insertData],
   );
 
   // =====================================================
@@ -10416,7 +9257,7 @@ const generateRepaymentScheduleMotionCorp = async (
       preEmiInterest,
       round0(totalRepayment + preEmiInterest, "finalTotalRepayment"),
       lan,
-    ]
+    ],
   );
 
   // =====================================================
@@ -10433,23 +9274,18 @@ const generateRepaymentScheduleMotionCorp = async (
 
     totalRepayment: round0(
       totalRepayment + preEmiInterest,
-      "returnTotalRepayment"
+      "returnTotalRepayment",
     ),
 
     reducingAnnualRate,
 
-    firstDueDate: firstDueDate
-      .toISOString()
-      .split("T")[0],
+    firstDueDate: firstDueDate.toISOString().split("T")[0],
 
     preEmiDays,
 
     rpsData,
   };
 };
-
-
-
 
 const generateRepaymentScheduleSrbh = async (
   conn,
@@ -10469,9 +9305,7 @@ const generateRepaymentScheduleSrbh = async (
     const num = Number(value);
 
     if (!Number.isFinite(num)) {
-      throw new Error(
-        `Invalid ${fieldName} for LAN ${lan}: ${value}`
-      );
+      throw new Error(`Invalid ${fieldName} for LAN ${lan}: ${value}`);
     }
 
     return num;
@@ -10481,9 +9315,7 @@ const generateRepaymentScheduleSrbh = async (
     const num = Number(value);
 
     if (!Number.isFinite(num)) {
-      throw new Error(
-        `Invalid numeric ${fieldName} for LAN ${lan}: ${value}`
-      );
+      throw new Error(`Invalid numeric ${fieldName} for LAN ${lan}: ${value}`);
     }
 
     return Number(num.toFixed(2));
@@ -10494,9 +9326,7 @@ const generateRepaymentScheduleSrbh = async (
     const num = Number(value);
 
     if (!Number.isFinite(num)) {
-      throw new Error(
-        `Invalid numeric ${fieldName} for LAN ${lan}: ${value}`
-      );
+      throw new Error(`Invalid numeric ${fieldName} for LAN ${lan}: ${value}`);
     }
 
     return Math.round(num);
@@ -10507,7 +9337,7 @@ const generateRepaymentScheduleSrbh = async (
 
     if (!Number.isFinite(num)) {
       throw new Error(
-        `Invalid RPS ${fieldName} for LAN ${lan}, EMI No ${emiNo}: ${value}`
+        `Invalid RPS ${fieldName} for LAN ${lan}, EMI No ${emiNo}: ${value}`,
       );
     }
 
@@ -10520,7 +9350,7 @@ const generateRepaymentScheduleSrbh = async (
 
   const principal = round0(
     toFiniteNumber(loanAmount, "loanAmount"),
-    "loanAmount"
+    "loanAmount",
   );
 
   const flatRate = toFiniteNumber(interestRate, "interestRate");
@@ -10536,7 +9366,7 @@ const generateRepaymentScheduleSrbh = async (
     Number.isNaN(disbDate.getTime())
   ) {
     throw new Error(
-      `Invalid inputs for LAN ${lan}: loanAmount=${loanAmount}, interestRate=${interestRate}, tenure=${tenure}, disbursementDate=${disbursementDate}`
+      `Invalid inputs for LAN ${lan}: loanAmount=${loanAmount}, interestRate=${interestRate}, tenure=${tenure}, disbursementDate=${disbursementDate}`,
     );
   }
 
@@ -10571,74 +9401,49 @@ const generateRepaymentScheduleSrbh = async (
   // STEP 4 : FIRST EMI DATE
   // =====================================================
 
+  // =====================================================
+  // STEP 1 : PURE REDUCING EMI CALCULATION
+  // =====================================================
+
+  const monthlyRate = flatRate / 12 / 100;
+
+  const emi = round0(
+    (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) /
+      (Math.pow(1 + monthlyRate, months) - 1),
+    "emi",
+  );
 
   // =====================================================
-// STEP 1 : PURE REDUCING EMI CALCULATION
-// =====================================================
+  // STEP 2 : TOTAL REPAYMENT
+  // =====================================================
 
-const monthlyRate = flatRate / 12 / 100;
+  const totalRepayment = round0(emi * months, "totalRepayment");
 
+  // =====================================================
+  // STEP 3 : TOTAL INTEREST
+  // =====================================================
 
-const emi = round0(
-  principal *
-  monthlyRate *
-  Math.pow(1 + monthlyRate, months) /
-  (
-    Math.pow(1 + monthlyRate, months) - 1
-  ),
-  "emi"
-);
-
-
-// =====================================================
-// STEP 2 : TOTAL REPAYMENT
-// =====================================================
-
-const totalRepayment = round0(
-  emi * months,
-  "totalRepayment"
-);
-
-
-// =====================================================
-// STEP 3 : TOTAL INTEREST
-// =====================================================
-
-const totalFlatInterest = round0(
-  totalRepayment - principal,
-  "totalInterest"
-);
-  const firstDueRaw = getFirstEmiDate(
-    disbDate,
-    null,
-    "SRBH",
-    "Monthly Loan",
-  );
+  const totalFlatInterest = round0(totalRepayment - principal, "totalInterest");
+  const firstDueRaw = getFirstEmiDate(disbDate, null, "SRBH", "Monthly Loan");
 
   const firstDueDate = new Date(firstDueRaw);
 
   if (Number.isNaN(firstDueDate.getTime())) {
     throw new Error(
-      `Invalid SRBH first due date for LAN ${lan}: ${firstDueRaw}`
+      `Invalid SRBH first due date for LAN ${lan}: ${firstDueRaw}`,
     );
   }
 
   // =====================================================
   // STEP 5 : PRE EMI DAYS
   // =====================================================
-  
-  const diffTime =
-    firstDueDate.getTime() -
-    disbDate.getTime();
 
-  const preEmiDays = Math.ceil(
-    diffTime / (1000 * 60 * 60 * 24)
-  );
+  const diffTime = firstDueDate.getTime() - disbDate.getTime();
+
+  const preEmiDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (!Number.isFinite(preEmiDays) || preEmiDays < 0) {
-    throw new Error(
-      `Invalid preEmiDays for LAN ${lan}: ${preEmiDays}`
-    );
+    throw new Error(`Invalid preEmiDays for LAN ${lan}: ${preEmiDays}`);
   }
 
   // =====================================================
@@ -10647,7 +9452,7 @@ const totalFlatInterest = round0(
 
   const preEmiInterest = round0(
     principal * (flatRate / 100) * (preEmiDays / 360),
-    "preEmiInterest"
+    "preEmiInterest",
   );
 
   // =====================================================
@@ -10713,11 +9518,11 @@ const totalFlatInterest = round0(
   //   emi,
   //   months
   // );
-const reducingMonthlyRate = monthlyRate;
+  const reducingMonthlyRate = monthlyRate;
 
   const reducingAnnualRate = round2(
     reducingMonthlyRate * 12 * 100,
-    "reducingAnnualRate"
+    "reducingAnnualRate",
   );
 
   // =====================================================
@@ -10733,40 +9538,29 @@ const reducingMonthlyRate = monthlyRate;
   for (let i = 1; i <= months; i++) {
     let interest = round0(
       openingPrincipal * reducingMonthlyRate,
-      `interest EMI ${i}`
+      `interest EMI ${i}`,
     );
 
-    let principalComponent = round0(
-      emi - interest,
-      `principal EMI ${i}`
-    );
+    let principalComponent = round0(emi - interest, `principal EMI ${i}`);
 
     let installmentEmi = emi;
 
     // Last EMI adjustment to close loan cleanly
     if (i === months) {
-      principalComponent = round0(
-        openingPrincipal,
-        `last principal EMI ${i}`
-      );
+      principalComponent = round0(openingPrincipal, `last principal EMI ${i}`);
 
-      installmentEmi = round0(
-        principalComponent + interest,
-        `last EMI ${i}`
-      );
+      installmentEmi = round0(principalComponent + interest, `last EMI ${i}`);
     }
 
     const closingPrincipal = round0(
       Math.max(0, openingPrincipal - principalComponent),
-      `closing EMI ${i}`
+      `closing EMI ${i}`,
     );
 
     rpsData.push({
       emi_no: i,
 
-      due_date: dueDate
-        .toISOString()
-        .split("T")[0],
+      due_date: dueDate.toISOString().split("T")[0],
 
       opening: openingPrincipal,
 
@@ -10783,9 +9577,7 @@ const reducingMonthlyRate = monthlyRate;
 
     openingPrincipal = closingPrincipal;
 
-    dueDate.setMonth(
-      dueDate.getMonth() + 1
-    );
+    dueDate.setMonth(dueDate.getMonth() + 1);
   }
 
   // =====================================================
@@ -10793,35 +9585,23 @@ const reducingMonthlyRate = monthlyRate;
   // =====================================================
 
   const insertData = rpsData.map((row) => {
-    const emiValue = validateRpsNumber(
-      row.emi,
-      "emi",
-      row.emi_no
-    );
+    const emiValue = validateRpsNumber(row.emi, "emi", row.emi_no);
 
     const interestValue = validateRpsNumber(
       row.interest,
       "interest",
-      row.emi_no
+      row.emi_no,
     );
 
     const principalValue = validateRpsNumber(
       row.principal,
       "principal",
-      row.emi_no
+      row.emi_no,
     );
 
-    const openingValue = validateRpsNumber(
-      row.opening,
-      "opening",
-      row.emi_no
-    );
+    const openingValue = validateRpsNumber(row.opening, "opening", row.emi_no);
 
-    const closingValue = validateRpsNumber(
-      row.closing,
-      "closing",
-      row.emi_no
-    );
+    const closingValue = validateRpsNumber(row.closing, "closing", row.emi_no);
 
     return [
       lan,
@@ -10834,10 +9614,10 @@ const reducingMonthlyRate = monthlyRate;
       openingValue,
       closingValue,
 
-      emiValue,          // remaining_emi
-      interestValue,     // remaining_interest
-      principalValue,    // remaining_principal
-      emiValue,          // remaining_amount
+      emiValue, // remaining_emi
+      interestValue, // remaining_interest
+      principalValue, // remaining_principal
+      emiValue, // remaining_amount
     ];
   });
 
@@ -10860,7 +9640,7 @@ const reducingMonthlyRate = monthlyRate;
     )
     VALUES ?
     `,
-    [insertData]
+    [insertData],
   );
 
   // =====================================================
@@ -10885,7 +9665,7 @@ const reducingMonthlyRate = monthlyRate;
       preEmiInterest,
       round0(totalRepayment + preEmiInterest, "finalTotalRepayment"),
       lan,
-    ]
+    ],
   );
 
   // =====================================================
@@ -10902,14 +9682,12 @@ const reducingMonthlyRate = monthlyRate;
 
     totalRepayment: round0(
       totalRepayment + preEmiInterest,
-      "returnTotalRepayment"
+      "returnTotalRepayment",
     ),
 
     reducingAnnualRate,
 
-    firstDueDate: firstDueDate
-      .toISOString()
-      .split("T")[0],
+    firstDueDate: firstDueDate.toISOString().split("T")[0],
 
     preEmiDays,
 
@@ -11048,34 +9826,29 @@ const generateRepaymentSchedule = async (
 ) => {
   console.log("lender testing", lender);
 
- const safeProcessingFee = Number(processingFee ?? 0);
+  const safeProcessingFee = Number(processingFee ?? 0);
 
-if (
-  !Number.isFinite(safeProcessingFee) ||
-  safeProcessingFee < 0
-) {
-  throw new Error(
-    `Invalid processing fee for LAN ${lan}: ${processingFee}`,
-  );
-}
+  if (!Number.isFinite(safeProcessingFee) || safeProcessingFee < 0) {
+    throw new Error(`Invalid processing fee for LAN ${lan}: ${processingFee}`);
+  }
 
-console.log("checking data", {
-  lan,
-  loanAmount,
-  emiDate,
-  interestRate,
-  tenure,
-  disbursementDate,
-  subventionAmount,
-  no_of_advance_emis,
-  salary_day,
-  product,
-  lender,
-  retention_percentage,
-  retention_amount,
-  processingFee,
-  safeProcessingFee,
-});
+  console.log("checking data", {
+    lan,
+    loanAmount,
+    emiDate,
+    interestRate,
+    tenure,
+    disbursementDate,
+    subventionAmount,
+    no_of_advance_emis,
+    salary_day,
+    product,
+    lender,
+    retention_percentage,
+    retention_amount,
+    processingFee,
+    safeProcessingFee,
+  });
 
   // 🛡 HARD SAFETY (prevents ALL ReferenceErrors)
   const safeRetentionPercent = Number(retention_percentage || 0);
@@ -11113,9 +9886,10 @@ console.log("checking data", {
       product,
       lender,
     );
-      } else if(
-    String(lender || "").trim().toUpperCase() ===
-    "CAREPAY"
+  } else if (
+    String(lender || "")
+      .trim()
+      .toUpperCase() === "CAREPAY"
   ) {
     await generateRepaymentScheduleCarepay(
       conn,
@@ -11128,7 +9902,6 @@ console.log("checking data", {
       lender,
       safeProcessingFee,
     );
-
   } else if (lender === "STERLION") {
     await generateRepaymentScheduleSterlion(
       conn,
@@ -11206,8 +9979,7 @@ console.log("checking data", {
       product,
       lender,
     );
-  }
-  else if(lender ==="circle pe houser"){
+  } else if (lender === "circle pe houser") {
     await generateRepaymentScheduleCirclePeHouser(
       conn,
       lan,
@@ -11218,8 +9990,7 @@ console.log("checking data", {
       product,
       lender,
     );
-  }
-  else if (lender === "CLAYOO") {
+  } else if (lender === "CLAYOO") {
     await generateRepaymentScheduleClayoo(
       conn,
       lan,
@@ -11442,39 +10213,36 @@ console.log("checking data", {
       product,
       lender,
     );
-  }else if ((lender === "Motion Corp" || lender === "Sampada") && product === "Monthly Loan") {
-
+  } else if (
+    (lender === "Motion Corp" || lender === "Sampada") &&
+    product === "Monthly Loan"
+  ) {
     console.log("inside rps genration");
 
-  await generateRepaymentScheduleMotionCorp(
-    conn,
-    lan,
-    loanAmount,
-    interestRate,
-    tenure,
-    disbursementDate,
-    product,
-    lender,
-  );
-
-
-}else if (lender === "SRBH" && product === "Monthly Loan") {
-
+    await generateRepaymentScheduleMotionCorp(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    );
+  } else if (lender === "SRBH" && product === "Monthly Loan") {
     console.log("inside rps genration");
 
-  await generateRepaymentScheduleSrbh(
-    conn,
-    lan,
-    loanAmount,
-    interestRate,
-    tenure,
-    disbursementDate,
-    product,
-    lender,
-  );
-
-
-} else if (lender === "HELIUM") {
+    await generateRepaymentScheduleSrbh(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    );
+  } else if (lender === "HELIUM") {
     await generateRepaymentScheduleHelium(
       conn,
       lan,
@@ -11485,15 +10253,12 @@ console.log("checking data", {
       product,
       lender,
     );
-
-    
-    } else if (
-  String(lender || "").trim().toLowerCase() ===
-  "sterlion-ubl"
-) {
-  console.log(
-    "➡️ Inside Sterlion UBL RPS generation",
-    {
+  } else if (
+    String(lender || "")
+      .trim()
+      .toLowerCase() === "sterlion-ubl"
+  ) {
+    console.log("➡️ Inside Sterlion UBL RPS generation", {
       lan,
       lender,
       product,
@@ -11502,60 +10267,22 @@ console.log("checking data", {
       tenure,
       disbursementDate,
       processingFee,
-    },
-  );
+    });
 
-  return generateRepaymentScheduleSterlionUbl(
-    conn,
-    lan,
-    loanAmount,
-    interestRate,
-    tenure,
-    disbursementDate,
-    product,
-    "STERLION_UBL",
-    processingFee || 0,
-  );
-
-    
-
-    
+    return generateRepaymentScheduleSterlionUbl(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      "STERLION_UBL",
+      processingFee || 0,
+    );
   } else if (lan.startsWith("WCTLFFPL")) {
-  return generateRepaymentScheduleWctlFfpl(
-    conn,
-    lan,
-    loanAmount,
-    interestRate,
-    tenure,
-    disbursementDate,
-    product,
-    lender,
-  );
-}else if (lan.startsWith("SW")) {
-  console.log("[SASWAT RPS GENERATION START]", {
-    lan,
-    loanAmount,
-    interestRate,
-    tenure,
-    disbursementDate,
-    product,
-    lender,
-  });
-
-  await generateRepaymentScheduleSaswat(
-    conn,
-    lan,
-    loanAmount,
-    interestRate,
-    Number(tenure),
-    disbursementDate,
-    product,
-  );
-} 
-else if (lan.startsWith("SFL")) {
-  console.log(
-    "[SEVEN FINCORP RPS GENERATION START]",
-    {
+    return generateRepaymentScheduleWctlFfpl(
+      conn,
       lan,
       loanAmount,
       interestRate,
@@ -11563,24 +10290,51 @@ else if (lan.startsWith("SFL")) {
       disbursementDate,
       product,
       lender,
-    },
-  );
+    );
+  } else if (lan.startsWith("SW")) {
+    console.log("[SASWAT RPS GENERATION START]", {
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    });
 
-  await generateRepaymentScheduleSevenFincorp(
-    conn,
-    lan,
-    loanAmount,
-    interestRate,
-    Number(tenure),
-    disbursementDate,
-    product,
-  );
-}
-else {
+    await generateRepaymentScheduleSaswat(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      Number(tenure),
+      disbursementDate,
+      product,
+    );
+  } else if (lan.startsWith("SFL")) {
+    console.log("[SEVEN FINCORP RPS GENERATION START]", {
+      lan,
+      loanAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      product,
+      lender,
+    });
+
+    await generateRepaymentScheduleSevenFincorp(
+      conn,
+      lan,
+      loanAmount,
+      interestRate,
+      Number(tenure),
+      disbursementDate,
+      product,
+    );
+  } else {
     console.warn(`⚠️ Unknown lender type: ${lender}. Skipping RPS generation.`);
   }
 };
-
 
 const roundSaswat2 = (value) => {
   const number = Number(value);
@@ -11589,9 +10343,7 @@ const roundSaswat2 = (value) => {
     return 0;
   }
 
-  return Number(
-    (Math.round((number + Number.EPSILON) * 100) / 100).toFixed(2),
-  );
+  return Number((Math.round((number + Number.EPSILON) * 100) / 100).toFixed(2));
 };
 
 const formatSaswatDateYMD = (value) => {
@@ -11603,37 +10355,23 @@ const formatSaswatDateYMD = (value) => {
 
   const year = date.getFullYear();
 
-  const month = String(
-    date.getMonth() + 1,
-  ).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
 
-  const day = String(
-    date.getDate(),
-  ).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 };
 
 const normalizeSaswatProduct = (product) => {
-  const normalizedProduct = String(
-    product || "monthly",
-  )
+  const normalizedProduct = String(product || "monthly")
     .trim()
     .toLowerCase()
     .replace(/[\s-]+/g, "_")
     .replace(/_+/g, "_");
 
-  const supportedProducts = [
-    "lap",
-    "monthly",
-    "monthly_365",
-  ];
+  const supportedProducts = ["lap", "monthly", "monthly_365"];
 
-  if (
-    !supportedProducts.includes(
-      normalizedProduct,
-    )
-  ) {
+  if (!supportedProducts.includes(normalizedProduct)) {
     throw new Error(
       `Unsupported Saswat product: ${product}. ` +
         `Allowed products: ${supportedProducts.join(", ")}`,
@@ -11680,26 +10418,21 @@ const generateRepaymentScheduleSaswat = async (
     );
   }
 
-  const normalizedLan = String(
-    lan || "",
-  )
+  const normalizedLan = String(lan || "")
     .trim()
     .toUpperCase();
 
   if (!normalizedLan) {
-    throw new Error(
-      "Saswat LAN is required.",
-    );
+    throw new Error("Saswat LAN is required.");
   }
 
-  const numericLoanAmount =
-    roundSaswat2(
-      Number(
-        String(loanAmount ?? "")
-          .replace(/,/g, "")
-          .trim(),
-      ),
-    );
+  const numericLoanAmount = roundSaswat2(
+    Number(
+      String(loanAmount ?? "")
+        .replace(/,/g, "")
+        .trim(),
+    ),
+  );
 
   const numericInterestRate = Number(
     String(interestRate ?? "")
@@ -11710,54 +10443,28 @@ const generateRepaymentScheduleSaswat = async (
 
   const numericTenure = Number(tenure);
 
-  if (
-    !Number.isFinite(numericLoanAmount) ||
-    numericLoanAmount <= 0
-  ) {
-    throw new Error(
-      `Invalid Saswat loan amount: ${loanAmount}`,
-    );
+  if (!Number.isFinite(numericLoanAmount) || numericLoanAmount <= 0) {
+    throw new Error(`Invalid Saswat loan amount: ${loanAmount}`);
   }
 
-  if (
-    !Number.isFinite(
-      numericInterestRate,
-    ) ||
-    numericInterestRate < 0
-  ) {
-    throw new Error(
-      `Invalid Saswat interest rate: ${interestRate}`,
-    );
+  if (!Number.isFinite(numericInterestRate) || numericInterestRate < 0) {
+    throw new Error(`Invalid Saswat interest rate: ${interestRate}`);
   }
 
-  if (
-    !Number.isInteger(numericTenure) ||
-    numericTenure <= 0
-  ) {
-    throw new Error(
-      `Invalid Saswat tenure: ${tenure}`,
-    );
+  if (!Number.isInteger(numericTenure) || numericTenure <= 0) {
+    throw new Error(`Invalid Saswat tenure: ${tenure}`);
   }
 
   const parsedDisbursementDate =
     disbursementDate instanceof Date
-      ? new Date(
-          disbursementDate.getTime(),
-        )
+      ? new Date(disbursementDate.getTime())
       : new Date(disbursementDate);
 
-  if (
-    Number.isNaN(
-      parsedDisbursementDate.getTime(),
-    )
-  ) {
-    throw new Error(
-      `Invalid Saswat disbursement date: ${disbursementDate}`,
-    );
+  if (Number.isNaN(parsedDisbursementDate.getTime())) {
+    throw new Error(`Invalid Saswat disbursement date: ${disbursementDate}`);
   }
 
-  const normalizedProduct =
-    normalizeSaswatProduct(product);
+  const normalizedProduct = normalizeSaswatProduct(product);
 
   /*
    * ==========================================
@@ -11765,37 +10472,31 @@ const generateRepaymentScheduleSaswat = async (
    * ==========================================
    */
 
-  const [existingRpsRows] =
-    await conn.query(
-      `
+  const [existingRpsRows] = await conn.query(
+    `
         SELECT id
         FROM manual_rps_saswat
         WHERE lan = ?
         LIMIT 1
         FOR UPDATE
       `,
-      [normalizedLan],
-    );
+    [normalizedLan],
+  );
 
   /*
    * Make UTR retry idempotent.
    * Do not insert duplicate RPS rows.
    */
   if (existingRpsRows.length > 0) {
-    console.log(
-      "[SASWAT RPS SKIPPED]",
-      {
-        lan: normalizedLan,
-        reason:
-          "RPS_ALREADY_EXISTS",
-      },
-    );
+    console.log("[SASWAT RPS SKIPPED]", {
+      lan: normalizedLan,
+      reason: "RPS_ALREADY_EXISTS",
+    });
 
     return {
       success: true,
       skipped: true,
-      reason:
-        "RPS_ALREADY_EXISTS",
+      reason: "RPS_ALREADY_EXISTS",
       lan: normalizedLan,
     };
   }
@@ -11809,43 +10510,28 @@ const generateRepaymentScheduleSaswat = async (
    * It is not expected from the UTR route.
    */
 
-  const firstEmiDate =
-    getFirstEmiDate(
-      parsedDisbursementDate,
-      null,
-      lender || "Saswat",
-      normalizedProduct,
-      0,
-    );
+  const firstEmiDate = getFirstEmiDate(
+    parsedDisbursementDate,
+    null,
+    lender || "Saswat",
+    normalizedProduct,
+    0,
+  );
 
-  if (
-    !(firstEmiDate instanceof Date) ||
-    Number.isNaN(
-      firstEmiDate.getTime(),
-    )
-  ) {
+  if (!(firstEmiDate instanceof Date) || Number.isNaN(firstEmiDate.getTime())) {
     throw new Error(
       `Unable to calculate Saswat first EMI date for LAN ${normalizedLan}.`,
     );
   }
 
-  console.log(
-    "[SASWAT RPS DATE DETAILS]",
-    {
-      lan: normalizedLan,
-      lender,
-      product,
-      normalizedProduct,
-      disbursementDate:
-        formatSaswatDateYMD(
-          parsedDisbursementDate,
-        ),
-      firstEmiDate:
-        formatSaswatDateYMD(
-          firstEmiDate,
-        ),
-    },
-  );
+  console.log("[SASWAT RPS DATE DETAILS]", {
+    lan: normalizedLan,
+    lender,
+    product,
+    normalizedProduct,
+    disbursementDate: formatSaswatDateYMD(parsedDisbursementDate),
+    firstEmiDate: formatSaswatDateYMD(firstEmiDate),
+  });
 
   /*
    * ==========================================
@@ -11853,41 +10539,22 @@ const generateRepaymentScheduleSaswat = async (
    * ==========================================
    */
 
-  const monthlyRate =
-    numericInterestRate /
-    100 /
-    12;
+  const monthlyRate = numericInterestRate / 100 / 12;
 
   let regularEmi;
 
   if (monthlyRate === 0) {
-    regularEmi = roundSaswat2(
-      numericLoanAmount /
-        numericTenure,
-    );
+    regularEmi = roundSaswat2(numericLoanAmount / numericTenure);
   } else {
-    const rateFactor = Math.pow(
-      1 + monthlyRate,
-      numericTenure,
-    );
+    const rateFactor = Math.pow(1 + monthlyRate, numericTenure);
 
     regularEmi = roundSaswat2(
-      (
-        numericLoanAmount *
-        monthlyRate *
-        rateFactor
-      ) /
-        (rateFactor - 1),
+      (numericLoanAmount * monthlyRate * rateFactor) / (rateFactor - 1),
     );
   }
 
-  if (
-    !Number.isFinite(regularEmi) ||
-    regularEmi <= 0
-  ) {
-    throw new Error(
-      `Unable to calculate Saswat EMI for LAN ${normalizedLan}.`,
-    );
+  if (!Number.isFinite(regularEmi) || regularEmi <= 0) {
+    throw new Error(`Unable to calculate Saswat EMI for LAN ${normalizedLan}.`);
   }
 
   /*
@@ -11898,13 +10565,11 @@ const generateRepaymentScheduleSaswat = async (
 
   const schedule = [];
 
-  let openingBalance =
-    numericLoanAmount;
+  let openingBalance = numericLoanAmount;
 
   for (
     let installmentNumber = 1;
-    installmentNumber <=
-      numericTenure;
+    installmentNumber <= numericTenure;
     installmentNumber++
   ) {
     /*
@@ -11915,38 +10580,23 @@ const generateRepaymentScheduleSaswat = async (
      * installment 1 => 0
      * installment 2 => 1
      */
-    const dueDate =
-      getFirstEmiDate(
-        parsedDisbursementDate,
-        null,
-        lender || "Saswat",
-        normalizedProduct,
-        installmentNumber - 1,
-      );
+    const dueDate = getFirstEmiDate(
+      parsedDisbursementDate,
+      null,
+      lender || "Saswat",
+      normalizedProduct,
+      installmentNumber - 1,
+    );
 
-    if (
-      !(dueDate instanceof Date) ||
-      Number.isNaN(
-        dueDate.getTime(),
-      )
-    ) {
+    if (!(dueDate instanceof Date) || Number.isNaN(dueDate.getTime())) {
       throw new Error(
         `Invalid Saswat EMI date for installment ${installmentNumber}.`,
       );
     }
 
-    const opening =
-      roundSaswat2(
-        openingBalance,
-      );
+    const opening = roundSaswat2(openingBalance);
 
-    let interest =
-      monthlyRate === 0
-        ? 0
-        : roundSaswat2(
-            opening *
-              monthlyRate,
-          );
+    let interest = monthlyRate === 0 ? 0 : roundSaswat2(opening * monthlyRate);
 
     let principal;
     let actualEmi;
@@ -11955,23 +10605,12 @@ const generateRepaymentScheduleSaswat = async (
      * Final installment must close the
      * outstanding balance completely.
      */
-    if (
-      installmentNumber ===
-      numericTenure
-    ) {
+    if (installmentNumber === numericTenure) {
       principal = opening;
 
-      actualEmi =
-        roundSaswat2(
-          principal +
-            interest,
-        );
+      actualEmi = roundSaswat2(principal + interest);
     } else {
-      principal =
-        roundSaswat2(
-          regularEmi -
-            interest,
-        );
+      principal = roundSaswat2(regularEmi - interest);
 
       if (principal <= 0) {
         throw new Error(
@@ -11988,37 +10627,21 @@ const generateRepaymentScheduleSaswat = async (
       if (principal >= opening) {
         principal = opening;
 
-        actualEmi =
-          roundSaswat2(
-            principal +
-              interest,
-          );
+        actualEmi = roundSaswat2(principal + interest);
       } else {
-        actualEmi =
-          regularEmi;
+        actualEmi = regularEmi;
       }
     }
 
-    let closing =
-      roundSaswat2(
-        opening -
-          principal,
-      );
+    let closing = roundSaswat2(opening - principal);
 
-    if (
-      installmentNumber ===
-        numericTenure ||
-      closing < 0.01
-    ) {
+    if (installmentNumber === numericTenure || closing < 0.01) {
       closing = 0;
     }
 
     schedule.push({
       installmentNumber,
-      dueDate:
-        formatSaswatDateYMD(
-          dueDate,
-        ),
+      dueDate: formatSaswatDateYMD(dueDate),
       emi: actualEmi,
       interest,
       principal,
@@ -12028,17 +10651,13 @@ const generateRepaymentScheduleSaswat = async (
       /*
        * These are populated below.
        */
-      remainingEmi:
-        actualEmi,
-      remainingInterest:
-        interest,
-      remainingPrincipal:
-        principal,
+      remainingEmi: actualEmi,
+      remainingInterest: interest,
+      remainingPrincipal: principal,
       remainingAmount: 0,
     });
 
-    openingBalance =
-      closing;
+    openingBalance = closing;
   }
 
   /*
@@ -12047,16 +10666,9 @@ const generateRepaymentScheduleSaswat = async (
    * ==========================================
    */
 
-  const finalClosing =
-    schedule[
-      schedule.length - 1
-    ]?.closing;
+  const finalClosing = schedule[schedule.length - 1]?.closing;
 
-  if (
-    Math.abs(
-      Number(finalClosing || 0),
-    ) > 0.01
-  ) {
+  if (Math.abs(Number(finalClosing || 0)) > 0.01) {
     throw new Error(
       `Saswat RPS did not close correctly for LAN ${normalizedLan}. ` +
         `Final balance: ${finalClosing}`,
@@ -12084,20 +10696,12 @@ const generateRepaymentScheduleSaswat = async (
 
   let runningRemainingAmount = 0;
 
-  for (
-    let index =
-      schedule.length - 1;
-    index >= 0;
-    index--
-  ) {
-    runningRemainingAmount =
-      roundSaswat2(
-        runningRemainingAmount +
-          schedule[index].emi,
-      );
+  for (let index = schedule.length - 1; index >= 0; index--) {
+    runningRemainingAmount = roundSaswat2(
+      runningRemainingAmount + schedule[index].emi,
+    );
 
-    schedule[index].remainingAmount =
-      runningRemainingAmount;
+    schedule[index].remainingAmount = runningRemainingAmount;
   }
 
   /*
@@ -12106,26 +10710,23 @@ const generateRepaymentScheduleSaswat = async (
    * ==========================================
    */
 
-  const rpsData =
-    schedule.map(
-      (installment) => [
-        normalizedLan,
-        installment.dueDate,
-        "Pending",
-        installment.emi,
-        installment.interest,
-        installment.principal,
-        installment.opening,
-        installment.closing,
-        installment.remainingEmi,
-        installment.remainingInterest,
-        installment.remainingPrincipal,
-        null,
-        0,
-        installment.remainingAmount,
-        0,
-      ],
-    );
+  const rpsData = schedule.map((installment) => [
+    normalizedLan,
+    installment.dueDate,
+    "Pending",
+    installment.emi,
+    installment.interest,
+    installment.principal,
+    installment.opening,
+    installment.closing,
+    installment.remainingEmi,
+    installment.remainingInterest,
+    installment.remainingPrincipal,
+    null,
+    0,
+    installment.remainingAmount,
+    0,
+  ]);
 
   /*
    * ==========================================
@@ -12133,9 +10734,8 @@ const generateRepaymentScheduleSaswat = async (
    * ==========================================
    */
 
-  const [rpsInsertResult] =
-    await conn.query(
-      `
+  const [rpsInsertResult] = await conn.query(
+    `
         INSERT INTO manual_rps_saswat
         (
           lan,
@@ -12156,13 +10756,10 @@ const generateRepaymentScheduleSaswat = async (
         )
         VALUES ?
       `,
-      [rpsData],
-    );
+    [rpsData],
+  );
 
-  if (
-    rpsInsertResult.affectedRows !==
-    numericTenure
-  ) {
+  if (rpsInsertResult.affectedRows !== numericTenure) {
     throw new Error(
       `Saswat RPS insert mismatch for LAN ${normalizedLan}. ` +
         `Expected ${numericTenure} rows, ` +
@@ -12176,74 +10773,36 @@ const generateRepaymentScheduleSaswat = async (
    * ==========================================
    */
 
-  const totalPrincipal =
-    roundSaswat2(
-      schedule.reduce(
-        (
-          total,
-          installment,
-        ) =>
-          total +
-          Number(
-            installment.principal ||
-              0,
-          ),
-        0,
-      ),
-    );
+  const totalPrincipal = roundSaswat2(
+    schedule.reduce(
+      (total, installment) => total + Number(installment.principal || 0),
+      0,
+    ),
+  );
 
-  const totalInterest =
-    roundSaswat2(
-      schedule.reduce(
-        (
-          total,
-          installment,
-        ) =>
-          total +
-          Number(
-            installment.interest ||
-              0,
-          ),
-        0,
-      ),
-    );
+  const totalInterest = roundSaswat2(
+    schedule.reduce(
+      (total, installment) => total + Number(installment.interest || 0),
+      0,
+    ),
+  );
 
-  const totalExpectedRepayment =
-    roundSaswat2(
-      schedule.reduce(
-        (
-          total,
-          installment,
-        ) =>
-          total +
-          Number(
-            installment.emi ||
-              0,
-          ),
-        0,
-      ),
-    );
+  const totalExpectedRepayment = roundSaswat2(
+    schedule.reduce(
+      (total, installment) => total + Number(installment.emi || 0),
+      0,
+    ),
+  );
 
   const firstDueDate =
-    schedule[0]?.dueDate ||
-    formatSaswatDateYMD(
-      firstEmiDate,
-    );
+    schedule[0]?.dueDate || formatSaswatDateYMD(firstEmiDate);
 
-  const tenureEndDate =
-    schedule[
-      schedule.length - 1
-    ]?.dueDate;
+  const tenureEndDate = schedule[schedule.length - 1]?.dueDate;
 
   /*
    * Principal should equal loan amount.
    */
-  if (
-    Math.abs(
-      totalPrincipal -
-        numericLoanAmount,
-    ) > 0.01
-  ) {
+  if (Math.abs(totalPrincipal - numericLoanAmount) > 0.01) {
     throw new Error(
       `Saswat principal mismatch for LAN ${normalizedLan}. ` +
         `Loan amount: ${numericLoanAmount}, ` +
@@ -12257,9 +10816,8 @@ const generateRepaymentScheduleSaswat = async (
    * ==========================================
    */
 
-  const [loanUpdateResult] =
-    await conn.query(
-      `
+  const [loanUpdateResult] = await conn.query(
+    `
         UPDATE loan_booking_saswat
         SET
           emi_amount = ?,
@@ -12268,79 +10826,49 @@ const generateRepaymentScheduleSaswat = async (
           tenure_end_date = ?
         WHERE lan = ?
       `,
-      [
-        regularEmi,
-        totalInterest,
-        firstDueDate,
-        tenureEndDate,
-        normalizedLan,
-      ],
-    );
+    [regularEmi, totalInterest, firstDueDate, tenureEndDate, normalizedLan],
+  );
 
-  if (
-    loanUpdateResult.affectedRows !==
-    1
-  ) {
+  if (loanUpdateResult.affectedRows !== 1) {
     throw new Error(
       `Unable to update Saswat booking values for LAN ${normalizedLan}.`,
     );
   }
 
-  console.log(
-    "✅ SASWAT RPS generated successfully",
-    {
-      lan: normalizedLan,
-      lender,
-      product:
-        normalizedProduct,
-      loanAmount:
-        numericLoanAmount,
-      interestRate:
-        numericInterestRate,
-      tenure:
-        numericTenure,
-      regularEmi,
-      firstEmiDate:
-        firstDueDate,
-      tenureEndDate,
-      totalPrincipal,
-      totalInterest,
-      totalExpectedRepayment,
-      installmentCount:
-        schedule.length,
-    },
-  );
+  console.log("✅ SASWAT RPS generated successfully", {
+    lan: normalizedLan,
+    lender,
+    product: normalizedProduct,
+    loanAmount: numericLoanAmount,
+    interestRate: numericInterestRate,
+    tenure: numericTenure,
+    regularEmi,
+    firstEmiDate: firstDueDate,
+    tenureEndDate,
+    totalPrincipal,
+    totalInterest,
+    totalExpectedRepayment,
+    installmentCount: schedule.length,
+  });
 
   return {
     success: true,
     skipped: false,
     lan: normalizedLan,
     lender,
-    product:
-      normalizedProduct,
-    loan_amount:
-      numericLoanAmount,
-    interest_rate:
-      numericInterestRate,
-    tenure:
-      numericTenure,
-    emi_amount:
-      regularEmi,
-    first_emi_date:
-      firstDueDate,
-    tenure_end_date:
-      tenureEndDate,
-    total_principal:
-      totalPrincipal,
-    total_interest:
-      totalInterest,
-    total_expected_repayment:
-      totalExpectedRepayment,
-    installment_count:
-      schedule.length,
+    product: normalizedProduct,
+    loan_amount: numericLoanAmount,
+    interest_rate: numericInterestRate,
+    tenure: numericTenure,
+    emi_amount: regularEmi,
+    first_emi_date: firstDueDate,
+    tenure_end_date: tenureEndDate,
+    total_principal: totalPrincipal,
+    total_interest: totalInterest,
+    total_expected_repayment: totalExpectedRepayment,
+    installment_count: schedule.length,
   };
 };
-
 
 const getDayDifference = (startDate, endDate) => {
   const start = new Date(startDate);
@@ -12352,9 +10880,7 @@ const getDayDifference = (startDate, endDate) => {
 
   const ONE_DAY = 24 * 60 * 60 * 1000;
 
-  return Math.round(
-    (end.getTime() - start.getTime()) / ONE_DAY
-  );
+  return Math.round((end.getTime() - start.getTime()) / ONE_DAY);
 };
 
 // First due date = 5th of next month
@@ -12362,51 +10888,26 @@ const getSevenFincorpFirstDueDate = (disbursementDate) => {
   const date = new Date(disbursementDate);
 
   if (Number.isNaN(date.getTime())) {
-    throw new Error(
-      `Invalid disbursement date: ${disbursementDate}`
-    );
+    throw new Error(`Invalid disbursement date: ${disbursementDate}`);
   }
 
-  return new Date(
-    date.getFullYear(),
-    date.getMonth() + 1,
-    5
-  );
+  return new Date(date.getFullYear(), date.getMonth() + 1, 5);
 };
 
 const addMonthsToDueDate = (date, months) => {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth() + months,
-    5
-  );
+  return new Date(date.getFullYear(), date.getMonth() + months, 5);
 };
 
-const calculateSevenFincorpEmi = (
-  principal,
-  annualRate,
-  tenure
-) => {
-  const monthlyRate =
-    Number(annualRate) / 100 / 12;
+const calculateSevenFincorpEmi = (principal, annualRate, tenure) => {
+  const monthlyRate = Number(annualRate) / 100 / 12;
 
   if (monthlyRate === 0) {
-    return round2(
-      Number(principal) / Number(tenure)
-    );
+    return round2(Number(principal) / Number(tenure));
   }
 
-  const factor = Math.pow(
-    1 + monthlyRate,
-    tenure
-  );
+  const factor = Math.pow(1 + monthlyRate, tenure);
 
-  return round2(
-    (Number(principal) *
-      monthlyRate *
-      factor) /
-      (factor - 1)
-  );
+  return round2((Number(principal) * monthlyRate * factor) / (factor - 1));
 };
 
 const generateRepaymentScheduleSevenFincorp = async (
@@ -12436,27 +10937,15 @@ const generateRepaymentScheduleSevenFincorp = async (
   }
 
   if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
-    throw new Error(
-      `Invalid Seven Fincorp loan amount: ${loanAmount}`,
-    );
+    throw new Error(`Invalid Seven Fincorp loan amount: ${loanAmount}`);
   }
 
-  if (
-    !Number.isFinite(interestRate) ||
-    interestRate < 0
-  ) {
-    throw new Error(
-      `Invalid Seven Fincorp ROI: ${interestRate}`,
-    );
+  if (!Number.isFinite(interestRate) || interestRate < 0) {
+    throw new Error(`Invalid Seven Fincorp ROI: ${interestRate}`);
   }
 
-  if (
-    !Number.isInteger(tenure) ||
-    tenure <= 0
-  ) {
-    throw new Error(
-      `Invalid Seven Fincorp tenure: ${tenure}`,
-    );
+  if (!Number.isInteger(tenure) || tenure <= 0) {
+    throw new Error(`Invalid Seven Fincorp tenure: ${tenure}`);
   }
 
   const disbDate = new Date(disbursementDate);
@@ -12476,29 +10965,21 @@ const generateRepaymentScheduleSevenFincorp = async (
    * Disbursement: 12-12-2025
    * First Due:    05-01-2026
    */
-  const firstDueDate =
-    getSevenFincorpFirstDueDate(disbDate);
+  const firstDueDate = getSevenFincorpFirstDueDate(disbDate);
 
   /*
    * ========================================
    * PRE-EMI DAYS
    * ========================================
    */
-  const preEmiDays = getDayDifference(
-    disbDate,
-    firstDueDate,
-  );
+  const preEmiDays = getDayDifference(disbDate, firstDueDate);
 
   /*
    * ========================================
    * PRE-EMI - 360 DAY BASIS
    * ========================================
    */
-  const preEmi = round2(
-    loanAmount *
-      (interestRate / 100) *
-      (preEmiDays / 360),
-  );
+  const preEmi = round2(loanAmount * (interestRate / 100) * (preEmiDays / 360));
 
   /*
    * Monthly_360:
@@ -12507,22 +10988,14 @@ const generateRepaymentScheduleSevenFincorp = async (
    * =
    * annual rate / 12
    */
-  const monthlyRate =
-    interestRate / 100 / 12;
+  const monthlyRate = interestRate / 100 / 12;
 
-  const normalEmi =
-    calculateSevenFincorpEmi(
-      loanAmount,
-      interestRate,
-      tenure,
-    );
+  const normalEmi = calculateSevenFincorpEmi(loanAmount, interestRate, tenure);
 
   console.log("[SF PRE EMI]", {
     lan,
-    disbursementDate:
-      formatDateYMD(disbDate),
-    firstDueDate:
-      formatDateYMD(firstDueDate),
+    disbursementDate: formatDateYMD(disbDate),
+    firstDueDate: formatDateYMD(firstDueDate),
     preEmiDays,
     preEmi,
     normalEmi,
@@ -12537,20 +11010,10 @@ const generateRepaymentScheduleSevenFincorp = async (
    * GENERATE EMI SCHEDULE
    * ========================================
    */
-  for (
-    let installment = 1;
-    installment <= tenure;
-    installment++
-  ) {
-    const dueDate =
-      addMonthsToDueDate(
-        firstDueDate,
-        installment - 1,
-      );
+  for (let installment = 1; installment <= tenure; installment++) {
+    const dueDate = addMonthsToDueDate(firstDueDate, installment - 1);
 
-    const regularInterest = round2(
-      opening * monthlyRate,
-    );
+    const regularInterest = round2(opening * monthlyRate);
 
     let regularEmi = normalEmi;
     let principal;
@@ -12561,40 +11024,29 @@ const generateRepaymentScheduleSevenFincorp = async (
     if (installment === tenure) {
       principal = round2(opening);
 
-      regularEmi = round2(
-        principal + regularInterest,
-      );
+      regularEmi = round2(principal + regularInterest);
     } else {
-      principal = round2(
-        regularEmi - regularInterest,
-      );
+      principal = round2(regularEmi - regularInterest);
     }
 
     /*
      * PRE-EMI ONLY IN FIRST INSTALLMENT
      */
-    const currentPreEmi =
-      installment === 1
-        ? preEmi
-        : 0;
+    const currentPreEmi = installment === 1 ? preEmi : 0;
 
     /*
      * First EMI:
      *
      * regular EMI + pre EMI
      */
-    const totalDue = round2(
-      regularEmi + currentPreEmi,
-    );
+    const totalDue = round2(regularEmi + currentPreEmi);
 
     /*
      * First interest:
      *
      * regular interest + pre EMI
      */
-    const totalInterest = round2(
-      regularInterest + currentPreEmi,
-    );
+    const totalInterest = round2(regularInterest + currentPreEmi);
 
     /*
      * IMPORTANT:
@@ -12607,26 +11059,18 @@ const generateRepaymentScheduleSevenFincorp = async (
      * Total Interest  = 3,600.00
      * Principal       = 15,769.76
      */
-    principal = round2(
-      totalDue - totalInterest,
-    );
+    principal = round2(totalDue - totalInterest);
 
-    let closing = round2(
-      opening - principal,
-    );
+    let closing = round2(opening - principal);
 
-    if (
-      installment === tenure ||
-      Math.abs(closing) < 0.01
-    ) {
+    if (installment === tenure || Math.abs(closing) < 0.01) {
       closing = 0;
     }
 
     schedule.push({
       lan,
 
-      due_date:
-        formatDateYMD(dueDate),
+      due_date: formatDateYMD(dueDate),
 
       status: "Pending",
 
@@ -12642,11 +11086,9 @@ const generateRepaymentScheduleSevenFincorp = async (
 
       remaining_emi: totalDue,
 
-      remaining_interest:
-        totalInterest,
+      remaining_interest: totalInterest,
 
-      remaining_principal:
-        principal,
+      remaining_principal: principal,
 
       payment_date: null,
 
@@ -12667,18 +11109,10 @@ const generateRepaymentScheduleSevenFincorp = async (
    */
   let remainingAmount = 0;
 
-  for (
-    let i = schedule.length - 1;
-    i >= 0;
-    i--
-  ) {
-    remainingAmount = round2(
-      remainingAmount +
-        schedule[i].emi,
-    );
+  for (let i = schedule.length - 1; i >= 0; i--) {
+    remainingAmount = round2(remainingAmount + schedule[i].emi);
 
-    schedule[i].remaining_amount =
-      remainingAmount;
+    schedule[i].remaining_amount = remainingAmount;
   }
 
   /*
@@ -12703,7 +11137,7 @@ const generateRepaymentScheduleSevenFincorp = async (
    */
   for (const row of schedule) {
     await conn.query(
-  `
+      `
   INSERT INTO manual_rps_seven_fincorp
   (
     lan,
@@ -12728,44 +11162,38 @@ const generateRepaymentScheduleSevenFincorp = async (
     ?, ?, ?, ?, ?, ?, ?
   )
   `,
-  [
-    row.lan,
-    row.due_date,
-    row.status,
-    row.emi,
-    row.interest,
-    row.principal,
-    row.opening,
-    row.closing,
-    row.remaining_emi,
-    row.remaining_interest,
-    row.remaining_principal,
-    row.payment_date,
-    row.dpd,
-    row.remaining_amount,
-    row.extra_paid,
-  ],
-);
+      [
+        row.lan,
+        row.due_date,
+        row.status,
+        row.emi,
+        row.interest,
+        row.principal,
+        row.opening,
+        row.closing,
+        row.remaining_emi,
+        row.remaining_interest,
+        row.remaining_principal,
+        row.payment_date,
+        row.dpd,
+        row.remaining_amount,
+        row.extra_paid,
+      ],
+    );
   }
 
-  console.log(
-    "[SEVEN FINCORP RPS GENERATED]",
-    {
-      lan,
-      rowsInserted: schedule.length,
-      firstDueDate:
-        formatDateYMD(firstDueDate),
-      preEmiDays,
-      preEmi,
-      normalEmi,
-      firstDueAmount:
-        schedule[0]?.emi,
-    },
-  );
+  console.log("[SEVEN FINCORP RPS GENERATED]", {
+    lan,
+    rowsInserted: schedule.length,
+    firstDueDate: formatDateYMD(firstDueDate),
+    preEmiDays,
+    preEmi,
+    normalEmi,
+    firstDueAmount: schedule[0]?.emi,
+  });
 
   return schedule;
 };
-
 
 module.exports = {
   generateRepaymentScheduleEV,
@@ -12786,7 +11214,7 @@ module.exports = {
   generateRepaymentScheduleHelium,
   excelSerialDateToJS,
   generateRepaymentScheduleClayoo,
-  generateRepaymentScheduleLoanDigit, 
+  generateRepaymentScheduleLoanDigit,
   generateRepaymentScheduleCirclePeHouser,
   generateRepaymentScheduleMotionCorp,
   generateRepaymentScheduleCarepay,
@@ -12796,4 +11224,5 @@ module.exports = {
   generateRepaymentScheduleSterlionUbl,
   generateRepaymentScheduleSaswat,
   generateRepaymentScheduleSevenFincorp,
+  generateRepaymentScheduleClaimBuddy
 };
