@@ -454,10 +454,10 @@ async function retriggerBureau(lan, opts = {}) {
     trimValues: true,
     processEntities: {
       enabled: true,
-      maxTotalExpansions: 200000,
-      maxExpandedLength: 20_000_000,
-      maxEntityCount: 200000,
-      maxEntitySize: 200000,
+      maxTotalExpansions: 500000,
+      maxExpandedLength: 50_000_000,
+      maxEntityCount: 500000,
+      maxEntitySize: 500000,
     },
   });
 
