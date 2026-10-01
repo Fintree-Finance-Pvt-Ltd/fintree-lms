@@ -16,6 +16,10 @@ const ClaimBuddyDisburseInitiateScreen = ({
 
   const navigate = useNavigate();
 
+  // ======================================================
+  // OPEN APPROVED LOAN DETAILS
+  // ======================================================
+
   const openApprovedLoanDetails = (row) => {
     const lan = row?.lan || row?.LAN;
 
@@ -26,75 +30,147 @@ const ClaimBuddyDisburseInitiateScreen = ({
     );
   };
 
+  // ======================================================
+  // FETCH BRE APPROVED CASES
+  // ======================================================
+
   useEffect(() => {
     let off = false;
 
-    setLoading(true);
-    setErr("");
+    const fetchLoans = async () => {
+      try {
+        setLoading(true);
+        setErr("");
 
-    api
-      .get(apiUrl)
-      .then(
-        (res) =>
-          !off &&
-          setRows(
-            Array.isArray(res.data) ? res.data : []
-          )
-      )
-      .catch(() => {
+        const res = await api.get(apiUrl);
+
+        console.log(
+          "Claim Buddy approve-initiate API response:",
+          res.data
+        );
+
+        if (off) return;
+
+        /*
+         * Backend response:
+         *
+         * {
+         *   rows: [...]
+         * }
+         *
+         * So we need res.data.rows
+         *
+         * Defensive handling is added in case API
+         * ever returns a direct array.
+         */
+
+        const loans = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.rows)
+          ? res.data.rows
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : [];
+
+        console.log(
+          "Claim Buddy rows received:",
+          loans
+        );
+
+        setRows(loans);
+      } catch (error) {
+        console.error(
+          "Claim Buddy approve-initiate fetch error:",
+          error
+        );
+
         if (!off) {
-          setErr("Failed to fetch data.");
+          setErr(
+            error?.response?.data?.message ||
+              "Failed to fetch data."
+          );
+
+          setRows([]);
         }
-      })
-      .finally(() => {
+      } finally {
         if (!off) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    fetchLoans();
 
     return () => {
       off = true;
     };
   }, [apiUrl]);
 
-  // keep EXACT behavior/signature
+  // ======================================================
+  // APPROVE / REJECT
+  // ======================================================
+
   const handleStatusChange = async (
     lan,
     newStatus,
     table
   ) => {
+    if (!lan) {
+      alert("LAN is missing.");
+      return;
+    }
+
     try {
       await api.put(
-        `/claim-buddy/approve-initiated-loans/${lan}`,
+        `/claim-buddy/approve-initiated-loans/${encodeURIComponent(
+          lan
+        )}`,
         {
           status: newStatus,
           table,
         }
       );
 
+      /*
+       * Once action is completed, remove the case
+       * from this screen because this screen is for
+       * BRE APPROVED / approval-initiation cases.
+       */
+
       setRows((prev) =>
-        prev.map((r) =>
-          r.lan === lan
-            ? {
-                ...r,
-                status: newStatus,
-              }
-            : r
+        prev.filter(
+          (r) => r.lan !== lan
         )
       );
-    } catch (err) {
+
+      if (newStatus === "CREDIT APPROVED") {
+        alert(
+          "Loan approved successfully."
+        );
+      } else if (
+        newStatus === "REJECTED"
+      ) {
+        alert(
+          "Loan rejected successfully."
+        );
+      }
+    } catch (error) {
       console.error(
         "Error updating Claim Buddy status:",
-        err
+        error
       );
 
       alert(
-        "Failed to update status. Try again."
+        error?.response?.data?.message ||
+          "Failed to update status. Try again."
       );
     }
   };
 
-  // styles
+  // ======================================================
+  // STATUS PILL
+  // ======================================================
+
   const pill = (status) => {
     const map = {
       "bre approved": {
@@ -126,14 +202,20 @@ const ClaimBuddyDisburseInitiateScreen = ({
         bd: "rgba(107,114,128,.35)",
         fg: "#374151",
       },
+
+      pending: {
+        bg: "rgba(234,179,8,.12)",
+        bd: "rgba(234,179,8,.35)",
+        fg: "#92400e",
+      },
     };
 
-    const key = (
+    const key = String(
       status || "pending"
     ).toLowerCase();
 
     const c =
-      map[key] || map.login;
+      map[key] || map.pending;
 
     return {
       display: "inline-flex",
@@ -148,6 +230,10 @@ const ClaimBuddyDisburseInitiateScreen = ({
       border: `1px solid ${c.bd}`,
     };
   };
+
+  // ======================================================
+  // ACTION BUTTON
+  // ======================================================
 
   const actionBtn = (type) => ({
     padding: "8px 10px",
@@ -170,14 +256,25 @@ const ClaimBuddyDisburseInitiateScreen = ({
     color: "#fff",
   });
 
+  // ======================================================
+  // LINK STYLE
+  // ======================================================
+
   const link = {
     color: "#2563eb",
     textDecoration: "none",
     fontWeight: 600,
   };
 
-  // base columns
+  // ======================================================
+  // TABLE COLUMNS
+  // ======================================================
+
   const baseColumns = [
+    // ----------------------------------------------------
+    // CUSTOMER
+    // ----------------------------------------------------
+
     {
       key: "customer_name",
       header: "Loan Details",
@@ -190,19 +287,25 @@ const ClaimBuddyDisburseInitiateScreen = ({
             fontWeight: 600,
             cursor: "pointer",
           }}
-          onClick={() => openApprovedLoanDetails(r)}
+          onClick={() =>
+            openApprovedLoanDetails(r)
+          }
         >
           {r.customer_name ?? "—"}
         </span>
       ),
 
       sortAccessor: (r) =>
-        (
+        String(
           r.customer_name || ""
         ).toLowerCase(),
 
       width: 220,
     },
+
+    // ----------------------------------------------------
+    // PATIENT
+    // ----------------------------------------------------
 
     {
       key: "patient_name",
@@ -216,19 +319,52 @@ const ClaimBuddyDisburseInitiateScreen = ({
             fontWeight: 600,
             cursor: "pointer",
           }}
-          onClick={() => openApprovedLoanDetails(r)}
+          onClick={() =>
+            openApprovedLoanDetails(r)
+          }
         >
           {r.patient_name ?? "—"}
         </span>
       ),
 
       sortAccessor: (r) =>
-        (
+        String(
           r.patient_name || ""
         ).toLowerCase(),
 
       width: 220,
     },
+
+    // ----------------------------------------------------
+    // HOSPITAL
+    // ----------------------------------------------------
+
+    {
+      key: "hospital_name",
+      header: "Hospital",
+
+      render: (r) => (
+        <span
+          style={{
+            fontWeight: 600,
+            color: "#334155",
+          }}
+        >
+          {r.hospital_name ?? "—"}
+        </span>
+      ),
+
+      sortAccessor: (r) =>
+        String(
+          r.hospital_name || ""
+        ).toLowerCase(),
+
+      width: 220,
+    },
+
+    // ----------------------------------------------------
+    // LENDER
+    // ----------------------------------------------------
 
     {
       key: "lender",
@@ -243,6 +379,10 @@ const ClaimBuddyDisburseInitiateScreen = ({
       width: 120,
     },
 
+    // ----------------------------------------------------
+    // LAN
+    // ----------------------------------------------------
+
     {
       key: "lan",
       header: "LAN",
@@ -255,19 +395,25 @@ const ClaimBuddyDisburseInitiateScreen = ({
             fontWeight: 600,
             cursor: "pointer",
           }}
-          onClick={() => openApprovedLoanDetails(r)}
+          onClick={() =>
+            openApprovedLoanDetails(r)
+          }
         >
           {r.lan ?? "—"}
         </span>
       ),
 
       sortAccessor: (r) =>
-        (
+        String(
           r.lan || ""
         ).toLowerCase(),
 
       width: 140,
     },
+
+    // ----------------------------------------------------
+    // MOBILE
+    // ----------------------------------------------------
 
     {
       key: "mobile_number",
@@ -286,8 +432,65 @@ const ClaimBuddyDisburseInitiateScreen = ({
           "—"
         ),
 
+      sortAccessor: (r) =>
+        String(
+          r.mobile_number || ""
+        ),
+
       width: 160,
     },
+
+    // ----------------------------------------------------
+    // LOAN AMOUNT
+    // ----------------------------------------------------
+
+    {
+      key: "loan_amount",
+      header: "Loan Amount",
+      sortable: true,
+
+      render: (r) =>
+        r.loan_amount != null
+          ? `₹${Number(
+              r.loan_amount
+            ).toLocaleString("en-IN")}`
+          : "—",
+
+      sortAccessor: (r) =>
+        Number(
+          r.loan_amount || 0
+        ),
+
+      width: 150,
+    },
+
+    // ----------------------------------------------------
+    // FINAL LIMIT
+    // ----------------------------------------------------
+
+    {
+      key: "final_limit",
+      header: "Final Limit",
+      sortable: true,
+
+      render: (r) =>
+        r.final_limit != null
+          ? `₹${Number(
+              r.final_limit
+            ).toLocaleString("en-IN")}`
+          : "—",
+
+      sortAccessor: (r) =>
+        Number(
+          r.final_limit || 0
+        ),
+
+      width: 150,
+    },
+
+    // ----------------------------------------------------
+    // STATUS
+    // ----------------------------------------------------
 
     {
       key: "status",
@@ -303,15 +506,19 @@ const ClaimBuddyDisburseInitiateScreen = ({
       ),
 
       sortAccessor: (r) =>
-        (
+        String(
           r.status || ""
         ).toLowerCase(),
 
       csvAccessor: (r) =>
         r.status || "Pending",
 
-      width: 140,
+      width: 150,
     },
+
+    // ----------------------------------------------------
+    // STAGE
+    // ----------------------------------------------------
 
     {
       key: "stage",
@@ -321,8 +528,17 @@ const ClaimBuddyDisburseInitiateScreen = ({
       render: (r) =>
         r.stage || "—",
 
-      width: 160,
+      sortAccessor: (r) =>
+        String(
+          r.stage || ""
+        ).toLowerCase(),
+
+      width: 180,
     },
+
+    // ----------------------------------------------------
+    // DOCUMENTS
+    // ----------------------------------------------------
 
     {
       key: "docs",
@@ -330,9 +546,12 @@ const ClaimBuddyDisburseInitiateScreen = ({
 
       render: (r) => (
         <button
+          type="button"
           onClick={() =>
             navigate(
-              `/documents/${r.lan}`
+              `/documents/${encodeURIComponent(
+                r.lan
+              )}`
             )
           }
           style={{
@@ -353,8 +572,13 @@ const ClaimBuddyDisburseInitiateScreen = ({
       ),
 
       csvAccessor: () => "",
+
       width: 120,
     },
+
+    // ----------------------------------------------------
+    // ACTIONS
+    // ----------------------------------------------------
 
     {
       key: "actions",
@@ -365,12 +589,16 @@ const ClaimBuddyDisburseInitiateScreen = ({
           style={{
             display: "flex",
             gap: 8,
+            alignItems: "center",
           }}
         >
+          {/* APPROVE */}
+
           <button
-            style={
-              actionBtn("approve")
-            }
+            type="button"
+            style={actionBtn(
+              "approve"
+            )}
             onClick={() =>
               handleStatusChange(
                 r.lan,
@@ -382,10 +610,13 @@ const ClaimBuddyDisburseInitiateScreen = ({
             ✅ Approve
           </button>
 
+          {/* REJECT */}
+
           <button
-            style={
-              actionBtn("reject")
-            }
+            type="button"
+            style={actionBtn(
+              "reject"
+            )}
             onClick={() =>
               handleStatusChange(
                 r.lan,
@@ -400,23 +631,35 @@ const ClaimBuddyDisburseInitiateScreen = ({
       ),
 
       csvAccessor: () => "",
+
       width: 210,
     },
   ];
 
+  // ======================================================
+  // GLOBAL SEARCH
+  // ======================================================
+
   const globalSearchKeys = [
     "customer_name",
+    "patient_name",
+    "hospital_name",
     "partner_loan_id",
     "lan",
     "mobile_number",
     "status",
+    "stage",
   ];
+
+  // ======================================================
+  // UI
+  // ======================================================
 
   return (
     <>
       <LoaderOverlay
         show={loading}
-        label="Fetching data…"
+        label="Fetching Claim Buddy approval cases…"
       />
 
       {err && (
@@ -424,6 +667,12 @@ const ClaimBuddyDisburseInitiateScreen = ({
           style={{
             color: "#b91c1c",
             marginBottom: 12,
+            padding: "10px 12px",
+            borderRadius: 8,
+            background: "#fef2f2",
+            border:
+              "1px solid #fecaca",
+            fontWeight: 600,
           }}
         >
           {err}
@@ -437,7 +686,7 @@ const ClaimBuddyDisburseInitiateScreen = ({
         globalSearchKeys={
           globalSearchKeys
         }
-        exportFileName="login_stage_loans"
+        exportFileName="claim_buddy_approval_initiated"
       />
     </>
   );

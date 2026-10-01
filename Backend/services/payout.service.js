@@ -1,4 +1,6 @@
-const { processEmiClub2Disbursement } = require("./processEmiClub2Disbursement");
+const {
+  processEmiClub2Disbursement,
+} = require("./processEmiClub2Disbursement");
 const axios = require("axios");
 const crypto = require("crypto");
 const db = require("../config/db");
@@ -14,7 +16,9 @@ const {
   processYaMoneyDisbursement,
 } = require("../services/processEmiClubDisbursement");
 
-const { sendDisbursementWebhook } = require("../routes/switchMyLoan/switchMyLoanWebhook");
+const {
+  sendDisbursementWebhook,
+} = require("../routes/switchMyLoan/switchMyLoanWebhook");
 
 const {
   sendQuickMoneyDisbursementWebhook,
@@ -36,6 +40,7 @@ const ALLOWED_PAYOUT_TABLES = [
   "pl_partner_applications",
   "loan_booking_quick_money",
   "loan_booking_ya_money",
+  "loan_booking_claim_buddy",
 ];
 
 // Per-partner maximum single-payout cap. `null` = no limit configured for
@@ -208,13 +213,28 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
   let emiClub2LockName;
   try {
     if (table === "loan_booking_emiclub2") {
-      if (!String(lan || "").startsWith("FINE2")) throw new Error("Invalid EMIClub2 LAN");
+      if (!String(lan || "").startsWith("FINE2"))
+        throw new Error("Invalid EMIClub2 LAN");
       emiClub2Lock = await db.promise().getConnection();
-      emiClub2LockName = "emiclub2-payout:" + crypto.createHash("sha256").update(lan).digest("hex").slice(0, 40);
-      const [[lock]] = await emiClub2Lock.query("SELECT GET_LOCK(?, 0) AS acquired", [emiClub2LockName]);
-      if (Number(lock.acquired) !== 1) throw new Error("EMIClub2 payout is already being processed");
-      const [[booked]] = await emiClub2Lock.query("SELECT status FROM loan_booking_emiclub2 WHERE lan = ?", [lan]);
-      if (!booked || !["approved", "api approved"].includes(String(booked.status).toLowerCase())) {
+      emiClub2LockName =
+        "emiclub2-payout:" +
+        crypto.createHash("sha256").update(lan).digest("hex").slice(0, 40);
+      const [[lock]] = await emiClub2Lock.query(
+        "SELECT GET_LOCK(?, 0) AS acquired",
+        [emiClub2LockName],
+      );
+      if (Number(lock.acquired) !== 1)
+        throw new Error("EMIClub2 payout is already being processed");
+      const [[booked]] = await emiClub2Lock.query(
+        "SELECT status FROM loan_booking_emiclub2 WHERE lan = ?",
+        [lan],
+      );
+      if (
+        !booked ||
+        !["approved", "api approved"].includes(
+          String(booked.status).toLowerCase(),
+        )
+      ) {
         throw new Error("EMIClub2 loan must be approved before payout");
       }
     }
@@ -240,10 +260,15 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     );
 
     if (table === "loan_booking_emiclub2" && existingTransfer) {
-      const effective = String(existingTransfer.effective_status || "").toLowerCase();
+      const effective = String(
+        existingTransfer.effective_status || "",
+      ).toLowerCase();
       // Retry only a provider-confirmed failure; an unknown outcome may have paid.
       if (!["failed", "failure", "rejected", "cancelled"].includes(effective)) {
-        return { success: false, message: "EMIClub2 payout already exists: " + effective };
+        return {
+          success: false,
+          message: "EMIClub2 payout already exists: " + effective,
+        };
       }
     }
     if (existingTransfer) {
@@ -255,7 +280,9 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       // silently slip through for a transfer whose outcome is still unknown,
       // risking a real double-disbursement.
       const status = String(existingTransfer.status || "").toUpperCase();
-      const pStatus = String(existingTransfer.payout_status || "").toUpperCase();
+      const pStatus = String(
+        existingTransfer.payout_status || "",
+      ).toUpperCase();
 
       if (
         pStatus === "SUCCESS" ||
@@ -277,7 +304,8 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     let loanParams = [lan];
 
     if (table === "loan_booking_emiclub2") {
-      loanQuery = "SELECT name_in_bank AS beneficiary_name, loan_amount, account_number, ifsc FROM loan_booking_emiclub2 WHERE lan = ? LIMIT 1";
+      loanQuery =
+        "SELECT name_in_bank AS beneficiary_name, loan_amount, account_number, ifsc FROM loan_booking_emiclub2 WHERE lan = ? LIMIT 1";
     }
     if (table === "loan_booking_emiclub") {
       loanQuery = `
@@ -306,7 +334,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     }
 
     if (table === "loan_booking_quick_money") {
-  loanQuery = `
+      loanQuery = `
     SELECT
       bank_ac_name AS beneficiary_name,
       disbursal_amount AS loan_amount,
@@ -316,7 +344,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     WHERE lan = ?
     LIMIT 1
   `;
-}
+    }
     if (table === "loan_booking_loan_digit") {
       loanQuery = `
         SELECT
@@ -445,10 +473,10 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     if (gatePartnerName) {
       if (!DISBURSEMENT_GATE_EXEMPT_TABLES.has(table)) {
         const disbursementGate =
-          await partnerLimitService.checkPartnerDisbursementGate(
-            db.promise(),
-            { partnerName: gatePartnerName, amount },
-          );
+          await partnerLimitService.checkPartnerDisbursementGate(db.promise(), {
+            partnerName: gatePartnerName,
+            amount,
+          });
 
         if (disbursementGate.blocked) {
           console.log(
@@ -513,7 +541,6 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     let response;
 
     let isTestMode = process.env.ENABLE_REAL_PAYOUT !== "true";
-
 
     if (isTestMode) {
       console.log("🧪 TEST MODE ENABLED");
@@ -663,7 +690,12 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
      * because its status column is ENUM and does not allow that value.
      */
     if (table === "loan_booking_emiclub2") {
-      await db.promise().query("UPDATE loan_booking_emiclub2 SET status = 'API Approved' WHERE lan = ? AND LOWER(status) = 'approved'", [lan]);
+      await db
+        .promise()
+        .query(
+          "UPDATE loan_booking_emiclub2 SET status = 'API Approved' WHERE lan = ? AND LOWER(status) = 'approved'",
+          [lan],
+        );
     }
     if (table === "loan_booking_emiclub") {
       await db.promise().query(
@@ -724,7 +756,11 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
       };
     }
     if (table === "loan_booking_emiclub2") {
-      await processEmiClub2Disbursement({ lan, disbursementUTR: tr.unique_transaction_reference, disbursementDate: new Date(tr.transfer_date) });
+      await processEmiClub2Disbursement({
+        lan,
+        disbursementUTR: tr.unique_transaction_reference,
+        disbursementDate: new Date(tr.transfer_date),
+      });
     } else if (table === "loan_booking_emiclub") {
       await processEmiClubDisbursement({
         lan,
@@ -732,104 +768,70 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         disbursementDate: new Date(tr.transfer_date),
       });
     } else if (table === "loan_booking_switch_my_loan") {
-      const webhookResult =
-    await sendDisbursementWebhook({
-      lan,
-      transactionId:
-        tr.unique_transaction_reference,
-      disbursementDate:
-        tr.transfer_date,
-    });
+      const webhookResult = await sendDisbursementWebhook({
+        lan,
+        transactionId: tr.unique_transaction_reference,
+        disbursementDate: tr.transfer_date,
+      });
 
-  console.log(
-    "Rapid Money webhook result:",
-    {
-      lan,
-      success:
-        webhookResult?.success,
-      alreadySent:
-        webhookResult?.alreadySent,
-      logId:
-        webhookResult?.logId,
-      message:
-        webhookResult?.message,
-    },
-  );
-      
+      console.log("Rapid Money webhook result:", {
+        lan,
+        success: webhookResult?.success,
+        alreadySent: webhookResult?.alreadySent,
+        logId: webhookResult?.logId,
+        message: webhookResult?.message,
+      });
+
       await processRapidMoneyDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
       });
-    }else if (table === "loan_booking_quick_money") {
+    } else if (table === "loan_booking_quick_money") {
+      if (String(tr.status).toLowerCase() === "success") {
+        console.log("[QUICK MONEY] Easebuzz payout successful", {
+          lan,
+          utr: tr.unique_transaction_reference,
+          transferDate: tr.transfer_date,
+        });
 
-  if (
-    String(tr.status).toLowerCase() === "success"
-  ) {
+        // 1. Send Disbursed webhook
+        const webhookResult = await sendQuickMoneyDisbursementWebhook({
+          lan,
+          transactionId: tr.unique_transaction_reference,
+          disbursementDate: new Date(tr.transfer_date),
+        });
 
-    console.log(
-      "[QUICK MONEY] Easebuzz payout successful",
-      {
-        lan,
-        utr: tr.unique_transaction_reference,
-        transferDate: tr.transfer_date,
-      },
-    );
+        console.log(
+          "[QUICK MONEY] Disbursement webhook result:",
+          webhookResult,
+        );
 
-    // 1. Send Disbursed webhook
-    const webhookResult =
-      await sendQuickMoneyDisbursementWebhook({
-        lan,
-        transactionId:
-          tr.unique_transaction_reference,
-        disbursementDate:
-          new Date(tr.transfer_date),
-      });
+        // 2. Generate RPS + UTR + update status
+        await processQuickMoneyDisbursement({
+          lan,
+          disbursementUTR: tr.unique_transaction_reference,
+          disbursementDate: new Date(tr.transfer_date),
+        });
+      } else {
+        // ============================================
+        // EASEBUZZ PAYOUT FAILED
+        // ============================================
 
-    console.log(
-      "[QUICK MONEY] Disbursement webhook result:",
-      webhookResult,
-    );
+        console.log("[QUICK MONEY] Easebuzz payout failed", {
+          lan,
+          status: tr.status,
+          transactionReference: tr.unique_transaction_reference,
+          transferRequest: tr,
+        });
 
-    // 2. Generate RPS + UTR + update status
-    await processQuickMoneyDisbursement({
-      lan,
-      disbursementUTR:
-        tr.unique_transaction_reference,
-      disbursementDate:
-        new Date(tr.transfer_date),
-    });
+        const rejectionResult = await sendQuickMoneyRejectionWebhook({
+          applicationId: loan.application_id,
+        });
 
-  } else {
-
-    // ============================================
-    // EASEBUZZ PAYOUT FAILED
-    // ============================================
-
-    console.log(
-      "[QUICK MONEY] Easebuzz payout failed",
-      {
-        lan,
-        status: tr.status,
-        transactionReference:
-          tr.unique_transaction_reference,
-        transferRequest: tr,
-      },
-    );
-
-    const rejectionResult =
-      await sendQuickMoneyRejectionWebhook({
-        applicationId:
-          loan.application_id,
-      });
-
-    console.log(
-      "[QUICK MONEY] Rejection webhook result:",
-      rejectionResult,
-    );
-  }
-}
-     else if (table === "loan_booking_loan_digit") {
+        console.log("[QUICK MONEY] Rejection webhook result:", rejectionResult);
+      }
+    } else if (table === "loan_booking_loan_digit") {
       await processLoanDigitDisbursement({
         lan,
         disbursementUTR: tr.unique_transaction_reference,
@@ -858,6 +860,25 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         lan,
         disbursementUTR: tr.unique_transaction_reference,
         disbursementDate: new Date(tr.transfer_date),
+      });
+    } else if (table === "loan_booking_claim_buddy") {
+      await db.promise().query(
+        `
+      UPDATE loan_booking_claim_buddy
+      SET
+        status = 'DISBURSED',
+        stage = 'DISBURSED',
+        disbursed_at = NOW(),
+        updated_at = NOW()
+      WHERE lan = ?
+        AND status = 'DISBURSEMENT INITIATED'
+    `,
+        [lan],
+      );
+
+      console.log("Claim Buddy payout success stored", {
+        lan,
+        utr: tr.unique_transaction_reference,
       });
     } else if (table === "pl_partner_applications") {
       /*
@@ -892,10 +913,7 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     // products that don't already track it themselves (see
     // DISBURSEMENT_RECORD_EXEMPT_TABLES above). No-ops if no limit has been
     // configured for this partner/month yet.
-    if (
-      gatePartnerName &&
-      !DISBURSEMENT_RECORD_EXEMPT_TABLES.has(table)
-    ) {
+    if (gatePartnerName && !DISBURSEMENT_RECORD_EXEMPT_TABLES.has(table)) {
       await partnerLimitService.recordDisbursementUsage(db.promise(), {
         partnerName: gatePartnerName,
         amount,
@@ -925,8 +943,11 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
     throw err;
   } finally {
     if (emiClub2Lock) {
-      try { await emiClub2Lock.query("SELECT RELEASE_LOCK(?)", [emiClub2LockName]); }
-      finally { emiClub2Lock.release(); }
+      try {
+        await emiClub2Lock.query("SELECT RELEASE_LOCK(?)", [emiClub2LockName]);
+      } finally {
+        emiClub2Lock.release();
+      }
     }
   }
 };
@@ -961,7 +982,9 @@ async function sendFintreePlDisbursementWebhook({
     throw new Error("Invalid disbursement date for LAN: " + lan);
   }
 
-  const disbursementDateOnly = parsedDisbursementDate.toISOString().split("T")[0];
+  const disbursementDateOnly = parsedDisbursementDate
+    .toISOString()
+    .split("T")[0];
   const firstRepayment = new Date(disbursementDateOnly + "T00:00:00.000Z");
   firstRepayment.setUTCDate(firstRepayment.getUTCDate() + tenureDays);
 
@@ -975,7 +998,9 @@ async function sendFintreePlDisbursementWebhook({
     eventId,
   };
 
-  const webhookSecret = String(process.env.PLP_DISBURSAL_WEBHOOK_SECRET || "").trim();
+  const webhookSecret = String(
+    process.env.PLP_DISBURSAL_WEBHOOK_SECRET || "",
+  ).trim();
 
   // Was logging webhookSecret in plaintext — keep only whether it's
   // configured and its length, never the value itself.

@@ -2042,6 +2042,7 @@ router.get("/login-loans", (req, res) => {
     dealer_onboarding: true,
     loan_booking_srbh: true,
     loan_booking_saswat: true,
+    loan_booking_claim_buddy: true
   };
 
   if (!allowedTables[table]) {
@@ -2324,6 +2325,7 @@ router.get("/all-loans", async (req, res) => {
     loan_booking_sampada: true,
     loan_booking_ya_money: true,
     loan_booking_sabgrow: true,
+    loan_booking_claim_buddy: true,
   };
 
   if (!allowedTables[table]) {

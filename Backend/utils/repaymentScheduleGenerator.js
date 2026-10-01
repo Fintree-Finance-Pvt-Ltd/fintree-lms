@@ -9129,6 +9129,224 @@ console.log("disbursement dtae", disbursementDate);
   );
 };
 
+const generateRepaymentScheduleClaimBuddy = async (
+  conn,
+  lan,
+  loanAmount,
+  interestRate,
+  tenure,
+  disbursementDate,
+) => {
+
+  try {
+
+    // Convert interest rate
+    const annualRate = Number(interestRate) / 100;
+
+    console.log("Claim Buddy disbursement date:", disbursementDate);
+
+
+    // Convert dates
+    const disbDate = new Date(disbursementDate);
+
+
+    if (Number.isNaN(disbDate.getTime())) {
+      throw new Error("Invalid Claim Buddy disbursement date");
+    }
+
+
+    /**
+     * Claim Buddy repayment:
+     * Disbursement date + tenure days
+     * Example:
+     * 90 days loan -> due after 90 days
+     */
+
+    const payDate = new Date(disbDate);
+
+    payDate.setDate(
+      payDate.getDate() + Number(tenure)
+    );
+
+
+    console.log(
+      "Claim Buddy repayment date:",
+      payDate
+    );
+
+
+    /**
+     * Total loan usage days
+     */
+
+    const totalDays = Math.ceil(
+      (payDate - disbDate) /
+      (1000 * 60 * 60 * 24)
+    );
+
+
+    /**
+     * Grace period
+     * First 90 days no interest
+     */
+
+    const graceEndDate = new Date(disbDate);
+
+    graceEndDate.setDate(
+      graceEndDate.getDate() + 90
+    );
+
+
+    /**
+     * Interest calculation days
+     */
+
+    const interestDays = Math.max(
+      0,
+      Math.ceil(
+        (payDate - graceEndDate) /
+        (1000 * 60 * 60 * 24)
+      )
+    );
+
+
+    console.log({
+      totalDays,
+      graceEndDate,
+      interestDays
+    });
+
+
+    /**
+     * Calculate interest
+     * 365 day basis
+     */
+
+    const totalInterest = Math.ceil(
+      (
+        Number(loanAmount) *
+        annualRate *
+        interestDays
+      ) / 365
+    );
+
+
+    /**
+     * Final payable amount
+     */
+
+    const emi =
+      Number(loanAmount) +
+      totalInterest;
+
+
+
+    /**
+     * Insert RPS
+     */
+
+    const rpsData = [[
+
+      lan,
+
+      payDate
+        .toISOString()
+        .split("T")[0],
+
+      emi,
+
+      totalInterest,
+
+      loanAmount,
+
+      loanAmount,
+
+      totalInterest,
+
+      emi,
+
+      "Pending"
+
+    ]];
+
+
+
+    await conn.query(
+      `
+      INSERT INTO manual_rps_claim_buddy
+      (
+        lan,
+        due_date,
+        emi,
+        interest,
+        principal,
+        remaining_principal,
+        remaining_interest,
+        remaining_emi,
+        status
+      )
+      VALUES ?
+      `,
+      [
+        rpsData
+      ]
+    );
+
+
+
+    /**
+     * Update EMI amount
+     */
+
+    await conn.query(
+      `
+      UPDATE loan_booking_claim_buddy
+      SET emi_amount = ?
+      WHERE lan = ?
+      `,
+      [
+        emi,
+        lan
+      ]
+    );
+
+
+
+    console.log(
+      `
+      ✅ Claim Buddy RPS generated
+      
+      LAN: ${lan}
+      Loan Amount: ${loanAmount}
+      Tenure: ${tenure}
+      Interest Days: ${interestDays}
+      Interest: ${totalInterest}
+      Total Payable: ${emi}
+      `
+    );
+
+
+    return {
+      success:true,
+      lan,
+      emi,
+      interest: totalInterest
+    };
+
+
+  } catch(err) {
+
+    console.error(
+      "❌ Claim Buddy RPS generation failed:",
+      err
+    );
+
+    throw err;
+
+  }
+
+};
+
 ///////////////////////////// ADIKOSH LOAN CALCULATION /////////////////////////////////////////
 /////// Without PRE EMI /////////////
 
@@ -13577,4 +13795,5 @@ module.exports = {
   generateRepaymentScheduleSterlionUbl,
   generateRepaymentScheduleSaswat,
   generateRepaymentScheduleSevenFincorp,
+  generateRepaymentScheduleClaimBuddy,
 };

@@ -354,7 +354,7 @@ import ClaimBuddyApprovedLoans from "./components/ClaimBuddy/ClaimBuddyApprovedL
 import ClaimBuddyHospitalDetails from "./components/ClaimBuddy/ClaimBuddyHospitalDetails";
 import ClaimBuddyApprovedLoanDetails from "./components/ClaimBuddy/ClaimBuddyApprovedLoanDetails";
 import ClaimBuddyOpsCheckerScreen from "./components/ClaimBuddy/ClaimBuddyOpsCheckerScreen";
-import ClaimBuddyApproveInitiateScreen from "./components/ClaimBuddy/ClaimBuddyApproveInitiateScreen";
+// import ClaimBuddyApproveInitiateScreen from "./components/ClaimBuddy/ClaimBuddyApproveInitiateScreen";
 
 function App() {
   return (
@@ -826,14 +826,14 @@ function App() {
             }
           />
 
-          <Route
+          {/* <Route
             path="/claim-buddy/approve-initiate"
             element={
               <PermissionRoute pageName="Claim Buddy Approval Action Pending Loans">
                 <ClaimBuddyApproveInitiateScreen />
               </PermissionRoute>
             }
-          />
+          /> */}
 
           {/* Loan Digit */}
           <Route
