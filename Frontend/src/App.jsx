@@ -87,6 +87,7 @@ import EmiClubAllLoans from "./components/EmiClubAllLoans";
 import EmiClubLoginLoans from "./components/EmiClubLoginLoans";
 import EmiClubActionScreen from "./components/EmiClubActionScreen";
 import EmiClubApproveInitiateScreen from "./components/EmiClubApproveInitiateScreen";
+import EmiClubPayoutStatus from "./components/EmiClubPayoutStatus";
 
 // EmiClub2 Imports
 import EmiClub2ApprovedLoans from "./components/EmiClub2/EmiClub2ApprovedLoans.jsx";
@@ -931,6 +932,14 @@ function App() {
             element={
               <PermissionRoute pageName="EmiClub Disbursed Loans">
                 <EmiClubDisbursedLoans />
+              </PermissionRoute>
+            }
+          />
+          <Route
+            path="/emiclub-loans/payout-status"
+            element={
+              <PermissionRoute pageName="EmiClub Payout Status">
+                <EmiClubPayoutStatus />
               </PermissionRoute>
             }
           />

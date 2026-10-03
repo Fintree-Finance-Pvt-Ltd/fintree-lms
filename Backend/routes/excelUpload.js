@@ -2180,6 +2180,65 @@ router.post("/update-umrn", (req, res) => {
   });
 });
 
+router.get("/emiclub-payout-status", async (req, res) => {
+  try {
+    const [rows] = await db.promise().query(
+      `
+      SELECT
+        qt.lan,
+        qt.unique_request_number,
+        qt.amount,
+        qt.status,
+        qt.payout_status,
+        qt.failure_reason,
+        qt.utr,
+        qt.transfer_date,
+        qt.updated_at,
+        lb.customer_name,
+        lb.status AS loan_status
+      FROM quick_transfers qt
+      JOIN (
+        SELECT lan, MAX(id) AS latest_id
+        FROM quick_transfers
+        WHERE lan LIKE 'FINE%' AND lan NOT LIKE 'FINE2%'
+        GROUP BY lan
+      ) latest ON latest.latest_id = qt.id
+      LEFT JOIN loan_booking_emiclub lb ON lb.lan = qt.lan
+      WHERE LOWER(COALESCE(qt.payout_status, qt.status)) NOT IN ('success', 'completed', 'processed')
+      ORDER BY qt.updated_at DESC
+      `,
+    );
+
+    const failedStatuses = ["failed", "failure", "rejected", "cancelled", "reversed"];
+
+    const failed = [];
+    const inProcess = [];
+
+    for (const row of rows) {
+      const effective = String(row.payout_status || row.status || "").toLowerCase();
+      if (failedStatuses.includes(effective)) {
+        failed.push(row);
+      } else {
+        inProcess.push(row);
+      }
+    }
+
+    console.log("[EMICLUB-PAYOUT-STATUS] served", {
+      failed: failed.length,
+      in_process: inProcess.length,
+    });
+
+    return res.json({
+      failed,
+      in_process: inProcess,
+      counts: { failed: failed.length, in_process: inProcess.length },
+    });
+  } catch (err) {
+    console.error("emiclub-payout-status error:", err);
+    return res.status(500).json({ message: "Failed to load EmiClub payout status" });
+  }
+});
+
 router.get("/approve-initiate-loans", async (req, res) => {
   const {
     table = "loan_booking_ev",
