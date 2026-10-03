@@ -109,7 +109,7 @@ async function callZoopPan(panNumber, panHolderName) {
       headers: {
         "Content-Type": "application/json",
         "api-key": ZOOP_API_KEY,
-        app_id: ZOOP_APP_ID,
+        "app-id": ZOOP_APP_ID,
       },
       timeout: 30000,
       validateStatus: () => true,
