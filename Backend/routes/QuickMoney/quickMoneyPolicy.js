@@ -28,13 +28,13 @@ const {
  * still reflects only what's in that PDF.
  */
 const POLICY = Object.freeze({
-  MIN_BUREAU_SCORE: 650,
+  MIN_BUREAU_SCORE: 675,
 
   // General/default minimum loan amount — applies to ages 26+ (and any age
-  // that can't be determined). Ages 23-25 get a lower floor; see
-  // MIN_LOAN_AMOUNT_23_TO_25 and getMinLoanAmountForAge() below.
+  // that can't be determined). Ages 21-25 get a lower floor; see
+  // MIN_LOAN_AMOUNT_21_TO_25 and getMinLoanAmountForAge() below.
   MIN_LOAN_AMOUNT: 5000,
-  MIN_LOAN_AMOUNT_23_TO_25: 5000,
+  MIN_LOAN_AMOUNT_21_TO_25: 5000,
   MAX_LOAN_AMOUNT: 15000,
   LOAN_AMOUNT_MULTIPLE: 1000,
 
@@ -66,12 +66,12 @@ const POLICY = Object.freeze({
   MAX_TENURE_DAYS: 45,
 });
 
-// Ages 23-25 get a lower minimum loan amount (Rs 5,000); everyone else
+// Ages 21-25 get a lower minimum loan amount (Rs 5,000); everyone else
 // (26+, and any age that couldn't be determined) uses the standard
 // Rs 8,000 minimum.
 function getMinLoanAmountForAge(age) {
-  if (age !== null && age !== undefined && age >= 21) {
-    return POLICY.MIN_LOAN_AMOUNT;
+  if (age !== null && age !== undefined && age >= 21 && age <= 25) {
+    return POLICY.MIN_LOAN_AMOUNT_21_TO_25;
   }
 
   return POLICY.MIN_LOAN_AMOUNT;

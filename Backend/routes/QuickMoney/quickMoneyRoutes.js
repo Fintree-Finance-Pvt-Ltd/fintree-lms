@@ -1971,7 +1971,7 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
 
     addField(
       "address_line_1",
-      data.address_line_1,
+      data.address_line_1 !== undefined ? data.address_line_1 : data.address,
     );
 
     addField(
@@ -1981,12 +1981,12 @@ router.put("/v1/update-details", verifyApiKey, async (req, res) => {
 
     addField(
       "address_pincode",
-      data.address_pincode,
+      data.address_pincode !== undefined ? data.address_pincode : data.pincode,
     );
 
     addField(
       "address_city",
-      data.address_city,
+      data.address_city !== undefined ? data.address_city : data.city,
     );
 
     addField(
@@ -3481,6 +3481,56 @@ router.post("/v1/loan/:application_id/approve",
                 "Bank verification is not completed",
               code:
                 "request_validation_error",
+            },
+          });
+        }
+      }
+
+      // ======================================================
+      // CROSS PRODUCT CHECK: RAPID MONEY
+      // ======================================================
+
+      if (loan.pan_number) {
+        const [rapidMoneyCases] = await connection.query(
+          `
+          SELECT status 
+          FROM loan_booking_switch_my_loan 
+          WHERE pan_number = ? 
+            AND status NOT IN ('Fully Paid', 'CLOSED', 'REJECTED', 'CANCELLED')
+          LIMIT 1
+          `,
+          [loan.pan_number]
+        );
+
+        if (rapidMoneyCases.length > 0) {
+          await connection.query(
+            `
+            UPDATE loan_booking_quick_money
+            SET
+              status = ?,
+              qm_bre_status = ?,
+              qm_bre_reason = ?,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE application_id = ?
+            `,
+            [
+              "REJECTED",
+              "REJECTED",
+              "Active Rapid Money loan exists",
+              application_id,
+            ]
+          );
+
+          const breResponse =
+            buildQuickMoneyBreResponse({
+              decision: "REJECTED",
+            });
+
+          return res.json({
+            is_success: true,
+            data: {
+              status: "Rejected",
+              bre_response: breResponse,
             },
           });
         }

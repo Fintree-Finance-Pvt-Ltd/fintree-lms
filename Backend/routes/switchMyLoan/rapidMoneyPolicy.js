@@ -29,15 +29,15 @@ const {
  * still reflects only what's in that PDF.
  */
 const POLICY = Object.freeze({
-  MIN_BUREAU_SCORE: 650,
+  MIN_BUREAU_SCORE: 675,
 
   // General/default minimum loan amount — applies to ages 26+ (and any age
-  // that can't be determined). Ages 23-25 use MIN_LOAN_AMOUNT_23_TO_25
+  // that can't be determined). Ages 21-25 use MIN_LOAN_AMOUNT_21_TO_25
   // instead; see getMinLoanAmountForAge() below. Both are currently Rs 5,000
   // (as of the 2026-09-28 policy update) but are kept as separate constants
   // in case the two tiers diverge again in the future.
   MIN_LOAN_AMOUNT: 5000,
-  MIN_LOAN_AMOUNT_23_TO_25: 5000,
+  MIN_LOAN_AMOUNT_21_TO_25: 5000,
   MAX_LOAN_AMOUNT: 15000,
   LOAN_AMOUNT_MULTIPLE: 1000,
 
@@ -64,12 +64,12 @@ const POLICY = Object.freeze({
   MAX_TENURE_DAYS: 45,
 });
 
-// Ages 23-25 get a lower minimum loan amount (Rs 5,000); everyone else
+// Ages 21-25 get a lower minimum loan amount (Rs 5,000); everyone else
 // (26+, and any age that couldn't be determined) uses the standard
 // Rs 8,000 minimum.
 function getMinLoanAmountForAge(age) {
-  if (age !== null && age !== undefined && age >= 23 && age <= 25) {
-    return POLICY.MIN_LOAN_AMOUNT_23_TO_25;
+  if (age !== null && age !== undefined && age >= 21 && age <= 25) {
+    return POLICY.MIN_LOAN_AMOUNT_21_TO_25;
   }
 
   return POLICY.MIN_LOAN_AMOUNT;
@@ -77,7 +77,7 @@ function getMinLoanAmountForAge(age) {
 
 // Credit limit actually assigned to a first-time (new) customer.
 //
-// Ages 23-25: fixed exactly at MIN_LOAN_AMOUNT_23_TO_25 regardless of the
+// Ages 21-25: fixed exactly at MIN_LOAN_AMOUNT_21_TO_25 regardless of the
 // requested amount — a first loan for this age tier is never more than
 // that, by explicit product requirement.
 //
@@ -89,7 +89,7 @@ function getMinLoanAmountForAge(age) {
 function getFirstTimeCreditLimit(age, requestedAmount) {
   const minAmount = getMinLoanAmountForAge(age);
 
-  if (age !== null && age !== undefined && age >= 23 && age <= 25) {
+  if (age !== null && age !== undefined && age >= 21 && age <= 25) {
     return minAmount;
   }
 
