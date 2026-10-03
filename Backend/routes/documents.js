@@ -87,6 +87,7 @@ const LAN_TABLE_MAP = {
   TLF: { table: "loan_booking_wctl_ffpl", statusCol: "status" },
   E1: { table: "loan_booking_embifi", statusCol: "status" },
   FINE: { table: "loan_booking_emiclub", statusCol: "status" },
+  FINEW: { table: "loan_booking_emiclub", statusCol: "status" },
   FINE2: { table: "loan_booking_emiclub2", statusCol: "status" },
   CARE: { table: "loan_booking_carepay", statusCol: "status" },
   STRL: { table: "loan_booking_sterlion", statusCol: "status" },
