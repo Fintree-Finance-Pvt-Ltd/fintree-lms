@@ -7692,590 +7692,590 @@ router.post("/v1/finso-bank-details", verifyApiKey, async (req, res) => {
 
 // });
 
-// router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
-//   let conn;
-//   try {
-//     console.log(
-//       "================= 📦 NEW EMICLUB REQUEST START =================",
-//     );
-//     if (
-//       !req.partner ||
-//       (req.partner.name || "").toLowerCase().trim() !== "emiclub"
-//     ) {
-//       //console.error("❌ Partner validation failed!");
-//       return res
-//         .status(403)
-//         .json({ message: "This route is only for Emiclub partner." });
-//     }
+router.post("/v1/emiclub-lb", verifyApiKey, async (req, res) => {
+  let conn;
+  try {
+    console.log(
+      "================= 📦 NEW EMICLUB REQUEST START =================",
+    );
+    if (
+      !req.partner ||
+      (req.partner.name || "").toLowerCase().trim() !== "emiclub"
+    ) {
+      //console.error("❌ Partner validation failed!");
+      return res
+        .status(403)
+        .json({ message: "This route is only for Emiclub partner." });
+    }
 
-//     // --- Body logging ---
-//     const data = req.body;
-//     //console.log("📥 Received JSON payload:", JSON.stringify(data, null, 2));
+    // --- Body logging ---
+    const data = req.body;
+    //console.log("📥 Received JSON payload:", JSON.stringify(data, null, 2));
 
-//     // --- Lender type validation ---
-//     const lenderType = data.lenderType?.trim()?.toLowerCase();
-//     //console.log("🏦 Lender type received:", lenderType);
-//     if (!lenderType || lenderType !== "emiclub") {
-//       console.error("❌ Invalid lenderType provided:", lenderType);
-//       return res.status(400).json({
-//         message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
-//       });
-//     }
+    // --- Lender type validation ---
+    const lenderType = data.lenderType?.trim()?.toLowerCase();
+    //console.log("🏦 Lender type received:", lenderType);
+    if (!lenderType || lenderType !== "emiclub") {
+      console.error("❌ Invalid lenderType provided:", lenderType);
+      return res.status(400).json({
+        message: "Invalid lenderType. Only 'EMICLUB' loans are accepted.",
+      });
+    }
 
-//     // --- Required field check ---
-//     const requiredFields = [
-//       "login_date",
-//       "partner_loan_id",
-//       "first_name",
-//       "last_name",
-//       "gender",
-//       "dob",
-//       "mobile_number",
-//       "email_id",
-//       "pan_number",
-//       "aadhar_number",
-//       "current_address",
-//       "current_village_city",
-//       "current_district",
-//       "current_state",
-//       "current_pincode",
-//       "permanent_address",
-//       "permanent_state",
-//       "permanent_pincode",
-//       "loan_amount",
-//       "roi_apr",
-//       "loan_tenure",
-//       "bank_name",
-//       "name_in_bank",
-//       "account_number",
-//       "ifsc",
-//       "account_type",
-//       "type_of_account",
-//       "employment",
-//       "annual_income",
-//       "dealer_name",
-//       "risk_category",
-//       "customer_type",
-//     ];
+    // --- Required field check ---
+    const requiredFields = [
+      "login_date",
+      "partner_loan_id",
+      "first_name",
+      "last_name",
+      "gender",
+      "dob",
+      "mobile_number",
+      "email_id",
+      "pan_number",
+      "aadhar_number",
+      "current_address",
+      "current_village_city",
+      "current_district",
+      "current_state",
+      "current_pincode",
+      "permanent_address",
+      "permanent_state",
+      "permanent_pincode",
+      "loan_amount",
+      "roi_apr",
+      "loan_tenure",
+      "bank_name",
+      "name_in_bank",
+      "account_number",
+      "ifsc",
+      "account_type",
+      "type_of_account",
+      "employment",
+      "annual_income",
+      "dealer_name",
+      "risk_category",
+      "customer_type",
+    ];
 
-//     for (const field of requiredFields) {
-//       if (!data[field] && data[field] !== 0) {
-//         console.error(`❌ Missing field detected: ${field}`);
-//         return res.status(400).json({ message: `${field} is required.` });
-//       }
-//     }
-//     //    console.log("✅ All required fields present.");
+    for (const field of requiredFields) {
+      if (!data[field] && data[field] !== 0) {
+        console.error(`❌ Missing field detected: ${field}`);
+        return res.status(400).json({ message: `${field} is required.` });
+      }
+    }
+    //    console.log("✅ All required fields present.");
 
-//     // --- Duplicate TECH LOAN ID check ---
-//     // --- Duplicate TECH LOAN ID check ---
-//     console.log("🔍 Checking existing TECH LOAN ID:", data.partner_loan_id);
-//     const [existing] = await db.promise().query(
-//       `SELECT lan, partner_loan_id, customer_name 
-//      FROM loan_booking_emiclub 
-//      WHERE partner_loan_id = ?`,
-//       [data.partner_loan_id],
-//     );
+    // --- Duplicate TECH LOAN ID check ---
+    // --- Duplicate TECH LOAN ID check ---
+    console.log("🔍 Checking existing TECH LOAN ID:", data.partner_loan_id);
+    const [existing] = await db.promise().query(
+      `SELECT lan, partner_loan_id, customer_name 
+     FROM loan_booking_emiclub 
+     WHERE partner_loan_id = ?`,
+      [data.partner_loan_id],
+    );
 
-//     if (existing.length > 0) {
-//       return res.status(400).json({
-//         status: "Failed",
-//         message: "Duplicate Partner Loan ID",
-//         existingLan: existing[0].lan,
-//       });
-//     }
+    if (existing.length > 0) {
+      return res.status(400).json({
+        status: "Failed",
+        message: "Duplicate Partner Loan ID",
+        existingLan: existing[0].lan,
+      });
+    }
 
-//     /* =====================================================
-//        🔴 START CHANGE: PAN + STATUS DUPLICATE CHECK
-//        ===================================================== */
+    /* =====================================================
+       🔴 START CHANGE: PAN + STATUS DUPLICATE CHECK
+       ===================================================== */
 
-//     console.log("🔍 Checking PAN duplication:", data.pan_number);
+    console.log("🔍 Checking PAN duplication:", data.pan_number);
 
-//     const [panRecords] = await db.promise().query(
-//       `SELECT status 
-//    FROM loan_booking_emiclub 
-//    WHERE pan_number = ?`,
-//       [data.pan_number],
-//     );
+    const [panRecords] = await db.promise().query(
+      `SELECT status 
+   FROM loan_booking_emiclub 
+   WHERE pan_number = ?`,
+      [data.pan_number],
+    );
 
-//     // Allowed statuses for re-insert
-//     const allowedStatuses = [
-//       "Cancelled",
-//       "Foreclosed",
-//       "Fully Paid",
-//       "Rejected",
-//     ];
+    // Allowed statuses for re-insert
+    const allowedStatuses = [
+      "Cancelled",
+      "Foreclosed",
+      "Fully Paid",
+      "Rejected",
+    ];
 
-//     if (panRecords.length > 0) {
-//       const hasActiveCase = panRecords.some(
-//         (row) => !allowedStatuses.includes(row.status),
-//       );
+    if (panRecords.length > 0) {
+      const hasActiveCase = panRecords.some(
+        (row) => !allowedStatuses.includes(row.status),
+      );
 
-//       if (hasActiveCase) {
-//         console.error("❌ Active case exists for PAN:", data.pan_number);
-//         return res.status(400).json({
-//           status: "Failed",
-//           message:
-//             "PAN already exists with an active loan. New loan not allowed.",
-//         });
-//       }
+      if (hasActiveCase) {
+        console.error("❌ Active case exists for PAN:", data.pan_number);
+        return res.status(400).json({
+          status: "Failed",
+          message:
+            "PAN already exists with an active loan. New loan not allowed.",
+        });
+      }
 
-//       console.log(
-//         "✅ PAN exists but all cases are closed. Proceeding with insert.",
-//       );
-//     }
+      console.log(
+        "✅ PAN exists but all cases are closed. Proceeding with insert.",
+      );
+    }
 
-//     const loanAmount = Number(data.loan_amount);
+    const loanAmount = Number(data.loan_amount);
 
-//     if (!loanAmount || loanAmount <= 0) {
-//       return res.status(400).json({
-//         message: "Invalid loan_amount",
-//       });
-//     }
+    if (!loanAmount || loanAmount <= 0) {
+      return res.status(400).json({
+        message: "Invalid loan_amount",
+      });
+    }
 
-//     // --- Generate loan code ---
-//     //console.log("⚙️ Generating LAN for lender:", lenderType);
-//     conn = await db.promise().getConnection();
-//     await conn.beginTransaction();
+    // --- Generate loan code ---
+    //console.log("⚙️ Generating LAN for lender:", lenderType);
+    conn = await db.promise().getConnection();
+    await conn.beginTransaction();
 
-//     const partnerName = "EMICLUB";
+    const partnerName = "EMICLUB";
 
-//     if (!data.login_date) {
-//       return res.status(400).json({
-//         message: "login_date is required for limit validation",
-//       });
-//     }
-//     const today = new Date();
-//     const { month, year } = getMonthYear(today);
+    if (!data.login_date) {
+      return res.status(400).json({
+        message: "login_date is required for limit validation",
+      });
+    }
+    const today = new Date();
+    const { month, year } = getMonthYear(today);
 
-//     const partner = await partnerLimitService.getOrCreatePartner(
-//       conn,
-//       partnerName,
-//     );
+    const partner = await partnerLimitService.getOrCreatePartner(
+      conn,
+      partnerName,
+    );
 
-//     const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
-//       conn,
-//       partner.partner_id,
-//       loanAmount,
-//       month,
-//       year,
-//     );
+    const limitCheck = await partnerLimitService.validatePartnerBookingLimit(
+      conn,
+      partner.partner_id,
+      loanAmount,
+      month,
+      year,
+    );
 
-//     if (!limitCheck.valid) {
-//       await conn.rollback();
-//       conn.release();
+    if (!limitCheck.valid) {
+      await conn.rollback();
+      conn.release();
 
-//       return res.status(403).json({
-//         message: "Monthly partner limit exceeded",
-//         remaining_limit: limitCheck.remaining,
-//         required: loanAmount,
-//       });
-//     }
+      return res.status(403).json({
+        message: "Monthly partner limit exceeded",
+        remaining_limit: limitCheck.remaining,
+        required: loanAmount,
+      });
+    }
 
-//     // Fetch partner FLDG percent
-//     const [[partnerConfig]] = await conn.query(
-//       `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
-//       [partner.partner_id],
-//     );
+    // Fetch partner FLDG percent
+    const [[partnerConfig]] = await conn.query(
+      `SELECT fldg_percent, fldg_status FROM partner_master WHERE partner_id = ?`,
+      [partner.partner_id],
+    );
 
-//     if (!partnerConfig) {
-//       throw new Error("Partner configuration not found");
-//     }
+    if (!partnerConfig) {
+      throw new Error("Partner configuration not found");
+    }
 
-//     let requiredFldg = 0;
+    let requiredFldg = 0;
 
-//     if (partnerConfig?.fldg_status === 1) {
-//       const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
+    if (partnerConfig?.fldg_status === 1) {
+      const fldgPercent = Number(partnerConfig?.fldg_percent || 0);
 
-//       requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
-//     }
+      requiredFldg = Number(((loanAmount * fldgPercent) / 100).toFixed(2));
+    }
 
-//     // Validate FLDG availability
-//     if (requiredFldg > 0) {
-//       const fldgCheck = await partnerFldgService.validateFldgAvailability(
-//         conn,
-//         partner.partner_id,
-//         requiredFldg,
-//       );
+    // Validate FLDG availability
+    if (requiredFldg > 0) {
+      const fldgCheck = await partnerFldgService.validateFldgAvailability(
+        conn,
+        partner.partner_id,
+        requiredFldg,
+      );
 
-//       if (!fldgCheck.valid) {
-//         await conn.rollback();
-//         conn.release();
+      if (!fldgCheck.valid) {
+        await conn.rollback();
+        conn.release();
 
-//         return res.status(403).json({
-//           message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
-//         });
-//       }
-//     }
+        return res.status(403).json({
+          message: `Insufficient FLDG. Available: ${fldgCheck.available}, Required: ${requiredFldg}`,
+        });
+      }
+    }
 
-//     const { lan } = await generateLoanIdentifiers(lenderType);
-//     console.log("✅ Generated LAN:", lan);
+    const { lan } = await generateLoanIdentifiers(lenderType);
+    console.log("✅ Generated LAN:", lan);
 
-//     const customer_name = `${data.first_name || ""} ${data.last_name || ""
-//       }`.trim();
-//     const agreement_date = data.login_date;
+    const customer_name = `${data.first_name || ""} ${data.last_name || ""
+      }`.trim();
+    const agreement_date = data.login_date;
 
-//     // --- Determine interest rate ---
-//     const interest_rate = data.roi_apr / 12;
-//     //    console.log("📈 Using interest rate:", interest_rate);
+    // --- Determine interest rate ---
+    const interest_rate = data.roi_apr / 12;
+    //    console.log("📈 Using interest rate:", interest_rate);
 
-//     // --- Insert into DB ---
-//     //  console.log("💾 Inserting customer record into loan_booking_emiclub...");
-//     await conn.query(
-//       `INSERT INTO loan_booking_emiclub (
-//         lan, partner_loan_id, login_date, first_name, middle_name, last_name, gender, dob,
-//         father_name, mother_name, mobile_number, email_id,
-//         pan_number, aadhar_number, current_address, current_village_city, current_district, current_state, current_pincode,
-//         permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
-//         loan_amount, interest_rate, roi_apr, loan_tenure, emi_amount, cibil_score,
-//         product, lender, bank_name, name_in_bank, account_number, ifsc,
-//         account_type, type_of_account, net_disbursement, employment, risk_category, customer_type,
-//         annual_income, dealer_name, dealer_mobile, dealer_address, dealer_city,
-//         status, customer_name, agreement_date
-//       )
-//       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-//       [
-//         lan,
-//         data.partner_loan_id,
-//         data.login_date,
-//         data.first_name,
-//         data.middle_name || null,
-//         data.last_name,
-//         data.gender,
-//         data.dob,
-//         data.father_name,
-//         data.mother_name,
-//         data.mobile_number,
-//         data.email_id,
-//         data.pan_number,
-//         data.aadhar_number,
-//         data.current_address,
-//         data.current_village_city,
-//         data.current_district,
-//         data.current_state,
-//         data.current_pincode,
-//         data.permanent_address,
-//         data.permanent_village_city || data.current_village_city,
-//         data.permanent_district || data.current_district,
-//         data.permanent_state,
-//         data.permanent_pincode,
-//         data.loan_amount,
-//         interest_rate,
-//         data.roi_apr,
-//         data.loan_tenure,
-//         data.emi_amount,
-//         data.cibil_score,
-//         "Monthly Loan",
-//         "EMICLUB",
-//         data.bank_name,
-//         data.name_in_bank,
-//         data.account_number,
-//         data.ifsc,
-//         data.account_type,
-//         data.type_of_account,
-//         data.net_disbursement || data.loan_amount,
-//         data.employment,
-//         null,
-//         data.customer_type,
-//         data.annual_income,
-//         data.dealer_name,
-//         data.dealer_mobile,
-//         data.dealer_address,
-//         data.dealer_city,
-//         "Login",
-//         customer_name,
-//         agreement_date,
-//       ],
-//     );
+    // --- Insert into DB ---
+    //  console.log("💾 Inserting customer record into loan_booking_emiclub...");
+    await conn.query(
+      `INSERT INTO loan_booking_emiclub (
+        lan, partner_loan_id, login_date, first_name, middle_name, last_name, gender, dob,
+        father_name, mother_name, mobile_number, email_id,
+        pan_number, aadhar_number, current_address, current_village_city, current_district, current_state, current_pincode,
+        permanent_address, permanent_village_city, permanent_district, permanent_state, permanent_pincode,
+        loan_amount, interest_rate, roi_apr, loan_tenure, emi_amount, cibil_score,
+        product, lender, bank_name, name_in_bank, account_number, ifsc,
+        account_type, type_of_account, net_disbursement, employment, risk_category, customer_type,
+        annual_income, dealer_name, dealer_mobile, dealer_address, dealer_city,
+        status, customer_name, agreement_date
+      )
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        lan,
+        data.partner_loan_id,
+        data.login_date,
+        data.first_name,
+        data.middle_name || null,
+        data.last_name,
+        data.gender,
+        data.dob,
+        data.father_name,
+        data.mother_name,
+        data.mobile_number,
+        data.email_id,
+        data.pan_number,
+        data.aadhar_number,
+        data.current_address,
+        data.current_village_city,
+        data.current_district,
+        data.current_state,
+        data.current_pincode,
+        data.permanent_address,
+        data.permanent_village_city || data.current_village_city,
+        data.permanent_district || data.current_district,
+        data.permanent_state,
+        data.permanent_pincode,
+        data.loan_amount,
+        interest_rate,
+        data.roi_apr,
+        data.loan_tenure,
+        data.emi_amount,
+        data.cibil_score,
+        "Monthly Loan",
+        "EMICLUB",
+        data.bank_name,
+        data.name_in_bank,
+        data.account_number,
+        data.ifsc,
+        data.account_type,
+        data.type_of_account,
+        data.net_disbursement || data.loan_amount,
+        data.employment,
+        null,
+        data.customer_type,
+        data.annual_income,
+        data.dealer_name,
+        data.dealer_mobile,
+        data.dealer_address,
+        data.dealer_city,
+        "Login",
+        customer_name,
+        agreement_date,
+      ],
+    );
 
-//     await partnerLimitService.updateBookedLimit(
-//       conn,
-//       limitCheck.limitId,
-//       loanAmount,
-//       lan,
-//     );
+    await partnerLimitService.updateBookedLimit(
+      conn,
+      limitCheck.limitId,
+      loanAmount,
+      lan,
+    );
 
-//     if (requiredFldg > 0) {
-//       await partnerFldgService.reserveFldg(
-//         conn,
-//         partner.partner_id,
-//         lan,
-//         requiredFldg,
-//         `EMICLUB reservation | Amount: ${loanAmount}`,
-//       );
-//     }
+    if (requiredFldg > 0) {
+      await partnerFldgService.reserveFldg(
+        conn,
+        partner.partner_id,
+        lan,
+        requiredFldg,
+        `EMICLUB reservation | Amount: ${loanAmount}`,
+      );
+    }
 
-//     await conn.commit();
-//     conn.release();
+    await conn.commit();
+    conn.release();
 
-//     ////  BEURO SCORE  CODE START/////
-//     console.log("✅ Customer record inserted successfully.");
-//     // --- Build SOAP XML ---
-//     console.log("🧩 Building SOAP request body for Experian...");
-//     const dobFormatted = data.dob.replace(/-/g, "");
-//     console.log(
-//       data.first_name,
-//       data.last_name,
-//       data.pan_number,
-//       data.mobile_number,
-//       data.current_address,
-//       data.current_village_city,
-//       data.current_state,
-//       data.current_pincode,
-//     );
-//     console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
+    ////  BEURO SCORE  CODE START/////
+    console.log("✅ Customer record inserted successfully.");
+    // --- Build SOAP XML ---
+    console.log("🧩 Building SOAP request body for Experian...");
+    const dobFormatted = data.dob.replace(/-/g, "");
+    console.log(
+      data.first_name,
+      data.last_name,
+      data.pan_number,
+      data.mobile_number,
+      data.current_address,
+      data.current_village_city,
+      data.current_state,
+      data.current_pincode,
+    );
+    console.log("🔧 Formatted DOB for SOAP:", dobFormatted);
 
-//     const stateCodes = {
-//       "JAMMU and KASHMIR": "01",
-//       "HIMACHAL PRADESH": "02",
-//       PUNJAB: "03",
-//       CHANDIGARH: "04",
-//       UTTRANCHAL: "05",
-//       HARAYANA: "06",
-//       DELHI: "07",
-//       RAJASTHAN: "08",
-//       "UTTAR PRADESH": "09",
-//       BIHAR: "10",
-//       SIKKIM: "11",
-//       "ARUNACHAL PRADESH": "12",
-//       NAGALAND: "13",
-//       MANIPUR: "14",
-//       MIZORAM: "15",
-//       TRIPURA: "16",
-//       MEGHALAYA: "17",
-//       ASSAM: "18",
-//       "WEST BENGAL": "19",
-//       JHARKHAND: "20",
-//       ORRISA: "21",
-//       CHHATTISGARH: "22",
-//       "MADHYA PRADESH": "23",
-//       GUJRAT: "24",
-//       "DAMAN and DIU": "25",
-//       "DADARA and NAGAR HAVELI": "26",
-//       MAHARASHTRA: "27",
-//       "ANDHRA PRADESH": "28",
-//       KARNATAKA: "29",
-//       GOA: "30",
-//       LAKSHADWEEP: "31",
-//       KERALA: "32",
-//       "TAMIL NADU": "33",
-//       PONDICHERRY: "34",
-//       "ANDAMAN and NICOBAR ISLANDS": "35",
-//       TELANGANA: "36",
-//     };
+    const stateCodes = {
+      "JAMMU and KASHMIR": "01",
+      "HIMACHAL PRADESH": "02",
+      PUNJAB: "03",
+      CHANDIGARH: "04",
+      UTTRANCHAL: "05",
+      HARAYANA: "06",
+      DELHI: "07",
+      RAJASTHAN: "08",
+      "UTTAR PRADESH": "09",
+      BIHAR: "10",
+      SIKKIM: "11",
+      "ARUNACHAL PRADESH": "12",
+      NAGALAND: "13",
+      MANIPUR: "14",
+      MIZORAM: "15",
+      TRIPURA: "16",
+      MEGHALAYA: "17",
+      ASSAM: "18",
+      "WEST BENGAL": "19",
+      JHARKHAND: "20",
+      ORRISA: "21",
+      CHHATTISGARH: "22",
+      "MADHYA PRADESH": "23",
+      GUJRAT: "24",
+      "DAMAN and DIU": "25",
+      "DADARA and NAGAR HAVELI": "26",
+      MAHARASHTRA: "27",
+      "ANDHRA PRADESH": "28",
+      KARNATAKA: "29",
+      GOA: "30",
+      LAKSHADWEEP: "31",
+      KERALA: "32",
+      "TAMIL NADU": "33",
+      PONDICHERRY: "34",
+      "ANDAMAN and NICOBAR ISLANDS": "35",
+      TELANGANA: "36",
+    };
 
-//     const state = data.current_state ?? "MAHARASHTRA"; // default to Maharashtra
-//     const state_code = stateCodes[state.toUpperCase()] ?? null;
+    const state = data.current_state ?? "MAHARASHTRA"; // default to Maharashtra
+    const state_code = stateCodes[state.toUpperCase()] ?? null;
 
-//     const firstName = data.first_name.toUpperCase();
-//     const lastName = data.last_name.toUpperCase();
-//     const gender_code = (data.gender ?? "Male") === "Female" ? 2 : 1;
-//     const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
-//    <soapenv:Header/>
-//    <soapenv:Body>
-//       <urn:process>
-//          <urn:in>
-//             <INProfileRequest>
-//     <Identification>
-//        <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
-// <XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
-//     </Identification>
-//     <Application>
-//         <FTReferenceNumber></FTReferenceNumber>
-//         <CustomerReferenceID></CustomerReferenceID>
-//         <EnquiryReason>06</EnquiryReason> 
-//         <FinancePurpose>99</FinancePurpose>
-//         <AmountFinanced>${data.loan_amount}</AmountFinanced>
-//         <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
-//         <ScoreFlag>1</ScoreFlag>
-//         <PSVFlag></PSVFlag>
-//     </Application>
-//     <Applicant>
-//         <Surname>${lastName}</Surname>
-//         <FirstName>${firstName}</FirstName>
-//         <MiddleName1></MiddleName1>
-//         <MiddleName2></MiddleName2>
-//         <MiddleName3></MiddleName3>
-//         <GenderCode>${gender_code}</GenderCode>
-//         <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
-//         <PANIssueDate></PANIssueDate>
-//         <PANExpirationDate></PANExpirationDate>
-//         <PassportNumber></PassportNumber>
-//         <PassportIssueDate></PassportIssueDate>
-//         <PassportExpirationDate></PassportExpirationDate>
-//         <VoterIdentityCard></VoterIdentityCard>
-//         <VoterIDIssueDate></VoterIDIssueDate>
-//         <VoterIDExpirationDate></VoterIDExpirationDate>
-//         <DriverLicenseNumber></DriverLicenseNumber>
-//         <DriverLicenseIssueDate></DriverLicenseIssueDate>
-//         <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
-//         <RationCardNumber></RationCardNumber>
-//         <RationCardIssueDate></RationCardIssueDate>
-//         <RationCardExpirationDate></RationCardExpirationDate>
-//         <UniversalIDNumber></UniversalIDNumber>
-//         <UniversalIDIssueDate></UniversalIDIssueDate>
-//         <UniversalIDExpirationDate></UniversalIDExpirationDate>
-//         <DateOfBirth>${dobFormatted}</DateOfBirth>
-//         <STDPhoneNumber></STDPhoneNumber>
-//         <PhoneNumber>${data.mobile_number}</PhoneNumber>
-//         <TelephoneExtension></TelephoneExtension>
-//         <TelephoneType></TelephoneType>
-//         <MobilePhone></MobilePhone>
-//         <EMailId></EMailId>
-//     </Applicant>
-//     <Details>
-//         <Income></Income>
-//         <MaritalStatus></MaritalStatus>
-//         <EmployStatus></EmployStatus>
-//         <TimeWithEmploy></TimeWithEmploy>
-//         <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
-//     </Details>
-//     <Address>
-//         <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
-//         <BldgNoSocietyName></BldgNoSocietyName>
-//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-//         <City>${data.current_village_city}</City>
-//         <Landmark></Landmark>
-//       <State>${state_code}</State>
-//         <PinCode>${data.current_pincode}</PinCode>
-//     </Address>
-//     <AdditionalAddressFlag>
-//         <Flag>N</Flag>
-//     </AdditionalAddressFlag>
-//     <AdditionalAddress>
-//         <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
-//         <BldgNoSocietyName></BldgNoSocietyName>
-//         <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
-//         <City></City>
-//         <Landmark></Landmark>
-//         <State></State>
-//         <PinCode></PinCode>
-//     </AdditionalAddress>
-// </INProfileRequest>
-// </urn:in>
-//       </urn:process>
-//    </soapenv:Body>
-// </soapenv:Envelope>`;
+    const firstName = data.first_name.toUpperCase();
+    const lastName = data.last_name.toUpperCase();
+    const gender_code = (data.gender ?? "Male") === "Female" ? 2 : 1;
+    const soapBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:cbv2">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <urn:process>
+         <urn:in>
+            <INProfileRequest>
+    <Identification>
+       <XMLUser>${process.env.EXPERIAN_USER}</XMLUser>
+<XMLPassword>${process.env.EXPERIAN_PASSWORD}</XMLPassword>
+    </Identification>
+    <Application>
+        <FTReferenceNumber></FTReferenceNumber>
+        <CustomerReferenceID></CustomerReferenceID>
+        <EnquiryReason>06</EnquiryReason> 
+        <FinancePurpose>99</FinancePurpose>
+        <AmountFinanced>${data.loan_amount}</AmountFinanced>
+        <DurationOfAgreement>${data.loan_tenure}</DurationOfAgreement>
+        <ScoreFlag>1</ScoreFlag>
+        <PSVFlag></PSVFlag>
+    </Application>
+    <Applicant>
+        <Surname>${lastName}</Surname>
+        <FirstName>${firstName}</FirstName>
+        <MiddleName1></MiddleName1>
+        <MiddleName2></MiddleName2>
+        <MiddleName3></MiddleName3>
+        <GenderCode>${gender_code}</GenderCode>
+        <IncomeTaxPAN>${data.pan_number}</IncomeTaxPAN>
+        <PANIssueDate></PANIssueDate>
+        <PANExpirationDate></PANExpirationDate>
+        <PassportNumber></PassportNumber>
+        <PassportIssueDate></PassportIssueDate>
+        <PassportExpirationDate></PassportExpirationDate>
+        <VoterIdentityCard></VoterIdentityCard>
+        <VoterIDIssueDate></VoterIDIssueDate>
+        <VoterIDExpirationDate></VoterIDExpirationDate>
+        <DriverLicenseNumber></DriverLicenseNumber>
+        <DriverLicenseIssueDate></DriverLicenseIssueDate>
+        <DriverLicenseExpirationDate></DriverLicenseExpirationDate>
+        <RationCardNumber></RationCardNumber>
+        <RationCardIssueDate></RationCardIssueDate>
+        <RationCardExpirationDate></RationCardExpirationDate>
+        <UniversalIDNumber></UniversalIDNumber>
+        <UniversalIDIssueDate></UniversalIDIssueDate>
+        <UniversalIDExpirationDate></UniversalIDExpirationDate>
+        <DateOfBirth>${dobFormatted}</DateOfBirth>
+        <STDPhoneNumber></STDPhoneNumber>
+        <PhoneNumber>${data.mobile_number}</PhoneNumber>
+        <TelephoneExtension></TelephoneExtension>
+        <TelephoneType></TelephoneType>
+        <MobilePhone></MobilePhone>
+        <EMailId></EMailId>
+    </Applicant>
+    <Details>
+        <Income></Income>
+        <MaritalStatus></MaritalStatus>
+        <EmployStatus></EmployStatus>
+        <TimeWithEmploy></TimeWithEmploy>
+        <NumberOfMajorCreditCardHeld></NumberOfMajorCreditCardHeld>
+    </Details>
+    <Address>
+        <FlatNoPlotNoHouseNo>${data.current_address}</FlatNoPlotNoHouseNo>
+        <BldgNoSocietyName></BldgNoSocietyName>
+        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+        <City>${data.current_village_city}</City>
+        <Landmark></Landmark>
+      <State>${state_code}</State>
+        <PinCode>${data.current_pincode}</PinCode>
+    </Address>
+    <AdditionalAddressFlag>
+        <Flag>N</Flag>
+    </AdditionalAddressFlag>
+    <AdditionalAddress>
+        <FlatNoPlotNoHouseNo></FlatNoPlotNoHouseNo>
+        <BldgNoSocietyName></BldgNoSocietyName>
+        <RoadNoNameAreaLocality></RoadNoNameAreaLocality>
+        <City></City>
+        <Landmark></Landmark>
+        <State></State>
+        <PinCode></PinCode>
+    </AdditionalAddress>
+</INProfileRequest>
+</urn:in>
+      </urn:process>
+   </soapenv:Body>
+</soapenv:Envelope>`;
 
-//     // --- Send SOAP request ---
-//     console.log("🌐 Sending SOAP request to Experian...");
-//     let score = null;
-//     let parsedXmlToStore = null;
+    // --- Send SOAP request ---
+    console.log("🌐 Sending SOAP request to Experian...");
+    let score = null;
+    let parsedXmlToStore = null;
 
-//     try {
-//       const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
-//         headers: {
-//           "Content-Type": "text/xml; charset=utf-8",
-//           SOAPAction: "urn:cbv2/process",
-//           Accept: "text/xml",
-//         },
-//         timeout: 30000,
-//         validateStatus: () => true,
-//       });
+    try {
+      const response = await axios.post(process.env.EXPERIAN_URL, soapBody, {
+        headers: {
+          "Content-Type": "text/xml; charset=utf-8",
+          SOAPAction: "urn:cbv2/process",
+          Accept: "text/xml",
+        },
+        timeout: 30000,
+        validateStatus: () => true,
+      });
 
-//       console.log("📥 Experian HTTP Status:", response.status);
-//       console.log(
-//         "📥 Experian Raw Response (first 1000 chars):",
-//         response.data?.substring(0, 7000),
-//       );
+      console.log("📥 Experian HTTP Status:", response.status);
+      console.log(
+        "📥 Experian Raw Response (first 1000 chars):",
+        response.data?.substring(0, 7000),
+      );
 
-//       if (response.status !== 200)
-//         throw new Error(`Experian returned HTTP ${response.status}`);
-//       //////////////////// new addd.//////////
-//       // --- Parse SOAP XML ---
-//       const parser = new XMLParser({
-//         ignoreAttributes: false,
-//         attributeNamePrefix: "",
-//         trimValues: true,
+      if (response.status !== 200)
+        throw new Error(`Experian returned HTTP ${response.status}`);
+      //////////////////// new addd.//////////
+      // --- Parse SOAP XML ---
+      const parser = new XMLParser({
+        ignoreAttributes: false,
+        attributeNamePrefix: "",
+        trimValues: true,
 
-//         // Keep entity processing enabled, but raise limits for valid large bureau XML.
-//         processEntities: {
-//           enabled: true,
-//           maxTotalExpansions: 200000,
-//           maxExpandedLength: 20_000_000,
-//           maxEntityCount: 200000,
-//           maxEntitySize: 200000,
-//         },
-//       });
-//       const soapParsed = parser.parse(response.data);
-//       const encodedInnerXml =
-//         soapParsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
-//         "ns2:processResponse"
-//         ]?.["ns2:out"];
+        // Keep entity processing enabled, but raise limits for valid large bureau XML.
+        processEntities: {
+          enabled: true,
+          maxTotalExpansions: 200000,
+          maxExpandedLength: 20_000_000,
+          maxEntityCount: 200000,
+          maxEntitySize: 200000,
+        },
+      });
+      const soapParsed = parser.parse(response.data);
+      const encodedInnerXml =
+        soapParsed["SOAP-ENV:Envelope"]?.["SOAP-ENV:Body"]?.[
+        "ns2:processResponse"
+        ]?.["ns2:out"];
 
-//       if (!encodedInnerXml)
-//         throw new Error("Missing ns2:out field in Experian response");
+      if (!encodedInnerXml)
+        throw new Error("Missing ns2:out field in Experian response");
 
-//       // Decode and parse the inner XML
-//       const decodedInnerXml = he.decode(encodedInnerXml);
-//       parsedXmlToStore = decodedInnerXml;
-//       const innerParsed = parser.parse(decodedInnerXml);
+      // Decode and parse the inner XML
+      const decodedInnerXml = he.decode(encodedInnerXml);
+      parsedXmlToStore = decodedInnerXml;
+      const innerParsed = parser.parse(decodedInnerXml);
 
-//       // Extract score and message
-//       const scoreStr =
-//         innerParsed?.INProfileResponse?.SCORE?.BureauScore ?? null;
-//       //const userMsg = innerParsed?.INProfileResponse?.UserMessage?.UserMessageText ?? "";
-//       console.log(scoreStr, "score str");
+      // Extract score and message
+      const scoreStr =
+        innerParsed?.INProfileResponse?.SCORE?.BureauScore ?? null;
+      //const userMsg = innerParsed?.INProfileResponse?.UserMessage?.UserMessageText ?? "";
+      console.log(scoreStr, "score str");
 
-//       if (scoreStr) {
-//         score = Number(scoreStr);
-//       } else {
-//         score = null;
-//       }
+      if (scoreStr) {
+        score = Number(scoreStr);
+      } else {
+        score = null;
+      }
 
-//       ///////////////////// end  ////////////////
-//       console.log("✅ Parsed CIBIL Score:", score);
-//       // console.log(
-//       //   "🧾 Normalized INProfileResponse (first 500 chars):",
-//       //   parsedXmlToStore?.substring(0, 7000)
-//       // );
+      ///////////////////// end  ////////////////
+      console.log("✅ Parsed CIBIL Score:", score);
+      // console.log(
+      //   "🧾 Normalized INProfileResponse (first 500 chars):",
+      //   parsedXmlToStore?.substring(0, 7000)
+      // );
 
-//       await db.promise().query(
-//         `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
-//          VALUES (?,?,?,?,NOW())`,
-//         [lan, data.pan_number, score, parsedXmlToStore], // store parsed/pretty INProfileResponse XML
-//       );
+      await db.promise().query(
+        `INSERT INTO loan_cibil_reports (lan, pan_number, score, report_xml, created_at)
+         VALUES (?,?,?,?,NOW())`,
+        [lan, data.pan_number, score, parsedXmlToStore], // store parsed/pretty INProfileResponse XML
+      );
 
-//       await db
-//         .promise()
-//         .execute(
-//           "UPDATE loan_booking_emiclub SET cibil_score = ? WHERE lan = ?",
-//           [score, lan],
-//         );
+      await db
+        .promise()
+        .execute(
+          "UPDATE loan_booking_emiclub SET cibil_score = ? WHERE lan = ?",
+          [score, lan],
+        );
 
-//       console.log("✅ CIBIL report (parsed XML) saved successfully.");
-//     } catch (err) {
-//       console.error("⚠️ CIBIL Pull Failed:", err.message);
-//       console.error("➡️ Response status:", err.response?.status);
-//       console.error(
-//         "➡️ Response data (truncated):",
-//         typeof err.response?.data === "string"
-//           ? err.response.data.slice(0, 300)
-//           : err.response?.data,
-//       );
-//       console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
-//       console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
-//     }
-//     console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
-//     console.log("================= 📦 EMICLUB REQUEST END =================\n");
+      console.log("✅ CIBIL report (parsed XML) saved successfully.");
+    } catch (err) {
+      console.error("⚠️ CIBIL Pull Failed:", err.message);
+      console.error("➡️ Response status:", err.response?.status);
+      console.error(
+        "➡️ Response data (truncated):",
+        typeof err.response?.data === "string"
+          ? err.response.data.slice(0, 300)
+          : err.response?.data,
+      );
+      console.error("➡️ Request URL:", process.env.EXPERIAN_URL);
+      console.error("➡️ SOAP Body Preview:", soapBody.substring(0, 300));
+    }
+    console.log("✅ Completed EMI Club flow. LAN:", lan, "CIBIL Score:", score);
+    console.log("================= 📦 EMICLUB REQUEST END =================\n");
 
-//     /////////////////// beauro code end ////////////
-//     return res.json({
-//       message: "✅ EMICLUB loan saved successfully.",
-//       lan,
-//       cibilScore: score || "Not Found",
-//     });
-//   } catch (error) {
-//     if (conn) {
-//       await conn.rollback();
-//       conn.release();
-//     }
-//     console.error("❌ Unhandled Error in EMICLUB Upload:", error);
-//     res.status(500).json({
-//       message: "Upload failed. Please try again.",
-//       error: error.sqlMessage || error.message,
-//     });
-//   }
-// });
+    /////////////////// beauro code end ////////////
+    return res.json({
+      message: "✅ EMICLUB loan saved successfully.",
+      lan,
+      cibilScore: score || "Not Found",
+    });
+  } catch (error) {
+    if (conn) {
+      await conn.rollback();
+      conn.release();
+    }
+    console.error("❌ Unhandled Error in EMICLUB Upload:", error);
+    res.status(500).json({
+      message: "Upload failed. Please try again.",
+      error: error.sqlMessage || error.message,
+    });
+  }
+});
 
 function getMissingFields(data, requiredFields) {
   return requiredFields.filter((field) => {
