@@ -134,7 +134,7 @@ function resolveProcedure(rawReportId, rawLender) {
                                                         : lender === "ya money"
                                                           ? "sp_cashflow_report_ya_money"
                                                           : lender === "claimcurebuddy"
-                                                            ? "sp_cashflow_report_claim_buddy"
+                                                            ? "sp_cashflow_report_claim_cure_buddy"
                                                         : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
