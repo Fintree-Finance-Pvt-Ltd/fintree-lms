@@ -408,6 +408,171 @@ router.get("/clayoo/consolidated-mis", async (req, res) => {
     });
   }
 });
+
+router.get("/due-demand/:partner", async (req, res) => {
+  try {
+    const startDate = String(req.query.startDate || "").trim();
+    const endDate = String(req.query.endDate || "").trim();
+
+    const partner = String(req.params.partner || "")
+      .trim()
+      .toLowerCase()
+      .replace(/-/g, " ");
+
+    if (!partner) {
+      return res.status(400).json({
+        success: false,
+        message: "Partner is required.",
+      });
+    }
+
+    if (!isValidReportDate(startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid start date is required in YYYY-MM-DD format.",
+      });
+    }
+
+    if (!isValidReportDate(endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid end date is required in YYYY-MM-DD format.",
+      });
+    }
+
+    if (
+      new Date(`${startDate}T00:00:00`) >
+      new Date(`${endDate}T00:00:00`)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date cannot be greater than end date.",
+      });
+    }
+
+    // Use your existing procedure resolver
+    const procedureName = resolveProcedure(
+      "due-demand-vs-collection-report(all-products)",
+      partner,
+    );
+
+    if (!procedureName) {
+      return res.status(400).json({
+        success: false,
+        message: `Due Demand procedure not configured for partner: ${partner}`,
+      });
+    }
+
+    console.log("Generating Due Demand Report:", {
+      partner,
+      startDate,
+      endDate,
+      procedureName,
+    });
+
+    const [procedureResult] = await db
+      .promise()
+      .query(
+        `CALL ${procedureName}(?, ?, ?)`,
+        [startDate, endDate, partner],
+      );
+
+    const rows =
+      Array.isArray(procedureResult?.[0])
+        ? procedureResult[0]
+        : [];
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: `No Due Demand records found for ${partner} in the selected date range.`,
+      });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+
+    const worksheet = workbook.addWorksheet("Due Demand Report");
+
+    const columnNames = Object.keys(rows[0]);
+
+    worksheet.columns = columnNames.map((columnName) => ({
+      header: columnName,
+      key: columnName,
+      width: Math.max(
+        String(columnName).length + 5,
+        18,
+      ),
+    }));
+
+    rows.forEach((row) => {
+      worksheet.addRow(row);
+    });
+
+    worksheet.getRow(1).font = {
+      bold: true,
+    };
+
+    worksheet.getRow(1).alignment = {
+      vertical: "middle",
+      horizontal: "center",
+    };
+
+    worksheet.views = [
+      {
+        state: "frozen",
+        ySplit: 1,
+      },
+    ];
+
+    worksheet.autoFilter = {
+      from: {
+        row: 1,
+        column: 1,
+      },
+      to: {
+        row: 1,
+        column: columnNames.length,
+      },
+    };
+
+    autofitColumns(worksheet);
+
+    const safePartner = partner
+      .replace(/\s+/g, "_")
+      .replace(/[^a-zA-Z0-9_]/g, "");
+
+    const fileName =
+      `${safePartner}_Due_Demand_` +
+      `${startDate}_to_${endDate}.xlsx`;
+
+    const excelBuffer =
+      await workbook.xlsx.writeBuffer();
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${fileName}"`,
+    );
+
+    return res
+      .status(200)
+      .send(Buffer.from(excelBuffer));
+  } catch (error) {
+    console.error("Due Demand Report error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Failed to generate Due Demand Report.",
+    });
+  }
+});
+
 function isValidReportDate(value) {
   if (!value) {
     return false;

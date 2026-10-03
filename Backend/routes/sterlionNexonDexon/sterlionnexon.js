@@ -970,26 +970,26 @@ async function insertSterlionMexonDexonLoan(normalizedData, productConfig) {
 
     await conn.beginTransaction();
 
-    const [duplicateRows] = await conn.query(
-      `
-          SELECT
-            id,
-            lan
-          FROM loan_booking_sterlion_mexon_dexon
-          WHERE product = ?
-            AND pan_number = ?
-          LIMIT 1
-        `,
-      [normalizedData.product, normalizedData.panNumber],
-    );
+    // const [duplicateRows] = await conn.query(
+    //   `
+    //       SELECT
+    //         id,
+    //         lan
+    //       FROM loan_booking_sterlion_mexon_dexon
+    //       WHERE product = ?
+    //         AND pan_number = ?
+    //       LIMIT 1
+    //     `,
+    //   [normalizedData.product, normalizedData.panNumber],
+    // );
 
-    if (duplicateRows.length > 0) {
-      throw new RowImportError(
-        "duplicate",
+    // if (duplicateRows.length > 0) {
+    //   throw new RowImportError(
+    //     "duplicate",
 
-        `PAN already exists for ${normalizedData.product}. Existing LAN: ${duplicateRows[0].lan}.`,
-      );
-    }
+    //     `PAN already exists for ${normalizedData.product}. Existing LAN: ${duplicateRows[0].lan}.`,
+    //   );
+    // }
 
     const lan = await generateSterlionMexonDexonLan(conn, productConfig);
 
@@ -1194,7 +1194,7 @@ router.post(
           const successRows = [];
           const rowErrors = [];
 
-          const excelDuplicateKeys = new Set();
+          // const excelDuplicateKeys = new Set();
 
           for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
             const rawRow = rows[rowIndex];
@@ -1212,18 +1212,18 @@ router.post(
 
               displayProduct = productConfig.productName;
 
-              const excelDuplicateKey =
-                `${normalizedData.product}:` + `${normalizedData.panNumber}`;
+              // const excelDuplicateKey =
+              //   `${normalizedData.product}:` + `${normalizedData.panNumber}`;
 
-              if (excelDuplicateKeys.has(excelDuplicateKey)) {
-                throw new RowImportError(
-                  "duplicate",
+              // if (excelDuplicateKeys.has(excelDuplicateKey)) {
+              //   throw new RowImportError(
+              //     "duplicate",
 
-                  `Duplicate PAN found in the Excel file for ${normalizedData.product}.`,
-                );
-              }
+              //     `Duplicate PAN found in the Excel file for ${normalizedData.product}.`,
+              //   );
+              // }
 
-              excelDuplicateKeys.add(excelDuplicateKey);
+              // excelDuplicateKeys.add(excelDuplicateKey);
 
               const insertedLoan = await insertSterlionMexonDexonLoan(
                 normalizedData,
@@ -3391,24 +3391,24 @@ async function insertAndAllocateSterlionMexonDexonCollection(collectionData) {
       [loan.id, collectionData.collectionDate],
     );
 
-    if (invoiceRows.length === 0) {
-      const [diagnosticRows] = await conn.query(
-        `SELECT
-       COUNT(*) AS total_invoices,
-       COALESCE(SUM(status = 'CANCELLED'), 0) AS cancelled_invoices,
-       COALESCE(SUM(disbursement_date > ?), 0) AS dated_after_collection,
-       COALESCE(SUM(outstanding_principal <= 0), 0) AS already_settled
-     FROM loan_invoices_sterlion_mexon_dexon
-     WHERE loan_booking_id = ?`,
-        [collectionData.collectionDate, loan.id],
-      );
+    // if (invoiceRows.length === 0) {
+    //   const [diagnosticRows] = await conn.query(
+    //     `SELECT
+    //    COUNT(*) AS total_invoices,
+    //    COALESCE(SUM(status = 'CANCELLED'), 0) AS cancelled_invoices,
+    //    COALESCE(SUM(disbursement_date > ?), 0) AS dated_after_collection,
+    //    COALESCE(SUM(outstanding_principal <= 0), 0) AS already_settled
+    //  FROM loan_invoices_sterlion_mexon_dexon
+    //  WHERE loan_booking_id = ?`,
+    //     [collectionData.collectionDate, loan.id],
+    //   );
 
-      throw new RowImportError(
-        "allocation",
-        `No open invoice was eligible for FIFO allocation on ${collectionData.collectionDate} for LAN ${collectionData.lan}.`,
-        diagnosticRows[0],
-      );
-    }
+    //   throw new RowImportError(
+    //     "allocation",
+    //     `No open invoice was eligible for FIFO allocation on ${collectionData.collectionDate} for LAN ${collectionData.lan}.`,
+    //     diagnosticRows[0],
+    //   );
+    // }
 
     for (const invoice of invoiceRows) {
       if (collectionRemainingCents <= 0) {
