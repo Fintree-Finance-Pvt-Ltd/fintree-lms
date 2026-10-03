@@ -104,37 +104,79 @@ async function callZoopPan(panNumber, panHolderName) {
     task_id: uuidv4(),
   };
 
-  const res = await axios.post(ZOOP_PAN_API_URL, payload, {
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": ZOOP_API_KEY,
-      app_id: ZOOP_APP_ID,
-    },
-    timeout: 30000,
-    validateStatus: () => true,
-  });
+  try {
+    const res = await axios.post(ZOOP_PAN_API_URL, payload, {
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": ZOOP_API_KEY,
+        app_id: ZOOP_APP_ID,
+      },
+      timeout: 30000,
+      validateStatus: () => true,
+    });
 
-  // You may need to adjust this depending on Zoop's actual response structure
-  // For now we assume HTTP 200 and some `success` flag in data
-  const raw = res.data;
-  const httpOk = res.status === 200;
-  const apiSuccess =
-    raw?.success === true ||
-    raw?.status === "success" ||
-    raw?.data?.result === "success";
+    const raw = res.data;
 
-  const success = httpOk && apiSuccess;
+    console.log(
+      "Zoop response:",
+      JSON.stringify(raw, null, 2)
+    );
 
-  // If Zoop returns name data, you can map & compare, but since we don't
-  // have an example here, we'll keep nameMatch as null.
-  return {
-    success,
-    provider: "ZOOP",
-    reason: success ? "OK" : "ZOOP_API_FAILURE",
-    nameMatch: null,
-    raw,
-    response: raw,
-  };
+    const httpOk = res.status === 200;
+
+    const apiSuccess =
+      raw?.success === true ||
+      raw?.status === "success" ||
+      raw?.data?.result === "success" ||
+      raw?.response_code === "100";
+
+    const success = httpOk && apiSuccess;
+
+    if (!success) {
+      console.log("Zoop API failed:", {
+        httpStatus: res.status,
+        responseCode: raw?.response_code,
+        message:
+          raw?.response_message ||
+          raw?.message ||
+          "Unknown Zoop error",
+      });
+    }
+
+    return {
+      success,
+      provider: "ZOOP",
+      reason: success
+        ? "OK"
+        : raw?.response_message ||
+          raw?.message ||
+          "ZOOP_API_FAILURE",
+
+      nameMatch:
+        raw?.result?.name_match_score !== undefined
+          ? Number(raw.result.name_match_score)
+          : null,
+
+      raw,
+      response: raw,
+      httpStatus: res.status,
+    };
+  } catch (error) {
+    console.error(
+      "Zoop request failed:",
+      error?.message || error
+    );
+
+    return {
+      success: false,
+      provider: "ZOOP",
+      reason: "ZOOP_REQUEST_ERROR",
+      nameMatch: null,
+      raw: null,
+      response: null,
+      error: error?.message || "Unknown Zoop error",
+    };
+  }
 }
 
 /**
@@ -259,4 +301,5 @@ async function getPanCardDetails(panNumber, panHolderName) {
 
 module.exports = {
   getPanCardDetails,
+  callZoopPan,
 };
