@@ -10,9 +10,10 @@ const axios = require("axios");
 const nodemailer = require("nodemailer");
 const { approveAndInitiatePayout } = require("../../services/payout.service");
 
-const {
-  autoApproveClaimBuddyIfAllVerified,
-} = require("./claimBuddyBreEngine");
+const { autoApproveClaimBuddyIfAllVerified } = require("./claimBuddyBreEngine");
+
+const { generateRepaymentScheduleClaimBuddy } = require("../../utils/repaymentScheduleGenerator");
+
 
 const fs = require("fs");
 const path = require("path");
@@ -1064,10 +1065,7 @@ VALUES
 // ==========================================
 
 router.get("/approve-initiate-loans", async (req, res) => {
-  const {
-    table = "loan_booking_claim_buddy",
-    prefix = "CBF",
-  } = req.query;
+  const { table = "loan_booking_claim_buddy", prefix = "CBF" } = req.query;
 
   const allowedTables = {
     loan_booking_claim_buddy: true,
@@ -1099,19 +1097,11 @@ router.get("/approve-initiate-loans", async (req, res) => {
     ORDER BY lb.created_at DESC
   `;
 
-  const values = [
-  table,
-  "BRE APPROVED",
-  "Credit Recheck",
-  `${prefix}%`,
-];
+  const values = [table, "BRE APPROVED", "Credit Recheck", `${prefix}%`];
 
   db.query(query, values, (err, results) => {
     if (err) {
-      console.error(
-        "Claim Buddy approve initiate error",
-        err
-      );
+      console.error("Claim Buddy approve initiate error", err);
 
       return res.status(500).json({
         message: "Database error",
@@ -1717,18 +1707,15 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
     // ==================================================
 
     const agreementSigned =
-      String(
-        loan.agreement_esign_status || "",
-      ).trim().toUpperCase() === "SIGNED";
+      String(loan.agreement_esign_status || "")
+        .trim()
+        .toUpperCase() === "SIGNED";
 
     // ==================================================
     // CHECK NACH
     // ==================================================
 
-    const nachCompleted =
-      Boolean(
-        String(loan.enach_umrn || "").trim(),
-      );
+    const nachCompleted = Boolean(String(loan.enach_umrn || "").trim());
 
     if (!agreementSigned || !nachCompleted) {
       await conn.rollback();
@@ -1737,8 +1724,7 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
       return res.status(400).json({
         status: "FAILED",
         code: "DISBURSEMENT_PREREQUISITES_INCOMPLETE",
-        message:
-          "Signed agreement and completed NACH required",
+        message: "Signed agreement and completed NACH required",
         agreement_signed: agreementSigned,
         nach_completed: nachCompleted,
       });
@@ -1749,10 +1735,7 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
     // ==================================================
 
     const disbursementAmount = Number(
-      loan.final_limit ||
-      loan.approved_limit ||
-      loan.loan_amount ||
-      0,
+      loan.final_limit || loan.approved_limit || loan.loan_amount || 0,
     );
 
     if (disbursementAmount <= 0) {
@@ -1769,11 +1752,10 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
     // PARTNER LIMIT CHECK
     // ==================================================
 
-    const partner =
-      await partnerLimitService.getOrCreatePartner(
-        conn,
-        "CLAIM-BUDDY",
-      );
+    const partner = await partnerLimitService.getOrCreatePartner(
+      conn,
+      "CLAIM-BUDDY",
+    );
 
     const now = new Date();
     const month = now.getMonth() + 1;
@@ -1794,11 +1776,8 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
 
       return res.status(403).json({
         status: "FAILED",
-        message:
-          limitCheck.message ||
-          "Disbursement limit exceeded",
-        remaining_limit:
-          limitCheck.remaining,
+        message: limitCheck.message || "Disbursement limit exceeded",
+        remaining_limit: limitCheck.remaining,
       });
     }
 
@@ -1824,18 +1803,15 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
     // INITIATE PAYOUT
     // ==================================================
 
-    const payoutResult =
-      await approveAndInitiatePayout({
-        lan,
-        table: "loan_booking_claim_buddy",
-      });
+    const payoutResult = await approveAndInitiatePayout({
+      lan,
+      table: "loan_booking_claim_buddy",
+    });
 
     if (!payoutResult.success) {
       return res.status(400).json({
         status: "FAILED",
-        message:
-          payoutResult.message ||
-          "Payout initiation failed",
+        message: payoutResult.message || "Payout initiation failed",
         lan,
         current_status: "DISBURSEMENT INITIATED",
       });
@@ -1853,34 +1829,22 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
       disbursement_amount: disbursementAmount,
       current_status: "DISBURSEMENT INITIATED",
     });
-
   } catch (err) {
-
     if (transactionStarted && conn) {
       await conn.rollback();
     }
 
-    console.error(
-      "❌ Claim Buddy initiate disbursement error:",
-      err,
-    );
+    console.error("❌ Claim Buddy initiate disbursement error:", err);
 
     return res.status(500).json({
       status: "FAILED",
-      message:
-        err.message ||
-        "Failed to initiate disbursement",
-      error:
-        err.sqlMessage ||
-        err.message,
+      message: err.message || "Failed to initiate disbursement",
+      error: err.sqlMessage || err.message,
     });
-
   } finally {
-
     if (conn) {
       conn.release();
     }
-
   }
 });
 
@@ -1889,26 +1853,46 @@ router.post("/initiate-disbursement/:lan", async (req, res) => {
 // ==========================================
 
 router.patch("/disburse/:lan", async (req, res) => {
+  const conn = await db.promise().getConnection();
+
   try {
     const { lan } = req.params;
 
-    const [[loan]] = await db.promise().query(
+    await conn.beginTransaction();
+
+    // 1. Get complete loan details required for Bullet RPS
+    const [[loan]] = await conn.query(
       `
-      SELECT status
+      SELECT
+        lan,
+        status,
+        loan_amount,
+        interest_rate,
+        loan_tenure,
+        final_limit,
+        approved_limit,
+        product,
+        lender
       FROM loan_booking_claim_buddy
       WHERE lan = ?
+      FOR UPDATE
       `,
       [lan],
     );
 
     if (!loan) {
+      await conn.rollback();
+
       return res.status(404).json({
         success: false,
         message: "Loan not found",
       });
     }
 
+    // 2. Validate current status
     if (loan.status !== "DISBURSEMENT INITIATED") {
+      await conn.rollback();
+
       return res.status(400).json({
         success: false,
         message: "Loan is not in DISBURSEMENT INITIATED status",
@@ -1916,7 +1900,64 @@ router.patch("/disburse/:lan", async (req, res) => {
       });
     }
 
-    await db.promise().query(
+    // 3. Determine actual disbursed principal
+    const disbursedAmount = Number(
+      loan.final_limit || loan.approved_limit || loan.loan_amount || 0,
+    );
+
+    if (!Number.isFinite(disbursedAmount) || disbursedAmount <= 0) {
+      await conn.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid disbursement amount",
+        loan_amount: loan.loan_amount,
+        final_limit: loan.final_limit,
+        approved_limit: loan.approved_limit,
+      });
+    }
+
+    // 4. Validate RPS inputs
+    const interestRate = Number(loan.interest_rate || 0);
+    const tenure = Number(loan.loan_tenure || 0);
+
+    if (!Number.isFinite(interestRate)) {
+      await conn.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid interest rate",
+        interest_rate: loan.interest_rate,
+      });
+    }
+
+    if (!Number.isInteger(tenure) || tenure <= 0) {
+      await conn.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid loan tenure",
+        loan_tenure: loan.loan_tenure,
+      });
+    }
+
+    // 5. Use today's date as disbursement date
+    const disbursementDate = new Date();
+
+    // 6. Generate Claim Buddy BULLET RPS
+    await generateRepaymentScheduleClaimBuddy(
+      conn,
+      lan,
+      disbursedAmount,
+      interestRate,
+      tenure,
+      disbursementDate,
+      loan.product,
+      loan.lender || "CLAIM-BUDDY",
+    );
+
+    // 7. Mark loan as DISBURSED
+    await conn.query(
       `
       UPDATE loan_booking_claim_buddy
       SET
@@ -1928,14 +1969,22 @@ router.patch("/disburse/:lan", async (req, res) => {
       [lan],
     );
 
+    // 8. Commit everything together
+    await conn.commit();
+
     return res.json({
       success: true,
-      message: "Loan disbursed successfully",
+      message: "Loan disbursed successfully and Bullet RPS generated",
       lan,
       status: "DISBURSED",
+      rps_generated: true,
+      disbursed_amount: disbursedAmount,
+      interest_rate: interestRate,
+      tenure: tenure,
     });
-
   } catch (err) {
+    await conn.rollback();
+
     console.error("Claim Buddy disbursement error:", err);
 
     return res.status(500).json({
@@ -1943,6 +1992,8 @@ router.patch("/disburse/:lan", async (req, res) => {
       message: "Disbursement failed",
       error: err.message,
     });
+  } finally {
+    conn.release();
   }
 });
 
@@ -2886,7 +2937,6 @@ router.post("/run-validation/:lan", async (req, res) => {
   }
 });
 
-
 // ======================================================
 // CLAIM BUDDY BRE ONLY - UAT / TESTING
 // Does NOT re-run PAN / Aadhaar / Bureau
@@ -2910,7 +2960,6 @@ router.post("/run-bre/:lan", async (req, res) => {
     });
   }
 });
-
 
 // ============================================================
 // CLAIM BUDDY - UPDATE DATA HELPERS
@@ -3695,10 +3744,7 @@ router.get("/ops-maker-approved-loans", async (req, res) => {
       data: rows,
     });
   } catch (err) {
-    console.error(
-      "❌ Claim Buddy OPS Checker loans fetch error:",
-      err
-    );
+    console.error("❌ Claim Buddy OPS Checker loans fetch error:", err);
 
     return res.status(500).json({
       status: "FAILED",
@@ -3708,7 +3754,6 @@ router.get("/ops-maker-approved-loans", async (req, res) => {
   }
 });
 
-
 // ======================================================
 // CLAIM BUDDY OPS CHECKER APPROVE / REJECT
 // ======================================================
@@ -3716,11 +3761,7 @@ router.get("/ops-maker-approved-loans", async (req, res) => {
 router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
   const { lan } = req.params;
 
-  const {
-    ops_checker_id,
-    ops_checker_name,
-    status,
-  } = req.body;
+  const { ops_checker_id, ops_checker_name, status } = req.body;
 
   let conn;
 
@@ -3783,8 +3824,7 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
 
       return res.status(400).json({
         status: "FAILED",
-        message:
-          `Loan is not available for OPS checker. Current status: ${loan.status}`,
+        message: `Loan is not available for OPS checker. Current status: ${loan.status}`,
       });
     }
 
@@ -3827,10 +3867,7 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
     // ==================================================
 
     const disbursalAmount = Number(
-      loan.final_limit ||
-      loan.approved_limit ||
-      loan.loan_amount ||
-      0,
+      loan.final_limit || loan.approved_limit || loan.loan_amount || 0,
     );
 
     if (disbursalAmount <= 0) {
@@ -3846,11 +3883,10 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
     // PARTNER LIMIT VALIDATION
     // ==================================================
 
-    const partner =
-      await partnerLimitService.getOrCreatePartner(
-        conn,
-        "CLAIM-BUDDY",
-      );
+    const partner = await partnerLimitService.getOrCreatePartner(
+      conn,
+      "CLAIM-BUDDY",
+    );
 
     const now = new Date();
     const month = now.getMonth() + 1;
@@ -3870,9 +3906,7 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
 
       return res.status(400).json({
         status: "FAILED",
-        message:
-          limitValidation.message ||
-          "Disbursement limit exceeded",
+        message: limitValidation.message || "Disbursement limit exceeded",
         remaining_limit: limitValidation.remaining,
       });
     }
@@ -3924,11 +3958,10 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
     // INITIATE PAYOUT
     // ==================================================
 
-    const payoutResult =
-      await approveAndInitiatePayout({
-        lan,
-        table: "loan_booking_claim_buddy",
-      });
+    const payoutResult = await approveAndInitiatePayout({
+      lan,
+      table: "loan_booking_claim_buddy",
+    });
 
     if (!payoutResult.success) {
       console.error(
@@ -3938,9 +3971,7 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
 
       return res.status(400).json({
         status: "FAILED",
-        message:
-          payoutResult.message ||
-          "Payout initiation failed",
+        message: payoutResult.message || "Payout initiation failed",
         lan,
         current_status: "DISBURSEMENT INITIATED",
       });
@@ -3954,42 +3985,101 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
 
     return res.json({
       status: "SUCCESS",
-      message:
-        "OPS checker approved. Payout initiated successfully.",
+      message: "OPS checker approved. Payout initiated successfully.",
       lan,
       disbursal_amount: disbursalAmount,
       current_status: "DISBURSEMENT INITIATED",
     });
-
   } catch (err) {
-
     if (conn) {
       await conn.rollback();
     }
 
-    console.error(
-      "❌ Claim Buddy OPS checker error:",
-      err,
-    );
+    console.error("❌ Claim Buddy OPS checker error:", err);
 
     return res.status(500).json({
       status: "FAILED",
-      message:
-        err.message ||
-        "Failed to process OPS checker action",
-      error:
-        err.sqlMessage ||
-        err.message,
+      message: err.message || "Failed to process OPS checker action",
+      error: err.sqlMessage || err.message,
     });
-
   } finally {
-
     if (conn) {
       conn.release();
     }
-
   }
 });
+
+
+//testing
+// router.post("/generate-rps/:lan", async (req, res) => {
+//   const conn = await db.promise().getConnection();
+
+//   try {
+//     const { lan } = req.params;
+
+//     await conn.beginTransaction();
+
+//     const [[loan]] = await conn.query(
+//       `
+//       SELECT
+//         lan,
+//         loan_amount,
+//         interest_rate,
+//         loan_tenure,
+//         final_limit,
+//         disbursed_at
+//       FROM loan_booking_claim_buddy
+//       WHERE lan = ?
+//       `,
+//       [lan],
+//     );
+
+//     if (!loan) {
+//       await conn.rollback();
+
+//       return res.status(404).json({
+//         success: false,
+//         message: "Loan not found",
+//       });
+//     }
+
+//     const loanAmount = Number(
+//       loan.final_limit ||
+//       loan.loan_amount ||
+//       0
+//     );
+
+//     await generateRepaymentScheduleClaimBuddy(
+//       conn,
+//       loan.lan,
+//       loanAmount,
+//       loan.interest_rate,
+//       loan.loan_tenure,
+//       loan.disbursed_at,
+//     );
+
+//     await conn.commit();
+
+//     return res.json({
+//       success: true,
+//       message: "Claim Buddy RPS generated successfully",
+//       lan,
+//     });
+
+//   } catch (err) {
+//     await conn.rollback();
+
+//     console.error("Claim Buddy RPS test error:", err);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//     });
+
+//   } finally {
+//     conn.release();
+//   }
+// });
 
 // ==========================================
 // EXPORT ROUTER

@@ -122,30 +122,22 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
 
     try {
       const res = await axios.get(
-        `https://api.postalpincode.in/pincode/${pin}`
+        `https://api.postalpincode.in/pincode/${pin}`,
       );
 
       const data = res.data[0];
 
-      if (
-        data.Status === "Success" &&
-        data.PostOffice?.length > 0
-      ) {
+      if (data.Status === "Success" && data.PostOffice?.length > 0) {
         const office = data.PostOffice[0];
 
-        const prefix =
-          type === "current"
-            ? "current"
-            : "permanent";
+        const prefix = type === "current" ? "current" : "permanent";
 
         setFormData((prev) => ({
           ...prev,
 
-          [`${prefix}_district`]:
-            office.District || "",
+          [`${prefix}_district`]: office.District || "",
 
-          [`${prefix}_state`]:
-            office.State || "",
+          [`${prefix}_state`]: office.State || "",
         }));
       }
     } catch (err) {
@@ -155,19 +147,13 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
 
   useEffect(() => {
     if (formData.current_pincode.length === 6) {
-      handlePincodeLookup(
-        formData.current_pincode,
-        "current"
-      );
+      handlePincodeLookup(formData.current_pincode, "current");
     }
   }, [formData.current_pincode]);
 
   useEffect(() => {
     if (formData.permanent_pincode.length === 6) {
-      handlePincodeLookup(
-        formData.permanent_pincode,
-        "permanent"
-      );
+      handlePincodeLookup(formData.permanent_pincode, "permanent");
     }
   }, [formData.permanent_pincode]);
 
@@ -180,20 +166,15 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
       setFormData((prev) => ({
         ...prev,
 
-        permanent_address:
-          prev.current_address,
+        permanent_address: prev.current_address,
 
-        permanent_village_city:
-          prev.current_village_city,
+        permanent_village_city: prev.current_village_city,
 
-        permanent_district:
-          prev.current_district,
+        permanent_district: prev.current_district,
 
-        permanent_state:
-          prev.current_state,
+        permanent_state: prev.current_state,
 
-        permanent_pincode:
-          prev.current_pincode,
+        permanent_pincode: prev.current_pincode,
       }));
     }
   }, [
@@ -242,20 +223,15 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
       setFormData((prev) => ({
         ...prev,
 
-        permanent_address:
-          prev.current_address,
+        permanent_address: prev.current_address,
 
-        permanent_village_city:
-          prev.current_village_city,
+        permanent_village_city: prev.current_village_city,
 
-        permanent_district:
-          prev.current_district,
+        permanent_district: prev.current_district,
 
-        permanent_state:
-          prev.current_state,
+        permanent_state: prev.current_state,
 
-        permanent_pincode:
-          prev.current_pincode,
+        permanent_pincode: prev.current_pincode,
       }));
     } else {
       setFormData((prev) => ({
@@ -278,12 +254,9 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     try {
       setOtpLoading(true);
 
-      const res = await api.post(
-        "claim-buddy/send-otp",
-        {
-          mobile: formData.mobile_number,
-        }
-      );
+      const res = await api.post("claim-buddy/send-otp", {
+        mobile: formData.mobile_number,
+      });
 
       if (res.data.success) {
         setResendTimer(60);
@@ -300,15 +273,9 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
         }, 1000);
       }
     } catch (err) {
-      console.log(
-        "Claim Buddy OTP error:",
-        err
-      );
+      console.log("Claim Buddy OTP error:", err);
 
-      alert(
-        err.response?.data?.message ||
-          "Failed to send OTP"
-      );
+      alert(err.response?.data?.message || "Failed to send OTP");
     } finally {
       setOtpLoading(false);
     }
@@ -332,29 +299,20 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     try {
       setOtpLoading(true);
 
-      const res = await api.post(
-        "claim-buddy/verify-otp",
-        {
-          mobile: formData.mobile_number,
-          otp,
-          consentText: CONSENT_TEXT,
-        }
-      );
+      const res = await api.post("claim-buddy/verify-otp", {
+        mobile: formData.mobile_number,
+        otp,
+        consentText: CONSENT_TEXT,
+      });
 
       if (res.data.success) {
         setOtpVerified(true);
         setShowConsentDialog(false);
       }
     } catch (err) {
-      console.log(
-        "Claim Buddy OTP verification error:",
-        err
-      );
+      console.log("Claim Buddy OTP verification error:", err);
 
-      alert(
-        err.response?.data?.message ||
-          "Invalid OTP"
-      );
+      alert(err.response?.data?.message || "Invalid OTP");
     } finally {
       setOtpLoading(false);
     }
@@ -365,10 +323,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
   // =====================================================
 
   const handleOpenConsentDialog = () => {
-    if (
-      !formData.mobile_number ||
-      formData.mobile_number.length !== 10
-    ) {
+    if (!formData.mobile_number || formData.mobile_number.length !== 10) {
       alert("Enter valid mobile number");
       return;
     }
@@ -386,9 +341,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     if (ifsc.length !== 11) return;
 
     try {
-      const res = await axios.get(
-        `https://ifsc.razorpay.com/${ifsc}`
-      );
+      const res = await axios.get(`https://ifsc.razorpay.com/${ifsc}`);
 
       const data = res.data;
 
@@ -399,9 +352,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
       }));
     } catch (err) {
       try {
-        const res2 = await axios.get(
-          `https://ifsc.bankifsccode.com/${ifsc}`
-        );
+        const res2 = await axios.get(`https://ifsc.bankifsccode.com/${ifsc}`);
 
         const data2 = res2.data;
 
@@ -411,9 +362,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
           bank_branch: data2.BRANCH || "",
         }));
       } catch (err2) {
-        console.log(
-          "Both IFSC APIs failed"
-        );
+        console.log("Both IFSC APIs failed");
 
         setFormData((prev) => ({
           ...prev,
@@ -438,31 +387,22 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     }
 
     if (name === "mobile_number") {
-      newValue = value
-        .replace(/\D/g, "")
-        .slice(0, 10);
+      newValue = value.replace(/\D/g, "").slice(0, 10);
     }
 
     if (name === "pan_number") {
-      newValue = value
-        .toUpperCase()
-        .replace(/\s/g, "")
-        .slice(0, 10);
+      newValue = value.toUpperCase().replace(/\s/g, "").slice(0, 10);
     }
 
     if (name === "email_id") {
-      newValue = value
-        .toLowerCase()
-        .replace(/\s/g, "");
+      newValue = value.toLowerCase().replace(/\s/g, "");
+    }
+    if (name === "subvention_percent") {
+      newValue = value === "" ? "0" : value;
     }
 
-    if (
-      name === "current_pincode" ||
-      name === "permanent_pincode"
-    ) {
-      newValue = value
-        .replace(/\D/g, "")
-        .slice(0, 6);
+    if (name === "current_pincode" || name === "permanent_pincode") {
+      newValue = value.replace(/\D/g, "").slice(0, 6);
     }
 
     if (name === "dob") {
@@ -470,27 +410,15 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
 
       const birthDate = new Date(value);
 
-      let age =
-        today.getFullYear() -
-        birthDate.getFullYear();
+      let age = today.getFullYear() - birthDate.getFullYear();
 
-      const m =
-        today.getMonth() -
-        birthDate.getMonth();
+      const m = today.getMonth() - birthDate.getMonth();
 
-      if (
-        m < 0 ||
-        (m === 0 &&
-          today.getDate() <
-            birthDate.getDate())
-      ) {
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
         age--;
       }
 
-      const error = validateAge(
-        age,
-        formData.policy_type
-      );
+      const error = validateAge(age, formData.policy_type);
 
       setAgeError(error);
 
@@ -504,10 +432,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     }
 
     if (name === "ifsc") {
-      newValue = value
-        .toUpperCase()
-        .replace(/\s/g, "")
-        .slice(0, 11);
+      newValue = value.toUpperCase().replace(/\s/g, "").slice(0, 11);
 
       if (newValue.length === 11) {
         fetchBankFromIFSC(newValue);
@@ -515,10 +440,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     }
 
     if (name === "policy_type") {
-      const error = validateAge(
-        Number(formData.age),
-        newValue
-      );
+      const error = validateAge(Number(formData.age), newValue);
 
       setAgeError(error);
     }
@@ -529,10 +451,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
         [name]: newValue,
       };
 
-      if (
-        name === "first_name" ||
-        name === "last_name"
-      ) {
+      if (name === "first_name" || name === "last_name") {
         updated.customer_name =
           `${updated.first_name} ${updated.last_name}`.trim();
       }
@@ -549,9 +468,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     e.preventDefault();
 
     if (!otpVerified) {
-      setMessage(
-        "❌ Please verify mobile number first"
-      );
+      setMessage("❌ Please verify mobile number first");
 
       return;
     }
@@ -561,50 +478,34 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
 
     const age = Number(formData.age);
 
-    const policyType =
-      formData.policy_type;
+    const policyType = formData.policy_type;
 
-    const currentAgeError =
-      validateAge(age, policyType);
+    const currentAgeError = validateAge(age, policyType);
 
     if (currentAgeError) {
       setAgeError(currentAgeError);
 
-      setMessage(
-        `❌ ${currentAgeError}`
-      );
+      setMessage(`❌ ${currentAgeError}`);
 
       setLoading(false);
 
       return;
     }
 
-    const panRegex =
-      /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
-    if (
-      formData.pan_number &&
-      !panRegex.test(formData.pan_number)
-    ) {
-      setMessage(
-        "❌ Invalid PAN format"
-      );
+    if (formData.pan_number && !panRegex.test(formData.pan_number)) {
+      setMessage("❌ Invalid PAN format");
 
       setLoading(false);
 
       return;
     }
 
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (
-      formData.email_id &&
-      !emailRegex.test(formData.email_id)
-    ) {
-      setMessage(
-        "❌ Invalid email format"
-      );
+    if (formData.email_id && !emailRegex.test(formData.email_id)) {
+      setMessage("❌ Invalid email format");
 
       setLoading(false);
 
@@ -612,18 +513,11 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
     }
 
     try {
-      const res = await api.post(
-        "claim-buddy/manual-entry",
-        formData
-      );
+      const res = await api.post("claim-buddy/manual-entry", formData);
 
-      setMessage(
-        `✅ ${res.data.message} | LAN: ${res.data.lan}`
-      );
+      setMessage(`✅ ${res.data.message} | LAN: ${res.data.lan}`);
 
-      setFormData(
-        getInitialFormData()
-      );
+      setFormData(getInitialFormData());
 
       setOtp("");
       setOtpVerified(false);
@@ -631,15 +525,9 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
       setSameAddress(false);
       setAgeError("");
     } catch (err) {
-      console.log(
-        "Claim Buddy loan creation error:",
-        err
-      );
+      console.log("Claim Buddy loan creation error:", err);
 
-      setMessage(
-        err.response?.data?.message ||
-          "❌ Something went wrong"
-      );
+      setMessage(err.response?.data?.message || "❌ Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -649,11 +537,7 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
   // COMMON INPUT
   // =====================================================
 
-  const renderInput = (
-    label,
-    name,
-    type = "text"
-  ) => (
+  const renderInput = (label, name, type = "text") => (
     <div className="modern-field">
       <label>{label}</label>
 
@@ -662,13 +546,8 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
         name={name}
         value={formData[name]}
         onChange={handleChange}
-        disabled={
-          sameAddress &&
-          name.startsWith("permanent")
-        }
-        onWheel={(e) =>
-          e.target.blur()
-        }
+        disabled={sameAddress && name.startsWith("permanent")}
+        onWheel={(e) => e.target.blur()}
       />
     </div>
   );
@@ -677,28 +556,15 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
   // COMMON SELECT
   // =====================================================
 
-  const renderSelect = (
-    label,
-    name,
-    options
-  ) => (
+  const renderSelect = (label, name, options) => (
     <div className="modern-field">
       <label>{label}</label>
 
-      <select
-        name={name}
-        value={formData[name]}
-        onChange={handleChange}
-      >
-        <option value="">
-          Select
-        </option>
+      <select name={name} value={formData[name]} onChange={handleChange}>
+        <option value="">Select</option>
 
         {options.map((opt) => (
-          <option
-            key={opt}
-            value={opt}
-          >
+          <option key={opt} value={opt}>
             {opt}
           </option>
         ))}
@@ -708,7 +574,6 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
 
   return (
     <div className="hospital-ui-wrapper">
-
       <style>{`
         .hospital-ui-wrapper {
           --primary: #0d9488;
@@ -1287,150 +1152,84 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
       `}</style>
 
       <div className="header-banner">
-
         <div>
-          <h1>
-            CLAIM BUDDY Loan Manual Entry
-          </h1>
+          <h1>CLAIM BUDDY Loan Manual Entry</h1>
 
           <p>
-            Complete the patient and borrower details to initiate the loan process
+            Complete the patient and borrower details to initiate the loan
+            process
           </p>
         </div>
 
-        <div className="date-badge">
-          Login Date: {formData.login_date}
-        </div>
-
+        <div className="date-badge">Login Date: {formData.login_date}</div>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="modern-form-grid"
-      >
-
+      <form onSubmit={handleSubmit} className="modern-form-grid">
         {/* ======================================
             HOSPITAL
         ====================================== */}
 
         <div className="ui-card">
-
           <div className="card-header">
-            <span className="icon">
-              🏥
-            </span>
+            <span className="icon">🏥</span>
 
-            <h3>
-              Hospital & Policy Details
-            </h3>
+            <h3>Hospital & Policy Details</h3>
           </div>
 
           <div className="grid-2">
-
             <div className="modern-field">
-
-              <label>
-                Hospital
-              </label>
+              <label>Hospital</label>
 
               <select
                 name="hospital_id"
                 value={formData.hospital_id}
                 onChange={handleChange}
               >
-
-                <option value="">
-                  Select Hospital
-                </option>
+                <option value="">Select Hospital</option>
 
                 {hospitals.map((h) => (
-                  <option
-                    key={h.id}
-                    value={h.id}
-                  >
+                  <option key={h.id} value={h.id}>
                     {h.name}
                   </option>
                 ))}
-
               </select>
-
             </div>
-
           </div>
-
         </div>
-
 
         {/* ======================================
             BORROWER
         ====================================== */}
 
         <div className="ui-card">
-
           <div className="card-header">
-            <span className="icon">
-              👤
-            </span>
+            <span className="icon">👤</span>
 
-            <h3>
-              Borrower Information
-            </h3>
+            <h3>Borrower Information</h3>
           </div>
 
           <div className="grid-3">
+            {renderInput("First Name", "first_name")}
 
-            {renderInput(
-              "First Name",
-              "first_name"
-            )}
+            {renderInput("Middle Name", "middle_name")}
 
-            {renderInput(
-              "Middle Name",
-              "middle_name"
-            )}
-
-            {renderInput(
-              "Last Name",
-              "last_name"
-            )}
-
+            {renderInput("Last Name", "last_name")}
           </div>
 
           <div className="grid-3">
+            {renderSelect("Gender", "gender", ["Male", "Female"])}
 
-            {renderSelect(
-              "Gender",
-              "gender",
-              [
-                "Male",
-                "Female",
-              ]
-            )}
+            {renderSelect("Policy Type", "policy_type", [
+              "Corporate Policy",
+              "Individual Policy",
+            ])}
 
-            {renderSelect(
-              "Policy Type",
-              "policy_type",
-              [
-                "Corporate Policy",
-                "Individual Policy",
-              ]
-            )}
-
-            {renderInput(
-              "DOB",
-              "dob",
-              "date"
-            )}
-
+            {renderInput("DOB", "dob", "date")}
           </div>
 
           <div className="grid-3">
-
             <div className="modern-field">
-
-              <label>
-                Age
-              </label>
+              <label>Age</label>
 
               <input
                 type="number"
@@ -1438,576 +1237,333 @@ I/We hereby agree to give my/our express consent to Lender to disclose all the i
                 value={formData.age}
                 readOnly
                 style={{
-                  borderColor:
-                    ageError
-                      ? "#e11d48"
-                      : "var(--border)",
+                  borderColor: ageError ? "#e11d48" : "var(--border)",
                 }}
               />
 
-              {ageError && (
-                <span className="inline-error">
-                  {ageError}
-                </span>
-              )}
-
+              {ageError && <span className="inline-error">{ageError}</span>}
             </div>
-
           </div>
 
           <div className="grid-2">
-
             <div className="modern-field">
-
-              <label>
-                Mobile Number (Aadhaar Linked)
-              </label>
+              <label>Mobile Number (Aadhaar Linked)</label>
 
               <div className="input-with-action">
-
                 <input
                   type="text"
                   name="mobile_number"
-                  value={
-                    formData.mobile_number
-                  }
-                  onChange={
-                    handleChange
-                  }
-                  disabled={
-                    otpVerified
-                  }
+                  value={formData.mobile_number}
+                  onChange={handleChange}
+                  disabled={otpVerified}
                 />
 
                 {!otpVerified ? (
                   <button
                     type="button"
                     className="otp-btn"
-                    onClick={
-                      handleOpenConsentDialog
-                    }
+                    onClick={handleOpenConsentDialog}
                   >
                     Send OTP
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    className="otp-btn verified"
-                    disabled
-                  >
+                  <button type="button" className="otp-btn verified" disabled>
                     Verified ✅
                   </button>
                 )}
-
               </div>
-
             </div>
 
-            {renderInput(
-              "Email ID",
-              "email_id",
-              "email"
-            )}
-
+            {renderInput("Email ID", "email_id", "email")}
           </div>
 
           <div className="grid-2">
+            {renderInput("PAN Number", "pan_number")}
 
-            {renderInput(
-              "PAN Number",
-              "pan_number"
-            )}
-
-            {renderSelect(
-              "Employment Type",
-              "employment_type",
-              [
-                "Salaried",
-                "Self-Employed",
-              ]
-            )}
-
+            {renderSelect("Employment Type", "employment_type", [
+              "Salaried",
+              "Self-Employed",
+            ])}
           </div>
 
           <div className="grid-2">
-
-            {renderInput(
-              "Net Monthly Income",
-              "net_monthly_income",
-              "number"
-            )}
-
+            {renderInput("Net Monthly Income", "net_monthly_income", "number")}
           </div>
-
         </div>
-
 
         {/* ======================================
             INSURANCE
         ====================================== */}
 
         <div className="ui-card">
-
           <div className="card-header">
+            <span className="icon">💳</span>
 
-            <span className="icon">
-              💳
-            </span>
-
-            <h3>
-              Insurance Details
-            </h3>
-
+            <h3>Insurance Details</h3>
           </div>
 
           <div className="grid-3">
+            {renderInput("Insurance Card / Company", "insurance_company_name")}
 
-            {renderInput(
-              "Insurance Card / Company",
-              "insurance_company_name"
-            )}
+            {renderInput("Policy Number", "insurance_policy_number")}
 
-            {renderInput(
-              "Policy Number",
-              "insurance_policy_number"
-            )}
-
-            {renderInput(
-              "Policy Holder Name",
-              "insurance_policy_holder_name"
-            )}
-
+            {renderInput("Policy Holder Name", "insurance_policy_holder_name")}
           </div>
 
           <div className="grid-3">
+            {renderInput("Patient Name", "patient_name")}
 
-            {renderInput(
-              "Patient Name",
-              "patient_name"
-            )}
+            {renderInput("Father's Name", "father_name")}
 
-            {renderInput(
-              "Father's Name",
-              "father_name"
-            )}
-
-            {renderInput(
-              "Mother's Name",
-              "mother_name"
-            )}
-
+            {renderInput("Mother's Name", "mother_name")}
           </div>
-
         </div>
-
 
         {/* ======================================
             CURRENT ADDRESS
         ====================================== */}
 
         <div className="grid-1">
-
           <div className="ui-card">
-
             <div className="card-header">
+              <span className="icon">📍</span>
 
-              <span className="icon">
-                📍
-              </span>
-
-              <h3>
-                Current Address
-              </h3>
-
+              <h3>Current Address</h3>
             </div>
 
-            {renderInput(
-              "Full Address",
-              "current_address"
-            )}
+            {renderInput("Full Address", "current_address")}
 
             <div className="grid-2">
+              {renderInput("Pincode", "current_pincode")}
 
-              {renderInput(
-                "Pincode",
-                "current_pincode"
-              )}
-
-              {renderInput(
-                "Village / City",
-                "current_village_city"
-              )}
-
+              {renderInput("Village / City", "current_village_city")}
             </div>
 
             <div className="grid-2">
+              {renderInput("District", "current_district")}
 
-              {renderInput(
-                "District",
-                "current_district"
-              )}
-
-              {renderInput(
-                "State",
-                "current_state"
-              )}
-
+              {renderInput("State", "current_state")}
             </div>
-
           </div>
-
 
           {/* ======================================
               PERMANENT ADDRESS
           ====================================== */}
 
           <div className="ui-card">
-
             <div className="card-header">
+              <span className="icon">🏠</span>
 
-              <span className="icon">
-                🏠
-              </span>
-
-              <h3>
-                Permanent Address
-              </h3>
-
+              <h3>Permanent Address</h3>
             </div>
 
             <label className="checkbox-container">
-
               <input
                 type="checkbox"
-                checked={
-                  sameAddress
-                }
-                onChange={
-                  handleSameAddress
-                }
+                checked={sameAddress}
+                onChange={handleSameAddress}
               />
-
               Same as Current Address
-
             </label>
 
-            {renderInput(
-              "Full Address",
-              "permanent_address"
-            )}
+            {renderInput("Full Address", "permanent_address")}
 
             <div className="grid-2">
+              {renderInput("Pincode", "permanent_pincode")}
 
-              {renderInput(
-                "Pincode",
-                "permanent_pincode"
-              )}
-
-              {renderInput(
-                "Village / City",
-                "permanent_village_city"
-              )}
-
+              {renderInput("Village / City", "permanent_village_city")}
             </div>
 
             <div className="grid-2">
+              {renderInput("District", "permanent_district")}
 
-              {renderInput(
-                "District",
-                "permanent_district"
-              )}
-
-              {renderInput(
-                "State",
-                "permanent_state"
-              )}
-
+              {renderInput("State", "permanent_state")}
             </div>
-
           </div>
-
         </div>
-
 
         {/* ======================================
             BANK & LOAN
         ====================================== */}
 
         <div className="ui-card">
-
           <div className="card-header">
+            <span className="icon">🏦</span>
 
-            <span className="icon">
-              🏦
-            </span>
+            <h3>Banking & Financials</h3>
+          </div>
 
-            <h3>
-              Banking & Financials
-            </h3>
+          <div className="grid-2">{renderInput("IFSC Code", "ifsc")}</div>
 
+          <div className="grid-2">
+            {renderInput("Bank Name", "bank_name")}
+
+            {renderInput("Branch Name", "bank_branch")}
           </div>
 
           <div className="grid-2">
+            {renderInput("Account Holder Name", "name_in_bank")}
 
-            {renderInput(
-              "IFSC Code",
-              "ifsc"
-            )}
-
-          </div>
-
-          <div className="grid-2">
-
-            {renderInput(
-              "Bank Name",
-              "bank_name"
-            )}
-
-            {renderInput(
-              "Branch Name",
-              "bank_branch"
-            )}
-
-          </div>
-
-          <div className="grid-2">
-
-            {renderInput(
-              "Account Holder Name",
-              "name_in_bank"
-            )}
-
-            {renderInput(
-              "Account Number",
-              "account_number"
-            )}
-
+            {renderInput("Account Number", "account_number")}
           </div>
 
           <div
             className="grid-2"
             style={{
-              marginTop:
-                "20px",
+              marginTop: "20px",
 
-              borderTop:
-                "1px solid #f1f5f9",
+              borderTop: "1px solid #f1f5f9",
 
-              paddingTop:
-                "20px",
+              paddingTop: "20px",
             }}
           >
+            {renderInput("Requested Loan Amount", "loan_amount", "number")}
 
-            {renderInput(
-              "Requested Loan Amount",
-              "loan_amount",
-              "number"
-            )}
+            <div className="modern-field">
+              <label>Subvention (%)</label>
 
-            {renderInput(
-              "Subvention (%)",
-              "subvention_percent",
-              "number"
-            )}
+              <input
+                type="number"
+                name="subvention_percent"
+                value={formData.subvention_percent}
+                onChange={handleChange}
+                min="0"
+                step="0.01"
+                onWheel={(e) => e.target.blur()}
+              />
 
+              <span
+                style={{
+                  fontSize: "11px",
+                  color: "var(--primary)",
+                  marginTop: "2px",
+                  fontWeight: "500",
+                }}
+              >
+                (Note: If subvention is not known, enter 0%)
+              </span>
+            </div>
           </div>
-
         </div>
 
-
-        <button
-          type="submit"
-          className="main-submit-btn"
-          disabled={loading}
-        >
-          {loading
-            ? "Processing..."
-            : "Submit Loan Application"}
+        <button type="submit" className="main-submit-btn" disabled={loading}>
+          {loading ? "Processing..." : "Submit Loan Application"}
         </button>
-
       </form>
-
 
       {message && (
         <div
           className="message"
           style={{
-            color:
-              message.includes("✅")
-                ? "#059669"
-                : "#e11d48",
+            color: message.includes("✅") ? "#059669" : "#e11d48",
           }}
         >
           {message}
         </div>
       )}
 
-
       {/* ======================================
           OTP / CONSENT MODAL
       ====================================== */}
 
       {showConsentDialog && (
-
         <div className="modern-modal-overlay">
-
           <div className="modal-card">
+            <h3>Medical Consent & Verification</h3>
 
-            <h3>
-              Medical Consent & Verification
-            </h3>
-
-            <div className="consent-scroll">
-              {CONSENT_TEXT}
-            </div>
+            <div className="consent-scroll">{CONSENT_TEXT}</div>
 
             <label className="checkbox-container">
-
               <input
                 type="checkbox"
-                checked={
-                  consentChecked
-                }
-                onChange={(e) =>
-                  setConsentChecked(
-                    e.target.checked
-                  )
-                }
+                checked={consentChecked}
+                onChange={(e) => setConsentChecked(e.target.checked)}
               />
-
               I agree to the terms and authorize the verification process.
-
             </label>
 
             <div
               className="modern-field"
               style={{
-                marginBottom:
-                  "20px",
+                marginBottom: "20px",
               }}
             >
-
-              <label>
-                Enter 6-Digit OTP
-              </label>
+              <label>Enter 6-Digit OTP</label>
 
               <input
                 type="text"
                 placeholder="000000"
                 value={otp}
                 onChange={(e) =>
-                  setOtp(
-                    e.target.value
-                      .replace(/\D/g, "")
-                      .slice(0, 6)
-                  )
+                  setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
                 }
-                disabled={
-                  !consentChecked
-                }
+                disabled={!consentChecked}
               />
-
             </div>
 
             <div className="modal-actions">
-
               <button
                 type="button"
                 className="otp-btn"
                 style={{
                   flex: 1,
-                  padding:
-                    "14px",
+                  padding: "14px",
                 }}
-                disabled={
-                  !consentChecked ||
-                  otpLoading
-                }
-                onClick={
-                  verifyOtpHandler
-                }
+                disabled={!consentChecked || otpLoading}
+                onClick={verifyOtpHandler}
               >
-                {otpLoading
-                  ? "Verifying..."
-                  : "Verify & Close"}
+                {otpLoading ? "Verifying..." : "Verify & Close"}
               </button>
 
               <button
                 type="button"
                 className="btn-ghost"
-                onClick={() =>
-                  setShowConsentDialog(
-                    false
-                  )
-                }
+                onClick={() => setShowConsentDialog(false)}
               >
                 Cancel
               </button>
-
             </div>
 
             <div
               style={{
-                textAlign:
-                  "center",
+                textAlign: "center",
 
-                marginTop:
-                  "15px",
+                marginTop: "15px",
 
-                fontSize:
-                  "13px",
+                fontSize: "13px",
               }}
             >
-
               {resendTimer > 0 ? (
-
                 <span
                   style={{
-                    color:
-                      "var(--text-light)",
+                    color: "var(--text-light)",
                   }}
                 >
-                  Resend OTP in{" "}
-                  {resendTimer}s
+                  Resend OTP in {resendTimer}s
                 </span>
-
               ) : (
-
                 <button
                   type="button"
                   style={{
-                    background:
-                      "none",
+                    background: "none",
 
-                    border:
-                      "none",
+                    border: "none",
 
-                    color:
-                      "var(--primary)",
+                    color: "var(--primary)",
 
-                    cursor:
-                      "pointer",
+                    cursor: "pointer",
 
-                    fontWeight:
-                      "600",
+                    fontWeight: "600",
                   }}
-                  onClick={
-                    sendOtp
-                  }
+                  onClick={sendOtp}
                 >
                   Resend OTP
                 </button>
-
               )}
-
             </div>
-
           </div>
-
         </div>
-
       )}
-
     </div>
   );
 };

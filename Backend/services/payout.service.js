@@ -76,6 +76,7 @@ const TABLE_TO_PARTNER_NAME = {
   pl_partner_applications: "PL PARTNER",
   loan_booking_quick_money: "QUICK MONEY",
   loan_booking_ya_money: "YAMONEY",
+  loan_booking_claim_buddy: "CLAIM-BUDDY",
 };
 
 // manual_rps_* table backing each partner's live POS (principal outstanding),
@@ -398,6 +399,20 @@ exports.approveAndInitiatePayout = async ({ lan, table }) => {
         LIMIT 1
       `;
     }
+
+    // CLAIM BUDDY
+    if (table === "loan_booking_claim_buddy") {
+  loanQuery = `
+    SELECT
+      name_in_bank AS beneficiary_name,
+      final_limit AS loan_amount,
+      account_number AS account_number,
+      ifsc AS ifsc
+    FROM loan_booking_claim_buddy
+    WHERE lan = ?
+    LIMIT 1
+  `;
+}
 
     if (table === "pl_partner_applications") {
       loanQuery = `
