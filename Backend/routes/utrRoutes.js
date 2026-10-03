@@ -1286,6 +1286,22 @@ else if (lan.startsWith("SFL")) {
     `,
               [preEmiDays, preEmiAmount, netDisbursement, lan],
             );
+          } else if (lan.startsWith("SW")) {
+
+              const [saswatUpdate] = await conn.query(
+                `
+                  UPDATE loan_booking_saswat
+                  SET status = 'Disbursed'
+                  WHERE lan = ?
+                `,
+                [lan],
+              );
+            
+              console.log("✅ Saswat status updated", {
+                lan,
+                affectedRows: saswatUpdate.affectedRows,
+              });
+            
           } else {
             await conn.query(
               "UPDATE loan_booking_adikosh SET status = 'Disbursed' WHERE lan = ?",

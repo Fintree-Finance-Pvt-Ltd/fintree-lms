@@ -5532,6 +5532,51 @@ if (hasCompleteBankDetails) {
     });
   }
 }
+      // ======================================================
+      // CROSS PRODUCT CHECK: QUICK MONEY
+      // ======================================================
+      if (loan.pan_number) {
+        const [quickMoneyCases] = await connection.query(
+          `
+          SELECT status 
+          FROM loan_booking_quick_money 
+          WHERE pan_number = ? 
+            AND status NOT IN ('Fully Paid', 'CLOSED', 'REJECTED', 'CANCELLED')
+          LIMIT 1
+          `,
+          [loan.pan_number]
+        );
+
+        if (quickMoneyCases.length > 0) {
+          await connection.query(
+            `UPDATE loan_booking_switch_my_loan
+             SET status = ?,
+                 sml_bre_status = ?,
+                 sml_bre_reason = ?,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE application_id = ?`,
+            [
+              "REJECTED",
+              "REJECTED",
+              "Active Quick Money loan exists",
+              application_id,
+            ]
+          );
+
+          const breResponse = buildPartnerBreResponse({
+            decision: "REJECTED",
+          });
+
+          return res.json({
+            is_success: true,
+            data: {
+              status: "Rejected",
+              bre_response: breResponse,
+            },
+          });
+        }
+      }
+
       const breEngineResult = await runBRE(loan, {
         onboardingCompleted: onboarding_completed,
       });
