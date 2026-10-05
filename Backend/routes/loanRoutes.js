@@ -81,7 +81,7 @@ router.get("/loan-booking/:lan", (req, res) => {
   }else if (lan.startsWith("WCTLFFPL")) {
     table = "loan_booking_wctl_ffpl";
     posTable = "manual_rps_wctl_ffpl";
-  }  else if (lan.startsWith("WCTL")) {
+  } else if (lan.startsWith("WCTL")) {
     table = "loan_bookings_wctl";
     posTable = "manual_rps_wctl";
   } else if (lan.startsWith("TLF")) {
@@ -90,12 +90,10 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("CIRF")) {
     table = "loan_booking_circle_pe";
     posTable = "manual_rps_circlepe";
-  }
-  else if (lan.startsWith("CIRHUF")) {
+  } else if (lan.startsWith("CIRHUF")) {
     table = "loan_booking_circle_pe_houser";
     posTable = "manual_rps_circle_pe_houser";
-  }
-   else if (lan.startsWith("HEL")) {
+  } else if (lan.startsWith("HEL")) {
     table = "loan_booking_helium";
     posTable = "manual_rps_helium";
   } else if (lan.startsWith("ZYPF")) {
@@ -106,6 +104,9 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("CLY")) {
     table = "loan_booking_clayyo";
     posTable = "manual_rps_clayoo";
+  } else if (lan.startsWith("CBF")) {
+    table = "loan_booking_claim_buddy";
+    posTable = "manual_rps_claim_buddy";
   } else if (lan.startsWith("LDF")) {
     table = "loan_booking_loan_digit";
     posTable = "manual_rps_loan_digit";
@@ -115,30 +116,25 @@ router.get("/loan-booking/:lan", (req, res) => {
   } else if (lan.startsWith("SPL")) {
     table = "loan_booking_sampada";
     posTable = "manual_rps_sampada";
-  }else if (lan.startsWith("SFL")) {
+  } else if (lan.startsWith("SFL")) {
     table = "loan_booking_seven_fincorp";
     posTable = "manual_rps_seven_fincorp";
-  }
-  else if (lan.startsWith("SH")) {
+  } else if (lan.startsWith("SH")) {
     table = "loan_booking_srbh";
     posTable = "manual_rps_srbh";
-  }else if (lan.startsWith("BUN")) {
+  } else if (lan.startsWith("BUN")) {
     table = "loan_booking_bundela";
     posTable = "manual_rps_bundela";
   } else if (lan.startsWith("FCCOD")) {
     table = "loan_booking_wctl_cc_od";
-  }
-  else if (lan.startsWith("RML")) {
+  } else if (lan.startsWith("RML")) {
     table = "loan_booking_switch_my_loan";
-  }
-    else if (lan.startsWith("QML")) {
+  } else if (lan.startsWith("QML")) {
     table = "loan_booking_quick_money";
-  }
-  else if (lan.startsWith("UBLF")) {
+  } else if (lan.startsWith("UBLF")) {
     table = "loan_booking_sterlion_ubl";
     posTable = "manual_rps_sterlion_ubl";
-  }
-  else if (lan.startsWith("SW")) {
+  } else if (lan.startsWith("SW")) {
     table = "loan_booking_saswat";
     posTable = "manual_rps_saswat";
   }

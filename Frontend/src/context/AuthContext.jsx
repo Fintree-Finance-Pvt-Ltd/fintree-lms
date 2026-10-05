@@ -51,7 +51,7 @@ const AuthProvider = ({ children }) => {
       if (storedUser) {
         try {
           setUser(JSON.parse(storedUser));
-          return;
+          // Continue to /auth/me so cached page permissions are refreshed.
         } catch (err) {
           console.error('❌ Failed to parse stored user:', err);
           localStorage.removeItem('user');
