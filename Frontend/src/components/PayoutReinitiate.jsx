@@ -30,7 +30,7 @@ const PayoutReinitiate = () => {
 
     try {
       setProcessingId(id);
-      const response = await api.post("/api/payout/reinitiate", { id, lan });
+      const response = await api.post("/payout/reinitiate", { id, lan });
       toast.success(response.data.message || "Payout reinitiated successfully!");
       // Refresh list
       fetchFailedPayouts();
