@@ -517,10 +517,10 @@ function buildStatusUpdateQuery(tableName, columns) {
           WHEN due_date < CURDATE()
            AND (${hasOutstanding})
           THEN DATEDIFF(CURDATE(), due_date)
-
           ELSE 0
 
         END
+      WHERE status != 'Paid' OR status IS NULL
     `,
   };
 }
@@ -622,18 +622,18 @@ cron.schedule(
        * This will execute every two minutes because it is
        * inside this cron.
        */
-      const sql = `
-        CALL sp_cc_ood_generate_all(
-          DATE_SUB(CURDATE(), INTERVAL 1 DAY),
-          DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-        )
-      `;
+      // const sql = `
+      //   CALL sp_cc_ood_generate_all(
+      //     DATE_SUB(CURDATE(), INTERVAL 1 DAY),
+      //     DATE_SUB(CURDATE(), INTERVAL 1 DAY)
+      //   )
+      // `;
 
-      await db.promise().query(sql);
+      // await db.promise().query(sql);
 
-      console.log(
-        `✅ OOD ledger generated successfully for all LANs (total ${Date.now() - dpdCronStartedAt}ms)`,
-      );
+      // console.log(
+      //   `✅ OOD ledger generated successfully for all LANs (total ${Date.now() - dpdCronStartedAt}ms)`,
+      // );
     } catch (error) {
       console.error(
         `❌ DPD/OOD cron failed after ${Date.now() - dpdCronStartedAt}ms:`,
@@ -649,7 +649,9 @@ cron.schedule(
 );
 
 
-// 2️⃣ PDF generator cron
+// 2️⃣ PDF generator cron (Push to Queue)
+const { pdfQueue } = require("../workers/pdfQueue");
+
 cron.schedule("*/2 * * * *", async () => {
   if (isCibilPdfCronRunning) {
     console.log("⏭️ Previous CIBIL PDF cron is still running. Skipping this execution.");
@@ -658,16 +660,23 @@ cron.schedule("*/2 * * * *", async () => {
 
   isCibilPdfCronRunning = true;
   const startedAt = Date.now();
-  console.log("🧾 Running CIBIL PDF generator (every 2 min)...");
+  console.log("🧾 Checking for pending CIBIL PDFs to queue...");
 
   try {
-    const results = await generateAllPending(150);
-    const ok = results.filter(r => r.ok).length;
-    const fail = results.length - ok;
-    console.log(`✅ PDF job finished in ${Date.now() - startedAt}ms | processed: ${results.length}, success: ${ok}, failed: ${fail}`);
-    results.filter(r => !r.ok).forEach(r => console.error(`  ↳ id=${r.id} error=${r.error}`));
+    // Fetch ALL pending PDFs instead of LIMIT 100 to handle bursts of 5-10 cases/second
+    const [rows] = await db.promise().query(
+      'SELECT id FROM loan_cibil_reports WHERE pdf_generated = 0 ORDER BY id ASC'
+    );
+    
+    for (const row of rows) {
+      await pdfQueue.add('generate-cibil', { reportId: row.id }, {
+        jobId: `cibil-pdf-${row.id}` // Prevent duplicate jobs for the same report
+      });
+    }
+    
+    console.log(`✅ Queued ${rows.length} pending CIBIL PDFs in ${Date.now() - startedAt}ms`);
   } catch (e) {
-    console.error(`❌ PDF cron failed after ${Date.now() - startedAt}ms:`, e.message);
+    console.error(`❌ PDF queuing failed after ${Date.now() - startedAt}ms:`, e.message);
   } finally {
     isCibilPdfCronRunning = false;
   }
@@ -1101,95 +1110,95 @@ cron.schedule(
 const REJECTION_WEBHOOK_BACKFILL_BATCH_SIZE = 500;
 let isRejectionWebhookBackfillRunning = false;
 
-cron.schedule(
-  "*/2 * * * *",
-  async () => {
-    if (isRejectionWebhookBackfillRunning) {
-      console.log(
-        "⏭️ Previous rejection webhook backfill batch is still running. Skipping this tick.",
-      );
-      return;
-    }
-
-    isRejectionWebhookBackfillRunning = true;
-    const startedAt = Date.now();
-
-    try {
-      const [loans] = await db.promise().query(
-        `
-        SELECT l.id, l.lan, l.application_id
-        FROM loan_booking_switch_my_loan l
-        LEFT JOIN rapid_money_webhook_logs w
-          ON w.application_id = l.application_id
-         AND w.webhook_type = 'REJECTION'
-         AND w.status = 'SUCCESS'
-        WHERE l.status = 'REJECTED'
-          AND l.sml_bre_status = 'INACTIVITY'
-          AND w.id IS NULL
-        ORDER BY l.id ASC
-        LIMIT ?
-        `,
-        [REJECTION_WEBHOOK_BACKFILL_BATCH_SIZE],
-      );
-
-      if (loans.length === 0) {
-        return;
-      }
-
-      let success = 0;
-      let failed = 0;
-      let skipped = 0;
-
-      for (const loan of loans) {
-        if (!loan.application_id) {
-          skipped++;
-
-          console.error(
-            `⚠️ Rejection webhook backfill skipped | ` +
-            `id=${loan.id} | ` +
-            `lan=${loan.lan || "NULL"} | ` +
-            `application_id missing`,
-          );
-
-          continue;
-        }
-
-        try {
-          await sendRejectionWebhook({
-            applicationId: loan.application_id,
-          });
-
-          success++;
-        } catch (webhookError) {
-          failed++;
-
-          console.error(
-            `❌ Rejection webhook backfill failed | ` +
-            `id=${loan.id} | ` +
-            `lan=${loan.lan || "NULL"} | ` +
-            `applicationId=${loan.application_id} | ` +
-            `error=${webhookError.message}`,
-          );
-        }
-      }
-
-      console.log(
-        `✅ Rejection webhook backfill batch finished in ${Date.now() - startedAt}ms | ` +
-        `processed=${loans.length} | success=${success} | failed=${failed} | skipped=${skipped}`,
-      );
-    } catch (error) {
-      console.error(
-        `❌ Rejection webhook backfill cron failed after ${Date.now() - startedAt}ms:`,
-        error.message,
-      );
-    } finally {
-      isRejectionWebhookBackfillRunning = false;
-    }
-  },
-  {
-    timezone: "Asia/Kolkata",
-  },
-);
+// cron.schedule(
+//   "*/2 * * * *",
+//   async () => {
+//     if (isRejectionWebhookBackfillRunning) {
+//       console.log(
+//         "⏭️ Previous rejection webhook backfill batch is still running. Skipping this tick.",
+//       );
+//       return;
+//     }
+// 
+//     isRejectionWebhookBackfillRunning = true;
+//     const startedAt = Date.now();
+// 
+//     try {
+//       const [loans] = await db.promise().query(
+//         `
+//         SELECT l.id, l.lan, l.application_id
+//         FROM loan_booking_switch_my_loan l
+//         LEFT JOIN rapid_money_webhook_logs w
+//           ON w.application_id = l.application_id
+//          AND w.webhook_type = 'REJECTION'
+//          AND w.status = 'SUCCESS'
+//         WHERE l.status = 'REJECTED'
+//           AND l.sml_bre_status = 'INACTIVITY'
+//           AND w.id IS NULL
+//         ORDER BY l.id ASC
+//         LIMIT ?
+//         `,
+//         [REJECTION_WEBHOOK_BACKFILL_BATCH_SIZE],
+//       );
+// 
+//       if (loans.length === 0) {
+//         return;
+//       }
+// 
+//       let success = 0;
+//       let failed = 0;
+//       let skipped = 0;
+// 
+//       for (const loan of loans) {
+//         if (!loan.application_id) {
+//           skipped++;
+// 
+//           console.error(
+//             `⚠️ Rejection webhook backfill skipped | ` +
+//             `id=${loan.id} | ` +
+//             `lan=${loan.lan || "NULL"} | ` +
+//             `application_id missing`,
+//           );
+// 
+//           continue;
+//         }
+// 
+//         try {
+//           await sendRejectionWebhook({
+//             applicationId: loan.application_id,
+//           });
+// 
+//           success++;
+//         } catch (webhookError) {
+//           failed++;
+// 
+//           console.error(
+//             `❌ Rejection webhook backfill failed | ` +
+//             `id=${loan.id} | ` +
+//             `lan=${loan.lan || "NULL"} | ` +
+//             `applicationId=${loan.application_id} | ` +
+//             `error=${webhookError.message}`,
+//           );
+//         }
+//       }
+// 
+//       console.log(
+//         `✅ Rejection webhook backfill batch finished in ${Date.now() - startedAt}ms | ` +
+//         `processed=${loans.length} | success=${success} | failed=${failed} | skipped=${skipped}`,
+//       );
+//     } catch (error) {
+//       console.error(
+//         `❌ Rejection webhook backfill cron failed after ${Date.now() - startedAt}ms:`,
+//         error.message,
+//       );
+//     } finally {
+//       isRejectionWebhookBackfillRunning = false;
+//     }
+//   },
+//   {
+//     timezone: "Asia/Kolkata",
+//   },
+// );
 
 
 

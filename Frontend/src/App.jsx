@@ -16,6 +16,7 @@ import RepaymentsUpload from "./components/RepaymentsUpload";
 import CreateCharges from "./components/CreateChargesUpload";
 import DeleteCashflow from "./components/DeleteCashflow";
 import ForecloserUpload from "./components/ForecloserUpload";
+import PayoutReinitiate from "./components/PayoutReinitiate";
 import LoanApplicationForm from "./components/LoanApplicationForm";
 import DownloadExcelTemplates from "./components/DownloadTemplate";
 import EVApprovedLoans from "./components/ApprovedLoans";
@@ -2793,7 +2794,11 @@ function App() {
               </PermissionRoute>
             }
           />
-
+          
+          <Route 
+             path="/payout-reinitiate" 
+             element={<PayoutReinitiate />} 
+          />
 
           <Route
             path="/saswat/approved-loans"
