@@ -11,7 +11,7 @@ const PayoutReinitiate = () => {
   const fetchFailedPayouts = async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/payout/failed-payouts");
+      const response = await api.get("/payout/failed-payouts");
       setPayouts(response.data);
     } catch (error) {
       console.error("Failed to fetch payouts:", error);
