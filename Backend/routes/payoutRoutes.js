@@ -70,7 +70,22 @@ router.post('/reinitiate', verifyToken, async (req, res) => {
       [table, lan]
     );
 
-    res.json({ message: "Payout reinitiated successfully. Status updated to BRE_APPROVED.", lan });
+    // 3. Call the payout service to actually initiate the transfer
+    const payoutService = require('../services/payout.service');
+    const payoutResult = await payoutService.approveAndInitiatePayout({ lan, table });
+
+    if (payoutResult && payoutResult.success === false) {
+       return res.status(400).json({ 
+         message: payoutResult.message || "Payout initiation failed from provider.",
+         details: payoutResult
+       });
+    }
+
+    res.json({ 
+      message: "Payout reinitiated successfully.", 
+      lan,
+      payoutResult 
+    });
   } catch (err) {
     console.error("Error reinitiating payout:", err);
     res.status(500).json({ message: "Failed to reinitiate payout" });
