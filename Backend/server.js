@@ -588,8 +588,8 @@ app.use(
 
 // app.use("/api/courses", courseRoutes);
 app.use("/api/loan", verifyToken, loanRoutes); //  routes chanegd
-app.use("/api/repayments", verifyToken, repaymentRoutes);
-app.use("/api/collection", verifyToken, collectionApiRoutes);
+app.use("/api/repayments",  repaymentRoutes);
+app.use("/api/collection",  collectionApiRoutes);
 app.use("/api/loan-charges", verifyToken, loanChargesRoutes);
 app.use("/api/manual-rps", verifyToken, manualRPSRoutes);
 app.use("/api/disbursal", verifyToken, DisbursalRoutes);
