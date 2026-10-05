@@ -55,19 +55,24 @@ router.post('/reinitiate', verifyToken, async (req, res) => {
     // 1. Delete from quick_transfers
     await db.promise().query('DELETE FROM quick_transfers WHERE id = ?', [id]);
 
-    // 2. Set status to BRE_APPROVED in correct loan booking table based on LAN prefix
+    // 2. Set status to correct value in the correct loan booking table based on LAN prefix
     let table = null;
+    let statusToSet = 'BRE_APPROVED';
+
     if (lan.startsWith('RML')) {
       table = 'loan_booking_switch_my_loan';
     } else if (lan.startsWith('QML')) {
       table = 'loan_booking_quick_money';
+    } else if (lan.startsWith('FINE')) {
+      table = 'loan_booking_emiclub';
+      statusToSet = 'Login';
     } else {
       return res.status(400).json({ message: "Unknown LAN prefix. Cannot determine loan booking table." });
     }
 
     await db.promise().query(
-      `UPDATE ?? SET status = 'BRE_APPROVED' WHERE lan = ?`,
-      [table, lan]
+      `UPDATE ?? SET status = ? WHERE lan = ?`,
+      [table, statusToSet, lan]
     );
 
     // 3. Call the payout service to actually initiate the transfer
