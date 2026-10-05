@@ -551,7 +551,7 @@ async function getClaimCureBuddyLoanData(lan) {
 }
 
 async function getLoanData(lan) {
-  const { summaryTable, rpsTable } = getLoanContext(lan);
+  const { summaryTable, rpsTable, type, bookingTable } = getLoanContext(lan);
 
   if (summaryTable === "claim_cure_buddy_loan_summary") {
     return getClaimCureBuddyLoanData(lan);
@@ -589,27 +589,83 @@ async function getLoanData(lan) {
   }
 
   // ===============================
-  // Claim Buddy SUMMARY
+  // CLAIM BUDDY
   // ===============================
   else if (summaryTable === "claim_buddy_loan_summary") {
     const [rows] = await db.promise().query(
       `
-      SELECT
-        LAN,
-        CUST_NAME,
-        PER_ADD,
-        FINAL_LIMIT,
-        CUST_PAN,
-        CUST_AGE,
-        HOSPITAL_NAME,
-        CUST_BANK,
-        CUST_ACC_NO,
-        DATE_FORMAT(CUR_DATE,'%d-%m-%Y') AS CUR_DATE
-      FROM claim_buddy_loan_summary
-      WHERE LAN = ?
+    SELECT
+      s.LAN AS LAN,
+      s.CUST_NAME AS CUST_NAME,
+      s.PER_ADD AS PER_ADD,
+      s.FINAL_LIMIT AS FINAL_LIMIT,
+      s.CUST_PAN AS CUST_PAN,
+      s.CUST_AGE AS CUST_AGE,
+      s.HOSPITAL_NAME AS HOSPITAL_NAME,
+
+      DATE_FORMAT(
+        s.CUR_DATE,
+        '%d-%m-%Y'
+      ) AS CUR_DATE,
+
+      b.app_id AS APP_ID,
+      b.gender AS GENDER,
+      b.mobile_number AS MOBILE,
+      b.email_id AS EMAIL,
+
+      b.name_in_bank AS NAME_IN_BANK,
+      b.bank_name AS BANK_NAME,
+      b.bank_branch AS BANK_BRANCH,
+      b.account_number AS ACCOUNT_NUMBER,
+      b.ifsc AS IFSC,
+      b.enach_umrn AS UMRN,
+
+      b.emi_amount AS EMI_AMOUNT,
+      b.loan_tenure AS TENURE,
+      b.interest_rate AS INTEREST_RATE,
+
+      b.pf_percent AS PF_PERCENT,
+
+      b.hospital_name AS HOSPITAL_NAME,
+      b.patient_name AS PATIENT_NAME,
+
+      b.insurance_company_name AS INSURANCE_COMPANY,
+      b.insurance_policy_number AS POLICY_NUMBER,
+
+      DATE_FORMAT(
+        b.agreement_date,
+        '%d-%m-%Y'
+      ) AS AGREEMENT_DATE,
+
+      DATE_FORMAT(
+        b.disbursed_at,
+        '%d-%m-%Y'
+      ) AS DISBURSEMENT_DATE,
+
+      DATE_FORMAT(
+        DATE_ADD(
+          DATE(b.disbursed_at),
+          INTERVAL b.loan_tenure DAY
+        ),
+        '%d-%m-%Y'
+      ) AS DUE_DATE
+
+    FROM claim_buddy_loan_summary s
+
+    INNER JOIN loan_booking_claim_buddy b
+      ON b.lan COLLATE utf8mb4_unicode_ci
+       = s.LAN COLLATE utf8mb4_unicode_ci
+
+    WHERE s.LAN = ?
+
+    LIMIT 1
     `,
       [lan],
     );
+
+    if (!rows.length) {
+      return null;
+    }
 
     summaryRows = rows;
   }
@@ -1112,6 +1168,20 @@ exports.generateAgreementPdf = async (lan) => {
   if (!loanData) throw new Error("Loan summary not available");
   const templateHtml = loadTemplate(agreementTemplate);
   // const html = Handlebars.compile(templateHtml)(loanData);
+
+  console.log("========== CLAIM BUDDY TEMPLATE DATA ==========");
+
+  console.log(loanData);
+
+  console.log("APP_ID:", loanData.APP_ID);
+  console.log("BANK_NAME:", loanData.BANK_NAME);
+  console.log("ACCOUNT_NUMBER:", loanData.ACCOUNT_NUMBER);
+  console.log("INTEREST_RATE:", loanData.INTEREST_RATE);
+  console.log("TENURE:", loanData.TENURE);
+  console.log("EMI_AMOUNT:", loanData.EMI_AMOUNT);
+  console.log("PATIENT_NAME:", loanData.PATIENT_NAME);
+
+  console.log("==============================================");
   const html = fillTemplate(templateHtml, loanData);
 
   // Only CCB uses Handlebars because it has #each
