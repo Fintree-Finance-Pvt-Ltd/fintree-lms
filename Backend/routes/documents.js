@@ -3859,6 +3859,7 @@ router.post("/generate-foreclosure", async (req, res) => {
   else if (lan.startsWith("CARE")) bookingTable = "loan_booking_carepay";
   else if (lan.startsWith("STRL")) bookingTable = "loan_booking_sterlion";
   else if (lan.startsWith("HEL")) bookingTable = "loan_booking_helium";
+  else if (lan.startsWith("LDF")) bookingTable = "loan_booking_loan_digit";
   else if (lan.startsWith("SH")) bookingTable = "loan_booking_srbh";
 
   if (!bookingTable) {
