@@ -141,6 +141,7 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
+  
   // if (lan.startsWith("STRL")) {
   //   tableName = "loan_booking_sterlion";
   //   loanAmountCol = "COALESCE(lb.loan_amount, lb.request_amount) AS loan_amount";
