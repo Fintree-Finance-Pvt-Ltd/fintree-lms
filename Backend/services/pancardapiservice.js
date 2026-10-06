@@ -1,66 +1,3 @@
-// const axios = require("axios");
-// const { v4: uuidv4 } = require("uuid");
-
-// const getPanCardDetails = async (panNumber, panHolderName) => {
-//   try {
-//     if (!panNumber || !panHolderName) {
-//       return {
-//         success: false,
-//         message: "PAN number or name missing",
-//       };
-//     }
-
-//     const payload = {
-//       mode: "sync",
-//       data: {
-//         customer_pan_number: panNumber.toUpperCase(),
-//         pan_holder_name: panHolderName.toUpperCase(),
-//         consent: "Y",
-//         consent_text:
-//           "I hereby declare my consent agreement for fetching my information via ZOOP API",
-//       },
-//       task_id: uuidv4(),
-//     };
-
-//     const zoopresponse = await axios.post(
-//       process.env.ZOOP_PAN_API_URL,
-//       payload,
-//       {
-//         headers: {
-//           "Content-Type": "application/json",
-//           "api-key": process.env.ZOOP_API_KEY,
-//           app_id: process.env.ZOOP_APP_ID,
-//         },
-//       }
-//     );
-
-   
-
-//     const result = zoopresponse.data;
-
-//     // Determine verification status based on Zoop response
-//     const isVerified =
-//       result?.result?.extra_fields?.is_pan_verified === "yes" ||
-//       result?.result?.isValid === true;
-
-//     return {
-//       success: isVerified,
-//       response: result,
-//     };
-//   } catch (error) {
-//     console.error("❌ PAN Verification Error:", error.response?.data || error.message);
-
-//     return {
-//       success: false,
-//       response: error.response?.data || error.message,
-//     };
-//   }
-// };
-
-// module.exports = {
-//   getPanCardDetails,
-// };
-
 
 // services/pancardapiservice.js
 
@@ -71,8 +8,8 @@ const {
   ZOOP_PAN_API_URL,
   ZOOP_API_KEY,
   ZOOP_APP_ID,
-  FINANALYZ_PAN_URL = "https://aasandbox.finanalyz.com/eKyc/pan-Details",
-  FINANALYZ_X_API_KEY, // put your sandbox XApiKey here in .env
+  PERFIOS_PAN_URL = "https://hub.perfios.com/api/kyc/v3/pan-profile-detailed",
+  PERFIOS_AUTH_KEY, // Perfios x-auth-key, set in .env
 } = process.env;
 
 // Normalize name for comparison
@@ -180,72 +117,86 @@ async function callZoopPan(panNumber, panHolderName) {
 }
 
 /**
- * Fallback provider: Finanalyz
- * Request:
- *  POST https://aasandbox.finanalyz.com/eKyc/pan-Details
- *  Headers:
- *    XApiKey: <FINANALYZ_X_API_KEY>
- *    Content-Type: application/json
- *  Body:
- *    { "panNumber": "BORPJ7852J" }
+ * Fallback provider: Perfios
  */
-async function callFinanalyzPan(panNumber, panHolderName) {
-  if (!FINANALYZ_PAN_URL || !FINANALYZ_X_API_KEY) {
-    throw new Error("FINANALYZ PAN env config missing");
+async function callPerfiosPan(panNumber, panHolderName) {
+  if (!PERFIOS_PAN_URL || !PERFIOS_AUTH_KEY) {
+    throw new Error("PERFIOS PAN env config missing");
   }
 
   const payload = {
-    panNumber: panNumber.toUpperCase(),
+    pan: panNumber.toUpperCase(),
+    name: panHolderName,
+    consent: "Y",
+    clientData: {
+      caseId: uuidv4(),
+    },
   };
 
-  const res = await axios.post(FINANALYZ_PAN_URL, payload, {
+  const res = await axios.post(PERFIOS_PAN_URL, payload, {
     headers: {
       "Content-Type": "application/json",
-      accept: "*/*",
-      XApiKey: FINANALYZ_X_API_KEY,
+      "x-auth-key": PERFIOS_AUTH_KEY,
     },
     timeout: 30000,
     validateStatus: () => true,
   });
 
   const raw = res.data;
-  const code = raw?.data?.response?.code;
-  const isValid = raw?.data?.response?.isValid === true;
-  const success = code === 200 && isValid;
+  const result = raw?.result;
 
-  // name match based on Finanalyz response.name
-  const respName = normalizeName(raw?.data?.response?.name);
-  const inputName = normalizeName(panHolderName);
+  console.log("Perfios response:", JSON.stringify(raw, null, 2));
+
+  // Perfios statusCode 101 = successful fetch; PAN must also be Active
+  const panActive = String(result?.status || "").toLowerCase() === "active";
+  const success =
+    res.status === 200 &&
+    Number(raw?.statusCode) === 101 &&
+    !!result &&
+    panActive;
+
+  // Name match comes back in result.profileMatch[] as { parameter: "name", matchScore, matchResult }
+  const nameProfile = Array.isArray(result?.profileMatch)
+    ? result.profileMatch.find((p) => p?.parameter === "name")
+    : null;
+
   let nameMatch = null;
-  if (respName && inputName) {
-    // simple contains or equality check
-    nameMatch =
-      respName === inputName ||
-      respName.includes(inputName) ||
-      inputName.includes(respName);
+  if (nameProfile && typeof nameProfile.matchResult === "boolean") {
+    nameMatch = nameProfile.matchResult;
+  } else {
+    const respName = normalizeName(result?.name);
+    const inputName = normalizeName(panHolderName);
+    if (respName && inputName) {
+      nameMatch =
+        respName === inputName ||
+        respName.includes(inputName) ||
+        inputName.includes(respName);
+    }
+  }
+
+  let reason = "OK";
+  if (!success) {
+    reason =
+      result && !panActive
+        ? `PAN_STATUS_${String(result?.status || "UNKNOWN").toUpperCase()}`
+        : raw?.message || raw?.error || "PERFIOS_API_FAILURE";
   }
 
   return {
     success,
-    provider: "FINANALYZ",
-    reason: success ? "OK" : "FINANALYZ_API_FAILURE",
+    provider: "PERFIOS",
+    reason,
     nameMatch,
+    nameMatchScore:
+      nameProfile?.matchScore !== undefined
+        ? Number(nameProfile.matchScore)
+        : null,
     raw,
     response: raw,
+    httpStatus: res.status,
   };
 }
 
-/**
- * Unified helper used by Helium Validation Engine
- * Returns:
- * {
- *   success: boolean,
- *   provider: "ZOOP"|"FINANALYZ"|null,
- *   reason: string,
- *   nameMatch: boolean|null,
- *   raw: any
- * }
- */
 async function getPanCardDetails(panNumber, panHolderName) {
   if (!panNumber || !panHolderName) {
     return {
@@ -273,25 +224,25 @@ async function getPanCardDetails(panNumber, panHolderName) {
     );
   }
 
-  // 2️⃣ Fallback to Finanalyz
+  // 2️⃣ Fallback to Perfios
   try {
-    const finResult = await callFinanalyzPan(panNumber, panHolderName);
-    console.log("finresult", finResult);
-    if (finResult.success) {
-      console.log("✅ PAN verified via FINANALYZ");
+    const perfiosResult = await callPerfiosPan(panNumber, panHolderName);
+    console.log("perfiosresult", perfiosResult);
+    if (perfiosResult.success) {
+      console.log("✅ PAN verified via PERFIOS");
     } else {
-      console.warn("⚠️ Finanalyz PAN did not succeed:", finResult.reason);
+      console.warn("⚠️ Perfios PAN did not succeed:", perfiosResult.reason);
     }
-    return finResult;
+    return perfiosResult;
   } catch (err) {
     console.error(
-      "❌ Finanalyz PAN error:",
+      "❌ Perfios PAN error:",
       err?.response?.data || err.message || err
     );
     return {
       success: false,
-      provider: "FINANALYZ",
-      reason: "FINANALYZ_ERROR",
+      provider: "PERFIOS",
+      reason: "PERFIOS_ERROR",
       nameMatch: null,
       raw: err?.response?.data || { error: err.message || String(err) },
       response: err?.response?.data || { error: err.message || String(err) },
@@ -302,4 +253,5 @@ async function getPanCardDetails(panNumber, panHolderName) {
 module.exports = {
   getPanCardDetails,
   callZoopPan,
+  callPerfiosPan,
 };
