@@ -98,7 +98,6 @@ import EmiClub2LoginLoans from "./components/EmiClub2/EmiClub2LoginLoans.jsx";
 import EmiClub2ApproveInitiateScreen from "./components/EmiClub2/EmiClub2ApproveInitiateScreen.jsx";
 import EmiClub2ActionScreen from "./components/EmiClub2/EmiClub2ActionScreen.jsx";
 
-
 import FinsoApprovedLoans from "./components/FinsoApprovedLoans";
 import FinsoDisbursedLoans from "./components/FinsoDisbursedLoans";
 import FinsoAllLoans from "./components/FinsoAllLoans";
@@ -338,6 +337,7 @@ import SaswatAllLoans from "./components/Saswat/SaswatAllLoans.jsx";
 import SaswatApprovedLoans from "./components/Saswat/SaswatApprovedLoans.jsx";
 import SaswatDisbursedLoans from "./components/Saswat/SaswatDisbursedLoans.jsx";
 import SaswatPaymentReceipt from "./components/Saswat/SaswatPaymentReceipt.jsx";
+import SaswatUpdateData from "./components/Saswat/SaswatUpdateData";
 // import NachPresentation from "./components/NachPresentation.jsx";
 import QMLApprovedLoans from "./components/QuickMoney/QMLApprovedLoans.jsx";
 
@@ -409,7 +409,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route path="/payusubscribe" element={<PayUSubscribe />} />
           <Route
             path="/excel-upload"
@@ -1130,10 +1129,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
-
-
-
           {/* EMIClub2 loan routes */}
           <Route
             path="/emiclub2-loans/approved"
@@ -1143,7 +1138,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/emiclub2-loans/disbursed"
             element={
@@ -1152,7 +1146,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/emiclub2-loans/all"
             element={
@@ -1161,7 +1154,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/emiclub2-loans/login-cases"
             element={
@@ -1170,7 +1162,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/emiclub2-loans/login-actions"
             element={
@@ -1179,7 +1170,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/emiclub2-loans/approve-initiate-actions"
             element={
@@ -1803,7 +1793,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/approved-loan-details-clayoo-approved/:lan"
             element={
@@ -1812,7 +1801,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* MIS */}
           <Route
             path="/mis-reports/listing"
@@ -1967,7 +1955,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/qml-loans/all-loans"
             element={
@@ -2150,7 +2137,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/motion-corp/login-cases"
             element={
@@ -2191,7 +2177,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* Sampada routes mirror the Motion Corp workflow. */}
           {/* <Route path="/sampada/copy-links" element={<SampadaCopyLinks />} /> */}
           <Route
@@ -2286,10 +2271,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
-
-
-/* ===================== OmrajPay routes ===================== */
+          /* ===================== OmrajPay routes ===================== */
           {/* <Route
             path="/omrajpay/dealer-entry"
             element={
@@ -2411,7 +2393,6 @@ function App() {
               </PermissionRoute>
             }
           /> */}
-
           <Route
             path="/fundify-loans/manual-entry"
             element={
@@ -2420,7 +2401,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/fundify-loans/login-loans"
             element={
@@ -2429,7 +2409,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/fundify-loans/credit-stage-loans"
             element={
@@ -2438,7 +2417,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/fundify-loans/all-loans"
             element={
@@ -2447,7 +2425,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* <Route
             path="/fundify/all-loans"
             element={
@@ -2529,7 +2506,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/seven-fincorp/dealer-details/:lan"
             element={<SevenFinCorpDealerDetails />}
@@ -2560,12 +2536,10 @@ function App() {
             path="/claimcurebuddy/all-loans"
             element={<ClaimCureBuddyAllLoans />}
           />
-
           <Route
             path="/claimcurebuddy/disbursed-loans"
             element={<ClaimCureBuddyDisbursedLoans />}
           />
-
           <Route
             path="/claim-cure-buddy/customer-details"
             element={<ClaimCureBuddyDetails />}
@@ -2578,7 +2552,6 @@ function App() {
             path="/claimcurebuddy/customer-details/:lan"
             element={<ClaimCureBuddyDetails />}
           />
-
           <Route
             path="/claimcurebuddy/loan-booking"
             element={
@@ -2587,22 +2560,18 @@ function App() {
               // {/* </PermissionRoute> */}
             }
           />
-
           <Route
             path="/claimcurebuddy/draft-cases"
             element={<ClaimCureBuddyDraftCases />}
           />
-
           <Route
             path="/claimcurebuddy/approved-cases"
             element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
           />
-
           <Route
             path="/claimcurebuddy/ops-screen"
             element={<Navigate to="/claimcurebuddy/loan-booking" replace />}
           />
-
           {/* =========================
    ✅ Bundela Routes
 ========================= */}
@@ -2781,7 +2750,6 @@ function App() {
             path="/customers/:partner_loan_id"
             element={<CustomerDetailsScreen />}
           />
-
           <Route
             path="/srbh/dealer-entry"
             element={
@@ -2810,9 +2778,7 @@ function App() {
             path="/srbh/dealer-details/:lan"
             element={<SRBHDealerDetails />}
           />
-
           <Route path="/srbh/customer-details" element={<SRBHDetails />} />
-
           <Route
             path="/srbh/loan-booking"
             element={
@@ -2821,7 +2787,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/srbh/login-cases"
             element={
@@ -2830,7 +2795,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/srbh/credit-initiated-cases"
             element={
@@ -2847,7 +2811,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/srbh/credit-approved-cases"
             element={
@@ -2864,9 +2827,7 @@ function App() {
               </PermissionRoute>
             }
           />
-
           {/* STERLION UBL ROUTES */}
-
           <Route
             path="/sterlion-ubl-loans/loan-booking"
             element={
@@ -2875,7 +2836,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-ubl-loans/all"
             element={
@@ -2884,7 +2844,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-ubl-loans/disbursed"
             element={
@@ -2893,7 +2852,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-ubl-loans/approved"
             element={
@@ -2902,7 +2860,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-ubl-loans/details/:lan"
             element={
@@ -2912,7 +2869,6 @@ function App() {
             }
           />
           {/* Sterlion Mexon Dexon */}
-
           <Route
             path="/sterlion-mexon-dexon/all-loans"
             element={
@@ -2921,7 +2877,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-mexon-dexon/collection-upload"
             element={
@@ -2930,7 +2885,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-mexon-dexon/invoice-upload"
             element={
@@ -2939,7 +2893,6 @@ function App() {
               </PermissionRoute>
             }
           />
-
           <Route
             path="/sterlion-mexon-dexon/all-invoices"
             element={
@@ -2978,8 +2931,14 @@ function App() {
               </PermissionRoute>
             }
           />
-
-
+          <Route
+            path="/saswat/updatedata/:lan"
+            element={
+              <PermissionRoute pageName="Saswat Update Data">
+                <SaswatUpdateData />
+              </PermissionRoute>
+            }
+          />
           {/* Protected Layout parent yahan close hoga */}
         </Route>
 
