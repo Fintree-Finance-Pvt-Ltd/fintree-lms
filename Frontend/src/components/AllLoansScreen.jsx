@@ -215,16 +215,6 @@ const AllLoansScreen = ({
         <span
           className="customer-name-link"
           onClick={() => {
-            if (typeof lanDetailsUrlBuilder === "function") {
-              const lan = r?.lan || r?.LAN;
-              const detailsUrl = lan
-                ? lanDetailsUrlBuilder({ ...r, lan })
-                : null;
-
-              if (detailsUrl) nav(detailsUrl);
-              return;
-            }
-
             nav(`/loan-details/${r.lan}`);
           }}
         >
