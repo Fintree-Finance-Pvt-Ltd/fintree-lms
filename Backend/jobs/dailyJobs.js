@@ -1229,35 +1229,35 @@ let isRejectionWebhookBackfillRunning = false;
 
 
 ////// SUPPLY CHAIN DEMAND CRON - every day at 00:05 
-cron.schedule("5 0 * * *", async () => {
-  // Runs daily at 00:05
-  const today = new Date().toISOString().split("T")[0];
-  console.log("🕒 Daily supply chain demand cron running for:", today);
+// cron.schedule("5 0 * * *", async () => {
+//   // Runs daily at 00:05
+//   const today = new Date().toISOString().split("T")[0];
+//   console.log("🕒 Daily supply chain demand cron running for:", today);
 
-  const [invoices] = await db.promise().query(
-    `SELECT
-       partner_loan_id,
-       lan,
-       invoice_number,
-       invoice_due_date,
-       roi_percentage,
-       penal_rate,
-       disbursement_amount,
-       disbursement_date
-     FROM invoice_disbursements
-     WHERE status = 'Active'`
-  );
+//   const [invoices] = await db.promise().query(
+//     `SELECT
+//        partner_loan_id,
+//        lan,
+//        invoice_number,
+//        invoice_due_date,
+//        roi_percentage,
+//        penal_rate,
+//        disbursement_amount,
+//        disbursement_date
+//      FROM invoice_disbursements
+//      WHERE status = 'Active'`
+//   );
 
-  for (const inv of invoices) {
-    try {
-      await generateDailySupplyChainDemandOneRow(db.promise(), inv, today);
-    } catch (e) {
-      console.error(`❌ Demand insert failed for ${inv.invoice_number}:`, e.message);
-    }
-  }
+//   for (const inv of invoices) {
+//     try {
+//       await generateDailySupplyChainDemandOneRow(db.promise(), inv, today);
+//     } catch (e) {
+//       console.error(`❌ Demand insert failed for ${inv.invoice_number}:`, e.message);
+//     }
+//   }
 
-  console.log("✅ Daily supply chain demand cron completed");
-});
+//   console.log("✅ Daily supply chain demand cron completed");
+// });
 
 // ============================================================
 // Bureau FAILED Retry Cron
