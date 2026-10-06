@@ -1,66 +1,3 @@
-// const axios = require("axios");
-// const { v4: uuidv4 } = require("uuid");
-
-// const getPanCardDetails = async (panNumber, panHolderName) => {
-//   try {
-//     if (!panNumber || !panHolderName) {
-//       return {
-//         success: false,
-//         message: "PAN number or name missing",
-//       };
-//     }
-
-//     const payload = {
-//       mode: "sync",
-//       data: {
-//         customer_pan_number: panNumber.toUpperCase(),
-//         pan_holder_name: panHolderName.toUpperCase(),
-//         consent: "Y",
-//         consent_text:
-//           "I hereby declare my consent agreement for fetching my information via ZOOP API",
-//       },
-//       task_id: uuidv4(),
-//     };
-
-//     const zoopresponse = await axios.post(
-//       process.env.ZOOP_PAN_API_URL,
-//       payload,
-//       {
-//         headers: {
-//           "Content-Type": "application/json",
-//           "api-key": process.env.ZOOP_API_KEY,
-//           app_id: process.env.ZOOP_APP_ID,
-//         },
-//       }
-//     );
-
-   
-
-//     const result = zoopresponse.data;
-
-//     // Determine verification status based on Zoop response
-//     const isVerified =
-//       result?.result?.extra_fields?.is_pan_verified === "yes" ||
-//       result?.result?.isValid === true;
-
-//     return {
-//       success: isVerified,
-//       response: result,
-//     };
-//   } catch (error) {
-//     console.error("❌ PAN Verification Error:", error.response?.data || error.message);
-
-//     return {
-//       success: false,
-//       response: error.response?.data || error.message,
-//     };
-//   }
-// };
-
-// module.exports = {
-//   getPanCardDetails,
-// };
-
 
 // services/pancardapiservice.js
 
@@ -181,13 +118,6 @@ async function callZoopPan(panNumber, panHolderName) {
 
 /**
  * Fallback provider: Perfios
- * Request:
- *  POST https://hub.perfios.com/api/kyc/v3/pan-profile-detailed
- *  Headers:
- *    x-auth-key: <PERFIOS_AUTH_KEY>
- *    Content-Type: application/json
- *  Body:
- *    { "pan": "BHHPL9968H", "name": "harish lodh", "consent": "Y", "clientData": { "caseId": "..." } }
  */
 async function callPerfiosPan(panNumber, panHolderName) {
   if (!PERFIOS_PAN_URL || !PERFIOS_AUTH_KEY) {
@@ -267,17 +197,6 @@ async function callPerfiosPan(panNumber, panHolderName) {
   };
 }
 
-/**
- * Unified helper used by Helium Validation Engine
- * Returns:
- * {
- *   success: boolean,
- *   provider: "ZOOP"|"PERFIOS"|null,
- *   reason: string,
- *   nameMatch: boolean|null,
- *   raw: any
- * }
- */
 async function getPanCardDetails(panNumber, panHolderName) {
   if (!panNumber || !panHolderName) {
     return {
