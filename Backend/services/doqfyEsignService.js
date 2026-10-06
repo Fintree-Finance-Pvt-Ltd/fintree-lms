@@ -259,6 +259,7 @@ const initDoqfyEsign = async (lan, type) => {
     /* --------------------------------------------------- */
 
     // These values should ideally come from DB/config
+
     const BRANCH_ID = process.env.DOQFY_BRANCH_ID || 3581;
     console.log("DOQFY BRANCH ID USED:", BRANCH_ID);
 
@@ -335,17 +336,33 @@ const initDoqfyEsign = async (lan, type) => {
 
       console.log("✅ ORDER DETAILS FETCHED", orderResp);
 
-      const orderData = orderResp.data?.content?.[0];
+      // const orderData = orderResp.data?.content?.[0];
 
-      console.log("order response data", orderData);
+      // console.log("order response data", orderData);
+
+      const orderData =
+  orderResp.data?.content?.[0] ||
+  orderResp.data?.content ||
+  orderResp.data;
+
+console.log(
+  "FULL ORDER DATA:",
+  JSON.stringify(orderData, null, 2)
+);
 
       // const esignData = orderData?.esign?.[0];
 
       // signUrl = esignData?.sign_url || null;
 
-      const esignData = Array.isArray(orderData?.esign)
-        ? orderData.esign
-        : [];
+      // const esignData = Array.isArray(orderData?.esign)
+      //   ? orderData.esign
+      //   : [];
+
+      const esignData =
+  orderData?.esign ||
+  orderData?.esigns ||
+  orderData?.esign_details ||
+  [];
 
       signUrls = esignData
         .map((item, index) => ({

@@ -672,6 +672,9 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_clayyo WHERE lan IN (?)`, [
           uniqueLANs,
         ]),
+        queryDB(`SELECT lan FROM loan_booking_claim_buddy WHERE lan IN (?)`, [   // CLAIM BUDDY
+          uniqueLANs,
+        ]),
         queryDB(`SELECT lan FROM loan_booking_loan_digit WHERE lan IN (?)`, [
           uniqueLANs,
         ]),
@@ -699,13 +702,18 @@ async function processRows(sheetData, res) {
         queryDB(`SELECT lan FROM loan_booking_zebrs WHERE lan IN (?)`, [
           uniqueLANs,
         ]), // Added for claim cure buddy
-        queryDB(`SELECT lan FROM loan_booking_claim_cure_buddy WHERE lan IN (?)`, [
-          uniqueLANs,
-        ]), // Added for claim cure buddy
+        queryDB(
+          `SELECT lan FROM loan_booking_claim_cure_buddy WHERE lan IN (?)`,
+          [uniqueLANs],
+        ), // Added for claim cure buddy
         queryDB(
           `SELECT lan FROM loan_booking_switch_my_loan WHERE lan IN (?)`,
           [uniqueLANs],
         ), // Added for Rapid Money / Switch My Loan
+        queryDB(
+          `SELECT lan FROM loan_booking_sabgrow WHERE lan IN (?)`,
+          [uniqueLANs],
+        ),
       ]);
 
       validLANs = new Set(results.flat().map((r) => r.lan));
@@ -733,7 +741,9 @@ async function processRows(sheetData, res) {
       const payment_id = row["Payment Id"];
       const payment_mode = row["Payment Mode"];
       const transfer_amount = row["Transfer Amount"];
-      const allocationType =row["Allocation Type"] ? String(row["Allocation Type"]) .trim() .toUpperCase() : null;
+      const allocationType = row["Allocation Type"]
+        ? String(row["Allocation Type"]).trim().toUpperCase()
+        : null;
       const isWctlFfpl = lan && lan.toUpperCase().startsWith("WCTLFFPL");
 
       /**
@@ -782,10 +792,7 @@ async function processRows(sheetData, res) {
         continue;
       }
 
-      if (
-        isWctlFfpl &&
-        !["I","P","C"].includes(allocationType)
-      ) {
+      if (isWctlFfpl && !["I", "P", "C"].includes(allocationType)) {
         rowErrors.push({
           row: rowNumber,
           lan,
@@ -793,7 +800,7 @@ async function processRows(sheetData, res) {
           reason:
             "Allocation Type required for WCTL FFPL. Allowed values: I, P, C",
         });
-      
+
         continue;
       }
       /**

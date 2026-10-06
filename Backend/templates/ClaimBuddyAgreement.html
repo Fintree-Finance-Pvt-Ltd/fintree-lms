@@ -1,0 +1,1561 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Borrower Agreement - Claim Buddy</title>
+
+    <style>
+      @page {
+        size: A4;
+        margin: 15mm;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Times New Roman", Georgia, serif;
+        font-size: 11pt;
+        line-height: 1.55;
+        color: #000;
+        background: #fff;
+      }
+
+      .document {
+        max-width: 210mm;
+        margin: 0 auto;
+        padding: 20mm;
+        background: #fff;
+      }
+
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+        }
+
+        .document {
+          width: 100%;
+          max-width: none;
+          padding: 0;
+        }
+      }
+
+      p {
+        margin-bottom: 7pt;
+        text-align: justify;
+      }
+
+      strong,
+      b {
+        font-weight: bold;
+      }
+
+      .doc-title {
+        text-align: center;
+        font-size: 14pt;
+        font-weight: bold;
+        text-decoration: underline;
+        margin-bottom: 5pt;
+      }
+
+      .doc-subtitle {
+        text-align: center;
+        font-size: 11pt;
+        font-weight: bold;
+        margin-bottom: 18pt;
+      }
+
+      h2 {
+        font-size: 11pt;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-top: 14pt;
+        margin-bottom: 7pt;
+        page-break-after: avoid;
+      }
+
+      .annex-title {
+        text-align: center;
+        font-size: 12pt;
+        font-weight: bold;
+        text-decoration: underline;
+        margin: 18pt 0 10pt;
+        page-break-after: avoid;
+      }
+
+      .annex-subtitle {
+        text-align: center;
+        font-weight: bold;
+        margin: 6pt 0 10pt;
+      }
+
+      .parties-block {
+        margin-bottom: 10pt;
+        text-align: justify;
+      }
+
+      .and-divider {
+        text-align: center;
+        font-weight: bold;
+        margin: 10pt 0;
+      }
+
+      .whereas-heading {
+        font-weight: bold;
+        margin-top: 12pt;
+        margin-bottom: 8pt;
+      }
+
+      .consideration-block {
+        font-weight: bold;
+        text-align: justify;
+        margin: 12pt 0;
+      }
+
+      .indented {
+        margin-left: 24pt;
+        margin-bottom: 7pt;
+      }
+
+      ol.clause-list {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 8pt;
+      }
+
+      ol.clause-list > li {
+        display: flex;
+        gap: 10pt;
+        margin-bottom: 7pt;
+        text-align: justify;
+        page-break-inside: avoid;
+      }
+
+      ol.clause-list > li .num {
+        min-width: 22pt;
+        flex-shrink: 0;
+      }
+
+      ol.clause-list > li .content {
+        flex: 1;
+      }
+
+      ol.alpha-list {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 8pt;
+      }
+
+      ol.alpha-list > li {
+        display: flex;
+        gap: 8pt;
+        margin-bottom: 6pt;
+        text-align: justify;
+      }
+
+      ol.alpha-list .anum {
+        min-width: 20pt;
+      }
+
+      ol.alpha-list .acontent {
+        flex: 1;
+      }
+
+      ul.bullet-list {
+        list-style: none;
+        padding-left: 24pt;
+        margin-bottom: 8pt;
+      }
+
+      ul.bullet-list li {
+        display: flex;
+        gap: 8pt;
+        margin-bottom: 5pt;
+      }
+
+      ul.bullet-list li::before {
+        content: "–";
+        min-width: 15pt;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 12pt;
+        font-size: 10.5pt;
+      }
+
+      table th,
+      table td {
+        border: 1px solid #333;
+        padding: 5pt 6pt;
+        vertical-align: top;
+      }
+
+      table th {
+        background: #f0f0f0;
+        font-weight: bold;
+        text-align: left;
+      }
+
+      .sig-table {
+        margin-top: 14pt;
+        page-break-inside: avoid;
+      }
+
+      .sig-table td {
+        width: 50%;
+        height: 110px;
+      }
+
+      .new-page {
+        page-break-before: always;
+        break-before: page;
+      }
+
+      .keep-together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .system-note {
+        text-align: center;
+        font-weight: bold;
+        font-style: italic;
+        margin: 12pt 0;
+      }
+
+      .note {
+        font-style: italic;
+        margin-bottom: 7pt;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="document">
+      <!-- ========================================================= -->
+      <!-- BORROWER AGREEMENT -->
+      <!-- ========================================================= -->
+
+      <p class="doc-title">BORROWER AGREEMENT</p>
+      <p class="doc-subtitle">CLAIM BUDDY</p>
+
+      <p class="parties-block">
+        This <strong>BORROWER AGREEMENT</strong> (hereinafter referred to as the
+        <strong>"Agreement"</strong>) is made at Mumbai on
+        <strong>{{AGREEMENT_DATE}}</strong>
+        by and between:
+      </p>
+
+      <p class="parties-block">
+        <strong>Fintree Finance Private Limited</strong>, a company incorporated
+        under the Companies Act, 2013, having its registered office at 4th
+        Floor, Engineering Centre, 9 Mathew Road, Opera House, Charni Road
+        (East), Mumbai - 400004, hereinafter referred to as the
+        <strong>"Lender"</strong>, which expression shall unless repugnant to
+        the context include its successors and permitted assigns, of the
+        <strong>FIRST PART</strong>.
+      </p>
+
+      <p class="and-divider">AND</p>
+
+      <p class="parties-block">
+        <strong>{{CUST_NAME}}</strong>, Indian Resident, aged
+        <strong>{{CUST_AGE}}</strong> years, Gender <strong>{{GENDER}}</strong>,
+        having PAN <strong>{{CUST_PAN}}</strong>, residing at
+        <strong>{{PER_ADD}}</strong>, hereinafter referred to as the
+        <strong>"Borrower"</strong>, which expression shall include his/her
+        heirs, legal representatives, executors, administrators and permitted
+        assigns, of the <strong>SECOND PART</strong>.
+      </p>
+
+      <p>
+        The Lender and Borrower shall individually be referred to as a
+        <strong>"Party"</strong>
+        and collectively as the
+        <strong>"Parties"</strong>.
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- WHEREAS -->
+      <!-- ========================================================= -->
+
+      <p class="whereas-heading">WHEREAS:</p>
+
+      <ol class="clause-list">
+        <li>
+          <span class="num">1.</span>
+          <span class="content">
+            The Borrower has approached the Lender through
+            <strong>Claim Buddy</strong>, operated by
+            <strong>Claimbuddy Technologies Private Limited</strong>, for
+            financial assistance for medical expenses.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">2.</span>
+          <span class="content">
+            The Borrower has requested financial assistance of Rs.
+            <strong>{{FINAL_LIMIT}}</strong>/- for medical treatment / medical
+            bills relating to
+            <strong>{{PATIENT_NAME}}</strong>
+            at
+            <strong>{{HOSPITAL_NAME}}</strong>.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">3.</span>
+          <span class="content">
+            Based on the information, documents, declarations and
+            representations provided by the Borrower, the Lender has agreed to
+            provide the Facility subject to the terms and conditions of this
+            Agreement.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">4.</span>
+          <span class="content">
+            The Borrower's Loan Account Number is
+            <strong>{{LAN}}</strong>
+            and Application Number is
+            <strong>{{APP_ID}}</strong>.
+          </span>
+        </li>
+      </ol>
+
+      <p class="consideration-block">
+        IN CONSIDERATION OF THE LENDER PROVIDING THE FACILITY TO THE BORROWER,
+        THE PARTIES AGREE AS FOLLOWS:
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- DEFINITIONS -->
+      <!-- ========================================================= -->
+
+      <h2>1. DEFINITIONS AND INTERPRETATION</h2>
+
+      <div class="indented">
+        <p>
+          <strong>"Agreement"</strong>
+          means this Borrower Agreement together with all schedules, annexures,
+          sanction letters, Key Fact Statement, repayment schedules and
+          amendments.
+        </p>
+
+        <p>
+          <strong>"Borrower"</strong>
+          means {{CUST_NAME}}.
+        </p>
+
+        <p>
+          <strong>"Facility"</strong>
+          means the personal loan granted by the Lender to the Borrower under
+          this Agreement.
+        </p>
+
+        <p>
+          <strong>"Facility Limit"</strong>
+          means the sanctioned loan amount of Rs. {{FINAL_LIMIT}}/-.
+        </p>
+
+        <p>
+          <strong>"Lending Service Provider (LSP)"</strong>
+          means
+          <strong>Claimbuddy Technologies Private Limited</strong>
+          ("Claim Buddy").
+        </p>
+
+        <p>
+          <strong>"Lending Service Provider Platform"</strong>
+          means the Claim Buddy platform through which the Borrower has applied
+          for the credit facility.
+        </p>
+
+        <p>
+          <strong>"Rate of Interest"</strong>
+          means
+          <strong>{{INTEREST_RATE}}% per annum</strong>, or such rate as
+          disclosed in the Key Fact Statement.
+        </p>
+
+        <p>
+          <strong>"Repayment Date"</strong>
+          means
+          <strong>{{DUE_DATE}}</strong>.
+        </p>
+
+        <p>
+          <strong>"Borrower's Dues"</strong>
+          means all outstanding principal, interest, penal charges, fees, taxes,
+          charges, expenses and any other amount payable by the Borrower to the
+          Lender.
+        </p>
+
+        <p>
+          <strong>"Outstanding Amount"</strong>
+          means the principal, interest and all other amounts payable under the
+          Facility.
+        </p>
+
+        <p>
+          <strong>"Sanction Letter"</strong>
+          means the sanction letter issued by Fintree Finance Private Limited in
+          relation to this Facility.
+        </p>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- GRANT OF FACILITY -->
+      <!-- ========================================================= -->
+
+      <h2>2. GRANT OF FACILITY</h2>
+
+      <div class="indented">
+        <p>
+          At the request of the Borrower, the Lender agrees to provide a
+          personal loan of up to Rs.
+          <strong>{{FINAL_LIMIT}}</strong>/- subject to this Agreement.
+        </p>
+
+        <p>
+          The Facility is being availed for medical treatment / reimbursement of
+          medical expenses.
+        </p>
+
+        <p>
+          Patient Name:
+          <strong>{{PATIENT_NAME}}</strong>
+        </p>
+
+        <p>
+          Hospital / Medical Treatment Centre:
+          <strong>{{HOSPITAL_NAME}}</strong>
+        </p>
+
+        <p>
+          The Borrower acknowledges that the amount may be disbursed in
+          accordance with instructions accepted by the Lender and subject to
+          applicable laws.
+        </p>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- CONDITIONS PRECEDENT -->
+      <!-- ========================================================= -->
+
+      <h2>3. CONDITIONS PRECEDENT</h2>
+
+      <p>
+        The Lender shall not be obliged to disburse the Facility unless the
+        Borrower has provided, wherever applicable:
+      </p>
+
+      <ul class="bullet-list">
+        <li>Aadhaar / identity proof</li>
+        <li>PAN</li>
+        <li>Photograph</li>
+        <li>Medical bills</li>
+        <li>Hospital details</li>
+        <li>Insurance documents</li>
+        <li>Medical discharge summary</li>
+        <li>Bank account details</li>
+        <li>e-NACH / mandate details</li>
+        <li>Executed Loan Agreement</li>
+        <li>Other documents requested by the Lender</li>
+      </ul>
+
+      <!-- ========================================================= -->
+      <!-- REPAYMENT -->
+      <!-- ========================================================= -->
+
+      <h2>4. REPAYMENT AND INTEREST</h2>
+
+      <ol class="clause-list">
+        <li>
+          <span class="num">1.</span>
+
+          <span class="content">
+            The Borrower shall repay the Facility in accordance with the
+            repayment schedule, Key Fact Statement and Sanction Letter.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">2.</span>
+
+          <span class="content">
+            The sanctioned loan amount is Rs. <strong>{{FINAL_LIMIT}}</strong>/-
+            and the Rate of Interest is
+            <strong>{{INTEREST_RATE}}% per annum</strong>.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">3.</span>
+
+          <span class="content">
+            The loan tenure is
+            <strong>{{TENURE}} days</strong>.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">4.</span>
+
+          <span class="content">
+            The repayment amount / instalment amount shall be Rs.
+            <strong>{{EMI_AMOUNT}}</strong>/- or such amount as specified in the
+            Key Fact Statement / repayment schedule.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">5.</span>
+
+          <span class="content">
+            The Borrower shall maintain sufficient balance in the registered
+            bank account for repayment through e-NACH, NACH, standing
+            instructions or other permitted methods.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">6.</span>
+
+          <span class="content">
+            In case of delayed payment, applicable penal charges and other
+            charges shall be payable as specified in the Key Fact Statement.
+          </span>
+        </li>
+      </ol>
+
+      <!-- ========================================================= -->
+      <!-- BANK DETAILS -->
+      <!-- ========================================================= -->
+
+      <h2>5. BORROWER BANK DETAILS</h2>
+
+      <table>
+        <tr>
+          <td><strong>Account Holder Name</strong></td>
+          <td>{{NAME_IN_BANK}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Bank Name</strong></td>
+          <td>{{BANK_NAME}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Bank Branch</strong></td>
+          <td>{{BANK_BRANCH}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Account Number</strong></td>
+          <td>{{ACCOUNT_NUMBER}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>IFSC</strong></td>
+          <td>{{IFSC}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>UMRN</strong></td>
+          <td>{{UMRN}}</td>
+        </tr>
+      </table>
+
+      <!-- ========================================================= -->
+      <!-- REPRESENTATIONS -->
+      <!-- ========================================================= -->
+
+      <h2>6. REPRESENTATIONS AND WARRANTIES</h2>
+
+      <ol class="alpha-list">
+        <li>
+          <span class="anum">a)</span>
+          <span class="acontent">
+            The Borrower confirms that all information and documents provided
+            are true, correct and complete.
+          </span>
+        </li>
+
+        <li>
+          <span class="anum">b)</span>
+          <span class="acontent">
+            The Borrower confirms that the Facility will be used only for lawful
+            purposes.
+          </span>
+        </li>
+
+        <li>
+          <span class="anum">c)</span>
+          <span class="acontent">
+            The Borrower has legal capacity and authority to enter into this
+            Agreement.
+          </span>
+        </li>
+
+        <li>
+          <span class="anum">d)</span>
+          <span class="acontent">
+            There is no pending action or proceeding known to the Borrower that
+            materially affects the Borrower's obligations under this Agreement.
+          </span>
+        </li>
+
+        <li>
+          <span class="anum">e)</span>
+          <span class="acontent">
+            The Borrower shall immediately inform the Lender of any material
+            change in the Borrower's repayment capacity, address, contact
+            information or bank account.
+          </span>
+        </li>
+      </ol>
+
+      <!-- ========================================================= -->
+      <!-- CLAIM BUDDY -->
+      <!-- ========================================================= -->
+
+      <h2>7. APPOINTMENT OF LENDING SERVICE PROVIDER</h2>
+
+      <p>
+        The Lender has appointed
+        <strong>Claimbuddy Technologies Private Limited ("Claim Buddy")</strong>
+        as its Lending Service Provider.
+      </p>
+
+      <p>
+        Claim Buddy may assist the Lender with sourcing, servicing,
+        documentation, customer support, collection and recovery activities,
+        subject to applicable law and regulatory requirements.
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- COLLECTION -->
+      <!-- ========================================================= -->
+
+      <h2>8. COLLECTION AND RECOVERY</h2>
+
+      <p>
+        The Lender may appoint Claim Buddy or another authorised agency for
+        collection and recovery of outstanding dues.
+      </p>
+
+      <p>
+        Such collection and recovery shall be carried out in accordance with
+        applicable RBI directions and applicable law.
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- GRIEVANCE -->
+      <!-- ========================================================= -->
+
+      <h2>9. GRIEVANCE REDRESSAL MECHANISM</h2>
+
+      <table>
+        <tr>
+          <th>Lender</th>
+          <th>Details</th>
+        </tr>
+
+        <tr>
+          <td>Fintree Finance Private Limited</td>
+
+          <td>
+            Grievance Redressal Officer<br />
+            Address: 4th Floor, Engineering Centre, 9 Mathew Road, Opera House,
+            Charni Road (East), Mumbai - 400004<br />
+            Contact: 1800 267 8111<br />
+            Email: wecare@fintreefinance.com
+          </td>
+        </tr>
+
+        <tr>
+          <th>Lending Service Provider</th>
+          <th>Details</th>
+        </tr>
+
+        <tr>
+          <td>Claimbuddy Technologies Private Limited</td>
+
+          <td>
+            Claim Buddy Grievance Redressal Officer<br />
+            Contact / Email: As communicated by Claim Buddy through its official
+            platform.
+          </td>
+        </tr>
+      </table>
+
+      <!-- ========================================================= -->
+      <!-- INDEMNITY -->
+      <!-- ========================================================= -->
+
+      <h2>10. INDEMNITY</h2>
+
+      <p>
+        The Borrower shall indemnify and keep indemnified the Lender, its
+        officers, representatives, agents and Lending Service Provider against
+        losses, claims, costs or expenses arising from false information,
+        misrepresentation or breach of this Agreement by the Borrower.
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- GOVERNING LAW -->
+      <!-- ========================================================= -->
+
+      <h2>11. GOVERNING LAW AND ARBITRATION</h2>
+
+      <ol class="clause-list">
+        <li>
+          <span class="num">1.</span>
+          <span class="content">
+            This Agreement shall be governed by the laws of India.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">2.</span>
+          <span class="content">
+            Subject to arbitration, courts in Mumbai shall have jurisdiction.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">3.</span>
+          <span class="content">
+            Any dispute shall be resolved by arbitration under the Arbitration
+            and Conciliation Act, 1996 through a mutually appointed sole
+            arbitrator.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">4.</span>
+          <span class="content">
+            The seat of arbitration shall be Mumbai and proceedings shall be
+            conducted in English.
+          </span>
+        </li>
+      </ol>
+
+      <!-- ========================================================= -->
+      <!-- TERM -->
+      <!-- ========================================================= -->
+
+      <h2>12. TERM AND TERMINATION</h2>
+
+      <p>
+        This Agreement shall remain effective until all amounts payable under
+        the Facility are fully repaid.
+      </p>
+
+      <p>
+        In case of default or breach, the Lender may, subject to applicable law,
+        terminate the Facility and demand payment of outstanding dues.
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- SMA NPA -->
+      <!-- ========================================================= -->
+
+      <h2>13. SMA AND NPA CLASSIFICATION</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Classification</th>
+            <th>Overdue Period</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td>SMA-0</td>
+            <td>Up to 30 days</td>
+          </tr>
+
+          <tr>
+            <td>SMA-1</td>
+            <td>More than 30 days and up to 60 days</td>
+          </tr>
+
+          <tr>
+            <td>SMA-2</td>
+            <td>More than 60 days and up to 90 days</td>
+          </tr>
+
+          <tr>
+            <td>NPA</td>
+            <td>More than 90 days</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        Delayed repayments may be reported to credit information companies and
+        may negatively affect the Borrower's credit score.
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- SIGNATURE -->
+      <!-- ========================================================= -->
+
+      <table class="sig-table">
+        <tr>
+          <td>
+            For and on behalf of<br />
+            <strong>Fintree Finance Private Limited</strong>
+            <br /><br /><br />
+            Name:<br /><br />
+            Signature:
+          </td>
+
+          <td>
+            <strong>Borrower</strong>
+            <br /><br />
+            Name: {{CUST_NAME}}
+            <br /><br />
+            Signature:
+          </td>
+        </tr>
+      </table>
+
+      <!-- ========================================================= -->
+      <!-- LOAN SUMMARY -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title new-page">LOAN SUMMARY</p>
+
+      <table>
+        <tr>
+          <td><strong>Loan Account Number</strong></td>
+          <td>{{LAN}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Application Number</strong></td>
+          <td>{{APP_ID}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Partner Loan ID</strong></td>
+          <td>{{PARTNER_LOAN_ID}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Borrower Name</strong></td>
+          <td>{{CUST_NAME}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Borrower Address</strong></td>
+          <td>{{PER_ADD}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Mobile Number</strong></td>
+          <td>{{MOBILE}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Email</strong></td>
+          <td>{{EMAIL}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Sanctioned Amount</strong></td>
+          <td>₹ {{FINAL_LIMIT}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Interest Rate</strong></td>
+          <td>{{INTEREST_RATE}}% p.a.</td>
+        </tr>
+
+        <tr>
+          <td><strong>Loan Tenure</strong></td>
+          <td>{{TENURE}} Days</td>
+        </tr>
+
+        <tr>
+          <td><strong>Repayment Amount</strong></td>
+          <td>₹ {{EMI_AMOUNT}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Processing Fee</strong></td>
+          <td>{{PF_PERCENT}}%</td>
+        </tr>
+
+        <tr>
+          <td><strong>Subvention</strong></td>
+          <td>{{SUBVENTION_PERCENT}}%</td>
+        </tr>
+
+        <tr>
+          <td><strong>Hospital Name</strong></td>
+          <td>{{HOSPITAL_NAME}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Patient Name</strong></td>
+          <td>{{PATIENT_NAME}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Insurance Company</strong></td>
+          <td>{{INSURANCE_COMPANY}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Policy Number</strong></td>
+          <td>{{POLICY_NUMBER}}</td>
+        </tr>
+      </table>
+
+      <!-- ========================================================= -->
+      <!-- REPAYMENT SCHEDULE -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title">REPAYMENT SCHEDULE</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>S.No.</th>
+            <th>Due Date</th>
+            <th>Principal Amount</th>
+            <th>Interest Rate</th>
+            <th>Repayment Amount</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>{{DUE_DATE}}</td>
+            <td>₹ {{FINAL_LIMIT}}</td>
+            <td>{{INTEREST_RATE}}%</td>
+            <td>₹ {{EMI_AMOUNT}}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ========================================================= -->
+      <!-- KEY FACT STATEMENT -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title new-page">KEY FACT STATEMENT</p>
+
+      <p class="annex-subtitle">PART 1</p>
+
+      <table>
+        <tr>
+          <td>1</td>
+          <td><strong>Loan Account Number</strong></td>
+          <td>{{LAN}}</td>
+        </tr>
+
+        <tr>
+          <td>2</td>
+          <td><strong>Type of Loan</strong></td>
+          <td>Personal Loan for Medical Expenses</td>
+        </tr>
+
+        <tr>
+          <td>3</td>
+          <td><strong>Sanctioned Loan Amount</strong></td>
+          <td>₹ {{FINAL_LIMIT}}</td>
+        </tr>
+
+        <tr>
+          <td>4</td>
+          <td><strong>Loan Term</strong></td>
+          <td>{{TENURE}} Days</td>
+        </tr>
+
+        <tr>
+          <td>5</td>
+          <td><strong>Repayment Type</strong></td>
+          <td>Bullet Repayment</td>
+        </tr>
+
+        <tr>
+          <td>6</td>
+          <td><strong>Number of Instalments</strong></td>
+          <td>1</td>
+        </tr>
+
+        <tr>
+          <td>7</td>
+          <td><strong>Repayment Amount</strong></td>
+          <td>₹ {{EMI_AMOUNT}}</td>
+        </tr>
+
+        <tr>
+          <td>8</td>
+          <td><strong>Interest Rate</strong></td>
+          <td>{{INTEREST_RATE}}% p.a. Fixed</td>
+        </tr>
+
+        <tr>
+          <td>9</td>
+          <td><strong>Annual Percentage Rate</strong></td>
+          <td>{{APR}}%</td>
+        </tr>
+
+        <tr>
+          <td>10</td>
+          <td><strong>Processing Fee</strong></td>
+          <td>{{PF_PERCENT}}%</td>
+        </tr>
+
+        <tr>
+          <td>11</td>
+          <td><strong>Insurance Charges</strong></td>
+          <td>₹ {{INSURANCE_COST}}</td>
+        </tr>
+
+        <tr>
+          <td>12</td>
+          <td><strong>Penal Charges</strong></td>
+          <td>{{PENAL_CHARGE_RATE}}%</td>
+        </tr>
+
+        <tr>
+          <td>13</td>
+          <td><strong>Bounce Charges</strong></td>
+          <td>₹ {{BOUNCE_CHARGES}}</td>
+        </tr>
+
+        <tr>
+          <td>14</td>
+          <td><strong>Cooling-off Period</strong></td>
+          <td>{{COOLING_OFF_DAYS}} Days</td>
+        </tr>
+
+        <tr>
+          <td>15</td>
+          <td><strong>LSP</strong></td>
+          <td>Claimbuddy Technologies Private Limited</td>
+        </tr>
+      </table>
+
+      <!-- ========================================================= -->
+      <!-- APR -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title">COMPUTATION OF APR</p>
+
+      <table>
+        <tr>
+          <td>1</td>
+          <td>Sanctioned Loan Amount</td>
+          <td>₹ {{FINAL_LIMIT}}</td>
+        </tr>
+
+        <tr>
+          <td>2</td>
+          <td>Loan Term</td>
+          <td>{{TENURE}} Days</td>
+        </tr>
+
+        <tr>
+          <td>3</td>
+          <td>Number of Instalments</td>
+          <td>1</td>
+        </tr>
+
+        <tr>
+          <td>4</td>
+          <td>Repayment Amount</td>
+          <td>₹ {{EMI_AMOUNT}}</td>
+        </tr>
+
+        <tr>
+          <td>5</td>
+          <td>Interest Rate Type</td>
+          <td>Fixed</td>
+        </tr>
+
+        <tr>
+          <td>6</td>
+          <td>Rate of Interest</td>
+          <td>{{INTEREST_RATE}}%</td>
+        </tr>
+
+        <tr>
+          <td>7</td>
+          <td>Processing Fee</td>
+          <td>{{PF_PERCENT}}%</td>
+        </tr>
+
+        <tr>
+          <td>8</td>
+          <td>Insurance Charge</td>
+          <td>₹ {{INSURANCE_COST}}</td>
+        </tr>
+
+        <tr>
+          <td>9</td>
+          <td>Net Disbursement</td>
+          <td>₹ {{NET_DISBURSEMENT}}</td>
+        </tr>
+
+        <tr>
+          <td>10</td>
+          <td>APR</td>
+          <td>{{APR}}%</td>
+        </tr>
+
+        <tr>
+          <td>11</td>
+          <td>Due Date</td>
+          <td>{{DUE_DATE}}</td>
+        </tr>
+      </table>
+
+      <!-- ========================================================= -->
+      <!-- INSURANCE DETAILS -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title">INSURANCE DETAILS</p>
+
+      <table>
+        <tr>
+          <td><strong>Insurance Company</strong></td>
+          <td>{{INSURANCE_COMPANY}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Policy Holder Name</strong></td>
+          <td>{{POLICY_HOLDER_NAME}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Policy Number</strong></td>
+          <td>{{POLICY_NUMBER}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Relation with Policy Holder</strong></td>
+          <td>{{RELATION_POLICY_HOLDER}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Insurance Cost</strong></td>
+          <td>₹ {{INSURANCE_COST}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Policy Issued Date</strong></td>
+          <td>{{POLICY_ISSUE_DATE}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Insurance Period</strong></td>
+          <td>{{INSURANCE_PERIOD}}</td>
+        </tr>
+      </table>
+
+      <!-- ========================================================= -->
+      <!-- BORROWER DECLARATION -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title new-page">
+        BORROWER'S ACKNOWLEDGEMENT AND DECLARATION
+      </p>
+
+      <ol class="clause-list">
+        <li>
+          <span class="num">1.</span>
+          <span class="content">
+            I confirm that all information and documents submitted by me are
+            true, correct and complete.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">2.</span>
+          <span class="content">
+            I confirm that I have read and understood the Loan Agreement, Key
+            Fact Statement, Sanction Letter and repayment terms.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">3.</span>
+          <span class="content">
+            I understand the applicable interest, charges, fees, repayment
+            obligations and consequences of default.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">4.</span>
+          <span class="content">
+            I consent to execution of the loan documents electronically and
+            acknowledge that electronic acceptance shall be legally binding.
+          </span>
+        </li>
+      </ol>
+
+      <p>
+        Borrower Name:
+        <strong>{{CUST_NAME}}</strong>
+      </p>
+
+      <p>
+        Place:
+        <strong>{{CURRENT_CITY}}</strong>
+      </p>
+
+      <p>
+        Date:
+        <strong>{{CUR_DATE}}</strong>
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- BORROWER CONSENT -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title new-page">BORROWER'S CONSENT</p>
+
+      <p>
+        I hereby voluntarily provide my identification, KYC, banking, financial,
+        insurance and other information to Fintree Finance Private Limited for
+        processing and servicing my loan application.
+      </p>
+
+      <p>
+        I consent to the Lender obtaining, verifying and sharing my information,
+        where legally permitted, with credit bureaus, regulated entities,
+        service providers, government authorities and Lending Service Providers
+        for purposes connected with the Facility.
+      </p>
+
+      <p>
+        I also consent to the Lender obtaining my Credit Information Report from
+        authorised Credit Information Companies.
+      </p>
+
+      <p>
+        Borrower:
+        <strong>{{CUST_NAME}}</strong>
+      </p>
+
+      <p>Signature:</p>
+
+      <!-- ========================================================= -->
+      <!-- DEMAND PROMISSORY NOTE -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title new-page">DEMAND PROMISSORY NOTE</p>
+
+      <p>
+        Date:
+        <strong>{{CUR_DATE}}</strong>
+      </p>
+
+      <p>
+        To,<br />
+        <strong>Fintree Finance Private Limited</strong><br />
+        4th Floor, Engineering Centre,<br />
+        9 Mathew Road, Opera House,<br />
+        Charni Road (East),<br />
+        Mumbai - 400004.
+      </p>
+
+      <p>
+        On demand I,
+        <strong>{{CUST_NAME}}</strong>, unconditionally promise to pay Fintree
+        Finance Private Limited the sum of Rs.
+        <strong>{{FINAL_LIMIT}}</strong>/- together with applicable interest,
+        charges, costs and expenses payable in accordance with the Loan
+        Agreement.
+      </p>
+
+      <p>
+        Borrower Name:
+        <strong>{{CUST_NAME}}</strong>
+      </p>
+
+      <p>Signature:</p>
+
+      <!-- ========================================================= -->
+      <!-- CONSENT DECLARATION -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title new-page">CONSENT AND SELF DECLARATION</p>
+
+      <p>
+        Date:
+        <strong>{{CUR_DATE}}</strong>
+      </p>
+
+      <ol class="clause-list">
+        <li>
+          <span class="num">1.</span>
+          <span class="content">
+            I declare that all particulars and information supplied by me are
+            true, correct, complete and updated.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">2.</span>
+          <span class="content">
+            I authorise Fintree Finance Private Limited to verify information
+            provided by me.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">3.</span>
+          <span class="content">
+            I authorise the Lender to obtain necessary information from banks,
+            credit bureaus, regulated entities and authorised agencies.
+          </span>
+        </li>
+
+        <li>
+          <span class="num">4.</span>
+          <span class="content">
+            I authorise the Lender and its authorised service providers to
+            contact me in connection with this Facility.
+          </span>
+        </li>
+      </ol>
+
+      <p class="system-note">
+        ***This is a system generated consent declaration and does not require
+        physical signature***
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- SANCTION LETTER -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title new-page">SANCTION LETTER</p>
+
+      <p>
+        Date:
+        <strong>{{SANCTION_DATE}}</strong>
+      </p>
+
+      <p>
+        Borrower Name:
+        <strong>{{CUST_NAME}}</strong>
+      </p>
+
+      <p>
+        Address:
+        <strong>{{PER_ADD}}</strong>
+      </p>
+
+      <p>
+        Loan Account Number:
+        <strong>{{LAN}}</strong>
+      </p>
+
+      <p>
+        Application Number:
+        <strong>{{APP_ID}}</strong>
+      </p>
+
+      <p>Dear Sir / Madam,</p>
+
+      <p>
+        We are pleased to inform you that, based on the application and
+        information provided by you, Fintree Finance Private Limited has
+        sanctioned the following credit facility:
+      </p>
+
+      <table>
+        <tr>
+          <td>Sanctioned Amount</td>
+          <td>₹ {{FINAL_LIMIT}}</td>
+        </tr>
+
+        <tr>
+          <td>Loan Purpose</td>
+          <td>Medical Expenses</td>
+        </tr>
+
+        <tr>
+          <td>Hospital</td>
+          <td>{{HOSPITAL_NAME}}</td>
+        </tr>
+
+        <tr>
+          <td>Patient Name</td>
+          <td>{{PATIENT_NAME}}</td>
+        </tr>
+
+        <tr>
+          <td>Interest Rate</td>
+          <td>{{INTEREST_RATE}}% p.a.</td>
+        </tr>
+
+        <tr>
+          <td>Tenure</td>
+          <td>{{TENURE}} Days</td>
+        </tr>
+
+        <tr>
+          <td>Repayment Amount</td>
+          <td>₹ {{EMI_AMOUNT}}</td>
+        </tr>
+
+        <tr>
+          <td>Processing Fee</td>
+          <td>{{PF_PERCENT}}%</td>
+        </tr>
+      </table>
+
+      <p>
+        The sanction shall remain subject to satisfactory completion of
+        documentation, KYC, mandate registration, credit approval and other
+        requirements of the Lender.
+      </p>
+
+      <p class="system-note">
+        ***This is a system generated sanction letter and does not require
+        physical signature***
+      </p>
+
+      <!-- ========================================================= -->
+      <!-- DISBURSEMENT REQUEST -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title new-page">DISBURSEMENT REQUEST LETTER</p>
+
+      <p>
+        Date:
+        <strong>{{CUR_DATE}}</strong>
+      </p>
+
+      <p>
+        To,<br />
+        The Manager,<br />
+        Fintree Finance Private Limited
+      </p>
+
+      <p>
+        <strong> Subject: Request for Disbursement of Loan {{LAN}} </strong>
+      </p>
+
+      <p>
+        I,
+        <strong>{{CUST_NAME}}</strong>, confirm that I have received sanction
+        for a loan amount of Rs. <strong>{{FINAL_LIMIT}}</strong>/- under Loan
+        Account Number <strong>{{LAN}}</strong>.
+      </p>
+
+      <p>
+        I hereby request Fintree Finance Private Limited to disburse the
+        sanctioned amount in accordance with the agreed terms and authorised
+        beneficiary instructions.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Beneficiary</th>
+            <th>Purpose</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td>{{HOSPITAL_NAME}}</td>
+            <td>Medical Treatment / Medical Bills</td>
+            <td>₹ {{FINAL_LIMIT}}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        Borrower Name:
+        <strong>{{CUST_NAME}}</strong>
+      </p>
+
+      <p>Signature:</p>
+
+      <!-- ========================================================= -->
+      <!-- DISBURSEMENT ACKNOWLEDGEMENT -->
+      <!-- ========================================================= -->
+
+      <p class="annex-title new-page">DISBURSEMENT ACKNOWLEDGEMENT LETTER</p>
+
+      <p>
+        Date:
+        <strong>{{DISBURSEMENT_DATE}}</strong>
+      </p>
+
+      <p>
+        Borrower:
+        <strong>{{CUST_NAME}}</strong>
+      </p>
+
+      <p>
+        Loan Account Number:
+        <strong>{{LAN}}</strong>
+      </p>
+
+      <p>
+        I hereby acknowledge the disbursement of the Facility sanctioned under
+        the above Loan Account Number.
+      </p>
+
+      <table>
+        <tr>
+          <td><strong>Sanctioned Amount</strong></td>
+          <td>₹ {{FINAL_LIMIT}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Net Disbursement</strong></td>
+          <td>₹ {{NET_DISBURSEMENT}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Disbursement Date</strong></td>
+          <td>{{DISBURSEMENT_DATE}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Hospital</strong></td>
+          <td>{{HOSPITAL_NAME}}</td>
+        </tr>
+
+        <tr>
+          <td><strong>Patient</strong></td>
+          <td>{{PATIENT_NAME}}</td>
+        </tr>
+      </table>
+
+      <p>
+        Borrower:
+        <strong>{{CUST_NAME}}</strong>
+      </p>
+
+      <p>Signature:</p>
+    </div>
+  </body>
+</html>

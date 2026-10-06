@@ -27,6 +27,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const { generateNoc } = require("../services/noc.service");
+const { approveAndInitiatePayout } = require("../services/payout.service");
 
 const {
   generateNocForFullyPaidLoans,
@@ -86,6 +87,7 @@ const LAN_TABLE_MAP = {
   TLF: { table: "loan_booking_wctl_ffpl", statusCol: "status" },
   E1: { table: "loan_booking_embifi", statusCol: "status" },
   FINE: { table: "loan_booking_emiclub", statusCol: "status" },
+  FINEW: { table: "loan_booking_emiclub", statusCol: "status" },
   FINE2: { table: "loan_booking_emiclub2", statusCol: "status" },
   CARE: { table: "loan_booking_carepay", statusCol: "status" },
   STRL: { table: "loan_booking_sterlion", statusCol: "status" },
@@ -95,6 +97,11 @@ const LAN_TABLE_MAP = {
     table: "carepay_hospital_booking",
     statusCol: "status",
     editableStatuses: new Set(["pending", "approved", "active"]),
+  },
+
+  CBF: {
+    table: "loan_booking_claim_buddy",
+    statusCol: "status",
   },
   DLR: { table: "dealer_onboarding", statusCol: "status" },
   ZYPF: { table: "loan_booking_zypay_customer", statusCol: "status" },
@@ -1616,6 +1623,92 @@ function inferOriginalNameFromUrl(url) {
   }
 }
 
+const EMICLUB_AUTO_DISBURSE_DOCS = [
+  "KYC",
+  "PAN_CARD",
+  "PAN_VERIFICATION_AUDIT_TRAIL",
+  "OFFLINE_VERIFICATION_OF_AADHAAR",
+  "PROFILE_IMAGE",
+  "INVOICE",
+  "AGREEMENT",
+  "KFS_DOCUMENT",
+];
+
+async function tryAutoDisburseEmiClub(lan) {
+  console.log("[EMICLUB-AUTO] check start", { lan });
+  const result = await evaluateEmiClubAutoDisburse(lan);
+  console.log("[EMICLUB-AUTO] check result", { lan, ...result });
+  return result;
+}
+
+async function evaluateEmiClubAutoDisburse(lan) {
+  if (!String(lan).toUpperCase().startsWith("FINE") || String(lan).toUpperCase().startsWith("FINE2")) {
+    return { triggered: false, reason: "NOT_EMICLUB" };
+  }
+
+  const [present] = await db.promise().query(
+    `SELECT DISTINCT doc_name FROM loan_documents
+     WHERE lan = ? AND doc_name IN (?)`,
+    [lan, EMICLUB_AUTO_DISBURSE_DOCS],
+  );
+
+  const presentNames = new Set(present.map((r) => r.doc_name));
+  const missing = EMICLUB_AUTO_DISBURSE_DOCS.filter((d) => !presentNames.has(d));
+
+  if (missing.length > 0) {
+    return { triggered: false, reason: "DOCS_PENDING", missing };
+  }
+
+  const [[loan]] = await db.promise().query(
+    `SELECT status FROM loan_booking_emiclub WHERE lan = ? LIMIT 1`,
+    [lan],
+  );
+
+  if (!loan) {
+    return { triggered: false, reason: "LOAN_NOT_FOUND" };
+  }
+
+  if (String(loan.status || "").toLowerCase() === "disbursed") {
+    return { triggered: false, reason: "ALREADY_DISBURSED" };
+  }
+
+  const [[priorTransfer]] = await db.promise().query(
+    `SELECT id, status, payout_status FROM quick_transfers WHERE lan = ? ORDER BY id DESC LIMIT 1`,
+    [lan],
+  );
+
+  if (priorTransfer) {
+    return {
+      triggered: false,
+      reason: "PAYOUT_ALREADY_ATTEMPTED",
+      previous_status: priorTransfer.payout_status || priorTransfer.status,
+    };
+  }
+
+  await db.promise().query(
+    `UPDATE loan_booking_emiclub SET status = 'approved' WHERE lan = ?`,
+    [lan],
+  );
+
+  console.log("[EMICLUB-AUTO] all docs present, starting payout", { lan });
+
+  try {
+    const payout = await approveAndInitiatePayout({
+      lan,
+      table: "loan_booking_emiclub",
+    });
+
+    return {
+      triggered: true,
+      success: Boolean(payout?.success),
+      message: payout?.message || null,
+    };
+  } catch (err) {
+    console.error("EmiClub auto-disbursal failed", { lan, message: err.message });
+    return { triggered: true, success: false, message: err.message };
+  }
+}
+
 async function handleRemoteDocumentUpload(req, res) {
   try {
     const { lan: bodyLan, documents } = req.body;
@@ -1705,12 +1798,26 @@ async function handleRemoteDocumentUpload(req, res) {
       );
     });
 
+    let disbursement;
+    if (lan.toUpperCase().startsWith("FINE") && !lan.toUpperCase().startsWith("FINE2")) {
+      try {
+        disbursement = await tryAutoDisburseEmiClub(lan);
+      } catch (disburseErr) {
+        console.error("EmiClub auto-disbursal check failed", {
+          lan,
+          message: disburseErr.message,
+        });
+        disbursement = { triggered: false, reason: "CHECK_FAILED", message: disburseErr.message };
+      }
+    }
+
     return res.status(200).json({
       message: "✅ Documents downloaded & saved locally",
       lan,
       inserted_count: cleaned.length,
       warnings,
       skipped_or_errors: errors,
+      ...(disbursement ? { disbursement } : {}),
       docs: cleaned.map((d) => ({
         doc_name: d.doc_name,
         original_name: d.original_name,
@@ -3544,6 +3651,8 @@ router.post("/generate-noc", async (req, res) => {
   else if (lan.startsWith("SH")) loanTable = "loan_booking_srbh";
   else if (lan.startsWith("RML")) loanTable = "loan_booking_switch_my_loan";
   else if (lan.startsWith("CCB")) loanTable = "loan_booking_claim_cure_buddy";
+  else if (lan.startsWith("CBF")) loanTable = "loan_booking_claim_buddy";  // CLAIM BUDDY
+  
 
   try {
     const [loanRows] = await db

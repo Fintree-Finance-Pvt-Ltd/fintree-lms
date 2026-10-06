@@ -129,6 +129,18 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.partner_loan_id";
     netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
   }
+  if (lan.startsWith("SW")) {
+    tableName = "loan_booking_saswat";
+    loanAmountCol = "lb.loan_amount";
+    loanAmountExpr = "lb.loan_amount";
+    interestRateCol = "lb.interest_rate AS interest_rate";
+    tenureCol = "lb.loan_tenure";
+    processingFeeCol = "COALESCE(lb.processing_fee, 0) AS processing_fee";
+    subventionCol = "0";
+    retentionCol = "0";
+    partnerLoanIdCol = "lb.partner_loan_id";
+    netDisbursementExpr = `(${loanAmountExpr} - ${subventionCol})`;
+  }
   // if (lan.startsWith("STRL")) {
   //   tableName = "loan_booking_sterlion";
   //   loanAmountCol = "COALESCE(lb.loan_amount, lb.request_amount) AS loan_amount";
@@ -194,6 +206,20 @@ router.get("/:lan", async (req, res) => {
     partnerLoanIdCol = "lb.app_id";
     netDisbursementExpr = "lb.final_limit";
   } 
+
+  if (lan.startsWith("CBF")) {
+  tableName = "loan_booking_claim_buddy";
+  loanAmountCol = "lb.loan_amount";
+  loanAmountExpr = "lb.loan_amount";
+  interestRateCol = "lb.interest_rate";
+  tenureCol = "lb.loan_tenure";
+  processingFeeCol = "COALESCE(lb.pf_percent, 0) AS processing_fee";
+  subventionCol = "0";
+  retentionCol = "0";
+  partnerLoanIdCol = "lb.app_id";
+  netDisbursementExpr = `${loanAmountExpr}`;
+}
+
   if (lan.startsWith("LDF")) {
     tableName = "loan_booking_loan_digit";
     loanAmountCol = "lb.loan_amount";

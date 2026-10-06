@@ -86,28 +86,25 @@ const AllLoansScreen = ({
   }, [fetchPage]);
 
   const handleRejectCase = async (row) => {
-  const confirmed = window.confirm(
-    `Are you sure you want to reject case ${row.lan}?`
-  );
-
-  if (!confirmed) return;
-
-  try {
-    setLoading(true);
-    setErr("");
-
-    await api.patch(rejectEndpointBuilder(row));
-
-    fetchPage();
-  } catch (error) {
-    setErr(
-      error.response?.data?.message ||
-      "Unable to reject case."
+    const confirmed = window.confirm(
+      `Are you sure you want to reject case ${row.lan}?`,
     );
-  } finally {
-    setLoading(false);
-  }
-};
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      setErr("");
+
+      await api.patch(rejectEndpointBuilder(row));
+
+      fetchPage();
+    } catch (error) {
+      setErr(error.response?.data?.message || "Unable to reject case.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const hasADK = rows.some((r) => /^ADK/i.test(r?.lan));
   const hasGQFSF = rows.some((r) => /^GQFSF/i.test(r?.lan));
@@ -222,16 +219,16 @@ const AllLoansScreen = ({
           }}
         >
           {/^UBLF/i.test(r?.lan)
-            ? r.business_name ?? "—"
-            : r.customer_name ?? r.pan_name ?? "—"}
+            ? (r.business_name ?? "—")
+            : (r.customer_name ?? r.pan_name ?? "—")}
         </span>
       ),
 
       sortAccessor: (r) =>
         String(
           /^UBLF/i.test(r?.lan)
-            ? r.business_name ?? ""
-            : r.customer_name ?? r.pan_name ?? ""
+            ? (r.business_name ?? "")
+            : (r.customer_name ?? r.pan_name ?? ""),
         ).toLowerCase(),
 
       width: 220,
@@ -245,23 +242,28 @@ const AllLoansScreen = ({
           className="lan-code-badge"
           onClick={() => {
             if (typeof lanDetailsUrlBuilder === "function") {
-              nav(lanDetailsUrlBuilder(r));
+              const lan = r?.lan || r?.LAN;
+              const detailsUrl = lan
+                ? lanDetailsUrlBuilder({ ...r, lan })
+                : null;
+
+              if (detailsUrl) nav(detailsUrl);
             } else if (/^LDF/i.test(r.lan)) {
               nav(`/loan-digit/customer-details?lan=${r.lan}`);
             } else if (/^MC/i.test(r.lan)) {
               nav(`/motion-corp/updatedata?lan=${r.lan}`);
             } else if (/^FUN/i.test(r.lan)) {
               nav(`/fundify/customer-details/${r.lan}`);
-            }else if (/^FINS/i.test(r.lan)) {
+            } else if (/^FINS/i.test(r.lan)) {
               nav(`/fincrest-loan-details/${r.lan}`);
-            }else if (/^SHL/i.test(r.lan)) {
+            } else if (/^SHL/i.test(r.lan)) {
               nav(`/srbh/customer-details?lan=${r.lan}`);
-            }else if (/^SFL/i.test(r.lan)) {
+            } else if (/^SFL/i.test(r.lan)) {
               nav(`/seven-fincorp/customer-details?lan=${r.lan}`);
             } else if (/^UBLF/i.test(r.lan)) {
               nav(`/sterlion-ubl-loans/details/${r.lan}`);
-            } else if (/^CCB/i.test(r.lan)) { 
-              nav(`/claimcurebuddy/customer-details/${r.lan}`)
+            } else if (/^CCB/i.test(r.lan)) {
+              nav(`/claimcurebuddy/customer-details/${r.lan}`);
             } else {
               nav(`/loan-details/${r.lan}`);
             }
@@ -382,14 +384,11 @@ const AllLoansScreen = ({
       header: "Loan Amount",
       sortable: true,
       render: (r) => (
-        <span className="lan-code-badge">
-          {r.loan_amount ?? "—"}
-        </span>
+        <span className="lan-code-badge">{r.loan_amount ?? "—"}</span>
       ),
-      sortAccessor: (r) =>
-        String(r?.loan_amount || "").toLowerCase(),
+      sortAccessor: (r) => String(r?.loan_amount || "").toLowerCase(),
       csvAccessor: (r) => r.loan_amount ?? "",
- 
+
       width: 160,
     },
     {
@@ -397,23 +396,29 @@ const AllLoansScreen = ({
       header: "Disbursement Amount",
       sortable: true,
       render: (r) => {
-        const n = Number(r?.[amountField] ?? r?.net_disbursement_amount ?? r?.final_limit ?? r?.loan_amount);
+        const n = Number(
+          r?.[amountField] ??
+            r?.net_disbursement_amount ??
+            r?.final_limit ??
+            r?.loan_amount,
+        );
         return (
           <span className="amount-text-bold">
             {Number.isFinite(n) ? nf.format(n) : "—"}
           </span>
         );
       },
-      csvAccessor: (r) => {       //csvAccessor -> net_disbursement_amount
-    const n = Number(
-      r?.[amountField] ??
-      r?.net_disbursement_amount ??
-      r?.final_limit ??
-      r?.loan_amount
-    );
- 
-    return Number.isFinite(n) ? n : "";
-  },
+      csvAccessor: (r) => {
+        //csvAccessor -> net_disbursement_amount
+        const n = Number(
+          r?.[amountField] ??
+            r?.net_disbursement_amount ??
+            r?.final_limit ??
+            r?.loan_amount,
+        );
+
+        return Number.isFinite(n) ? n : "";
+      },
       sortAccessor: (r) => {
         const v = Number(
           r?.[amountField] ?? r?.final_limit ?? r?.loan_amount ?? 0,
@@ -423,36 +428,35 @@ const AllLoansScreen = ({
       width: 190,
     },
 
-
     ...(showNetDisbursement
-  ? [
-      {
-        key: "net_disb_amt",
-        header: "Net Disbursement Amount",
-        sortable: true,
-        render: (r) => {
-          if (
-            r?.net_disb_amt === null ||
-            r?.net_disb_amt === undefined ||
-            r?.net_disb_amt === ""
-          ) {
-            return <span className="currency-text">—</span>;
-          }
+      ? [
+          {
+            key: "net_disb_amt",
+            header: "Net Disbursement Amount",
+            sortable: true,
+            render: (r) => {
+              if (
+                r?.net_disb_amt === null ||
+                r?.net_disb_amt === undefined ||
+                r?.net_disb_amt === ""
+              ) {
+                return <span className="currency-text">—</span>;
+              }
 
-          const value = Number(r.net_disb_amt);
+              const value = Number(r.net_disb_amt);
 
-          return (
-            <span className="currency-text">
-              {Number.isFinite(value) ? nf.format(value) : "—"}
-            </span>
-          );
-        },
-        sortAccessor: (r) => Number(r?.net_disb_amt || 0),
-        csvAccessor: (r) => r?.net_disb_amt ?? "",
-        width: 210,
-      },
-    ]
-  : []),
+              return (
+                <span className="currency-text">
+                  {Number.isFinite(value) ? nf.format(value) : "—"}
+                </span>
+              );
+            },
+            sortAccessor: (r) => Number(r?.net_disb_amt || 0),
+            csvAccessor: (r) => r?.net_disb_amt ?? "",
+            width: 210,
+          },
+        ]
+      : []),
     {
       key: "disbursement_date",
       header: "Disbursement Date",
@@ -546,68 +550,67 @@ const AllLoansScreen = ({
     //   width: 130,
     // },
     {
-  key: "docs",
-  header: "Action",
-  render: (r) => (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-      }}
-    >
-      <button
-        onClick={() => nav(`/documents/${r.lan}`)}
-        style={{
-          padding: "8px 14px",
-          borderRadius: "8px",
-          border: "1px solid #e2e8f0",
-          color: "#0f172a",
-          background: "#fff",
-          cursor: "pointer",
-          fontSize: "12px",
-          fontWeight: "700",
-          display: "flex",
-          alignItems: "center",
-          gap: "6px",
-          transition: "0.2s",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-        }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.background = "#f8fafc";
-          e.currentTarget.style.borderColor = "#cbd5e1";
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.background = "#fff";
-          e.currentTarget.style.borderColor = "#e2e8f0";
-        }}
-      >
-        <span>📂</span> Documents
-      </button>
-
-      {enableReject &&
-        (!canRejectRow || canRejectRow(r)) && (
+      key: "docs",
+      header: "Action",
+      render: (r) => (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
           <button
-            type="button"
-            onClick={() => handleRejectCase(r)}
+            onClick={() => nav(`/documents/${r.lan}`)}
             style={{
               padding: "8px 14px",
               borderRadius: "8px",
-              border: "1px solid #fecaca",
-              color: "#b91c1c",
+              border: "1px solid #e2e8f0",
+              color: "#0f172a",
               background: "#fff",
               cursor: "pointer",
               fontSize: "12px",
               fontWeight: "700",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              transition: "0.2s",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "#f8fafc";
+              e.currentTarget.style.borderColor = "#cbd5e1";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "#fff";
+              e.currentTarget.style.borderColor = "#e2e8f0";
             }}
           >
-            Reject
+            <span>📂</span> Documents
           </button>
-        )}
-    </div>
-  ),
-  width: 240,
-},
+
+          {enableReject && (!canRejectRow || canRejectRow(r)) && (
+            <button
+              type="button"
+              onClick={() => handleRejectCase(r)}
+              style={{
+                padding: "8px 14px",
+                borderRadius: "8px",
+                border: "1px solid #fecaca",
+                color: "#b91c1c",
+                background: "#fff",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: "700",
+              }}
+            >
+              Reject
+            </button>
+          )}
+        </div>
+      ),
+      width: 240,
+    },
   ];
 
   return (

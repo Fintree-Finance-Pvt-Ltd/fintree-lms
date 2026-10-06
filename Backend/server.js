@@ -17,9 +17,12 @@ ensureThirdPartyApiUsageTable().catch((err) =>
 
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const verifyToken = require("./middleware/verifyToken");
+const payoutRoutes = require("./routes/payoutRoutes");
 const excelUploadRoutes = require("./routes/excelUpload");
 const sterlionRoutes = require("./routes/sterlion/sterlionRoutes");
 const carePayRoutes = require("./routes/CarePay/carePayRoutes");
+const claimBuddyRoutes = require("./routes/ClaimBuddy/claimBuddyRoutes"); //Claim Buddy
 const loanRoutes = require("./routes/loanRoutes");
 const repaymentRoutes = require("./routes/repaymentsRoutes");
 const loanChargesRoutes = require("./routes/loanChargesRoutes");
@@ -111,9 +114,12 @@ const PORT = process.env.PORT;
 // import { v4 as uuidv4 } from 'uuid';
 
 // ✅ Import jobs
-require("./jobs/dailyJobs");
-require("./jobs/rapidMoneyWebhookRetry");
-require("./jobs/quickMoneyWebhookRetry");
+if (process.env.RUN_CRONS === 'true') {
+  require("./jobs/dailyJobs");
+  require("./jobs/rapidMoneyWebhookRetry");
+  require("./jobs/quickMoneyWebhookRetry");
+  require("./workers/pdfQueue"); // Load the PDF Queue Worker
+}
 
 const fs = require("fs");
 const path = require("path");
@@ -135,7 +141,9 @@ app.use(
 const digitapAadhaarService = require("./services/digitapaadharservice");
 
 app.use("/api/test-kyc", digitapAadhaarService.router);
-initScheduler();
+if (process.env.RUN_CRONS === 'true') {
+  initScheduler();
+}
 
 // // Auto-generate API key once when server starts
 // const API_KEY = process.env.API_KEY || uuidv4();
@@ -196,10 +204,10 @@ app.use(
 app.use("/api/srbh", require("./routes/srbh/srbhDealerRoutes"));
 
 app.use("/api/bundela", require("./routes/Bundela/bundelaDealerRoutes"));
-
-app.use("/api/utr", require("./routes/utrRoutes")); // ✅ Register UTR Routes
-app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/loan-booking-summary", loanBookingSummaryRoutes);
+app.use("/api/payout", payoutRoutes); // ✅ Register Payout Reinitiate Routes
+app.use("/api/utr", verifyToken, require("./routes/utrRoutes")); // ✅ Register UTR Routes
+app.use("/api/dashboard", verifyToken, dashboardRoutes);
+app.use("/api/loan-booking-summary", verifyToken, loanBookingSummaryRoutes);
 app.use("/api/third-party-api-stats", thirdPartyApiStatsRoutes);
 app.use("/api/enach", enachRoutes);
 app.use("/api/esign", esignRoutes);
@@ -579,27 +587,29 @@ app.use(
 ); // ✅ Register Easebuzz Webhook Route
 
 // app.use("/api/courses", courseRoutes);
-app.use("/api/loan", loanRoutes); //  routes chanegd
-app.use("/api/repayments", repaymentRoutes);
-app.use("/api/collection", collectionApiRoutes);
-app.use("/api/loan-charges", loanChargesRoutes);
-app.use("/api/manual-rps", manualRPSRoutes);
-app.use("/api/disbursal", DisbursalRoutes);
-app.use("/api/application-form", applicationFormRoutes);
-app.use("/api/charges", chargesRoutes); //  routes chanegd
-app.use("/api/delete-cashflow", deleteCashflowRoutes);
-app.use("/api/allocate", allocationRoutes); //  routes chanegd
-app.use("/api/forecloser-collection", forecloserRoutes); // NOT foreclose-collection
-app.use("/api/forecloser", forecloserUploadRoutes); // ✅ Register Route for Forecloser Upload FC Upload
+app.use("/api/loan", verifyToken, loanRoutes); //  routes chanegd
+app.use("/api/repayments",  repaymentRoutes);
+app.use("/api/collection",  collectionApiRoutes);
+app.use("/api/loan-charges", verifyToken, loanChargesRoutes);
+app.use("/api/manual-rps", verifyToken, manualRPSRoutes);
+app.use("/api/disbursal", verifyToken, DisbursalRoutes);
+app.use("/api/application-form", verifyToken, applicationFormRoutes);
+app.use("/api/charges", verifyToken, chargesRoutes); //  routes chanegd
+app.use("/api/delete-cashflow", verifyToken, deleteCashflowRoutes);
+app.use("/api/allocate", verifyToken, allocationRoutes); //  routes chanegd
+app.use("/api/forecloser-collection", verifyToken, forecloserRoutes); // NOT foreclose-collection
+app.use("/api/forecloser", verifyToken, forecloserUploadRoutes); // ✅ Register Route for Forecloser Upload FC Upload
 app.use("/reports", express.static(path.join(__dirname, "/reports")));
-app.use("/api/reports", reportsRoutes); // ✅ Register Route for Reports
-app.use("/api/customers-soa", require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
-app.use("/api/dealer-onboarding", dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
-app.use("/api/customers", require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers
+app.use("/api/reports", verifyToken, reportsRoutes); // ✅ Register Route for Reports
+app.use("/api/customers-soa", verifyToken, require("./routes/customersSOA")); // ✅ Register Route for Customer SOA
+app.use("/api/dealer-onboarding", verifyToken, dealerOnboardingRoutes); // ✅ Register Route for Dealer Onboarding
+app.use("/api/customers", verifyToken, require("./routes/Customer/customerRoutes")); // ✅ Register Route for Customers
 
-app.use("/api/partners", require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
+app.use("/api/partners", verifyToken, require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Mandate UMRN Update
+app.use("/api/claim-buddy",claimBuddyRoutes); // Claim Buddy
+
 app.use(
   "/api/claim-cure-buddy",
   require("./routes/ClaimCureBuddy/ClaimCureBuddyRoutes"),

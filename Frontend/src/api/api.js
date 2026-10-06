@@ -19,4 +19,19 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Auto-logout interceptor
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      console.warn("Token expired or invalid. Auto-logging out...");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      // Force reload to the login screen to clear React state completely
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
