@@ -66,6 +66,9 @@ router.post('/reinitiate', verifyToken, async (req, res) => {
     } else if (lan.startsWith('FINE')) {
       table = 'loan_booking_emiclub';
       statusToSet = 'Login';
+    } else if (lan.startsWith('LDF')) {
+      table = 'loan_booking_loan_digit';
+      statusToSet = 'OPS_MAKER_APPROVED';
     } else {
       return res.status(400).json({ message: "Unknown LAN prefix. Cannot determine loan booking table." });
     }

@@ -550,7 +550,7 @@ AND TRIM(bank_account_type)<>''
    SET status = 'Approved',
        bank_status = 'Verified'
    WHERE lan = ?
-     AND UPPER(TRIM(status)) <> 'REJECTED'`,
+     AND UPPER(TRIM(status)) NOT IN ('REJECTED', 'DISBURSED')`,
     [cleanLan],
   );
 
