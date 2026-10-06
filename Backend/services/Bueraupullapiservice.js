@@ -344,9 +344,9 @@ const runBureau = async (data) => {
 
     const userMsg =
       parsedInner?.INProfileResponse?.UserMessage?.UserMessageText;
-    if (userMsg) {
-      console.warn("⚠️ Bureau UserMessage:", userMsg);
-    }
+    // if (userMsg) {
+    //   console.warn("⚠️ Bureau UserMessage:", userMsg);
+    // }
 
     const scoreStr = parsedInner?.INProfileResponse?.SCORE?.BureauScore || null;
 
