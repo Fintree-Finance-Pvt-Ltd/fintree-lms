@@ -58,6 +58,7 @@ const allocateZebrs = require("./allocateZebrs");
 const allocateClaimCureBuddy = require("./allocateClaimCureBuddy");
 const allocateClaimBuddy = require("./allocateClaimBuddy");
 const allocateEmiClub2 = require("./allocateEmiClub2");
+const allocateSabGrow = require("./allocateSabgrow");
 // const getEmiClub2AwarePrefix = require("../../routes/EmiClub2/Emiclub2Routes");
 /**
  * Utility helpers for merging allocation results.
@@ -165,6 +166,8 @@ const allocateRepaymentByLAN = async (lan, payment) => {
     return allocateSRBH(lan, payment);
   } else if (lan.startsWith("ZBCL")) {
     return allocateZebrs(lan, payment);
+  }else if (lan.startsWith("SBR")) {
+    return allocateSabGrow(lan, payment);
   }
   else if (lan.startsWith("CCB")) {
     return allocateClaimCureBuddy(lan, payment);

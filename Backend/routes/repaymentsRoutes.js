@@ -710,6 +710,10 @@ async function processRows(sheetData, res) {
           `SELECT lan FROM loan_booking_switch_my_loan WHERE lan IN (?)`,
           [uniqueLANs],
         ), // Added for Rapid Money / Switch My Loan
+        queryDB(
+          `SELECT lan FROM loan_booking_sabgrow WHERE lan IN (?)`,
+          [uniqueLANs],
+        ),
       ]);
 
       validLANs = new Set(results.flat().map((r) => r.lan));
