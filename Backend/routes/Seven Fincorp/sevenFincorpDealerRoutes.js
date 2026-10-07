@@ -4,49 +4,58 @@ const axios = require("axios");
 const db = require("../../config/db");
 const {
   universalRunAllValidations,
+  runApplicantValidation,
 } = require("../../utils/runValiationsEngine");
 const { initAadhaarKyc } = require("../../services/digitapaadharservice");
+const partnerLimitService = require("../../services/partnerLimitService");
+const {
+  extractMotionCorpBureauFacts,
+  evaluateMotionCorpBureauScreening,
+} = require("../MotionCorp/motionCorpBRE");
+const { runSevenFincorpAmlScreening } = require("./sevenFincorpBRE");
 
 const router = express.Router();
+
+// partner_master.partner_name used for Seven Fincorp booking and
+// disbursement limits.
+const SEVEN_FINCORP_PARTNER_NAME = "Seven Fincorp";
 
 /*
 ====================================================
 IDENTIFIER GENERATOR
 ====================================================
 */
-const generateLoanIdentifiers = async (lender) => {
+// Must be called with a connection inside an open transaction. The row lock
+// from FOR UPDATE is then held until the caller commits, so two bookings can
+// never read the same last_sequence.
+const generateLoanIdentifiers = async (conn, lender) => {
   let prefixLan = "SFDLR";
   let applicationPrefix = "SFDLRAPP";
   let custPrefixLan = "SFL";
   let custPartnerLoanId = "SFFFPL";
 
-  const [rows] = await db
-    .promise()
-    .query(
-      "SELECT last_sequence FROM loan_sequences WHERE lender_name=? FOR UPDATE",
-      [lender],
-    );
+  const [rows] = await conn.query(
+    "SELECT last_sequence FROM loan_sequences WHERE lender_name = ? FOR UPDATE",
+    [lender],
+  );
 
   let newSequence;
 
   if (rows.length > 0) {
-    newSequence = rows[0].last_sequence + 1;
+    newSequence = Number(rows[0].last_sequence) + 1;
 
-    await db
-      .promise()
-      .query("UPDATE loan_sequences SET last_sequence=? WHERE lender_name=?", [
-        newSequence,
-        lender,
-      ]);
+    await conn.query(
+      "UPDATE loan_sequences SET last_sequence = ? WHERE lender_name = ?",
+      [newSequence, lender],
+    );
   } else {
+    // First ever loan for this lender.
     newSequence = 11000;
 
-    await db
-      .promise()
-      .query(
-        "INSERT INTO loan_sequences (lender_name,last_sequence) VALUES (?,?)",
-        [lender, newSequence],
-      );
+    await conn.query(
+      "INSERT INTO loan_sequences (lender_name, last_sequence) VALUES (?, ?)",
+      [lender, newSequence],
+    );
   }
 
   return {
@@ -81,10 +90,18 @@ CREATE DEALER + MULTIPLE PRODUCTS
 ====================================================
 */
 router.post("/dealer/create", async (req, res) => {
+  let connection;
+  let transactionStarted = false;
+
   try {
     const data = req.body;
 
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
+    transactionStarted = true;
+
     const { lan, application_id } = await generateLoanIdentifiers(
+      connection,
       "SEVEN_FINCORP_DEALER",
     );
 
@@ -130,7 +147,7 @@ router.post("/dealer/create", async (req, res) => {
       data.ifsc_code,
     ];
 
-    await db.promise().query(dealerQuery, dealerValues);
+    await connection.query(dealerQuery, dealerValues);
 
     /*
     ============================
@@ -152,8 +169,11 @@ router.post("/dealer/create", async (req, res) => {
         p.price || null,
       ]);
 
-      await db.promise().query(productQuery, [productValues]);
+      await connection.query(productQuery, [productValues]);
     }
+
+    await connection.commit();
+    transactionStarted = false;
 
     res.json({
       message: "Dealer + Products created successfully",
@@ -161,6 +181,10 @@ router.post("/dealer/create", async (req, res) => {
       application_id,
     });
   } catch (err) {
+    if (connection && transactionStarted) {
+      await connection.rollback().catch(() => {});
+    }
+
     console.error("Insert Error:", err);
 
     if (err.code === "ER_DUP_ENTRY") {
@@ -173,6 +197,8 @@ router.post("/dealer/create", async (req, res) => {
       message: "Dealer creation failed",
       error: err.message,
     });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
@@ -270,24 +296,36 @@ router.get("/dealer/:application_id/products", async (req, res) => {
 router.get("/dealer-list", async (req, res) => {
   try {
     const [rows] = await db.promise().query(`
-      SELECT 
+      SELECT
         lan,
         id,
+        dealer_id,
         business_name,
+        trade_name,
+        business_type,
         city,
-        state
+        state,
+        owner_name,
+        owner_mobile,
+        status
       FROM seven_fincorp_dealer_booking
       WHERE status IN ('APPROVED', 'ACTIVE')
-      ORDER BY lan ASC
+      ORDER BY lan DESC
     `);
 
     const formatted = rows.map((d) => ({
       lan: d.lan,
       id: d.id,
+      dealer_id: d.dealer_id,
       name: `${d.business_name} (${d.city}, ${d.state})`,
       business_name: d.business_name,
+      trade_name: d.trade_name,
+      business_type: d.business_type,
       city: d.city,
       state: d.state,
+      owner_name: d.owner_name,
+      owner_mobile: d.owner_mobile,
+      status: d.status,
     }));
 
     res.json(formatted);
@@ -329,17 +367,18 @@ router.get("/dealersforbooking", async (req, res) => {
         ifsc_code,
         status
       FROM seven_fincorp_dealer_booking
-      WHERE status = 'ACTIVE'
+      WHERE status IN ('APPROVED', 'ACTIVE')
       ORDER BY business_name ASC
     `);
 
     const [products] = await db.promise().query(`
-      SELECT 
+      SELECT
         id,
         application_id,
         battery_type,
         battery_name,
-        e_rickshaw_model
+        e_rickshaw_model,
+        e_rickshaw_model_price
       FROM seven_fincorp_dealer_products
       ORDER BY id ASC
     `);
@@ -861,10 +900,96 @@ router.post("/save-borrower-first-section", async (req, res) => {
     // SECTION 0: INSERT first time / UPDATE if LAN already exists
     if (section === 0) {
       if (existingLan) {
+        const [[current]] = await connection.query(
+          `
+          SELECT mobile_number, pan_card, borrower_mobile_verified, status
+          FROM loan_booking_seven_fincorp
+          WHERE lan = ?
+          LIMIT 1
+          FOR UPDATE
+          `,
+          [existingLan],
+        );
+
+        if (!current) {
+          await connection.rollback();
+          transactionStarted = false;
+
+          return res.status(404).json({
+            success: false,
+            message: "LAN not found",
+          });
+        }
+
+        if (String(current.status || "Login").trim().toUpperCase() !== "LOGIN") {
+          await connection.rollback();
+          transactionStarted = false;
+
+          return res.status(409).json({
+            success: false,
+            code: "BOOKING_ALREADY_SUBMITTED",
+            message: "Borrower details cannot be changed after final submission.",
+          });
+        }
+
+        const newMobile = String(data.Mobile_Number || "").trim();
+        const newPan = String(data.Pan_Card || "").trim().toUpperCase();
+
+        const mobileChanged =
+          newMobile !== String(current.mobile_number || "").trim();
+        const panChanged =
+          newPan !== String(current.pan_card || "").trim().toUpperCase();
+
+        /*
+         * A changed mobile number must be re-verified with a fresh OTP,
+         * exactly like the first save. The flag is never taken from the request.
+         */
+        let borrowerMobileVerified = Number(current.borrower_mobile_verified) === 1 ? 1 : 0;
+
+        if (mobileChanged) {
+          const [newMobileOtp] = await connection.query(
+            `
+            SELECT id
+            FROM otp_consent_model
+            WHERE mobile_number = ?
+            AND applicant_type = 'BORROWER'
+            AND verified = 1
+            AND is_used = 0
+            ORDER BY id DESC
+            LIMIT 1
+            `,
+            [newMobile],
+          );
+
+          if (!newMobileOtp.length) {
+            await connection.rollback();
+            transactionStarted = false;
+
+            return res.status(400).json({
+              success: false,
+              code: "BORROWER_MOBILE_VERIFICATION_REQUIRED",
+              message: "The new borrower mobile number must be verified with OTP before saving.",
+            });
+          }
+
+          await connection.query(
+            `UPDATE otp_consent_model SET is_used = 1 WHERE id = ?`,
+            [newMobileOtp[0].id],
+          );
+
+          borrowerMobileVerified = 1;
+        }
+
+        // Bureau was pulled on the PAN, mobile and loan amount: any change
+        // clears the screening result so bureau runs again.
+        const identityChanged = mobileChanged || panChanged;
+
         const [updateResult] = await connection.query(
           `
           UPDATE loan_booking_seven_fincorp
           SET
+            seven_fincorp_bureau_screening_status = IF(? OR NOT (requested_loan_amount <=> ?), NULL, seven_fincorp_bureau_screening_status),
+            seven_fincorp_bureau_screening_reason = IF(seven_fincorp_bureau_screening_status IS NULL, NULL, seven_fincorp_bureau_screening_reason),
             lender_type = ?,
             lender = ?,
             product = ?,
@@ -879,10 +1004,13 @@ router.post("/save-borrower-first-section", async (req, res) => {
             pan_card = ?,
             gender = ?,
             driving_license = ?,
+            requested_loan_amount = ?,
             borrower_mobile_verified = ?
           WHERE lan = ?
           `,
           [
+            identityChanged ? 1 : 0,
+            numberOrNull(data.Loan_Amount),
             emptyToNull(data.lenderType),
             emptyToNull(data.lender),
             emptyToNull(data.product),
@@ -892,12 +1020,13 @@ router.post("/save-borrower-first-section", async (req, res) => {
             emptyToNull(data.Customer_Name),
             emptyToNull(data.Borrower_DOB),
             emptyToNull(data.Father_Name),
-            emptyToNull(data.Mobile_Number),
+            emptyToNull(newMobile),
             emptyToNull(data.Email),
-            emptyToNull(data.Pan_Card),
+            emptyToNull(newPan),
             emptyToNull(data.Gender),
             emptyToNull(data.Driving_License),
-            data.borrower_mobile_verified || 1,
+            numberOrNull(data.Loan_Amount),
+            borrowerMobileVerified,
             existingLan,
           ],
         );
@@ -910,6 +1039,33 @@ router.post("/save-borrower-first-section", async (req, res) => {
             success: false,
             message: "LAN not found",
           });
+        }
+
+        /*
+         * Keep the borrower KYC row in step. A new PAN must be verified
+         * again and bureau pulled again on it.
+         */
+        if (identityChanged) {
+          await connection.query(
+            `
+            UPDATE kyc_verification_status
+            SET
+              applicant_name = ?,
+              mobile_number = ?,
+              pan_number = ?,
+              pan_status = IF(?, 'PENDING', pan_status),
+              bureau_status = 'PENDING'
+            WHERE lan = ?
+              AND UPPER(TRIM(applicant_type)) = 'BORROWER'
+            `,
+            [
+              emptyToNull(data.Customer_Name),
+              emptyToNull(newMobile),
+              emptyToNull(newPan),
+              panChanged ? 1 : 0,
+              existingLan,
+            ],
+          );
         }
 
         await connection.commit();
@@ -948,6 +1104,7 @@ router.post("/save-borrower-first-section", async (req, res) => {
       }
 
       const { cust_lan, cust_partner_loan_id } = await generateLoanIdentifiers(
+        connection,
         "SEVEN_FINCORP_CUSTOMER",
       );
 
@@ -972,10 +1129,11 @@ router.post("/save-borrower-first-section", async (req, res) => {
           pan_card,
           gender,
           driving_license,
+          requested_loan_amount,
           borrower_mobile_verified,
           gps_charges
         )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           emptyToNull(data.lenderType),
           emptyToNull(data.lender),
@@ -995,6 +1153,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           emptyToNull(data.Pan_Card),
           emptyToNull(data.Gender),
           emptyToNull(data.Driving_License),
+          numberOrNull(data.Loan_Amount),
           data.borrower_mobile_verified || 1,
           emptyToNull(data.GPS_Charges),
         ],
@@ -1056,9 +1215,23 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 
     // SECTION 1: Address
     if (section === 1) {
+      // Bureau was pulled on the saved address, so a changed address clears
+      // the screening result. The reset must come first in SET: MySQL
+      // evaluates assignments left to right, so later ones see new values.
+      const addressChanged = `NOT (
+            permanent_address_line_1 <=> ?
+            AND permanent_address_line_2 <=> ?
+            AND permanent_village_city <=> ?
+            AND permanent_district <=> ?
+            AND permanent_state <=> ?
+            AND permanent_pincode <=> ?
+          )`;
+
       query = `
         UPDATE loan_booking_seven_fincorp
         SET
+          seven_fincorp_bureau_screening_status = IF(${addressChanged}, NULL, seven_fincorp_bureau_screening_status),
+          seven_fincorp_bureau_screening_reason = IF(seven_fincorp_bureau_screening_status IS NULL, NULL, seven_fincorp_bureau_screening_reason),
           permanent_address_line_1 = ?,
           permanent_address_line_2 = ?,
           permanent_village_city = ?,
@@ -1068,15 +1241,16 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         WHERE lan = ?
       `;
 
-      values = [
+      const addressValues = [
         emptyToNull(data.Address_Line_1),
         emptyToNull(data.Address_Line_2),
         emptyToNull(data.Village),
         emptyToNull(data.District),
         emptyToNull(data.State),
         emptyToNull(data.Pincode),
-        existingLan,
       ];
+
+      values = [...addressValues, ...addressValues, existingLan];
     }
 
     // SECTION 2: Loan Details
@@ -1426,13 +1600,252 @@ else if (section === 3) {
     }
   }
 });
-router.post("/final-submit-ev-customer-manual", async (req, res) => {
-  const connection = await db.promise().getConnection();
+/*
+ * Borrower bureau screening (Address tab).
+ * Result is stored in seven_fincorp_bureau_screening_* only.
+ * The final BRE writes seven_fincorp_bre_* and never touches these columns.
+ */
+const SEVEN_FINCORP_TERMINAL_SCREENING_STATUSES = [
+  "BUREAU APPROVED",
+  "BUREAU REJECTED",
+];
+
+router.post("/run-bureau-screening", async (req, res) => {
+  const pool = db.promise();
+  const data = req.body || {};
+  const lan = String(data.lan || "").trim();
+
+  const markScreeningFailed = async (reason) => {
+    await pool
+      .query(
+        `UPDATE loan_booking_seven_fincorp SET
+           seven_fincorp_bureau_screening_status = 'FAILED',
+           seven_fincorp_bureau_screening_reason = ?,
+           seven_fincorp_bureau_screening_checked_at = NOW()
+         WHERE lan = ?`,
+        [String(reason || "Bureau screening failed").slice(0, 1000), lan],
+      )
+      .catch(() => {});
+  };
 
   try {
-    const data = req.body;
+    const address = String(data.Address_Line_1 || "").trim();
+    const village = String(data.Village || "").trim();
+    const district = String(data.District || "").trim();
+    const state = String(data.State || "").trim();
+    const pincode = String(data.Pincode || "").trim();
+    const loanAmount = numberOrNull(data.Loan_Amount);
 
-    if (!data.lan) {
+    if (!lan) return res.status(400).json({ success: false, message: "Save Borrower Details first." });
+    if (!address || !village || !district || !state || !/^[1-9]\d{5}$/.test(pincode) || !loanAmount) {
+      return res.status(400).json({
+        success: false,
+        message: "A valid address and loan amount are required before bureau screening.",
+      });
+    }
+
+    const [[existing]] = await pool.query(
+      `SELECT lan, borrower_mobile_verified,
+              seven_fincorp_bureau_screening_status,
+              seven_fincorp_bureau_screening_reason,
+              fintree_cibil_score,
+              seven_fincorp_enquiries_30d, seven_fincorp_dpd_3m_flag,
+              seven_fincorp_dpd_6m_flag, seven_fincorp_overdue_12m_flag,
+              seven_fincorp_written_off_3y_flag, seven_fincorp_60plus_24m_flag,
+              seven_fincorp_90plus_36m_flag, seven_fincorp_emi_overdue_amount,
+              seven_fincorp_cc_overdue_amount
+       FROM loan_booking_seven_fincorp WHERE lan = ? LIMIT 1`,
+      [lan],
+    );
+
+    if (!existing) return res.status(404).json({ success: false, message: "Loan not found" });
+
+    if (Number(existing.borrower_mobile_verified) !== 1) {
+      return res.status(409).json({ success: false, message: "Borrower mobile verification is required" });
+    }
+
+    /*
+     * Already screened on the saved address and loan amount: reuse the result.
+     * (Saving a changed address / loan amount clears the screening status,
+     * so a changed case falls through and is screened again.)
+     */
+    const existingStatus = String(existing.seven_fincorp_bureau_screening_status || "").trim().toUpperCase();
+
+    if (SEVEN_FINCORP_TERMINAL_SCREENING_STATUSES.includes(existingStatus)) {
+      const storedReason = String(existing.seven_fincorp_bureau_screening_reason || "").trim();
+      const storedReasons = storedReason && storedReason !== "ELIGIBLE"
+        ? storedReason.split(",").map((item) => item.trim()).filter(Boolean)
+        : [];
+
+      return res.json({
+        success: true,
+        alreadyScreened: true,
+        screeningStatus: existingStatus,
+        screeningReason: storedReason || "ELIGIBLE",
+        canContinue: true,
+        bureauScore: existing.fintree_cibil_score,
+        isNtc: existing.fintree_cibil_score === null || Number(existing.fintree_cibil_score) < 300,
+        bureauFacts: {
+          score: existing.fintree_cibil_score,
+          enquiries30d: existing.seven_fincorp_enquiries_30d,
+          hasDpd3M: Number(existing.seven_fincorp_dpd_3m_flag) === 1,
+          hasDpd6M: Number(existing.seven_fincorp_dpd_6m_flag) === 1,
+          hasOverdue12M: Number(existing.seven_fincorp_overdue_12m_flag) === 1,
+          hasWrittenOff3Y: Number(existing.seven_fincorp_written_off_3y_flag) === 1,
+          has60Plus24M: Number(existing.seven_fincorp_60plus_24m_flag) === 1,
+          has90Plus36M: Number(existing.seven_fincorp_90plus_36m_flag) === 1,
+          emiOverdueAmount: existing.seven_fincorp_emi_overdue_amount ?? 0,
+          ccOverdueAmount: existing.seven_fincorp_cc_overdue_amount ?? 0,
+        },
+        reasons: storedReasons,
+      });
+    }
+
+    /*
+     * Save address + loan amount and claim the screening in one statement,
+     * so two clicks cannot start two chargeable bureau pulls.
+     * A stale INITIATED claim can be retried after 15 minutes.
+     */
+    const [claimResult] = await pool.query(
+      `UPDATE loan_booking_seven_fincorp
+       SET permanent_address_line_1 = ?, permanent_address_line_2 = ?,
+           permanent_village_city = ?, permanent_district = ?, permanent_state = ?,
+           permanent_pincode = ?, requested_loan_amount = ?,
+           seven_fincorp_bureau_screening_status = 'INITIATED',
+           seven_fincorp_bureau_screening_reason = NULL,
+           seven_fincorp_bureau_screening_checked_at = NOW()
+       WHERE lan = ?
+         AND (
+           seven_fincorp_bureau_screening_status IS NULL
+           OR TRIM(seven_fincorp_bureau_screening_status) = ''
+           OR seven_fincorp_bureau_screening_status IN ('PENDING', 'FAILED')
+           OR (
+             seven_fincorp_bureau_screening_status = 'INITIATED'
+             AND seven_fincorp_bureau_screening_checked_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+           )
+         )`,
+      [address, emptyToNull(data.Address_Line_2), village, district, state, pincode, loanAmount, lan],
+    );
+
+    if (claimResult.affectedRows !== 1) {
+      return res.status(409).json({
+        success: false,
+        code: "BUREAU_SCREENING_IN_PROGRESS",
+        message: "Borrower bureau screening is already in progress.",
+      });
+    }
+
+    const [[loan]] = await pool.query(
+      `SELECT * FROM loan_booking_seven_fincorp WHERE lan = ? LIMIT 1`,
+      [lan],
+    );
+
+    await runApplicantValidation({
+      pool,
+      lan,
+      table: "loan_booking_seven_fincorp",
+      applicantType: "BORROWER",
+      partyNo: 1,
+      applicantData: {
+        customer_name: loan.customer_name,
+        first_name: loan.first_name,
+        last_name: loan.last_name,
+        dob: loan.dob,
+        gender: loan.gender,
+        pan_number: loan.pan_card,
+        mobile_number: loan.mobile_number,
+        email: loan.email,
+        current_address: loan.permanent_address_line_1,
+        current_village_city: loan.permanent_village_city,
+        current_state: loan.permanent_state,
+        current_pincode: loan.permanent_pincode,
+        loan_amount: loan.requested_loan_amount,
+        loan_tenure: loan.loan_tenure,
+      },
+      validations: { pan: false, aadhaar: false, bureau: true },
+    });
+
+    const [[kyc]] = await pool.query(
+      `SELECT bureau_status FROM kyc_verification_status
+       WHERE lan = ? AND UPPER(TRIM(applicant_type)) = 'BORROWER'
+       ORDER BY CASE WHEN party_no = 1 THEN 0 ELSE 1 END, id DESC LIMIT 1`,
+      [lan],
+    );
+    const [[report]] = await pool.query(
+      `SELECT report_xml FROM loan_cibil_reports
+       WHERE TRIM(lan) = TRIM(?) AND UPPER(TRIM(applicant_type)) = 'BORROWER'
+       ORDER BY created_at DESC, id DESC LIMIT 1`,
+      [lan],
+    );
+
+    const bureauStatus = String(kyc?.bureau_status || "").toUpperCase();
+
+    if (bureauStatus !== "VERIFIED" || !report?.report_xml) {
+      const reason = bureauStatus !== "VERIFIED"
+        ? `BUREAU_STATUS=${bureauStatus || "NA"}`
+        : "BUREAU_REPORT_MISSING";
+
+      await markScreeningFailed(reason);
+
+      return res.json({ success: true, screeningStatus: "FAILED", screeningReason: reason, canContinue: false, reasons: [reason] });
+    }
+
+    const bureauFacts = extractMotionCorpBureauFacts(report.report_xml);
+    const decision = evaluateMotionCorpBureauScreening({ loanPan: loan.pan_card, bureauFacts });
+    const observations = [...decision.reasons, ...decision.deviations];
+    const reason = observations.length ? observations.join(", ") : "ELIGIBLE";
+
+    await pool.query(
+      `UPDATE loan_booking_seven_fincorp SET
+         seven_fincorp_bureau_screening_status = ?,
+         seven_fincorp_bureau_screening_reason = ?,
+         seven_fincorp_bureau_screening_checked_at = NOW(),
+         fintree_cibil_score = ?,
+         seven_fincorp_enquiries_30d = ?, seven_fincorp_dpd_3m_flag = ?,
+         seven_fincorp_dpd_6m_flag = ?, seven_fincorp_overdue_12m_flag = ?,
+         seven_fincorp_written_off_3y_flag = ?, seven_fincorp_60plus_24m_flag = ?,
+         seven_fincorp_90plus_36m_flag = ?, seven_fincorp_emi_overdue_amount = ?,
+         seven_fincorp_cc_overdue_amount = ?
+       WHERE lan = ?`,
+      [
+        decision.status, reason.slice(0, 1000), decision.bureauScore, bureauFacts.enquiries30d,
+        bureauFacts.hasDpd3M ? 1 : 0, bureauFacts.hasDpd6M ? 1 : 0,
+        bureauFacts.hasOverdue12M ? 1 : 0, bureauFacts.hasWrittenOff3Y ? 1 : 0,
+        bureauFacts.has60Plus24M ? 1 : 0, bureauFacts.has90Plus36M ? 1 : 0,
+        bureauFacts.emiOverdueAmount, bureauFacts.ccOverdueAmount,
+        lan,
+      ],
+    );
+
+    return res.json({
+      success: true,
+      screeningStatus: decision.status,
+      screeningReason: reason,
+      canContinue: true,
+      bureauScore: decision.bureauScore,
+      isNtc: decision.isNtc,
+      bureauFacts,
+      reasons: decision.reasons,
+      deviations: decision.deviations,
+    });
+  } catch (error) {
+    console.error("Seven FinCorp bureau screening error:", error);
+
+    if (lan) await markScreeningFailed(error.message);
+
+    return res.status(500).json({ success: false, message: "Borrower bureau screening failed", error: error.message });
+  }
+});
+
+router.post("/final-submit-ev-customer-manual", async (req, res) => {
+  const connection = await db.promise().getConnection();
+  let transactionStarted = false;
+
+  try {
+    const data = req.body || {};
+    const lan = String(data.lan || "").trim();
+
+    if (!lan) {
       return res.status(400).json({
         success: false,
         message: "LAN required. Please save borrower first.",
@@ -1440,52 +1853,155 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
     }
 
     await connection.beginTransaction();
+    transactionStarted = true;
 
+    /*
+     * Lock the loan row so two submissions of the same LAN
+     * cannot run at the same time.
+     */
+    const [loanRows] = await connection.query(
+      `
+      SELECT
+        lan,
+        status,
+        seven_fincorp_bureau_screening_status,
+        borrower_mobile_verified,
+        guarantor_name,
+        guarantor_mobile,
+        guarantor_mobile_verified,
+        co_applicant_name,
+        co_applicant_mobile,
+        co_applicant_mobile_verified,
+        requested_loan_amount,
+        login_date
+      FROM loan_booking_seven_fincorp
+      WHERE lan = ?
+      LIMIT 1
+      FOR UPDATE
+      `,
+      [lan],
+    );
+
+    if (!loanRows.length) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(404).json({
+        success: false,
+        message: "Seven Fincorp loan booking not found",
+      });
+    }
+
+    const loan = loanRows[0];
+
+    /*
+     * Once the BRE has moved the loan out of Login, it was already submitted.
+     */
+    const currentStatus = String(loan.status || "Login").trim().toUpperCase();
+
+    if (currentStatus !== "LOGIN") {
+      await connection.commit();
+      transactionStarted = false;
+
+      return res.json({
+        success: true,
+        alreadySubmitted: true,
+        message: "Seven Fincorp loan booking already submitted",
+        lan,
+      });
+    }
+
+    /*
+     * Borrower bureau screening (Address tab) must have a final result.
+     * Both approved and advisory-rejected cases can proceed.
+     */
+    const screeningStatus = String(loan.seven_fincorp_bureau_screening_status || "")
+      .trim()
+      .toUpperCase();
+
+    if (!SEVEN_FINCORP_TERMINAL_SCREENING_STATUSES.includes(screeningStatus)) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(409).json({
+        success: false,
+        code: "BUREAU_SCREENING_REQUIRED",
+        message:
+          "Borrower bureau screening must be completed on the Address tab before final submission.",
+        screeningStatus: screeningStatus || "PENDING",
+      });
+    }
+
+    /*
+     * Mobile verification is read from the database, never from the request.
+     */
+    if (Number(loan.borrower_mobile_verified) !== 1) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(409).json({
+        success: false,
+        code: "BORROWER_MOBILE_VERIFICATION_REQUIRED",
+        message: "Borrower mobile number is not verified",
+      });
+    }
+
+    const hasGuarantor =
+      String(loan.guarantor_name || "").trim() !== "" ||
+      String(loan.guarantor_mobile || "").trim() !== "";
+
+    const hasCoApplicant =
+      String(loan.co_applicant_name || "").trim() !== "" ||
+      String(loan.co_applicant_mobile || "").trim() !== "";
+
+    if (!hasGuarantor && !hasCoApplicant) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(409).json({
+        success: false,
+        code: "SECOND_PARTY_REQUIRED",
+        message: "Either guarantor or co-applicant details are required",
+      });
+    }
+
+    if (hasGuarantor && Number(loan.guarantor_mobile_verified) !== 1) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(409).json({
+        success: false,
+        code: "GUARANTOR_MOBILE_VERIFICATION_REQUIRED",
+        message: "Guarantor mobile number is not verified",
+      });
+    }
+
+    if (hasCoApplicant && Number(loan.co_applicant_mobile_verified) !== 1) {
+      await connection.rollback();
+      transactionStarted = false;
+
+      return res.status(409).json({
+        success: false,
+        code: "CO_APPLICANT_MOBILE_VERIFICATION_REQUIRED",
+        message: "Co-applicant mobile number is not verified",
+      });
+    }
+
+    /*
+     * Address, requested loan amount and guarantor / co-applicant identity
+     * are intentionally not updated here. They were saved tab by tab and
+     * bureau was pulled on them; final submit must not change them.
+     */
     await connection.query(
       `
       UPDATE loan_booking_seven_fincorp
       SET
-        permanent_address_line_1 = ?,
-        permanent_address_line_2 = ?,
-        permanent_village_city = ?,
-        permanent_district = ?,
-        permanent_state = ?,
-        permanent_pincode = ?,
-
-        requested_loan_amount = ?,
         interest_rate = ?,
         loan_tenure = ?,
         disbursal_amount = ?,
         processing_fee = ?,
         processing_fee_percentage = ?,
         gps_charges = ?,
-
-        guarantor_name = ?,
-        guarantor_dob = ?,
-        guarantor_email = ?,
-        guarantor_pan = ?,
-        guarantor_mobile = ?,
-        relationship_with_borrower = ?,
-        guarantor_address_line_1 = ?,
-        guarantor_address_line_2 = ?,
-        guarantor_village_city = ?,
-        guarantor_district = ?,
-        guarantor_state = ?,
-        guarantor_pincode = ?,
-        guarantor_driving_licence = ?,
-
-        co_applicant_name = ?,
-        co_applicant_dob = ?,
-        co_applicant_email = ?,
-        co_applicant_pan = ?,
-        co_applicant_mobile = ?,
-        co_applicant_address_line_1 = ?,
-        co_applicant_address_line_2 = ?,
-        co_applicant_village_city = ?,
-        co_applicant_district = ?,
-        co_applicant_state = ?,
-        co_applicant_pincode = ?,
-        co_applicant_driving_licence = ?,
 
         customer_name_as_per_bank = ?,
         customer_bank_name = ?,
@@ -1530,60 +2046,17 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         downpayment_paid_by_borrower = ?,
         vehicle_registration_cost = ?,
         sales_invoice_number = ?,
-        sales_invoice_date = ?,
-
-        borrower_mobile_verified = ?,
-        guarantor_mobile_verified = ?,
-        co_applicant_mobile_verified = ?
-
+        sales_invoice_date = ?
       WHERE lan = ?
       `,
       [
-        // Permanent Address
-        emptyToNull(data.Address_Line_1),
-        emptyToNull(data.Address_Line_2),
-        emptyToNull(data.Village),
-        emptyToNull(data.District),
-        emptyToNull(data.State),
-        emptyToNull(data.Pincode),
-
-        // Loan Details
-        numberOrNull(data.Loan_Amount),
+        // Loan Details (requested_loan_amount is kept as screened)
         numberOrNull(data.Interest_Rate),
         numberOrNull(data.Tenure),
         numberOrNull(data.Disbursal_Amount),
         numberOrNull(data.Processing_Fee),
         numberOrNull(data.Processing_Fee_Percentage),
         numberOrNull(data.GPS_Charges),
-
-        // Guarantor
-        emptyToNull(data.GUARANTOR),
-        emptyToNull(data.GUARANTOR_DOB),
-        emptyToNull(data.GUARANTOR_EMAIL),
-        emptyToNull(data.GUARANTOR_PAN),
-        emptyToNull(data.GUARANTOR_MOBILE),
-        emptyToNull(data.Relationship_with_Borrower),
-        emptyToNull(data.GUARANTOR_Address_Line_1),
-        emptyToNull(data.GUARANTOR_Address_Line_2),
-        emptyToNull(data.GUARANTOR_Village),
-        emptyToNull(data.GUARANTOR_District),
-        emptyToNull(data.GUARANTOR_State),
-        emptyToNull(data.GUARANTOR_Pincode),
-        emptyToNull(data.GUARANTOR_Driving_Licence),
-
-        // Co-Applicant
-        emptyToNull(data.Co_Applicant),
-        emptyToNull(data.Co_Applicant_DOB),
-        emptyToNull(data.Co_Applicant_Email),
-        emptyToNull(data.Co_Applicant_PAN),
-        emptyToNull(data.Co_Applicant_Mobile),
-        emptyToNull(data.Co_Applicant_Address_Line_1),
-        emptyToNull(data.Co_Applicant_Address_Line_2),
-        emptyToNull(data.Co_Applicant_Village),
-        emptyToNull(data.Co_Applicant_District),
-        emptyToNull(data.Co_Applicant_State),
-        emptyToNull(data.Co_Applicant_Pincode),
-        emptyToNull(data.Co_Applicant_Driving_Licence),
 
         // Borrower Bank Details
         emptyToNull(data.customer_name_as_per_bank),
@@ -1636,30 +2109,62 @@ router.post("/final-submit-ev-customer-manual", async (req, res) => {
         emptyToNull(data.sales_invoice_number),
         emptyToNull(data.sales_invoice_date),
 
-        // OTP Flags
-        data.borrower_mobile_verified || 0,
-        data.guarantor_mobile_verified || 0,
-        data.co_applicant_mobile_verified || 0,
-
-        data.lan,
+        lan,
       ],
     );
 
-    await connection.commit();
+    await partnerLimitService.trackPartnerBookingNonBlocking(
+      connection,
+      SEVEN_FINCORP_PARTNER_NAME,
+      loan.requested_loan_amount,
+      lan,
+      loan.login_date,
+    );
 
-    universalRunAllValidations(data.lan).catch((err) => {
-      console.error("Validation engine failed after booking:", err);
+    await connection.commit();
+    transactionStarted = false;
+
+    /*
+     * Background (response is not held):
+     * 1. AML for borrower + guarantor / co-applicant (report → loan_documents)
+     * 2. PAN / Aadhaar / bureau for every party, then the Seven Fincorp BRE
+     *    (which reuses the AML results from step 1).
+     */
+    (async () => {
+      try {
+        const aml = await runSevenFincorpAmlScreening(lan);
+        console.log(`Seven Fincorp AML after final submit for ${lan}:`, aml);
+      } catch (error) {
+        console.error("Seven Fincorp AML failed after final submit:", {
+          lan,
+          error: error.message,
+        });
+      }
+
+      await universalRunAllValidations(lan);
+    })().catch((error) => {
+      console.error("Validation engine failed after final submit:", {
+        lan,
+        error: error.message,
+      });
     });
 
     return res.json({
       success: true,
-      message: "Seven Fincorp loan booking submitted successfully",
-      lan: data.lan,
+      alreadySubmitted: false,
+      message:
+        "Seven Fincorp loan booking submitted. AML, KYC and BRE are running in the background",
+      lan,
     });
   } catch (error) {
-    await connection.rollback();
+    if (transactionStarted) {
+      await connection.rollback().catch(() => {});
+    }
 
-    console.error("Final submit error:", error);
+    console.error("Seven Fincorp final submit error:", {
+      lan: req.body?.lan,
+      error: error.message,
+    });
 
     return res.status(500).json({
       success: false,
@@ -2917,7 +3422,7 @@ router.post("/:lan/approve", async (req, res) => {
     // Check loan exists
     const [rows] = await db.promise().query(
       `
-      SELECT lan, bank_status
+      SELECT lan, bank_status, loan_amount, requested_loan_amount
       FROM loan_booking_seven_fincorp
       WHERE lan = ?
       `,
@@ -2938,6 +3443,39 @@ router.post("/:lan/approve", async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Loan cannot be approved until mandate is created",
+      });
+    }
+
+    /*
+     * Monthly disbursement limit (read-only check, same gate the payout
+     * service uses). Partners with no limit configured are not blocked.
+     * Usage itself is recorded when the disbursement UTR arrives.
+     */
+    const disbursementAmount = Number(
+      loan.loan_amount || loan.requested_loan_amount || 0,
+    );
+
+    if (disbursementAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_DISBURSEMENT_AMOUNT",
+        message: "Approved disbursement amount is missing or invalid",
+      });
+    }
+
+    const limitGate = await partnerLimitService.checkPartnerDisbursementGate(
+      db.promise(),
+      {
+        partnerName: SEVEN_FINCORP_PARTNER_NAME,
+        amount: disbursementAmount,
+      },
+    );
+
+    if (limitGate.blocked) {
+      return res.status(403).json({
+        success: false,
+        code: "DISBURSEMENT_LIMIT_EXCEEDED",
+        message: limitGate.message,
       });
     }
 

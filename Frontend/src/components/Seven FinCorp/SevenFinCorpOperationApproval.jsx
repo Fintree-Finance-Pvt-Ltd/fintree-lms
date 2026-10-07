@@ -666,7 +666,7 @@ const MotionCorpOperationApproval = ({
       if (!window.confirm(`Approve loan ${r.lan}?`)) return;
 
       try {
-        await api.post(`/motion-corp/${r.lan}/approve`);
+        await api.post(`/seven-fincorp/${r.lan}/approve`);
 
         setToast({
           type: "success",
@@ -685,7 +685,8 @@ const MotionCorpOperationApproval = ({
       } catch (err) {
         setToast({
           type: "error",
-          msg: "Failed to approve loan.",
+          // Shows the disbursement-limit message when the limit is exceeded.
+          msg: err.response?.data?.message || "Failed to approve loan.",
         });
 
         resetToastAfterDelay();
@@ -698,7 +699,7 @@ const MotionCorpOperationApproval = ({
       if (!reason) return;
 
       try {
-        await api.post(`/motion-corp/${r.lan}/reject`, {
+        await api.post(`/seven-fincorp/${r.lan}/reject`, {
           reason,
         });
 

@@ -207,6 +207,7 @@ const SevenFinCorpDealerDetails = () => {
   }
 />
 
+        {/* Cheque OCR removed
         <SectionCard
           title="Cheque OCR Data"
           icon="🧾"
@@ -220,6 +221,7 @@ const SevenFinCorpDealerDetails = () => {
             </Grid>
           }
         />
+        */}
 
       </div>
     </div>
