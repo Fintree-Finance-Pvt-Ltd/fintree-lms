@@ -5,6 +5,12 @@ const verifyApiKey = require("../../middleware/apiKeyAuth");
 const {
   generateLoanIdentifiers,
 } = require("../excelUpload");
+const {
+  evaluateCirclePeHouserBRE,
+} = require("./circlepeHouserBRE");
+const {
+  sendCirclePeHouserBREWebhook,
+} = require("./circlepeHouserWebhook");
 
 const router = express.Router();
 
@@ -625,6 +631,10 @@ router.post("/circle-pe-houser",verifyApiKey, async (req, res) => {
       VALUES (${new Array(30).fill("?").join(",")})
     `;
 
+    // ── Evaluate Business Rule Engine (BRE) ──────────────────────────
+    const breResult = evaluateCirclePeHouserBRE(loanData);
+    const initialStatus = breResult.status; // "BRE Approved" or "BRE Rejected"
+
     const insertValues = [
       loanData.loan_application_date,
       lan,
@@ -655,7 +665,7 @@ router.post("/circle-pe-houser",verifyApiKey, async (req, res) => {
       loanData.ifsc_code,
       loanData.loan_amount_sanctioned,
       loanData.loan_application_date,
-      "Login",
+      initialStatus,
     ];
 
     const [insertResult] = await connection.query(
@@ -665,17 +675,35 @@ router.post("/circle-pe-houser",verifyApiKey, async (req, res) => {
 
     await connection.commit();
 
+    // ── Dispatch BRE Webhook asynchronously to Client/Partner ────────
+    sendCirclePeHouserBREWebhook({
+      app_id: loanData.app_id,
+      lan,
+      partner_loan_id: partnerLoanId,
+      customer_name: loanData.customer_name,
+      loan_amount: loanData.loan_amount_sanctioned,
+      status: initialStatus,
+      bre_decision: breResult.decision,
+      reasons: breResult.reasons,
+      checks: breResult.checks,
+    }).catch((whErr) => {
+      console.error("CirclePe Houser Webhook invocation error:", whErr);
+    });
+
     return res.status(201).json({
       success: true,
       code: "LOAN_CREATED",
-      message: "Circle Pe Houser loan created successfully",
+      message: `Circle Pe Houser loan processed with BRE status: ${initialStatus}`,
       data: {
         id: insertResult.insertId,
         app_id: loanData.app_id,
         lan,
         partner_loan_id: partnerLoanId,
         product: loanData.product,
-        status: "Login",
+        status: initialStatus,
+        breDecision: breResult.decision,
+        breReasons: breResult.reasons,
+        breChecks: breResult.checks,
       },
     });
   } catch (error) {
