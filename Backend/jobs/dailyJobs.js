@@ -1225,8 +1225,7 @@ let isRejectionWebhookBackfillRunning = false;
 //   }
 // });
 
-// startAadhaarCron();
-
+startAadhaarCron();
 
 ////// SUPPLY CHAIN DEMAND CRON - every day at 00:05 
 // cron.schedule("5 0 * * *", async () => {
