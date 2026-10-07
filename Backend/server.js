@@ -1168,7 +1168,7 @@ app.post("/api/mobile-lookup-test", async (req, res) => {
 //     res.sendFile(path.join(__dirname, '../Frontend/dist', 'index.html'));
 //   });
 
-app.listen(PORT || 5000, () => {
+const server = app.listen(PORT || 5000, () => {
   console.log(`✅ Backend server running on ${PORT}`);
   // Pre-warm dashboard column schema cache (eliminates per-request SHOW COLUMNS queries)
   const db = require("./config/db");
@@ -1176,6 +1176,16 @@ app.listen(PORT || 5000, () => {
     console.error("[server] Dashboard schema cache init error:", err.message),
   );
 });
+
+// Graceful Shutdown Logic
+process.on('SIGTERM', () => {
+  console.info('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.info('HTTP server closed. Exiting safely.');
+    process.exit(0);
+  });
+});
+
 
 // app.post(
 //   "/api/test-quick-money-rejection-webhook",
