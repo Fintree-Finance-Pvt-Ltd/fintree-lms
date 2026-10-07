@@ -2,15 +2,12 @@ const express = require("express");
 const db = require("../../config/db");
 const verifyApiKey = require("../../middleware/apiKeyAuth");
 
+const { generateLoanIdentifiers } = require("../excelUpload");
+const { evaluateCirclePeHouserBRE } = require("./circlepeHouserBRE");
+const { sendCirclePeHouserBREWebhook } = require("./circlepeHouserWebhook");
 const {
-  generateLoanIdentifiers,
-} = require("../excelUpload");
-const {
-  evaluateCirclePeHouserBRE,
-} = require("./circlepeHouserBRE");
-const {
-  sendCirclePeHouserBREWebhook,
-} = require("./circlepeHouserWebhook");
+  generateRepaymentScheduleCirclePeHouser,
+} = require("../../utils/repaymentScheduleGenerator");
 
 const router = express.Router();
 
@@ -34,11 +31,7 @@ function apiError(statusCode, message) {
  */
 function firstValue(body, keys) {
   for (const key of keys) {
-    if (
-      body[key] !== undefined &&
-      body[key] !== null &&
-      body[key] !== ""
-    ) {
+    if (body[key] !== undefined && body[key] !== null && body[key] !== "") {
       return body[key];
     }
   }
@@ -59,23 +52,14 @@ function cleanDigits(value) {
 }
 
 function parseNumber(value, fieldName) {
-  if (
-    value === undefined ||
-    value === null ||
-    value === ""
-  ) {
+  if (value === undefined || value === null || value === "") {
     throw apiError(400, `${fieldName} is required`);
   }
 
-  const number = Number(
-    String(value).replace(/,/g, "").trim(),
-  );
+  const number = Number(String(value).replace(/,/g, "").trim());
 
   if (!Number.isFinite(number)) {
-    throw apiError(
-      400,
-      `${fieldName} must be a valid number`,
-    );
+    throw apiError(400, `${fieldName} must be a valid number`);
   }
 
   return number;
@@ -85,10 +69,7 @@ function parseInteger(value, fieldName) {
   const number = parseNumber(value, fieldName);
 
   if (!Number.isInteger(number)) {
-    throw apiError(
-      400,
-      `${fieldName} must be an integer`,
-    );
+    throw apiError(400, `${fieldName} must be an integer`);
   }
 
   return number;
@@ -103,19 +84,13 @@ function validateDate(value, fieldName) {
 
   // API date format: YYYY-MM-DD
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw apiError(
-      400,
-      `${fieldName} must be in YYYY-MM-DD format`,
-    );
+    throw apiError(400, `${fieldName} must be in YYYY-MM-DD format`);
   }
 
   const parsedDate = new Date(`${date}T00:00:00Z`);
 
   if (Number.isNaN(parsedDate.getTime())) {
-    throw apiError(
-      400,
-      `${fieldName} is not a valid date`,
-    );
+    throw apiError(400, `${fieldName} is not a valid date`);
   }
 
   return date;
@@ -131,23 +106,13 @@ function mapRequestBody(body) {
       "loanApplicationDate",
     ]),
 
-    app_id: firstValue(body, [
-      "app_id",
-      "App_Id",
-      "appId",
-    ]),
+    app_id: firstValue(body, ["app_id", "App_Id", "appId"]),
 
-    customer_name: firstValue(body, [
-      "customer_name",
-      "customerName",
-    ]),
+    customer_name: firstValue(body, ["customer_name", "customerName"]),
 
     gender: firstValue(body, ["gender"]),
 
-    date_of_birth: firstValue(body, [
-      "date_of_birth",
-      "dateOfBirth",
-    ]),
+    date_of_birth: firstValue(body, ["date_of_birth", "dateOfBirth"]),
 
     fathers_name: firstValue(body, [
       "fathers_name",
@@ -155,20 +120,11 @@ function mapRequestBody(body) {
       "fatherName",
     ]),
 
-    mobile_number: firstValue(body, [
-      "mobile_number",
-      "mobileNumber",
-    ]),
+    mobile_number: firstValue(body, ["mobile_number", "mobileNumber"]),
 
-    email_id: firstValue(body, [
-      "email_id",
-      "emailId",
-    ]),
+    email_id: firstValue(body, ["email_id", "emailId"]),
 
-    pan_number: firstValue(body, [
-      "pan_number",
-      "panNumber",
-    ]),
+    pan_number: firstValue(body, ["pan_number", "panNumber"]),
 
     aadhaar_number: firstValue(body, [
       "aadhaar_number",
@@ -193,21 +149,14 @@ function mapRequestBody(body) {
       "loanAmount",
     ]),
 
-    interest_percent: firstValue(body, [
-      "interest_percent",
-      "interestPercent",
-    ]),
+    interest_percent: firstValue(body, ["interest_percent", "interestPercent"]),
 
     loan_tenure_months: firstValue(body, [
       "loan_tenure_months",
       "loanTenureMonths",
     ]),
 
-    monthly_emi: firstValue(body, [
-      "monthly_emi",
-      "monthly emi",
-      "monthlyEmi",
-    ]),
+    monthly_emi: firstValue(body, ["monthly_emi", "monthly emi", "monthlyEmi"]),
 
     credit_score: firstValue(body, [
       "credit_score",
@@ -217,35 +166,20 @@ function mapRequestBody(body) {
 
     product: firstValue(body, ["product"]),
 
-    residence_type: firstValue(body, [
-      "residence_type",
-      "residenceType",
-    ]),
+    residence_type: firstValue(body, ["residence_type", "residenceType"]),
 
-    customer_type: firstValue(body, [
-      "customer_type",
-      "customerType",
-    ]),
+    customer_type: firstValue(body, ["customer_type", "customerType"]),
 
-    bank_name: firstValue(body, [
-      "bank_name",
-      "bankName",
-    ]),
+    bank_name: firstValue(body, ["bank_name", "bankName"]),
 
-    beneficiary_name: firstValue(body, [
-      "beneficiary_name",
-      "beneficiaryName",
-    ]),
+    beneficiary_name: firstValue(body, ["beneficiary_name", "beneficiaryName"]),
 
     institute_account_number: firstValue(body, [
       "institute_account_number",
       "instituteAccountNumber",
     ]),
 
-    ifsc_code: firstValue(body, [
-      "ifsc_code",
-      "ifscCode",
-    ]),
+    ifsc_code: firstValue(body, ["ifsc_code", "ifscCode"]),
   };
 }
 
@@ -257,10 +191,7 @@ function validateLoanData(body) {
     "loan_application_date",
   );
 
-  data.date_of_birth = validateDate(
-    data.date_of_birth,
-    "date_of_birth",
-  );
+  data.date_of_birth = validateDate(data.date_of_birth, "date_of_birth");
 
   data.app_id = cleanString(data.app_id).toUpperCase();
 
@@ -269,15 +200,10 @@ function validateLoanData(body) {
   }
 
   if (!/^[A-Z0-9_-]{3,50}$/.test(data.app_id)) {
-    throw apiError(
-      400,
-      "app_id contains invalid characters",
-    );
+    throw apiError(400, "app_id contains invalid characters");
   }
 
-  data.customer_name = cleanString(
-    data.customer_name,
-  );
+  data.customer_name = cleanString(data.customer_name);
 
   if (!data.customer_name) {
     throw apiError(400, "customer_name is required");
@@ -285,20 +211,13 @@ function validateLoanData(body) {
 
   data.gender = cleanString(data.gender);
 
-  if (
-    !["Male", "Female", "Other"].includes(data.gender)
-  ) {
-    throw apiError(
-      400,
-      "gender must be Male, Female or Other",
-    );
+  if (!["Male", "Female", "Other"].includes(data.gender)) {
+    throw apiError(400, "gender must be Male, Female or Other");
   }
 
   data.fathers_name = cleanString(data.fathers_name);
 
-  data.mobile_number = cleanDigits(
-    data.mobile_number,
-  );
+  data.mobile_number = cleanDigits(data.mobile_number);
 
   if (!/^[6-9]\d{9}$/.test(data.mobile_number)) {
     throw apiError(
@@ -307,26 +226,15 @@ function validateLoanData(body) {
     );
   }
 
-  data.email_id = cleanString(
-    data.email_id,
-  ).toLowerCase();
+  data.email_id = cleanString(data.email_id).toLowerCase();
 
-  if (
-    data.email_id &&
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email_id)
-  ) {
+  if (data.email_id && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email_id)) {
     throw apiError(400, "email_id is invalid");
   }
 
-  data.pan_number = cleanString(
-    data.pan_number,
-  ).toUpperCase();
+  data.pan_number = cleanString(data.pan_number).toUpperCase();
 
-  if (
-    !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(
-      data.pan_number,
-    )
-  ) {
+  if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(data.pan_number)) {
     throw apiError(400, "pan_number is invalid");
   }
 
@@ -334,9 +242,7 @@ function validateLoanData(body) {
    * Excel contains only Aadhaar's last four digits.
    * It must be sent as a string, e.g. "0050".
    */
-  data.aadhaar_number = cleanDigits(
-    data.aadhaar_number,
-  );
+  data.aadhaar_number = cleanDigits(data.aadhaar_number);
 
   if (!/^\d{4}$/.test(data.aadhaar_number)) {
     throw apiError(
@@ -345,30 +251,16 @@ function validateLoanData(body) {
     );
   }
 
-  data.current_address_line1 = cleanString(
-    data.current_address_line1,
-  );
+  data.current_address_line1 = cleanString(data.current_address_line1);
 
   if (!data.current_address_line1) {
-    throw apiError(
-      400,
-      "current_address_line1 is required",
-    );
+    throw apiError(400, "current_address_line1 is required");
   }
 
-  data.current_address_pincode = cleanDigits(
-    data.current_address_pincode,
-  );
+  data.current_address_pincode = cleanDigits(data.current_address_pincode);
 
-  if (
-    !/^[1-9][0-9]{5}$/.test(
-      data.current_address_pincode,
-    )
-  ) {
-    throw apiError(
-      400,
-      "current_address_pincode must be 6 digits",
-    );
+  if (!/^[1-9][0-9]{5}$/.test(data.current_address_pincode)) {
+    throw apiError(400, "current_address_pincode must be 6 digits");
   }
 
   data.loan_amount_sanctioned = parseNumber(
@@ -377,10 +269,7 @@ function validateLoanData(body) {
   );
 
   if (data.loan_amount_sanctioned <= 0) {
-    throw apiError(
-      400,
-      "loan_amount_sanctioned must be greater than zero",
-    );
+    throw apiError(400, "loan_amount_sanctioned must be greater than zero");
   }
 
   data.interest_percent = parseNumber(
@@ -388,14 +277,8 @@ function validateLoanData(body) {
     "interest_percent",
   );
 
-  if (
-    data.interest_percent < 0 ||
-    data.interest_percent > 100
-  ) {
-    throw apiError(
-      400,
-      "interest_percent must be between 0 and 100",
-    );
+  if (data.interest_percent < 0 || data.interest_percent > 100) {
+    throw apiError(400, "interest_percent must be between 0 and 100");
   }
 
   data.loan_tenure_months = parseInteger(
@@ -403,32 +286,17 @@ function validateLoanData(body) {
     "loan_tenure_months",
   );
 
-  if (
-    data.loan_tenure_months < 1 ||
-    data.loan_tenure_months > 120
-  ) {
-    throw apiError(
-      400,
-      "loan_tenure_months must be between 1 and 120",
-    );
+  if (data.loan_tenure_months < 1 || data.loan_tenure_months > 120) {
+    throw apiError(400, "loan_tenure_months must be between 1 and 120");
   }
 
-  data.monthly_emi = parseNumber(
-    data.monthly_emi,
-    "monthly_emi",
-  );
+  data.monthly_emi = parseNumber(data.monthly_emi, "monthly_emi");
 
   if (data.monthly_emi < 0) {
-    throw apiError(
-      400,
-      "monthly_emi cannot be negative",
-    );
+    throw apiError(400, "monthly_emi cannot be negative");
   }
 
-  data.credit_score = parseInteger(
-    data.credit_score,
-    "credit_score",
-  );
+  data.credit_score = parseInteger(data.credit_score, "credit_score");
 
   /*
    * Existing upload API accepts:
@@ -437,32 +305,18 @@ function validateLoanData(body) {
    */
   if (
     data.credit_score !== -1 &&
-    (data.credit_score < 500 ||
-      data.credit_score > 900)
+    (data.credit_score < 500 || data.credit_score > 900)
   ) {
-    throw apiError(
-      400,
-      "credit_score must be between 500 and 900, or -1",
-    );
+    throw apiError(400, "credit_score must be between 500 and 900, or -1");
   }
 
   data.product = cleanString(data.product);
 
-  if (
-    !["Monthly Loan", "Bullet Loan"].includes(
-      data.product,
-    )
-  ) {
-    throw apiError(
-      400,
-      "product must be Monthly Loan or Bullet Loan",
-    );
+  if (!["Monthly Loan", "Bullet Loan"].includes(data.product)) {
+    throw apiError(400, "product must be Monthly Loan or Bullet Loan");
   }
 
-  if (
-    data.product === "Monthly Loan" &&
-    data.monthly_emi <= 0
-  ) {
+  if (data.product === "Monthly Loan" && data.monthly_emi <= 0) {
     throw apiError(
       400,
       "monthly_emi must be greater than zero for Monthly Loan",
@@ -471,40 +325,24 @@ function validateLoanData(body) {
 
   if (data.product === "Bullet Loan") {
     if (data.loan_tenure_months !== 1) {
-      throw apiError(
-        400,
-        "Bullet Loan tenure must be 1 month",
-      );
+      throw apiError(400, "Bullet Loan tenure must be 1 month");
     }
 
     if (data.monthly_emi !== 0) {
-      throw apiError(
-        400,
-        "monthly_emi must be 0 for Bullet Loan",
-      );
+      throw apiError(400, "monthly_emi must be 0 for Bullet Loan");
     }
   }
 
-  data.residence_type = cleanString(
-    data.residence_type,
-  );
+  data.residence_type = cleanString(data.residence_type);
 
   if (!data.residence_type) {
-    throw apiError(
-      400,
-      "residence_type is required",
-    );
+    throw apiError(400, "residence_type is required");
   }
 
-  data.customer_type = cleanString(
-    data.customer_type,
-  );
+  data.customer_type = cleanString(data.customer_type);
 
   if (!data.customer_type) {
-    throw apiError(
-      400,
-      "customer_type is required",
-    );
+    throw apiError(400, "customer_type is required");
   }
 
   data.bank_name = cleanString(data.bank_name);
@@ -513,46 +351,30 @@ function validateLoanData(body) {
     throw apiError(400, "bank_name is required");
   }
 
-  data.beneficiary_name = cleanString(
-    data.beneficiary_name,
-  );
+  data.beneficiary_name = cleanString(data.beneficiary_name);
 
   if (!data.beneficiary_name) {
-    throw apiError(
-      400,
-      "beneficiary_name is required",
-    );
+    throw apiError(400, "beneficiary_name is required");
   }
 
   data.institute_account_number = cleanString(
     data.institute_account_number,
   ).replace(/\s/g, "");
 
-  if (
-    !/^[A-Z0-9]{6,30}$/i.test(
-      data.institute_account_number,
-    )
-  ) {
-    throw apiError(
-      400,
-      "institute_account_number is invalid",
-    );
+  if (!/^[A-Z0-9]{6,30}$/i.test(data.institute_account_number)) {
+    throw apiError(400, "institute_account_number is invalid");
   }
 
-  data.ifsc_code = cleanString(
-    data.ifsc_code,
-  ).toUpperCase();
+  data.ifsc_code = cleanString(data.ifsc_code).toUpperCase();
 
-  if (
-    !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(data.ifsc_code)
-  ) {
+  if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(data.ifsc_code)) {
     throw apiError(400, "ifsc_code is invalid");
   }
 
   return data;
 }
 
-router.post("/circle-pe-houser",verifyApiKey, async (req, res) => {
+router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
   let connection;
 
   try {
@@ -561,17 +383,15 @@ router.post("/circle-pe-houser",verifyApiKey, async (req, res) => {
     /*
      * Check duplicate external application ID.
      */
-    const [existingLoans] = await db
-      .promise()
-      .query(
-        `
+    const [existingLoans] = await db.promise().query(
+      `
           SELECT app_id, lan
           FROM ${TABLE_NAME}
           WHERE app_id = ?
           LIMIT 1
         `,
-        [loanData.app_id],
-      );
+      [loanData.app_id],
+    );
 
     if (existingLoans.length > 0) {
       return res.status(409).json({
@@ -589,8 +409,7 @@ router.post("/circle-pe-houser",verifyApiKey, async (req, res) => {
      * Uses the same LAN and partner-loan-ID generator
      * as the existing Excel upload API.
      */
-    const { partnerLoanId, lan } =
-      await generateLoanIdentifiers(LENDER_TYPE);
+    const { partnerLoanId, lan } = await generateLoanIdentifiers(LENDER_TYPE);
 
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
@@ -668,10 +487,7 @@ router.post("/circle-pe-houser",verifyApiKey, async (req, res) => {
       initialStatus,
     ];
 
-    const [insertResult] = await connection.query(
-      insertQuery,
-      insertValues,
-    );
+    const [insertResult] = await connection.query(insertQuery, insertValues);
 
     await connection.commit();
 
@@ -711,10 +527,7 @@ router.post("/circle-pe-houser",verifyApiKey, async (req, res) => {
       await connection.rollback();
     }
 
-    console.error(
-      "Circle Pe Houser JSON API error:",
-      error,
-    );
+    console.error("Circle Pe Houser JSON API error:", error);
 
     if (error.code === "ER_DUP_ENTRY") {
       return res.status(409).json({
@@ -724,23 +537,288 @@ router.post("/circle-pe-houser",verifyApiKey, async (req, res) => {
       });
     }
 
-    return res
-      .status(error.statusCode || 500)
-      .json({
-        success: false,
-        code:
-          error.statusCode === 400
-            ? "VALIDATION_ERROR"
-            : "INTERNAL_SERVER_ERROR",
-        message:
-          error.message ||
-          "Unable to create Circle Pe Houser loan",
-      });
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      code:
+        error.statusCode === 400 ? "VALIDATION_ERROR" : "INTERNAL_SERVER_ERROR",
+      message: error.message || "Unable to create Circle Pe Houser loan",
+    });
   } finally {
     if (connection) {
       connection.release();
     }
   }
 });
+
+async function handleCirclePeHouserFinalSubmit(req, res) {
+  let connection;
+
+  try {
+    const body = req.body || {};
+
+    // Loan Identifier
+    const lan = cleanString(body.lan);
+    const appId = cleanString(body.app_id);
+    const partnerLoanId = cleanString(body.partner_loan_id);
+
+    if (!lan && !appId && !partnerLoanId) {
+      throw apiError(
+        400,
+        "Loan identifier (lan, app_id, or partner_loan_id) is required",
+      );
+    }
+
+    // eNACH Details
+    const enachUmrn = cleanString(body.enach_umrn);
+    const enachStatus = cleanString(body.enach_status || "Success");
+    const enachAuthMode = cleanString(body.enach_auth_mode);
+
+    if (!enachUmrn) {
+      throw apiError(400, "enach_umrn is required for final submission");
+    }
+
+    // eSign Details
+    const esignStatus = cleanString(body.esign_status || "Signed");
+
+    let agreementDate = body.agreement_date;
+    if (agreementDate) {
+      agreementDate = validateDate(agreementDate, "agreement_date");
+    } else {
+      agreementDate = new Date().toISOString().split("T")[0];
+    }
+
+    // Bank Details
+    const bankName = cleanString(body.bank_name);
+    const beneficiaryName = cleanString(body.beneficiary_name);
+    const accountNumber = cleanString(body.account_number).replace(/\s/g, "");
+    const ifscCode = cleanString(body.ifsc_code).toUpperCase();
+
+    // Loan Terms
+    const loanAmount = body.loan_amount;
+    const interestPercent = body.interest_rate;
+    const loanTenureMonths = body.loan_tenure;
+    const monthlyEmi = body.emi_amount;
+    const netDisbursement = body.net_disbursement;
+
+    // Database Connection
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
+
+    // ── 1. Find existing loan ──
+    let findQuery;
+    let findParams;
+
+    if (lan) {
+      findQuery = `SELECT * FROM ${TABLE_NAME} WHERE lan = ? LIMIT 1`;
+      findParams = [lan];
+    } else if (appId) {
+      findQuery = `SELECT * FROM ${TABLE_NAME} WHERE app_id = ? LIMIT 1`;
+      findParams = [appId];
+    } else {
+      findQuery = `SELECT * FROM ${TABLE_NAME} WHERE partner_loan_id = ? LIMIT 1`;
+      findParams = [partnerLoanId];
+    }
+
+    const [existingRows] = await connection.query(findQuery, findParams);
+
+    if (existingRows.length === 0) {
+      throw apiError(404, "Loan record not found in CirclePe Houser");
+    }
+
+    const currentLoan = existingRows[0];
+    const targetLan = currentLoan.lan;
+
+    // Check already disbursed
+    if (String(currentLoan.status).toLowerCase() === "disbursed") {
+      throw apiError(400, `Loan ${targetLan} is already disbursed`);
+    }
+
+    // ── 2. Validate Bank Details ──
+    if (!bankName) {
+      throw apiError(400, "bank_name is required");
+    }
+    if (!beneficiaryName) {
+      throw apiError(400, "beneficiary_name is required");
+    }
+    if (!accountNumber) {
+      throw apiError(400, "account_number is required");
+    }
+
+    if (!ifscCode || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode)) {
+      throw apiError(400, "Valid IFSC code is required");
+    }
+
+    // ── 3. Validate Loan Details ──
+    const finalLoanAmount = parseNumber(loanAmount, "loan_amount");
+
+    const finalInterestRate = parseNumber(interestPercent, "interest_rate");
+
+    const finalTenure = parseInteger(loanTenureMonths, "loan_tenure");
+
+    const finalEmi = parseNumber(monthlyEmi, "emi_amount");
+
+    const finalNetDisbursement = parseNumber(
+      netDisbursement,
+      "net_disbursement",
+    );
+
+    const productType = currentLoan.product || "Monthly Loan";
+
+    const NEW_STATUS = "Disburse initiate";
+
+    // ── 4. Update Loan ──
+    const updateLoanQuery = `
+      UPDATE ${TABLE_NAME}
+      SET
+        bank_name = ?,
+        name_in_bank = ?,
+        account_number = ?,
+        ifsc = ?,
+        loan_amount = ?,
+        interest_rate = ?,
+        loan_tenure = ?,
+        emi_amount = ?,
+        net_disbursement = ?,
+        agreement_date = ?,
+        status = ?
+      WHERE lan = ?
+    `;
+
+    const updateLoanValues = [
+      bankName,
+      beneficiaryName,
+      accountNumber,
+      ifscCode,
+      finalLoanAmount,
+      finalInterestRate,
+      finalTenure,
+      finalEmi,
+      finalNetDisbursement,
+      agreementDate,
+      NEW_STATUS,
+      targetLan,
+    ];
+
+    await connection.query(updateLoanQuery, updateLoanValues);
+
+    // ── 5. Upsert eNACH Mandate ──
+    await connection.query(
+      `
+        INSERT INTO enach_mandates (
+          lan,
+          enach_umrn,
+          bank_name,
+          account_number,
+          ifsc,
+          customer_name,
+          status,
+          auth_mode,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?, NOW(), NOW())
+        ON DUPLICATE KEY UPDATE
+          enach_umrn = VALUES(enach_umrn),
+          bank_name = VALUES(bank_name),
+          account_number = VALUES(account_number),
+          ifsc = VALUES(ifsc),
+          status = 'ACTIVE',
+          updated_at = NOW()
+      `,
+      [
+        targetLan,
+        enachUmrn,
+        bankName,
+        accountNumber,
+        ifscCode,
+        currentLoan.customer_name,
+        enachAuthMode || "NET_BANKING",
+      ],
+    );
+
+    // ── 6. Generate RPS ──
+    await connection.query(
+      `DELETE FROM manual_rps_circle_pe_houser WHERE lan = ?`,
+      [targetLan],
+    );
+
+    await generateRepaymentScheduleCirclePeHouser(
+      connection,
+      targetLan,
+      finalLoanAmount,
+      finalInterestRate,
+      finalTenure,
+      agreementDate,
+      productType,
+      LENDER_TYPE,
+    );
+
+    await connection.commit();
+
+    // ── 7. Response ──
+    return res.status(200).json({
+      success: true,
+      code: "DISBURSEMENT_INITIATED",
+      message:
+        "Circle Pe Houser loan final submission completed successfully. Status is now Disburse initiate.",
+
+      data: {
+        lan: targetLan,
+        app_id: currentLoan.app_id,
+        partner_loan_id: currentLoan.partner_loan_id,
+        customer_name: currentLoan.customer_name,
+
+        loan_amount: finalLoanAmount,
+        net_disbursement: finalNetDisbursement,
+        interest_rate: finalInterestRate,
+        loan_tenure: finalTenure,
+        monthly_emi: finalEmi,
+
+        product: productType,
+
+        enach_umrn: enachUmrn,
+        enach_status: enachStatus,
+
+        esign_status: esignStatus,
+        agreement_date: agreementDate,
+
+        disbursement_bank: {
+          bank_name: bankName,
+          beneficiary_name: beneficiaryName,
+          account_number: accountNumber,
+          ifsc: ifscCode,
+        },
+
+        status: NEW_STATUS,
+        submitted_at: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+
+    console.error("Circle Pe Houser Final Submit error:", error);
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      code:
+        error.statusCode === 400 ? "VALIDATION_ERROR" : "INTERNAL_SERVER_ERROR",
+      message:
+        error.message || "Failed to process Circle Pe Houser final submit",
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}
+
+// Register Final Submit endpoints
+router.post(
+  "/circle-pe-houser/final-submit",
+  verifyApiKey,
+  handleCirclePeHouserFinalSubmit,
+);
 
 module.exports = router;
