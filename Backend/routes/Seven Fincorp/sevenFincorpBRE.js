@@ -1,5 +1,12 @@
 const db = require("../../config/db");
 const { XMLParser } = require("fast-xml-parser");
+const {
+  extractMotionCorpBureauFacts,
+  evaluateMotionCorpPolicy,
+} = require("../MotionCorp/motionCorpBRE");
+const {
+  screenLoanBooking,
+} = require("../../services/trackwizz/screeningService");
 
 const parser = new XMLParser({
    ignoreAttributes: false,
@@ -330,31 +337,140 @@ if (
   };
 };
 
-const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
+/**
+ * ===========================================================
+ * AML SCREENING (TrackWizz) — every party present on the LAN
+ * ===========================================================
+ * Each party is screened under its own partner key, so the
+ * existing-screening reuse, report file name and loan_documents
+ * row (doc_name = AML_REPORT) stay separate per person.
+ */
+const SEVEN_FINCORP_AML_PARTIES = [
+  { applicantType: "BORROWER", partnerKey: "seven_fincorp" },
+  { applicantType: "GUARANTOR", partnerKey: "seven_fincorp_guarantor" },
+  { applicantType: "CO_APPLICANT", partnerKey: "seven_fincorp_co_applicant" },
+];
+
+const hasValue = (value) => {
+  if (value === null || value === undefined) return false;
+
+  if (typeof value === "string") {
+    return value.trim() !== "";
+  }
+
+  return true;
+};
+
+const getPresentParties = (loan) => {
+  const parties = ["BORROWER"];
+
+  if (
+    [loan.guarantor_name, loan.guarantor_mobile, loan.guarantor_pan].some(
+      hasValue,
+    )
+  ) {
+    parties.push("GUARANTOR");
+  }
+
+  if (
+    [
+      loan.co_applicant_name,
+      loan.co_applicant_mobile,
+      loan.co_applicant_pan,
+    ].some(hasValue)
+  ) {
+    parties.push("CO_APPLICANT");
+  }
+
+  return parties;
+};
+
+/**
+ * Screens borrower + guarantor/co-applicant (whoever is present).
+ * Already-screened parties are reused by screenLoanBooking, so calling
+ * this from final submit and again from the BRE does not re-hit TrackWizz.
+ *
+ * overallStatus: STOP > REVIEW > ERROR > PROCEED
+ */
+const runSevenFincorpAmlScreening = async (lan) => {
   const pool = db.promise();
 
-  /**
-   * KYC STATUS
-   */
-  const [kycRows] = await pool.query(
+  const [loanRows] = await pool.query(
     `
-    SELECT bureau_status
-    FROM kyc_verification_status
+    SELECT
+      lan,
+      guarantor_name,
+      guarantor_mobile,
+      guarantor_pan,
+      co_applicant_name,
+      co_applicant_mobile,
+      co_applicant_pan
+    FROM loan_booking_seven_fincorp
     WHERE lan = ?
-    AND applicant_type = 'BORROWER'
+    LIMIT 1
     `,
     [lan],
   );
 
-  if (!kycRows.length) {
-    console.log("No Seven FinCorp KYC row found:", lan);
-
-    return;
+  if (!loanRows.length) {
+    throw new Error(`Seven Fincorp loan not found: ${lan}`);
   }
 
-  const kyc = kycRows[0];
+  const presentParties = getPresentParties(loanRows[0]);
 
-  if (kyc.bureau_status !== "VERIFIED") {
+  const results = [];
+
+  for (const party of SEVEN_FINCORP_AML_PARTIES) {
+    if (!presentParties.includes(party.applicantType)) continue;
+
+    try {
+      const aml = await screenLoanBooking(party.partnerKey, lan);
+
+      results.push({
+        applicantType: party.applicantType,
+        status: String(aml.amlStatus || "")
+          .trim()
+          .toUpperCase(),
+        reason: aml.amlReason || "",
+      });
+    } catch (error) {
+      console.error(
+        `Seven Fincorp AML failed for ${lan} (${party.applicantType}):`,
+        error.message,
+      );
+
+      results.push({
+        applicantType: party.applicantType,
+        status: "ERROR",
+        reason: `AML unavailable: ${error.message}`.slice(0, 255),
+      });
+    }
+  }
+
+  const statuses = results.map((result) => result.status);
+
+  let overallStatus = "PROCEED";
+
+  if (statuses.includes("STOP")) {
+    overallStatus = "STOP";
+  } else if (statuses.includes("REVIEW")) {
+    overallStatus = "REVIEW";
+  } else if (statuses.some((status) => status !== "PROCEED")) {
+    overallStatus = "ERROR";
+  }
+
+  return { overallStatus, results };
+};
+
+/**
+ * ===========================================================
+ * MAIN BRE
+ * ===========================================================
+ */
+const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
+  const pool = db.promise();
+
+  const setPending = async (reason) => {
     await pool.query(
       `
       UPDATE loan_booking_seven_fincorp
@@ -364,15 +480,14 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
         seven_fincorp_bre_checked_at = NOW()
       WHERE lan = ?
       `,
-      [
-        "Pending",
-        `BUREAU_STATUS=${kyc.bureau_status || "NA"}`,
-        lan,
-      ],
+      ["Pending", String(reason).slice(0, 1000), lan],
     );
+  };
 
-    return;
-  }
+  const normalizeStatus = (status) =>
+    String(status || "")
+      .trim()
+      .toUpperCase();
 
   /**
    * LOAN
@@ -382,93 +497,181 @@ const autoApproveSevenFinCorpIfAllVerified = async (lan) => {
     SELECT
       lan,
       dob,
+      pan_card,
       requested_loan_amount,
       loan_tenure,
       interest_rate,
-      cibil_score
+      cibil_score,
+      seven_fincorp_bureau_screening_status,
+      guarantor_name,
+      guarantor_mobile,
+      guarantor_pan,
+      co_applicant_name,
+      co_applicant_mobile,
+      co_applicant_pan
     FROM loan_booking_seven_fincorp
     WHERE lan = ?
+    LIMIT 1
     `,
     [lan],
   );
 
   if (!loanRows.length) {
-    console.log("Motion Corp loan not found:", lan);
-
+    console.log("Seven Fincorp loan not found:", lan);
     return;
   }
 
   const loan = loanRows[0];
 
   /**
-   * BUREAU XML
+   * Address-tab bureau screening must be complete before the final BRE.
+   */
+  const screeningStatus = normalizeStatus(
+    loan.seven_fincorp_bureau_screening_status,
+  );
+
+  if (!["BUREAU APPROVED", "BUREAU REJECTED"].includes(screeningStatus)) {
+    await setPending(`BUREAU_SCREENING_STATUS=${screeningStatus || "NOT_RUN"}`);
+    return;
+  }
+
+  /**
+   * KYC — PAN, AADHAAR and BUREAU must be VERIFIED for the borrower
+   * and for the guarantor / co-applicant present on the loan.
+   */
+  const presentParties = getPresentParties(loan);
+
+  if (presentParties.length === 1) {
+    await setPending("SECOND_PARTY_MISSING");
+    return;
+  }
+
+  for (const applicantType of presentParties) {
+    const [kycRows] = await pool.query(
+      `
+      SELECT
+        pan_status,
+        aadhaar_status,
+        bureau_status
+      FROM kyc_verification_status
+      WHERE lan = ?
+        AND UPPER(TRIM(applicant_type)) = ?
+        AND party_no = 1
+      LIMIT 1
+      `,
+      [lan, applicantType],
+    );
+
+    if (!kycRows.length) {
+      await setPending(`${applicantType}_1_KYC_ROW_MISSING`);
+      return;
+    }
+
+    const kyc = kycRows[0];
+
+    const incomplete = Object.entries({
+      PAN: kyc.pan_status,
+      AADHAAR: kyc.aadhaar_status,
+      BUREAU: kyc.bureau_status,
+    })
+      .filter(([, status]) => normalizeStatus(status) !== "VERIFIED")
+      .map(
+        ([verificationType, status]) =>
+          `${applicantType}_1_${verificationType}_STATUS=${
+            normalizeStatus(status) || "NA"
+          }`,
+      );
+
+    if (incomplete.length > 0) {
+      const pendingReason = incomplete.join(", ");
+
+      await setPending(pendingReason);
+
+      console.log(`Seven Fincorp BRE pending for ${lan}: ${pendingReason}`);
+      return;
+    }
+  }
+
+  /**
+   * BORROWER BUREAU XML
    */
   const [cibilRows] = await pool.query(
     `
     SELECT score, report_xml, created_at
     FROM loan_cibil_reports
-    WHERE lan = ?
-    AND applicant_type = 'BORROWER'
+    WHERE TRIM(lan) = TRIM(?)
+      AND UPPER(TRIM(applicant_type)) = 'BORROWER'
     ORDER BY created_at DESC, id DESC
     LIMIT 1
     `,
     [lan],
   );
 
-  if (!cibilRows.length || !cibilRows[0].report_xml) {
-    await pool.query(
-      `
-      UPDATE loan_booking_seven_fincorp
-      SET
-        seven_fincorp_bre_status = ?,
-        seven_fincorp_bre_reason = ?,
-        seven_fincorp_bre_checked_at = NOW()
-      WHERE lan = ?
-      `,
-      ["Pending", "BUREAU_REPORT_MISSING", lan],
-    );
-
+  if (!cibilRows.length || !hasValue(cibilRows[0].report_xml)) {
+    await setPending("BUREAU_REPORT_MISSING");
     return;
   }
 
-  const bureauFacts = extractSevenFinCorpBureauFacts(
-    cibilRows[0].report_xml,
-  );
+  let bureauFacts;
 
-  const decision = evaluateSevenFinCorpPolicy({
+  try {
+    bureauFacts = extractMotionCorpBureauFacts(cibilRows[0].report_xml);
+  } catch (error) {
+    console.error("Seven Fincorp bureau XML parsing failed:", {
+      lan,
+      message: error.message,
+    });
+
+    await setPending("BUREAU_REPORT_PARSE_FAILED");
+    return;
+  }
+
+  /**
+   * AML — borrower + guarantor / co-applicant
+   */
+  const aml = await runSevenFincorpAmlScreening(lan);
+
+  if (aml.overallStatus === "ERROR") {
+    const amlErrors = aml.results
+      .filter((result) => result.status !== "PROCEED")
+      .map((result) => `${result.applicantType}_AML=${result.status || "NA"}`)
+      .join(", ");
+
+    await setPending(amlErrors || "AML_STATUS=ERROR");
+    return;
+  }
+
+  /**
+   * EVALUATE
+   */
+  const decision = evaluateMotionCorpPolicy({
     loan,
     bureauFacts,
+    amlStatus: aml.overallStatus,
   });
 
-  const reasonText = [
-    ...(decision.reasons || []),
-    ...(decision.deviations || []),
-  ].length
-    ? [...decision.reasons, ...decision.deviations].join(", ")
-    : "ELIGIBLE";
+  const reasonParts = [...decision.reasons, ...decision.deviations];
 
-  // let finalStatus = "BRE APPROVED";
+  for (const result of aml.results) {
+    if (result.status === "STOP" || result.status === "REVIEW") {
+      reasonParts.push(`${result.applicantType} AML: ${result.reason}`);
+    }
+  }
 
-  // if (decision.status === "BRE REJECTED") {
-  //   finalStatus = "BRE REJECTED";
-  // }
-
-  // if (decision.status === "Credit Initiated") {
-  //   finalStatus = "Credit Initiated";
-  // }
+  const reasonText = reasonParts.length ? reasonParts.join(", ") : "ELIGIBLE";
 
   let finalStatus = "Credit Initiated";
-let finalStage = "BRE Approved";
+  let finalStage = "BRE Approved";
 
-if (decision.status === "BRE REJECTED") {
-  finalStatus = "Rejected";
-  finalStage = "BRE Rejected";
-}
+  if (decision.status === "BRE REJECTED") {
+    finalStatus = "Rejected";
+    finalStage = "BRE Rejected";
+  }
 
-if (decision.status === "Credit Initiated") {
-  finalStatus = "Credit Initiated";
-  finalStage = "BRE Deviation";
-}
+  if (decision.status === "BRE DEVIATION") {
+    finalStatus = "Credit Initiated";
+    finalStage = "BRE Deviation";
+  }
 
   await pool.query(
     `
@@ -491,12 +694,12 @@ if (decision.status === "Credit Initiated") {
       seven_fincorp_deviation_flag = ?,
 
       status = ?,
-stage = ?
+      stage = ?
     WHERE lan = ?
     `,
     [
       decision.status,
-      reasonText,
+      reasonText.slice(0, 1000),
 
       decision.bureauScore,
       bureauFacts.enquiries30d,
@@ -511,18 +714,19 @@ stage = ?
       decision.deviations.length > 0 ? 1 : 0,
 
       finalStatus,
-finalStage,
-lan,
+      finalStage,
+      lan,
     ],
   );
 
   console.log(
-    `Motion Corp BRE completed for ${lan}: ${decision.status} | ${reasonText}`,
+    `Seven Fincorp BRE completed for ${lan}: ${decision.status} | ${reasonText}`,
   );
 };
 
 module.exports = {
   autoApproveSevenFinCorpIfAllVerified,
-  extractSevenFinCorpBureauFacts,
-  evaluateSevenFinCorpPolicy,
+  runSevenFincorpAmlScreening,
+  extractSevenFinCorpBureauFacts: extractMotionCorpBureauFacts,
+  evaluateSevenFinCorpPolicy: evaluateMotionCorpPolicy,
 };

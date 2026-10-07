@@ -7,6 +7,7 @@ const SevenFinCorpLoanBooking = ({
   lenderType = "Seven FinCorp",
   apiPrefix = "seven-fincorp",
   title = "Seven FinCorp Manual Entry",
+  enableAddressBureau = true,
 }) => {
   const [searchParams] = useSearchParams();
   const resumeLan = searchParams.get("lan");
@@ -125,6 +126,22 @@ const SevenFinCorpLoanBooking = ({
   const [sectionValid, setSectionValid] = useState(false);
   const [touched, setTouched] = useState({});
   const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [bureauLoading, setBureauLoading] = useState(false);
+  const [bureauResult, setBureauResult] = useState({
+    checked: false,
+    canContinue: false,
+    status: "",
+    reason: "",
+    reasons: [],
+    bureauScore: null,
+    isNtc: false,
+    facts: null,
+  });
+  const [aadhaarFrame, setAadhaarFrame] = useState({
+    open: false,
+    url: "",
+    applicantType: "",
+  });
 
   const [lan, setLan] = useState("");
   const [partnerLoanId, setPartnerLoanId] = useState("");
@@ -319,6 +336,45 @@ const SevenFinCorpLoanBooking = ({
         coApplicant: Number(d.co_applicant_mobile_verified) === 1,
       });
 
+      const bureauPrefix = lenderType === "Bundela" ? "bundela" : "seven_fincorp";
+
+      // Seven Fincorp stores the Address-tab result in its own screening
+      // columns (the final BRE writes *_bre_*). Bundela still shares *_bre_*.
+      const screeningColumn =
+        lenderType === "Bundela"
+          ? "bundela_bre"
+          : "seven_fincorp_bureau_screening";
+
+      if (enableAddressBureau && d[`${screeningColumn}_checked_at`]) {
+        const status = String(d[`${screeningColumn}_status`] || "Pending").toUpperCase();
+        const reason = d[`${screeningColumn}_reason`] || "";
+        const score = d.fintree_cibil_score ?? d.cibil_score ?? null;
+
+        const completedStatuses =
+          lenderType === "Bundela"
+            ? ["BUREAU APPROVED", "BUREAU REJECTED", "BRE APPROVED", "BRE REJECTED", "BRE DEVIATION"]
+            : ["BUREAU APPROVED", "BUREAU REJECTED"];
+
+        setBureauResult({
+          checked: true,
+          canContinue: completedStatuses.includes(status),
+          status,
+          reason,
+          reasons: reason && reason !== "ELIGIBLE" ? reason.split(",").map((item) => item.trim()) : [],
+          bureauScore: score,
+          isNtc: score !== null && Number(score) < 300,
+          facts: {
+            enquiries30d: d[`${bureauPrefix}_enquiries_30d`] ?? null,
+            hasDpd3M: Number(d[`${bureauPrefix}_dpd_3m_flag`]) === 1,
+            hasDpd6M: Number(d[`${bureauPrefix}_dpd_6m_flag`]) === 1,
+            hasOverdue12M: Number(d[`${bureauPrefix}_overdue_12m_flag`]) === 1,
+            hasWrittenOff3Y: Number(d[`${bureauPrefix}_written_off_3y_flag`]) === 1,
+            emiOverdueAmount: d[`${bureauPrefix}_emi_overdue_amount`] ?? 0,
+            ccOverdueAmount: d[`${bureauPrefix}_cc_overdue_amount`] ?? 0,
+          },
+        });
+      }
+
       setMessage(`✅ Resumed booking. LAN: ${d.lan}`);
     } catch (err) {
       setMessage(
@@ -384,6 +440,18 @@ const SevenFinCorpLoanBooking = ({
   useEffect(() => {
     fetchDealers();
   }, []);
+
+  // Keep the product dropdown in sync with the selected dealer, including
+  // when a booking is resumed and the dealer list loads afterwards.
+  useEffect(() => {
+    const selectedDealer = dealers.find(
+      (dealer) =>
+        String(dealer.application_id) ===
+        String(formData.selected_dealer_application_id),
+    );
+
+    setDealerProducts(selectedDealer?.products || []);
+  }, [dealers, formData.selected_dealer_application_id]);
 
   // useEffect(() => {
   //   if (formData.Pincode.length === 6) {
@@ -603,6 +671,106 @@ for processing and servicing this loan application.
   // };
   ////////
 
+  const runAddressBureauScreening = async () => {
+    if (!lan) {
+      setMessage("❌ Please save Borrower Details before running bureau.");
+      return false;
+    }
+
+    try {
+      setBureauLoading(true);
+      setMessage("");
+
+      const res = await api.post(`${apiPrefix}/run-bureau-screening`, {
+        lan,
+        Address_Line_1: formData.Address_Line_1,
+        Address_Line_2: formData.Address_Line_2,
+        Village: formData.Village,
+        District: formData.District,
+        State: formData.State,
+        Pincode: formData.Pincode,
+        Loan_Amount: formData.Loan_Amount,
+      });
+
+      const data = res.data || {};
+      const facts = data.bureauFacts || {};
+      const status = String(data.screeningStatus || "Pending").toUpperCase();
+      const reasons = [
+        ...(Array.isArray(data.reasons) ? data.reasons : []),
+        ...(Array.isArray(data.deviations) ? data.deviations : []),
+      ];
+      const reason = data.screeningReason || reasons.join(", ") || "ELIGIBLE";
+      const completed = status === "BUREAU APPROVED" || status === "BUREAU REJECTED";
+
+      setBureauResult({
+        checked: true,
+        canContinue: completed && data.canContinue !== false,
+        status,
+        reason,
+        reasons,
+        bureauScore: data.bureauScore ?? facts.score ?? null,
+        isNtc: Boolean(data.isNtc),
+        facts,
+      });
+
+      setMessage(
+        completed
+          ? `✅ ${lenderType} bureau screening completed: ${status}`
+          : `⚠️ ${reason}. Please retry bureau screening.`,
+      );
+
+      return completed && data.canContinue !== false;
+    } catch (err) {
+      setMessage(
+        `❌ ${err.response?.data?.message || `${lenderType} bureau screening failed. Please retry.`}`,
+      );
+      return false;
+    } finally {
+      setBureauLoading(false);
+    }
+  };
+
+  const renderAddressBureauResult = () => {
+    if (!enableAddressBureau || !bureauResult.checked) return null;
+
+    const facts = bureauResult.facts || {};
+    const rejected = bureauResult.status === "BUREAU REJECTED";
+    const value = (flag) => (flag ? "Yes" : "No");
+
+    return (
+      <div className={`bureau-result-card ${rejected ? "rejected" : "approved"}`}>
+        <div className="bureau-result-heading">
+          <div>
+            <span className="bureau-eyebrow">BUREAU SCREENING RESULT</span>
+            <h3>{bureauResult.status || "Pending"}</h3>
+          </div>
+          <div className="bureau-score">
+            <span>Score</span>
+            <strong>{bureauResult.bureauScore ?? "NTC"}</strong>
+          </div>
+        </div>
+
+        <div className="bureau-facts-grid">
+          <div><span>DPD in last 3 months</span><strong>{value(facts.hasDpd3M)}</strong></div>
+          <div><span>DPD in last 6 months</span><strong>{value(facts.hasDpd6M)}</strong></div>
+          <div><span>Overdue in last 12 months</span><strong>{value(facts.hasOverdue12M)}</strong></div>
+          <div><span>Written-off / settled</span><strong>{value(facts.hasWrittenOff3Y)}</strong></div>
+          <div><span>EMI overdue</span><strong>₹{Number(facts.emiOverdueAmount || 0).toLocaleString("en-IN")}</strong></div>
+          <div><span>Credit-card overdue</span><strong>₹{Number(facts.ccOverdueAmount || 0).toLocaleString("en-IN")}</strong></div>
+          <div><span>Enquiries (30 days)</span><strong>{facts.enquiries30d ?? 0}</strong></div>
+          <div><span>NTC customer</span><strong>{bureauResult.isNtc ? "Yes" : "No"}</strong></div>
+        </div>
+
+        {bureauResult.reasons.length > 0 && (
+          <div className="bureau-reasons">
+            <strong>Policy observations</strong>
+            <ul>{bureauResult.reasons.map((reason) => <li key={reason}>{reason.replaceAll("_", " ")}</li>)}</ul>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const saveBorrowerFirstSection = async () => {
     const sectionErrors = validateSection(activeSection);
 
@@ -622,6 +790,12 @@ for processing and servicing this loan application.
     if (activeSection === 0 && !otpVerified.borrower) {
       setMessage("❌ Borrower mobile not verified");
       return false;
+    }
+
+    // Bundela currently saves the first section, Aadhaar parties and final form.
+    // Address and loan amount are persisted by the bureau endpoint.
+    if (lenderType === "Bundela" && activeSection > 0) {
+      return true;
     }
 
     try {
@@ -687,10 +861,11 @@ for processing and servicing this loan application.
       "Email",
       "Pan_Card",
       "Driving_License",
+      "Loan_Amount",
+      "Loan_Amount",
     ],
     1: ["Address_Line_1", "Village", "Pincode", "District", "State"],
     2: [
-      "Loan_Amount",
       "Interest_Rate",
       "Tenure",
       "Processing_Fee_Percentage",
@@ -1049,6 +1224,15 @@ for processing and servicing this loan application.
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    if (
+      enableAddressBureau &&
+      // Bureau is pulled on these; changing one means bureau must run again.
+      ["Address_Line_1", "Address_Line_2", "Village", "District", "State", "Pincode", "Pan_Card", "Mobile_Number", "Loan_Amount"].includes(name) &&
+      bureauResult.checked
+    ) {
+      setBureauResult((prev) => ({ ...prev, checked: false, canContinue: false }));
+    }
+
     let finalValue = value;
 
     if (
@@ -1275,11 +1459,8 @@ for processing and servicing this loan application.
     }
 
     if (applicantType === "GUARANTOR") {
-      const sectionErrors = validateSection(3);
-
-      if (Object.keys(sectionErrors).length > 0) {
-        setErrors(sectionErrors);
-        setMessage("❌ Please complete guarantor details first.");
+      if (!formData.GUARANTOR?.trim() || !isValidMobile(formData.GUARANTOR_MOBILE)) {
+        setMessage("❌ Enter guarantor name and a valid mobile number first.");
         return false;
       }
 
@@ -1290,11 +1471,8 @@ for processing and servicing this loan application.
     }
 
     if (applicantType === "CO_APPLICANT") {
-      const sectionErrors = validateSection(4);
-
-      if (Object.keys(sectionErrors).length > 0) {
-        setErrors(sectionErrors);
-        setMessage("❌ Please complete co-applicant details first.");
+      if (!formData.Co_Applicant?.trim() || !isValidMobile(formData.Co_Applicant_Mobile)) {
+        setMessage("❌ Enter co-applicant name and a valid mobile number first.");
         return false;
       }
 
@@ -1356,7 +1534,11 @@ for processing and servicing this loan application.
         setMessage(`✅ Aadhaar initiated for ${applicantType}`);
 
         if (res.data.kycUrl) {
-          window.open(res.data.kycUrl, "_blank");
+          setAadhaarFrame({
+            open: true,
+            url: res.data.kycUrl,
+            applicantType,
+          });
         }
       }
     } catch (err) {
@@ -1465,6 +1647,10 @@ for processing and servicing this loan application.
         const updated = { ...prev };
 
         if (applicantType === "BORROWER") {
+          updated.Customer_Name = res.data.aadhaarName || prev.Customer_Name;
+          updated.Borrower_DOB = res.data.aadhaarDob
+            ? String(res.data.aadhaarDob).split("T")[0]
+            : prev.Borrower_DOB;
           updated.Address_Line_1 =
             parsedAddress.addressLine1 || prev.Address_Line_1;
           updated.Address_Line_2 =
@@ -1476,6 +1662,10 @@ for processing and servicing this loan application.
         }
 
         if (applicantType === "GUARANTOR") {
+          updated.GUARANTOR = res.data.aadhaarName || prev.GUARANTOR;
+          updated.GUARANTOR_DOB = res.data.aadhaarDob
+            ? String(res.data.aadhaarDob).split("T")[0]
+            : prev.GUARANTOR_DOB;
           updated.GUARANTOR_Address_Line_1 =
             parsedAddress.addressLine1 || prev.GUARANTOR_Address_Line_1;
           updated.GUARANTOR_Address_Line_2 =
@@ -1490,6 +1680,10 @@ for processing and servicing this loan application.
         }
 
         if (applicantType === "CO_APPLICANT") {
+          updated.Co_Applicant = res.data.aadhaarName || prev.Co_Applicant;
+          updated.Co_Applicant_DOB = res.data.aadhaarDob
+            ? String(res.data.aadhaarDob).split("T")[0]
+            : prev.Co_Applicant_DOB;
           updated.Co_Applicant_Address_Line_1 =
             parsedAddress.addressLine1 || prev.Co_Applicant_Address_Line_1;
           updated.Co_Applicant_Address_Line_2 =
@@ -1754,7 +1948,11 @@ for processing and servicing this loan application.
         },
       );
 
-      setMessage(`✅ ${res.data.message} | LAN: ${res.data.lan}`);
+      setMessage(
+        res.data.alreadySubmitted
+          ? `✅ ${res.data.message} | LAN: ${res.data.lan}`
+          : `✅ ${res.data.message} | LAN: ${res.data.lan}. Check the BRE result in Login Cases / Credit Approval.`,
+      );
 
       // Reset form
       setFormData((prev) => ({
@@ -2044,9 +2242,19 @@ for processing and servicing this loan application.
                 : "Select dealer first"}
             </option>
 
+            {formData.selected_dealer_application_id &&
+              dealerProducts.length === 0 && (
+                <option value="" disabled>
+                  No products configured for this dealer
+                </option>
+              )}
+
             {dealerProducts.map((product) => (
               <option key={product.id} value={product.id}>
                 {product.battery_name} - {product.e_rickshaw_model}
+                {product.e_rickshaw_model_price
+                  ? ` (₹${Number(product.e_rickshaw_model_price).toLocaleString("en-IN")})`
+                  : ""}
               </option>
             ))}
           </select>
@@ -2078,7 +2286,18 @@ for processing and servicing this loan application.
           <div
             key={index}
             className={`tab ${activeSection === index ? "active" : ""}`}
-            onClick={() => setActiveSection(index)}
+            // Only earlier tabs can be opened directly. Moving forward must go
+            // through Next so each tab is validated and saved.
+            onClick={() => {
+              if (index <= activeSection) {
+                setActiveSection(index);
+                return;
+              }
+
+              setMessage(
+                "⚠️ Please use the Next button to save this section before moving forward.",
+              );
+            }}
             // onClick={() => {
             //   if (index <= activeSection) {
             //     setActiveSection(index);
@@ -2141,6 +2360,7 @@ for processing and servicing this loan application.
             {renderInput("Email", "Email", "email")}
             {renderInput("Pan Card", "Pan_Card")}
             {renderInput("Driving License", "Driving_License")}
+            {renderInput("Loan Amount", "Loan_Amount", "number")}
           </div>
         )}
 
@@ -2180,9 +2400,11 @@ for processing and servicing this loan application.
           </div>
         )}
 
+        {activeSection === 1 && renderAddressBureauResult()}
+
         {activeSection === 2 && (
           <div className="form-grid">
-            {renderInput("Loan Amount", "Loan_Amount", "number")}
+            {renderInput("Loan Amount", "Loan_Amount", "number", true)}
             {renderInput("Interest Rate (%)", "Interest_Rate", "number")}
             {renderInput("Tenure (In Months)", "Tenure", "number")}
             {renderInput("Processing Fee (₹)", "Processing_Fee", "number")}
@@ -2206,6 +2428,37 @@ for processing and servicing this loan application.
         {activeSection === 3 && (
           <div className="form-grid">
             {renderInput("Guarantor Name", "GUARANTOR")}
+            <div className="mobile-otp-wrapper">
+              {renderInput("Guarantor Mobile", "GUARANTOR_MOBILE", "text", otpVerified.guarantor)}
+              <button
+                type="button"
+                className={otpVerified.guarantor ? "verified-btn" : "otp-btn"}
+                onClick={() => handleOpenConsentDialog(formData.GUARANTOR_MOBILE, "GUARANTOR")}
+                disabled={otpVerified.guarantor}
+              >
+                {otpVerified.guarantor ? "Verified ✓" : "Send OTP"}
+              </button>
+            </div>
+            <button
+              type="button"
+              className="otp-btn"
+              onClick={() => triggerAadhaar("GUARANTOR")}
+              disabled={loading || !lan || isAadhaarButtonDisabled("GUARANTOR")}
+            >
+              {aadhaarStatus.GUARANTOR === "INITIATING"
+                ? "Starting Aadhaar..."
+                : aadhaarStatus.GUARANTOR === "VERIFIED"
+                  ? "Aadhaar Verified ✓"
+                  : "Trigger Guarantor Aadhaar"}
+            </button>
+            <button
+              type="button"
+              className="otp-btn"
+              onClick={() => fetchAndPrefillAadhaarAddress("GUARANTOR")}
+              disabled={!lan || loading}
+            >
+              Fetch Guarantor Aadhaar Details
+            </button>
             {renderInput("Guarantor DOB", "GUARANTOR_DOB", "date")}
             {renderInput("Guarantor Email", "GUARANTOR_EMAIL", "email")}
             {renderInput("Guarantor PAN", "GUARANTOR_PAN")}
@@ -2225,62 +2478,47 @@ for processing and servicing this loan application.
               "Guarantor Driving Licence",
               "GUARANTOR_Driving_Licence",
             )}
-            <div className="mobile-otp-wrapper">
-              {renderInput(
-                "Guarantor Mobile",
-                "GUARANTOR_MOBILE",
-                "text",
-                otpVerified.guarantor,
-              )}
-
-              <button
-                type="button"
-                className={otpVerified.guarantor ? "verified-btn" : "otp-btn"}
-                onClick={() =>
-                  handleOpenConsentDialog(
-                    formData.GUARANTOR_MOBILE,
-                    "GUARANTOR",
-                  )
-                }
-                disabled={otpVerified.guarantor}
-              >
-                {otpVerified.guarantor ? "Verified ✓" : "Send OTP"}
-              </button>
-            </div>
-
             {renderInput(
               "Relationship with Borrower",
               "Relationship_with_Borrower",
             )}
-            <button
-              type="button"
-              className="otp-btn"
-              onClick={() => triggerAadhaar("GUARANTOR")}
-              disabled={loading || !lan || isAadhaarButtonDisabled("GUARANTOR")}
-            >
-              {aadhaarStatus.GUARANTOR === "INITIATING"
-                ? "Starting Aadhaar..."
-                : aadhaarStatus.GUARANTOR === "INITIATED"
-                  ? "Aadhaar Initiated ✓"
-                  : aadhaarStatus.GUARANTOR === "VERIFIED"
-                    ? "Aadhaar Verified ✓"
-                    : "Trigger Guarantor Aadhaar"}
-            </button>
-
-            <button
-              type="button"
-              className="otp-btn"
-              onClick={() => fetchAndPrefillAadhaarAddress("GUARANTOR")}
-              disabled={!lan || loading}
-            >
-              Fetch Guarantor Aadhaar Address
-            </button>
           </div>
         )}
 
         {activeSection === 4 && (
           <div className="form-grid">
             {renderInput("Co Applicant Name", "Co_Applicant")}
+            <div className="mobile-otp-wrapper">
+              {renderInput("Co Applicant Mobile", "Co_Applicant_Mobile", "text", otpVerified.coApplicant)}
+              <button
+                type="button"
+                className={otpVerified.coApplicant ? "verified-btn" : "otp-btn"}
+                onClick={() => handleOpenConsentDialog(formData.Co_Applicant_Mobile, "CO_APPLICANT")}
+                disabled={otpVerified.coApplicant}
+              >
+                {otpVerified.coApplicant ? "Verified ✓" : "Send OTP"}
+              </button>
+            </div>
+            <button
+              type="button"
+              className="otp-btn"
+              onClick={() => triggerAadhaar("CO_APPLICANT")}
+              disabled={loading || !lan || isAadhaarButtonDisabled("CO_APPLICANT")}
+            >
+              {aadhaarStatus.CO_APPLICANT === "INITIATING"
+                ? "Starting Aadhaar..."
+                : aadhaarStatus.CO_APPLICANT === "VERIFIED"
+                  ? "Aadhaar Verified ✓"
+                  : "Trigger Co-Applicant Aadhaar"}
+            </button>
+            <button
+              type="button"
+              className="otp-btn"
+              onClick={() => fetchAndPrefillAadhaarAddress("CO_APPLICANT")}
+              disabled={!lan || loading}
+            >
+              Fetch Co-Applicant Aadhaar Details
+            </button>
             {renderInput("Co Applicant DOB", "Co_Applicant_DOB", "date")}
             {renderInput("Co Applicant Email", "Co_Applicant_Email", "email")}
             {renderInput("Co Applicant PAN", "Co_Applicant_PAN")}
@@ -2300,52 +2538,6 @@ for processing and servicing this loan application.
               "Co Applicant Driving Licence",
               "Co_Applicant_Driving_Licence",
             )}
-            <div className="mobile-otp-wrapper">
-              {renderInput(
-                "Co Applicant Mobile",
-                "Co_Applicant_Mobile",
-                "text",
-                otpVerified.coApplicant,
-              )}
-
-              <button
-                type="button"
-                className={otpVerified.coApplicant ? "verified-btn" : "otp-btn"}
-                onClick={() =>
-                  handleOpenConsentDialog(
-                    formData.Co_Applicant_Mobile,
-                    "CO_APPLICANT",
-                  )
-                }
-                disabled={otpVerified.coApplicant}
-              >
-                {otpVerified.coApplicant ? "Verified ✓" : "Send OTP"}
-              </button>
-            </div>
-            <button
-              type="button"
-              className="otp-btn"
-              onClick={() => triggerAadhaar("CO_APPLICANT")}
-              disabled={
-                loading || !lan || isAadhaarButtonDisabled("CO_APPLICANT")
-              }
-            >
-              {aadhaarStatus.CO_APPLICANT === "INITIATING"
-                ? "Starting Aadhaar..."
-                : aadhaarStatus.CO_APPLICANT === "INITIATED"
-                  ? "Aadhaar Initiated ✓"
-                  : aadhaarStatus.CO_APPLICANT === "VERIFIED"
-                    ? "Aadhaar Verified ✓"
-                    : "Trigger Co-Applicant Aadhaar"}
-            </button>
-            <button
-              type="button"
-              className="otp-btn"
-              onClick={() => fetchAndPrefillAadhaarAddress("CO_APPLICANT")}
-              disabled={!lan || loading}
-            >
-              Fetch Co-Applicant Aadhaar Address
-            </button>
           </div>
         )}
 
@@ -2499,15 +2691,32 @@ for processing and servicing this loan application.
               </button> */}
               <button
                 type="button"
-                disabled={loading}
+                disabled={loading || bureauLoading}
                 onClick={async () => {
                   const saved = await saveBorrowerFirstSection();
                   if (!saved) return;
 
+                  if (
+                    enableAddressBureau &&
+                    activeSection === 1 &&
+                    !bureauResult.canContinue
+                  ) {
+                    const bureauComplete = await runAddressBureauScreening();
+                    if (!bureauComplete) return;
+                  }
+
                   setActiveSection((prev) => prev + 1);
                 }}
               >
-                {loading ? "Saving..." : "Next →"}
+                {bureauLoading
+                  ? "Running Bureau..."
+                  : enableAddressBureau &&
+                      activeSection === 1 &&
+                      !bureauResult.canContinue
+                    ? "Run Bureau & Continue →"
+                    : loading
+                      ? "Saving..."
+                      : "Next →"}
               </button>
             </>
           ) : (
@@ -2523,6 +2732,34 @@ for processing and servicing this loan application.
           className={`message ${message.includes("❌") ? "message-error" : ""}`}
         >
           {message}
+        </div>
+      )}
+
+      {aadhaarFrame.open && (
+        <div className="aadhaar-frame-overlay" role="dialog" aria-modal="true">
+          <div className="aadhaar-frame-modal">
+            <div className="aadhaar-frame-header">
+              <div>
+                <strong>{aadhaarFrame.applicantType.replaceAll("_", " ")} Aadhaar Verification</strong>
+                <span>Complete verification here without leaving LMS</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAadhaarFrame({ open: false, url: "", applicantType: "" })}
+              >
+                Close
+              </button>
+            </div>
+            <iframe
+              title={`${aadhaarFrame.applicantType} Aadhaar verification`}
+              src={aadhaarFrame.url}
+              allow="camera; microphone; geolocation; clipboard-read; clipboard-write"
+            />
+            <div className="aadhaar-frame-footer">
+              <span>The customer also receives the verification link through the configured email/SMS service.</span>
+              <a href={aadhaarFrame.url} target="_blank" rel="noreferrer">Open separately if verification does not load</a>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2980,6 +3217,159 @@ color: white;
           border-left-color: #dc2626;
         }
 
+        .bureau-result-card {
+          margin-top: 24px;
+          padding: 22px;
+          border: 1px solid #bbf7d0;
+          border-radius: 14px;
+          background: #f0fdf4;
+          color: #14532d;
+        }
+
+        .bureau-result-card.rejected {
+          border-color: #fecaca;
+          background: #fef2f2;
+          color: #7f1d1d;
+        }
+
+        .bureau-result-heading {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 20px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid currentColor;
+        }
+
+        .bureau-result-heading h3 {
+          margin: 5px 0 0;
+          font-size: 20px;
+        }
+
+        .bureau-eyebrow,
+        .bureau-score span,
+        .bureau-facts-grid span {
+          display: block;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          opacity: 0.72;
+        }
+
+        .bureau-score {
+          min-width: 86px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.75);
+          text-align: center;
+        }
+
+        .bureau-score strong {
+          display: block;
+          margin-top: 2px;
+          font-size: 24px;
+        }
+
+        .bureau-facts-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+          margin-top: 18px;
+        }
+
+        .bureau-facts-grid > div {
+          padding: 12px;
+          border-radius: 9px;
+          background: rgba(255, 255, 255, 0.72);
+        }
+
+        .bureau-facts-grid strong {
+          display: block;
+          margin-top: 5px;
+          font-size: 14px;
+        }
+
+        .bureau-reasons {
+          margin-top: 16px;
+          padding-top: 14px;
+          border-top: 1px solid currentColor;
+        }
+
+        .bureau-reasons ul {
+          margin: 8px 0 0 20px;
+        }
+
+        .aadhaar-frame-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 10000;
+          display: grid;
+          place-items: center;
+          padding: 18px;
+          background: rgba(15, 23, 42, 0.72);
+          backdrop-filter: blur(4px);
+        }
+
+        .aadhaar-frame-modal {
+          display: flex;
+          flex-direction: column;
+          width: min(1100px, 96vw);
+          height: min(820px, 94vh);
+          overflow: hidden;
+          border-radius: 16px;
+          background: #fff;
+          box-shadow: 0 28px 70px rgba(15, 23, 42, 0.35);
+        }
+
+        .aadhaar-frame-header,
+        .aadhaar-frame-footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          padding: 14px 18px;
+        }
+
+        .aadhaar-frame-header {
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .aadhaar-frame-header strong,
+        .aadhaar-frame-header span {
+          display: block;
+        }
+
+        .aadhaar-frame-header span,
+        .aadhaar-frame-footer {
+          color: #64748b;
+          font-size: 12px;
+        }
+
+        .aadhaar-frame-header button {
+          padding: 8px 14px;
+          border: 0;
+          border-radius: 8px;
+          background: #0f172a;
+          color: #fff;
+          cursor: pointer;
+        }
+
+        .aadhaar-frame-modal iframe {
+          width: 100%;
+          flex: 1;
+          border: 0;
+          background: #f8fafc;
+        }
+
+        .aadhaar-frame-footer {
+          border-top: 1px solid #e2e8f0;
+        }
+
+        .aadhaar-frame-footer a {
+          color: #2563eb;
+          font-weight: 700;
+        }
+
         @keyframes slideIn {
           from {
             transform: translateY(-10px);
@@ -2992,6 +3382,9 @@ color: white;
         }
 
         @media (max-width: 768px) {
+          .bureau-facts-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
           .form-grid {
             grid-template-columns: 1fr;
             gap: 20px;

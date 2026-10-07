@@ -563,6 +563,83 @@ const PARTNERS = {
       },
     },
 
+    // Seven Fincorp screens every party separately. Each party has its own
+    // partner key so the existing-screening check, report file name and
+    // loan_documents row are kept apart per person on the same LAN.
+    seven_fincorp: {
+      table: "loan_booking_seven_fincorp",
+      primaryKey: "id",
+      codeFields: ["lan", "partner_loan_id"],
+      columns: {
+        lan: "lan",
+        name: "customer_name",
+        fatherName: "father_name",
+        pan: "pan_card",
+        mobile: "mobile_number",
+        email: "email",
+        dob: "dob",
+        gender: "gender",
+        createdAt: "created_at",
+        applicationRefNumber: "partner_loan_id",
+      },
+      amlColumns: {
+        status: "aml_status",
+        score: "aml_score",
+        totalMatches: "aml_total_matches",
+        reason: "aml_reason",
+        apiResponse: "aml_api_response",
+        checkedAt: "aml_checked_at",
+      },
+    },
+
+    seven_fincorp_guarantor: {
+      table: "loan_booking_seven_fincorp",
+      primaryKey: "id",
+      codeFields: ["lan", "partner_loan_id"],
+      columns: {
+        lan: "lan",
+        name: "guarantor_name",
+        pan: "guarantor_pan",
+        mobile: "guarantor_mobile",
+        email: "guarantor_email",
+        dob: "guarantor_dob",
+        createdAt: "created_at",
+        applicationRefNumber: "partner_loan_id",
+      },
+      amlColumns: {
+        status: "guarantor_aml_status",
+        score: "guarantor_aml_score",
+        totalMatches: "guarantor_aml_total_matches",
+        reason: "guarantor_aml_reason",
+        apiResponse: "guarantor_aml_api_response",
+        checkedAt: "guarantor_aml_checked_at",
+      },
+    },
+
+    seven_fincorp_co_applicant: {
+      table: "loan_booking_seven_fincorp",
+      primaryKey: "id",
+      codeFields: ["lan", "partner_loan_id"],
+      columns: {
+        lan: "lan",
+        name: "co_applicant_name",
+        pan: "co_applicant_pan",
+        mobile: "co_applicant_mobile",
+        email: "co_applicant_email",
+        dob: "co_applicant_dob",
+        createdAt: "created_at",
+        applicationRefNumber: "partner_loan_id",
+      },
+      amlColumns: {
+        status: "co_applicant_aml_status",
+        score: "co_applicant_aml_score",
+        totalMatches: "co_applicant_aml_total_matches",
+        reason: "co_applicant_aml_reason",
+        apiResponse: "co_applicant_aml_api_response",
+        checkedAt: "co_applicant_aml_checked_at",
+      },
+    },
+
     sampada: {
       table: "loan_booking_sampada",
       primaryKey: "id",
