@@ -374,6 +374,128 @@ function validateLoanData(body) {
   return data;
 }
 
+function validateExternalCirclePeHouserData(body) {
+  const data = mapRequestBody(body);
+
+  // Application Date
+  data.loan_application_date = validateDate(
+    data.loan_application_date,
+    "loan_application_date",
+  );
+
+  // APP ID
+  data.app_id = cleanString(data.app_id).toUpperCase();
+
+  if (!data.app_id) {
+    throw apiError(400, "app_id is required");
+  }
+
+  if (!/^[A-Z0-9_-]{3,50}$/.test(data.app_id)) {
+    throw apiError(400, "app_id contains invalid characters");
+  }
+
+  // Customer Name
+  data.customer_name = cleanString(data.customer_name);
+
+  if (!data.customer_name) {
+    throw apiError(400, "customer_name is required");
+  }
+
+  // Gender
+  data.gender = cleanString(data.gender);
+
+  if (!["Male", "Female", "Other"].includes(data.gender)) {
+    throw apiError(400, "gender must be Male, Female or Other");
+  }
+
+  // DOB
+  data.date_of_birth = validateDate(data.date_of_birth, "date_of_birth");
+
+  // Father Name
+  data.fathers_name = cleanString(data.fathers_name);
+
+  // Mobile
+  data.mobile_number = cleanDigits(data.mobile_number);
+
+  if (!/^[6-9]\d{9}$/.test(data.mobile_number)) {
+    throw apiError(
+      400,
+      "mobile_number must be a valid 10-digit Indian mobile number",
+    );
+  }
+
+  // Email
+  data.email_id = cleanString(data.email_id).toLowerCase();
+
+  if (data.email_id && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email_id)) {
+    throw apiError(400, "email_id is invalid");
+  }
+
+  // PAN
+  data.pan_number = cleanString(data.pan_number).toUpperCase();
+
+  if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(data.pan_number)) {
+    throw apiError(400, "pan_number is invalid");
+  }
+
+  // Aadhaar last 4 digits
+  data.aadhaar_number = cleanDigits(data.aadhaar_number);
+
+  if (!/^\d{4}$/.test(data.aadhaar_number)) {
+    throw apiError(
+      400,
+      "aadhaar_number must contain exactly the last 4 digits",
+    );
+  }
+
+  // Address
+  data.current_address_line1 = cleanString(data.current_address_line1);
+
+  if (!data.current_address_line1) {
+    throw apiError(400, "current_address_line1 is required");
+  }
+
+  // Pincode
+  data.current_address_pincode = cleanDigits(data.current_address_pincode);
+
+  if (!/^[1-9][0-9]{5}$/.test(data.current_address_pincode)) {
+    throw apiError(400, "current_address_pincode must be 6 digits");
+  }
+
+  // Credit Score
+  data.credit_score = parseInteger(data.credit_score, "credit_score");
+
+  if (
+    data.credit_score !== -1 &&
+    (data.credit_score < 500 || data.credit_score > 900)
+  ) {
+    throw apiError(400, "credit_score must be between 500 and 900, or -1");
+  }
+
+  // Product
+  data.product = cleanString(data.product);
+
+  if (!["Monthly Loan", "Bullet Loan"].includes(data.product)) {
+    throw apiError(400, "product must be Monthly Loan or Bullet Loan");
+  }
+
+  // Residence Type
+  data.residence_type = cleanString(data.residence_type);
+
+  if (!data.residence_type) {
+    throw apiError(400, "residence_type is required");
+  }
+
+  // Customer Type
+  data.customer_type = cleanString(data.customer_type);
+
+  if (!data.customer_type) {
+    throw apiError(400, "customer_type is required");
+  }
+
+  return data;
+}
+
 router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
   let connection;
 
@@ -484,6 +606,174 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
       loanData.ifsc_code,
       loanData.loan_amount_sanctioned,
       loanData.loan_application_date,
+      initialStatus,
+    ];
+
+    const [insertResult] = await connection.query(insertQuery, insertValues);
+
+    await connection.commit();
+
+    // ── Dispatch BRE Webhook asynchronously to Client/Partner ────────
+    sendCirclePeHouserBREWebhook({
+      app_id: loanData.app_id,
+      lan,
+      partner_loan_id: partnerLoanId,
+      customer_name: loanData.customer_name,
+      loan_amount: loanData.loan_amount_sanctioned,
+      status: initialStatus,
+      bre_decision: breResult.decision,
+      reasons: breResult.reasons,
+      checks: breResult.checks,
+    }).catch((whErr) => {
+      console.error("CirclePe Houser Webhook invocation error:", whErr);
+    });
+
+    return res.status(201).json({
+      success: true,
+      code: "LOAN_CREATED",
+      message: `Circle Pe Houser loan processed with BRE status: ${initialStatus}`,
+      data: {
+        id: insertResult.insertId,
+        app_id: loanData.app_id,
+        lan,
+        partner_loan_id: partnerLoanId,
+        product: loanData.product,
+        status: initialStatus,
+        breDecision: breResult.decision,
+        breReasons: breResult.reasons,
+        breChecks: breResult.checks,
+      },
+    });
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+
+    console.error("Circle Pe Houser JSON API error:", error);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({
+        success: false,
+        code: "DUPLICATE_RECORD",
+        message: "Duplicate loan record",
+      });
+    }
+
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      code:
+        error.statusCode === 400 ? "VALIDATION_ERROR" : "INTERNAL_SERVER_ERROR",
+      message: error.message || "Unable to create Circle Pe Houser loan",
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+
+router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
+  let connection;
+
+  try {
+    const loanData = validateExternalCirclePeHouserData(req.body);
+
+    /*
+     * Check duplicate external application ID.
+     */
+    const [existingLoans] = await db.promise().query(
+      `
+          SELECT app_id, lan
+          FROM ${TABLE_NAME}
+          WHERE app_id = ?
+          LIMIT 1
+        `,
+      [loanData.app_id],
+    );
+
+    if (existingLoans.length > 0) {
+      return res.status(409).json({
+        success: false,
+        code: "DUPLICATE_APP_ID",
+        message: `app_id ${loanData.app_id} already exists`,
+        data: {
+          app_id: existingLoans[0].app_id,
+          lan: existingLoans[0].lan,
+        },
+      });
+    }
+
+    /*
+     * Uses the same LAN and partner-loan-ID generator
+     * as the existing Excel upload API.
+     */
+    const { partnerLoanId, lan } = await generateLoanIdentifiers(LENDER_TYPE);
+
+    connection = await db.promise().getConnection();
+    await connection.beginTransaction();
+
+    const insertQuery = `
+        INSERT INTO ${TABLE_NAME} (
+          login_date,
+          lan,
+          partner_loan_id,
+          app_id,
+
+          customer_name,
+          gender,
+          dob,
+          father_name,
+
+          mobile_number,
+          email_id,
+          pan_number,
+          aadhar_number,
+
+          current_address,
+          current_pincode,
+
+          cibil_score,
+          product,
+          lender,
+
+          residence_type,
+          customer_type,
+
+          status
+        )
+        VALUES (${new Array(20).fill("?").join(",")})
+      `;
+
+    // ── Evaluate Business Rule Engine (BRE) ──────────────────────────
+    const breResult = evaluateCirclePeHouserBRE(loanData);
+    const initialStatus = breResult.status; // "BRE Approved" or "BRE Rejected"
+
+    const insertValues = [
+      loanData.loan_application_date,
+      lan,
+      partnerLoanId,
+      loanData.app_id,
+
+      loanData.customer_name,
+      loanData.gender,
+      loanData.date_of_birth,
+      loanData.fathers_name || null,
+
+      loanData.mobile_number,
+      loanData.email_id || null,
+      loanData.pan_number,
+      loanData.aadhaar_number,
+
+      loanData.current_address_line1,
+      loanData.current_address_pincode,
+
+      loanData.credit_score,
+      loanData.product,
+      LENDER_TYPE,
+
+      loanData.residence_type,
+      loanData.customer_type,
+
       initialStatus,
     ];
 
