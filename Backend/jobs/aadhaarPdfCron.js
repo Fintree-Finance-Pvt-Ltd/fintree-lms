@@ -411,6 +411,15 @@ function startAadhaarCron() {
             original_name LIKE '%aadhaar%'
             OR file_name LIKE '%aadhaar%'
             OR doc_name = 'OFFLINE_VERIFICATION_OF_AADHAAR'
+            OR doc_name = 'AADHAAR_XML_DIGILOCKER'
+          )
+          /* 
+             You mentioned you only want this for Rapid Money and later Quick Money.
+             You can add or remove these LAN prefixes below!
+          */
+          AND (
+            lan LIKE 'RML%'
+            OR lan LIKE 'QML%'
           )
       `;
 
