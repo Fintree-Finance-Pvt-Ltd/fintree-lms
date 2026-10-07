@@ -12,8 +12,9 @@ const { approveAndInitiatePayout } = require("../../services/payout.service");
 
 const { autoApproveClaimBuddyIfAllVerified } = require("./claimBuddyBreEngine");
 
-const { generateRepaymentScheduleClaimBuddy } = require("../../utils/repaymentScheduleGenerator");
-
+const {
+  generateRepaymentScheduleClaimBuddy,
+} = require("../../utils/repaymentScheduleGenerator");
 
 const fs = require("fs");
 const path = require("path");
@@ -45,37 +46,48 @@ const LOAN_STATUS = {
 // LAN GENERATOR
 // ==========================================
 
-const generateLoanIdentifiers = async () => {
-  const lender = "CLAIM-BUDDY-HOSPITAL";
+const generateLoanIdentifiers = async (lender) => {
+  lender = String(lender || "").trim();
 
-  const prefixLan = "CBF10";
-
+  let prefixLan;
   const applicationPrefix = "CBF0001";
 
+  // ✅ Decide LAN prefix based on lender
+  if (lender === "CLAIM-BUDDY") {
+    prefixLan = "CBF10";
+  } else if (lender === "CLAIM-BUDDY-HOSPITAL") {
+    prefixLan = "CBFHO10";
+  } else {
+    throw new Error(`Invalid lender type: ${lender}`);
+  }
+
+  // ✅ Get current sequence for this lender
   const [rows] = await db.promise().query(
     `
-        SELECT last_sequence
-        FROM loan_sequences
-        WHERE lender_name=?
-        FOR UPDATE
-        `,
+      SELECT last_sequence
+      FROM loan_sequences
+      WHERE lender_name = ?
+      FOR UPDATE
+    `,
     [lender],
   );
 
   let newSequence;
 
-  if (rows.length) {
+  // ✅ Increment existing sequence
+  if (rows.length > 0) {
     newSequence = rows[0].last_sequence + 1;
 
     await db.promise().query(
       `
         UPDATE loan_sequences
-        SET last_sequence=?
-        WHERE lender_name=?
-        `,
+        SET last_sequence = ?
+        WHERE lender_name = ?
+      `,
       [newSequence, lender],
     );
   } else {
+    // ✅ First loan for this lender
     newSequence = 11000;
 
     await db.promise().query(
@@ -85,15 +97,14 @@ const generateLoanIdentifiers = async () => {
           lender_name,
           last_sequence
         )
-        VALUES (?,?)
-        `,
+        VALUES (?, ?)
+      `,
       [lender, newSequence],
     );
   }
 
   return {
     application_id: `${applicationPrefix}${newSequence}`,
-
     lan: `${prefixLan}${newSequence}`,
   };
 };
@@ -108,31 +119,18 @@ router.post("/hospitals/create", async (req, res) => {
 
     const requiredFields = [
       "hospital_legal_name",
-
       "registered_address",
-
       "registered_city",
-
       "registered_district",
-
       "registered_state",
-
       "registered_pincode",
-
       "hospital_phone",
-
       "owner_name",
-
       "owner_phone",
-
       "ifsc_code",
-
       "bank_name",
-
       "branch_name",
-
       "account_holder_name",
-
       "account_number",
     ];
 
@@ -144,11 +142,12 @@ router.post("/hospitals/create", async (req, res) => {
       });
     }
 
-    const { lan, application_id } = await generateLoanIdentifiers();
+    const { lan, application_id } = await generateLoanIdentifiers(
+      "CLAIM-BUDDY-HOSPITAL",
+    );
 
     const fields = {
       application_id,
-
       lan,
 
       hospital_legal_name: data.hospital_legal_name,
@@ -181,6 +180,11 @@ router.post("/hospitals/create", async (req, res) => {
 
       registered_pincode: data.registered_pincode,
 
+      // ✅ These two were missing
+      avg_monthly_patient_footfall: data.avg_monthly_patient_footfall || null,
+
+      avg_ticket_size: data.avg_ticket_size || null,
+
       hospital_email: data.hospital_email || null,
 
       hospital_phone: data.hospital_phone,
@@ -191,6 +195,8 @@ router.post("/hospitals/create", async (req, res) => {
 
       owner_phone: data.owner_phone,
 
+      status: "ACTIVE",
+
       ifsc_code: data.ifsc_code,
 
       bank_name: data.bank_name,
@@ -200,8 +206,6 @@ router.post("/hospitals/create", async (req, res) => {
       account_holder_name: data.account_holder_name,
 
       account_number: data.account_number,
-
-      status: "ACTIVE",
 
       created_at: new Date(),
     };
@@ -214,32 +218,26 @@ router.post("/hospitals/create", async (req, res) => {
 
     await db.promise().query(
       `
-INSERT INTO claim_buddy_hospital_booking
-(${columns})
-VALUES
-(${placeholders})
-`,
-
+        INSERT INTO claim_buddy_hospital_booking
+        (${columns})
+        VALUES
+        (${placeholders})
+      `,
       Object.values(fields),
     );
 
     return res.json({
       success: true,
-
       message: "Claim Buddy Hospital Created",
-
       lan,
-
       application_id,
     });
   } catch (err) {
-    console.log(err);
+    console.error("Hospital creation error:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-
       message: "Hospital creation failed",
-
       error: err.message,
     });
   }
@@ -251,39 +249,23 @@ VALUES
 
 router.get("/hospitals-list", async (req, res) => {
   try {
-    const [rows] = await db.promise().query(
-      `
-SELECT
-
-id,
-
-hospital_legal_name,
-
-registered_city,
-
-registered_district
-
-
-FROM claim_buddy_hospital_booking
-
-
-WHERE status='APPROVED'
-
-
-ORDER BY hospital_legal_name ASC
-
-`,
-    );
+    const [rows] = await db.promise().query(`
+      SELECT
+        id,
+        hospital_legal_name,
+        registered_city,
+        registered_district
+      FROM claim_buddy_hospital_booking
+      WHERE status='APPROVED'
+        AND lan LIKE 'CBFHO10%'
+      ORDER BY hospital_legal_name ASC
+    `);
 
     const formatted = rows.map((h) => ({
       id: h.id,
-
       name: `${h.hospital_legal_name} (${h.registered_city}, ${h.registered_district})`,
-
       hospital_legal_name: h.hospital_legal_name,
-
       city: h.registered_city,
-
       district: h.registered_district,
     }));
 
@@ -303,51 +285,34 @@ ORDER BY hospital_legal_name ASC
 
 router.get("/hospitals", async (req, res) => {
   try {
-    const [rows] = await db.promise().query(
-      `
-SELECT
-
-id,
-
-lan,
-
-hospital_legal_name,
-
-brand_name,
-
-hospital_type,
-
-bed_capacity,
-
-registered_city,
-
-registered_district,
-
-registered_state,
-
-hospital_phone,
-
-owner_name,
-
-status,
-
-created_at
-
-
-FROM claim_buddy_hospital_booking
-
-
-ORDER BY created_at DESC
-
-`,
-    );
+    const [rows] = await db.promise().query(`
+      SELECT
+        id,
+        lan,
+        hospital_legal_name,
+        brand_name,
+        hospital_type,
+        bed_capacity,
+        registered_city,
+        registered_district,
+        registered_state,
+        hospital_phone,
+        owner_name,
+        status,
+        created_at
+      FROM claim_buddy_hospital_booking
+      WHERE lan LIKE 'CBFHO10%'
+      ORDER BY created_at DESC
+    `);
 
     res.json(rows);
   } catch (err) {
-    console.log(err);
+    console.error("Claim Buddy hospital list error:", err);
 
     res.status(500).json({
+      success: false,
       message: "Failed to fetch hospitals",
+      error: err.message,
     });
   }
 });
@@ -380,13 +345,14 @@ router.get("/hospitals-login-loans", async (req, res) => {
         status,
         created_at
       FROM claim_buddy_hospital_booking
-      WHERE status = 'ACTIVE'
+      WHERE lan LIKE 'CBFHO10%'
+        AND status = 'ACTIVE'
       ORDER BY created_at DESC
     `);
 
     res.json(rows);
   } catch (err) {
-    console.log("Claim Buddy hospital login list error:", err);
+    console.error("Claim Buddy hospital login list error:", err);
 
     res.status(500).json({
       success: false,
@@ -408,18 +374,10 @@ router.get("/hospital-details/:lan", async (req, res) => {
       `
 
 SELECT
-
 *
-
 FROM claim_buddy_hospital_booking
-
-
 WHERE lan=?
-
-
 ORDER BY created_at DESC
-
-
 `,
 
       [lan],
@@ -457,26 +415,17 @@ router.patch("/hospitals/status/:lan", async (req, res) => {
       `
 
 UPDATE claim_buddy_hospital_booking
-
-
 SET status=?
-
-
 WHERE lan=?
-
 `,
-
       [status, lan],
     );
-
     res.json({
       success: true,
-
       message: "Hospital status updated",
     });
   } catch (err) {
     console.log(err);
-
     res.status(500).json({
       message: "Status update failed",
     });
@@ -501,103 +450,62 @@ router.post("/send-otp", async (req, res) => {
     }
 
     const cleanedMobile = mobile.replace(/\D/g, "");
-
     const otp = Math.floor(100000 + Math.random() * 900000);
-
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000);
-
     // SMS API
     const smsParams = {
       user: process.env.ALOT_USER,
-
       password: process.env.ALOT_PASSWORD,
-
       senderid: process.env.SENDER_ID,
-
       channel: "TRANS",
-
       DCS: "0",
-
       flashsms: "0",
-
       number: cleanedMobile,
-
       text: `OTP for mobile number verification is ${otp}. Do not share this OTP with anyone. Thanks & Regards Fintree Finance Private Limited`,
-
       route: "5",
-
       DLTTemplateId: process.env.MOBILE_OTP_TEMPLATE_ID.trim(),
-
       PEID: process.env.DLT_PEID,
     };
-
     await axios.get(process.env.ALOT_API_URL, {
       params: smsParams,
     });
 
     // Save OTP in common table
-
     await db.promise().query(
       `
 INSERT INTO otp_sessions
-
 (
-
 identifier,
-
 identifier_type,
-
 owner_type,
-
 otp,
-
 purpose,
-
 status,
-
 attempts,
-
 expires_at,
-
 created_at
-
 )
-
 VALUES
-
 (?,?,?,?,?,?,?,?,NOW())
-
 `,
-
       [
         cleanedMobile,
-
         "mobile",
-
         "CLAIM_BUDDY",
-
         otp,
-
         "LOGIN",
-
         "CREATED",
-
         0,
-
         expiresAt,
       ],
     );
-
     res.json({
       success: true,
-
       message: "OTP sent successfully",
-
       otp,
     });
   } catch (err) {
     console.log("OTP ERROR", err);
-
     res.status(500).json({
       message: "OTP send failed",
     });
@@ -610,59 +518,34 @@ VALUES
 
 router.post("/verify-otp", async (req, res) => {
   try {
-    const {
-      mobile,
-
-      otp,
-
-      consentText,
-    } = req.body;
-
+    const { mobile, otp, consentText } = req.body;
     if (!mobile || !otp || !consentText) {
       return res.status(400).json({
         message: "Mobile OTP consent required",
       });
     }
-
     const cleanedMobile = mobile.replace(/\D/g, "");
-
     const [rows] = await db.promise().query(
       `
 
 SELECT *
-
 FROM otp_sessions
-
-
 WHERE identifier=?
-
 AND identifier_type='mobile'
-
 AND owner_type='CLAIM_BUDDY'
-
 AND otp=?
-
 AND status='CREATED'
-
-
 ORDER BY id DESC
-
 LIMIT 1
-
-
 `,
-
       [cleanedMobile, otp],
     );
-
     if (!rows.length) {
       return res.status(400).json({
         message: "Invalid OTP",
       });
     }
-
     const record = rows[0];
-
     const expiryTime = new Date(record.expires_at);
     const currentTime = new Date();
 
@@ -677,32 +560,19 @@ LIMIT 1
 
     await db.promise().query(
       `
-
 UPDATE otp_sessions
-
-SET
-
-status='VERIFIED',
-
+SET status='VERIFIED',
 attempts=attempts+1
-
-
 WHERE id=?
-
-
 `,
-
       [record.id],
     );
-
     res.json({
       success: true,
-
       message: "Mobile verified + consent saved",
     });
   } catch (err) {
     console.log("VERIFY OTP ERROR", err);
-
     res.status(500).json({
       message: "OTP verification failed",
     });
@@ -720,40 +590,23 @@ router.post("/manual-entry", async (req, res) => {
     const data = req.body;
 
     console.log("Claim Buddy Payload:", data);
-
     const requiredFields = [
       "login_date",
-
       "first_name",
-
       "last_name",
-
       "hospital_id",
-
       "gender",
-
       "policy_type",
-
       "dob",
-
       "mobile_number",
-
       "pan_number",
-
       "current_address",
-
       "current_village_city",
-
       "current_district",
-
       "current_state",
-
       "current_pincode",
-
       "loan_amount",
-
       "employment_type",
-
       "net_monthly_income",
     ];
 
@@ -766,9 +619,7 @@ router.post("/manual-entry", async (req, res) => {
     }
 
     const loanAmount = Number(data.loan_amount || 0);
-
     conn = await db.promise().getConnection();
-
     await conn.beginTransaction();
 
     // ==================================
@@ -787,11 +638,8 @@ router.post("/manual-entry", async (req, res) => {
     // LAN GENERATION
     // ==================================
 
-    const {
-      lan,
-
-      application_id,
-    } = await generateLoanIdentifiers();
+    const { lan, application_id } =
+      await generateLoanIdentifiers("CLAIM-BUDDY");
 
     // ==================================
     // CUSTOMER NAME
@@ -4008,7 +3856,6 @@ router.put("/ops-checker-approved-loan/:lan", async (req, res) => {
     }
   }
 });
-
 
 //testing
 // router.post("/generate-rps/:lan", async (req, res) => {

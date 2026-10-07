@@ -29,7 +29,6 @@ exports.claimBuddyRunAllValidations = async (lan) => {
 
     if (!loanRows.length) {
       console.log("❌ Claim Buddy Loan not found");
-
       return;
     }
 
@@ -52,56 +51,30 @@ exports.claimBuddyRunAllValidations = async (lan) => {
     // 1. PAN VERIFICATION
     // ========================================
 
+    await pool.query(
+      `
+      UPDATE kyc_verification_status
+      SET pan_status='INITIATED'
+      WHERE lan=?
+      `,
+      [lan],
+    );
+
     let panResult;
 
-    // ==================================================
-    // LOCAL / UAT TESTING
-    // ==================================================
-    // In non-production:
-    // PAN is automatically marked VERIFIED.
-    //
-    // In production:
-    // Existing real PAN API is used.
-    // ==================================================
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`🧪 CLAIM BUDDY LOCAL PAN MOCK: ${loan.pan_number}`);
+    try {
+      panResult = await getPanCardDetails(loan.pan_number, loan.customer_name);
+    } catch (err) {
+      console.log("❌ PAN API Error:", err);
 
       panResult = {
-        success: true,
-        response: {
-          mock: true,
-          pan: loan.pan_number,
-          name: loan.customer_name,
-          status: "VERIFIED",
+        success: false,
+        response: err.response?.data || {
+          error: err.message,
         },
       };
-    } else {
-      await pool.query(
-        `
-        UPDATE kyc_verification_status
-        SET pan_status='INITIATED'
-        WHERE lan=?
-        `,
-        [lan],
-      );
-
-      panResult = await getPanCardDetails(
-        loan.pan_number,
-        loan.customer_name,
-      ).catch((err) => {
-        console.log("❌ PAN API Error", err);
-
-        return {
-          success: false,
-          response: err.response?.data || {
-            error: err.message,
-          },
-        };
-      });
     }
 
-    // SAVE PAN RESULT
     await pool.query(
       `
       UPDATE kyc_verification_status
@@ -111,114 +84,82 @@ exports.claimBuddyRunAllValidations = async (lan) => {
       WHERE lan=?
       `,
       [
-        panResult.success ? "VERIFIED" : "FAILED",
-        JSON.stringify(panResult.response || {}),
+        panResult?.success ? "VERIFIED" : "FAILED",
+        JSON.stringify(panResult?.response || {}),
         lan,
       ],
     );
 
     console.log(
       `📌 PAN Status ${lan}:`,
-      panResult.success ? "VERIFIED" : "FAILED",
+      panResult?.success ? "VERIFIED" : "FAILED",
     );
 
     // ========================================
     // 2. AADHAAR KYC
     // ========================================
 
+    await pool.query(
+      `
+      UPDATE kyc_verification_status
+      SET aadhaar_status='INITIATED'
+      WHERE lan=?
+      `,
+      [lan],
+    );
+
     let aadhaarInit;
 
-    // ==================================================
-    // LOCAL / UAT TESTING
-    // ==================================================
-    // In non-production:
-    // Aadhaar is automatically marked VERIFIED.
-    //
-    // In production:
-    // Existing Aadhaar KYC initiation is used.
-    // ==================================================
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`🧪 CLAIM BUDDY LOCAL AADHAAR MOCK: ${lan}`);
+    try {
+      aadhaarInit = await initAadhaarKyc(
+        lan,
+        loan.mobile_number,
+        loan.email_id,
+        loan.customer_name,
+      );
+    } catch (err) {
+      console.log("❌ Aadhaar API Error:", err);
 
       aadhaarInit = {
-        success: true,
-        unifiedTransactionId: `MOCK-AADHAAR-${lan}`,
-        kycUrl: null,
-        uniqueId: `MOCK-${lan}`,
+        success: false,
+        error: err.response?.data || {
+          message: err.message,
+        },
       };
+    }
 
+    if (aadhaarInit?.success) {
       await pool.query(
         `
         UPDATE kyc_verification_status
         SET
-          aadhaar_status='VERIFIED',
+          aadhaar_status='INITIATED',
           aadhaar_transaction_id=?,
           aadhaar_kyc_url=?,
           aadhaar_unique_id=?
         WHERE lan=?
         `,
         [
-          aadhaarInit.unifiedTransactionId,
-          aadhaarInit.kycUrl,
-          aadhaarInit.uniqueId,
+          aadhaarInit.unifiedTransactionId || null,
+          aadhaarInit.kycUrl || null,
+          aadhaarInit.uniqueId || null,
           lan,
         ],
       );
 
-      console.log(`📌 Aadhaar Status ${lan}: VERIFIED (LOCAL MOCK)`);
+      console.log(`📨 Claim Buddy Aadhaar URL for ${lan}:`, aadhaarInit.kycUrl);
     } else {
       await pool.query(
         `
         UPDATE kyc_verification_status
-        SET aadhaar_status='INITIATED'
+        SET
+          aadhaar_status='FAILED'
         WHERE lan=?
         `,
         [lan],
       );
 
-      aadhaarInit = await initAadhaarKyc(
-        lan,
-        loan.mobile_number,
-        loan.email_id,
-        loan.customer_name,
-        loan.current_address,
-        loan.current_pincode,
-        loan.current_state,
-      );
-
-      if (aadhaarInit.success) {
-        await pool.query(
-          `
-          UPDATE kyc_verification_status
-          SET
-            aadhaar_transaction_id=?,
-            aadhaar_kyc_url=?,
-            aadhaar_unique_id=?
-          WHERE lan=?
-          `,
-          [
-            aadhaarInit.unifiedTransactionId,
-            aadhaarInit.kycUrl,
-            aadhaarInit.uniqueId,
-            lan,
-          ],
-        );
-
-        console.log("📨 Claim Buddy Aadhaar URL:", aadhaarInit.kycUrl);
-      } else {
-        await pool.query(
-          `
-          UPDATE kyc_verification_status
-          SET
-            aadhaar_status='FAILED'
-          WHERE lan=?
-          `,
-          [lan],
-        );
-
-        console.log("❌ Aadhaar failed");
-      }
+      console.log(`❌ Aadhaar initiation failed for LAN: ${lan}`);
     }
 
     // ========================================
@@ -240,47 +181,46 @@ exports.claimBuddyRunAllValidations = async (lan) => {
       dobStr = loan.dob.toISOString().split("T")[0];
     }
 
-    let bureauResult = await runBureau({
-      enquiry_reason: "05",
+    let bureauResult;
 
-      customer_name: loan.customer_name,
+    try {
+      let bureauResult = await runBureau({
+        enquiry_reason: "05",
 
-      first_name: loan.first_name,
+        customer_name: loan.customer_name,
+        first_name: loan.first_name,
+        last_name: loan.last_name,
 
-      last_name: loan.last_name,
+        dob: dobStr,
+        gender: loan.gender,
 
-      dob: dobStr,
+        pan_number: loan.pan_number,
+        mobile_number: loan.mobile_number,
 
-      gender: loan.gender,
+        // Prefer permanent address, fallback to current address
+        current_address: loan.permanent_address || loan.current_address,
 
-      pan_number: loan.pan_number,
+        current_village_city:
+          loan.permanent_village_city || loan.current_village_city,
 
-      mobile_number: loan.mobile_number,
+        current_state: loan.permanent_state || loan.current_state,
 
-      current_address: loan.current_address,
+        current_pincode: loan.permanent_pincode || loan.current_pincode,
 
-      current_village_city: loan.current_village_city,
+        loan_amount: loan.loan_amount,
+        loan_tenure: loan.loan_tenure || 3,
+      });
+    } catch (err) {
+      console.log("❌ Bureau Error:", err);
 
-      current_state: loan.current_state,
-
-      current_pincode: loan.current_pincode,
-
-      loan_amount: loan.loan_amount,
-
-      loan_tenure: loan.loan_tenure || 3,
-    }).catch((err) => {
-      console.log("❌ Bureau Error", err);
-
-      return {
+      bureauResult = {
         success: false,
-
         score: null,
-
-        response: {
+        response: err.response?.data || {
           error: err.message,
         },
       };
-    });
+    }
 
     await pool.query(
       `
@@ -291,10 +231,8 @@ exports.claimBuddyRunAllValidations = async (lan) => {
       WHERE lan=?
       `,
       [
-        bureauResult.success ? "VERIFIED" : "FAILED",
-
-        JSON.stringify(bureauResult.response || {}),
-
+        bureauResult?.success ? "VERIFIED" : "FAILED",
+        JSON.stringify(bureauResult?.response || {}),
         lan,
       ],
     );
@@ -318,28 +256,31 @@ exports.claimBuddyRunAllValidations = async (lan) => {
       [
         lan,
         loan.pan_number,
-        bureauResult.score,
-        bureauResult.response ? String(bureauResult.response) : null,
+        bureauResult?.score ?? null,
+        bureauResult?.response
+          ? typeof bureauResult.response === "string"
+            ? bureauResult.response
+            : JSON.stringify(bureauResult.response)
+          : null,
       ],
     );
 
     console.log(
       `📌 Bureau Status ${lan}:`,
-      bureauResult.success ? "VERIFIED" : "FAILED",
+      bureauResult?.success ? "VERIFIED" : "FAILED",
     );
 
-    console.log("📌 Bureau Score:", bureauResult.score);
+    console.log("📌 Bureau Score:", bureauResult?.score);
 
     // ========================================
     // UPDATE LOAN SCORE
     // ========================================
 
-    if (bureauResult.score !== null) {
+    if (bureauResult?.score !== null && bureauResult?.score !== undefined) {
       await pool.query(
         `
         UPDATE loan_booking_claim_buddy
-        SET
-          cibil_score=?
+        SET cibil_score=?
         WHERE lan=?
         `,
         [bureauResult.score, lan],
@@ -350,33 +291,24 @@ exports.claimBuddyRunAllValidations = async (lan) => {
     // FINAL VALIDATION LOG
     // ========================================
 
-    console.log(
-      `
+    console.log(`
 ✅ Claim Buddy KYC Validation Completed
 
 LAN:
 ${lan}
 
 PAN:
-${panResult.success ? "VERIFIED" : "FAILED"}
+${panResult?.success ? "VERIFIED" : "FAILED"}
 
 AADHAAR:
-${
-  process.env.NODE_ENV !== "production"
-    ? "VERIFIED (LOCAL MOCK)"
-    : aadhaarInit.success
-      ? "INITIATED"
-      : "FAILED"
-}
+${aadhaarInit?.success ? "INITIATED" : "FAILED"}
 
 BUREAU:
-${bureauResult.success ? "VERIFIED" : "FAILED"}
+${bureauResult?.success ? "VERIFIED" : "FAILED"}
 
 SCORE:
-${bureauResult.score}
-
-`,
-    );
+${bureauResult?.score ?? "N/A"}
+`);
 
     console.log(`✅ CLAIM BUDDY Validation Completed: ${lan}`);
 
