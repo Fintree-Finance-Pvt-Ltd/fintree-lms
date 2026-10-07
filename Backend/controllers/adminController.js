@@ -17,7 +17,7 @@ exports.createUser = async (req, res) => {
 };
 
 exports.getAllUsers = (req, res) => {
-  db.query("SELECT id, name, email, role FROM users", (err, results) => {
+  db.query("SELECT id, name, email, role, is_active FROM users", (err, results) => {
     if (err) return res.status(500).json({ message: "DB error", err });
     res.json(results);
   });
