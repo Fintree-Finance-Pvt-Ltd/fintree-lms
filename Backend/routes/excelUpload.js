@@ -10987,49 +10987,53 @@ router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
         // }
 
         /* -----------------------------------------
-             PARTNER LIMIT CHECK
+             PARTNER LIMIT CHECK (DISABLED AS PER REQUEST)
           ----------------------------------------- */
 
-        const partnerName = "WCTL FFPL";
-        const today = new Date();
-        const { month, year } = getMonthYear(today);
+        // const partnerName = "WCTL FFPL";
+        // const today = new Date();
+        // const { month, year } = getMonthYear(today);
 
-        const partner = await partnerLimitService.getOrCreatePartner(
-          conn,
-          partnerName,
-        );
+        // const partner = await partnerLimitService.getOrCreatePartner(
+        //   conn,
+        //   partnerName,
+        // );
 
-        if (!partner || !partner.partner_id) {
-          throw new Error("Unable to find or create the WCTL FFPL partner.");
-        }
+        // if (!partner || !partner.partner_id) {
+        //   throw new Error("Unable to find or create the WCTL FFPL partner.");
+        // }
 
-        const limitCheck =
-          await partnerLimitService.validatePartnerBookingLimit(
-            conn,
-            partner.partner_id,
-            loanAmount,
-            month,
-            year,
-          );
+        // const limitCheck =
+        //   await partnerLimitService.validatePartnerBookingLimit(
+        //     conn,
+        //     partner.partner_id,
+        //     loanAmount,
+        //     month,
+        //     year,
+        //   );
 
-        if (!limitCheck.valid) {
-          await conn.rollback();
-          transactionStarted = false;
+        // if (!limitCheck.valid) {
+        //   await conn.rollback();
+        //   transactionStarted = false;
 
-          row_errors.push({
-            row: excelRowNumber,
-            stage: "partner-limit",
-            reason: "Monthly partner limit exceeded.",
-            remaining_limit: Number(limitCheck.remaining || 0),
-            required_amount: loanAmount,
-          });
+        //   row_errors.push({
+        //     row: excelRowNumber,
+        //     stage: "partner-limit",
+        //     reason: "Monthly partner limit exceeded.",
+        //     remaining_limit: Number(limitCheck.remaining || 0),
+        //     required_amount: loanAmount,
+        //   });
 
-          continue;
-        }
+        //   continue;
+        // }
 
         /* -----------------------------------------
              GENERATE LAN AND PARTNER LOAN ID
           ----------------------------------------- */
+        
+        // Redefine partnerName since it was commented out above
+        const partnerName = "WCTL FFPL";
+        const today = new Date();
 
         const { partnerLoanId, lan } =
           await generateLoanIdentifiers(partnerName);
@@ -11108,12 +11112,12 @@ router.post("/v1/wctl-ffpl-upload", upload.single("file"), async (req, res) => {
           values,
         );
 
-        await partnerLimitService.updateBookedLimit(
-          conn,
-          limitCheck.limitId,
-          loanAmount,
-          lan,
-        );
+        // await partnerLimitService.updateBookedLimit(
+        //   conn,
+        //   limitCheck.limitId,
+        //   loanAmount,
+        //   lan,
+        // );
 
         /*
          * Important:
