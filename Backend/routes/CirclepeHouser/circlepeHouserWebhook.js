@@ -24,8 +24,7 @@ async function sendCirclePeHouserBREWebhook(params) {
     loan_amount,
     status,
     bre_decision,
-    reasons = [],
-    checks = {},
+    reasons = []
   } = params;
 
   const webhookUrl =
@@ -56,7 +55,6 @@ async function sendCirclePeHouserBREWebhook(params) {
       : "Loan application has been rejected by BRE policy checks.",
     next_step: isApproved ? "CALL_FINAL_SUBMIT_API" : "APPLICATION_REJECTED",
     reasons: reasons.length > 0 ? reasons : null,
-    checks,
     timestamp: new Date().toISOString(),
   };
 

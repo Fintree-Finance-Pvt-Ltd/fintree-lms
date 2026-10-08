@@ -121,65 +121,40 @@ function mapRequestBody(body) {
     ]),
 
     mobile_number: firstValue(body, ["mobile_number", "mobileNumber"]),
-
     email_id: firstValue(body, ["email_id", "emailId"]),
-
     pan_number: firstValue(body, ["pan_number", "panNumber"]),
+    aadhaar_number: firstValue(body, ["aadhaar_number"]),
 
-    aadhaar_number: firstValue(body, [
-      "aadhaar_number",
-      "aadhar_number",
-      "aadhaarLast4",
-    ]),
+    current_address: firstValue(body, ["current_address"]),
+    current_village_city: firstValue(body, ["current_village_city"]),
+    current_district: firstValue(body, ["current_district"]),
+    current_state: firstValue(body, ["current_state"]),
+    current_pincode: firstValue(body, ["current_pincode"]),
 
-    current_address_line1: firstValue(body, [
-      "current_address_line1",
-      "currentAddressLine1",
-    ]),
+    current_address_line1: firstValue(body, ["current_address"]),
 
     current_address_pincode: firstValue(body, [
+      "current_pincode",
       "current_address_pincode",
       "currentAddressPincode",
     ]),
 
-    loan_amount_sanctioned: firstValue(body, [
-      "loan_amount_sanctioned",
-      "loan amount sanctioned",
-      "loanAmountSanctioned",
-      "loanAmount",
-    ]),
+    loan_amount_sanctioned: firstValue(body, ["loan_amount_sanctioned"]),
+    interest_percent: firstValue(body, ["interest_percent"]),
+    loan_tenure_months: firstValue(body, ["loan_tenure_months"]),
 
-    interest_percent: firstValue(body, ["interest_percent", "interestPercent"]),
-
-    loan_tenure_months: firstValue(body, [
-      "loan_tenure_months",
-      "loanTenureMonths",
-    ]),
-
-    monthly_emi: firstValue(body, ["monthly_emi", "monthly emi", "monthlyEmi"]),
-
-    credit_score: firstValue(body, [
-      "credit_score",
-      "creditScore",
-      "cibilScore",
-    ]),
+    monthly_emi: firstValue(body, ["monthly_emi"]),
+    credit_score: firstValue(body, ["credit_score"]),
 
     product: firstValue(body, ["product"]),
 
-    residence_type: firstValue(body, ["residence_type", "residenceType"]),
+    residence_type: firstValue(body, ["residence_type"]),
 
-    customer_type: firstValue(body, ["customer_type", "customerType"]),
-
-    bank_name: firstValue(body, ["bank_name", "bankName"]),
-
-    beneficiary_name: firstValue(body, ["beneficiary_name", "beneficiaryName"]),
-
-    institute_account_number: firstValue(body, [
-      "institute_account_number",
-      "instituteAccountNumber",
-    ]),
-
-    ifsc_code: firstValue(body, ["ifsc_code", "ifscCode"]),
+    customer_type: firstValue(body, ["customer_type"]),
+    bank_name: firstValue(body, ["bank_name"]),
+    beneficiary_name: firstValue(body, ["beneficiary_name"]),
+    institute_account_number: firstValue(body, [ "institute_account_number"]),
+    ifsc_code: firstValue(body, ["ifsc_code"]),
   };
 }
 
@@ -215,7 +190,7 @@ function validateLoanData(body) {
     throw apiError(400, "gender must be Male, Female or Other");
   }
 
-  data.fathers_name = cleanString(data.fathers_name);
+  data.fathers_name = cleanString(data.fathers_name) || null;
 
   data.mobile_number = cleanDigits(data.mobile_number);
 
@@ -251,17 +226,29 @@ function validateLoanData(body) {
     );
   }
 
-  data.current_address_line1 = cleanString(data.current_address_line1);
+  // Address fields
+  data.current_address = cleanString(
+    data.current_address || data.current_address_line1,
+  );
 
-  if (!data.current_address_line1) {
-    throw apiError(400, "current_address_line1 is required");
+  if (!data.current_address) {
+    throw apiError(400, "current_address is required");
   }
 
-  data.current_address_pincode = cleanDigits(data.current_address_pincode);
+  data.current_village_city = cleanString(data.current_village_city) || null;
+  data.current_district = cleanString(data.current_district) || null;
+  data.current_state = cleanString(data.current_state) || null;
 
-  if (!/^[1-9][0-9]{5}$/.test(data.current_address_pincode)) {
-    throw apiError(400, "current_address_pincode must be 6 digits");
+  data.current_pincode = cleanDigits(
+    data.current_pincode || data.current_address_pincode,
+  );
+
+  if (!/^[1-9][0-9]{5}$/.test(data.current_pincode)) {
+    throw apiError(400, "current_pincode must be 6 digits");
   }
+
+  data.current_address_line1 = data.current_address;
+  data.current_address_pincode = data.current_pincode;
 
   data.loan_amount_sanctioned = parseNumber(
     data.loan_amount_sanctioned,
@@ -404,15 +391,15 @@ function validateExternalCirclePeHouserData(body) {
   // Gender
   data.gender = cleanString(data.gender);
 
-  if (!["Male", "Female", "Other"].includes(data.gender)) {
+  if (!["Male", "Female", "Other", "M", "F"].includes(data.gender)) {
     throw apiError(400, "gender must be Male, Female or Other");
   }
 
   // DOB
   data.date_of_birth = validateDate(data.date_of_birth, "date_of_birth");
 
-  // Father Name
-  data.fathers_name = cleanString(data.fathers_name);
+  // Father Name & Mother Name
+  data.fathers_name = cleanString(data.fathers_name) || null;
 
   // Mobile
   data.mobile_number = cleanDigits(data.mobile_number);
@@ -448,19 +435,29 @@ function validateExternalCirclePeHouserData(body) {
     );
   }
 
-  // Address
-  data.current_address_line1 = cleanString(data.current_address_line1);
+  // Current Address Details
+  data.current_address = cleanString(
+    data.current_address || data.current_address_line1,
+  );
 
-  if (!data.current_address_line1) {
-    throw apiError(400, "current_address_line1 is required");
+  if (!data.current_address) {
+    throw apiError(400, "current_address is required");
   }
 
-  // Pincode
-  data.current_address_pincode = cleanDigits(data.current_address_pincode);
+  data.current_village_city = cleanString(data.current_village_city) || null;
+  data.current_district = cleanString(data.current_district) || null;
+  data.current_state = cleanString(data.current_state) || null;
 
-  if (!/^[1-9][0-9]{5}$/.test(data.current_address_pincode)) {
-    throw apiError(400, "current_address_pincode must be 6 digits");
+  data.current_pincode = cleanDigits(
+    data.current_pincode || data.current_address_pincode,
+  );
+
+  if (!/^[1-9][0-9]{5}$/.test(data.current_pincode)) {
+    throw apiError(400, "current_pincode must be 6 digits");
   }
+
+  data.current_address_line1 = data.current_address;
+  data.current_address_pincode = data.current_pincode;
 
   // Credit Score
   data.credit_score = parseInteger(data.credit_score, "credit_score");
@@ -551,6 +548,9 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
         pan_number,
         aadhar_number,
         current_address,
+        current_village_city,
+        current_district,
+        current_state,
         current_pincode,
         loan_amount,
         interest_rate,
@@ -569,7 +569,7 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
         agreement_date,
         status
       )
-      VALUES (${new Array(30).fill("?").join(",")})
+      VALUES (${new Array(33).fill("?").join(",")})
     `;
 
     // ── Evaluate Business Rule Engine (BRE) ──────────────────────────
@@ -589,8 +589,11 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
       loanData.email_id || null,
       loanData.pan_number,
       loanData.aadhaar_number,
-      loanData.current_address_line1,
-      loanData.current_address_pincode,
+      loanData.current_address,
+      loanData.current_village_city || null,
+      loanData.current_district || null,
+      loanData.current_state || null,
+      loanData.current_pincode,
       loanData.loan_amount_sanctioned,
       loanData.interest_percent,
       loanData.loan_tenure_months,
@@ -730,6 +733,9 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
           aadhar_number,
 
           current_address,
+          current_village_city,
+          current_district,
+          current_state,
           current_pincode,
 
           cibil_score,
@@ -741,7 +747,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
 
           status
         )
-        VALUES (${new Array(20).fill("?").join(",")})
+        VALUES (${new Array(23).fill("?").join(",")})
       `;
 
     // ── Evaluate Business Rule Engine (BRE) ──────────────────────────
@@ -764,8 +770,11 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
       loanData.pan_number,
       loanData.aadhaar_number,
 
-      loanData.current_address_line1,
-      loanData.current_address_pincode,
+      loanData.current_address,
+      loanData.current_village_city || null,
+      loanData.current_district || null,
+      loanData.current_state || null,
+      loanData.current_pincode,
 
       loanData.credit_score,
       loanData.product,
