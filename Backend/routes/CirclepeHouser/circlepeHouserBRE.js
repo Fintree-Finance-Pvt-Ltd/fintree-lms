@@ -94,31 +94,40 @@ function evaluateCirclePeHouserBRE(loanData, customConfig = {}) {
     checks.cibilScore = { passed: true, value: cibil, rule: `>= ${config.minCibilScore}` };
   }
 
-  // 3. Loan Amount Rule
-  const loanAmount = Number(loanData.loan_amount_sanctioned ?? loanData.loan_amount);
-  if (!loanAmount || loanAmount < config.minLoanAmount || loanAmount > config.maxLoanAmount) {
-    failures.push(`Loan Amount (₹${loanAmount}) is outside the acceptable limit of ₹${config.minLoanAmount} - ₹${config.maxLoanAmount}`);
-    checks.loanAmount = { passed: false, value: loanAmount, rule: `₹${config.minLoanAmount} - ₹${config.maxLoanAmount}`, message: "Amount limit exceeded/below threshold" };
-  } else {
-    checks.loanAmount = { passed: true, value: loanAmount, rule: `₹${config.minLoanAmount} - ₹${config.maxLoanAmount}` };
+  // 3. Loan Amount Rule (Validate if provided)
+  const rawLoanAmount = loanData.loan_amount_sanctioned ?? loanData.loan_amount;
+  if (rawLoanAmount !== undefined && rawLoanAmount !== null && rawLoanAmount !== "") {
+    const loanAmount = Number(rawLoanAmount);
+    if (!loanAmount || loanAmount < config.minLoanAmount || loanAmount > config.maxLoanAmount) {
+      failures.push(`Loan Amount (₹${loanAmount}) is outside the acceptable limit of ₹${config.minLoanAmount} - ₹${config.maxLoanAmount}`);
+      checks.loanAmount = { passed: false, value: loanAmount, rule: `₹${config.minLoanAmount} - ₹${config.maxLoanAmount}`, message: "Amount limit exceeded/below threshold" };
+    } else {
+      checks.loanAmount = { passed: true, value: loanAmount, rule: `₹${config.minLoanAmount} - ₹${config.maxLoanAmount}` };
+    }
   }
 
-  // 4. Loan Tenure Rule
-  const tenure = Number(loanData.loan_tenure_months ?? loanData.loan_tenure);
-  if (!tenure || tenure < config.minTenureMonths || tenure > config.maxTenureMonths) {
-    failures.push(`Loan Tenure (${tenure} months) is outside acceptable range of ${config.minTenureMonths}-${config.maxTenureMonths} months`);
-    checks.tenure = { passed: false, value: tenure, rule: `${config.minTenureMonths} - ${config.maxTenureMonths} months`, message: "Tenure out of policy" };
-  } else {
-    checks.tenure = { passed: true, value: tenure, rule: `${config.minTenureMonths} - ${config.maxTenureMonths} months` };
+  // 4. Loan Tenure Rule (Validate if provided)
+  const rawTenure = loanData.loan_tenure_months ?? loanData.loan_tenure;
+  if (rawTenure !== undefined && rawTenure !== null && rawTenure !== "") {
+    const tenure = Number(rawTenure);
+    if (!tenure || tenure < config.minTenureMonths || tenure > config.maxTenureMonths) {
+      failures.push(`Loan Tenure (${tenure} months) is outside acceptable range of ${config.minTenureMonths}-${config.maxTenureMonths} months`);
+      checks.tenure = { passed: false, value: tenure, rule: `${config.minTenureMonths} - ${config.maxTenureMonths} months`, message: "Tenure out of policy" };
+    } else {
+      checks.tenure = { passed: true, value: tenure, rule: `${config.minTenureMonths} - ${config.maxTenureMonths} months` };
+    }
   }
 
-  // 5. Interest Rate Rule
-  const interest = Number(loanData.interest_percent ?? loanData.interest_rate);
-  if (interest === undefined || interest < config.minInterestRate || interest > config.maxInterestRate) {
-    failures.push(`Interest rate (${interest}%) is outside allowed range of ${config.minInterestRate}%-${config.maxInterestRate}%`);
-    checks.interestRate = { passed: false, value: interest, rule: `${config.minInterestRate}% - ${config.maxInterestRate}%` };
-  } else {
-    checks.interestRate = { passed: true, value: interest, rule: `${config.minInterestRate}% - ${config.maxInterestRate}%` };
+  // 5. Interest Rate Rule (Validate if provided)
+  const rawInterest = loanData.interest_percent ?? loanData.interest_rate;
+  if (rawInterest !== undefined && rawInterest !== null && rawInterest !== "") {
+    const interest = Number(rawInterest);
+    if (interest < config.minInterestRate || interest > config.maxInterestRate) {
+      failures.push(`Interest rate (${interest}%) is outside allowed range of ${config.minInterestRate}%-${config.maxInterestRate}%`);
+      checks.interestRate = { passed: false, value: interest, rule: `${config.minInterestRate}% - ${config.maxInterestRate}%` };
+    } else {
+      checks.interestRate = { passed: true, value: interest, rule: `${config.minInterestRate}% - ${config.maxInterestRate}%` };
+    }
   }
 
   // 6. PAN & Aadhaar Integrity Rule
@@ -141,17 +150,19 @@ function evaluateCirclePeHouserBRE(loanData, customConfig = {}) {
     checks.aadhaar = { passed: true, value: aadhaar };
   }
 
-  // 7. Banking Details Rule
+  // 7. Banking Details Rule (Validate only if provided during early stage)
   const ifsc = String(loanData.ifsc_code || loanData.ifsc || "").trim().toUpperCase();
   const accNo = String(loanData.institute_account_number || loanData.account_number || "").trim();
-  const isIfscValid = /^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc);
-  const isAccValid = accNo.length >= 6 && accNo.length <= 30;
+  if (ifsc || accNo) {
+    const isIfscValid = /^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc);
+    const isAccValid = accNo.length >= 6 && accNo.length <= 30;
 
-  if (!isIfscValid || !isAccValid) {
-    failures.push("Banking information (IFSC or Account Number) is invalid");
-    checks.bankDetails = { passed: false, value: { ifsc, accNo }, rule: "Valid IFSC and Account Number" };
-  } else {
-    checks.bankDetails = { passed: true, value: { ifsc, accNo } };
+    if (!isIfscValid || !isAccValid) {
+      failures.push("Banking information (IFSC or Account Number) is invalid");
+      checks.bankDetails = { passed: false, value: { ifsc, accNo }, rule: "Valid IFSC and Account Number" };
+    } else {
+      checks.bankDetails = { passed: true, value: { ifsc, accNo } };
+    }
   }
 
   // 8. Pincode Rule

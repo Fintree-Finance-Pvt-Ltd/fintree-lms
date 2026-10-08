@@ -153,7 +153,7 @@ function mapRequestBody(body) {
     customer_type: firstValue(body, ["customer_type"]),
     bank_name: firstValue(body, ["bank_name"]),
     beneficiary_name: firstValue(body, ["beneficiary_name"]),
-    institute_account_number: firstValue(body, [ "institute_account_number"]),
+    institute_account_number: firstValue(body, ["institute_account_number"]),
     ifsc_code: firstValue(body, ["ifsc_code"]),
   };
 }
@@ -190,7 +190,7 @@ function validateLoanData(body) {
     throw apiError(400, "gender must be Male, Female or Other");
   }
 
-  data.fathers_name = cleanString(data.fathers_name) || null;
+  data.fathers_name = cleanString(data.fathers_name);
 
   data.mobile_number = cleanDigits(data.mobile_number);
 
@@ -226,29 +226,17 @@ function validateLoanData(body) {
     );
   }
 
-  // Address fields
-  data.current_address = cleanString(
-    data.current_address || data.current_address_line1,
-  );
+  data.current_address_line1 = cleanString(data.current_address_line1);
 
-  if (!data.current_address) {
-    throw apiError(400, "current_address is required");
+  if (!data.current_address_line1) {
+    throw apiError(400, "current_address_line1 is required");
   }
 
-  data.current_village_city = cleanString(data.current_village_city) || null;
-  data.current_district = cleanString(data.current_district) || null;
-  data.current_state = cleanString(data.current_state) || null;
+  data.current_address_pincode = cleanDigits(data.current_address_pincode);
 
-  data.current_pincode = cleanDigits(
-    data.current_pincode || data.current_address_pincode,
-  );
-
-  if (!/^[1-9][0-9]{5}$/.test(data.current_pincode)) {
-    throw apiError(400, "current_pincode must be 6 digits");
+  if (!/^[1-9][0-9]{5}$/.test(data.current_address_pincode)) {
+    throw apiError(400, "current_address_pincode must be 6 digits");
   }
-
-  data.current_address_line1 = data.current_address;
-  data.current_address_pincode = data.current_pincode;
 
   data.loan_amount_sanctioned = parseNumber(
     data.loan_amount_sanctioned,
@@ -548,9 +536,6 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
         pan_number,
         aadhar_number,
         current_address,
-        current_village_city,
-        current_district,
-        current_state,
         current_pincode,
         loan_amount,
         interest_rate,
@@ -569,12 +554,8 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
         agreement_date,
         status
       )
-      VALUES (${new Array(33).fill("?").join(",")})
+      VALUES (${new Array(30).fill("?").join(",")})
     `;
-
-    // ── Evaluate Business Rule Engine (BRE) ──────────────────────────
-    const breResult = evaluateCirclePeHouserBRE(loanData);
-    const initialStatus = breResult.status; // "BRE Approved" or "BRE Rejected"
 
     const insertValues = [
       loanData.loan_application_date,
@@ -589,11 +570,8 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
       loanData.email_id || null,
       loanData.pan_number,
       loanData.aadhaar_number,
-      loanData.current_address,
-      loanData.current_village_city || null,
-      loanData.current_district || null,
-      loanData.current_state || null,
-      loanData.current_pincode,
+      loanData.current_address_line1,
+      loanData.current_address_pincode,
       loanData.loan_amount_sanctioned,
       loanData.interest_percent,
       loanData.loan_tenure_months,
@@ -609,42 +587,24 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
       loanData.ifsc_code,
       loanData.loan_amount_sanctioned,
       loanData.loan_application_date,
-      initialStatus,
+      "Login",
     ];
 
     const [insertResult] = await connection.query(insertQuery, insertValues);
 
     await connection.commit();
 
-    // ── Dispatch BRE Webhook asynchronously to Client/Partner ────────
-    sendCirclePeHouserBREWebhook({
-      app_id: loanData.app_id,
-      lan,
-      partner_loan_id: partnerLoanId,
-      customer_name: loanData.customer_name,
-      loan_amount: loanData.loan_amount_sanctioned,
-      status: initialStatus,
-      bre_decision: breResult.decision,
-      reasons: breResult.reasons,
-      checks: breResult.checks,
-    }).catch((whErr) => {
-      console.error("CirclePe Houser Webhook invocation error:", whErr);
-    });
-
     return res.status(201).json({
       success: true,
       code: "LOAN_CREATED",
-      message: `Circle Pe Houser loan processed with BRE status: ${initialStatus}`,
+      message: "Circle Pe Houser loan created successfully",
       data: {
         id: insertResult.insertId,
         app_id: loanData.app_id,
         lan,
         partner_loan_id: partnerLoanId,
         product: loanData.product,
-        status: initialStatus,
-        breDecision: breResult.decision,
-        breReasons: breResult.reasons,
-        breChecks: breResult.checks,
+        status: "Login",
       },
     });
   } catch (error) {
