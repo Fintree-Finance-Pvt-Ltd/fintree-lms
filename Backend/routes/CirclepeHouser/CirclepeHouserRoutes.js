@@ -881,6 +881,9 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     const bankName = cleanString(body.bank_name);
     const beneficiaryName = cleanString(body.beneficiary_name);
     const accountNumber = cleanString(body.account_number).replace(/\s/g, "");
+    const accountType = cleanString(
+      body.account_type || "savings",
+    ).toLowerCase();
     const ifscCode = cleanString(body.ifsc_code).toUpperCase();
 
     // Loan Terms
@@ -992,39 +995,46 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     await connection.query(updateLoanQuery, updateLoanValues);
 
     // ── 5. Upsert eNACH Mandate ──
-    await connection.query(
-      `
-        INSERT INTO enach_mandates (
-          lan,
-          enach_umrn,
-          bank_name,
-          account_number,
-          ifsc,
-          customer_name,
-          status,
-          auth_mode,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?, NOW(), NOW())
-        ON DUPLICATE KEY UPDATE
-          enach_umrn = VALUES(enach_umrn),
-          bank_name = VALUES(bank_name),
-          account_number = VALUES(account_number),
-          ifsc = VALUES(ifsc),
-          status = 'ACTIVE',
-          updated_at = NOW()
-      `,
-      [
-        targetLan,
-        enachUmrn,
-        bankName,
-        accountNumber,
-        ifscCode,
-        currentLoan.customer_name,
-        enachAuthMode || "NET_BANKING",
-      ],
-    );
+    try {
+      await connection.query(
+        `
+          INSERT INTO enach_mandates (
+            lan,
+            document_id,
+            customer_identifier,
+            status,
+            mandate_amount,
+            account_no,
+            account_type,
+            ifsc,
+            bank_name,
+            umrn
+          )
+          VALUES (?, ?, ?, 'ACTIVE', ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            umrn = VALUES(umrn),
+            bank_name = VALUES(bank_name),
+            account_no = VALUES(account_no),
+            account_type = VALUES(account_type),
+            ifsc = VALUES(ifsc),
+            status = 'ACTIVE',
+            mandate_amount = VALUES(mandate_amount)
+        `,
+        [
+          targetLan,
+          `MANDATE_${targetLan}`,
+          currentLoan.mobile_number || currentLoan.customer_name || targetLan,
+          finalEmi || finalLoanAmount,
+          accountNumber,
+          accountType,
+          ifscCode,
+          bankName,
+          enachUmrn,
+        ],
+      );
+    } catch (mandateErr) {
+      console.warn("eNACH mandate table upsert notice:", mandateErr.message);
+    }
 
     // ── 6. Generate RPS ──
     await connection.query(
