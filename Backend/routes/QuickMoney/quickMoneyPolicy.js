@@ -28,7 +28,7 @@ const {
  * still reflects only what's in that PDF.
  */
 const POLICY = Object.freeze({
-  MIN_BUREAU_SCORE: 675,
+  MIN_BUREAU_SCORE: 700,
 
   // General/default minimum loan amount — applies to ages 26+ (and any age
   // that can't be determined). Ages 21-25 get a lower floor; see
