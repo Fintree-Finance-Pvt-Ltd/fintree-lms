@@ -124,7 +124,7 @@ function mapRequestBody(body) {
     mobile_number: firstValue(body, ["mobile_number", "mobileNumber"]),
     email_id: firstValue(body, ["email_id", "emailId"]),
     pan_number: firstValue(body, ["pan_number", "panNumber"]),
-    aadhaar_number: firstValue(body, ["aadhaar_number"]),
+    aadhaar_number: firstValue(body, ["aadhaar_number", "aadhar_number"]),
 
     current_address: firstValue(body, ["current_address"]),
     current_village_city: firstValue(body, ["current_village_city"]),
@@ -139,6 +139,12 @@ function mapRequestBody(body) {
       "current_address_pincode",
       "currentAddressPincode",
     ]),
+
+    permanent_address: firstValue(body, ["permanent_address"]),
+    permanent_village_city: firstValue(body, ["permanent_village_city"]),
+    permanent_district: firstValue(body, ["permanent_district"]),
+    permanent_state: firstValue(body, ["permanent_state"]),
+    permanent_pincode: firstValue(body, ["permanent_pincode"]),
 
     loan_amount: firstValue(body, ["loan_amount"]),
     loan_amount_sanctioned: firstValue(body, ["loan_amount_sanctioned"]),
@@ -354,14 +360,19 @@ function validateLoanData(body) {
 function validateExternalCirclePeHouserData(body) {
   const data = mapRequestBody(body);
 
-  // Application Date
-  data.loan_application_date = validateDate(
-    data.loan_application_date,
-    "loan_application_date",
-  );
-
-  // APP ID (Optional)
-  data.app_id = cleanString(data.app_id).toUpperCase() || null;
+  // Application Date (Auto-generated current date YYYY-MM-DD)
+  if (data.loan_application_date) {
+    try {
+      data.loan_application_date = validateDate(
+        data.loan_application_date,
+        "loan_application_date",
+      );
+    } catch {
+      data.loan_application_date = new Date().toISOString().split("T")[0];
+    }
+  } else {
+    data.loan_application_date = new Date().toISOString().split("T")[0];
+  }
 
   // Partner Loan ID (Optional)
   data.partner_loan_id = cleanString(data.partner_loan_id) || null;
@@ -443,6 +454,21 @@ function validateExternalCirclePeHouserData(body) {
 
   data.current_address_line1 = data.current_address;
   data.current_address_pincode = data.current_pincode;
+
+  // Permanent Address Details
+  data.permanent_address = cleanString(data.permanent_address) || null;
+  data.permanent_village_city =
+    cleanString(data.permanent_village_city) || null;
+  data.permanent_district = cleanString(data.permanent_district) || null;
+  data.permanent_state = cleanString(data.permanent_state) || null;
+  data.permanent_pincode = cleanDigits(data.permanent_pincode) || null;
+
+  if (
+    data.permanent_pincode &&
+    !/^[1-9][0-9]{5}$/.test(data.permanent_pincode)
+  ) {
+    throw apiError(400, "permanent_pincode must be 6 digits");
+  }
 
   // Loan Amount
   data.loan_amount = parseNumber(
@@ -656,7 +682,6 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
      * - pan_number
      * - mobile_number
      * - email_id (if provided)
-     * - app_id (if provided)
      */
     const duplicateConditions = [];
     const duplicateParams = [];
@@ -679,11 +704,6 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
     if (loanData.email_id) {
       duplicateConditions.push("email_id = ?");
       duplicateParams.push(loanData.email_id);
-    }
-
-    if (loanData.app_id) {
-      duplicateConditions.push("app_id = ?");
-      duplicateParams.push(loanData.app_id);
     }
 
     if (duplicateConditions.length > 0) {
@@ -723,9 +743,6 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
         } else if (loanData.email_id && match.email_id === loanData.email_id) {
           duplicateField = "email_id";
           duplicateValue = loanData.email_id;
-        } else if (loanData.app_id && match.app_id === loanData.app_id) {
-          duplicateField = "app_id";
-          duplicateValue = loanData.app_id;
         }
 
         return res.status(409).json({
@@ -766,6 +783,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
           gender,
           dob,
           father_name,
+          mother_name,
 
           mobile_number,
           email_id,
@@ -778,6 +796,12 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
           current_state,
           current_pincode,
 
+          permanent_address,
+          permanent_village_city,
+          permanent_district,
+          permanent_state,
+          permanent_pincode,
+
           loan_amount,
           cibil_score,
           product,
@@ -788,24 +812,24 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
 
           status
         )
-        VALUES (${new Array(24).fill("?").join(",")})
+        VALUES (${new Array(30).fill("?").join(",")})
       `;
 
     // ── Evaluate Business Rule Engine (BRE) ──────────────────────────
     const breResult = evaluateCirclePeHouserBRE(loanData);
     const initialStatus = breResult.status; // "BRE Approved" or "BRE Rejected"
-    const finalAppId = loanData.app_id || lan;
 
     const insertValues = [
       loanData.loan_application_date,
       lan,
       partnerLoanId,
-      finalAppId,
+      lan,
 
       loanData.customer_name,
       loanData.gender,
       loanData.date_of_birth,
       loanData.fathers_name || null,
+      loanData.mother_name || null,
 
       loanData.mobile_number,
       loanData.email_id || null,
@@ -817,6 +841,12 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
       loanData.current_district || null,
       loanData.current_state || null,
       loanData.current_pincode,
+
+      loanData.permanent_address || null,
+      loanData.permanent_village_city || null,
+      loanData.permanent_district || null,
+      loanData.permanent_state || null,
+      loanData.permanent_pincode || null,
 
       loanData.loan_amount,
       loanData.credit_score,
