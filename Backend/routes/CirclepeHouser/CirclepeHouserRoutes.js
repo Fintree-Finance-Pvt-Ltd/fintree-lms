@@ -359,16 +359,8 @@ function validateExternalCirclePeHouserData(body) {
     "loan_application_date",
   );
 
-  // APP ID
-  data.app_id = cleanString(data.app_id).toUpperCase();
-
-  if (!data.app_id) {
-    throw apiError(400, "app_id is required");
-  }
-
-  if (!/^[A-Z0-9_-]{3,50}$/.test(data.app_id)) {
-    throw apiError(400, "app_id contains invalid characters");
-  }
+  // APP ID (Optional)
+  data.app_id = cleanString(data.app_id).toUpperCase() || null;
 
   // Customer Name
   data.customer_name = cleanString(data.customer_name);
@@ -655,28 +647,30 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
     const loanData = validateExternalCirclePeHouserData(req.body);
 
     /*
-     * Check duplicate external application ID.
+     * Check duplicate external application ID if provided.
      */
-    const [existingLoans] = await db.promise().query(
-      `
-          SELECT app_id, lan
-          FROM ${TABLE_NAME}
-          WHERE app_id = ?
-          LIMIT 1
-        `,
-      [loanData.app_id],
-    );
+    if (loanData.app_id) {
+      const [existingLoans] = await db.promise().query(
+        `
+            SELECT app_id, lan
+            FROM ${TABLE_NAME}
+            WHERE app_id = ?
+            LIMIT 1
+          `,
+        [loanData.app_id],
+      );
 
-    if (existingLoans.length > 0) {
-      return res.status(409).json({
-        success: false,
-        code: "DUPLICATE_APP_ID",
-        message: `app_id ${loanData.app_id} already exists`,
-        data: {
-          app_id: existingLoans[0].app_id,
-          lan: existingLoans[0].lan,
-        },
-      });
+      if (existingLoans.length > 0) {
+        return res.status(409).json({
+          success: false,
+          code: "DUPLICATE_APP_ID",
+          message: `app_id ${loanData.app_id} already exists`,
+          data: {
+            app_id: existingLoans[0].app_id,
+            lan: existingLoans[0].lan,
+          },
+        });
+      }
     }
 
     /*
@@ -727,12 +721,13 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
     // ── Evaluate Business Rule Engine (BRE) ──────────────────────────
     const breResult = evaluateCirclePeHouserBRE(loanData);
     const initialStatus = breResult.status; // "BRE Approved" or "BRE Rejected"
+    const finalAppId = loanData.app_id || lan;
 
     const insertValues = [
       loanData.loan_application_date,
       lan,
       partnerLoanId,
-      loanData.app_id,
+      finalAppId,
 
       loanData.customer_name,
       loanData.gender,
@@ -767,9 +762,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
 
     // ── Dispatch BRE Webhook asynchronously to Client/Partner ────────
     sendCirclePeHouserBREWebhook({
-      app_id: loanData.app_id,
       lan,
-      partner_loan_id: partnerLoanId,
       customer_name: loanData.customer_name,
       loan_amount: loanData.loan_amount,
       status: initialStatus,
@@ -786,7 +779,6 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
       message: `Circle Pe Houser loan processed with BRE status: ${initialStatus}`,
       data: {
         id: insertResult.insertId,
-        app_id: loanData.app_id,
         lan,
         partner_loan_id: partnerLoanId,
         loan_amount: loanData.loan_amount,
@@ -833,14 +825,9 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
 
     // Loan Identifier
     const lan = cleanString(body.lan);
-    const appId = cleanString(body.app_id);
-    const partnerLoanId = cleanString(body.partner_loan_id);
 
-    if (!lan && !appId && !partnerLoanId) {
-      throw apiError(
-        400,
-        "Loan identifier (lan, app_id, or partner_loan_id) is required",
-      );
+    if (!lan) {
+      throw apiError(400, "lan is required");
     }
 
     // eNACH Details
@@ -882,19 +869,8 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     await connection.beginTransaction();
 
     // ── 1. Find existing loan ──
-    let findQuery;
-    let findParams;
-
-    if (lan) {
-      findQuery = `SELECT * FROM ${TABLE_NAME} WHERE lan = ? LIMIT 1`;
-      findParams = [lan];
-    } else if (appId) {
-      findQuery = `SELECT * FROM ${TABLE_NAME} WHERE app_id = ? LIMIT 1`;
-      findParams = [appId];
-    } else {
-      findQuery = `SELECT * FROM ${TABLE_NAME} WHERE partner_loan_id = ? LIMIT 1`;
-      findParams = [partnerLoanId];
-    }
+    const findQuery = `SELECT * FROM ${TABLE_NAME} WHERE lan = ? LIMIT 1`;
+    const findParams = [lan];
 
     const [existingRows] = await connection.query(findQuery, findParams);
 
@@ -1064,7 +1040,6 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
 
       data: {
         lan: targetLan,
-        app_id: currentLoan.app_id,
         partner_loan_id: currentLoan.partner_loan_id,
         customer_name: currentLoan.customer_name,
 
