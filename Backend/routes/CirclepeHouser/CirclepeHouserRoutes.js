@@ -139,6 +139,7 @@ function mapRequestBody(body) {
       "currentAddressPincode",
     ]),
 
+    loan_amount: firstValue(body, ["loan_amount"]),
     loan_amount_sanctioned: firstValue(body, ["loan_amount_sanctioned"]),
     interest_percent: firstValue(body, ["interest_percent"]),
     loan_tenure_months: firstValue(body, ["loan_tenure_months"]),
@@ -447,6 +448,18 @@ function validateExternalCirclePeHouserData(body) {
   data.current_address_line1 = data.current_address;
   data.current_address_pincode = data.current_pincode;
 
+  // Loan Amount
+  data.loan_amount = parseNumber(
+    data.loan_amount || data.loan_amount_sanctioned,
+    "loan_amount",
+  );
+
+  if (data.loan_amount <= 0) {
+    throw apiError(400, "loan_amount must be greater than zero");
+  }
+
+  data.loan_amount_sanctioned = data.loan_amount;
+
   // Credit Score
   data.credit_score = parseInteger(data.credit_score, "credit_score");
 
@@ -698,6 +711,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
           current_state,
           current_pincode,
 
+          loan_amount,
           cibil_score,
           product,
           lender,
@@ -707,7 +721,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
 
           status
         )
-        VALUES (${new Array(23).fill("?").join(",")})
+        VALUES (${new Array(24).fill("?").join(",")})
       `;
 
     // ── Evaluate Business Rule Engine (BRE) ──────────────────────────
@@ -736,6 +750,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
       loanData.current_state || null,
       loanData.current_pincode,
 
+      loanData.loan_amount,
       loanData.credit_score,
       loanData.product,
       LENDER_TYPE,
@@ -756,7 +771,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
       lan,
       partner_loan_id: partnerLoanId,
       customer_name: loanData.customer_name,
-      loan_amount: loanData.loan_amount_sanctioned,
+      loan_amount: loanData.loan_amount,
       status: initialStatus,
       bre_decision: breResult.decision,
       reasons: breResult.reasons,
@@ -774,6 +789,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
         app_id: loanData.app_id,
         lan,
         partner_loan_id: partnerLoanId,
+        loan_amount: loanData.loan_amount,
         product: loanData.product,
         status: initialStatus,
         breDecision: breResult.decision,
@@ -856,7 +872,6 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     const ifscCode = cleanString(body.ifsc_code).toUpperCase();
 
     // Loan Terms
-    const loanAmount = body.loan_amount;
     const interestPercent = body.interest_rate;
     const loanTenureMonths = body.loan_tenure;
     const monthlyEmi = body.emi_amount;
@@ -911,7 +926,12 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     }
 
     // ── 3. Validate Loan Details ──
-    const finalLoanAmount = parseNumber(loanAmount, "loan_amount");
+    const finalLoanAmount =
+      body.loan_amount !== undefined &&
+      body.loan_amount !== null &&
+      body.loan_amount !== ""
+        ? parseNumber(body.loan_amount, "loan_amount")
+        : parseNumber(currentLoan.loan_amount, "loan_amount");
 
     const finalInterestRate = parseNumber(interestPercent, "interest_rate");
 
