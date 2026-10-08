@@ -107,6 +107,7 @@ function mapRequestBody(body) {
     ]),
 
     app_id: firstValue(body, ["app_id", "App_Id", "appId"]),
+    partner_loan_id: firstValue(body, ["partner_loan_id"]),
 
     customer_name: firstValue(body, ["customer_name", "customerName"]),
 
@@ -361,6 +362,9 @@ function validateExternalCirclePeHouserData(body) {
 
   // APP ID (Optional)
   data.app_id = cleanString(data.app_id).toUpperCase() || null;
+
+  // Partner Loan ID (Optional)
+  data.partner_loan_id = cleanString(data.partner_loan_id) || null;
 
   // Customer Name
   data.customer_name = cleanString(data.customer_name);
@@ -647,27 +651,93 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
     const loanData = validateExternalCirclePeHouserData(req.body);
 
     /*
-     * Check duplicate external application ID if provided.
+     * Check duplicate loan application using:
+     * - partner_loan_id (if provided)
+     * - pan_number
+     * - mobile_number
+     * - email_id (if provided)
+     * - app_id (if provided)
      */
+    const duplicateConditions = [];
+    const duplicateParams = [];
+
+    if (loanData.partner_loan_id) {
+      duplicateConditions.push("partner_loan_id = ?");
+      duplicateParams.push(loanData.partner_loan_id);
+    }
+
+    if (loanData.pan_number) {
+      duplicateConditions.push("pan_number = ?");
+      duplicateParams.push(loanData.pan_number);
+    }
+
+    if (loanData.mobile_number) {
+      duplicateConditions.push("mobile_number = ?");
+      duplicateParams.push(loanData.mobile_number);
+    }
+
+    if (loanData.email_id) {
+      duplicateConditions.push("email_id = ?");
+      duplicateParams.push(loanData.email_id);
+    }
+
     if (loanData.app_id) {
-      const [existingLoans] = await db.promise().query(
+      duplicateConditions.push("app_id = ?");
+      duplicateParams.push(loanData.app_id);
+    }
+
+    if (duplicateConditions.length > 0) {
+      const [existingMatches] = await db.promise().query(
         `
-            SELECT app_id, lan
-            FROM ${TABLE_NAME}
-            WHERE app_id = ?
-            LIMIT 1
-          `,
-        [loanData.app_id],
+          SELECT lan, partner_loan_id, app_id, pan_number, mobile_number, email_id, status
+          FROM ${TABLE_NAME}
+          WHERE ${duplicateConditions.join(" OR ")}
+          LIMIT 1
+        `,
+        duplicateParams,
       );
 
-      if (existingLoans.length > 0) {
+      if (existingMatches.length > 0) {
+        const match = existingMatches[0];
+        let duplicateField = "Record";
+        let duplicateValue = "";
+
+        if (
+          loanData.partner_loan_id &&
+          match.partner_loan_id === loanData.partner_loan_id
+        ) {
+          duplicateField = "partner_loan_id";
+          duplicateValue = loanData.partner_loan_id;
+        } else if (
+          loanData.pan_number &&
+          match.pan_number === loanData.pan_number
+        ) {
+          duplicateField = "pan_number";
+          duplicateValue = loanData.pan_number;
+        } else if (
+          loanData.mobile_number &&
+          match.mobile_number === loanData.mobile_number
+        ) {
+          duplicateField = "mobile_number";
+          duplicateValue = loanData.mobile_number;
+        } else if (loanData.email_id && match.email_id === loanData.email_id) {
+          duplicateField = "email_id";
+          duplicateValue = loanData.email_id;
+        } else if (loanData.app_id && match.app_id === loanData.app_id) {
+          duplicateField = "app_id";
+          duplicateValue = loanData.app_id;
+        }
+
         return res.status(409).json({
           success: false,
-          code: "DUPLICATE_APP_ID",
-          message: `app_id ${loanData.app_id} already exists`,
+          code: "DUPLICATE_RECORD",
+          message: `Duplicate loan application found with matching ${duplicateField}: ${duplicateValue} (Existing LAN: ${match.lan}, Status: ${match.status})`,
           data: {
-            app_id: existingLoans[0].app_id,
-            lan: existingLoans[0].lan,
+            lan: match.lan,
+            partner_loan_id: match.partner_loan_id,
+            status: match.status,
+            matched_field: duplicateField,
+            matched_value: duplicateValue,
           },
         });
       }
@@ -677,7 +747,10 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
      * Uses the same LAN and partner-loan-ID generator
      * as the existing Excel upload API.
      */
-    const { partnerLoanId, lan } = await generateLoanIdentifiers(LENDER_TYPE);
+    const { partnerLoanId: autoPartnerLoanId, lan } =
+      await generateLoanIdentifiers(LENDER_TYPE);
+
+    const partnerLoanId = loanData.partner_loan_id || autoPartnerLoanId;
 
     connection = await db.promise().getConnection();
     await connection.beginTransaction();
@@ -763,6 +836,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
     // ── Dispatch BRE Webhook asynchronously to Client/Partner ────────
     sendCirclePeHouserBREWebhook({
       lan,
+      partner_loan_id: partnerLoanId,
       customer_name: loanData.customer_name,
       loan_amount: loanData.loan_amount,
       status: initialStatus,

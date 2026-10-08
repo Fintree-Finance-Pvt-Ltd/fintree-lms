@@ -18,6 +18,7 @@ const axios = require("axios");
 async function sendCirclePeHouserBREWebhook(params) {
   const {
     lan,
+    partner_loan_id,
     customer_name,
     loan_amount,
     status,
@@ -42,6 +43,7 @@ async function sendCirclePeHouserBREWebhook(params) {
   const payload = {
     event: isApproved ? "LOAN_BRE_APPROVED" : "LOAN_BRE_REJECTED",
     lan,
+    partner_loan_id,
     customer_name,
     loan_amount,
     status,
