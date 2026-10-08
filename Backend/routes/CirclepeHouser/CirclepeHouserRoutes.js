@@ -944,6 +944,17 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
       "net_disbursement",
     );
 
+    if (finalNetDisbursement <= 0) {
+      throw apiError(400, "net_disbursement must be greater than zero");
+    }
+
+    if (finalNetDisbursement > finalLoanAmount) {
+      throw apiError(
+        400,
+        `net_disbursement (${finalNetDisbursement}) cannot be greater than loan_amount (${finalLoanAmount})`,
+      );
+    }
+
     const productType = currentLoan.product || "Monthly Loan";
 
     const NEW_STATUS = "Disburse initiate";
