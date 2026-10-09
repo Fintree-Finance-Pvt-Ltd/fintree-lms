@@ -413,20 +413,22 @@ function startAadhaarCron() {
             OR doc_name = 'OFFLINE_VERIFICATION_OF_AADHAAR'
             OR doc_name = 'AADHAAR_XML_DIGILOCKER'
           )
-          /* 
-             You mentioned you only want this for Rapid Money and later Quick Money.
-             You can add or remove these LAN prefixes below!
-          */
           AND (
             lan LIKE 'RML%'
             OR lan LIKE 'QML%'
           )
+          AND (
+            meta_json IS NULL 
+            OR meta_json NOT LIKE '%"aadhaar_pdf_generated":true%'
+          )
+        ORDER BY id DESC
+        LIMIT 20
       `;
 
       try {
         const [rows] = await db.promise().query(sql);
 
-        console.log(`📌 Total Aadhaar Rows Found: ${rows.length}`);
+        console.log(`📌 Total Aadhaar Rows Found for this batch: ${rows.length}`);
 
         // ======================================================
         // PROCESS EACH ROW, ONE AT A TIME
@@ -435,9 +437,12 @@ function startAadhaarCron() {
         // row while a PDF was still being generated for the last one)
         // ======================================================
 
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+
         for (const row of rows) {
           try {
             await processAadhaarRow(row);
+            await delay(1000); // Wait 1 second between files to let the CPU and Hard Drive breathe
           } catch (e) {
             console.error(
               `❌ Error on Row ID ${row.id}:`,
