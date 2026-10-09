@@ -14,7 +14,7 @@ module.exports = {
       exec_mode: "cluster",
       autorestart: true,
       kill_timeout: 15000,
-      max_memory_restart: "1G",
+      max_memory_restart: "2G",
       env: {
         NODE_ENV: "development",
         PORT: 5000,
@@ -35,7 +35,7 @@ module.exports = {
       instances: 1,
       autorestart: true,
       kill_timeout: 15000,
-      max_memory_restart: "1G",
+      max_memory_restart: "2G",
       env: {
         NODE_ENV: "development",
         PORT: 5009,
@@ -43,7 +43,7 @@ module.exports = {
       },
       env_production: {
         NODE_ENV: "production",
-        PORT: 5001,
+        PORT: 5009,
         RUN_CRONS: "true"
       }
     }
