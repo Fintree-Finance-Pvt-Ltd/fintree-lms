@@ -51,7 +51,7 @@ const {
   autoApproveIfAllVerified,
 } = require("./services/heliumValidationEngine");
 // const {
- 
+
 //   processQuickMoneyDisbursement,
 
 // } = require("./services/processEmiClubDisbursement");
@@ -82,8 +82,8 @@ const { universalRunAllValidations } = require("./utils/runValiationsEngine");
 const {
   sendDisbursementWebhook,
 } = require("./routes/switchMyLoan/switchMyLoanWebhook");
-const{
-  sendQuickMoneyDisbursementWebhook,sendQuickMoneyRejectionWebhook
+const {
+  sendQuickMoneyDisbursementWebhook, sendQuickMoneyRejectionWebhook
 } = require("./routes/QuickMoney/quickMoneyWebhook")
 
 const {
@@ -99,7 +99,7 @@ const quickMoneyRoutes = require("./routes/QuickMoney/quickMoneyRoutes");
 const paymentReceiptRoutes =
   require("./routes/paymentReceipt");
 
-  const carepayBreRoutes = require("./routes/CarePay/carepayBreRoutes");
+const carepayBreRoutes = require("./routes/CarePay/carepayBreRoutes");
 
 // function generateApiKey() {
 //   return crypto.randomBytes(32).toString("hex");
@@ -120,6 +120,11 @@ if (process.env.RUN_CRONS === 'true') {
   require("./jobs/quickMoneyWebhookRetry");
   require("./workers/pdfQueue"); // Load the PDF Queue Worker
 }
+// Daily WhatsApp Disbursement Case Count Report Scheduler
+if (process.env.RUN_CRONS === 'true' || process.env.WHATSAPP_AUTO_ENABLED === 'true') {
+  require("./jobs/whatsappDailyReportScheduler");
+}
+
 
 const fs = require("fs");
 const path = require("path");
@@ -189,7 +194,7 @@ app.use(
 );
 app.use("/api/sampada", require("./routes/Sampada/sampadaDealerRoutes"));
 
-app.use("/api/sabgrow",require("./routes/SabGrow/sabGrowRoute"));
+app.use("/api/sabgrow", require("./routes/SabGrow/sabGrowRoute"));
 
 // app.use(
 //   "/api/omrajpay",
@@ -588,8 +593,8 @@ app.use(
 
 // app.use("/api/courses", courseRoutes);
 app.use("/api/loan", verifyToken, loanRoutes); //  routes chanegd
-app.use("/api/repayments",  repaymentRoutes);
-app.use("/api/collection",  collectionApiRoutes);
+app.use("/api/repayments", repaymentRoutes);
+app.use("/api/collection", collectionApiRoutes);
 app.use("/api/loan-charges", verifyToken, loanChargesRoutes);
 app.use("/api/manual-rps", verifyToken, manualRPSRoutes);
 app.use("/api/disbursal", verifyToken, DisbursalRoutes);
@@ -608,7 +613,7 @@ app.use("/api/customers", verifyToken, require("./routes/Customer/customerRoutes
 app.use("/api/partners", verifyToken, require("./routes/partnerLimitRoutes")); // ✅ Partner Limit Management
 app.use("/api/zebrs", require("./routes/Zebrs/zebrsRoutes")); // ✅ Register Routes for Zebrs
 app.use("/api/carepay", carePayRoutes); // ✅ Register Routes for CarePay Mandate UMRN Update
-app.use("/api/claim-buddy",claimBuddyRoutes); // Claim Buddy
+app.use("/api/claim-buddy", claimBuddyRoutes); // Claim Buddy
 
 app.use(
   "/api/claim-cure-buddy",
@@ -629,7 +634,7 @@ app.use(
   require("./routes/supplyChainRoutes/supplyChainRoutes"),
 ); // ✅ Register Routes for Supply Chain Loans
 
-app.use( "/api/payment-receipts",paymentReceiptRoutes);
+app.use("/api/payment-receipts", paymentReceiptRoutes);
 
 app.use("/api/quick-money", quickMoneyApiAuditMiddleware, quickMoneyRoutes);
 app.post("/api/cibil/:id/pdf", async (req, res) => {

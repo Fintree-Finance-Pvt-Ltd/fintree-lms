@@ -130,10 +130,10 @@ function resolveProcedure(rawReportId, rawLender) {
                                                         ? "sp_pl_fintree_cashflow"
                                                         : lender ===
                                                           "sterlion ubl"
-                                                        ? "sp_cashflow_report_sterlion_ubl"
-                                                        : lender === "ya money"
-                                                          ? "sp_cashflow_report_ya_money"
-                                                        : "sp_cashflow_report",
+                                                          ? "sp_cashflow_report_sterlion_ubl"
+                                                          : lender === "ya money"
+                                                            ? "sp_cashflow_report_ya_money"
+                                                            : "sp_cashflow_report",
 
     "cashflow-report-bank-date": () => "sp_cashflow_report_bank_date",
 
@@ -204,10 +204,10 @@ function resolveProcedure(rawReportId, rawLender) {
                                                             ? "sp_pl_fintree_due_demand"
                                                             : lender ===
                                                               "claimcurebuddy"
-                                                            ? "sp_due_collection_all_report_claim_cure_buddy"
-                                                            : lender === "ya money"
-                                                              ? "sp_due_collection_all_report_ya_money"
-                                                            : "sp_due_collection_all_report",
+                                                              ? "sp_due_collection_all_report_claim_cure_buddy"
+                                                              : lender === "ya money"
+                                                                ? "sp_due_collection_all_report_ya_money"
+                                                                : "sp_due_collection_all_report",
 
     "consolidated-mis": () =>
       lender === "adikosh"
@@ -262,10 +262,10 @@ function resolveProcedure(rawReportId, rawLender) {
                                                         ? "sp_pl_fintree_consolidated_mis"
                                                         : lender ===
                                                           "claimcurebuddy"
-                                                        ? "sp_consolidated_mis_report_claim_cure_buddy"
-                                                        : lender === "ya money"
-                                                          ? "sp_consolidated_mis_report_ya_money"
-                                                        : "sp_consolidated_mis_report",
+                                                          ? "sp_consolidated_mis_report_claim_cure_buddy"
+                                                          : lender === "ya money"
+                                                            ? "sp_consolidated_mis_report_ya_money"
+                                                            : "sp_consolidated_mis_report",
 
     // NEW IRR Report add
     "irr-report": () =>
@@ -1086,6 +1086,166 @@ router.get("/download-template/:product", (req, res) => {
       res.status(500).send("Failed to download template.");
     }
   });
+});
+
+/** ================================================================
+ * WHATSAPP PARTNER-WISE DISBURSED CASE COUNT REPORT ENDPOINT
+ * POST /api/reports/whatsapp/partner-case-count
+ * ================================================================ */
+const jwt = require("jsonwebtoken");
+const {
+  generateAndSendDailyReport,
+  generateAndSendDailyImageReport,
+  getKolkataDateString,
+} = require("../services/whatsappDailyReportService");
+
+function verifyReportAccess(req, res, next) {
+  // Allow if valid internal API key is passed in header or query
+  const apiKey = req.headers["x-api-key"] || req.query.api_key;
+  if (apiKey && process.env.MY_INTERNAL_API_KEY && apiKey === process.env.MY_INTERNAL_API_KEY) {
+    return next();
+  }
+
+  // Otherwise verify JWT token
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "Authorization required. Provide Bearer token or X-API-Key.",
+    });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired authorization token.",
+      });
+    }
+    req.user = decoded;
+    next();
+  });
+}
+
+/**
+ * POST /api/reports/whatsapp/partner-case-count
+ * Generate and dispatch Excel daily report (with optional sendImage: true support)
+ */
+router.post("/whatsapp/partner-case-count", verifyReportAccess, async (req, res) => {
+  try {
+    const rawDate = req.body?.date || req.query?.date;
+    const forceResend = Boolean(
+      req.body?.force ||
+      req.body?.resend ||
+      req.query?.force ||
+      req.query?.resend
+    );
+    const dryRun = Boolean(req.body?.dryRun || req.query?.dryRun);
+    const testMode = Boolean(req.body?.testMode || req.query?.testMode);
+    const sendExcel = Boolean(req.body?.sendExcel || req.query?.sendExcel);
+
+    let targetDate = null;
+    if (rawDate) {
+      targetDate = String(rawDate).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid date format: '${targetDate}'. Expected 'YYYY-MM-DD'.`,
+        });
+      }
+      const parsed = new Date(`${targetDate}T00:00:00Z`);
+      if (isNaN(parsed.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid date value: '${targetDate}'.`,
+        });
+      }
+    } else {
+      targetDate = getKolkataDateString();
+    }
+
+    const reportResult = await generateAndSendDailyReport({
+      date: targetDate,
+      forceResend,
+      dryRun,
+      testMode,
+      sendExcel,
+      triggeredBy: req.user?.id ? `USER_${req.user.id}` : "MANUAL_API",
+    });
+
+    if (reportResult.alreadySent) {
+      return res.status(409).json(reportResult);
+    }
+
+    return res.status(200).json(reportResult);
+  } catch (error) {
+    console.error("[ReportRoutes] Error executing manual WhatsApp report:", error);
+    return res.status(500).json({
+      success: false,
+      date: req.body?.date || getKolkataDateString(),
+      error: error.message || "Failed to generate or send WhatsApp disbursement case count report.",
+    });
+  }
+});
+
+/**
+ * POST /api/reports/whatsapp/partner-disbursement-image
+ * Dedicated endpoint: generate and dispatch the daily partner-wise disbursement case count IMAGE
+ */
+router.post("/whatsapp/partner-disbursement-image", verifyReportAccess, async (req, res) => {
+  try {
+    const rawDate = req.body?.date || req.query?.date;
+    const forceResend = Boolean(
+      req.body?.force ||
+      req.body?.resend ||
+      req.query?.force ||
+      req.query?.resend
+    );
+    const dryRun = Boolean(req.body?.dryRun || req.query?.dryRun);
+    const testMode = Boolean(req.body?.testMode || req.query?.testMode);
+
+    let targetDate = null;
+    if (rawDate) {
+      targetDate = String(rawDate).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid date format: '${targetDate}'. Expected 'YYYY-MM-DD'.`,
+        });
+      }
+      const parsed = new Date(`${targetDate}T00:00:00Z`);
+      if (isNaN(parsed.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid date value: '${targetDate}'.`,
+        });
+      }
+    } else {
+      targetDate = getKolkataDateString();
+    }
+
+    const reportResult = await generateAndSendDailyImageReport({
+      date: targetDate,
+      forceResend,
+      dryRun,
+      testMode,
+      triggeredBy: req.user?.id ? `USER_${req.user.id}` : "MANUAL_API",
+    });
+
+    if (reportResult.alreadySent) {
+      return res.status(409).json(reportResult);
+    }
+
+    return res.status(200).json(reportResult);
+  } catch (error) {
+    console.error("[ReportRoutes] Error executing manual WhatsApp disbursement image report:", error);
+    return res.status(500).json({
+      success: false,
+      date: req.body?.date || getKolkataDateString(),
+      error: error.message || "Failed to generate or send WhatsApp disbursement image report.",
+    });
+  }
 });
 
 module.exports = router;
