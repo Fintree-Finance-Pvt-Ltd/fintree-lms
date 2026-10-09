@@ -671,7 +671,7 @@ router.post("/circle-pe-houser", verifyApiKey, async (req, res) => {
   }
 });
 
-router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
+router.post("/circle-pe/external", verifyApiKey, async (req, res) => {
   let connection;
 
   try {
@@ -881,7 +881,7 @@ router.post("/circle-pe-houser/external", verifyApiKey, async (req, res) => {
     return res.status(201).json({
       success: true,
       code: "LOAN_CREATED",
-      message: `Circle Pe Houser loan processed with BRE status: ${initialStatus}`,
+      message: `Circle Pe loan processed with BRE status: ${initialStatus}`,
       data: {
         id: insertResult.insertId,
         lan,
@@ -980,7 +980,7 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     const [existingRows] = await connection.query(findQuery, findParams);
 
     if (existingRows.length === 0) {
-      throw apiError(404, "Loan record not found in CirclePe Houser");
+      throw apiError(404, "Loan record not found in CirclePe");
     }
 
     const currentLoan = existingRows[0];
@@ -1140,7 +1140,7 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     return res.status(200).json({
       success: true,
       code: "DISBURSEMENT_INITIATED",
-      message: "Circle Pe Houser loan final submission completed successfully.",
+      message: "Circle Pe loan final submission completed successfully.",
       data: {
         lan: targetLan,
         partner_loan_id: currentLoan.partner_loan_id,
@@ -1194,7 +1194,7 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
 
 // Register Final Submit endpoints
 router.post(
-  "/circle-pe-houser/final-submit",
+  "/circle-pe/final-submit",
   verifyApiKey,
   handleCirclePeHouserFinalSubmit,
 );
