@@ -35,7 +35,7 @@ const pdfWorker = new Worker(
   },
   {
     connection,
-    concurrency: 2, // Maximum 2 PDFs generated at the exact same time
+    concurrency: 5, // Maximum 5 PDFs generated at the exact same time
   }
 );
 
