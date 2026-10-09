@@ -407,12 +407,7 @@ function startAadhaarCron() {
           meta_json
         FROM loan_documents
         WHERE
-          (
-            original_name LIKE '%aadhaar%'
-            OR file_name LIKE '%aadhaar%'
-            OR doc_name = 'OFFLINE_VERIFICATION_OF_AADHAAR'
-            OR doc_name = 'AADHAAR_XML_DIGILOCKER'
-          )
+          doc_name IN ('OFFLINE_VERIFICATION_OF_AADHAAR', 'AADHAAR_XML_DIGILOCKER')
           AND (
             lan LIKE 'RML%'
             OR lan LIKE 'QML%'
@@ -421,7 +416,6 @@ function startAadhaarCron() {
             meta_json IS NULL 
             OR meta_json NOT LIKE '%"aadhaar_pdf_generated":true%'
           )
-        ORDER BY id DESC
         LIMIT 20
       `;
 
