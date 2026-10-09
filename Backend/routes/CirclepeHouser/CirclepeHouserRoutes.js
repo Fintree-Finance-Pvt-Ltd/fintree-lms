@@ -109,22 +109,15 @@ function mapRequestBody(body) {
     app_id: firstValue(body, ["app_id", "App_Id", "appId"]),
     partner_loan_id: firstValue(body, ["partner_loan_id"]),
 
-    customer_name: firstValue(body, ["customer_name", "customerName"]),
-
+    customer_name: firstValue(body, ["customer_name"]),
     gender: firstValue(body, ["gender"]),
+    date_of_birth: firstValue(body, ["date_of_birth"]),
+    fathers_name: firstValue(body, ["fathers_name"]),
 
-    date_of_birth: firstValue(body, ["date_of_birth", "dateOfBirth"]),
-
-    fathers_name: firstValue(body, [
-      "fathers_name",
-      "father_name",
-      "fatherName",
-    ]),
-
-    mobile_number: firstValue(body, ["mobile_number", "mobileNumber"]),
-    email_id: firstValue(body, ["email_id", "emailId"]),
-    pan_number: firstValue(body, ["pan_number", "panNumber"]),
-    aadhaar_number: firstValue(body, ["aadhaar_number", "aadhar_number"]),
+    mobile_number: firstValue(body, ["mobile_number"]),
+    email_id: firstValue(body, ["email_id"]),
+    pan_number: firstValue(body, ["pan_number"]),
+    aadhaar_number: firstValue(body, ["aadhaar_number"]),
 
     current_address: firstValue(body, ["current_address"]),
     current_village_city: firstValue(body, ["current_village_city"]),
@@ -374,8 +367,12 @@ function validateExternalCirclePeHouserData(body) {
     data.loan_application_date = new Date().toISOString().split("T")[0];
   }
 
-  // Partner Loan ID (Optional)
-  data.partner_loan_id = cleanString(data.partner_loan_id) || null;
+  // Partner Loan ID (Mandatory)
+  data.partner_loan_id = cleanString(data.partner_loan_id);
+
+  if (!data.partner_loan_id) {
+    throw apiError(400, "partner_loan_id is required");
+  }
 
   // Customer Name
   data.customer_name = cleanString(data.customer_name);
@@ -407,10 +404,14 @@ function validateExternalCirclePeHouserData(body) {
     );
   }
 
-  // Email
+  // Email (Mandatory)
   data.email_id = cleanString(data.email_id).toLowerCase();
 
-  if (data.email_id && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email_id)) {
+  if (!data.email_id) {
+    throw apiError(400, "email_id is required");
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email_id)) {
     throw apiError(400, "email_id is invalid");
   }
 
@@ -431,7 +432,7 @@ function validateExternalCirclePeHouserData(body) {
     );
   }
 
-  // Current Address Details
+  // Current Address Details (Mandatory)
   data.current_address = cleanString(
     data.current_address || data.current_address_line1,
   );
@@ -1139,9 +1140,7 @@ async function handleCirclePeHouserFinalSubmit(req, res) {
     return res.status(200).json({
       success: true,
       code: "DISBURSEMENT_INITIATED",
-      message:
-        "Circle Pe Houser loan final submission completed successfully. Status is now Disburse initiate.",
-
+      message: "Circle Pe Houser loan final submission completed successfully.",
       data: {
         lan: targetLan,
         partner_loan_id: currentLoan.partner_loan_id,
